@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useId, useState} from "react";
 import {
   ArrowRight,
   Check,
   ChevronDown,
+  ChevronRight,
   Clock,
   RefreshCw,
   Sparkles,
@@ -50,6 +52,10 @@ import {
 } from "@/app/_components/skill-ui/ActionPlan";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+
+/** Intertitre du rappel de fin d'écran : quelle compétence ce sujet
+ *  travaillait. Miroir mot pour mot de `kSkillWorkedTitle` côté mobile. */
+const SKILL_WORKED_TITLE = "Compétence travaillée";
 
 const POLL_MS = 3000;
 /**
@@ -274,6 +280,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
         title={prompt?.title ?? "Résultat"}
         meta={prompt ? `${prompt.skillTitle} · ${config.label}` : config.label}
+        wide
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -317,129 +324,165 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
               </div>
             </div>
 
-            {view === "PENDING" ? (
-              <div className={s.pending}>
-                <div className={s.spinner} />
-                <p className={s.pendingText}>
-                  {attempt.statut === "TRANSCRIBING"
-                    ? "Transcription de ton enregistrement…"
-                    : "Analyse de ta réponse…"}
-                </p>
-              </div>
-            ) : analysis ? (
-              <AnalysisView analysis={analysis} niveauVisePending={niveauVisePending} />
-            ) : (
-              <AnalysisBanner
-                view={view}
-                errorMessage={attempt.errorMessage}
-                busy={retrying}
-                onRetry={() => void retry()}
-                onUnlock={() => setPaywallOpen(true)}
-                onRequest={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
-              />
-            )}
-
-            {/* La production passe **après** le retour et s'ouvre repliée : elle
-                n'est plus ce qu'on vient lire, mais elle reste à un clic — à
-                l'oral pour se réécouter, à l'écrit pour se relire. */}
-            <section className={s.refSection}>
-              <button
-                type="button"
-                className={s.refToggle}
-                aria-expanded={prodOpen}
-                aria-controls={prodPanelId}
-                onClick={() => setProdOpen((o) => !o)}
-              >
-                <span className={s.refToggleBody}>
-                  <span className={s.refToggleTitle}>Ta production</span>
-                </span>
-                <span className={s.refToggleAction}>
-                  {prodOpen ? "Masquer" : "Afficher"}
-                  <ChevronDown
-                    size={15}
-                    strokeWidth={2.4}
-                    aria-hidden
-                    className={`${s.refChevron} ${prodOpen ? s.refChevronOpen : ""}`}
-                  />
-                </span>
-              </button>
-
-              {prodOpen && (
-                <div id={prodPanelId} className={s.answerBox}>
-                  {/* Intitulé + mesure en tête de carte, comme `_ProductionCard`
-                      côté mobile : la durée ou le nombre de mots se lisent avec
-                      la production, pas relégués sous elle. */}
-                  <div className={s.prodHead}>
-                    <span className={s.prodEyebrow}>TA PRODUCTION</span>
-                    {attempt.audioDurationSec != null ? (
-                      <span className={s.chip}>
-                        <Clock size={11} strokeWidth={2.4} aria-hidden />
-                        {formatDurationSec(attempt.audioDurationSec)}
-                      </span>
-                    ) : attempt.wordsCount != null ? (
-                      <span className={s.chip}>
-                        {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
-                      </span>
-                    ) : null}
-                  </div>
-                  {/* Pas de lecteur : l'enregistrement n'est pas conservé (il
-                      sert à produire la transcription, puis il disparaît). Ce
-                      qu'on rend d'une production orale, c'est son texte — la
-                      réécoute existe avant l'envoi, dans `EoRecordingForm`. */}
-                  {attempt.writtenProduction && (
-                    <p className={s.prodText}>{attempt.writtenProduction}</p>
-                  )}
-                  {attempt.transcript && (
-                    <>
-                      <span className={s.transcriptLabel}>Transcription</span>
-                      <p className={s.prodText}>{attempt.transcript}</p>
-                    </>
-                  )}
-                  {/* À l'oral sans transcription, ce n'est pas une production
-                      « indisponible » : elle est bien enregistrée, c'est la
-                      transcription qui n'est produite qu'avec une analyse (on ne
-                      paie pas Whisper pour rien). Phrase reprise mot pour mot du
-                      mobile — l'ancienne laissait croire à une perte. */}
-                  {!attempt.writtenProduction && !attempt.transcript && (
-                    <p className={s.prodEmpty}>
-                      {config.mode === "audio"
-                        ? "Ta réponse orale est enregistrée. La transcription n'est produite que lorsqu'une analyse IA est demandée."
-                        : "Aucune réponse enregistrée."}
+            {/* Deux colonnes au-delà de 1024 px, comme la maquette : la
+                restitution à gauche, et à droite ce qui l'accompagne sans jamais
+                la concurrencer — la compétence travaillée, et ce que la
+                production déclenche. En dessous de 1024 px, une seule colonne :
+                la colonne latérale reprend sa place dans le flux, en pied
+                d'écran, et l'ordre de lecture reste celui du DOM. */}
+            <div className={s.resultGrid}>
+              <div className={s.resultMain}>
+                {view === "PENDING" ? (
+                  <div className={s.pending}>
+                    <div className={s.spinner} />
+                    <p className={s.pendingText}>
+                      {attempt.statut === "TRANSCRIBING"
+                        ? "Transcription de ton enregistrement…"
+                        : "Analyse de ta réponse…"}
                     </p>
+                  </div>
+                ) : analysis ? (
+                  <AnalysisView analysis={analysis} niveauVisePending={niveauVisePending} />
+                ) : (
+                  <AnalysisBanner
+                    view={view}
+                    errorMessage={attempt.errorMessage}
+                    busy={retrying}
+                    onRetry={() => void retry()}
+                    onUnlock={() => setPaywallOpen(true)}
+                    onRequest={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
+                  />
+                )}
+
+                {/* La production passe **après** le retour et s'ouvre repliée : elle
+                    n'est plus ce qu'on vient lire, mais elle reste à un clic — à
+                    l'oral pour se réécouter, à l'écrit pour se relire. */}
+                <section className={s.refSection}>
+                  <button
+                    type="button"
+                    className={s.refToggle}
+                    aria-expanded={prodOpen}
+                    aria-controls={prodPanelId}
+                    onClick={() => setProdOpen((o) => !o)}
+                  >
+                    <span className={s.refToggleBody}>
+                      <span className={s.refToggleTitle}>Ta production</span>
+                    </span>
+                    <span className={s.refToggleAction}>
+                      {prodOpen ? "Masquer" : "Afficher"}
+                      <ChevronDown
+                        size={15}
+                        strokeWidth={2.4}
+                        aria-hidden
+                        className={`${s.refChevron} ${prodOpen ? s.refChevronOpen : ""}`}
+                      />
+                    </span>
+                  </button>
+
+                  {prodOpen && (
+                    <div id={prodPanelId} className={s.answerBox}>
+                      {/* Intitulé + mesure en tête de carte, comme `_ProductionCard`
+                          côté mobile : la durée ou le nombre de mots se lisent avec
+                          la production, pas relégués sous elle. */}
+                      <div className={s.prodHead}>
+                        <span className={s.prodEyebrow}>TA PRODUCTION</span>
+                        {attempt.audioDurationSec != null ? (
+                          <span className={s.chip}>
+                            <Clock size={11} strokeWidth={2.4} aria-hidden />
+                            {formatDurationSec(attempt.audioDurationSec)}
+                          </span>
+                        ) : attempt.wordsCount != null ? (
+                          <span className={s.chip}>
+                            {attempt.wordsCount} mot{attempt.wordsCount > 1 ? "s" : ""}
+                          </span>
+                        ) : null}
+                      </div>
+                      {/* Pas de lecteur : l'enregistrement n'est pas conservé (il
+                          sert à produire la transcription, puis il disparaît). Ce
+                          qu'on rend d'une production orale, c'est son texte — la
+                          réécoute existe avant l'envoi, dans `EoRecordingForm`. */}
+                      {attempt.writtenProduction && (
+                        <p className={s.prodText}>{attempt.writtenProduction}</p>
+                      )}
+                      {attempt.transcript && (
+                        <>
+                          <span className={s.transcriptLabel}>Transcription</span>
+                          <p className={s.prodText}>{attempt.transcript}</p>
+                        </>
+                      )}
+                      {/* À l'oral sans transcription, ce n'est pas une production
+                          « indisponible » : elle est bien enregistrée, c'est la
+                          transcription qui n'est produite qu'avec une analyse (on ne
+                          paie pas Whisper pour rien). Phrase reprise mot pour mot du
+                          mobile — l'ancienne laissait croire à une perte. */}
+                      {!attempt.writtenProduction && !attempt.transcript && (
+                        <p className={s.prodEmpty}>
+                          {config.mode === "audio"
+                            ? "Ta réponse orale est enregistrée. La transcription n'est produite que lorsqu'une analyse IA est demandée."
+                            : "Aucune réponse enregistrée."}
+                        </p>
+                      )}
+                    </div>
                   )}
+                </section>
+
+                <CompetenceReferences
+                  references={references}
+                  defaultOpen={referencesOpenByDefault(view)}
+                />
+
+                <div className={s.actions}>
+                  <button
+                    type="button"
+                    className={`btn btn-ghost ${s.actionWide}`}
+                    disabled={!nextId}
+                    title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
+                    onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
+                  >
+                    Sujet suivant
+                    <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${s.actionWide}`}
+                    onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
+                  >
+                    <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
+                    S&apos;entraîner sur ce point
+                  </button>
                 </div>
+              </div>
+
+              {/* Colonne latérale. Elle n'apparaît qu'une fois le sujet chargé :
+                  on ne fabrique pas une carte « compétence travaillée » sans
+                  savoir laquelle. Elle ne porte **aucune action de production** —
+                  seulement le repère et un lien de retour vers la compétence. */}
+              {prompt && (
+                <aside className={s.resultAside}>
+                  <div className={s.asideCard}>
+                    <span className={s.asideEyebrow}>{SKILL_WORKED_TITLE}</span>
+                    <p className={s.asideTitle}>{prompt.skillTitle}</p>
+                    <p className={s.asideMeta}>{prompt.taskTitle ?? config.label}</p>
+                    <Link href={skillHref} className={s.asideLink}>
+                      Voir cette compétence
+                      <ChevronRight size={15} strokeWidth={2.4} aria-hidden />
+                    </Link>
+                  </div>
+                  {/* Ce que la production déclenche réellement côté serveur : les
+                      observations alimentent le moteur de maîtrise, donc le Plan.
+                      Distinct de la mention d'estimation, qui vit dans le bandeau
+                      et parle du palier affiché. */}
+                  <p className={s.asideNote}>
+                    Ta production alimente ton plan personnalisé : la priorité du
+                    moment et l&apos;exercice conseillé en tiennent compte.
+                  </p>
+                </aside>
               )}
-            </section>
-
-            <CompetenceReferences
-              references={references}
-              defaultOpen={referencesOpenByDefault(view)}
-            />
-
-            <div className={s.actions}>
-              <button
-                type="button"
-                className={`btn btn-ghost ${s.actionWide}`}
-                disabled={!nextId}
-                title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
-                onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
-              >
-                Sujet suivant
-                <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={`btn ${s.actionWide}`}
-                onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
-              >
-                <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
-                S&apos;entraîner sur ce point
-              </button>
             </div>
           </section>
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="competence_resultat"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

@@ -22,11 +22,19 @@ import jakarta.validation.constraints.Size;
  * refusée en 400 par la désérialisation — jamais persistée, jamais ignorée en
  * silence : c'est ce silence (le champ n'existait pas côté serveur) qui a créé
  * des comptes sans objectif alors que le candidat en avait choisi un.
+ *
+ * <p><b>{@code anonymousId} est FACULTATIF</b> : c'est l'identifiant de mesure
+ * d'audience du visiteur, envoyé pour rattacher son parcours <i>avant</i>
+ * compte au compte qui vient de naître (cf.
+ * {@code AnalyticsIdentityService}). Absent — navigation privée, stockage
+ * bloqué, client qui ne l'envoie pas encore —, on ne fait rien : une mesure
+ * d'audience ne conditionne jamais l'accès à son propre compte.
  */
 public record RegisterRequest(
         @NotBlank @Email String email,
         @NotBlank @Size(min = 8, message = "Le mot de passe doit faire au moins 8 caractères") String password,
         @NotBlank String firstName,
         @NotBlank String lastName,
-        TargetProcedure targetProcedure
+        TargetProcedure targetProcedure,
+        String anonymousId
 ) {}

@@ -12,6 +12,7 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
+import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
 import com.sejourfr.app.util.ClientContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -52,6 +53,7 @@ public class AuthService {
     private final MailService mailService;
     private final MeService meService;
     private final PasswordEncoder passwordEncoder;
+    private final AnalyticsIdentityService analyticsIdentityService;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -71,6 +73,12 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Identifiants invalides"));
 
         u.setLastLoginAt(Instant.now());
+        // Rattache le parcours anonyme de cet appareil au compte. Posé à CHAQUE
+        // connexion et pas seulement à l'inscription : un visiteur peut avoir
+        // parcouru le site longtemps avant, sur un appareil qu'il n'utilisait
+        // pas le jour de la création. Idempotent, et best-effort — une mesure
+        // d'audience n'a jamais le droit d'empêcher quelqu'un de se connecter.
+        analyticsIdentityService.link(req.anonymousId(), u.getId());
         return buildTokenResponse(u, userAgent, ipAddress);
     }
 
@@ -144,7 +152,11 @@ public class AuthService {
 
         mailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
 
-        return login(new LoginRequest(email, req.password()), userAgent, ipAddress);
+        // Le lien anonyme -> compte est posé par le login enchaîné ci-dessous :
+        // on lui repasse l'anonymousId reçu ici. Un seul point d'écriture, donc
+        // aucun risque qu'inscription et connexion divergent.
+        return login(new LoginRequest(email, req.password(), req.anonymousId()),
+                userAgent, ipAddress);
     }
 
     // ------------------------------------------------------------------------

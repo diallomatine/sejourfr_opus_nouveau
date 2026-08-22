@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.SituationDansNiveau;
 
 import java.math.BigDecimal;
@@ -40,6 +41,14 @@ import java.util.Map;
  * {@code commentaire}, {@code preuve}), {@code points_forts[]},
  * {@code points_a_ameliorer[]} (2 max), {@code avertissements[]}. Tous ces champs
  * sont facultatifs cote front : une evaluation v3 en base n'en porte qu'une partie.
+ *
+ * <p><b>Absent d'une production NON EVALUABLE</b> : {@code scores_criteres[]}.
+ * Une production jugee inexploitable par les controles deterministes
+ * ({@link #evaluabilite} = {@code NON_EVALUABLE}) n'a rien fait observer, donc
+ * n'affirme rien — elle en portait quatre a {@code note_sur_20: 0} jusqu'au
+ * 2026-08-21. Un front lit {@code evaluabilite} pour savoir quoi dire, et ne
+ * suppose jamais le champ present. <b>Les evaluations anterieures le
+ * conservent</b> : rien n'est migre.
  *
  * <p><b>Champs RETIRES par le contrat v9</b> (rubriques v15) : {@code suggestions[]}
  * et {@code exemples_corriges[]}. Ils n'etaient affiches que dans le bloc replie
@@ -105,6 +114,14 @@ import java.util.Map;
  * second appel LLM en echec. Absent sur les evaluations anterieures ; present a
  * l'oral aussi depuis le contrat v2.
  *
+ * <p><b>Une production INEXPLOITABLE ne porte aucun verdict</b> (2026-08-21) :
+ * vide, quasi vide, langue non francaise ou recopiage de la consigne, elle
+ * n'appelle aucun correcteur et sort avec {@link #evaluabilite} a
+ * {@code NON_EVALUABLE}, {@link #noteSurVingt} et {@link #niveauObserve} a
+ * {@code null}. Elle portait auparavant 0/20 et {@code A1_NON_ATTEINT} — une
+ * absence de preuve enregistree comme la preuve du niveau le plus faible, que
+ * {@code TcfProfileService} lisait ensuite comme le niveau EE/EO du candidat.
+ *
  * <p><b>La note /20 n'est plus affichee sur une tache isolee</b> — decision
  * produit : au TCF, un correcteur attribue un NIVEAU par tache, la note ne porte
  * que sur l'epreuve entiere. {@link #noteSurVingt} reste calculee, persistee et
@@ -113,6 +130,20 @@ import java.util.Map;
  * progression a l'interieur du palier.
  */
 public record EvaluationResultDto(
+        /**
+         * La production a-t-elle pu etre OBSERVEE ? Jamais {@code null} —
+         * {@code EVALUABLE} sur toutes les evaluations anterieures a V041.
+         *
+         * <p>⚠️ <b>Trois etats, pas deux.</b> {@code evaluation} entierement
+         * absente (cote {@code ProductionSubmissionDto}) = « pas encore
+         * evaluee ». Presente avec {@code NON_EVALUABLE} = « rendue, mais il
+         * n'y avait rien a observer » : {@link #noteSurVingt},
+         * {@link #niveauObserve} et {@link #situationDansNiveau} valent alors
+         * {@code null}, et {@code feedback.avertissements} dit pourquoi. Les
+         * deux ne se disent pas pareil au candidat, mais la phrase appartient
+         * aux fronts : le serveur n'expose ici qu'un fait.
+         */
+        ProductionEvaluabilite evaluabilite,
         BigDecimal noteSurVingt,
         /** Niveau observe SUR CETTE TACHE. Null si la confiance est inconnue (eval pre-v2). */
         NiveauCecrl niveauObserve,

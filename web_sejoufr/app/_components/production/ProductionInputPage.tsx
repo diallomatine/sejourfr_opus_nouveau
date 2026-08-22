@@ -296,7 +296,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           />
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="production_saisie"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

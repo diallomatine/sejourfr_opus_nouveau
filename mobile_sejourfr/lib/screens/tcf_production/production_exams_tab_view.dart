@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
@@ -22,7 +23,7 @@ import 'widgets/exam_filter_chips.dart';
 import 'widgets/exam_slot/exam_slot_card.dart';
 import 'widgets/exams_error_view.dart';
 import 'widgets/production_exam_done_result.dart';
-import 'widgets/production_parcours_top.dart';
+import 'widgets/production_exam_trail.dart';
 
 /// Identité des sessions d'examen d'une épreuve, sous forme comparable.
 ///
@@ -138,10 +139,9 @@ ExamSlotPill _difficultyPill(_ExamDifficulty d) {
 /// Mode « Examens blancs » du parcours EE/EO : stats + barre de progression +
 /// chips de filtre + liste des 10 slots numérotés.
 ///
-/// Corps seul — l'en-tête, la tête commune du parcours et le voile d'attente
-/// sont portés par [ProductionParcoursScreen], qui garde les trois modes montés
-/// côte à côte. C'est ce qui fait qu'y revenir ne recharge rien et ne perd pas
-/// le défilement.
+/// Corps seul — l'en-tête et le voile d'attente sont portés par
+/// [ProductionExamsScreen]. Le catalogue et les bilans restent en cache : y
+/// revenir ne recharge rien.
 class ProductionExamsTabView extends ConsumerStatefulWidget {
   const ProductionExamsTabView({
     super.key,
@@ -152,13 +152,13 @@ class ProductionExamsTabView extends ConsumerStatefulWidget {
 
   final TcfProductionModule module;
 
-  /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours,
-  /// sinon on peut changer de mode pendant le démarrage d'un examen.
+  /// Remonte l'attente à l'écran : le voile doit couvrir l'en-tête, sinon on
+  /// peut naviguer pendant le démarrage d'un examen.
   final ValueChanged<bool> onBusy;
 
-  /// Tête commune du parcours. La grille des examens est portée par l'épreuve
-  /// entière : elle ne rend **pas** le sélecteur de tâche.
-  final List<Widget> Function({required bool withTaskPicker}) top;
+  /// Widgets rendus en tête de la grille. Vide sur l'écran des examens blancs,
+  /// qui porte tout son contexte dans son en-tête.
+  final List<Widget> top;
 
   @override
   ConsumerState<ProductionExamsTabView> createState() =>
@@ -190,7 +190,11 @@ class _ProductionExamsTabViewState
       return;
     }
     if (_isLocked(slot)) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     _openBriefing(slot);
@@ -198,7 +202,11 @@ class _ProductionExamsTabViewState
 
   void _onSlotAction({required int slot, required ExamSession? exam}) {
     if (_isLocked(slot)) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     _openBriefing(slot);
@@ -206,7 +214,11 @@ class _ProductionExamsTabViewState
 
   void _openBriefing(int slot) {
     if (!_isPremium()) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     showProductionExamBriefingSheet(
@@ -247,9 +259,6 @@ class _ProductionExamsTabViewState
 
   @override
   Widget build(BuildContext context) {
-    // La tête du parcours porte la barre des trois modes : elle est rendue
-    // **quel que soit l'état** de la grille, sinon une erreur de chargement
-    // enfermerait le candidat dans ce mode.
     final content = ref.watch(expressionHubProvider(widget.module.epreuve)).when(
           // Le catalogue est en cache : un rechargement (retour d'un examen)
           // garde la grille à l'écran au lieu de la remplacer par un spinner.
@@ -281,7 +290,7 @@ class _ProductionExamsTabViewState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          ...widget.top(withTaskPicker: false),
+          ...widget.top,
           ...content,
         ],
       ),
@@ -312,9 +321,6 @@ class _ProductionExamsTabViewState
     final todoCount = kProductionExamSlots - doneCount - lockedTodo;
 
     return [
-      // Le score moyen et le décompte d'examens vivent désormais dans le héros
-      // du parcours : les répéter ici en cartes de statistiques disait deux
-      // fois la même chose à deux endroits de la même page.
       ProductionExamTrail(
         done: doneCount,
         total: kProductionExamSlots,

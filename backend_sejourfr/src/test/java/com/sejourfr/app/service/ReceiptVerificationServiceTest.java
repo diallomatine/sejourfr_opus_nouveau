@@ -50,7 +50,9 @@ class ReceiptVerificationServiceTest {
                 .thenReturn(new RealtimeQuotaService.Quota(null, 10, 4));
         service = new ReceiptVerificationService(
                 appleSubscriptionService, googleSubscriptionService, subscriptionService,
-                realtimeQuotaService);
+                realtimeQuotaService,
+                new com.sejourfr.app.service.billing.MontantEncaisseResolver(
+                        new com.sejourfr.app.config.AnalyticsProperties()));
     }
 
     private UserSubscription premiumSub() {
@@ -68,11 +70,15 @@ class ReceiptVerificationServiceTest {
     void apple_delegue_puisRenvoieStatutPremium() {
         when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(premiumSub()));
         VerifyReceiptRequest req = new VerifyReceiptRequest(
-                SubscriptionSource.APPLE, "jws-receipt", "integral_monthly");
+                SubscriptionSource.APPLE, "jws-receipt", "integral_monthly", null, null);
 
         SubscriptionStatusResponse res = service.verify(userId, req);
 
-        verify(appleSubscriptionService).activateFromReceipt(userId, "integral_monthly", "jws-receipt");
+        verify(appleSubscriptionService).activateFromReceipt(
+                org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.eq("integral_monthly"),
+                org.mockito.ArgumentMatchers.eq("jws-receipt"),
+                org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(googleSubscriptionService);
         assertThat(res.isPremium()).isTrue();
         assertThat(res.source()).isEqualTo(SubscriptionSource.APPLE);
@@ -84,11 +90,15 @@ class ReceiptVerificationServiceTest {
     void google_delegue_etRenvoieNotPremiumSiAucunAbo() {
         when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
         VerifyReceiptRequest req = new VerifyReceiptRequest(
-                SubscriptionSource.GOOGLE, "purchase-token", "civique_monthly");
+                SubscriptionSource.GOOGLE, "purchase-token", "civique_monthly", null, null);
 
         SubscriptionStatusResponse res = service.verify(userId, req);
 
-        verify(googleSubscriptionService).activateFromReceipt(userId, "civique_monthly", "purchase-token");
+        verify(googleSubscriptionService).activateFromReceipt(
+                org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.eq("civique_monthly"),
+                org.mockito.ArgumentMatchers.eq("purchase-token"),
+                org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(appleSubscriptionService);
         assertThat(res.isPremium()).isFalse();
         assertThat(res.moduleAccess()).isEqualTo(ModuleAccess.NONE);
@@ -97,7 +107,7 @@ class ReceiptVerificationServiceTest {
     @Test
     void stripe_rejete400_sansToucherLesServicesStore() {
         VerifyReceiptRequest req = new VerifyReceiptRequest(
-                SubscriptionSource.STRIPE, "x", "y");
+                SubscriptionSource.STRIPE, "x", "y", null, null);
 
         assertThatThrownBy(() -> service.verify(userId, req))
                 .isInstanceOf(ResponseStatusException.class)

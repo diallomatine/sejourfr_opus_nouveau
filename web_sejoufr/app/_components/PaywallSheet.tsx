@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
 
@@ -16,6 +17,14 @@ interface PaywallSheetProps {
    * la page de paiement.
    */
   module?: "CIVIQUE" | "INTEGRAL";
+  /**
+   * D'où le verrou a été rencontré. C'est ce qui alimente la table « Quel écran
+   * déclenche l'achat ? » : sans lui, tous les cadenas du produit se
+   * confondraient en une seule ligne « Autre ».
+   */
+  ctaLocation?: AnalyticsCtaLocation;
+  /** Écran précis, quand il apporte plus que l'emplacement. */
+  screen?: string;
 }
 
 /**
@@ -29,6 +38,8 @@ export function PaywallSheet({
   title = "Continuez en illimité",
   message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, l'entraînement illimité, et la révision des erreurs.",
   module = "CIVIQUE",
+  ctaLocation = "OTHER",
+  screen,
 }: PaywallSheetProps) {
   // Une feuille de paywall ouverte, c'est un écran Premium vu : l'étape de
   // funnel est la même que sur `/paiement`. Idempotente côté serveur, et
@@ -107,7 +118,10 @@ export function PaywallSheet({
         <Link
           href={paymentHref}
           className="btn btn-red btn-lg pws-cta"
-          onClick={onClose}
+          onClick={() => {
+            track("PREMIUM_CTA_CLICKED", {ctaLocation, screen});
+            onClose();
+          }}
         >
           Voir les abonnements →
         </Link>

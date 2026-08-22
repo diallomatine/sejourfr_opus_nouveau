@@ -7,6 +7,7 @@ import 'criteria_overview.dart';
 import 'evaluation_notice.dart';
 import 'plan_change_line.dart';
 import 'production_action_plan.dart';
+import 'production_non_evaluable_card.dart';
 import 'production_text_card.dart';
 import 'results_hero.dart';
 import 'results_summary_tiles.dart';
@@ -79,6 +80,19 @@ const String kOralEvaluationLimitNotice =
 /// resoumis, meme note, meme niveau). Le champ reste servi par l'API et decode
 /// dans `production_models.dart`, aucun widget ne le lit.
 ///
+/// ⚠️ **Cas a part, traite AVANT les quatre sections : la production NON
+/// EVALUABLE** (`ProductionEvaluabilite.nonEvaluable`). Rendue, mais rien a
+/// observer — vide ou quasi vide, langue non francaise, consigne recopiee. Le
+/// serveur n'y persiste plus ni note, ni niveau, ni `scores_criteres` : le
+/// rapport normal n'aurait donc qu'un bandeau « Niveau indisponible » et un bloc
+/// de criteres vide a montrer, sans jamais dire au candidat ce qui s'est passe.
+/// [ProductionNonEvaluableCard] remplace **tout le rapport**, suivie de la seule
+/// chose qui garde du sens : sa production. Sans reproche — une absence de
+/// preuve n'est pas la preuve d'un niveau.
+///
+/// 🛑 **Trois etats, pas deux** : `submission.evaluation == null` (« pas encore
+/// evaluee ») est gere par les ecrans appelants, pas ici.
+///
 /// Chaque bloc est optionnel : une evaluation ancienne n'expose ni objectif, ni
 /// niveau, ni accomplissement — les blocs concernes disparaissent et l'ecran
 /// reste coherent.
@@ -130,6 +144,14 @@ class EvaluationReport extends StatelessWidget {
     return isOral ? const [kOralEvaluationLimitNotice] : const [];
   }
 
+  /// Pourquoi la production n'a pas pu etre observee. Le serveur les ecrit POUR
+  /// LE CANDIDAT (`confiance_raisons`) ; `avertissements` les reprend, precedes
+  /// des notes de service — d'ou l'ordre de lecture.
+  List<String> get _raisonsNonEvaluable {
+    final raisons = evaluation.feedback.confianceRaisons;
+    return raisons.isNotEmpty ? raisons : evaluation.feedback.avertissements;
+  }
+
   @override
   Widget build(BuildContext context) {
     final feedback = evaluation.feedback;
@@ -137,6 +159,29 @@ class EvaluationReport extends StatelessWidget {
     final accomplissement = feedback.accomplissement;
 
     final production = productionText;
+
+    // Rendue, mais RIEN a observer : ni note, ni niveau, ni critere — le
+    // serveur n'en persiste plus aucun, et le rapport normal n'aurait plus que
+    // des trous a montrer (un bandeau « Niveau indisponible » et un bloc de
+    // criteres vide, sans un mot d'explication). On dit le fait, on donne les
+    // raisons du serveur, et on rend sa production au candidat. Sans reproche :
+    // une absence de preuve n'est pas la preuve d'un niveau.
+    if (evaluation.estNonEvaluable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProductionNonEvaluableCard(
+            eyebrow: eyebrow,
+            raisons: _raisonsNonEvaluable,
+          ),
+          if (production != null && production.isNotEmpty) ...[
+            const ResultsSectionHead(title: 'Votre rédaction'),
+            const SizedBox(height: 8),
+            ProductionTextCard(texte: production),
+          ],
+        ],
+      );
+    }
     // Le plan d'action est servi a l'ecrit COMME a l'oral depuis le contrat
     // v2 : ce qui change, c'est sa forme (version plus aboutie vs
     // reformulations), et c'est le bloc lui-meme qui la porte — pas un `isOral`

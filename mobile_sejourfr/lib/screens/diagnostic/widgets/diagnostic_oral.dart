@@ -151,28 +151,31 @@ class _RecorderCard extends StatelessWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 180),
         child: switch (recording.phase) {
-          RecordingPhase.recording || RecordingPhase.paused => Semantics(
+          // ⚠️ Plus de `liveRegion` portant le chrono ici : son texte changeait
+          // à chaque seconde, donc le lecteur d'écran relisait la phrase
+          // entière en boucle. L'état est annoncé une fois par la pastille
+          // (libellé constant), le temps est lisible sur le cadran.
+          RecordingPhase.recording || RecordingPhase.paused => Column(
               key: const ValueKey('recording'),
-              liveRegion: true,
-              label: 'Enregistrement en cours, ${_format(recording.elapsed)}',
-              child: Column(
-                children: [
-                  const RecordingPill(
-                    color: AppColors.red,
-                    background: AppColors.redLight,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${_format(recording.elapsed)} / ${_format(Duration(seconds: maxSeconds))}',
-                    style: AppFonts.display(size: 26),
-                  ),
-                  RecordingWaveform(
-                    amplitude: recording.lastAmplitude,
-                    color: AppColors.blue,
-                  ),
-                  _VoiceHint(amplitude: recording.lastAmplitude),
-                ],
-              ),
+              children: [
+                const RecordingPill(
+                  color: AppColors.red,
+                  background: AppColors.redLight,
+                ),
+                const SizedBox(height: 14),
+                RecordingGauge(
+                  elapsed: recording.elapsed,
+                  total: Duration(seconds: maxSeconds),
+                  timeLabel: _format(recording.elapsed),
+                  sub: '/ ${_format(Duration(seconds: maxSeconds))}',
+                ),
+                const SizedBox(height: 4),
+                RecordingWaveform(
+                  amplitude: recording.lastAmplitude,
+                  color: AppColors.blue,
+                ),
+                _VoiceHint(amplitude: recording.lastAmplitude),
+              ],
             ),
           RecordingPhase.finished when recording.filePath != null => Column(
               key: const ValueKey('finished'),

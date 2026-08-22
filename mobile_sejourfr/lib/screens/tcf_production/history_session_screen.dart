@@ -407,6 +407,11 @@ class _Body extends StatelessWidget {
                     niveau: tacheNiveau(slots[i].submission?.evaluation),
                     evaluated: slots[i].submission?.statut ==
                         SubmissionStatut.evaluated,
+                    nonEvaluable: slots[i]
+                            .submission
+                            ?.evaluation
+                            ?.estNonEvaluable ??
+                        false,
                     pending: slots[i].submission != null &&
                         !slots[i].submission!.statut.isFinal,
                     notRendered: slots[i].submission == null,

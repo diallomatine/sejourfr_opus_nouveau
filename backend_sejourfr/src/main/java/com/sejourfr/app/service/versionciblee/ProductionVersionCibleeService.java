@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AiEvaluationManager;
@@ -53,6 +54,9 @@ import java.util.UUID;
  * <p><b>Quand ça ne produit rien</b>, et c'est normal :
  * <ul>
  *   <li>coupe-circuit {@code version-ciblee.enabled=false} ;</li>
+ *   <li><b>production INEXPLOITABLE</b> ({@code ai_evaluations.evaluabilite =
+ *       NON_EVALUABLE}) : aucun appel n'est emis. Il n'y a pas de production a
+ *       reecrire, et pas davantage de niveau constate a depasser ;</li>
  *   <li>épreuve ORALE sous un contrat qui ne l'ouvre pas
  *       ({@link VersionCibleeContrat#oral()}, faux en v1) ;</li>
  *   <li>niveau visé <b>inférieur ou égal</b> au niveau constaté : il n'y a rien
@@ -162,6 +166,19 @@ public class ProductionVersionCibleeService {
 
         AiEvaluation eval = aiEvaluationManager.findLatestBySubmissionId(submissionId).orElse(null);
         if (eval == null || eval.getFeedbackJson() == null) return;
+        // PRODUCTION INEXPLOITABLE : rien n'a ete observe, donc il n'y a pas de
+        // chemin a montrer et surtout rien a partir de quoi le montrer. Sans ce
+        // garde, `aQuelqueChoseAViser(null, vise)` rend true et on PAYERAIT un
+        // appel pour reecrire une production vide au palier vise. Meme doctrine
+        // que le garde deterministe d'AiEvaluationService et que la
+        // transcription degradee ci-dessous : quand il n'y a rien a observer, on
+        // n'appelle pas le modele. On ne pose pas non plus `niveau_vise_atteint`
+        // — ce serait annoncer une victoire a qui n'a rien rendu.
+        if (eval.getEvaluabilite() == ProductionEvaluabilite.NON_EVALUABLE) {
+            log.info("Version au niveau vise sans objet submission={} : production inexploitable, "
+                + "aucun appel emis.", submissionId);
+            return;
+        }
 
         NiveauCecrl constate = eval.getNiveauCecrl();
         TargetLevel vise = niveauVise(sub, task);

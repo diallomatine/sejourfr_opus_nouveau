@@ -129,8 +129,10 @@ void main() {
         expect(find.text("Ce qu'il faut faire"), findsOneWidget,
             reason: '$section : pas de check-list');
         expect(find.text('Saluez votre voisine'), findsOneWidget);
-        expect(find.text('Situation'), findsOneWidget,
-            reason: '$section : pas de situation');
+        // Le panneau de situation porte son intitulé en petites capitales
+        // depuis qu'il a pris la forme du mini-sujet de la maquette.
+        expect(find.text('SITUATION'), findsOneWidget,
+            reason: '\$section : pas de situation');
         expect(find.text('Ta réponse'), findsOneWidget);
         expect(find.text('Vouvoiement'), findsOneWidget,
             reason: '$section : pas d\'étiquette de contrainte');

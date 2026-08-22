@@ -373,6 +373,64 @@
 }
 .timerOk { color: var(--color-green); }
 .timerWarn { color: var(--color-amber); }
+
+/* ---------- Chrono vivant (pendant la capture) ----------
+   Pendant l'enregistrement, le chrono cesse d'être un nombre posé sur fond
+   blanc : un micro rouge se tient à côté des chiffres, et chaque seconde donne
+   un battement.
+
+   Le partage des rôles est volontaire. Le micro pulse en **CSS** : c'est de
+   l'affect, il dit « ça enregistre ». Le battement des chiffres est remonté par
+   **React**, une fois par seconde — c'est lui la preuve. Une animation CSS pure
+   continue de tourner sur le compositeur même quand le fil principal est bloqué,
+   elle ne prouve donc rien ; un battement qui s'arrête en même temps que les
+   chiffres, si. */
+.timerLive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.timerMic {
+  flex: none;
+  color: var(--color-red);
+  transform-origin: center;
+  animation: ee-mic 1.4s ease-in-out infinite;
+}
+/* Même période que le halo du bouton d'arrêt (`ee-pulse`) : les deux respirent
+   ensemble, sinon l'écran clignote à deux rythmes concurrents. */
+@keyframes ee-mic {
+  0%, 100% { transform: scale(1); opacity: 0.74; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+/* Court exprès : à une seconde de cadence, un battement plus long n'aurait
+   jamais de repos et se lirait comme une oscillation permanente. */
+.timerBeat {
+  display: inline-block;
+  transform-origin: center;
+  animation: ee-beat 0.32s ease-out;
+}
+@keyframes ee-beat {
+  0% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+@media (max-width: 420px) {
+  .timerLive { gap: 10px; }
+}
+
+/* Réservé aux lecteurs d'écran : l'état de la capture est **annoncé**, pas
+   seulement montré. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .recordHint {
   font-size: 13px;
   color: var(--color-muted);
@@ -449,8 +507,23 @@
   font-weight: 700;
   line-height: 1.35;
 }
+/* Un enregistrement dure jusqu'à trois minutes : une pulsation permanente y
+   devient pénible, voire malaisante. On coupe donc tout ce qui est de l'AFFECT
+   — le halo du bouton, la respiration du micro, la pastille, le battement de la
+   seconde. Ce qui **prouve** que la capture tourne reste entier : les chiffres
+   changent toujours, et la forme d'onde suit toujours la voix (son amplitude
+   décorative est seulement rabaissée, cf. `RecordingLevelMeter`). */
 @media (prefers-reduced-motion: reduce) {
   .recDot { animation: none; }
+  /* Le halo du bouton d'arrêt est ENTIÈREMENT porté par l'animation (`box-shadow`
+     de rayon 0 au repos) : le couper sec effacerait la seule marque d'état du
+     bouton. On lui rend donc un anneau fixe. */
+  .recordCircleRec {
+    animation: none;
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-red) 20%, transparent);
+  }
+  .timerMic { animation: none; opacity: 1; }
+  .timerBeat { animation: none; }
 }
 
 /* ===== Bilan de session EE/EO (hero bleu + détail par tâche), calqué mobile ===== */
@@ -1201,4 +1274,83 @@
   .sectionTitle { font-size: 17px; }
   .targetCard { padding: 13px; border-radius: 18px; }
   .reachedCard { padding: 13px; border-radius: 18px; }
+}
+
+/* ---------- Production inexploitable (`evaluabilite: NON_EVALUABLE`) ----------
+   Le rapport entier est remplacé par cette carte : le serveur n'a appelé aucun
+   correcteur, il n'y a donc ni note, ni niveau, ni critère à montrer.
+   AMBRE (attention), jamais rouge (échec) : le candidat n'a pas raté, c'est
+   notre mesure qui n'a rien pu observer. Géométrie alignée sur le mobile
+   (`production_non_evaluable_card.dart`). */
+.unusable {
+  border: 1px solid color-mix(in srgb, var(--color-amber) 30%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-amber) 8%, transparent);
+  padding: 18px;
+}
+.unusableTag {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.unusableKind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-amber-dark);
+}
+.unusableTitle {
+  margin: 9px 0 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.unusableLead {
+  margin: 9px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-2);
+}
+.unusableReasonsHead {
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+/* Une liste de constats, pas une liste de fautes : puce neutre, ni croix ni
+   icône d'erreur (même parti pris que la puce du mobile). */
+.unusableReasons {
+  margin: 6px 0 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.unusableFoot {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+@media (max-width: 520px) {
+  .unusable { padding: 15px; border-radius: 18px; }
+  .unusableTitle { font-size: 18px; }
 }

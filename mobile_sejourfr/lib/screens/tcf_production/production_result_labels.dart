@@ -21,6 +21,45 @@ String niveauAtteintLabel(NiveauCecrl niveau) =>
         ? "Votre production n'atteint pas encore le niveau A1"
         : 'Votre production est au niveau ${niveau.displayName}';
 
+/// ────────────────────────────────────────────────────────────────────────
+/// Production **non évaluable** : ce qu'on dit quand il n'y avait rien à
+/// observer (`ProductionEvaluabilite.nonEvaluable`).
+///
+/// ⚠️ **Trois états, pas deux** : « pas encore évaluée » (aucun bloc
+/// d'évaluation) ne se dit pas comme « rendue, rien à observer ». Ces libellés
+/// ne servent QUE au second cas.
+///
+/// 🛑 **Aucun reproche, aucun verdict de niveau.** Une production vide, écrite
+/// dans une autre langue ou qui recopie la consigne n'a fait la preuve de
+/// **rien** — ni du meilleur, ni du pire. Le serveur n'affirme donc plus ni
+/// note, ni palier, ni critère, et l'écran ne doit pas en fabriquer un par la
+/// formulation. Le mot « échec » et tout ce qui juge le français du candidat
+/// sont bannis d'ici.
+///
+/// Les **raisons** affichées à côté viennent du serveur
+/// (`feedback.confiance_raisons`, écrites pour être lues par le candidat) : on
+/// ne les réécrit jamais côté front.
+const String kProductionNonEvaluableEyebrow = 'Analyse impossible';
+
+/// Titre : le fait, à la voix de la production — pas du candidat.
+const String kProductionNonEvaluableTitle =
+    "Cette production n'a pas pu être analysée";
+
+/// Corps : pourquoi il n'y a ni niveau ni critère, et pourquoi ce n'est pas
+/// une mauvaise note déguisée.
+const String kProductionNonEvaluableIntro =
+    "Il n'y avait pas assez de matière pour observer quoi que ce soit. Aucun "
+    "niveau ne vous est attribué ici : ce n'est pas un jugement sur votre "
+    'français, simplement une production qui ne peut pas être corrigée.';
+
+/// Fermeture : ce que ça change (rien), pour couper court à l'inquiétude.
+const String kProductionNonEvaluableRassurance =
+    "Elle ne compte pas dans votre niveau estimé. Vous pouvez refaire ce sujet "
+    'quand vous voulez.';
+
+/// Sur-titre de la liste des raisons servies par le serveur.
+const String kProductionNonEvaluableRaisonsTitle = 'Ce qui a été constaté';
+
 /// Le niveau d'UNE tâche, tel qu'il s'affiche dans une liste : détail par tâche
 /// du bilan de session, sujets déjà traités, historique.
 ///
@@ -51,6 +90,15 @@ const String kTacheTraiteeLabel = 'Traité';
 /// Même famille, pour une ligne de bilan : la tâche est corrigée mais son
 /// niveau n'est pas affichable. Miroir de `TACHE_EVALUEE_LABEL`.
 const String kTacheEvalueeLabel = 'Évaluée';
+
+/// Même famille encore, mais un état **différent** : la production a été rendue
+/// et il n'y avait **rien à observer** (`ProductionEvaluabilite.nonEvaluable`).
+///
+/// ⚠️ Ne pas la confondre avec [kTacheEvalueeLabel], qui dit « corrigée, mais
+/// trop ancienne pour porter un niveau ». Ici la correction n'a jamais eu lieu :
+/// aucun appel au correcteur n'a été émis. Écrire « Évaluée » sur cette ligne
+/// laissait croire à un verdict, et rendait le détail incompréhensible.
+const String kTacheNonEvaluableLabel = 'Non analysée';
 
 /// Libellé autonome d'un cran, affichable **sans** le niveau (« Palier
 /// solide »). Miroir au caractère près de `SituationDansNiveau.getLibelle()`

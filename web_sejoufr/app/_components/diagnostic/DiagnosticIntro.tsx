@@ -1,0 +1,282 @@
+"use client";
+
+import {useEffect, useState} from "react";
+import {ArrowRight, BookOpen, Check, Clock3, FilePenLine, Headphones, Mic} from "lucide-react";
+import {diagnosticApi} from "@/lib/api";
+import {
+  type DiagnosticExerciseContent,
+  type DiagnosticExerciseMeasure,
+  diagnosticOralMeasureLabel,
+  diagnosticOralMinutes,
+  diagnosticWrittenMeasureLabel,
+  diagnosticWrittenMinutes,
+} from "@/lib/diagnostic";
+import {EPREUVE_PLANNED_SEC} from "@/lib/exam-durations";
+import type {PublicDiagnosticResponse} from "@/lib/types";
+import styles from "./diagnostic.module.css";
+
+/**
+ * Le parcours choisi à l'entrée du diagnostic.
+ *
+ * 🛑 **Il n'est PERSISTÉ NULLE PART** — ni en base, ni sur l'appareil, ni dans
+ * l'URL. Le backend a tranché : le profil réel se lit sur les **domaines
+ * mesurés** (`LearningPlanDto.cycle` + `domainesAEvaluer`), jamais sur une
+ * intention ; et au moment du choix le candidat est encore invité, il n'existe
+ * aucune ligne pour la porter.
+ *
+ * Concrètement, `RAPIDE` et `COMPLET` sont **le même parcours d'écrans** :
+ * expression écrite, puis expression orale, puis le compte, puis l'analyse. La
+ * variante ne décide que de **ce que le front enchaîne après le rapport** —
+ * proposer immédiatement de mesurer CO puis CE, ou renvoyer au Plan.
+ *
+ * Elle vit donc en mémoire, portée par `DiagnosticView` (au-dessus de la
+ * bascule invité ⇄ connecté, pour survivre à l'inscription en place et au
+ * sign-in Google, qui s'ouvre en popup). Un rechargement de page la ramène à
+ * `RAPIDE` : sans conséquence, le rapport propose de toute façon de compléter
+ * le profil à partir de `domainesAEvaluer`.
+ */
+export type DiagnosticParcours = "RAPIDE" | "COMPLET";
+
+/** ⚠️ La compréhension ne se joue **jamais** avant le compte : un attempt sans
+ *  compte n'a personne à qui attribuer un progrès et ses résultats seraient
+ *  perdus. Le parcours complet enchaîne donc CO puis CE **après** l'analyse. */
+const COMPREHENSION_NOTE =
+  "La compréhension orale et écrite se joue juste après la création de votre compte : ce sont deux examens blancs, et leur résultat doit être rattaché à un compte pour entrer dans votre profil.";
+
+const FOOT_NOTE =
+  "Votre diagnostic reste accessible ensuite : vous pouvez compléter les épreuves manquantes quand vous voulez.";
+
+/** Minutes de compréhension annoncées **avant** qu'un examen existe. Repli
+ *  déclaré une seule fois pour tout le web (`lib/exam-durations.ts`) : ici,
+ *  aucun DTO ne porte encore de durée. Recalculé, jamais écrit en dur. */
+const COMPREHENSION_MINUTES = Math.round(
+  (EPREUVE_PLANNED_SEC.TCF_CO + EPREUVE_PLANNED_SEC.TCF_CE) / 60,
+);
+
+/**
+ * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
+ * de session (`NOT_STARTED`) n'en reçoit aucun : le serveur ne les attache qu'à
+ * partir de `POST /api/diagnostics`. On relit alors le **catalogue public**, la
+ * seule route qui sert les sujets sans session — sinon le visiteur lirait ses
+ * mesures et le compte connecté n'en verrait aucune.
+ */
+function useIntroMeasures(
+  written: DiagnosticExerciseContent | null | undefined,
+  oral: DiagnosticExerciseContent | null | undefined,
+): {written: DiagnosticExerciseMeasure | null; oral: DiagnosticExerciseMeasure | null} {
+  const [fallback, setFallback] = useState<PublicDiagnosticResponse | null>(null);
+  const missing = written == null || oral == null;
+
+  useEffect(() => {
+    if (!missing || fallback) return;
+    let alive = true;
+    // Confort d'affichage : un échec laisse simplement la présentation sans
+    // chiffre, il ne doit jamais empêcher de commencer.
+    diagnosticApi
+      .publicCurrent()
+      .then((subjects) => {
+        if (alive) setFallback(subjects);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [missing, fallback]);
+
+  return {
+    written: written ?? fallback?.written ?? null,
+    oral: oral ?? fallback?.oral ?? null,
+  };
+}
+
+/** Le temps des deux productions, dérivé des sujets servis. `null` quand la
+ *  base ne porte aucune borne : on n'invente pas une durée. */
+function expressionMinutes(
+  written: DiagnosticExerciseMeasure | null,
+  oral: DiagnosticExerciseMeasure | null,
+): number | null {
+  const total = (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
+  return total > 0 ? total : null;
+}
+
+function minutesLabel(minutes: number | null): string | null {
+  return minutes == null ? null : `≈ ${minutes} min`;
+}
+
+/**
+ * Écran d'entrée du diagnostic, **identique pour un visiteur et pour un
+ * compte** : c'est le même parcours, seul le moment où l'on demande le compte
+ * change.
+ *
+ * Deux cartes, comme la maquette. Elles ne mènent pas à deux tunnels : elles
+ * annoncent deux ambitions, et c'est l'après-rapport qui diffère.
+ */
+export function DiagnosticIntro({
+  error,
+  submitting,
+  guest = false,
+  written,
+  oral,
+  onStart,
+}: {
+  error: string | null;
+  submitting: boolean;
+  guest?: boolean;
+  written?: DiagnosticExerciseContent | null;
+  oral?: DiagnosticExerciseContent | null;
+  onStart: (parcours: DiagnosticParcours) => void;
+}) {
+  const measures = useIntroMeasures(written, oral);
+  const express = expressionMinutes(measures.written, measures.oral);
+  const complete = express == null ? null : express + COMPREHENSION_MINUTES;
+
+  return (
+    <section className={styles.intro}>
+      <p className={styles.eyebrow}>Diagnostic</p>
+      <h1>Découvrez votre niveau TCF</h1>
+      <p className={styles.lead}>
+        Obtenez une première estimation de votre niveau, et découvrez précisément ce qui
+        vous bloque pour atteindre votre objectif.
+      </p>
+
+      {error && <p className={styles.error} role="alert">{error}</p>}
+
+      <div className={styles.choice}>
+        <article className={`${styles.choiceCard} ${styles.choiceCardReco}`}>
+          <div className={styles.choiceHead}>
+            <h2>Diagnostic rapide</h2>
+            <span className={styles.choiceBadge}>Recommandé</span>
+          </div>
+          <p className={styles.choiceMeta}>
+            <span>Expression écrite + expression orale</span>
+            {minutesLabel(express) && (
+              <span>
+                <Clock3 size={14} aria-hidden /> {minutesLabel(express)}
+              </span>
+            )}
+          </p>
+          <ul className={styles.choiceList}>
+            <li>
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Analyse de votre capacité
+              réelle de production
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Première estimation de niveau
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Vos premières compétences
+              détectées
+            </li>
+          </ul>
+          <button
+            className={styles.primaryButton}
+            type="button"
+            disabled={submitting}
+            onClick={() => onStart("RAPIDE")}
+          >
+            {submitting ? "Préparation…" : "Commencer le diagnostic"}
+            {!submitting && <ArrowRight size={17} aria-hidden />}
+          </button>
+        </article>
+
+        <article className={styles.choiceCard}>
+          <div className={styles.choiceHead}>
+            <h2>Diagnostic complet</h2>
+          </div>
+          <p className={styles.choiceMeta}>
+            <span>EE + EO + CO + CE</span>
+            {minutesLabel(complete) && (
+              <span>
+                <Clock3 size={14} aria-hidden /> {minutesLabel(complete)}
+              </span>
+            )}
+          </p>
+          <ul className={styles.choiceList}>
+            <li>
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Un profil complet dès
+              maintenant sur les 4 épreuves du TCF
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Les mêmes analyses, sur les
+              quatre domaines
+            </li>
+          </ul>
+          <p className={styles.choiceNote}>{COMPREHENSION_NOTE}</p>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={submitting}
+            onClick={() => onStart("COMPLET")}
+          >
+            {submitting ? "Préparation…" : "Faire le diagnostic complet"}
+            {!submitting && <ArrowRight size={17} aria-hidden />}
+          </button>
+        </article>
+      </div>
+
+      <p className={styles.introBandTitle}>Les deux parcours commencent par les mêmes exercices</p>
+      <ul className={styles.introList}>
+        <li>
+          <span className={styles.introIcon} aria-hidden>
+            <FilePenLine size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Écrit</b>
+              <span>{diagnosticWrittenMeasureLabel(measures.written) ?? "un court texte"}</span>
+            </p>
+            <p className={styles.introNote}>Vous rédigez un court texte.</p>
+          </div>
+        </li>
+        <li>
+          <span className={styles.introIcon} aria-hidden>
+            <Mic size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Oral</b>
+              <span>{diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}</span>
+            </p>
+            <p className={styles.introNote}>
+              Vous vous enregistrez, sans conversation en direct.
+            </p>
+          </div>
+        </li>
+        <li className={styles.introListLater}>
+          <span className={styles.introIcon} aria-hidden>
+            <Headphones size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Compréhension orale</b>
+              <span>parcours complet</span>
+            </p>
+            <p className={styles.introNote}>Un examen blanc, après votre compte.</p>
+          </div>
+        </li>
+        <li className={styles.introListLater}>
+          <span className={styles.introIcon} aria-hidden>
+            <BookOpen size={18} />
+          </span>
+          <div>
+            <p className={styles.introHead}>
+              <b>Compréhension écrite</b>
+              <span>parcours complet</span>
+            </p>
+            <p className={styles.introNote}>Un examen blanc, après votre compte.</p>
+          </div>
+        </li>
+      </ul>
+
+      <p className={styles.introReassurance}>
+        Pas besoin d&apos;être parfait. Répondez naturellement : l&apos;objectif est simplement
+        d&apos;estimer votre niveau et de construire votre plan.
+      </p>
+      <p className={styles.disclaimer}>
+        {guest
+          ? `${FOOT_NOTE} Le compte ne vous sera demandé qu'au moment de l'analyse. Estimation d'entraînement, non officielle.`
+          : `${FOOT_NOTE} Estimation d'entraînement, non officielle.`}
+      </p>
+    </section>
+  );
+}

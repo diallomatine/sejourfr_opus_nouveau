@@ -827,6 +827,26 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     return;
   }
 
+  // Contexte de **série ciblée** du Plan (cf. `startTargetedSeries`) — même
+  // montage que les lots : `pushReplacement` pour que le bilan puisse pop vers
+  // l'écran qui a lancé la série, et propagation de la compétence travaillée
+  // (plus l'état de maîtrise affiché au lancement) pour que le bilan dise
+  // « avant → après » sans le deviner.
+  if (from == 'planSerie') {
+    final skillId = goState.uri.queryParameters['skillId'];
+    final before = goState.uri.queryParameters['avant'];
+    final base =
+        AppRoutes.planSerieResult.replaceFirst(':attemptId', attempt.id);
+    final query = <String>[
+      if (skillId != null) 'skillId=$skillId',
+      if (before != null) 'avant=$before',
+    ];
+    context.pushReplacement(
+      query.isEmpty ? base : '$base?${query.join('&')}',
+    );
+    return;
+  }
+
   // Contexte de lot Civique (cf. `CiviqueThemeDetailScreen._startLot`) — on
   // push le rapport d'examen détaillé (questions + corrections), qui sert
   // de bilan de lot pour le civique. On utilise `pushReplacement` (et pas

@@ -1,7 +1,7 @@
 "use client";
 
 import {useSyncExternalStore} from "react";
-import {detectTrafficSource, withTrafficSource, type TrafficSource} from "./audience-events";
+import {detectTrafficSource, withTrafficSource, type TrafficSource} from "./traffic-source";
 
 function subscribeTrafficSource() {
   return () => {};

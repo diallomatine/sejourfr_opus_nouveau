@@ -476,7 +476,7 @@ function ExamBriefingInner({
         </div>
       </div>
 
-      <PaywallSheet
+      <PaywallSheet ctaLocation="MOCK_EXAM" screen="briefing_examen"
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
         title={

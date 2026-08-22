@@ -22,8 +22,11 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
+import com.sejourfr.app.service.ComprehensionObservationService;
+import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -43,6 +46,7 @@ import java.util.stream.Collectors;
  * la logique de composition / dispatch de démarrage.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AttemptInteractionService {
 
@@ -55,6 +59,7 @@ public class AttemptInteractionService {
     private final AttemptScoringService scoringService;
     private final AttemptMapper mapper;
     private final QuestionMapper questionMapper;
+    private final ComprehensionObservationService comprehensionObservationService;
 
     // ------------------------------------------------------------------------
     // Lecture
@@ -341,7 +346,51 @@ public class AttemptInteractionService {
         }
 
         attemptManager.save(attempt);
+        recordComprehension(attempt, aqs);
         return mapper.toResponse(attempt, aqs, true);
+    }
+
+    /**
+     * Ce que cette session apprend au Plan sur les competences de COMPREHENSION
+     * (CO / CE), ventile par niveau de question.
+     *
+     * <p><b>Best-effort, jamais bloquant</b> : une session QCM se corrige de
+     * facon entierement deterministe, et rien de ce qui alimente le Plan ne doit
+     * pouvoir faire echouer cette correction ni la reponse HTTP. Le producteur
+     * ecrit dans sa <b>propre</b> transaction
+     * ({@code Propagation.REQUIRES_NEW}), donc une violation de contrainte de
+     * son cote ne marque pas celle-ci {@code rollback-only} — c'est la raison
+     * meme de ce montage, pas un detail. Meme invariant que
+     * {@code ProductionPipelineAsyncRunner} pour les productions.
+     *
+     * <p>Les reponses sont extraites <b>ici</b>, en valeurs simples : la
+     * frontiere de transaction est traversee par des donnees, jamais par des
+     * entites detachees.
+     *
+     * <p>Appele depuis {@code doFinish} <b>apres</b> le point d'idempotence (une
+     * session deja terminee est rendue telle quelle sans repasser ici), donc une
+     * seule fois par session dans le cas nominal ; le producteur reste malgre
+     * tout idempotent sur {@code (source, attempt)} pour couvrir les rejeux
+     * concurrents.
+     */
+    private void recordComprehension(Attempt attempt, List<AttemptQuestion> aqs) {
+        if (attempt.getModule() != Module.TCF || attempt.getUser() == null || aqs.isEmpty()) {
+            return;
+        }
+        try {
+            List<ReponseComprehension> reponses = aqs.stream()
+                    .map(aq -> new ReponseComprehension(
+                            aq.getQuestion().getQuestionType(),
+                            aq.getQuestion().getDifficulty(),
+                            aq.getAnswer() != null
+                                    && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
+                    .toList();
+            comprehensionObservationService.record(
+                    attempt.getUser().getId(), attempt.getId(), attempt.getFinishedAt(), reponses);
+        } catch (RuntimeException echec) {
+            log.warn("Observations CO/CE non enregistrees pour la session {} : {}",
+                    attempt.getId(), echec.toString());
+        }
     }
 
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {

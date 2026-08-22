@@ -6,8 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../core/api/audience_repository.dart';
-import '../../core/api/repositories.dart';
+import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/providers/target_level_provider.dart';
@@ -18,24 +17,17 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
-import '../tcf_production/recommended_exercise_launcher.dart';
 import 'diagnostic_controller.dart';
+import 'diagnostic_variant.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
 import 'widgets/diagnostic_common.dart';
 import 'widgets/diagnostic_intro.dart';
 import 'widgets/diagnostic_oral.dart';
+import 'widgets/diagnostic_report_labels.dart';
 import 'widgets/diagnostic_result.dart';
 import 'widgets/diagnostic_sync.dart';
 import 'widgets/diagnostic_written.dart';
-
-bool shouldTrackDiagnosticCompletion(
-  DiagnosticJourneyStatus? previous,
-  DiagnosticJourneyStatus? current,
-) =>
-    previous != null &&
-    previous != DiagnosticJourneyStatus.completed &&
-    current == DiagnosticJourneyStatus.completed;
 
 class DiagnosticScreen extends ConsumerStatefulWidget {
   const DiagnosticScreen({super.key});
@@ -55,7 +47,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Timer? _autosave;
   int _wordCount = 0;
   bool _resultViewedTracked = false;
-  bool _accountGateTracked = false;
+  bool _eeStartedTracked = false;
+  bool _eoStartedTracked = false;
+  bool _accountRequiredTracked = false;
   bool _writingHydrated = false;
 
   /// Accès TCF du compte, lu **au moment du rendu** : un achat conclu pendant
@@ -72,7 +66,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     _recordingController = ref.read(recordingControllerProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _track(AudienceEvent.diagnosticViewed);
       unawaited(
         ref.read(diagnosticControllerProvider.notifier).loadCurrent(),
       );
@@ -88,18 +81,21 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     super.dispose();
   }
 
-  void _track(AudienceEvent event) {
-    unawaited(_trackBestEffort(event));
-  }
+  /// La variante choisie, telle qu'elle est **au moment de l'événement**.
+  /// Elle n'est jamais persistée : c'est une intention de front, et la seule
+  /// chose honnête à en dire est ce que le candidat avait sélectionné ici.
+  AnalyticsDiagnosticType get _diagnosticType =>
+      ref.read(diagnosticVariantProvider).isComplet
+          ? AnalyticsDiagnosticType.complete
+          : AnalyticsDiagnosticType.rapid;
 
-  Future<void> _trackBestEffort(AudienceEvent event) async {
-    try {
-      await ref
-          .read(audienceRepositoryProvider)
-          .track(path: '/diagnostic', event: event);
-    } catch (_) {
-      // La mesure d'audience ne doit jamais interrompre un diagnostic.
-    }
+  /// Émission best-effort — jamais attendue, jamais bloquante.
+  void _track(AnalyticsEvent event) {
+    ref.read(analyticsServiceProvider).track(
+          event,
+          path: AnalyticsPath.diagnostic,
+          diagnosticType: _diagnosticType,
+        );
   }
 
   DiagnosticController get _controller =>
@@ -141,7 +137,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final submitted = isGuest
         ? await _controller.submitGuestWritten(text)
         : await _controller.submitWritten(text);
-    if (submitted) _track(AudienceEvent.diagnosticWrittenCompleted);
+    if (submitted) _track(AnalyticsEvent.diagnosticEeCompleted);
   }
 
   // ---------------------------------------------------------------------------
@@ -178,7 +174,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
             mimeType: recording.fileMime,
           );
     if (!submitted) return;
-    _track(AudienceEvent.diagnosticOralCompleted);
+    _track(AnalyticsEvent.diagnosticEoCompleted);
     // En invité, l'enregistrement a déjà été recopié dans le dossier de
     // l'application : effacer le fichier temporaire ne coûte rien.
     await _recordingController.cancel();
@@ -265,43 +261,33 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     }
   }
 
-  void _openRecommended(PlanRecommendedExercise exercise) {
-    // Même destination et même verrou freemium que sur le Plan : le lanceur
-    // partagé décide, l'app ne recalcule rien.
-    unawaited(openRecommendedExercise(context, ref, exercise));
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(diagnosticControllerProvider);
     final recording = ref.watch(recordingControllerProvider);
     final objective = ref.watch(userTargetLevelProvider)?.wire;
+    // Une intention de front, jamais persistée : elle ne change pas le parcours
+    // joué, seulement ce que le bilan enchaîne (cf. `diagnostic_variant.dart`).
+    final variant = ref.watch(diagnosticVariantProvider);
 
     _hydrateWriting(state);
+    // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
+    // `diagnostic_sessions.status`. On ne crée jamais une seconde vérité.
+    //
+    // Lu ici plutôt que dans le `ref.listen` ci-dessous : celui-ci ne se
+    // déclenche que sur un CHANGEMENT, donc une session reprise qui s'ouvre
+    // directement sur l'écrit ne l'aurait jamais franchi.
+    _trackStepReached(state);
 
     ref.listen<DiagnosticFlowState>(diagnosticControllerProvider,
         (previous, next) {
       _hydrateWriting(next);
-      final previousStatus = previous?.journey?.status;
-      // Une session déjà terminée hydratée à l'ouverture ne constitue pas une
-      // nouvelle conversion. Seule la transition vécue dans cet écran compte.
-      if (shouldTrackDiagnosticCompletion(
-        previousStatus,
-        next.journey?.status,
-      )) {
-        _track(AudienceEvent.diagnosticCompleted);
-      }
-      if (!_accountGateTracked &&
-          next.isGuest &&
-          next.guestStep == DiagnosticGuestStep.accountRequired) {
-        _accountGateTracked = true;
-        _track(AudienceEvent.diagnosticAccountRequired);
-      }
+      _trackStepReached(next);
       if (!_resultViewedTracked &&
           next.journey?.nextStep == DiagnosticStep.result &&
           next.journey?.result != null) {
         _resultViewedTracked = true;
-        _track(AudienceEvent.diagnosticResultViewed);
+        _track(AnalyticsEvent.diagnosticReportViewed);
       }
     });
 
@@ -319,8 +305,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           child: Column(
             children: [
               ScreenHeader(
-                title: 'Diagnostic TCF',
-                sub: _headerSub(state),
+                // Une fois le rapport rendu, l'en-tête EST le titre de la
+                // maquette (« Votre rapport ») : l'écran a cessé d'être un
+                // parcours, il est devenu un document. C'est ce qui permet au
+                // corps de commencer directement par la carte de niveau, sans
+                // badge ni titre-phrase.
+                title: _showsReport(state)
+                    ? kDiagnosticReportTitle
+                    : 'Diagnostic TCF',
+                sub: _headerSub(state, variant),
                 onBack:
                     state.isSubmitting || state.isSyncing ? null : _confirmBack,
               ),
@@ -329,6 +322,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                   state: state,
                   recording: recording,
                   objective: objective,
+                  variant: variant,
                 ),
               ),
             ],
@@ -342,8 +336,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     required DiagnosticFlowState state,
     required RecordingState recording,
     required String? objective,
+    required DiagnosticVariant variant,
   }) {
-    if (state.isGuest) return _guestContent(state: state, recording: recording);
+    if (state.isGuest) {
+      return _guestContent(
+        state: state,
+        recording: recording,
+        variant: variant,
+      );
+    }
 
     if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
     if (state.canRetrySync) {
@@ -389,6 +390,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // mesures viennent alors du catalogue public, chargé en repli.
           written: journey.written ?? state.subjects?.written,
           oral: journey.oral ?? state.subjects?.oral,
+          variant: variant,
+          onVariantChanged: _onVariantChanged,
           onStart: () => unawaited(_startAuthenticated()),
         ),
       DiagnosticStep.written when journey.written != null =>
@@ -420,11 +423,18 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // déjà résolu sur le compte, jamais une règle « étape 1 ouverte »
           // réécrite côté app.
           hasTcfAccess: _hasTcfAccess,
+          variant: variant,
           onOpenPlan: () => context.go(AppRoutes.plan),
-          onOpenRecommended: _openRecommended,
           // Même feuille que le Plan et les Compétences : un seul parcours
           // d'achat, jamais un second.
-          onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+          onSubscribe: () {
+            ref.read(analyticsServiceProvider).track(
+                  AnalyticsEvent.premiumCtaClicked,
+                  path: AnalyticsPath.diagnostic,
+                  ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+                );
+            unawaited(showTcfLockPaywall(context));
+          },
         ),
       _ => _InitialState(
           isLoading: state.isLoading,
@@ -440,6 +450,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget _guestContent({
     required DiagnosticFlowState state,
     required RecordingState recording,
+    required DiagnosticVariant variant,
   }) {
     final subjects = state.subjects;
     if (subjects == null) {
@@ -456,6 +467,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           written: subjects.written,
           oral: subjects.oral,
           isGuest: true,
+          variant: variant,
+          onVariantChanged: _onVariantChanged,
           onStart: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(
@@ -485,27 +498,85 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticGuestStep.accountRequired => DiagnosticAccountGate(
           errorMessage: state.errorMessage,
           noticeMessage: state.noticeMessage,
+          variantNote: diagnosticVariantAccountNote(variant),
           onRegister: _openRegister,
           onLogin: _openLogin,
         ),
     };
   }
 
+  /// Une production **commencée**, c'est son écran atteint — invité comme
+  /// connecté, les deux parcours jouent les deux mêmes exercices. Une seule
+  /// émission par lancement : l'écran se reconstruit à chaque frappe.
+  void _trackStepReached(DiagnosticFlowState state) {
+    final onWritten = state.isGuest
+        ? state.guestStep == DiagnosticGuestStep.written
+        : state.journey?.nextStep == DiagnosticStep.written;
+    final onOral = state.isGuest
+        ? state.guestStep == DiagnosticGuestStep.oral
+        : state.journey?.nextStep == DiagnosticStep.oral;
+    if (onWritten && !_eeStartedTracked) {
+      _eeStartedTracked = true;
+      _track(AnalyticsEvent.diagnosticEeStarted);
+    }
+    if (onOral && !_eoStartedTracked) {
+      _eoStartedTracked = true;
+      _track(AnalyticsEvent.diagnosticEoStarted);
+    }
+    // L'écran qui demande un compte, les deux productions déjà faites —
+    // **la** mesure de conversion du parcours invité. N'existe que pour un
+    // visiteur : un compte déjà créé n'a plus de `guestStep` à atteindre.
+    if (state.isGuest &&
+        state.guestStep == DiagnosticGuestStep.accountRequired &&
+        !_accountRequiredTracked) {
+      _accountRequiredTracked = true;
+      _track(AnalyticsEvent.diagnosticAccountRequired);
+    }
+  }
+
   Future<void> _startAuthenticated() async {
     final started = await _controller.startOrResume();
-    if (started) _track(AudienceEvent.diagnosticStarted);
+    if (started) _track(AnalyticsEvent.diagnosticStarted);
   }
 
   void _startGuest() {
     _controller.startGuest();
-    _track(AudienceEvent.diagnosticStarted);
+    _track(AnalyticsEvent.diagnosticStarted);
   }
 
-  String _headerSub(DiagnosticFlowState state) {
+  /// Le choix du candidat, gardé **en mémoire de processus** : aucune ligne en
+  /// base, aucun champ envoyé au serveur, et donc rien à nettoyer si l'app se
+  /// ferme — on retombe alors sur le diagnostic rapide.
+  void _onVariantChanged(DiagnosticVariant variant) =>
+      ref.read(diagnosticVariantProvider.notifier).state = variant;
+
+  /// Le rapport est-il à l'écran ? Il ne l'est qu'une fois le parcours
+  /// authentifié arrivé à son terme — jamais en invité, jamais en cours
+  /// d'analyse.
+  bool _showsReport(DiagnosticFlowState state) =>
+      !state.isGuest &&
+      !state.isSyncing &&
+      state.noticeMessage == null &&
+      state.journey?.nextStep == DiagnosticStep.result &&
+      state.journey?.result != null;
+
+  String _headerSub(DiagnosticFlowState state, DiagnosticVariant variant) {
     if (state.isSyncing) return 'Envoi de vos réponses';
+    if (_showsReport(state)) {
+      return _hasTcfAccess
+          ? kDiagnosticReportSubPremium
+          : kDiagnosticReportSubFree;
+    }
+    // Le sous-titre de la présentation suit la variante, comme la pilule de
+    // budget de l'écran : deux chiffres différents pour le même écran se
+    // liraient comme une contradiction.
     if (state.isGuest) {
       return switch (state.guestStep) {
-        DiagnosticGuestStep.presentation => '2 exercices · environ 8 à 10 min',
+        DiagnosticGuestStep.presentation => diagnosticVariantHeaderSub(
+            variant,
+            state.subjects?.written,
+            state.subjects?.oral,
+          ),
         DiagnosticGuestStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticGuestStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticGuestStep.accountRequired => 'Analyser mes réponses',
@@ -513,7 +584,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     }
     final journey = state.journey;
     if (journey == null || journey.nextStep == DiagnosticStep.presentation) {
-      return '2 exercices · environ 8 à 10 min';
+      return diagnosticVariantHeaderSub(
+        variant,
+        journey?.written ?? state.subjects?.written,
+        journey?.oral ?? state.subjects?.oral,
+      );
     }
     return _stepLabel(journey.nextStep);
   }
@@ -531,7 +606,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         DiagnosticStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticStep.analysis => 'Analyse personnalisée',
-        DiagnosticStep.result => 'Vos priorités',
+        // Le rapport passe par `_headerSub`, qui distingue l'estimation
+        // gratuite du rapport complet ; cette entrée ne sert plus que de repli.
+        DiagnosticStep.result => kDiagnosticReportSubFree,
         DiagnosticStep.presentation => 'Présentation',
       };
 }

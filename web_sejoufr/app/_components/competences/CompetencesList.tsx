@@ -1,23 +1,24 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
-import {useCallback, useState} from "react";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
+import {useState} from "react";
 import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {isPlanStep, PLAN_STEP_BACK_LABEL} from "@/lib/plan-step";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
 import {competenceProgressLabel} from "@/lib/skill-progress";
-import {replaceUrlShallow} from "@/lib/shallow-url";
 import {useCachedData} from "@/lib/use-cached-data";
-import {skillSectionOf, type SkillDto, skillTaskCodeOf} from "@/lib/types";
+import {
+  skillSectionOf,
+  type SkillDto,
+  skillTaskCodeOf,
+} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {
-  type ProductionConfig,
-  TCF_HUB_HREF,
-  TCF_HUB_LABEL,
-} from "@/app/_components/production/config";
-import {ParcoursTop, useParcoursLevel} from "@/app/_components/production/ParcoursTop";
+import {type ProductionConfig} from "@/app/_components/production/config";
+import {useParcoursLevel} from "@/app/_components/production/parcours";
+import {TaskChrome} from "@/app/_components/production/TaskChrome";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
   RowChevron,
@@ -37,47 +38,45 @@ import s from "@/app/_components/skill-ui/skill.module.css";
  * des sujets TCF complets de la même tâche : on n'y produit jamais une copie
  * entière, seulement la brique que la compétence entraîne.
  *
- * L'écran suit la maquette client : hero de parcours avec sa progression
- * globale, pastilles T1/T2/T3 pour changer de tâche sans revenir en arrière,
- * puis les compétences, puis le principe pédagogique du module.
+ * L'écran suit la maquette client : c'est le **premier onglet du détail d'une
+ * tâche**, sous la carte de consigne partagée (`TaskChrome`). Le second onglet
+ * est la liste des sujets d'examen de la même tâche ; on change de tâche en
+ * remontant à la liste des tâches de l'épreuve, plus par des pastilles T1/T2/T3
+ * — le sélecteur mettait trois tâches au même niveau qu'un mode de travail.
  */
 export function CompetencesList({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string}>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {user, status} = useAuth();
 
-  const section = skillSectionOf(config.epreuve);
-  const hrefOf = useCallback(
-    (task: number) => `${config.base}/tache/${task}/competences`,
-    [config.base],
-  );
+  /* D'où vient-on ? Le marqueur d'URL le dit, et lui seul : le Plan route ses
+     tâches vers cet écran, or son retour hiérarchique (« ← Expression orale »)
+     déposait le candidat dans `/entrainement`, loin du Plan qu'il venait de
+     quitter. Le retour suit donc la **provenance**, et son libellé avec — un
+     lien qui annonce une destination et en sert une autre serait pire que le
+     défaut qu'on corrige. Sans marqueur : comportement d'avant, au pixel près. */
+  const fromPlan = isPlanStep(searchParams);
+  const backHref = fromPlan ? "/plan" : config.base;
+  const backLabel = fromPlan ? PLAN_STEP_BACK_LABEL : config.label;
 
-  // Les 24 compétences de l'épreuve arrivent en un appel : une pastille ne fait
-  // donc que **filtrer**, sans remonter l'écran ni redemander quoi que ce soit.
-  // La tâche est le choix local s'il y en a eu un, sinon celle de l'URL — dans
-  // cet ordre, pour que l'accès direct, le lien partagé et le retour navigateur
-  // continuent de décider de la tâche d'arrivée sans jamais écraser un choix.
-  const routeTask = Number(params?.n ?? "0");
-  const [pickedTask, setPickedTask] = useState<number | null>(null);
-  const n = pickedTask ?? routeTask;
+  const section = skillSectionOf(config.epreuve);
+
+  // Les 24 compétences de l'épreuve arrivent en un appel, mémorisé pour la
+  // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
+  // redemande rien. La tâche vient de l'URL, et d'elle seule — chaque tâche est
+  // une adresse partageable, et c'est celle où le Plan route ses étapes.
+  const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
   const taskCode = skillTaskCodeOf(section, n);
-  const base = hrefOf(n);
-
-  const pickTask = useCallback(
-    (task: number) => {
-      setPickedTask(task);
-      replaceUrlShallow(hrefOf(task));
-    },
-    [hrefOf],
-  );
+  const base = `${config.base}/tache/${n}/competences`;
 
   const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Un seul appel pour toute l'épreuve, mémorisé pour la session : revenir sur
-  // cet écran depuis « Sujets » ou « Examens » ne redemande rien.
+  // cet écran depuis l'onglet « Sujets d'examen » ne redemande rien.
   const skillsQuery = useCachedData(
     ready ? skillsSectionKey(section) : null,
     () => loadSectionSkills(skillApi, section),
@@ -92,7 +91,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell backHref={TCF_HUB_HREF} backLabel={TCF_HUB_LABEL}>
+        <SkillShell backHref={backHref} backLabel={backLabel}>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -101,19 +100,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <SkillShell
-        backHref={TCF_HUB_HREF}
-        backLabel={TCF_HUB_LABEL}
-        title={config.label}
-        meta={config.epreuveMeta}
-        level={level}
-      >
-        <ParcoursTop
-          config={config}
-          mode="competences"
-          taskNumero={n}
-          onPickTask={pickTask}
-        />
+      <SkillShell backHref={backHref} backLabel={backLabel}>
+        <TaskChrome config={config} taskNumero={n} tab="competences" level={level} />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}
@@ -127,9 +115,12 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         ) : skills.length === 0 ? (
           <p className={s.empty}>Aucune compétence disponible pour cette tâche.</p>
         ) : (
-          <div className={s.list}>
+          /* Les huit compétences dans un seul cadre, filets entre les lignes —
+             la liste de la maquette (`PlanTacheScreen`). Huit cartes autonomes
+             repoussaient la dernière hors de vue. */
+          <div className={s.groupCard}>
             {skills.map((skill) => (
-              <SkillCard
+              <SkillRow
                 key={skill.id}
                 skill={skill}
                 onOpen={
@@ -161,8 +152,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 }
 
 /**
- * Ligne d'une compétence, structure de la maquette client : **anneau de
- * progression** (« 2/5 »), titre, état, chevron.
+ * Ligne d'une compétence : **anneau de progression** (« 2/5 »), titre, état,
+ * chevron — dans la liste groupée de la maquette.
  *
  * ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** (décision
  * propriétaire) : un compte de sujets dit ce que le candidat a *fait*,
@@ -172,23 +163,19 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
  *
  * Le titre et l'état, rien d'autre : la description vit derrière la pastille
  * d'information de l'écran de détail (parité mobile). Six lignes de texte par
- * carte repoussaient la 8ᵉ compétence hors de vue.
+ * ligne repoussaient la 8ᵉ compétence hors de vue.
  *
- * Verrouillée (`locked`, **décidé par le serveur**), la carte reste entièrement
+ * Verrouillée (`locked`, **décidé par le serveur**), la ligne reste entièrement
  * lisible : seuls l'anneau — qui n'aurait rien à raconter — et la destination
- * changent. Masquer la compétence reviendrait à cacher au candidat ce qu'il y a
- * à travailler ; c'est l'inverse de ce qu'on lui vend.
+ * changent. Masquer ou flouter la compétence reviendrait à cacher au candidat
+ * ce qu'il y a à travailler ; c'est l'inverse de ce qu'on lui vend.
  */
-function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
+function SkillRow({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
   const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
   const locked = skill.locked;
 
   return (
-    <button
-      type="button"
-      className={`${s.card} ${s.rowCard} ${locked ? "" : s.ringRow}`}
-      onClick={onOpen}
-    >
+    <button type="button" className={s.groupRow} onClick={onOpen}>
       {locked ? (
         <span className={`${s.tile} ${s.tileLocked}`} aria-hidden>
           <Lock size={20} />
@@ -196,24 +183,20 @@ function SkillCard({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
       ) : (
         <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
       )}
-      <span className={s.rowBody}>
-        <span className={s.rowTitle}>{skill.title}</span>
-        {skill.masteryState ? (
-          <span className={s.rowMeta}>
+      <span className={s.groupBody}>
+        <span className={s.groupTitle}>{skill.title}</span>
+        <span className={s.groupMeta}>
+          {skill.masteryState ? (
             <SkillMasteryPill state={skill.masteryState} />
-          </span>
-        ) : (
-          <span className={s.rowState}>{competenceProgressLabel(skill)}</span>
-        )}
-      </span>
-      {locked ? (
-        <span className={s.rowAside}>
-          <SkillLockBadge />
-          <RowChevron />
+          ) : (
+            <span className={s.metaText}>{competenceProgressLabel(skill)}</span>
+          )}
         </span>
-      ) : (
+      </span>
+      <span className={s.groupAside}>
+        {locked && <SkillLockBadge />}
         <RowChevron />
-      )}
+      </span>
     </button>
   );
 }

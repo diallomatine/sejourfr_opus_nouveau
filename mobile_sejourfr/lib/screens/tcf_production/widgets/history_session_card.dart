@@ -91,6 +91,10 @@ class HistorySessionCard extends StatelessWidget {
     final isMulti = submissions.length >= kProductionExamMinSubmissions;
     final avg = isMulti ? _avgScore() : null;
     final niveau = isMulti ? null : tacheNiveau(submissions.first.evaluation);
+    // Rendue, mais rien à observer : « Évaluée » y annoncerait un verdict qui
+    // n'existe pas (aucun correcteur n'a été appelé).
+    final nonEvaluable = !isMulti &&
+        (submissions.first.evaluation?.estNonEvaluable ?? false);
     final date = _lastSubmittedAt();
     final completed = submissions.where((s) => s.evaluation != null).length;
     final total = submissions.length;
@@ -176,14 +180,18 @@ class HistorySessionCard extends StatelessWidget {
                               // antérieure au contrat v4) : on écrit
                               // « Évaluée », on ne laisse pas un tiret — même
                               // repli que `TacheBilanRow` et que le web.
-                              // « — » reste pour ce qui n'est pas évalué.
+                              // « Non analysée » quand il n'y avait rien à
+                              // observer. « — » reste pour ce qui n'est pas
+                              // évalué.
                               text: isMulti
                                   ? (avg == null ? '—' : formatScore(avg))
                                   : (niveau != null
                                       ? tacheNiveauLabel(niveau)
-                                      : completed > 0
-                                          ? kTacheEvalueeLabel
-                                          : '—'),
+                                      : nonEvaluable
+                                          ? kTacheNonEvaluableLabel
+                                          : completed > 0
+                                              ? kTacheEvalueeLabel
+                                              : '—'),
                               style: AppFonts.display(
                                 size: isMulti ? 24 : 18,
                                 weight: FontWeight.w700,

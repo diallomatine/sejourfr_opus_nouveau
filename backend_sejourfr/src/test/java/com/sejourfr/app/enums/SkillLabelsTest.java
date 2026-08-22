@@ -95,6 +95,76 @@ class SkillLabelsTest {
                         Map.entry("EN_CHEMIN", "Encore du chemin vers ton objectif"));
     }
 
+    /**
+     * La pastille de chaque domaine dans « Mon profil TCF ». Son <b>ordre de
+     * declaration est l'ordre d'urgence</b> : c'est lui qui trie les quatre
+     * lignes, donc le reordonner changerait l'ecran sans qu'aucun front ne
+     * bouge. Aucune des cinq ne nomme une faiblesse — « À évaluer » veut dire
+     * « il manque des donnees », pas « ce domaine est mauvais ».
+     */
+    @Test
+    @DisplayName("Priorite d'un domaine : les cinq libelles et l'ORDRE d'urgence sont geles")
+    void prioritesDeDomaine() {
+        assertThat(labels(PlanDomainPriority.class, PlanDomainPriority::getLabel))
+                .containsExactly(
+                        Map.entry("FORTE", "Priorité forte"),
+                        Map.entry("A_TRAVAILLER", "À travailler"),
+                        Map.entry("ENTRETIEN", "Entretien"),
+                        Map.entry("PAS_ENCORE_PRIORITAIRE", "Pas encore prioritaire"),
+                        Map.entry("A_EVALUER", "À évaluer"));
+    }
+
+    /**
+     * <b>Ce que le Plan demande de faire</b> sur une carte. Son <b>ordre de
+     * declaration est l'ordre de choix</b> d'une seance — mesurer ce qui manque,
+     * reparer ce qui est fragile, verifier ce qui est pret, apprendre ce qui
+     * vient : le reordonner changerait la seance sans qu'aucun front ne bouge.
+     *
+     * <p>🛑 « À acquérir » ne se dit <b>jamais</b> « à renforcer » : renforcer
+     * suppose un constat negatif, et sur une competence jamais travaillee il n'y
+     * en a aucun. C'est la distinction de fond du chantier.
+     *
+     * <p>Deux libelles sont volontairement <b>partages avec d'autres enums</b>, et
+     * ce n'est pas une collision a corriger : « À renforcer » dit la meme chose
+     * que {@link SkillMasteryState#TO_REINFORCE} et « À évaluer » que
+     * {@link PlanDomainPriority#A_EVALUER}. Ils ne s'affichent simplement pas au
+     * meme endroit — l'etat sur la fiche d'une competence, l'urgence sur la ligne
+     * d'un domaine, la nature sur la carte du Plan.
+     */
+    @Test
+    @DisplayName("Nature d'une action du Plan : les quatre libelles et l'ORDRE de choix sont geles")
+    void naturesDActionDuPlan() {
+        assertThat(labels(PlanActionNature.class, PlanActionNature::getLabel))
+                .containsExactly(
+                        Map.entry("A_EVALUER", "À évaluer"),
+                        Map.entry("A_RENFORCER", "À renforcer"),
+                        Map.entry("A_VERIFIER", "À vérifier"),
+                        Map.entry("A_ACQUERIR", "À acquérir"));
+        // Le vocabulaire partage est VOULU, et dit la meme chose des deux cotes.
+        assertThat(PlanActionNature.A_RENFORCER.getLabel())
+                .isEqualTo(SkillMasteryState.TO_REINFORCE.getLabel());
+        assertThat(PlanActionNature.A_EVALUER.getLabel())
+                .isEqualTo(PlanDomainPriority.A_EVALUER.getLabel());
+        // ... mais « a acquerir » n'est jamais « a renforcer ».
+        assertThat(PlanActionNature.A_ACQUERIR.getLabel())
+                .isNotEqualTo(PlanActionNature.A_RENFORCER.getLabel());
+    }
+
+    @Test
+    @DisplayName("Fenetre de « ce qui a change » : de la plus courte a la plus longue")
+    void fenetreDesChangementsRecents() {
+        assertThat(labels(PlanRecentChangesWindow.class, PlanRecentChangesWindow::getLabel))
+                .containsExactly(
+                        Map.entry("CETTE_SEMAINE", "Cette semaine"),
+                        Map.entry("DEUX_SEMAINES", "Ces deux dernières semaines"),
+                        Map.entry("CE_MOIS", "Ce mois-ci"));
+        // L'ordre de declaration EST l'ordre d'essai : une fenetre plus courte
+        // ne doit jamais venir apres une plus longue.
+        assertThat(PlanRecentChangesWindow.values())
+                .extracting(PlanRecentChangesWindow::getDays)
+                .containsExactly(7, 14, 30);
+    }
+
     @Test
     @DisplayName("Difficulte : « Accessible » decrit le sujet, il ne juge pas le candidat")
     void difficulte() {
@@ -116,11 +186,34 @@ class SkillLabelsTest {
     }
 
     @Test
-    @DisplayName("Epreuves du module : libelles geles")
+    @DisplayName("Domaines du module : libelles geles")
     void sections() {
         assertThat(labels(SkillSection.class, SkillSection::getLabel))
                 .containsExactly(
-                        Map.entry("EE", "Expression écrite"), Map.entry("EO", "Expression orale"));
+                        Map.entry("EE", "Expression écrite"),
+                        Map.entry("EO", "Expression orale"),
+                        Map.entry("CO", "Compréhension orale"),
+                        Map.entry("CE", "Compréhension écrite"));
+    }
+
+    /**
+     * L'axe qui remplace {@code SkillTaskCode} pour la comprehension : une
+     * competence CO/CE n'a pas de tache, et tout ce qui s'en deduisait doit
+     * desormais passer par ces deux predicats.
+     */
+    @Test
+    @DisplayName("Expression et comprehension partagent le meme enum, jamais la meme forme")
+    void expressionEtComprehensionSeDistinguentParDesPredicats() {
+        assertThat(SkillSection.EE.isProduction()).isTrue();
+        assertThat(SkillSection.EO.isProduction()).isTrue();
+        assertThat(SkillSection.CO.isProduction()).isFalse();
+        assertThat(SkillSection.CE.isProduction()).isFalse();
+
+        for (SkillSection section : SkillSection.values()) {
+            assertThat(section.isComprehension())
+                    .as("%s : production et comprehension sont exclusifs", section)
+                    .isNotEqualTo(section.isProduction());
+        }
     }
 
     /**
@@ -162,6 +255,16 @@ class SkillLabelsTest {
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
         assertThat(labels(SituationNiveauVise.class, SituationNiveauVise::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanDomainPriority.class, PlanDomainPriority::getLabel).values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanRecentChangesWindow.class, PlanRecentChangesWindow::getLabel)
+                .values())
+                .doesNotHaveDuplicates()
+                .allSatisfy(l -> assertThat(l).isNotBlank());
+        assertThat(labels(PlanActionNature.class, PlanActionNature::getLabel).values())
                 .doesNotHaveDuplicates()
                 .allSatisfy(l -> assertThat(l).isNotBlank());
     }

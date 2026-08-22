@@ -3,8 +3,12 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.dto.CorrespondanceTcfDto;
 import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.BandeNoteTcf;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
+import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import org.junit.jupiter.api.Test;
 
@@ -12,9 +16,11 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Verifie la math CECRL des epreuves productives :
@@ -218,9 +224,66 @@ class ProductionBilanServiceTest {
         assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B2); // partiel ≠ terminé
     }
 
+    /**
+     * 🛑 LE CAS (b), DELIBEREMENT INTACT. Une epreuve d'examen OUVERTE PUIS
+     * ABANDONNEE (chrono ecoule, rien rendu) vaut {@code A1_NON_ATTEINT} : elle a
+     * ete PASSEE et ratee. Ce verdict-la n'est pas le trou corrige le
+     * 2026-08-21 — il n'y a ici AUCUNE ligne {@code ai_evaluations}, alors que
+     * le defaut portait sur une ligne QUI EXISTE ET NE DIT RIEN.
+     */
     @Test
     void bilan_termine_sans_aucune_tache_donne_A1_NON_ATTEINT() {
         assertThat(service.bilanEpreuveTerminee(Map.of())).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    // ------------------------------------------------------------------------
+    // Production INEXPLOITABLE : la tache retombe a « non rendue »
+    // ------------------------------------------------------------------------
+
+    /**
+     * Une evaluation sans verdict (production inexploitable : ni note, ni niveau,
+     * aucun appel LLM) n'entre pas dans la carte des taches.
+     *
+     * <p><b>Conséquence voulue</b> : sur une epreuve d'examen TERMINEE, sa tache
+     * est comptee 0 par {@link ProductionBilanService#bilanEpreuveTerminee},
+     * exactement comme avant, quand elle y entrait avec une note 0. Le bilan
+     * d'epreuve est donc INCHANGE ; ce qui change, c'est qu'elle ne fournit plus
+     * de niveau CECRL reutilisable par {@code TcfProfileService}.
+     */
+    @Test
+    void latestEvalsByTache_ecarte_une_evaluation_sans_verdict() {
+        AiEvaluationManager manager = mock(AiEvaluationManager.class);
+        ProductionRubricsProvider rubrics = mock(ProductionRubricsProvider.class);
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        org.mockito.Mockito.lenient().when(rubrics.niveauCecrl()).thenReturn(props.getNiveauCecrl());
+        ProductionBilanService svc = new ProductionBilanService(
+            manager, new TcfLevelEstimatorService(), rubrics, props);
+
+        ProductionSubmission t1 = submissionEvaluee(1);
+        ProductionSubmission t2 = submissionEvaluee(2);
+        AiEvaluation bonne = eval(15, 15, "15");
+        AiEvaluation inexploitable = new AiEvaluation();
+        inexploitable.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
+        when(manager.findLatestBySubmissionId(t1.getId())).thenReturn(Optional.of(bonne));
+        when(manager.findLatestBySubmissionId(t2.getId())).thenReturn(Optional.of(inexploitable));
+
+        Map<Integer, AiEvaluation> evals = svc.latestEvalsByTache(List.of(t1, t2));
+
+        assertThat(evals).containsOnlyKeys(1);
+        // Epreuve terminee : T2 et T3 comptent 0. (15 + 0 + 0)/3 = 5 -> A1.
+        assertThat(svc.bilanEpreuveTerminee(evals)).isEqualTo(NiveauCecrl.A1);
+        assertThat(svc.noteEpreuve(evals, true)).isEqualByComparingTo(new BigDecimal("5.0"));
+    }
+
+    private static ProductionSubmission submissionEvaluee(int tacheNumero) {
+        ProductionTask task = new ProductionTask();
+        task.setTacheNumero((short) tacheNumero);
+        ProductionSubmission s = new ProductionSubmission();
+        s.setId(java.util.UUID.randomUUID());
+        s.setProductionTask(task);
+        s.setStatut(SubmissionStatut.EVALUATED);
+        s.setSubmittedAt(java.time.Instant.now());
+        return s;
     }
 
     // ------------------------------------------------------------------------

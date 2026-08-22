@@ -52,7 +52,13 @@ public class PageViewService {
             "/reussir", EnumSet.of(
                     PageViewEvent.VIEW,
                     PageViewEvent.CTA,
-                    PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED),
+                    PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED,
+                    // La landing a DEUX portes d'entree : le diagnostic TCF et
+                    // l'examen civique decouverte. Les compter ensemble aurait
+                    // fait passer pour du diagnostic des clics qui n'y menent
+                    // pas — on saurait combien de visiteurs voient l'offre
+                    // civique, jamais combien y entrent.
+                    PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED),
             "/diagnostic", EnumSet.of(
                     PageViewEvent.DIAGNOSTIC_VIEWED,
                     PageViewEvent.DIAGNOSTIC_STARTED,
@@ -178,6 +184,7 @@ public class PageViewService {
                 || row.getEvent() == PageViewEvent.DIAGNOSTIC_STARTED
                 || row.getEvent() == PageViewEvent.PLAN_RECOMMENDED_EXERCISE_STARTED
                 || row.getEvent() == PageViewEvent.SOCIAL_LANDING_DIAGNOSTIC_CLICKED
+                || row.getEvent() == PageViewEvent.SOCIAL_LANDING_CIVIQUE_CLICKED
                 || row.getEvent() == PageViewEvent.DIAGNOSTIC_TO_PREMIUM_CLICKED) {
             bucket[1] += row.getHits();
         }

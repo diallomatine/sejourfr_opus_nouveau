@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_summary.dart';
@@ -55,7 +56,11 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     // Slot 1 = examen offert, rejouable à volonté pour tout compte inscrit ;
     // seuls les slots 2+ déclenchent le paywall (cf. backend startModuleExam).
     if (_isLocked(slotNumber)) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
@@ -337,7 +342,11 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   VoidCallback _onEmptyTap(int slotNumber) {
     return () {
       if (_isLocked(slotNumber)) {
-        showPaywallSheet(context);
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
       } else {
         _openBriefing(slotNumber: slotNumber);
       }

@@ -11,6 +11,8 @@ import {
   Headphones,
   Landmark,
   Lightbulb,
+  Mic,
+  PenLine,
   RotateCw,
   Scale,
   Sparkles,
@@ -291,6 +293,8 @@ export default function HistoriquePage() {
         )}
       </section>
 
+      <ProductionHistoryLinks />
+
       <PaywallSheet
         open={paywallModule !== null}
         onClose={() => setPaywallModule(null)}
@@ -348,6 +352,57 @@ function examIdentity(
     icon: <Lightbulb size={18} strokeWidth={1.8} />,
     iconTone: "module-blue",
   };
+}
+
+/**
+ * **Vos productions EE/EO**, les deux seules séances que cette page ne liste
+ * pas : elle ne montre que des examens blancs QCM (`isProductionAttempt` est
+ * explicitement filtré plus haut, une production n'a ni score ni pourcentage à
+ * ranger dans ces colonnes).
+ *
+ * Elles ont pourtant leur écran, `…/historique` par épreuve — qui n'avait
+ * **aucun point d'entrée** : la route existait, rien n'y menait, et le rapport
+ * d'un entraînement libre n'était donc plus joignable une fois quitté (la carte
+ * d'un sujet déjà traité rouvre la rédaction, pas la correction). Une
+ * correction IA que le candidat a payée et ne peut plus relire est une valeur
+ * perdue, pas une simplification.
+ *
+ * ⚠️ **Ici, et pas dans le hub de l'épreuve** : la maquette du parcours a
+ * volontairement retiré l'historique de cet écran (arbitrage client du
+ * 2026-08-06), et c'est ce choix-là qu'on ne rouvre pas. La place naturelle est
+ * cette page — miroir de « Mes historiques » côté mobile, qui range au même
+ * endroit les examens civiques, les examens TCF et les deux sessions IA.
+ */
+function ProductionHistoryLinks() {
+  return (
+    <section className="res-prod" aria-label="Vos productions évaluées par l'IA">
+      <h2 className="res-prod-title">Vos productions</h2>
+      <p className="res-prod-text">
+        Expression écrite et orale : sessions d&apos;examen blanc et entraînements libres, avec
+        leur correction.
+      </p>
+      <div className="res-prod-links">
+        <Link href="/entrainement/tcf/ee/historique" className="res-prod-link">
+          <span className="res-prod-icon" aria-hidden>
+            <PenLine size={18} strokeWidth={1.8} />
+          </span>
+          <span>
+            <strong>Expression écrite</strong>
+            <em>Vos rédactions corrigées</em>
+          </span>
+        </Link>
+        <Link href="/entrainement/tcf/eo/historique" className="res-prod-link">
+          <span className="res-prod-icon" aria-hidden>
+            <Mic size={18} strokeWidth={1.8} />
+          </span>
+          <span>
+            <strong>Expression orale</strong>
+            <em>Vos enregistrements transcrits et corrigés</em>
+          </span>
+        </Link>
+      </div>
+    </section>
+  );
 }
 
 function ResultRow({
@@ -672,8 +727,68 @@ const styles = `
   .res-sk-tall { height: 460px; }
   @keyframes res-shimmer { to { background-position: -200% 0; } }
 
+  /* ===== productions EE/EO (l'écran ne les liste pas, il y renvoie) ===== */
+  .res-prod {
+    margin-top: 18px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 18px 22px 20px;
+  }
+  .res-prod-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+  .res-prod-text {
+    margin: 6px 0 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .res-prod-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .res-prod-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    color: inherit;
+    transition: border-color 0.15s;
+  }
+  .res-prod-link:hover { border-color: var(--color-blue); }
+  .res-prod-link:focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: 2px;
+  }
+  .res-prod-icon {
+    display: grid; place-items: center;
+    width: 38px; height: 38px; flex: none;
+    border-radius: 12px;
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+  }
+  .res-prod-link strong {
+    display: block;
+    font-size: 14px; font-weight: 700;
+    color: var(--color-ink);
+  }
+  .res-prod-link em {
+    display: block;
+    margin-top: 2px;
+    font-size: 12.5px; font-style: normal;
+    color: var(--color-muted);
+  }
+
   /* ===== responsive ===== */
   @media (max-width: 1000px) {
+    .res-prod-links { grid-template-columns: 1fr; }
     .res-stats { grid-template-columns: 1fr; }
     .res-row { grid-template-columns: 38px 1fr auto 92px; }
     .res-bar { display: none; }
@@ -683,5 +798,6 @@ const styles = `
     .res { padding: 64px 18px 48px; }
     .res-cecrl { display: none; }
     .res-row { grid-template-columns: 38px 1fr 80px; gap: 10px; }
+    .res-prod { padding: 16px 16px 18px; }
   }
 `;

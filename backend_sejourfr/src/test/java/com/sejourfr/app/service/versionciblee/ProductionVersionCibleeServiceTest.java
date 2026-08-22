@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -718,6 +719,32 @@ class ProductionVersionCibleeServiceTest {
         // Les deux blocs sont EXCLUSIFS : jamais un modèle à côté.
         assertThat(eval.getFeedbackJson()).doesNotContainKey(VersionCibleeFields.BLOC);
         verify(aiEvaluationManager).save(eval);
+    }
+
+    /**
+     * PRODUCTION INEXPLOITABLE : aucun appel payé, et rien n'est annoncé non
+     * plus.
+     *
+     * <p>C'est le trou jumeau de celui du diagnostic : depuis que ces
+     * évaluations ne portent plus ni note ni niveau,
+     * {@code aQuelqueChoseAViser(null, visé)} rend {@code true} et on
+     * PAIERAIT un appel pour réécrire une production vide au palier visé. Et on
+     * ne pose surtout pas {@code niveau_vise_atteint} : ce serait annoncer une
+     * victoire à quelqu'un qui n'a rien rendu.
+     */
+    @Test
+    void productionInexploitable_aucunAppelPaye_etAucunBlocAnnonce() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B2);
+        AiEvaluation eval = eval(null, sub.getId());
+        eval.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
+
+        service.enrichir(sub.getId());
+
+        verify(llmClient, never()).produire(anyString(), anyString(), any());
+        assertThat(eval.getFeedbackJson())
+            .doesNotContainKey(VersionCibleeFields.BLOC)
+            .doesNotContainKey(VersionCibleeFields.BLOC_ATTEINT);
+        verify(aiEvaluationManager, never()).save(any());
     }
 
     @Test

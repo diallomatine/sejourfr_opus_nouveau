@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.BandeCritere;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.ObjectifTache;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -81,7 +82,13 @@ public class AiEvaluationService {
         "Votre production n'a pas pu être exploitée : la consigne n'a pas été traitée.";
 
     /** Trace du modele quand aucun LLM n'a ete appele (production jugee inevaluable). */
-    static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
+    /**
+     * Marqueur de LA ligne produite SANS aucun appel LLM : le serveur a juge la
+     * production inexploitable et a decide seul. Partage avec la voie diagnostic
+     * ({@code DiagnosticProductionAnalysisService}) pour qu'une seule valeur
+     * reponde partout a « cette ligne a-t-elle coute un appel ? ».
+     */
+    public static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
 
     private record ValidatedOutcome(
         EvaluationLlmClient.Outcome outcome,
@@ -705,18 +712,52 @@ public class AiEvaluationService {
     }
 
     /**
-     * Production jugee ineexploitable par les controles deterministes : aucun
-     * appel LLM. On persiste quand meme une {@link AiEvaluation} (note 0,
-     * {@code A1_NON_ATTEINT}, confiance {@code FAIBLE}) expliquant au candidat
-     * pourquoi, et la submission passe a {@code EVALUATED} : l'utilisateur voit
-     * un resultat, pas une erreur technique.
+     * Production jugee INEXPLOITABLE par les controles deterministes (vide,
+     * quasi vide, langue non francaise, recopiage de la consigne) : aucun appel
+     * LLM. On persiste quand meme une {@link AiEvaluation} expliquant au
+     * candidat pourquoi, et la submission passe a {@code EVALUATED} —
+     * l'utilisateur voit un resultat, pas une erreur technique.
+     *
+     * <p><b>Mais elle ne porte AUCUN verdict</b> : ni note, ni niveau. Elle en
+     * portait, jusqu'au 2026-08-21 : note 0 et {@code A1_NON_ATTEINT}, c'est-a-dire
+     * une ABSENCE DE PREUVE enregistree comme la PREUVE DU NIVEAU LE PLUS FAIBLE.
+     * Or {@code ai_evaluations} est la table que {@code TcfProfileService} lit EN
+     * PRIORITE pour etablir le niveau EE/EO d'un candidat, et le niveau global est
+     * le PLANCHER des quatre domaines : une seule production ratee tirait tout le
+     * profil au fond. <b>null = inconnu, jamais mauvais</b> — {@link
+     * ProductionEvaluabilite#NON_EVALUABLE} dit POURQUOI il n'y a rien, ce qu'un
+     * trou ne dirait pas.
+     *
+     * <p>🛑 <b>Ce que ce changement ne touche PAS, et c'est delibere.</b> Une
+     * epreuve d'examen OUVERTE PUIS ABANDONNEE (chrono ecoule, rien rendu)
+     * continue de compter {@code A1_NON_ATTEINT} : elle a ete PASSEE et ratee.
+     * Elle ne passe pas par ici — il n'y a justement aucune ligne — et se decide
+     * dans {@code ProductionBilanService.bilanEpreuveTerminee}, ou une tache
+     * absente compte 0. Une ligne {@code NON_EVALUABLE} est d'ailleurs ecartee de
+     * {@code latestEvalsByTache}, donc sa tache y retombe a 0 : sur une epreuve
+     * d'examen terminee, le bilan est <b>inchange</b>.
+     *
+     * <p><b>Et depuis le 2026-08-21, elle ne porte plus non plus de
+     * {@code scores_criteres}</b> — quatre criteres a {@code note_sur_20: 0},
+     * dont seule la bande {@code NON_EVALUABLE} disait le sens. Le champ est
+     * <b>retire</b> plutot que neutralise : la doctrine du depot veut qu'un
+     * comportement se rende <b>impossible</b> (un champ absent du contrat ne
+     * peut pas etre produit par erreur) plutot que surveille. Quatre zeros
+     * laisses la, en comptant sur trois fronts pour ne pas les afficher ni les
+     * sommer, etaient la meme bombe a retardement que le niveau qu'on vient de
+     * retirer. Ce qui reste sont des FAITS : l'objectif non atteint, une
+     * confiance faible et ses raisons. <b>Legacy intact</b> : les
+     * {@code feedback_json} deja persistes gardent leurs quatre zeros, aucune
+     * migration — un front ne doit donc pas supposer le champ present.
      */
     private AiEvaluation persistProductionInvalide(ProductionSubmission sub, ProductionTask task,
                                                    ProductionValidityService.Verdict verdict) {
         List<String> raisons = verdict.raisons();
         Map<String, Object> feedback = new LinkedHashMap<>();
-        feedback.put("note_globale", BigDecimal.ZERO);
-        feedback.put("niveau_cecrl", NiveauCecrl.A1_NON_ATTEINT.name());
+        // NI note_globale, NI niveau_cecrl : rien n'a ete observe, donc rien
+        // n'est affirme — y compris dans le JSONB, que la console de calibration
+        // relit brut. La confiance, elle, reste dite : c'est la certitude du
+        // CORRECTEUR, et ici elle est nulle pour une raison d'OBSERVATION.
         feedback.put("confiance", ConfianceEvaluation.FAIBLE.name());
         feedback.put("confiance_raisons", List.copyOf(raisons));
         // Verdict explicite (schema v5) : une production inexploitable ne repond
@@ -728,7 +769,23 @@ public class AiEvaluationService {
         accomplissement.put("points_traites", List.of());
         accomplissement.put("points_oublies", List.of());
         feedback.put("accomplissement", accomplissement);
-        feedback.put("scores_criteres", scoresNonEvaluables(task));
+        // 🛑 PAS DE `scores_criteres`. Il portait les quatre criteres a
+        // `note_sur_20: 0` avec une bande `NON_EVALUABLE` — le sens vivait dans
+        // la bande, la note disait le contraire, et rien n'empechait un lecteur
+        // (un front, un export, un futur calcul) de sommer des zeros pour en
+        // faire un verdict. C'est la meme confusion que celle qu'on vient de
+        // retirer des colonnes : une ABSENCE DE PREUVE ecrite comme la PREUVE DU
+        // NIVEAU LE PLUS FAIBLE. Doctrine du depot : un champ absent ne peut pas
+        // etre produit par erreur, ce qui vaut mieux que quatre zeros qu'on
+        // compte sur les fronts pour ne pas afficher.
+        //
+        // Rien cote serveur n'en depend sur ce chemin : `latestEvalsByTache`
+        // ecarte deja une ligne sans note ni niveau, donc `ProductionBilanService`
+        // ne la lit jamais ; les filtres et le validateur ne tournent que sur une
+        // sortie de correcteur, et il n'y en a pas ici.
+        //
+        // ⚠️ LEGACY INTACT : les `feedback_json` deja persistes le gardent,
+        // aucune migration. Un front doit donc traiter son absence.
         feedback.put("points_forts", List.of());
         feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(
                 raisons.stream().limit(MAX_POINTS_A_AMELIORER).toList()));
@@ -750,8 +807,9 @@ public class AiEvaluationService {
         eval.setModeleUtilise(MODELE_VALIDATION_SERVEUR);
         eval.setPromptVersion(llmClient.getPromptVersion());
         eval.setRubricsVersion(props.getRubricsVersion());
-        eval.setNoteSur20(BigDecimal.ZERO);
-        eval.setNiveauCecrl(NiveauCecrl.A1_NON_ATTEINT);
+        eval.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
+        eval.setNoteSur20(null);
+        eval.setNiveauCecrl(null);
         eval.setNiveauCecrlIa(null);
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(0);
@@ -763,29 +821,9 @@ public class AiEvaluationService {
         sub.setErreurMessage(null);
         submissionManager.save(sub);
 
-        log.info("Production jugee invalide (aucun appel LLM) submission={} raisons={}",
-            sub.getId(), raisons);
+        log.info("Production jugee inexploitable (aucun appel LLM, aucun niveau rendu) "
+            + "submission={} raisons={}", sub.getId(), raisons);
         return eval;
-    }
-
-    /** Tous les criteres de la rubrique a 0, bande {@code NON_EVALUABLE}. */
-    private List<Map<String, Object>> scoresNonEvaluables(ProductionTask task) {
-        Object grille = rubrics.find(task.getEpreuve(), task.getTacheNumero())
-            .map(r -> r.get("criteres")).orElse(null);
-        if (!(grille instanceof List<?> criteres)) return List.of();
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (Object c : criteres) {
-            if (!(c instanceof Map<?, ?> m) || m.get("code") == null) continue;
-            Map<String, Object> score = new LinkedHashMap<>();
-            score.put("code", m.get("code").toString());
-            if (m.get("label") != null) score.put("label", m.get("label").toString());
-            score.put("note_sur_20", 0);
-            score.put("bande", BandeCritere.NON_EVALUABLE.name());
-            score.put("commentaire", "Ce critère n'a pas pu être évalué : votre production "
-                + "n'était pas exploitable.");
-            out.add(score);
-        }
-        return out;
     }
 
     /**

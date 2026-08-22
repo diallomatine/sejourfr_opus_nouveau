@@ -1,487 +1,280 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
-import '../../../core/models/skill_models.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/evidence_excerpt.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_tag.dart';
-import '../../../core/widgets/fixed_action_bar.dart';
+import '../../../core/widgets/blurred_content.dart';
 import '../../../core/widgets/gradient_hero.dart';
 import '../../../core/widgets/premium_lock.dart';
-import '../../tcf_production/widgets/action_plan.dart';
+import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_actions.dart';
+import '../../plan/plan_labels.dart';
+import '../../plan/plan_series_launcher.dart';
+import '../../plan/widgets/plan_tokens.dart';
+import '../diagnostic_variant.dart';
+import 'diagnostic_report_labels.dart';
 
-/// Écran de fin de diagnostic, refondu sur la maquette premium mobile.
+/// **Mon diagnostic** — le bilan in-app d'un candidat connecté.
 ///
-/// Il s'adresse à un visiteur venu des réseaux qui vient de rendre ses deux
-/// productions : il lui dit **où il en est**, **par où commencer**, lui montre
-/// **une différence concrète sur sa propre phrase**, puis lui présente son plan
-/// et l'offre. Rien n'y est décoratif — chaque bloc rend une donnée que le
-/// serveur a réellement produite, et **un bloc sans donnée n'est pas rendu**
-/// (jamais de squelette, jamais de « non disponible »).
+/// L'écran répond à une seule question, et il y répond **épreuve par épreuve** :
+/// *quel est mon niveau, et quelles compétences l'expliquent ?* D'où sa forme —
+/// un résumé global, puis quatre cartes dépliables, une par épreuve.
 ///
-/// Trois choses de la maquette sont volontairement **non reprises** :
-/// - aucune **barre ni pourcentage** de progression — le score de maîtrise
-///   n'est exposé à aucun front, on rend des états et des statuts ;
-/// - aucun **calendrier** (« Semaine 1 », jours) — le Plan n'a pas de notion de
-///   temps, une étape est un ensemble de sujets ;
-/// - aucun **emoji en texte brut** — les icônes viennent de `LucideIcons`.
-class DiagnosticResultView extends StatelessWidget {
+/// Ordre figé, identique au web :
+/// 1. le **résumé global** (niveau estimé, objectif, rail, les 4 colonnes) ;
+/// 2. **Mes 4 épreuves**, dans l'ordre EE · EO · CE · CO ;
+/// 3. la **prochaine étape** (abonné) ou la **carte d'offre** (compte gratuit) ;
+/// 4. la mention d'estimation.
+///
+/// 🛑 **Chaque bloc rend une donnée que le serveur a réellement produite**, et
+/// un bloc sans donnée n'est pas rendu — jamais de squelette, jamais de « non
+/// disponible », jamais un compteur de maquette recopié.
+///
+/// 🛑 **On floute l'ACTION pas encore accessible, jamais le RÉSULTAT mesuré.**
+/// Les niveaux, le rail, les quatre colonnes, la phrase qui explique chaque
+/// niveau et la première compétence restent en clair pour tout le monde : ce
+/// sont ses productions et ses mesures. Ce qu'un compte sans accès ne lit pas,
+/// c'est la **suite** de la liste — derrière un rideau posé sur du **vrai**
+/// contenu ([BlurredContent] : `ExcludeSemantics` + `IgnorePointer`), avec un
+/// compteur **exact** servi par le serveur juste à côté, hors du flou.
+class DiagnosticResultView extends ConsumerStatefulWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     required this.hasTcfAccess,
+    required this.variant,
     required this.onOpenPlan,
-    required this.onOpenRecommended,
     required this.onSubscribe,
     this.objective,
   });
 
   final DiagnosticResult result;
+
+  /// Le palier visé, déjà résolu pour l'écran (`TargetProcedure.niveauVise`,
+  /// plancher de la démarche). `null` = pas encore choisi : on l'écrit, on
+  /// n'invente pas de « B2 ».
   final String? objective;
 
-  /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il ne sert qu'à **choisir la
-  /// pastille** des étapes à venir et à décider si l'offre est présentée :
-  /// aucune règle de verrou n'est recalculée ici — celle de l'exercice
-  /// recommandé vient de `PlanRecommendedExercise.locked`, posé par le serveur.
+  /// Ce que le candidat a choisi à l'entrée. **Rien n'est persisté** : elle ne
+  /// sert plus qu'à dire la vérité à l'audience quand une épreuve de
+  /// compréhension est lancée depuis ce bilan.
+  final DiagnosticVariant variant;
+
+  /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il décide de ce qui est
+  /// **flouté** ; aucune règle de verrou n'est recalculée ici — celui d'une
+  /// compétence vient de `PlanDomainSkill.locked`, posé par le serveur.
   final bool hasTcfAccess;
 
   final VoidCallback onOpenPlan;
-  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
   final VoidCallback onSubscribe;
 
   @override
-  Widget build(BuildContext context) {
-    final focus = _focusItems(result);
-    final solid = _solidSkills(result);
-    final steps = _planSteps(result, hasTcfAccess: hasTcfAccess);
-    final exemple = result.exempleCible;
+  ConsumerState<DiagnosticResultView> createState() =>
+      _DiagnosticResultViewState();
+}
 
-    return Stack(
-      children: [
-        ListView(
-          // La réserve du bas laisse passer tout le contenu sous le CTA
-          // collant : rien n'est jamais masqué par la barre.
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
-          children: [
-            const _DoneBadge(),
-            const SizedBox(height: 14),
-            Text(
-              'BILAN PERSONNALISÉ · 2 PRODUCTIONS',
-              style: AppFonts.eyebrow(color: AppColors.blue),
+/// **Les seuils d'affichage, déclarés UNE fois.**
+///
+/// Miroirs du web (`FREE_WORK_VISIBLE` / `FREE_SOLID_VISIBLE` /
+/// `COLLAPSED_WORK_VISIBLE`) : ce sont des plafonds d'**affichage**, jamais des
+/// règles d'accès — le verrou réel vit sur `PlanDomainSkill.locked`, posé par le
+/// serveur.
+const int _kFreeWorkVisible = 1;
+const int _kFreeSolidVisible = 1;
+const int _kCollapsedWorkVisible = 2;
+
+class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
+  /// L'épreuve dépliée. `null` = tout replié, état légitime. L'écrit s'ouvre en
+  /// premier : c'est la production que le candidat vient de rendre.
+  EpreuveType? _open = EpreuveType.tcfEe;
+
+  /// Une clé par carte, pour amener la bonne épreuve sous les yeux quand on
+  /// touche sa colonne du résumé.
+  final Map<EpreuveType, GlobalKey> _cards = {
+    for (final epreuve in kDiagnosticEpreuveOrder) epreuve: GlobalKey(),
+  };
+
+  void _toggle(EpreuveType epreuve) {
+    setState(() => _open = _open == epreuve ? null : epreuve);
+  }
+
+  /// Déplie l'épreuve **et** l'amène à l'écran. Le défilement attend la frame
+  /// suivante : la carte n'a sa hauteur dépliée qu'une fois reconstruite.
+  void _focus(EpreuveType epreuve) {
+    setState(() => _open = epreuve);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _cards[epreuve]?.currentContext;
+      if (target == null) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0.05,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
+  }
+
+  /// Le parcours d'achat de l'app — **le seul**. Le compteur d'audience est
+  /// celui du rapport de diagnostic ; on n'en crée pas un second.
+  void _subscribe() => widget.onSubscribe();
+
+  /// Ouvre une compétence de la carte.
+  ///
+  /// 🛑 Le verrou est **lu** (`locked`, posé par le serveur), jamais déduit du
+  /// rang de la ligne **ni de l'accès du compte** : `SkillAccessService` ouvre
+  /// la compétence de la première place du Plan à un compte gratuit, et refuser
+  /// ici sur `hasTcfAccess` fermait une porte que le serveur laisse ouverte —
+  /// le web, lui, ne lisait déjà que `locked`. En **compréhension**, la
+  /// compétence est un palier : on lance sa série ciblée, exactement comme la
+  /// fiche du domaine. En **expression**, on ouvre sa fiche, où vivent ses
+  /// petits sujets.
+  void _openSkill(PlanDomainSkill skill, EpreuveType epreuve) {
+    if (skill.locked) {
+      _subscribe();
+      return;
+    }
+    final section = skill.section ?? planDomainSection(epreuve);
+    if (section == null) return;
+    if (section.isComprehension) {
+      unawaited(
+        startTargetedSeries(
+          context,
+          ref,
+          skillId: skill.skillId,
+          masteryBefore: skill.masteryState,
+        ),
+      );
+      return;
+    }
+    openPlanSkill(context, skill.skillId, section);
+  }
+
+  /// Lance la mesure d'une épreuve encore inconnue.
+  ///
+  /// ⚠️ L'événement d'audience n'existe que pour la **compréhension** : c'est
+  /// le seul endroit de l'app où une CO/CE est lancée *depuis le diagnostic*,
+  /// donc le seul où il soit vrai. Il porte la variante **réellement choisie**,
+  /// jamais « complet » par défaut.
+  void _assess(PlanDomainAssessment assessment) {
+    final event = switch (assessment.epreuve) {
+      EpreuveType.tcfCo => AnalyticsEvent.diagnosticCoStarted,
+      EpreuveType.tcfCe => AnalyticsEvent.diagnosticCeStarted,
+      _ => null,
+    };
+    if (event != null) {
+      ref.read(analyticsServiceProvider).track(
+            event,
+            path: AnalyticsPath.diagnostic,
+            diagnosticType: widget.variant.isComplet
+                ? AnalyticsDiagnosticType.complete
+                : AnalyticsDiagnosticType.rapid,
+          );
+    }
+    openPlanAssessment(context, assessment);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Le Plan n'est lu qu'**ici**, sur le résultat d'un compte authentifié :
+    // c'est la seule source des quatre domaines, de leurs compétences et de ce
+    // qu'il reste à mesurer. Son absence — chargement, réseau — est un cas
+    // NORMAL : les cartes retombent sur « à évaluer », rien n'est deviné.
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final cycle = plan?.cycle;
+
+    // 🛑 **Sans Plan, aucune carte** — miroir du web. Écrire « cette épreuve
+    // n'a pas encore été évaluée » pendant le chargement, ce serait affirmer un
+    // fait que le serveur n'a pas servi : un bloc sans donnée n'est pas rendu.
+    final epreuves = plan == null
+        ? const <_EpreuveView>[]
+        : [
+            for (final epreuve in kDiagnosticEpreuveOrder)
+              _EpreuveView.of(epreuve, plan: plan, result: widget.result),
+          ];
+    // 🛑 **La couverture se lit sur le CYCLE**, jamais sur la longueur d'une
+    // liste : deux surfaces qui compteraient chacune de leur côté finiraient
+    // par se contredire. Tant que le Plan n'a pas répondu, rien n'est complet.
+    final evaluated = cycle?.domainsEvaluated ?? 0;
+    final expected = cycle?.domainsExpected ?? kDiagnosticEpreuveOrder.length;
+    final complete = cycle?.profileComplete ?? false;
+    // Le compte de l'offre se lit sur le **compteur serveur** de chaque
+    // domaine (`fragileSkillCount`), jamais sur une liste affichée.
+    final detected = epreuves.fold<int>(0, (sum, e) => sum + e.fragileTotal);
+
+    return SingleChildScrollView(
+      // La liste tient en quatre cartes : elle est construite d'un bloc pour
+      // que `Scrollable.ensureVisible` trouve toujours la carte visée depuis
+      // les colonnes du résumé.
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _GlobalCard(
+            cycle: cycle,
+            objective: widget.objective,
+            epreuves: epreuves,
+            evaluated: evaluated,
+            expected: expected,
+            complete: complete,
+            open: _open,
+            onSelect: _focus,
+          ),
+          if (epreuves.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const _SectionHead(
+              title: kDiagnosticEpreuvesTitle,
+              text: kDiagnosticEpreuvesSub,
             ),
-            const SizedBox(height: 10),
-            const _ResultTitle(),
-            const SizedBox(height: 10),
-            Text(
-              _intro(focus.length),
-              style: AppFonts.ui(
-                size: 14.5,
-                color: AppColors.inkSoft,
-                height: 1.5,
+            const SizedBox(height: 11),
+            for (final epreuve in epreuves) ...[
+              _EpreuveCard(
+                key: _cards[epreuve.epreuve],
+                view: epreuve,
+                objective: widget.objective,
+                open: _open == epreuve.epreuve,
+                hasAccess: widget.hasTcfAccess,
+                onToggle: () => _toggle(epreuve.epreuve),
+                onSkill: (skill) => _openSkill(skill, epreuve.epreuve),
+                onAssess: _assess,
+                onSubscribe: _subscribe,
               ),
-            ),
-            const SizedBox(height: 18),
-            _LevelsHero(
-              written: result.written?.levelEstimate,
-              oral: result.oral?.levelEstimate,
-              objective: objective,
-            ),
-            const SizedBox(height: 10),
-            const _EstimationNote(),
-            if (focus.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _FocusCard(focus: focus),
-            ],
-            if (exemple != null) ...[
-              const SizedBox(height: 26),
-              const _SectionHead(
-                kicker: 'EXEMPLE TIRÉ DE VOTRE PRODUCTION',
-                title: 'Voyez ce qui vous sépare du niveau supérieur.',
-                description:
-                    'Une petite différence de formulation peut rendre votre '
-                    'réponse beaucoup plus riche.',
-              ),
-              const SizedBox(height: 13),
-              _BeforeAfter(exemple: exemple),
-            ],
-            if (steps.isNotEmpty) ...[
-              const SizedBox(height: 26),
-              const _SectionHead(
-                kicker: 'VOTRE PLAN PERSONNALISÉ',
-                title: 'L’application sait déjà quoi vous faire travailler.',
-                description:
-                    'Votre plan se réorganise ensuite selon vos nouvelles '
-                    'productions.',
-              ),
-              const SizedBox(height: 13),
-              _PlanPreviewCard(
-                steps: steps,
-                exercise: result.nextAction,
-                onOpenRecommended: onOpenRecommended,
-                onSubscribe: onSubscribe,
-              ),
-            ],
-            if (!hasTcfAccess) ...[
-              const SizedBox(height: 14),
-              _ValueCard(onSubscribe: onSubscribe),
-            ],
-            if (solid.isNotEmpty || result.strengths.isNotEmpty) ...[
-              const SizedBox(height: 26),
-              const _SectionHead(
-                kicker: 'VOS ACQUIS',
-                title: 'Vous avez déjà de bonnes bases.',
-                description:
-                    'Le détail reste disponible, mais il ne prend plus toute '
-                    'la place dans le bilan.',
-              ),
-              const SizedBox(height: 13),
-              if (result.strengths.isNotEmpty) ...[
-                _StrengthsCard(strengths: result.strengths.take(3).toList()),
-                if (solid.isNotEmpty) const SizedBox(height: 9),
-              ],
-              for (final skill in solid)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _AcquisRow(skill: skill),
-                ),
-            ],
-            if (result.written != null || result.oral != null) ...[
-              const SizedBox(height: 22),
-              const _SectionHead(
-                kicker: 'LE DÉTAIL',
-                title: 'Vos deux productions',
-                description: 'Ce que chaque production a montré.',
-              ),
-              const SizedBox(height: 13),
-              if (result.written != null)
-                _ProductionCard(
-                  title: 'Expression écrite',
-                  icon: LucideIcons.penLine,
-                  accent: AppColors.blue,
-                  accentSoft: AppColors.blueLight,
-                  production: result.written!,
-                ),
-              if (result.written != null && result.oral != null)
-                const SizedBox(height: 9),
-              if (result.oral != null)
-                _ProductionCard(
-                  title: 'Expression orale',
-                  icon: LucideIcons.mic,
-                  accent: AppColors.red,
-                  accentSoft: AppColors.redLight,
-                  production: result.oral!,
-                ),
+              const SizedBox(height: 12),
             ],
           ],
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: FixedActionBar(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  button: true,
-                  label: 'Voir mon plan personnalisé',
-                  child: AppButton(
-                    label: 'Voir mon plan personnalisé',
-                    iconRight: LucideIcons.arrowRight,
-                    onPressed: onOpenPlan,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  'Basé sur vos réponses · vous pourrez commencer par un '
-                  'exercice',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 10.5,
-                    weight: FontWeight.w700,
-                    color: AppColors.inkFaint,
-                    height: 1.35,
-                  ),
-                ),
-              ],
+          if (widget.hasTcfAccess) ...[
+            const SizedBox(height: 8),
+            const _SectionHead(title: kDiagnosticNextStepTitle),
+            const SizedBox(height: 11),
+            _NextStepCard(
+              objective: widget.objective,
+              onOpenPlan: widget.onOpenPlan,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _intro(int focusCount) {
-    if (focusCount == 0) {
-      return 'Pas besoin de tout revoir. Votre diagnostic montre par où '
-          'commencer pour progresser plus vite.';
-    }
-    final priorites = focusCount > 1 ? 'priorités' : 'priorité';
-    return 'Pas besoin de tout revoir. Votre diagnostic a identifié '
-        '$focusCount $priorites pour progresser plus vite.';
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Lecture des données
-// ---------------------------------------------------------------------------
-
-/// Une ligne de la carte « Votre progression se joue surtout ici ».
-///
-/// [ranked] distingue les **priorités mesurées** par le serveur (numérotées)
-/// des replis : ces derniers ne portent pas de rang, parce qu'ils ne sont pas
-/// un classement.
-///
-/// Elle porte **tout ce que le serveur publie** sur une priorité
-/// (`DiagnosticSkillObservationDto`) et que le candidat a le droit de lire :
-/// `explanation`, `evidence`, `status` et `section`. `confidence` en est
-/// volontairement absente — elle n'est **jamais** montrée au candidat.
-class _FocusItem {
-  const _FocusItem({
-    required this.title,
-    required this.ranked,
-    this.detail,
-    this.evidence,
-    this.status,
-    this.section,
-  });
-
-  final String title;
-  final String? detail;
-  final String? evidence;
-  final LearningPlanSkillStatus? status;
-  final SkillSection? section;
-  final bool ranked;
-
-  /// Y a-t-il quelque chose à déplier ? Un repli tiré des `weaknesses` n'est
-  /// qu'un titre : sa ligne reste alors **inerte**, sans chevron.
-  bool get hasReport =>
-      detail != null || evidence != null || status != null || section != null;
-}
-
-/// Ce sur quoi le candidat doit travailler, dans l'ordre de repli suivant :
-/// 1. les **priorités** servies par le serveur — le cas normal ;
-/// 2. sinon, les compétences observées non solides des deux productions ;
-/// 3. sinon, les `weaknesses` des deux productions, présentées comme ce que les
-///    productions ont montré, **jamais comme des priorités mesurées**.
-///
-/// Rien de tout ça ⇒ liste vide ⇒ la carte n'est pas rendue.
-List<_FocusItem> _focusItems(DiagnosticResult result) {
-  if (result.priorities.isNotEmpty) {
-    return result.priorities
-        .take(3)
-        .indexed
-        .map(
-          (entry) => _FocusItem(
-            title: entry.$2.skillTitle,
-            // La priorité n°1 a son explication dédiée
-            // (`mainPriorityExplanation`), plus développée que l'explication de
-            // l'observation. Même repli que le web (`DiagnosticView`).
-            detail: (entry.$1 == 0 ? result.mainPriorityExplanation : null) ??
-                entry.$2.explanation,
-            evidence: entry.$2.evidence,
-            status: entry.$2.status,
-            section: entry.$2.section,
-            ranked: true,
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  final observed = <_FocusItem>[];
-  final seen = <String>{};
-  for (final production in [result.written, result.oral]) {
-    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
-      if (!skill.observed) continue;
-      if (skill.status == LearningPlanSkillStatus.solid) continue;
-      if (skill.status == LearningPlanSkillStatus.notObserved) continue;
-      if (!seen.add(skill.skillId)) continue;
-      observed.add(
-        _FocusItem(
-          title: skill.skillTitle,
-          detail: skill.explanation,
-          evidence: skill.evidence,
-          status: skill.status,
-          section: skill.section,
-          ranked: false,
-        ),
-      );
-    }
-  }
-  if (observed.isNotEmpty) return observed.take(3).toList(growable: false);
-
-  final weaknesses = <_FocusItem>[];
-  for (final production in [result.written, result.oral]) {
-    for (final weakness in production?.weaknesses ?? const <String>[]) {
-      weaknesses.add(_FocusItem(title: weakness, ranked: false));
-    }
-  }
-  return weaknesses.take(3).toList(growable: false);
-}
-
-/// Les compétences que les deux productions ont montrées **solides**,
-/// dédoublonnées par `skillId`.
-List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) {
-  final seen = <String>{};
-  final solid = <DiagnosticSkillObservation>[];
-  for (final production in [result.written, result.oral]) {
-    for (final skill in production?.skills ?? const <DiagnosticSkillObservation>[]) {
-      if (!skill.observed) continue;
-      if (skill.status != LearningPlanSkillStatus.solid) continue;
-      if (!seen.add(skill.skillId)) continue;
-      solid.add(skill);
-    }
-  }
-  return solid.take(4).toList(growable: false);
-}
-
-/// Une étape de l'aperçu du plan.
-class _PlanStep {
-  const _PlanStep({
-    required this.title,
-    required this.subtitle,
-    required this.state,
-  });
-
-  final String title;
-  final String subtitle;
-  final _StepState state;
-}
-
-enum _StepState {
-  /// L'étape que le candidat peut commencer tout de suite.
-  open,
-
-  /// L'étape est **entièrement lisible**, seul son accès demande un
-  /// abonnement.
-  locked,
-
-  /// Étape suivante d'un compte qui a déjà l'accès.
-  upcoming,
-}
-
-/// Les trois étapes de l'aperçu : l'exercice recommandé, puis les priorités
-/// suivantes, puis la vérification en situation si la place reste.
-///
-/// **Aucun titre n'est masqué** : le cadenas porte sur l'accès, jamais sur
-/// l'information.
-List<_PlanStep> _planSteps(
-  DiagnosticResult result, {
-  required bool hasTcfAccess,
-}) {
-  final exercise = result.nextAction;
-  final steps = <_PlanStep>[];
-
-  if (exercise != null) {
-    steps.add(
-      _PlanStep(
-        title: exercise.title,
-        subtitle: exercise.kind == PlanExerciseKind.reassessment
-            ? 'Vérification en situation · ${exercise.estimatedMinutes} min'
-            : 'Exercice ciblé · ${exercise.estimatedMinutes} min',
-        state: exercise.locked ? _StepState.locked : _StepState.open,
-      ),
-    );
-  } else if (result.priorities.isNotEmpty) {
-    steps.add(
-      _PlanStep(
-        title: result.priorities.first.skillTitle,
-        subtitle: 'Exercice ciblé',
-        state: hasTcfAccess ? _StepState.open : _StepState.locked,
-      ),
-    );
-  }
-
-  final nextState = hasTcfAccess ? _StepState.upcoming : _StepState.locked;
-  for (final priority in result.priorities.skip(1).take(2)) {
-    if (steps.length >= 3) break;
-    steps.add(
-      _PlanStep(
-        title: priority.skillTitle,
-        subtitle: 'Exercice ciblé',
-        state: nextState,
-      ),
-    );
-  }
-  if (steps.isNotEmpty && steps.length < 3) {
-    steps.add(
-      _PlanStep(
-        title: 'Nouvelle production évaluée par IA',
-        subtitle: 'Vérifier votre progression',
-        state: nextState,
-      ),
-    );
-  }
-  return steps;
-}
-
-// ---------------------------------------------------------------------------
-// En-tête
-// ---------------------------------------------------------------------------
-
-class _DoneBadge extends StatelessWidget {
-  const _DoneBadge();
-
-  @override
-  Widget build(BuildContext context) => Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
-          decoration: BoxDecoration(
-            color: AppColors.greenLight,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 18,
-                height: 18,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.green,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  LucideIcons.check,
-                  size: 12,
-                  color: AppColors.white,
-                ),
-              ),
-              const SizedBox(width: 7),
-              Text(
-                'Diagnostic terminé',
-                style: AppFonts.ui(
-                  size: 11.5,
-                  weight: FontWeight.w800,
-                  color: AppColors.green,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _ResultTitle extends StatelessWidget {
-  const _ResultTitle();
-
-  @override
-  Widget build(BuildContext context) {
-    final base = AppFonts.display(size: 30, height: 1.05);
-    return Text.rich(
-      TextSpan(
-        style: base,
-        children: [
-          const TextSpan(text: 'On sait maintenant '),
-          TextSpan(
-            text: 'quoi travailler.',
-            style: base.copyWith(color: AppColors.blue),
-          ),
+          ] else ...[
+            const SizedBox(height: 8),
+            _UnlockCard(
+              objective: widget.objective,
+              detected: detected,
+              onSubscribe: _subscribe,
+            ),
+          ],
+          const SizedBox(height: 16),
+          // 🛑 **Une seule mention en pied**, miroir du web : ce que vaut
+          // l'estimation. Le sens d'un domaine non mesuré est déjà porté par le
+          // héros (`diagnosticPartialText`) — le redire ici ferait deux
+          // paragraphes pour une seule idée.
+          const PlanNote(kDiagnosticEstimationNote),
         ],
       ),
     );
@@ -489,98 +282,360 @@ class _ResultTitle extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Niveaux estimés
+// Lecture d'une épreuve
 // ---------------------------------------------------------------------------
 
-class _LevelsHero extends StatelessWidget {
-  const _LevelsHero({
-    required this.written,
-    required this.oral,
-    required this.objective,
+/// Les trois états d'une carte d'épreuve.
+///
+/// ⚠️ [incomplete] et [toAssess] ne disent **pas** la même chose : la première
+/// est une production **rendue** dont il n'y avait rien à observer, la seconde
+/// une épreuve **jamais passée**. Deux phrases, deux gestes.
+enum _EpreuveState { ok, toAssess, incomplete }
+
+/// Comment une compétence se range sur la carte.
+///
+/// 🛑 **La nature passe avant le statut** : une compétence *à acquérir* n'a
+/// aucun verdict (rien n'a été observé dessus), donc son `status` vaut
+/// `NOT_OBSERVED` — la classer dessus l'aurait rangée parmi les absences de
+/// mesure, alors que c'est précisément ce que le Plan va enseigner.
+enum _SkillGroup { priority, reinforce, acquire, solid, notObserved }
+
+extension _SkillGroupStyle on _SkillGroup {
+  String get label => switch (this) {
+        _SkillGroup.priority => kDiagnosticGroupPriority,
+        _SkillGroup.reinforce => kDiagnosticGroupReinforce,
+        _SkillGroup.acquire => kDiagnosticGroupAcquire,
+        _SkillGroup.solid => kDiagnosticGroupSolid,
+        _SkillGroup.notObserved => LearningPlanSkillStatus.notObserved.label,
+      };
+
+  /// ⚠️ **Aucune teinte nouvelle** : chacune est déjà celle de l'état qu'elle
+  /// nomme ailleurs dans l'app (statut de compétence, nature d'action, état de
+  /// maîtrise). Un même état ne change pas de couleur d'un écran à l'autre.
+  Color get color => switch (this) {
+        _SkillGroup.priority => AppColors.red,
+        _SkillGroup.reinforce => AppColors.amberDark,
+        _SkillGroup.acquire => AppColors.blue,
+        _SkillGroup.solid => AppColors.green,
+        _SkillGroup.notObserved => AppColors.inkFaint,
+      };
+
+  TagTone get tone => switch (this) {
+        _SkillGroup.priority => TagTone.red,
+        _SkillGroup.reinforce => TagTone.amber,
+        _SkillGroup.acquire => TagTone.blue,
+        _SkillGroup.solid => TagTone.success,
+        _SkillGroup.notObserved => TagTone.ghost,
+      };
+}
+
+_SkillGroup _groupOf(PlanDomainSkill skill) {
+  if (skill.nature == PlanActionNature.aAcquerir) return _SkillGroup.acquire;
+  return switch (skill.status) {
+    LearningPlanSkillStatus.priority => _SkillGroup.priority,
+    LearningPlanSkillStatus.toReinforce => _SkillGroup.reinforce,
+    LearningPlanSkillStatus.solid => _SkillGroup.solid,
+    LearningPlanSkillStatus.notObserved => _SkillGroup.notObserved,
+  };
+}
+
+/// Une compétence, telle que la carte la rend : son groupe, et rien d'autre en
+/// plus de ce que le serveur a servi.
+class _SkillLine {
+  const _SkillLine(this.skill, this.group);
+
+  final PlanDomainSkill skill;
+  final _SkillGroup group;
+}
+
+/// **Tout ce qu'une carte d'épreuve a besoin de savoir**, lu une seule fois.
+///
+/// 🛑 Les compteurs `fragileTotal` / `solidTotal` viennent du **serveur**
+/// (`PlanDomain.fragileSkillCount` / `.solidSkillCount`) : ce sont eux qui
+/// rendent le « + N autres » vrai. On ne les recompte jamais depuis une liste
+/// tronquée à l'affichage.
+class _EpreuveView {
+  const _EpreuveView({
+    required this.epreuve,
+    required this.state,
+    required this.work,
+    required this.solid,
+    required this.notObserved,
+    required this.fragileTotal,
+    required this.solidTotal,
+    this.domain,
+    this.assessment,
+    this.level,
+    this.nextLevel,
+    this.resume,
+    this.explanation,
   });
 
-  final NiveauCecrl? written;
-  final NiveauCecrl? oral;
+  final EpreuveType epreuve;
+  final _EpreuveState state;
+  final PlanDomain? domain;
+
+  /// La mesure que le serveur désigne pour cette épreuve. `null` = il n'en
+  /// propose aucune : on n'invente alors aucun parcours, et la carte n'affiche
+  /// pas de bouton.
+  final PlanDomainAssessment? assessment;
+
+  final NiveauCecrl? level;
+  final TargetLevel? nextLevel;
+  final String? resume;
+  final String? explanation;
+
+  /// Ce qu'il y a à faire, dans l'ordre des groupes : priorités, puis
+  /// fragilités, puis acquisitions. **Jamais tronquée ici** — c'est l'appelant
+  /// qui tranche ce qu'il affiche, sinon le compteur serait faux par
+  /// construction.
+  final List<_SkillLine> work;
+  final List<_SkillLine> solid;
+
+  /// Les compétences **jamais observées**, acquisitions exclues : celles-ci
+  /// sont déjà rendues plus haut sous « À acquérir », et les compter deux fois
+  /// dirait qu'une même compétence est à la fois à apprendre et sans données.
+  final int notObserved;
+
+  final int fragileTotal;
+  final int solidTotal;
+
+  static _EpreuveView of(
+    EpreuveType epreuve, {
+    required LearningPlan? plan,
+    required DiagnosticResult result,
+  }) {
+    final domain =
+        plan?.domaines.where((d) => d.epreuve == epreuve).firstOrNull;
+    final assessment =
+        plan?.domainesAEvaluer.where((a) => a.epreuve == epreuve).firstOrNull;
+
+    // 🛑 **L'ORDRE DES TESTS COMPTE, et c'est la MESURE qui passe en premier.**
+    // Un domaine réellement mesuré rend son niveau, quoi qu'il soit arrivé à la
+    // production du diagnostic : *une production inexploitable ne produit aucun
+    // niveau, mais elle n'efface pas un niveau obtenu par ailleurs* (une EE
+    // ratée puis une vraie mesure). Tester « non exploitable » d'abord — ce que
+    // fait la maquette, qui n'a pas de serveur — figeait cette épreuve sur
+    // « évaluation incomplète » à vie.
+    if (domain != null && domain.evaluated && domain.niveau != null) {
+      return _EpreuveView.mesuree(epreuve, domain, assessment);
+    }
+
+    // Sans mesure : « rendue, rien à observer » ≠ « jamais passée ». Deux
+    // phrases, deux gestes — et seule la valeur `NON_EVALUABLE` **explicite**
+    // se lit ainsi, l'absence du bloc voulant dire « pas encore analysée ».
+    final production = switch (epreuve) {
+      EpreuveType.tcfEe => result.written,
+      EpreuveType.tcfEo => result.oral,
+      _ => null,
+    };
+    return _EpreuveView(
+      epreuve: epreuve,
+      state: (production?.estNonEvaluable ?? false)
+          ? _EpreuveState.incomplete
+          : _EpreuveState.toAssess,
+      domain: domain,
+      assessment: assessment,
+      work: const <_SkillLine>[],
+      solid: const <_SkillLine>[],
+      notObserved: 0,
+      fragileTotal: 0,
+      solidTotal: 0,
+    );
+  }
+
+  /// L'épreuve **mesurée** : ses compétences, rangées par groupe, et les
+  /// compteurs **servis** qui rendent le « + N autres » vrai.
+  static _EpreuveView mesuree(
+    EpreuveType epreuve,
+    PlanDomain domain,
+    PlanDomainAssessment? assessment,
+  ) {
+    // 🛑 L'ordre **dans** un groupe est celui du serveur : on n'ordonne que les
+    // groupes entre eux, et cet ordre est celui de `PlanActionNature` (réparer
+    // ce qui est fragile avant d'apprendre ce qui vient).
+    final lines = [
+      for (final skill in domain.skills) _SkillLine(skill, _groupOf(skill)),
+    ];
+    final work = <_SkillLine>[
+      ...lines.where((l) => l.group == _SkillGroup.priority),
+      ...lines.where((l) => l.group == _SkillGroup.reinforce),
+      ...lines.where((l) => l.group == _SkillGroup.acquire),
+    ];
+    final solid =
+        lines.where((l) => l.group == _SkillGroup.solid).toList(growable: false);
+    final notObserved =
+        lines.where((l) => l.group == _SkillGroup.notObserved).length;
+    final observed = domain.fragileSkillCount + domain.solidSkillCount;
+
+    return _EpreuveView(
+      epreuve: epreuve,
+      state: _EpreuveState.ok,
+      domain: domain,
+      assessment: assessment,
+      level: domain.niveau,
+      nextLevel: diagnosticNextLevel(domain.niveau),
+      resume: diagnosticEpreuveResume(epreuve, domain.niveau),
+      explanation: diagnosticEpreuveExplanation(
+        domain,
+        observed: observed,
+        fragile: domain.fragileSkillCount,
+        solid: domain.solidSkillCount,
+      ),
+      work: List.unmodifiable(work),
+      solid: solid,
+      notObserved: notObserved,
+      fragileTotal: domain.fragileSkillCount,
+      solidTotal: domain.solidSkillCount,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 1 — le résumé global
+// ---------------------------------------------------------------------------
+
+/// Le bandeau qui situe le candidat : **niveau estimé** en très grand,
+/// objectif sur la même ligne, couverture du profil, rail des paliers — puis,
+/// dans la même carte, une colonne par épreuve.
+///
+/// 🛑 **Le niveau global vient du SERVEUR** (`cycle.startingLevel`, plancher des
+/// quatre domaines calculé par `TcfProfileService`) : aucun front ne le rejoue
+/// à partir des deux estimations de production, sinon deux surfaces
+/// annonceraient deux paliers pour le même candidat. `null` ⇒ « — », jamais un
+/// palier deviné.
+class _GlobalCard extends StatelessWidget {
+  const _GlobalCard({
+    required this.cycle,
+    required this.objective,
+    required this.epreuves,
+    required this.evaluated,
+    required this.expected,
+    required this.complete,
+    required this.open,
+    required this.onSelect,
+  });
+
+  final PlanCycle? cycle;
   final String? objective;
+  final List<_EpreuveView> epreuves;
+  final int evaluated;
+  final int expected;
+  final bool complete;
+  final EpreuveType? open;
+  final ValueChanged<EpreuveType> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return GradientHero(
-      padding: const EdgeInsets.all(18),
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'VOTRE NIVEAU ESTIMÉ AUJOURD’HUI',
-            style: AppFonts.label(
-              color: AppColors.white.withValues(alpha: 0.76),
+          GradientHero(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 17),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.xl),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kDiagnosticLevelEyebrow.toUpperCase(),
+                  style: AppFonts.eyebrow(
+                    color: AppColors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Niveau et objectif sur **une seule ligne**, alignés par le
+                // bas : « où j'en suis, où je vais » se lit d'un seul
+                // mouvement.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        cycle?.startingLevel?.shortName ?? '—',
+                        style: AppFonts.display(
+                          size: 44,
+                          height: 1.05,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          '$kDiagnosticLevelObjective '
+                          '${objective ?? kDiagnosticLevelObjectiveUnknown}',
+                          style: AppFonts.ui(
+                            size: 14,
+                            weight: FontWeight.w600,
+                            color: AppColors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+                _CoveragePill(
+                  complete: complete,
+                  evaluated: evaluated,
+                  expected: expected,
+                ),
+                if (!complete) ...[
+                  const SizedBox(height: 11),
+                  Text(
+                    diagnosticPartialText(evaluated, expected),
+                    style: AppFonts.ui(
+                      size: 13,
+                      height: 1.5,
+                      color: AppColors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
+                if (cycle != null) ...[
+                  const SizedBox(height: 15),
+                  // Le rail du Plan, repris tel quel : le candidat doit
+                  // retrouver **la même** échelle d'un écran à l'autre, et le
+                  // palier allumé est celui que son cycle construit — jamais
+                  // une valeur redérivée ici.
+                  PlanLevelRail(current: cycle!.targetLevel, onDark: true),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          // IntrinsicHeight : les deux blocs de niveau doivent avoir la même
-          // hauteur, or un `stretch` dans une colonne scrollable n'a pas de
-          // contrainte de hauteur.
+          // 🛑 `IntrinsicHeight` n'est pas décoratif : les quatre colonnes se
+          // veulent d'égale hauteur — c'est ce qui fait courir le trait de
+          // séparation d'un bord à l'autre — et `CrossAxisAlignment.stretch`
+          // seul demande une hauteur **tendue sur la contrainte reçue**. Ici
+          // elle est infinie (la carte vit dans un `SingleChildScrollView`),
+          // donc la `Row` posait `h=Infinity` à ses colonnes : erreur de
+          // layout, sous-arbre laissé `NEEDS-LAYOUT`, et plus aucune frame
+          // envoyée au moteur. Il faut donc **borner** la hauteur avant de la
+          // tendre. Coût négligeable : quatre colonnes d'une ligne chacune.
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: _LevelBlock(
-                    icon: LucideIcons.penLine,
-                    label: 'Expression écrite',
-                    level: written,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _LevelBlock(
-                    icon: LucideIcons.mic,
-                    label: 'Expression orale',
-                    level: oral,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.only(top: 13),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: AppColors.white.withValues(alpha: 0.16),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                if (objective != null) ...[
-                  Icon(
-                    LucideIcons.target,
-                    size: 14,
-                    color: AppColors.white.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      'Objectif : $objective',
-                      style: AppFonts.ui(
-                        size: 12,
-                        color: AppColors.white,
-                        weight: FontWeight.w700,
-                      ),
+                for (var i = 0; i < epreuves.length; i++)
+                  Expanded(
+                    child: _DomainColumn(
+                      view: epreuves[i],
+                      first: i == 0,
+                      active: open == epreuves[i].epreuve,
+                      onTap: () => onSelect(epreuves[i].epreuve),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                ],
-                const Spacer(),
-                Text(
-                  'Estimation pédagogique',
-                  style: AppFonts.ui(
-                    size: 11.5,
-                    color: AppColors.white.withValues(alpha: 0.72),
-                  ),
-                ),
               ],
             ),
           ),
@@ -590,839 +645,654 @@ class _LevelsHero extends StatelessWidget {
   }
 }
 
-class _LevelBlock extends StatelessWidget {
-  const _LevelBlock({
-    required this.icon,
-    required this.label,
-    required this.level,
+class _CoveragePill extends StatelessWidget {
+  const _CoveragePill({
+    required this.complete,
+    required this.evaluated,
+    required this.expected,
   });
 
-  final IconData icon;
-  final String label;
-  final NiveauCecrl? level;
+  final bool complete;
+  final int evaluated;
+  final int expected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 13, color: AppColors.white.withValues(alpha: 0.8)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  style: AppFonts.ui(
-                    size: 11.5,
-                    weight: FontWeight.w600,
-                    color: AppColors.white.withValues(alpha: 0.8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Text(
-            level?.shortName ?? '—',
-            style: AppFonts.display(size: 36, color: AppColors.white),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EstimationNote extends StatelessWidget {
-  const _EstimationNote();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(LucideIcons.info, size: 14, color: AppColors.blue),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Cette estimation est pédagogique : elle ne remplace pas un '
-                'résultat officiel du TCF.',
-                style: AppFonts.ui(
-                  size: 11.5,
-                  height: 1.4,
-                  color: AppColors.inkFaint,
-                ),
-              ),
-            ),
-          ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 5, 11, 5),
+        decoration: BoxDecoration(
+          color: AppColors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
         ),
-      );
-}
-
-// ---------------------------------------------------------------------------
-// Sections
-// ---------------------------------------------------------------------------
-
-class _SectionHead extends StatelessWidget {
-  const _SectionHead({required this.title, this.kicker, this.description});
-
-  final String title;
-  final String? kicker;
-  final String? description;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (kicker != null) ...[
-              Text(kicker!, style: AppFonts.eyebrow(color: AppColors.blue)),
-              const SizedBox(height: 6),
-            ],
-            Text(title, style: AppFonts.display(size: 22, height: 1.1)),
-            if (description != null) ...[
-              const SizedBox(height: 5),
-              Text(
-                description!,
+            Icon(
+              complete ? LucideIcons.check : LucideIcons.chartColumn,
+              size: 14,
+              color: AppColors.white,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                complete
+                    ? kDiagnosticProfileComplete
+                    : diagnosticEvaluatedCount(evaluated, expected),
                 style: AppFonts.ui(
                   size: 12.5,
-                  height: 1.45,
-                  color: AppColors.inkSoft,
+                  weight: FontWeight.w700,
+                  color: AppColors.white,
                 ),
-              ),
-            ],
-          ],
-        ),
-      );
-}
-
-/// « Votre progression se joue surtout ici » : les priorités du serveur, ou son
-/// repli. Teinte **ambre**, jamais rouge : on nomme un levier, pas un manque.
-class _FocusCard extends StatelessWidget {
-  const _FocusCard({required this.focus});
-
-  final List<_FocusItem> focus;
-
-  @override
-  Widget build(BuildContext context) {
-    final ranked = focus.first.ranked;
-    return AppCard(
-      padding: const EdgeInsets.all(18),
-      boxShadow: AppShadows.md,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 39,
-                height: 39,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.amberLight,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  LucideIcons.trendingUp,
-                  size: 19,
-                  color: AppColors.amberDark,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ranked
-                          ? 'Votre progression se joue surtout ici.'
-                          : 'Ce que vos productions ont montré.',
-                      style: AppFonts.display(size: 20, height: 1.12),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      ranked
-                          ? 'Les compétences qui vous feront gagner le plus '
-                              'rapidement en niveau.'
-                          : 'Les éléments qui reviennent dans vos deux '
-                              'réponses.',
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        height: 1.45,
-                        color: AppColors.inkSoft,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          for (var index = 0; index < focus.length; index++) ...[
-            if (index > 0) const SizedBox(height: 8),
-            _FocusRow(item: focus[index], rank: index + 1),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Une priorité, **repliée par défaut**, qui s'ouvre sur le rapport **entier**
-/// du correcteur — même idiome que [_AcquisRow] (chevron qui pivote,
-/// [AnimatedSize], `Semantics.expanded`), pas une seconde mécanique.
-///
-/// Replié, on lit le rang, la compétence et l'épreuve d'où vient l'observation.
-/// **Aucun texte ellipsé** : l'explication du correcteur arrivait coupée en
-/// plein milieu (« …est une er… »), c'est-à-dire au moment précis où elle
-/// devenait utile. Elle vit maintenant dans le dépliant, en entier.
-///
-/// La flèche ↗ d'avant était purement décorative — elle n'ouvrait rien. Le
-/// chevron la remplace : il annonce ce que le tap fait vraiment.
-class _FocusRow extends StatefulWidget {
-  const _FocusRow({required this.item, required this.rank});
-
-  final _FocusItem item;
-  final int rank;
-
-  @override
-  State<_FocusRow> createState() => _FocusRowState();
-}
-
-class _FocusRowState extends State<_FocusRow> {
-  bool _open = false;
-
-  /// L'intensité de l'ambre **décroît du rang 1 au rang 3** : la teinte dit le
-  /// rang au lieu de décorer trois pastilles identiques. Dérivée de
-  /// [AppColors.amber] vers le blanc — aucun token de plus, et le rang 2 retombe
-  /// par construction sur `amberLight`.
-  static Color _rankFill(int rank) {
-    const alphas = <double>[0.28, 0.17, 0.09];
-    final alpha = alphas[(rank - 1).clamp(0, alphas.length - 1)];
-    return Color.alphaBlend(
-      AppColors.amber.withValues(alpha: alpha),
-      AppColors.white,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    final rank = widget.rank;
-    final detail = item.detail;
-    final evidence = item.evidence;
-    final expandable = item.hasReport;
-
-    // L'épreuve d'où vient l'observation, et le verdict porté sur elle : deux
-    // faits courts, qui remplacent au repos la phrase tronquée d'avant.
-    final meta = <String>[
-      if (item.section != null) item.section!.productionLabel,
-      if (item.status != null) item.status!.label,
-    ].join(' · ');
-
-    final header = Padding(
-      padding: const EdgeInsets.all(11),
-      child: Row(
-        children: [
-          Container(
-            width: 27,
-            height: 27,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: item.ranked ? _rankFill(rank) : AppColors.amberLight,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: item.ranked
-                ? Text(
-                    '$rank',
-                    style: AppFonts.display(
-                      size: 12,
-                      color: AppColors.amberDark,
-                    ),
-                  )
-                : const Icon(
-                    LucideIcons.dot,
-                    size: 18,
-                    color: AppColors.amberDark,
-                  ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: AppFonts.ui(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    height: 1.28,
-                  ),
-                ),
-                if (meta.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    meta,
-                    style: AppFonts.ui(
-                      size: 11,
-                      height: 1.35,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (expandable) ...[
-            const SizedBox(width: 8),
-            AnimatedRotation(
-              turns: _open ? 0.5 : 0,
-              duration: const Duration(milliseconds: 180),
-              child: const Icon(
-                LucideIcons.chevronDown,
-                size: 17,
-                color: AppColors.amberDark,
               ),
             ),
           ],
-        ],
-      ),
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.line2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (expandable)
-            Semantics(
-              button: true,
-              expanded: _open,
-              label: meta.isEmpty ? item.title : '${item.title} · $meta',
-              child: InkWell(
-                onTap: () => setState(() => _open = !_open),
-                borderRadius: BorderRadius.circular(15),
-                child: header,
-              ),
-            )
-          else
-            header,
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: !_open
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(49, 0, 11, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (detail != null)
-                          Text(
-                            detail,
-                            style: AppFonts.ui(
-                              size: 11.5,
-                              height: 1.45,
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                        // La citation est la phrase du candidat lui-même, et le
-                        // dépliant est ouvert à sa demande : elle est rendue
-                        // **entière**, sans l'`evidenceExcerpt` qui borne les
-                        // surfaces repliées (carte d'étape du Plan, acquis).
-                        if (evidence != null) ...[
-                          if (detail != null) const SizedBox(height: 7),
-                          Text(
-                            '« ${evidence.trim()} »',
-                            style: AppFonts.ui(
-                              size: 11.5,
-                              height: 1.45,
-                              color: AppColors.inkFaint,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Avant / après
-// ---------------------------------------------------------------------------
-
-/// La phrase du candidat, puis la même réécrite au niveau visé.
+/// Une des quatre colonnes du pied du résumé : le niveau de l'épreuve, ou
+/// « — » quand il n'y en a pas. Un tap déplie sa carte et l'amène à l'écran.
 ///
-/// La seconde carte est **`ActionPlanExempleCard`**, la brique déjà employée
-/// par le rapport d'une production et par le résultat d'un micro-exercice :
-/// même surlignage par recherche de sous-chaîne, mêmes lignes « extrait →
-/// apport », aucune seconde mécanique. Un extrait introuvable est ignoré, le
-/// texte reste lisible.
-class _BeforeAfter extends StatelessWidget {
-  const _BeforeAfter({required this.exemple});
-
-  final DiagnosticExempleCible exemple;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.line),
-            boxShadow: AppShadows.card,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'VOTRE FORMULATION',
-                style: AppFonts.label(size: 10, color: AppColors.inkFaint),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                '« ${exemple.original} »',
-                style: AppFonts.ui(
-                  size: 13,
-                  height: 1.55,
-                  color: AppColors.inkSoft,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 9),
-        Center(
-          child: Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.blueLight,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              LucideIcons.arrowDown,
-              size: 16,
-              color: AppColors.blue,
-            ),
-          ),
-        ),
-        const SizedBox(height: 9),
-        ActionPlanExempleCard(
-          exemple: exemple.asActionPlanExemple,
-          label: 'VERSION PLUS RICHE',
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Aperçu du plan
-// ---------------------------------------------------------------------------
-
-class _PlanPreviewCard extends StatelessWidget {
-  const _PlanPreviewCard({
-    required this.steps,
-    required this.exercise,
-    required this.onOpenRecommended,
-    required this.onSubscribe,
+/// ⚠️ **Toutes les colonnes sont tappables**, y compris celles sans niveau : la
+/// maquette les rend inertes parce qu'un curseur le signale, ce qu'un doigt
+/// n'a pas. Une épreuve à mesurer est justement celle qu'on veut atteindre.
+class _DomainColumn extends StatelessWidget {
+  const _DomainColumn({
+    required this.view,
+    required this.first,
+    required this.active,
+    required this.onTap,
   });
 
-  final List<_PlanStep> steps;
-  final PlanRecommendedExercise? exercise;
-  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
-  final VoidCallback onSubscribe;
+  final _EpreuveView view;
+  final bool first;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final action = exercise;
-    return AppCard(
-      padding: const EdgeInsets.all(16),
-      boxShadow: AppShadows.md,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Plan de progression',
-                  style: AppFonts.display(size: 19),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const AppTag(
-                label: 'Adapté par IA',
-                icon: LucideIcons.sparkles,
-                compact: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          for (var index = 0; index < steps.length; index++) ...[
-            if (index > 0) const SizedBox(height: 9),
-            _PlanStepRow(step: steps[index], number: index + 1),
-          ],
-          if (action != null) ...[
-            const SizedBox(height: 14),
-            AppButton(
-              label: _exerciseCta(action),
-              variant: action.locked
-                  ? AppButtonVariant.outline
-                  : AppButtonVariant.soft,
-              height: 46,
-              icon: action.locked ? LucideIcons.lock : null,
-              onPressed: action.locked
-                  ? onSubscribe
-                  : () => onOpenRecommended(action),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Mêmes libellés que le Plan (`plan_screen.dart`) : un candidat ne doit pas
-  /// lire deux formulations pour la même action.
-  static String _exerciseCta(PlanRecommendedExercise exercise) {
-    if (exercise.locked) return 'Débloquer cet exercice';
-    return exercise.kind == PlanExerciseKind.reassessment
-        ? 'Vérifier ma progression'
-        : 'Commencer';
-  }
-}
-
-class _PlanStepRow extends StatelessWidget {
-  const _PlanStepRow({required this.step, required this.number});
-
-  final _PlanStep step;
-  final int number;
-
-  @override
-  Widget build(BuildContext context) {
-    final row = _row();
-    if (step.state != _StepState.locked) return row;
-    // Le voile de la maquette (`.step.locked:after`) : l'étape reste
-    // **entièrement lisible**, elle recule d'un plan. Il couvre la ligne
-    // entière, pastille comprise, comme le `inset:0` du HTML.
-    return Stack(
-      children: [
-        row,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.bg.withValues(alpha: 0.46),
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _row() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.line2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
+    final level = view.state == _EpreuveState.ok ? view.level : null;
+    return Semantics(
+      button: true,
+      label: '${planDomainLabel(view.epreuve)} · '
+          '${level?.displayName ?? kDiagnosticToAssessTag}',
+      child: Material(
+        color: active ? AppColors.surface2 : AppColors.white,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(4, 11, 4, 10),
             decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border(
+                top: const BorderSide(color: AppColors.lineSoft),
+                left: first
+                    ? BorderSide.none
+                    : const BorderSide(color: AppColors.lineSoft),
+              ),
             ),
-            child: Text(
-              number.toString().padLeft(2, '0'),
-              style: AppFonts.display(size: 13, color: AppColors.blue),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  step.title,
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    weight: FontWeight.w700,
-                    height: 1.28,
+                FittedBox(
+                  child: Text(
+                    level?.shortName ?? '—',
+                    style: AppFonts.display(
+                      size: 16,
+                      color: level == null ? AppColors.inkFaint : AppColors.ink,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  step.subtitle,
-                  style: AppFonts.ui(size: 10.5, color: AppColors.inkSoft),
+                  planDomainShort(view.epreuve),
+                  style: AppFonts.ui(
+                    size: 10.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.inkFaint,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          switch (step.state) {
-            _StepState.open => const AppTag(
-                label: 'À faire',
-                tone: TagTone.success,
-                compact: true,
-              ),
-            _StepState.locked => const PremiumLockTag(),
-            _StepState.upcoming => const AppTag(
-                label: 'À VENIR',
-                tone: TagTone.neutral,
-                compact: true,
-              ),
-          },
-        ],
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Offre
+// 2 — une carte par épreuve
 // ---------------------------------------------------------------------------
 
-/// Ce que l'abonnement change, en quatre phrases. Aucun prix, aucun verbe
-/// d'achat (guidelines Apple 3.1.1) : le libellé du bouton est celui, partagé,
-/// de [kPremiumLockCta].
-class _ValueCard extends StatelessWidget {
-  const _ValueCard({required this.onSubscribe});
+/// **La carte d'une épreuve** : son niveau, la phrase qui l'explique, et les
+/// compétences qui l'ont produit.
+///
+/// Trois formes, décidées par [_EpreuveState] et rien d'autre — jamais par la
+/// nullité d'un champ.
+class _EpreuveCard extends StatelessWidget {
+  const _EpreuveCard({
+    super.key,
+    required this.view,
+    required this.objective,
+    required this.open,
+    required this.hasAccess,
+    required this.onToggle,
+    required this.onSkill,
+    required this.onAssess,
+    required this.onSubscribe,
+  });
 
+  final _EpreuveView view;
+  final String? objective;
+  final bool open;
+  final bool hasAccess;
+  final VoidCallback onToggle;
+  final ValueChanged<PlanDomainSkill> onSkill;
+  final ValueChanged<PlanDomainAssessment> onAssess;
   final VoidCallback onSubscribe;
-
-  static const _arguments = <String>[
-    'Plan personnalisé après votre diagnostic',
-    'Corrections écrites et orales par IA',
-    'Exercices courts sur vos faiblesses',
-    'Réévaluation de vos compétences',
-  ];
 
   @override
   Widget build(BuildContext context) {
-    return GradientHero(
-      // Encre → bleu **foncé** : la maquette garde ce bloc plus sombre que le
-      // héros de niveau, pour que les deux dégradés ne se confondent pas.
-      from: AppColors.ink,
-      to: AppColors.blueDark,
-      padding: const EdgeInsets.all(18),
+    if (view.state != _EpreuveState.ok) return _buildPending(context);
+    return _buildOk(context);
+  }
+
+  // ---- épreuve jamais mesurée, ou production inexploitable ----------------
+
+  Widget _buildPending(BuildContext context) {
+    final empty = view.state == _EpreuveState.toAssess;
+    final assessment = view.assessment;
+    final label = planDomainLabel(view.epreuve);
+
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Ne vous entraînez plus au hasard.',
-            style: AppFonts.display(
-              size: 21,
-              height: 1.12,
-              color: AppColors.white,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
+            child: Row(
+              children: [
+                PlanDomainTile(epreuve: view.epreuve, size: 40),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: AppFonts.display(size: 17, height: 1.2),
+                      ),
+                      const SizedBox(height: 6),
+                      AppTag(
+                        label: empty
+                            ? kDiagnosticToAssessTag
+                            : kDiagnosticIncompleteTag,
+                        tone: empty ? TagTone.ghost : TagTone.red,
+                        compact: true,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '—',
+                  style: AppFonts.display(
+                    size: 26,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'SejourFR transforme vos erreurs en exercices ciblés, puis vérifie '
-            'si vous les avez réellement corrigées.',
-            style: AppFonts.ui(
-              size: 12.5,
-              height: 1.5,
-              color: AppColors.white.withValues(alpha: 0.78),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  empty
+                      ? diagnosticToAssessText(view.epreuve)
+                      : kDiagnosticIncompleteText,
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    height: 1.55,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+                // 🛑 Sans mesure servie, **aucun bouton** : le serveur ne
+                // désigne pas de parcours pour cette épreuve, et on n'en
+                // invente pas.
+                if (assessment != null) ...[
+                  const SizedBox(height: 13),
+                  AppButton(
+                    label: empty
+                        ? diagnosticAssessCta(view.epreuve)
+                        : diagnosticRedoCta(view.epreuve),
+                    variant: AppButtonVariant.outline,
+                    height: 46,
+                    icon: empty ? LucideIcons.play : LucideIcons.refreshCw,
+                    onPressed: () => onAssess(assessment),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          for (final argument in _arguments)
+        ],
+      ),
+    );
+  }
+
+  // ---- épreuve mesurée ----------------------------------------------------
+
+  Widget _buildOk(BuildContext context) {
+    // Ce qui est montré en clair. Un compte sans accès en voit **un** de chaque
+    // famille : sa mesure lui appartient, la suite de la liste est ce qui se
+    // débloque.
+    final visibleWork = hasAccess
+        ? (open
+            ? view.work
+            : view.work.take(_kCollapsedWorkVisible).toList(growable: false))
+        : view.work.take(_kFreeWorkVisible).toList(growable: false);
+    final visibleSolid = hasAccess
+        ? view.solid
+        : view.solid.take(_kFreeSolidVisible).toList(growable: false);
+    final moreWork = view.work.length - visibleWork.length;
+
+    // 🛑 Le compteur du verrou se lit sur les **compteurs serveur** du domaine,
+    // jamais sur la longueur d'une liste tronquée ici.
+    final shownFragile = visibleWork
+        .where((l) =>
+            l.group == _SkillGroup.priority || l.group == _SkillGroup.reinforce)
+        .length;
+    final hiddenWork = (view.fragileTotal - shownFragile).clamp(0, 999);
+    final hiddenSolid = (view.solidTotal - visibleSolid.length).clamp(0, 999);
+    final hiddenLabel = hasAccess
+        ? null
+        : diagnosticHiddenCount(work: hiddenWork, solid: hiddenSolid);
+
+    final explanation = view.explanation;
+    final resume = view.resume;
+    final cta = view.work.isEmpty ? null : view.work.first;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      border: Border.all(color: open ? AppColors.blue : AppColors.line),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _header(),
+          if (resume != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Text(
+                resume,
+                style: AppFonts.ui(
+                  size: 13.5,
+                  height: 1.55,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+            ),
+          if (open && explanation != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              decoration: const BoxDecoration(
+                color: AppColors.blueLight,
+                borderRadius: BorderRadius.all(Radius.circular(AppRadii.md)),
+                border: Border(
+                  left: BorderSide(color: AppColors.blue, width: 3),
+                ),
+              ),
+              child: Text(
+                explanation,
+                style: AppFonts.ui(
+                  size: 13.5,
+                  height: 1.55,
+                  color: AppColors.blueDark,
+                ),
+              ),
+            ),
+          if (view.work.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 6),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: open && hasAccess
+                  ? _groupedWork()
+                  : _flatWork(visibleWork, moreWork),
+            ),
+          if (visibleSolid.isNotEmpty && (open || !hasAccess))
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 8),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(
-                      LucideIcons.check,
-                      size: 14,
-                      color: AppColors.greenBright,
+                  _GroupHead(
+                    label: kDiagnosticGroupSolid,
+                    // Le compteur **servi** du domaine, jamais la longueur de
+                    // la liste affichée.
+                    count: hasAccess && view.solidTotal > 1
+                        ? '${view.solidTotal}'
+                        : null,
+                  ),
+                  // 🛑 Ouvrable **pour tout le monde** : le verrou est celui du
+                  // serveur (`locked`), lu par `_openSkill`, jamais l'accès du
+                  // compte — miroir du web.
+                  for (final line in visibleSolid)
+                    _SkillRow(line: line, onTap: () => onSkill(line.skill)),
+                ],
+              ),
+            ),
+          if (hiddenLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: _LockedPreview(
+                title: _blurredTitle(visibleWork.length, visibleSolid.length),
+                count: hiddenLabel,
+                onSubscribe: onSubscribe,
+              ),
+            ),
+          if (open && hasAccess && (view.notObserved > 0 || cta != null))
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (view.notObserved > 0) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppTag(
+                          label: _SkillGroup.notObserved.label,
+                          tone: _SkillGroup.notObserved.tone,
+                          compact: true,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            diagnosticNotObserved(view.notObserved),
+                            style: AppFonts.ui(
+                              size: 12.5,
+                              height: 1.45,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (cta != null)
+                    AppButton(
+                      label: view.epreuve.isProduction
+                          ? kDiagnosticWorkPrioritiesCta
+                          : diagnosticWorkDomainCta(view.epreuve),
+                      height: 48,
+                      icon: view.epreuve.isProduction
+                          ? LucideIcons.target
+                          : LucideIcons.play,
+                      onPressed: () => onSkill(cta.skill),
+                    ),
+                ],
+              ),
+            ),
+          _footer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _header() => Semantics(
+        button: true,
+        label: '${planDomainLabel(view.epreuve)} · '
+            '${view.level?.displayName ?? ''}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
+              child: Row(
+                children: [
+                  PlanDomainTile(
+                    epreuve: view.epreuve,
+                    size: 40,
+                    filled: open,
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          planDomainLabel(view.epreuve),
+                          style: AppFonts.display(size: 17, height: 1.2),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          diagnosticEpreuveMeta(objective, view.nextLevel),
+                          style: AppFonts.ui(
+                            size: 12.5,
+                            height: 1.35,
+                            color: AppColors.inkFaint,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 9),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        view.level?.shortName ?? '—',
+                        style: AppFonts.display(size: 30, height: 1),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        kDiagnosticEstimatedLabel.toUpperCase(),
+                        style: AppFonts.label(size: 10.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  /// Les trois familles, séparées et titrées — la lecture d'un abonné qui a
+  /// déplié sa carte.
+  Widget _groupedWork() {
+    const groups = [
+      _SkillGroup.priority,
+      _SkillGroup.reinforce,
+      _SkillGroup.acquire,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final group in groups)
+          if (view.work.any((l) => l.group == group)) ...[
+            _GroupHead(
+              label: group.label,
+              count: view.work.where((l) => l.group == group).length > 1
+                  ? '${view.work.where((l) => l.group == group).length}'
+                  : null,
+              note: group == _SkillGroup.acquire
+                  ? diagnosticAcquireNote(view.nextLevel)
+                  : null,
+            ),
+            for (final line in view.work.where((l) => l.group == group))
+              _SkillRow(line: line, onTap: () => onSkill(line.skill)),
+            const SizedBox(height: 6),
+          ],
+      ],
+    );
+  }
+
+  /// La lecture **repliée**, et celle d'un compte sans accès : une seule
+  /// section, une pastille par ligne.
+  Widget _flatWork(List<_SkillLine> visible, int more) {
+    final first = view.work.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GroupHead(
+          label: hasAccess
+              ? kDiagnosticGroupWork
+              : (first.group == _SkillGroup.priority
+                  ? kDiagnosticGroupMainWork
+                  : kDiagnosticGroupFirstWork),
+          count: hasAccess
+              ? null
+              : diagnosticFreeWorkCount(visible.length, view.work.length),
+        ),
+        for (final line in visible)
+          _SkillRow(
+            line: line,
+            pill: true,
+            onTap: () => onSkill(line.skill),
+          ),
+        if (hasAccess && more > 0)
+          Semantics(
+            button: true,
+            label: diagnosticMoreToWork(more),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onToggle,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+                  child: Text(
+                    diagnosticMoreToWork(more),
+                    style: AppFonts.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Le **vrai** libellé de la compétence suivante — celle que le rideau laisse
+  /// deviner. Le repli n'affirme rien : il ne nomme aucune compétence.
+  String _blurredTitle(int shownWork, int shownSolid) {
+    if (view.work.length > shownWork) return view.work[shownWork].skill.title;
+    if (view.solid.length > shownSolid) {
+      return view.solid[shownSolid].skill.title;
+    }
+    return kDiagnosticLockedFallback;
+  }
+
+  Widget _footer() => Semantics(
+        button: true,
+        label: open ? kDiagnosticCollapse : kDiagnosticExpand,
+        child: Material(
+          color: AppColors.surface2,
+          child: InkWell(
+            onTap: onToggle,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Row(
+                children: [
                   Expanded(
                     child: Text(
-                      argument,
+                      open ? kDiagnosticCollapse : kDiagnosticExpand,
                       style: AppFonts.ui(
-                        size: 12.5,
-                        height: 1.4,
-                        color: AppColors.white,
+                        size: 13,
+                        weight: FontWeight.w700,
+                        color: open ? AppColors.inkSoft : AppColors.blue,
                       ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      LucideIcons.chevronDown,
+                      size: 16,
+                      color: AppColors.inkFaint,
                     ),
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 6),
-          Semantics(
-            button: true,
-            label: kPremiumLockCta,
-            child: AppButton(
-              label: kPremiumLockCta,
-              variant: AppButtonVariant.soft,
-              height: 48,
-              onPressed: onSubscribe,
-            ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Vos acquis
-// ---------------------------------------------------------------------------
-
-class _StrengthsCard extends StatelessWidget {
-  const _StrengthsCard({required this.strengths});
-
-  final List<String> strengths;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-        color: AppColors.greenLight,
-        border: Border.all(color: AppColors.green.withValues(alpha: 0.18)),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Ce qui fonctionne déjà',
-              style: AppFonts.ui(
-                size: 12.5,
-                weight: FontWeight.w800,
-                color: AppColors.green,
-              ),
-            ),
-            const SizedBox(height: 7),
-            for (final strength in strengths)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(
-                        LucideIcons.check,
-                        size: 14,
-                        color: AppColors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        strength,
-                        style: AppFonts.ui(size: 12.5, height: 1.35),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
         ),
       );
 }
 
-/// Une compétence déjà solide, **repliée par défaut** — l'équivalent du
-/// `<details>` de la maquette. Le verdict se lit d'un coup d'œil, l'explication
-/// et l'extrait ne s'ouvrent que si le candidat le demande.
-class _AcquisRow extends StatefulWidget {
-  const _AcquisRow({required this.skill});
+/// L'en-tête d'une famille de compétences : son nom, son compte, et — pour les
+/// acquisitions — ce qu'elle veut dire.
+class _GroupHead extends StatelessWidget {
+  const _GroupHead({required this.label, this.count, this.note});
 
-  final DiagnosticSkillObservation skill;
+  final String label;
 
-  @override
-  State<_AcquisRow> createState() => _AcquisRowState();
-}
-
-class _AcquisRowState extends State<_AcquisRow> {
-  bool _open = false;
+  /// `null` = un seul élément, ou rien à compter : on n'affiche pas « 1 ».
+  final String? count;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
-    final skill = widget.skill;
-    final detail = skill.explanation;
-    final evidence = skill.evidence;
-    final expandable = detail != null || evidence != null;
-    // La teinte d'un statut d'observation vient d'un seul endroit
-    // (`LearningPlanSkillStatus.color`), partagé Plan ⇄ Diagnostic ⇄
-    // Compétences : la coche et la pilule la dérivent au lieu de refixer du
-    // vert à la main.
-    final tone = skill.status.color;
-
-    final header = Padding(
-      padding: const EdgeInsets.all(13),
-      child: Row(
+    final sub = note;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tone.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(LucideIcons.check, size: 15, color: tone),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  style: AppFonts.label(size: 11),
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 7),
+                Text(
+                  count!,
+                  style: AppFonts.label(
+                    size: 11,
+                    color: AppColors.inkFaint.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              skill.skillTitle,
-              style: AppFonts.ui(size: 12.5, weight: FontWeight.w800, height: 1.3),
-            ),
-          ),
-          const SizedBox(width: 8),
-          AppTag(
-            label: skill.status.label,
-            tone: tagToneForAccent(tone),
-            compact: true,
-          ),
-          if (expandable) ...[
-            const SizedBox(width: 4),
-            AnimatedRotation(
-              turns: _open ? 0.5 : 0,
-              duration: const Duration(milliseconds: 180),
-              child: const Icon(
-                LucideIcons.chevronDown,
-                size: 17,
+          if (sub != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              sub,
+              style: AppFonts.ui(
+                size: 12,
+                height: 1.45,
                 color: AppColors.inkFaint,
               ),
             ),
@@ -1430,316 +1300,374 @@ class _AcquisRowState extends State<_AcquisRow> {
         ],
       ),
     );
+  }
+}
 
-    return AppCard(
-      padding: EdgeInsets.zero,
-      borderRadius: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+/// Une compétence : sa puce, son titre, son repère, et le chevron quand elle
+/// ouvre quelque chose.
+///
+/// 🛑 **Une compétence solide se lit autrement** : une coche pleine au lieu
+/// d'une puce, et un titre moins gras — elle n'appelle aucune action, elle
+/// constate un acquis.
+class _SkillRow extends StatelessWidget {
+  const _SkillRow({required this.line, this.pill = false, this.onTap});
+
+  final _SkillLine line;
+
+  /// Affiche la pastille du groupe à droite du titre : elle n'a de sens que
+  /// dans la vue **repliée**, où les familles ne sont pas séparées.
+  final bool pill;
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final solid = line.group == _SkillGroup.solid;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
         children: [
-          if (expandable)
-            Semantics(
-              button: true,
-              expanded: _open,
-              label: '${skill.skillTitle} · ${skill.status.label}',
-              child: InkWell(
-                onTap: () => setState(() => _open = !_open),
-                borderRadius: BorderRadius.circular(16),
-                child: header,
+          if (solid)
+            Container(
+              width: 20,
+              height: 20,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.greenLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                LucideIcons.check,
+                size: 12,
+                color: AppColors.green,
               ),
             )
           else
-            header,
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: !_open
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(51, 0, 13, 13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (detail != null)
-                          Text(
-                            detail,
-                            style: AppFonts.ui(
-                              size: 11.5,
-                              height: 1.45,
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                        if (evidence != null) ...[
-                          if (detail != null) const SizedBox(height: 7),
-                          Text(
-                            '« ${evidenceExcerpt(evidence)} »',
-                            style: AppFonts.ui(
-                              size: 11.5,
-                              height: 1.45,
-                              color: AppColors.inkFaint,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: line.group == _SkillGroup.priority
+                    ? line.group.color
+                    : line.group.color.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+            ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.skill.title,
+                  style: AppFonts.ui(
+                    size: 14.5,
+                    weight: solid ? FontWeight.w500 : FontWeight.w600,
+                    height: 1.3,
                   ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  diagnosticSkillSubtitle(line.skill),
+                  style: AppFonts.ui(size: 11.5, color: AppColors.inkFaint),
+                ),
+              ],
+            ),
           ),
+          if (pill && !solid) ...[
+            const SizedBox(width: 8),
+            AppTag(
+              label: line.group.label,
+              tone: line.group.tone,
+              compact: true,
+            ),
+          ],
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 14,
+              color: AppColors.inkFaint,
+            ),
+          ],
         ],
+      ),
+    );
+
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      label: '${line.skill.title} · ${diagnosticSkillSubtitle(line.skill)} · '
+          '${line.group.label}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, child: row),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Le détail des deux productions
-// ---------------------------------------------------------------------------
-
-/// Le bilan d'une production, **replié par défaut** : le candidat lit l'épreuve
-/// et son niveau estimé, et n'ouvre que celle qui l'intéresse. Il porte ce que
-/// le contrat serveur publie et que rien d'autre n'affiche : `summary`,
-/// `taskCompletion`, `communicationStatus` et `weaknesses`.
-class _ProductionCard extends StatefulWidget {
-  const _ProductionCard({
+/// **Un seul verrou par épreuve** : le vrai libellé de la compétence suivante,
+/// flouté, et le compte exact de ce qui reste — lisible, lui, parce qu'il n'est
+/// pas dans le rideau.
+///
+/// 🛑 Rien n'est fabriqué derrière le flou : la ligne vient du serveur. Le
+/// rideau ([BlurredContent]) est `ExcludeSemantics` + `IgnorePointer` — ce qui
+/// est illisible à l'œil doit l'être aussi au lecteur d'écran. Le geste, lui,
+/// est porté par la ligne entière et mène au **seul** parcours d'achat de
+/// l'app.
+class _LockedPreview extends StatelessWidget {
+  const _LockedPreview({
     required this.title,
-    required this.icon,
-    required this.accent,
-    required this.accentSoft,
-    required this.production,
+    required this.count,
+    required this.onSubscribe,
   });
 
   final String title;
-  final IconData icon;
-  final Color accent;
-  final Color accentSoft;
-  final DiagnosticProductionResult production;
-
-  @override
-  State<_ProductionCard> createState() => _ProductionCardState();
-}
-
-class _ProductionCardState extends State<_ProductionCard> {
-  bool _open = false;
+  final String count;
+  final VoidCallback onSubscribe;
 
   @override
   Widget build(BuildContext context) {
-    final production = widget.production;
-    final accent = widget.accent;
-    final weaknesses = production.weaknesses.take(2).toList(growable: false);
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Semantics(
-            button: true,
-            expanded: _open,
-            label:
-                '${widget.title} · niveau estimé ${production.levelEstimate.shortName}',
-            child: InkWell(
-              onTap: () => setState(() => _open = !_open),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: widget.accentSoft,
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Icon(widget.icon, size: 18, color: accent),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: AppFonts.ui(size: 14.5, weight: FontWeight.w800),
-                      ),
-                    ),
-                    AppTag(
-                      label: production.levelEstimate.shortName,
-                      tone: production.levelEstimate.tagTone,
-                      compact: true,
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedRotation(
-                      turns: _open ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: const Icon(
-                        LucideIcons.chevronDown,
-                        size: 18,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                  ],
+    return Semantics(
+      button: true,
+      label: '$count · $kDiagnosticUnlockShort',
+      child: Material(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: InkWell(
+          onTap: onSubscribe,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.lock,
+                  size: 15,
+                  color: AppColors.inkFaint,
                 ),
-              ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BlurredContent(
+                        sigma: 4,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(
+                            size: 13.5,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        count,
+                        style: AppFonts.ui(
+                          size: 12.5,
+                          weight: FontWeight.w700,
+                          height: 1.35,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  kDiagnosticUnlockShort,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ],
             ),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: !_open
-                ? const SizedBox(width: double.infinity)
-                : _ProductionDetail(
-                    production: production,
-                    weaknesses: weaknesses,
-                  ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ProductionDetail extends StatelessWidget {
-  const _ProductionDetail({
-    required this.production,
-    required this.weaknesses,
-  });
+// ---------------------------------------------------------------------------
+// 3 — la suite : le plan, ou l'offre
+// ---------------------------------------------------------------------------
 
-  final DiagnosticProductionResult production;
-  final List<String> weaknesses;
+/// Ce que le rapport enchaîne pour un abonné : son plan, qui traite ces
+/// priorités une par une.
+class _NextStepCard extends StatelessWidget {
+  const _NextStepCard({required this.objective, required this.onOpenPlan});
+
+  final String? objective;
+  final VoidCallback onOpenPlan;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (production.summary != null) ...[
+  Widget build(BuildContext context) => AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Text(
-              production.summary!,
+              diagnosticNextStepText(objective),
               style: AppFonts.ui(
-                size: 13,
-                height: 1.45,
+                size: 14,
+                height: 1.55,
                 color: AppColors.inkSoft,
               ),
             ),
-            const SizedBox(height: 11),
-          ],
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              _StateChip(
-                icon: LucideIcons.listChecks,
-                label: production.taskCompletion.label,
-                tone: _completionTone(production.taskCompletion),
-              ),
-              _StateChip(
-                icon: LucideIcons.messagesSquare,
-                label: production.communicationStatus.label,
-                tone: _communicationTone(production.communicationStatus),
-              ),
-            ],
-          ),
-          if (weaknesses.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(11),
-              // « À travailler » se dit en **ambre**, comme les priorités du
-              // haut de l'écran : un gris neutre effaçait le seul signal que
-              // porte ce bloc, et l'accent du module (bleu en EE, rouge en EO)
-              // n'y disait rien de la nature du contenu.
-              decoration: BoxDecoration(
-                color: AppColors.amberLight,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'À TRAVAILLER',
-                    style: AppFonts.label(size: 10, color: AppColors.amberDark),
-                  ),
-                  const SizedBox(height: 6),
-                  for (final weakness in weaknesses)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 5,
-                            height: 5,
-                            margin: const EdgeInsets.only(top: 6, right: 8),
-                            decoration: const BoxDecoration(
-                              color: AppColors.amberDark,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              weakness,
-                              style: AppFonts.ui(size: 12.5, height: 1.35),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+            const SizedBox(height: 13),
+            AppButton(
+              label: kDiagnosticWorkPrioritiesCta,
+              iconRight: LucideIcons.arrowRight,
+              onPressed: onOpenPlan,
             ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StateChip extends StatelessWidget {
-  const _StateChip({
-    required this.icon,
-    required this.label,
-    required this.tone,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        decoration: BoxDecoration(
-          color: tone.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: tone),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppFonts.ui(
-                size: 11,
-                weight: FontWeight.w700,
-                color: tone,
-              ),
+            const SizedBox(height: 4),
+            AppButton(
+              label: kDiagnosticAllSkillsCta,
+              variant: AppButtonVariant.ghost,
+              height: 44,
+              onPressed: () => context.push(AppRoutes.planSkills),
             ),
           ],
         ),
       );
 }
 
-Color _completionTone(DiagnosticTaskCompletion completion) =>
-    switch (completion) {
-      DiagnosticTaskCompletion.completed => AppColors.green,
-      DiagnosticTaskCompletion.partial => AppColors.amberDark,
-      DiagnosticTaskCompletion.notCompleted => AppColors.red,
-    };
+/// L'offre ferme le rapport : le candidat a d'abord lu **son** niveau sur les
+/// quatre épreuves, et vu **sa** première priorité sur chacune.
+///
+/// 🛑 Le premier argument porte un **vrai** nombre, celui que le serveur a
+/// compté ; à zéro, il n'est pas rendu. Aucun prix, aucun verbe d'achat
+/// (guidelines Apple 3.1.1) : les deux gestes mènent au même écran d'offre.
+class _UnlockCard extends StatelessWidget {
+  const _UnlockCard({
+    required this.objective,
+    required this.detected,
+    required this.onSubscribe,
+  });
 
-Color _communicationTone(DiagnosticCommunicationStatus status) =>
-    switch (status) {
-      DiagnosticCommunicationStatus.effective => AppColors.green,
-      DiagnosticCommunicationStatus.partial => AppColors.amberDark,
-      DiagnosticCommunicationStatus.ineffective => AppColors.red,
-    };
+  final String? objective;
+  final int detected;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GradientHero(
+            padding: const EdgeInsets.fromLTRB(18, 17, 18, 16),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.xl),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kDiagnosticUnlockTitle,
+                  style: AppFonts.display(
+                    size: 20,
+                    height: 1.15,
+                    color: AppColors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  diagnosticUnlockText(objective),
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    height: 1.55,
+                    color: AppColors.white.withValues(alpha: 0.92),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                PremiumBenefitList(
+                  benefits: diagnosticUnlockBenefits(detected),
+                  checkColor: AppColors.greenBright,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  label: kDiagnosticUnlockCta,
+                  iconRight: LucideIcons.arrowRight,
+                  height: 48,
+                  onPressed: onSubscribe,
+                ),
+                const SizedBox(height: 4),
+                AppButton(
+                  label: kPlanPaywallFormulas,
+                  variant: AppButtonVariant.ghost,
+                  height: 44,
+                  onPressed: onSubscribe,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Titres de section
+// ---------------------------------------------------------------------------
+
+/// Le titre d'une section — **une ligne, rien d'autre** (deux avec son
+/// sous-titre). Les en-têtes à trois étages sont ce qui avait alourdi cet écran
+/// passe après passe.
+class _SectionHead extends StatelessWidget {
+  const _SectionHead({required this.title, this.text});
+
+  final String title;
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = text;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppFonts.display(size: 19, height: 1.15)),
+          if (sub != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              sub,
+              style: AppFonts.ui(
+                size: 12.5,
+                height: 1.45,
+                color: AppColors.inkSoft,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

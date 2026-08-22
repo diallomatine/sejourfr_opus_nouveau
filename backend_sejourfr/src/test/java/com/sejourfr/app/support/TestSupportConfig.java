@@ -3,6 +3,9 @@ package com.sejourfr.app.support;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionDraftRepository;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionGenerationLogRepository;
 import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.AnalyticsEventManager;
+import com.sejourfr.app.manager.AnalyticsIdentityManager;
+import com.sejourfr.app.manager.AnalyticsVisitorManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
@@ -25,6 +28,7 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserManager;
@@ -82,7 +86,11 @@ public class TestSupportConfig {
                              AudioQuestionDraftRepository audioQuestionDraftRepository,
                              AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository,
                              DiagnosticSessionManager diagnosticSessionManager,
-                             UserFunnelEventManager userFunnelEventManager) {
+                             DiagnosticProductionAnalysisManager diagnosticProductionAnalysisManager,
+                             UserFunnelEventManager userFunnelEventManager,
+                             AnalyticsVisitorManager analyticsVisitorManager,
+                             AnalyticsEventManager analyticsEventManager,
+                             AnalyticsIdentityManager analyticsIdentityManager) {
         return new TestData(userManager, themeManager, passwordEncoder,
                 mediaManager, passageManager, questionManager, attemptManager,
                 attemptQuestionManager, answerManager, planManager,
@@ -95,7 +103,9 @@ public class TestSupportConfig {
                 learningPlanObservationManager,
                 skillManager, skillRepository, skillPromptManager, userSkillAttemptManager,
                 audioQuestionDraftRepository, audioQuestionGenerationLogRepository,
-                diagnosticSessionManager, userFunnelEventManager);
+                diagnosticSessionManager, diagnosticProductionAnalysisManager,
+                userFunnelEventManager,
+                analyticsVisitorManager, analyticsEventManager, analyticsIdentityManager);
     }
 
     @Bean

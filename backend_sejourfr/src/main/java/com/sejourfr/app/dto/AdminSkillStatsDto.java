@@ -20,6 +20,13 @@ public record AdminSkillStatsDto(
         String code,
         String title,
         SkillSection section,
+        /**
+         * Tache d'appartenance, <b>{@code null} pour une competence de
+         * COMPREHENSION</b> (section {@code CO} / {@code CE}) : celles-ci
+         * n'appartiennent a aucune des 6 taches officielles. Les fronts doivent
+         * lire le domaine sur {@code section} et le niveau sur
+         * {@code targetLevel}, jamais deduire l'un de l'autre depuis la tache.
+         */
         SkillTaskCode taskCode,
         long promptCount,
         /** Tentatives de tous les candidats sur les sujets de la competence. */

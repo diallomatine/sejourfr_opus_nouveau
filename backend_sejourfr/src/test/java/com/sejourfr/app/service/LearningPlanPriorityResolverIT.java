@@ -29,14 +29,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code chk_learning_plan_observation_status} et la contrainte de coherence
  * {@code observed / status / evidence} sont exercees pour de vrai.
  *
- * <p>C'est aussi ce que lit {@code SkillAccessService} pour ouvrir la competence
- * de la priorite n&deg;1 a un compte gratuit : ce qui est verrouille ici l'est
- * pour le Plan et pour le verrou commercial en meme temps.
+ * <p>C'est aussi ce dont {@link PlanFocusResolver} tire la <b>premiere place</b>
+ * du Plan, celle que {@code SkillAccessService} ouvre a un compte gratuit : ce
+ * qui est verrouille ici l'est pour le Plan et pour le verrou commercial en meme
+ * temps.
  */
 class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
 
     @Autowired private TestData data;
     @Autowired private LearningPlanPriorityResolver resolver;
+    @Autowired private PlanFocusResolver focusResolver;
     @Autowired private LearningPlanObservationManager observationManager;
     @Autowired private SkillMasteryResolver masteryResolver;
     @Autowired private EntityManager entityManager;
@@ -52,12 +54,12 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
         observation(user, suivante, LearningPlanSourceType.DIAGNOSTIC_EE,
                 LearningPlanSkillStatus.TO_REINFORCE, jours(30));
 
-        assertThat(resolver.currentPrioritySkillId(user.getId())).contains(reussie.getId());
+        assertThat(focusResolver.currentFocusSkillId(user.getId())).contains(reussie.getId());
 
         observation(user, reussie, LearningPlanSourceType.PRODUCTION_EE,
                 LearningPlanSkillStatus.SOLID, jours(1));
 
-        assertThat(resolver.currentPrioritySkillId(user.getId())).contains(suivante.getId());
+        assertThat(focusResolver.currentFocusSkillId(user.getId())).contains(suivante.getId());
         assertThat(codes(user)).containsExactly(suivante.getCode());
     }
 
@@ -77,7 +79,7 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
                 LearningPlanSkillStatus.PRIORITY, jours(1));
 
         assertThat(codes(user)).isEmpty();
-        assertThat(resolver.currentPrioritySkillId(user.getId())).isEmpty();
+        assertThat(focusResolver.currentFocusSkillId(user.getId())).isEmpty();
     }
 
     @Test
@@ -159,7 +161,7 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
 
         assertThat(codes(user)).containsExactly(suivante.getCode());
         assertThat(franchies(user)).containsExactly(bloquee.getCode());
-        assertThat(resolver.currentPrioritySkillId(user.getId())).contains(suivante.getId());
+        assertThat(focusResolver.currentFocusSkillId(user.getId())).contains(suivante.getId());
     }
 
     /**
@@ -192,10 +194,14 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
      * <b>Le cout ne bouge pas d'une requete.</b> Depuis que « transfert prouve »
      * se lit chez le moteur de maitrise, ce resolveur en depend — mais le moteur
      * travaille sur l'historique <b>deja charge</b>. Les deux lectures a partir
-     * d'une liste en memoire ne doivent donc emettre <b>aucune</b> requete, et
-     * {@code currentPrioritySkillId} — ce que lit {@code SkillAccessService} pour
-     * ouvrir la competence de la priorite n&deg;1 a un compte gratuit — doit en
-     * emettre exactement <b>une</b>, comme avant.
+     * d'une liste en memoire ne doivent donc emettre <b>aucune</b> requete.
+     *
+     * <p>🛑 Et {@link PlanFocusResolver#currentFocusSkillId} — ce que lit
+     * {@code SkillAccessService}, donc <b>tous</b> les ecrans de competences —
+     * doit en emettre exactement <b>une</b> des lors que le candidat a une
+     * fragilite : c'est le retour anticipe qui garde le verrou d'acces au meme
+     * cout qu'avant l'arrivee des competences « a acquerir ». Sans lui, le cycle
+     * de palier tournerait a chaque ouverture de catalogue.
      */
     @Test
     @DisplayName("Le moteur de maitrise n'ajoute aucune requete au resolveur de priorites")
@@ -224,8 +230,10 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
         assertThat(statistics.getPrepareStatementCount()).isZero();
 
         statistics.clear();
-        assertThat(resolver.currentPrioritySkillId(user.getId())).isPresent();
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+        assertThat(focusResolver.currentFocusSkillId(user.getId())).isPresent();
+        assertThat(statistics.getPrepareStatementCount())
+                .as("une fragilite suffit : ni cycle de palier, ni referentiel charge")
+                .isEqualTo(1);
     }
 
     private List<String> codes(User user) {

@@ -310,6 +310,27 @@ export function isLegacyEvaluation(evaluation: EvaluationResultDto): boolean {
   return !(feedback.scores_criteres ?? []).some((c) => c.bande !== undefined);
 }
 
+/**
+ * La production a-t-elle été jugée **inexploitable** par les contrôles
+ * déterministes du serveur (vide, quasi vide, langue non française, recopiage
+ * de la consigne) ? Aucun correcteur n'a alors été appelé : ni note, ni niveau,
+ * ni `scores_criteres` — seulement des raisons, rédigées pour le candidat.
+ *
+ * ⚠️ **Le fait se lit sur `evaluabilite`, jamais sur la nullité d'un autre
+ * champ** : une évaluation ancienne n'a ni niveau ni bande sans être
+ * inexploitable pour autant (c'est ce que dit {@link isLegacyEvaluation}, qui
+ * répond à une tout autre question). Un backend antérieur au champ ne le sert
+ * pas : l'absence vaut `EVALUABLE`, jamais l'inverse.
+ */
+export function isNonEvaluable(
+  evaluation: Pick<EvaluationResultDto, "evaluabilite"> | null | undefined,
+): boolean {
+  return evaluation?.evaluabilite === "NON_EVALUABLE";
+}
+
+/** Libellé du fait, gelé ici pour que la liste et la fiche disent le même mot. */
+export const NON_EVALUABLE_LABEL = "Non évaluable";
+
 export function critereLabel(code: CritereCode, label?: string): string {
   return label ?? CRITERE_LABEL[code] ?? code;
 }

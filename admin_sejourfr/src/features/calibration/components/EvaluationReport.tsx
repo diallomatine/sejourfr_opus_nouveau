@@ -13,10 +13,12 @@ import {
   CONFIANCE_LABEL,
   CRITERES_OBSOLETES,
   NIVEAU_LABEL,
+  NON_EVALUABLE_LABEL,
   OBJECTIF_LABEL,
   critereLabel,
   formatDecimal,
   isLegacyEvaluation,
+  isNonEvaluable,
   normalizePointAmeliorer,
   toNumber,
 } from "../calibrationHelpers";
@@ -58,28 +60,54 @@ export function EvaluationReport({
   const objectif = accomplissement?.objectif ?? null;
   const objectifResume = accomplissement?.objectif_resume;
 
+  const head = (
+    <div className={styles.head}>
+      <h3 className={styles.title}>Évaluation de l&apos;IA</h3>
+      <div className={styles.headTags}>
+        {legacy && (
+          <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
+            Format v3 — sans bandes ni preuves
+          </span>
+        )}
+        <span
+          className={styles.legacy}
+          title={
+            promptVersion
+              ? `Grille de notation appliquée · schéma de sortie ${promptVersion}`
+              : "Grille de notation appliquée"
+          }
+        >
+          Grille {rubricsVersion ?? "inconnue"}
+        </span>
+      </div>
+    </div>
+  );
+
+  // Production écartée AVANT tout appel au correcteur : il n'y a ni note, ni
+  // niveau, ni score par critère à annoter. Afficher un « — / 20 » et un bloc
+  // « Détail par critère » vide laisserait croire à une évaluation ratée, alors
+  // que c'est un refus délibéré et documenté du serveur.
+  if (isNonEvaluable(evaluation)) {
+    return (
+      <section className={styles.wrap}>
+        {head}
+        <NonEvaluableBanner raisons={raisons} />
+        {avertissements.length > 0 && (
+          <Block title="Avertissements">
+            <ul className={styles.avertissements}>
+              {avertissements.map((avertissement, index) => (
+                <li key={index}>{avertissement}</li>
+              ))}
+            </ul>
+          </Block>
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className={styles.wrap}>
-      <div className={styles.head}>
-        <h3 className={styles.title}>Évaluation de l&apos;IA</h3>
-        <div className={styles.headTags}>
-          {legacy && (
-            <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
-              Format v3 — sans bandes ni preuves
-            </span>
-          )}
-          <span
-            className={styles.legacy}
-            title={
-              promptVersion
-                ? `Grille de notation appliquée · schéma de sortie ${promptVersion}`
-                : "Grille de notation appliquée"
-            }
-          >
-            Grille {rubricsVersion ?? "inconnue"}
-          </span>
-        </div>
-      </div>
+      {head}
 
       <div className={styles.summary}>
         <div className={styles.scoreBlock}>
@@ -179,6 +207,39 @@ export function EvaluationReport({
 
       <WrittenFeedback evaluation={evaluation} />
     </section>
+  );
+}
+
+/**
+ * Ce que dit une évaluation `NON_EVALUABLE` : le serveur a jugé la production
+ * inexploitable (vide, quasi vide, langue non française, recopiage de la
+ * consigne) et n'a émis **aucun appel LLM**. Elle ne porte donc ni note, ni
+ * niveau, ni `scores_criteres` — jusqu'au 2026-08-21 elle portait 0/20,
+ * `A1_NON_ATTEINT` et quatre critères à zéro, c'est-à-dire une absence de
+ * preuve enregistrée comme la preuve du niveau le plus faible.
+ *
+ * Elle reste visible ici parce qu'une console de calibration doit pouvoir
+ * constater ces refus : ce sont eux qu'on regarde quand on se demande si les
+ * contrôles déterministes écartent trop, ou pas assez.
+ */
+function NonEvaluableBanner({ raisons }: { raisons: string[] }) {
+  return (
+    <div className={styles.nonEvaluable}>
+      <p className={styles.nonEvaluableTitle}>
+        {NON_EVALUABLE_LABEL} — aucun appel au correcteur
+      </p>
+      <p className={styles.nonEvaluableText}>
+        La production a été écartée par les contrôles déterministes du serveur : ni note, ni
+        niveau, ni score par critère n&apos;ont été produits. Il n&apos;y a rien à annoter.
+      </p>
+      {raisons.length > 0 && (
+        <ul className={styles.plainList}>
+          {raisons.map((raison, index) => (
+            <li key={index}>{raison}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -23,8 +23,9 @@ import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/tcf_production/competences/competence_detail_screen.dart';
 import '../../screens/tcf_production/competences/competence_prompt_screen.dart';
 import '../../screens/tcf_production/competences/competence_result_screen.dart';
-import '../../screens/tcf_production/production_parcours_screen.dart';
-import '../../screens/tcf_production/widgets/production_mode_tabs.dart';
+import '../../screens/tcf_production/production_exams_screen.dart';
+import '../../screens/tcf_production/production_task_screen.dart';
+import '../../screens/tcf_production/production_tasks_screen.dart';
 import '../../screens/tcf_production/tcf_task_examples_screen.dart';
 import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
@@ -39,7 +40,12 @@ import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/plan/plan_domain_screen.dart';
+import '../../screens/plan/plan_evolution_screen.dart';
+import '../../screens/plan/plan_progress_screen.dart';
 import '../../screens/plan/plan_screen.dart';
+import '../../screens/plan/plan_serie_result_screen.dart';
+import '../../screens/plan/plan_skills_screen.dart';
 import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
@@ -61,6 +67,7 @@ import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
+import '../models/skill_models.dart';
 
 /// Routes nommées centralisées (utilisées par les écrans).
 class AppRoutes {
@@ -93,24 +100,17 @@ class AppRoutes {
   static const tcfCoExams = '/tcf/co/examens';
   static const tcfCeExams = '/tcf/ce/examens';
   static const tcfStructureExams = '/tcf/structure/examens';
-  // Racine d'une épreuve d'Expression. Le hub d'épreuve qui vivait ici (3
-  // cartes de tâche + historique récent) est **supprimé** : le parcours ouvre
-  // directement sur l'écran d'accueil de la maquette, et le changement de
-  // tâche s'y fait par les pastilles T1/T2/T3. Ces deux paths restent
-  // déclarés comme **alias** (redirect → `tcf{Eo,Ee}Entry`) parce que les
-  // écrans du parcours les utilisent encore comme « racine de l'épreuve »
-  // quand la pile de navigation est vide (résultats, bilan de session,
-  // historique).
-  static const tcfEoDetail = '/tcf/eo';
-  static const tcfEeDetail = '/tcf/ee';
+  /// **Entrée d'une épreuve d'Expression** (depuis Réviser, l'Accueil, le Plan
+  /// ou les recommandations) : la **liste de ses trois tâches**, niveau 1 du
+  /// parcours. C'est aussi la « racine de l'épreuve » sur laquelle retombent
+  /// les écrans de résultats et de bilan quand la pile est vide. Littéral,
+  /// sans paramètre : c'est l'épreuve entière.
+  static const tcfEoEntry = '/tcf/eo';
+  static const tcfEeEntry = '/tcf/ee';
 
-  /// **Entrée du parcours d'Expression** (depuis Réviser, l'Accueil ou les
-  /// recommandations) : le mode « Compétences » de la tâche 1, l'écran
-  /// d'accueil de la maquette. Littéral parce qu'`AppRoutes` est le registre
-  /// des routes ; la forme paramétrée vit dans `productionCompetencesPath`.
-  static const tcfEoEntry = '/tcf/eo/tache/1/competences';
-  static const tcfEeEntry = '/tcf/ee/tache/1/competences';
-
+  /// Niveau 2 : **une** tâche et ses deux onglets (Compétences · Sujets
+  /// d'examen). Ouvre sur les compétences ; `tcfCompetences` est la forme
+  /// explicite du même onglet, celle que le Plan emprunte.
   static const tcfEoTaskTraining = '/tcf/eo/tache/:tacheNumero';
   static const tcfEeTaskTraining = '/tcf/ee/tache/:tacheNumero';
 
@@ -121,8 +121,8 @@ class AppRoutes {
 
   // Compétences TCF : entraînement d'un critère à la fois sur de petits
   // sujets, à côté (et jamais à la place) des sujets TCF complets.
-  // moduleKey ∈ {ee, eo}. Les 4 écrans suivent les 5 niveaux de la spec :
-  // tâche → compétences → une compétence → un petit sujet → son résultat.
+  // moduleKey ∈ {ee, eo}. `tcfCompetences` est l'onglet « Compétences » du
+  // niveau 2 ; les 3 suivantes sont les écrans propres au module.
   static const tcfCompetences =
       '/tcf/:moduleKey/tache/:tacheNumero/competences';
   static const tcfCompetenceDetail = '/tcf/:moduleKey/competences/:skillId';
@@ -153,6 +153,29 @@ class AppRoutes {
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
   static const plan = '/plan';
+
+  /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
+  /// Aucun identifiant n'y voyage : la fiche relit le Plan déjà chargé.
+  static const planDomain = '/plan/domaine/:domainKey';
+
+  /// « Votre programme évolue » — le détail de ce qui a bougé dans le Plan.
+  static const planEvolution = '/plan/evolution';
+
+  /// « Toutes mes compétences » — l'index des six tâches d'expression et des
+  /// deux domaines de compréhension. Aucun identifiant n'y voyage : la page
+  /// relit le Plan déjà chargé et n'aiguille que vers des écrans existants.
+  static const planSkills = '/plan/competences';
+
+  /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
+  /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
+  static const planSerieResult = '/plan/serie/:attemptId';
+
+  /// « Ma progression vers le … » — les quatre domaines du TCF sur le chemin de
+  /// l'objectif. 🛑 **À ne pas confondre avec [progress]**, l'écran de
+  /// progression **générique** (civique + TCF) ouvert depuis le Profil, qui
+  /// reste. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
+  static const planProgress = '/plan/progression';
+
   static const progress = '/progress';
 
   // Plan de révision personnalisé (catégories les plus faibles d'abord),
@@ -522,6 +545,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      // Écrans secondaires du Plan — hors shell : ils sont poussés au-dessus de
+      // l'onglet, qui reste dessous et se ré-hydrate au retour.
+      GoRoute(
+        path: AppRoutes.planDomain,
+        builder: (_, state) => PlanDomainScreen(
+          domainKey: state.pathParameters['domainKey'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.planEvolution,
+        builder: (_, __) => const PlanEvolutionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planSkills,
+        builder: (_, __) => const PlanSkillsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planProgress,
+        builder: (_, __) => const PlanProgressScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planSerieResult,
+        builder: (_, state) => PlanSerieResultScreen(
+          attemptId: state.pathParameters['attemptId']!,
+          skillId: state.uri.queryParameters['skillId'],
+          masteryBefore: SkillMasteryState.fromWireNullable(
+            state.uri.queryParameters['avant'],
+          ),
+        ),
+      ),
+
       // Progression historique conservée comme écran secondaire depuis Plan.
       GoRoute(
         path: AppRoutes.progress,
@@ -605,43 +659,37 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // TCF productions : la racine d'une épreuve n'a plus d'écran à elle.
-      // L'ancien hub (`TcfExpressionScreen`) est supprimé — on entre
-      // directement sur l'écran d'accueil du parcours, et T1/T2/T3 se choisit
-      // par les pastilles. Ces deux routes restent des **alias** : elles
-      // absorbent les anciens liens et les retours « racine de l'épreuve »
-      // des écrans de résultats / bilan / historique.
+      // TCF productions — niveau 1 : l'épreuve et ses trois tâches.
       //
       // Aucune sous-route n'est déclarée sous elles (`/tcf/ee/tache/…` sont
       // des routes absolues de premier niveau), donc pas besoin du garde
       // `state.uri.path ==` utilisé plus bas pour `/tcf/expression-{orale,ecrite}`.
       GoRoute(
-        path: AppRoutes.tcfEoDetail,
-        redirect: (_, __) => AppRoutes.tcfEoEntry,
+        path: AppRoutes.tcfEoEntry,
+        builder: (_, __) =>
+            const ProductionTasksScreen(module: TcfProductionModule.eo),
       ),
       GoRoute(
-        path: AppRoutes.tcfEeDetail,
-        redirect: (_, __) => AppRoutes.tcfEeEntry,
+        path: AppRoutes.tcfEeEntry,
+        builder: (_, __) =>
+            const ProductionTasksScreen(module: TcfProductionModule.ee),
       ),
-      // Les trois modes du parcours (Sujets ici, Compétences plus bas, Examens
-      // sous `/tcf/expression-*`) sont servis par **un seul écran** : c'est lui
-      // qui garde les modes montés côte à côte et les données en cache. Les
-      // chemins restent distincts pour les liens profonds et le retour arrière
-      // — seule la bascule cesse d'être une navigation.
+      // Niveau 2 : une tâche et ses deux onglets. Le chemin nu ouvre les
+      // compétences ; `tcfCompetences` (plus bas) est sa forme explicite, et
+      // il n'existe pas de chemin pour l'autre onglet — on n'y entre que par
+      // la barre segmentée, qui ne navigue pas.
       GoRoute(
         path: AppRoutes.tcfEoTaskTraining,
-        builder: (_, state) => ProductionParcoursScreen(
+        builder: (_, state) => ProductionTaskScreen(
           module: TcfProductionModule.eo,
-          tab: ProductionModuleTab.sujets,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
         ),
       ),
       GoRoute(
         path: AppRoutes.tcfEeTaskTraining,
-        builder: (_, state) => ProductionParcoursScreen(
+        builder: (_, state) => ProductionTaskScreen(
           module: TcfProductionModule.ee,
-          tab: ProductionModuleTab.sujets,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
         ),
@@ -662,9 +710,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // `resultat` est un littéral.
       GoRoute(
         path: AppRoutes.tcfCompetences,
-        builder: (_, state) => ProductionParcoursScreen(
+        builder: (_, state) => ProductionTaskScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
-          tab: ProductionModuleTab.competences,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
         ),
@@ -776,20 +823,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         // teste donc `state.uri.path` (URL réelle de destination) pour ne
         // rediriger QUE quand l'utilisateur cible l'ancien path racine du hub.
         redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale
-            ? AppRoutes.tcfEoDetail
+            ? AppRoutes.tcfEoEntry
             : null,
         routes: [
           GoRoute(
             path: 'examens',
-            // `?tache=` : la page des examens est portée par l'épreuve, pas par
-            // une tâche — on garde d'où l'on vient pour que la barre du module
-            // renvoie sur la bonne tâche. Absent (entrée par le hub) → tâche 1.
-            builder: (_, state) => ProductionParcoursScreen(
+            // Chemin **inchangé** depuis que les examens blancs ont quitté
+            // l'écran des tâches : les liens profonds existants aboutissent
+            // toujours ici. L'ancien `?tache=` n'a plus d'objet — on revient
+            // désormais en dépilant.
+            builder: (_, __) => const ProductionExamsScreen(
               module: TcfProductionModule.eo,
-              tab: ProductionModuleTab.examens,
-              tache:
-                  (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
-                      .clamp(1, 3),
             ),
           ),
           GoRoute(
@@ -857,20 +901,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         // `state.uri.path` pour ne pas intercepter les navigations vers
         // les sous-routes (`/historique`, `/sessions/:id`, `/t/:idx`, ...).
         redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionEcrite
-            ? AppRoutes.tcfEeDetail
+            ? AppRoutes.tcfEeEntry
             : null,
         routes: [
           GoRoute(
             path: 'examens',
-            // `?tache=` : la page des examens est portée par l'épreuve, pas par
-            // une tâche — on garde d'où l'on vient pour que la barre du module
-            // renvoie sur la bonne tâche. Absent (entrée par le hub) → tâche 1.
-            builder: (_, state) => ProductionParcoursScreen(
+            // Chemin **inchangé** depuis que les examens blancs ont quitté
+            // l'écran des tâches : les liens profonds existants aboutissent
+            // toujours ici. L'ancien `?tache=` n'a plus d'objet — on revient
+            // désormais en dépilant.
+            builder: (_, __) => const ProductionExamsScreen(
               module: TcfProductionModule.ee,
-              tab: ProductionModuleTab.examens,
-              tache:
-                  (int.tryParse(state.uri.queryParameters['tache'] ?? '1') ?? 1)
-                      .clamp(1, 3),
             ),
           ),
           GoRoute(

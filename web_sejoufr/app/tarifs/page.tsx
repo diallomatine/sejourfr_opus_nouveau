@@ -84,7 +84,7 @@ export default async function TarifsPage() {
           />
         )}
         <PricingHero />
-        <PricingPlans plans={plans} audiencePath="/tarifs" />
+        <PricingPlans plans={plans} measured />
         <PricingComparison />
         <PricingFAQ />
 

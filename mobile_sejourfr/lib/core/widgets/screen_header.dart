@@ -18,6 +18,7 @@ class ScreenHeader extends StatelessWidget {
     this.onBack,
     this.right,
     this.large = false,
+    this.solid = false,
   });
 
   final String title;
@@ -26,6 +27,12 @@ class ScreenHeader extends StatelessWidget {
   final Widget? right;
   final bool large;
 
+  /// Variante **pleine** : fond bleu de marque, texte blanc. Ajoutee le
+  /// 2026-08-21 pour l'ecran d'une tache EE/EO, ou le numero de tache doit
+  /// s'imposer. Les 19 autres appelants ne passent pas ce drapeau et gardent
+  /// le bandeau clair translucide : **ne pas en faire le defaut**.
+  final bool solid;
+
   @override
   Widget build(BuildContext context) {
     return ClipRect(
@@ -33,16 +40,20 @@ class ScreenHeader extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bg.withValues(alpha: 0.86),
-            border: const Border(
-              bottom: BorderSide(color: AppColors.lineSoft),
+            color: solid
+                ? AppColors.blue
+                : AppColors.bg.withValues(alpha: 0.86),
+            border: Border(
+              bottom: BorderSide(
+                color: solid ? AppColors.blue : AppColors.lineSoft,
+              ),
             ),
           ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: Row(
             children: [
               if (onBack != null) ...[
-                _BackButton(onTap: onBack!),
+                _BackButton(onTap: onBack!, solid: solid),
                 const SizedBox(width: 10),
               ],
               Expanded(
@@ -56,7 +67,10 @@ class ScreenHeader extends StatelessWidget {
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppFonts.display(size: large ? 26 : 19),
+                      style: AppFonts.display(
+                        size: large ? 26 : 19,
+                        color: solid ? AppColors.white : AppColors.ink,
+                      ),
                     ),
                     if (sub != null) ...[
                       const SizedBox(height: 2),
@@ -66,7 +80,9 @@ class ScreenHeader extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: AppFonts.ui(
                           size: 12.5,
-                          color: AppColors.inkFaint,
+                          color: solid
+                              ? AppColors.white.withValues(alpha: 0.82)
+                              : AppColors.inkFaint,
                         ),
                       ),
                     ],
@@ -86,22 +102,29 @@ class ScreenHeader extends StatelessWidget {
 }
 
 class _BackButton extends StatelessWidget {
-  const _BackButton({required this.onTap});
+  const _BackButton({required this.onTap, this.solid = false});
 
   final VoidCallback onTap;
+  final bool solid;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface2,
+      color: solid
+          ? AppColors.white.withValues(alpha: 0.18)
+          : AppColors.surface2,
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
-        child: const SizedBox(
+        child: SizedBox(
           width: 34,
           height: 34,
-          child: Icon(LucideIcons.arrowLeft, size: 19, color: AppColors.ink),
+          child: Icon(
+            LucideIcons.arrowLeft,
+            size: 19,
+            color: solid ? AppColors.white : AppColors.ink,
+          ),
         ),
       ),
     );

@@ -25,6 +25,7 @@
         <app-store-server-library.version>5.2.0</app-store-server-library.version>
         <google-api-androidpublisher.version>v3-rev20260519-2.0.0</google-api-androidpublisher.version>
         <google-auth-library.version>1.47.0</google-auth-library.version>
+        <geoip2.version>4.2.1</geoip2.version>
         <embedded-postgres.version>2.0.7</embedded-postgres.version>
         <zonky-pg-binaries.version>16.2.0</zonky-pg-binaries.version>
         <jacoco.version>0.8.12</jacoco.version>
@@ -145,6 +146,18 @@
         </dependency>
 
         <!-- Validation des ID tokens Google / Apple (JWKS + signature RS256) pour social sign-in -->
+        <!-- Geo-IP embarquee (pays d'un visiteur pour la mesure d'audience).
+             La BASE GeoLite2-Country.mmdb n'est PAS versionnee : sa licence
+             MaxMind interdit la redistribution et son telechargement exige un
+             compte. Son absence est un cas normal — le resolveur devient
+             inerte et tous les pays valent « inconnu », jamais un pays
+             invente (cf. util/GeoIpCountryResolver). -->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>${geoip2.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>

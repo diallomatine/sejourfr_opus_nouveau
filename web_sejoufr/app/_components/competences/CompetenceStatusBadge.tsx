@@ -38,23 +38,3 @@ function StatusIcon({status}: {status: SkillPromptStatus}) {
       return <Circle size={9} strokeWidth={2.6} aria-hidden />;
   }
 }
-
-/**
- * Classe du liseré vertical d'une carte de sujet, dérivée du même statut.
- *
- * Un sujet **à faire** n'en porte aucun (chaîne vide) : dans la maquette le
- * liseré est le repère « ce sujet a déjà été travaillé », un liseré gris sur
- * tous les autres lui retirait tout pouvoir de distinction.
- */
-export function promptCardToneClass(status: SkillPromptStatus): string {
-  switch (status) {
-    case "VALIDATED":
-      return `${s.rowCardDone} ${s.rowCardValidated}`;
-    case "TO_REINFORCE":
-      return `${s.rowCardDone} ${s.rowCardReinforce}`;
-    case "TREATED":
-      return s.rowCardDone;
-    case "TODO":
-      return "";
-  }
-}

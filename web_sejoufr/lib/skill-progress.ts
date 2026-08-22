@@ -28,8 +28,14 @@ interface Countable {
   attemptedCount: number;
 }
 
-/** Pourcentage entier borné à [0, 100]. Une division par zéro vaut 0. */
-export function progressPercent(attempted: number, total: number): number {
+/**
+ * Pourcentage entier borné à [0, 100]. Une division par zéro vaut 0.
+ *
+ * **Interne au module** : le seul pourcentage affiché est celui que porte
+ * {@link SkillProgress}, donc personne n'a besoin de refaire la division
+ * dehors — et l'exporter, c'était inviter un composant à le faire.
+ */
+function progressPercent(attempted: number, total: number): number {
   if (!Number.isFinite(attempted) || !Number.isFinite(total) || total <= 0) return 0;
   const pct = Math.round((attempted / total) * 100);
   return Math.min(100, Math.max(0, pct));

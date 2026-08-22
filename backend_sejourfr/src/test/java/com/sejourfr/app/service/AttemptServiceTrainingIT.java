@@ -35,7 +35,7 @@ class AttemptServiceTrainingIT extends AbstractIntegrationTest {
     private StartAttemptRequest training(Module module, UUID themeId, Difficulty difficulty,
                                          QuestionType qType, Integer size, Integer lotNumero) {
         return new StartAttemptRequest(AttemptType.TRAINING, module, null, themeId,
-                difficulty, qType, size, lotNumero, null, null);
+                difficulty, qType, size, lotNumero, null, null, null);
     }
 
     private void makePremium(User user) {
@@ -121,7 +121,7 @@ class AttemptServiceTrainingIT extends AbstractIntegrationTest {
         User user = data.user();
         StartAttemptRequest req = new StartAttemptRequest(
                 AttemptType.MOCK_EXAM, Module.TCF, null, null,
-                Difficulty.B1, QuestionType.CE, null, 1, null, null);
+                Difficulty.B1, QuestionType.CE, null, 1, null, null, null);
 
         assertThatThrownBy(() -> service.start(user.getId(), req))
                 .isInstanceOf(BusinessException.class);

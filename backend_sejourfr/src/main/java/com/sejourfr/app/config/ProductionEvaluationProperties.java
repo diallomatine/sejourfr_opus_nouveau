@@ -787,6 +787,34 @@ public class ProductionEvaluationProperties {
         /** Sous ce nombre de mots exploitables, la production est INVALIDE (vide/quasi vide). */
         private int minMotsExploitables = 5;
         /**
+         * MEME controle, plancher plus haut, reserve au DIAGNOSTIC INITIAL.
+         *
+         * <p><b>Pourquoi un second seuil et pas le meme.</b> Une production
+         * d'entrainement trop mince ne coute que son propre retour. Une
+         * production de diagnostic, elle, fixe le niveau d'un DOMAINE entier :
+         * elle sert de repli a {@code TcfProfileService}, et le niveau global du
+         * candidat est le PLANCHER de ses quatre domaines. Le bar « assez de
+         * matiere pour situer un palier » est donc plus haut que le bar « assez
+         * de matiere pour commenter ».
+         *
+         * <p><b>Pourquoi 20 et pas une autre valeur.</b> 20 mots, c'est deux ou
+         * trois phrases completes : le minimum sur lequel un correcteur peut
+         * observer un temps verbal, un accord, un determinant et un lien entre
+         * deux idees — la matiere dont sont faits les descripteurs du CECRL.
+         * C'est aussi UN CINQUIEME de ce que le sujet demande (EE 100-120 mots,
+         * EO 90-150 s) : un candidat qui n'en rend qu'un cinquieme est encore
+         * analyse, la frontiere reste « il n'y a rien a observer » et non
+         * « c'est mauvais ». Mesure sur les 18 analyses reelles de la base : les
+         * deux productions fautives font 1 et 3 mots, les seize autres 104 mots
+         * et plus. Aucun cas observe n'approche cette ligne — elle n'arbitre
+         * donc aucun candidat reel aujourd'hui, elle ferme un trou.
+         *
+         * <p>Monter ce seuil refuserait d'analyser des A1 authentiques, qui
+         * produisent peu ; le descendre a 5 laisserait une production de six
+         * mots fixer le niveau d'un domaine.
+         */
+        private int minMotsDiagnostic = 20;
+        /**
          * Nombre de mots a partir duquel le ratio de mots-outils devient
          * statistiquement lisible. En dessous, on ne juge pas la langue.
          */
@@ -810,6 +838,14 @@ public class ProductionEvaluationProperties {
 
         public void setMinMotsExploitables(int minMotsExploitables) {
             this.minMotsExploitables = minMotsExploitables;
+        }
+
+        public int getMinMotsDiagnostic() {
+            return minMotsDiagnostic;
+        }
+
+        public void setMinMotsDiagnostic(int minMotsDiagnostic) {
+            this.minMotsDiagnostic = minMotsDiagnostic;
         }
 
         public int getMotsMinAnalyseLangue() {

@@ -40,7 +40,7 @@ class PublicAttemptServiceTest {
     }
 
     private static StartAttemptRequest req(AttemptType type) {
-        return new StartAttemptRequest(type, Module.CIVIQUE, null, null, null, null, null, null, null, null);
+        return new StartAttemptRequest(type, Module.CIVIQUE, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

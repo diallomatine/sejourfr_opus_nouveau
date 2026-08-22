@@ -58,8 +58,7 @@ export function AppLayout() {
         </div>
 
         <div className={styles.navSection}>Pilotage</div>
-        <NavItem to="/dashboard">↳ Tableau de bord</NavItem>
-        <NavItem to="/audience">↳ Funnel & audience</NavItem>
+        <NavItem to="/dashboard">↳ Analytics</NavItem>
 
         <div className={styles.navSection}>Contenu</div>
         <NavItem

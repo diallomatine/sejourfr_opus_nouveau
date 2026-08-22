@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 
+import '../analytics/traffic_source.dart';
 import '../auth/token_storage.dart';
 import '../models/auth_models.dart';
 import 'api_config.dart';
@@ -22,6 +24,7 @@ class ApiClient {
         // le funnel d'audience — envoyé sur TOUTES les requêtes, y compris
         // `skipAuth` (l'inscription en fait partie). Un seul point de câblage.
         'X-Sejourfr-Client': 'mobile',
+        'User-Agent': userAgent,
       },
       validateStatus: (status) => status != null && status < 500,
     ));
@@ -33,6 +36,26 @@ class ApiClient {
         onError: _onError,
       ),
     );
+  }
+
+  /// User-agent qui **nomme le système**, et rien d'autre.
+  ///
+  /// Sans lui, Dart envoie « Dart/3.x (dart:io) » : le serveur
+  /// (`DeviceTypeResolver`) refuse — à juste titre — de deviner, et **tous**
+  /// les événements de l'app ressortent avec un type d'appareil inconnu. Le
+  /// système sur lequel tourne l'app est un **fait** lisible localement, pas
+  /// une affirmation : on le dit.
+  ///
+  /// 🛑 Rien d'identifiant n'y entre : ni modèle d'appareil, ni identifiant
+  /// d'installation, ni compte. Le serveur ne conserve d'ailleurs pas cette
+  /// chaîne, seulement sa conclusion.
+  static String get userAgent {
+    final os = Platform.isIOS || Platform.isMacOS
+        ? 'ios'
+        : Platform.isAndroid
+            ? 'android'
+            : 'unknown';
+    return 'SejourFR ($os)';
   }
 
   late final Dio _dio;
@@ -57,7 +80,27 @@ class ApiClient {
         options.headers['Authorization'] = 'Bearer $token';
       }
     }
+    _applyTrafficSource(options.headers);
     handler.next(options);
+  }
+
+  /// Pose `X-Sejourfr-Source` **quand, et seulement quand, une provenance a
+  /// réellement été observée** — miroir de ce que fait `lib/api.ts` côté web,
+  /// où l'en-tête n'est ajouté que si `detectTrafficSource()` rend une valeur.
+  ///
+  /// 🛑 **Jamais de `direct` fabriqué.** Sans en-tête, le serveur rend
+  /// « inconnu », qui est vrai ; un `direct` posé par défaut ferait passer
+  /// toutes les inscriptions mobiles pour de l'accès direct — c'est exactement
+  /// le défaut qu'on corrige.
+  ///
+  /// Posé dans l'intercepteur plutôt que dans `BaseOptions` parce que la
+  /// provenance peut arriver **après** la construction du client (deep link de
+  /// campagne ouvert alors que l'app tourne déjà), comme le web la recalcule à
+  /// chaque appel. S'applique à **toutes** les requêtes, `skipAuth` comprises —
+  /// l'inscription en fait partie.
+  static void _applyTrafficSource(Map<String, dynamic> headers) {
+    final source = AnalyticsTrafficSource.current;
+    if (source != null) headers['X-Sejourfr-Source'] = source.wire;
   }
 
   void _onResponse(Response response, ResponseInterceptorHandler handler) {
@@ -140,7 +183,14 @@ class ApiClient {
     try {
       final res = await Dio(BaseOptions(
         baseUrl: ApiConfig.baseUrl,
-        headers: {'X-Sejourfr-Client': 'mobile'},
+        headers: {
+          'X-Sejourfr-Client': 'mobile',
+          'User-Agent': userAgent,
+          // Le refresh sort du Dio principal : sans ce rappel, il serait la
+          // seule requête de l'app à perdre la provenance.
+          if (AnalyticsTrafficSource.current != null)
+            'X-Sejourfr-Source': AnalyticsTrafficSource.current!.wire,
+        },
       )).post(
         '/api/auth/refresh',
         data: {'refreshToken': refresh},

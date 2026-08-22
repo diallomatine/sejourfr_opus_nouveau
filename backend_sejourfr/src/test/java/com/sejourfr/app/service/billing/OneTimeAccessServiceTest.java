@@ -54,7 +54,8 @@ class OneTimeAccessServiceTest {
         subscriptionService = mock(SubscriptionService.class);
         mailService = mock(MailService.class);
         service = new OneTimeAccessService(
-                userManager, userSubscriptionManager, subscriptionService, mailService);
+                userManager, userSubscriptionManager, subscriptionService, mailService,
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
 
         user = new User();
         user.setId(userId);

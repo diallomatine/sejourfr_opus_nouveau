@@ -9,17 +9,39 @@ import type {
   SkillTaskCode,
 } from "../../types/api";
 
-export const SECTIONS: SkillSection[] = ["EE", "EO"];
+export const SECTIONS: SkillSection[] = ["EE", "EO", "CO", "CE"];
 
 export const SECTION_LABEL: Record<SkillSection, string> = {
   EE: "Expression écrite",
   EO: "Expression orale",
+  CO: "Compréhension orale",
+  CE: "Compréhension écrite",
 };
 
 export const SECTION_TONE: Record<SkillSection, "ce" | "co"> = {
   EE: "ce",
   EO: "co",
+  CO: "co",
+  CE: "ce",
 };
+
+/**
+ * Le candidat COMPREND : la compétence n'a ni tâche ni petit sujet, et
+ * s'entraîne par une série ciblée de QCM du même niveau. Miroir de
+ * `SkillSection.isComprehension()` côté backend.
+ */
+export function isComprehensionSection(section: SkillSection): boolean {
+  return section === "CO" || section === "CE";
+}
+
+/**
+ * Le candidat PRODUIT (écrit ou parle) : la compétence appartient à une
+ * tâche et s'entraîne sur des petits sujets analysés par l'IA. Miroir de
+ * `SkillSection.isProduction()`.
+ */
+export function isProductionSection(section: SkillSection): boolean {
+  return section === "EE" || section === "EO";
+}
 
 export const TASK_CODES: SkillTaskCode[] = ["EE1", "EE2", "EE3", "EO1", "EO2", "EO3"];
 
@@ -184,7 +206,11 @@ export function guidanceState(prompt: GuidanceFields): GuidanceState {
   return filled === 0 ? "absent" : "partial";
 }
 
-/** Tâches proposées pour une section — un `taskCode` commence toujours par sa section. */
+/**
+ * Tâches proposées pour une section — un `taskCode` commence toujours par sa
+ * section. Vide pour `CO`/`CE` : une compétence de compréhension n'appartient
+ * à aucune tâche.
+ */
 export function taskCodesForSection(section: SkillSection): SkillTaskCode[] {
   return TASK_CODES.filter((code) => code.startsWith(section));
 }

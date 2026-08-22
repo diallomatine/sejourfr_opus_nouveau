@@ -107,6 +107,23 @@ public class RateLimitGuard {
         limiter.check("skill-attempt:daily", key, props.getSkillAttemptDaily());
     }
 
+    /**
+     * Ingestion d'un evenement d'analytics : double garde-fou par IP.
+     *
+     * <p>C'est le seul frein a l'inflation d'{@code analytics_event}, route
+     * publique qui ecrit une ligne par appel. Le trou laisse sur
+     * {@code /api/public/page-views} (table agregee, donc bornee autrement) ne
+     * se reproduit pas ici.
+     *
+     * <p>Volontairement genereux : on coupe la boucle automatisee, on ne gene
+     * pas un visiteur qui parcourt le site.
+     */
+    public void checkAnalytics(String ip) {
+        if (!props.isEnabled()) return;
+        limiter.check("analytics:burst", ip, props.getAnalyticsBurst());
+        limiter.check("analytics:daily", ip, props.getAnalyticsDaily());
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase();
     }

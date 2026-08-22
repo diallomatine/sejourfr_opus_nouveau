@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { CategoryBarLine } from "@/app/_components/ReinforceRow";
 import { ProgressDonut } from "@/app/_components/hub/ModuleHubParts";
+import { PlanDomainsSummary } from "@/app/_components/plan/PlanDomainsSummary";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { categoryHref, categoryStatus, masteryHint, moduleAverage } from "@/lib/dashboard";
@@ -157,6 +158,11 @@ export default function StatistiquesPage() {
           chipTone="red"
         />
       </section>
+
+      {/* Les 4 domaines du TCF, dans l'ordre d'urgence décidé par le serveur :
+          un pourcentage global ne dit pas OÙ le candidat bloque, une épreuve
+          jamais mesurée si. */}
+      <PlanDomainsSummary />
 
       <ModuleProgressSection
         icon={<Waves size={18} strokeWidth={2} />}

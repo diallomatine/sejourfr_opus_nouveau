@@ -223,6 +223,20 @@ export interface StartAttemptRequest {
      *  refaire « l'examen N » réutilise le même slotNumber, l'UI prend le plus
      *  récent par slot au lieu de créer un slot N+1 (cf. migration V110). */
     slotNumber?: number;
+    /**
+     * **Série ciblée** sur une compétence de COMPRÉHENSION (CO / CE), avec
+     * `type: "TRAINING"` et `module: "TCF"`. Fournie, elle **l'emporte sur tous
+     * les autres filtres** : épreuve, palier et taille se dérivent du
+     * référentiel côté serveur.
+     *
+     * 🛑 **N'envoyer que le `skillId`.** Un couple (`questionType`,
+     * `difficulty`) venu du client aurait pu contredire la compétence affichée
+     * et faire progresser une autre compétence que celle travaillée.
+     *
+     * Erreurs : **403** compétence verrouillée · **422** compétence
+     * d'expression (elle s'entraîne sur ses petits sujets) · **404** inconnue.
+     */
+    skillId?: string;
 }
 
 /** Lot = chunk déterministe de questions (cf. backend LotService / LotDto). */
@@ -517,6 +531,28 @@ export type BandeCritere =
     | "FRAGILE"
     | "NON_EVALUABLE";
 
+/**
+ * La production rendue a-t-elle pu être **observée** ? Miroir de
+ * `ProductionEvaluabilite` (backend), **jamais `null`** : toutes les
+ * évaluations antérieures sortent `EVALUABLE`, rien n'a été migré.
+ *
+ * ⚠️ **Trois états, pas deux**, et c'est tout le sens du champ :
+ * - `evaluation` **absente** ⇒ « pas encore évaluée » ;
+ * - présente + `NON_EVALUABLE` ⇒ « rendue, mais il n'y avait rien à
+ *   observer » : ni note, ni niveau, ni `scores_criteres` — le correcteur n'a
+ *   même pas été appelé (production vide, langue non française, recopiage de
+ *   la consigne). *null = inconnu, jamais mauvais* ;
+ * - présente + `EVALUABLE` ⇒ le rapport normal.
+ *
+ * Le serveur n'expose ici qu'un **fait** : la phrase appartient aux fronts
+ * (cf. `ProductionFeedbackView`).
+ *
+ * ⚠️ À ne pas confondre avec la valeur `"NON_EVALUABLE"` de
+ * {@link BandeCritere}, qui qualifie **un critère** d'une évaluation, pas la
+ * production entière.
+ */
+export type ProductionEvaluabilite = "EVALUABLE" | "NON_EVALUABLE";
+
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
  *  {@link parseEeFeedback} pour le normaliser avant affichage.
  *
@@ -531,6 +567,11 @@ export type BandeCritere =
  *  `confiance` et `avertissementNiveau` à null (et leur `feedback` n'a ni
  *  `bande`, ni `accomplissement`, ni `preuve`) : cas normal, pas une erreur. */
 export interface EvaluationResultDto {
+    /** **Jamais `null`** côté serveur. Un backend antérieur au champ ne le sert
+     *  pas du tout : on ne traite donc comme inexploitable que la valeur
+     *  `NON_EVALUABLE` **explicite** — jamais son absence, qui reste un
+     *  rapport normal. */
+    evaluabilite: ProductionEvaluabilite;
     noteSurVingt: number | null;
     niveauObserve: NiveauCecrl | null;
     confiance: ConfianceEvaluation | null;
@@ -653,9 +694,15 @@ export type LearningPlanState = "NEEDS_DIAGNOSTIC" | "DIAGNOSTIC_IN_PROGRESS" | 
 export type LearningPlanSkillStatus = "NOT_OBSERVED" | "PRIORITY" | "TO_REINFORCE" | "SOLID";
 
 /**
- * D'où vient une observation du Plan. `TCF_CO` / `TCF_CE` sont **réservés** :
- * le serveur ne les sert pas encore, on les prévoit pour ne pas remodeler
- * l'historique le jour où la compréhension entrera dans le Plan.
+ * D'où vient une observation du Plan.
+ *
+ * `TCF_CO` / `TCF_CE` sont **servis** depuis que les QCM de compréhension
+ * alimentent le Plan : ce sont des comptages **déterministes** de bonnes
+ * réponses ventilés par palier de question, jamais un verdict d'IA. Ils ne
+ * s'écrivent que vers les six compétences de compréhension.
+ *
+ * La provenance n'est pas un libellé : c'est elle qui donne son poids à
+ * l'observation dans le moteur de maîtrise.
  */
 export type LearningPlanSourceType =
     | "DIAGNOSTIC_EE"
@@ -739,6 +786,7 @@ interface SkillLockable {
 export type PlanExerciseKind =
     | "MICRO_TRAINING"
     | "REASSESSMENT"
+    | "TARGETED_QCM_SERIES"
     | "EPREUVE_MOCK_EXAM"
     | "FULL_TCF_MOCK_EXAM";
 
@@ -756,13 +804,55 @@ export interface PlanStepExerciseDto extends SkillLockable {
     skillId: string;
     skillCode: string;
     title: string;
-    section: SkillSection;
+    /** Toujours un domaine d'**expression** : petits sujets et tâches de
+     *  production n'existent que là. La compréhension a sa propre nature
+     *  (`PlanTargetedQcmExerciseDto`). */
+    section: SkillProductionSection;
     /** Numéro de tâche (1, 2 ou 3) du sujet de production — vérification
      *  uniquement, `null` sur un micro-exercice. */
     tacheNumero: number | null;
     estimatedMinutes: number;
     epreuve: null;
     slotNumber: null;
+    questionCount: null;
+}
+
+/**
+ * Une **série ciblée de QCM** sur une compétence de COMPRÉHENSION (CO / CE) : le
+ * pendant du micro-exercice pour les deux domaines qui n'ont ni tâche ni petit
+ * sujet.
+ *
+ * Elle se démarre par `POST /api/attempts` avec
+ * `{type: "TRAINING", module: "TCF", skillId}` — **la compétence suffit**.
+ * Domaine, palier et taille se dérivent du référentiel côté serveur ; un couple
+ * (type de question, difficulté) envoyé par le client aurait pu contredire la
+ * compétence affichée et faire progresser une autre compétence que celle
+ * travaillée. D'où l'absence de tout identifiant supplémentaire ici.
+ *
+ * 🛑 **Une série ciblée est un `TRAINING` : elle ne rend JAMAIS un domaine
+ * « évalué »** (`PlanDomainDto.evaluated`). Seul un examen blanc de module le
+ * fait — c'est `LearningPlanDto.domainesAEvaluer` qui dit par quoi mesurer un
+ * domaine manquant.
+ */
+export interface PlanTargetedQcmExerciseDto extends SkillLockable {
+    kind: "TARGETED_QCM_SERIES";
+    skillPromptId: null;
+    productionTaskId: null;
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillComprehensionSection;
+    tacheNumero: null;
+    estimatedMinutes: number;
+    epreuve: null;
+    slotNumber: null;
+    /**
+     * Nombre de questions **demandé** — la carte l'annonce (« Série ciblée de 20
+     * questions ») et c'est le dénominateur du seuil de réussite. Une banque
+     * trop mince peut en servir moins, ce que seule la session dira : ne jamais
+     * l'écrire en dur côté front.
+     */
+    questionCount: number;
 }
 
 /**
@@ -796,7 +886,15 @@ export interface PlanMilestoneExerciseDto extends SkillLockable {
      * le choisit pas.
      */
     slotNumber: number;
+    questionCount: null;
 }
+
+/**
+ * L'exercice d'une **compétence** : micro-sujet, vérification en situation, ou
+ * série ciblée de compréhension. Tout le bloc compétence y est renseigné — c'est
+ * ce qui le distingue d'un jalon.
+ */
+export type PlanSkillExerciseDto = PlanStepExerciseDto | PlanTargetedQcmExerciseDto;
 
 /**
  * L'exercice que le Plan désigne — sur une compétence (une étape) ou, d'un cran
@@ -804,7 +902,7 @@ export interface PlanMilestoneExerciseDto extends SkillLockable {
  * identifiants sont mutuellement exclusifs par nature, et c'est le type qui
  * l'impose plutôt qu'une convention à relire.
  */
-export type PlanRecommendedExerciseDto = PlanStepExerciseDto | PlanMilestoneExerciseDto;
+export type PlanRecommendedExerciseDto = PlanSkillExerciseDto | PlanMilestoneExerciseDto;
 
 export interface DiagnosticSkillObservationDto {
     skillId: string;
@@ -820,6 +918,18 @@ export interface DiagnosticSkillObservationDto {
 }
 
 export interface DiagnosticProductionResultDto {
+    /**
+     * **Trois états, pas deux.** Bloc `written` / `oral` absent = « pas encore
+     * analysée » ; présent avec `NON_EVALUABLE` = « rendue, rien à observer » —
+     * 4 s d'audio, quelques mots : le correcteur n'a **pas** été appelé, et
+     * aucun niveau n'est affirmé. Une production inexploitable n'est pas une
+     * production faible.
+     *
+     * **Jamais `null`** côté serveur ; un backend antérieur au champ ne le sert
+     * pas du tout, donc seule la valeur `NON_EVALUABLE` **explicite** se lit
+     * comme inexploitable — jamais son absence.
+     */
+    evaluabilite: ProductionEvaluabilite;
     levelEstimate: NiveauCecrl | null;
     taskCompletion: DiagnosticTaskCompletion;
     communicationStatus: DiagnosticCommunicationStatus;
@@ -855,11 +965,30 @@ export interface DiagnosticResultDto {
     strengths: string[];
     priorities: DiagnosticSkillObservationDto[];
     mainPriorityExplanation: string | null;
-    /** Toujours une étape : le diagnostic désigne la compétence de la priorité
+    /** Toujours une compétence : le diagnostic désigne celle de la priorité
      *  n°1, jamais un jalon d'examen blanc. */
-    nextAction: PlanStepExerciseDto | null;
+    nextAction: PlanSkillExerciseDto | null;
     /** Second appel best-effort : `null` (ou absent) est un cas normal. */
     exempleCible: DiagnosticExempleCibleDto | null;
+    /**
+     * Combien de compétences **distinctes** les deux productions ont réellement
+     * montrées fragiles (observées, `PRIORITY` ou `TO_REINFORCE`).
+     *
+     * 🛑 **C'est la seule source du « + N autres » de l'écran de résultat.**
+     * `priorities` est plafonné à 3 par règle produit : un compteur calculé
+     * dessus ne dirait jamais mieux que « + 2 », un chiffre de plafond et non
+     * une réalité. Le serveur fait foi — aucun front ne recompte, deux
+     * dérivations finiraient par afficher deux nombres différents.
+     *
+     * `0` est un état normal : aucun bloc « + N autres » n'est rendu.
+     */
+    fragileSkillCount: number;
+    /**
+     * Le compte réel des points forts : compétences distinctes observées
+     * `SOLID`. ⚠️ `strengths` ne peut pas rendre ce service — la liste est
+     * plafonnée à 3 **à l'écriture** du résumé côté serveur.
+     */
+    solidSkillCount: number;
 }
 
 export interface DiagnosticResponse {
@@ -894,6 +1023,62 @@ interface LearningPlanSkillCounters {
 }
 
 /**
+ * **Ce que le Plan demande de faire** sur une entrée — la pastille d'une carte
+ * « Aujourd'hui » et d'une ligne de « Mes priorités ».
+ *
+ * Le Plan n'est pas seulement un moteur de **remédiation** : c'est un moteur de
+ * **progression vers le niveau visé**. Il savait réparer ce qui était fragile ;
+ * il ne savait pas **enseigner** ce qui n'avait jamais été travaillé.
+ *
+ * > `NON OBSERVÉ ≠ FAIBLE`, mais aussi `NON FRAGILE ≠ PLUS RIEN À APPRENDRE`.
+ *
+ * 🛑 **`A_ACQUERIR` ne se dit JAMAIS « à renforcer ».** Renforcer suppose un
+ * constat négatif ; sur une compétence jamais travaillée il n'y en a aucun.
+ * C'est une distinction de fond, pas de vocabulaire — et c'est elle que les
+ * écrans doivent rendre lisible.
+ *
+ * **L'ordre de déclaration EST l'ordre de choix** d'une séance : mesurer ce qui
+ * manque, réparer ce qui est fragile, vérifier ce qui est prêt, apprendre ce qui
+ * vient. Ne pas le réordonner.
+ *
+ * ⚠️ **Trois vocabulaires, trois grains — ils ne se remplacent pas.**
+ * `LearningPlanSkillStatus` est le verdict d'**une production** (persisté, sans
+ * libellé) · `SkillMasteryState` l'état **agrégé** d'une compétence (dérivé,
+ * affiché sur sa fiche) · `PlanActionNature` **l'action à faire maintenant**
+ * (dérivée, affichée sur la carte du Plan). `A_RENFORCER` et
+ * `SkillMasteryState.TO_REINFORCE` portent **volontairement** le même libellé —
+ * quand les deux s'appliquent ils disent la même chose, ils ne s'affichent
+ * simplement pas au même endroit. Idem pour « À évaluer », partagé avec
+ * `PlanDomainPriority.A_EVALUER`. Ce n'est **pas** une collision à corriger.
+ */
+export type PlanActionNature =
+    /** Une mesure manque et elle est indispensable : le candidat a produit sur
+     *  ce domaine et le correcteur n'a rien pu y observer. L'action n'est pas un
+     *  exercice mais une **évaluation** (`PlanSeanceItemDto.assessment`). */
+    | "A_EVALUER"
+    /** Une fragilité **réellement observée** : c'est ce qui bloque maintenant. */
+    | "A_RENFORCER"
+    /** L'étape est terminée et assez travaillée en ciblé : le Plan demande une
+     *  **vérification en situation** au lieu d'empiler des micro-sujets. */
+    | "A_VERIFIER"
+    /** **Une compétence du palier en construction, jamais travaillée.** Aucun
+     *  constat négatif ne la désigne : elle est là parce qu'elle appartient au
+     *  palier que le cycle construit. Elle n'est pas une observation — ni score,
+     *  ni moyenne, ni fragilité — d'où `masteryState: null`. */
+    | "A_ACQUERIR";
+
+/** Libellés FR des natures d'action (**contrat gelé** par `SkillLabelsTest`
+ *  côté backend, recopié à la main ici : un libellé qui bouge, ce sont quatre
+ *  fichiers à changer dans la même passe). Ne jamais recopier ces chaînes dans
+ *  un composant — c'est cette recopie qui avait fait diverger le web du mobile. */
+export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
+    A_EVALUER: "À évaluer",
+    A_RENFORCER: "À renforcer",
+    A_VERIFIER: "À vérifier",
+    A_ACQUERIR: "À acquérir",
+};
+
+/**
  * Une priorité du Plan, c'est-à-dire une **étape**.
  *
  * ⚠️ **Deux jeux de compteurs, à ne jamais confondre.** Ceux de
@@ -909,12 +1094,36 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     skillCode: string;
     title: string;
     section: SkillSection;
-    status: LearningPlanSkillStatus;
+    /**
+     * **Ce que le Plan demande de faire** ici : `A_RENFORCER` (fragilité
+     * observée), `A_VERIFIER` (étape terminée, vérification en situation) ou
+     * `A_ACQUERIR` (compétence du palier en construction, **jamais
+     * travaillée**). Une priorité ne porte jamais `A_EVALUER` : mesurer un
+     * domaine n'est pas une étape de compétence, cela vit dans la séance et dans
+     * « Compléter mon profil ».
+     *
+     * 🛑 **Les écrans lisent cette nature, jamais la nullité d'un autre champ**
+     * — et une entrée `A_ACQUERIR` ne se présente **jamais** comme « à
+     * renforcer ».
+     */
+    nature: PlanActionNature;
+    /**
+     * Le verdict de la dernière production. **`null` sur une compétence à
+     * acquérir**, comme `explanation`, `evidence`, `confidence`, `observedAt` et
+     * `masteryState` : ce n'est pas un trou de donnée, c'est le fait même — rien
+     * n'a été constaté, donc rien n'a échoué. *null = inconnu, jamais mauvais.*
+     */
+    status: LearningPlanSkillStatus | null;
     explanation: string | null;
     evidence: string | null;
-    confidence: ObservationConfidence;
-    observedAt: string;
-    recommendedExercise: PlanStepExerciseDto | null;
+    confidence: ObservationConfidence | null;
+    observedAt: string | null;
+    /**
+     * L'action courante de l'étape. Micro-sujet ou vérification en expression,
+     * **série ciblée** sur une compétence de compréhension : le front lit
+     * `kind`, il ne le devine jamais d'un identifiant nul.
+     */
+    recommendedExercise: PlanSkillExerciseDto | null;
     /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
     stepPromptCount: number;
     /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
@@ -998,6 +1207,510 @@ export interface LearningPlanSkillDto extends LearningPlanSkillCounters, SkillLo
     masteryState: SkillMasteryState | null;
 }
 
+/* ---------------------------------------------------------------- domaines
+ *
+ * Le Plan adaptatif raisonne **par domaine du TCF** (CO · CE · EO · EE) avant
+ * de raisonner par compétence. Deux règles transverses, valables partout
+ * ci-dessous, et qu'aucun écran ne doit contourner :
+ *
+ * 1. 🛑 **Une série ciblée (`TARGETED_QCM_SERIES`, un `TRAINING`) ne rend
+ *    JAMAIS un domaine « évalué ».** Seul un examen blanc de module le fait —
+ *    et pour l'expression, le diagnostic ou une production. S'entraîner n'est
+ *    pas se mesurer : c'est `domainesAEvaluer` qui dit par quoi mesurer un
+ *    domaine manquant.
+ * 2. 🛑 **Le serveur trie déjà `domaines` par urgence** (`PlanDomainPriority`,
+ *    ordre de déclaration, puis ordre des épreuves du TCF à égalité). **Aucun
+ *    front ne retrie**, même doctrine que l'ordre des priorités : trois copies
+ *    front auraient fini par peindre trois classements différents.
+ */
+
+/**
+ * Ce que le Plan a décidé de faire d'un **domaine** — la pastille à droite de sa
+ * ligne dans « Mon profil TCF ».
+ *
+ * **L'ordre de déclaration EST l'ordre d'urgence** : c'est lui qui trie les 4
+ * lignes du profil côté serveur. Ne pas le réordonner.
+ *
+ * 🛑 **Aucune des cinq valeurs ne nomme une faiblesse.** `A_EVALUER` veut dire
+ * « il manque des données », pas « ce domaine est mauvais » — transposition au
+ * niveau du domaine du principe *null = inconnu, jamais mauvais*.
+ */
+export type PlanDomainPriority =
+    | "FORTE"
+    | "A_TRAVAILLER"
+    | "ENTRETIEN"
+    | "PAS_ENCORE_PRIORITAIRE"
+    | "A_EVALUER";
+
+/** Libellés FR des pastilles de domaine (**contrat gelé** par `SkillLabelsTest`
+ *  côté backend, recopié à la main ici : un libellé qui bouge, ce sont quatre
+ *  fichiers à changer dans la même passe). Ne jamais recopier ces chaînes dans
+ *  un composant — c'est cette recopie qui avait fait diverger le web du mobile. */
+export const PLAN_DOMAIN_PRIORITY_LABEL: Record<PlanDomainPriority, string> = {
+    FORTE: "Priorité forte",
+    A_TRAVAILLER: "À travailler",
+    ENTRETIEN: "Entretien",
+    PAS_ENCORE_PRIORITAIRE: "Pas encore prioritaire",
+    A_EVALUER: "À évaluer",
+};
+
+/**
+ * Un palier d'un domaine de **compréhension** : où en est le candidat sur
+ * `CO-A2`, `CO-B1`, `CO-B2` (ou leurs jumelles CE).
+ *
+ * `masteryState: null` ⇒ **jamais observé** : on n'invente pas un état pour un
+ * palier que personne n'a mesuré. Et **jamais un pourcentage** : le score
+ * interne du moteur n'est exposé à aucun front.
+ */
+export interface PlanDomainLevelDto {
+    niveau: TargetLevel;
+    /** La compétence du palier — c'est elle qui ouvre la série ciblée. */
+    skillId: string;
+    /** `CO-B1`, `CE-A2`... */
+    skillCode: string;
+    masteryState: SkillMasteryState | null;
+    /** Ce palier est le **premier** non consolidé du domaine : c'est lui qui
+     *  empêche de compter les paliers supérieurs. Règle serveur, jamais
+     *  recopiée ici. */
+    blocking: boolean;
+}
+
+/**
+ * Une tâche d'un domaine d'**expression** (EE1..EO3) vue depuis le Plan :
+ * combien de ses compétences ont déjà été observées.
+ *
+ * « 3 / 8 observées » **n'est pas une note** : une compétence non observée n'est
+ * pas une compétence ratée, c'est une compétence que le candidat n'a pas encore
+ * eu l'occasion de montrer. Le dénominateur est lu en base — ne jamais écrire 8
+ * en dur.
+ */
+export interface PlanDomainTaskDto {
+    taskCode: SkillTaskCode;
+    /** 1, 2 ou 3 — ce que les écrans de production attendent. */
+    tacheNumero: number;
+    observedSkills: number;
+    totalSkills: number;
+}
+
+/**
+ * Un des quatre domaines du TCF **vu par le Plan** : son niveau estimé, ce que
+ * le Plan a décidé d'en faire, et de quoi ouvrir sa fiche de détail.
+ *
+ * **À ne pas confondre avec `TcfDomainDto`** (dashboard) : celui-là répond à
+ * « quel est mon niveau ? », celui-ci à « qu'est-ce que j'en fais maintenant ? ».
+ * Le **niveau est le même**, il vient de la même autorité serveur.
+ *
+ * `evaluated === false` ⇔ `niveau === null` : jamais mesuré, donc **inconnu**,
+ * jamais mauvais. Sa priorité vaut alors `A_EVALUER`.
+ *
+ * **Les deux blocs de détail s'excluent**, parce que les deux familles ne se
+ * travaillent pas pareil :
+ * - **compréhension** (CO / CE) : `paliers` porte les trois compétences de
+ *   palier, `blockingLevel` celle qui bloque ; `taches` est **vide** ;
+ * - **expression** (EO / EE) : `taches` porte les trois tâches et leur
+ *   couverture ; `paliers` est **vide**, et `consolidatedLevel` /
+ *   `blockingLevel` valent `null` — la notion de palier consolidé n'existe que
+ *   là où la progression est séquentielle.
+ *
+ * Les deux listes sont **toujours présentes**, jamais `null`.
+ */
+export interface PlanDomainDto {
+    epreuve: Extract<EpreuveType, "TCF_CO" | "TCF_CE" | "TCF_EO" | "TCF_EE">;
+    evaluated: boolean;
+    niveau: NiveauCecrl | null;
+    priority: PlanDomainPriority;
+    /** Compréhension : plus haut palier consolidé, prérequis compris. `null` si
+     *  rien ne l'est, et **toujours `null` en expression**. */
+    consolidatedLevel: TargetLevel | null;
+    /** Compréhension : premier palier non consolidé. `null` quand les trois le
+     *  sont, et **toujours `null` en expression**. */
+    blockingLevel: TargetLevel | null;
+    /** Compréhension : A2, B1, B2 dans cet ordre. **Vide** en expression. */
+    paliers: PlanDomainLevelDto[];
+    /** Expression : tâches 1, 2, 3 dans cet ordre. **Vide** en compréhension. */
+    taches: PlanDomainTaskDto[];
+    /**
+     * **Toutes** les compétences actives du domaine, dans l'ordre du serveur :
+     * les 24 des trois tâches en expression, les 3 paliers en compréhension.
+     *
+     * Contrairement à `paliers` / `taches`, cette liste est **uniforme sur les
+     * quatre domaines** — c'est ce qui permet à l'écran « Mon diagnostic » de
+     * n'avoir qu'**une** façon de rendre une carte d'épreuve. **Jamais `null`**
+     * (un backend antérieur au champ ne le sert pas : replier sur `[]`).
+     *
+     * 🛑 **L'ordre est décidé par le serveur, aucun front ne retrie** : deux
+     * copies de la règle désigneraient deux ordres.
+     */
+    skills: PlanDomainSkillDto[];
+    /** Compétences observées `PRIORITY` ou `TO_REINFORCE`. */
+    fragileSkillCount: number;
+    /** Compétences observées `SOLID`. */
+    solidSkillCount: number;
+    /**
+     * Compétences **jamais observées** — ce n'est pas une faiblesse, c'est une
+     * absence de mesure.
+     *
+     * 🛑 Les trois compteurs sont **dérivés de `skills` côté serveur** et leur
+     * somme vaut toujours `skills.length` : c'est ce qui rend un « + N autres »
+     * vrai. Ne jamais les recompter ici — deux dérivations finiraient par
+     * afficher deux nombres différents pour la même épreuve.
+     */
+    notObservedSkillCount: number;
+}
+
+/**
+ * Une compétence du référentiel d'une **épreuve**, vue depuis le Plan : où en
+ * est le candidat dessus, et peut-il la travailler.
+ *
+ * **Trois nullités, trois faits différents.**
+ * - `status` vaut `NOT_OBSERVED` quand rien n'a jamais été observé — **jamais
+ *   `null`** : une compétence est toujours dans un des quatre états, et « non
+ *   observée » est un état, pas une absence de donnée ;
+ * - `masteryState` et `observedAt` valent `null` dans ce même cas : *null =
+ *   inconnu, jamais mauvais* ;
+ * - `nature` vaut `null` dès que le Plan ne demande **rien** dessus — le cas de
+ *   l'immense majorité des compétences. Une compétence `SOLID`, ou non observée
+ *   hors du palier que le cycle construit, **n'est pas une action** : ne pas
+ *   fabriquer une pastille pour remplir la colonne.
+ */
+export interface PlanDomainSkillDto {
+    skillId: string;
+    /** `EE1-C3`, `CO-B1`... */
+    skillCode: string;
+    title: string;
+    /** C'est **lui** qui dit le domaine, jamais la tâche. */
+    section: SkillSection;
+    /** `null` en compréhension : CO/CE n'ont aucune tâche. */
+    taskCode: SkillTaskCode | null;
+    /** 1, 2 ou 3 ; `null` en compréhension. */
+    tacheNumero: number | null;
+    /** Le palier porté par le référentiel ; `null` s'il descend sous `A2`. */
+    targetLevel: TargetLevel | null;
+    status: LearningPlanSkillStatus;
+    masteryState: SkillMasteryState | null;
+    nature: PlanActionNature | null;
+    observedAt: string | null;
+    /** Verrou freemium, décidé par le serveur (`SkillAccessService`). */
+    locked: boolean;
+}
+
+/* ------------------------------------------------------------------- cycle */
+
+/** Où en est le **cycle de palier** courant. Dérivé à la lecture, jamais
+ *  persisté : aucune table, aucune migration. */
+export type PlanCycleState =
+    /** Au moins un des quatre domaines n'a jamais été mesuré. Le Plan met
+     *  « Compléter mon profil » en avant et **ne déclenche aucun examen de
+     *  palier** — un gate sur trois domaines confirmerait un palier non mesuré. */
+    | "BUILDING_BASELINE"
+    /** Profil complet, travail en cours sur les priorités du palier visé. */
+    | "TRAINING"
+    /** Tout le travail du palier est fait : le Plan réclame l'examen blanc
+     *  complet qui le confirmera (servi sur `LearningPlanDto.milestone`). */
+    | "READY_FOR_GATE_MOCK"
+    /** Objectif atteint sur les domaines mesurés : plus de palier à construire,
+     *  on entretient et on remesure. */
+    | "TARGET_STABILIZATION";
+
+/** Nature d'une étape du chemin vers l'objectif. Le serveur expose des faits ;
+ *  « Construire votre B1 » est une formulation, pas une donnée. */
+export type PlanPathStepKind =
+    /** Mesurer les quatre domaines. Toujours la première étape. */
+    | "COMPLETE_PROFILE"
+    /** Construire un palier CECRL ; le palier vit sur `level`. */
+    | "BUILD_LEVEL"
+    /** Objectif atteint : tenir le niveau en conditions d'examen. Toujours la
+     *  dernière. */
+    | "STABILIZE";
+
+/** Où se situe une étape du chemin. Un enum plutôt que deux booléens : « faite »
+ *  et « en cours » ne peuvent pas être vraies ensemble. */
+export type PlanPathStepStatus = "DONE" | "CURRENT" | "UPCOMING";
+
+/** Une étape du chemin vers l'objectif, telle que le Plan la sert. */
+export interface PlanPathStepDto {
+    kind: PlanPathStepKind;
+    /** Palier concerné — renseigné **uniquement** sur `BUILD_LEVEL`, `null`
+     *  ailleurs. */
+    level: TargetLevel | null;
+    status: PlanPathStepStatus;
+}
+
+/**
+ * Le **cycle de palier** en cours : d'où part le candidat, quel palier le Plan
+ * construit maintenant, son objectif, et où il en est sur le chemin.
+ *
+ * **`targetLevel` est le cran AU-DESSUS de `startingLevel`, jamais l'objectif
+ * directement** : un candidat A2 qui vise le B2 travaille d'abord le B1. Il est
+ * plafonné par l'objectif — on ne fait jamais viser plus haut que nécessaire.
+ *
+ * 🛑 **`objectiveLevel` n'est pas « B2 » en dur** : c'est le palier de la
+ * démarche (CSP→A2, CR→B1, NAT→B2), avec plancher. **`null` quand le candidat
+ * n'a déclaré ni démarche ni palier** — on ne devine jamais à sa place.
+ */
+export interface PlanCycleDto {
+    /** Niveau global mesuré d'où part le cycle. `null` tant que rien n'est
+     *  mesuré. Exprimé en `NiveauCecrl` parce qu'il peut valoir `A1` ou moins,
+     *  ce que `TargetLevel` ne sait pas dire. */
+    startingLevel: NiveauCecrl | null;
+    /** Palier construit par ce cycle, dans `A2..B2`. */
+    targetLevel: TargetLevel;
+    /** Palier visé par le candidat. **`null` si inconnu**. */
+    objectiveLevel: TargetLevel | null;
+    state: PlanCycleState;
+    /** Domaines réellement mesurés (0..4). **C'est ici que se lit le compte**
+     *  « 2/4 », pas dans la longueur de `domainesAEvaluer`. */
+    domainsEvaluated: number;
+    /** 4, toujours. */
+    domainsExpected: number;
+    profileComplete: boolean;
+    /** Le chemin, de la première étape à la dernière. Jamais `null` ; une seule
+     *  étape y est `CURRENT`. */
+    path: PlanPathStepDto[];
+}
+
+/* ----------------------------------------------------- compléter le profil */
+
+/** Par quoi un domaine encore **non mesuré** se fait mesurer. 🛑 Aucune de ces
+ *  natures ne crée de contenu : chacune désigne un parcours **déjà existant**. */
+export type PlanDomainAssessmentKind =
+    /** Le diagnostic (`POST /api/diagnostics`) : une production écrite puis une
+     *  orale. Il mesure **les deux domaines d'expression à la fois** — il peut
+     *  donc être désigné sur `TCF_EE` **et** sur `TCF_EO` dans la même réponse.
+     *  Ce n'est pas un doublon : deux domaines pointent vers la même porte. */
+    | "DIAGNOSTIC"
+    /** Un examen blanc de module QCM sur l'épreuve du domaine
+     *  (`POST /api/attempts`, `type: "MOCK_EXAM"`, `moduleExamQuestionType`).
+     *  Correction 100 % déterministe — aucune IA n'y touche. */
+    | "MODULE_MOCK_EXAM"
+    /** Une production EE ou EO du catalogue standard. Repli du domaine
+     *  d'expression dont le diagnostic est **déjà terminé** sans que le domaine
+     *  ait un niveau — on ne rejoue jamais le diagnostic. */
+    | "PRODUCTION";
+
+/**
+ * Ce qu'il faut lancer pour mesurer un domaine **jamais** évalué : l'épreuve,
+ * la nature du parcours, et les paramètres exacts du démarrage.
+ *
+ * **Des faits, jamais une phrase** — « Évaluer ma compréhension orale » et
+ * « Pas encore évaluée » appartiennent aux fronts.
+ *
+ * Ce qui est renseigné selon `kind` :
+ * | `kind` | renseigné | `null` |
+ * |---|---|---|
+ * | `DIAGNOSTIC` | `epreuve` | les trois autres |
+ * | `MODULE_MOCK_EXAM` | tout | — |
+ * | `PRODUCTION` | `epreuve` | les trois autres |
+ */
+export interface PlanDomainAssessmentDto {
+    epreuve: Extract<EpreuveType, "TCF_CO" | "TCF_CE" | "TCF_EO" | "TCF_EE">;
+    kind: PlanDomainAssessmentKind;
+    /** Ce que `StartAttemptRequest` attend pour composer l'examen d'épreuve :
+     *  `CO` ou `CE`, **jamais `CO_IMAGE`** (un filtre `CO` l'inclut déjà). */
+    moduleExamQuestionType: QuestionType | null;
+    /** Slot de la grille d'examens blancs à démarrer. */
+    slotNumber: number | null;
+    /** Durée de l'épreuve, lue chez le serveur et **jamais écrite en dur**.
+     *  `null` quand la durée n'est pas une donnée d'examen (le diagnostic et une
+     *  production ne sont pas chronométrés par épreuve). */
+    estimatedMinutes: number | null;
+}
+
+/* ------------------------------------------------------------------ séance */
+
+/**
+ * Les faits communs à toute ligne de séance — ceux qui décrivent la compétence
+ * travaillée et où le candidat en est.
+ *
+ * 🛑 **Aucune phrase.** Le serveur expose des faits — combien de sujets traités
+ * sur combien, si la compétence attend une vérification, quel palier elle
+ * travaille — et les fronts composent « Pourquoi cette séance ? ».
+ *
+ * **Le bloc compétence est vide sur un jalon comme sur une mesure** (`skillId`,
+ * `skillCode`, `title`, `section` à `null`) : un examen blanc ne travaille pas
+ * une compétence, il les vérifie toutes ; une mesure porte sur une **épreuve
+ * entière**. Les écrans lisent `nature`, **jamais** la nullité d'un champ.
+ */
+interface PlanSeanceItemBase {
+    /** **Ce que le Plan demande de faire** ici. Jamais `null`, et c'est le seul
+     *  champ à lire pour le savoir. */
+    nature: PlanActionNature;
+    skillId: string | null;
+    skillCode: string | null;
+    title: string | null;
+    section: SkillSection | null;
+    /** Palier travaillé (`"A1"`..`"B2"`), renseigné en compréhension ; `null` en
+     *  expression, sur un jalon et sur une mesure. **Chaîne** et non
+     *  `TargetLevel` : le référentiel des compétences descend jusqu'à `A1`. */
+    level: string | null;
+    /** État agrégé, `null` sur un jalon, sur une mesure et sur une compétence
+     *  **jamais observée** (à acquérir). */
+    masteryState: SkillMasteryState | null;
+    /** Sujets de l'étape ; **`0` en compréhension**, qui n'a pas d'étape à cinq
+     *  sujets, et sur une mesure comme sur un jalon. */
+    stepPromptCount: number;
+    stepAttemptedCount: number;
+    stepValidatedCount: number;
+    stepCompleted: boolean;
+    readyForReassessment: boolean;
+    /** Ce candidat ne peut pas lancer cette action. Elle reste **désignée et
+     *  visible** : savoir quoi travailler est ce que le Plan apporte. */
+    locked: boolean;
+    /**
+     * **Date de la dernière activité sur cette compétence** (ISO), `null`
+     * quand elle n'a jamais été observée, sur un jalon et sur une mesure.
+     *
+     * C'est un **fait**, pas un verdict : le serveur ne dit jamais « fait
+     * aujourd'hui » — il n'a pas d'horloge dans la construction de la séance.
+     * C'est le front qui compare cette date à sa journée courante
+     * (**Europe/Paris**, `planSeanceItemDone`). La coche vit donc dans le
+     * compte : elle survit à un rechargement, et elle est la même sur le web et
+     * sur le mobile.
+     *
+     * ⚠️ Lue sur **toutes** les observations, `NOT_OBSERVED` comprise — le
+     * correcteur n'a rien pu observer, mais le candidat a bien travaillé. À ne
+     * pas confondre avec `LearningPlanPriorityDto.observedAt`, qui est la
+     * dernière observation **probante**.
+     */
+    lastActivityAt: string | null;
+}
+
+/**
+ * Un **entraînement** de la séance : petit sujet ciblé, vérification en
+ * situation, série ciblée de compréhension ou jalon d'examen blanc.
+ */
+export interface PlanSeanceExerciseItemDto extends PlanSeanceItemBase {
+    nature: "A_RENFORCER" | "A_VERIFIER" | "A_ACQUERIR";
+    /** L'entraînement à lancer, **jamais `null`** sur cette variante. */
+    exercise: PlanRecommendedExerciseDto;
+    assessment: null;
+}
+
+/**
+ * Une **mesure de domaine** : le seul item de séance qui n'est pas un exercice.
+ *
+ * Le candidat a produit sur ce domaine et le correcteur n'a **rien pu y
+ * observer** ; lui proposer un micro-exercice de plus le ferait avancer à
+ * l'aveugle. La séance commence donc par « votre oral n'a pas pu être analysé,
+ * refaites-en un » — et cette ligne ne porte **aucune compétence** : c'est une
+ * épreuve entière qu'on vient mesurer.
+ *
+ * ⚠️ À distinguer d'un domaine **jamais** mesuré, qui vit dans
+ * `LearningPlanDto.domainesAEvaluer` (« Compléter mon profil »). Les deux
+ * ouvrent le même genre de parcours, mais ne disent pas la même chose : ici le
+ * candidat a déjà travaillé, c'est notre mesure qui a échoué.
+ */
+export interface PlanSeanceAssessmentItemDto extends PlanSeanceItemBase {
+    nature: "A_EVALUER";
+    exercise: null;
+    /** La mesure à lancer — le même contrat que « Compléter mon profil », donc
+     *  le même lanceur côté front (`usePlanAssessment`), jamais un second. */
+    assessment: PlanDomainAssessmentDto;
+}
+
+/**
+ * Une ligne de la séance. **Union discriminée par `nature`** : `exercise` et
+ * `assessment` sont **mutuellement exclusifs**, et c'est le type qui l'impose
+ * plutôt qu'une convention à relire — un écran qui oublierait la mesure ne
+ * compile pas.
+ */
+export type PlanSeanceItemDto = PlanSeanceExerciseItemDto | PlanSeanceAssessmentItemDto;
+
+/**
+ * **La séance du jour** : au plus trois entraînements, dans l'ordre, et leur
+ * durée totale.
+ *
+ * C'est une **vue** des priorités et du jalon, pas une seconde source de
+ * vérité : chaque item reprend un exercice déjà désigné.
+ *
+ * 🛑 **Aucune date n'intervient nulle part.** « Aujourd'hui » est une
+ * présentation ; une compétence entrée dans la séance y reste tant qu'elle n'est
+ * pas réussie. Rien ici ne lit l'horloge — un changement de jour ne peut pas
+ * faire oublier une compétence.
+ */
+export interface PlanSeanceDto {
+    /** Dans l'ordre d'exécution. **Jamais `null`**, vide quand le Plan n'a rien
+     *  à proposer. */
+    items: PlanSeanceItemDto[];
+    /** Somme **recalculée** des durées des items ; `0` sur une séance vide. */
+    estimatedMinutes: number;
+}
+
+/* ------------------------------------------------------- ce qui a changé */
+
+/**
+ * Fenêtre sur laquelle le Plan raconte « ce qui a changé ». **C'est le serveur
+ * qui la choisit** — la plus courte qui contienne quelque chose de réel.
+ * L'écran affiche la période d'après le serveur, jamais d'après ce qu'il croit
+ * avoir demandé.
+ */
+export type PlanRecentChangesWindow = "CETTE_SEMAINE" | "DEUX_SEMAINES" | "CE_MOIS";
+
+/** Libellés FR des fenêtres (**contrat gelé** par `SkillLabelsTest` côté
+ *  backend, recopié à la main ici). Ne jamais recopier ces chaînes dans un
+ *  composant. */
+export const PLAN_RECENT_CHANGES_WINDOW_LABEL: Record<PlanRecentChangesWindow, string> = {
+    CETTE_SEMAINE: "Cette semaine",
+    DEUX_SEMAINES: "Ces deux dernières semaines",
+    CE_MOIS: "Ce mois-ci",
+};
+
+/**
+ * Une **vraie transition** du moteur de maîtrise sur une compétence :
+ * « À renforcer → Solide », « Priorité → En consolidation ».
+ *
+ * Elle n'est **jamais fabriquée** : elle se mesure en rejouant le moteur sur le
+ * même historique, arrêté au début de la fenêtre puis complet.
+ *
+ * **Une première observation n'est pas une transition** : `before` n'est jamais
+ * `null`. Découvrir un niveau est une mesure initiale, pas un changement.
+ *
+ * 🛑 **Aucun libellé** : les deux états portent déjà les leurs
+ * (`SKILL_MASTERY_STATE_LABEL`), le sens de la marche est donné par `progress`,
+ * et la phrase appartient aux fronts.
+ */
+export interface PlanMasteryTransitionDto {
+    skillId: string;
+    skillCode: string;
+    title: string;
+    section: SkillSection;
+    /** État au début de la fenêtre, **jamais `null`**. */
+    before: SkillMasteryState;
+    /** État maintenant, jamais `null` et **toujours différent** de `before`. */
+    after: SkillMasteryState;
+    /** `true` si la compétence a monté dans l'échelle. **Calculé serveur** pour
+     *  qu'aucun front n'ait à coder l'ordre des quatre états — trois copies
+     *  auraient fini par peindre trois flèches différentes. */
+    progress: boolean;
+    /** Dernière observation de la compétence, celle qui date le changement. */
+    observedAt: string;
+}
+
+/**
+ * **Ce qui a changé récemment** dans le Plan de ce candidat.
+ *
+ * 🛑 **Son absence est le cas NORMAL** : quand rien n'a bougé, le bloc vaut
+ * `null` et l'écran n'affiche rien. Aucune ligne n'est fabriquée pour remplir,
+ * aucun message générique n'existe côté serveur.
+ *
+ * **À ne pas confondre avec `PlanChangeDto`** : celui-là dit ce qu'**une
+ * soumission** a changé (sur le détail d'une production, au grain du verdict
+ * d'une observation), celui-ci ce qui a bougé **récemment** (sur le Plan, au
+ * grain de l'**état agrégé**). Ils ne peuvent pas se contredire : ils ne parlent
+ * pas de la même grandeur.
+ */
+export interface PlanRecentChangesDto {
+    window: PlanRecentChangesWindow;
+    /** Borne basse de la fenêtre réellement appliquée. */
+    since: string;
+    /** De la plus récente à la plus ancienne, bornées. **Jamais `null`**,
+     *  éventuellement vide quand seule une nouvelle priorité a été désignée. */
+    transitions: PlanMasteryTransitionDto[];
+    /** La compétence devenue priorité n°1 **dans cette fenêtre**, ou `null` —
+     *  cas fréquent, l'étape n°1 ne change pas à chaque production. */
+    newPriority: PlanSkillRefDto | null;
+}
+
 export interface LearningPlanDto {
     state: LearningPlanState;
     diagnosticSessionId: string | null;
@@ -1031,6 +1744,47 @@ export interface LearningPlanDto {
      * intégralement visible, seuls les accès sont fermés.
      */
     milestone: PlanMilestoneExerciseDto | null;
+    /**
+     * Les **quatre domaines** du TCF — **toujours les quatre**, y compris ceux
+     * qui n'ont jamais été mesurés (`evaluated: false`). **Jamais `null`**.
+     *
+     * 🛑 **L'ordre est décidé par le SERVEUR** : par urgence
+     * (`PlanDomainPriority`), et à égalité par l'ordre des épreuves du TCF.
+     * **Aucun front ne réordonne, aucun front ne complète les trous** — une
+     * liste trouée ferait disparaître de l'écran exactement ce que « Compléter
+     * mon profil » doit montrer.
+     */
+    domaines: PlanDomainDto[];
+    /**
+     * Le **cycle de palier** en cours : d'où part le candidat, quel palier le
+     * Plan construit maintenant, son objectif, et son chemin. Entièrement
+     * dérivé, jamais persisté.
+     */
+    cycle: PlanCycleDto;
+    /**
+     * **Ce qu'il reste à mesurer, et par quoi** : un item par domaine jamais
+     * évalué, avec les paramètres exacts du parcours **déjà existant** à ouvrir.
+     * C'est ce qui rend le diagnostic **progressif** — un profil vit à 0, 1, 2,
+     * 3 ou 4 domaines mesurés.
+     *
+     * **Jamais `null`** ; **vide** quand `cycle.profileComplete` — c'est l'état
+     * visé, pas une anomalie. Le **compte** (2/4) se lit sur `cycle`, l'état de
+     * chaque domaine sur `domaines` : trois surfaces qui compteraient chacune de
+     * leur côté auraient fini par se contredire.
+     */
+    domainesAEvaluer: PlanDomainAssessmentDto[];
+    /**
+     * **La séance du jour** : au plus trois entraînements, dans l'ordre.
+     * **Jamais `null`** ; `items` est vide quand le Plan n'a rien à proposer.
+     * C'est une **vue** des priorités et du jalon, jamais une seconde source.
+     */
+    seance: PlanSeanceDto;
+    /**
+     * **Ce qui a changé récemment.** 🛑 **`null` est le cas NORMAL** — rien n'a
+     * bougé, l'écran n'affiche rien. Aucune ligne n'est fabriquée pour remplir
+     * le bloc.
+     */
+    recentChanges: PlanRecentChangesDto | null;
 }
 
 // ============================================================================
@@ -1043,10 +1797,38 @@ export interface LearningPlanDto {
 // du sujet. Miroirs de Skill* côté Java.
 // ============================================================================
 
-/** Épreuve productive d'une compétence. Pendant « court » d'`EpreuveType`. */
-export type SkillSection = "EE" | "EO";
+/**
+ * Domaine d'appartenance d'une compétence. Pendant « court » d'`EpreuveType`.
+ *
+ * **Deux familles, un seul référentiel.** `EE` / `EO` sont les épreuves
+ * d'**expression** : une compétence y appartient à l'une des 6 tâches
+ * officielles (`SkillTaskCode`) et s'entraîne sur des petits sujets. `CO` / `CE`
+ * sont les domaines de **compréhension** : une compétence par palier (`CO-A2`,
+ * `CO-B1`, `CO-B2` et leurs jumelles CE), **sans aucune tâche et sans aucun
+ * petit sujet** — l'entraînement y est une série ciblée de QCM.
+ *
+ * C'est cette asymétrie que porte `SkillDto.taskCode`, nullable : le domaine se
+ * lit **ici**, le palier sur `targetLevel`, et jamais l'un déduit de l'autre.
+ */
+export type SkillSection = "EE" | "EO" | "CO" | "CE";
 
-/** Tâche TCF porteuse des compétences (3 par épreuve). */
+/** Les deux domaines où le candidat **produit** : tâches, petits sujets, IA. */
+export type SkillProductionSection = Extract<SkillSection, "EE" | "EO">;
+
+/** Les deux domaines où le candidat **comprend** : ni tâche, ni petit sujet —
+ *  une série ciblée de QCM, corrigée de façon déterministe. */
+export type SkillComprehensionSection = Extract<SkillSection, "CO" | "CE">;
+
+/** Libellés FR des quatre domaines, miroir de `SkillSection.getLabel()`. */
+export const SKILL_SECTION_LABEL: Record<SkillSection, string> = {
+    EE: "Expression écrite",
+    EO: "Expression orale",
+    CO: "Compréhension orale",
+    CE: "Compréhension écrite",
+};
+
+/** Tâche TCF porteuse des compétences (3 par épreuve). **Expression seule** :
+ *  on n'y ajoute jamais de valeur CO/CE, le référentiel des 6 tâches est figé. */
 export type SkillTaskCode = "EE1" | "EE2" | "EE3" | "EO1" | "EO2" | "EO3";
 
 /** Les 3 productions de référence livrées avec chaque petit sujet. */
@@ -1190,8 +1972,14 @@ export interface SkillTaskProgressDto {
 export interface SkillDto extends SkillLockable {
     id: string;
     section: SkillSection;
-    taskCode: string;
-    code: string; // "EE1-C1"
+    /**
+     * Tâche d'appartenance — **`null` sur une compétence de COMPRÉHENSION**
+     * (`section` `CO` / `CE`) : celles-ci n'appartiennent à aucune des 6 tâches
+     * officielles. Le domaine se lit sur `section`, le palier sur `targetLevel`,
+     * **jamais** déduits l'un de l'autre depuis la tâche.
+     */
+    taskCode: string | null;
+    code: string; // "EE1-C1" ou "CO-B1"
     title: string;
     /** Courte explication de ce que l'exercice apporte — encart « Pourquoi cet
      *  exercice ? ». À ne pas rendre au même endroit que `generalCriterion`. */
@@ -1520,13 +2308,18 @@ export function isSkillAttemptPending(a: {statut: SkillAttemptStatut}): boolean 
     );
 }
 
-/** Section « compétences » d'une épreuve productive. */
-export function skillSectionOf(epreuve: EpreuveType): SkillSection {
+/** Section « compétences » d'une épreuve productive. Rend un domaine
+ *  d'**expression** : la compréhension n'a pas d'écran de tâches. */
+export function skillSectionOf(epreuve: EpreuveType): SkillProductionSection {
     return epreuve === "TCF_EO" ? "EO" : "EE";
 }
 
-/** Code de tâche à partir de la section et du numéro de tâche (1..3). */
-export function skillTaskCodeOf(section: SkillSection, tacheNumero: number): SkillTaskCode {
+/** Code de tâche à partir de la section et du numéro de tâche (1..3).
+ *  **Expression uniquement** : une compétence CO/CE n'appartient à aucune tâche. */
+export function skillTaskCodeOf(
+    section: SkillProductionSection,
+    tacheNumero: number,
+): SkillTaskCode {
     return `${section}${tacheNumero}` as SkillTaskCode;
 }
 
@@ -1671,41 +2464,6 @@ export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): 
 /** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */
 export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number): string {
     return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);
-}
-
-/**
- * Intitulé **court** d'une tâche — celui du sélecteur de tâche du parcours, où
- * trois cartes se partagent la largeur d'un téléphone. « Point de vue
- * argumenté » y passe à la ligne ou se tronque ; « Opinion » se lit.
- *
- * ⚠️ **Libellés gelés**, miroir mot pour mot du mobile
- * (`productionTaskShortTitle`, `widgets/production_common.dart`). Les deux
- * fronts en tiennent chacun une copie écrite à la main : un libellé qui bouge,
- * ce sont deux fichiers à changer dans la même passe, et deux tests.
- */
-export function productionTaskShortTitle(epreuve: EpreuveType, tacheNumero: number): string {
-    if (epreuve === "TCF_EO") {
-        switch (tacheNumero) {
-            case 1:
-                return "Entretien dirigé";
-            case 2:
-                return "Jeu de rôle";
-            case 3:
-                return "Opinion";
-            default:
-                return `Tâche ${tacheNumero}`;
-        }
-    }
-    switch (tacheNumero) {
-        case 1:
-            return "Message";
-        case 2:
-            return "Récit";
-        case 3:
-            return "Opinion";
-        default:
-            return `Tâche ${tacheNumero}`;
-    }
 }
 
 /**
@@ -2428,6 +3186,47 @@ export interface DashboardCategoryStat {
     level: NiveauCecrl | null;
 }
 
+/**
+ * Un domaine du profil TCF d'un candidat : l'épreuve, le fait qu'elle ait été
+ * évaluée, et le niveau estimé quand elle l'a été.
+ *
+ * `evaluated === false` ⇔ `niveau === null` : le domaine n'a jamais été
+ * réellement passé, donc son niveau est **inconnu** — jamais `A1_NON_ATTEINT`.
+ * Les fronts affichent « Pas encore évaluée » et **ne dérivent aucun niveau** :
+ * il est calculé serveur.
+ */
+export interface TcfDomainDto {
+    epreuve: Extract<EpreuveType, "TCF_CO" | "TCF_CE" | "TCF_EO" | "TCF_EE">;
+    evaluated: boolean;
+    niveau: NiveauCecrl | null;
+}
+
+/**
+ * Profil TCF **domaine par domaine** : ce que « Mon profil TCF » affiche, et ce
+ * dont « Compléter mon profil » déduit les domaines manquants.
+ *
+ * C'est la **publication** du même niveau que les trois scalaires
+ * `estimatedTcfLevel*` ci-dessous, pas un second calcul : ils disent la même
+ * chose en plus court et restent servis à côté.
+ *
+ * 🛑 **L'ordre des domaines est FIGÉ CÔTÉ SERVEUR** — CO · CE · EO · EE, l'ordre
+ * des épreuves du TCF — et la liste en porte **toujours 4**, un domaine jamais
+ * passé étant présent avec `evaluated: false`. **Aucun front ne réordonne,
+ * aucun front ne complète les trous.**
+ */
+export interface TcfDomainProfileDto {
+    /** Les 4 domaines, ordre figé CO · CE · EO · EE. */
+    domaines: TcfDomainDto[];
+    /** Plancher des domaines évalués, `null` si aucun. */
+    globalLevel: NiveauCecrl | null;
+    /** Nombre de domaines évalués (0..4). */
+    evaluated: number;
+    /** 4, toujours. */
+    expected: number;
+    /** Niveau global établi sur une partie seulement des domaines. */
+    partial: boolean;
+}
+
 /** GET /api/me/dashboard — agrégat unique du tableau de bord web. */
 export interface DashboardSummaryResponse {
     currentStreakDays: number;
@@ -2463,6 +3262,13 @@ export interface DashboardSummaryResponse {
     /** Au moins une épreuve comptée, mais pas les quatre. À zéro épreuve le
      *  niveau vaut déjà `null` (« — ») : il n'y a rien à annoter. */
     estimatedTcfLevelPartial: boolean;
+    /**
+     * Le **même** niveau, publié **domaine par domaine** (CO · CE · EO · EE)
+     * pour l'écran « Mon profil TCF » et le bloc « Compléter mon profil ». Les
+     * trois scalaires ci-dessus en sont le résumé — pas une seconde source.
+     * Liste **toujours de 4**, **ordre figé côté serveur**.
+     */
+    tcfDomainProfile: TcfDomainProfileDto;
     civique: DashboardCategoryStat[];
     tcf: DashboardCategoryStat[];
 }

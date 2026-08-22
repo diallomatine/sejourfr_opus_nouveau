@@ -148,6 +148,101 @@ class DiagnosticServiceTest {
         assertThat(exemple.niveauVise()).isEqualTo(NiveauCecrl.B2);
     }
 
+    // ------------------------------- le compte reel des competences observees
+
+    /**
+     * 🛑 Le « + N autres » des fronts se lit ICI, jamais sur {@code priorities},
+     * plafonne a 3 par regle produit : le compte reel peut le depasser largement.
+     * Il porte sur les deux allowlists reunies et se dedoublonne par code.
+     */
+    @Test
+    void leCompteDeFragilitesNEstPasPlafonneAtrois() {
+        var items = List.of(
+                fragile("EE1-C1", LearningPlanSkillStatus.PRIORITY),
+                fragile("EE1-C2", LearningPlanSkillStatus.TO_REINFORCE),
+                fragile("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE),
+                fragile("EO1-C1", LearningPlanSkillStatus.PRIORITY),
+                fragile("EO2-C4", LearningPlanSkillStatus.TO_REINFORCE));
+
+        assertThat(DiagnosticService.fragileSkillCount(items)).isEqualTo(5);
+    }
+
+    /** Une meme competence vue des deux cotes ne compte qu'une fois. */
+    @Test
+    void uneCompetenceVueDansLesDeuxProductionsNeCompteQuUneFois() {
+        var items = List.of(
+                fragile("EE1-C1", LearningPlanSkillStatus.PRIORITY),
+                fragile("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE));
+
+        assertThat(DiagnosticService.fragileSkillCount(items)).isEqualTo(1);
+    }
+
+    /**
+     * CAS ZERO : rien de fragile ⇒ 0, donc aucun bloc « + N autres » cote fronts.
+     * Une observation non effective ne compte jamais — « je n'ai pas pu observer »
+     * n'est pas « le candidat est faible ».
+     */
+    @Test
+    void sansFragiliteObserveeLeCompteEstNul() {
+        var items = List.of(
+                solide("EE1-C1"),
+                nonObservee("EE1-C2"),
+                new DiagnosticSkillObservationDto(
+                        UUID.randomUUID(), "EO1-C1", "Titre", SkillSection.EO,
+                        false, LearningPlanSkillStatus.TO_REINFORCE, null, null,
+                        ObservationConfidence.LOW, false));
+
+        assertThat(DiagnosticService.fragileSkillCount(items)).isZero();
+        assertThat(DiagnosticService.fragileSkillCount(List.of())).isZero();
+    }
+
+    /**
+     * CAS SOUS LE SEUIL : une seule fragilite. Les fronts en montrent une en clair
+     * et ne rendent aucun bloc floute — il n'y a rien de plus a montrer.
+     */
+    @Test
+    void uneSeuleFragiliteNeLaisseRienAFlouter() {
+        assertThat(DiagnosticService.fragileSkillCount(
+                List.of(fragile("EE1-C1", LearningPlanSkillStatus.PRIORITY)))).isEqualTo(1);
+    }
+
+    /**
+     * Les points forts se comptent sur les observations SOLIDE, jamais sur
+     * {@code strengths} : cette liste-la est plafonnee a 3 a l'ECRITURE du resume,
+     * donc sa longueur ne dit rien du nombre reel.
+     */
+    @Test
+    void lesPointsFortsSeComptentSurLesObservationsSolides() {
+        var items = List.of(
+                solide("EE1-C1"), solide("EE1-C2"), solide("EE2-C3"),
+                solide("EO1-C1"), fragile("EO2-C4", LearningPlanSkillStatus.PRIORITY),
+                nonObservee("EO3-C2"));
+
+        assertThat(DiagnosticService.solidSkillCount(items)).isEqualTo(4);
+        assertThat(DiagnosticService.solidSkillCount(List.of())).isZero();
+    }
+
+    private static DiagnosticSkillObservationDto fragile(
+            String code, LearningPlanSkillStatus status) {
+        return observation(code, true, status);
+    }
+
+    private static DiagnosticSkillObservationDto solide(String code) {
+        return observation(code, true, LearningPlanSkillStatus.SOLID);
+    }
+
+    private static DiagnosticSkillObservationDto nonObservee(String code) {
+        return observation(code, false, LearningPlanSkillStatus.NOT_OBSERVED);
+    }
+
+    private static DiagnosticSkillObservationDto observation(
+            String code, boolean observed, LearningPlanSkillStatus status) {
+        Skill skill = skill(code);
+        return new DiagnosticSkillObservationDto(
+                skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
+                observed, status, null, null, ObservationConfidence.MEDIUM, false);
+    }
+
     private static DiagnosticProductionAnalysis analysisAvecBloc(
             java.util.function.Consumer<Map<String, Object>> remplir) {
         Map<String, Object> bloc = new LinkedHashMap<>();

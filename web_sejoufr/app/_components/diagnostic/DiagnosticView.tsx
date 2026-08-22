@@ -1,52 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import {useCallback, useEffect, useMemo, useRef, useState, type ReactNode} from "react";
+import {useCallback, useEffect, useRef, useState, type ReactNode} from "react";
 import {
-  AlertCircle,
   ArrowLeft,
-  ArrowRight,
   Check,
-  ChevronDown,
   Clock3,
   FilePenLine,
   Headphones,
   Info,
-  Lock,
-  Mic,
   RotateCcw,
   Sparkles,
-  Target,
-  TrendingUp,
 } from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
-import {ActionPlanExemple} from "@/app/_components/skill-ui/ActionPlan";
-import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {ApiException, diagnosticApi, productionApi} from "@/lib/api";
 import {
-  trackAudienceEvent,
-  withTrafficSource,
-} from "@/lib/audience";
+  rememberDiagnosticType,
+  track,
+  trackDiagnostic,
+} from "@/lib/analytics";
+import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
-  DIAGNOSTIC_COMMUNICATION_LABEL,
-  DIAGNOSTIC_COMMUNICATION_TONE,
-  DIAGNOSTIC_TASK_COMPLETION_LABEL,
-  DIAGNOSTIC_TASK_COMPLETION_TONE,
   type DiagnosticExerciseContent,
-  type DiagnosticExerciseMeasure,
-  type DiagnosticSignalTone,
-  diagnosticBudgetLabel,
   diagnosticExerciseAsProductionTask,
-  diagnosticOralMeasureLabel,
-  diagnosticWrittenMeasureLabel,
-  LEARNING_PLAN_SKILL_STATUS_LABEL,
-  LEARNING_PLAN_SKILL_STATUS_TONE,
-  niveauEstimateLabel,
-  productionSectionLabel,
-  recommendedExerciseHref,
 } from "@/lib/diagnostic";
 import {
   clearLocalDiagnostic,
@@ -58,19 +37,15 @@ import {
   type LocalDiagnosticProductions,
 } from "@/lib/diagnostic-local-store";
 import {countEeWords} from "@/lib/ee-word-bounds";
-import { evidenceExcerpt } from "@/lib/evidence-excerpt";
 import type {
-  DiagnosticExempleCibleDto,
-  DiagnosticProductionResultDto,
   DiagnosticResponse,
-  DiagnosticResultDto,
-  DiagnosticSkillObservationDto,
-  LearningPlanSkillStatus,
   PublicDiagnosticResponse,
-  SkillSection,
 } from "@/lib/types";
-import {useTrafficSource, useTrafficSourceHref} from "@/lib/use-traffic-source";
+import {useTrafficSource} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
+import {DiagnosticIntro, type DiagnosticParcours} from "./DiagnosticIntro";
+import {DiagnosticReport} from "./DiagnosticReport";
+import {DiagnosticSteps} from "./DiagnosticSteps";
 import styles from "./diagnostic.module.css";
 
 const POLL_MS = 2_500;
@@ -132,13 +107,31 @@ function retryErrorMessage(cause: unknown): string {
  */
 export function DiagnosticView() {
   const {status} = useAuth();
+  // 🛑 **La variante choisie à l'entrée ne quitte JAMAIS la mémoire.** Elle
+  // vit ici, au-dessus de la bascule invité ⇄ connecté, précisément pour
+  // survivre à l'inscription — qui se fait *en place*, sans quitter la page —
+  // et au sign-in Google, qui s'ouvre en popup. Rien n'est écrit en base, sur
+  // l'appareil ni dans l'URL : le profil réel se lit sur les domaines mesurés
+  // (`LearningPlanDto`), jamais sur une intention. Cf. `DiagnosticIntro`.
+  const [parcours, setParcours] = useState<DiagnosticParcours>("RAPIDE");
+  // La mesure lit le format au **même** endroit que les écrans : tant que le
+  // candidat n'a rien choisi, elle reste à `UNKNOWN` (cf. `lib/analytics.ts`),
+  // et un rechargement de page repart légitimement d'`UNKNOWN`.
+  const chooseParcours = useCallback((chosen: DiagnosticParcours) => {
+    setParcours(chosen);
+    rememberDiagnosticType(chosen === "COMPLET" ? "COMPLETE" : "RAPID");
+  }, []);
   if (status === "loading") return <DiagnosticSkeleton />;
   // `DualChromeShell` porte les deux chromes de la route : sidebar pour un
   // compte, fond applicatif nu pour un visiteur (qui garde le header et le
   // pied de page publics du layout racine).
   return (
     <DualChromeShell>
-      {status === "authenticated" ? <ConnectedDiagnostic /> : <GuestDiagnostic />}
+      {status === "authenticated" ? (
+        <ConnectedDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
+      ) : (
+        <GuestDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
+      )}
     </DualChromeShell>
   );
 }
@@ -160,7 +153,14 @@ function guestStep(
   return started ? "written" : "presentation";
 }
 
-function GuestDiagnostic() {
+function GuestDiagnostic({
+  parcours,
+  onChooseParcours,
+}: {
+  parcours: DiagnosticParcours;
+  onChooseParcours: (parcours: DiagnosticParcours) => void;
+}) {
+  const complete = parcours === "COMPLET";
   const [subjects, setSubjects] = useState<PublicDiagnosticResponse | null>(null);
   const [local, setLocal] = useState<LocalDiagnosticProductions | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,15 +211,21 @@ function GuestDiagnostic() {
   }, []);
 
   useEffect(() => {
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_VIEWED", {once: true});
+    track("LANDING_VIEWED", {landingPath: "/diagnostic"}, {once: true});
   }, []);
 
   const step = guestStep(local, started);
 
+  // Un exercice affiché est un exercice commencé : c'est le seul instant que le
+  // navigateur connaisse (rien n'est encore envoyé au serveur à ce stade).
   useEffect(() => {
-    if (step === "account") {
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ACCOUNT_REQUIRED", {once: true});
-    }
+    if (step === "written") trackDiagnostic("DIAGNOSTIC_EE_STARTED", {once: true});
+    if (step === "oral") trackDiagnostic("DIAGNOSTIC_EO_STARTED", {once: true});
+    // L'écran qui demande un compte, les deux productions déjà faites : LA
+    // mesure de conversion du parcours invité (cf. CLAUDE.md racine). Distinct
+    // de `DIAGNOSTIC_EO_COMPLETED` — entre les deux se joue la décision même
+    // de créer un compte.
+    if (step === "account") trackDiagnostic("DIAGNOSTIC_ACCOUNT_REQUIRED", {once: true});
   }, [step]);
 
   async function keepWritten(text: string) {
@@ -245,7 +251,7 @@ function GuestDiagnostic() {
       oralDurationSec: previous?.oralDurationSec ?? null,
       savedAt: Date.now(),
     }));
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_WRITTEN_COMPLETED", {once: true});
+    trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
     setSaving(false);
   }
 
@@ -271,7 +277,7 @@ function GuestDiagnostic() {
       oralDurationSec: durationSec,
       savedAt: Date.now(),
     }));
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ORAL_COMPLETED", {once: true});
+    trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
     setSaving(false);
   }
 
@@ -297,6 +303,7 @@ function GuestDiagnostic() {
   if (step === "account") {
     return (
       <DiagnosticShell guest>
+        <DiagnosticSteps current="account" guest complete={complete} />
         <DiagnosticAccountGate
           writtenWords={countEeWords(local?.writtenText ?? "")}
           oralDurationSec={local?.oralDurationSec ?? null}
@@ -309,6 +316,7 @@ function GuestDiagnostic() {
   if (step === "oral") {
     return (
       <DiagnosticShell guest compact>
+        <DiagnosticSteps current="oral" guest complete={complete} />
         <ExerciseHeader
           kind="oral"
           note={
@@ -334,6 +342,7 @@ function GuestDiagnostic() {
   if (step === "written") {
     return (
       <DiagnosticShell guest compact>
+        <DiagnosticSteps current="written" guest complete={complete} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(subjects.written)}
@@ -356,9 +365,12 @@ function GuestDiagnostic() {
         guest
         written={subjects.written}
         oral={subjects.oral}
-        onStart={() => {
+        onStart={(chosen) => {
+          // Le choix ne change QUE ce qu'on enchaînera après le rapport : les
+          // deux cartes ouvrent le même écrit, puis le même oral.
+          onChooseParcours(chosen);
           setStarted(true);
-          trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
+          trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
         }}
       />
     </DiagnosticShell>
@@ -387,7 +399,14 @@ type Handoff =
   /** Une des deux tâches avait déjà une soumission : on n'a envoyé que l'autre. */
   | {kind: "partially-reused"};
 
-function ConnectedDiagnostic() {
+function ConnectedDiagnostic({
+  parcours,
+  onChooseParcours,
+}: {
+  parcours: DiagnosticParcours;
+  onChooseParcours: (parcours: DiagnosticParcours) => void;
+}) {
+  const complete = parcours === "COMPLET";
   const {user} = useAuth();
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -396,7 +415,6 @@ function ConnectedDiagnostic() {
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
   const [pendingLocal, setPendingLocal] = useState<LocalDiagnosticProductions | null>(null);
   const trafficSource = useTrafficSource();
-  const previousJourneyStatus = useRef<DiagnosticResponse["status"] | null>(null);
 
   const loadCurrent = useCallback(async () => {
     setError(null);
@@ -598,18 +616,22 @@ function ConnectedDiagnostic() {
 
   useEffect(() => {
     if (!user) return;
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_VIEWED", {once: true});
+    track("LANDING_VIEWED", {landingPath: "/diagnostic"}, {once: true});
   }, [user]);
 
   useEffect(() => {
     if (!diagnostic) return;
-    if (diagnostic.status === "COMPLETED") {
-      if (previousJourneyStatus.current && previousJourneyStatus.current !== "COMPLETED") {
-        trackAudienceEvent("/diagnostic", "DIAGNOSTIC_COMPLETED", {once: true});
-      }
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_RESULT_VIEWED", {once: true});
+    if (diagnostic.nextStep === "WRITTEN" && diagnostic.written) {
+      trackDiagnostic("DIAGNOSTIC_EE_STARTED", {once: true});
     }
-    previousJourneyStatus.current = diagnostic.status;
+    if (diagnostic.nextStep === "ORAL" && diagnostic.oral) {
+      trackDiagnostic("DIAGNOSTIC_EO_STARTED", {once: true});
+    }
+    if (diagnostic.status === "COMPLETED") {
+      // 🛑 Pas d'événement « diagnostic terminé » : il se lit sur
+      // `diagnostic_sessions.status`, on ne crée pas une seconde vérité.
+      trackDiagnostic("DIAGNOSTIC_REPORT_VIEWED", {once: true});
+    }
   }, [diagnostic]);
 
   // L'analyse des productions est asynchrone. La session, et non le front,
@@ -665,13 +687,14 @@ function ConnectedDiagnostic() {
     };
   }, [diagnostic]);
 
-  async function start() {
+  async function start(chosen: DiagnosticParcours) {
     if (submitting) return;
+    onChooseParcours(chosen);
     setSubmitting(true);
     setError(null);
     try {
       setDiagnostic(await diagnosticApi.start());
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
     } catch (cause) {
       setError(errorMessage(cause, "Impossible de démarrer le diagnostic."));
     } finally {
@@ -689,7 +712,7 @@ function ConnectedDiagnostic() {
         attemptId: exercise.attemptId,
         texte: text,
       });
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_WRITTEN_COMPLETED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
       clearEeDraft(exercise.productionTaskId);
       await refreshAfterSubmission(diagnostic.sessionId, "WRITTEN");
     } catch (cause) {
@@ -705,7 +728,7 @@ function ConnectedDiagnostic() {
     setError(null);
     try {
       await productionApi.submitAudio(exercise.productionTaskId, exercise.attemptId, audio);
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ORAL_COMPLETED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
       await refreshAfterSubmission(diagnostic.sessionId, "ORAL");
     } catch (cause) {
       setError(errorMessage(cause, "Impossible d'envoyer votre enregistrement."));
@@ -840,7 +863,7 @@ function ConnectedDiagnostic() {
           submitting={submitting}
           written={diagnostic.written}
           oral={diagnostic.oral}
-          onStart={() => void start()}
+          onStart={(chosen) => void start(chosen)}
         />
       </DiagnosticShell>
     );
@@ -897,14 +920,32 @@ function ConnectedDiagnostic() {
   }
 
   if (diagnostic.status === "COMPLETED" || diagnostic.nextStep === "RESULT") {
+    // L'analyse est terminée mais sa synthèse n'est pas encore là : on ne
+    // prétend pas avoir un rapport, et rien n'est perdu.
+    if (diagnostic.status === "COMPLETED" && !diagnostic.result) {
+      return (
+        <DiagnosticShell>
+          {notice}
+          <StateCard
+            icon={<Sparkles size={26} />}
+            title="Votre résultat se prépare"
+            text="L'analyse est terminée, mais sa synthèse n'est pas encore disponible."
+            busy
+          />
+        </DiagnosticShell>
+      );
+    }
+    const planHref = withTrafficSource("/plan", trafficSource);
     return (
-      <DiagnosticResult
-        diagnostic={diagnostic}
-        targetLevel={user.targetLevel ?? null}
-        hasTcf={user.hasTcf ?? false}
-        planHref={withTrafficSource("/plan", trafficSource)}
-        notice={notice}
-      />
+      <DiagnosticShell>
+        <DiagnosticReport
+          diagnostic={diagnostic}
+          targetLevel={user.targetLevel ?? null}
+          hasTcf={user.hasTcf ?? false}
+          planHref={planHref}
+          notice={notice}
+        />
+      </DiagnosticShell>
     );
   }
 
@@ -921,6 +962,10 @@ function ConnectedDiagnostic() {
     return (
       <DiagnosticShell>
         {notice}
+        {/* Dernière marche du fil : le rapport est en cours de production. Le
+            parcours complet y voit encore « Compréhension » en attente, ce qui
+            annonce la suite avant même que le rapport ne la propose. */}
+        <DiagnosticSteps current="report" guest={false} complete={complete} />
         <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
       </DiagnosticShell>
     );
@@ -953,6 +998,7 @@ function ConnectedDiagnostic() {
     const exercise = diagnostic.written;
     return (
       <DiagnosticShell compact>
+        <DiagnosticSteps current="written" guest={false} complete={complete} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -971,6 +1017,7 @@ function ConnectedDiagnostic() {
     const exercise = diagnostic.oral;
     return (
       <DiagnosticShell compact>
+        <DiagnosticSteps current="oral" guest={false} complete={complete} />
         <ExerciseHeader kind="oral" />
         <EoRecordingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -992,6 +1039,7 @@ function ConnectedDiagnostic() {
   return (
     <DiagnosticShell>
       {notice}
+      <DiagnosticSteps current="report" guest={false} complete={complete} />
       <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
     </DiagnosticShell>
   );
@@ -1024,117 +1072,6 @@ function DiagnosticShell({
       </nav>
       {children}
     </main>
-  );
-}
-
-/**
- * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
- * de session (`NOT_STARTED`) n'en reçoit aucun : le serveur ne les attache qu'à
- * partir de `POST /api/diagnostics`. On relit alors le **catalogue public**, la
- * seule route qui sert les sujets sans session — sinon le visiteur lirait ses
- * mesures et le compte connecté n'en verrait aucune.
- */
-function useIntroMeasures(
-  written: DiagnosticExerciseContent | null | undefined,
-  oral: DiagnosticExerciseContent | null | undefined,
-): {written: DiagnosticExerciseMeasure | null; oral: DiagnosticExerciseMeasure | null} {
-  const [fallback, setFallback] = useState<PublicDiagnosticResponse | null>(null);
-  const missing = written == null || oral == null;
-
-  useEffect(() => {
-    if (!missing || fallback) return;
-    let alive = true;
-    // Confort d'affichage : un échec laisse simplement la présentation sans
-    // chiffre, il ne doit jamais empêcher de commencer.
-    diagnosticApi
-      .publicCurrent()
-      .then((subjects) => {
-        if (alive) setFallback(subjects);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [missing, fallback]);
-
-  return {
-    written: written ?? fallback?.written ?? null,
-    oral: oral ?? fallback?.oral ?? null,
-  };
-}
-
-/** Écran de présentation, identique pour un visiteur et pour un compte : c'est
- *  le même parcours, seul le moment où l'on demande le compte change. */
-function DiagnosticIntro({
-  error,
-  submitting,
-  guest = false,
-  written,
-  oral,
-  onStart,
-}: {
-  error: string | null;
-  submitting: boolean;
-  guest?: boolean;
-  written?: DiagnosticExerciseContent | null;
-  oral?: DiagnosticExerciseContent | null;
-  onStart: () => void;
-}) {
-  const measures = useIntroMeasures(written, oral);
-  return (
-    <section className={styles.intro}>
-      <span className={styles.heroIcon} aria-hidden>
-        <Target size={30} />
-      </span>
-      <div className={styles.duration}>
-        <Clock3 size={16} aria-hidden />
-        {diagnosticBudgetLabel(measures.written, measures.oral)}
-      </div>
-      <h1>Découvrez vos priorités TCF</h1>
-      <p className={styles.lead}>Deux exercices courts, pas un examen.</p>
-      <ul className={styles.introList}>
-        <li>
-          <span className={styles.introIcon} aria-hidden>
-            <FilePenLine size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Écrit</b>
-              <span>{diagnosticWrittenMeasureLabel(measures.written) ?? "un court texte"}</span>
-            </p>
-            <p className={styles.introNote}>Vous rédigez un court texte.</p>
-          </div>
-        </li>
-        <li>
-          <span className={styles.introIcon} aria-hidden>
-            <Mic size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Oral</b>
-              <span>{diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}</span>
-            </p>
-            <p className={styles.introNote}>
-              Vous vous enregistrez, sans conversation en direct.
-            </p>
-          </div>
-        </li>
-      </ul>
-      <p className={styles.introReassurance}>
-        Pas besoin d&apos;être parfait. Répondez naturellement : l&apos;objectif est simplement
-        d&apos;estimer votre niveau et de construire votre plan.
-      </p>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <button className={styles.primaryButton} type="button" disabled={submitting} onClick={onStart}>
-        {submitting ? "Préparation…" : "Commencer mon diagnostic gratuit"}
-        {!submitting && <ArrowRight size={17} aria-hidden />}
-      </button>
-      <p className={styles.disclaimer}>
-        {guest
-          ? "Commencez sans compte. Il ne vous sera demandé qu'au moment de l'analyse. Estimation d'entraînement, non officielle."
-          : "Estimation d'entraînement, non officielle."}
-      </p>
-    </section>
   );
 }
 
@@ -1347,600 +1284,6 @@ function AnalysisWaiting({
       </div>
       <span className={styles.loadingBar} aria-hidden />
     </section>
-  );
-}
-
-/**
- * Ce que l'écran met en tête : les priorités mesurées par l'analyse, ou — quand
- * le serveur n'en a désigné aucune — les points à travailler relevés sur chaque
- * production.
- *
- * ⚠️ `priorities` peut être **vide** : c'est un état normal, pas une panne. Le
- * repli ne prétend jamais que ces points sont des priorités classées, et le
- * drapeau `measured` est ce qui fait changer les libellés de l'écran.
- */
-interface ResultLever {
-  key: string;
-  title: string;
-  detail: string | null;
-  evidence: string | null;
-  status: LearningPlanSkillStatus | null;
-  section: SkillSection | null;
-}
-
-function resultLevers(result: DiagnosticResultDto): {
-  levers: ResultLever[];
-  measured: boolean;
-} {
-  if (result.priorities.length > 0) {
-    return {
-      measured: true,
-      levers: result.priorities.slice(0, 3).map((priority, index) => ({
-        key: priority.skillId,
-        title: priority.skillTitle,
-        detail: (index === 0 ? result.mainPriorityExplanation : null) ?? priority.explanation,
-        evidence: priority.evidence,
-        status: priority.status,
-        section: priority.section,
-      })),
-    };
-  }
-
-  // Repli : on alterne écrit et oral pour ne pas servir trois points d'une
-  // seule production quand les deux en portent.
-  const written = result.written?.weaknesses ?? [];
-  const oral = result.oral?.weaknesses ?? [];
-  const fallback: ResultLever[] = [];
-  for (let i = 0; i < Math.max(written.length, oral.length); i += 1) {
-    if (written[i]) {
-      fallback.push({
-        key: `ee-${i}`,
-        title: written[i],
-        detail: null,
-        evidence: null,
-        status: null,
-        section: "EE",
-      });
-    }
-    if (oral[i]) {
-      fallback.push({
-        key: `eo-${i}`,
-        title: oral[i],
-        detail: null,
-        evidence: null,
-        status: null,
-        section: "EO",
-      });
-    }
-  }
-  return {measured: false, levers: fallback.slice(0, 3)};
-}
-
-/** Lien vers l'offre, avec sa mesure de conversion. Deux emplacements l'ouvrent
- *  (paywall du plan, CTA final) : l'événement est émis au même endroit pour les
- *  deux, jamais recopié dans un `onClick` de composant. La provenance suit le
- *  candidat jusqu'à la page d'achat — c'est ce qui relie une campagne à un
- *  paiement. */
-function PremiumLink({
-  className,
-  children,
-}: {
-  className: string;
-  children: ReactNode;
-}) {
-  const href = useTrafficSourceHref("/paiement?module=INTEGRAL");
-  return (
-    <Link
-      className={className}
-      href={href}
-      onClick={() => trackAudienceEvent("/diagnostic", "DIAGNOSTIC_TO_PREMIUM_CLICKED")}
-    >
-      {children}
-    </Link>
-  );
-}
-
-/**
- * Écran de RÉSULTAT du diagnostic.
- *
- * Géométrie de la maquette « diagnostic premium », couleurs et fontes de
- * l'application (même méthode que `skill-ui/`). Trois choses de la maquette sont
- * volontairement absentes, et ne doivent pas revenir :
- *
- * - **les barres de progression chiffrées** — le score de maîtrise n'est exposé
- *   à aucun front, exprès. On affiche l'**état d'observation** de la compétence
- *   (libellés gelés `LEARNING_PLAN_SKILL_STATUS_LABEL`) ;
- * - **le calendrier « Semaine 1 · Étape 1 à 4 »** — le Plan n'a aucune notion de
- *   semaine ni de jour. Ce qui existe vraiment, c'est l'exercice recommandé et,
- *   le cas échéant, sa **vérification** (`kind === "REASSESSMENT"`) ;
- * - **les emojis en texte brut** — le projet utilise `lucide-react`.
- */
-function DiagnosticResult({
-  diagnostic,
-  targetLevel,
-  hasTcf,
-  planHref,
-  notice,
-}: {
-  diagnostic: DiagnosticResponse;
-  targetLevel: string | null;
-  /** Accès TCF du compte : il ne masque **aucune information** du Plan, il ne
-   *  décide que de l'affichage des cadenas d'accès et de l'invitation à
-   *  l'offre. */
-  hasTcf: boolean;
-  planHref: string;
-  notice?: ReactNode;
-}) {
-  const result = diagnostic.result;
-  const observations = useMemo(() => {
-    const unique = new Map<string, DiagnosticSkillObservationDto>();
-    for (const skill of [...(result?.written?.skills ?? []), ...(result?.oral?.skills ?? [])]) {
-      if (skill.observed) unique.set(skill.skillId, skill);
-    }
-    return [...unique.values()];
-  }, [result]);
-
-  if (!result) {
-    return (
-      <DiagnosticShell>
-        {notice}
-        <StateCard icon={<Sparkles size={26} />} title="Votre résultat se prépare" text="L'analyse est terminée, mais sa synthèse n'est pas encore disponible." busy />
-      </DiagnosticShell>
-    );
-  }
-
-  const {levers, measured} = resultLevers(result);
-  const nextAction = result.nextAction;
-  const exemple = result.exempleCible;
-  const nextSteps = measured ? levers.slice(1) : [];
-
-  return (
-    <DiagnosticShell>
-      <div className={styles.result}>
-        {notice}
-
-        <header className={styles.resultHeader}>
-          <span className={styles.doneBadge}>
-            <i aria-hidden><Check size={11} strokeWidth={3.4} /></i> Diagnostic terminé
-          </span>
-          <p className={styles.resultEyebrow}>
-            Votre bilan personnalisé · 2 productions analysées
-          </p>
-          <h1>
-            Vous savez maintenant <em>quoi travailler en priorité</em>.
-          </h1>
-          <p className={styles.resultLead}>
-            Vos deux productions ont été analysées ensemble. Inutile de tout revoir : voici
-            ce qui vous fera progresser le plus vite, et par quoi commencer.
-          </p>
-        </header>
-
-        {/* ------------------------------ niveaux estimés + carte de décision */}
-        <div className={styles.heroGrid}>
-          <section className={styles.levelHero} aria-label="Niveaux estimés">
-            <p className={styles.levelHeroLabel}>Niveaux estimés aujourd&apos;hui</p>
-            <div className={styles.levelHeroGrid}>
-              <div>
-                <span><FilePenLine size={13} aria-hidden /> Expression écrite</span>
-                <b>{niveauEstimateLabel(result.written?.levelEstimate)}</b>
-              </div>
-              <div>
-                <span><Mic size={13} aria-hidden /> Expression orale</span>
-                <b>{niveauEstimateLabel(result.oral?.levelEstimate)}</b>
-              </div>
-            </div>
-            <p className={styles.levelHeroFoot}>
-              <span>Objectif&nbsp;: <b>{targetLevel ?? "à définir"}</b></span>
-              <span>Estimation d&apos;entraînement, non officielle.</span>
-            </p>
-          </section>
-
-          <aside className={styles.convCard}>
-            <h2>Votre prochain niveau se joue ici.</h2>
-            <p className={styles.convLead}>
-              {measured
-                ? "Votre plan commence par ces priorités, puis se réordonne à chacune de vos nouvelles productions."
-                : "Votre plan part de ces points, puis se réordonne à chacune de vos nouvelles productions."}
-            </p>
-            {levers.length > 0 && (
-              <ol className={styles.convList}>
-                {levers.map((lever, index) => (
-                  <li key={lever.key} className={styles.convItem}>
-                    <span className={styles.convRank} data-rank={index + 1} aria-hidden>
-                      {index + 1}
-                    </span>
-                    <div className={styles.convCopy}>
-                      <b>{lever.title}</b>
-                      {lever.detail && <span>{lever.detail}</span>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-            <Link href={planHref} className={styles.primaryButton}>
-              Voir mon plan personnalisé <ArrowRight size={17} aria-hidden />
-            </Link>
-            {exemple && (
-              <a href="#exemple" className={styles.secondaryButton}>
-                Voir un exemple d&apos;amélioration
-              </a>
-            )}
-            <p className={styles.convMicro}>
-              <Check size={13} aria-hidden />
-              {nextAction && !nextAction.locked
-                ? "Le premier exercice de votre plan est accessible sans payer."
-                : "Consulter votre plan ne demande aucun paiement."}
-            </p>
-          </aside>
-        </div>
-
-        <p className={styles.note}>
-          <Info size={15} aria-hidden />
-          Cette estimation est pédagogique : elle ne remplace pas un résultat officiel du TCF.
-        </p>
-
-        {/* ------------------------------------------------ avant / après */}
-        {exemple && (
-          <section id="exemple" aria-labelledby="exemple-title">
-            <ResultBlockHead
-              id="exemple-title"
-              title="Concrètement, à quoi ressemble le niveau visé ?"
-              text="Votre phrase, puis la même idée écrite au niveau que vous visez."
-            />
-            <BeforeAfter exemple={exemple} />
-          </section>
-        )}
-
-        {/* ----------------------------------------------- les priorités */}
-        {levers.length > 0 && (
-          <section aria-labelledby="levers-title">
-            <ResultBlockHead
-              id="levers-title"
-              title={measured ? "Vos priorités, dans l'ordre" : "Ce qu'il y a à travailler"}
-              text={
-                measured
-                  ? "Le diagnostic ne liste pas vos erreurs : il désigne les compétences qui feront bouger votre niveau."
-                  : "Ces points viennent de vos deux productions. Ils ne sont pas encore classés en priorités."
-              }
-            />
-            <div className={styles.leverGrid}>
-              {levers.map((lever, index) => (
-                <article key={lever.key} className={styles.leverCard}>
-                  <p className={styles.leverNum}>
-                    {measured ? `Priorité ${index + 1}` : "Point à travailler"}
-                  </p>
-                  <h3>{lever.title}</h3>
-                  {lever.detail && <p className={styles.leverText}>{lever.detail}</p>}
-                  <div className={styles.leverMeta}>
-                    {lever.status && (
-                      <span
-                        className={styles.leverStatus}
-                        data-tone={LEARNING_PLAN_SKILL_STATUS_TONE[lever.status]}
-                      >
-                        {LEARNING_PLAN_SKILL_STATUS_LABEL[lever.status]}
-                      </span>
-                    )}
-                    {lever.section && (
-                      <span className={styles.leverSection}>
-                        {productionSectionLabel(lever.section)}
-                      </span>
-                    )}
-                  </div>
-                  {lever.evidence && (
-                    <blockquote className={styles.leverQuote}>
-                      «&nbsp;{evidenceExcerpt(lever.evidence)}&nbsp;»
-                    </blockquote>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ---------------------------------------------------- votre plan */}
-        {nextAction && (
-          <section aria-labelledby="plan-title">
-            <ResultBlockHead
-              id="plan-title"
-              title="Votre plan est déjà construit"
-              text="Il commence par votre priorité n°1 et se réordonne à chacune de vos nouvelles productions."
-            />
-            <div className={styles.planShell}>
-              <article className={styles.planStep}>
-                <p className={styles.planStepNum}>
-                  {nextAction.kind === "REASSESSMENT" ? "Vérification" : "Étape 1"}
-                </p>
-                <h3>{nextAction.title}</h3>
-                <p className={styles.planStepMeta}>
-                  <Clock3 size={13} aria-hidden /> {nextAction.estimatedMinutes} min ·{" "}
-                  {productionSectionLabel(nextAction.section)}
-                </p>
-                <Link className={styles.planStepCta} href={recommendedExerciseHref(nextAction)}>
-                  {nextAction.kind === "REASSESSMENT"
-                    ? "Vérifier ma progression"
-                    : "Commencer cet exercice"}
-                  <ArrowRight size={15} aria-hidden />
-                </Link>
-              </article>
-
-              {nextSteps.map((step, index) => (
-                <article
-                  key={step.key}
-                  className={`${styles.planStep} ${hasTcf ? "" : styles.planStepLocked}`}
-                >
-                  <p className={styles.planStepNum}>Étape {index + 2}</p>
-                  <h3>{step.title}</h3>
-                  {step.detail && <p className={styles.planStepText}>{step.detail}</p>}
-                  {!hasTcf && (
-                    <p className={styles.planLock}>
-                      <Lock size={13} aria-hidden /> Accès inclus dans l&apos;abonnement
-                    </p>
-                  )}
-                </article>
-              ))}
-
-              {!hasTcf && (
-                <div className={styles.paywall}>
-                  <div>
-                    <h3>Ne repartez pas avec seulement un diagnostic.</h3>
-                    <p>
-                      Les exercices ciblés, les corrections IA et les vérifications de
-                      progression transforment ce bilan en progression réelle.
-                    </p>
-                  </div>
-                  <PremiumLink className={styles.paywallCta}>
-                    Débloquer mon plan <ArrowRight size={16} aria-hidden />
-                  </PremiumLink>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ---------------------------------------------- le détail observé */}
-        <section aria-labelledby="reveal-title">
-          <ResultBlockHead
-            id="reveal-title"
-            title="Le détail reste disponible"
-            text="Ce qui est déjà solide est replié : ouvrez seulement ce qui vous intéresse."
-          />
-          <div className={styles.snapshot}>
-            {result.strengths.length > 0 && (
-              <div className={styles.snapshotStrengths}>
-                <b>Ce qui fonctionne déjà</b>
-                <ul>
-                  {result.strengths.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </div>
-            )}
-            {observations.length === 0 ? (
-              <p className={styles.emptyText}>
-                Aucune compétence n&apos;a été observée avec assez de confiance sur ces deux productions.
-              </p>
-            ) : (
-              observations.map((skill) => <SkillDisclosure key={skill.skillId} skill={skill} />)
-            )}
-          </div>
-        </section>
-
-        {/* ---------------------------------------------- vos 2 productions */}
-        <section aria-labelledby="productions-title">
-          <ResultBlockHead
-            id="productions-title"
-            title="Vos deux productions"
-            text="Ce que chacune a montré, dans le détail."
-          />
-          <div className={styles.productions}>
-            <ProductionSummary kind="written" production={result.written} />
-            <ProductionSummary kind="oral" production={result.oral} />
-          </div>
-        </section>
-
-        {/* ------------------------------------------------------ CTA final */}
-        <section className={styles.finalCard}>
-          <span className={styles.finalSpark} aria-hidden><Sparkles size={20} /></span>
-          <h2>
-            Le diagnostic a trouvé <em>quoi</em> travailler. Le plan vous le fait travailler.
-          </h2>
-          <p>
-            Commencez par votre priorité n°1, obtenez une correction IA, puis laissez le plan
-            se réordonner selon vos progrès.
-          </p>
-          <div className={styles.finalActions}>
-            <Link href={planHref} className={styles.finalPrimary}>
-              Découvrir mon plan <ArrowRight size={17} aria-hidden />
-            </Link>
-            {!hasTcf && (
-              <PremiumLink className={styles.finalGhost}>Voir les offres</PremiumLink>
-            )}
-          </div>
-        </section>
-      </div>
-
-      {/* Barre collante mobile : la réserve de pied de page est posée sur
-          `.result`, elle ne masque donc aucun contenu. */}
-      <div className={styles.stickyCta}>
-        <Link href={planHref} className={styles.primaryButton}>
-          Voir mon plan personnalisé <ArrowRight size={17} aria-hidden />
-        </Link>
-      </div>
-    </DiagnosticShell>
-  );
-}
-
-/**
- * La phrase du candidat, puis sa réécriture au niveau visé.
- *
- * Le « après » réutilise **`ActionPlanExemple`** — la brique partagée du plan
- * d'action (rapport de correction EE/EO et micro-exercice de compétence) : elle
- * sait déjà surligner les segments par recherche de chaîne en nœuds React et
- * rendre la puce d'apport de chacun. Le seul ajout du diagnostic est le
- * « avant ». `SkillAccent` pose `--skill-accent`, dont cette brique dépend et
- * que le chrome du diagnostic ne porte pas.
- */
-function BeforeAfter({exemple}: {exemple: DiagnosticExempleCibleDto}) {
-  return (
-    <article className={styles.revealCard}>
-      <div className={styles.revealTop}>
-        <h3>Exemple tiré de votre production écrite</h3>
-        <span className={styles.revealImpact}>
-          <TrendingUp size={13} aria-hidden /> Vers {niveauEstimateLabel(exemple.niveauVise)}
-        </span>
-      </div>
-      <div className={styles.beforeAfter}>
-        <div className={styles.phrase}>
-          <p className={styles.phraseLabel}>Votre formulation</p>
-          <blockquote>«&nbsp;{exemple.original}&nbsp;»</blockquote>
-        </div>
-        <div className={styles.arrowBox} aria-hidden>
-          <span><ArrowRight size={20} strokeWidth={2.6} /></span>
-        </div>
-        <div className={styles.phraseAfter}>
-          <p className={styles.phraseLabel}>Au niveau visé</p>
-          <SkillAccent>
-            <ActionPlanExemple exemple={exemple} />
-          </SkillAccent>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/** Intertitre + phrase d'un bloc du résultat. */
-function ResultBlockHead({id, title, text}: {id: string; title: string; text: string}) {
-  return (
-    <div className={styles.blockHead}>
-      <h2 id={id}>{title}</h2>
-      <p>{text}</p>
-    </div>
-  );
-}
-
-/**
- * Une compétence observée, **repliée par défaut**.
- *
- * Déplié, le diagnostic alignait une douzaine d'explications de trois à quatre
- * lignes : le candidat y voyait un mur de texte et n'en lisait aucune. Replié,
- * il lit d'abord le verdict (titre + statut) et n'ouvre que ce qui l'intéresse.
- * Rien n'est retiré — tout est à un clic.
- *
- * `<details>` plutôt qu'un état React : le repli natif est accessible au clavier
- * et survit à un rendu sans qu'on ait à le gérer. Miroir de
- * `_SkillSnapshotRow` côté mobile.
- */
-function SkillDisclosure({skill}: {skill: DiagnosticSkillObservationDto}) {
-  const tone = LEARNING_PLAN_SKILL_STATUS_TONE[skill.status];
-  const head = (
-    <>
-      <span className={styles.snapshotIcon} aria-hidden><ToneIcon tone={tone} /></span>
-      <b>{skill.skillTitle}</b>
-      <span className={styles.snapshotStatus}>
-        {LEARNING_PLAN_SKILL_STATUS_LABEL[skill.status]}
-      </span>
-    </>
-  );
-
-  // Sans détail, l'encart n'a rien à ouvrir : il reste une simple ligne.
-  if (!skill.explanation && !skill.evidence) {
-    return (
-      <article className={styles.snapshotRow} data-tone={tone}>
-        <div className={styles.snapshotHead}>{head}</div>
-      </article>
-    );
-  }
-
-  return (
-    <details className={styles.snapshotRow} data-tone={tone}>
-      <summary className={styles.snapshotHead}>
-        {head}
-        <ChevronDown className={styles.snapshotChevron} size={16} aria-hidden />
-      </summary>
-      <div className={styles.snapshotDetail}>
-        {skill.explanation && <p>{skill.explanation}</p>}
-        {skill.evidence && (
-          <p className={styles.snapshotEvidence}>«&nbsp;{evidenceExcerpt(skill.evidence)}&nbsp;»</p>
-        )}
-      </div>
-    </details>
-  );
-}
-
-/** Pictogramme du signal : acquis / à consolider / prioritaire. */
-function ToneIcon({tone}: {tone: DiagnosticSignalTone}) {
-  if (tone === "good") return <Check size={16} strokeWidth={3} />;
-  if (tone === "mid") return <TrendingUp size={16} strokeWidth={2.6} />;
-  if (tone === "weak") return <AlertCircle size={16} strokeWidth={2.6} />;
-  return <Info size={16} strokeWidth={2.6} />;
-}
-
-/**
- * Carte d'une production du diagnostic.
- *
- * Elle expose `summary`, `taskCompletion`, `communicationStatus` et
- * `weaknesses` — quatre champs servis depuis le premier jour et qu'aucun écran
- * n'affichait, alors que c'est exactement ce qui rend le résultat
- * compréhensible : ce que le candidat a réussi à faire passer, et ce qui
- * manquait.
- */
-function ProductionSummary({
-  kind,
-  production,
-}: {
-  kind: "written" | "oral";
-  production: DiagnosticProductionResultDto | null;
-}) {
-  const label = kind === "written" ? "Expression écrite" : "Expression orale";
-  const icon = kind === "written" ? <FilePenLine size={17} /> : <Mic size={17} />;
-
-  if (!production) {
-    return (
-      <article className={styles.production}>
-        <div className={styles.productionHead}>
-          <span className={styles.productionIcon} aria-hidden>{icon}</span>
-          <div><b>{label}</b></div>
-        </div>
-        <p className={styles.emptyText}>Cette production n&apos;a pas encore été analysée.</p>
-      </article>
-    );
-  }
-
-  // Replié par défaut, même raison que les compétences observées : un résumé de
-  // cinq lignes, deux signaux et jusqu'à trois points à travailler, fois deux
-  // productions, se lisaient comme un mur. On montre l'épreuve et son niveau
-  // estimé ; le reste est à un clic. Miroir de `_ProductionCard` côté mobile.
-  return (
-    <details className={styles.production}>
-      <summary className={styles.productionHead}>
-        <span className={styles.productionIcon} aria-hidden>{icon}</span>
-        <div>
-          <b>{label}</b>
-          <span>Estimation : {niveauEstimateLabel(production.levelEstimate)}</span>
-        </div>
-        <ChevronDown className={styles.productionChevron} size={16} aria-hidden />
-      </summary>
-
-      <div className={styles.productionDetail}>
-        {production.summary && <p className={styles.productionSummary}>{production.summary}</p>}
-
-        <ul className={styles.productionSignals}>
-          <li data-tone={DIAGNOSTIC_TASK_COMPLETION_TONE[production.taskCompletion]}>
-            {DIAGNOSTIC_TASK_COMPLETION_LABEL[production.taskCompletion]}
-          </li>
-          <li data-tone={DIAGNOSTIC_COMMUNICATION_TONE[production.communicationStatus]}>
-            {DIAGNOSTIC_COMMUNICATION_LABEL[production.communicationStatus]}
-          </li>
-        </ul>
-
-        {production.weaknesses.length > 0 && (
-          <div className={styles.productionWeak}>
-            <b>À travailler</b>
-            <ul>
-              {production.weaknesses.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          </div>
-        )}
-      </div>
-    </details>
   );
 }
 

@@ -55,7 +55,8 @@ class SocialAuthServiceTest {
         mailService = mock(MailService.class);
 
         service = new SocialAuthService(userManager, jwtService, sessionService,
-                subscriptionService, googleVerifier, appleVerifier, mailService);
+                subscriptionService, googleVerifier, appleVerifier, mailService,
+                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class));
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -86,7 +87,7 @@ class SocialAuthServiceTest {
         User user = existing("known@test.fr", AuthProvider.GOOGLE);
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-1")).thenReturn(Optional.of(user));
 
-        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
+        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(user.getLastLoginAt()).isNotNull();
@@ -102,7 +103,7 @@ class SocialAuthServiceTest {
         User local = existing("local@test.fr", AuthProvider.LOCAL);
         when(userManager.findByEmail("local@test.fr")).thenReturn(Optional.of(local));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
 
         // auth_provider reste celui de la création initiale (immutable ici).
         assertThat(local.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
@@ -117,7 +118,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-3")).thenReturn(Optional.empty());
         when(userManager.findByEmail("new@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
@@ -151,7 +152,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-9"))
                 .thenReturn(Optional.of(existing));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok"), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
 
         assertThat(existing.getSignupSource()).isEqualTo("instagram");
         assertThat(existing.getSignupPlatform()).isEqualTo(ClientPlatform.WEB);
@@ -164,7 +165,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.APPLE, "apple-sub")).thenReturn(Optional.empty());
         when(userManager.findByEmail("apple@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont "), "ua", "ip", CTX);
+        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont ", null), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());

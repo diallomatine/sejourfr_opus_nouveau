@@ -102,6 +102,7 @@ public class ProductionSubmissionMapper {
         SituationDansNiveau situation = SituationDansNiveau.of(
             e.getNoteSur20(), niveauObserve, rubrics.niveauCecrl());
         return new EvaluationResultDto(
+            e.getEvaluabilite(),
             e.getNoteSur20(),
             niveauObserve,
             confiance,

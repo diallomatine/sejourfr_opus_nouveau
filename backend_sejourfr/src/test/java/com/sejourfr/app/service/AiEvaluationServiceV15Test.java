@@ -191,7 +191,7 @@ class AiEvaluationServiceV15Test {
         assertThat(evaluation.getFeedbackJson())
             .doesNotContainKey("suggestions")
             .doesNotContainKey("exemples_corriges");
-        assertThat(evaluation.getNoteSur20()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(evaluation.getNoteSur20()).isNull();
     }
 
     // ---------------------------------------------------------- non-regression

@@ -424,7 +424,7 @@ function ExamsConnectedHome() {
                 onClose={() => setCiviqueSlot(null)}
             />
 
-            <PaywallSheet
+            <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_blancs"
                 open={paywallModule !== null}
                 onClose={() => setPaywallModule(null)}
                 module={paywallModule ?? "CIVIQUE"}

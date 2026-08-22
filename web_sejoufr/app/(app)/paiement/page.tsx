@@ -11,7 +11,7 @@ import {
     type PlanModuleTarget,
     type PlanPeriodicity
 } from "@/lib/api";
-import {trackCtaClick, trackPageView} from "@/lib/audience";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {trackPaywallViewed, trackSubscribeClicked} from "@/lib/funnel-events";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
@@ -72,9 +72,6 @@ const PERIODICITIES: { value: PlanPeriodicity; label: string; sub: string }[] = 
     {value: "quarterly", label: "Trimestriel", sub: "facturé tous les 3 mois"},
     {value: "yearly", label: "Annuel", sub: "facturé chaque année"},
 ];
-
-/** Chemin mesuré côté serveur (miroir de `PageViewService.EVENTS_BY_PATH`). */
-const PAIEMENT_PATH = "/paiement";
 
 const PERIOD_SUFFIX: Record<PlanPeriodicity, string> = {
     monthly: "/ mois",
@@ -190,11 +187,11 @@ function PaiementInner() {
 
     // Écran d'abonnement réellement affiché. Deux mesures distinctes et
     // volontairement séparées : `trackPaywallViewed` est une étape de funnel
-    // rattachée au COMPTE (authentifiée, idempotente serveur), `trackPageView`
-    // est une vue ANONYME — c'est la seule qui compte les visiteurs qui
+    // rattachée au COMPTE (authentifiée, idempotente serveur), `PRICING_VIEWED`
+    // est une vue d'audience — c'est la seule qui compte les visiteurs qui
     // regardent les prix sans jamais créer de compte.
     useEffect(() => {
-        trackPageView(PAIEMENT_PATH);
+        track("PRICING_VIEWED", {}, {once: true});
         trackPaywallViewed();
     }, []);
 
@@ -241,8 +238,11 @@ function PaiementInner() {
 
     async function handleSubscribe(planCode: string) {
         // Ce clic engage réellement l'achat (ouverture de la Checkout Stripe),
-        // à la différence d'un lien de navigation vers l'offre.
-        trackCtaClick(PAIEMENT_PATH);
+        // à la différence d'un lien de navigation vers l'offre. Il dit deux
+        // choses : « la page des prix a déclenché l'achat » (table CTA) et
+        // « c'est ce pass-là qui a été choisi ».
+        track("PREMIUM_CTA_CLICKED", {ctaLocation: "PRICING", planCode, screen: "paiement"});
+        track("PRICING_CTA_CLICKED", {planCode});
         trackSubscribeClicked();
         setError(null);
         setLoadingCode(planCode);

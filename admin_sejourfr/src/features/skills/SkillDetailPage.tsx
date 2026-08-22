@@ -154,7 +154,9 @@ export function SkillDetailPage() {
       {skill && (
         <>
           <PageHeader
-            eyebrow={`${skill.code} · ${SECTION_LABEL[skill.section]} · ${skill.taskCode}`}
+            eyebrow={`${skill.code} · ${SECTION_LABEL[skill.section]}${
+              skill.taskCode ? ` · ${skill.taskCode}` : ""
+            }`}
             title={skill.title}
             actions={
               <div className={styles.headerActions}>
@@ -172,7 +174,14 @@ export function SkillDetailPage() {
             }
           />
 
-          <Panel title="Fiche" sub={TASK_TITLE[skill.taskCode]}>
+          <Panel
+            title="Fiche"
+            sub={
+              skill.taskCode
+                ? TASK_TITLE[skill.taskCode]
+                : "Compréhension — aucune tâche, aucun petit sujet"
+            }
+          >
             <div className={styles.factGrid}>
               <Fact label="Code">
                 <code className={styles.code}>{skill.code}</code>
@@ -187,7 +196,10 @@ export function SkillDetailPage() {
                 <Tag tone={targetLevelTone(skill.targetLevel)}>{skill.targetLevel}</Tag>
               </Fact>
               <Fact label="Rang d'affichage">
-                <span className={styles.mono}>{skill.displayOrder} / 8</span>
+                <span className={styles.mono}>
+                  {skill.displayOrder}
+                  {skill.taskCode ? " / 8" : ""}
+                </span>
               </Fact>
               <Fact label="Statut">
                 {skill.active ? (
@@ -197,7 +209,9 @@ export function SkillDetailPage() {
                 )}
               </Fact>
               <Fact label="Petits sujets">
-                <span className={styles.mono}>{skill.promptCount}</span>
+                <span className={styles.mono}>
+                  {skill.taskCode ? skill.promptCount : "—"}
+                </span>
               </Fact>
               <Fact label="Créée le">
                 <span className={styles.mono}>{formatDate(skill.createdAt)}</span>
@@ -230,15 +244,26 @@ export function SkillDetailPage() {
 
           <Panel
             title="Petits sujets"
-            sub={`${prompts.length} sujet(s) · triés par rang d'affichage`}
+            sub={
+              skill.taskCode
+                ? `${prompts.length} sujet(s) · triés par rang d'affichage`
+                : "Compétence de compréhension — sans objet"
+            }
             noPadding
             actions={
-              <Button variant="red" size="sm" onClick={() => openPromptForm(null)}>
-                Nouveau sujet
-              </Button>
+              skill.taskCode ? (
+                <Button variant="red" size="sm" onClick={() => openPromptForm(null)}>
+                  Nouveau sujet
+                </Button>
+              ) : undefined
             }
           >
-            {prompts.length === 0 ? (
+            {!skill.taskCode ? (
+              <EmptyState
+                title="Aucun petit sujet — et c'est normal"
+                description="Une compétence de compréhension (CO/CE) n'a ni tâche ni petit sujet : l'entraînement candidat se fait par une série ciblée de QCM du même niveau, pas par une page de sujets. Il n'y a rien à créer ici."
+              />
+            ) : prompts.length === 0 ? (
               <EmptyState
                 title="Aucun petit sujet"
                 description="Une compétence sert 15 petits sujets. Commencez par en créer un."

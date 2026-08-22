@@ -4,6 +4,8 @@ import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
 import com.sejourfr.app.service.billing.AppleSubscriptionService;
 import com.sejourfr.app.service.billing.GoogleSubscriptionService;
+import com.sejourfr.app.service.billing.MontantEncaisse;
+import com.sejourfr.app.service.billing.MontantEncaisseResolver;
 import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,13 +36,19 @@ public class ReceiptVerificationService {
     private final GoogleSubscriptionService googleSubscriptionService;
     private final SubscriptionService subscriptionService;
     private final RealtimeQuotaService realtimeQuotaService;
+    private final MontantEncaisseResolver montantEncaisseResolver;
 
     public SubscriptionStatusResponse verify(UUID userId, VerifyReceiptRequest request) {
+        // Prix réellement affiché à cet utilisateur, quand l'application le
+        // remonte. Facultatif : une version antérieure n'envoie rien, et le
+        // montant retombe alors sur le prix du plan (cf. OneTimeAccessService).
+        MontantEncaisse montant = montantEncaisseResolver.duStore(
+                request.rawPrice(), request.currencyCode());
         switch (request.source()) {
             case APPLE -> appleSubscriptionService.activateFromReceipt(
-                    userId, request.productId(), request.receipt());
+                    userId, request.productId(), request.receipt(), montant);
             case GOOGLE -> googleSubscriptionService.activateFromReceipt(
-                    userId, request.productId(), request.receipt());
+                    userId, request.productId(), request.receipt(), montant);
             case STRIPE -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Stripe ne passe pas par /verify-receipt — utiliser le webhook checkout.session.completed."

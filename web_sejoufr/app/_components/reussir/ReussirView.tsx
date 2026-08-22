@@ -10,14 +10,32 @@ import {
   type ReactElement,
 } from "react";
 import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  CircleHelp,
+  FileText,
+  Gavel,
+  Globe,
+  Headphones,
+  Landmark,
+  Lock,
+  Mail,
+  Mic,
+  PenLine,
+  Scale,
+  Sparkles,
+  Users,
+} from "lucide-react";
+import {track, type AnalyticsCtaLocation, type AnalyticsDiagnosticType} from "@/lib/analytics";
+import {
   detectTrafficSource,
-  trackAudienceEvent,
-  trackPageView,
   withTrafficSource,
   type TrafficSource,
-} from "@/lib/audience";
+} from "@/lib/traffic-source";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { EPREUVE_PLANNED_SEC, minutesLabel } from "@/lib/exam-durations";
 import {
   formatPassPrice,
   passCheckoutHref,
@@ -31,24 +49,42 @@ import { type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
 
 /**
- * Landing de bio réseaux (`/reussir`) — page autoportante, un seul objectif :
- * envoyer le visiteur sur le diagnostic gratuit, puis sur son Plan et un pass.
+ * Landing autoportante (`/reussir`) — lien de bio réseaux et pages de campagne.
  *
- * Le trafic vient de TikTok, Instagram, WhatsApp, Facebook ou d'un partage
- * direct : le titre reste neutre et c'est un badge qui fait le « message
- * match » en nommant la provenance détectée (utm_source, puis referrer).
+ * Elle raconte DEUX fils distincts, et ne les mélange jamais :
  *
- * ⚠️ RÈGLE DE RÉDACTION (2026-08-17) : cette page se comprend **sans lire**.
- * Un visiteur arrive d'un réseau social, il scrolle au pouce et ne lit pas de
- * paragraphe. Toute information nouvelle se pose donc en pictogramme, en
- * chiffre, en pastille ou en démonstration visuelle — une phrase n'est admise
- * que si elle est la SEULE forme possible, et alors elle tient sur une ligne.
- * Ne pas réintroduire de bloc explicatif : c'est exactement ce qui a été retiré.
+ *  1. le **TCF IRN** — diagnostic de production → priorités → plan adaptatif →
+ *     compétences → examen blanc qui confirme un palier ;
+ *  2. l'**examen civique** — un QCM sur les 5 thèmes officiels, avec des séries
+ *     de 20 questions et un examen blanc à seuil.
+ *
+ * ⚠️ Le fil TCF ne s'applique PAS au civique : celui-ci n'a ni production, ni
+ * niveau CECRL, ni compétences. Greffer l'un sur l'autre produirait des
+ * promesses fausses. Le civique a donc sa propre section (`#civique`), son
+ * propre déroulé et ses propres chiffres.
+ *
+ * ⚠️ Chaque chiffre affiché ici vient du dépôt, jamais d'une estimation :
+ *  · 5 thèmes civiques et leurs libellés → `V101__ref_themes.sql`
+ *  · examen blanc civique 40 questions / 45 min / 32 sur 40
+ *    → `V110__ref_exam_templates.sql` (`duration_seconds`, `total_questions`,
+ *      `passing_score`), y compris le gabarit gratuit `civique-decouverte`
+ *  · série d'entraînement = 20 questions → `docs/lots-entrainement.md`
+ *  · CSP → A2, CR → B1, NAT → B2 → `TCF_LEVEL_BY_PROCEDURE` (`lib/types.ts`)
+ *  · durées d'épreuve TCF → `DureeEpreuve` côté serveur
+ *  · une étape du Plan = 5 petits sujets → `LearningPlanStep.PROMPTS_PAR_ETAPE`
+ *
+ * ⚠️ MESURE D'AUDIENCE (`lib/analytics.ts`) : `/reussir` émet `LANDING_VIEWED`,
+ * `DIAGNOSTIC_CTA_CLICKED` et `CIVIQUE_CTA_CLICKED` — allowlist fermée doublée
+ * côté serveur (`enums/AnalyticsEvent`). Un événement inventé ici serait
+ * rejeté en silence. Les deux portes d'entrée se comptent **séparément** — le
+ * civique n'a ni production, ni niveau CECRL, ni diagnostic ; réutiliser
+ * `DIAGNOSTIC_CTA_CLICKED` pour son CTA gonflerait la mesure du diagnostic
+ * avec des clics qui n'y mènent pas.
  */
 
 type Parcours = "tcf" | "civique";
 
-/** Chemin mesuré côté backend (liste blanche `PageViewService.TRACKED_PATHS`). */
+/** Chemin mesuré côté backend (liste blanche `PageViewService`). */
 const TRACKED_PATH = "/reussir";
 
 /** Réseaux reconnus pour le badge de provenance. */
@@ -64,19 +100,51 @@ export function ReussirView({ plans }: { plans: PlanPublicResponse[] }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   useReveal(rootRef);
 
-  useEffect(() => trackPageView(TRACKED_PATH), []);
+  useEffect(() => {
+    track("LANDING_VIEWED", {landingPath: TRACKED_PATH}, {once: true});
+  }, []);
 
   return (
     <div className={styles.page} ref={rootRef}>
+      <Nav />
       <Hero />
-      <AiSection />
-      <LevelsSection />
+      <MethodeSection />
+      <DiagnosticSection />
+      <RapportSection />
+      <PlanSection />
+      <CompetenceSection />
+      <ComprehensionSection />
+      <ConfirmationSection />
+      <CiviqueSection />
       <EpreuvesSection />
-      <MockExamSection />
-      <MobileSection />
+      <ComparaisonSection />
       <PricingSection plans={plans} />
       <FinalSection />
+      <FaqSection />
+      <PageFooter />
       <StickyCta />
+    </div>
+  );
+}
+
+// ============================================================================
+// NAV
+// ============================================================================
+
+function Nav() {
+  return (
+    <div className={styles.nav}>
+      <div className={`${styles.wrap} ${styles.navRow}`}>
+        <span className={styles.brand}>
+          <span className={styles.cocarde} aria-hidden />
+          Sejour<span className={styles.brandFr}>FR</span>
+        </span>
+        <span className={styles.navSpace} />
+        <a href="#offres" className={styles.navGhost}>
+          Offres
+        </a>
+        <DiagnosticCta variant="nav" />
+      </div>
     </div>
   );
 }
@@ -89,148 +157,89 @@ function Hero() {
   const origin = useOrigin();
 
   return (
-    <section className={`${styles.sec} ${styles.ink} ${styles.hero}`}>
-      <span className={styles.glow} aria-hidden />
-      <span className={styles.grain} aria-hidden />
-
-      <div className={styles.wrap}>
-        <div className={styles.brandbar}>
-          <span className={styles.brand}>
-            <span className={styles.cocarde} aria-hidden />
-            Sejour<span className={styles.fr}>FR</span>
+    <section className={`${styles.sec} ${styles.hero}`}>
+      <div className={`${styles.wrap} ${styles.two}`}>
+        <div>
+          <span className={styles.heroBadge} data-rv>
+            {origin ? NETWORKS[origin].icon : <Sparkles aria-hidden />}
+            {origin ? (
+              <>
+                Tu arrives de <b>{NETWORKS[origin].label}</b>
+              </>
+            ) : (
+              <>TCF IRN &amp; examen civique</>
+            )}
           </span>
-          <span className={styles.kicker}>Titre de séjour · Naturalisation</span>
-        </div>
 
-        <div className={styles.heroGrid}>
-          <div>
-            <p className={styles.origin} data-rv>
-              <span className={styles.originNet} aria-hidden>
-                {origin ? NETWORKS[origin].icon : <SparkIcon />}
-              </span>
-              <span className={styles.originTxt}>
-                {origin ? (
-                  <>
-                    Tu arrives de <b>{NETWORKS[origin].label}</b>
-                  </>
-                ) : (
-                  <>
-                    Bienvenue sur <b>SejourFR</b>
-                  </>
-                )}
-              </span>
-            </p>
+          <h1 className={`${styles.h1} ${styles.editorial}`} data-rv>
+            Atteins ton niveau TCF avec un plan qui <em>s&apos;adapte à toi</em>.
+          </h1>
 
-            <h1 className={styles.h1} data-rv>
-              Tu prépares le TCF&nbsp;? Découvre d&apos;abord <em>ce qui te bloque</em>.
-            </h1>
+          <p className={styles.lead} data-rv>
+            Fais ton diagnostic&nbsp;: SejourFR détecte ce qui te bloque réellement et te
+            montre quoi travailler aujourd&apos;hui pour progresser vers A2, B1 ou B2. Et
+            l&apos;examen civique se prépare au même endroit.
+          </p>
 
-            {/* La SEULE phrase de la page. Tout le reste se montre. */}
-            <p className={styles.lead} data-rv>
-              Un écrit, un oral. L&apos;IA situe ton niveau et nomme tes priorités.
-            </p>
+          <HeroModules />
 
-            <HeroModules />
-
-            <div className={styles.ctaRow} data-rv>
-              <DiagnosticCta />
-            </div>
-
-            <ul className={styles.trust} data-rv>
-              <li>
-                <CheckDot /> 1 écrit + 1 oral
-              </li>
-              <li>
-                <CheckDot /> ≈ 8 min
-              </li>
-              <li>
-                <CheckDot /> Sans carte bancaire
-              </li>
-            </ul>
+          <div className={`${styles.ctas} ${styles.heroCtas}`} data-rv>
+            <DiagnosticCta />
+            <span className={styles.ctaNote}>≈ 8 min · Sans carte bancaire</span>
           </div>
 
-          <DiagnosticPreviewCard />
+          <ul className={styles.heroTrust} data-rv>
+            <li>
+              <Check aria-hidden /> 1 écrit + 1 oral
+            </li>
+            <li>
+              <Check aria-hidden /> Résultat immédiat
+            </li>
+            <li>
+              <Check aria-hidden /> Web et mobile
+            </li>
+          </ul>
         </div>
 
-        <HeroSteps />
+        <PlanShot />
       </div>
     </section>
   );
 }
 
 /**
- * Le diagnostic en trois temps, pleine largeur au pied du hero. C'est LA
- * promesse de la page : un visiteur doit comprendre ce qu'on lui propose sans
- * lire une phrase — deux productions, puis ses priorités nommées. La carte
- * d'exemple à droite en montre le résultat, cette bande en montre le geste.
- */
-const DIAGNOSTIC_STEPS: { icon: ReactElement; title: string; meta: string }[] = [
-  { icon: <PenIcon />, title: "Tu écris", meta: "≈ 100 mots" },
-  { icon: <MicIcon />, title: "Tu parles", meta: "≈ 2 minutes" },
-  { icon: <SparkIcon />, title: "Tes 3 priorités", meta: "Ce qui te bloque" },
-];
-
-function HeroSteps() {
-  const last = DIAGNOSTIC_STEPS.length - 1;
-
-  return (
-    <div className={styles.steps3} data-rv>
-      <span className={styles.steps3Head}>Ton diagnostic gratuit · ≈ 8 min</span>
-      <ol className={styles.steps3List}>
-        {DIAGNOSTIC_STEPS.map((step, i) => (
-          <li key={step.title} className={styles.step3}>
-            <span className={styles.step3Ico}>{step.icon}</span>
-            <span className={styles.step3Txt}>
-              <b>{step.title}</b>
-              <small>{step.meta}</small>
-            </span>
-            {i < last && (
-              <span className={styles.step3Arrow} aria-hidden>
-                <ArrowIcon />
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/**
- * Les deux examens obligatoires, côte à côte et à poids égal — c'est le seul
- * endroit de la page où le visiteur apprend qu'il y en a **deux**, et il doit
- * le comprendre sans lire : quatre pictogrammes d'un côté (les épreuves du
- * TCF), cinq numéros de l'autre (les thèmes du livret citoyen).
+ * Les deux examens obligatoires, côte à côte et à poids égal — c'est le premier
+ * endroit où le visiteur apprend qu'il y en a **deux**, et il doit le
+ * comprendre sans lire : quatre pictogrammes d'un côté (les épreuves du TCF),
+ * cinq numéros de l'autre (les thèmes du livret citoyen).
  */
 function HeroModules() {
   return (
     <div className={styles.modules} data-rv>
-      <div className={styles.mod} data-accent="blue">
+      <div className={styles.modBox}>
         <span className={styles.modName}>TCF IRN</span>
         <span className={styles.modIcons} aria-hidden>
           <i>
-            <HeadphonesIcon />
+            <Headphones />
           </i>
           <i>
-            <BookIcon />
+            <BookOpen />
           </i>
           <i>
-            <PenIcon />
+            <PenLine />
           </i>
           <i>
-            <MicIcon />
+            <Mic />
           </i>
         </span>
         <span className={styles.modFoot}>4 épreuves · A2 · B1 · B2</span>
       </div>
 
-      <div className={styles.mod} data-accent="red">
+      <div className={styles.modBox} data-accent="red">
         <span className={styles.modName}>Examen civique</span>
         <span className={styles.modIcons} aria-hidden>
           {[1, 2, 3, 4, 5].map((n) => (
-            <i key={n} className={styles.modNum}>
-              {n}
-            </i>
+            <i key={n}>{n}</i>
           ))}
         </span>
         <span className={styles.modFoot}>5 thèmes · CSP · CR · NAT</span>
@@ -239,164 +248,428 @@ function HeroModules() {
   );
 }
 
-/**
- * Le CTA diagnostic, partagé par le hero, le bloc final et la barre collante.
- * Passer par un composant unique garantit que les trois points d'entrée sont
- * mesurés de la même façon — un bouton ajouté ailleurs sans lui serait un trou
- * silencieux dans le taux de conversion.
- */
-function DiagnosticCta({ compact = false }: { compact?: boolean }) {
-  const {status, user} = useAuth();
-  const origin = useOrigin();
-  const [completedForUserId, setCompletedForUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status !== "authenticated" || !user) return;
-    let cancelled = false;
-    diagnosticApi.currentCached().then((diagnostic) => {
-      if (!cancelled) {
-        setCompletedForUserId(diagnostic.status === "COMPLETED" ? user.id : null);
-      }
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [status, user]);
-
-  const completed = Boolean(user && completedForUserId === user.id);
-  const diagnosticDestination = withTrafficSource("/diagnostic", origin);
-  const planDestination = withTrafficSource("/plan", origin);
-  // Un visiteur va **directement** sur le diagnostic : depuis le 2026-08-10 il
-  // fait ses deux productions avant qu'on lui demande un compte. Le passer par
-  // /inscription reviendrait à remettre le mur avant la valeur.
-  const destination = completed ? planDestination : diagnosticDestination;
-  const label = completed
-    ? "Voir mon plan"
-    : compact
-      ? "Faire mon diagnostic"
-      : "Faire mon diagnostic gratuit";
-
+/** Capture du Plan, en CSS pur : rien à maintenir, rien à re-shooter. */
+function PlanShot() {
   return (
-    <Link
-      href={destination}
-      className={styles.btn}
-      onClick={() => trackAudienceEvent("/reussir", "SOCIAL_LANDING_DIAGNOSTIC_CLICKED")}
-    >
-      {label}
-      <ArrowIcon />
-    </Link>
-  );
-}
+    <div className={styles.shot} data-rv>
+      <div className={styles.shotTop}>
+        <div className={styles.shotLab}>Ton niveau estimé</div>
+        <div className={styles.shotLevels}>
+          <span className={styles.shotNow}>A2</span>
+          <span className={styles.shotDiv} aria-hidden />
+          <span>
+            <span className={styles.shotGoalLab}>Objectif</span>
+            <span className={styles.shotGoal}>B2</span>
+          </span>
+        </div>
+        <div className={styles.rail} aria-hidden>
+          <span data-on="">A2</span>
+          <i data-on="" />
+          <span>B1</span>
+          <i />
+          <span>B2</span>
+        </div>
+      </div>
 
-/** Exemple clairement présenté comme tel : il visualise la valeur livrée par
- *  le diagnostic, sans se substituer au résultat réel calculé par le backend. */
-function DiagnosticPreviewCard() {
-  return (
-    <div className={`${styles.cardInk} ${styles.diagnosticPreview}`} data-rv>
-      <div className={styles.sessHead}>
-        <span className={styles.live}>Ton diagnostic</span>
-        <span className={styles.clock}>Exemple de résultat</span>
+      <div className={`${styles.shotSec} ${styles.shotWash}`}>
+        <span className={styles.eyebrow}>Priorité actuelle</span>
+        <div className={styles.shotTitle}>Développer une réponse avec une précision</div>
+        <p className={styles.mini}>Expression orale · Tâche 1</p>
+        <div className={styles.dots} aria-hidden>
+          <i data-on="" />
+          <i />
+          <i />
+          <i />
+          <i />
+        </div>
       </div>
-      <div className={styles.diagnosticLevels}>
-        <span><small>Expression écrite</small><b>B1</b></span>
-        <span><small>Expression orale</small><b>B1</b></span>
-        <span><small>Objectif</small><b>B2</b></span>
+
+      <div className={styles.sep} />
+
+      <div className={styles.shotSec}>
+        <span className={styles.label}>Aujourd&apos;hui · 3 entraînements · 22 min</span>
+        <div className={styles.shotList}>
+          {[
+            { mod: "EO", tone: styles.mRed, title: "Petit sujet : mes activités du week-end", meta: "Tâche 1 · 3 min" },
+            { mod: "EE", tone: styles.mRed, title: "Raconter les actions dans l'ordre", meta: "Tâche 2 · 4 min" },
+            { mod: "CO", tone: styles.mBlue, title: "Série ciblée · informations implicites", meta: "Niveau B1 · 8 min" },
+          ].map((row) => (
+            <div key={row.title} className={styles.rowI}>
+              <span className={`${styles.mod} ${row.tone}`}>{row.mod}</span>
+              <span className={styles.flex1}>
+                <span className={styles.shotItem}>
+                  <b>{row.title}</b>
+                  <small>{row.meta}</small>
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className={styles.diagnosticPriorities}>
-        <span className={styles.who}><SparkIcon /> Tes priorités</span>
-        <ol>
-          <li><i>1</i><span>Développer un argument</span></li>
-          <li><i>2</i><span>Structurer ta prise de parole</span></li>
-          <li><i>3</i><span>Stabiliser les temps du récit</span></li>
-        </ol>
-      </div>
-      <p className={styles.diagnosticPlan}><CheckDot /> Une action concrète dans ton Plan</p>
     </div>
   );
 }
 
 // ============================================================================
-// ② L'EXAMINATEUR IA
+// ② LA MÉTHODE
 // ============================================================================
 
-// Critères réellement notés à l'oral. La prononciation n'en fait pas partie :
-// l'évaluation part de la transcription (cf. docs/notation-ia-eo-ee.md §9), et
-// l'annoncer ici promettait ce que le produit refuse explicitement de faire.
-const CRITERIA: { label: string; note: string; width: number; amber?: boolean }[] = [
-  { label: "Lexique", note: "17,0", width: 86 },
-  { label: "Grammaire", note: "14,5", width: 72, amber: true },
-  { label: "Cohérence du discours", note: "18,0", width: 90 },
-  { label: "Développement des arguments", note: "15,5", width: 79 },
+const METHODE: { title: string; meta: string }[] = [
+  { title: "Diagnostic", meta: "Ta capacité réelle à produire du français" },
+  { title: "Tes priorités", meta: "Les compétences qui te bloquent" },
+  { title: "Ton plan", meta: "Ce que tu travailles aujourd'hui" },
+  { title: "Tes progrès", meta: "Mesurés sur chaque compétence" },
+  { title: "Examen blanc", meta: "Pour confirmer ton nouveau niveau" },
 ];
+
+function MethodeSection() {
+  return (
+    <section className={`${styles.sec} ${styles.white}`} id="methode">
+      <div className={styles.wrap}>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <h2 className={styles.h2}>
+            Tu peux faire 500 exercices et continuer à travailler les mauvaises choses.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 16 }}>
+            SejourFR ne se contente pas de compter tes bonnes réponses. Il construit ton
+            profil compétence par compétence, et décide ce que tu dois travailler ensuite.
+          </p>
+        </div>
+
+        <ol className={styles.flow}>
+          {METHODE.map((step, i) => (
+            <li key={step.title} data-rv>
+              <span className={styles.flowNum}>{i + 1}</span>
+              <span>
+                <b>{step.title}</b>
+                <small>{step.meta}</small>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ③ PAR OÙ COMMENCER — c'est ici que les deux examens se séparent
+// ============================================================================
 
 /**
- * Ce que le pass ouvre, en trois pastilles. C'était un encart de trois
- * paragraphes : la même information, mais personne ne la lisait.
+ * Le temps de la **compréhension** annoncé par la carte « Diagnostic complet ».
+ *
+ * ⚠️ Recalculé depuis `lib/exam-durations.ts` — la seule table de durées du web,
+ * miroir de `DureeEpreuve` — et **jamais écrit en dur** : raccourcir une épreuve
+ * raccourcit la promesse. La maquette annonçait « ≈ 22 min » pour le parcours
+ * complet ; la CO et la CE valent à elles seules 20 + 35 min.
+ *
+ * Aucun **total** n'est annoncé : les deux productions se mesurent sur les
+ * bornes des sujets servis (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`,
+ * écran `DiagnosticIntro`), et aucun DTO n'est disponible sur une landing —
+ * additionner ici reviendrait à fabriquer un chiffre.
  */
-const AI_FACTS: string[] = [
-  "Corrections écrites et orales illimitées",
-  "Simulations orales incluses, au forfait",
-  "Simulations orales : pass Intégral",
-];
+const DIAGNOSTIC_COMPREHENSION_LABEL = minutesLabel(
+  EPREUVE_PLANNED_SEC.TCF_CO + EPREUVE_PLANNED_SEC.TCF_CE,
+);
 
-function AiSection() {
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const seen = useInView(cardRef);
-  const score = useCountUp(seen, 16.5, 1);
+function DiagnosticSection() {
+  const origin = useOrigin();
 
   return (
-    <section className={`${styles.sec} ${styles.ink}`} id="ia">
-      <span className={styles.grain} aria-hidden />
+    <section className={`${styles.sec} ${styles.paper}`} id="diagnostic">
       <div className={styles.wrap}>
-        <div className={styles.aiGrid}>
-          <div className={styles.aiCopy}>
-            <span className={styles.eyebrow} data-rv>
-              01 · Ce que personne d&apos;autre ne fait
-            </span>
-            <h2 className={styles.h2} data-rv>
-              Un examinateur <em>IA</em> qui te parle. Et qui te note.
-            </h2>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <span className={styles.eyebrow}>Étape 1</span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }}>
+            Commence par savoir où tu en es.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 14 }}>
+            Pas un QCM de plus&nbsp;: tu produis du français, et l&apos;analyse porte sur
+            ce que tu sais réellement faire. Deux formats, gratuits tous les deux.
+          </p>
+        </div>
 
-            <ul className={styles.chipRow} data-rv>
-              {AI_FACTS.map((fact) => (
-                <li key={fact} className={styles.chip}>
-                  <CheckDot />
-                  {fact}
-                </li>
-              ))}
-            </ul>
+        <div className={`${styles.grid} ${styles.g2}`} style={{ marginTop: 32, alignItems: "start" }}>
+          <div className={`${styles.card} ${styles.cardHi}`} data-rv>
+            <div className={`${styles.pad} ${styles.shotWash}`}>
+              <div className={styles.rowI} style={{ flexWrap: "wrap", gap: 10 }}>
+                <h3 className={styles.h3} style={{ fontSize: 21 }}>
+                  Diagnostic rapide
+                </h3>
+                <span className={`${styles.pill} ${styles.pReco}`}>Recommandé</span>
+              </div>
+              <p className={styles.label} style={{ marginTop: 7 }}>
+                Expression écrite + expression orale · ≈ 8 min
+              </p>
+              <p className={styles.leadSm} style={{ marginTop: 14 }}>
+                Une estimation de ton niveau de production, et tes premières compétences à
+                travailler. Sans compte pour commencer.
+              </p>
+              <DiagnosticCta variant="card" />
+            </div>
           </div>
 
-          <div className={`${styles.cardInk} ${styles.eval}`} ref={cardRef} data-rv>
-            <span className={`${styles.who} ${styles.whoBlue}`}>
-              <SparkIcon /> Évaluation IA · Expression orale
-            </span>
-
-            <div className={styles.scoreRow}>
-              <span className={styles.score}>
-                {score.toFixed(1).replace(".", ",")}
-                <small>/20</small>
-              </span>
-              <span className={styles.cecrl}>Niveau&nbsp;B2</span>
+          <div className={styles.card} data-rv>
+            <div className={styles.pad}>
+              <h3 className={styles.h3} style={{ fontSize: 21 }}>
+                Diagnostic complet
+              </h3>
+              <p className={styles.label} style={{ marginTop: 7 }}>
+                EE + EO, puis CO + CE · {DIAGNOSTIC_COMPREHENSION_LABEL} de compréhension
+              </p>
+              <p className={styles.leadSm} style={{ marginTop: 14 }}>
+                Ton profil sur les quatre épreuves du TCF. Tu commences par les mêmes
+                exercices&nbsp;; la compréhension se joue juste après la création de ton
+                compte, pour que ses résultats te restent.
+              </p>
+              <DiagnosticCta variant="cardAlt" />
             </div>
+          </div>
+        </div>
 
-            <div className={styles.crit}>
-              {CRITERIA.map((c) => (
-                <div key={c.label} className={styles.critRow} data-tone={c.amber ? "amber" : undefined}>
-                  <span className={styles.critTop}>
-                    <span>{c.label}</span>
-                    <b>{c.note}</b>
+        <p className={styles.mini} style={{ textAlign: "center", marginTop: 16 }}>
+          Tu peux commencer par l&apos;écrit et l&apos;oral, puis compléter la
+          compréhension quand tu veux.
+        </p>
+
+        {/* L'examen civique n'est PAS un diagnostic : il n'a ni production, ni
+            palier CECRL, ni compétences. Il a donc sa propre entrée, séparée des
+            deux cartes ci-dessus — et sa propre mesure d'audience, sans quoi on
+            savait combien de visiteurs voient cette offre, jamais combien y
+            entrent. */}
+        <div className={`${styles.card} ${styles.band}`} style={{ marginTop: 28 }} data-rv>
+          <div className={`${styles.pad} ${styles.bandInner}`}>
+            <span className={styles.bandBody}>
+              <span className={styles.label}>Tu prépares aussi l&apos;examen civique&nbsp;?</span>
+              <b className={styles.bandTitle}>Examen civique blanc</b>
+              <span className={styles.mini}>
+                40 questions · 45 min · les 5 thèmes. Le format réel de l&apos;épreuve, avec
+                ton score et les thèmes qui te coûtent des points.
+              </span>
+            </span>
+            <Link
+              href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
+              className={`${styles.btn} ${styles.btnO}`}
+              onClick={() => track("CIVIQUE_CTA_CLICKED", {ctaLocation: "MIDDLE"})}
+            >
+              Passer l&apos;examen découverte
+              <ArrowRight aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ④ LE RAPPORT DE DIAGNOSTIC
+// ============================================================================
+
+const PRIORITES_VISIBLES: { mod: string; tone: string; title: string; meta: string; pill: string; pillTone: string }[] = [
+  {
+    mod: "EO",
+    tone: "mOn",
+    title: "Développer une réponse avec une précision",
+    meta: "Expression orale · Tâche 1",
+    pill: "Priorité",
+    pillTone: "pPrio",
+  },
+  {
+    mod: "EE",
+    tone: "mRed",
+    title: "Raconter les actions dans l'ordre",
+    meta: "Expression écrite · Tâche 2",
+    pill: "À renforcer",
+    pillTone: "pRenf",
+  },
+  {
+    mod: "EO",
+    tone: "mRed",
+    title: "Poser une question de suivi",
+    meta: "Expression orale · Tâche 2",
+    pill: "À renforcer",
+    pillTone: "pRenf",
+  },
+];
+
+const PRIORITES_FLOUTEES: { mod: string; title: string; meta: string }[] = [
+  { mod: "EE", title: "Utiliser les temps du passé", meta: "Expression écrite · Tâche 2" },
+  { mod: "EO", title: "Réagir à une relance", meta: "Expression orale · Tâche 1" },
+];
+
+function RapportSection() {
+  return (
+    <section className={`${styles.sec} ${styles.white}`}>
+      <div className={`${styles.wrap} ${styles.twoT}`}>
+        <div>
+          <span className={styles.eyebrow} data-rv>
+            Étape 2
+          </span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }} data-rv>
+            SejourFR ne te dit pas seulement que tu es A2. Il sait pourquoi.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 16 }} data-rv>
+            À la fin du diagnostic, tu reçois un rapport&nbsp;: ton niveau estimé, tes
+            points forts, et les compétences précises qui t&apos;empêchent d&apos;atteindre
+            ton objectif.
+          </p>
+          <div className={styles.ctas} style={{ marginTop: 24 }} data-rv>
+            <DiagnosticCta location="MIDDLE" />
+            <span className={styles.ctaNote}>≈ 8 min · Sans carte bancaire</span>
+          </div>
+        </div>
+
+        <div className={styles.card} style={{ overflow: "hidden" }} data-rv>
+          <div className={styles.pad} style={{ paddingBottom: 14 }}>
+            <span className={styles.label}>Tes principales priorités</span>
+          </div>
+          <div className={styles.sep} />
+
+          {PRIORITES_VISIBLES.map((p) => (
+            <div key={p.title}>
+              <div className={`${styles.pad} ${styles.rowI}`} style={{ padding: "14px 20px" }}>
+                <span className={`${styles.mod} ${styles[p.tone]}`}>{p.mod}</span>
+                <span className={styles.flex1}>
+                  <span className={styles.shotItem}>
+                    <b>{p.title}</b>
+                    <small>{p.meta}</small>
                   </span>
-                  <span className={styles.bar}>
-                    <i style={{ width: seen ? `${c.width}%` : 0 }} />
+                </span>
+                <span className={`${styles.pill} ${styles[p.pillTone]}`}>{p.pill}</span>
+              </div>
+              <div className={styles.sep} />
+            </div>
+          ))}
+
+          <div className={styles.blur} aria-hidden>
+            {PRIORITES_FLOUTEES.map((p) => (
+              <div key={p.title} className={`${styles.pad} ${styles.rowI}`} style={{ padding: "14px 20px" }}>
+                <span className={`${styles.mod} ${styles.mRed}`}>{p.mod}</span>
+                <span className={styles.flex1}>
+                  <span className={styles.shotItem}>
+                    <b>{p.title}</b>
+                    <small>{p.meta}</small>
                   </span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.lockbar}>
+            <Lock aria-hidden />+ 5 autres priorités détectées
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ⑤ LE PLAN
+// ============================================================================
+
+const PLAN_POINTS: string[] = [
+  "Jamais 7 priorités identiques : une seule chose à faire maintenant",
+  "Chaque exercice est relié à une compétence, jamais à un numéro de série",
+  "Après une réussite, tu vois ce qui change dans ton plan",
+];
+
+/** Une étape du Plan vaut 5 petits sujets (`LearningPlanStep.PROMPTS_PAR_ETAPE`). */
+const PLAN_ROWS: { mod: string; tone: string; title: string; pill: string; pillTone: string; done: number | null; note: string }[] = [
+  {
+    mod: "EO",
+    tone: "mRed",
+    title: "Développer une réponse avec une précision",
+    pill: "Priorité",
+    pillTone: "pPrio",
+    done: 1,
+    note: "1 / 5 petits sujets traités",
+  },
+  {
+    mod: "EE",
+    tone: "mRed",
+    title: "Raconter les actions dans l'ordre",
+    pill: "À renforcer",
+    pillTone: "pRenf",
+    done: 2,
+    note: "2 / 5 petits sujets traités",
+  },
+  {
+    mod: "CO",
+    tone: "mBlue",
+    title: "Informations implicites · B1",
+    pill: "À évaluer",
+    pillTone: "pNeu",
+    done: null,
+    note: "Une série de 20 questions complétera ton profil",
+  },
+];
+
+function PlanSection() {
+  return (
+    <section className={`${styles.sec} ${styles.paper}`}>
+      <div className={`${styles.wrap} ${styles.twoT}`}>
+        <div>
+          <span className={styles.eyebrow} data-rv>
+            Étape 3
+          </span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }} data-rv>
+            Et ensuite, SejourFR te dit exactement quoi travailler.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 16 }} data-rv>
+            Une priorité principale, une séance courte, et des petits sujets ciblés. Ton
+            plan évolue après chaque entraînement&nbsp;: une difficulté reste dans ta
+            séance jusqu&apos;à ce qu&apos;elle soit réellement maîtrisée.
+          </p>
+          <ul className={styles.stack} style={{ marginTop: 22 }} data-rv>
+            {PLAN_POINTS.map((point) => (
+              <li key={point} className={styles.rowI}>
+                <Check className={styles.tick} aria-hidden />
+                <span style={{ fontSize: 15 }}>{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className={styles.card} style={{ overflow: "hidden" }} data-rv>
+          <div className={`${styles.pad} ${styles.shotWash}`}>
+            <span className={styles.eyebrow}>Priorité actuelle</span>
+            <div className={styles.shotTitle} style={{ fontSize: 19 }}>
+              Développer une réponse avec une précision
+            </div>
+            <p className={styles.mini} style={{ marginTop: 6 }}>
+              Tes réponses sont compréhensibles mais encore trop courtes. Objectif&nbsp;:
+              ajouter naturellement une précision.
+            </p>
+          </div>
+          <div className={styles.sep} />
+          <div className={styles.pad}>
+            <span className={styles.label}>Mes priorités</span>
+            <div className={styles.stack} style={{ marginTop: 14 }}>
+              {PLAN_ROWS.map((row) => (
+                <div key={row.title}>
+                  <div className={styles.rowI}>
+                    <span className={`${styles.mod} ${styles[row.tone]}`}>{row.mod}</span>
+                    <span className={styles.flex1} style={{ fontSize: 14.5, fontWeight: 600 }}>
+                      {row.title}
+                    </span>
+                    <span className={`${styles.pill} ${styles[row.pillTone]}`}>{row.pill}</span>
+                  </div>
+                  {row.done !== null && (
+                    <div className={styles.dots} style={{ marginLeft: 46 }} aria-hidden>
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <i key={i} data-on={i < row.done! ? "" : undefined} />
+                      ))}
+                    </div>
+                  )}
+                  <p className={styles.mini} style={{ marginLeft: 46, marginTop: 5 }}>
+                    {row.note}
+                  </p>
                 </div>
               ))}
             </div>
-
-            <p className={styles.feedback}>
-              <b>Ce qui marche&nbsp;:</b> vous argumentez sans hésiter.{" "}
-              <b>À travailler&nbsp;:</b> les temps du passé («&nbsp;j&apos;ai
-              venu&nbsp;» → «&nbsp;je suis venu&nbsp;»).
-            </p>
           </div>
         </div>
       </div>
@@ -405,55 +678,64 @@ function AiSection() {
 }
 
 // ============================================================================
-// ③ NIVEAUX
+// ⑥ COMPÉTENCE → VALIDATION
 // ============================================================================
 
-const LEVELS: {
-  level: string;
-  procedure: string;
-  mention: string;
-  hi?: boolean;
-}[] = [
-  {
-    level: "A2",
-    procedure: "Carte pluriannuelle",
-    mention: "Examen civique · mention CSP",
-  },
-  {
-    level: "B1",
-    procedure: "Carte de résident",
-    mention: "Examen civique · mention CR",
-  },
-  {
-    level: "B2",
-    procedure: "Naturalisation",
-    mention: "Examen civique · mention NAT",
-    hi: true,
-  },
+const COMPETENCE_FLOW: { title: string; meta: string }[] = [
+  { title: "Une compétence", meta: "Ex. développer une réponse" },
+  { title: "5 petits sujets", meta: "3 à 4 min chacun" },
+  { title: "Correction IA", meta: "Ce qui marche, ce qui bloque" },
+  { title: "Version au niveau visé", meta: "Ta réponse, réécrite en B1" },
+  { title: "Tâche complète", meta: "La compétence est validée" },
 ];
 
-function LevelsSection() {
+function CompetenceSection() {
   return (
-    <section className={`${styles.sec} ${styles.paper}`}>
+    <section className={`${styles.sec} ${styles.white}`}>
       <div className={styles.wrap}>
-        <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>02 · Ton palier</span>
-          <h2 className={styles.h2}>Quel niveau te faut-il&nbsp;?</h2>
-        </header>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <span className={styles.eyebrow}>Expression écrite &amp; orale</span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }}>
+            Tu ne t&apos;entraînes pas «&nbsp;sur la tâche 2&nbsp;». Tu travailles une
+            difficulté précise.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 14 }}>
+            Chaque compétence se travaille sur de petits sujets courts. La correction IA te
+            montre ce qui manque, puis la même réponse écrite au niveau que tu vises.
+          </p>
+        </div>
 
-        <div className={styles.levels}>
-          {LEVELS.map((l) => (
-            <article key={l.level} className={styles.level} data-hi={l.hi ? "" : undefined} data-rv>
-              <span className={styles.levelTop}>
-                <span className={styles.levelBadge}>{l.level}</span>
-                <span className={styles.levelArrow} aria-hidden>
-                  <ArrowIcon />
-                </span>
+        <ol className={styles.flow}>
+          {COMPETENCE_FLOW.map((step, i) => (
+            <li key={step.title} data-rv>
+              <span className={styles.flowNum}>{i + 1}</span>
+              <span>
+                <b>{step.title}</b>
+                <small>{step.meta}</small>
               </span>
-              <h3 className={styles.levelProc}>{l.procedure}</h3>
-              <p className={styles.levelFoot}>{l.mention}</p>
-            </article>
+            </li>
           ))}
+        </ol>
+
+        <div className={`${styles.card} ${styles.rewrite}`} data-rv>
+          <div className={styles.pad} style={{ paddingBottom: 0 }}>
+            <span className={styles.label}>Ta réponse · niveau A2</span>
+            <p className={styles.quoteBefore}>
+              Je travaille dans une entreprise. C&apos;est bien.
+            </p>
+          </div>
+          <div className={styles.pad}>
+            <span className={`${styles.label} ${styles.labelBrand}`}>La même réponse en B1</span>
+            <p className={styles.quoteAfter}>
+              Je travaille comme technicien de maintenance dans une entreprise de Lyon,{" "}
+              <mark>depuis bientôt deux ans</mark>. Ce que j&apos;aime le plus, c&apos;est{" "}
+              <mark>de résoudre une panne que personne n&apos;avait comprise</mark>.
+            </p>
+            <div className={styles.gains}>
+              <span className={`${styles.pill} ${styles.pNeu}`}>+ une précision de durée</span>
+              <span className={`${styles.pill} ${styles.pNeu}`}>+ un exemple concret</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -461,294 +743,446 @@ function LevelsSection() {
 }
 
 // ============================================================================
-// ④ LES ÉPREUVES
+// ⑦ COMPRÉHENSION ORALE & ÉCRITE
 // ============================================================================
 
-const EPREUVES: {
-  href: string;
-  title: string;
-  tag: string;
-  icon: ReactElement;
-  red?: boolean;
-}[] = [
+const COMPREHENSION: { level: string; title: string; meta: string; pill: string; pillTone: string; hi?: boolean }[] = [
+  {
+    level: "A2",
+    title: "Information explicite",
+    meta: "Ce qui est dit clairement",
+    pill: "Solide",
+    pillTone: "pSol",
+  },
+  {
+    level: "B1",
+    title: "Sens global et intention",
+    meta: "Message plus long, moins direct",
+    pill: "En cours",
+    pillTone: "pRenf",
+    hi: true,
+  },
+  {
+    level: "B2",
+    title: "Implicite et nuances",
+    meta: "Réponses proches, sous-entendus",
+    pill: "À venir",
+    pillTone: "pNeu",
+  },
+];
+
+function ComprehensionSection() {
+  return (
+    <section className={`${styles.sec} ${styles.paper}`}>
+      <div className={`${styles.wrap} ${styles.twoT}`}>
+        <div>
+          <span className={styles.eyebrow} data-rv>
+            Compréhension orale &amp; écrite
+          </span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }} data-rv>
+            Des séries ciblées sur le niveau qui te bloque.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 16 }} data-rv>
+            Pas 20 questions au hasard&nbsp;: des séries de 20 questions choisies sur le
+            palier où tu perds encore des points, puis un palier au-dessus quand celui-ci
+            devient stable.
+          </p>
+        </div>
+
+        <ul className={styles.ladder}>
+          {COMPREHENSION.map((l) => (
+            <li key={l.level} data-hi={l.hi ? "" : undefined} data-rv>
+              <span className={styles.ladderLv}>{l.level}</span>
+              <span className={styles.flex1}>
+                <b>{l.title}</b>
+                <small>{l.meta}</small>
+              </span>
+              <span className={`${styles.pill} ${styles[l.pillTone]}`}>{l.pill}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ⑧ CONFIRMATION DU NIVEAU
+// ============================================================================
+
+const CONFIRMATION_ROWS: { mod: string; tone: string; label: string }[] = [
+  { mod: "CO", tone: "mBlue", label: "Compréhension orale" },
+  { mod: "CE", tone: "mBlue", label: "Compréhension écrite" },
+  { mod: "EO", tone: "mRed", label: "Expression orale" },
+  { mod: "EE", tone: "mRed", label: "Expression écrite" },
+];
+
+function ConfirmationSection() {
+  return (
+    <section className={`${styles.sec} ${styles.white}`}>
+      <div className={`${styles.wrap} ${styles.twoT}`}>
+        <div>
+          <span className={styles.eyebrow} data-rv>
+            Étape 4
+          </span>
+          <h2 className={styles.h2} style={{ marginTop: 14 }} data-rv>
+            Pas de faux badge B1 après quelques exercices.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 16 }} data-rv>
+            Quand les compétences que tu devais travailler deviennent solides, SejourFR te
+            propose un examen blanc complet. C&apos;est lui qui confirme ton nouveau niveau
+            estimé — puis un nouveau plan démarre vers le palier suivant.
+          </p>
+          <p className={styles.mini} style={{ marginTop: 18 }} data-rv>
+            Estimation d&apos;entraînement SejourFR, non officielle. Elle ne remplace pas le
+            résultat du TCF.
+          </p>
+        </div>
+
+        <div className={`${styles.card} ${styles.pad}`} data-rv>
+          <div className={styles.stack}>
+            {CONFIRMATION_ROWS.map((row, i) => (
+              <div key={row.mod}>
+                <div className={styles.rowI}>
+                  <span className={`${styles.mod} ${styles[row.tone]}`}>{row.mod}</span>
+                  <span className={styles.flex1} style={{ fontSize: 15, fontWeight: 600 }}>
+                    {row.label}
+                  </span>
+                  <span className={`${styles.pill} ${styles.pSol}`}>Solide</span>
+                </div>
+                {i < CONFIRMATION_ROWS.length - 1 && (
+                  <div className={styles.sep} style={{ marginTop: 14 }} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.verdict}>
+            <div className={styles.verdictLab}>Après l&apos;examen blanc</div>
+            <div className={styles.verdictLvl}>Niveau estimé B1 confirmé</div>
+            <div className={styles.verdictNote}>Ton plan repart vers le B2.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ⑨ EXAMEN CIVIQUE — son propre fil, court et honnête
+// ============================================================================
+
+/**
+ * Les 5 thèmes officiels, dans l'ordre `display_order` de la base
+ * (`V101__ref_themes.sql`). Libellés et descriptions repris **mot pour mot**
+ * du seed : c'est le contenu qui fait foi, pas une reformulation marketing.
+ * Le slug de route est dérivé du code comme le fait `lib/themes.ts`.
+ */
+const CIVIQUE_THEMES: { slug: string; name: string; desc: string; icon: ReactElement }[] = [
+  {
+    slug: "principes",
+    name: "Principes et valeurs de la République",
+    desc: "Devise, symboles, laïcité, liberté, égalité, fraternité",
+    icon: <Scale aria-hidden />,
+  },
+  {
+    slug: "institutions",
+    name: "Système institutionnel et politique",
+    desc: "Constitution, président, parlement, séparation des pouvoirs",
+    icon: <Landmark aria-hidden />,
+  },
+  {
+    slug: "droits-devoirs",
+    name: "Droits et devoirs",
+    desc: "Charte des droits et devoirs du citoyen français",
+    icon: <Gavel aria-hidden />,
+  },
+  {
+    slug: "histoire-geo",
+    name: "Histoire, géographie et culture",
+    desc: "Repères historiques, géographie, patrimoine culturel",
+    icon: <Globe aria-hidden />,
+  },
+  {
+    slug: "societe",
+    name: "Vivre dans la société française",
+    desc: "Vie quotidienne, services publics, vivre-ensemble",
+    icon: <Users aria-hidden />,
+  },
+];
+
+/** Chiffres du gabarit d'examen civique (`V110__ref_exam_templates.sql`). */
+const CIVIQUE_FACTS: { n: string; label: string }[] = [
+  { n: "20", label: "questions par série d'entraînement, correction expliquée après chaque réponse" },
+  { n: "40", label: "questions par examen blanc, 8 par thème, en 45 minutes" },
+  { n: "32", label: "bonnes réponses sur 40 attendues pour valider, soit 80 %" },
+];
+
+/**
+ * Les 3 démarches. C'est le seul endroit de la page où les deux examens se
+ * rejoignent : une démarche exige **à la fois** la mention civique et un palier
+ * TCF (`TCF_LEVEL_BY_PROCEDURE`, seuils du 1ᵉʳ janvier 2026).
+ */
+const DEMARCHES: { level: string; procedure: string; mention: string; hi?: boolean }[] = [
+  { level: "A2", procedure: "Titre de séjour pluriannuel", mention: "Examen civique · mention CSP" },
+  { level: "B1", procedure: "Carte de résident", mention: "Examen civique · mention CR" },
+  { level: "B2", procedure: "Naturalisation française", mention: "Examen civique · mention NAT", hi: true },
+];
+
+function CiviqueSection() {
+  const origin = useOrigin();
+
+  return (
+    <section className={`${styles.sec} ${styles.paper}`} id="civique">
+      <div className={styles.wrap}>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <span className={styles.eyebrow}>Le second examen obligatoire</span>
+          <h2 className={`${styles.h2} ${styles.editorial}`} style={{ marginTop: 14 }}>
+            L&apos;<em>examen civique</em> ne se prépare pas comme le TCF.
+          </h2>
+          <p className={styles.lead} style={{ marginTop: 14 }}>
+            Ici, pas de production ni de niveau CECRL&nbsp;: c&apos;est un QCM sur cinq
+            thèmes officiels, et ce qui compte est de reconnaître la bonne réponse. On te
+            l&apos;entraîne donc autrement — par séries courtes, thème par thème, jusqu&apos;au
+            format réel de l&apos;épreuve.
+          </p>
+        </div>
+
+        <div className={styles.civGrid}>
+          <div>
+            <span className={styles.label} data-rv>
+              Les 5 thèmes officiels
+            </span>
+            <div className={styles.civCats} style={{ marginTop: 12 }}>
+              {CIVIQUE_THEMES.map((theme, i) => (
+                <Link
+                  key={theme.slug}
+                  href={withTrafficSource(`/entrainement/civique/${theme.slug}`, origin)}
+                  className={styles.civCat}
+                  data-rv
+                >
+                  <span className={styles.civNum} aria-hidden>
+                    {i + 1}
+                  </span>
+                  <span className={styles.flex1}>
+                    <b>{theme.name}</b>
+                    <small className={styles.mini}>{theme.desc}</small>
+                  </span>
+                  <span className={styles.eprIco} aria-hidden>
+                    {theme.icon}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.civSide}>
+            <div>
+              <span className={styles.label} data-rv>
+                Comment on t&apos;y entraîne
+              </span>
+              <div className={styles.civFacts} style={{ marginTop: 12 }}>
+                {CIVIQUE_FACTS.map((fact) => (
+                  <div key={fact.n} className={styles.civFact} data-rv>
+                    <span className={styles.civFactN}>{fact.n}</span>
+                    <span>{fact.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className={styles.mini} style={{ marginTop: 12 }} data-rv>
+                Deux formats de question, comme à l&apos;examen&nbsp;: Connaissance et Mise
+                en situation.
+              </p>
+            </div>
+
+            <div data-rv>
+              <span className={styles.label}>Ta démarche exige les deux</span>
+              <ul className={styles.ladder} style={{ marginTop: 12 }}>
+                {DEMARCHES.map((d) => (
+                  <li key={d.level} data-hi={d.hi ? "" : undefined}>
+                    <span className={styles.ladderLv}>{d.level}</span>
+                    <span className={styles.flex1}>
+                      <b>{d.procedure}</b>
+                      <small>{d.mention}</small>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.mini} style={{ marginTop: 12 }}>
+                Le palier TCF est exigé dans les 4 épreuves, et la mention civique
+                correspond à ta démarche.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${styles.card} ${styles.pad} ${styles.eprWide}`} data-rv>
+          <div>
+            <h3 className={styles.h3}>Le pass Civique ouvre les 5 thèmes</h3>
+            <p className={styles.mini} style={{ marginTop: 5 }}>
+              Séries illimitées et examens blancs. Le pass Intégral les contient aussi.
+            </p>
+          </div>
+          <a href="#offres" className={`${styles.btn} ${styles.btnO} ${styles.btnSm}`}>
+            Voir les offres
+            <ArrowRight aria-hidden />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ⑩ LES ÉPREUVES DU TCF
+// ============================================================================
+
+/** Durées réelles d'épreuve (`DureeEpreuve` côté serveur). Le chrono global de
+ *  90 min n'existe plus : chaque épreuve porte le sien, et l'oral se chronomètre
+ *  par tâche. Ne pas réintroduire de total opposable. */
+const EPREUVES: { href: string; title: string; tag: string; icon: ReactElement; red?: boolean }[] = [
   {
     href: "/entrainement/tcf/co",
     title: "Compréhension orale",
-    tag: "Écoute unique",
-    icon: <HeadphonesIcon />,
+    tag: "Séries ciblées par palier · 20 min",
+    icon: <Headphones aria-hidden />,
   },
   {
     href: "/entrainement/tcf/ce",
     title: "Compréhension écrite",
-    tag: "Supports réels",
-    icon: <BookIcon />,
+    tag: "Documents courts puis complexes · 35 min",
+    icon: <BookOpen aria-hidden />,
   },
   {
     href: "/entrainement/tcf/ee",
     title: "Expression écrite",
-    tag: "Corrigée par IA",
-    icon: <PenIcon />,
+    tag: "Les 3 tâches, corrigées et réécrites · 30 min",
+    icon: <PenLine aria-hidden />,
     red: true,
   },
   {
     href: "/entrainement/tcf/eo",
     title: "Expression orale",
-    tag: "Examinateur IA",
-    icon: <MicIcon />,
+    tag: "Les 3 tâches, enregistrées et analysées",
+    icon: <Mic aria-hidden />,
     red: true,
   },
 ];
 
-/** Ce que couvre l'examen civique, en pastilles plutôt qu'en phrase. */
-const CIVIQUE_CHIPS = ["5 thèmes", "Mises en situation", "CSP · CR · NAT"];
-
 function EpreuvesSection() {
-  return (
-    <section className={`${styles.sec} ${styles.paper2}`}>
-      <div className={styles.wrap}>
-        <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>03 · Dans l&apos;app</span>
-          <h2 className={styles.h2}>
-            Les 4 épreuves du TCF. Et l&apos;<em>examen civique</em>.
-          </h2>
-        </header>
+  const origin = useOrigin();
 
-        <div className={styles.eprs}>
+  return (
+    <section className={`${styles.sec} ${styles.white}`}>
+      <div className={styles.wrap}>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <h2 className={styles.h2}>Les 4 épreuves, et l&apos;examen en conditions réelles.</h2>
+        </div>
+
+        <div className={`${styles.grid} ${styles.g4}`} style={{ marginTop: 28 }}>
           {EPREUVES.map((e) => (
             <Link
               key={e.title}
-              href={e.href}
-              className={styles.epr}
-              data-accent={e.red ? "red" : undefined}
+              href={withTrafficSource(e.href, origin)}
+              className={`${styles.card} ${styles.pad}`}
               data-rv
             >
-              <span className={styles.eprIco}>{e.icon}</span>
-              <h3>{e.title}</h3>
-              <span className={styles.eprTag}>{e.tag}</span>
+              <span className={styles.eprIco} data-accent={e.red ? "red" : undefined}>
+                {e.icon}
+              </span>
+              <h3 className={styles.h3} style={{ marginTop: 12 }}>
+                {e.title}
+              </h3>
+              <p className={styles.mini} style={{ marginTop: 6 }}>
+                {e.tag}
+              </p>
             </Link>
           ))}
         </div>
 
-        <Link href="/entrainement?module=CIVIQUE" className={styles.eprWide} data-rv>
-          <span className={`${styles.cocarde} ${styles.cocardeLg}`} aria-hidden />
-          <span className={styles.eprWideTxt}>
-            <h3>Examen civique</h3>
-            <span className={styles.eprWideChips}>
-              {CIVIQUE_CHIPS.map((chip) => (
-                <span key={chip}>{chip}</span>
-              ))}
-            </span>
-          </span>
-          <span className={styles.eprWideGo} aria-hidden>
-            →
-          </span>
-        </Link>
+        <div className={`${styles.card} ${styles.pad} ${styles.eprWide}`} data-rv>
+          <div>
+            <h3 className={styles.h3}>Examens blancs complets</h3>
+            <p className={styles.mini} style={{ marginTop: 5 }}>
+              Dans les conditions du TCF, quand ton plan estime que tu es prêt. Le premier
+              est offert, sur le TCF comme sur le civique.
+            </p>
+          </div>
+          <Link
+            href={withTrafficSource("/examens-blancs", origin)}
+            className={`${styles.btn} ${styles.btnO} ${styles.btnSm}`}
+          >
+            Voir les examens blancs
+            <ArrowRight aria-hidden />
+          </Link>
+        </div>
       </div>
     </section>
   );
 }
 
 // ============================================================================
-// ⑤ EXAMEN BLANC COMPLET
+// ⑪ COMPARAISON
 // ============================================================================
 
-/**
- * Durées réelles d'épreuve (`DureeEpreuve` côté serveur). Le chrono global de
- * 90 min n'existe plus depuis le 2026-08-15 : chaque épreuve porte le sien, et
- * l'oral se chronomètre par tâche. Ne pas réintroduire de total opposable.
- */
-const MOCK_STEPS: { code: string; time: string }[] = [
-  { code: "CO", time: "20 min" },
-  { code: "CE", time: "35 min" },
-  { code: "EE", time: "30 min" },
-  { code: "EO", time: "≈ 10 min" },
+const SEUL: string[] = [
+  "Choisir des exercices au hasard",
+  "Connaître seulement son score",
+  "Ne pas savoir quoi travailler ensuite",
+  "Répéter les mêmes erreurs",
 ];
 
-/** La règle du plancher, montrée au lieu d'être expliquée : l'écrit tire tout. */
-const MOCK_RESULTS: { code: string; level: string; floor?: boolean }[] = [
-  { code: "CO", level: "B2" },
-  { code: "CE", level: "B2" },
-  { code: "EE", level: "B1", floor: true },
-  { code: "EO", level: "B2" },
+const AVEC: string[] = [
+  "Savoir où tu en es, épreuve par épreuve",
+  "Identifier les compétences qui bloquent",
+  "Travailler 20 min sur ce qui compte",
+  "Vérifier son niveau en examen blanc",
 ];
 
-function MockExamSection() {
+function ComparaisonSection() {
   return (
     <section className={`${styles.sec} ${styles.paper}`}>
       <div className={styles.wrap}>
-        <div className={styles.examGrid}>
-          <div className={styles.mock} data-rv>
-            <div className={styles.mockHead}>
-              <span>Examen blanc complet</span>
-              <span className={styles.mockTimer}>≈ 95 min</span>
-            </div>
-
-            <div className={styles.steps}>
-              {MOCK_STEPS.map((s) => (
-                <span key={s.code} className={styles.step}>
-                  <b>{s.code}</b>
-                  <i>{s.time}</i>
-                </span>
-              ))}
-            </div>
-
-            <div className={styles.perEpr}>
-              {MOCK_RESULTS.map((r) => (
-                <span key={r.code} data-floor={r.floor ? "" : undefined}>
-                  {r.code}&nbsp;<b>{r.level}</b>
-                </span>
-              ))}
-            </div>
-
-            <div className={styles.result}>
-              <span className={styles.resultLbl}>Niveau retenu</span>
-              <span className={styles.resultLvl}>B1</span>
-            </div>
-            <p className={styles.resultRule}>Le plus faible de tes 4 épreuves.</p>
-          </div>
-
-          <div>
-            <header className={styles.headBlock} style={{ marginBottom: 0 }} data-rv>
-              <span className={styles.eyebrow}>04 · Conditions réelles</span>
-              <h2 className={styles.h2}>
-                4 épreuves chronométrées. Un <em>niveau</em>.
-              </h2>
-            </header>
-
-            <Link href="/examens-blancs" className={styles.linkArrow} data-rv>
-              Voir les examens blancs
-              <ArrowIcon />
-            </Link>
-          </div>
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <h2 className={styles.h2}>
+            La différence tient en une chose&nbsp;: savoir quoi travailler.
+          </h2>
         </div>
-      </div>
-    </section>
-  );
-}
 
-// ============================================================================
-// ⑥ APP MOBILE
-// ============================================================================
-
-const MOBILE_POINTS: string[] = [
-  "Le même compte, la même progression",
-  "Tout l'entraînement, y compris l'examinateur IA",
-  "Des séries de 20 questions, tous les jours",
-];
-
-function MobileSection() {
-  return (
-    <section className={`${styles.sec} ${styles.ink}`}>
-      <span className={styles.grain} aria-hidden />
-      <div className={styles.wrap}>
-        <div className={styles.mobileGrid}>
-          <div>
-            <span className={styles.eyebrow} data-rv>
-              05 · iOS et Android
-            </span>
-            <h2 className={styles.h2} data-rv style={{ margin: "15px 0 0" }}>
-              Ta préparation tient dans ta <em>poche</em>.
-            </h2>
-
-            <ul className={styles.mobilePoints} data-rv>
-              {MOBILE_POINTS.map((point) => (
-                <li key={point}>
-                  <CheckDot />
-                  {point}
+        <div className={styles.cmp}>
+          <div className={`${styles.card} ${styles.pad}`} data-rv>
+            <h3 className={styles.h3}>S&apos;entraîner seul</h3>
+            <ul>
+              {SEUL.map((item) => (
+                <li key={item}>
+                  <span className={styles.cross} aria-hidden>
+                    ✕
+                  </span>
+                  {item}
                 </li>
               ))}
             </ul>
-
-            <div className={styles.stores} data-rv>
-              <a
-                className={styles.store}
-                href={STORE_LINKS.ios}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <AppleIcon />
-                <span>
-                  <small>Télécharger sur</small>
-                  <b>App Store</b>
-                </span>
-              </a>
-              <a
-                className={styles.store}
-                href={STORE_LINKS.android}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <PlayIcon />
-                <span>
-                  <small>Disponible sur</small>
-                  <b>Google Play</b>
-                </span>
-              </a>
-            </div>
           </div>
 
-          <PhoneMockup />
+          <div className={`${styles.card} ${styles.pad} ${styles.cmpHi}`} data-rv>
+            <h3 className={styles.h3}>Avec SejourFR</h3>
+            <ul>
+              {AVEC.map((item) => (
+                <li key={item}>
+                  <Check className={styles.tick} aria-hidden />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-/** Aperçu de l'app : cadre de téléphone en CSS, pas de capture d'écran à maintenir. */
-function PhoneMockup() {
-  return (
-    <div className={styles.phoneWrap} data-rv aria-hidden>
-      <div className={styles.phone}>
-        <span className={styles.phoneNotch} />
-        <div className={styles.phoneScreen}>
-          <span className={styles.phoneEyebrow}>Aujourd&apos;hui</span>
-          <p className={styles.phoneHello}>Bonjour Fatou</p>
-
-          <div className={styles.phoneStreak}>
-            <b>12</b>
-            <span>jours de suite</span>
-          </div>
-
-          <span className={styles.phoneLabel}>Ta série du jour</span>
-          <div className={styles.phoneCard}>
-            <span className={styles.phoneCardIco}>
-              <HeadphonesIcon />
-            </span>
-            <span>
-              <b>Compréhension orale</b>
-              <small>20 questions · niveau B2</small>
-            </span>
-          </div>
-
-          <div className={styles.phoneCard} data-accent="red">
-            <span className={styles.phoneCardIco}>
-              <MicIcon />
-            </span>
-            <span>
-              <b>Simulation orale</b>
-              <small>Examinateur IA · 12 min</small>
-            </span>
-          </div>
-
-          <div className={styles.phoneBars}>
-            <span>
-              <i style={{ width: "78%" }} />
-            </span>
-            <span>
-              <i style={{ width: "54%" }} />
-            </span>
-            <span>
-              <i style={{ width: "91%" }} />
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ============================================================================
-// ⑦ TARIFS
+// ⑫ TARIFS
 // ============================================================================
 
 function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
@@ -775,32 +1209,37 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
   const popular = popularPassCodeOf(visible);
 
   return (
-    <section className={`${styles.sec} ${styles.paper}`} id="tarifs">
+    <section className={`${styles.sec} ${styles.white}`} id="offres">
       <div className={styles.wrap}>
-        <header className={styles.headBlock} data-rv>
-          <span className={styles.eyebrow}>06 · Le prix</span>
-          <h2 className={styles.h2}>
-            Pas d&apos;abonnement. Tu paies <em>une fois</em>.
+        <div className={`${styles.narrow} ${styles.center}`} data-rv>
+          <h2 className={`${styles.h2} ${styles.editorial}`}>
+            Le diagnostic est gratuit. Tu paies <em>une fois</em>, sans abonnement.
           </h2>
-        </header>
+          <p className={styles.lead} style={{ marginTop: 14 }}>
+            Tu débloques ton plan personnalisé, tous tes petits sujets, les corrections IA
+            et les examens blancs.
+          </p>
+        </div>
 
-        <div className={styles.switch} role="group" aria-label="Choisir son parcours" data-rv>
-          <button
-            type="button"
-            data-parcours="tcf"
-            aria-pressed={parcours === "tcf"}
-            onClick={() => setParcours("tcf")}
-          >
-            TCF IRN
-          </button>
-          <button
-            type="button"
-            data-parcours="civique"
-            aria-pressed={parcours === "civique"}
-            onClick={() => setParcours("civique")}
-          >
-            Examen civique seul
-          </button>
+        <div style={{ marginTop: 28 }}>
+          <div className={styles.switch} role="group" aria-label="Choisir son parcours" data-rv>
+            <button
+              type="button"
+              data-parcours="tcf"
+              aria-pressed={parcours === "tcf"}
+              onClick={() => setParcours("tcf")}
+            >
+              TCF IRN + civique
+            </button>
+            <button
+              type="button"
+              data-parcours="civique"
+              aria-pressed={parcours === "civique"}
+              onClick={() => setParcours("civique")}
+            >
+              Examen civique seul
+            </button>
+          </div>
         </div>
 
         <div className={styles.plans} data-accent={parcours} data-count={visible.length}>
@@ -838,7 +1277,7 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
 
         <Link href={withTrafficSource("/tarifs", origin)} className={styles.linkArrow} data-rv>
           Comparer toutes les formules
-          <ArrowIcon />
+          <ArrowRight aria-hidden />
         </Link>
       </div>
     </section>
@@ -884,149 +1323,341 @@ function PlanCard({
       <ul className={styles.planFeatures}>
         {featuresOf(plan).map((f) => (
           <li key={f}>
-            <CheckIcon />
+            <Check aria-hidden />
             {f}
           </li>
         ))}
       </ul>
 
-      <Link href={href} className={styles.planGo}>
+      <Link href={href} className={styles.planGo} onClick={() => trackPassChosen(plan.code)}>
         Choisir ce pass
       </Link>
     </article>
   );
 }
 
+/**
+ * Un pass choisi depuis la landing dit **deux** choses différentes : « cet
+ * écran a déclenché une intention d'achat » (table « Quel écran déclenche
+ * l'achat ? ») et « c'est ce pass-là qui a été choisi ». Les deux événements
+ * du registre existent pour ça — on n'en détourne aucun.
+ */
+function trackPassChosen(planCode: string): void {
+  track("PREMIUM_CTA_CLICKED", {ctaLocation: "PRICING", planCode, screen: "reussir_offres"});
+  track("PRICING_CTA_CLICKED", {planCode});
+}
+
 // ============================================================================
-// ⑧ FINAL + LIENS
+// ⑬ BLOC FINAL
 // ============================================================================
 
 function FinalSection() {
-  const socials = SOCIAL_ACCOUNTS.filter((s) => s.url !== null);
-
   return (
-    <section className={`${styles.sec} ${styles.ink} ${styles.final}`}>
-      <span className={styles.glow} aria-hidden />
-      <span className={styles.grain} aria-hidden />
+    <section className={`${styles.sec} ${styles.paper} ${styles.tight}`}>
       <div className={styles.wrap}>
-        <div className={styles.finalGrid}>
+        <div className={styles.final} data-rv>
           <div>
-            <h2 className={styles.h2} data-rv>
-              Commence par ton <em>diagnostic gratuit</em>.
-            </h2>
-            <div className={styles.ctaRow} data-rv>
-              <DiagnosticCta />
-            </div>
-            <div className={styles.stores} data-rv>
-              <a
-                className={styles.store}
-                href={STORE_LINKS.ios}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <AppleIcon />
-                <span>
-                  <small>Télécharger sur</small>
-                  <b>App Store</b>
-                </span>
-              </a>
-              <a
-                className={styles.store}
-                href={STORE_LINKS.android}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <PlayIcon />
-                <span>
-                  <small>Disponible sur</small>
-                  <b>Google Play</b>
-                </span>
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <p className={styles.sep} data-rv>
-              Aussi
+            <h2 className={styles.h2}>Arrête de deviner ce que tu dois travailler.</h2>
+            <p className={styles.finalLead}>
+              Fais ton diagnostic, et laisse SejourFR construire ton chemin jusqu&apos;au
+              niveau dont tu as besoin — TCF et examen civique compris.
             </p>
-            <div className={styles.biolinks} data-rv>
-              <Link href="/blog" className={styles.biolink}>
-                <span className={styles.biolinkIco}>
-                  <ArticleIcon />
-                </span>
-                <span>
-                  <b>Conseils TCF &amp; examen civique</b>
-                  <small>Le blog — 30 articles gratuits</small>
-                </span>
-                <span className={styles.biolinkGo} aria-hidden>
-                  →
-                </span>
-              </Link>
-
-              {socials.map((s) => (
-                <a
-                  key={s.key}
-                  href={s.url ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.biolink}
-                >
-                  <span className={styles.biolinkIco}>{NETWORKS[s.key]?.icon}</span>
-                  <span>
-                    <b>{s.label}</b>
-                    <small>{s.handle}</small>
-                  </span>
-                  <span className={styles.biolinkGo} aria-hidden>
-                    →
-                  </span>
-                </a>
-              ))}
-
-              <Link href="/faq" className={styles.biolink}>
-                <span className={styles.biolinkIco}>
-                  <HelpIcon />
-                </span>
-                <span>
-                  <b>Questions fréquentes</b>
-                  <small>TCF IRN, civique, niveaux exigés</small>
-                </span>
-                <span className={styles.biolinkGo} aria-hidden>
-                  →
-                </span>
-              </Link>
-
-              <Link href="/contact" className={styles.biolink}>
-                <span className={styles.biolinkIco}>
-                  <MailIcon />
-                </span>
-                <span>
-                  <b>Une question&nbsp;?</b>
-                  <small>Écris-nous, on répond</small>
-                </span>
-                <span className={styles.biolinkGo} aria-hidden>
-                  →
-                </span>
-              </Link>
-            </div>
-
-            <ul className={styles.legal} data-rv>
-              <li>
-                <Link href="/mentions-legales">Mentions légales</Link>
-              </li>
-              <li>
-                <Link href="/cgu">CGU</Link>
-              </li>
-              <li>
-                <Link href="/confidentialite">Confidentialité</Link>
-              </li>
-              <li>
-                <Link href="/a-propos">Non affilié à l&apos;État français</Link>
-              </li>
-            </ul>
+          </div>
+          <div className={styles.finalCtas}>
+            <DiagnosticCta variant="onBrand" />
+            <span className={styles.ctaNote}>≈ 8 min · Sans carte bancaire</span>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+// ============================================================================
+// ⑭ FAQ
+// ============================================================================
+
+const FAQ: { q: string; a: string; open?: boolean }[] = [
+  {
+    q: "Le diagnostic est-il vraiment gratuit ?",
+    a: "Oui. Tu fais le diagnostic et tu reçois ton rapport sans carte bancaire. Le plan personnalisé complet fait partie du pass.",
+    open: true,
+  },
+  {
+    q: "Combien de temps prend-il ?",
+    a: "Environ 8 minutes : un exercice d'expression écrite, puis un oral enregistré. L'analyse arrive juste après.",
+  },
+  {
+    q: "SejourFR prépare-t-il aussi l'examen civique ?",
+    a: "Oui, et c'est un parcours distinct : les 5 thèmes officiels, des séries de 20 questions avec correction expliquée, et des examens blancs au format réel. Le pass Intégral contient le TCF et le civique ; le pass Civique ne contient que le civique.",
+  },
+  {
+    q: "À quoi ressemble l'examen civique blanc ?",
+    a: "40 questions en 45 minutes, réparties sur les 5 thèmes officiels, avec des questions de connaissance et des mises en situation. Il faut 32 bonnes réponses sur 40 pour le valider, soit 80 %. Le premier examen blanc est gratuit.",
+  },
+  {
+    q: "Quel niveau et quelle mention me faut-il ?",
+    a: "Cela dépend de ta démarche : titre de séjour pluriannuel (A2 et mention CSP), carte de résident (B1 et mention CR), naturalisation (B2 et mention NAT). Le palier TCF est exigé dans les 4 épreuves.",
+  },
+  {
+    q: "SejourFR prépare-t-il les 4 épreuves du TCF ?",
+    a: "Oui : compréhension orale, compréhension écrite, expression écrite et expression orale, avec des examens blancs complets.",
+  },
+  {
+    q: "Comment sont corrigés l'écrit et l'oral ?",
+    a: "Par une IA, sur une grille SejourFR alignée sur les dimensions évaluées au TCF. Elle te rend un niveau, ce qui marche, ce qui bloque, et ta réponse réécrite au niveau que tu vises. À l'oral, l'analyse porte sur la transcription : la prononciation n'est jamais notée.",
+  },
+  {
+    q: "Est-ce que ça marche sur mobile ?",
+    a: "SejourFR est conçu mobile d'abord, et fonctionne aussi sur ordinateur avec le même compte, le même plan et la même progression.",
+  },
+  {
+    q: "SejourFR garantit-il un résultat à l'examen ?",
+    a: "Non. SejourFR estime ton niveau d'entraînement et t'aide à le préparer, mais ne garantit pas le résultat officiel du TCF ni de l'examen civique, et n'est affilié à aucune administration.",
+  },
+];
+
+function FaqSection() {
+  return (
+    <section className={`${styles.sec} ${styles.paper} ${styles.tight}`}>
+      <div className={`${styles.wrap} ${styles.narrow}`}>
+        <h2 className={styles.h2} data-rv>
+          Questions fréquentes
+        </h2>
+        <div className={styles.faq} data-rv>
+          {FAQ.map((item) => (
+            <details key={item.q} open={item.open}>
+              <summary>{item.q}</summary>
+              <p>{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ⑮ PIED DE PAGE AUTOPORTANT
+// ============================================================================
+
+function PageFooter() {
+  const socials = SOCIAL_ACCOUNTS.filter((s) => s.url !== null);
+
+  return (
+    <footer className={`${styles.sec} ${styles.foot} ${styles.tight}`}>
+      <div className={`${styles.wrap} ${styles.footGrid}`}>
+        <div data-rv>
+          <span className={styles.brand}>
+            <span className={styles.cocarde} aria-hidden />
+            Sejour<span className={styles.brandFr}>FR</span>
+          </span>
+          <p className={styles.footNote}>
+            Préparation au TCF IRN et à l&apos;examen civique d&apos;intégration
+            républicaine. Estimation d&apos;entraînement, non officielle. SejourFR
+            n&apos;est affilié à aucune administration française.
+          </p>
+
+          <div className={styles.stores}>
+            <a className={styles.store} href={STORE_LINKS.ios} target="_blank" rel="noopener noreferrer">
+              <AppleIcon />
+              <span>
+                <small>Télécharger sur</small>
+                <b>App Store</b>
+              </span>
+            </a>
+            <a className={styles.store} href={STORE_LINKS.android} target="_blank" rel="noopener noreferrer">
+              <PlayIcon />
+              <span>
+                <small>Disponible sur</small>
+                <b>Google Play</b>
+              </span>
+            </a>
+          </div>
+
+          <ul className={styles.legal}>
+            <li>
+              <Link href="/mentions-legales">Mentions légales</Link>
+            </li>
+            <li>
+              <Link href="/cgu">CGU</Link>
+            </li>
+            <li>
+              <Link href="/confidentialite">Confidentialité</Link>
+            </li>
+            <li>
+              <Link href="/a-propos">Non affilié à l&apos;État français</Link>
+            </li>
+          </ul>
+        </div>
+
+        <div className={styles.biolinks} data-rv>
+          <Link href="/blog" className={styles.biolink}>
+            <span className={styles.biolinkIco}>
+              <FileText aria-hidden />
+            </span>
+            <span>
+              <b>Conseils TCF &amp; examen civique</b>
+              <small>Le blog — articles gratuits</small>
+            </span>
+            <span className={styles.biolinkGo} aria-hidden>
+              →
+            </span>
+          </Link>
+
+          {socials.map((s) => (
+            <a
+              key={s.key}
+              href={s.url ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.biolink}
+            >
+              <span className={styles.biolinkIco}>{NETWORKS[s.key]?.icon}</span>
+              <span>
+                <b>{s.label}</b>
+                <small>{s.handle}</small>
+              </span>
+              <span className={styles.biolinkGo} aria-hidden>
+                →
+              </span>
+            </a>
+          ))}
+
+          <Link href="/faq" className={styles.biolink}>
+            <span className={styles.biolinkIco}>
+              <CircleHelp aria-hidden />
+            </span>
+            <span>
+              <b>Questions fréquentes</b>
+              <small>TCF IRN, civique, niveaux exigés</small>
+            </span>
+            <span className={styles.biolinkGo} aria-hidden>
+              →
+            </span>
+          </Link>
+
+          <Link href="/contact" className={styles.biolink}>
+            <span className={styles.biolinkIco}>
+              <Mail aria-hidden />
+            </span>
+            <span>
+              <b>Une question&nbsp;?</b>
+              <small>Écris-nous, on répond</small>
+            </span>
+            <span className={styles.biolinkGo} aria-hidden>
+              →
+            </span>
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ============================================================================
+// CTA DIAGNOSTIC (unique point de mesure) + STICKY
+// ============================================================================
+
+/**
+ * Le CTA diagnostic, partagé par la nav, le hero, le rapport, le bloc final et
+ * la barre collante. Passer par un composant unique garantit que tous les
+ * points d'entrée sont mesurés de la même façon — un bouton ajouté ailleurs
+ * sans lui serait un trou silencieux dans le taux de conversion.
+ */
+/** Où se trouve ce bouton dans la page, et quel format il annonce. Les deux
+ *  cartes de `#diagnostic` sont les seuls endroits où le format est **su** ;
+ *  partout ailleurs il reste `UNKNOWN` — on ne devine pas. */
+const CTA_ANALYTICS: Record<
+  "hero" | "nav" | "card" | "cardAlt" | "sticky" | "onBrand",
+  {location: AnalyticsCtaLocation; type: AnalyticsDiagnosticType}
+> = {
+  nav: {location: "HERO", type: "UNKNOWN"},
+  hero: {location: "HERO", type: "UNKNOWN"},
+  card: {location: "MIDDLE", type: "RAPID"},
+  cardAlt: {location: "MIDDLE", type: "COMPLETE"},
+  onBrand: {location: "FOOTER", type: "UNKNOWN"},
+  sticky: {location: "STICKY", type: "UNKNOWN"},
+};
+
+function DiagnosticCta({
+  variant = "hero",
+  location,
+}: {
+  /** `cardAlt` = la seconde carte de `#diagnostic` (« Diagnostic complet ») :
+   *  même destination et **même événement** que `card`, bouton secondaire.
+   *  ⚠️ La variante choisie à l'entrée du diagnostic n'est **persistée nulle
+   *  part** (le candidat y est encore invité) : il n'existe aucun paramètre
+   *  d'URL à passer, c'est `DiagnosticIntro` qui porte le choix. */
+  variant?: "hero" | "nav" | "card" | "cardAlt" | "sticky" | "onBrand";
+  /** Emplacement mesuré, quand il ne se déduit pas de la variante d'aspect —
+   *  le même bouton « hero » sert aussi au milieu de la page. */
+  location?: AnalyticsCtaLocation;
+}) {
+  const { status, user } = useAuth();
+  const origin = useOrigin();
+  const [completedForUserId, setCompletedForUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !user) return;
+    let cancelled = false;
+    diagnosticApi
+      .currentCached()
+      .then((diagnostic) => {
+        if (!cancelled) {
+          setCompletedForUserId(diagnostic.status === "COMPLETED" ? user.id : null);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [status, user]);
+
+  const completed = Boolean(user && completedForUserId === user.id);
+  // Un visiteur va **directement** sur le diagnostic : depuis le 2026-08-10 il
+  // fait ses deux productions avant qu'on lui demande un compte. Le passer par
+  // /inscription reviendrait à remettre le mur avant la valeur.
+  const destination = withTrafficSource(completed ? "/plan" : "/diagnostic", origin);
+
+  const label = completed
+    ? // Un diagnostic terminé ne se refait pas : la carte « complet » renvoie
+      // vers le Plan, qui porte justement l'invitation à compléter le profil.
+      variant === "cardAlt"
+      ? "Compléter mon profil"
+      : "Voir mon plan"
+    : variant === "nav" || variant === "sticky"
+      ? "Diagnostic gratuit"
+      : variant === "card"
+        ? "Commencer gratuitement"
+        : variant === "cardAlt"
+          ? "Faire le diagnostic complet"
+          : "Faire mon diagnostic gratuit";
+
+  const className = [
+    styles.btn,
+    variant === "cardAlt" ? styles.btnO : styles.btnP,
+    variant === "nav" || variant === "sticky" ? styles.btnSm : "",
+    variant === "card" || variant === "cardAlt" || variant === "onBrand" ? styles.btnFull : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <Link
+      href={destination}
+      className={className}
+      style={variant === "card" || variant === "cardAlt" ? { marginTop: 18 } : undefined}
+      onClick={() =>
+        track("DIAGNOSTIC_CTA_CLICKED", {
+          ctaLocation: location ?? CTA_ANALYTICS[variant].location,
+          diagnosticType: CTA_ANALYTICS[variant].type,
+        })
+      }
+    >
+      {label}
+      <ArrowRight aria-hidden />
+    </Link>
   );
 }
 
@@ -1035,7 +1666,7 @@ function StickyCta() {
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    const anchor = document.getElementById("ia");
+    const anchor = document.getElementById("methode");
     if (!anchor) return;
     const io = new IntersectionObserver(
       ([entry]) => setShown(entry.isIntersecting || entry.boundingClientRect.top < 0),
@@ -1050,10 +1681,9 @@ function StickyCta() {
       <div className={styles.stickyInner}>
         <span className={styles.stickyTxt}>
           2 exercices
-          <br />
-          ≈ 8 min
+          <br />≈ 8 min
         </span>
-        <DiagnosticCta compact />
+        <DiagnosticCta variant="sticky" />
       </div>
     </div>
   );
@@ -1094,22 +1724,6 @@ function featuresOf(plan: PlanPublicResponse): string[] {
 // ============================================================================
 // HOOKS
 // ============================================================================
-
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-
-function subscribeReducedMotion(onChange: () => void) {
-  const mq = window.matchMedia(REDUCED_MOTION_QUERY);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeReducedMotion,
-    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
-    () => false,
-  );
-}
 
 /**
  * Révèle en cascade tous les `[data-rv]` du sous-arbre au passage du scroll.
@@ -1181,55 +1795,13 @@ function useReveal(rootRef: React.RefObject<HTMLElement | null>) {
   }, [rootRef]);
 }
 
-/** true dès que l'élément a été vu une fois (les démos ne se rejouent pas). */
-function useInView(ref: React.RefObject<Element | null>): boolean {
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || seen) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setSeen(true);
-        io.disconnect();
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [ref, seen]);
-  return seen;
-}
-
-function useCountUp(start: boolean, target: number, decimals: number): number {
-  const [value, setValue] = useState(0);
-  const reduced = usePrefersReducedMotion();
-
-  useEffect(() => {
-    if (!start || reduced) return;
-    let raf = 0;
-    let t0 = 0;
-    const step = (ts: number) => {
-      if (!t0) t0 = ts;
-      const p = Math.min((ts - t0) / 1400, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setValue(Number((target * eased).toFixed(decimals)));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [start, target, decimals, reduced]);
-
-  return reduced ? target : value;
-}
-
 /**
  * Provenance affichée par le badge du hero. Même détection que la mesure
- * d'audience (`lib/audience.ts`) : un seul endroit qui décide « ce visiteur
+ * d'audience (`lib/traffic-source.ts`) : un seul endroit qui décide « ce visiteur
  * vient de TikTok », sinon le badge et les chiffres divergeraient.
  *
- * Lu via `useSyncExternalStore` : le rendu serveur reste neutre
- * (« Bienvenue »), le badge se précise au montage, sans mismatch d'hydratation.
+ * Lu via `useSyncExternalStore` : le rendu serveur reste neutre, le badge se
+ * précise au montage, sans mismatch d'hydratation.
  */
 function subscribeOrigin() {
   return () => {};
@@ -1240,104 +1812,12 @@ function useOrigin(): TrafficSource | null {
 }
 
 // ============================================================================
-// ICÔNES
+// ICÔNES DE MARQUE
+// ----------------------------------------------------------------------------
+// Seuls les logos de plateformes restent écrits à la main : `lucide-react` ne
+// fournit pas d'icônes de marque. Toutes les icônes d'interface viennent de
+// lucide, en haut de ce fichier.
 // ============================================================================
-
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 12l6 6L20 6" />
-    </svg>
-  );
-}
-
-function CheckDot() {
-  return (
-    <span className={styles.tick} aria-hidden>
-      <svg viewBox="0 0 24 24" fill="none" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 12l6 6L20 6" />
-      </svg>
-    </span>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
-      <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4" />
-    </svg>
-  );
-}
-
-function HeadphonesIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
-      <path d="M21 16a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2v2zM3 16a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2v2z" />
-    </svg>
-  );
-}
-
-function BookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z" />
-      <path d="M20 5h-7a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h7z" />
-    </svg>
-  );
-}
-
-function PenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-    </svg>
-  );
-}
-
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-    </svg>
-  );
-}
-
-function ArticleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 5h16v14H4zM8 9h8M8 13h8M8 17h5" />
-    </svg>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.5 9a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2v.4M12 16.5v.01" />
-    </svg>
-  );
-}
-
-function MailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 5h16v14H4z" />
-      <path d="M4 6l8 6 8-6" />
-    </svg>
-  );
-}
 
 function TikTokIcon() {
   return (

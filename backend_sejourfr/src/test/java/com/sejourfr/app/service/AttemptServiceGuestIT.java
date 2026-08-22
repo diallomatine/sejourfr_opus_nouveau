@@ -49,13 +49,13 @@ class AttemptServiceGuestIT extends AbstractIntegrationTest {
                                     Difficulty difficulty, QuestionType qType, Integer lotNumero,
                                     QuestionType moduleExamType) {
         return new StartAttemptRequest(type, module, templateId, themeId,
-                difficulty, qType, null, lotNumero, moduleExamType, null);
+                difficulty, qType, null, lotNumero, moduleExamType, null, null);
     }
 
     /** Examen blanc d'épreuve TCF QCM joué sans compte, sur un slot donné. */
     private StartAttemptRequest moduleExam(QuestionType moduleExamType, Integer slot) {
         return new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.TCF, null, null,
-                null, null, null, null, moduleExamType, slot);
+                null, null, null, null, moduleExamType, slot, null);
     }
 
     private ExamTemplate paidPublished() {
@@ -182,7 +182,7 @@ class AttemptServiceGuestIT extends AbstractIntegrationTest {
     @Test
     void guestModuleExam_moduleCivique_refuse() {
         StartAttemptRequest r = new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null,
-                null, null, null, null, QuestionType.CO, 1);
+                null, null, null, null, QuestionType.CO, 1, null);
         assertThatThrownBy(() -> service.startGuestDemo(r, IP))
                 .isInstanceOf(BusinessException.class);
     }

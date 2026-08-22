@@ -2,25 +2,23 @@ import {PRODUCTION_INPUT_SEGMENT} from "@/lib/production-catalog";
 import type {EpreuveType} from "@/lib/types";
 
 /** Écran parent des deux épreuves productives : le hub TCF. C'est là que
- *  remonte tout lien de retour qui sort d'une épreuve — l'épreuve n'a plus
- *  d'écran d'accueil propre (cf. `PRODUCTION_ENTRY_SUFFIX`). */
+ *  remonte le lien de retour de l'**écran d'entrée** d'une épreuve ; à
+ *  l'intérieur, on remonte de tâche en épreuve. */
 export const TCF_HUB_HREF = "/entrainement?module=TCF";
 export const TCF_HUB_LABEL = "TCF IRN";
 
 /**
- * Entrée dans une épreuve productive : le mode « Compétences » de la tâche 1.
+ * Entrée dans une épreuve productive : sa **liste de tâches**
+ * (`ProductionTasks`), servie par la route `${base}` elle-même.
  *
- * Il n'y a **pas** d'écran d'accueil d'épreuve : on ouvre directement l'espace
- * de travail, et on change de tâche par les pastilles T1/T2/T3, de mode par la
- * barre Compétences · Sujets · Examens. Les routes `${base}` restent servies —
- * en **redirection** vers cette destination — parce qu'elles sont référencées
- * (hub TCF, tableau de bord, landing `/reussir`, `?back=`).
+ * ⚠️ Cette route **redirigeait** vers `…/tache/1/competences` (2026-08-21,
+ * révoqué) : le candidat tombait dans la tâche 1 sans jamais voir les trois,
+ * alors que choisir sa tâche est la première décision du parcours. La fonction
+ * reste — elle nomme l'intention chez ses appelants (hub TCF, tableau de bord,
+ * landing `/reussir`, `?back=`) et leur évite de recomposer une adresse.
  */
-export const PRODUCTION_ENTRY_SUFFIX = "/tache/1/competences";
-
-/** Destination d'entrée d'une épreuve, depuis n'importe quel appelant. */
 export function productionEntryHref(base: string): string {
-  return `${base}${PRODUCTION_ENTRY_SUFFIX}`;
+  return base;
 }
 
 /**

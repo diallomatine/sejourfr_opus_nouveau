@@ -19,8 +19,10 @@ import {
   EPREUVES_PRODUCTION,
   EPREUVE_LABEL,
   NIVEAU_LABEL,
+  NON_EVALUABLE_LABEL,
   formatDateTime,
   formatNote,
+  isNonEvaluable,
 } from "./calibrationHelpers";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import styles from "./CalibrationPage.module.css";
@@ -321,7 +323,19 @@ export function CalibrationPage() {
   );
 }
 
+/**
+ * Le niveau d'une soumission — et, à sa place, le FAIT quand il n'y en a pas.
+ *
+ * « non renseigné » couvrait deux cas très différents : une évaluation ancienne
+ * (le niveau n'était pas persisté) et une production **écartée** par les
+ * contrôles déterministes, qui n'a jamais été soumise au correcteur. Seule la
+ * seconde se lit sur `evaluabilite` ; on la nomme, plutôt que de la laisser se
+ * confondre avec un trou d'historique.
+ */
 function NiveauCell({ submission }: { submission: ProductionSubmissionDto }) {
+  if (isNonEvaluable(submission.evaluation)) {
+    return <Tag tone="muted">{NON_EVALUABLE_LABEL}</Tag>;
+  }
   const niveau = submission.evaluation?.niveauObserve;
   if (!niveau) return <span className={styles.absent}>non renseigné</span>;
   return <Tag tone={NIVEAU_TONE[niveau]}>{NIVEAU_LABEL[niveau]}</Tag>;

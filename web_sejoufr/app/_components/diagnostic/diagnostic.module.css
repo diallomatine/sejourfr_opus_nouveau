@@ -39,14 +39,102 @@
   box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 9%, transparent);
 }
 
+/* ============================================================================
+   Fil du parcours (barre numérotée de la maquette)
+   ============================================================================ */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.steps::-webkit-scrollbar {
+  display: none;
+}
+
+.steps li {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Le trait de liaison est porté par la puce suivante : pas d'élément vide dans
+   la liste, donc rien à masquer pour un lecteur d'écran. */
+.steps li + li::before {
+  content: "";
+  width: clamp(14px, 5vw, 46px);
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+.steps li[data-state="done"] + li::before,
+.steps li[data-state="current"] + li::before {
+  background: color-mix(in srgb, var(--color-blue) 55%, var(--color-line));
+}
+
+.stepMark {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  place-items: center;
+}
+
+.steps li[data-state="done"] .stepMark,
+.steps li[data-state="current"] .stepMark {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.stepLabel {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.steps li[data-state="done"] .stepLabel,
+.steps li[data-state="current"] .stepLabel {
+  color: var(--color-ink);
+}
+
+/* Sur un petit écran, cinq libellés ne tiennent pas sur une ligne et la barre
+   partait en défilement muet — un fil de parcours qu'il faut faire glisser
+   n'informe plus. Seule l'étape en cours garde son nom : les autres restent
+   comptées par leur pastille, ce qui suffit à situer le candidat. */
+@media (max-width: 560px) {
+  .steps li:not([data-state="current"]) .stepLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 .intro {
-  max-width: 760px;
-  margin: 5vh auto 0;
-  padding: clamp(28px, 6vw, 54px);
+  max-width: 940px;
+  margin: 4vh auto 0;
+  padding: clamp(26px, 5vw, 46px);
   text-align: center;
 }
 
-.heroIcon,
 .stateIcon {
   display: inline-flex;
   align-items: center;
@@ -54,12 +142,6 @@
   color: var(--color-blue);
   background: var(--color-blue-light);
   border-radius: 16px;
-}
-
-.heroIcon {
-  width: 62px;
-  height: 62px;
-  margin-bottom: 20px;
 }
 
 .eyebrow {
@@ -92,30 +174,165 @@
   font-size: 17px;
 }
 
-/* Le budget de temps est annoncé AVANT le titre : c'est la première chose que
-   le candidat doit lire, celle qui dit que ce n'est pas un examen. */
-.duration {
-  display: inline-flex;
+/* ============================================================================
+   Entrée du diagnostic — les deux parcours
+   ----------------------------------------------------------------------------
+   Deux cartes, jamais deux tunnels : elles ouvrent le MÊME écrit puis le même
+   oral. Seule la promesse diffère, et ce que le rapport enchaînera ensuite.
+   ============================================================================ */
+
+.choice {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 16px;
+  margin: 26px 0 0;
+  text-align: left;
+}
+
+.choiceCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+/* La carte recommandée porte le bleu de marque en filigrane, comme la maquette.
+   Aucune couleur nouvelle : le dégradé part du token bleu clair. */
+.choiceCardReco {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
+  background: linear-gradient(180deg, var(--color-blue-light) 0%, var(--color-paper) 62%);
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--color-blue) 14%, transparent);
+}
+
+.choiceHead {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 16px;
-  padding: 7px 14px;
+  gap: 10px;
+}
+
+.choiceHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.choiceBadge {
+  padding: 4px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 30%, transparent);
   border-radius: 999px;
-  background: var(--color-blue-light);
+  background: color-mix(in srgb, var(--color-paper) 82%, white);
   color: var(--color-blue);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+}
+
+.choiceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choiceMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.choiceList {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choiceList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.choiceList svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-blue);
+}
+
+/* Le rappel « la compréhension se joue après le compte » : une contrainte de
+   parcours, pas un avertissement — ton neutre, sans pastille d'alerte. */
+.choiceNote {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px dashed var(--color-line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-paper-2) 60%, white);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.choiceCard .primaryButton,
+.choiceCard .secondaryButton {
+  width: 100%;
+  margin-top: auto;
+}
+
+.introBandTitle {
+  margin: 30px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Les deux épreuves de compréhension : présentes dans la liste, mais montrées
+   pour ce qu'elles sont — une suite possible, pas une étape de cet écran. */
+.introListLater {
+  opacity: 0.72;
+}
+
+@media (max-width: 780px) {
+  .choice {
+    grid-template-columns: 1fr;
+  }
 }
 
 .introList {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin: 24px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
   text-align: left;
+}
+
+@media (max-width: 620px) {
+  .introList {
+    grid-template-columns: 1fr;
+  }
 }
 
 .introList li {
@@ -1003,19 +1220,38 @@
 }
 
 /* ============================================================================
-   Écran RÉSULTAT du diagnostic.
+   Écran RÉSULTAT du diagnostic — « Mon diagnostic ».
 
-   Langage visuel repris de `docs/diagnostiques/diagnostique.html` : badge de fin
-   vert, bandeau en dégradé bleu avec anneau décoratif, cartes à grands rayons,
-   pastilles de statut colorées, carte de priorité rosée, encart CTA. Couleurs
-   **exclusivement** issues des tokens (`var(--color-*)`), teintes manquantes
-   dérivées en `color-mix()`.
+   Géométrie de la maquette `WEB_mon_diagnostic.jsx`, adaptée au desktop : un
+   titre, le héros global (bandeau bleu + rail + pied de quatre épreuves), les
+   quatre cartes d'épreuve dépliables, la prochaine étape ou l'offre, la
+   mention d'estimation. Couleurs **exclusivement** issues des tokens
+   (`var(--color-*)`), teintes manquantes dérivées en `color-mix()`.
 
-   ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : aucune « formule »
-   inventée, aucun pourcentage de progression. Ce qui est affiché vient du DTO.
+   ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : ses couleurs `oklch`
+   et ses polices, aucune « formule » inventée, aucun pourcentage de
+   progression, et **pas son tutoiement** — elle donne la direction visuelle, le
+   registre reste celui de l'application.
    ============================================================================ */
 
 .result {
+  /* ⚠️ `PlanDomainIcon`, `PlanDomainPriorityPill`, `PlanNaturePill`,
+     `PlanLevelRail` et `PlanBlur` viennent de `plan.module.css` et lisent des
+     variables locales déclarées sur `.page` de ce module-là. Hors du Plan,
+     elles doivent être redonnées — même précédent que `plan.module.css
+     .domainsSummary`, qui réemploie la même liste sur « Ma progression ».
+     Toutes dérivent des tokens de `globals.css`, aucune teinte n'est fabriquée
+     ici. */
+  --plan-surface: #fff;
+  --plan-surface-2: var(--color-blue-soft);
+  --plan-surface-3: var(--color-paper-2);
+  --plan-line-soft: var(--color-line-2);
+  --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+  --plan-shadow-soft: 0 6px 18px color-mix(in srgb, var(--color-ink) 5%, transparent);
+
   display: grid;
   gap: 26px;
 }
@@ -1024,351 +1260,841 @@
   max-width: 62ch;
 }
 
-.doneBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 11px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.doneBadge i {
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: var(--color-green);
-  color: var(--color-paper);
-}
-
-.resultEyebrow {
-  margin: 16px 0 0;
+.resultHeader p {
+  max-width: 58ch;
+  margin: 9px 0 0;
   color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 14.5px;
+  line-height: 1.5;
 }
 
-/* Titre éditorial : Fraunces, `<em>` en rouge (règle d'identité du dépôt). */
+/* Titre éditorial : Fraunces (règle d'identité du dépôt). */
 .resultHeader h1 {
-  margin: 10px 0 0;
+  margin: 0;
   font-size: clamp(28px, 5vw, 44px);
   line-height: 1.06;
   letter-spacing: -0.035em;
 }
 
-.resultHeader h1 em {
-  color: var(--color-red);
-  font-style: italic;
-}
+/* ============================================================================
+   Le HÉROS du rapport — niveau global, objectif, rail, et les 4 épreuves
+   ----------------------------------------------------------------------------
+   Bandeau bleu : le palier global estimé en très gros, l'objectif SUR LA MÊME
+   ligne, la couverture du profil, puis le rail A2 → B1 → B2 — à DROITE en
+   desktop, DESSOUS en mobile. En pied de la même carte, quatre colonnes
+   cliquables qui déplient la carte de leur épreuve.
 
-.resultLead {
-  max-width: 64ch;
-  margin: 12px 0 0;
-  color: var(--color-muted);
-  font-size: 15.5px;
-  line-height: 1.55;
-}
+   🛑 **Aucun niveau n'est fabriqué ici** : une épreuve non mesurée affiche
+   « — », jamais le palier le plus bas. *null = inconnu, jamais mauvais.*
+   ============================================================================ */
 
-/* ------------------------------- niveaux estimés + carte de décision */
-
-/* Le bandeau porte l'état constaté, la carte porte la décision : côte à côte
-   au-dessus de 860 px, empilés en dessous (l'action passe alors juste sous le
-   niveau, sans défilement intermédiaire). */
-.heroGrid {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 18px;
-  align-items: stretch;
-}
-
-.heroGrid > * {
-  min-width: 0;
-}
-
-.convCard {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(18px, 3vw, 24px);
-  border: 1px solid var(--color-line);
-  border-radius: 25px;
-  background: var(--color-paper);
-  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-ink) 7%, transparent);
-}
-
-.convCard h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(20px, 2.8vw, 26px);
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-
-.convLead {
-  margin: 9px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.convList {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 18px;
-  padding: 0;
-  list-style: none;
-}
-
-.convItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 11px 13px;
-  border: 1px solid var(--color-line-2);
-  border-radius: 16px;
-  background: var(--color-blue-soft);
-}
-
-/* Ambre : dans cette application, c'est la couleur de « à travailler », et c'est
-   déjà celle des priorités ailleurs. L'intensité DÉCROÎT du rang 1 au rang 3,
-   pour que la teinte dise le rang au lieu de décorer — trois pastilles
-   identiques ne hiérarchisaient rien. Les fonds sont dérivés du token par
-   `color-mix`, jamais une teinte nouvelle ; le texte reste `--color-amber-dark`,
-   le seul ambre lisible en lettres (`--color-amber` est un ambre de
-   remplissage). */
-.convRank {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--color-amber) 16%, white);
-  color: var(--color-amber-dark);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.convRank[data-rank="1"] {
-  background: color-mix(in srgb, var(--color-amber) 28%, white);
-}
-
-.convRank[data-rank="3"] {
-  background: color-mix(in srgb, var(--color-amber) 9%, white);
-}
-
-.convCopy {
-  min-width: 0;
-}
-
-.convCopy b {
-  display: block;
-  color: var(--color-ink);
-  font-size: 13.5px;
-  line-height: 1.3;
-}
-
-.convCopy span {
-  display: block;
-  margin-top: 3px;
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-/* Les deux actions vivent en pied de carte : sur une carte plus courte que le
-   bandeau des niveaux, elles restent alignées sur son bas. */
-.convCard .primaryButton {
-  width: 100%;
-  margin-top: auto;
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
-
-.convCard .secondaryButton {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.convMicro {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 12px 0 0;
-  color: var(--color-muted-2);
-  font-size: 11.5px;
-  text-align: center;
-}
-
-.convMicro svg {
-  flex: none;
-  color: var(--color-green);
-}
-
-/* ----------------------------------------------------- bandeau des niveaux */
-
-/* Au-dessus de 860 px, cette carte est étirée par `.heroGrid` sur la hauteur de
-   la carte de décision, qui est bien plus haute (titre + 3 priorités + 2
-   boutons). En flux normal son contenu restait massé en haut et la moitié basse
-   du bleu était vide. Colonne flex : les tuiles absorbent l'étirement, le pied
-   descend au bas de la carte avec son filet. En dessous de 860 px la grille
-   passe en une colonne, plus rien n'étire, et la carte reprend sa hauteur
-   naturelle — ces règles y sont alors sans effet. */
-.levelHero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.hero {
   overflow: hidden;
-  padding: clamp(20px, 3.5vw, 26px);
   border-radius: 25px;
+  background: var(--gradient-hero-blue);
   color: var(--color-paper);
-  background: linear-gradient(135deg, var(--color-blue-dark), var(--color-blue));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 22%, transparent);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 20%, transparent);
 }
 
-/* Deux anneaux, comme la maquette : le grand en haut à droite, le petit plein
-   en bas à gauche. Ils donnent sa profondeur au bleu de marque — un aplat seul
-   se confond avec le CTA final, qui porte le même dégradé. Sur la carte étirée
-   ils travaillent aussi : c'est eux qui habitent la bande basse, entre les
-   tuiles et le pied. */
-.levelHero::after {
-  content: "";
-  position: absolute;
-  top: -72px;
-  right: -64px;
-  width: 190px;
-  height: 190px;
-  border: 30px solid color-mix(in srgb, var(--color-paper) 7%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
+.heroTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px clamp(20px, 3.4vw, 34px);
+  padding: clamp(19px, 3.4vw, 28px);
 }
 
-.levelHero::before {
-  content: "";
-  position: absolute;
-  bottom: -58px;
-  left: -50px;
-  width: 148px;
-  height: 148px;
-  border: 1px solid color-mix(in srgb, var(--color-paper) 10%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-paper) 4%, transparent);
-  pointer-events: none;
+.heroMain {
+  flex: 1 1 260px;
+  min-width: 0;
 }
 
-.levelHeroLabel {
-  position: relative;
-  z-index: 1;
+/* Le rail vient se poser à droite du palier sur un écran large, et retombe
+   dessous dès que la carte n'a plus la largeur de deux colonnes. */
+.heroRail {
+  flex: 1 1 300px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.heroEyebrow {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.82;
 }
 
-.levelHeroGrid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-content: stretch;
-  gap: 12px;
-}
-
-/* `flex: 1` : c'est la grille des paliers qui prend la hauteur en trop, pas un
-   blanc entre les blocs. `max-height` borne l'étirement — au-delà, une tuile de
-   ~220 px de large devient une colonne et le palier flotte au milieu de rien ;
-   le reste de la hauteur revient à la bande basse décorée. Réservé au régime
-   deux colonnes : c'est le seul où la carte est étirée, et le seul où le contenu
-   d'une tuile ne peut pas approcher ce plafond (donc être rogné par
-   l'`overflow: hidden` de la carte). */
-@media (min-width: 861px) {
-  .levelHeroGrid {
-    flex: 1 1 auto;
-    max-height: 300px;
-  }
-}
-
-/* Libellé en haut, palier calé en bas : sur une tuile étirée le chiffre devient
-   l'ancre du bloc au lieu de rester collé à son libellé. Sur une tuile à
-   hauteur naturelle (une colonne, sous 620 px), `gap` reprend la main et le
-   rendu est celui d'avant. */
-.levelHeroGrid > div {
+/* Le palier et l'objectif sur UNE ligne, alignés sur leur pied. `wrap` pour que
+   « A1 non atteint » passe à la ligne à 360 px au lieu de pousser l'objectif
+   hors du cadre. */
+.heroPair {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 9px;
-  padding: clamp(15px, 1.8vw, 20px);
-  border-radius: 17px;
-  background: color-mix(in srgb, var(--color-paper) 12%, transparent);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 14px;
+  margin-top: 8px;
 }
 
-.levelHeroGrid span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+.heroLevel {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 6vw, 56px);
   font-weight: 700;
-  opacity: 0.85;
-}
-
-/* Le palier est le héros de la tuile, comme dans la maquette. « A1 non atteint »
-   est un libellé long : il doit pouvoir passer à la ligne plutôt que déborder du
-   bandeau à 360 px, et la pente en `vw` est volontairement douce — c'est entre
-   860 et 1000 px que la colonne est la plus étroite, pas au plus large. */
-.levelHeroGrid b {
-  font-size: clamp(28px, 3.4vw, 44px);
-  font-weight: 800;
   letter-spacing: -0.04em;
-  line-height: 1.05;
+  line-height: 1.02;
   overflow-wrap: anywhere;
 }
 
-/* `margin-top: auto` : le pied — et surtout son filet — descend au bas de la
-   carte quand elle est étirée, au lieu de laisser le vide en dessous de lui. */
-.levelHeroFoot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin: auto 0 0;
-  padding-top: 14px;
-  border-top: 1px solid color-mix(in srgb, var(--color-paper) 16%, transparent);
-  font-size: 12px;
+/* L'objectif est une donnée SECONDAIRE : il se lit dans la foulée du palier,
+   sans jamais se lire comme un second constat. */
+.heroGoal {
+  min-width: 0;
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.88;
+  overflow-wrap: anywhere;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-paper) 18%, transparent);
+  font-size: 13px;
   font-weight: 700;
 }
 
-.levelHeroFoot > span:last-child {
-  font-weight: 500;
-  opacity: 0.72;
+.heroText {
+  max-width: 52ch;
+  margin: 13px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  opacity: 0.9;
 }
 
-.levelHeroFoot b {
+/* Les quatre colonnes : un aplat clair sous le bleu, comme la maquette. Chacune
+   déplie la carte de son épreuve et l'amène à l'écran. */
+.heroStrip {
+  display: flex;
+  border-top: 1px solid color-mix(in srgb, var(--color-paper) 22%, transparent);
+  background: var(--color-paper);
+}
+
+.heroCell {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 15px 8px 13px;
+  border: 0;
+  border-left: 1px solid var(--color-line-2);
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.heroCell:first-child {
+  border-left: 0;
+}
+
+.heroCell[data-on="1"],
+.heroCell:hover {
+  background: var(--color-blue-soft);
+}
+
+.heroCell:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: -3px;
+}
+
+.heroCellLevel {
+  display: block;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2.6vw, 21px);
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+/* « — » n'est pas un niveau : il se lit en gris, jamais comme un résultat. */
+.heroCellLevel[data-known="0"] {
+  color: var(--color-muted-2);
+}
+
+.heroCellLabel {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* Sous 520 px, quatre colonnes réduisent chaque libellé à un mot par ligne :
+   la bande passe en 2 × 2. */
+@media (max-width: 520px) {
+  .heroStrip {
+    flex-wrap: wrap;
+  }
+
+  .heroCell {
+    flex: 1 1 50%;
+  }
+
+  .heroCell:nth-child(3) {
+    border-left: 0;
+  }
+
+  .heroCell:nth-child(n + 3) {
+    border-top: 1px solid var(--color-line-2);
+  }
+}
+
+/* ============================================================================
+   « Mes 4 épreuves » — une carte par épreuve, dépliable
+   ----------------------------------------------------------------------------
+   Trois états et un seul gabarit : « À évaluer » (aucune mesure), « Évaluation
+   incomplète » (production rendue, rien à observer) et l'état mesuré, qui
+   déplie ses compétences.
+   ============================================================================ */
+
+.cards {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+.cardOpen {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
+}
+
+/* L'en-tête ENTIÈRE déplie la carte : c'est un bouton, et son chevron le dit.
+   Sur une carte sans mesure, c'est un simple bloc — il n'y a rien à déplier. */
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px clamp(15px, 2.6vw, 22px);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+}
+
+button.cardHead {
+  cursor: pointer;
+}
+
+button.cardHead:hover {
+  background: var(--color-blue-soft);
+}
+
+button.cardHead:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: -3px;
+}
+
+.cardHeadBody {
+  display: block;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Le nom de l'épreuve. Un `<span>`, pas un titre : il vit à l'intérieur du
+   bouton qui déplie la carte (cf. `DiagnosticReport`). */
+.cardTitle {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2.2vw, 19px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.cardSummary {
+  display: block;
+  max-width: 62ch;
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Assez large pour « Objectif B2 · prochain palier B1 » sur deux lignes, jamais
+   pour comprimer le résumé de gauche. */
+.cardLevel {
+  display: block;
+  flex: none;
+  width: 132px;
+  text-align: right;
+}
+
+.cardLevelValue {
+  display: block;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.6vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.cardLevelValue[data-known="0"] {
+  color: var(--color-muted-2);
+}
+
+.cardLevelCaption {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cardLevelGoal {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.cardChevron {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--color-muted-2);
+  transition: transform 0.2s;
+}
+
+.cardChevron[data-open="1"] {
+  transform: rotate(180deg);
+}
+
+/* Le POURQUOI du niveau : des faits, jamais un jugement. Encart bleu clair à
+   liseré, comme la maquette. */
+.cardWhy {
+  max-width: 76ch;
+  margin: 0 clamp(15px, 2.6vw, 22px) 18px;
+  padding: 13px 16px;
+  border-left: 3px solid var(--color-blue);
+  border-radius: 0 14px 14px 0;
+  background: var(--color-blue-light);
+  color: var(--color-ink-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* Deux colonnes quand il y a de quoi les remplir, une seule sinon — et une
+   seule, toujours, sous 900 px. */
+.cardBody {
+  display: grid;
+  gap: 12px clamp(20px, 3vw, 30px);
+  padding: 16px clamp(15px, 2.6vw, 22px) 18px;
+  border-top: 1px solid var(--color-line-2);
+}
+
+.cardBody[data-columns="2"] {
+  grid-template-columns: 1.15fr 1fr;
+}
+
+.cardColumn {
+  min-width: 0;
+}
+
+.groupBlock + .groupBlock {
+  margin-top: 14px;
+}
+
+.groupHead {
+  margin: 0 0 2px;
+}
+
+.groupHead > p {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.groupHead > p > span {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.groupHead > p > b {
+  color: var(--color-muted-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+/* La note du groupe « À acquérir » : elle dit pourquoi une compétence jamais
+   travaillée est là. 🛑 Elle ne nomme aucun manque. */
+.groupHead > span {
+  display: block;
+  max-width: 52ch;
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* ------------------------------------------- une ligne de compétence */
+
+.skillRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 10px 10px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.skillRow:hover {
+  background: var(--color-blue-soft);
+}
+
+.skillRow:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: -2px;
+}
+
+.skillRow:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Une pastille pleine pour ce qui est solide, un point pour le reste : la
+   couleur ne porte jamais seule, le groupe et la pastille de nature disent
+   déjà de quoi il s'agit. */
+.skillMark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin-left: 10px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.skillMark[data-solid="0"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-muted-2);
+}
+
+/* Une teinte par GROUPE, jamais par statut nu — miroir de `_SkillGroup.color`
+   côté mobile : rouge (priorité), ambre (à renforcer), bleu (à acquérir). */
+.skillMark[data-solid="0"][data-group="PRIORITY"]::before {
+  background: var(--color-red);
+}
+
+.skillMark[data-solid="0"][data-group="REINFORCE"]::before {
+  background: var(--color-amber-dark);
+}
+
+.skillMark[data-solid="0"][data-group="ACQUIRE"]::before {
+  background: var(--color-blue);
+}
+
+.skillMark[data-solid="1"] {
+  background: color-mix(in srgb, var(--color-green) 14%, white);
+  color: var(--color-green);
+}
+
+/* --------------------------------------- pastille de groupe d'une ligne */
+
+/* Elle nomme le GROUPE de la ligne (« Priorité », « À renforcer »,
+   « À acquérir »), pas la nature d'action ni le statut brut : c'est le titre de
+   section que la vue repliée n'affiche pas. Miroir de `_SkillGroup.tone`. */
+.groupPill {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.groupPill[data-group="PRIORITY"] {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.groupPill[data-group="REINFORCE"] {
+  background: color-mix(in srgb, var(--color-amber) 16%, white);
+  color: var(--color-amber-dark);
+}
+
+.groupPill[data-group="ACQUIRE"] {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.groupPill[data-group="SOLID"] {
+  background: color-mix(in srgb, var(--color-green) 12%, white);
+  color: var(--color-green);
+}
+
+.skillBody {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.skillBody b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.skillBody > span {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* « + N autres compétences à travailler » : un lien, pas une carte. */
+.moreButton {
+  display: block;
+  width: 100%;
+  padding: 10px 0 0;
+  border: 0;
+  background: none;
+  color: var(--color-blue);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.moreButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+}
+
+/* « N compétences : pas encore assez de données » — une absence de mesure,
+   jamais une faiblesse. */
+/* Un fait de l'épreuve, rendu dans le pied d'action de la carte (même
+   emplacement que le mobile) : il ne dépend d'aucune autre liste. */
+.notObserved {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* ------------------------------------------------ pastille d'état de carte */
+
+.statePill {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Rouge réservé à ce qui demande une action du candidat : une production
+   rendue mais inexploitable. Une absence de mesure reste neutre. */
+.statePill[data-state="warn"] {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+/* ------------------------------------------------------ le verrou freemium */
+
+/* Le contenu flouté est le VRAI (`PlanBlur` : `aria-hidden` + `inert`), et
+   l'information nette — le compteur, le CTA — vit HORS du rideau.
+   🛑 Le compteur est exact : `N === 0` ⇒ le bloc n'existe pas. */
+.lock {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 13px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-paper-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.lock:hover {
+  border-color: color-mix(in srgb, var(--color-blue) 40%, var(--color-line));
+}
+
+.lock:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.lockIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--color-muted-2);
+}
+
+.lockBody {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.lockPreview {
+  display: block;
+  color: var(--color-ink);
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
+.lockCount {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.lockCta {
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+/* L'information NETTE d'un bloc flouté, réservée aux lecteurs d'écran : le
+   flou est hors de l'arbre d'accessibilité, il ne peut rien annoncer. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------- le pied d'une carte */
+
+.cardFoot {
+  padding: 0 clamp(15px, 2.6vw, 22px) 18px;
+}
+
+/* Le bandeau d'action d'une carte dépliée : ce qui suit, et par quoi. */
+.cardAction {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 15px clamp(15px, 2.6vw, 22px) 17px;
+  border-top: 1px solid var(--color-line-2);
+  background: var(--color-paper-2);
+}
+
+.cardActionCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid var(--color-blue);
+  border-radius: 999px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cardActionCta:hover:not(:disabled) {
+  border-color: var(--color-blue-dark);
+  background: var(--color-blue-dark);
+}
+
+.cardActionCta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cardActionCta:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.cardActionNote {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Le bouton d'une carte sans mesure : contour, jamais plein — la mesure est une
+   porte de sortie, pas l'action principale de l'écran. */
+.outlineCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 18px;
+  border: 1.5px solid var(--color-blue);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-blue);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.outlineCta:hover:not(:disabled) {
+  background: var(--color-blue-light);
+}
+
+.outlineCta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.outlineCta:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.cardError {
+  margin: 0 clamp(15px, 2.6vw, 22px) 16px;
+  color: var(--color-red-dark);
+  font-size: 13px;
+}
+
+/* Une carte n'a pas la largeur de deux colonnes sur un écran étroit, et une
+   grille 1.15fr/1fr y comprimerait les libellés à deux mots par ligne. */
+@media (max-width: 900px) {
+  .cardBody[data-columns="2"] {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sous 620 px, l'en-tête passe en deux lignes : le niveau sous le titre plutôt
+   qu'une colonne de droite qui écrase le résumé. */
+@media (max-width: 620px) {
+  .cardHead {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .cardLevel {
+    order: 3;
+    flex: 1 1 100%;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    width: auto;
+    text-align: left;
+  }
+
+  .cardLevelCaption,
+  .cardLevelGoal {
+    margin-top: 0;
+  }
+
+  .cardActionCta,
+  .outlineCta {
+    width: 100%;
+  }
+}
+
+/* La mention d'estimation, en pied de rapport. */
 .note {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin: -14px 0 0;
+  margin: 0;
   color: var(--color-muted);
   font-size: 12.5px;
   line-height: 1.45;
@@ -1380,730 +2106,116 @@
   color: var(--color-blue);
 }
 
-/* --------------------------------------------------------- intertitres */
+/* --------------------------------------------------- prochaine étape (abonné)
 
-.blockHead {
-  margin: 0 2px 13px;
-}
+   Une seule carte, sobre : le rapport a déjà dit quoi travailler, celle-ci ne
+   fait qu'ouvrir le plan. */
 
-.blockHead h2 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(19px, 2.4vw, 22px);
-  letter-spacing: -0.02em;
-}
-
-.blockHead p {
-  max-width: 62ch;
-  margin: 5px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* ----------------------------------------- ce que le diagnostic révèle */
-
-.snapshot {
-  padding: 8px 18px;
+.nextCard {
+  display: flex;
+  align-items: center;
+  gap: 14px 22px;
+  flex-wrap: wrap;
+  padding: clamp(16px, 2.8vw, 22px);
   border: 1px solid var(--color-line);
   border-radius: 22px;
   background: var(--color-paper);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 6%, transparent);
 }
 
-.snapshotStrengths {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-line-2);
-}
-
-.snapshotStrengths b {
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.snapshotStrengths ul {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0 0;
-  padding-left: 19px;
-  color: var(--color-ink-2);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* Encart rétractable : la ligne porte le verdict, le détail vit derrière un
-   clic. La grille est sur l'en-tête, pas sur la carte — sinon `<details>` ne
-   peut plus empiler son contenu déplié sous le titre. */
-.snapshotRow + .snapshotRow {
-  border-top: 1px solid var(--color-line-2);
-}
-
-.snapshotHead {
-  display: grid;
-  grid-template-columns: 39px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 0;
-}
-
-details.snapshotRow > .snapshotHead {
-  grid-template-columns: 39px minmax(0, 1fr) auto auto;
-  cursor: pointer;
-  list-style: none;
-}
-
-/* Safari/Chrome posent leur propre triangle : on le retire, on rend le nôtre. */
-details.snapshotRow > .snapshotHead::-webkit-details-marker {
-  display: none;
-}
-
-details.snapshotRow > .snapshotHead:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
-  outline-offset: 2px;
-  border-radius: 12px;
-}
-
-.snapshotChevron {
-  flex: none;
-  color: var(--color-muted-2);
-  transition: transform 0.18s ease;
-}
-
-details.snapshotRow[open] .snapshotChevron {
-  transform: rotate(180deg);
-}
-
-/* Aligné sous le titre, pas sous le pictogramme : 39px + la gouttière. */
-.snapshotDetail {
-  padding: 0 0 13px 51px;
-}
-
-.snapshotDetail p {
+.nextCard > p {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 62ch;
   margin: 0;
   color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.snapshotDetail .snapshotEvidence {
-  margin-top: 7px;
-  color: var(--color-muted-2);
-  font-size: 12px;
-}
-
-.snapshotIcon {
-  display: grid;
-  place-items: center;
-  width: 39px;
-  height: 39px;
-  border-radius: 13px;
-}
-
-.snapshotRow b {
-  display: block;
-  color: var(--color-ink);
-  font-size: 13.5px;
-  overflow-wrap: anywhere;
-}
-
-.snapshotStatus {
-  flex: none;
-  padding: 6px 9px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* Une seule échelle de teintes, partagée avec les signaux de production. */
-.snapshotRow[data-tone="good"] .snapshotIcon,
-.snapshotRow[data-tone="good"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.snapshotRow[data-tone="mid"] .snapshotIcon,
-.snapshotRow[data-tone="mid"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
-  color: var(--color-amber-dark);
-}
-
-/* Formule reprise telle quelle de `.badgePriority` du module Compétences : les
-   trois échelles de teintes doivent être les MÊMES d'un écran à l'autre. */
-.snapshotRow[data-tone="weak"] .snapshotIcon,
-.snapshotRow[data-tone="weak"] .snapshotStatus {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red-dark);
-}
-
-.snapshotRow[data-tone="none"] .snapshotIcon,
-.snapshotRow[data-tone="none"] .snapshotStatus {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-/* ---------------------------------------------------------- avant / après */
-
-.revealCard {
-  padding: clamp(18px, 3vw, 24px);
-  border: 1px solid var(--color-line);
-  border-radius: 25px;
-  background: var(--color-paper);
-  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 6%, transparent);
-}
-
-.revealTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-line-2);
-}
-
-.revealTop h3 {
-  min-width: 0;
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(16px, 2.4vw, 20px);
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-}
-
-/* Vert, comme `.impact` de la maquette : cette pilule annonce une PROGRESSION
-   (« vers B1 »), pas un niveau constaté. En bleu, elle se lisait comme une
-   étiquette de palier de plus et le bloc avant/après perdait son seul signal
-   positif. Le bleu reste la couleur de la marque et du niveau. */
-.revealImpact {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  padding: 8px 11px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green) 12%, var(--color-paper));
-  color: var(--color-green);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.beforeAfter {
-  display: grid;
-  grid-template-columns: 1fr 52px 1fr;
-  align-items: center;
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.beforeAfter > * {
-  min-width: 0;
-}
-
-.phrase,
-.phraseAfter {
-  align-self: stretch;
-  min-width: 0;
-}
-
-.phrase {
-  padding: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 19px;
-  background: var(--color-paper-2);
-}
-
-.phraseLabel {
-  margin: 0 0 9px;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.phrase blockquote {
-  margin: 0;
-  color: var(--color-ink-2);
   font-size: 14px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
+  line-height: 1.55;
 }
 
-.arrowBox {
-  display: grid;
-  place-items: center;
-}
-
-.arrowBox > span {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-}
-
-/* ------------------------------------------------------- les priorités */
-
-.leverGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 13px;
-}
-
-.leverCard {
-  position: relative;
-  overflow: hidden;
-  padding: 18px;
-  border: 1px solid var(--color-line);
-  border-radius: 21px;
-  background: var(--color-paper);
-}
-
-/* Ambre, comme la maquette : le bleu est la couleur de la marque et du niveau,
-   l'ambre celle de « à travailler ». Les peindre en bleu les faisait se
-   confondre avec le hero et le plan, et retirait au bloc son seul signal. */
-.leverCard::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--color-amber),
-    color-mix(in srgb, var(--color-amber) 35%, white)
-  );
-}
-
-.leverNum {
-  margin: 4px 0 0;
-  color: var(--color-amber-dark);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.leverCard h3 {
-  margin: 8px 0 0;
-  color: var(--color-ink);
-  font-size: 16px;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.leverText {
-  margin: 7px 0 0;
-  color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.leverMeta {
+.nextActions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 13px;
-}
-
-/* Pas de barre chiffrée : le score de maîtrise n'est exposé à aucun front. On
-   rend l'état d'observation, aux teintes partagées avec les compétences. */
-.leverStatus,
-.leverSection {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.leverSection {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-.leverStatus[data-tone="good"] {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.leverStatus[data-tone="mid"] {
-  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
-  color: var(--color-amber-dark);
-}
-
-.leverStatus[data-tone="weak"] {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red-dark);
-}
-
-.leverStatus[data-tone="none"] {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-.leverQuote {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  border-radius: 13px;
-  background: var(--color-blue-soft);
-  color: var(--color-muted);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-/* ------------------------------------------------------------ votre plan */
-
-.planShell {
-  display: grid;
-  gap: 12px;
-  padding: clamp(16px, 3vw, 22px);
-  border: 1px solid color-mix(in srgb, var(--color-blue) 14%, var(--color-line));
-  border-radius: 26px;
-  background: linear-gradient(180deg, var(--color-paper), var(--color-blue-soft));
-}
-
-.planStep {
-  padding: 16px 17px;
-  border: 1px solid var(--color-line);
-  border-radius: 19px;
-  background: var(--color-paper);
-}
-
-/* L'étape ouverte se distingue, comme `.day.free` de la maquette : bordure
-   bleutée + liseré intérieur. C'est la seule carte du plan sur laquelle on peut
-   cliquer tout de suite — au milieu d'étapes au trait neutre, rien ne le
-   disait. Sélecteur positionnel : la première carte du plan EST l'exercice
-   recommandé, les suivantes n'ont pas de CTA. */
-.planShell > .planStep:first-child {
-  border-color: color-mix(in srgb, var(--color-blue) 30%, var(--color-line));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 11%, white);
-}
-
-/* Étape verrouillée : c'est l'ACCÈS qui est fermé, jamais l'information — le
-   titre et l'explication restent parfaitement lisibles. */
-.planStepLocked {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--color-paper) 70%, transparent);
-}
-
-.planStepNum {
-  margin: 0;
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.planStep h3 {
-  margin: 8px 0 0;
-  color: var(--color-ink);
-  font-size: 16px;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.planStepText {
-  margin: 7px 0 0;
-  color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.planStepMeta {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 9px 0 0;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  gap: 10px 16px;
+  flex-wrap: wrap;
 }
 
-.planStepCta {
+.nextPrimary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  margin-top: 13px;
-  padding: 11px 18px;
-  border-radius: 14px;
+  min-height: 48px;
+  padding: 13px 22px;
+  border-radius: 999px;
   background: var(--color-blue);
-  color: var(--color-paper);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.planStepCta:hover {
-  background: var(--color-blue-dark);
-}
-
-.planLock {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 11px 0 0;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.paywall {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  padding: clamp(18px, 3vw, 24px);
-  border-radius: 21px;
-  background: var(--gradient-ink-blue);
-  color: var(--color-paper);
-}
-
-/* Halo bleu de la maquette : sur un aplat encre, il rattache l'offre au bleu de
-   marque au lieu d'en faire un bloc noir isolé au milieu du plan. */
-.paywall::after {
-  content: "";
-  position: absolute;
-  top: -110px;
-  right: -70px;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-blue) 55%, transparent);
-  pointer-events: none;
-}
-
-.paywall h3 {
-  position: relative;
-  margin: 0;
-  font-size: clamp(17px, 2.6vw, 21px);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-/* Bleu clair plutôt qu'un blanc atténué : la maquette teinte son texte
-   secondaire au lieu de le rendre translucide. */
-.paywall p {
-  position: relative;
-  max-width: 56ch;
-  margin: 7px 0 0;
-  color: color-mix(in srgb, var(--color-blue-light) 78%, var(--color-blue));
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.paywallCta {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 12px 20px;
-  border-radius: 14px;
-  background: var(--color-red);
   color: var(--color-paper);
   font-size: 14.5px;
   font-weight: 700;
-  white-space: nowrap;
 }
 
-.paywallCta:hover {
-  background: var(--color-red-dark);
+.nextPrimary:hover {
+  background: var(--color-blue-dark);
 }
 
-/* ------------------------------------------------------ les 2 productions */
-
-.productions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.production {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 17px;
-  border: 1px solid var(--color-line);
-  border-radius: 20px;
-  background: var(--color-paper);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 5%, transparent);
-}
-
-.productionHead {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-/* Encart rétractable : l'épreuve et son niveau restent lisibles, le bilan
-   s'ouvre à la demande. `<details>` natif — accessible au clavier, sans état
-   React à gérer. */
-details.production > .productionHead {
-  cursor: pointer;
-  list-style: none;
-}
-
-details.production > .productionHead::-webkit-details-marker {
-  display: none;
-}
-
-details.production > .productionHead:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
-  outline-offset: 3px;
-  border-radius: 12px;
-}
-
-.productionChevron {
-  flex: none;
-  margin-left: auto;
-  color: var(--color-muted-2);
-  transition: transform 0.18s ease;
-}
-
-details.production[open] .productionChevron {
-  transform: rotate(180deg);
-}
-
-/* La carte est une grille : le détail se replie dans une seule cellule, donc il
-   porte lui-même l'espacement de ses blocs. */
-.productionDetail {
-  display: grid;
-  gap: 12px;
-}
-
-.productionIcon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border-radius: 13px;
-  background: var(--color-blue-light);
+.nextGhost {
   color: var(--color-blue);
-}
-
-.productionHead > div {
-  display: grid;
-  min-width: 0;
-}
-
-.productionHead b {
-  color: var(--color-ink);
   font-size: 14px;
+  font-weight: 600;
 }
 
-.productionHead span {
-  margin-top: 2px;
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
+@media (max-width: 620px) {
+  .nextActions,
+  .nextPrimary {
+    width: 100%;
+  }
+
+  .nextActions {
+    display: grid;
+    justify-items: center;
+  }
 }
 
-.productionSummary {
-  margin: 0;
-  color: var(--color-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
-}
+/* ============================================================================
+   Freemium du rapport — ce qui reste À FAIRE se tease, ce qui est ÉTABLI reste
+   ----------------------------------------------------------------------------
+   Restent entiers pour tout le monde : le palier global estimé, l'objectif, le
+   rail, le niveau de chaque épreuve, son résumé et sa première compétence à
+   travailler. Ce sont ses productions et ses mesures.
+   ⚠️ Ne vaut que pour CE rapport, écran de conversion — la règle « le Plan
+   reste intégralement visible sans abonnement » est intacte sur /plan.
+   ============================================================================ */
 
-.productionSignals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0;
+/* ---------------------------------------- ce que l'abonnement ouvre (fin) */
+
+.unlockList {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  max-width: 46ch;
+  margin: 0 auto 22px;
   padding: 0;
   list-style: none;
+  text-align: left;
 }
 
-.productionSignals li {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.productionSignals li[data-tone="good"] {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.productionSignals li[data-tone="mid"] {
-  background: color-mix(in srgb, var(--color-amber) 16%, transparent);
-  color: var(--color-amber-dark);
-}
-
-.productionSignals li[data-tone="weak"] {
-  background: color-mix(in srgb, var(--color-red) 10%, transparent);
-  color: var(--color-red-dark);
-}
-
-.productionSignals li[data-tone="none"] {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-.productionWeak {
-  padding-top: 12px;
-  border-top: 1px solid var(--color-line-2);
-}
-
-.productionWeak b {
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.productionWeak ul {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0 0;
-  padding-left: 19px;
-  color: var(--color-ink-2);
-  font-size: 12.5px;
+.unlockList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: color-mix(in srgb, var(--color-blue-light) 92%, var(--color-paper));
+  font-size: 14px;
   line-height: 1.45;
 }
 
-.emptyText {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 13px;
+.unlockList svg {
+  flex: none;
+  margin-top: 3px;
 }
 
 /* --------------------------------------------------------------- CTA final */
 
-.finalCard {
+.unlockCard {
   position: relative;
   overflow: hidden;
   padding: clamp(26px, 5vw, 42px) clamp(18px, 4vw, 40px);
@@ -2114,7 +2226,7 @@ details.production[open] .productionChevron {
   box-shadow: 0 24px 60px color-mix(in srgb, var(--color-blue) 24%, transparent);
 }
 
-.finalCard::before {
+.unlockCard::before {
   content: "";
   position: absolute;
   left: -60px;
@@ -2138,7 +2250,7 @@ details.production[open] .productionChevron {
   color: var(--color-paper);
 }
 
-.finalCard h2 {
+.unlockCard h2 {
   position: relative;
   max-width: 22ch;
   margin: 0 auto;
@@ -2147,7 +2259,7 @@ details.production[open] .productionChevron {
   line-height: 1.12;
 }
 
-.finalCard h2 em {
+.unlockCard h2 em {
   color: var(--color-paper);
   font-style: italic;
   text-decoration: underline;
@@ -2156,8 +2268,8 @@ details.production[open] .productionChevron {
   text-underline-offset: 6px;
 }
 
-/* Même parti que le paywall : un bleu clair, pas un blanc translucide. */
-.finalCard > p {
+/* Un bleu clair, pas un blanc translucide : le texte secondaire reste teinté. */
+.unlockCard > p {
   position: relative;
   max-width: 52ch;
   margin: 12px auto 22px;
@@ -2204,17 +2316,15 @@ details.production[open] .productionChevron {
 }
 
 .finalPrimary:focus-visible,
-.finalGhost:focus-visible,
-.planStepCta:focus-visible,
-.paywallCta:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-paper) 60%, transparent);
+.finalGhost:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-paper) 70%, transparent);
   outline-offset: 3px;
 }
 
 /* -------------------------------------------- barre collante (mobile seul) */
 
-/* Rendue seulement sous 720 px : au-dessus, le CTA de la carte de décision est
-   encore à l'écran et une barre fixe ferait doublon. */
+/* Rendue seulement sous 720 px : au-dessus, le CTA de la carte de plan reste
+   atteignable sans effort et une barre fixe ferait doublon. */
 .stickyCta {
   display: none;
 }
@@ -2271,34 +2381,7 @@ details.production[open] .productionChevron {
   }
 }
 
-/* Sous cette largeur, la colonne ne tient plus trois cartes de priorité de
-   front, et l'avant/après passe en pile avec sa flèche pivotée. */
-@media (max-width: 860px) {
-  .heroGrid,
-  .leverGrid,
-  .beforeAfter {
-    grid-template-columns: 1fr;
-  }
-
-  .beforeAfter {
-    gap: 10px;
-  }
-
-  .arrowBox {
-    height: 42px;
-    transform: rotate(90deg);
-  }
-
-  .paywall {
-    grid-template-columns: 1fr;
-  }
-
-  .paywallCta {
-    width: 100%;
-  }
-}
-
-/* La carte de décision reste visible jusque-là ; en dessous, la barre collante
+/* La carte de plan reste atteignable jusque-là ; en dessous, la barre collante
    prend le relais. */
 @media (max-width: 720px) {
   .stickyCta {
@@ -2324,13 +2407,6 @@ details.production[open] .productionChevron {
 }
 
 @media (max-width: 620px) {
-  /* Deux niveaux côte à côte tiennent jusqu'ici ; en dessous ils s'empilent
-     plutôt que de casser le chiffre sur deux lignes. */
-  .levelHeroGrid,
-  .productions {
-    grid-template-columns: 1fr;
-  }
-
   .finalPrimary,
   .finalGhost {
     width: 100%;
@@ -2346,16 +2422,6 @@ details.production[open] .productionChevron {
   .intro,
   .stateCard {
     border-radius: 18px;
-  }
-
-  .snapshotRow {
-    grid-template-columns: 39px minmax(0, 1fr);
-    row-gap: 8px;
-  }
-
-  .snapshotStatus {
-    grid-column: 2;
-    justify-self: start;
   }
 
   .primaryButton,

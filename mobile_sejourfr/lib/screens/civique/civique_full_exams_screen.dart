@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
@@ -110,7 +111,11 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       final history =
           ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
       if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(context);
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
         return;
       }
     }
@@ -141,7 +146,11 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       final history =
           ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
       if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(context);
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
         return;
       }
     }
@@ -356,7 +365,11 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
   VoidCallback _onEmptyTap(int slotNumber) {
     return () {
       if (_isLocked(slotNumber)) {
-        showPaywallSheet(context);
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
       } else {
         _openBriefing(slotNumber: slotNumber);
       }

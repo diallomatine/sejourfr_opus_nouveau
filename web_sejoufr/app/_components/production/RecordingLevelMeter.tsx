@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect, useRef, useState} from "react";
+import {useReducedMotion} from "@/lib/use-reduced-motion";
 import styles from "./production.module.css";
 
 /**
@@ -16,7 +17,11 @@ import styles from "./production.module.css";
  * amplitude vient du niveau d'entrée mesuré**.
  *
  * Un plancher de mouvement de quelques pixels est conservé : une forme d'onde
- * **figée** se lit comme une page plantée, pas comme un silence.
+ * **figée** se lit comme une page plantée, pas comme un silence. C'est aussi
+ * pourquoi `prefers-reduced-motion` **rabaisse** l'ondulation décorative au lieu
+ * de la supprimer (cf. `REDUCED_MOTION_SWING`) : le reste du décor animé de
+ * l'enregistreur, lui, disparaît franchement — il est purement affectif, la
+ * forme d'onde ne l'est pas.
  *
  * Miroir de `RecordingWaveform` / `RecordingPill` / `_VoiceHint` côté mobile,
  * **jusqu'aux seuils** : l'amplitude est ramenée à la même échelle 0..1 (dBFS
@@ -41,6 +46,18 @@ const AUDIBLE_LEVEL = 0.06;
 const SILENCE_GRACE_MS = 3000;
 
 const BAR_COUNT = 33;
+
+/**
+ * Part de l'ondulation **décorative** conservée quand le système demande de
+ * réduire les animations.
+ *
+ * Zéro serait une erreur : la hauteur des barres ne dépendrait plus que du
+ * niveau d'entrée, donc un candidat qui se tait — ou qui cherche ses mots, ce
+ * que le public de la plateforme fait souvent — verrait une forme d'onde
+ * **parfaitement figée**, qui se lit comme une page plantée. On garde donc un
+ * reste de mouvement, assez pour que l'écran respire, trop peu pour onduler.
+ */
+const REDUCED_MOTION_SWING = 0.22;
 
 /** Hauteur maximale d'une barre, en px — doit suivre `.waveBar` dans le CSS. */
 const BAR_MAX_PX = 62;
@@ -75,6 +92,15 @@ function audioContextCtor(): typeof AudioContext | null {
 export function RecordingLevelMeter({stream}: {stream: MediaStream | null}) {
   const barsRef = useRef<(HTMLSpanElement | null)[]>([]);
   const [unheard, setUnheard] = useState(false);
+  // Lu dans une ref, jamais dans les dépendances de l'effet : basculer le
+  // réglage système pendant une prise de trois minutes ne doit pas détruire puis
+  // recréer l'`AudioContext` — donc couper la capture du niveau — au milieu
+  // d'une phrase.
+  const reduced = useReducedMotion();
+  const reducedRef = useRef(reduced);
+  useEffect(() => {
+    reducedRef.current = reduced;
+  }, [reduced]);
   // Miroir du verdict courant : la boucle d'animation ne re-rend que sur
   // bascule, elle a donc besoin de savoir ce qui est déjà affiché — y compris
   // au tout premier tour d'un nouveau flux.
@@ -132,7 +158,7 @@ export function RecordingLevelMeter({stream}: {stream: MediaStream | null}) {
       }
 
       const phase = (now / 1200) * 2 * Math.PI;
-      const swing = 4 + level * 22;
+      const swing = (4 + level * 22) * (reducedRef.current ? REDUCED_MOTION_SWING : 1);
       for (let i = 0; i < BAR_COUNT; i += 1) {
         const bar = barsRef.current[i];
         if (!bar) continue;
@@ -158,7 +184,10 @@ export function RecordingLevelMeter({stream}: {stream: MediaStream | null}) {
 
   return (
     <div className={styles.recLive}>
-      <span className={styles.recPill} role="status">
+      {/* Pastille purement VISUELLE : l'annonce aux lecteurs d'écran est faite
+          une seule fois, par la région vivante de `EoRecordingForm`. Deux
+          régions auraient dit la même chose deux fois. */}
+      <span className={styles.recPill}>
         <span className={styles.recDot} aria-hidden />
         {RECORDING_PILL_LABEL}
       </span>

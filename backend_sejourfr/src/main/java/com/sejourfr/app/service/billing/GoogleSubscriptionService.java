@@ -67,6 +67,7 @@ public class GoogleSubscriptionService {
     private final SubscriptionNotificationService subscriptionNotifier;
     private final OneTimeAccessService oneTimeAccessService;
     private final com.sejourfr.app.config.BillingProperties billingProperties;
+    private final MontantEncaisseResolver montantEncaisseResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ------------------------------------------------------------------------
@@ -84,9 +85,21 @@ public class GoogleSubscriptionService {
      *         ou si l'API Play échoue ; 409 si le purchaseToken est déjà
      *         rattaché à un autre user.
      */
+    /**
+     * Variante sans montant déclaré par l'application (client antérieur au
+     * champ) : on retombera sur le prix affiché du plan.
+     */
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String purchaseToken) {
+        return activateFromReceipt(userId, expectedProductId, purchaseToken,
+                MontantEncaisse.INCONNU);
+    }
+
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate) {
         log.info(
                 "Google verify-receipt START user={} expectedProductId={} purchaseToken={}",
                 userId, expectedProductId, LogMask.token(purchaseToken)
@@ -95,7 +108,8 @@ public class GoogleSubscriptionService {
             // Mode passes one-time (lot 5) : produit managed → API products.get
             // (et non subscriptionsv2). Grant commun, durée backend.
             if (billingProperties.isOneTime()) {
-                return activateOneTimeProduct(userId, expectedProductId, purchaseToken);
+                return activateOneTimeProduct(userId, expectedProductId, purchaseToken,
+                        montantConstate);
             }
 
             SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
@@ -110,7 +124,7 @@ public class GoogleSubscriptionService {
             boolean isNew = userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
                     .isEmpty();
-            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken);
+            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken, montantConstate);
             log.info(
                     "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={} new={}",
                     userId, lineItem.getProductId(), LogMask.token(purchaseToken), sub.getStatus(), sub.getEndsAt(), isNew
@@ -138,7 +152,8 @@ public class GoogleSubscriptionService {
      * côté client par in_app_purchase.
      */
     private UserSubscription activateOneTimeProduct(
-            UUID userId, String expectedProductId, String purchaseToken) {
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate) {
         ProductPurchase pp;
         try {
             pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
@@ -163,8 +178,12 @@ public class GoogleSubscriptionService {
         // déjà payé.
         acquitter(expectedProductId, purchaseToken, pp);
 
+        // ⚠️ `purchases.products.get` ne rend AUCUN prix : le seul montant
+        // disponible est celui que l'application a affiché (verify-receipt).
+        // À défaut, le prix du plan. On n'invente rien.
         UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
-                userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId());
+                userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId(),
+                montantConstate);
         log.info("Google one-time pass user={} productId={} token={} endsAt={}",
                 userId, expectedProductId, LogMask.token(purchaseToken), sub.getEndsAt());
         return sub;
@@ -496,6 +515,16 @@ public class GoogleSubscriptionService {
             SubscriptionPurchaseLineItem lineItem,
             SubscriptionPurchaseV2 state,
             String purchaseToken) {
+        return upsert(user, plan, lineItem, state, purchaseToken, MontantEncaisse.INCONNU);
+    }
+
+    private UserSubscription upsert(
+            User user,
+            Plan plan,
+            SubscriptionPurchaseLineItem lineItem,
+            SubscriptionPurchaseV2 state,
+            String purchaseToken,
+            MontantEncaisse montantConstate) {
         UserSubscription sub = userSubscriptionManager
                 .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
                 .orElse(null);
@@ -525,6 +554,9 @@ public class GoogleSubscriptionService {
         // implémenté (mode ONE_TIME actif, cf. OneTimeAccessService).
         if (created) {
             sub.setRealtimeEoSessionsRemaining(Math.max(0, plan.getRealtimeEoSessions()));
+            // Montant figé À LA CRÉATION seulement : un renouvellement ne doit
+            // pas écraser ce qu'a coûté le premier achat.
+            montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
         }
         return userSubscriptionManager.save(sub);
     }

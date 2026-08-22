@@ -2,7 +2,7 @@ import type {
   LearningPlanCompletedStepDto,
   LearningPlanDto,
   LearningPlanPriorityDto,
-  PlanStepExerciseDto,
+  PlanSkillExerciseDto,
   SkillPromptSummaryDto,
 } from "./types";
 
@@ -25,8 +25,18 @@ import type {
  * `stepPromptCount`), ce module ne fait que les retrouver.
  *
  * ⚠️ **Aucun identifiant ne voyage dans l'URL** : on passe un simple marqueur
- * (`?etape=1`) et on relit le Plan **déjà en cache** (`learningPlanApi
- * .peekCached()`). Rien à charger, donc aucun appel réseau supplémentaire.
+ * (`?etape=1`) et on retrouve l'étape dans le Plan.
+ *
+ * ⚠️ **Le Plan se relit sur le CACHE, pas sur un `peek` seul** (règle corrigée
+ * le 2026-08-21). La formulation précédente — « on relit le Plan déjà en cache,
+ * rien à charger, donc aucun appel réseau supplémentaire » — tenait tant que le
+ * candidat ne rechargeait pas : le marqueur survit à un F5, le cache mémoire
+ * non. L'écran retombait alors sur la fiche des 15 sujets, perdait sa pilule
+ * d'étape, affichait « 1/15 » à la place de « 2/5 », et son retour partait dans
+ * `/entrainement/tcf/…` alors que le candidat venait du Plan. `CompetenceDetail`
+ * branche donc le Plan sur `useCachedData(learningPlanApi.cacheKey, …)` :
+ * **zéro appel** quand on arrive du Plan (le cache est chaud), **un** appel sur
+ * un rechargement à froid. Ne pas revenir à `peekCached()` ici.
  */
 
 /** Marqueur d'URL. Sa valeur ne porte aucune information : seule sa présence
@@ -66,7 +76,7 @@ export interface PlanStepScope {
   stepValidatedCount: number;
   stepPromptIds: string[];
   stepCompleted: boolean;
-  recommendedExercise: PlanStepExerciseDto | null;
+  recommendedExercise: PlanSkillExerciseDto | null;
 }
 
 function scopeOfPriority(priority: LearningPlanPriorityDto): PlanStepScope {
@@ -218,20 +228,6 @@ export const PLAN_STEP_BADGE_DONE = "Terminée";
 /** Libellé de la coche qui remplace le numéro d'une étape franchie — lu par les
  *  lecteurs d'écran, jamais affiché. */
 export const PLAN_STEP_DONE_MARK_LABEL = "Étape terminée";
-
-/**
- * Le sous-titre de « Votre parcours ». Il ne décrit que les **priorités
- * actives** : ce sont elles qui ouvrent la liste, numérotées à partir de 1.
- *
- * ⚠️ Les étapes **franchies** n'y figurent plus. Elles s'accumulent (5 servies
- * par le serveur), et les mettre en tête repoussait la priorité en 6ᵉ position,
- * hors écran — l'inverse de ce que le Plan doit faire. Elles vivent sous la
- * liste, repliées derrière {@link planDoneSectionCta}.
- */
-export function planPathSubtitle(active: number): string {
-  const s = active > 1 ? "s" : "";
-  return `${active} priorité${s} active${s}, dans l'ordre.`;
-}
 
 /** Le bouton qui déplie les étapes franchies, sous le parcours. */
 export function planDoneSectionCta(count: number, open: boolean): string {

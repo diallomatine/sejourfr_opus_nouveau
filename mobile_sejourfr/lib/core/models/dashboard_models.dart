@@ -19,6 +19,7 @@ class DashboardSummary {
     required this.estimatedTcfLevelPartial,
     required this.civique,
     required this.tcf,
+    this.tcfDomainProfile,
   });
 
   final int currentStreakDays;
@@ -55,6 +56,15 @@ class DashboardSummary {
   /// niveau vaut déjà `null` (« — ») : il n'y a rien à annoter.
   final bool estimatedTcfLevelPartial;
 
+  /// Le niveau TCF **domaine par domaine** — ce que « Mon profil TCF »
+  /// affiche, et ce dont « Compléter mon profil » déduit les domaines
+  /// manquants. Miroir de `DashboardSummaryResponse.tcfDomainProfile`.
+  ///
+  /// Les trois scalaires ci-dessus en sont le **résumé** : ils restent servis
+  /// et restent justes, ce bloc ne les remplace pas. `null` seulement face à un
+  /// backend antérieur au champ.
+  final TcfDomainProfile? tcfDomainProfile;
+
   final List<DashboardCategoryStat> civique;
   final List<DashboardCategoryStat> tcf;
 
@@ -78,6 +88,8 @@ class DashboardSummary {
             (json['estimatedTcfLevelEpreuvesExpected'] as num? ?? 0).toInt(),
         estimatedTcfLevelPartial:
             json['estimatedTcfLevelPartial'] as bool? ?? false,
+        tcfDomainProfile:
+            TcfDomainProfile.fromJsonOrNull(json['tcfDomainProfile']),
         civique: (json['civique'] as List<dynamic>? ?? [])
             .map((e) =>
                 DashboardCategoryStat.fromJson(e as Map<String, dynamic>))
@@ -86,6 +98,82 @@ class DashboardSummary {
             .map((e) =>
                 DashboardCategoryStat.fromJson(e as Map<String, dynamic>))
             .toList(),
+      );
+}
+
+/// Le profil TCF d'un candidat **domaine par domaine**, servi sur
+/// `GET /api/me/dashboard`. Miroir de `TcfDomainProfileDto`.
+///
+/// 🛑 **Les quatre domaines sont TOUJOURS présents**, dans un **ordre figé
+/// serveur** (CO, CE, EO, EE) : un domaine jamais passé reste dans la liste
+/// avec `evaluated == false`. Aucun front ne retrie, aucun front ne complète
+/// la liste, aucun front ne dérive un niveau.
+class TcfDomainProfile {
+  const TcfDomainProfile({
+    required this.domaines,
+    required this.evaluated,
+    required this.expected,
+    required this.partial,
+    this.globalLevel,
+  });
+
+  /// Les 4 domaines, dans l'ordre du serveur. Jamais `null`.
+  final List<TcfDomain> domaines;
+
+  /// Le niveau global : plancher des domaines évalués. `null` tant qu'aucun
+  /// domaine n'a été mesuré — **null = inconnu, jamais mauvais**.
+  final NiveauCecrl? globalLevel;
+
+  /// Domaines réellement mesurés (0..4) sur [expected] (4, toujours).
+  final int evaluated;
+  final int expected;
+
+  /// Au moins un domaine mesuré, mais pas les quatre.
+  final bool partial;
+
+  /// Les domaines qui n'ont jamais été mesurés, dans l'ordre du serveur.
+  /// C'est la matière de « Compléter mon profil » — mais **ce n'est pas elle
+  /// qui dit par quoi les mesurer** : c'est `LearningPlan.domainesAEvaluer`.
+  List<TcfDomain> get manquants =>
+      domaines.where((d) => !d.evaluated).toList(growable: false);
+
+  static TcfDomainProfile? fromJsonOrNull(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    return TcfDomainProfile(
+      domaines: (value['domaines'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(TcfDomain.fromJson)
+          .toList(growable: false),
+      globalLevel:
+          NiveauCecrl.fromWireNullable(value['globalLevel'] as String?),
+      evaluated: (value['evaluated'] as num? ?? 0).toInt(),
+      expected: (value['expected'] as num? ?? 0).toInt(),
+      partial: value['partial'] as bool? ?? false,
+    );
+  }
+}
+
+/// Un domaine du profil TCF. Miroir de `TcfDomainDto`.
+///
+/// `evaluated == false` ⇔ `niveau == null` : le domaine n'a jamais été passé,
+/// son niveau est **inconnu**, jamais `A1_NON_ATTEINT`. L'écran affiche « Pas
+/// encore évaluée » et **ne dérive aucun niveau** — il est calculé serveur.
+class TcfDomain {
+  const TcfDomain({
+    required this.epreuve,
+    required this.evaluated,
+    this.niveau,
+  });
+
+  /// `TCF_CO` | `TCF_CE` | `TCF_EO` | `TCF_EE`.
+  final EpreuveType epreuve;
+  final bool evaluated;
+  final NiveauCecrl? niveau;
+
+  factory TcfDomain.fromJson(Map<String, dynamic> json) => TcfDomain(
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        evaluated: json['evaluated'] as bool? ?? false,
+        niveau: NiveauCecrl.fromWireNullable(json['niveau'] as String?),
       );
 }
 

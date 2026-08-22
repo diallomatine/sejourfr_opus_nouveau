@@ -99,6 +99,53 @@ class ProductionValidityServiceTest {
         assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
     }
 
+    // ------------------------------------------------- plancher du diagnostic
+
+    /**
+     * LE CAS MESURE EN BASE : 4 secondes d'audio, 7 caracteres transcrits. Le
+     * plancher generique (5 mots) le refusait deja — c'est le juge qui n'etait
+     * pas appele sur la voie diagnostic.
+     */
+    @Test
+    void une_transcription_de_quatre_secondes_est_invalide_pour_le_diagnostic() {
+        var verdict = service.evaluerDiagnostic(task(EpreuveType.TCF_EO, 3), "Bonjour.");
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("vide ou trop courte"));
+    }
+
+    /**
+     * Le plancher du DIAGNOSTIC est plus haut que le plancher generique, parce
+     * que sa consequence l'est : cette production fixe le niveau d'un DOMAINE
+     * entier. Huit mots suffisent pour commenter un entrainement, pas pour
+     * situer un palier.
+     */
+    @Test
+    void le_plancher_du_diagnostic_est_plus_haut_que_le_plancher_generique() {
+        String huitMots = "Je vais bien et je suis content aujourd'hui";
+
+        assertThat(service.evaluer(task(EpreuveType.TCF_EO, 3), huitMots).statut())
+            .isEqualTo(ValiditeProduction.VALIDE);
+        assertThat(service.evaluerDiagnostic(task(EpreuveType.TCF_EO, 3), huitMots).statut())
+            .isEqualTo(ValiditeProduction.INVALIDE);
+    }
+
+    /**
+     * LE FAUX POSITIF EST LE RISQUE PRINCIPAL. Un A1 authentique produit peu :
+     * une production nettement plus courte que les 100-120 mots demandes doit
+     * rester analysee. La frontiere n'est pas « c'est mauvais », c'est « il n'y
+     * a rien a observer ».
+     */
+    @Test
+    void une_production_courte_mais_reelle_reste_analysee_par_le_diagnostic() {
+        String vingtCinqMots = "Bonjour, je voudrais savoir les horaires de la piscine et "
+            + "aussi le tarif pour les enfants, parce que je viens avec ma fille le samedi.";
+
+        var verdict = service.evaluerDiagnostic(task(EpreuveType.TCF_EO, 3), vingtCinqMots);
+
+        assertThat(verdict.invalide()).isFalse();
+    }
+
     // -------------------------------------------------------------------- vide
 
     @Test

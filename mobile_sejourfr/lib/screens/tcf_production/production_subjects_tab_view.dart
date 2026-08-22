@@ -25,7 +25,6 @@ import 'widgets/exam_filter_chips.dart';
 import 'widgets/production_blocks.dart';
 import 'widgets/production_cards.dart';
 import 'widgets/production_common.dart';
-import 'widgets/production_parcours_top.dart';
 import 'widgets/production_state_views.dart';
 
 /// Mode « Sujets TCF » du parcours EE/EO : hero, pastilles T1/T2/T3, filtres
@@ -34,11 +33,10 @@ import 'widgets/production_state_views.dart';
 /// **Écrit et oral suivent exactement le même écran** : seuls l'accent (bleu /
 /// rouge) et la zone de production en aval changent.
 ///
-/// Corps seul — l'en-tête, la tête commune du parcours (héros, prochain
-/// entraînement, barre des modes, sélecteur de tâche) et le voile d'attente
-/// sont portés par [ProductionParcoursScreen]. Les modèles ne sont pas un
-/// mode : c'est une ressource d'appoint, atteinte par un lien discret à droite
-/// de l'intertitre de la liste des sujets.
+/// Corps seul — l'en-tête, la carte de consigne, la barre des deux onglets et
+/// le voile d'attente sont portés par [ProductionTaskScreen]. Les modèles ne
+/// sont pas un onglet : c'est une ressource d'appoint, atteinte par un lien
+/// discret à droite de l'intertitre de la liste des sujets.
 class ProductionSubjectsTabView extends ConsumerStatefulWidget {
   const ProductionSubjectsTabView({
     super.key,
@@ -54,8 +52,9 @@ class ProductionSubjectsTabView extends ConsumerStatefulWidget {
   /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours.
   final ValueChanged<bool> onBusy;
 
-  /// Tête commune du parcours, rendue en tête de cette liste.
-  final List<Widget> Function({required bool withTaskPicker}) top;
+  /// Tête commune de la tâche (consigne + onglets), rendue en tête de cette
+  /// liste pour qu'elle défile avec elle.
+  final List<Widget> top;
 
   @override
   ConsumerState<ProductionSubjectsTabView> createState() =>
@@ -215,11 +214,16 @@ class _ProductionSubjectsTabViewState
         // correction est là, « Traité » sinon. La ligne disparaissait
         // entièrement, alors que la carte derrière la feuille affichait bien
         // « Traité » : deux surfaces, deux vérités sur le même sujet.
+        // Trois états sans niveau, jamais confondus : rien de rendu au
+        // correcteur (« Traité »), rendu mais rien à observer (« Non
+        // analysée »), corrigé sans niveau affichable (« Évaluée »).
         final etat = niveau != null
             ? tacheNiveauLabel(niveau)
-            : last.evaluation != null
-                ? kTacheEvalueeLabel
-                : kTacheTraiteeLabel;
+            : last.evaluation == null
+                ? kTacheTraiteeLabel
+                : last.evaluation!.estNonEvaluable
+                    ? kTacheNonEvaluableLabel
+                    : kTacheEvalueeLabel;
         return SafeArea(
           top: false,
           child: Container(
@@ -293,9 +297,9 @@ class _ProductionSubjectsTabViewState
   Widget build(BuildContext context) {
     final mod = widget.module;
 
-    // La tête du parcours porte la barre des trois modes : elle est rendue
-    // **quel que soit l'état** de la liste, sinon une erreur de chargement
-    // enfermerait le candidat dans ce mode.
+    // La tête porte la barre des deux onglets : elle est rendue **quel que
+    // soit l'état** de la liste, sinon une erreur de chargement enfermerait le
+    // candidat dans cet onglet.
     final content = ref.watch(taskTrainingProvider(_key)).when(
           // Au retour d'un entraînement (le parcours invalide le catalogue), on
           // garde la liste affichée pendant le refetch au lieu de flasher un
@@ -327,7 +331,7 @@ class _ProductionSubjectsTabViewState
       key: PageStorageKey<int>(widget.tache),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
-        ...widget.top(withTaskPicker: true),
+        ...widget.top,
         ...content,
       ],
     );

@@ -81,6 +81,26 @@ public class QuestionManager {
         return repository.findRandom(module, themeId, difficulty, questionType, PageRequest.of(0, size));
     }
 
+    /**
+     * Tirage d'une <b>serie ciblee</b> de comprehension : les questions du bon
+     * domaine et du bon niveau que ce candidat a vues le moins recemment, les
+     * jamais vues d'abord, departagees au hasard a fraicheur egale.
+     *
+     * <p>C'est le tirage des series lancees depuis une competence CO/CE du
+     * Plan. Il remplace le tirage purement aleatoire, qui n'avait aucune memoire
+     * et pouvait resservir la question de la veille pendant que 200 autres
+     * n'avaient jamais ete vues.
+     */
+    public List<Question> findLeastRecentlySeen(
+            UUID userId,
+            Module module,
+            Difficulty difficulty,
+            QuestionType questionType,
+            int size) {
+        return repository.findLeastRecentlySeen(
+                userId, module.name(), difficulty.name(), questionType.name(), size);
+    }
+
     /** Tirage aleatoire en excluant des ids deja tires (composition examen blanc). */
     public List<Question> findRandomExcluding(
             Module module,

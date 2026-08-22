@@ -308,7 +308,10 @@ class AiEvaluationServiceV8Test {
             .containsEntry("objectif", "NON_ATTEINT")
             .containsEntry("objectif_resume",
                 AiEvaluationService.RESUME_OBJECTIF_PRODUCTION_INVALIDE);
-        assertThat(eval.getNoteSur20()).isEqualByComparingTo(BigDecimal.ZERO);
+        // Le verdict d'ACCOMPLISSEMENT reste dit (la consigne n'a pas ete
+        // traitee, c'est un fait), mais aucun verdict de NIVEAU ne l'est.
+        assertThat(eval.getNoteSur20()).isNull();
+        assertThat(eval.getNiveauCecrl()).isNull();
         verify(llmClient, never()).evaluate(anyString(), anyString());
     }
 

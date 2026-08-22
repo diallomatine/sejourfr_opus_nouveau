@@ -20,19 +20,28 @@
 import {type DataCache, dataCache} from "./data-cache.ts";
 import {
   type SkillDto,
-  type SkillSection,
+  type SkillProductionSection,
   type SkillTaskCode,
   type SkillTaskProgressDto,
   skillTaskCodeOf,
 } from "./types.ts";
 
+/*
+ * ⚠️ Ce module est **expression uniquement** (`EE` / `EO`), d'où
+ * `SkillProductionSection` partout : une épreuve = 3 tâches × 8 compétences.
+ * La COMPRÉHENSION (CO / CE) n'a ni tâche ni petit sujet — son entraînement est
+ * une série ciblée de QCM —, et `GET /api/skills/progress?section=CO|CE` répond
+ * **422** volontairement. Le typage rend l'appel impossible plutôt qu'à
+ * surveiller.
+ */
+
 /** Clé de l'épreuve entière. **Une seule** entrée pour les 3 tâches. */
-export function skillsSectionKey(section: SkillSection): string {
+export function skillsSectionKey(section: SkillProductionSection): string {
   return `skills:section:${section}`;
 }
 
 /** Clé de l'agrégat par tâche (`GET /api/skills/progress?section=`). */
-export function skillsProgressKey(section: SkillSection): string {
+export function skillsProgressKey(section: SkillProductionSection): string {
   return `skills:progress:${section}`;
 }
 
@@ -47,8 +56,8 @@ export const SKILLS_CACHE_PREFIX = "skills:";
 /** Le strict nécessaire de `skillApi`, pour pouvoir injecter un faux en test. */
 export interface SkillCatalogClient {
   listSkills(taskCode: string): Promise<SkillDto[]>;
-  listSkillsBySection(section: SkillSection): Promise<SkillDto[]>;
-  progress(section: SkillSection): Promise<SkillTaskProgressDto[]>;
+  listSkillsBySection(section: SkillProductionSection): Promise<SkillDto[]>;
+  progress(section: SkillProductionSection): Promise<SkillTaskProgressDto[]>;
 }
 
 const TACHES = [1, 2, 3] as const;
@@ -67,14 +76,16 @@ function isFilterUnsupported(error: unknown): boolean {
  *  jamais dépendre de l'ordre d'arrivée (repli compris). */
 function sortSkills(list: readonly SkillDto[]): SkillDto[] {
   return [...list].sort(
-    (a, b) => a.taskCode.localeCompare(b.taskCode) || a.displayOrder - b.displayOrder,
+    (a, b) =>
+      (a.taskCode ?? "").localeCompare(b.taskCode ?? "") ||
+      a.displayOrder - b.displayOrder,
   );
 }
 
 /** La réponse couvre-t-elle bien les 3 tâches de l'épreuve ? Un backend qui
  *  ignorerait `section` renverrait autre chose — on le voit ici, on ne l'affiche
  *  pas à l'écran. */
-function coversSection(list: readonly SkillDto[], section: SkillSection): boolean {
+function coversSection(list: readonly SkillDto[], section: SkillProductionSection): boolean {
   const codes = new Set(list.map((s) => s.taskCode));
   return TACHES.every((n) => codes.has(skillTaskCodeOf(section, n)));
 }
@@ -85,7 +96,7 @@ function coversSection(list: readonly SkillDto[], section: SkillSection): boolea
  */
 export function loadSectionSkills(
   client: SkillCatalogClient,
-  section: SkillSection,
+  section: SkillProductionSection,
   cache: DataCache = dataCache,
 ): Promise<SkillDto[]> {
   return cache.cached(skillsSectionKey(section), async () => {
@@ -116,7 +127,7 @@ export function skillsOfTask(
  *  passer, mais il n'a aucune raison de le redemander à chaque tâche. */
 export function loadTaskProgress(
   client: SkillCatalogClient,
-  section: SkillSection,
+  section: SkillProductionSection,
   cache: DataCache = dataCache,
 ): Promise<SkillTaskProgressDto[]> {
   return cache.cached(skillsProgressKey(section), () => client.progress(section));

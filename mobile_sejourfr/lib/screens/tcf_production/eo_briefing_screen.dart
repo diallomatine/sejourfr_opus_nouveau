@@ -851,27 +851,29 @@ class _TimerBig extends StatelessWidget {
     }
     final secs = elapsed.inSeconds;
     if (secs < minSec) return AppColors.red;
-    if (secs < max.inSeconds) return AppColors.amber;
+    // `AppColors.amber` est un ambre de **remplissage**, illisible en lettres :
+    // un chrono ambre passe par `amberDark`.
+    if (secs < max.inSeconds) return AppColors.amberDark;
     return AppColors.green;
   }
 
+  /// Le chrono est **entouré du cadran partagé** : le nombre seul changeait une
+  /// fois par seconde alors que l'état arrive toutes les 200 ms, ce qui donnait
+  /// un écran d'apparence figée pendant qu'on parlait. L'arc, lui, bouge à
+  /// chaque tic — et en examen il **se vide**, comme les chiffres.
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          countdown ? _fmt(_remaining) : _fmt(elapsed),
-          style: AppFonts.display(size: 56, color: _timerColor, height: 1.0),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          countdown ? 'Temps restant' : '/ ${_fmt(max)}',
-          style: AppFonts.ui(
-            size: 14,
-            color: AppColors.muted2,
-          ),
-        ),
-      ],
+    return RecordingGauge(
+      elapsed: elapsed,
+      total: max,
+      depleting: countdown,
+      timeLabel: countdown ? _fmt(_remaining) : _fmt(elapsed),
+      sub: countdown ? 'Temps restant' : '/ ${_fmt(max)}',
+      timeColor: _timerColor,
+      size: 158,
+      timeSemantics: countdown
+          ? 'Temps restant : ${recordingSpokenDuration(_remaining)}'
+          : recordingTimeSemantics(elapsed, max),
     );
   }
 }

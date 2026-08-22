@@ -35,10 +35,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Démarrage idempotent, reprise cross-device et restitution agrégée. */
@@ -168,13 +172,68 @@ public class DiagnosticService {
 
         Map<String, Object> summary = session.getSummaryJson() == null
                 ? Map.of() : session.getSummaryJson();
+        // 🛑 Le plafond de 3 est une RÈGLE PRODUIT du diagnostic, pas un plafond
+        // d'affichage : on n'y touche pas. C'est exactement pourquoi le « + N
+        // autres » des fronts ne peut pas se calculer là-dessus, et pourquoi le
+        // compte réel est servi à côté.
         List<DiagnosticSkillObservationDto> priorities = strings(summary.get("priority_skill_codes"))
                 .stream().map(observations::get).filter(Objects::nonNull).limit(3).toList();
         PlanRecommendedExerciseDto next = recommendedAction(userId, observations, priorities);
         return new DiagnosticResultDto(
                 written, oral, strings(summary.get("strengths")), priorities,
                 nullableText(summary.get("main_priority_explanation")), next,
-                exempleCible(writtenAnalysis));
+                exempleCible(writtenAnalysis),
+                fragileSkillCount(observations.values()),
+                solidSkillCount(observations.values()));
+    }
+
+    /**
+     * Combien de compétences <b>distinctes</b> les deux productions ont
+     * réellement montrées fragiles.
+     *
+     * <p>🛑 <b>Autorité unique du « + N autres » des fronts.</b> Ni le web ni le
+     * mobile ne recomptent : deux dérivations finiraient par afficher deux
+     * nombres différents pour la même chose. Et le compte ne peut pas se lire
+     * sur {@code priorities}, plafonné à 3 par règle produit — un « + 2 » de
+     * plafond n'est pas une réalité.
+     *
+     * <p>{@code 0} est un état normal (aucune fragilité observée) : les fronts
+     * ne rendent alors aucun bloc.
+     */
+    static int fragileSkillCount(Collection<DiagnosticSkillObservationDto> observations) {
+        return countObserved(observations, EnumSet.of(
+                LearningPlanSkillStatus.PRIORITY, LearningPlanSkillStatus.TO_REINFORCE));
+    }
+
+    /**
+     * Le compte réel des points forts : compétences distinctes observées
+     * {@code SOLID}.
+     *
+     * <p>⚠️ {@code strengths} ne peut pas rendre ce service : la liste est
+     * plafonnée à 3 <b>au moment où le résumé est assemblé et persisté</b>
+     * ({@code DiagnosticSessionCoordinator}), donc sa longueur ne dit rien du
+     * nombre réel.
+     */
+    static int solidSkillCount(Collection<DiagnosticSkillObservationDto> observations) {
+        return countObserved(observations, EnumSet.of(LearningPlanSkillStatus.SOLID));
+    }
+
+    /**
+     * Dédoublonnage par <b>code de compétence</b> : une même compétence peut
+     * apparaître dans les deux allowlists, elle ne compte qu'une fois. Une
+     * observation non effective ({@code observed = false}) n'est jamais comptée —
+     * « je n'ai pas pu observer » n'est pas « le candidat est faible ».
+     */
+    private static int countObserved(
+            Collection<DiagnosticSkillObservationDto> observations,
+            Set<LearningPlanSkillStatus> statuses) {
+        Set<String> codes = new HashSet<>();
+        for (DiagnosticSkillObservationDto observation : observations) {
+            if (observation == null || !observation.observed()) continue;
+            if (observation.status() == null || !statuses.contains(observation.status())) continue;
+            codes.add(observation.skillCode());
+        }
+        return codes.size();
     }
 
     /**
@@ -290,6 +349,7 @@ public class DiagnosticService {
             }
         }
         return new DiagnosticProductionResultDto(
+                analysis.getEvaluabilite(),
                 analysis.getLevelEstimate(), analysis.getTaskCompletion(),
                 analysis.getCommunicationStatus(), nullableText(json.get("summary")),
                 strings(json.get("strengths")), strings(json.get("weaknesses")), skills);

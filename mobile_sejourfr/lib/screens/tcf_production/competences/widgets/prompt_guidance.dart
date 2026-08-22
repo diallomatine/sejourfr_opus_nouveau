@@ -212,7 +212,17 @@ class SkillChecklistCard extends StatelessWidget {
   }
 }
 
+/// Intitulé du contexte du sujet. Miroir mot pour mot de `SITUATION_LABEL`
+/// côté web (`app/_components/competences/PromptGuidance.tsx`).
+const String kSkillSituationLabel = 'SITUATION';
+
 /// « Situation » — le contexte du sujet, resserré.
+///
+/// **Panneau, pas carte** : fond teinté de l'accent et liseré de 3 px à gauche,
+/// comme le mini-sujet de la maquette. Deux raisons, dans cet ordre : c'est le
+/// **texte à traiter**, il ne doit pas se lire comme un encart de conseil de
+/// plus ; et sans la rangée pastille + titre d'une [SkillGuidanceCard] il coûte
+/// une ligne de moins au-dessus de la zone de production.
 class SkillSituationCard extends StatelessWidget {
   const SkillSituationCard({
     super.key,
@@ -225,13 +235,30 @@ class SkillSituationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext buildContext) {
-    return SkillGuidanceCard(
-      icon: LucideIcons.mapPin,
-      title: 'Situation',
-      accent: accent,
-      child: Text(
-        context,
-        style: AppFonts.ui(size: 13, height: 1.45, color: AppColors.ink2),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: const BorderRadius.horizontal(
+          left: Radius.circular(AppRadii.sm),
+          right: Radius.circular(18),
+        ),
+        border: Border(left: BorderSide(color: accent, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            kSkillSituationLabel,
+            style: AppFonts.label(size: 10, color: accent),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            context,
+            style: AppFonts.ui(size: 13.5, height: 1.45, color: AppColors.ink2),
+          ),
+        ],
       ),
     );
   }

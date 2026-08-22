@@ -66,7 +66,8 @@ class StripeSubscriptionServiceTest {
         billingProperties = mock(BillingProperties.class);
         service = new StripeSubscriptionService(
                 userManager, planManager, userSubscriptionManager,
-                new SubscriptionNotificationService(mailService), oneTimeAccessService, billingProperties);
+                new SubscriptionNotificationService(mailService), oneTimeAccessService, billingProperties,
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
         when(userSubscriptionManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -218,8 +219,10 @@ class StripeSubscriptionServiceTest {
 
         service.dispatch(eventOf("checkout.session.completed", session));
 
+        // Le montant vient de Stripe lui-même (`amount_total` + `currency`) :
+        // c'est le seul chiffre qui soit un fait, remises et proration comprises.
         verify(oneTimeAccessService).grantOneTimeAccess(
-                eq(userId), eq(plan), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"));
+                eq(userId), eq(plan), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"), any());
     }
 
     @Test
@@ -233,7 +236,8 @@ class StripeSubscriptionServiceTest {
 
         service.dispatch(eventOf("checkout.session.completed", session));
 
-        verify(oneTimeAccessService, never()).grantOneTimeAccess(any(), any(), any(), any(), any());
+        verify(oneTimeAccessService, never())
+                .grantOneTimeAccess(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -253,6 +257,7 @@ class StripeSubscriptionServiceTest {
     void dispatch_typeInconnu_noop() {
         service.dispatch(eventOf("invoice.paid", mock(Subscription.class)));
         verify(userSubscriptionManager, never()).save(any());
-        verify(oneTimeAccessService, never()).grantOneTimeAccess(any(), any(), any(), any(), any());
+        verify(oneTimeAccessService, never())
+                .grantOneTimeAccess(any(), any(), any(), any(), any(), any());
     }
 }

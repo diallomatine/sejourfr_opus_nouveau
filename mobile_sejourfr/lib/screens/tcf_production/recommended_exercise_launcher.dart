@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/premium_lock.dart';
+import '../plan/plan_series_launcher.dart';
 import 'competences/competences_nav.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
@@ -18,7 +19,7 @@ import 'production_nav.dart';
 import 'tcf_production_module.dart';
 
 /// Ouvre l'exercice recommandé par le Plan — **le seul endroit** qui sait où
-/// mènent ses deux natures.
+/// mènent ses trois natures.
 ///
 /// * [PlanExerciseKind.microTraining] → l'écran d'un petit sujet du module
 ///   Compétences, comme depuis « Réviser → Compétences ».
@@ -26,20 +27,48 @@ import 'tcf_production_module.dart';
 ///   tâche TCF**, atteint exactement comme depuis le mode « Sujets » : on
 ///   charge le sujet, on démarre la session, puis on ouvre `t/0`. Le sujet ne
 ///   voyage jamais dans l'URL — c'est la session qui le porte.
+/// * [PlanExerciseKind.targetedQcmSeries] → une **série ciblée de
+///   compréhension** : on démarre l'attempt (`skillId` seul) et on ouvre le
+///   runner QCM existant. 🛑 Sans cette branche, une série tombait dans le cas
+///   par défaut et ouvrait une fiche de compétence d'**expression** — un écran
+///   qui n'a rien à voir avec la compétence désignée.
+///
+/// 🛑 **Un jalon ne passe jamais ici** : il n'est pas un
+/// [PlanRecommendedExercise] (ni titre, ni compétence) et se lance par
+/// `startPlanMilestone`.
+///
+/// [masteryBefore] n'est lu que par une série ciblée : c'est l'état affiché au
+/// moment du lancement, repassé à son bilan pour qu'il dise « avant → après »
+/// sans le deviner.
 ///
 /// Le Plan et le résultat du diagnostic l'appellent tous les deux : deux copies
 /// auraient fini par router différemment la même recommandation.
 Future<void> openRecommendedExercise(
   BuildContext context,
   WidgetRef ref,
-  PlanRecommendedExercise exercise,
-) async {
+  PlanRecommendedExercise exercise, {
+  SkillMasteryState? masteryBefore,
+}) async {
   // Garde de dernier recours : le serveur décide du verrou, l'app ne le devine
   // pas. Les cartes ouvrent déjà le paywall d'elles-mêmes.
   if (exercise.locked) {
     await showTcfLockPaywall(context);
     return;
   }
+  // La compréhension n'a ni sujet de production ni petit sujet : elle se
+  // travaille sur une série de QCM. On tranche AVANT de dériver un module
+  // d'expression — `section` y vaut CO ou CE, qu'aucun `TcfProductionModule`
+  // ne représente.
+  if (exercise.kind == PlanExerciseKind.targetedQcmSeries) {
+    await startTargetedSeries(
+      context,
+      ref,
+      skillId: exercise.skillId,
+      masteryBefore: masteryBefore,
+    );
+    return;
+  }
+
   final module = exercise.section == SkillSection.eo
       ? TcfProductionModule.eo
       : TcfProductionModule.ee;

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/repositories.dart';
-import '../../core/api/user_content_repository.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
@@ -15,11 +14,6 @@ import '../../core/models/question_models.dart';
 /// le `ThemeDto` à partir du `themeId` passé en path param).
 final civiqueThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
   return ref.watch(themesRepositoryProvider).list(module: AppModule.civique);
-});
-
-/// Stats user du module Civique (alimente la barre de couverture du thème).
-final civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
 });
 
 /// Historique des examens civique scopés à un thème (20 Q de ce thème,

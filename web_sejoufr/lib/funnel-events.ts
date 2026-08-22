@@ -11,12 +11,13 @@ export type {FunnelEvent} from "./api";
  * instrumenter ici pour ces étapes-là, et `CHECKOUT_STARTED` est posé par le
  * serveur : ne jamais l'émettre depuis le web.
  *
- * Trois règles, dans le prolongement de `lib/audience.ts` :
+ * Trois règles, dans le prolongement de `lib/analytics.ts` :
  *
- * - **rien n'est écrit sur l'appareil du visiteur** : ni cookie, ni
- *   localStorage, ni sessionStorage. La déduplication ci-dessous vit en mémoire
- *   et meurt avec l'onglet ; le serveur, lui, est idempotent (première
- *   occurrence par compte), donc un doublon ne coûte rien ;
+ * - **ce module-ci n'écrit rien sur l'appareil du visiteur** : la
+ *   déduplication ci-dessous vit en mémoire et meurt avec l'onglet ; le
+ *   serveur, lui, est idempotent (première occurrence par compte), donc un
+ *   doublon ne coûte rien. ⚠️ `lib/analytics.ts`, lui, dépose un identifiant
+ *   de mesure d'audience — ce n'est pas le cas ici ;
  * - **best-effort, jamais bloquant** : aucune erreur n'est remontée à
  *   l'utilisateur, aucun état d'attente n'est affiché, un événement perdu est
  *   sans conséquence ;

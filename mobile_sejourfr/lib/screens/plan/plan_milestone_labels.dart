@@ -35,13 +35,13 @@ extension PlanMilestoneLabels on PlanMilestone {
   /// pas sur un jalon).
   String get displayTitle => isFullExam
       ? kPlanMilestoneFullTitle
-      : 'Examen blanc — ${_section.productionLabel}';
+      : 'Examen blanc — ${_section.label}';
 
   /// Pourquoi ce jalon est proposé maintenant — une phrase, pas un
   /// avertissement.
   String get displayText => isFullExam
       ? kPlanMilestoneFullText
-      : 'Vos compétences en ${_section.productionLabel.toLowerCase()} tiennent '
+      : 'Vos compétences en ${_section.label.toLowerCase()} tiennent '
           'en exercice ciblé. Enchaînez les 3 tâches en conditions d\'examen '
           'pour le confirmer.';
 

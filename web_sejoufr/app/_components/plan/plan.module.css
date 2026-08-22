@@ -1,21 +1,35 @@
 /* ============================================================================
-   Plan personnalisé.
+   Plan adaptatif — écran `/plan`, fiche de domaine, écran d'évolution.
 
-   Langage visuel repris de la maquette client
-   (`docs/diagnostiques/diagnostique-rapport.html`) : bandeau en dégradé bleu
-   avec son anneau décoratif, grands rayons (20-26 px), ombres douces portées,
-   pastilles chiffrées, chemin d'étapes relié. Les **couleurs** restent celles de
-   l'application — `var(--color-*)` / `var(--gradient-*)` uniquement, aucune
-   valeur en dur ; les teintes absentes des tokens sont dérivées en
-   `color-mix()`.
+   L'anatomie (deux colonnes, carte de priorité à en-tête plein, séance en
+   liste barrée d'une jauge, panneaux latéraux à lignes cliquables, rail de
+   paliers, chemin numéroté) vient de la maquette client.
 
-   ⚠️ Ce que la maquette contient et qu'on NE reprend PAS : le pourcentage
-   « du plan maîtrisé » et les scores en % par priorité. Le brief §20/§23
-   les interdit — on n'affiche que des compteurs réellement servis par l'API.
+   🛑 **Les COULEURS et les FONTES sont celles de SejourFR, pas celles de la
+   maquette** : `var(--color-*)` et `var(--font-*)` uniquement. Les teintes
+   absentes des tokens sont dérivées en `color-mix()` dans le bloc de variables
+   locales ci-dessous — jamais écrites en dur ailleurs dans ce fichier.
+
+   L'ÉCHELLE typographique, elle, est bien reprise de la maquette : h1 ~34,
+   titres de section ~21, titres de carte 16-21, lignes de liste 15.5, meta
+   13-13.5, eyebrow 11.5-13 en capitales.
    ============================================================================ */
 
 .page {
-  width: min(100%, 1080px);
+  /* Variables locales : le seul endroit de ce module où une teinte se
+     fabrique. Toutes dérivent des tokens de `globals.css`. */
+  --plan-surface: #fff;
+  --plan-surface-2: var(--color-blue-soft);
+  --plan-surface-3: var(--color-paper-2);
+  --plan-line-soft: var(--color-line-2);
+  --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
+  --plan-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+  --plan-shadow-soft: 0 6px 18px color-mix(in srgb, var(--color-ink) 5%, transparent);
+
+  width: min(100%, 1180px);
   margin: 0 auto;
   padding: 34px 28px 56px;
 }
@@ -33,41 +47,200 @@
   margin: 0 0 9px;
   color: var(--color-blue);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .header h1 {
   margin: 0;
   color: var(--color-ink);
-  font-size: clamp(29px, 4vw, 40px);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.1;
+  font-size: clamp(27px, 4vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: pretty;
 }
 
-.header > p:last-child {
-  max-width: 62ch;
+.header > p:last-of-type,
+.header > p:not(.eyebrow) {
+  max-width: 66ch;
   margin: 9px 0 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.headerAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 9px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--plan-surface);
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.headerAction:hover {
+  border-color: var(--color-blue);
+}
+
+/* L'objectif est inconnu : on invite à le déclarer, on ne l'invente pas. */
+.headerNudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--plan-surface-2);
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------- barre de tête ---- */
+
+/* La barre « Version gratuite », entre l'en-tête et la grille. Même famille
+   visuelle que `.headerNudge` (ligne cliquable, fond teinté, pas de carte) —
+   la maquette la peint comme un bandeau discret, pas une alerte. */
+.freeBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 11px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--plan-surface-3);
+  color: var(--color-ink);
+}
+
+.freeBar:hover {
+  border-color: var(--color-blue);
+}
+
+.freeBar > svg {
+  flex: none;
   color: var(--color-muted);
 }
 
-/* Intertitre + phrase d'explication d'un bloc, même rythme que le module
-   Compétences (`SectionHead`) mais avec sa mesure d'appoint à droite. */
+.freeBarText {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.freeBarText b {
+  font-weight: 700;
+}
+
+.freeBarText span {
+  color: var(--color-muted);
+}
+
+.freeBarCta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* « Plan actualisé » : même gabarit que la barre « Version gratuite » — les
+   deux occupent la même place et ne s'affichent jamais ensemble —, mais en
+   bleu : ici on annonce une bonne nouvelle, pas un accès fermé. */
+.updatedBar {
+  border-color: color-mix(in srgb, var(--color-blue) 30%, transparent);
+  background: var(--color-blue-light);
+}
+
+.updatedBar > svg {
+  color: var(--color-blue);
+}
+
+.updatedBar .freeBarText b {
+  color: var(--color-blue-dark);
+}
+
+/* ------------------------------------------------------------------ grille */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 336px;
+  align-items: start;
+  gap: 22px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+}
+
+/* La colonne latérale ne tient qu'à partir de ~1180 px de fenêtre : sous la
+   sidebar applicative (248 px) + les marges, la colonne principale tomberait
+   sous 460 px et la carte de priorité deviendrait illisible. */
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+}
+
+/* ------------------------------------------------------------ intertitres */
+
 .blockHead {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin: 30px 2px 13px;
+  margin: 10px 2px 13px;
 }
 
 .blockHead h2 {
   margin: 0;
   color: var(--color-ink);
-  font-size: clamp(19px, 2.4vw, 22px);
+  font-size: clamp(19px, 2.4vw, 21px);
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -77,163 +250,1506 @@
   color: var(--color-muted);
   font-size: 13px;
   line-height: 1.45;
+  text-wrap: pretty;
 }
 
-.blockHead > span {
+.blockAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Sur un petit écran, l'action passe SOUS l'intertitre plutôt que d'écraser sa
+   phrase : « Toutes mes compétences » ne tient pas à côté de « Mes priorités »
+   à 360 px. */
+@media (max-width: 560px) {
+  .blockHead {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .blockHead > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+/* -------------------------------------------------------- priorité actuelle */
+
+.priority {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow);
+}
+
+/* En-tête bleu plein : la seule surface de l'écran qui porte la couleur de
+   marque en aplat — c'est ce qui désigne l'action unique. */
+.priorityHead {
+  padding: clamp(20px, 3vw, 26px);
+  background: var(--gradient-hero-blue);
+  color: var(--color-paper);
+}
+
+.priorityEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.priorityTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.priorityTitleRow h2 {
+  flex: 1;
+  min-width: 240px;
+  margin: 0;
+  color: var(--color-paper);
+  font-size: clamp(21px, 3vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  text-wrap: pretty;
+}
+
+/* Sur l'aplat bleu, la pastille de nature s'inverse : fond clair, teinte de la
+   nature en texte. Les quatre restent donc **distinctes** là aussi — la seule
+   chose qu'on ne peut pas se permettre, c'est que « à acquérir » et « à
+   renforcer » se ressemblent. */
+.priorityNature {
+  display: block;
+  margin-top: 12px;
+}
+
+.priorityNature .naturePill {
+  background: var(--plan-surface);
+  color: var(--color-ink-2);
+}
+
+.priorityNature .naturePill[data-nature="A_RENFORCER"] {
+  color: var(--color-red-dark);
+}
+
+.priorityNature .naturePill[data-nature="A_VERIFIER"] {
+  color: var(--color-green);
+}
+
+.priorityNature .naturePill[data-nature="A_ACQUERIR"] {
+  color: var(--color-blue);
+}
+
+/* La compétence, sous le titre d'épreuve. Plus de pastille : le repère n'est
+   plus un accessoire du titre, c'est la ligne qui dit sur QUOI on travaille. */
+.prioritySkill {
+  max-width: 62ch;
+  margin: 7px 0 0;
+  color: color-mix(in srgb, var(--color-paper) 92%, transparent);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.priorityText {
+  max-width: 62ch;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  opacity: 0.94;
+  text-wrap: pretty;
+}
+
+.priorityFoot {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid color-mix(in srgb, var(--color-paper) 24%, transparent);
+}
+
+.priorityGoal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.priorityRail {
+  flex: 1;
+  min-width: 220px;
+}
+
+.priorityActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 18px clamp(20px, 3vw, 26px) 20px;
+}
+
+.linkButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mutedLink {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------------- séance */
+
+.seance {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.seanceHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 19px 22px 15px;
+}
+
+.seanceHead > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.seanceHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.seanceHead p {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+}
+
+.seanceCount {
   flex: none;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 800;
 }
 
-/* ------------------------------------------------------------ bandeau héros */
-
-.hero {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(20px, 3.5vw, 28px);
-  border-radius: 26px;
-  color: var(--color-paper);
-  background: linear-gradient(145deg, var(--color-blue-dark), var(--color-blue));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-blue) 22%, transparent);
+.seanceCount[data-done="1"] {
+  color: var(--color-green);
 }
 
-/* Anneau décoratif de la maquette. */
-.hero::after {
-  content: "";
-  position: absolute;
-  top: -46px;
-  right: -50px;
-  width: 152px;
-  height: 152px;
-  border: 24px solid color-mix(in srgb, var(--color-paper) 7%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
+.seanceBar {
+  height: 3px;
+  background: var(--plan-surface-3);
 }
 
-.heroTop {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+.seanceBar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-blue);
+  transition: width 0.3s ease;
 }
 
-.heroLabel {
+.seanceEmpty {
   margin: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.78;
+  padding: 4px 22px 18px;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
-/* « A1 non atteint » est un libellé long : la ligne s'enroule plutôt que de
-   déborder du bandeau à 360 px. */
-.heroLevelLine {
+.seanceWhy {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 11px;
-  margin: 8px 0 0;
-  font-size: clamp(26px, 5.5vw, 40px);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-  overflow-wrap: anywhere;
-}
-
-.heroArrow {
-  font-size: 0.62em;
-  font-weight: 700;
-  opacity: 0.6;
-}
-
-.heroTarget {
-  color: var(--color-paper);
-}
-
-.heroBadge {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
+  width: 100%;
+  padding: 14px 22px;
+  border: none;
+  border-top: 1px solid var(--plan-line-soft);
+  background: var(--plan-surface-2);
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.seanceWhy > span {
+  flex: 1;
+}
+
+/* ------------------------------------ encarts « épreuve → tâche → lignes »
+
+   La brique commune de « Aujourd'hui » et de « Mes priorités ». Fermé, un
+   encart tient sur une ligne : icône du domaine, nom de l'épreuve, pastille de
+   tâche, résumé. Ouvert, il déroule ses lignes — et, sur les priorités, un
+   contexte à gauche et les lignes à droite.
+
+   🛑 L'en-tête est un vrai `<button>` : tout le style d'un `div` cliquable, la
+   tabulation et `aria-expanded` en plus. */
+
+.seanceGroup {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.encart {
+  min-width: 0;
+}
+
+.encart[data-done="1"] {
+  opacity: 0.72;
+}
+
+.encartHead {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 15px 22px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.encartHead:hover {
+  background: var(--plan-surface-2);
+}
+
+.encartHeadBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.encartTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.encartTitle {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 17.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Trois teintes qui tournent avec le numéro de tâche — elles ne disent aucune
+   urgence, seulement « ce n'est pas la même tâche ».
+
+   🛑 **La 3ᵉ n'est PAS rouge**, et ne doit jamais le redevenir : le Rouge
+   France est réservé aux CTA critiques, et une carte d'expression porte déjà
+   deux rouges de sens différents (l'icône du domaine, la pastille de statut
+   « Priorité »). La maquette prend un violet — nos tokens n'en ont pas, et on
+   n'en fabrique pas. Elle se distingue donc par le **remplissage** : les deux
+   autres familles claires du même en-tête sont déjà prises (le vert est la
+   coche « fait », le gris la pastille de contexte). Miroir exact du mobile
+   (`PlanTaskBadge`). */
+.encartTaskPill,
+.encartContextPill {
   flex: none;
-  padding: 8px 11px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-paper) 14%, transparent);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.heroCopy {
-  position: relative;
-  z-index: 1;
-  max-width: 56ch;
-  margin: 12px 0 0;
-  font-size: 14px;
-  line-height: 1.5;
-  opacity: 0.88;
+.encartTaskPill[data-tone="0"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
 }
 
-.heroScope {
-  margin: 7px 0 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  opacity: 0.72;
+.encartTaskPill[data-tone="1"] {
+  background: var(--plan-amber-tint);
+  color: var(--color-amber-dark);
 }
 
-/* Pastilles chiffrées — uniquement des compteurs réellement servis. */
-.heroStats {
+.encartTaskPill[data-tone="2"] {
+  background: var(--color-blue);
+  /* Le blanc du module, déclaré une seule fois en tête de fichier — jamais un
+     `#fff` écrit ici. */
+  color: var(--plan-surface);
+}
+
+/* Pas de tâche : le groupe porte son palier, sa mesure ou son examen — un
+   repère, jamais une couleur d'état. */
+.encartContextPill {
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+}
+
+.encartSummary {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  text-wrap: pretty;
+}
+
+.encartChevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-muted);
+  transition: transform 0.22s ease;
+}
+
+.encartChevron[data-open="1"] {
+  transform: rotate(180deg);
+}
+
+.encartDone {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin: 18px 0 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.encartPanel {
+  padding: 0 22px 16px;
+  animation: encartOpen 0.18s ease;
+}
+
+@keyframes encartOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .encartPanel {
+    animation: none;
+  }
+
+  .encartChevron {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------- lignes d'un encart */
+
+.encartRows {
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.heroStats li {
-  display: grid;
-  gap: 3px;
-  padding: 12px 13px;
-  border-radius: 15px;
-  background: color-mix(in srgb, var(--color-paper) 12%, transparent);
+.encartRowItem + .encartRowItem .encartRow {
+  border-top: 1px solid var(--plan-line-soft);
 }
 
-.heroStats b {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
+.encartRowItem[data-done="1"] {
+  opacity: 0.62;
 }
 
-.heroStats span {
-  font-size: 11px;
-  line-height: 1.3;
-  opacity: 0.82;
+.encartRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+  padding: 12px 10px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
 }
 
-.heroFoot {
-  margin: 15px 0 0;
-  padding-top: 13px;
-  border-top: 1px solid color-mix(in srgb, var(--color-paper) 16%, transparent);
-  font-size: 11.5px;
+a.encartRow,
+button.encartRow {
+  cursor: pointer;
+}
+
+a.encartRow:hover,
+button.encartRow:hover {
+  background: var(--plan-surface-2);
+}
+
+button.encartRow:disabled {
+  cursor: default;
   opacity: 0.7;
 }
 
-/* ------------------------------------------------------- à faire maintenant */
+.encartRowBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
 
-.today {
-  padding: clamp(18px, 3vw, 24px);
+.encartRowTitle {
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.encartRowTitle[data-done="1"] {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-muted-2);
+}
+
+.encartRowMeta {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.encartRowAside {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+}
+
+.encartRowDone {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.encartStart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* --------------------------------------- encarts de « Mes priorités » */
+
+.encartStack {
+  display: grid;
+  gap: 12px;
+}
+
+.encartCard {
+  overflow: hidden;
   border: 1px solid var(--color-line);
-  border-radius: 22px;
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+  transition: border-color 0.15s ease;
+}
+
+.encartCard[data-open="1"] {
+  border-color: var(--color-blue);
+}
+
+/* Ouvert : le contexte à gauche, les lignes à droite — une seule colonne dès
+   que la place manque, sans point de rupture à tenir à la main. */
+.encartSplit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 22px;
+  align-items: start;
+  padding-top: 4px;
+}
+
+.encartAside {
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.encartRowsBlock {
+  min-width: 0;
+}
+
+.encartEyebrow {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.encartAsideTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  text-wrap: pretty;
+}
+
+.encartAsideText {
+  margin: 3px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.encartCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--plan-surface);
+  color: var(--color-blue);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.encartCta:hover {
+  border-color: var(--color-blue);
+  background: var(--plan-surface-2);
+}
+
+.encartCta:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+/* Le renvoi vers la fiche du domaine, quand un encart porte plus de lignes
+   qu'il n'en déroule. Le compteur qui l'accompagne est calculé sur le contenu
+   réel du groupe. */
+.encartMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.encartMore:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .encartHead {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .encartTitle {
+    font-size: 16px;
+  }
+
+  .encartPanel {
+    padding: 0 16px 14px;
+  }
+}
+
+/* ----------------------------------------------------------- mes priorités */
+
+.priorityList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+}
+
+.priorityItem + .priorityItem .priorityRow {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.priorityRow {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  transition: background 0.15s ease;
+}
+
+.priorityRow:hover {
+  background: var(--plan-surface-2);
+}
+
+.priorityRank {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.priorityRankDone {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.priorityBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.priorityRowTitle {
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.priorityRowMeta {
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.doneBadge {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* Les étapes franchies, repliées : consultables, jamais encombrantes. */
+.doneBlock {
+  margin-top: 10px;
+}
+
+.doneToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--plan-surface);
+  color: var(--color-green);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.doneToggle:hover {
+  border-color: var(--color-green);
+}
+
+.doneToggle:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+.doneBlock .priorityList {
+  margin-top: 12px;
+}
+
+/* --------------------------------------------------------- ce qui a changé */
+
+.changesCard {
+  padding: 20px 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+}
+
+.changesList {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changesList li {
+  display: flex;
+  gap: 13px;
+}
+
+.changesList li > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.changesList b {
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  text-wrap: pretty;
+}
+
+.changesList small {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.changesMark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.changesMark[data-up="1"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.changesPriority {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.changesPriority p {
+  margin: 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.changesPriority b {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------- panneaux (colonne aside) */
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--plan-surface);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--plan-line-soft);
+}
+
+.panelHead > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.panelHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.panelHead p {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.panelList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panelList li + li .panelRow {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.panelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.panelRow:hover {
+  background: var(--plan-surface-2);
+}
+
+.panelRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.panelBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.panelTitle {
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panelMeta {
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  text-wrap: pretty;
+}
+
+.panelCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.panelIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+}
+
+.panelNote {
+  margin: 0;
+  padding: 12px 18px 15px;
+  border-top: 1px solid var(--plan-line-soft);
+  background: var(--plan-surface-2);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.profileDots {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+
+.profileDots > span {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+}
+
+.profileDots > span[data-on="1"] {
+  border-color: var(--color-blue);
+  background: var(--color-blue);
+}
+
+.asideNote {
+  margin: 0 4px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ chemin */
+
+.pathList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 16px 18px 18px;
+  list-style: none;
+}
+
+.pathList li {
+  display: flex;
+  gap: 13px;
+}
+
+.pathList li:not(:last-child) .pathBody {
+  padding-bottom: 15px;
+}
+
+.pathMark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pathList li[data-status="DONE"] .pathMark {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.pathList li[data-status="CURRENT"] .pathMark {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.pathList li {
+  position: relative;
+}
+
+/* Le filet qui relie les étapes : c'est lui qui fait lire un chemin plutôt
+   qu'une pile. */
+.pathList li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 28px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.pathList li[data-status="DONE"]:not(:last-child)::before,
+.pathList li[data-status="CURRENT"]:not(:last-child)::before {
+  background: color-mix(in srgb, var(--color-blue) 40%, transparent);
+}
+
+.pathBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.pathTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--color-ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.pathList li[data-status="CURRENT"] .pathTitle {
+  font-weight: 700;
+}
+
+.pathList li[data-status="DONE"] .pathTitle {
+  color: var(--color-muted);
+}
+
+.pathBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Ce qui ferme une étape de palier : elle ne se termine pas sur un compteur
+   d'exercices, elle se confirme par un examen blanc complet. Posée sur l'étape
+   concernée — jamais sur celles qui ne sont pas des paliers. */
+.pathNote {
+  display: block;
+  justify-self: start;
+  margin-top: 5px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: var(--plan-surface-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.pathList li[data-status="CURRENT"] .pathNote {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+  font-weight: 600;
+}
+
+.pathMeta {
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+/* ------------------------------------------------- briques du plan (PlanBits) */
+
+.domainIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.domainIconSmall {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.domainIconActive {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+/* La teinte suit la FAMILLE du domaine, comme la maquette : compréhension en
+   bleu (CO, CE), expression en rouge (EO, EE). Le jeton `data-tone` est posé
+   par `PlanDomainIcon`, qui le dérive de `PLAN_DOMAIN_SECTION` — aucune couleur
+   n'est écrite en dur, aucune seconde table de domaines n'est tenue à jour.
+   ⚠️ Rien à voir avec `--skill-accent`, l'accent du module Compétences. */
+.domainIcon[data-tone="expression"] {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.domainIconActive[data-tone="expression"] {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+/* Pastille d'urgence d'un domaine. 🛑 Aucune valeur ne nomme une faiblesse :
+   `A_EVALUER` est neutre, jamais rouge — c'est une donnée manquante. */
+.domainPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.domainPill[data-priority="FORTE"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.domainPill[data-priority="A_TRAVAILLER"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.domainPill[data-priority="ENTRETIEN"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+/* --------------------------------------------- nature d'une action du Plan
+
+   Quatre natures, quatre lectures — et surtout **« à acquérir » ne doit jamais
+   se lire comme « à renforcer »** : la teinte de fragilité (rouge) est réservée
+   à ce qui a été **observé** fragile. Une compétence jamais travaillée prend la
+   teinte d'apprentissage (bleue), et une mesure manquante reste **neutre** :
+   *null = inconnu, jamais mauvais*.
+
+   La couleur ne porte jamais seule : chaque pastille a aussi son libellé gelé
+   et son icône. */
+
+.naturePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.naturePillIcon {
+  display: inline-flex;
+}
+
+/* Mesurer : neutre. Il manque une donnée, ce n'est pas un défaut. */
+.naturePill[data-nature="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
+/* Réparer : la seule teinte de fragilité, et elle suppose un constat. */
+.naturePill[data-nature="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+/* Vérifier : le travail est fait, il reste à le prouver. */
+.naturePill[data-nature="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+/* Apprendre : rien n'a échoué ici. */
+.naturePill[data-nature="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.naturePill[data-status="PRIORITE"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.naturePill[data-status="SOLIDE"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
+.domainPillDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.rail {
+  display: flex;
+  align-items: center;
+}
+
+.railCell {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.railCell:last-child {
+  flex: none;
+}
+
+.railStep {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+}
+
+.railDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+}
+
+.railStep[data-state="done"] .railDot,
+.railStep[data-state="current"] .railDot {
+  background: var(--color-blue);
+}
+
+.railStep[data-state="current"] .railDot {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 0 4px var(--plan-blue-tint);
+}
+
+.railLabel {
+  color: var(--color-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.railStep[data-state="done"] .railLabel,
+.railStep[data-state="current"] .railLabel {
+  color: var(--color-ink);
+}
+
+.railStep[data-state="current"] .railLabel {
+  font-weight: 800;
+}
+
+.railLink {
+  flex: 1;
+  height: 3px;
+  margin: 0 10px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+}
+
+.railLink[data-state="done"] {
+  background: var(--color-blue);
+}
+
+/* Variante posée sur l'aplat bleu de la carte de priorité. */
+.railDark .railDot {
+  background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+}
+
+.railDark .railStep[data-state="done"] .railDot,
+.railDark .railStep[data-state="current"] .railDot {
   background: var(--color-paper);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+.railDark .railStep[data-state="current"] .railDot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-paper) 24%, transparent);
+}
+
+.railDark .railLabel {
+  color: color-mix(in srgb, var(--color-paper) 65%, transparent);
+}
+
+.railDark .railStep[data-state="done"] .railLabel,
+.railDark .railStep[data-state="current"] .railLabel {
+  color: var(--color-paper);
+}
+
+.railDark .railLink {
+  background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+}
+
+.railDark .railLink[data-state="done"] {
+  background: var(--color-paper);
+}
+
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--color-ink) 45%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 26px 28px 28px;
+  border-radius: 22px;
+  background: var(--plan-surface);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 26%, transparent);
+}
+
+.modalHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.modalHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.modalHead p {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
+}
+
+.modalIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.modalCopy {
+  margin: 0 0 12px;
+  color: var(--color-ink-2);
+  font-size: 15px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.modalList {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--plan-surface-2);
+  list-style: none;
+}
+
+.modalList li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modalList li > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.modalList b {
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.modalList small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.modalMinutes {
+  flex: none;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.modal .primaryButton {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------- le jalon */
+
+/* Le jalon reprend l'anatomie d'une carte d'action, un cran plus haut. Seule la
+   pastille change de teinte : le rouge reste réservé à la priorité n°1. */
+.today {
+  padding: clamp(18px, 3vw, 22px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
 }
 
 .todayTop {
@@ -259,9 +1775,11 @@
 .today h3 {
   margin: 11px 0 6px;
   color: var(--color-ink);
-  font-size: clamp(20px, 3vw, 26px);
-  letter-spacing: -0.025em;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1.2;
+  text-wrap: pretty;
 }
 
 .todayDuration {
@@ -284,9 +1802,9 @@
   gap: 12px;
   margin-top: 16px;
   padding: 13px;
-  border: 1px solid var(--color-line-2);
+  border: 1px solid var(--plan-line-soft);
   border-radius: 16px;
-  background: var(--color-blue-soft);
+  background: var(--plan-surface-2);
 }
 
 .todayTaskIcon {
@@ -322,23 +1840,17 @@
   margin-top: 15px;
 }
 
-/* --------------------------------------------------------------- le jalon */
-
-/* Un jalon reprend l'anatomie de « À faire maintenant » — même carte, mêmes
-   marges : c'est la même famille d'action, un cran plus haut. Seule la pastille
-   change de teinte, le rouge restant réservé à la priorité n°1. */
 .milestonePill {
-  background: color-mix(in srgb, var(--color-green) 13%, transparent);
+  background: var(--plan-green-tint);
   color: var(--color-green);
 }
 
-/* Pourquoi ce jalon arrive maintenant. Un examen blanc proposé sans motif se
-   lit comme une sanction ; ici, c'est ce que le candidat vient prouver. */
 .milestoneText {
   margin: 0;
   color: var(--color-muted);
   font-size: 13.5px;
   line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .milestoneError {
@@ -346,28 +1858,23 @@
   color: var(--color-red-dark);
   font-size: 12.5px;
   line-height: 1.45;
-  text-align: center;
 }
 
 /* ------------------------------------------------------- verrou freemium */
 
-/* Le cadenas s'ajoute, il ne remplace rien : la pastille « Priorité n°1 » reste
-   à sa place, la mention Premium se pose à côté. Le Plan reste lisible en
-   entier — c'est le résultat des productions du candidat. */
 .lockAside {
   display: inline-flex;
   margin-left: 8px;
   vertical-align: middle;
 }
 
-/* Une phrase, sous le bouton : dire ce qui est fermé ET ce qui reste ouvert.
-   Un cadenas sans explication se lit « c'est cassé ». */
+/* Un cadenas sans explication se lit « c'est cassé » : on dit ce qui est fermé
+   ET ce qui reste ouvert. */
 .lockNote {
-  margin: 9px 0 0;
+  margin: 0 clamp(20px, 3vw, 26px) 18px;
   color: var(--color-muted);
   font-size: 12.5px;
   line-height: 1.45;
-  text-align: center;
 }
 
 @media (max-width: 400px) {
@@ -377,307 +1884,9 @@
   }
 }
 
-/* ------------------------------------------------------ le chemin d'étapes */
-
-.path {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Les étapes franchies, sous le parcours et repliées : consultables, jamais
-   encombrantes. Elles s'accumulent, et en tête de liste elles repoussaient la
-   priorité hors écran. */
-.doneBlock {
-  margin-top: 10px;
-}
-
-.doneToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--color-green);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.doneToggle:hover {
-  border-color: var(--color-green);
-}
-
-.doneToggle:focus-visible {
-  outline: 2px solid var(--color-green);
-  outline-offset: 2px;
-}
-
-.doneBlock .path {
-  margin-top: 12px;
-}
-
-/* Une étape = pastille de rang + carte. Le filet vertical relie les pastilles :
-   c'est lui qui fait lire l'ensemble comme un chemin. */
-.step {
-  position: relative;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  gap: 14px;
-  padding-bottom: 14px;
-}
-
-.step::before {
-  content: "";
-  position: absolute;
-  top: 42px;
-  bottom: -2px;
-  left: 18px;
-  width: 2px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--color-blue) 32%, var(--color-line)),
-    var(--color-line)
-  );
-}
-
-.stepLast {
-  padding-bottom: 0;
-}
-
-.stepLast::before {
-  display: none;
-}
-
-.stepMark {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  border: 1px solid var(--color-line);
-  background: var(--color-paper);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.stepMarkCurrent {
-  border-color: transparent;
-  background: var(--color-blue);
-  color: var(--color-paper);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-blue) 26%, transparent);
-}
-
-/* Une étape franchie : une COCHE à la place de son numéro, et la pastille passe
-   au vert — la demande du propriétaire, au mot près. Le vert vient du token,
-   jamais d'un hex. */
-.stepMarkDone {
-  border-color: color-mix(in srgb, var(--color-green) 34%, var(--color-line));
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.stepCard {
-  padding: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 20px;
-  background: var(--color-paper);
-}
-
-.stepCardCurrent {
-  border-color: color-mix(in srgb, var(--color-blue) 26%, var(--color-line));
-  background: linear-gradient(
-    150deg,
-    var(--color-blue-soft),
-    color-mix(in srgb, var(--color-paper) 96%, var(--color-blue-light))
-  );
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-blue) 10%, transparent);
-}
-
-/* La carte d'une étape franchie : cliquable (on va s'y relire), teintée juste
-   ce qu'il faut pour se distinguer d'une étape à venir sans crier. */
-.stepCardDone {
-  display: block;
-  border-color: color-mix(in srgb, var(--color-green) 22%, var(--color-line));
-  background: color-mix(in srgb, var(--color-paper) 96%, var(--color-green));
-  transition: border-color 0.15s;
-}
-
-.stepCardDone:hover {
-  border-color: color-mix(in srgb, var(--color-green) 38%, var(--color-line));
-}
-
-/* L'état à gauche, le code de compétence à droite — et, entre les deux, la
-   pastille de verrou quand il y en a une. `flex-wrap` + `margin-left: auto`
-   plutôt que `space-between` : à trois éléments, `space-between` aurait écarté
-   le verrou au milieu de la ligne, et rien ne serait passé à 360 px. */
-.stepHead {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  margin-bottom: 11px;
-}
-
-.stepState {
-  display: inline-flex;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.stepState[data-state="current"] {
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-}
-
-/* Une étape devenue vérification porte la même teinte qu'une étape terminée :
-   le vert dit « ce qui est franchi », le même mot ne doit pas porter deux
-   couleurs sur le même écran. */
-.stepState[data-state="check"],
-.stepState[data-state="done"] {
-  background: color-mix(in srgb, var(--color-green) 12%, transparent);
-  color: var(--color-green);
-}
-
-.stepMeta {
-  margin-left: auto;
-  overflow: hidden;
-  color: var(--color-muted-2);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stepBody {
-  display: flex;
-  align-items: flex-start;
-  gap: 13px;
-}
-
-.stepBodyText {
-  min-width: 0;
-  flex: 1;
-}
-
-/* Chevron d'une étape franchie : la carte est un lien, il faut que ça se voie. */
-.stepChevron {
-  display: inline-flex;
-  align-self: center;
-  flex: none;
-}
-
-.stepTitle {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-/* Une étape terminée reste dans le chemin : cette ligne dit pourquoi, sans
-   prendre la place du titre. Miroir mot pour mot du mobile. */
-.stepDone {
-  margin: 6px 0 0;
-  color: var(--color-green);
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-/* Terminer ≠ tout valider — discret par construction : rien quand tout est
-   validé, rien tant que l'étape n'est pas terminée. */
-.stepValidated {
-  margin: 4px 0 0;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-/* Le bouton d'action de l'étape courante. Variante douce (fond bleu clair),
-   comme `AppButtonVariant.soft` côté mobile : l'action forte de l'écran est
-   « Commencer » dans « À faire maintenant », celle-ci la relaie. */
-.stepCtaStrong {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 13px;
-  padding: 12px 14px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--color-blue-light);
-  color: var(--color-blue-dark);
-  font-size: 13.5px;
-  font-weight: 800;
-}
-
-.stepCtaStrong:hover {
-  background: color-mix(in srgb, var(--color-blue-light) 82%, var(--color-blue));
-}
-
-/* ------------------------------------------------- compétences observées */
-
-/* Même rythme vertical que `.list` du module Compétences ; c'est la seule chose
-   que cette pile ajoute — la carte, elle, est intégralement empruntée. */
-.skillGrid {
-  display: grid;
-  gap: 11px;
-}
-
-/* Colonne de droite d'une carte de compétence : pastille d'état + chevron.
-   La carte elle-même vient du module Compétences (`skill.module.css`). */
-.skillAside {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  flex: none;
-}
-
-.moreSkills {
-  margin-top: 12px;
-}
-
-.moreSkills summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.moreSkills[open] summary {
-  margin-bottom: 11px;
-}
-
 /* --------------------------------------------------------- cartes d'appoint */
 
 .emptyCard,
-.diagnosticLink,
 .classic {
   border: 1px solid var(--color-line);
   border-radius: 20px;
@@ -685,42 +1894,38 @@
 }
 
 .emptyCard {
-  padding: clamp(28px, 5vw, 48px);
+  padding: clamp(28px, 5vw, 44px);
   text-align: center;
 }
 
-.emptyIcon,
-.sectionIcon {
+.emptyIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  color: var(--color-blue);
-  background: var(--color-blue-light);
-  border-radius: 13px;
-}
-
-.emptyIcon {
   width: 58px;
   height: 58px;
-  margin-bottom: 17px;
-}
-
-.sectionIcon {
-  width: 39px;
-  height: 39px;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  border-radius: 18px;
 }
 
 .emptyCard h2 {
-  margin: 0;
+  margin: 16px 0 0;
   color: var(--color-ink);
-  font-size: clamp(22px, 3vw, 29px);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
 }
 
 .emptyCard > p {
-  max-width: 560px;
-  margin: 10px auto 0;
+  max-width: 52ch;
+  margin: 9px auto 0;
   color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .actions {
@@ -731,8 +1936,7 @@
   margin-top: 23px;
 }
 
-.primaryButton,
-.secondaryButton {
+.primaryButton {
   display: inline-flex;
   min-height: 46px;
   align-items: center;
@@ -745,9 +1949,6 @@
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
-}
-
-.primaryButton {
   color: var(--color-paper);
   background: var(--color-blue);
   box-shadow: 0 9px 20px color-mix(in srgb, var(--color-blue) 20%, transparent);
@@ -757,68 +1958,23 @@
   background: var(--color-blue-dark);
 }
 
-/* Un démarrage d'examen blanc part sur le réseau : le bouton doit cesser de se
-   proposer tant que la session n'est pas créée, sinon deux clics = deux slots. */
+/* Un démarrage part sur le réseau : le bouton cesse de se proposer tant que la
+   session n'est pas créée, sinon deux clics = deux sessions. */
 .primaryButton:disabled {
   cursor: default;
   opacity: 0.62;
 }
 
-.secondaryButton {
-  border-color: var(--color-line);
-  color: var(--color-blue);
-  background: var(--color-blue-soft);
-}
-
 .primaryButton:focus-visible,
-.secondaryButton:focus-visible,
+.linkButton:focus-visible,
+.encartHead:focus-visible,
+.encartRow:focus-visible,
+.encartCta:focus-visible,
+.panelRow:focus-visible,
 .page a:focus-visible,
-.moreSkills summary:focus-visible {
+.page button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
   outline-offset: 3px;
-}
-
-/* Une seule carte depuis que « Ma progression » a rejoint le Profil : la grille
-   ne sert plus qu'à poser l'espacement. */
-.bottomGrid {
-  display: grid;
-  gap: 16px;
-  margin-top: 30px;
-}
-
-.diagnosticLink {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 18px;
-}
-
-.diagnosticLink > div {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-}
-
-.diagnosticLink b {
-  color: var(--color-ink);
-  font-size: 14px;
-}
-
-.diagnosticLink span {
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.diagnosticLink > a {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  color: var(--color-blue);
-  font-size: 13px;
-  font-weight: 800;
 }
 
 .classic {
@@ -830,6 +1986,8 @@
   margin: 0;
   color: var(--color-ink);
   font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .classic > div {
@@ -860,6 +2018,12 @@
 
 .classic a small {
   color: var(--color-muted);
+}
+
+@media (max-width: 560px) {
+  .classic > div {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------------------------------------------------------------- squelette */
@@ -894,120 +2058,483 @@
   height: 190px;
 }
 
+@media (max-width: 720px) {
+  .skeletonGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @keyframes loading {
   to { background-position: -200% 0; }
 }
 
-/* -------------------------------------------------------------- responsive */
+/* ============================================================================
+   Fiche d'un domaine (`/plan/domaine/[domaine]`) et écran d'évolution
+   (`/plan/evolution`) — mêmes briques, quelques structures propres.
+   ============================================================================ */
 
-/* Desktop : le chemin garde sa colonne unique (c'est ce qui le fait lire comme
-   un chemin), mais les cartes de compétences passent sur deux colonnes. */
-@media (min-width: 900px) {
-  .path {
-    max-width: 760px;
-  }
-
-  .skillGrid {
-    grid-template-columns: 1fr 1fr;
-  }
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
 }
 
-
-@media (max-width: 768px) {
-  .page {
-    padding: 66px 18px 42px;
-  }
-
-  .classic > div {
-    grid-template-columns: 1fr;
-  }
-
-  .heroStats {
-    grid-template-columns: 1fr;
-  }
-
-  .heroStats li {
-    display: flex;
-    align-items: baseline;
-    gap: 9px;
-  }
+.narrow {
+  width: min(100%, 780px);
+  margin: 0 auto;
 }
 
-@media (max-width: 620px) {
-  .heroTop {
-    align-items: flex-start;
-    flex-direction: column;
+.domainHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.domainHeroBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.domainHeroLevel {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.domainHeroMeta {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+.card {
+  padding: 20px 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.cardText {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.tint {
+  border-color: transparent;
+  background: var(--plan-surface-2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.levelRow:hover {
+  background: var(--plan-surface-2);
+}
+
+.levelRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.levelBadge {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--plan-surface-3);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.levelBadgeBlocking {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.levelFlag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.taskCount {
+  flex: none;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Écran d'évolution : le bandeau de tête, centré. */
+.evolutionHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 26px;
+  text-align: center;
+}
+
+.evolutionIcon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.evolutionHead h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(26px, 4vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.evolutionHead p {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* La même liste de domaines, réemployée par « Ma progression » : elle y vit
+   hors de `.page`, donc elle porte ses propres variables locales. */
+.domainsSummary {
+  --plan-surface: #fff;
+  --plan-surface-2: var(--color-blue-soft);
+  --plan-surface-3: var(--color-paper-2);
+  --plan-line-soft: var(--color-line-2);
+  --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
+
+  margin-bottom: 22px;
+}
+
+/* ============================================================ verrou freemium
+
+   Le flou de la maquette, posé sur DEUX endroits et deux seulement : les items
+   de la séance à partir du deuxième, et les lignes de « Mes priorités » à
+   partir de la deuxième — c'est-à-dire sur ce que le serveur a marqué
+   `locked`. Tout le reste de l'écran (profil, chemin, compteurs, compétences
+   observées, étapes franchies) reste NET : on floute l'action pas encore
+   accessible, jamais le résultat mesuré. Ce sont ses productions.
+
+   ⚠️ Le flou n'est PAS la protection — le blocage vient de `aria-hidden` +
+   `inert` posés par `PlanBlur`, et le serveur refuse l'accès de son côté.
+   ============================================================================ */
+
+.blur {
+  display: grid;
+  min-width: 0;
+  /* 4 px : la valeur de la maquette (`WFlou force={4}`). Assez pour que le mot
+     ne se lise pas, assez peu pour qu'on voie qu'il y a bien du contenu. */
+  filter: blur(4px);
+  opacity: 0.5;
+  /* Ni sélectionnable ni cliquable : un flou qu'on copie-colle ne cache rien. */
+  user-select: none;
+  pointer-events: none;
+}
+
+/* L'information NETTE d'une ligne verrouillée, réservée aux lecteurs d'écran :
+   ce qu'il y a derrière le flou et comment l'ouvrir. Elle vit hors du bloc
+   flouté, sinon elle partirait avec lui. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==================================================== carte d'abonnement ====
+
+   La carte « Débloquez votre plan complet » de la maquette (`WPaywallCard`),
+   sous « Mes priorités ». En-tête bleu plein — la même surface de marque que
+   la carte de priorité —, avantages cochés, puis un pied clair qui porte les
+   deux actions. Elle n'existe que pour un compte sans accès TCF.
+   ============================================================================ */
+
+.paywall {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.paywallHead {
+  padding: clamp(19px, 3vw, 24px);
+  background: var(--gradient-hero-blue);
+  color: var(--color-paper);
+}
+
+.paywallHead h3 {
+  margin: 0;
+  color: var(--color-paper);
+  font-size: clamp(19px, 2.6vw, 21px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.paywallList {
+  display: grid;
+  gap: 10px;
+  margin: 15px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paywallList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.95;
+  text-wrap: pretty;
+}
+
+.paywallList svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.paywallActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px clamp(19px, 3vw, 24px) 20px;
+}
+
+/* Le lien discret de la maquette : même destination que le bouton, ton
+   secondaire — il ouvre la grille sans promettre un achat. */
+.paywallGhost {
+  color: var(--color-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.paywallGhost:hover {
+  color: var(--color-blue);
+}
+
+/* Sous ~400 px, le bouton prend toute la largeur et le lien passe dessous :
+   côte à côte, ils se coupent en deux lignes bancales. */
+@media (max-width: 400px) {
+  .paywallActions {
     gap: 12px;
   }
 
-  .todayTop {
-    flex-direction: column;
-  }
-
-  .todayDuration {
-    order: -1;
+  .paywallActions .primaryButton {
+    width: 100%;
   }
 }
 
-@media (max-width: 520px) {
-  .page {
-    padding-right: 14px;
-    padding-left: 14px;
-  }
+/* ============================================================================
+   « Ma progression » (`/plan/progression`) — le suivi adossé au Plan.
 
-  .step {
-    grid-template-columns: 30px minmax(0, 1fr);
-    gap: 11px;
-  }
+   🛑 Aucune barre de pourcentage : le score interne du moteur de maîtrise n'est
+   exposé à aucun front. Les paliers portent leur ÉTAT, pas un chiffre.
+   ============================================================================ */
 
-  .step::before {
-    top: 34px;
-    left: 14px;
-  }
+.progressHero {
+  padding: 22px clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
 
-  .stepMark {
-    width: 30px;
-    height: 30px;
-    border-radius: 11px;
-    font-size: 12px;
-  }
+.progressHeroRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
 
-  .stepHead {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-  }
+.progressHeroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+}
 
-  .skillAside {
-    flex-direction: column-reverse;
-    gap: 6px;
-  }
+.progressHeroLabel {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
-  .diagnosticLink {
-    align-items: flex-start;
+.progressHeroValue {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(28px, 6vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Rien de mesuré : la phrase remplace le palier, et se lit comme une phrase —
+   jamais comme un niveau. */
+.progressHeroValue[data-unknown="1"] {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.progressHeroGoal .progressHeroLabel,
+.progressHeroGoal .progressHeroValue {
+  color: var(--color-blue);
+}
+
+.progressHeroArrow {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--color-muted-2);
+}
+
+.progressHeroRail {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.progressHeroCount {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Deux colonnes dès qu'il y a la place, une seule sinon — sans point de rupture
+   à tenir à la main. */
+.progressGrid {
+  display: grid;
+  /* `min(…, 100%)` : sous 344 px de large, la colonne se rabat au lieu de
+     déborder — pas de scroll horizontal à 360 px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(288px, 100%), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.progressCardHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--plan-line-soft);
+  transition: background 0.15s ease;
+}
+
+.progressCardHead:hover {
+  background: var(--plan-surface-2);
+}
+
+.progressEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.progressEmpty .primaryButton {
+  min-height: 42px;
+  font-size: 13.5px;
+}
+
+/* Le repère factuel du passage à faire (sa nature, sa durée quand il en a une)
+   — sous le bouton, jamais à sa place. */
+.progressEmptyMeta {
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Un palier jamais mesuré n'emprunte l'état de personne : il le dit. */
+.progressUnknown {
+  flex: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 460px) {
+  .progressCardHead {
     flex-wrap: wrap;
-  }
-
-  .diagnosticLink > a {
-    width: 100%;
-    margin-left: 51px;
-  }
-
-  .primaryButton,
-  .secondaryButton {
-    width: 100%;
-  }
-
-  .actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeletonHead,
-  .skeletonHero,
-  .skeletonGrid span {
-    animation: none;
+    row-gap: 8px;
   }
 }

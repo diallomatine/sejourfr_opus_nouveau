@@ -48,7 +48,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
-import {detectTrafficSource} from "./audience-events";
+import {detectTrafficSource} from "./traffic-source";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
@@ -869,9 +869,19 @@ export const learningPlanApi = {
         return cached(LEARNING_PLAN_CACHE_KEY, fetchLearningPlan);
     },
 
+    /** La clé sous laquelle le Plan est rangé, pour un écran qui veut le
+     *  brancher sur `useCachedData` : peint ce qui est déjà connu, et ne
+     *  déclenche l'appel que si le cache est **froid**. */
+    cacheKey: LEARNING_PLAN_CACHE_KEY,
+
     /** Le Plan **déjà chargé**, sans aucun appel. `undefined` quand rien n'a
-     *  encore été lu (lien profond direct) : l'appelant doit alors se replier,
-     *  jamais déclencher une requête pour un simple confort d'affichage. */
+     *  encore été lu (lien profond, rechargement de page).
+     *
+     *  ⚠️ À réserver aux **conforts d'affichage** qu'on accepte de perdre. Dès
+     *  que l'absence du Plan change la **nature** de l'écran — c'était le cas
+     *  de l'étape (`?etape=1`), qui retombait sur la fiche des 15 sujets et
+     *  renvoyait le candidat dans `/entrainement` après un simple F5 —, on passe
+     *  par `cacheKey` + `getCached()` : l'appel n'a lieu qu'à froid. */
     peekCached(): LearningPlanDto | undefined {
         return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
     },
@@ -909,6 +919,30 @@ export const attemptApi = {
             method: "POST",
             json: body,
             auth: opts.auth ?? true,
+        });
+    },
+
+    /**
+     * Démarre une **série ciblée** sur une compétence de COMPRÉHENSION (CO/CE) —
+     * l'exercice que le Plan désigne sous `PlanExerciseKind.TARGETED_QCM_SERIES`.
+     *
+     * 🛑 **Seul le `skillId` part.** L'épreuve, le palier et le nombre de
+     * questions se dérivent du référentiel côté serveur : un couple
+     * (`questionType`, `difficulty`) envoyé d'ici aurait pu contredire la
+     * compétence affichée et faire progresser une **autre** compétence.
+     *
+     * Erreurs : `403` compétence verrouillée (freemium, opposable serveur) ·
+     * `422` compétence d'expression · `404` compétence inconnue.
+     *
+     * ⚠️ Ne **jamais** appeler `GET /api/skills/progress?section=CO|CE` pour
+     * préparer cet écran : le serveur répond **422** volontairement — il n'y a
+     * pas de choix de tâche en compréhension.
+     */
+    startTargetedSeries(skillId: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/attempts", {
+            method: "POST",
+            json: {type: "TRAINING", module: "TCF", skillId} satisfies StartAttemptRequest,
+            auth: true,
         });
     },
 

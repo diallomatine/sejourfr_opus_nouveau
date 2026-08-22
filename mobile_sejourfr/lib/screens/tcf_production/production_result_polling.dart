@@ -87,7 +87,12 @@ class ProductionResultPollGuard {
   /// La correction s'est achevee sous les yeux du candidat et ni le plan ni son
   /// cas exclusif ne sont arrives : le second appel peut encore aboutir.
   bool _planMayStillArrive(ProductionSubmissionDto submission) {
-    final feedback = submission.evaluation?.feedback;
+    final evaluation = submission.evaluation;
+    final feedback = evaluation?.feedback;
+    // Production inexploitable : le serveur n'emet AUCUN second appel (rien a
+    // reecrire, aucun niveau constate a depasser). Attendre un plan qui ne
+    // viendra jamais ne ferait que tirer sur le reseau pendant tout le sursis.
+    if (evaluation != null && evaluation.estNonEvaluable) return false;
     return _observedInFlight &&
         submission.statut == SubmissionStatut.evaluated &&
         feedback != null &&

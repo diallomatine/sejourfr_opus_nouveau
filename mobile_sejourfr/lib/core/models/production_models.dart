@@ -247,6 +247,7 @@ class PlanChange {
 class EvaluationResult {
   EvaluationResult({
     required this.feedback,
+    this.evaluabilite = ProductionEvaluabilite.evaluable,
     this.noteSurVingt,
     this.niveauObserve,
     this.confiance,
@@ -254,6 +255,16 @@ class EvaluationResult {
     this.situationDansNiveau,
     this.situationDansNiveauLabel,
   });
+
+  /// La production a-t-elle pu etre OBSERVEE ? **Jamais null** — le defaut
+  /// [ProductionEvaluabilite.evaluable] couvre toute evaluation anterieure au
+  /// champ, y compris celles qui portent encore quatre criteres a zero : elles
+  /// ne sont PAS des productions inexploitables, rien n'a ete migre.
+  ///
+  /// ⚠️ **Trois etats, pas deux** : `submission.evaluation == null` dit « pas
+  /// encore evaluee », cet enum dit « rendue, rien a observer ». Voir
+  /// [estNonEvaluable], le seul point de lecture des ecrans.
+  final ProductionEvaluabilite evaluabilite;
 
   /// Note 0..20, peut etre nulle si l'IA n'a pas pu noter (ex: production vide).
   final double? noteSurVingt;
@@ -280,11 +291,21 @@ class EvaluationResult {
 
   final EvaluationFeedback feedback;
 
-  /// Garde-fou produit : jamais de niveau sans sa confiance a cote.
-  bool get hasNiveauObserve => niveauObserve != null && confiance != null;
+  /// Garde-fou produit : jamais de niveau sans sa confiance a cote. Une
+  /// production inexploitable n'a de toute facon aucun niveau a montrer.
+  bool get hasNiveauObserve =>
+      !estNonEvaluable && niveauObserve != null && confiance != null;
+
+  /// La production a ete rendue, mais **rien n'a pu y etre observe**. Aucun
+  /// ecran n'affiche alors de note, de niveau ni de critere : il n'y a pas de
+  /// verdict a rendre, seulement un fait a dire — sans reproche.
+  bool get estNonEvaluable =>
+      evaluabilite == ProductionEvaluabilite.nonEvaluable;
 
   factory EvaluationResult.fromJson(Map<String, dynamic> json) =>
       EvaluationResult(
+        evaluabilite:
+            ProductionEvaluabilite.fromWire(json['evaluabilite'] as String?),
         noteSurVingt: (json['noteSurVingt'] as num?)?.toDouble(),
         niveauObserve:
             NiveauCecrl.fromWireNullable(json['niveauObserve'] as String?),

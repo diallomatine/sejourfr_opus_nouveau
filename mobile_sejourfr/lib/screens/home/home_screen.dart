@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
@@ -216,7 +217,16 @@ class _HomeBody extends ConsumerWidget {
         if (diagnostic?.status == DiagnosticJourneyStatus.notStarted &&
             !diagnosticDismissed)
           _DiagnosticInvitationCard(
-            onStart: () => context.push(AppRoutes.diagnostic),
+            onStart: () {
+              // Le clic qui ouvre le funnel du diagnostic. La variante n'est
+              // pas encore choisie ici : `UNKNOWN` est la seule valeur vraie.
+              ref.read(analyticsServiceProvider).track(
+                    AnalyticsEvent.diagnosticCtaClicked,
+                    ctaLocation: AnalyticsCtaLocation.hero,
+                    diagnosticType: AnalyticsDiagnosticType.unknown,
+                  );
+              context.push(AppRoutes.diagnostic);
+            },
             onLater: () => ref
                 .read(
                   diagnosticHomeDismissedProvider(diagnosticDismissKey)
@@ -596,8 +606,13 @@ class PlanPriorityHomeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final livePriority =
-        ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    final live = ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    // 🛑 Une priorité **verrouillée** n'est jamais nommée ici. Depuis que le
+    // Plan sait aussi désigner une compétence **à acquérir** — que la règle
+    // « la priorité n°1 est ouverte » ne déverrouille pas —, la priorité n°1
+    // peut porter un cadenas ; l'écrire en clair sur l'accueil démentirait le
+    // rideau posé sur la même compétence dans « Mes priorités ».
+    final livePriority = live != null && !live.locked ? live : null;
     final priorities = journey.result?.priorities ?? const [];
     final diagnosticPriority = priorities.isEmpty ? null : priorities.first;
     final title = livePriority?.title ?? diagnosticPriority?.skillTitle;

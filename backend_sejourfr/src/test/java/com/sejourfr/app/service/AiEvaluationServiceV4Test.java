@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
 import org.junit.jupiter.api.BeforeEach;
@@ -181,7 +182,7 @@ class AiEvaluationServiceV4Test {
     // -------------------------------------------------- verdict INVALIDE (T1)
 
     @Test
-    void productionInvalide_ne_declenche_aucun_appel_llm_et_note_zero() {
+    void productionInvalide_ne_declenche_aucun_appel_llm_et_ne_rend_aucun_verdict() {
         ProductionTask task = task(EpreuveType.TCF_EE, 1);
         ProductionSubmission sub = submission(task,
             "Hello Mary, I am writing to tell you that I finally found a new apartment "
@@ -190,14 +191,27 @@ class AiEvaluationServiceV4Test {
         AiEvaluation eval = service.evaluate(sub.getId());
 
         verify(llmClient, never()).evaluate(anyString(), anyString());
-        assertThat(eval.getNoteSur20()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+        // AUCUN verdict : ni note, ni niveau. Une absence de preuve n'est pas la
+        // preuve du niveau le plus faible (elle valait 0 + A1_NON_ATTEINT
+        // jusqu'au 2026-08-21, et TcfProfileService la lisait).
+        assertThat(eval.getNoteSur20()).isNull();
+        assertThat(eval.getNiveauCecrl()).isNull();
+        assertThat(eval.getNiveauCecrlIa()).isNull();
+        assertThat(eval.getEvaluabilite()).isEqualTo(ProductionEvaluabilite.NON_EVALUABLE);
+        assertThat(eval.getFeedbackJson())
+            .doesNotContainKey("note_globale")
+            .doesNotContainKey("niveau_cecrl");
         assertThat(eval.getModeleUtilise()).isEqualTo(AiEvaluationService.MODELE_VALIDATION_SERVEUR);
         assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("FAIBLE");
         assertThat(avertissements(eval)).anyMatch(a -> a.contains("n'est pas rédigé en français"));
-        // Tous les criteres de la rubrique sont presents, a 0 / NON_EVALUABLE.
-        assertThat(scores(eval)).hasSize(5)
-            .allSatisfy(s -> assertThat(s.get("bande")).isEqualTo("NON_EVALUABLE"));
+        // 🛑 AUCUN `scores_criteres` : il portait quatre criteres a `note 0`,
+        // dont seule la bande disait le sens. Un champ absent du contrat ne peut
+        // pas etre produit par erreur — c'est plus sur que quatre zeros qu'on
+        // compte sur les fronts pour ne pas afficher ni sommer.
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("scores_criteres");
+        // Ce qui reste sont des faits, pas des verdicts.
+        assertThat(eval.getFeedbackJson()).containsKeys(
+            "confiance", "confiance_raisons", "accomplissement", "avertissements");
         // La submission passe quand meme a EVALUATED : l'utilisateur voit un resultat.
         assertThat(sub.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
         verify(submissionManager).save(sub);

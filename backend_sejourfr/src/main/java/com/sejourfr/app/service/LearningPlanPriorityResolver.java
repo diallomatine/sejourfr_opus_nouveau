@@ -8,11 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,17 +20,38 @@ import java.util.UUID;
  *
  * <p>Il a deux lecteurs qui doivent dire exactement la meme chose :
  * {@link LearningPlanService}, qui rend les priorites au candidat, et
- * {@link SkillAccessService}, qui ouvre la competence de la priorite n&deg;1 a un
- * compte sans acces TCF. Deux implementations auraient fini par diverger, et le
- * candidat aurait vu son etape n&deg;1 cadenassee — exactement ce que
- * l'ouverture de cette competence cherche a eviter.
+ * {@link PlanFocusResolver}, dont {@link SkillAccessService} tire la competence
+ * ouverte d'office a un compte sans acces TCF. Deux implementations auraient fini
+ * par diverger, et le candidat aurait vu son etape n&deg;1 cadenassee —
+ * exactement ce que l'ouverture de cette competence cherche a eviter.
+ *
+ * <p>⚠️ <b>« Priorite n&deg;1 » ne veut plus dire « premiere fragilite »</b>
+ * depuis que le Plan sait aussi <b>enseigner</b> : la premiere carte peut etre
+ * une competence a <b>acquerir</b>, que ce resolveur ne voit pas — elle n'a
+ * aucune ligne d'historique. C'est {@link PlanFocusResolver} qui repond a
+ * « quelle competence occupe la premiere place », et lui seul.
  */
 @Component
 @RequiredArgsConstructor
 public class LearningPlanPriorityResolver {
 
-    /** Le Plan ne montre jamais plus de 3 priorites : une courante, deux suivantes. */
-    static final int MAX_PRIORITIES = 3;
+    /**
+     * Le Plan ne montre jamais plus de {@value} entrees dans « Mes priorites » :
+     * une courante, quatre suivantes.
+     *
+     * <p>Trois jusqu'au 2026-08-21 — un plafond calibre pour un Plan qui ne
+     * savait que <b>reparer</b>. Depuis qu'il sait aussi <b>enseigner</b>
+     * ({@code PlanActionNature.A_ACQUERIR}), un candidat sans fragilite mais
+     * loin de son objectif a un palier entier a couvrir, et trois lignes le
+     * privaient de l'essentiel de son programme.
+     *
+     * <p>🛑 <b>C'est un PLAFOND, jamais un quota.</b> Il borne ce que cette
+     * methode rend ; il n'oblige a rien produire. Une competence <b>solide</b>
+     * ou <b>non observee</b> ne devient jamais une fragilite pour remplir
+     * l'ecran — le remplissage se fait uniquement avec de vraies actions
+     * pedagogiques, et un candidat qui n'a que deux fragilites en garde deux.
+     */
+    static final int MAX_PRIORITIES = 5;
 
     private final LearningPlanObservationManager observationManager;
 
@@ -69,6 +90,35 @@ public class LearningPlanPriorityResolver {
         for (LearningPlanObservation observation : observations) {
             if (!observation.isObserved()) continue;
             latest.putIfAbsent(observation.getSkill().getId(), observation);
+        }
+        return latest;
+    }
+
+    /**
+     * <b>La derniere activite de chaque competence</b>, sur un historique
+     * <b>deja charge</b> : aucune requete, une seule passe.
+     *
+     * <p>Elle repond a « quand ce candidat a-t-il travaille cette competence
+     * pour la derniere fois ? », et c'est ce <b>fait</b> que la seance publie
+     * pour que les fronts cochent ce qui a ete fait aujourd'hui. Le serveur ne
+     * calcule pas ce booleen : il n'a pas d'horloge dans la construction de la
+     * seance, et une reponse « fait aujourd'hui » figee a la lecture serait
+     * fausse des le lendemain sans nouvel appel.
+     *
+     * <p><b>Toutes les observations comptent</b>, {@code NOT_OBSERVED} compris —
+     * c'est la difference avec {@link #latestObservedBySkill}. « Le correcteur
+     * n'a rien pu observer » ne veut pas dire « le candidat n'a rien fait » : la
+     * ligne existe parce qu'une production a ete rendue, et la masquer ferait
+     * disparaitre la coche d'un travail reel.
+     *
+     * @param observations tout l'historique, <b>de la plus recente a la plus
+     *                     ancienne</b> — la premiere ligne de chaque competence
+     *                     fait donc foi.
+     */
+    public Map<UUID, Instant> lastActivityBySkill(List<LearningPlanObservation> observations) {
+        Map<UUID, Instant> latest = new LinkedHashMap<>();
+        for (LearningPlanObservation observation : observations) {
+            latest.putIfAbsent(observation.getSkill().getId(), observation.getObservedAt());
         }
         return latest;
     }
@@ -207,28 +257,5 @@ public class LearningPlanPriorityResolver {
             case MEDIUM -> 2;
             case LOW -> 1;
         };
-    }
-
-    /**
-     * La competence de la priorite n&deg;1 de ce candidat, vide s'il n'en a
-     * aucune.
-     *
-     * <p><b>Elle se deplace quand une competence est reussie</b> : des que le
-     * transfert d'une competence est prouve, elle sort des priorites et c'est la
-     * suivante que ce verrou ouvre a un compte gratuit. Coherent avec ce que le
-     * Plan affiche — le candidat lit « a faire maintenant » et trouve ce
-     * sujet-la ouvert.
-     *
-     * <p><b>On n'exige pas ici de diagnostic termine</b>, alors que le Plan ne
-     * rend ses priorites qu'une fois le diagnostic {@code COMPLETED} : une
-     * observation probante venue d'une correction de production suffit. Le pire
-     * cas est une competence ouverte de plus, jamais une competence fermee a
-     * tort — et c'est le bon sens de l'erreur pour un verrou commercial.
-     */
-    @Transactional(readOnly = true)
-    public Optional<UUID> currentPrioritySkillId(UUID userId) {
-        return actionable(observationManager.findAllByUserWithSkill(userId)).stream()
-                .findFirst()
-                .map(observation -> observation.getSkill().getId());
     }
 }

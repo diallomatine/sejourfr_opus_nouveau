@@ -28,6 +28,13 @@ import java.util.UUID;
  * en base par {@code chk_skills_section_matches_task}. Elle sert surtout de
  * cible a la cle etrangere COMPOSITE de {@code skill_prompts}, qui rend
  * impossible un sujet ecrit rattache a une competence orale.
+ *
+ * <p><b>Depuis V039, ce n'est plus la seule forme possible.</b> Les competences
+ * de COMPREHENSION ({@code CO}, {@code CE} — une par niveau et par domaine)
+ * n'ont ni tache ni petit sujet : leur {@link #taskCode} est {@code null} et
+ * leur entrainement est une serie ciblee de QCM. {@link #section} devient donc
+ * l'axe autonome (le domaine) et {@link #targetLevel} porte le niveau ; c'est
+ * de la que se derive tout ce qui se deduisait auparavant de la tache.
  */
 @Entity
 @Table(name = "skills", indexes = {
@@ -46,8 +53,16 @@ public class Skill {
     @Column(nullable = false, length = 2)
     private SkillSection section;
 
+    /**
+     * Tache TCF d'appartenance, <b>{@code null} pour une competence de
+     * COMPREHENSION</b> (CO/CE) : celles-ci n'appartiennent a aucune des 6
+     * taches officielles. L'equivalence est stricte des deux cotes et
+     * verrouillee en base par {@code chk_skills_task_code_presence} — section
+     * d'expression &hArr; tache presente. Tout lecteur doit donc traiter le nul
+     * comme « competence de comprehension », jamais comme une donnee manquante.
+     */
     @Enumerated(EnumType.STRING)
-    @Column(name = "task_code", nullable = false, length = 3)
+    @Column(name = "task_code", length = 3)
     private SkillTaskCode taskCode;
 
     /** Code editorial stable ({@code "EE1-C1"}), unique et immuable apres creation. */

@@ -5,22 +5,22 @@ import { SITE } from "@/lib/site";
 import type { PlanPublicResponse } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Diagnostic TCF gratuit — découvrez vos priorités | SejourFR",
+  title: "TCF IRN et examen civique — diagnostic gratuit | SejourFR",
   description:
-    "Faites un exercice écrit et un oral en 8 à 10 minutes. SejourFR estime votre niveau de production et construit votre plan de travail personnalisé.",
+    "Un plan de révision qui s'adapte à vous, pour les deux examens obligatoires : le TCF IRN (A2, B1, B2) et l'examen civique sur les 5 thèmes officiels. Diagnostic gratuit en 8 minutes, sans carte bancaire.",
   alternates: { canonical: "/reussir" },
   openGraph: {
-    title: "Tu prépares le TCF ? Découvre d'abord ce qui te bloque.",
+    title: "TCF IRN et examen civique : un plan qui s'adapte à toi",
     description:
-      "Un écrit, un oral enregistré et une analyse personnalisée en 8 à 10 minutes, sans carte bancaire.",
+      "Un écrit, un oral, et SejourFR nomme ce qui te bloque. Examen civique inclus : 5 thèmes, séries de 20 questions, examens blancs.",
     type: "website",
     url: `${SITE.url}/reussir`,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Diagnostic TCF gratuit — SejourFR",
+    title: "TCF IRN et examen civique — SejourFR",
     description:
-      "Découvrez vos priorités à partir d'un exercice écrit et d'un oral enregistré.",
+      "Diagnostic gratuit en 8 minutes, priorités nommées, et la préparation de l'examen civique au même endroit.",
   },
 };
 

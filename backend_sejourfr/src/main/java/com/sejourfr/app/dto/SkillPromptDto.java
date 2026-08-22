@@ -45,6 +45,12 @@ public record SkillPromptDto(
          */
         String skillTargetLevel,
         SkillSection section,
+        /**
+         * Toujours renseigne <b>ici</b> : seule une competence d'EXPRESSION
+         * porte des petits sujets, et la base exige alors une tache. La
+         * nullabilite de {@code SkillDto.taskCode} (competences de
+         * comprehension) ne se propage donc pas a cet ecran.
+         */
         SkillTaskCode taskCode,
         /** Libelle officiel de la tache, ex. « Écrire un message court ». */
         String taskTitle,

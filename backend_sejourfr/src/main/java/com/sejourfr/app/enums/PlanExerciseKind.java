@@ -11,6 +11,11 @@ package com.sejourfr.app.enums;
  * la nature, il ne la devine pas d'un {@code null}.
  *
  * <h2>Une echelle a trois barreaux, on escalade au lieu de reporter</h2>
+ * <p>Elle vaut pour les competences d'EXPRESSION. La comprehension n'a pas
+ * d'echelle equivalente : {@link #TARGETED_QCM_SERIES} <b>est</b> le format
+ * reel de l'epreuve, il n'existe aucune version « guidee » a laquelle
+ * l'opposer, donc aucune verification en situation a lui demander (meme
+ * raisonnement que {@code LearningPlanSourceType.isContextual}).
  * <ol>
  *   <li>{@link #MICRO_TRAINING} &rarr; {@link #REASSESSMENT} : ce qui fait
  *       passer <b>une competence</b> a « solide » — {@code SOLID} exige une
@@ -43,6 +48,22 @@ public enum PlanExerciseKind {
      * jamais le diagnostic initial, qui n'est jamais rejoue.
      */
     REASSESSMENT,
+
+    /**
+     * Une <b>serie ciblee</b> de questions sur une competence de COMPREHENSION
+     * (CO / CE) : le pendant du micro-exercice pour les deux domaines qui n'ont
+     * ni tache ni petit sujet.
+     *
+     * <p>Elle se demarre par {@code POST /api/attempts} avec
+     * {@code {type: TRAINING, module: TCF, skillId}} — <b>la competence
+     * suffit</b>. Domaine, palier et taille se derivent du referentiel cote
+     * serveur : un couple (type de question, difficulte) recu du client aurait
+     * pu contredire la competence affichee et faire progresser une autre
+     * competence que celle travaillee. C'est pourquoi cette nature ne porte
+     * <b>aucun</b> identifiant de plus que {@code skillId}, deja present sur le
+     * bloc competence.
+     */
+    TARGETED_QCM_SERIES,
 
     /**
      * Un examen blanc d'<b>epreuve</b> : 3 taches d'expression ecrite ou orale

@@ -25,6 +25,30 @@ class AttemptsRepository {
     return Attempt.fromJson(res.data!);
   }
 
+  /// Démarre la **série ciblée** d'une compétence de compréhension (CO / CE),
+  /// telle que le Plan la désigne
+  /// (`PlanExerciseKind.targetedQcmSeries` / `PlanDomainLevel.skillId`).
+  ///
+  /// **Seul le `skillId` part** : épreuve, palier et nombre de questions sont
+  /// dérivés serveur de la compétence. Ne jamais y ajouter un `questionType`
+  /// ou une `difficulty` « pour aider » — ils pourraient contredire la
+  /// compétence affichée, et la session alimenterait alors une autre
+  /// compétence que celle travaillée.
+  ///
+  /// 🛑 C'est un `TRAINING` : cette série **ne rend jamais un domaine
+  /// « évalué »**. Ce qui mesure un domaine manquant est dit par
+  /// `LearningPlan.domainesAEvaluer`.
+  ///
+  /// Refus serveur : **403** verrouillée, **422** compétence d'expression,
+  /// **404** inconnue.
+  Future<Attempt> startComprehensionSeries(String skillId) => start(
+        StartAttemptRequest(
+          type: AttemptType.training,
+          module: AppModule.tcf,
+          skillId: skillId,
+        ),
+      );
+
   Future<Attempt> getById(String id) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
       '/api/attempts/$id',

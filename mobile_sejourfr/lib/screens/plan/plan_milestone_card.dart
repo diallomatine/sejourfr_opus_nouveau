@@ -2,42 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/repositories.dart';
+import '../../core/analytics/analytics.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
-import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/selected_module.dart';
-import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/premium_lock.dart';
-import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
-import '../tcf_production/ee_session_controller.dart';
-import '../tcf_production/eo_session_controller.dart';
-import '../tcf_production/production_nav.dart';
-import '../tcf_production/tcf_production_module.dart';
 import 'plan_milestone_labels.dart';
+import 'plan_milestone_launcher.dart';
 
 /// Le **jalon** du Plan : un examen blanc que le serveur juge mérité.
 ///
 /// ⚠️ **Rien n'est décidé ici.** Quelle épreuve, quel slot, verrouillé ou non :
 /// tout vient de `LearningPlan.milestone` (`PlanMilestoneSelector` côté
 /// serveur). L'app n'apporte que la **phrase** — le serveur expose des faits —
-/// et le **chemin de démarrage**, qui est celui des écrans d'examen blanc
-/// existants, réutilisé tel quel :
-///
-/// - [PlanExerciseKind.epreuveMockExam] → `EeSessionNotifier.startExam` /
-///   `EoSessionNotifier.startExam` puis [productionSessionPath], exactement
-///   comme l'onglet « Examens » du parcours ;
-/// - [PlanExerciseKind.fullTcfMockExam] → `FullTcfExamRepository.start` puis le
-///   hub de progression, exactement comme `TcfFullExamsView`.
-///
-/// Aucune route n'est créée, aucun appel n'est réinventé.
+/// et le **chemin de démarrage**, qui vit dans `startPlanMilestone` depuis que
+/// la séance du jour lance le même examen depuis une ligne de liste.
 ///
 /// **Verrouillé, le jalon reste entier** : titre, motif, épreuve, slot et durée
 /// s'affichent à l'identique, seul le bouton change de destination — le Plan
@@ -57,49 +41,8 @@ class _PlanMilestoneCardState extends ConsumerState<PlanMilestoneCard> {
   Future<void> _start() async {
     if (_starting) return;
     setState(() => _starting = true);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    try {
-      if (widget.milestone.isFullExam) {
-        await _startFullExam();
-      } else {
-        await _startEpreuveExam();
-      }
-    } catch (error) {
-      if (!mounted) return;
-      showPaywallOrError(context, error);
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
-  }
-
-  Future<void> _startFullExam() async {
-    final exam = await ref
-        .read(fullTcfExamRepositoryProvider)
-        .start(slotNumber: widget.milestone.slotNumber);
-    if (!mounted) return;
-    ref.invalidate(fullExamsHistoryProvider);
-    context.go(
-      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
-    );
-  }
-
-  Future<void> _startEpreuveExam() async {
-    final module = widget.milestone.epreuve == EpreuveType.tcfEo
-        ? TcfProductionModule.eo
-        : TcfProductionModule.ee;
-    // Le sujet ne voyage jamais dans l'URL : la session Riverpod doit être
-    // démarrée avant le push, comme dans l'onglet « Examens ».
-    if (module.isEo) {
-      await ref
-          .read(eoSessionProvider.notifier)
-          .startExam(slotNumber: widget.milestone.slotNumber);
-    } else {
-      await ref
-          .read(eeSessionProvider.notifier)
-          .startExam(slotNumber: widget.milestone.slotNumber);
-    }
-    if (!mounted) return;
-    context.push(productionSessionPath(module));
+    await startPlanMilestone(context, ref, widget.milestone);
+    if (mounted) setState(() => _starting = false);
   }
 
   @override
@@ -150,7 +93,11 @@ class _PlanMilestoneCardState extends ConsumerState<PlanMilestoneCard> {
               label: kPlanMilestoneLockedCta,
               icon: LucideIcons.lock,
               variant: AppButtonVariant.soft,
-              onPressed: () => unawaited(showTcfLockPaywall(context)),
+              onPressed: () => unawaited(showTcfLockPaywall(
+                context,
+                ref: ref,
+                ctaLocation: AnalyticsCtaLocation.mockExam,
+              )),
             ),
             const SizedBox(height: 9),
             Text(

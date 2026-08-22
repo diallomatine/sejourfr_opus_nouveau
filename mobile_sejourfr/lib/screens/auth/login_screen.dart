@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/router/app_router.dart';
@@ -55,6 +56,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
+    // Un retour de compte existant : c'est ce qui distingue, dans le funnel,
+    // un visiteur qui revient d'un visiteur qui s'inscrit.
+    ref.read(analyticsServiceProvider).track(AnalyticsEvent.loginClicked);
     setState(() => _submitting = true);
     // Capturé avant l'await : après un login réussi, le router redirige et ce
     // widget peut être démonté — on n'utilise donc plus `ref` ensuite.

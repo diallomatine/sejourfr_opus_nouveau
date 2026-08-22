@@ -260,7 +260,7 @@ class _ResultsBody extends ConsumerWidget {
                           // Retour à l'écran d'entraînement Expression écrite
                           // (onglet Entraînement, carrousel de situations).
                           ref.read(eeSessionProvider.notifier).reset();
-                          context.go(AppRoutes.tcfEeDetail);
+                          context.go(AppRoutes.tcfEeEntry);
                         },
                       )
                     : AppButton(

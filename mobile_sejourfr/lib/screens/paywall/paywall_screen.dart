@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/analytics/analytics.dart';
+import '../../core/analytics/funnel_events.dart';
 import '../../core/billing/billing_controller.dart';
 import '../../core/billing/iap_service.dart';
 import '../../core/models/billing_models.dart';
@@ -36,8 +38,33 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     super.initState();
     // Premier chargement async — les prix arrivent du store.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(billingControllerProvider.notifier).load();
+      // Un écran Premium **affiché**. Deux mesures, deux natures : l'étape de
+      // funnel rattachée au compte (`PAYWALL_VIEWED`, authentifiée, idempotente
+      // serveur) et la vue anonyme de la page de prix (`PRICING_VIEWED`), qui
+      // seule sait dire combien de visiteurs regardent l'offre sans jamais
+      // acheter. Le web fait exactement ça sur `/paiement`.
+      trackPaywallViewed(ref);
+      ref.read(analyticsServiceProvider).track(
+            AnalyticsEvent.pricingViewed,
+            path: AnalyticsPath.paywall,
+            once: true,
+          );
     });
+  }
+
+  /// Le seul geste qui **engage l'achat** : il ouvre la feuille de paiement du
+  /// store. Un simple passage sur l'écran n'en est pas un — celui-là est déjà
+  /// compté à l'arrivée.
+  void _purchase(IapProduct product) {
+    trackSubscribeClicked(ref);
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.pricingCtaClicked,
+          path: AnalyticsPath.paywall,
+          planCode: product.plan.code,
+        );
+    ref.read(billingControllerProvider.notifier).startPurchase(product);
   }
 
   @override
@@ -238,8 +265,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         passes: passes,
         disabled: state.purchaseInProgress || state.actionBlocked,
         purchasingSku: state.purchasingSku,
-        onPurchase: (p) =>
-            ref.read(billingControllerProvider.notifier).startPurchase(p),
+        onPurchase: _purchase,
       ));
       cards.add(const SizedBox(height: 14));
     }
@@ -264,11 +290,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         periodicity: _periodicity,
         disabled: state.purchaseInProgress || state.actionBlocked,
         loading: loading,
-        onPurchase: product == null
-            ? null
-            : () => ref
-                .read(billingControllerProvider.notifier)
-                .startPurchase(product),
+        onPurchase: product == null ? null : () => _purchase(product),
       ));
       cards.add(const SizedBox(height: 14));
     }

@@ -265,7 +265,7 @@ export default function TcfModuleExamsPage() {
           onConfirm={() => void launch()}
           onClose={() => setIntroOpen(false)}
         />
-        <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
+        <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_tcf" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}

@@ -94,8 +94,20 @@ app/
 │   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
 │   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
 │   │                              #   bandeaux reprendre/onboarding
-│   ├── plan/page.tsx             # ★ action prioritaire, suivantes, compétences observées,
-│   │                              #   accès secondaire à l'ancienne Progression
+│   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
+│   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
+│   │                              #   compléter mon profil, chemin vers l'objectif.
+│   │                              #   ⚠️ Plus de section « Compétences observées » : elle est
+│   │                              #   FONDUE dans les encarts de « Mes priorités », qui portent
+│   │                              #   toutes les compétences de leur tâche, solides comprises
+│   ├── plan/competences/page.tsx # ★ « Toutes mes compétences » : les 4 domaines, leurs
+│   │                              #   tâches (expression) et leurs paliers (compréhension)
+│   ├── plan/domaine/[domaine]/   # ★ fiche d'un domaine (co|ce|ee|eo) : paliers ou tâches
+│   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
+│   ├── plan/progression/page.tsx # ★ « Ma progression vers le {objectif} » : niveau estimé →
+│   │                              #   objectif + rail, une carte par domaine (paliers CO/CE,
+│   │                              #   tâches EE/EO), mesure d'un domaine manquant, ce qui a
+│   │                              #   changé. ⚠️ N'EST PAS /statistiques, qui reste.
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
@@ -742,6 +754,227 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   reste en place pour les URLs déjà partagées et pour `/paiement` en mode
   prolongation, il n'est simplement plus le chemin nominal.
 
+## Plan adaptatif — `/plan` refondu (2026-08-21)
+
+`GET /api/me/plan` sert désormais, en plus des priorités, **quatre blocs
+adaptatifs** : `domaines` (les 4 épreuves), `cycle` (palier construit + chemin),
+`domainesAEvaluer` (par quoi mesurer un domaine jamais passé), `seance` (la
+séance du jour) et `recentChanges`. L'écran est en **2 colonnes**
+(`minmax(0,1fr) 336px`, aside sticky, empilé sous 1180 px de fenêtre).
+
+**Ordre des blocs** — colonne principale : priorité actuelle (carte à en-tête
+bleu plein) → *Aujourd'hui* (la séance) → *Mes priorités* (+ étapes franchies
+repliées) → **carte d'abonnement** (compte gratuit seulement) → *ce qui a
+changé* → *mes compétences observées*. Colonne latérale :
+jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'objectif*
+→ accès secondaires.
+
+- 🛑 **Le serveur trie `domaines`, le web ne retrie JAMAIS** — même doctrine que
+  l'ordre des priorités.
+- 🛑 **Une série ciblée (`TARGETED_QCM_SERIES`) est un `TRAINING`** : elle ne
+  rend jamais un domaine « évalué ». C'est `domainesAEvaluer` qui dit par quoi
+  le mesurer, et la note de bas de panneau le redit au candidat.
+- 🛑 **`cycle.objectiveLevel` peut être `null`** : le titre devient « Mon plan »
+  (jamais « vers le B2 »), et un lien propose de déclarer sa démarche.
+  `recentChanges === null` est le cas normal : rien ne s'affiche.
+- **Libellés et helpers : `lib/plan-domain.ts`**, déclarés une seule fois pour
+  tout le web (le serveur n'expose que des faits). Les deux tables gelées
+  (`PLAN_DOMAIN_PRIORITY_LABEL`, `PLAN_RECENT_CHANGES_WINDOW_LABEL`) restent
+  dans `lib/types.ts`, recopiées du backend.
+- **Un seul lanceur : `app/_components/plan/use-plan-exercise.ts`**
+  (`usePlanExercise` / `usePlanAssessment`). Les 5 natures d'exercice et les 3
+  natures de mesure ouvrent des parcours **déjà existants** — aucun runner ni
+  écran concurrent n'est créé : une série ciblée est un attempt `TRAINING`
+  ordinaire qui atterrit sur `/sessions/{id}`, une vérification passe par
+  `recommendedExerciseHref`, un jalon reprend les chemins de `ProductionExams` /
+  `TcfFullExamBriefingSheet`. `PlanMilestoneCard` en est un client.
+  ⚠️ Les natures s'y testent par `switch (exercise.kind)` : `PlanStepExerciseDto`
+  porte **deux** littéraux, une exclusion en `||` ne l'élimine pas de l'union.
+- **`planSkillHref`** remplace `competenceHref` sur le Plan : une compétence de
+  **compréhension** (`CO-B1`) n'a pas de numéro de tâche, `competenceHref` lui
+  fabriquerait une URL de tâche inexistante — elle ouvre sa **fiche de domaine**.
+- 🛑 **Une ligne de séance de nature PRODUCTION ouvre la FICHE de la compétence,
+  pas le sujet** (`usePlanExercise.startItem`, 2026-08-21) : `MICRO_TRAINING` et
+  `REASSESSMENT` poussent vers `planSkillHref(exercise, {planStep: true})`, où le
+  candidat voit ses cinq sujets et lesquels sont faits — exactement ce que font
+  déjà les lignes de « Mes priorités ». Les autres natures sont **inchangées** :
+  une série ciblée démarre son `TRAINING`, un jalon ouvre son examen blanc, et le
+  bouton principal de la carte de priorité continue d'appeler `start`.
+- **« Toutes mes compétences » est une PAGE** (`/plan/competences`,
+  `PlanSkillsView`), ouverte depuis l'intertitre « Mes priorités » et depuis les
+  accès secondaires. Elle **ne crée aucune UX concurrente** : chaque ligne renvoie
+  vers un écran déjà livré — les 8 compétences d'une tâche
+  (`/entrainement/tcf/{ee,eo}/tache/[n]/competences`) en expression, la fiche de
+  domaine en compréhension — et le Plan est lu **en cache**. L'ordre des domaines
+  reste celui du serveur : **on ne regroupe pas par famille**. ⚠️ **Verrou de
+  NAVIGATION** (`canAccessModule(user, "TCF")`) : un compte gratuit part sur
+  l'offre, mais son Plan reste entier. Le lien du Plan **ne déplie plus rien en
+  ligne**.
+- 🛑 **« Ce qui a changé » n'apparaît QUE s'il y a de vraies transitions**
+  (`changes.transitions.length === 0 ⇒ null`). Le serveur sert aussi ce bloc pour
+  une simple `newPriority`, et **une première mesure n'est jamais une
+  transition** : au sortir du diagnostic, le titre — qui **est** la période —
+  s'affichait au-dessus d'une ligne qui ne racontait aucun changement. Même
+  prudence sur `/plan/evolution`, qui ne rend plus de liste vide.
+- **La teinte d'un domaine suit sa FAMILLE** : compréhension en bleu (CO, CE),
+  expression en rouge (EO, EE). `PlanDomainIcon` pose `data-tone`, dérivé de
+  `PLAN_DOMAIN_SECTION` via `isComprehension` — aucune couleur en dur, aucune
+  seconde table. ⚠️ **Rien à voir avec `--skill-accent`** (bleu pour EE comme
+  pour EO) : c'est l'accent du module Compétences, pas les pastilles du Plan.
+- **Le chemin dit COMMENT un palier se confirme** : `planPathStepNote(step,
+  cycle)` rend `PLAN_GATE_RULE` sur une étape `BUILD_LEVEL` non terminée, et
+  `PLAN_GATE_READY` quand le serveur annonce `READY_FOR_GATE_MOCK`. **Miroir mot
+  pour mot de `planPathStepNote` côté mobile.** Aucune donnée nouvelle n'est
+  demandée au serveur — la règle était déjà dans `cycle.state`, elle n'était pas
+  écrite à l'écran. La liste elle-même vit dans **`PlanPathList`** (`PlanBits`),
+  partagée par `/plan` et `/plan/evolution` — elle en portait deux copies.
+- **`PlanTaskRow`** (`PlanBits`) est la ligne « Tâche n · x/8 observées »,
+  partagée par la fiche de domaine et « Toutes mes compétences ».
+- ⚠️ **Divergence VOULUE avec le mobile, arbitrée le 2026-08-21 : ne pas
+  « aligner ».** L'action qui ouvre cette page s'appelle « Toutes mes
+  compétences » ici (`PLAN_SKILLS_TITLE`) et « Tout voir » sur mobile
+  (`kPlanPrioritiesAll`) : les deux maquettes diffèrent réellement, et un lien
+  de fin de section sur une largeur de téléphone ne tient pas la forme longue.
+  Ce qui **doit** rester identique, et l'est : le **titre de la page
+  d'arrivée**. Le contrat, c'est la destination.
+- **La coche de séance vient du COMPTE** (`planSeanceItemDone`) : étape bouclée
+  (`stepCompleted`) **ou** `lastActivityAt` tombant aujourd'hui en Europe/Paris.
+  Aucun marqueur local, rien d'écrit côté navigateur. Miroir mobile
+  `plan_seance_state.dart`.
+- **Audience** : aucun événement nouveau (l'allowlist est doublée serveur).
+  `/plan` émet `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` (priorité et
+  séance seulement — **pas** un palier choisi à la main sur une fiche de
+  domaine) et `DIAGNOSTIC_TO_PREMIUM_CLICKED`.
+- **Freemium inchangé** : tout reste visible, seuls les accès portent `locked` ;
+  un exercice verrouillé reste **désigné**, avec son cadenas.
+- **La carte d'abonnement du Plan** (`PlanPaywallCard`, 2026-08-21) ferme la
+  section « Mes priorités » **pour un compte sans accès TCF**, et c'est
+  **elle-même** qui s'efface dès que `canAccessModule(user, "TCF")` — un abonné
+  ne peut pas la voir par un oubli d'appelant. En-tête bleu plein, cinq
+  avantages cochés, un bouton et un lien discret. 🛑 **Aucun second chemin
+  d'abonnement** : les deux actions mènent à `SKILL_PREMIUM_HREF` avec la
+  provenance et le **même** `DIAGNOSTIC_TO_PREMIUM_CLICKED` que les autres
+  cadenas — aucun événement d'audience n'est ajouté. Elle **ne masque rien** et
+  ne redit pas les cadenas déjà posés au-dessus d'elle.
+  ⚠️ `PLAN_PREMIUM_BENEFITS` est **distincte** de `PREMIUM_BENEFITS` du rapport
+  de diagnostic (`diagnostic/DiagnosticView.tsx`) : celle-ci nomme la suite du
+  **plan**, l'autre la suite d'**un rapport**. Les fusionner rendrait les deux
+  écrans vagues — la consigne existait déjà côté diagnostic. Les cinq lignes, le
+  titre et les deux libellés d'action sont **miroirs mot pour mot du mobile**.
+- `/statistiques` ouvre sur les 4 domaines (`PlanDomainsSummary`, Plan lu **en
+  cache**, échec silencieux).
+
+### Trois natures d'action, pas une (2026-08-21)
+
+Le backend distingue **ce qu'il demande de faire** sur chaque entrée
+(`PlanActionNature`, `LearningPlanPriorityDto.nature` et `PlanSeanceItemDto
+.nature`). Le web le rend visible.
+
+- **Miroirs** : `PlanActionNature` + `PLAN_ACTION_NATURE_LABEL` dans
+  `lib/types.ts` (patron `PLAN_DOMAIN_PRIORITY_LABEL` — **contrat gelé** par
+  `SkillLabelsTest`, recopié à la main, jamais une chaîne dans un composant).
+  `LearningPlanPriorityDto` gagne `nature` et voit `status`, `confidence` et
+  `observedAt` devenir **nullables** : une compétence *à acquérir* n'a rien
+  d'observé, *null = inconnu, jamais mauvais*.
+- 🛑 **`A_ACQUERIR` ne se lit JAMAIS « à renforcer ».** Trois choses l'en
+  empêchent, et aucune ne repose sur la couleur seule : un **libellé** distinct,
+  une **icône** distincte (`GraduationCap`, apprendre — pas `Wrench`, réparer),
+  et une **teinte** distincte (bleu d'apprentissage ; le rouge de fragilité est
+  réservé à ce qui a été *observé* fragile). La phrase de la carte suit :
+  `PLAN_REASON_A_ACQUERIR` passe **avant** les compteurs d'étape, sinon « 0 sujet
+  sur 5 traité » se lirait comme un retard alors qu'il n'y avait rien à traiter.
+- **`PlanNaturePill`** (`PlanBits`) est la brique unique. Sur une **ligne de
+  priorité** elle remplace `SkillMasteryPill` : la ligne annonce une **action**,
+  et une compétence à acquérir n'a aucun état agrégé — elle n'affichait donc
+  rien du tout. L'état agrégé reste sur la **fiche** de la compétence : trois
+  grains (`LearningPlanSkillStatus` / `SkillMasteryState` / `PlanActionNature`),
+  trois endroits, ils ne se remplacent pas.
+- **`PlanSeanceItemDto` est une union discriminée par `nature`** :
+  `exercise` **XOR** `assessment`. Un item `A_EVALUER` n'est pas un entraînement
+  mais une **mesure de domaine** — `SeanceRow` aiguille vers
+  `SeanceAssessmentRow`, qui réutilise **`usePlanAssessment`**, le lanceur de
+  « Compléter mon profil ». 🛑 **Aucun second chemin de démarrage** : `startItem`
+  n'accepte plus que `PlanSeanceExerciseItemDto`, donc un écran qui oublierait la
+  mesure **ne compile pas**.
+  ⚠️ Une mesure n'est **jamais verrouillée** (le serveur ne pose aucun cadenas
+  dessus) : pas de `PlanBlur` sur cette ligne, et ce n'est pas un oubli.
+- **Plafonds serveur : 3 items dans « Aujourd'hui », 5 dans « Mes priorités ».**
+  Ce sont des **plafonds** : moins d'entrées est un cas normal, et le web ne
+  tronque **rien** à la source.
+- **Floutage inchangé** — on floute l'**action** pas encore accessible, jamais le
+  **résultat** mesuré. La nature vit **dans** le bloc floutable (elle décrit
+  l'action fermée) ; le domaine et le cadenas restent nets. Deux surfaces qui
+  pouvaient démentir le rideau ont été fermées dans la même passe :
+  **la fiche d'un domaine** (`/plan/domaine/[domaine]`), qui listait « Vos
+  priorités sur ce domaine » **en clair** — c'est la même liste que « Mes
+  priorités » —, et la **modale « Pourquoi cette séance ? »**, qui laissait la
+  durée d'un entraînement verrouillé en net.
+- **Le raccourci du dashboard suit le verrou** : « Commencer directement »
+  disparaît quand la priorité du jour est verrouillée (fréquent depuis que ce
+  peut être une compétence *à acquérir*, **désignée avec son `locked`** — le
+  serveur a vérifié qu'elle n'est pas ouverte par sa place n°1). « Continuer mon
+  plan » reste, il porte l'offre.
+- **Libellés créés** (miroirs mot pour mot du mobile) :
+  `PLAN_ASSESSMENT_ITEM_TITLE` (les 4 domaines), `PLAN_REASON_A_EVALUER`,
+  `PLAN_REASON_A_ACQUERIR`, `PLAN_REASON_A_VERIFIER`, `PLAN_REASON_MILESTONE`,
+  plus `PLAN_LOCKED_SEANCE_LABEL` / `PLAN_LOCKED_PRIORITY_LABEL` **déplacés**
+  dans `lib/plan-domain.ts` — la fiche d'un domaine ferme ses lignes avec les
+  mêmes mots que le Plan.
+- **Audience : aucun événement ajouté**, y compris sur la fiche de domaine (dont
+  les lignes verrouillées mènent à l'offre sans mesure propre — mélanger deux
+  provenances dans `DIAGNOSTIC_TO_PREMIUM_CLICKED` rendrait le compteur
+  illisible).
+
+### Parité web ⇄ mobile du Plan (2026-08-21, passe d'alignement)
+
+Le propriétaire a constaté que les deux écrans Plan ne disaient pas la même
+chose. Ce qui a bougé **côté web**, et pourquoi :
+
+- 🔴 **Fuite de floutage réparée, 8ᵉ occurrence.** `PriorityCard` affichait en
+  clair le titre, le repère et le motif d'une priorité **verrouillée**, que la
+  ligne n°1 de « Mes priorités » floutait vingt lignes plus bas — la même
+  compétence, deux lectures. Son **identité** passe désormais sous `PlanBlur`
+  avec le libellé accessible et `SkillLockBadge`, comme sur mobile
+  (`PlanPriorityHero`). Restent **nets** : la nature, le cadenas, l'objectif, le
+  rail et le bouton. « Voir le détail » suit le verrou.
+- 🔴 **9ᵉ occurrence, hors du Plan** : `/dashboard` nommait la priorité du jour
+  même verrouillée. Il retombe sur son texte générique, miroir de
+  `PlanPriorityHomeCard`.
+- **Sur une ligne de séance verrouillée, le domaine et la nature restent NETS**
+  (`SeanceEyebrow`, sorti du bloc floutable). Ils ne disent pas *quoi faire*, le
+  domaine est déjà lisible sur l'icône restée nette, et sans la nature les
+  lignes fermées devenaient indistinctes. C'est la règle du mobile ; le web
+  floutait l'eyebrow entier.
+- **Le bouton principal LANCE la séance, plus la seule priorité.** Il prend la
+  première ligne **non faite** (`Reprendre` / `Commencer ma séance · N min`),
+  la première quand tout est fait (`Refaire ma séance`), et l'exercice de la
+  priorité quand il n'y a pas de séance. Motif : une **mesure de domaine**
+  passe devant tout le reste côté serveur, et démarrer la priorité par-dessus
+  elle faisait avancer à l'aveugle. Une mesure part chez `usePlanAssessment` et
+  **n'émet pas** `PLAN_RECOMMENDED_EXERCISE_STARTED` — ce n'est pas un exercice.
+- **`planSeanceItemLocked`** (`lib/plan-domain.ts`) lit `item.locked` **et**
+  `exercise.locked`, comme le mobile ; le web ne lisait que le premier.
+- **Bandeau « Plan actualisé »** (`PlanUpdatedBanner`) : il n'existait que sur
+  mobile. Il occupe la place de `PlanFreeBar`, **jamais les deux**, et mène à
+  `/plan/evolution`. Le web n'annonçait donc rien tant qu'aucune *transition*
+  n'était servie.
+- **Le jalon porte son intertitre** (`PLAN_MILESTONE_SECTION_TITLE` / `_TEXT`,
+  déclarés depuis toujours et jamais rendus) et **n'est plus répété** quand il
+  est déjà dans la séance (`milestoneInSeance`, miroir mobile).
+- **La carte de priorité dit les DEUX choses** (`priorityLines`) : l'explication
+  du correcteur — que seul le mobile affichait — puis l'état agrégé et les
+  compteurs d'étape — que seul le web affichait. Une compétence *à acquérir*
+  garde `PLAN_REASON_A_ACQUERIR` en tête, jamais un « 0 sur 5 » qui se lirait
+  comme un retard. La même phrase s'ajoute sur la **ligne** de priorité.
+- **« Pourquoi cette séance ? » sert les mêmes raisons des deux côtés**
+  (`planSeanceRationale`, miroir de `planSeanceRationale` mobile) : les quatre
+  motifs — dont celui qui distingue *acquérir* de *renforcer* — n'existaient que
+  sur téléphone. L'état du cycle n'y est plus répété (il est dans l'en-tête).
+- **Divergences laissées telles quelles**, elles tiennent à la forme de la
+  surface : la colonne latérale (le web a deux colonnes, le jalon y ouvre
+  l'aside), le titre `planTitle(cycle)` contre la pastille d'objectif du mobile,
+  et « Toutes mes compétences » ⇄ « Tout voir » (déjà arbitré).
+
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
 - **Le backend décide du parcours** : `DiagnosticResponse.status` et
@@ -797,15 +1030,39 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
     — puis **propagé** par `CompetencePrompt` et `CompetenceResult` (backHref et
     poussées), pour que remonter d'un sujet ramène à l'étape et non aux 15. Sur
     mobile ce même effet vient du `pop` : c'est la parité, pas un ajout.
-  - **Zéro appel réseau de plus** : le Plan se relit **en cache**
-    (`learningPlanApi.peekCached()`). Toute lecture de `/api/me/plan` **range**
-    désormais son résultat sous la clé de cache (`primeCached`, `lib/data-cache
-    .ts`), y compris celle de `/plan`, qui continue par ailleurs d'appeler le
-    serveur à chaque montage.
-  - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
-    ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
-    sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la
-    fiche complète. Ni message, ni écran vide, ni spinner.
+  - **Zéro appel quand on vient du Plan, UN appel à froid** (règle corrigée le
+    2026-08-21). ⚠️ **Révoque le « zéro appel réseau de plus, le Plan se relit
+    au `peekCached()` »** : le marqueur d'URL survit à un rechargement, le cache
+    mémoire non. Un simple **F5** (ou un lien profond) faisait donc retomber
+    l'écran sur la fiche des 15 sujets, sans pilule d'étape, avec « 1/15 » à la
+    place de « 2/5 » — et son retour partait dans `/entrainement/tcf/…` alors
+    que le candidat venait du Plan. `CompetenceDetail` branche le Plan sur
+    `useCachedData(learningPlanApi.cacheKey, () => learningPlanApi.getCached())` :
+    cache chaud ⇒ peint sans un appel, cache froid ⇒ **un** appel, et le
+    squelette reste affiché en attendant (sinon l'écran passerait de 15 sujets à
+    5 sous les yeux du candidat). Ne pas revenir à `peekCached()` ici — il reste
+    l'outil des **conforts d'affichage** qu'on accepte de perdre. Toute lecture
+    de `/api/me/plan` **range** son résultat sous la clé de cache (`primeCached`,
+    `lib/data-cache.ts`).
+  - 🛑 **Le retour suit la PROVENANCE, la liste suit la PORTÉE** — deux
+    questions qu'un seul booléen (`scoped`) confondait. Une compétence
+    simplement **observée** n'a pas d'étape : la portée retombe honnêtement sur
+    les 15 sujets, mais le **retour** doit ramener au Plan, puisque c'est de là
+    qu'on a cliqué. `backHref`/`backLabel` et le lien de pied de page lisent donc
+    `isPlanStep(searchParams)`, jamais `scoped`. C'est la règle que le mobile
+    tient déjà par construction (`competence_detail_screen.dart` : `pop()`, et à
+    défaut « venu du Plan, on y retourne ») — le web était le seul à diverger.
+  - **Le marqueur vaut aussi pour la liste des 8 compétences d'une tâche** :
+    `PlanTaskRow` (`PlanBits.tsx`) le pose sur ses liens, et `CompetencesList`
+    en tire son retour (« ← Mon plan » au lieu de « ← Expression orale »).
+    Sans lui, `/plan` → « Toutes mes compétences » → une tâche → retour
+    déposait le candidat dans `/entrainement`. Sans marqueur, l'écran de
+    Réviser ne bouge pas d'un pixel.
+  - **Repli silencieux, obligatoire** : `stepPromptIds` vide, ou compétence
+    **sortie des priorités** (cas **normal** — le serveur l'en sort dès qu'une
+    vérification en situation a réussi) ⇒ on retombe sur la fiche complète. Ni
+    message, ni écran vide, ni spinner — mais **jamais** sur un retour vers
+    `/entrainement` : cf. la règle provenance/portée ci-dessus.
   - **Compteurs servis, jamais recomptés** : la barre lit
     `stepAttemptedCount`/`stepPromptCount`. Les filtres (À faire / Traités)
     portent sur les **5** et leur somme reste juste, comme sur les 15. ⚠️ Le 4ᵉ
@@ -1089,6 +1346,106 @@ détour par `/inscription`.
   est public). Nouvel événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
   `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
+
+### Écran de RÉSULTAT du diagnostic — la maquette IN-APP (2026-08-21)
+
+⚠️ **La maquette contient DEUX écrans de diagnostic, et ce n'est pas le même
+écran.** `_MRapportGratuit` est le rapport du **visiteur non connecté** ;
+`MEtatBadge.jsx` → **`MDiag`, étape `result`** est le résultat **in-app**, celui
+d'un candidat **connecté** — **c'est le nôtre**. Une première passe a refondu cet
+écran sur la maquette du visiteur : d'où la bande de quatre colonnes dans le
+héros et l'absence de section profil. **Ne pas repartir de `_MRapportGratuit`.**
+
+La maquette donne la **direction visuelle** : structure, ordre des blocs,
+densité, destinations de clic. Les **règles du produit** (registre, freemium,
+libellés gelés, doctrine du dépôt) restent les nôtres et priment.
+
+**Ordre des blocs, figé** : en-tête **« Diagnostic »** → **héros de niveau** →
+**Mon profil TCF** → **carte « il reste des domaines à mesurer »** → **Vos points
+forts** → **Vos priorités** → **Votre plan personnalisé est prêt** → **Débloquez
+votre plan complet** (compte gratuit) ou carte de fin (abonné) → **note
+d'estimation**, en pied et pour tout le monde.
+
+⚠️ **Les points forts passent AVANT les priorités** : le rapport ouvre sur ce qui
+est acquis. Ne pas réinverser.
+
+- **Un seul fichier pour le haut du rapport** : `DiagnosticProfile.tsx` (ex
+  `DiagnosticLevelCard.tsx`, renommé) porte `useDiagnosticPlan`,
+  `DiagnosticLevelCard`, `DiagnosticProfileCard` et
+  `DiagnosticCompleteProfileCard`. 🛑 **Le Plan y est lu UNE fois**
+  (`learningPlanApi.get()`, lecture **fraîche** — le cache dirait encore « aucun
+  domaine mesuré » sur l'écran qui vient d'en mesurer deux) et le hook est appelé
+  **avant** le repli sans résultat : l'ordre des hooks ne dépend jamais d'une
+  branche. Trois `useState` séparés auraient fait trois appels réseau.
+- **Héros** : eyebrow « Votre niveau actuel », palier global en très gros et
+  **« Objectif X » sur la même ligne**, une phrase, puis le rail A2 → B1 → B2
+  (`PlanLevelRail dark`, **réutilisé**, jamais recopié). 🛑 **Aucune bande de
+  quatre colonnes** — elle appartenait à l'écran visiteur. Le palier vient du
+  serveur (`cycle.startingLevel`) : le plancher des quatre domaines est une règle
+  serveur (`TcfProfileService`). Plan indisponible ⇒ « — », **jamais un niveau
+  inventé** ; le reste du rapport est entier.
+- **« Mon profil TCF » est une SECTION à part entière** : en-tête
+  « N domaine(s) sur 4 évalué(s) » (`planProfileCountLabel`, lu sur le **cycle**)
+  + quatre pastilles, puis **une ligne par domaine** — icône, nom, « {niveau} —
+  quelques compétences observées » ou « Votre profil se complétera avec une
+  première série », et la pastille de priorité (« À évaluer » quand rien n'est
+  mesuré). **L'ordre vient du serveur** (par urgence), on ne retrie pas et on ne
+  comble aucun trou. 🛑 **Chaque ligne ouvre `/plan/domaine/{co,ce,ee,eo}`** par
+  `planDomainHref` — le chemin du Plan, jamais un second.
+- **Carte « il reste des domaines à mesurer »**, servie tant que
+  `domainesAEvaluer` n'est pas vide (vide = profil complet, l'état visé : la
+  carte disparaît). 🛑 **La durée du bouton est VRAIE** — somme des
+  `estimatedMinutes` **servis** (`DureeEpreuve` : CO 20 min, CE 35 min), jamais
+  le « 14 min » de la maquette. Une mesure sans durée (diagnostic, production)
+  n'ajoute rien, et un total nul retire la durée du bouton au lieu d'écrire
+  « 0 min ». Le lancement passe par **`usePlanAssessment`**, le lanceur qui sert
+  déjà « Compléter mon profil » sur le Plan ; son `PaywallSheet` est là pour le
+  403 que `handleStartFailure` route.
+- **Priorités** : une **liste**, et 🛑 **la ligne ENTIÈRE ouvre la fiche de la
+  compétence** (`planSkillHref`, `{planStep: true}` — on arrive du parcours, donc
+  la fiche s'ouvre scopée aux 5 sujets de l'étape ; une compétence absente du
+  parcours retombe silencieusement sur la fiche complète). Une ligne du **repli**
+  (un point relevé, sans compétence) n'a rien à ouvrir : elle reste inerte, sans
+  chevron. ⚠️ **Seul le rang 1 porte son détail**, servi **ouvert** — c'est la
+  priorité par laquelle le plan commence, la seule visible sans abonnement, et la
+  seule dont le serveur désigne l'explication (`mainPriorityExplanation`) ; le
+  `<details>` a disparu avec elle. Pour les autres rangs, le détail vit sur la
+  fiche que la ligne ouvre. La preuve n'est **plus tronquée**
+  (`lib/evidence-excerpt.ts` **supprimé**, comme son miroir mobile).
+- **Points forts** : une ligne par compétence solide, sans repli, sous-titre
+  « Compétences observées et déjà solides · N » — **N vient du serveur**
+  (`solidSkillCount`).
+- **Carte de plan** : « Aujourd'hui · N min », l'aperçu de séance, le compteur
+  verrouillé, puis l'action. Le CTA lit `nextAction.locked` — **le verrou du
+  serveur**, pas l'accès du compte : un exercice fermé ouvre l'offre au lieu de
+  mener à une page qui refusera.
+- **Vouvoiement**, comme tout le rapport et tout le Plan — la maquette tutoie,
+  c'est le seul point qu'on ne reprend pas d'elle (arbitrage du propriétaire).
+  Libellés déclarés une fois (`REPORT_TITLE`, `ESTIMATION_NOTE`, `PRIORITIES_*`,
+  `STRENGTHS_*`, `strengthsSub`, `freePrioritiesSub`, `PLAN_READY_*`, `CTA_PLAN`,
+  `DIAGNOSTIC_LEVEL_*`, `DIAGNOSTIC_PROFILE_TITLE`, `DIAGNOSTIC_DOMAIN_*`,
+  `DIAGNOSTIC_COMPLETE_CTA`), **miroirs mot pour mot du mobile**.
+- **Freemium** : **1 priorité** visible et **2 points forts** (`FREE_PRIORITIES`
+  / `FREE_STRENGTHS`) puis les suivants floutés avec « + N autres », 1
+  entraînement de plan visible. ⚠️ `FREE_STRENGTHS` est passé de 1 à **2** :
+  une seule ligne n'a jamais l'air d'un point fort. Le compteur vient du
+  **serveur** (`fragileSkillCount` / `solidSkillCount`), jamais recalculé, et le
+  contenu flouté est le **vrai** (`LockedTease`, `aria-hidden` + `inert`).
+  ⚠️ Après chaque passe sur cet écran, **revérifier qu'aucune surface restante ne
+  montre en clair ce qui est flouté** — c'est le piège rencontré **sept** fois sur
+  ce chantier.
+- 🛑 **Trois blocs RETIRÉS de cet écran, à ne pas réintroduire** : le
+  **« avant / après »** (`exempleCible`), le **détail des deux productions**
+  (`ProductionSummary`) et l'ancienne section **« Compléter mon profil »** avec
+  ses lignes de mesure une par une — la carte actuelle la remplace par **une**
+  porte. `skill-ui/ActionPlan` reste intact : c'est son **usage ici** qui est
+  parti, pas le composant.
+- **Aucun événement d'audience touché** : les dix `trackAudienceEvent
+  ("/diagnostic", …)` sont inchangés, et `DIAGNOSTIC_TO_PREMIUM_CLICKED` reste
+  émis par le seul `PremiumLink`, l'unique chemin instrumenté vers l'offre. Le
+  `PaywallSheet` de la carte de mesure émet `PAYWALL_VIEWED` **s'il s'ouvre** —
+  c'est le **funnel** (`/api/me/funnel-events`, première occurrence par compte),
+  pas l'allowlist de pages, et c'est exactement où le dépôt le veut.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
@@ -1663,6 +2020,36 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     l'`AudioContext` + `cancelAnimationFrame` au démontage comme à l'arrêt** —
     `EoRecordingForm` remet `micStream` à `null` dans `onstop`, sinon on fuirait
     un contexte audio par enregistrement.
+  - **« Est-ce que ça enregistre vraiment ? » — chrono vivant** (2026-08-21,
+    `EoRecordingForm` + `production.module.css`). Le défaut n'était pas une panne
+    du chrono : pendant la capture, **le micro disparaissait de l'écran** (le
+    bouton devient un carré d'arrêt) et les chiffres changeaient sans qu'aucun
+    signal ne le rende perceptible. Le chrono devient donc, et **seulement**
+    pendant `phase === "recording"`, une ligne `.timerLive` : **micro rouge** qui
+    respire + chiffres qui **battent une fois par seconde**. Vaut pour les
+    **quatre** parcours du formulaire (production EO, examen blanc `examMode`,
+    micro-exercice de compétence, oral du diagnostic) — le doute est le même
+    partout, et il est plus coûteux en examen, où l'on ne refait pas.
+    ⚠️ **Le partage des rôles est la règle, pas un détail de style** : le micro
+    pulse en **CSS** (affect), le battement est remonté par **React** via
+    `key={shownSec}` (preuve). Une animation CSS tourne sur le compositeur même
+    quand le fil principal est bloqué : elle ne prouve rien. Ne pas « simplifier »
+    le battement en une animation CSS infinie.
+    **`prefers-reduced-motion`** coupe tout ce qui est affectif — halo du bouton
+    (`ee-pulse`, qui n'était **pas** couvert), respiration du micro, pastille,
+    battement — et **rend un anneau fixe** au bouton d'arrêt, dont la seule marque
+    d'état était portée par l'animation. Ce qui prouve reste : les chiffres
+    changent, la forme d'onde suit la voix, son ondulation décorative étant
+    seulement rabaissée (`REDUCED_MOTION_SWING`, via `lib/use-reduced-motion.ts` —
+    seul mouvement calculé en JS, donc hors de portée d'une media query CSS).
+    **Accessibilité** : une **seule** région vivante dans tout l'enregistreur
+    (`role="status"` + `.srOnly` dans `EoRecordingForm`), qui parle aux
+    changements d'état puis pose un repère toutes les `ANNOUNCE_EVERY_SEC` = 30 s.
+    🛑 La pastille « Enregistrement… » a **perdu** son `role="status"` (doublon) et
+    le compteur de durée de la carte « Ta réponse » a **perdu** son
+    `aria-live="polite"` : branché sur un chrono, il se faisait relire **à chaque
+    seconde** par-dessus la voix du candidat. Ne jamais rebrancher un `aria-live`
+    sur une valeur qui change à la seconde.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.
@@ -1680,12 +2067,26 @@ sous-module Compétences. Ce n'est plus un habillage local : les briques vivent
 dans `skill-ui/` et **aucun écran ne les recopie**.
 
 - `skill-ui/SkillLayout.tsx` : `SkillShell`, `SkillAccent`, `SkillHero`,
-  `SkillModeTabs`, `ParcoursHero`, `ParcoursNextCard`, `TaskCards`, `ExamTrail`,
-  `SkillRing`, `SectionHead`, `SkillNotice`, `MiniBar`, `RowChevron`,
-  `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
-- `production/ParcoursTop.tsx` (**2026-08-09**) : la **tête commune** aux trois
-  modes (héros chiffré, « Prochain entraînement », barre des modes, sélecteur de
-  tâche), plus `useParcoursLevel` et `PRODUCTION_EXAM_SLOTS`.
+  `ParcoursHero`, `ParcoursNextCard`, `ExamTrail`, `SkillRing`, `SectionHead`,
+  `SkillNotice`, `RowChevron`, `SkillBadge`, `SkillRowCard`, `SkillFilterRow`.
+- `production/ProductionTasks.tsx` (**2026-08-21**) : l'**écran d'entrée** d'une
+  épreuve — carte de synthèse, les 3 tâches, l'accès aux examens blancs.
+- `production/TaskChrome.tsx` (**2026-08-21**) : la tête du **détail d'une
+  tâche** — carte de consigne teintée + les 2 onglets « Compétences » /
+  « Sujets d'examen ».
+- `production/parcours.ts` (**2026-08-21**, ex-`ParcoursTop.tsx`) : les calculs
+  partagés seuls — `useParcoursLevel`, `PRODUCTION_EXAM_SLOTS`,
+  `PRODUCTION_TACHES`, `averageExamNote`, `nextSkill`, `constraintOf`.
+  ⚠️ La **tête commune aux trois modes** (`ParcoursTop`, 2026-08-09) est
+  **supprimée** : le parcours se lit en deux niveaux, chaque niveau compose la
+  sienne. **`SkillModeTabs`, `TaskCards` et `MiniBar` sont SUPPRIMÉS**
+  (2026-08-21) — plus aucun appelant depuis cette refonte, et leurs classes CSS
+  (`.modeTab*`, `.taskCard*`, `.mini*`, `.count`) sont parties avec eux, comme
+  la frise `.traj*` orpheline depuis le retrait de `SkillDetailDto.trajectory`.
+  Sont partis dans la même passe `productionTaskShortTitle` (`lib/types.ts`,
+  libellé gelé dont `TaskCards` était le seul lecteur — **le mobile l'a
+  supprimé aussi**) et l'`export` de `progressPercent` (`lib/skill-progress.ts`,
+  la fonction reste, `sumProgress` l'appelle).
 - `skill-ui/skill.module.css` : la géométrie de la maquette (rayons, paddings,
   grilles, graisses, survols) avec **les couleurs de l'application**. Un
   `grep -nE "#[0-9a-fA-F]{3,8}"` sur `production/`, `competences/` et
@@ -1713,10 +2114,41 @@ le **titre** (`label`), le sous-titre d'épreuve (`epreuveMeta`), le
 (`actionVerb` : « Rédiger » / « Enregistrer »). `TcfHub` aligne la vignette EO
 sur celle de EE (`iconTone: "slate"`). Miroir mobile : `TcfProductionModule`.
 
-### Structure du parcours — maquettes client (2026-08-09)
+### Structure du parcours — DEUX NIVEAUX (maquette client, 2026-08-21)
 
-Les trois modes partagent une **tête commune**, `ParcoursTop`, reprise des trois
-maquettes fournies par le propriétaire :
+⚠️ **Révoque la structure « trois modes » du 2026-08-09** (barre Compétences ·
+Sujets · Examens + pastilles T1/T2/T3 sur chaque écran). Motif : on entrait dans
+la tâche 1 sans jamais voir les trois tâches, et les examens blancs — qui
+portent sur l'**épreuve entière** — étaient présentés comme un mode de la tâche
+courante, ce qui laissait croire à un « examen de la tâche 2 ». La maquette lit
+le parcours en deux niveaux :
+
+1. **La liste des tâches** (`ProductionTasks`, route `…/tcf/{ee,eo}`) :
+   en-tête « {épreuve} · 3 tâches · 24 compétences · N petits sujets », carte de
+   synthèse (bandeau + pictogramme + 3 compteurs), « Prochain entraînement »,
+   **une carte par tâche** (filet de teinte, rond numéroté, titre, sous-titre,
+   pastille de progression, pied à 3 compteurs), la note pédagogique, puis
+   l'accès **Examens blancs**.
+2. **Le détail d'une tâche** (`TaskChrome` + l'un des deux onglets) : en-tête
+   « {titre de la tâche} · {épreuve} · Tâche N » + badge « NIVEAU VISÉ », carte
+   de consigne teintée, puis **2 onglets** — « Compétences · N »
+   (`…/tache/[n]/competences`, `CompetencesList`) et « Sujets d'examen · N »
+   (`…/tache/[n]`, `ProductionSubjects`). Ce sont **deux routes**, pas deux
+   états d'un écran : chacune reste partageable, et c'est vers la première que
+   le Plan (`/plan/competences`) route ses étapes.
+
+**Où sont passés les examens blancs** : la route `…/{ee,eo}/examens` et
+`ProductionExams` ne changent pas. Seul le **point d'entrée** bouge — carte
+« Examens blancs » en pied de la liste des tâches, au lieu d'un onglet de la
+tâche. Les autres entrées existantes (fin de session, `/examens-blancs/[slug]`,
+`lib/dashboard.ts` `categoryHref`) sont intactes.
+
+**Teintes de tâche** (T1 / T2 / T3) : `.taskTone1/2/3` posent `--task-tint` sur
+la **rampe entre les deux couleurs de marque** (bleu France → rouge France),
+dont le point milieu donne le violet de la maquette. Aucune couleur nouvelle,
+et jamais en remplissage : un filet de 3 px et un fond à 12 %.
+
+Briques héritées de la tête commune, toujours en place :
 
 1. **en-tête de parcours** — `SkillShell` avec `title` / `meta` / `level` :
    flèche de retour, nom de l'épreuve, `epreuveMeta`, et à droite le badge
@@ -1728,24 +2160,20 @@ maquettes fournies par le propriétaire :
    Examens blancs `/10`, Sujets traités `/N`) + « Progression du parcours » ;
 3. **`ParcoursNextCard`** : la prochaine compétence non terminée, « Tâche N ·
    <titre> » + « Continuer ». Rien à faire ⇒ **aucune carte** ;
-4. **`SkillModeTabs`** : barre segmentée **dans le flux**, sous la carte
-   « Prochain entraînement ». L'ancienne `SkillModeBar` flottante en bas est
-   **supprimée** — elle masquait le dernier élément de chaque liste, imposait
-   118 px de réserve en pied de colonne (`.wrapBar`) et faisait doublon avec la
-   barre latérale de l'application au-delà de 900 px ;
-5. **`TaskCards`** : trois cartes « 1 · Message · 30-60 mots », qui remplacent
-   `TaskPills` (**supprimé**). Absentes de la grille d'examens blancs, portée
-   par l'épreuve entière. `onPick` les garde en **filtre local** (URL réécrite
-   en navigation superficielle) ; les clics modifiés restent natifs.
+4. **`.segTabs`** : les 2 onglets du détail d'une tâche, mêmes rayons et même
+   géométrie que `.modeTabs`, en deux colonnes. `.modeTabs` reste en place —
+   elle n'a simplement plus d'appelant.
 
-Sans `taskNumero` (grille d'examens blancs), « Sujets » comme « Compétences »
-retombent sur la **tâche 1** : une destination par défaut, **jamais un chiffre
-affiché** qui serait faux.
+⚠️ **Une pastille d'état de TÂCHE n'existe pas côté serveur** : le moteur situe
+une **compétence** (`masteryState`), jamais une tâche. La carte de tâche affiche
+donc une **progression mesurée** (« 3/40 traités », « Terminé ») dérivée des
+compteurs déjà servis, jamais un palier agrégé qu'il faudrait inventer.
 
-⚠️ **Conséquence assumée sur les appels** : `ParcoursTop` lit les trois sources
-d'épreuve (`productionTasksKey`, `productionMineKey`, `skillsSectionKey`) — mais
-**sous les mêmes clés de cache** que les écrans, donc un aller-retour entre les
-modes ne coûte toujours **aucun appel de plus** (`lib/parcours-tcf-navigation.test.ts`).
+⚠️ **Conséquence assumée sur les appels** : `TaskChrome` et `ProductionTasks`
+lisent les sources d'épreuve (`productionTasksKey`, `skillsSectionKey`,
+`productionMineKey`) — mais **sous les mêmes clés de cache** que les écrans, donc
+passer d'un onglet ou d'une tâche à l'autre ne coûte **aucun appel de plus**
+(`lib/parcours-tcf-navigation.test.ts`).
 
 `SkillStats` est **supprimé** : ses trois cartes redisaient ce que le héros
 affiche déjà. La grille des examens blancs ouvre sur `ExamTrail`
@@ -1757,11 +2185,13 @@ tâche — le palier a quitté la carte, il est annoncé une fois par le badge d
 l'en-tête.
 
 **Libellés gelés partagés avec le mobile** (chaque front en tient une copie
-écrite à la main, un test par couche sur exactement les mêmes chaînes) :
-`productionTaskShortTitle`, `productionTaskConstraint` et
-`productionSubjectTitle` (`lib/types.ts` ⇄ `widgets/production_common.dart`),
+écrite à la main, sur exactement les mêmes chaînes) : `productionTaskConstraint`
+et `productionSubjectTitle` (`lib/types.ts` ⇄ `widgets/production_common.dart`),
 `competenceProgressLabel` (`lib/skill-progress.ts` ⇄
-`competences/widgets/competence_card.dart`).
+`competences/widgets/competence_card.dart`), `TACHE_TRAITEE_LABEL` /
+`TACHE_EVALUEE_LABEL` / `TACHE_NON_EVALUABLE_LABEL` (`lib/production-feedback.ts`
+⇄ `production_result_labels.dart`). ⚠️ `productionTaskShortTitle` a été
+**supprimé des deux fronts** : son unique écran (`TaskCards`) n'existe plus.
 
 **Le titre d'une carte de sujet vient de la base** : `ProductionTaskDto.titre`
 (colonne `production_tasks.titre`, V028, contenu V754), éditable en console
@@ -1800,21 +2230,18 @@ relançait les `fetch`. Trois décisions, dans l'ordre du moins coûteux au plus
    - `loadBilan` → mis en cache **seulement si le bilan est final**
      (`finished` **et** 3 tâches évaluées) : sinon l'IA travaille encore et rien
      n'invaliderait une note figée trop tôt.
-3. **Le sélecteur de tâche est un filtre**, plus une navigation :
-   `TaskCards` accepte `onPick` (le clic simple est intercepté, les clics
-   modifiés gardent « ouvrir dans un nouvel onglet »), l'écran filtre localement
-   et **réécrit l'URL en navigation superficielle** (`replaceUrlShallow`,
-   `lib/shallow-url.ts` → `window.history.replaceState`, API native supportée
-   par l'App Router). Une tâche reste donc une adresse partageable et ouvrable
-   directement ; `replaceState` et non `pushState` parce que **filtrer n'est pas
-   naviguer** — sinon il faudrait trois « précédent » pour sortir de l'épreuve.
-   Les écrans lisent `pickedTask ?? routeTask` : le choix local l'emporte, mais
-   l'URL décide toujours de la tâche d'arrivée.
+3. ⚠️ **Le sélecteur de tâche en filtre local est SUPPRIMÉ** (2026-08-21). Il
+   n'y a plus de pastilles T1/T2/T3 dans une tâche : on change de tâche en
+   remontant à la liste des tâches. Les écrans lisent donc la tâche de **l'URL,
+   et d'elle seule** — plus de `pickedTask ?? routeTask`, et `lib/shallow-url.ts`
+   (`replaceUrlShallow`) est **supprimé**, sans appelant. Les deux premiers
+   points suffisent à la fluidité : le catalogue de l'épreuve est déjà en cache,
+   changer de tâche ne redemande rien.
 
 Les six routes `…/tache/[n]{,/competences,/exemples}` déclarent
 `generateStaticParams` (`PRODUCTION_TASK_PARAMS`) : prérendues, elles sont
-préchargées par les liens de la barre de modes, donc **une bascule de mode ne
-redemande plus rien**, ni au backend ni au serveur Next.
+préchargées par les liens des onglets et des cartes de tâche, donc **une bascule
+ne redemande plus rien**, ni au backend ni au serveur Next.
 
 **Ce qui reste frais — le piège de ce cache.** Le catalogue est éditorial, la
 **progression** ne l'est pas. Toute écriture invalide, **à la source dans
@@ -1832,39 +2259,50 @@ au lieu de 2 par tâche) et le tour des trois modes (**5 appels au premier tour,
 0 au second**, au lieu de 5 par tour) — et vérifie qu'après une soumission
 l'historique, **et lui seul**, est rechargé.
 
-### Entrée dans une épreuve : pas d'écran d'accueil
+### Entrée dans une épreuve : la liste de ses tâches
 
-Demande client : « dès qu'on vient du menu Réviser → EO ou EE, on arrive
-directement sur l'écran comme celui du template ». On ouvre donc l'**espace de
-travail** — le mode « Compétences » de la **tâche 1**,
-`…/tache/1/competences` — et on change de tâche par les pastilles T1/T2/T3, de
-mode par la barre Compétences · Sujets · Examens.
+⚠️ **Révoque « pas d'écran d'accueil » (2026-08-09)**, qui redirigeait
+`…/tcf/{ee,eo}` vers `…/tache/1/competences`. Le candidat tombait dans la
+tâche 1 sans jamais voir les trois, alors que choisir sa tâche est la première
+décision du parcours (leur format, leur volume de compétences et de sujets
+diffèrent). La route sert désormais un **vrai écran**, `ProductionTasks`.
 
-- **Destination déclarée une seule fois** : `PRODUCTION_ENTRY_SUFFIX` /
-  `productionEntryHref(base)` dans `production/config.ts`. `TcfHub` s'en sert
-  pour les cards EE/EO ; les **routes `…/tcf/{ee,eo}` restent servies en
-  `redirect()`**, parce qu'elles sont référencées ailleurs (`lib/dashboard.ts`
-  `categoryHref`, landing `/reussir`, `?back=`, historiques d'URL). Une
-  redirection n'est pas du code mort — c'est ce qui permet de déplacer l'entrée
-  sans repasser sur tous les appelants.
-- **`ProductionHub` est supprimé** (cartes T1/T2/T3 + historique récent +
-  modale de quota). Son écran parent, le hub TCF, est la nouvelle destination de
-  tout retour arrière qui sort de l'épreuve : `TCF_HUB_HREF` / `TCF_HUB_LABEL`
-  (mêmes constantes, même fichier). Ne **jamais** faire pointer un retour sur
-  `config.base` : la redirection ramènerait sur l'espace Compétences, donc en
-  boucle depuis Sujets.
-- **Conséquence non traitée** : `ProductionHistory` (`…/historique`) n'a plus
-  de point d'entrée — le client a demandé d'oublier l'historique « pour
-  l'instant ». La page et sa route existent toujours, joignables seulement par
-  URL directe.
+- **Destination déclarée une seule fois** : `productionEntryHref(base)` dans
+  `production/config.ts` — elle rend maintenant `base` lui-même. `TcfHub` s'en
+  sert pour les cards EE/EO ; `lib/dashboard.ts` `categoryHref`, la landing
+  `/reussir` et les `?back=` visent la même adresse. `PRODUCTION_ENTRY_SUFFIX`
+  est **supprimé**. La fonction reste : elle nomme l'intention chez ses
+  appelants et évite qu'ils recomposent une adresse.
+- **Retours arrière** : la liste des tâches remonte au hub TCF
+  (`TCF_HUB_HREF` / `TCF_HUB_LABEL`) ; un détail de tâche et la grille d'examens
+  blancs remontent à `config.base`, c'est-à-dire à la liste des tâches. Faire
+  pointer un retour de tâche sur le hub sauterait un niveau.
+- **`ProductionHub` reste supprimé** (cartes T1/T2/T3 + historique récent +
+  modale de quota) : `ProductionTasks` en tient lieu, sur la maquette actuelle.
+- **`ProductionHistory` (`…/historique`) a retrouvé un point d'entrée**
+  (2026-08-21), **hors du parcours** : deux liens « Vos productions » en bas de
+  `/historique` (« Mes résultats »), un par épreuve. Il ne double aucun écran —
+  `/historique` **filtre explicitement** les attempts de production
+  (`!isProductionAttempt`), et `ProductionExams` ne liste que les sessions
+  d'examen blanc : le rapport d'un **entraînement libre** n'avait plus aucun
+  chemin, la carte d'un sujet déjà traité rouvrant la rédaction. Miroir de
+  « Mes historiques » côté mobile, qui range au même endroit examens civiques,
+  examens TCF et sessions IA. ⚠️ **Il n'est PAS revenu dans le hub d'épreuve** :
+  l'arbitrage client du 2026-08-06 (« oublier l'historique pour l'instant »)
+  portait sur cette maquette-là, et on ne la rouvre pas.
 
-### Les « Exemples » ne sont pas un mode
+### Les « Exemples » ne sont pas un onglet
 
-La barre n'a que trois entrées. Les réponses-modèles sont une **ressource
-d'appoint** : lien discret en tête de la liste des sujets → page dédiée
+Le détail d'une tâche n'a que deux onglets. Les réponses-modèles sont une
+**ressource d'appoint** : lien discret en tête de la liste des sujets d'examen
+(« Exemples corrigés → ») → page dédiée
 `…/tache/[n]/exemples` (`ProductionExamples`). En faire un onglet mettait sur le
 même plan « je produis » et « je lis un modèle ». L'appel
 `productionApi.listExamples` est inchangé — c'est le point d'entrée qui bouge.
+
+⚠️ La maquette 2026-08-21 propose en plus un « Voir un exemple » **déplié sous
+chaque sujet d'examen** : le propriétaire l'a explicitement **écarté**. Ne pas
+l'implémenter — la page dédiée reste le seul accès aux modèles.
 
 ### Écrans repris et invariants conservés
 
@@ -1881,6 +2319,23 @@ disparu, cf. « rapport express »), `ProductionExams` (hero, 3 indicateurs, pac
   que les DTO ne portent pas n'est pas affichée : à l'oral, l'écho de la
   production est la **transcription** — `ProductionSubmissionDto` n'expose pas
   d'URL audio (contrairement à `SkillAttemptDto`), donc pas de lecteur inventé.
+- **Une production INEXPLOITABLE remplace le rapport en entier** (2026-08-21) :
+  `EvaluationResultDto.evaluabilite` (`EVALUABLE | NON_EVALUABLE`, **jamais
+  `null`**, miroir de `ProductionEvaluabilite`) est lu par
+  `productionNonEvaluable` (`lib/production-feedback.ts`), et
+  `ProductionFeedbackView` rend alors `NotEvaluableCard` + la production, **rien
+  d'autre** : ni hero de niveau, ni bandeaux, ni profil par critère (le serveur
+  ne persiste plus `scores_criteres` sur ces lignes). 🛑 **Trois états, pas
+  deux** : bloc `evaluation` absent = « pas encore évaluée », présent +
+  `NON_EVALUABLE` = « rendue, rien à observer », présent + `EVALUABLE` = le
+  rapport normal — le fait se lit sur le champ, **jamais** sur la nullité de la
+  note ou du niveau (une évaluation ancienne les laisse nuls sans être
+  inexploitable). Ambre et pas rouge, aucun reproche : une absence de preuve
+  n'est pas la preuve du niveau le plus faible. Textes **gelés, miroirs mot pour
+  mot** de `kProductionNonEvaluable*` (mobile), plus le badge de liste
+  `TACHE_NON_EVALUABLE_LABEL` = « Non analysée » (`SubmissionRow`,
+  `ProductionSession`, `ProductionSubjects`). **Legacy intact** : les
+  évaluations déjà en base sortent `EVALUABLE`, quatre zéros compris.
 - **Les règles de lecture de `ProductionFeedbackView` ne bougent pas** (niveau ⇒
   confiance, confiance haute muette, bande et non note par critère, échelle du
   TCF affichée avec la note) : ce sont des décisions de **notation**. Sa **mise

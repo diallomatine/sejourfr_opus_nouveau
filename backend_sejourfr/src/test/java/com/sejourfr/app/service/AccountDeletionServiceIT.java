@@ -152,6 +152,54 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
         assertThat(userManager.findById(id).orElseThrow().getDeletedAt()).isNotNull();
     }
 
+    /**
+     * 🛑 La suppression de compte est une ANONYMISATION : la ligne {@code users}
+     * survit, donc ni la cascade base ni le {@code ON DELETE SET NULL} ne se
+     * declenchent d'eux-memes. Le detachement doit etre explicite, comme la
+     * purge de {@code user_funnel_events}.
+     *
+     * <p>Ce qu'on coupe, c'est le LIEN, pas la mesure : les evenements restent,
+     * anonymes. Ce sont des gestes, ils ne nomment plus personne, et les effacer
+     * fausserait retroactivement des totaux qui n'ont rien de personnel.
+     */
+    @Test
+    void lAnonymisationCoupeLeLienAnalyticsSansDetruireLaMesure() {
+        User user = data.user();
+        UUID id = user.getId();
+        UUID anonymousId = UUID.randomUUID();
+        // Les inserts bruts qui suivent portent une clé étrangère vers `users` :
+        // sans ce flush, la ligne JPA n'est pas encore en base (`save` ne flushe
+        // pas — piège documenté dans docs/plan-tests-backend.md).
+        entityManager.flush();
+
+        jdbc.update("""
+                INSERT INTO analytics_visitor (anonymous_id, first_seen_at, last_seen_at,
+                    ft_source, lt_source, lt_seen_at, device_type, platform)
+                VALUES (?, now(), now(), 'tiktok', 'tiktok', now(), 'MOBILE_WEB', 'WEB')
+                """, anonymousId);
+        jdbc.update("""
+                INSERT INTO analytics_identity (anonymous_id, user_id, linked_at)
+                VALUES (?, ?, now())
+                """, anonymousId, id);
+        jdbc.update("""
+                INSERT INTO analytics_event (id, event, occurred_at, anonymous_id, session_id,
+                    user_id, path, properties)
+                VALUES (?, 'LANDING_VIEWED', now(), ?, ?, ?, '/reussir', '{}'::jsonb)
+                """, UUID.randomUUID(), anonymousId, UUID.randomUUID(), id);
+
+        service.deleteAccount(id);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(count("analytics_identity", id)).isZero();
+        assertThat(count("analytics_event", id)).isZero();
+        // L'événement lui-même survit : il est redevenu anonyme.
+        Integer restants = jdbc.queryForObject(
+                "SELECT count(*) FROM analytics_event WHERE anonymous_id = ?",
+                Integer.class, anonymousId);
+        assertThat(restants).isEqualTo(1);
+    }
+
     private int count(String table, UUID userId) {
         Integer value = jdbc.queryForObject(
                 "SELECT count(*) FROM " + table + " WHERE user_id = ?", Integer.class, userId);

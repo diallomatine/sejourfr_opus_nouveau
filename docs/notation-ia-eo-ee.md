@@ -48,6 +48,15 @@ sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits ju
 > **Les corrections déjà rendues gardent leurs deux blocs**, intacts et lisibles : on versionne,
 > on ne réécrit jamais un résultat déjà rendu.
 
+> 🆕 **21 août 2026 — quatre secondes d'audio ne valent plus un verdict de niveau.** Quand une
+> production est **vide ou quasi vide**, nous ne demandons plus rien à l'IA et nous ne concluons
+> **rien** : le domaine reste *non évalué*, au lieu de recevoir le niveau le plus bas de
+> l'échelle. Cela vaut pour le **diagnostic** comme pour les **productions d'entraînement et
+> d'examen blanc**. Une production **courte mais réelle** continue, elle, d'être analysée — un
+> candidat A1 produit peu, c'est son niveau, pas une absence de production. Et une **épreuve
+> d'examen ouverte puis abandonnée** continue, elle, d'être comptée au plus bas : elle a été
+> passée, et ratée. Détail complet au **§8 nonies**.
+
 > 🆕 **9 août 2026 — un diagnostic court initialise un Plan de travail, sans se faire passer
 > pour un examen TCF.** Le candidat réalise deux exercices hybrides fixes et versionnés : un
 > écrit de **100 à 130 mots**, puis un oral enregistré de **2 à 3 minutes** précédé d'une
@@ -2665,6 +2674,140 @@ gardent l'ancien texte : nous ne réécrivons rien a posteriori.
 Chaque phrase retirée est comptée à part de celles des productions complètes. Sur les
 **8 analyses orales de diagnostic** existantes, **une** portait ce défaut — la même proportion,
 environ une sur huit, que celle mesurée sur les productions complètes.
+
+---
+
+## 8 nonies. Une production **vide** ne donne aucun niveau (nouveau, 21 août 2026)
+
+**Le problème, mesuré sur un vrai compte.** Un candidat a rendu **4 secondes** d'audio au
+diagnostic. La transcription tenait en **un mot**. L'analyse a rendu un verdict : *« A1 non
+atteint »* — le niveau le plus bas de l'échelle. Autrement dit, une **absence de preuve** avait
+été enregistrée comme la **preuve du niveau le plus faible**.
+
+Et ce verdict ne restait pas dans son coin. Le niveau estimé d'un candidat est le **plus bas de
+ses quatre domaines** (compréhension orale, compréhension écrite, expression écrite, expression
+orale). Un faux « A1 non atteint » sur l'oral tirait donc **tout son profil** vers le bas, à
+cause d'un enregistrement qu'il n'avait jamais vraiment fait.
+
+### Ce qui change
+
+**Quand il n'y a rien à observer, nous ne demandons plus rien à l'IA — et nous ne concluons
+rien.** Le domaine reste simplement **non évalué**.
+
+Concrètement, avant tout appel à l'IA, le serveur vérifie que la production contient de la
+matière : qu'elle n'est pas vide ou quasi vide, qu'elle est bien en français, et qu'elle ne
+recopie pas l'énoncé. C'est **exactement le même contrôle** que celui appliqué depuis toujours
+aux productions complètes (§4) — il n'était simplement pas branché sur le diagnostic. Si la
+production ne passe pas, **aucune demande n'est envoyée au correcteur**. La raison n'est pas
+seulement l'économie : à qui on demande un palier, on obtient un palier. Un modèle sollicité
+sur un mot en nommera un quand même.
+
+Il ne reste alors ni niveau, ni verdict d'accomplissement, ni verdict de communication : **rien
+du tout**, plutôt qu'un jugement fabriqué. C'est le principe qui gouverne déjà tout le reste de
+la plateforme : *« pas de donnée » n'est pas « mauvaise donnée »*.
+
+### Une production courte n'est pas une production vide
+
+C'est la précaution la plus importante de ce changement, et elle va dans un seul sens :
+**mieux vaut analyser une production faible que refuser une production courte mais réelle.**
+Un candidat de niveau A1 produit peu — c'est même ce que décrit son niveau. Lui refuser une
+analyse parce qu'il a écrit trois phrases au lieu de dix serait lui retirer précisément ce
+qu'il vient chercher.
+
+La frontière n'est donc pas « c'est mauvais », c'est **« il n'y a rien à observer »**. Le
+seuil retenu au diagnostic est de **20 mots** : deux ou trois phrases complètes, soit le
+minimum sur lequel on peut voir un temps verbal, un accord, un déterminant et un lien entre
+deux idées. C'est **un cinquième** de ce que le sujet demande (100 à 120 mots à l'écrit) : on
+analyse donc largement en dessous de la consigne. Sur les 18 analyses de diagnostic existantes,
+les deux fautives comptaient **1 et 3 mots**, et toutes les autres **104 mots ou plus** — aucun
+cas réel ne se trouve près de cette limite.
+
+### Le diagnostic reste utile même si une moitié est perdue
+
+Une production inexploitable sur deux **ne fait pas échouer le diagnostic**. Le candidat garde
+son résultat écrit, ses priorités et son Plan. Ce qui change, c'est que son Plan lui propose de
+lui-même de **mesurer le domaine manquant** — et il le distingue de « pas encore fait » : une
+production rendue mais inexploitable n'est pas la même chose qu'une production jamais rendue.
+
+### Les six corrections déjà enregistrées ont, elles, été **rejugées**
+
+Le correctif ci-dessus ne valait d'abord que pour l'avenir : les six lignes déjà en base — deux
+analyses de diagnostic, quatre corrections de production — gardaient leur « A1 non atteint ».
+Le propriétaire a tranché le 21 août 2026 : **on les corrige**.
+
+Ce n'est pas réécrire l'histoire, et la nuance compte. L'histoire d'un candidat, c'est **ce
+qu'il a produit** : quatre secondes d'audio, un mot transcrit, un texte en anglais. Cela n'a
+pas bougé d'un octet — les productions, les transcriptions et les analyses rendues sont
+toujours là, telles quelles. Ce qu'on a retiré, c'est notre **conclusion**, qui n'est pas son
+histoire mais la sortie d'un défaut désormais corrigé. Et on l'a retirée **sans rien inventer**
+: le texte est toujours disponible et le juge est **déterministe** — aucune IA n'a été
+sollicitée pour savoir qu'il n'y avait rien à observer.
+
+Le ciblage est **strict**, jamais une correction en masse : une production que le contrôle
+d'aujourd'hui accepterait n'a **pas** été touchée, même quand son verdict était le plus bas.
+Un « A1 non atteint » obtenu sur une vraie production reste un résultat.
+
+Effet mesuré sur les trois comptes concernés : deux d'entre eux voient leur **domaine oral
+redevenir « à mesurer »** au lieu d'être au plancher, ce qui **remonte leur niveau global**
+(de « A1 non atteint » à A2) ; le troisième ne bouge pas, parce que ses autres productions
+écrites portaient déjà un niveau plus élevé et que c'est le **meilleur** résultat d'une épreuve
+qui fait foi.
+
+### Le même trou existait sur les productions **normales**, il est bouché aussi
+
+Le diagnostic n'était pas seul concerné. Une production d'entraînement ou d'examen blanc jugée
+inexploitable recevait, elle aussi, **0/20 et « A1 non atteint »** — sans qu'aucune IA n'ait
+jamais rien lu. Et le problème y était **plus large** : ces corrections-là sont la **première**
+source du niveau affiché à un candidat en expression écrite et orale (le diagnostic n'en est
+que le remplaçant, quand il n'y a rien d'autre). Une seule production ratée pouvait donc
+définir son niveau dans ce domaine, puis, de proche en proche, son niveau global.
+
+Le comportement est désormais le même que pour le diagnostic : **ni note, ni niveau**. La
+correction est bien rendue au candidat — elle lui dit en clair pourquoi sa production n'a pas
+pu être exploitée —, mais elle ne conclut rien sur son français. Trois conséquences :
+
+- son **niveau estimé** ignore cette production : le domaine reste non mesuré ;
+- le **second texte modèle** (« pour viser B1 / B2 », §8 quinquies) n'est plus demandé : il n'y
+  a pas de production à réécrire, et cela n'aurait été qu'un appel payé pour rien ;
+- son **tableau de bord** continue d'afficher le dernier niveau qu'il a **réellement** obtenu,
+  au lieu de l'effacer.
+
+### 🛑 Ce qui ne change **pas** : une épreuve d'examen abandonnée reste comptée
+
+Il faut distinguer deux situations qui se ressemblent et qui n'ont rien à voir.
+
+| | Ce qu'on en fait |
+|---|---|
+| **Production rendue, mais rien à observer** (vide, quasi vide, langue étrangère, énoncé recopié) | **Aucun niveau.** Personne n'a rien pu observer. |
+| **Épreuve d'examen ouverte, chronomètre écoulé, rien rendu** | **« A1 non atteint »**, comme avant. Elle a été **passée**, et ratée. |
+
+La seconde règle est **volontaire** et elle est ancienne : dans un examen blanc, ce qui n'est
+pas rendu compte zéro — c'est ce qui fait qu'un examen blanc ressemble à un examen. Elle n'est
+touchée en rien ici, et les deux cas ne partagent aucun mécanisme : le premier est une
+correction **qui existe et ne dit rien**, le second est une correction **qui n'existe pas**.
+
+À ne pas confondre non plus avec une épreuve **jamais ouverte** (le candidat n'a même pas vu le
+sujet) ni avec une épreuve **verrouillée** par l'abonnement : celles-là n'ont jamais eu de
+niveau, et n'en ont toujours pas (§6.6).
+
+**Ces quatre corrections-là ont été rejugées** en même temps que les deux analyses de
+diagnostic (voir plus haut) : elles ne portent plus ni note ni niveau. Elles restent affichées
+au candidat, avec l'explication de ce qui n'a pas pu être exploité.
+
+### Une correction non exploitable n'affiche plus **aucune note par critère**
+
+Elle en affichait quatre, toutes à **0/20**, avec une mention « non évaluable » à côté. C'était
+la même confusion, un cran plus bas : une **absence de preuve** écrite comme la **preuve du
+niveau le plus faible**. Le sens vivait dans la mention, la note disait le contraire, et rien
+n'empêchait un écran — ou un futur calcul — de prendre ces zéros au mot.
+
+Le bloc des critères a donc été **retiré** de ce cas, plutôt que neutralisé. C'est une règle
+constante ici : quand un contenu ne doit pas exister, on fait en sorte qu'il **ne puisse pas**
+être produit, au lieu de compter sur chaque écran pour ne pas l'afficher. Ce qui reste sur une
+production non exploitable, ce sont des **faits** : l'objectif n'est pas atteint, la confiance
+est faible, et pourquoi.
+
+**Les corrections déjà enregistrées gardent leurs quatre zéros** : elles ne sont pas migrées.
 
 ---
 

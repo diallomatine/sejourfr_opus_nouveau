@@ -23,7 +23,9 @@ import {eeAdvisedMinutesLabel, findSubAttempt} from "@/lib/exam-durations";
 import {
   BILAN_PROCHAINES_ETAPES_TITLE,
   TACHE_EVALUEE_LABEL,
+  TACHE_NON_EVALUABLE_LABEL,
   bilanNiveauPendingLabel,
+  productionNonEvaluable,
   bilanProchainesEtapesMessage,
   tacheNiveau,
   tacheNiveauLabel,
@@ -699,7 +701,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           />
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="production_session"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
@@ -880,9 +882,11 @@ function BilanView({
                       ? "Évaluation échouée — à relancer"
                       : pending
                         ? "Évaluation IA en cours…"
-                        : niveau
-                          ? tacheNiveauLabel(niveau)
-                          : TACHE_EVALUEE_LABEL}
+                        : productionNonEvaluable(s.evaluation)
+                          ? TACHE_NON_EVALUABLE_LABEL
+                          : niveau
+                            ? tacheNiveauLabel(niveau)
+                            : TACHE_EVALUEE_LABEL}
                 </span>
               </span>
               {/* Le niveau vit dans le sous-titre (« Niveau B1 »), comme sur

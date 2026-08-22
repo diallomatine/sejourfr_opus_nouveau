@@ -31,10 +31,3 @@ String skillProgressLabel({
   if (remaining == 0) return head;
   return '$head · $remaining restant${remaining > 1 ? 's' : ''}';
 }
-
-/// Part de sujets **traités** (pas validés — spec §12) sur 0..1.
-double skillProgressValue({
-  required int promptCount,
-  required int attemptedCount,
-}) =>
-    promptCount == 0 ? 0 : (attemptedCount / promptCount).clamp(0.0, 1.0);

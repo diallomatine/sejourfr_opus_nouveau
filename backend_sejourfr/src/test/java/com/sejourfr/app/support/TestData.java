@@ -7,6 +7,11 @@ import com.sejourfr.app.audioquestion.entity.GenerationStatus;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionDraftRepository;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionGenerationLogRepository;
 import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.enums.AnalyticsDeviceType;
+import com.sejourfr.app.enums.AnalyticsEvent;
+import com.sejourfr.app.manager.AnalyticsEventManager;
+import com.sejourfr.app.manager.AnalyticsIdentityManager;
+import com.sejourfr.app.manager.AnalyticsVisitorManager;
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
@@ -36,6 +41,7 @@ import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.entity.SkillReference;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
@@ -62,7 +68,9 @@ import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.DiagnosticTaskCompletion;
 import com.sejourfr.app.enums.FunnelEvent;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.SkillAttemptStatut;
@@ -97,6 +105,7 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.SkillPromptManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserManager;
@@ -174,7 +183,11 @@ public class TestData {
     private final AudioQuestionDraftRepository audioQuestionDraftRepository;
     private final AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository;
     private final DiagnosticSessionManager diagnosticSessionManager;
+    private final DiagnosticProductionAnalysisManager diagnosticProductionAnalysisManager;
     private final UserFunnelEventManager userFunnelEventManager;
+    private final AnalyticsVisitorManager analyticsVisitorManager;
+    private final AnalyticsEventManager analyticsEventManager;
+    private final AnalyticsIdentityManager analyticsIdentityManager;
 
     private static long next() {
         return SEQ.incrementAndGet();
@@ -735,6 +748,40 @@ public class TestData {
         return skill(SkillTaskCode.EE1);
     }
 
+    /**
+     * Competence de COMPREHENSION : aucune tache, aucun petit sujet.
+     *
+     * <p>Le rang se prend au-dessus du seed (V318 publie les rangs 1 a 3 de
+     * chaque domaine) parce que l'index partiel
+     * {@code uq_skills_section_order_comprehension} impose l'unicite du rang a
+     * l'interieur du domaine — meme raison que {@link #nextSkillDisplayOrder}
+     * cote expression.
+     *
+     * @param section {@code CO} ou {@code CE}
+     */
+    public Skill comprehensionSkill(SkillSection section, String targetLevel) {
+        Skill s = new Skill();
+        s.setSection(section);
+        s.setTaskCode(null);
+        s.setCode("TST-K" + next());
+        s.setTitle("Competence de comprehension de test");
+        s.setDescription("Ce que cette competence apporte au TCF.");
+        s.setGeneralCriterion("Le critere general travaille par cette competence.");
+        s.setTargetLevel(targetLevel);
+        s.setDisplayOrder(nextComprehensionDisplayOrder(section));
+        s.setActive(true);
+        return skillRepository.saveAndFlush(s);
+    }
+
+    private short nextComprehensionDisplayOrder(SkillSection section) {
+        short max = 0;
+        for (Skill existing
+                : skillRepository.findBySectionAndTaskCodeIsNullOrderByDisplayOrderAsc(section)) {
+            if (existing.getDisplayOrder() > max) max = existing.getDisplayOrder();
+        }
+        return (short) (max + 1);
+    }
+
     /** Rang libre le plus bas au-dessus des competences existantes, desactivees comprises. */
     private short nextSkillDisplayOrder(SkillTaskCode taskCode) {
         short max = 0;
@@ -910,6 +957,36 @@ public class TestData {
         return diagnosticSession(user, DiagnosticSessionStatus.IN_PROGRESS);
     }
 
+    /**
+     * Soumission diagnostique : même table que les productions standard, mais
+     * {@code is_diagnostic = true} — c'est ce drapeau qui bifurque le pipeline
+     * avant {@code ai_evaluations}.
+     */
+    public ProductionSubmission diagnosticSubmission(
+            Attempt attempt, ProductionTask task, User user) {
+        ProductionSubmission s = productionSubmission(attempt, task, user);
+        s.setDiagnostic(true);
+        s.setStatut(SubmissionStatut.EVALUATED);
+        return productionSubmissionManager.save(s);
+    }
+
+    /**
+     * Analyse structurée du diagnostic (aucune note /20) attachée à une
+     * soumission diagnostique.
+     */
+    public DiagnosticProductionAnalysis diagnosticAnalysis(
+            ProductionSubmission submission, NiveauCecrl level) {
+        DiagnosticProductionAnalysis a = new DiagnosticProductionAnalysis();
+        a.setSubmission(submission);
+        a.setAnalysisJson(Map.of("skills", List.of()));
+        a.setLevelEstimate(level);
+        a.setTaskCompletion(DiagnosticTaskCompletion.COMPLETED);
+        a.setCommunicationStatus(DiagnosticCommunicationStatus.EFFECTIVE);
+        a.setModelUsed("deepseek-test");
+        a.setSchemaVersion("v1");
+        return diagnosticProductionAnalysisManager.save(a);
+    }
+
     /** Étape de funnel : première occurrence, comme en production. */
     public void funnelEvent(User user, FunnelEvent event, ClientPlatform platform, String source) {
         userFunnelEventManager.recordFirstOccurrence(user.getId(), event, platform, source);
@@ -932,5 +1009,109 @@ public class TestData {
                 "social" + n + "@test.sejourfr",
                 "Prénom",
                 "Nom");
+    }
+
+    // ------------------------------------------------------------------------
+    // Analytics : visiteurs anonymes, gestes, fusion d'identite, montants
+    //
+    // L'ecriture passe par les MEMES managers que la production (inserts natifs
+    // ON CONFLICT) : seeder a la main contournerait precisement les deux
+    // invariants qui font la valeur de la table — le first touch qu'on ne
+    // reecrit jamais, le last touch qui ne bouge que sur source explicite.
+    // ------------------------------------------------------------------------
+
+    /** Un visiteur avec sa provenance, son pays et son appareil. */
+    public UUID analyticsVisitor(String source, String country,
+                                 AnalyticsDeviceType device, ClientPlatform platform,
+                                 Instant seenAt) {
+        UUID anonymousId = UUID.randomUUID();
+        analyticsVisitorManager.touch(anonymousId, seenAt,
+                new AnalyticsVisitorManager.Attribution(source, null, null, null, null,
+                        "/reussir", null),
+                true, country, device, platform);
+        return anonymousId;
+    }
+
+    /** Un visiteur venu d'une campagne nommee. */
+    public UUID analyticsVisitorCampagne(String source, String campaign, String content,
+                                         Instant seenAt) {
+        UUID anonymousId = UUID.randomUUID();
+        analyticsVisitorManager.touch(anonymousId, seenAt,
+                new AnalyticsVisitorManager.Attribution(source, "social", campaign, content,
+                        null, "/reussir", "tiktok.com"),
+                true, "FR", AnalyticsDeviceType.MOBILE_WEB, ClientPlatform.WEB);
+        return anonymousId;
+    }
+
+    /** Un geste du visiteur, horodate a la main pour pouvoir tester une fenetre. */
+    public void analyticsEvent(UUID anonymousId, AnalyticsEvent event, Instant occurredAt) {
+        analyticsEvent(anonymousId, event, occurredAt, null);
+    }
+
+    /** Le meme, avec ses proprietes deja normalisees (JSON compact). */
+    public void analyticsEvent(UUID anonymousId, AnalyticsEvent event, Instant occurredAt,
+                               String propertiesJson) {
+        analyticsEventManager.record(event, occurredAt, anonymousId, UUID.randomUUID(),
+                null, "/reussir",
+                propertiesJson == null ? "{}" : propertiesJson,
+                null);
+    }
+
+    /** Relie un parcours anonyme a un compte, comme le fait une connexion. */
+    public void analyticsIdentity(UUID anonymousId, User user) {
+        analyticsIdentityManager.link(anonymousId, user.getId());
+    }
+
+    /**
+     * Un compte cree a une date precise — la cohorte se mesure la-dessus.
+     *
+     * <p>⚠️ {@code users.created_at} est {@code updatable = false} : la date doit
+     * etre posee <b>avant</b> la premiere insertion, sinon elle est ignoree en
+     * silence et le compte retombe sur {@code now()}.
+     */
+    public User userCreatedAt(String signupSource, ClientPlatform platform, Instant createdAt) {
+        return userCreatedAt("cohorte" + next() + "@test.sejourfr", signupSource, platform,
+                createdAt);
+    }
+
+    /** Le meme, avec une adresse imposee (comptes de demonstration exclus). */
+    public User userCreatedAt(String email, String signupSource, ClientPlatform platform,
+                              Instant createdAt) {
+        User u = new User();
+        u.setEmail(email);
+        u.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
+        u.setRole(Role.USER);
+        u.setActive(true);
+        u.setCreatedAt(createdAt);
+        u.setSignupSource(signupSource);
+        u.setSignupPlatform(platform);
+        return userManager.save(u);
+    }
+
+    /**
+     * Une souscription reellement encaissee.
+     *
+     * @param amountEurCents montant en centimes d'euro, ou {@code null} pour un
+     *                       montant INCONNU — qui ne vaut jamais zero
+     */
+    public UserSubscription paidSubscription(User user, Plan plan, Integer amountEurCents,
+                                             Instant startsAt) {
+        UserSubscription s = new UserSubscription();
+        s.setUser(user);
+        s.setPlan(plan);
+        s.setStatus(SubscriptionStatus.ACTIVE);
+        s.setStartsAt(startsAt);
+        s.setEndsAt(startsAt.plus(30, ChronoUnit.DAYS));
+        s.setSource(SubscriptionSource.STRIPE);
+        s.setOriginalTransactionId("sub_test_" + next());
+        s.setProductId(plan.getCode());
+        s.setAutoRenew(false);
+        if (amountEurCents != null) {
+            s.setAmountCents(amountEurCents);
+            s.setCurrency("EUR");
+            s.setAmountEurCents(amountEurCents);
+            s.setFxRateToEur(BigDecimal.ONE);
+        }
+        return userSubscriptionManager.save(s);
     }
 }

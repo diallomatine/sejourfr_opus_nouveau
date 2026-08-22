@@ -105,9 +105,15 @@ class SkillRecorderPanel extends StatelessWidget {
         // donc indistinguable de l'état « prêt à démarrer ».
         RecordingPill(color: accent),
         const SizedBox(height: 14),
-        Text(
-          formatDuration(state.elapsed),
-          style: AppFonts.display(size: 40, color: AppColors.ink),
+        // Le chrono seul ne prouvait rien : le micro avait disparu de l'écran
+        // à l'instant même où le candidat se met à parler. Le cadran le remet,
+        // pulsant, et double la seconde d'un arc qui avance à chaque tic.
+        RecordingGauge(
+          elapsed: state.elapsed,
+          total: state.maxDuration,
+          timeLabel: formatDuration(state.elapsed),
+          color: accent,
+          size: 128,
         ),
         const SizedBox(height: 6),
         RecordingWaveform(amplitude: state.lastAmplitude, color: accent),

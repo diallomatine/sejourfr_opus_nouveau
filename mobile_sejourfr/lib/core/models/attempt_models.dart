@@ -27,6 +27,7 @@ class StartAttemptRequest {
     this.lotNumero,
     this.moduleExamQuestionType,
     this.slotNumber,
+    this.skillId,
   });
 
   final AttemptType type;
@@ -55,6 +56,23 @@ class StartAttemptRequest {
   /// Cf. migration V110 + `AttemptService.start`.
   final int? slotNumber;
 
+  /// **Série ciblée de compréhension** : la compétence CO/CE à travailler.
+  ///
+  /// C'est la branche la **plus spécifique** de `POST /api/attempts` — quand
+  /// elle est renseignée, **seuls `type: TRAINING` + `module: TCF` +
+  /// `skillId`** sont envoyés : l'épreuve (CO ou CE), le palier et la taille de
+  /// la série sont **dérivés serveur** de la compétence. Envoyer en plus un
+  /// `questionType` ou une `difficulty` pourrait contredire la compétence
+  /// affichée et faire alimenter une autre compétence que celle travaillée.
+  ///
+  /// 🛑 Une série ciblée est un `TRAINING` : elle **ne rend jamais un domaine
+  /// « évalué »**. Seul un examen blanc de module mesure un domaine.
+  ///
+  /// Refus serveur : **403** compétence verrouillée (freemium), **422**
+  /// compétence d'expression (EE/EO : elle se travaille par petits sujets),
+  /// **404** compétence inconnue ou inactive.
+  final String? skillId;
+
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
@@ -67,6 +85,7 @@ class StartAttemptRequest {
         if (moduleExamQuestionType != null)
           'moduleExamQuestionType': moduleExamQuestionType!.wire,
         if (slotNumber != null) 'slotNumber': slotNumber,
+        if (skillId != null) 'skillId': skillId,
       };
 }
 

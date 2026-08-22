@@ -126,6 +126,39 @@ public class UserSubscription {
     @Column(name = "realtime_eo_sessions_remaining", nullable = false)
     private int realtimeEoSessionsRemaining = 0;
 
+    /**
+     * Montant reellement encaisse, dans la plus petite unite de
+     * {@link #currency}, <b>fige a l'ecriture</b>.
+     *
+     * <p>{@code null} = inconnu (ligne anterieure a la mesure), <b>jamais
+     * zero</b>. 🛑 Ne jamais le recalculer depuis {@code plans.price} : ce prix
+     * est modifiable en console admin, le relire pour dater un achat passe
+     * falsifierait l'historique — c'est exactement le defaut que ces colonnes
+     * corrigent.
+     */
+    @Column(name = "amount_cents")
+    private Integer amountCents;
+
+    /** Devise ISO 4217 de {@link #amountCents}. Presente si et seulement si lui l'est. */
+    @Column(name = "currency", length = 3)
+    private String currency;
+
+    /**
+     * Le meme montant en centimes d'euro, converti au taux du jour de
+     * l'encaissement. {@code null} si la devise n'avait pas de taux : on
+     * n'invente pas une conversion.
+     */
+    @Column(name = "amount_eur_cents")
+    private Integer amountEurCents;
+
+    /**
+     * Taux applique a l'encaissement, fige. {@code 1} pour un achat en euros.
+     * Jamais relu ni rafraichi : sinon le chiffre d'affaires du passe bougerait
+     * tout seul au gre des cours.
+     */
+    @Column(name = "fx_rate_to_eur", precision = 12, scale = 6)
+    private java.math.BigDecimal fxRateToEur;
+
     @PreUpdate
     public void touchUpdatedAt() {
         this.updatedAt = Instant.now();
@@ -180,4 +213,15 @@ public class UserSubscription {
     public void setRealtimeEoSessionsRemaining(int realtimeEoSessionsRemaining) {
         this.realtimeEoSessionsRemaining = realtimeEoSessionsRemaining;
     }
+    public Integer getAmountCents() { return amountCents; }
+    public void setAmountCents(Integer amountCents) { this.amountCents = amountCents; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    public Integer getAmountEurCents() { return amountEurCents; }
+    public void setAmountEurCents(Integer amountEurCents) { this.amountEurCents = amountEurCents; }
+
+    public java.math.BigDecimal getFxRateToEur() { return fxRateToEur; }
+    public void setFxRateToEur(java.math.BigDecimal fxRateToEur) { this.fxRateToEur = fxRateToEur; }
 }

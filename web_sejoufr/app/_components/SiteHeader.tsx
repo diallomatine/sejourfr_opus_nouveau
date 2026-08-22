@@ -6,6 +6,7 @@ import {Suspense, useEffect, useRef, useState} from "react";
 import {Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
 import {AppSidebar} from "./AppSidebar";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {isAppGroupRoute, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
 
@@ -240,10 +241,15 @@ export function SiteHeader() {
                                 <Link
                                     href="/connexion"
                                     className="site-header__ghost site-header__hideMobile"
+                                    onClick={() => track("LOGIN_CLICKED", {})}
                                 >
                                     Se connecter
                                 </Link>
-                                <Link href="/inscription" className="btn site-header__primary">
+                                <Link
+                                    href="/inscription"
+                                    className="btn site-header__primary"
+                                    onClick={() => track("SIGNUP_CTA_CLICKED", {ctaLocation: "HERO"})}
+                                >
                                     Commencer
                                 </Link>
                             </>
@@ -603,11 +609,17 @@ export function SiteHeader() {
 
                             <div className="site-header__mobileCtas">
                                 <Link href="/connexion" className="site-header__mobileGhost"
-                                      onClick={() => setMobileNavOpen(false)}>
+                                      onClick={() => {
+                                          track("LOGIN_CLICKED", {});
+                                          setMobileNavOpen(false);
+                                      }}>
                                     Se connecter
                                 </Link>
                                 <Link href="/inscription" className="btn site-header__mobilePrimary"
-                                      onClick={() => setMobileNavOpen(false)}>
+                                      onClick={() => {
+                                          track("SIGNUP_CTA_CLICKED", {ctaLocation: "STICKY"});
+                                          setMobileNavOpen(false);
+                                      }}>
                                     Commencer
                                 </Link>
                             </div>

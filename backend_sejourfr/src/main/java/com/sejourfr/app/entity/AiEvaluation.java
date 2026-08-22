@@ -1,6 +1,7 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -74,6 +75,24 @@ public class AiEvaluation {
     @Column(name = "niveau_cecrl_ia", length = 20)
     private NiveauCecrl niveauCecrlIa;
 
+    /**
+     * La production a-t-elle pu etre OBSERVEE ? {@code NON_EVALUABLE} = rendue,
+     * mais sans matiere (vide, quasi vide, langue non francaise, recopiage de la
+     * consigne) : aucun appel au correcteur n'a eu lieu, et
+     * {@link #noteSur20} / {@link #niveauCecrl} / {@link #niveauCecrlIa} sont
+     * {@code null} — <b>null = inconnu, jamais mauvais</b>. La contrainte
+     * {@code chk_ai_eval_aucun_verdict_si_non_evaluable} le rend opposable en
+     * base.
+     *
+     * <p>⚠️ A ne pas confondre avec l'ABSENCE de ligne, qui signifie « pas
+     * encore evaluee », ni avec l'absence de lignes sur une epreuve d'examen
+     * ouverte puis abandonnee, qui reste comptee {@code A1_NON_ATTEINT} par
+     * {@code ProductionBilanService.bilanEpreuveTerminee}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "evaluabilite", nullable = false, length = 16)
+    private ProductionEvaluabilite evaluabilite = ProductionEvaluabilite.EVALUABLE;
+
     /** Structure : note_globale + scores_criteres[] + points_forts[] + points_a_ameliorer[] + suggestions[] + exemples_corriges[]. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "feedback_json", nullable = false, columnDefinition = "jsonb")
@@ -137,6 +156,9 @@ public class AiEvaluation {
 
     public NiveauCecrl getNiveauCecrlIa() { return niveauCecrlIa; }
     public void setNiveauCecrlIa(NiveauCecrl niveauCecrlIa) { this.niveauCecrlIa = niveauCecrlIa; }
+
+    public ProductionEvaluabilite getEvaluabilite() { return evaluabilite; }
+    public void setEvaluabilite(ProductionEvaluabilite evaluabilite) { this.evaluabilite = evaluabilite; }
 
     public Map<String, Object> getFeedbackJson() { return feedbackJson; }
     public void setFeedbackJson(Map<String, Object> feedbackJson) { this.feedbackJson = feedbackJson; }

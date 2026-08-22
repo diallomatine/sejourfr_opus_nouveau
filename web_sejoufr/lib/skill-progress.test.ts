@@ -13,28 +13,12 @@ import {describe, it} from "node:test";
 import {
     competenceProgressLabel,
     findSkillProgress,
-    progressPercent,
     sumProgress,
 } from "./skill-progress.ts";
 
-describe("progressPercent", () => {
-    it("arrondit à l'entier", () => {
-        assert.equal(progressPercent(1, 3), 33);
-        assert.equal(progressPercent(2, 3), 67);
-    });
-
-    it("une tâche vierge vaut 0 %, jamais NaN", () => {
-        assert.equal(progressPercent(0, 40), 0);
-        assert.equal(progressPercent(0, 0), 0);
-        assert.equal(progressPercent(3, 0), 0);
-    });
-
-    it("reste borné à 100 même si le backend sur-compte", () => {
-        assert.equal(progressPercent(9, 5), 100);
-        assert.equal(progressPercent(-2, 5), 0);
-    });
-});
-
+// `progressPercent` n'est plus exporté (aucun appelant hors du module) : son
+// comportement — arrondi, borne haute, division par zéro — se vérifie sur le
+// `percent` que rend `sumProgress`, seule forme réellement affichée.
 describe("sumProgress", () => {
     it("additionne les 8 compétences d'une tâche", () => {
         const skills = [

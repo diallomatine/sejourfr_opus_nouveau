@@ -147,8 +147,21 @@ export function SkillsStatsPage() {
                           <strong>{truncate(row.title, 80)}</strong>
                         </td>
                         <td data-label="Tâche">
-                          <Tag tone={SECTION_TONE[row.section]}>{row.taskCode}</Tag>
-                          <div className={styles.rowMeta}>{TASK_TITLE[row.taskCode]}</div>
+                          {row.taskCode ? (
+                            <>
+                              <Tag tone={SECTION_TONE[row.section]}>{row.taskCode}</Tag>
+                              <div className={styles.rowMeta}>
+                                {TASK_TITLE[row.taskCode]}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Tag tone={SECTION_TONE[row.section]}>{row.section}</Tag>
+                              <div className={styles.rowMeta}>
+                                Compréhension — aucune tâche
+                              </div>
+                            </>
+                          )}
                         </td>
                         <td data-label="Sujets">
                           <span className={styles.mono}>{row.promptCount}</span>

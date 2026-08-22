@@ -350,16 +350,36 @@ class VerifyReceiptRequest {
     required this.source,
     required this.receipt,
     required this.productId,
+    this.amountCents,
+    this.currency,
   });
 
   final SubscriptionSource source;
   final String receipt;
   final String productId;
 
+  /// **Le montant réellement débité**, dans la devise du store, en plus petite
+  /// unité (centimes). Les stores encaissent en devise locale — CAD, USD,
+  /// EUR… — et le backend ne l'a jamais su : il ne pouvait que multiplier par
+  /// le prix du plan, qui est mutable en console et libellé en euros.
+  ///
+  /// `null` est un cas **normal** et le champ est facultatif côté serveur :
+  /// une transaction rejouée au démarrage arrive avant que les produits du
+  /// store soient chargés. *Montant inconnu*, jamais un montant inventé.
+  final int? amountCents;
+
+  /// Code ISO 4217 rendu par le store. Toujours posé **avec** [amountCents] :
+  /// un montant sans devise ne veut rien dire.
+  final String? currency;
+
   Map<String, dynamic> toJson() => {
         'source': source.backendName,
         'receipt': receipt,
         'productId': productId,
+        if (amountCents != null && currency != null) ...{
+          'amountCents': amountCents,
+          'currency': currency,
+        },
       };
 }
 

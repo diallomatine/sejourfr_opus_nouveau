@@ -1,7 +1,13 @@
 /// Règles **pures** de l'écran de présentation du diagnostic : ce qu'il annonce
 /// comme effort. Miroir mot pour mot de `web_sejoufr/lib/diagnostic.ts`
-/// (`diagnosticBudgetLabel`, `diagnosticWrittenMeasureLabel`,
-/// `diagnosticOralMeasureLabel`).
+/// (`diagnosticWrittenMinutes`, `diagnosticOralMinutes`,
+/// `diagnosticWrittenMeasureLabel`, `diagnosticOralMeasureLabel`).
+///
+/// ⚠️ `diagnosticBudgetLabel` — « Diagnostic express · ~N min » — a été
+/// **retirée des deux côtés** le 2026-08-21 : la présentation n'annonce plus un
+/// budget unique en tête, mais **un budget par variante** sur sa carte
+/// (« ≈ N min »). Ne pas la réintroduire ici seule : ce fichier ne vaut que
+/// tant que son miroir web existe.
 ///
 /// Tout se dérive des sujets servis (`wordsMin/Max`, `durationMin/MaxSeconds`) :
 /// un chiffre écrit en dur ici mentirait dès la première correction de sujet.
@@ -61,19 +67,4 @@ String? diagnosticOralMeasureLabel(DiagnosticExerciseView? exercise) {
   final minutes = diagnosticOralMinutes(exercise);
   if (minutes == null) return null;
   return 'environ $minutes minute${minutes > 1 ? 's' : ''}';
-}
-
-/// Le budget annoncé en tête de la présentation. Somme des deux exercices, donc
-/// il suit les sujets : si la base raccourcit l'écrit, la promesse raccourcit
-/// avec lui. Sans mesure exploitable, on annonce le nombre d'exercices plutôt
-/// qu'une durée inventée.
-String diagnosticBudgetLabel(
-  DiagnosticExerciseView? written,
-  DiagnosticExerciseView? oral,
-) {
-  final total =
-      (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
-  return total > 0
-      ? 'Diagnostic express · ~$total min'
-      : 'Diagnostic express · 2 exercices';
 }

@@ -14,8 +14,11 @@ import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.ProductionValidityService;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -28,6 +31,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -52,7 +56,8 @@ class DiagnosticProductionAnalysisServiceTest {
         DiagnosticProductionAnalysisService service = new DiagnosticProductionAnalysisService(
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
-                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()));
+                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
+                new ProductionValidityService(new ProductionEvaluationProperties()));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -100,7 +105,8 @@ class DiagnosticProductionAnalysisServiceTest {
         DiagnosticProductionAnalysisService service = new DiagnosticProductionAnalysisService(
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
-                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()));
+                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
+                new ProductionValidityService(new ProductionEvaluationProperties()));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -160,7 +166,8 @@ class DiagnosticProductionAnalysisServiceTest {
         DiagnosticProductionAnalysisService service = new DiagnosticProductionAnalysisService(
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
-                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()));
+                new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
+                new ProductionValidityService(new ProductionEvaluationProperties()));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -213,6 +220,151 @@ class DiagnosticProductionAnalysisServiceTest {
                 .isEqualTo("TO_REINFORCE");
         assertThat(persistee.getLevelEstimate()).isEqualTo(NiveauCecrl.A2);
         assertThat(submission.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
+    }
+
+    /**
+     * L'INCIDENT MESURE EN BASE : 4 secondes d'audio, 7 caracteres transcrits,
+     * verdict {@code A1_NON_ATTEINT}. Une ABSENCE DE PREUVE etait enregistree
+     * comme la PREUVE DU NIVEAU LE PLUS FAIBLE — et comme le diagnostic sert de
+     * repli a {@code TcfProfileService} et que le niveau global est le plancher
+     * des quatre domaines, tout le profil du candidat s'en trouvait tire au
+     * fond.
+     *
+     * <p>Deux invariants ici : <b>aucun appel au correcteur</b> (on ne demande
+     * pas a un modele de nommer un palier sans matiere : il en nommerait un), et
+     * <b>aucun verdict</b> — ni niveau, ni accomplissement, ni communication.
+     */
+    @Test
+    void uneProductionOraleQuasiVideNAppellePasLeCorrecteurEtNeRendAucunNiveau() {
+        Fixture f = new Fixture(EpreuveType.TCF_EO);
+        f.transcription("Bonjour.");
+
+        DiagnosticProductionAnalysis persistee = f.service.analyseDiagnostic(f.submission.getId());
+
+        verify(f.llm, never()).analyse(any(), any());
+        assertThat(persistee.getEvaluabilite()).isEqualTo(ProductionEvaluabilite.NON_EVALUABLE);
+        assertThat(persistee.getLevelEstimate()).isNull();
+        assertThat(persistee.getTaskCompletion()).isNull();
+        assertThat(persistee.getCommunicationStatus()).isNull();
+        assertThat(persistee.getTokensInput()).isZero();
+        assertThat(persistee.getCostMicroUsd()).isZero();
+        // La session reste utilisable : la production est bien finalisee, elle
+        // ne bascule pas en FAILED. Le candidat garde son ecrit.
+        assertThat(f.submission.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
+    }
+
+    /**
+     * Le faux positif est le risque principal : un A1 authentique produit peu,
+     * et refuser de l'analyser lui retirerait le seul retour qu'il vient
+     * chercher. La frontiere n'est pas « c'est mauvais », c'est « il n'y a rien
+     * a observer ». Une production nettement plus courte que ce que le sujet
+     * demande (100-120 mots) part donc bien au correcteur.
+     */
+    @Test
+    void uneProductionCourteMaisReelleEstBienAnalysee() {
+        Fixture f = new Fixture(EpreuveType.TCF_EO);
+        f.transcription("Bonjour madame, je voudrais savoir les horaires de la piscine et "
+                + "aussi le tarif pour les enfants, parce que je veux venir avec ma fille "
+                + "le samedi matin.");
+        f.correcteurRepond(normalise("Le tarif est demande."));
+
+        DiagnosticProductionAnalysis persistee = f.service.analyseDiagnostic(f.submission.getId());
+
+        verify(f.llm).analyse(any(), any());
+        assertThat(persistee.getEvaluabilite()).isEqualTo(ProductionEvaluabilite.EVALUABLE);
+        assertThat(persistee.getLevelEstimate()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * Une production inexploitable reste une ACTIVITE : le depot tient qu'une
+     * production rendue compte meme quand le correcteur n'a rien pu observer
+     * (c'est ce que lit {@code lastActivityAt} de la seance du Plan). On ecrit
+     * donc une observation {@code NOT_OBSERVED} par competence de l'allowlist —
+     * jamais une faiblesse, jamais une priorite.
+     */
+    @Test
+    void uneProductionInexploitableObserveNotObservedEtJamaisUneFaiblesse() {
+        Fixture f = new Fixture(EpreuveType.TCF_EE);
+        f.submission.setTexteSoumis("Bonjour.");
+
+        DiagnosticProductionAnalysis persistee = f.service.analyseDiagnostic(f.submission.getId());
+
+        assertThat(observation(persistee.getAnalysisJson()).get("status")).isEqualTo("NOT_OBSERVED");
+        assertThat(observation(persistee.getAnalysisJson()).get("observed")).isEqualTo(Boolean.FALSE);
+        assertThat(observation(persistee.getAnalysisJson()).get("priority")).isEqualTo(Boolean.FALSE);
+        assertThat(persistee.getAnalysisJson().get("strengths")).isEqualTo(List.of());
+        assertThat(persistee.getAnalysisJson().get("weaknesses")).isEqualTo(List.of());
+        verify(f.observations).recordProduction(
+                eq(f.submission), any(), eq(persistee.getAnalysisJson()), eq(true));
+    }
+
+    /** Montage commun des trois cas ci-dessus. */
+    private static final class Fixture {
+        private final ProductionSubmissionManager submissions = mock(ProductionSubmissionManager.class);
+        private final TranscriptionManager transcriptions = mock(TranscriptionManager.class);
+        private final DiagnosticTaskSkillManager taskSkills = mock(DiagnosticTaskSkillManager.class);
+        private final DiagnosticAnalysisLlmClient llm = mock(DiagnosticAnalysisLlmClient.class);
+        private final DiagnosticAnalysisReconciler reconciler = mock(DiagnosticAnalysisReconciler.class);
+        private final DiagnosticAnalysisValidator validator = mock(DiagnosticAnalysisValidator.class);
+        private final DiagnosticProductionAnalysisManager analyses =
+                mock(DiagnosticProductionAnalysisManager.class);
+        private final DiagnosticRubricsProvider rubrics = mock(DiagnosticRubricsProvider.class);
+        private final LearningPlanObservationService observations =
+                mock(LearningPlanObservationService.class);
+        private final DiagnosticProductionAnalysisService service;
+        private final ProductionSubmission submission = new ProductionSubmission();
+
+        private Fixture(EpreuveType epreuve) {
+            service = new DiagnosticProductionAnalysisService(
+                    submissions, transcriptions, taskSkills, mock(SkillManager.class),
+                    mock(DiagnosticAnalysisPromptBuilder.class), llm, reconciler, validator,
+                    analyses, rubrics, observations,
+                    new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
+                    new ProductionValidityService(new ProductionEvaluationProperties()));
+
+            ProductionTask task = new ProductionTask();
+            task.setId(UUID.randomUUID());
+            task.setEpreuve(epreuve);
+            task.setDiagnosticCode("INITIAL_TCF");
+            task.setDiagnosticVersion(1);
+            User user = new User();
+            user.setId(UUID.randomUUID());
+            submission.setId(UUID.randomUUID());
+            submission.setProductionTask(task);
+            submission.setUser(user);
+            submission.setStatut(SubmissionStatut.EVALUATING);
+            submission.setDiagnostic(true);
+
+            Skill skill = new Skill();
+            skill.setId(UUID.randomUUID());
+            skill.setCode("EO2-C3");
+            DiagnosticTaskSkill link = new DiagnosticTaskSkill();
+            link.setSkill(skill);
+
+            when(analyses.findBySubmissionId(submission.getId())).thenReturn(Optional.empty());
+            when(submissions.findByIdWithTaskAndUser(submission.getId()))
+                    .thenReturn(Optional.of(submission));
+            when(taskSkills.findActiveByTaskId(task.getId())).thenReturn(List.of(link));
+            when(analyses.save(any(DiagnosticProductionAnalysis.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+        }
+
+        private void transcription(String texte) {
+            when(transcriptions.findLatestTexteBySubmissionId(submission.getId()))
+                    .thenReturn(Optional.of(texte));
+        }
+
+        private void correcteurRepond(Map<String, Object> normalise) {
+            DiagnosticAnalysisLlmClient.Outcome outcome =
+                    new DiagnosticAnalysisLlmClient.Outcome(Map.of(), 10, 20, 3);
+            when(llm.analyse(any(), any())).thenReturn(outcome);
+            when(llm.getModelName()).thenReturn("modele-test");
+            when(llm.getToolSchemaVersion()).thenReturn("v1");
+            when(rubrics.version()).thenReturn("v1");
+            when(reconciler.reconcile(any(), any())).thenReturn(Map.of());
+            when(validator.violations(any(), any(), any())).thenReturn(List.of());
+            when(validator.normalize(any(), any())).thenReturn(normalise);
+        }
     }
 
     private static Map<String, Object> normalise(String explication) {

@@ -115,15 +115,18 @@ lib/
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
-    │   ├── production_parcours_screen.dart  ProductionParcoursScreen — **l'écran
-    │   │                                unique du parcours** : en-tête, barre du module,
-    │   │                                tâche courante, et les 3 modes en IndexedStack.
-    │   │                                Toutes les routes de mode le construisent.
-    │   ├── production_subjects_tab_view.dart  mode « Sujets » (corps seul) :
-    │   │                                pastilles T1/T2/T3 + liste ; tap sujet →
-    │   │                                fiche consigne+plan → Enregistrer/Rédiger
-    │   │                                ou Refaire/Voir le rapport.
-    │   ├── production_exams_tab_view.dart  mode « Examens » (corps seul).
+    │   ├── production_tasks_screen.dart  **Niveau 1** : l'épreuve et ses 3 tâches
+    │   │                                (carte de synthèse, une carte par tâche avec
+    │   │                                ses 3 compteurs, barre fixe « Examens blancs »).
+    │   ├── production_task_screen.dart   **Niveau 2** : UNE tâche — carte de consigne
+    │   │                                + 2 onglets (Compétences · Sujets d'examen)
+    │   │                                en IndexedStack, + le voile d'attente.
+    │   ├── production_exams_screen.dart  Les 10 examens blancs de l'épreuve, écran
+    │   │                                à part (quitté le flux des tâches en 2026-08-21).
+    │   ├── production_subjects_tab_view.dart  onglet « Sujets d'examen » (corps seul) :
+    │   │                                tap sujet → fiche consigne+plan →
+    │   │                                Enregistrer/Rédiger ou Refaire/Voir le rapport.
+    │   ├── production_exams_tab_view.dart  corps de la grille d'examens blancs.
     │   ├── production_result_labels.dart  règles PURES du rapport de tâche :
     │   │                                niveau affirmé, portée du niveau, rappel
     │   │                                d'enjeu (miroir web production-feedback.ts).
@@ -312,8 +315,8 @@ change un DTO, mettre à jour le model Dart correspondant.
   `didPopNext()`. ⚠ Ne pas se fier au `Future` d'un `context.push` pour ça : un flux qui fait
   des `pushReplacement` (briefing → résultats EE/EO) résout le push d'origine trop tôt, avant
   que la donnée (note d'évaluation) existe. L'observer est typé `PageRoute` → fermer un bottom
-  sheet ne déclenche pas de refetch. Pattern utilisé par `ProductionParcoursScreen` (parcours
-  EE/EO), qui n'invalide **que** la donnée du mode actif. Combiner avec
+  sheet ne déclenche pas de refetch. Pattern utilisé par `ProductionTaskScreen` et
+  `ProductionExamsScreen` (EE/EO). Combiner avec
   `async.when(skipLoadingOnReload: true)` pour éviter un spinner plein écran au retour.
 
 **UI**
@@ -542,6 +545,57 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
   « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
   connexion avec `redirect=/diagnostic`.
+- **Écran de RÉSULTAT — la maquette de référence est `MDiag`, étape `result`**
+  (`widgets/diagnostic_result.dart`, phrases dans `widgets/diagnostic_report_labels.dart`).
+  🛑 **Ce n'est PAS `MRapportGratuit`**, qui est le rapport du **visiteur non connecté**. Une
+  passe du 2026-08-21 a refondu cet écran sur la mauvaise des deux : « Mon profil TCF » y avait
+  disparu au profit d'une **bande de quatre colonnes** qui n'appartient qu'au rapport visiteur.
+  Rectifié le même jour — vérifier la maquette avant de toucher à l'ordre des blocs.
+  Ordre figé : **héros** (niveau estimé, « Objectif X » **sur la même ligne**, phrase, rail) →
+  **« Mon profil TCF »** → **compléter mon profil** → **« Vos points forts »** →
+  **« Vos priorités »** → *Votre plan personnalisé est prêt* → carte d'offre → note
+  d'estimation. En-tête d'écran : **« Diagnostic »** + « Estimation d'entraînement Séjour » /
+  « Rapport complet ». ⚠️ Les points forts passent **avant** les priorités, et le héros n'a
+  **aucune bande de quatre colonnes**.
+  - **« Mon profil TCF »** est une vraie section : une ligne d'en-tête « N domaine(s) sur 4
+    évalué(s) » (`planProfileCoverage`, partagé avec le Plan) + 4 pastilles pleines/vides, puis
+    **une ligne par domaine** dans l'**ordre servi** (le serveur trie par urgence, aucun front
+    ne retrie), avec l'icône du domaine, son libellé, `diagnosticDomainSubtitle` et la pilule
+    `PlanDomainPriorityTag` (« À évaluer » quand il n'est pas mesuré). 🛑 **Chaque ligne ouvre
+    la fiche de son domaine** (`openPlanDomain`, le lanceur partagé — `nav.push("compdetail")`
+    de la maquette).
+    ⚠️ Volontairement **distincte de `PlanProfileSection`** : même structure, mais les
+    sous-titres diffèrent (le Plan dit *par quoi mesurer*, le bilan dit *où en est le profil*).
+    Ce n'est pas une copie qui a dérivé.
+  - **« Compléter maintenant · N min »** : carte rendue **seulement** s'il reste un domaine de
+    **compréhension** à mesurer (`domainesAEvaluer` filtré CO/CE) ; elle repart par
+    `openPlanAssessment`, l'autorité unique. ⚠️ **La durée est la somme des `estimatedMinutes`
+    servis** (lus serveur chez `DureeEpreuve`), jamais le « 14 min » de la maquette, qui n'est
+    la durée d'aucune de nos épreuves. Aucune durée servie ⇒ le bouton n'annonce pas de chiffre.
+  - 🛑 **Chaque ligne de « Vos priorités » ouvre la fiche de sa compétence** (`openPlanSkill`,
+    `nav.push("skill")` de la maquette). Elle ne déplie donc **plus** le rapport du correcteur
+    en place : `explanation` / `evidence` vivent sur la fiche et sur le rapport de production.
+    Une ligne de repli tirée des `weaknesses` n'a pas de compétence : elle reste **inerte**,
+    sans chevron.
+  - 🛑 **Restent hors de cet écran** : le « avant / après » (`exempleCible` —
+    `ActionPlanExempleCard` reste intacte, elle sert les rapports EE/EO et le résultat de
+    compétence) et le **détail des deux productions**.
+  - 🛑 **Le niveau global et le palier du rail viennent du serveur** (`cycle.startingLevel` /
+    `cycle.targetLevel`) : le plancher des quatre domaines est une règle serveur
+    (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations de production.
+  - ⚠️ **Vouvoiement** : la maquette tutoie, mais elle ne donne que la direction **visuelle**.
+    Toutes les phrases sont des **miroirs mot pour mot du web** et vivent en constantes — les
+    capitales sont posées à l'affichage (`toUpperCase()`), le CSS s'en chargeant côté web.
+  - **Freemium** : **2 points forts** + **1 priorité** + 1 entraînement en clair (seuils de la
+    maquette : `forces.slice(0, 2)`, `priorites.slice(0, 1)`), le reste flouté
+    (`_LockedPreview` / `BlurredContent`, `ExcludeSemantics` + `IgnorePointer`) avec un
+    compteur qui vient **du serveur** (`fragileSkillCount` / `solidSkillCount`), jamais
+    recalculé — `0` ⇒ aucun bloc. Le sous-titre des priorités ne compte que pour un compte
+    gratuit (un abonné les voit toutes, il n'y a rien à lui compter). Corollaire à ne jamais
+    casser : **aucune surface de cet écran ne nomme en clair ce que le rideau prétend cacher**
+    — c'est précisément pourquoi le détail des productions (qui listait « À travailler ») n'y
+    a plus sa place. **Le profil TCF, lui, reste entier** : ce sont ses mesures, pas une
+    action verrouillée.
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions
@@ -596,14 +650,17 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   - **Compteurs servis, jamais recomptés** : `_SummaryCard` reçoit
     `attempted`/`total`/`validated` (les `step*Count` en mode étape). Les
     filtres (Tous / À faire / Traités) portent sur les **5** et leur somme reste
-    juste, comme sur les 15 ; la `FixedActionBar` vise un sujet **de l'étape**.
+    juste, comme sur les 15 ; la carte `_NextPromptCard` vise un sujet **de
+    l'étape**.
   - 🛑 **Aucun second parcours de vérification ici.** Étape terminée
     (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
     mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
     connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
     donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
     pas l'expliquer par un message ni contourner la règle.
-  - **La `FixedActionBar` vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15).
+  - **L'action principale vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15 ;
+    elle vivait dans une `FixedActionBar`, elle vit depuis le 2026-08-21 dans la
+    carte `_NextPromptCard`, même logique au bit près).
     En mode étape, `_primaryAction` lit `recommendedExercise.skillPromptId` via
     `planStepRecommendedPrompt` (`screens/plan/plan_step_labels.dart`) : la
     règle de choix vit dans `RecommendedExerciseSelector`, son périmètre est
@@ -692,7 +749,7 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
     `CompetenceDetailScreen` a besoin. Sur une étape franchie, `stepCompleted`
     vaut **`false`** et `recommendedExercise` **`null`** : le serveur ne publie ce
     dérivé que sur une priorité, le recalculer serait réimplémenter une règle
-    serveur. La `FixedActionBar` retombe donc sur **`_fallbackAction`**, son
+    serveur. L'action principale retombe donc sur son repli historique, son
     comportement historique — c'est voulu, ne pas lui fabriquer autre chose.
 - 🛑 **Le faux élément de fin de parcours est SUPPRIMÉ.** `_ReassessmentStepCard`
   (« Réévaluation » / « Après quelques entraînements… ») était rendu en dur, ne
@@ -744,10 +801,19 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   Prioritaire / À renforcer / Solide », `web_sejoufr/lib/diagnostic.ts`), verrouillés par
   `test/diagnostic_models_test.dart`. Leur **teinte** vit à un seul endroit :
   `LearningPlanSkillStatus.color` (`core/theme/app_theme.dart`), partagée Plan ⇄ Diagnostic.
-- **Le résultat du diagnostic affiche enfin `summary`, `taskCompletion`, `communicationStatus`
-  et `weaknesses`** (deux cartes « Vos productions »), en plus des compétences observées et de
-  la priorité n°1. **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur
-  le diagnostic : le brief l'interdit et le serveur n'en publie aucun.
+- **Aucun pourcentage de progression vers un palier**, ni sur le Plan ni sur le diagnostic :
+  le brief l'interdit et le serveur n'en publie aucun.
+- 🛑 **`DiagnosticProductionResult` : les trois verdicts sont NULLABLES, et on n'en fabrique
+  aucun** (2026-08-21). `levelEstimate` / `taskCompletion` / `communicationStatus` étaient
+  déclarés non-null et parsés en `as String` ; le serveur les rend `null` sur une production
+  **inexploitable** (cf. `ProductionEvaluabilite`, le **même** enum que celui de la voie
+  standard, mirroré une seule fois), et la désérialisation du résultat **levait** — l'écran ne
+  se construisait jamais sur un compte réel. Replier sur `NOT_COMPLETED` / `INEFFECTIVE`
+  aurait remplacé un plantage par un reproche : *null = inconnu, jamais mauvais*. Le bloc
+  entier `null` reste « pas encore rendue », un bloc `NON_EVALUABLE` dit « rendue, rien à
+  observer » (`estNonEvaluable`). Aucun écran ne lit ces trois champs depuis la refonte du
+  rapport de diagnostic — la bande des 4 domaines et la carte de niveau se lisent sur le
+  **Plan**, qui gère déjà l'absence de mesure.
 - L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
   session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
   générique une fois le diagnostic terminé.
@@ -796,8 +862,10 @@ et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** ve
 - Les cartes de slot d'examen partagées (`tcf_production/widgets/exam_slot/`) sont au
   style maquette : numéro Bricolage, pill « Fait » teinté accent, boutons pill.
 
-Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
-vivent dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
+`core/widgets/paywall_sheet.dart` porte le bottom sheet `PaywallSheet` réutilisable.
+⚠️ Les deux constantes de taille de série (`kDemoBatchSize` / `kInitialBatchSize`) y ont
+été **supprimées le 2026-08-21** : plus aucun écran ne les lisait — la taille d'une série
+est décidée par le serveur (lots, séries ciblées du Plan). Ne pas les recréer côté front.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
 structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub
@@ -873,10 +941,10 @@ ou /20 selon l'examen).
 - **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
-  - EE / EO → **pas de hub d'épreuve** : on entre directement sur l'écran d'accueil du
-    parcours, `/tcf/{ee,eo}/tache/1/competences` (`AppRoutes.tcf{Ee,Eo}Entry`), et la
-    tâche se change par les pastilles T1/T2/T3. `/tcf/ee` et `/tcf/eo` restent déclarés
-    comme **alias en redirect**. Cf. § TCF Expression plus bas.
+  - EE / EO → **deux niveaux** (2026-08-21) : `/tcf/{ee,eo}`
+    (`AppRoutes.tcf{Ee,Eo}Entry`) = la **liste des 3 tâches**, puis
+    `/tcf/{ee,eo}/tache/:n` = **une** tâche et ses 2 onglets. Cf. § TCF Expression
+    plus bas.
   - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
     `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
     rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
@@ -912,8 +980,9 @@ bottom nav) :
   45 min, seuil 32) qui vit sur l'onglet Examens du hub.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
-- `/tcf/eo` et `/tcf/ee` → alias en redirect vers l'entrée du parcours ;
-  `/tcf/{eo,ee}/tache/:n` → `ProductionParcoursScreen` (mode Sujets). Enum
+- `/tcf/eo` et `/tcf/ee` → `ProductionTasksScreen` (les 3 tâches) ;
+  `/tcf/{eo,ee}/tache/:n{,/competences}` → `ProductionTaskScreen` ;
+  `/tcf/expression-{orale,ecrite}/examens` → `ProductionExamsScreen`. Enum
   `TcfProductionModule.{eo,ee}` dans
   `tcf_production/tcf_production_module.dart` (cf. § TCF Expression).
 
@@ -980,6 +1049,221 @@ de découpage par `QuestionType`. À raffiner quand on aura le besoin.
 écran détail par module avec onglets *Séries / Examens / Erreurs* puis briefing → questions →
 feedback → fin de série. L'archi actuelle est délibérément minimale : le tap module redirige vers
 les écrans `/training` et `/tcf/expression-*` existants en attendant.
+
+### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
+
+L'écran `/plan` suit la maquette « coach adaptatif ». **Ordre des blocs, du plus immédiat
+au plus lointain** — ne pas le réordonner sans arbitrage : ligne de contexte → bandeau
+(« Plan actualisé » **ou** « Version gratuite », jamais les deux) → **priorité actuelle**
+(`GradientHero`, seul CTA principal de l'écran) → **Aujourd'hui** (la séance) → **Mes
+priorités** → jalon → ce qui a changé → **Mon profil TCF** (les 4 domaines) → **Compléter
+mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
+
+- **Rien n'est recalculé côté app** : les priorités sont ordonnées serveur, `domaines` est
+  **déjà trié par urgence** (aucun front ne retrie), la séance est composée serveur, et
+  chaque verrou vient d'un `locked` par élément.
+- 🛑 **DEUX endroits floutent, et deux seulement** (arbitrage propriétaire, 2026-08-21 —
+  ⚠️ **révoque** « la maquette floute, nous non ») : les **lignes de la séance**
+  verrouillées (`PlanSeanceSection`) et les **lignes de « Mes priorités »** verrouillées
+  (`_PriorityRow`). La règle produit est : **on floute l'ACTION pas encore accessible,
+  jamais le RÉSULTAT mesuré** — ce sont ses productions.
+  - **Restent nets, pour tout le monde** : la carte de **priorité actuelle**, « Mon profil
+    TCF » et ses 4 domaines, « Compléter mon profil », le chemin vers l'objectif, « ce qui a
+    changé » et les **étapes franchies**. Ne pas étendre le flou « par symétrie ».
+  - **Le contenu flouté est le VRAI** — jamais un décor fabriqué. Le rideau est
+    **`BlurredContent`** (`core/widgets/blurred_content.dart`, partagé) :
+    `ExcludeSemantics` **et** `IgnorePointer`, donc illisible à l'œil **et** au lecteur
+    d'écran. Ce qui doit rester lisible (rang, icône de domaine, compteur, CTA) vit **hors**
+    du bloc flouté, et l'affordance de fin de ligne devient **`PremiumLockPill`**
+    (`core/widgets/premium_lock.dart`), qui porte la sémantique « Premium » que le flou
+    retire. Le tap de la ligne ouvre `showTcfLockPaywall` — **jamais** un second chemin vers
+    l'abonnement.
+  - ⚠️ **Le verrou est LU, jamais déduit du rang.** La maquette écrit `!abo && i > 0` parce
+    que son bouchon n'a pas de serveur ; nous lisons `locked` par élément
+    (`planSeanceItemLocked` pour la séance, `priority.locked` pour les priorités). Ne pas
+    réintroduire un « à partir de la 2ᵉ, cadenas ».
+  - **Aucune autre surface ne doit démentir le flou** : la feuille « Pourquoi cette
+    séance ? » (`_WhyRow`, `plan_screen.dart`) reprend les **mêmes** lignes, donc elle
+    floute les mêmes. Ce n'est pas une extension du verrou, c'est la même ligne vue deux
+    fois. `planSeanceRationale` ne nomme que la priorité n°1 (jamais floutée), et un jalon
+    présent dans la séance n'est pas répété en carte (`milestoneInSeance`) : rien à y faire.
+  - **Un résultat déjà mesuré reste en clair même quand l'action correspondante est
+    floutée** — et ce n'est **pas** une contradiction : ce sont les deux faces de la règle,
+    le résultat mesuré d'un côté, l'action verrouillée de l'autre.
+- **Une ligne de « Aujourd'hui » OUVRE, le bouton principal LANCE** (2026-08-21).
+  `openPlanSeanceItem` (le tap de la ligne) envoie un **petit sujet ciblé** vers la
+  **fiche de sa compétence** — ses 5 sujets et ce qui est fait —, exactement comme la ligne
+  correspondante de « Mes priorités » : la même compétence ne peut pas mener à deux écrans
+  selon l'endroit où on la touche. `startPlanSeanceItem` (le CTA du héros) **démarre**
+  l'entraînement, comme avant. 🛑 **Trois natures gardent le lancement direct** : la
+  **série ciblée** (runner QCM), le **jalon** (examen blanc) et la **vérification en
+  situation** — son sujet est une tâche de production qui ne fait *pas* partie des cinq de
+  la fiche, l'y envoyer laisserait le candidat sans moyen de la faire.
+- **« Tout voir » de « Mes priorités » OUVRE UNE PAGE** (`/plan/competences`), il ne déplie
+  plus les compétences observées sous la liste — un écran de plan n'est pas un catalogue, et
+  le dépliage repoussait le reste du Plan hors de vue. ⚠️ C'est un **verrou de navigation**
+  pour un compte gratuit (`showTcfLockPaywall`) : le Plan reste intégralement **visible**,
+  mais le catalogue complet est un **accès**.
+- **« Ce qui a changé » n'existe QUE s'il y a des transitions réelles**
+  (`changes.transitions.isNotEmpty`, jamais `!changes.isEmpty`). Son titre est une
+  **période** (« Cette semaine ») : l'afficher pour une seule `newPriority` — la compétence
+  déjà nommée par la carte du haut — annonçait un bilan de la semaine le jour du
+  diagnostic. Une première mesure n'est jamais une transition. Le **bandeau** du haut, lui,
+  continue de la signaler en une ligne.
+- **Les pastilles de domaine ont DEUX teintes** (`PlanDomainTile`) : compréhension (CO, CE)
+  **bleue**, expression (EO, EE) **rouge**, d'après la maquette (`ton: "bleu" | "rouge"`).
+  Une ligne sans domaine (jalon d'examen complet) reste bleue. ⚠️ **À ne pas confondre avec
+  l'accent du module « Compétences »** (`TcfProductionModule.accent`), autre surface, autre
+  décision : la remarque « EE et EO en bleu » ne vaut pas ici.
+- **Le chemin dit COMMENT un palier se confirme** : chaque étape `BUILD_LEVEL` non terminée
+  porte « Ce palier se confirme par un examen blanc complet », qui devient « Vous y êtes :
+  … » quand `cycle.state == READY_FOR_GATE_MOCK` (`planPathStepNote`). 🛑 **Aucune nature
+  d'étape n'a été ajoutée côté serveur** : `cycle.state` + `cycle.path` suffisent, c'est un
+  libellé. Une étape **déjà franchie** ne dit rien — le serveur ne publie pas *comment* elle
+  l'a été, et l'inventer serait faux.
+- 🛑 **`objectiveLevel` est NULLABLE.** La maquette code `"B2"` en dur : c'est un artefact.
+  Sans démarche déclarée, l'en-tête propose « Mon objectif » (→ `/target-path`), le titre du
+  chemin ne nomme aucun palier et la ligne « Objectif » du héros disparaît. `recentChanges`
+  est nullable de la même façon : **son absence est le cas normal**, aucun bloc n'est
+  fabriqué pour remplir.
+- **Les phrases vivent dans `plan_labels.dart`**, jamais dans un widget : le serveur
+  n'expose aucun libellé pour les domaines, le cycle, le chemin ni la séance, et un même
+  fait doit se dire pareil sur le Plan, sur la fiche d'un domaine et sur le bilan d'une
+  série. Les libellés **gelés** (mastery, priorité de domaine, fenêtre de changements)
+  restent ceux des enums, recopiés du serveur.
+- **`planSeanceItemDone`** (`plan_seance_state.dart`) coche les lignes de la séance à
+  partir de **deux faits servis** : l'étape est bouclée (`stepCompleted` sur ses 5 sujets),
+  **ou** `lastActivityAt` tombe aujourd'hui (**Europe/Paris**). 🛑 Le marqueur local
+  `planSeanceDoneProvider` est **supprimé** : il s'évaporait au rechargement et le même
+  candidat voyait deux séances selon l'appareil. Ne pas le réintroduire, et ne pas demander
+  au serveur un booléen « fait aujourd'hui » — il n'a pas d'horloge dans cette construction.
+
+### Parité mobile ⇄ web du Plan (2026-08-21, passe d'alignement)
+
+Le propriétaire a constaté que les deux écrans Plan ne disaient pas la même
+chose. Ce qui a bougé **côté mobile**, et pourquoi :
+
+- **« Mes compétences observées » existe enfin ici**
+  (`widgets/plan_observed_skills_section.dart`). Le modèle décodait
+  `observedSkills` / `observedSkillCount` **depuis toujours** sans jamais les
+  afficher : le même compte lisait sur le web un historique que son téléphone
+  lui cachait. 6 cartes puis un repli, `NOT_OBSERVED` écartées (une compétence
+  que le correcteur n'a pas pu voir n'est pas une compétence faible).
+  ⚠️ Verrouillée, la compétence garde son **résultat mesuré en clair** : on
+  floute l'action pas encore accessible, jamais le résultat — seul le cadenas
+  s'ajoute et le tap ouvre l'offre.
+- **La ligne de contexte dit d'où l'on part ET dans quelle phase on est**
+  (`planCycleLine` + `planCycleStateText`, miroirs de `planCycleLine` /
+  `PLAN_CYCLE_STATE_TEXT`). Les quatre états du cycle ne se disaient nulle part
+  sur mobile — c'est pourtant ce qui explique pourquoi le Plan demande parfois
+  de **mesurer** plutôt que de s'entraîner. `planContextLine` est **supprimée**
+  et le `dashboardProvider` n'est plus lu ici : `cycle.startingLevel` porte la
+  même valeur, servie par le même appel.
+- **La carte de priorité dit les DEUX choses** (`planPriorityLines`) :
+  l'explication du correcteur — que seul le mobile affichait — puis l'état
+  agrégé et les compteurs d'étape — que seul le web affichait.
+- **Une priorité de compréhension affiche son palier** (`· palier B1`,
+  `planSkillLevel` relu sur les domaines **servis**, jamais dérivé du code).
+- **Les quatre accès secondaires du web**, dans le même ordre : « Toutes mes
+  compétences » (avec son **verrou de navigation**), « Ma progression »,
+  « Mes examens blancs », « Mon diagnostic ». Il n'y en avait que deux.
+- **« Compléter mon profil » nomme son geste** (`planAssessmentCta`) et son
+  état (« Pas encore évaluée · Examen blanc n°1 · ≈ 20 min ») : un chevron seul
+  ne disait pas ce que la ligne allait coûter. `planAssessmentLabel` est scindée
+  en **`planAssessmentNature`** (une description, pour une meta) et
+  **`planAssessmentCta`** (un geste, pour un bouton) — le mobile n'avait qu'une
+  chaîne employée aux deux endroits.
+- 🔴 **Destination corrigée** : `PlanDomainAssessmentKind.production` ouvrait la
+  **grille des examens blancs**. L'enum désigne « une production du **catalogue
+  standard** » — le repli d'un domaine d'expression dont le diagnostic est déjà
+  terminé. On ouvre donc l'épreuve et ses trois tâches
+  (`AppRoutes.tcf{Ee,Eo}Entry`), comme le web. L'ancien chemin envoyait sur un
+  parcours plus long, chronométré, et payant à partir du slot 2.
+- **« Pourquoi cette séance ? » explique chaque ligne** (`planItemReason`,
+  miroir du web) et s'ouvre sur `kPlanSeanceMetaHint`. La feuille ne portait que
+  la nature et le domaine, sans jamais dire *pourquoi*. Le reproche flouté suit
+  le titre sous le même rideau.
+- **Divergences laissées telles quelles**, elles tiennent à la forme de la
+  surface : la pastille d'objectif de l'en-tête (le web met l'objectif dans son
+  `h1` et dans le pied de la carte de priorité), la position du jalon (le web a
+  une colonne latérale), et « Tout voir » ⇄ « Toutes mes compétences » (déjà
+  arbitré).
+
+### Trois natures d'action, trois lectures différentes (2026-08-21)
+
+`PlanActionNature` (`core/models/diagnostic_models.dart`, miroir de l'enum serveur, libellés
+**gelés par `SkillLabelsTest` et recopiés mot pour mot**) est servi sur
+`LearningPlanPriorityDto.nature` **et** `PlanSeanceItemDto.nature`. **C'est ce champ que les
+écrans lisent**, jamais la nullité d'un autre.
+
+- **`aEvaluer` « À évaluer »** — une mesure manque et elle est indispensable. Le seul item
+  de séance qui porte un **`assessment`** au lieu d'un `exercise` (les deux sont en **XOR**,
+  d'où `PlanSeanceItem.exercise` et `.kind` devenus **nullables**). Il ne porte **aucune
+  compétence** : c'est une épreuve entière qu'on vient observer. Il se lance par
+  **`openPlanAssessment`** (`plan_actions.dart`), l'autorité unique déjà en place — aucun
+  second chemin n'a été écrit.
+- **`aRenforcer` « À renforcer »** — une fragilité réellement observée. Même libellé que
+  `SkillMasteryState.toReinforce` : **voulu**, ils disent la même chose et ne s'affichent pas
+  au même endroit. Ce n'est pas une collision à corriger.
+- **`aVerifier` « À vérifier »** — l'étape est terminée, le Plan demande une vérification en
+  situation.
+- 🛑 **`aAcquerir` « À acquérir » ne se dit JAMAIS « à renforcer »** — c'est le cœur de la
+  passe. Une compétence du palier en construction, **jamais travaillée** : rien n'a été
+  observé, donc rien n'a échoué. Son `status`, son `explanation`, son `evidence`, sa
+  `confidence`, son `observedAt` et son `masteryState` valent **`null`** (les quatre premiers
+  sont devenus nullables sur `LearningPlanPriority`) — *null = inconnu, jamais mauvais*.
+
+**Ce qui rend la distinction impossible à confondre** (`PlanActionNatureStyle`,
+`widgets/plan_tokens.dart` — **seule** table de teintes, aucune couleur nouvelle) :
+libellé propre + teinte propre (neutre / ambre / vert / bleu) + icône propre (loupe / clé à
+molette / badge coché / toque d'études), et sur une carte `aAcquerir` la phrase
+`kPlanAcquisitionNote` **remplace** l'explication du correcteur, là où une fragilité affiche
+la sienne. Aucun chemin de code ne traduit une nature en une autre.
+
+- 🛑 **La pastille d'une carte du Plan porte la NATURE, plus l'état de maîtrise.**
+  `SkillMasteryState` décrit la compétence et reste sur **sa fiche** (et sur les paliers d'un
+  domaine) ; la nature décrit l'action et vit sur la carte. Sans ça une acquisition — qui
+  n'a **aucun** état de maîtrise — serait indiscernable d'une fragilité. La teinte du rang
+  de `_PriorityRow` suit la nature pour la même raison.
+- **Sur une ligne de séance, la nature et le domaine restent NETS même verrouillés** : ils
+  disent de quelle sorte d'action il s'agit, jamais ce qu'il y a à y faire. Le rideau ne
+  tombe que sur le titre et l'exercice.
+- 🔴 **La priorité n°1 n'est plus forcément accessible, et le héros le dit.**
+  `SkillAccessService` ouvre la première **fragilité observée** ; une compétence à acquérir
+  n'a aucun historique, donc n'y figure pas, et peut pourtant occuper la place n°1 chez un
+  candidat sans fragilité. Trois surfaces montraient alors en clair ce que « Mes priorités »
+  floutait — elles sont alignées : `PlanPriorityHero` passe son identité derrière
+  `BlurredContent` + `PremiumLockPill` quand `priority.locked`, `planSeanceRationale` ne
+  nomme plus une priorité verrouillée, et `PlanPriorityHomeCard` (accueil) retombe sur son
+  texte générique. **Le floutage lui-même n'a pas bougé** : toujours `BlurredContent` /
+  `PremiumLockPill`, toujours deux endroits qui floutent, toujours un `locked` **lu** par
+  élément.
+- Plafonds serveur : **3** items dans « Aujourd'hui », **5** dans « Mes priorités ». Ce sont
+  des plafonds — l'app affiche ce qui est servi et n'en fabrique jamais.
+
+**Écrans secondaires** (hors shell, poussés au-dessus de l'onglet) :
+
+| Route | Écran | Ce qu'il réutilise |
+|---|---|---|
+| `/plan/domaine/:domainKey` (`co\|ce\|ee\|eo`) | `PlanDomainScreen` | relit le Plan **déjà chargé**, aucun appel de plus. Compréhension ⇒ ses 3 paliers (tap = série ciblée) ; expression ⇒ ses 3 tâches (tap = `productionCompetencesPath`) |
+| `/plan/evolution` | `PlanEvolutionScreen` | `cycle` + `recentChanges` ; « rien n'a bougé » est un état affiché, pas une erreur |
+| `/plan/serie/:attemptId` | `PlanSerieResultScreen` | bilan d'une série ciblée, poussé par le runner |
+| `/plan/competences` | `PlanSkillsScreen` | « Tout voir ». **Aucune seconde liste de compétences** : un simple index qui relit le Plan déjà chargé et aiguille vers l'existant — tâche d'expression ⇒ `productionCompetencesPath` (les 8 compétences), domaine de compréhension ⇒ `PlanDomainScreen`. La ligne de tâche est `PlanTaskRow` (`widgets/plan_task_row.dart`), **extraite à la 2ᵉ occurrence** de `PlanDomainScreen` |
+
+**Série ciblée de compréhension** — `startTargetedSeries` (`plan_series_launcher.dart`) est
+le seul point de départ : `AttemptsRepository.startComprehensionSeries(skillId)` puis le
+**runner QCM existant** avec `?from=planSerie&skillId=…&avant=…`, exactement le montage des
+lots TCF (`from=tcfLot`). **Aucun second runner n'a été écrit.** 🛑 Une série est un
+`TRAINING` : elle **ne rend jamais un domaine « évalué »** — seul un examen blanc de module
+le fait, et c'est `domainesAEvaluer` qui dit lequel.
+
+**Trois lanceurs, trois autorités, aucune copie** : `openRecommendedExercise` (micro-sujet /
+vérification en situation / série ciblée — la branche `TARGETED_QCM_SERIES` manquait et
+faisait ouvrir une fiche de compétence d'**expression**), `startPlanMilestone`
+(`plan_milestone_launcher.dart`, extrait de `PlanMilestoneCard` quand la séance a eu besoin
+de lancer le même examen depuis une ligne) et `startTargetedSeries`. `plan_actions.dart` ne
+fait qu'y ajouter la mesure d'audience et le routage d'une compétence — dont le cas
+**compréhension**, qui n'a pas d'écran de compétence et ouvre la fiche de son domaine.
 
 ## Le runner — le cœur de l'app
 
@@ -1102,41 +1386,97 @@ parcours entièrement bleu). Restent rouges, et c'est voulu : le bouton
 d'enregistrement et sa pastille « Enregistrement… », le décompte des 30
 dernières secondes, les erreurs et le « Quitter » destructeur.
 
-### Structure du parcours — maquettes client (passe 2026-08-09)
+### « Est-ce que ça enregistre ? » — le cadran partagé (2026-08-21)
 
-Les trois onglets (Compétences · Sujets · Examens) partagent désormais une
-**tête commune**, reprise des trois maquettes fournies par le propriétaire :
+`RecordingGauge` (`widgets/recording_waveform.dart`, avec `RecordingPill` et
+`RecordingWaveform`) : **un micro qui pulse, entouré d'un arc de progression**,
+le chrono au centre. Utilisé par les **trois** surfaces qui enregistrent —
+diagnostic oral (`diagnostic_oral.dart`), micro-sujet de compétence
+(`skill_recorder_panel.dart`) et production EO (`_TimerBig` de
+`eo_briefing_screen.dart`, qui garde son décompte d'examen et ses couleurs).
 
-1. **en-tête constant** (`ScreenHeader`) : retour, nom de l'épreuve,
-   `epreuveMeta`, et à droite le badge `ProductionLevelBadge` — « NIVEAU VISÉ »
-   + le palier de la démarche (`userTargetLevelProvider`). L'eyebrow dit
-   « visé » en toutes lettres : le repo interdit d'afficher un niveau sans le
-   qualifier, et ce n'est **pas** le niveau estimé du candidat ;
-2. **`ProductionParcoursHero`** (`widgets/production_parcours_top.dart`) :
-   anneau + trois colonnes chiffrées (Score moyen `/20`, Examens blancs `/10`,
-   Sujets traités `/N`) + « Progression du parcours » ;
-3. **`ProductionNextCard`** : la prochaine compétence non terminée de
-   l'épreuve, « Tâche N · <titre> » + « Continuer ». Rien à faire ⇒ **aucune
-   carte**, jamais une invitation vide ;
-4. **`ProductionModeTabs`** (`widgets/production_mode_tabs.dart`) : barre
-   segmentée **dans le flux**. L'ancienne `ProductionModuleBar` flottante en
-   bas est **supprimée** (elle masquait le dernier élément de chaque liste) ;
-5. **`ProductionTaskCards`** : trois cartes « 1 · Message · 30-60 mots ». Elles
-   remplacent `ProductionTaskPills` (**supprimé**), qui ne disait que
-   « Tâche 2 » alors que le format et la contrainte sont précisément ce qui
-   distingue les trois tâches. Absentes du mode Examens, porté par l'épreuve.
+Rien n'était en panne : le ticker de `AudioRecorderService` tourne bien, à
+200 ms. Ce sont **deux défauts de perception** qui faisaient douter le candidat :
 
-Chaque mode rend cette tête **en tête de sa propre liste** (`top:` passé par
-`ProductionParcoursScreen`) : l'`IndexedStack` garde donc le défilement de
-chacun. Elle est rendue **quel que soit l'état** de la liste — sans elle, une
-erreur de chargement enfermait le candidat dans un mode.
+1. **le micro disparaissait** à l'instant précis où l'on commence à parler — il
+   n'existait qu'à l'état de repos, en gros bouton rond ;
+2. **le chrono s'écrit à la seconde** alors que l'état arrive 5 fois par
+   seconde : quatre tics sur cinq ne changeaient rien à l'écran, et un compteur
+   immobile se lit comme une application figée. L'**arc** avance à chaque tic,
+   sans ajouter un chiffre à lire. Si l'écran gèle, l'arc gèle avec lui.
 
-⚠️ **Conséquence assumée sur les appels** : le héros compte les sujets et les
-examens de l'épreuve, la carte « Prochain entraînement » lit les compétences —
-donc `productionCatalogProvider` **et** `skillsSectionProvider` sont chargés dès
-l'entrée, quel que soit le mode. Ce qui reste vrai, et ce que
-`test/production_parcours_caching_test.dart` verrouille : **aucune bascule de
-mode ou de tâche ne coûte un appel de plus**.
+Le cadran ne formate **aucun** temps (chaque surface a le sien : `0:12 / 3:00`,
+`0:12`, décompte d'examen) ; il ne possède que la géométrie, la pulsation et
+l'accessibilité. `depleting: true` vide l'arc au lieu de le remplir, pour dire
+la même chose que les chiffres d'un décompte.
+
+**Mouvement réduit** (`MediaQuery.disableAnimationsOf`) — respecté par les trois
+widgets : le halo cesse de battre, le point de la pastille reste plein, la
+sinusoïde décorative de la forme d'onde s'arrête. ⚠️ Ce qui **continue** dans
+tous les cas : l'arc (c'est la donnée, pas une animation) et les barres pilotées
+par l'amplitude réelle. Éteindre ça reviendrait à masquer l'information qu'on
+est venu montrer.
+
+**Accessibilité** : l'état est annoncé **une fois**, par `RecordingPill` en
+`liveRegion` avec le libellé **constant** `kRecordingSemanticsLabel`. Le
+diagnostic portait une `liveRegion` dont le texte contenait le chrono : elle
+était relue à chaque seconde. Le temps se lit sur le cadran, en durée parlée
+(`recordingSpokenDuration`, « 1 minute 12 secondes » — un lecteur d'écran dit
+« 1:12 » comme un nombre), **sans** `liveRegion`.
+
+**Coût** : le halo est le seul sous-arbre reconstruit à 60 fps, isolé dans son
+`AnimatedBuilder`, l'ensemble sous `RepaintBoundary`. Le reste ne bouge qu'aux
+tics du service, comme avant.
+
+### Structure de l'entrée EE/EO — DEUX NIVEAUX (passe 2026-08-21)
+
+🛑 **L'écran unique à trois modes est SUPPRIMÉ** (`ProductionParcoursScreen`,
+`ProductionModeTabs`, `ProductionModuleTab`, `production_parcours_top.dart`).
+La maquette (`MTasks` / `MTask`) sépare ce qu'un seul écran portait :
+
+1. **Niveau 1 — `ProductionTasksScreen`** (`/tcf/{ee,eo}`) : l'en-tête chiffré
+   (« 3 tâches · 24 compétences · N petits sujets »), une **carte de synthèse**
+   de l'épreuve (bandeau d'accent + 3 compteurs), **une carte par tâche**
+   (filet de teinte `taskPalette`, rond numéroté, intitulé + intention, chevron,
+   pied à 3 compteurs : compétences / petits sujets / sujets d'examen), une note
+   de bas, et une **barre fixe « Examens blancs »**.
+2. **Niveau 2 — `ProductionTaskScreen`** (`/tcf/{ee,eo}/tache/:n`) : la **carte
+   de consigne** de la tâche puis **2 onglets** (`SegmentedTabs`) —
+   « Compétences · N » et « Sujets d'examen · N » — dans un `IndexedStack`. Les
+   deux corps sont ceux d'avant (`CompetencesTabView`,
+   `ProductionSubjectsTabView`), inchangés : seul leur `top` devient une simple
+   `List<Widget>` (consigne + onglets) au lieu d'un builder à trois modes.
+3. **Les examens blancs ont leur écran** — `ProductionExamsScreen`, atteint par
+   la barre fixe du niveau 1. **Rien du flux n'a bougé** : la grille des 10
+   slots, le verrou freemium, le briefing et le démarrage restent
+   `ProductionExamsTabView` ; le chemin
+   `/tcf/expression-{orale,ecrite}/examens` est **inchangé**, donc les liens
+   profonds aboutissent toujours. L'ancien `?tache=` n'a plus d'objet (on
+   revient en dépilant) et est ignoré.
+
+Les deux onglets rendent leur tête **en tête de leur propre liste** (`top:`
+passé par `ProductionTaskScreen`) : l'`IndexedStack` garde le défilement de
+chacun, et la barre reste atteignable **quel que soit l'état** de la liste —
+sans elle, une erreur de chargement enfermait le candidat dans un onglet.
+
+**Ce qui disparaît, et pourquoi** : le héros chiffré du parcours
+(`ProductionParcoursHero`), la carte « Prochain entraînement »
+(`ProductionNextCard`) et le sélecteur de tâche (`ProductionTaskCards`) — la
+maquette ne les porte pas, et la recommandation vit dans le Plan. C'est aussi ce
+qui retire de cet écran la seule surface qui **nommait** un sujet verrouillé.
+
+⚠️ **Rien n'est déduit sur une carte de tâche** : elle ne porte **pas** de
+pastille d'état, le serveur n'exposant aucun état « de tâche » — l'inventer
+depuis les 8 compétences serait une invention. Un compteur pas encore chargé
+s'écrit **« — »**, jamais « 0 » (idem pour le compteur d'un onglet, qui
+disparaît). Et la contrainte de la carte de consigne est la **vraie**
+(`productionTaskConstraint`, lue sur `production_tasks`) : le sous-titre
+« 30-60 mots » écrit en dur dans `productionTaskMeta` a été **supprimé**.
+
+⚠️ **Coût réseau, assumé et inchangé** : le niveau 1 lit
+`skillsSectionProvider` **et** `productionCatalogProvider` (les deux sont portés
+par l'épreuve, mis en cache, et le niveau 2 les réutilise sans un appel de
+plus). Aucune bascule d'onglet ni de tâche ne coûte un appel.
 
 `ProductionHero` (+ `ProgressTrackOnDark`) est **supprimé** :
 `ProgressTrack(trackColor:)` faisait déjà le travail. `ProgressRing` accepte
@@ -1144,9 +1484,9 @@ maintenant `trackColor` / `textColor` / `subColor` pour se poser sur un fond
 sombre.
 
 **Libellés gelés partagés avec le web** (chaque front en tient une copie écrite
-à la main, un test par couche sur les mêmes chaînes) :
-`productionTaskShortTitle`, `productionTaskConstraint` et
-`productionSubjectTitle` (`widgets/production_common.dart` ⇄ `lib/types.ts`),
+à la main) : `productionTaskConstraint` et `productionSubjectTitle`
+(`widgets/production_common.dart` ⇄ `lib/types.ts`),
+`productionTaskTabLabel` (`production_task_screen.dart`),
 `competenceProgressLabel` (`competences/widgets/competence_card.dart` ⇄
 `lib/skill-progress.ts`).
 
@@ -1175,14 +1515,15 @@ comme le module Compétences avant lui — **c'est la même maquette, donc les m
 briques**. Elles ont été **promues** de `competences/widgets/` vers
 `tcf_production/widgets/` et renommées `Production*` :
 
-- `production_parcours_top.dart` (**2026-08-09**) — `ProductionParcoursHero`,
-  `ProductionParcoursStats`, `ProductionNextCard`, `ProductionTaskCards`,
-  `ProductionLevelBadge`, `ProductionSideLink`, `ProductionExamTrail`
-- `production_mode_tabs.dart` (**2026-08-09**) — `ProductionModuleTab` (l'enum
-  a déménagé ici) + `ProductionModeTabs`
 - `production_blocks.dart` — `ProductionSectionHead`, `ProductionNotice`,
   `ProductionTipline`, `ProductionIndexChip` (48×48 r16), `ProductionChevron`
-  (30×30), `PressableCard` (r23), `DashedBox`
+  (30×30), `PressableCard` (r23), `DashedBox`, plus (**2026-08-21**)
+  `ProductionCountersRow` (pied chiffré partagé par la carte de synthèse et
+  celle d'une tâche — libellé accordé, « — » si la source n'est pas là),
+  `ProductionSideLink` et `ProductionLevelBadge`, recueillis à la suppression de
+  `production_parcours_top.dart`
+- `production_exam_trail.dart` (**2026-08-21**) — `ProductionExamTrail`, sorti du
+  même fichier
 - `production_state_views.dart` — `ProductionErrorView`, `ProductionEmptyView`
 - `production_cards.dart` (**nouveau**) — `ProductionSubjectCard` (`.topic-card` +
   liseré de statut). `ProductionTaskCard` (`.skill-card`, les 3 cartes de tâche du
@@ -1200,25 +1541,22 @@ l'écrit, l'oral n'en diffère que par le pictogramme et par la zone de producti
 (enregistreur au lieu de la saisie). Aucun écran, aucune section, aucun bloc
 supplémentaire d'un côté.
 
-**Navigation du module — `ProductionModeTabs`** (`widgets/production_mode_tabs.dart`,
-depuis le 2026-08-09) : barre segmentée **dans le flux**, sous la carte
-« Prochain entraînement », mode actif en pilule pleine. Trois entrées :
-**Compétences · Sujets · Examens**, portées par `ProductionModuleTab`. Les
-chemins vivent dans `production_nav.dart` ; **une bascule ne navigue plus** — cf.
-« Un seul écran pour les trois modes » plus bas.
-⚠ **Aucune double barre** : les écrans du parcours TCF EE/EO sont déclarés **hors
-du `ShellRoute`** (cf. `app_router.dart`), la bottom nav globale n'y est pas rendue.
+**Navigation du module — `SegmentedTabs`** (depuis le 2026-08-21) : la barre
+segmentée du **niveau 2**, sous la carte de consigne, à **deux** entrées —
+« Compétences · N » et « Sujets d'examen · N » (`productionTaskTabLabel`,
+`production_task_screen.dart`, **libellés gelés à mirrorer sur le web**). Elle
+**ne navigue pas** : les deux corps vivent dans un `IndexedStack`.
+⚠ **Aucune double barre** : les écrans EE/EO sont déclarés **hors du
+`ShellRoute`** (cf. `app_router.dart`), la bottom nav globale n'y est pas rendue.
 
-⚠ **Il n'y a plus rien au-dessus des trois modes.** Le hub d'épreuve est
-supprimé : les trois modes sont des **frères**, donc « retour » depuis l'un
-d'eux veut dire **quitter le parcours**, jamais sauter latéralement sur un
-autre mode. La règle vit à un seul endroit, `leaveProductionParcours`
-(`production_nav.dart`), appelé par le seul `ProductionParcoursScreen` : on
-dépile si on peut, sinon `/reviser`. Ne pas réécrire un `if (canPop)` local,
-et surtout ne pas y remettre `/tcf/{ee,eo}` en repli (ce path redirige vers le
-mode Compétences : le retour deviendrait une boucle).
+⚠ **« Retour » depuis le niveau 1, c'est quitter l'épreuve.** La règle vit à un
+seul endroit, `leaveProductionEpreuve` (`production_nav.dart`), appelé par le
+seul `ProductionTasksScreen` : on dépile si on peut, sinon `/reviser`. Ne pas
+réécrire un `if (canPop)` local, et surtout ne pas y remettre `/tcf/{ee,eo}` en
+repli — c'est l'écran lui-même, le retour deviendrait une boucle. Les niveaux 2
+et Examens, eux, se contentent de dépiler.
 
-### Un seul écran pour les trois modes (passe fluidité 2026-08-06)
+### Un seul écran par niveau (passe fluidité 2026-08-06, revue 2026-08-21)
 
 Constat client : « changer de Compétences / Sujets / Examens, ou de Tâche 1/2/3,
 donne l'impression d'un appel au back et d'un changement d'écran lourd ». Deux
@@ -1226,20 +1564,21 @@ causes, corrigées ensemble.
 
 1. **Chaque mode était une route**, et chaque bascule un `pushReplacement` :
    l'arbre entier était démonté puis reconstruit (défilement perdu, animation de
-   page pour un déplacement latéral). Désormais **`ProductionParcoursScreen`**
-   (`production_parcours_screen.dart`) porte l'en-tête, la barre du module, la
-   tâche courante et le voile d'attente, et rend les trois corps
-   (`CompetencesTabView`, `ProductionSubjectsTabView`, `ProductionExamsTabView`)
-   dans un **`IndexedStack`**. Un mode quitté **reste monté** : filtres, « Voir
-   plus » et position de défilement survivent. Un mode **jamais ouvert n'est pas
-   construit** — on ne paie pas les appels d'un mode que le candidat n'a pas
-   demandé.
-   - Les chemins `/tcf/{ee,eo}/tache/:n{,/competences}` et
-     `/tcf/expression-{orale,ecrite}/examens?tache=N` **restent servis** (liens
-     profonds, retour arrière) : ils construisent tous cet écran avec le bon mode
-     de départ. En revanche **une bascule ne change plus l'URL** — c'est le prix
-     assumé, et c'est ce qui rend le retour arrière exact (une seule route à
-     dépiler = quitter le parcours).
+   page pour un déplacement latéral). Depuis le 2026-08-21 c'est
+   **`ProductionTaskScreen`** (`production_task_screen.dart`) qui porte
+   l'en-tête, la carte de consigne, la barre des **deux** onglets et le voile
+   d'attente, et rend les deux corps (`CompetencesTabView`,
+   `ProductionSubjectsTabView`) dans un **`IndexedStack`**. Un onglet quitté
+   **reste monté** : filtres, « Voir plus » et position de défilement survivent.
+   Un onglet **jamais ouvert n'est pas construit**.
+   - `/tcf/{ee,eo}/tache/:n{,/competences}` **restent servis** (liens profonds,
+     Plan, retour arrière). **Une bascule d'onglet ne change pas l'URL** — c'est
+     ce qui rend le retour arrière exact (une seule route à dépiler = remonter
+     à la liste des tâches). Il n'existe **pas** de chemin pour l'onglet
+     « Sujets d'examen » : on n'y entre que par la barre segmentée.
+   - Les examens blancs ne sont plus un onglet : `ProductionExamsScreen` est
+     une route à part, sur le chemin **inchangé**
+     `/tcf/expression-{orale,ecrite}/examens`.
 2. **Tous les providers étaient `autoDispose`**, donc quitter un mode jetait ses
    données. Le cache est maintenant porté par **l'épreuve**, jamais par la tâche :
    - `skillsSectionProvider` (`competences_providers.dart`) charge les **24
@@ -1259,9 +1598,9 @@ causes, corrigées ensemble.
      `productionCatalogProvider` et `skillsSectionProvider` sont invalidés
      explicitement après une **soumission** ou une **analyse**
      (`competence_prompt_screen`, `competence_result_screen`), au **retour d'un
-     flux poussé** (`ProductionParcoursScreen.didPopNext`, qui ne recharge que la
-     donnée du **mode actif** — un micro-sujet de compétence ne touche pas au
-     catalogue TCF), et au tiré-pour-rafraîchir. Le **quota d'analyses**
+     flux poussé** (`ProductionTaskScreen.didPopNext` pour les deux onglets,
+     `ProductionExamsScreen.didPopNext` pour le catalogue et les bilans), et au
+     tiré-pour-rafraîchir (niveau 1 compris). Le **quota d'analyses**
      (`skillAnalysisQuotaProvider`) et les providers de détail
      (`skillDetailProvider`, `skillPromptProvider`, `skillAttemptProvider`)
      restent **`autoDispose`** : ils portent l'état du candidat sur un sujet
@@ -1272,14 +1611,20 @@ causes, corrigées ensemble.
    - Coût réseau, aller-retour T1 → T2 → T1 : **9 appels → 1** en Compétences,
      **9 → 4** en Sujets (2 d'épreuve + 1 modèle par tâche visitée) ; tour des
      trois modes : **7 → 2 + les bilans**. Verrouillé par
-     `test/production_parcours_caching_test.dart` (faux repositories qui
-     **comptent** les appels + test de widget prouvant que le mode quitté reste
-     monté).
+     ⚠️ Les deux tests qui le verrouillaient
+     (`test/production_parcours_{,caching_}test.dart`) portaient sur l'écran à
+     trois modes : **supprimés** avec lui, et **pas remplacés** — le dépôt
+     n'écrit plus de test front (cf. CLAUDE.md racine § Tests). Le contrat
+     tient par construction : les deux providers sont portés par l'épreuve et
+     `keepAlive`.
 
-**« Exemples » n'est pas un mode** (la barre n'a que trois entrées) : c'est une
-ressource d'appoint, atteinte par un **bouton discret en tête de la liste des
-sujets** (`_ExamplesLink`) qui pousse `TcfTaskExamplesScreen`. Ne pas le
+**« Exemples » n'est pas un onglet** (la barre n'en a que deux) : c'est une
+ressource d'appoint, atteinte par le `ProductionSideLink` posé en tête de la
+liste des sujets d'examen, qui pousse `TcfTaskExamplesScreen`. Ne pas le
 réintroduire dans un toggle.
+🛑 **Et surtout, ne pas reprendre le « Voir un exemple » de la maquette**
+(arbitrage du propriétaire, 2026-08-21) : les cartes de sujet d'examen ne
+déplient aucun exemple sur place — l'écran dédié reste le seul endroit.
 
 1. **Le hub d'épreuve est SUPPRIMÉ** (passe 2026-08-06, demande client : « dès
    qu'on vient du menu Réviser → EO ou EE, on arrive directement sur l'écran comme
@@ -1291,22 +1636,25 @@ réintroduire dans un toggle.
      (`AppRoutes.tcf{Ee,Eo}Entry` = `/tcf/{ee,eo}/tache/1/competences`), le mode
      actif par défaut de la maquette. Utilisée par Réviser
      (`dashboardCategoryRoute`), l'Accueil (bloc IA) et les recommandations.
-   - **`/tcf/ee` et `/tcf/eo` restent des alias en redirect**, pas du code mort :
-     les écrans de résultats, de bilan de session et d'historique s'en servent
-     encore comme « racine de l'épreuve » quand la pile est vide.
-   - Ce que portait le hub : les **examens blancs** sont la 3ᵉ entrée de la barre
-     fixe du bas (`ProductionModuleTab.examens`) ; l'**historique récent** est
-     abandonné (« on l'oublie pour l'instant »), l'historique complet restant
-     atteignable par Profil → Mon entraînement → Mes historiques → EE/EO.
+   - ⚠️ **Révoqué le 2026-08-21** : `/tcf/ee` et `/tcf/eo` ne sont plus des
+     alias en redirect, ce sont les **vrais écrans du niveau 1** (les 3 tâches).
+     Les écrans de résultats, de bilan de session et d'historique continuent de
+     s'en servir comme « racine de l'épreuve » quand la pile est vide — ils y
+     retombent désormais sur un écran réel au lieu d'un saut.
+   - Ce que portait le hub est **revenu** : les **examens blancs** sont un
+     bouton de barre fixe (`ProductionExamsScreen`) et la liste des 3 tâches est
+     l'écran d'entrée. L'**historique récent** reste abandonné, l'historique
+     complet restant atteignable par Profil → Mon entraînement → Mes
+     historiques → EE/EO.
    - `HubData` / `expressionHubProvider` (`expression_hub_data.dart`) **survivent** :
      la page « Examens blancs » les consomme. La progression y reste calculée côté
      client depuis les soumissions **déjà servies** par `listMine` (aucun endpoint
      ajouté) : on repart des `tasks` publiées, donc un sujet retiré du catalogue ne
      gonfle ni le numérateur ni le dénominateur, et un sujet repris deux fois ne
-     compte qu'une fois. Verrouillé par `test/production_parcours_test.dart`.
+     compte qu'une fois.
 
-2. **`ProductionSubjectsTabView`** (`/tcf/{eo,ee}/tache/:n`) — le mode « Sujets » :
-   la tête commune du parcours (cf. § « Structure du parcours »), puis
+2. **`ProductionSubjectsTabView`** — l'onglet « Sujets d'examen » du niveau 2 :
+   la tête de la tâche (consigne + onglets, cf. § « Structure de l'entrée »), puis
    `ExamFilterChips` **Tous / À faire / Traités** avec compteurs,
    `ProductionSectionHead` « Sujets d'entraînement » portant à droite le lien
    discret **« N exemples corrigés »** (`ProductionSideLink`), puis les
@@ -1369,6 +1717,25 @@ résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : u
 décide de l'ordre et de la forme de la correction, **y compris la note**. Le rapport prend un
 `isOral` (et plus un titre de corrections) : c'est lui qui en déduit le wording des exemples
 **et** la limite de l'évaluation orale.
+
+**Production NON ÉVALUABLE — le rapport entier est remplacé (2026-08-21).**
+`EvaluationResultDto.evaluabilite` (`EVALUABLE` | `NON_EVALUABLE`, **jamais null**) est
+mirroré par `ProductionEvaluabilite` (`core/models/enums.dart`, **une seule définition**
+pour la voie standard ET le diagnostic, comme côté serveur) et lu par
+`EvaluationResult.estNonEvaluable`. Une production vide, en langue étrangère ou qui recopie
+la consigne n'appelle **aucun correcteur** : le serveur ne persiste plus ni note, ni niveau,
+ni `scores_criteres` (legacy intact — les anciennes lignes gardent leurs quatre zéros et
+restent `EVALUABLE`). `EvaluationReport` sort alors **avant ses quatre sections** et rend
+`production_non_evaluable_card.dart` + la production du candidat : ni note, ni niveau, ni
+critères, ni plan d'action — et **aucun reproche**, une absence de preuve n'est pas la preuve
+d'un niveau (ambre, jamais rouge). Les raisons affichées viennent du serveur
+(`feedback.confiance_raisons`), on n'en réécrit aucune. Libellés dans
+`production_result_labels.dart`.
+⚠️ **Trois états, jamais deux** : `submission.evaluation == null` = « pas encore évaluée ».
+Les listes le disent aussi — `kTacheNonEvaluableLabel` (« Non analysée ») remplace
+« Évaluée » sur la ligne de bilan, la carte d'historique et la feuille d'un sujet traité.
+`ProductionResultPollGuard` cesse d'attendre un plan d'action qui ne viendra jamais (le
+serveur n'émet aucun second appel sur ce chemin).
 
 **Passe « rapport express » (2026-08-08)** — verdict client : *« le contenu est bon, mais trop
 verbeux, un candidat ne lira pas tout ça »*. **Aucune information n'a été retirée** : ce qui
@@ -1887,6 +2254,69 @@ pastille de numéro **48×48 r16 — une seule forme partout**, chevron 30×30,
 `PressableCard` = ombre douce + enfoncement au toucher, `DashedBox` = la
 bordure pointillée que Flutter n'a pas nativement).
 
+### Passe « coach adaptatif » (2026-08-21) — la fiche et le résultat
+
+Reprise sur les maquettes `MSkill` (fiche d'une compétence) et `WResultat`
+(analyse IA). **Aucune règle produit n'a bougé** : tout ce qui suit est de la
+mise en page, sur des données déjà servies.
+
+**Fiche d'une compétence (`competence_detail_screen.dart`)** — la
+`FixedActionBar` est **supprimée** : l'action vit maintenant dans une carte
+`_NextPromptCard` (« PROCHAIN SUJET RECOMMANDÉ », liseré d'accent, titre du
+sujet, **la raison** — le critère du sujet, ou `kNextPromptReinforceReason`
+quand on le repropose — puis le bouton). Le geste et le sujet qu'il vise se
+lisent enfin au même endroit ; **la logique de désignation est inchangée**
+(`_next` = l'ancien `_primaryAction` + `_fallbackAction`, mêmes libellés
+`kPlanStepStartCta` / `kPlanStepRetryCta`, même déférence au
+`recommendedExercise` du serveur en mode étape, même `kPremiumLockCta` quand
+plus rien n'est ouvert). Étape terminée ⇒ `_StepDoneCard` à la place, qui
+ramène au Plan — toujours **aucun** second parcours de vérification ici.
+- La carte de résumé montre l'**état de maîtrise** (`SkillMasteryTag`) et
+  remplace la barre continue par **`ProgressDots`** (`core/widgets/progress_dots.dart`,
+  la barre à segments `CSujetsDots` : un segment par sujet), avec
+  « X / N sujets travaillés » et « Série terminée ». Les trois compteurs
+  viennent toujours du serveur en mode étape.
+- Les sujets sont **des lignes dans un encart**, plus quinze cartes empilées :
+  `SkillPromptGroup` + `SkillPromptRow` (`widgets/skill_prompt_row.dart`,
+  qui **remplace** `skill_prompt_card.dart`, supprimé — `SkillStatusBadgeRow`
+  avec lui). La **pastille de tête dit l'état par sa forme** (coche / reprise /
+  numéro) : le liseré vertical de 3 px n'existe plus. La ligne du sujet
+  recommandé est légèrement teintée (`highlighted`).
+- `kSkillSeriesNote` ferme la liste : **traité ≠ acquis**, la preuve se fait sur
+  une production complète.
+- 🛑 **Rien n'est flouté dans ce module**, contrairement à la maquette. La règle
+  écrite du freemium Compétences (« rien n'est masqué, tout est annoncé :
+  titre, état, compteurs ») **prime**, et l'arbitrage du 2026-08-21 réserve le
+  flou à **deux** surfaces du Plan en interdisant de l'étendre par symétrie.
+  D'ailleurs la carte « Prochain sujet recommandé » et l'`_ExerciseRow` du Plan
+  nomment déjà ces sujets en clair : flouter ici se ferait démentir un écran
+  plus loin. Le verrou reste dit par **`PremiumLockPill`** en fin de ligne.
+
+**Résultat (`competence_result_screen.dart` + `widgets/skill_level_card.dart`)**
+— `SkillLevelCard` devient le **hero** de `WResultat` : bandeau en dégradé
+(« ANALYSE DE TA PRODUCTION »), **niveau atteint face au niveau visé** en gros,
+badge « Objectif atteint », la phrase de situation, la jauge à trois crans en
+variante claire ; puis une bande blanche portant le verdict du critère et les
+deux étiquettes, et un pied « Estimation d'entraînement, non officielle. ».
+- **Il remplace `_TreatedHeader`** quand une analyse v3 existe : le hero annonce
+  déjà le fait, deux bandeaux pour un seul événement se lisent comme un bug. Le
+  bandeau **reste** sur les autres cas (legacy v1/v2, `RECORDED`, `FAILED`,
+  quota épuisé), où il est la seule annonce.
+- **Rien n'est calculé** : niveau, palier visé, `situationLabel`, échelle et
+  index restent dérivés serveur, l'app ne fait que peindre. **Aucune note /20.**
+- Nouveau bloc de fin, **avant** les deux actions : `kSkillWorkedTitle`
+  « Compétence travaillée » + `_SkillWorkedCard`, qui ramène à la fiche. Tout
+  vient du sujet déjà chargé — **aucun appel de plus**. Un résultat s'ouvre
+  aussi depuis l'historique : sans lui, rien ne disait à quoi il se rattachait.
+- `ActionPlanPending`, le sursis de 15 s, le repli legacy, la production
+  repliée et les références repliables sont **inchangés**.
+
+**Panneau de situation** (`SkillSituationCard`) : il prend la forme du
+mini-sujet de la maquette — fond teinté d'accent, liseré de 3 px à gauche,
+intitulé `SITUATION` en petites capitales. C'est le **texte à traiter**, il ne
+doit pas se lire comme un encart de conseil ; et il coûte une ligne de moins
+au-dessus de la zone de production.
+
 ### L'écran d'un petit sujet — il fait produire, il n'explique pas
 
 Refonte 2026-08-06 (verdict client sur la version précédente : « beaucoup trop
@@ -2010,14 +2440,18 @@ Points de comportement à ne pas défaire :
   façon, c'est elle qui décide si la section existe.
   Verrouillé par `test/competence_result_screen_test.dart` et
   `test/competence_prompt_analysis_test.dart`.
-- **Ordre de l'écran de résultat (contrat v3, commun au web)** : bandeau
-  « Production analysée / Progression mise à jour » → verdict du critère →
-  **carte NIVEAU** → « Pour viser X » → « Une version plus aboutie » → « À retenir »
-  → **`Ta production`, repliée** → références → deux actions (« Sujet suivant »
-  puis « S'entraîner sur ce point », qui refait le sujet courant ; le retour en
-  arrière reste la flèche d'en-tête). La production quitte la vue principale
-  mais **reste à un tap** : à l'oral, se réécouter en lisant le retour fait la
-  moitié de la valeur de l'exercice.
+- **Ordre de l'écran de résultat (contrat v3, commun au web)** : **hero NIVEAU**
+  (`SkillLevelCard` : niveau atteint ⇄ niveau visé, situation, jauge, puis
+  verdict du critère et étiquettes dans sa bande claire) → « Pour passer au
+  niveau X » → « Une version plus aboutie » → « À retenir » →
+  **`Ta production`, repliée** → références → « Compétence travaillée » → deux
+  actions (« Sujet suivant » puis « S'entraîner sur ce point », qui refait le
+  sujet courant ; le retour en arrière reste la flèche d'en-tête). ⚠️ Le bandeau
+  « Production analysée / Progression mise à jour » ne s'affiche **plus** quand
+  le hero est là (il annoncerait deux fois le même fait) — il reste, seul, sur
+  les cas sans analyse v3. La production quitte la vue principale mais **reste à
+  un tap** : la relire à côté du retour fait la moitié de la valeur de
+  l'exercice.
   - **Les trois blocs du plan d'action sont PARTAGÉS** avec le rapport de
     correction EE/EO : ils vivent dans `tcf_production/widgets/action_plan.dart`
     (`ActionPlanLeviers`, `ActionPlanExempleCard`,
@@ -2063,9 +2497,9 @@ Points de comportement à ne pas défaire :
   côté client** depuis `skillDetailProvider` (déjà en cache : l'écran est poussé
   depuis le détail). Aucun endpoint n'a été inventé ; en deep link direct la
   barre disparaît plutôt que d'afficher un chiffre faux.
-- **Le liseré vertical d'une carte de sujet n'existe QUE si le sujet est traité**
-  (3 px, en retrait de 17 px haut et bas) — un liseré gris permanent ne repère
-  plus rien.
+- **Le liseré vertical d'une carte de sujet n'existe plus** : la liste est un
+  encart de lignes, et c'est la **pastille de tête** de `SkillPromptRow` qui
+  repère le statut par sa forme (coche / reprise / numéro).
 - **Couleurs des références** : `Insuffisant` rouge, `Attendu` vert,
   `Très réussi` bleu (`skillReferenceColor`, `skill_references_tabs.dart`).
   Ce n'est **pas** un niveau CECRL : la règle « jamais de rouge sur un niveau »
@@ -2077,12 +2511,15 @@ Points de comportement à ne pas défaire :
   aucune référence ⇒ ni intertitre « Compare avec les niveaux de référence », ni
   widget vide dessous. Il reste pendant le chargement et sur erreur — là, il y a
   bien quelque chose à annoncer.
-- **La validation reste dans un `FixedActionBar`** (§13.10), désormais avec le
-  bouton secondaire « Effacer » à côté.
+- **La validation d'un petit sujet reste dans un `FixedActionBar`** (§13.10),
+  avec le bouton secondaire « Effacer » à côté. ⚠️ **La FICHE d'une compétence,
+  elle, n'en a plus** : son action vit dans `_NextPromptCard` (cf. la passe
+  « coach adaptatif »).
 
 **Routes** (`AppRoutes`, `moduleKey ∈ {ee, eo}`) :
-- `/tcf/:moduleKey/tache/:tacheNumero/competences` → `ProductionParcoursScreen`
-  (mode Compétences ; le corps est `CompetencesTabView`)
+- `/tcf/:moduleKey/tache/:tacheNumero/competences` → `ProductionTaskScreen`
+  (onglet Compétences ; le corps est `CompetencesTabView`). Forme explicite du
+  chemin nu `/tcf/{ee,eo}/tache/:n`, celle que le Plan emprunte.
 - `/tcf/:moduleKey/competences/:skillId` → `CompetenceDetailScreen`
 - `/tcf/:moduleKey/competences/:skillId/sujet/:promptId` → `CompetencePromptScreen`
 - `/tcf/:moduleKey/competences/resultat/:attemptId` → `CompetenceResultScreen`
@@ -2179,9 +2616,10 @@ que sur un examen déjà passé, jamais une seconde feuille pour la même intent
 - **Trois replis, aucun bouton mort** : sujet jamais traité ⇒ production directe, sans
   feuille ; sujet marqué traité **sans** `lastAttemptId` (ligne héritée) ⇒ production
   directe ; sujet verrouillé ⇒ cadenas + `showTcfLockPaywall`, inchangé.
-- 🛑 **La `FixedActionBar` ne passe pas par la feuille** : son libellé annonce déjà ce
-  qui va se passer (« Commencer le prochain sujet » / « Retravailler ce sujet »), une
-  confirmation par-dessus ne confirmerait rien. Idem du CTA d'étape côté web.
+- 🛑 **La carte « Prochain sujet recommandé » ne passe pas par la feuille** : son
+  libellé annonce déjà ce qui va se passer (« Commencer le prochain sujet » /
+  « Retravailler ce sujet »), une confirmation par-dessus ne confirmerait rien. Idem
+  du CTA d'étape côté web.
 
 **Règles UX à ne pas défaire** (spec §13) : la consigne est traduite en gestes **avant** la
 production ; les références n'apparaissent **jamais** avant qu'une tentative existe (garde
@@ -2226,8 +2664,8 @@ l'arbitre final.
   affiché « Tous · 5 = 0 + 2 », et un compteur qui ne totalise pas est pire que le défaut
   qu'on corrigeait. Le verrou reste dit **sur la carte** (cadenas + « Premium ») et **au
   tap** (l'offre) — il n'est pas masqué, il n'est plus un filtre. L'action de la
-  `FixedActionBar` vise toujours un sujet **ouvert**, et devient « Voir l'abonnement
-  Intégral » quand il n'en reste aucun.
+  carte « Prochain sujet recommandé » vise toujours un sujet **ouvert**, et devient
+  « Voir l'abonnement Intégral » quand il n'en reste aucun.
 - **Lien profond sur un sujet verrouillé** : `CompetencePromptScreen` rend
   `_LockedPromptView` — on garde le repère « Sujet i/N » + palier et **rien d'autre** : ni
   consigne, ni situation, ni zone de production, ni barre de validation. Le contenu du sujet

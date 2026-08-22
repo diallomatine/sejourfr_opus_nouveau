@@ -47,7 +47,7 @@ class AttemptExpirationIT extends AbstractIntegrationTest {
     /** Examen civique de thème (20 Q / 20 min), démarré puis reculé dans le passé. */
     private Attempt examenDemarreIlYa(User user, Theme theme, long secondes) {
         var req = new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null,
-                theme.getId(), null, null, null, null, null, 1);
+                theme.getId(), null, null, null, null, null, 1, null);
         UUID id = service.start(user.getId(), req).id();
         Attempt a = attemptManager.findById(id).orElseThrow();
         a.setStartedAt(Instant.now().minusSeconds(secondes));
@@ -132,7 +132,7 @@ class AttemptExpirationIT extends AbstractIntegrationTest {
         data.userSubscription(user, data.plan());
         Theme theme = themeAvecQuestions();
         var req = new StartAttemptRequest(AttemptType.TRAINING, Module.CIVIQUE, null,
-                theme.getId(), null, null, 5, null, null, null);
+                theme.getId(), null, null, 5, null, null, null, null);
         Attempt a = attemptManager.findById(service.start(user.getId(), req).id()).orElseThrow();
         a.setStartedAt(Instant.now().minusSeconds(30L * 24 * 3600));
         attemptManager.save(a);

@@ -6,17 +6,26 @@ import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.LearningPlanSkillDto;
 import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanDomainDto;
+import com.sejourfr.app.dto.PlanRecentChangesDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
+import com.sejourfr.app.dto.PlanSeanceDto;
 import com.sejourfr.app.dto.PlanSkillRefDto;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanState;
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanActionNature;
+import com.sejourfr.app.enums.PlanCycleState;
+import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +35,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -57,6 +67,16 @@ import java.util.UUID;
  * <p><b>Une étape franchie ne disparaît pas du parcours</b> : elle passe de
  * {@code priorities} à {@code completedSteps} et s'affiche cochée, avant l'étape
  * courante. Sortir des priorités, c'est avancer, pas effacer.
+ *
+ * <p><b>Deux blocs se dérivent de tout ce qui précède, sans une requête de
+ * plus.</b> La <b>séance du jour</b> ({@link PlanSeanceBuilder}) republie les
+ * priorités et le jalon sous forme d'entraînements bornés, et ne lit
+ * <b>aucune date</b> — c'est ce qui rend la règle « sticky » gratuite : sans
+ * nouvelle observation, les priorités ne bougent pas, donc la séance non plus.
+ * « <b>Ce qui a changé</b> » ({@link PlanRecentChangesResolver}) fait rejouer le
+ * moteur de maîtrise sur l'historique déjà chargé, arrêté au début d'une
+ * fenêtre puis complet : la différence des deux états <b>est</b> le changement,
+ * et son absence — le cas normal — se dit par un bloc {@code null}.
  */
 @Service
 @RequiredArgsConstructor
@@ -88,17 +108,49 @@ public class LearningPlanService {
     private final SkillProgressCounter progressCounter;
     private final SkillMasteryResolver masteryResolver;
     private final SkillAccessService accessService;
+    private final PlanCycleResolver cycleResolver;
+    private final PlanDomainAssessmentResolver assessmentResolver;
+    private final PlanAcquisitionSelector acquisitionSelector;
+    private final PlanDomainSkillResolver domainSkillResolver;
+    private final PlanSeanceBuilder seanceBuilder;
+    private final PlanRecentChangesResolver recentChangesResolver;
+    private final UserManager userManager;
 
     @Transactional(readOnly = true)
     public LearningPlanDto get(UUID userId) {
+        User user = userManager.findById(userId).orElse(null);
         DiagnosticSession completed = sessionManager.findLatestCompleted(userId).orElse(null);
         if (completed == null) {
             DiagnosticSession inProgress = currentSession(userId);
+            // Le profil et le cycle sont servis MEME SANS DIAGNOSTIC : c'est
+            // exactement l'ecran dont a besoin un candidat qui a fait une serie
+            // de comprehension sans jamais passer le diagnostic (brief §3, §6).
+            // Le diagnostic decide des PRIORITES, pas de la connaissance qu'on a
+            // de ses domaines.
+            PlanCycleResolver.Resolution profil =
+                    cycleResolver.resolve(user, List.of(), List.of());
+            // Les competences de chaque epreuve sont servies AUSSI ici : sans
+            // diagnostic elles sont toutes NOT_OBSERVED, ce qui est exactement
+            // ce que l'ecran doit montrer — un referentiel entier a decouvrir,
+            // pas quatre cartes vides. Seul le verrou est une vraie information,
+            // et il se lit chez son unique autorite.
+            List<PlanDomainDto> domaines = domainSkillResolver.attach(
+                    profil.domaines(), profil.referentiel(),
+                    Map.of(), Map.of(), Map.of(), accessService.resolve(userId, null));
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
-                    List.of(), null, List.of(), List.of(), 0, 0, true, null);
+                    List.of(), null, List.of(), List.of(), 0, 0, true, null,
+                    domaines, profil.cycle(),
+                    // Aucun diagnostic termine : les deux domaines d'expression
+                    // pointent vers le diagnostic, les deux de comprehension vers
+                    // leur examen blanc de module. C'est exactement l'ecran
+                    // d'onboarding du brief §6 — et il n'est jamais vide.
+                    assessmentResolver.resolve(domaines, false),
+                    // Aucune priorite, donc aucune seance et rien qui ait bouge :
+                    // le Plan sert le profil, pas une journee de travail.
+                    new PlanSeanceDto(List.of(), 0), null);
         }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
@@ -138,22 +190,63 @@ public class LearningPlanService {
                 .limit(8)
                 .toList();
 
-        // Priorites, etapes franchies et compétences observées se recouvrent
-        // largement : on les compte ENSEMBLE, en une seule passe (2 requetes quel
-        // que soit le nombre de competences), plutot qu'une requete par carte.
+        // La DERNIERE ACTIVITE de chaque competence, tiree de l'historique DEJA
+        // charge : une passe, zero requete. Elle sert deux fois — la coche de la
+        // seance (un fait, jamais un booleen « fait aujourd'hui ») et, ci-dessous,
+        // « cette competence a-t-elle deja ete travaillee ? », qui decide de ce
+        // qu'il reste a APPRENDRE.
+        Map<UUID, Instant> lastActivity = priorityResolver.lastActivityBySkill(allObservations);
+        // Le CYCLE de palier : d'ou part le candidat, quel palier se construit,
+        // et l'etat des quatre domaines. Il recoit les priorites DEJA ordonnees
+        // — leur absence est ce qui ouvre le gate, et la premiere d'entre elles
+        // designe le domaine « Priorite forte ». Deux lectures de l'ordre des
+        // priorites auraient fini par se contredire a l'ecran.
+        PlanCycleResolver.Resolution profil =
+                cycleResolver.resolve(user, allObservations, actionable);
+        // CE QU'IL RESTE A APPRENDRE. Le Plan savait reparer, il ne savait pas
+        // enseigner : un candidat sans fragilite mais a un palier entier de son
+        // objectif n'avait rien a faire. Ces competences ne sont PAS des
+        // observations — elles n'entrent ni dans le moteur de maitrise, ni dans
+        // une moyenne, ni dans un compte de fragilites — et elles ne remplissent
+        // rien : le selecteur ne rend que des competences du palier en
+        // construction reellement jamais travaillees, donc zero quand il n'y en
+        // a pas.
+        List<Skill> acquisitions = acquisitionSelector.select(
+                profil.cycle(), profil.domaines(), lastActivity.keySet(),
+                LearningPlanPriorityResolver.MAX_PRIORITIES - actionable.size());
+
+        // Priorites, competences a acquerir, etapes franchies et compétences
+        // observées se recouvrent largement : on les compte ENSEMBLE, en une
+        // seule passe (2 requetes quel que soit le nombre de competences),
+        // plutot qu'une requete par carte.
         Set<UUID> skillIds = new LinkedHashSet<>();
         actionable.forEach(item -> skillIds.add(item.getSkill().getId()));
+        acquisitions.forEach(skill -> skillIds.add(skill.getId()));
         franchies.forEach(item -> skillIds.add(item.getSkill().getId()));
         observedItems.forEach(item -> skillIds.add(item.getSkill().getId()));
         // Résolu ici et transmis aux sélecteurs : le Plan pose « locked » sur
         // les priorités, les compétences observées ET l'exercice recommandé.
         // Ça ne se calcule qu'une fois par appel.
-        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        //
+        // La PREMIERE PLACE lui est passee, pas redemandee : le Plan vient de
+        // l'etablir (premiere fragilite, a defaut premiere acquisition), et
+        // c'est elle que le freemium ouvre. La faire recalculer par le service
+        // d'acces ferait tourner le cycle de palier une seconde fois dans la
+        // meme lecture — et rendrait le cout du Plan dependant du nombre de
+        // fragilites du candidat, ce que ses deux tests de cout interdisent.
+        SkillAccessService.SkillAccess access = accessService.resolve(
+                userId, PlanFocusResolver.focus(actionable, acquisitions).orElse(null));
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
-        Map<UUID, PlanRecommendedExerciseDto> exercises = exerciseSelector.selectAll(
-                userId, actionable.stream().map(LearningPlanObservation::getSkill).toList(),
-                access);
+        // Un seul lot pour les deux natures : une competence a acquerir se
+        // travaille par le meme micro-sujet (ou la meme serie ciblee) qu'une
+        // competence fragile. L'autorite ne change pas, seule la raison d'etre
+        // la change — et deux appels auraient double les deux requetes.
+        List<Skill> aExercer = new ArrayList<>(
+                actionable.stream().map(LearningPlanObservation::getSkill).toList());
+        aExercer.addAll(acquisitions);
+        Map<UUID, PlanRecommendedExerciseDto> exercises =
+                exerciseSelector.selectAll(userId, aExercer, access);
 
         // BASCULE DE L'ETAPE : quand le moteur juge la competence prete a etre
         // verifiee ET que l'etape est TERMINEE, la meme carte cesse de proposer
@@ -188,13 +281,24 @@ public class LearningPlanService {
         Map<UUID, PlanRecommendedExerciseDto> verifications =
                 toVerify.isEmpty() ? Map.of() : reassessmentSelector.selectAll(userId, toVerify);
 
-        List<LearningPlanPriorityDto> priorities = actionable.stream()
-                .map(item -> priority(item,
-                        nextExercise(item, readyToVerify, exercises, verifications),
-                        progress(progress, item), mastery(mastery, item),
-                        Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())),
-                        access.isSkillLocked(item.getSkill().getId())))
-                .toList();
+        List<LearningPlanPriorityDto> priorities = new ArrayList<>();
+        actionable.forEach(item -> priorities.add(priority(item,
+                nextExercise(item, readyToVerify, exercises, verifications),
+                progress(progress, item), mastery(mastery, item),
+                Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())),
+                access.isSkillLocked(item.getSkill().getId()))));
+        // Les competences a acquerir viennent APRES les fragilites : on repare
+        // ce qui bloque avant d'apprendre ce qui vient. Sans exercice publie,
+        // une acquisition n'a rien a proposer et n'entre pas — jamais une carte
+        // sans action.
+        for (Skill skill : acquisitions) {
+            PlanRecommendedExerciseDto exercise = exercises.get(skill.getId());
+            if (exercise == null) continue;
+            priorities.add(acquisition(skill, exercise,
+                    progress.getOrDefault(skill.getId(),
+                            SkillProgressCounter.SkillProgress.EMPTY),
+                    access.isSkillLocked(skill.getId())));
+        }
 
         List<LearningPlanSkillDto> observed = observedItems.stream()
                 .map(item -> {
@@ -218,14 +322,82 @@ public class LearningPlanService {
         // Le JALON vit a cote des priorites, il ne les remplace pas : les etapes
         // continuent de porter leur propre exercice. Absent tant qu'aucune
         // epreuve n'a majoritairement transfere — cas normal, pas une erreur.
+        // Le gate de palier lui est passe, jamais servi a cote : c'est le meme
+        // examen blanc complet, et il n'a qu'un seul designateur.
         PlanRecommendedExerciseDto milestone = milestoneSelector.select(
-                userId, latest.values(), mastery, allObservations, Instant.now()).orElse(null);
+                userId, latest.values(), mastery, allObservations,
+                profil.cycle().state() == PlanCycleState.READY_FOR_GATE_MOCK,
+                Instant.now()).orElse(null);
+        // 🛑 PROFIL INCOMPLET : PAS D'EXAMEN DE PALIER (brief §77). Le gate du
+        // cycle exige deja les 4/4 (PlanCycleResolver), mais l'ECHELLE des
+        // jalons, elle, ne connait pas le profil : un candidat dont l'ecrit et
+        // l'oral ont transfere et fait leurs preuves se voyait proposer l'examen
+        // blanc COMPLET alors que sa comprehension n'avait jamais ete mesuree —
+        // exactement le cas que le brief nomme (« EE solide, EO solide, CO non
+        // evaluee, CE non evaluee »). On ne confirme pas un palier sur deux
+        // domaines sur quatre : le Plan met d'abord en avant « Completer mon
+        // profil » (domainesAEvaluer, juste au-dessus), puis recalcule.
+        //
+        // Le jalon d'EPREUVE (EE ou EO) reste servi : ce n'est pas un controle
+        // de palier, c'est la mesure d'une seule epreuve, et rien n'oblige a
+        // connaitre les quatre domaines pour la passer.
+        if (!profil.cycle().profileComplete()
+                && milestone != null
+                && milestone.kind() == PlanExerciseKind.FULL_TCF_MOCK_EXAM) {
+            milestone = null;
+        }
+        // LA SEANCE est une VUE de ce qui precede : elle ne choisit aucun
+        // exercice, elle ordonne et borne ceux que les trois autorites ont deja
+        // designes, et recalcule le total de minutes. Aucune date n'y entre —
+        // c'est ce qui rend la stickiness gratuite : sans nouvelle observation,
+        // les priorites ne bougent pas, donc la seance non plus.
+        Map<UUID, Skill> skillsDesPriorites = new LinkedHashMap<>();
+        actionable.forEach(item -> skillsDesPriorites.put(
+                item.getSkill().getId(), item.getSkill()));
+        acquisitions.forEach(skill -> skillsDesPriorites.put(skill.getId(), skill));
+        // LA MESURE INDISPENSABLE ouvre la seance : le candidat a produit sur ce
+        // domaine et le correcteur n'a rien pu y observer. Tant qu'on ne l'a pas
+        // mesure, les exercices qui suivent travaillent a l'aveugle. C'est le
+        // second sens de NOT_OBSERVED — « la production etait inutilisable »,
+        // a ne pas confondre avec « ce palier n'a pas encore ete aborde », qui
+        // se traite par une acquisition. Zero requete, meme resolution que
+        // « Completer mon profil ».
+        PlanDomainAssessmentDto mesure = assessmentResolver
+                .indispensable(profil.domaines(), allObservations, true)
+                .orElse(null);
+        PlanSeanceDto seance = seanceBuilder.build(mesure, priorities, skillsDesPriorites,
+                lastActivity, milestone);
+        // CE QUI A CHANGE : le meme moteur, joue deux fois sur l'historique deja
+        // charge — aucune requete, aucune regle recopiee. La priorite n°1 lui est
+        // passee telle que le resolveur l'a designee : ce bloc ne peut donc pas
+        // nommer une autre etape que celle affichee juste au-dessus.
+        PlanRecentChangesDto changes = recentChangesResolver.resolve(
+                allObservations, mastery,
+                actionable.isEmpty() ? null : actionable.getFirst(), Instant.now())
+                .orElse(null);
+        // LES COMPETENCES DE CHAQUE EPREUVE : la meme verite que les cartes
+        // ci-dessus, rangee par domaine. La NATURE vient des cartes elles-memes
+        // — la recalculer aurait fini par dire « a acquerir » ici et « a
+        // renforcer » la. Une competence absente de cette table n'a aucune
+        // nature : le Plan ne demande rien dessus, et on ne fabrique pas une
+        // action pour remplir une colonne.
+        Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
+        priorities.forEach(carte -> natures.put(carte.skillId(), carte.nature()));
+        List<PlanDomainDto> domaines = domainSkillResolver.attach(
+                profil.domaines(), profil.referentiel(), latest, mastery, natures, access);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
-                observed, observedCount, activities, true, milestone);
+                observed, observedCount, activities, true, milestone,
+                domaines, profil.cycle(),
+                // « Completer mon profil » survit au diagnostic : un candidat
+                // evalue en EE/EO garde CO et CE a mesurer, et la session
+                // terminee ne se rejoue pas — ces domaines-la, s'ils manquaient
+                // encore, retomberaient sur une production.
+                assessmentResolver.resolve(domaines, true),
+                seance, changes);
     }
 
     /**
@@ -327,12 +499,47 @@ public class LearningPlanService {
         return new LearningPlanPriorityDto(
                 observation.getSkill().getId(), observation.getSkill().getCode(),
                 observation.getSkill().getTitle(), observation.getSkill().getSection(),
+                // Une etape qui bascule en verification le DIT : c'est la meme
+                // carte, au meme endroit, avec une autre action — et c'est cette
+                // nature que les fronts lisent, jamais la nullite d'un champ.
+                readyForReassessment ? PlanActionNature.A_VERIFIER
+                        : PlanActionNature.A_RENFORCER,
                 observation.getStatus(), observation.getExplanation(), observation.getEvidence(),
                 observation.getConfidence(), observation.getObservedAt(), exercise,
                 counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
                 mastery.state(), readyForReassessment, locked);
+    }
+
+    /**
+     * Une competence <b>a acquerir</b> : la meme carte qu'une priorite, sans rien
+     * d'observe.
+     *
+     * <p>🛑 {@code status}, {@code explanation}, {@code evidence},
+     * {@code confidence}, {@code observedAt} et {@code masteryState} valent
+     * <b>{@code null}</b>, et c'est le fait meme : rien n'a ete constate sur
+     * cette competence, donc rien n'a echoue. On n'invente pas un verdict pour
+     * remplir un champ — <i>null = inconnu, jamais mauvais</i>. Les compteurs
+     * d'etape valent 0, ce qui est exact.
+     *
+     * <p>{@code readyForReassessment} vaut {@code false} : on ne verifie pas ce
+     * qui n'a jamais ete travaille.
+     */
+    private static LearningPlanPriorityDto acquisition(
+            Skill skill,
+            PlanRecommendedExerciseDto exercise,
+            SkillProgressCounter.SkillProgress counts,
+            boolean locked) {
+        LearningPlanStep.Progress step = counts.step();
+        return new LearningPlanPriorityDto(
+                skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
+                PlanActionNature.A_ACQUERIR,
+                null, null, null, null, null, exercise,
+                counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
+                step.promptCount(), step.attemptedCount(), step.validatedCount(),
+                step.completed(), step.promptIds(),
+                null, false, locked);
     }
 
     /**

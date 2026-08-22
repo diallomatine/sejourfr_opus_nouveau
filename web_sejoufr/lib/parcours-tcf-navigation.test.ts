@@ -14,11 +14,7 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {createDataCache, type DataCache} from "./data-cache.ts";
-import {
-  productionSubjectTitle,
-  productionTaskConstraint,
-  productionTaskShortTitle,
-} from "./types.ts";
+import {productionSubjectTitle, productionTaskConstraint} from "./types.ts";
 import {
   examDrafts,
   latestSubmissionByTask,
@@ -266,31 +262,18 @@ describe("parcours TCF EE/EO — aucun appel réseau redondant", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Libellés du sélecteur de tâche — CONTRAT GELÉ, miroir mot pour mot du mobile
-// (`productionTaskShortTitle` / `productionTaskConstraint`,
+// Contrainte de tâche — CONTRAT GELÉ, miroir mot pour mot du mobile
+// (`productionTaskConstraint`,
 // `screens/tcf_production/widgets/production_common.dart`). Ces chaînes ne
 // transitent pas par le réseau : chaque front en tient une copie écrite à la
 // main, donc rien n'empêche une couche de dériver — sauf ce test, écrit des
 // deux côtés sur exactement les mêmes chaînes.
+//
+// ⚠️ `productionTaskShortTitle` a été SUPPRIMÉ des deux fronts : son unique
+// appelant était le sélecteur de tâche à trois cartes (`TaskCards`), lui-même
+// retiré quand le parcours est passé en deux niveaux. Un libellé gelé sans
+// écran qui l'affiche n'est plus un contrat, c'est du contenu mort.
 // ---------------------------------------------------------------------------
-
-describe("productionTaskShortTitle — intitulés courts du sélecteur de tâche", () => {
-  it("expression écrite : Message · Récit · Opinion", () => {
-    assert.equal(productionTaskShortTitle("TCF_EE", 1), "Message");
-    assert.equal(productionTaskShortTitle("TCF_EE", 2), "Récit");
-    assert.equal(productionTaskShortTitle("TCF_EE", 3), "Opinion");
-  });
-
-  it("expression orale : Entretien dirigé · Jeu de rôle · Opinion", () => {
-    assert.equal(productionTaskShortTitle("TCF_EO", 1), "Entretien dirigé");
-    assert.equal(productionTaskShortTitle("TCF_EO", 2), "Jeu de rôle");
-    assert.equal(productionTaskShortTitle("TCF_EO", 3), "Opinion");
-  });
-
-  it("un numéro hors référentiel ne fabrique pas d'intitulé", () => {
-    assert.equal(productionTaskShortTitle("TCF_EE", 7), "Tâche 7");
-  });
-});
 
 describe("productionTaskConstraint — jamais une borne inventée", () => {
   it("à l'écrit : les bornes servies par l'API, telles quelles", () => {

@@ -18,14 +18,21 @@ import jakarta.validation.constraints.Size;
  * ferait echouer l'insertion sur une violation de contrainte, en 500 ; on la
  * refuse ici, en 400, en nommant le champ.
  *
- * <p>{@link #section} est facultative : elle se deduit de {@link #taskCode}
- * (« EE1 » vit dans « EE »). Fournie, elle doit concorder — le serveur refuse
- * plutot que d'ignorer silencieusement une valeur client contradictoire.
+ * <p><b>{@link #section} et {@link #taskCode} sont facultatifs
+ * individuellement, jamais ensemble.</b> Pour une competence d'EXPRESSION, la
+ * tache suffit : la section s'en deduit (« EE1 » vit dans « EE »), et fournie
+ * elle doit concorder — le serveur refuse plutot que d'ignorer silencieusement
+ * une valeur client contradictoire. Pour une competence de COMPREHENSION, il
+ * n'existe aucune tache : c'est la section (CO ou CE) qui est fournie, seule.
  */
 public record AdminSkillCreateRequest(
         SkillSection section,
 
-        @NotNull(message = "La tâche est obligatoire.")
+        /**
+         * La tache d'appartenance, <b>omise pour une competence de
+         * comprehension</b> — celles-ci n'appartiennent a aucune des 6 taches
+         * officielles. Le couple (section, taskCode) est arbitre par le service.
+         */
         SkillTaskCode taskCode,
 
         @NotBlank(message = "Le code éditorial est obligatoire.")

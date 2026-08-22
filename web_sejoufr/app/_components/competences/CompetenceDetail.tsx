@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useRef, useState} from "react";
-import {ArrowRight, Check, Info, Lock, Sparkles} from "lucide-react";
+import {ArrowRight, Check, Info, Lock, RefreshCw, Sparkles, Zap} from "lucide-react";
 import {learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
@@ -25,7 +25,6 @@ import {
   withPlanStep,
 } from "@/lib/plan-step";
 import {skillDetailKey} from "@/lib/skill-catalog";
-import {progressPercent} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
   SKILL_DIFFICULTY_LABEL,
@@ -38,21 +37,41 @@ import {type ProductionConfig} from "@/app/_components/production/config";
 import {ConfirmSheet} from "@/app/_components/hub/ConfirmSheet";
 import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {CompetenceStatusBadge, promptCardToneClass} from "./CompetenceStatusBadge";
+import {CompetenceStatusBadge} from "./CompetenceStatusBadge";
 import {
-  MiniBar,
   RowChevron,
   SectionHead,
   SKILL_PREMIUM_CTA,
   SKILL_PROMPT_REDO_CTA,
   skillPromptLastAttemptCta,
   SkillLockBadge,
+  SkillMasteryPill,
   SkillNotice,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
 type Filter = "all" | "todo" | "done";
+
+/** Surtitre de la carte qui met en avant le sujet à faire maintenant. Miroir
+ *  mot pour mot de `kNextPromptEyebrow` côté mobile. */
+const NEXT_PROMPT_EYEBROW = "Prochain sujet recommandé";
+
+/** Ce qu'on dit d'un sujet qu'on **repropose**. Formulation positive, règle
+ *  gelée du dépôt : on nomme ce que la reprise apporte, jamais un manque — et
+ *  on n'affirme aucun nombre de passages, un sujet pouvant être repris
+ *  plusieurs fois. Miroir mot pour mot de `kNextPromptReinforceReason`. */
+const NEXT_PROMPT_REINFORCE_REASON =
+  "Déjà traité : le reprendre consolide ce qui restait fragile.";
+
+/** Le rappel de pied de liste. « Tout traité » n'est pas « acquis » : la preuve
+ *  se fait en situation, sur une production complète, et c'est le Plan qui la
+ *  déclenche. Sans cette ligne, une série au complet se lit comme une
+ *  compétence maîtrisée. Miroir mot pour mot de `kSkillSeriesNote`. */
+const SKILL_SERIES_NOTE =
+  "Avoir traité tous les sujets ne veut pas dire que la compétence est " +
+  "acquise : elle se confirme sur une production complète, que ton plan te " +
+  "proposera.";
 
 /** Date courte d'une dernière tentative (« 4 août »). */
 function shortDate(iso: string): string {
@@ -87,11 +106,25 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
 
   const base = `${config.base}/tache/${n}/competences`;
-  // Le Plan est relu **en cache** : venir de lui, c'est l'avoir déjà chargé.
-  // Rien n'est demandé au serveur pour afficher une compétence.
-  const step = isPlanStep(searchParams)
-    ? planStepFor(learningPlanApi.peekCached(), skillId)
-    : null;
+  /* Le marqueur d'URL dit « on arrive du Plan » — et il survit à tout, y
+     compris à un rechargement. Le Plan, lui, vit en mémoire : le lire au
+     `peek` seul faisait retomber l'écran sur la fiche des 15 sujets au premier
+     F5, sans pilule d'étape, avec un retour qui renvoyait dans
+     `/entrainement`. On le branche donc sur le cache : déjà chargé ⇒ peint
+     tout de suite, sans un appel ; cache froid ⇒ **un** appel, et seulement
+     dans ce cas. */
+  const fromPlan = isPlanStep(searchParams);
+  const planQuery = useCachedData(
+    fromPlan && status === "authenticated" ? learningPlanApi.cacheKey : null,
+    () => learningPlanApi.getCached(),
+    {errorMessage: "Impossible de charger votre plan."},
+  );
+  const step = fromPlan ? planStepFor(planQuery.data, skillId) : null;
+  /* Tant que le Plan n'est pas revenu, on ne sait pas encore si l'écran est
+     celui d'une étape : afficher la fiche complète en attendant la ferait
+     passer de 15 sujets à 5 sous les yeux du candidat. On garde le
+     squelette — il est déjà là pour la compétence elle-même. */
+  const planPending = fromPlan && planQuery.data === undefined && planQuery.error === null;
 
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
@@ -113,7 +146,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
     {errorMessage: "Impossible de charger cette compétence."},
   );
   const data = detailQuery.data;
-  const loading = detailQuery.loading;
+  const loading = detailQuery.loading || planPending;
   const error = detailQuery.error;
 
   if (status === "loading") return <div className={ds.gate} />;
@@ -171,7 +204,6 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
      liste — seule la largeur de la barre se dérive de ces deux nombres. */
   const attempted = scoped ? step.stepAttemptedCount : treated.length;
   const total = scoped ? step.stepPromptCount : prompts.length;
-  const pct = progressPercent(attempted, total);
   /* Le lien d'appoint de l'intertitre vise le premier sujet **ouvrable** :
      « À faire » compte désormais les verrouillés, mais proposer d'en commencer
      un mènerait à l'offre, pas à un exercice. */
@@ -199,8 +231,15 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell
-        backHref={scoped ? "/plan" : base}
-        backLabel={scoped ? PLAN_STEP_BACK_LABEL : "Compétences"}
+        /* 🛑 Le retour suit la PROVENANCE, la liste suit la PORTÉE — deux
+           questions distinctes qu'un seul booléen confondait. Une compétence
+           simplement **observée** (ni priorité, ni étape franchie) n'a pas
+           d'étape : `scoped` est faux, et le retour partait alors dans
+           `/entrainement` alors que le candidat venait de cliquer dessus dans
+           son Plan. La portée, elle, reste honnête : sans étape, on montre bien
+           les 15 sujets. */
+        backHref={fromPlan ? "/plan" : base}
+        backLabel={fromPlan ? PLAN_STEP_BACK_LABEL : "Compétences"}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -210,42 +249,79 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
           <p className={s.empty}>Compétence introuvable.</p>
         ) : (
           <>
-            <section className={`${s.card} ${s.summary}`}>
-              <div className={s.summaryTop}>
-                <span className={s.tile} aria-hidden>
-                  <Sparkles size={22} strokeWidth={2.2} />
-                </span>
-                {/* Pas de pastille de niveau ici (parité mobile) : le palier
-                    est celui de toute la tâche, il est déjà porté par le hero
-                    de la liste des compétences et par l'écran d'un sujet. */}
-                <div className={s.summaryBody}>
-                  {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
-                      fiche complète tout en n'en montrant qu'une partie. */}
-                  {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
-                  <h1 className={s.summaryTitle}>{skill.title}</h1>
-                </div>
-                {skill.description && (
-                  <button
-                    type="button"
-                    ref={infoButtonRef}
-                    className={s.infoBtn}
-                    aria-label="À quoi sert cette compétence ?"
-                    aria-haspopup="dialog"
-                    onClick={() => setInfoOpen(true)}
-                  >
-                    <span className={s.infoDot} aria-hidden>
-                      <Info size={15} strokeWidth={2.4} />
+            {/* En-tête de la maquette : filet d'accent, lavis dégradé, pastille,
+                sur-titre, titre — puis le critère travaillé et les points
+                d'avancement. Il ne réutilise **pas** `.summary`, qui sert les
+                modèles corrigés et ne bouge pas. */}
+            <section className={s.skillHead}>
+              <span className={s.skillHeadRule} aria-hidden />
+              <div className={s.skillHeadInner}>
+                <div className={s.skillHeadTop}>
+                  <span className={s.tile} aria-hidden>
+                    <Sparkles size={22} strokeWidth={2.2} />
+                  </span>
+                  {/* Pas de pastille de niveau ici (parité mobile) : le palier
+                      est celui de toute la tâche, il est déjà porté par le hero
+                      de la liste des compétences et par l'écran d'un sujet. */}
+                  <div className={s.skillHeadBody}>
+                    {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
+                        fiche complète tout en n'en montrant qu'une partie. */}
+                    {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
+                    <span className={s.skillHeadEyebrow}>
+                      {config.label} · Tâche {n}
                     </span>
-                  </button>
+                    <h1 className={s.skillHeadTitle}>{skill.title}</h1>
+                  </div>
+                  {skill.description && (
+                    <button
+                      type="button"
+                      ref={infoButtonRef}
+                      className={s.infoBtn}
+                      aria-label="À quoi sert cette compétence ?"
+                      aria-haspopup="dialog"
+                      onClick={() => setInfoOpen(true)}
+                    >
+                      <span className={s.infoDot} aria-hidden>
+                        <Info size={15} strokeWidth={2.4} />
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                <div className={s.critBox}>
+                  <span className={s.critLabel}>Critère travaillé</span>
+                  <p className={s.critText}>{skill.generalCriterion}</p>
+                </div>
+
+                {/* Les points d'avancement de la maquette remplacent la barre
+                    fine : un segment par sujet du périmètre affiché (5 en mode
+                    étape, 15 sur la fiche complète). Les deux nombres viennent
+                    d'au-dessus — en mode étape, ce sont **ceux du serveur**. */}
+                {total > 0 && (
+                  <div className={s.skillHeadProgress}>
+                    <span className={s.skillHeadCount}>
+                      {attempted} / {total} sujets traités
+                    </span>
+                    <span
+                      className={s.dots}
+                      role="img"
+                      aria-label={`${attempted} sujets traités sur ${total}`}
+                    >
+                      {Array.from({length: total}, (_, i) => (
+                        <span
+                          key={i}
+                          className={`${s.dot} ${i < attempted ? s.dotOn : ""}`}
+                        />
+                      ))}
+                    </span>
+                    {/* L'état de maîtrise, s'il existe : c'est la réponse à
+                        « où j'en suis sur cette compétence », dérivée serveur.
+                        `null` (aucune observation) ⇒ rien — on n'invente pas
+                        un état. */}
+                    {skill.masteryState && <SkillMasteryPill state={skill.masteryState} />}
+                  </div>
                 )}
               </div>
-
-              <div className={s.critBox}>
-                <span className={s.critLabel}>Critère travaillé</span>
-                <p className={s.critText}>{skill.generalCriterion}</p>
-              </div>
-
-              <MiniBar attempted={attempted} total={total} percent={pct} />
             </section>
 
             {/* Étape finie : on ne fabrique **aucun** second parcours de
@@ -260,31 +336,53 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
               </SkillNotice>
             )}
 
-            {/* L'action de l'étape : on démarre le sujet **désigné par le
-                serveur**. Le libellé dit ce qui va se passer — commencer un
-                sujet neuf et revenir sur un sujet déjà rendu ne se disent pas
-                pareil —, et c'est le statut servi du sujet qui tranche. */}
+            {/* L'action de l'étape, dans la carte d'appel de la maquette : on
+                démarre le sujet **désigné par le serveur**, et on le nomme —
+                l'ancien bouton nu ne disait pas sur quoi il ouvrait. Le libellé
+                dit ce qui va se passer — commencer un sujet neuf et revenir sur
+                un sujet déjà rendu ne se disent pas pareil —, et c'est le statut
+                servi du sujet qui tranche.
+
+                ⚠️ Un sujet **verrouillé reste désigné** (règle serveur) : on
+                affiche son titre et l'offre, on ne détourne jamais vers un autre
+                sujet qui ne serait plus la priorité mesurée. */}
             {target && (
-              <button
-                type="button"
-                className={`${s.primary} ${s.stepCta}`}
-                onClick={
-                  targetLocked
-                    ? () => setPaywallOpen(true)
-                    : () => router.push(promptHref(target.id))
-                }
-              >
-                {targetLocked ? (
-                  <>
-                    <Lock size={16} aria-hidden /> {SKILL_PREMIUM_CTA}
-                  </>
-                ) : (
-                  <>
-                    {target.status === "TODO" ? PLAN_STEP_START_CTA : PLAN_STEP_RETRY_CTA}{" "}
-                    <ArrowRight size={16} aria-hidden />
-                  </>
-                )}
-              </button>
+              <section className={s.recoCard}>
+                <div className={s.recoInner}>
+                  <span className={s.recoEyebrow}>
+                    <Zap size={13} strokeWidth={2.4} aria-hidden />
+                    {NEXT_PROMPT_EYEBROW}
+                  </span>
+                  <h2 className={s.recoTitle}>{target.title}</h2>
+                  <p className={s.recoText}>
+                    {targetLocked
+                      ? "Ce sujet fait partie de l'abonnement Intégral. Il reste celui que ton plan a désigné."
+                      : target.status === "TODO"
+                        ? "Nouveau sujet sur cette compétence."
+                        : NEXT_PROMPT_REINFORCE_REASON}
+                  </p>
+                  <button
+                    type="button"
+                    className={`${s.primary} ${s.stepCta} ${s.recoAction}`}
+                    onClick={
+                      targetLocked
+                        ? () => setPaywallOpen(true)
+                        : () => router.push(promptHref(target.id))
+                    }
+                  >
+                    {targetLocked ? (
+                      <>
+                        <Lock size={16} aria-hidden /> {SKILL_PREMIUM_CTA}
+                      </>
+                    ) : (
+                      <>
+                        {target.status === "TODO" ? PLAN_STEP_START_CTA : PLAN_STEP_RETRY_CTA}{" "}
+                        <ArrowRight size={16} aria-hidden />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </section>
             )}
 
             <SectionHead
@@ -329,14 +427,27 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   : "Tous les sujets ont été traités."}
               </p>
             ) : (
-              <div className={s.list}>
+              /* Un seul cadre, des filets entre les lignes — la liste de la
+                 maquette. Quinze cartes autonomes empilées faisaient quinze
+                 blocs à parcourir ; groupées, elles se lisent d'un trait. */
+              <div className={s.groupCard}>
                 {shown.map((p) => (
-                  <PromptCard key={p.id} prompt={p} onOpen={() => openPrompt(p)} />
+                  <PromptRow
+                    key={p.id}
+                    prompt={p}
+                    recommended={target?.id === p.id}
+                    onOpen={() => openPrompt(p)}
+                  />
                 ))}
               </div>
             )}
 
-            {scoped ? (
+            {/* Traité ≠ acquis : sans cette ligne, une série au complet se lit
+                comme une compétence maîtrisée. La preuve se fait en situation,
+                sur une production complète, et c'est le Plan qui la déclenche. */}
+            <p className={s.seriesNote}>{SKILL_SERIES_NOTE}</p>
+
+            {fromPlan ? (
               <Link href="/plan" className={s.footLink}>
                 ← {PLAN_STEP_LINK}
               </Link>
@@ -404,37 +515,73 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   );
 }
 
-/** Un sujet verrouillé garde son titre, son rang et son historique : ce qui
- *  change, c'est la pastille (cadenas), la mention « Premium » et la
- *  destination du clic. Le verrou est celui du serveur. */
-function PromptCard({prompt, onOpen}: {prompt: SkillPromptSummaryDto; onOpen: () => void}) {
+/**
+ * Une ligne de petit sujet dans la liste groupée.
+ *
+ * Un sujet **verrouillé garde son titre, son rang et son historique** : ce qui
+ * change, c'est la pastille (cadenas), la mention « Premium » et la destination
+ * du clic. Le verrou est celui du serveur, et il n'est **pas** flouté — masquer
+ * le sujet reviendrait à cacher au candidat ce qu'il y a à travailler, c'est
+ * l'inverse de ce qu'on lui vend ; et son titre est de toute façon rendu en
+ * clair par l'écran du sujet lui-même.
+ *
+ * L'état se lit à trois endroits qui disent la même chose sans se contredire :
+ * la pastille de gauche (icône), le badge de statut (couleur + libellé gelé) et,
+ * pour un sujet à faire, le badge repris à droite. Le liseré vertical de la
+ * carte autonome disparaît avec elle — dans une liste groupée il aurait strié
+ * chaque ligne sans rien ajouter à ces trois signaux.
+ */
+function PromptRow({
+  prompt,
+  recommended,
+  onOpen,
+}: {
+  prompt: SkillPromptSummaryDto;
+  /** Le sujet que le serveur a désigné pour l'étape : fond tenu, jamais une
+   *  couleur de texte — le titre doit rester lisible à l'identique. */
+  recommended: boolean;
+  onOpen: () => void;
+}) {
   const done = prompt.status !== "TODO";
   const locked = prompt.locked;
+
   return (
     <button
       type="button"
-      className={`${s.card} ${s.rowCard} ${promptCardToneClass(prompt.status)}`}
+      className={`${s.groupRow} ${recommended ? s.groupRowOn : ""}`}
       onClick={onOpen}
     >
       <span
-        className={`${s.tile} ${locked ? s.tileLocked : done ? s.tileDone : ""}`}
+        className={`${s.groupNum} ${
+          locked
+            ? ""
+            : prompt.status === "VALIDATED"
+              ? s.groupNumDone
+              : done
+                ? s.groupNumRedo
+                : ""
+        }`}
         aria-hidden
       >
         {locked ? (
-          <Lock size={20} />
-        ) : done ? (
-          <Check size={22} strokeWidth={2.8} />
+          <Lock size={14} />
+        ) : prompt.status === "VALIDATED" ? (
+          <Check size={15} strokeWidth={3} />
+        ) : prompt.status === "TO_REINFORCE" ? (
+          <RefreshCw size={13} strokeWidth={2.4} />
+        ) : prompt.status === "TREATED" ? (
+          <Check size={15} strokeWidth={2.4} />
         ) : (
           prompt.displayOrder
         )}
       </span>
-      {/* Le critère unique ne s'affiche plus sous le titre (parité mobile) : il
+      {/* Le critère unique ne s'affiche pas sous le titre (parité mobile) : il
           est répété par la check-list de l'écran de saisie, et il faisait de
-          chaque carte un pavé de texte. */}
-      <span className={s.rowBody}>
-        <span className={s.rowTitle}>{prompt.title}</span>
+          chaque ligne un pavé de texte. */}
+      <span className={s.groupBody}>
+        <span className={s.groupTitle}>{prompt.title}</span>
         {done && (
-          <span className={s.rowMeta}>
+          <span className={s.groupMeta}>
             <CompetenceStatusBadge status={prompt.status} />
             <span className={s.metaText}>
               {prompt.attemptCount} tentative{prompt.attemptCount > 1 ? "s" : ""}
@@ -443,11 +590,13 @@ function PromptCard({prompt, onOpen}: {prompt: SkillPromptSummaryDto; onOpen: ()
           </span>
         )}
       </span>
-      <span className={s.rowAside}>
+      <span className={s.groupAside}>
         {locked ? (
           <SkillLockBadge />
         ) : done ? (
-          <span className={s.metaText}>{SKILL_DIFFICULTY_LABEL[prompt.difficultyLevel]}</span>
+          <span className={`${s.metaText} ${s.groupDifficulty}`}>
+            {SKILL_DIFFICULTY_LABEL[prompt.difficultyLevel]}
+          </span>
         ) : (
           <CompetenceStatusBadge status={prompt.status} />
         )}

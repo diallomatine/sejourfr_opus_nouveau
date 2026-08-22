@@ -223,7 +223,7 @@ export default function CiviqueThemeExamsPage() {
           onConfirm={() => void launch()}
           onClose={() => setIntroOpen(false)}
         />
-        <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
+        <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_civique" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}

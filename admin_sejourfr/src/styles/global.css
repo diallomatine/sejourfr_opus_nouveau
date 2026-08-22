@@ -14,6 +14,28 @@
   --muted-2: #908d85;
   --green: #2d6a3e;
   --amber: #e8a317;
+
+  /* Polices — jamais recopiees en dur dans un module. */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-ui: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Surfaces et tons doux. Ajoutes pour l'ecran Analytics, qui a besoin de
+     trois niveaux de fond et d'une variante adoucie de chaque couleur d'etat.
+     La maquette les exprimait en oklch() ; ici ce sont les tons SejourFR. */
+  --surface: #ffffff;
+  --surface-3: #e9e7df;
+  --blue-soft: #dde3f2;
+  --blue-ink: #ffffff;
+  --green-soft: #dfeee3;
+  --red-soft: #fbe3e3;
+  --amber-soft: #fbf0d8;
+
+  /* Ombres et voile — ils portent une couleur, donc ils sont des tokens. */
+  --shadow-sm: 0 1px 2px rgba(26, 26, 38, 0.05), 0 1px 3px rgba(26, 26, 38, 0.04);
+  --shadow-md: 0 2px 4px rgba(26, 26, 38, 0.04), 0 8px 20px rgba(26, 26, 38, 0.07);
+  --shadow-lg: 0 12px 40px rgba(26, 26, 38, 0.14);
+  --scrim: rgba(26, 26, 38, 0.32);
 }
 
 * {
