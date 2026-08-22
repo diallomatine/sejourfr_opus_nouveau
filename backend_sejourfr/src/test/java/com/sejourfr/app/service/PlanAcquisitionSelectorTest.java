@@ -117,7 +117,7 @@ class PlanAcquisitionSelectorTest {
 
         List<PlanDomainDto> domaines = new ArrayList<>(quatreDomaines());
         domaines.replaceAll(domaine -> domaine.epreuve() == EpreuveType.TCF_EO
-                ? new PlanDomainDto(EpreuveType.TCF_EO, false, null,
+                ? PlanDomainDto.sansCompetences(EpreuveType.TCF_EO, false, null,
                         PlanDomainPriority.A_EVALUER, null, null, List.of(), List.of())
                 : domaine);
 
@@ -241,7 +241,7 @@ class PlanAcquisitionSelectorTest {
     }
 
     private static PlanDomainDto domaine(EpreuveType epreuve, PlanDomainPriority priority) {
-        return new PlanDomainDto(epreuve, true, NiveauCecrl.A2, priority,
+        return PlanDomainDto.sansCompetences(epreuve, true, NiveauCecrl.A2, priority,
                 TargetLevel.A2, TargetLevel.B1, List.of(), List.of());
     }
 

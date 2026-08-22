@@ -1,597 +1,280 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
-import '../../../core/models/skill_models.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/blurred_content.dart';
-import '../../../core/widgets/fixed_action_bar.dart';
 import '../../../core/widgets/gradient_hero.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../plan/learning_plan_provider.dart';
 import '../../plan/plan_actions.dart';
 import '../../plan/plan_labels.dart';
+import '../../plan/plan_series_launcher.dart';
 import '../../plan/widgets/plan_tokens.dart';
 import '../diagnostic_variant.dart';
 import 'diagnostic_report_labels.dart';
 
-/// Écran de fin de diagnostic — le bilan **in-app** d'un candidat connecté.
+/// **Mon diagnostic** — le bilan in-app d'un candidat connecté.
 ///
-/// 🛑 **Sa maquette de référence est `MDiag`, étape `result`**, et **jamais**
-/// `MRapportGratuit`, qui est l'écran du **visiteur non connecté**. Les deux se
-/// ressemblent, et c'est exactement pour ça qu'une passe précédente a refondu
-/// celui-ci sur celle-là : le profil TCF y avait alors disparu au profit d'une
-/// bande de quatre colonnes qui n'appartient qu'au rapport visiteur. Vérifier
-/// la maquette **avant** de retoucher l'ordre des blocs.
+/// L'écran répond à une seule question, et il y répond **épreuve par épreuve** :
+/// *quel est mon niveau, et quelles compétences l'expliquent ?* D'où sa forme —
+/// un résumé global, puis quatre cartes dépliables, une par épreuve.
 ///
-/// Ordre servi, calqué sur `MDiag` : héros (niveau · objectif · rail) → **Mon
-/// profil TCF** → compléter son profil → **points forts** → **priorités** →
-/// aperçu du plan → offre → barre d'action.
+/// Ordre figé, identique au web :
+/// 1. le **résumé global** (niveau estimé, objectif, rail, les 4 colonnes) ;
+/// 2. **Mes 4 épreuves**, dans l'ordre EE · EO · CE · CO ;
+/// 3. la **prochaine étape** (abonné) ou la **carte d'offre** (compte gratuit) ;
+/// 4. la mention d'estimation.
 ///
-/// Rien n'y est décoratif : chaque bloc rend une donnée que le serveur a
-/// réellement produite, et **un bloc sans donnée n'est pas rendu** (jamais de
-/// squelette, jamais de « non disponible »).
+/// 🛑 **Chaque bloc rend une donnée que le serveur a réellement produite**, et
+/// un bloc sans donnée n'est pas rendu — jamais de squelette, jamais de « non
+/// disponible », jamais un compteur de maquette recopié.
 ///
-/// 🛑 **Ce que la maquette N'A PAS, et qui reste hors de cet écran** : le
-/// « avant / après » (`exempleCible`) et le détail des deux productions. Le
-/// premier est servi par le contrat et affiché par les rapports EE/EO et le
-/// résultat de compétence (`ActionPlanExempleCard`, intacte).
-///
-/// Trois choses de la maquette restent volontairement **non reprises** :
-/// - aucune **barre ni pourcentage** de progression — le score de maîtrise
-///   n'est exposé à aucun front, on rend des états et des statuts ;
-/// - aucun **calendrier** (« Semaine 1 », jours) — le Plan n'a pas de notion de
-///   temps, une étape est un ensemble de sujets ;
-/// - aucun **emoji en texte brut** — les icônes viennent de `LucideIcons`.
-class DiagnosticResultView extends ConsumerWidget {
+/// 🛑 **On floute l'ACTION pas encore accessible, jamais le RÉSULTAT mesuré.**
+/// Les niveaux, le rail, les quatre colonnes, la phrase qui explique chaque
+/// niveau et la première compétence restent en clair pour tout le monde : ce
+/// sont ses productions et ses mesures. Ce qu'un compte sans accès ne lit pas,
+/// c'est la **suite** de la liste — derrière un rideau posé sur du **vrai**
+/// contenu ([BlurredContent] : `ExcludeSemantics` + `IgnorePointer`), avec un
+/// compteur **exact** servi par le serveur juste à côté, hors du flou.
+class DiagnosticResultView extends ConsumerStatefulWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     required this.hasTcfAccess,
     required this.variant,
     required this.onOpenPlan,
-    required this.onOpenRecommended,
     required this.onSubscribe,
     this.objective,
   });
 
   final DiagnosticResult result;
+
+  /// Le palier visé, déjà résolu pour l'écran (`TargetProcedure.niveauVise`,
+  /// plancher de la démarche). `null` = pas encore choisi : on l'écrit, on
+  /// n'invente pas de « B2 ».
   final String? objective;
 
-  /// Ce que le candidat a choisi à l'entrée. **Rien n'est persisté** : la
-  /// variante ne change ni le parcours joué, ni ce que le serveur a mesuré —
-  /// elle décide seulement de ce que ce bilan **enchaîne** (cf.
-  /// `diagnostic_variant.dart`).
+  /// Ce que le candidat a choisi à l'entrée. **Rien n'est persisté** : elle ne
+  /// sert plus qu'à dire la vérité à l'audience quand une épreuve de
+  /// compréhension est lancée depuis ce bilan.
   final DiagnosticVariant variant;
 
-  /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il ne décide que de ce qui
-  /// est **flouté** : aucune règle de verrou n'est recalculée ici — celle de
-  /// l'exercice recommandé vient de `PlanRecommendedExercise.locked`, posé par
-  /// le serveur.
+  /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il décide de ce qui est
+  /// **flouté** ; aucune règle de verrou n'est recalculée ici — celui d'une
+  /// compétence vient de `PlanDomainSkill.locked`, posé par le serveur.
   final bool hasTcfAccess;
 
   final VoidCallback onOpenPlan;
-  final ValueChanged<PlanRecommendedExercise> onOpenRecommended;
   final VoidCallback onSubscribe;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final focus = _focusItems(result);
-    final ranked = focus.isNotEmpty && focus.first.ranked;
-    final solid = _solidSkills(result);
+  ConsumerState<DiagnosticResultView> createState() =>
+      _DiagnosticResultViewState();
+}
 
-    // Le Plan n'est lu qu'**ici**, sur l'écran de résultat d'un compte
-    // authentifié : c'est la seule source de l'état du profil (quels domaines
-    // sont mesurés) et de ce qui reste à mesurer. Son absence — chargement,
-    // réseau — est un cas NORMAL : les blocs concernés ne sont pas rendus, rien
-    // n'est deviné et rien ne signale d'erreur.
-    final plan = ref.watch(learningPlanProvider).valueOrNull;
-    final pending = _comprehensionToAssess(plan);
-    final domains = plan?.domaines ?? const <PlanDomain>[];
+/// **Les seuils d'affichage, déclarés UNE fois.**
+///
+/// Miroirs du web (`FREE_WORK_VISIBLE` / `FREE_SOLID_VISIBLE` /
+/// `COLLAPSED_WORK_VISIBLE`) : ce sont des plafonds d'**affichage**, jamais des
+/// règles d'accès — le verrou réel vit sur `PlanDomainSkill.locked`, posé par le
+/// serveur.
+const int _kFreeWorkVisible = 1;
+const int _kFreeSolidVisible = 1;
+const int _kCollapsedWorkVisible = 2;
 
-    // **Le compteur est calculé sur ce que le serveur a renvoyé**, jamais sur
-    // une constante de maquette : `focus`, `solid` et `steps` sont les listes
-    // entières, on n'en tranche que l'affichage. Moins d'éléments que le seuil
-    // ⇒ `hidden == 0` ⇒ **le bloc verrouillé n'existe pas** et tout est en
-    // clair — un compte gratuit avec deux priorités n'a rien de masqué à lui
-    // vendre.
-    final focusTotal = _focusTotal(result, focus);
-    final visibleFocus =
-        hasTcfAccess ? focus : focus.take(_kFreeFocusVisible).toList();
-    final hiddenFocus = hasTcfAccess
-        ? 0
-        : _hiddenCount(total: focusTotal, visible: visibleFocus.length);
+class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
+  /// L'épreuve dépliée. `null` = tout replié, état légitime. L'écrit s'ouvre en
+  /// premier : c'est la production que le candidat vient de rendre.
+  EpreuveType? _open = EpreuveType.tcfEe;
 
-    // Les points forts, c'est ce que les deux productions ont montré SOLIDE.
-    // Les phrases `strengths` ne sont qu'un **repli** : plafonnées à 3 à
-    // l'écriture du résumé, elles ne peuvent porter aucun compteur.
-    final strengthTexts = solid.isEmpty ? result.strengths : const <String>[];
-    final visibleSolid =
-        hasTcfAccess ? solid : solid.take(_kFreeSolidVisible).toList();
-    final visibleTexts = hasTcfAccess
-        ? strengthTexts
-        : strengthTexts.take(_kFreeSolidVisible).toList();
-    final hiddenSolid = hasTcfAccess
-        ? 0
-        : _hiddenCount(
-            total: _strengthTotal(
-              result,
-              solid.isEmpty ? strengthTexts.length : solid.length,
-            ),
-            visible: solid.isEmpty ? visibleTexts.length : visibleSolid.length,
+  /// Une clé par carte, pour amener la bonne épreuve sous les yeux quand on
+  /// touche sa colonne du résumé.
+  final Map<EpreuveType, GlobalKey> _cards = {
+    for (final epreuve in kDiagnosticEpreuveOrder) epreuve: GlobalKey(),
+  };
+
+  void _toggle(EpreuveType epreuve) {
+    setState(() => _open = _open == epreuve ? null : epreuve);
+  }
+
+  /// Déplie l'épreuve **et** l'amène à l'écran. Le défilement attend la frame
+  /// suivante : la carte n'a sa hauteur dépliée qu'une fois reconstruite.
+  void _focus(EpreuveType epreuve) {
+    setState(() => _open = epreuve);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _cards[epreuve]?.currentContext;
+      if (target == null) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0.05,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
+  }
+
+  /// Le parcours d'achat de l'app — **le seul**. Le compteur d'audience est
+  /// celui du rapport de diagnostic ; on n'en crée pas un second.
+  void _subscribe() => widget.onSubscribe();
+
+  /// Ouvre une compétence de la carte.
+  ///
+  /// 🛑 Le verrou est **lu** (`locked`, posé par le serveur), jamais déduit du
+  /// rang de la ligne **ni de l'accès du compte** : `SkillAccessService` ouvre
+  /// la compétence de la première place du Plan à un compte gratuit, et refuser
+  /// ici sur `hasTcfAccess` fermait une porte que le serveur laisse ouverte —
+  /// le web, lui, ne lisait déjà que `locked`. En **compréhension**, la
+  /// compétence est un palier : on lance sa série ciblée, exactement comme la
+  /// fiche du domaine. En **expression**, on ouvre sa fiche, où vivent ses
+  /// petits sujets.
+  void _openSkill(PlanDomainSkill skill, EpreuveType epreuve) {
+    if (skill.locked) {
+      _subscribe();
+      return;
+    }
+    final section = skill.section ?? planDomainSection(epreuve);
+    if (section == null) return;
+    if (section.isComprehension) {
+      unawaited(
+        startTargetedSeries(
+          context,
+          ref,
+          skillId: skill.skillId,
+          masteryBefore: skill.masteryState,
+        ),
+      );
+      return;
+    }
+    openPlanSkill(context, skill.skillId, section);
+  }
+
+  /// Lance la mesure d'une épreuve encore inconnue.
+  ///
+  /// ⚠️ L'événement d'audience n'existe que pour la **compréhension** : c'est
+  /// le seul endroit de l'app où une CO/CE est lancée *depuis le diagnostic*,
+  /// donc le seul où il soit vrai. Il porte la variante **réellement choisie**,
+  /// jamais « complet » par défaut.
+  void _assess(PlanDomainAssessment assessment) {
+    final event = switch (assessment.epreuve) {
+      EpreuveType.tcfCo => AnalyticsEvent.diagnosticCoStarted,
+      EpreuveType.tcfCe => AnalyticsEvent.diagnosticCeStarted,
+      _ => null,
+    };
+    if (event != null) {
+      ref.read(analyticsServiceProvider).track(
+            event,
+            path: AnalyticsPath.diagnostic,
+            diagnosticType: widget.variant.isComplet
+                ? AnalyticsDiagnosticType.complete
+                : AnalyticsDiagnosticType.rapid,
           );
-
-
-    return Stack(
-      children: [
-        ListView(
-          // La réserve du bas laisse passer tout le contenu sous le CTA
-          // collant : rien n'est jamais masqué par la barre.
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 132),
-          children: [
-            // 1 — le héros : niveau estimé, objectif sur la même ligne, rail.
-            // 🛑 **Aucune bande de quatre colonnes ici** : elle appartient au
-            // rapport du visiteur (`MRapportGratuit`). Le profil du candidat
-            // connecté a sa propre section, juste dessous.
-            _LevelCard(cycle: plan?.cycle, objective: objective),
-
-            // 2 — mon profil TCF : les quatre domaines, dans l'ordre servi.
-            if (domains.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const _SectionTitle(title: kPlanProfileTitle),
-              const SizedBox(height: 11),
-              _ProfileSection(cycle: plan?.cycle, domains: domains),
-            ],
-
-            // 3 — ce qu'il reste à mesurer, et de quoi le mesurer tout de
-            // suite. Vide = profil complet : la carte n'existe pas.
-            if (pending.isNotEmpty) ...[
-              const SizedBox(height: 11),
-              _CompleteProfileCard(assessments: pending),
-            ],
-
-            // 4 — vos points forts
-            if (visibleSolid.isNotEmpty || visibleTexts.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _SectionTitle(
-                title: kDiagnosticStrengthsTitle,
-                text: diagnosticStrengthsSub(
-                  _strengthTotal(
-                    result,
-                    solid.isEmpty ? strengthTexts.length : solid.length,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 11),
-              _StrengthsCard(skills: visibleSolid, texts: visibleTexts),
-              if (hiddenSolid > 0) ...[
-                const SizedBox(height: 9),
-                _LockedPreview(
-                  lines: _strengthTeaseLines(
-                    solid: solid,
-                    texts: strengthTexts,
-                    from: _kFreeSolidVisible,
-                    hidden: hiddenSolid,
-                  ),
-                  label: '+ $hiddenSolid autre${_plural(hiddenSolid)} '
-                      'compétence${_plural(hiddenSolid)} déjà '
-                      'solide${_plural(hiddenSolid)}',
-                  onSubscribe: onSubscribe,
-                ),
-              ],
-            ],
-
-            // 5 — vos priorités
-            if (visibleFocus.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _SectionTitle(
-                title: ranked
-                    ? kDiagnosticPrioritiesTitle
-                    : kDiagnosticPrioritiesTitleUnranked,
-                // Un abonné les voit toutes : il n'y a rien à lui compter. Le
-                // repli non classé, lui, garde sa phrase — on ne promeut pas
-                // des points relevés en priorités mesurées.
-                text: ranked
-                    ? (hasTcfAccess ? null : diagnosticPrioritiesSub(focusTotal))
-                    : kDiagnosticPrioritiesTextUnranked,
-              ),
-              const SizedBox(height: 11),
-              _PrioritiesCard(focus: visibleFocus),
-              if (hiddenFocus > 0) ...[
-                const SizedBox(height: 9),
-                _LockedPreview(
-                  lines: [
-                    for (final item in focus.skip(visibleFocus.length).take(
-                        hiddenFocus < _kBlurredSample
-                            ? hiddenFocus
-                            : _kBlurredSample))
-                      _LockedLine(
-                        title: item.title,
-                        subtitle: item.section?.label,
-                      ),
-                  ],
-                  // Le teaser parle la même langue que sa section : sans
-                  // priorités mesurées, ce ne sont pas des « priorités » mais
-                  // des points relevés — le repli ne doit pas les promouvoir.
-                  label: ranked
-                      ? '+ $hiddenFocus autre${_plural(hiddenFocus)} '
-                          'priorité${_plural(hiddenFocus)} '
-                          'détectée${_plural(hiddenFocus)}'
-                      : '+ $hiddenFocus autre${_plural(hiddenFocus)} '
-                          'point${_plural(hiddenFocus)} à travailler',
-                  onSubscribe: onSubscribe,
-                ),
-              ],
-            ],
-
-            // La section « Votre plan personnalisé est prêt » a ete retiree le
-            // 2026-08-21 : le rapport dit ce qui a ete mesure, le Plan dit quoi
-            // faire, et le bouton du bas y mene deja. Ne pas la reintroduire.
-
-            // 7 — l'offre ferme le rapport : le candidat a d'abord lu **son**
-            // niveau, **ses** priorités et **ses** acquis.
-            if (!hasTcfAccess) ...[
-              const SizedBox(height: 24),
-              _UnlockCard(onSubscribe: onSubscribe),
-            ],
-            const SizedBox(height: 14),
-            const PlanNote(kDiagnosticEstimationNote),
-          ],
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _ResultActionBar(
-            // Le complet enchaîne sur la première épreuve de compréhension que
-            // le **serveur** désigne ; le rapide renvoie au Plan. Aucun ordre
-            // n'est recalculé ici : `domainesAEvaluer` arrive déjà trié.
-            next:
-                variant.isComplet && pending.isNotEmpty ? pending.first : null,
-            onOpenPlan: onOpenPlan,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Lecture des données
-// ---------------------------------------------------------------------------
-
-/// Les épreuves de **compréhension** qu'il reste à mesurer, dans l'ordre servi.
-///
-/// 🛑 Rien n'est trié, filtré par urgence ni complété ici : `domainesAEvaluer`
-/// est **la seule** réponse à « comment compléter mon profil », et le serveur
-/// l'a déjà ordonnée. On ne retient que CO et CE parce que le diagnostic vient
-/// précisément de mesurer les deux expressions — une ligne EE/EO ici voudrait
-/// dire que la production n'a pas été observée, ce que le Plan dira mieux.
-///
-/// **Vide = profil complet**, état visé et non anomalie.
-List<PlanDomainAssessment> _comprehensionToAssess(LearningPlan? plan) {
-  final assessments = plan?.domainesAEvaluer;
-  if (assessments == null || assessments.isEmpty) {
-    return const <PlanDomainAssessment>[];
-  }
-  return assessments
-      .where(
-        (assessment) =>
-            assessment.epreuve == EpreuveType.tcfCo ||
-            assessment.epreuve == EpreuveType.tcfCe,
-      )
-      .toList(growable: false);
-}
-
-/// La durée réelle de « Compléter maintenant · N min ».
-///
-/// 🛑 **Rien n'est écrit en dur.** `estimatedMinutes` est posé par le serveur
-/// depuis `DureeEpreuve` ; on n'en fait que la somme. Le « 14 min » de la
-/// maquette n'est la durée d'aucune de nos épreuves — le recopier aurait
-/// promis au candidat un quart d'heure pour 55 minutes d'examens blancs.
-///
-/// `null` quand aucune mesure ne porte de durée (le libellé se rend alors sans
-/// chiffre) : une mesure sans durée n'en reçoit **jamais** une inventée.
-int? _assessmentsMinutes(List<PlanDomainAssessment> assessments) {
-  var total = 0;
-  for (final assessment in assessments) {
-    total += assessment.estimatedMinutes ?? 0;
-  }
-  return total > 0 ? total : null;
-}
-
-/// Une ligne de « Vos priorités ».
-///
-/// Elle porte **tout ce que le serveur publie** sur une priorité
-/// (`DiagnosticSkillObservationDto`) et que le candidat a le droit de lire :
-/// `explanation`, `evidence`, `status`, `section` et le code de la compétence.
-/// `confidence` en est volontairement absente — elle n'est **jamais** montrée
-/// au candidat.
-class _FocusItem {
-  const _FocusItem({
-    required this.title,
-    required this.ranked,
-    this.skillId,
-    this.code = '',
-    this.detail,
-    this.evidence,
-    this.status,
-    this.section,
-  });
-
-  final String title;
-
-  /// La compétence désignée. `null` sur un repli tiré des `weaknesses` : cette
-  /// ligne n'ouvre alors **rien**, elle ne renvoie pas vers une fiche devinée.
-  final String? skillId;
-  final String code;
-  final String? detail;
-  final String? evidence;
-  final LearningPlanSkillStatus? status;
-  final SkillSection? section;
-
-  /// Distingue les **priorités mesurées** par le serveur (numérotées) des
-  /// replis : ces derniers ne portent pas de rang, parce qu'ils ne sont pas un
-  /// classement.
-  final bool ranked;
-
-  /// La ligne ouvre-t-elle la fiche de sa compétence ? Un repli tiré des
-  /// `weaknesses` n'est qu'un titre : sa ligne reste alors **inerte**, sans
-  /// chevron.
-  bool get opensSkill => skillId != null && section != null;
-
-  /// « Expression écrite · Tâche 2 ». Vide quand la ligne ne vient d'aucune
-  /// compétence : on n'invente pas de domaine.
-  String get meta => _skillMetaLine(section, code);
-
-  /// Le repère d'une ligne **sans domaine** : elle reste nommée pour ce qu'elle
-  /// est — une priorité mesurée, ou un simple point relevé.
-  String get fallbackMeta =>
-      ranked ? kDiagnosticPriorityRankLabel : kDiagnosticPointLabel;
-}
-
-/// Le repère d'une compétence : son domaine, et le numéro de tâche quand elle
-/// en a un (l'expression seule). Vide quand la ligne ne vient d'aucune
-/// compétence — on n'invente pas de domaine. Miroir de `skillMetaLine`
-/// (`web_sejoufr/app/_components/diagnostic/DiagnosticView.tsx`).
-String _skillMetaLine(SkillSection? section, String skillCode) {
-  if (section == null) return '';
-  final task = diagnosticSkillTaskNumber(skillCode);
-  return task == null ? section.label : '${section.label} · Tâche $task';
-}
-
-/// Ce sur quoi le candidat doit travailler, dans l'ordre de repli suivant :
-/// 1. les **priorités** servies par le serveur — le cas normal ;
-/// 2. sinon, les compétences observées non solides des deux productions ;
-/// 3. sinon, les `weaknesses` des deux productions, présentées comme ce que les
-///    productions ont montré, **jamais comme des priorités mesurées**.
-///
-/// Rien de tout ça ⇒ liste vide ⇒ la carte n'est pas rendue.
-///
-/// 🛑 **La liste est rendue ENTIÈRE, jamais tronquée ici.** C'est elle qui
-/// fait le compteur « + N autres priorités détectées » d'un compte sans accès :
-/// une troncature à la source aurait fabriqué un compteur faux, et le dépôt
-/// exige qu'il soit vrai. C'est l'appelant qui tranche ce qu'il affiche.
-List<_FocusItem> _focusItems(DiagnosticResult result) {
-  final fragile = _observedSkills(result)
-      .where(
-        (skill) =>
-            skill.status == LearningPlanSkillStatus.priority ||
-            skill.status == LearningPlanSkillStatus.toReinforce,
-      )
-      .toList(growable: false);
-
-  if (result.priorities.isNotEmpty) {
-    final ranked = result.priorities.indexed
-        .map(
-          (entry) => _FocusItem(
-            title: entry.$2.skillTitle,
-            skillId: entry.$2.skillId,
-            code: entry.$2.skillCode,
-            // La priorité n°1 a son explication dédiée
-            // (`mainPriorityExplanation`), plus développée que l'explication de
-            // l'observation. Même repli que le web (`DiagnosticView`).
-            detail: (entry.$1 == 0 ? result.mainPriorityExplanation : null) ??
-                entry.$2.explanation,
-            evidence: entry.$2.evidence,
-            status: entry.$2.status,
-            section: entry.$2.section,
-            ranked: true,
-          ),
-        )
-        .toList();
-    // `priorities` est plafonné à **3** côté serveur — règle produit. Sans ce
-    // complément, un abonné n'aurait jamais vu ce que le compteur d'un compte
-    // gratuit lui promet.
-    final seen = result.priorities.map((item) => item.skillId).toSet();
-    for (final skill in fragile) {
-      if (!seen.add(skill.skillId)) continue;
-      ranked.add(_focusOf(skill));
     }
-    return List.unmodifiable(ranked);
+    openPlanAssessment(context, assessment);
   }
-
-  final observed = fragile.map(_focusOf).toList(growable: false);
-  if (observed.isNotEmpty) return List.unmodifiable(observed);
-
-  final weaknesses = <_FocusItem>[];
-  for (final production in [result.written, result.oral]) {
-    for (final weakness in production?.weaknesses ?? const <String>[]) {
-      weaknesses.add(_FocusItem(title: weakness, ranked: false));
-    }
-  }
-  return List.unmodifiable(weaknesses);
-}
-
-/// Les compétences **réellement observées** sur les deux productions,
-/// dédoublonnées par `skillId`. Une observation non effective n'y entre jamais :
-/// « je n'ai pas pu observer » n'est pas « le candidat est faible ».
-List<DiagnosticSkillObservation> _observedSkills(DiagnosticResult result) {
-  final seen = <String>{};
-  final observed = <DiagnosticSkillObservation>[];
-  for (final production in [result.written, result.oral]) {
-    for (final skill
-        in production?.skills ?? const <DiagnosticSkillObservation>[]) {
-      if (!skill.observed) continue;
-      if (!seen.add(skill.skillId)) continue;
-      observed.add(skill);
-    }
-  }
-  return List.unmodifiable(observed);
-}
-
-_FocusItem _focusOf(DiagnosticSkillObservation skill) => _FocusItem(
-      title: skill.skillTitle,
-      skillId: skill.skillId,
-      code: skill.skillCode,
-      detail: skill.explanation,
-      evidence: skill.evidence,
-      status: skill.status,
-      section: skill.section,
-      ranked: false,
-    );
-
-/// Les compétences que les deux productions ont montrées **solides**,
-/// dédoublonnées par `skillId`. Rendue **entière** pour la même raison que
-/// [_focusItems] : c'est l'appelant qui tranche ce qu'il affiche.
-List<DiagnosticSkillObservation> _solidSkills(DiagnosticResult result) =>
-    List.unmodifiable(
-      _observedSkills(result)
-          .where((skill) => skill.status == LearningPlanSkillStatus.solid),
-    );
-
-/// Les lignes **réelles** que le rideau des points forts laisse deviner : les
-/// compétences solides, ou les phrases de repli quand il n'y en a aucune.
-/// Bornées par ce qui reste vraiment — on ne floute jamais plus que ce qu'on
-/// annonce.
-List<_LockedLine> _strengthTeaseLines({
-  required List<DiagnosticSkillObservation> solid,
-  required List<String> texts,
-  required int from,
-  required int hidden,
-}) {
-  final sample = hidden < _kBlurredSample ? hidden : _kBlurredSample;
-  if (solid.isNotEmpty) {
-    return [
-      for (final skill in solid.skip(from).take(sample))
-        _LockedLine(title: skill.skillTitle, subtitle: skill.section.label),
-    ];
-  }
-  return [
-    for (final text in texts.skip(from).take(sample)) _LockedLine(title: text),
-  ];
-}
-
-/// Le **total** annoncé par le compteur des priorités. 🛑 Il vient du serveur
-/// (`fragileSkillCount`) : `priorities` est plafonné à 3, et deux dérivations
-/// front finiraient par afficher deux nombres différents. Le `max` n'est qu'un
-/// garde-fou — on n'annonce jamais moins que ce qu'on affiche.
-int _focusTotal(DiagnosticResult result, List<_FocusItem> focus) =>
-    result.fragileSkillCount > focus.length
-        ? result.fragileSkillCount
-        : focus.length;
-
-/// Idem pour les points forts. ⚠️ `strengths` ne peut pas rendre ce service :
-/// la liste est plafonnée à 3 **à l'écriture** du résumé côté serveur.
-int _strengthTotal(DiagnosticResult result, int shown) =>
-    result.solidSkillCount > shown ? result.solidSkillCount : shown;
-
-// ---------------------------------------------------------------------------
-// 1 — le héros : niveau estimé, objectif, rail des paliers
-// ---------------------------------------------------------------------------
-
-/// Le bandeau qui situe le candidat : son **niveau estimé** en très grand, son
-/// **objectif sur la même ligne**, une phrase, puis le rail des paliers.
-///
-/// 🛑 **Aucune bande de quatre colonnes ici.** Elle appartient au rapport du
-/// **visiteur** (`MRapportGratuit`) ; le candidat connecté a une vraie section
-/// « Mon profil TCF », avec une ligne cliquable par domaine. Les avoir
-/// confondues avait fait disparaître cette section.
-class _LevelCard extends StatelessWidget {
-  const _LevelCard({required this.cycle, required this.objective});
-
-  /// 🛑 **Le niveau global et le palier en construction viennent du SERVEUR**
-  /// (`cycle.startingLevel` / `cycle.targetLevel`). Le plancher des quatre
-  /// domaines est une règle serveur (`TcfProfileService`) : aucun front ne la
-  /// rejoue à partir des deux estimations de production, sinon deux surfaces
-  /// annonceraient deux paliers pour le même candidat. `null` tant que le Plan
-  /// n'est pas chargé — on affiche « — », jamais un palier deviné.
-  final PlanCycle? cycle;
-
-  /// Le palier visé par le candidat, tel qu'il est déjà résolu pour l'écran
-  /// (`TargetProcedure.niveauVise`, plancher de la démarche). `null` = pas
-  /// encore choisi : on l'écrit, on n'invente pas de « B2 ».
-  final String? objective;
 
   @override
   Widget build(BuildContext context) {
-    return GradientHero(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 17),
+    // Le Plan n'est lu qu'**ici**, sur le résultat d'un compte authentifié :
+    // c'est la seule source des quatre domaines, de leurs compétences et de ce
+    // qu'il reste à mesurer. Son absence — chargement, réseau — est un cas
+    // NORMAL : les cartes retombent sur « à évaluer », rien n'est deviné.
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final cycle = plan?.cycle;
+
+    // 🛑 **Sans Plan, aucune carte** — miroir du web. Écrire « cette épreuve
+    // n'a pas encore été évaluée » pendant le chargement, ce serait affirmer un
+    // fait que le serveur n'a pas servi : un bloc sans donnée n'est pas rendu.
+    final epreuves = plan == null
+        ? const <_EpreuveView>[]
+        : [
+            for (final epreuve in kDiagnosticEpreuveOrder)
+              _EpreuveView.of(epreuve, plan: plan, result: widget.result),
+          ];
+    // 🛑 **La couverture se lit sur le CYCLE**, jamais sur la longueur d'une
+    // liste : deux surfaces qui compteraient chacune de leur côté finiraient
+    // par se contredire. Tant que le Plan n'a pas répondu, rien n'est complet.
+    final evaluated = cycle?.domainsEvaluated ?? 0;
+    final expected = cycle?.domainsExpected ?? kDiagnosticEpreuveOrder.length;
+    final complete = cycle?.profileComplete ?? false;
+    // Le compte de l'offre se lit sur le **compteur serveur** de chaque
+    // domaine (`fragileSkillCount`), jamais sur une liste affichée.
+    final detected = epreuves.fold<int>(0, (sum, e) => sum + e.fragileTotal);
+
+    return SingleChildScrollView(
+      // La liste tient en quatre cartes : elle est construite d'un bloc pour
+      // que `Scrollable.ensureVisible` trouve toujours la carte visée depuis
+      // les colonnes du résumé.
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            kDiagnosticLevelEyebrow.toUpperCase(),
-            style: AppFonts.eyebrow(
-              color: AppColors.white.withValues(alpha: 0.85),
-            ),
+          _GlobalCard(
+            cycle: cycle,
+            objective: widget.objective,
+            epreuves: epreuves,
+            evaluated: evaluated,
+            expected: expected,
+            complete: complete,
+            open: _open,
+            onSelect: _focus,
           ),
-          const SizedBox(height: 6),
-          // Niveau et objectif sur **une seule ligne**, alignés par le bas :
-          // c'est la lecture de la maquette — « où j'en suis, où je vais » se
-          // lit d'un seul mouvement.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: Text(
-                  cycle?.startingLevel?.displayName ?? '—',
-                  style: AppFonts.display(
-                    size: 44,
-                    height: 1.05,
-                    color: AppColors.white,
-                  ),
-                ),
+          if (epreuves.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const _SectionHead(
+              title: kDiagnosticEpreuvesTitle,
+              text: kDiagnosticEpreuvesSub,
+            ),
+            const SizedBox(height: 11),
+            for (final epreuve in epreuves) ...[
+              _EpreuveCard(
+                key: _cards[epreuve.epreuve],
+                view: epreuve,
+                objective: widget.objective,
+                open: _open == epreuve.epreuve,
+                hasAccess: widget.hasTcfAccess,
+                onToggle: () => _toggle(epreuve.epreuve),
+                onSkill: (skill) => _openSkill(skill, epreuve.epreuve),
+                onAssess: _assess,
+                onSubscribe: _subscribe,
               ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '$kDiagnosticLevelObjective '
-                    '${objective ?? kDiagnosticLevelObjectiveUnknown}',
-                    style: AppFonts.ui(
-                      size: 14,
-                      weight: FontWeight.w600,
-                      color: AppColors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 12),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            kDiagnosticLevelText,
-            style: AppFonts.ui(
-              size: 13.5,
-              height: 1.55,
-              color: AppColors.white.withValues(alpha: 0.92),
-            ),
-          ),
-          if (cycle != null) ...[
-            const SizedBox(height: 16),
-            // Le rail du Plan, repris tel quel : le candidat doit retrouver
-            // **la même** échelle d'un écran à l'autre, et le palier allumé est
-            // celui que son cycle construit — pas une valeur redérivée ici.
-            PlanLevelRail(current: cycle!.targetLevel, onDark: true),
           ],
+          if (widget.hasTcfAccess) ...[
+            const SizedBox(height: 8),
+            const _SectionHead(title: kDiagnosticNextStepTitle),
+            const SizedBox(height: 11),
+            _NextStepCard(
+              objective: widget.objective,
+              onOpenPlan: widget.onOpenPlan,
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            _UnlockCard(
+              objective: widget.objective,
+              detected: detected,
+              onSubscribe: _subscribe,
+            ),
+          ],
+          const SizedBox(height: 16),
+          // 🛑 **Une seule mention en pied**, miroir du web : ce que vaut
+          // l'estimation. Le sens d'un domaine non mesuré est déjà porté par le
+          // héros (`diagnosticPartialText`) — le redire ici ferait deux
+          // paragraphes pour une seule idée.
+          const PlanNote(kDiagnosticEstimationNote),
         ],
       ),
     );
@@ -599,30 +282,248 @@ class _LevelCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 2 — mon profil TCF
+// Lecture d'une épreuve
 // ---------------------------------------------------------------------------
 
-/// **Mon profil TCF** : combien de domaines sont mesurés, et une ligne par
-/// domaine — icône, libellé, ce qu'on en sait, et la pilule de sa priorité.
+/// Les trois états d'une carte d'épreuve.
 ///
-/// 🛑 **Les quatre domaines arrivent triés par urgence côté serveur ; aucun
-/// front ne retrie.** Un domaine jamais mesuré garde sa ligne et sa pilule
-/// « À évaluer » : il est **inconnu, jamais mauvais**, et aucun niveau ne lui
-/// est prêté.
+/// ⚠️ [incomplete] et [toAssess] ne disent **pas** la même chose : la première
+/// est une production **rendue** dont il n'y avait rien à observer, la seconde
+/// une épreuve **jamais passée**. Deux phrases, deux gestes.
+enum _EpreuveState { ok, toAssess, incomplete }
+
+/// Comment une compétence se range sur la carte.
 ///
-/// 🛑 **Chaque ligne ouvre la fiche de son domaine** ([openPlanDomain], le
-/// lanceur partagé) — c'est le `nav.push("compdetail")` de la maquette. Le même
-/// domaine ne peut pas mener à deux écrans selon l'endroit où on le touche.
+/// 🛑 **La nature passe avant le statut** : une compétence *à acquérir* n'a
+/// aucun verdict (rien n'a été observé dessus), donc son `status` vaut
+/// `NOT_OBSERVED` — la classer dessus l'aurait rangée parmi les absences de
+/// mesure, alors que c'est précisément ce que le Plan va enseigner.
+enum _SkillGroup { priority, reinforce, acquire, solid, notObserved }
+
+extension _SkillGroupStyle on _SkillGroup {
+  String get label => switch (this) {
+        _SkillGroup.priority => kDiagnosticGroupPriority,
+        _SkillGroup.reinforce => kDiagnosticGroupReinforce,
+        _SkillGroup.acquire => kDiagnosticGroupAcquire,
+        _SkillGroup.solid => kDiagnosticGroupSolid,
+        _SkillGroup.notObserved => LearningPlanSkillStatus.notObserved.label,
+      };
+
+  /// ⚠️ **Aucune teinte nouvelle** : chacune est déjà celle de l'état qu'elle
+  /// nomme ailleurs dans l'app (statut de compétence, nature d'action, état de
+  /// maîtrise). Un même état ne change pas de couleur d'un écran à l'autre.
+  Color get color => switch (this) {
+        _SkillGroup.priority => AppColors.red,
+        _SkillGroup.reinforce => AppColors.amberDark,
+        _SkillGroup.acquire => AppColors.blue,
+        _SkillGroup.solid => AppColors.green,
+        _SkillGroup.notObserved => AppColors.inkFaint,
+      };
+
+  TagTone get tone => switch (this) {
+        _SkillGroup.priority => TagTone.red,
+        _SkillGroup.reinforce => TagTone.amber,
+        _SkillGroup.acquire => TagTone.blue,
+        _SkillGroup.solid => TagTone.success,
+        _SkillGroup.notObserved => TagTone.ghost,
+      };
+}
+
+_SkillGroup _groupOf(PlanDomainSkill skill) {
+  if (skill.nature == PlanActionNature.aAcquerir) return _SkillGroup.acquire;
+  return switch (skill.status) {
+    LearningPlanSkillStatus.priority => _SkillGroup.priority,
+    LearningPlanSkillStatus.toReinforce => _SkillGroup.reinforce,
+    LearningPlanSkillStatus.solid => _SkillGroup.solid,
+    LearningPlanSkillStatus.notObserved => _SkillGroup.notObserved,
+  };
+}
+
+/// Une compétence, telle que la carte la rend : son groupe, et rien d'autre en
+/// plus de ce que le serveur a servi.
+class _SkillLine {
+  const _SkillLine(this.skill, this.group);
+
+  final PlanDomainSkill skill;
+  final _SkillGroup group;
+}
+
+/// **Tout ce qu'une carte d'épreuve a besoin de savoir**, lu une seule fois.
 ///
-/// ⚠️ Volontairement **distinct** de `PlanProfileSection` : même structure,
-/// mais les sous-titres ne disent pas la même chose (le Plan explique par quoi
-/// mesurer, le bilan dit où en est le profil). Les deux écrans lisent en
-/// revanche le **même** compteur (`planProfileCoverage`) et la **même** pilule.
-class _ProfileSection extends StatelessWidget {
-  const _ProfileSection({required this.cycle, required this.domains});
+/// 🛑 Les compteurs `fragileTotal` / `solidTotal` viennent du **serveur**
+/// (`PlanDomain.fragileSkillCount` / `.solidSkillCount`) : ce sont eux qui
+/// rendent le « + N autres » vrai. On ne les recompte jamais depuis une liste
+/// tronquée à l'affichage.
+class _EpreuveView {
+  const _EpreuveView({
+    required this.epreuve,
+    required this.state,
+    required this.work,
+    required this.solid,
+    required this.notObserved,
+    required this.fragileTotal,
+    required this.solidTotal,
+    this.domain,
+    this.assessment,
+    this.level,
+    this.nextLevel,
+    this.resume,
+    this.explanation,
+  });
+
+  final EpreuveType epreuve;
+  final _EpreuveState state;
+  final PlanDomain? domain;
+
+  /// La mesure que le serveur désigne pour cette épreuve. `null` = il n'en
+  /// propose aucune : on n'invente alors aucun parcours, et la carte n'affiche
+  /// pas de bouton.
+  final PlanDomainAssessment? assessment;
+
+  final NiveauCecrl? level;
+  final TargetLevel? nextLevel;
+  final String? resume;
+  final String? explanation;
+
+  /// Ce qu'il y a à faire, dans l'ordre des groupes : priorités, puis
+  /// fragilités, puis acquisitions. **Jamais tronquée ici** — c'est l'appelant
+  /// qui tranche ce qu'il affiche, sinon le compteur serait faux par
+  /// construction.
+  final List<_SkillLine> work;
+  final List<_SkillLine> solid;
+
+  /// Les compétences **jamais observées**, acquisitions exclues : celles-ci
+  /// sont déjà rendues plus haut sous « À acquérir », et les compter deux fois
+  /// dirait qu'une même compétence est à la fois à apprendre et sans données.
+  final int notObserved;
+
+  final int fragileTotal;
+  final int solidTotal;
+
+  static _EpreuveView of(
+    EpreuveType epreuve, {
+    required LearningPlan? plan,
+    required DiagnosticResult result,
+  }) {
+    final domain =
+        plan?.domaines.where((d) => d.epreuve == epreuve).firstOrNull;
+    final assessment =
+        plan?.domainesAEvaluer.where((a) => a.epreuve == epreuve).firstOrNull;
+
+    // 🛑 **L'ORDRE DES TESTS COMPTE, et c'est la MESURE qui passe en premier.**
+    // Un domaine réellement mesuré rend son niveau, quoi qu'il soit arrivé à la
+    // production du diagnostic : *une production inexploitable ne produit aucun
+    // niveau, mais elle n'efface pas un niveau obtenu par ailleurs* (une EE
+    // ratée puis une vraie mesure). Tester « non exploitable » d'abord — ce que
+    // fait la maquette, qui n'a pas de serveur — figeait cette épreuve sur
+    // « évaluation incomplète » à vie.
+    if (domain != null && domain.evaluated && domain.niveau != null) {
+      return _EpreuveView.mesuree(epreuve, domain, assessment);
+    }
+
+    // Sans mesure : « rendue, rien à observer » ≠ « jamais passée ». Deux
+    // phrases, deux gestes — et seule la valeur `NON_EVALUABLE` **explicite**
+    // se lit ainsi, l'absence du bloc voulant dire « pas encore analysée ».
+    final production = switch (epreuve) {
+      EpreuveType.tcfEe => result.written,
+      EpreuveType.tcfEo => result.oral,
+      _ => null,
+    };
+    return _EpreuveView(
+      epreuve: epreuve,
+      state: (production?.estNonEvaluable ?? false)
+          ? _EpreuveState.incomplete
+          : _EpreuveState.toAssess,
+      domain: domain,
+      assessment: assessment,
+      work: const <_SkillLine>[],
+      solid: const <_SkillLine>[],
+      notObserved: 0,
+      fragileTotal: 0,
+      solidTotal: 0,
+    );
+  }
+
+  /// L'épreuve **mesurée** : ses compétences, rangées par groupe, et les
+  /// compteurs **servis** qui rendent le « + N autres » vrai.
+  static _EpreuveView mesuree(
+    EpreuveType epreuve,
+    PlanDomain domain,
+    PlanDomainAssessment? assessment,
+  ) {
+    // 🛑 L'ordre **dans** un groupe est celui du serveur : on n'ordonne que les
+    // groupes entre eux, et cet ordre est celui de `PlanActionNature` (réparer
+    // ce qui est fragile avant d'apprendre ce qui vient).
+    final lines = [
+      for (final skill in domain.skills) _SkillLine(skill, _groupOf(skill)),
+    ];
+    final work = <_SkillLine>[
+      ...lines.where((l) => l.group == _SkillGroup.priority),
+      ...lines.where((l) => l.group == _SkillGroup.reinforce),
+      ...lines.where((l) => l.group == _SkillGroup.acquire),
+    ];
+    final solid =
+        lines.where((l) => l.group == _SkillGroup.solid).toList(growable: false);
+    final notObserved =
+        lines.where((l) => l.group == _SkillGroup.notObserved).length;
+    final observed = domain.fragileSkillCount + domain.solidSkillCount;
+
+    return _EpreuveView(
+      epreuve: epreuve,
+      state: _EpreuveState.ok,
+      domain: domain,
+      assessment: assessment,
+      level: domain.niveau,
+      nextLevel: diagnosticNextLevel(domain.niveau),
+      resume: diagnosticEpreuveResume(epreuve, domain.niveau),
+      explanation: diagnosticEpreuveExplanation(
+        domain,
+        observed: observed,
+        fragile: domain.fragileSkillCount,
+        solid: domain.solidSkillCount,
+      ),
+      work: List.unmodifiable(work),
+      solid: solid,
+      notObserved: notObserved,
+      fragileTotal: domain.fragileSkillCount,
+      solidTotal: domain.solidSkillCount,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 1 — le résumé global
+// ---------------------------------------------------------------------------
+
+/// Le bandeau qui situe le candidat : **niveau estimé** en très grand,
+/// objectif sur la même ligne, couverture du profil, rail des paliers — puis,
+/// dans la même carte, une colonne par épreuve.
+///
+/// 🛑 **Le niveau global vient du SERVEUR** (`cycle.startingLevel`, plancher des
+/// quatre domaines calculé par `TcfProfileService`) : aucun front ne le rejoue
+/// à partir des deux estimations de production, sinon deux surfaces
+/// annonceraient deux paliers pour le même candidat. `null` ⇒ « — », jamais un
+/// palier deviné.
+class _GlobalCard extends StatelessWidget {
+  const _GlobalCard({
+    required this.cycle,
+    required this.objective,
+    required this.epreuves,
+    required this.evaluated,
+    required this.expected,
+    required this.complete,
+    required this.open,
+    required this.onSelect,
+  });
 
   final PlanCycle? cycle;
-  final List<PlanDomain> domains;
+  final String? objective;
+  final List<_EpreuveView> epreuves;
+  final int evaluated;
+  final int expected;
+  final bool complete;
+  final EpreuveType? open;
+  final ValueChanged<EpreuveType> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -631,101 +532,558 @@ class _ProfileSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.card,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.lineSoft)),
+          GradientHero(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 17),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.xl),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    planProfileCoverage(cycle, domains.length),
-                    style: AppFonts.ui(
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: AppColors.inkSoft,
-                    ),
+                Text(
+                  kDiagnosticLevelEyebrow.toUpperCase(),
+                  style: AppFonts.eyebrow(
+                    color: AppColors.white.withValues(alpha: 0.85),
                   ),
                 ),
-                // Une pastille par domaine, pleine quand il est mesuré : le
-                // compteur ci-contre et ces points disent la même chose, l'un
-                // en mots, l'autre d'un coup d'œil.
-                for (final domain in domains) ...[
-                  const SizedBox(width: 5),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: domain.evaluated
-                          ? AppColors.blue
-                          : AppColors.surface3,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.line),
+                const SizedBox(height: 6),
+                // Niveau et objectif sur **une seule ligne**, alignés par le
+                // bas : « où j'en suis, où je vais » se lit d'un seul
+                // mouvement.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        cycle?.startingLevel?.shortName ?? '—',
+                        style: AppFonts.display(
+                          size: 44,
+                          height: 1.05,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          '$kDiagnosticLevelObjective '
+                          '${objective ?? kDiagnosticLevelObjectiveUnknown}',
+                          style: AppFonts.ui(
+                            size: 14,
+                            weight: FontWeight.w600,
+                            color: AppColors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+                _CoveragePill(
+                  complete: complete,
+                  evaluated: evaluated,
+                  expected: expected,
+                ),
+                if (!complete) ...[
+                  const SizedBox(height: 11),
+                  Text(
+                    diagnosticPartialText(evaluated, expected),
+                    style: AppFonts.ui(
+                      size: 13,
+                      height: 1.5,
+                      color: AppColors.white.withValues(alpha: 0.9),
                     ),
                   ),
+                ],
+                if (cycle != null) ...[
+                  const SizedBox(height: 15),
+                  // Le rail du Plan, repris tel quel : le candidat doit
+                  // retrouver **la même** échelle d'un écran à l'autre, et le
+                  // palier allumé est celui que son cycle construit — jamais
+                  // une valeur redérivée ici.
+                  PlanLevelRail(current: cycle!.targetLevel, onDark: true),
                 ],
               ],
             ),
           ),
-          for (var i = 0; i < domains.length; i++)
-            _ProfileRow(domain: domains[i], first: i == 0),
+          // 🛑 `IntrinsicHeight` n'est pas décoratif : les quatre colonnes se
+          // veulent d'égale hauteur — c'est ce qui fait courir le trait de
+          // séparation d'un bord à l'autre — et `CrossAxisAlignment.stretch`
+          // seul demande une hauteur **tendue sur la contrainte reçue**. Ici
+          // elle est infinie (la carte vit dans un `SingleChildScrollView`),
+          // donc la `Row` posait `h=Infinity` à ses colonnes : erreur de
+          // layout, sous-arbre laissé `NEEDS-LAYOUT`, et plus aucune frame
+          // envoyée au moteur. Il faut donc **borner** la hauteur avant de la
+          // tendre. Coût négligeable : quatre colonnes d'une ligne chacune.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < epreuves.length; i++)
+                  Expanded(
+                    child: _DomainColumn(
+                      view: epreuves[i],
+                      first: i == 0,
+                      active: open == epreuves[i].epreuve,
+                      onTap: () => onSelect(epreuves[i].epreuve),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({required this.domain, required this.first});
+class _CoveragePill extends StatelessWidget {
+  const _CoveragePill({
+    required this.complete,
+    required this.evaluated,
+    required this.expected,
+  });
 
-  final PlanDomain domain;
-  final bool first;
+  final bool complete;
+  final int evaluated;
+  final int expected;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: '${planDomainLabel(domain.epreuve)} · '
-            '${diagnosticDomainSubtitle(domain)}',
-        child: Material(
-          color: AppColors.white,
-          child: InkWell(
-            onTap: () => openPlanDomain(context, domain.epreuve),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-              decoration: BoxDecoration(
-                border: first
-                    ? null
-                    : const Border(top: BorderSide(color: AppColors.lineSoft)),
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 5, 11, 5),
+        decoration: BoxDecoration(
+          color: AppColors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              complete ? LucideIcons.check : LucideIcons.chartColumn,
+              size: 14,
+              color: AppColors.white,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                complete
+                    ? kDiagnosticProfileComplete
+                    : diagnosticEvaluatedCount(evaluated, expected),
+                style: AppFonts.ui(
+                  size: 12.5,
+                  weight: FontWeight.w700,
+                  color: AppColors.white,
+                ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Une des quatre colonnes du pied du résumé : le niveau de l'épreuve, ou
+/// « — » quand il n'y en a pas. Un tap déplie sa carte et l'amène à l'écran.
+///
+/// ⚠️ **Toutes les colonnes sont tappables**, y compris celles sans niveau : la
+/// maquette les rend inertes parce qu'un curseur le signale, ce qu'un doigt
+/// n'a pas. Une épreuve à mesurer est justement celle qu'on veut atteindre.
+class _DomainColumn extends StatelessWidget {
+  const _DomainColumn({
+    required this.view,
+    required this.first,
+    required this.active,
+    required this.onTap,
+  });
+
+  final _EpreuveView view;
+  final bool first;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = view.state == _EpreuveState.ok ? view.level : null;
+    return Semantics(
+      button: true,
+      label: '${planDomainLabel(view.epreuve)} · '
+          '${level?.displayName ?? kDiagnosticToAssessTag}',
+      child: Material(
+        color: active ? AppColors.surface2 : AppColors.white,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(4, 11, 4, 10),
+            decoration: BoxDecoration(
+              border: Border(
+                top: const BorderSide(color: AppColors.lineSoft),
+                left: first
+                    ? BorderSide.none
+                    : const BorderSide(color: AppColors.lineSoft),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  child: Text(
+                    level?.shortName ?? '—',
+                    style: AppFonts.display(
+                      size: 16,
+                      color: level == null ? AppColors.inkFaint : AppColors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  planDomainShort(view.epreuve),
+                  style: AppFonts.ui(
+                    size: 10.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2 — une carte par épreuve
+// ---------------------------------------------------------------------------
+
+/// **La carte d'une épreuve** : son niveau, la phrase qui l'explique, et les
+/// compétences qui l'ont produit.
+///
+/// Trois formes, décidées par [_EpreuveState] et rien d'autre — jamais par la
+/// nullité d'un champ.
+class _EpreuveCard extends StatelessWidget {
+  const _EpreuveCard({
+    super.key,
+    required this.view,
+    required this.objective,
+    required this.open,
+    required this.hasAccess,
+    required this.onToggle,
+    required this.onSkill,
+    required this.onAssess,
+    required this.onSubscribe,
+  });
+
+  final _EpreuveView view;
+  final String? objective;
+  final bool open;
+  final bool hasAccess;
+  final VoidCallback onToggle;
+  final ValueChanged<PlanDomainSkill> onSkill;
+  final ValueChanged<PlanDomainAssessment> onAssess;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    if (view.state != _EpreuveState.ok) return _buildPending(context);
+    return _buildOk(context);
+  }
+
+  // ---- épreuve jamais mesurée, ou production inexploitable ----------------
+
+  Widget _buildPending(BuildContext context) {
+    final empty = view.state == _EpreuveState.toAssess;
+    final assessment = view.assessment;
+    final label = planDomainLabel(view.epreuve);
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
+            child: Row(
+              children: [
+                PlanDomainTile(epreuve: view.epreuve, size: 40),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: AppFonts.display(size: 17, height: 1.2),
+                      ),
+                      const SizedBox(height: 6),
+                      AppTag(
+                        label: empty
+                            ? kDiagnosticToAssessTag
+                            : kDiagnosticIncompleteTag,
+                        tone: empty ? TagTone.ghost : TagTone.red,
+                        compact: true,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '—',
+                  style: AppFonts.display(
+                    size: 26,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  empty
+                      ? diagnosticToAssessText(view.epreuve)
+                      : kDiagnosticIncompleteText,
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    height: 1.55,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+                // 🛑 Sans mesure servie, **aucun bouton** : le serveur ne
+                // désigne pas de parcours pour cette épreuve, et on n'en
+                // invente pas.
+                if (assessment != null) ...[
+                  const SizedBox(height: 13),
+                  AppButton(
+                    label: empty
+                        ? diagnosticAssessCta(view.epreuve)
+                        : diagnosticRedoCta(view.epreuve),
+                    variant: AppButtonVariant.outline,
+                    height: 46,
+                    icon: empty ? LucideIcons.play : LucideIcons.refreshCw,
+                    onPressed: () => onAssess(assessment),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- épreuve mesurée ----------------------------------------------------
+
+  Widget _buildOk(BuildContext context) {
+    // Ce qui est montré en clair. Un compte sans accès en voit **un** de chaque
+    // famille : sa mesure lui appartient, la suite de la liste est ce qui se
+    // débloque.
+    final visibleWork = hasAccess
+        ? (open
+            ? view.work
+            : view.work.take(_kCollapsedWorkVisible).toList(growable: false))
+        : view.work.take(_kFreeWorkVisible).toList(growable: false);
+    final visibleSolid = hasAccess
+        ? view.solid
+        : view.solid.take(_kFreeSolidVisible).toList(growable: false);
+    final moreWork = view.work.length - visibleWork.length;
+
+    // 🛑 Le compteur du verrou se lit sur les **compteurs serveur** du domaine,
+    // jamais sur la longueur d'une liste tronquée ici.
+    final shownFragile = visibleWork
+        .where((l) =>
+            l.group == _SkillGroup.priority || l.group == _SkillGroup.reinforce)
+        .length;
+    final hiddenWork = (view.fragileTotal - shownFragile).clamp(0, 999);
+    final hiddenSolid = (view.solidTotal - visibleSolid.length).clamp(0, 999);
+    final hiddenLabel = hasAccess
+        ? null
+        : diagnosticHiddenCount(work: hiddenWork, solid: hiddenSolid);
+
+    final explanation = view.explanation;
+    final resume = view.resume;
+    final cta = view.work.isEmpty ? null : view.work.first;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      border: Border.all(color: open ? AppColors.blue : AppColors.line),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _header(),
+          if (resume != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Text(
+                resume,
+                style: AppFonts.ui(
+                  size: 13.5,
+                  height: 1.55,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+            ),
+          if (open && explanation != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              decoration: const BoxDecoration(
+                color: AppColors.blueLight,
+                borderRadius: BorderRadius.all(Radius.circular(AppRadii.md)),
+                border: Border(
+                  left: BorderSide(color: AppColors.blue, width: 3),
+                ),
+              ),
+              child: Text(
+                explanation,
+                style: AppFonts.ui(
+                  size: 13.5,
+                  height: 1.55,
+                  color: AppColors.blueDark,
+                ),
+              ),
+            ),
+          if (view.work.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 6),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: open && hasAccess
+                  ? _groupedWork()
+                  : _flatWork(visibleWork, moreWork),
+            ),
+          if (visibleSolid.isNotEmpty && (open || !hasAccess))
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 8),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _GroupHead(
+                    label: kDiagnosticGroupSolid,
+                    // Le compteur **servi** du domaine, jamais la longueur de
+                    // la liste affichée.
+                    count: hasAccess && view.solidTotal > 1
+                        ? '${view.solidTotal}'
+                        : null,
+                  ),
+                  // 🛑 Ouvrable **pour tout le monde** : le verrou est celui du
+                  // serveur (`locked`), lu par `_openSkill`, jamais l'accès du
+                  // compte — miroir du web.
+                  for (final line in visibleSolid)
+                    _SkillRow(line: line, onTap: () => onSkill(line.skill)),
+                ],
+              ),
+            ),
+          if (hiddenLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: _LockedPreview(
+                title: _blurredTitle(visibleWork.length, visibleSolid.length),
+                count: hiddenLabel,
+                onSubscribe: onSubscribe,
+              ),
+            ),
+          if (open && hasAccess && (view.notObserved > 0 || cta != null))
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 15),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (view.notObserved > 0) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppTag(
+                          label: _SkillGroup.notObserved.label,
+                          tone: _SkillGroup.notObserved.tone,
+                          compact: true,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            diagnosticNotObserved(view.notObserved),
+                            style: AppFonts.ui(
+                              size: 12.5,
+                              height: 1.45,
+                              color: AppColors.inkFaint,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (cta != null)
+                    AppButton(
+                      label: view.epreuve.isProduction
+                          ? kDiagnosticWorkPrioritiesCta
+                          : diagnosticWorkDomainCta(view.epreuve),
+                      height: 48,
+                      icon: view.epreuve.isProduction
+                          ? LucideIcons.target
+                          : LucideIcons.play,
+                      onPressed: () => onSkill(cta.skill),
+                    ),
+                ],
+              ),
+            ),
+          _footer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _header() => Semantics(
+        button: true,
+        label: '${planDomainLabel(view.epreuve)} · '
+            '${view.level?.displayName ?? ''}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 13),
               child: Row(
                 children: [
                   PlanDomainTile(
-                    epreuve: domain.epreuve,
-                    filled: domain.priority == PlanDomainPriority.forte,
+                    epreuve: view.epreuve,
+                    size: 40,
+                    filled: open,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          planDomainLabel(domain.epreuve),
-                          style: AppFonts.ui(
-                            size: 14.5,
-                            weight: FontWeight.w600,
-                            height: 1.25,
-                          ),
+                          planDomainLabel(view.epreuve),
+                          style: AppFonts.display(size: 17, height: 1.2),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          diagnosticDomainSubtitle(domain),
+                          diagnosticEpreuveMeta(objective, view.nextLevel),
                           style: AppFonts.ui(
                             size: 12.5,
                             height: 1.35,
@@ -736,7 +1094,149 @@ class _ProfileRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  PlanDomainPriorityTag(priority: domain.priority),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        view.level?.shortName ?? '—',
+                        style: AppFonts.display(size: 30, height: 1),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        kDiagnosticEstimatedLabel.toUpperCase(),
+                        style: AppFonts.label(size: 10.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  /// Les trois familles, séparées et titrées — la lecture d'un abonné qui a
+  /// déplié sa carte.
+  Widget _groupedWork() {
+    const groups = [
+      _SkillGroup.priority,
+      _SkillGroup.reinforce,
+      _SkillGroup.acquire,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final group in groups)
+          if (view.work.any((l) => l.group == group)) ...[
+            _GroupHead(
+              label: group.label,
+              count: view.work.where((l) => l.group == group).length > 1
+                  ? '${view.work.where((l) => l.group == group).length}'
+                  : null,
+              note: group == _SkillGroup.acquire
+                  ? diagnosticAcquireNote(view.nextLevel)
+                  : null,
+            ),
+            for (final line in view.work.where((l) => l.group == group))
+              _SkillRow(line: line, onTap: () => onSkill(line.skill)),
+            const SizedBox(height: 6),
+          ],
+      ],
+    );
+  }
+
+  /// La lecture **repliée**, et celle d'un compte sans accès : une seule
+  /// section, une pastille par ligne.
+  Widget _flatWork(List<_SkillLine> visible, int more) {
+    final first = view.work.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GroupHead(
+          label: hasAccess
+              ? kDiagnosticGroupWork
+              : (first.group == _SkillGroup.priority
+                  ? kDiagnosticGroupMainWork
+                  : kDiagnosticGroupFirstWork),
+          count: hasAccess
+              ? null
+              : diagnosticFreeWorkCount(visible.length, view.work.length),
+        ),
+        for (final line in visible)
+          _SkillRow(
+            line: line,
+            pill: true,
+            onTap: () => onSkill(line.skill),
+          ),
+        if (hasAccess && more > 0)
+          Semantics(
+            button: true,
+            label: diagnosticMoreToWork(more),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onToggle,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+                  child: Text(
+                    diagnosticMoreToWork(more),
+                    style: AppFonts.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Le **vrai** libellé de la compétence suivante — celle que le rideau laisse
+  /// deviner. Le repli n'affirme rien : il ne nomme aucune compétence.
+  String _blurredTitle(int shownWork, int shownSolid) {
+    if (view.work.length > shownWork) return view.work[shownWork].skill.title;
+    if (view.solid.length > shownSolid) {
+      return view.solid[shownSolid].skill.title;
+    }
+    return kDiagnosticLockedFallback;
+  }
+
+  Widget _footer() => Semantics(
+        button: true,
+        label: open ? kDiagnosticCollapse : kDiagnosticExpand,
+        child: Material(
+          color: AppColors.surface2,
+          child: InkWell(
+            onTap: onToggle,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.lineSoft)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      open ? kDiagnosticCollapse : kDiagnosticExpand,
+                      style: AppFonts.ui(
+                        size: 13,
+                        weight: FontWeight.w700,
+                        color: open ? AppColors.inkSoft : AppColors.blue,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      LucideIcons.chevronDown,
+                      size: 16,
+                      color: AppColors.inkFaint,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -745,57 +1245,387 @@ class _ProfileRow extends StatelessWidget {
       );
 }
 
-// ---------------------------------------------------------------------------
-// 3 — compléter son profil
-// ---------------------------------------------------------------------------
+/// L'en-tête d'une famille de compétences : son nom, son compte, et — pour les
+/// acquisitions — ce qu'elle veut dire.
+class _GroupHead extends StatelessWidget {
+  const _GroupHead({required this.label, this.count, this.note});
 
-/// Ce qu'il reste à mesurer, et de quoi le mesurer **tout de suite**.
-///
-/// 🛑 Le geste ne crée aucun parcours : il passe par [openPlanAssessment],
-/// l'autorité unique qui traduit une `PlanDomainAssessmentKind` en écran — la
-/// même que la fiche d'un domaine et que la barre d'action de ce bilan.
-///
-/// ⚠️ **La durée est calculée** ([_assessmentsMinutes]), jamais recopiée de la
-/// maquette : ce sont les `estimatedMinutes` que le serveur lit chez
-/// `DureeEpreuve`. Sans aucune durée servie, le bouton n'en annonce pas.
-class _CompleteProfileCard extends StatelessWidget {
-  const _CompleteProfileCard({required this.assessments});
+  final String label;
 
-  /// Déjà filtrées et **déjà ordonnées** par le serveur. Jamais vides ici :
-  /// l'appelant ne construit pas la carte quand le profil est complet.
-  final List<PlanDomainAssessment> assessments;
+  /// `null` = un seul élément, ou rien à compter : on n'affiche pas « 1 ».
+  final String? count;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
-    final minutes = _assessmentsMinutes(assessments);
-    final label = minutes == null
-        ? kDiagnosticCompleteProfileCta
-        : '$kDiagnosticCompleteProfileCta · $minutes min';
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
+    final sub = note;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  style: AppFonts.label(size: 11),
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 7),
+                Text(
+                  count!,
+                  style: AppFonts.label(
+                    size: 11,
+                    color: AppColors.inkFaint.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (sub != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              sub,
+              style: AppFonts.ui(
+                size: 12,
+                height: 1.45,
+                color: AppColors.inkFaint,
+              ),
+            ),
+          ],
+        ],
       ),
-      padding: const EdgeInsets.all(15),
+    );
+  }
+}
+
+/// Une compétence : sa puce, son titre, son repère, et le chevron quand elle
+/// ouvre quelque chose.
+///
+/// 🛑 **Une compétence solide se lit autrement** : une coche pleine au lieu
+/// d'une puce, et un titre moins gras — elle n'appelle aucune action, elle
+/// constate un acquis.
+class _SkillRow extends StatelessWidget {
+  const _SkillRow({required this.line, this.pill = false, this.onTap});
+
+  final _SkillLine line;
+
+  /// Affiche la pastille du groupe à droite du titre : elle n'a de sens que
+  /// dans la vue **repliée**, où les familles ne sont pas séparées.
+  final bool pill;
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final solid = line.group == _SkillGroup.solid;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          if (solid)
+            Container(
+              width: 20,
+              height: 20,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.greenLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                LucideIcons.check,
+                size: 12,
+                color: AppColors.green,
+              ),
+            )
+          else
+            Container(
+              width: 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: line.group == _SkillGroup.priority
+                    ? line.group.color
+                    : line.group.color.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+            ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.skill.title,
+                  style: AppFonts.ui(
+                    size: 14.5,
+                    weight: solid ? FontWeight.w500 : FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  diagnosticSkillSubtitle(line.skill),
+                  style: AppFonts.ui(size: 11.5, color: AppColors.inkFaint),
+                ),
+              ],
+            ),
+          ),
+          if (pill && !solid) ...[
+            const SizedBox(width: 8),
+            AppTag(
+              label: line.group.label,
+              tone: line.group.tone,
+              compact: true,
+            ),
+          ],
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 14,
+              color: AppColors.inkFaint,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      label: '${line.skill.title} · ${diagnosticSkillSubtitle(line.skill)} · '
+          '${line.group.label}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, child: row),
+      ),
+    );
+  }
+}
+
+/// **Un seul verrou par épreuve** : le vrai libellé de la compétence suivante,
+/// flouté, et le compte exact de ce qui reste — lisible, lui, parce qu'il n'est
+/// pas dans le rideau.
+///
+/// 🛑 Rien n'est fabriqué derrière le flou : la ligne vient du serveur. Le
+/// rideau ([BlurredContent]) est `ExcludeSemantics` + `IgnorePointer` — ce qui
+/// est illisible à l'œil doit l'être aussi au lecteur d'écran. Le geste, lui,
+/// est porté par la ligne entière et mène au **seul** parcours d'achat de
+/// l'app.
+class _LockedPreview extends StatelessWidget {
+  const _LockedPreview({
+    required this.title,
+    required this.count,
+    required this.onSubscribe,
+  });
+
+  final String title;
+  final String count;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '$count · $kDiagnosticUnlockShort',
+      child: Material(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: InkWell(
+          onTap: onSubscribe,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.lock,
+                  size: 15,
+                  color: AppColors.inkFaint,
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BlurredContent(
+                        sigma: 4,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.ui(
+                            size: 13.5,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        count,
+                        style: AppFonts.ui(
+                          size: 12.5,
+                          weight: FontWeight.w700,
+                          height: 1.35,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  kDiagnosticUnlockShort,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3 — la suite : le plan, ou l'offre
+// ---------------------------------------------------------------------------
+
+/// Ce que le rapport enchaîne pour un abonné : son plan, qui traite ces
+/// priorités une par une.
+class _NextStepCard extends StatelessWidget {
+  const _NextStepCard({required this.objective, required this.onOpenPlan});
+
+  final String? objective;
+  final VoidCallback onOpenPlan;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              diagnosticNextStepText(objective),
+              style: AppFonts.ui(
+                size: 14,
+                height: 1.55,
+                color: AppColors.inkSoft,
+              ),
+            ),
+            const SizedBox(height: 13),
+            AppButton(
+              label: kDiagnosticWorkPrioritiesCta,
+              iconRight: LucideIcons.arrowRight,
+              onPressed: onOpenPlan,
+            ),
+            const SizedBox(height: 4),
+            AppButton(
+              label: kDiagnosticAllSkillsCta,
+              variant: AppButtonVariant.ghost,
+              height: 44,
+              onPressed: () => context.push(AppRoutes.planSkills),
+            ),
+          ],
+        ),
+      );
+}
+
+/// L'offre ferme le rapport : le candidat a d'abord lu **son** niveau sur les
+/// quatre épreuves, et vu **sa** première priorité sur chacune.
+///
+/// 🛑 Le premier argument porte un **vrai** nombre, celui que le serveur a
+/// compté ; à zéro, il n'est pas rendu. Aucun prix, aucun verbe d'achat
+/// (guidelines Apple 3.1.1) : les deux gestes mènent au même écran d'offre.
+class _UnlockCard extends StatelessWidget {
+  const _UnlockCard({
+    required this.objective,
+    required this.detected,
+    required this.onSubscribe,
+  });
+
+  final String? objective;
+  final int detected;
+  final VoidCallback onSubscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            kDiagnosticCompleteProfileText,
-            style: AppFonts.ui(
-              size: 13.5,
-              height: 1.55,
-              color: AppColors.inkSoft,
+          GradientHero(
+            padding: const EdgeInsets.fromLTRB(18, 17, 18, 16),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.xl),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kDiagnosticUnlockTitle,
+                  style: AppFonts.display(
+                    size: 20,
+                    height: 1.15,
+                    color: AppColors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  diagnosticUnlockText(objective),
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    height: 1.55,
+                    color: AppColors.white.withValues(alpha: 0.92),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                PremiumBenefitList(
+                  benefits: diagnosticUnlockBenefits(detected),
+                  checkColor: AppColors.greenBright,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 13),
-          AppButton(
-            label: label,
-            variant: AppButtonVariant.outline,
-            height: 46,
-            icon: LucideIcons.play,
-            onPressed: () => openPlanAssessment(context, assessments.first),
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppButton(
+                  label: kDiagnosticUnlockCta,
+                  iconRight: LucideIcons.arrowRight,
+                  height: 48,
+                  onPressed: onSubscribe,
+                ),
+                const SizedBox(height: 4),
+                AppButton(
+                  label: kPlanPaywallFormulas,
+                  variant: AppButtonVariant.ghost,
+                  height: 44,
+                  onPressed: onSubscribe,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -807,17 +1637,13 @@ class _CompleteProfileCard extends StatelessWidget {
 // Titres de section
 // ---------------------------------------------------------------------------
 
-/// Le titre d'une section — **une ligne, rien d'autre**. Les anciens en-têtes
-/// à trois étages (eyebrow, titre-phrase, description) sont ce qui avait
-/// alourdi cet écran passe après passe.
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.text});
+/// Le titre d'une section — **une ligne, rien d'autre** (deux avec son
+/// sous-titre). Les en-têtes à trois étages sont ce qui avait alourdi cet écran
+/// passe après passe.
+class _SectionHead extends StatelessWidget {
+  const _SectionHead({required this.title, this.text});
 
   final String title;
-
-  /// `null` = le titre se suffit. C'est le cas de « Mon profil TCF », et celui
-  /// des priorités d'un **abonné** : le sous-titre n'existe que pour compter ce
-  /// que le rideau cache, il n'a rien à dire à qui voit tout.
   final String? text;
 
   @override
@@ -838,592 +1664,6 @@ class _SectionTitle extends StatelessWidget {
                 height: 1.45,
                 color: AppColors.inkSoft,
               ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 4 — vos points forts
-// ---------------------------------------------------------------------------
-
-/// Ce que les deux productions ont montré **solide** : une coche, la
-/// compétence, son domaine. Les phrases `strengths` ne sont qu'un **repli**
-/// quand aucune compétence n'a été observée solide — les afficher côte à côte
-/// aurait dit deux fois la même chose, et en clair ce que le rideau prétend
-/// cacher.
-class _StrengthsCard extends StatelessWidget {
-  const _StrengthsCard({required this.skills, required this.texts});
-
-  final List<DiagnosticSkillObservation> skills;
-  final List<String> texts;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <Widget>[
-      for (final skill in skills)
-        _StrengthRow(
-          label: skill.skillTitle,
-          meta: _skillMetaLine(skill.section, skill.skillCode),
-        ),
-      if (skills.isEmpty)
-        for (final text in texts) _StrengthRow(label: text),
-    ];
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var index = 0; index < rows.length; index++) ...[
-            if (index > 0) const SizedBox(height: 12),
-            rows[index],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Une ligne de point fort : la coche, la compétence, et **sous elle** son
-/// repère (« Expression écrite · Tâche 2 ») — la disposition de la maquette.
-/// Le repère à droite du titre, qu'on avait, se repliait avant lui sur un
-/// téléphone étroit.
-class _StrengthRow extends StatelessWidget {
-  const _StrengthRow({required this.label, this.meta});
-
-  final String label;
-
-  /// Vide ou `null` sur une phrase de repli : il n'y a alors aucun domaine à
-  /// nommer, et on n'en invente pas.
-  final String? meta;
-
-  @override
-  Widget build(BuildContext context) {
-    final sub = meta;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: AppColors.greenLight,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            LucideIcons.check,
-            size: 13,
-            color: AppColors.green,
-          ),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppFonts.ui(size: 13.5, height: 1.35)),
-              if (sub != null && sub.isNotEmpty) ...[
-                const SizedBox(height: 1),
-                Text(
-                  sub,
-                  style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 5 — vos priorités
-// ---------------------------------------------------------------------------
-
-/// Les priorités du serveur, ou son repli : une carte, une ligne par
-/// compétence, séparées d'un filet — la densité de la maquette.
-class _PrioritiesCard extends StatelessWidget {
-  const _PrioritiesCard({required this.focus});
-
-  final List<_FocusItem> focus;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var index = 0; index < focus.length; index++)
-              _PriorityRow(item: focus[index], rank: index + 1),
-          ],
-        ),
-      );
-}
-
-/// Une priorité : son rang, la compétence, son repère et le verdict porté sur
-/// elle.
-///
-/// 🛑 **La ligne OUVRE LA FICHE DE LA COMPÉTENCE** — `nav.push("skill")` de la
-/// maquette, ici [openPlanSkill], le **lanceur partagé** du Plan. La même
-/// compétence ne peut pas mener à deux écrans selon l'endroit où on la touche,
-/// et c'est là que le candidat trouve ses sujets. Elle ne déplie donc plus le
-/// rapport du correcteur en place : `explanation` et `evidence` vivent sur la
-/// fiche et sur le rapport de la production.
-///
-/// Sans compétence à ouvrir (repli tiré des `weaknesses`), la ligne reste
-/// **inerte** et ne montre aucun chevron : elle n'annonce que ce qu'elle fait.
-class _PriorityRow extends StatelessWidget {
-  const _PriorityRow({required this.item, required this.rank});
-
-  final _FocusItem item;
-
-  /// 1-based, comme la maquette. Le premier rang est teinté — un seul élément
-  /// de la liste attire l'œil.
-  final int rank;
-
-  @override
-  Widget build(BuildContext context) {
-    // Une ligne sans domaine reste nommée pour ce qu'elle est, plutôt que de
-    // laisser un titre nu : c'est le repli du web (`PRIORITY_RANK_LABEL`).
-    final meta = item.meta.isEmpty ? item.fallbackMeta : item.meta;
-    final status = item.status;
-    final skillId = item.skillId;
-    final section = item.section;
-    final opens = item.opensSkill;
-
-    final row = Container(
-      padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-      decoration: BoxDecoration(
-        border: Border(
-          top: rank == 1
-              ? BorderSide.none
-              : const BorderSide(color: AppColors.lineSoft),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Un rang numéroté, comme la maquette — et non la pastille de
-          // domaine : « Vos priorités » est un **classement**, le domaine se
-          // lit sur la ligne du dessous.
-          PlanRankBadge(
-            rank: rank,
-            tone: rank == 1 ? AppColors.red : AppColors.inkFaint,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: AppFonts.ui(
-                    size: 14,
-                    weight: FontWeight.w600,
-                    height: 1.28,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  meta,
-                  style: AppFonts.ui(
-                    size: 12,
-                    height: 1.35,
-                    color: AppColors.inkFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (status != null) ...[
-            const SizedBox(width: 8),
-            AppTag(
-              label: status.label,
-              tone: tagToneForAccent(status.color),
-              compact: true,
-            ),
-          ],
-          if (opens) ...[
-            const SizedBox(width: 4),
-            const Icon(
-              LucideIcons.chevronRight,
-              size: 16,
-              color: AppColors.inkFaint,
-            ),
-          ],
-        ],
-      ),
-    );
-
-    if (!opens) return row;
-    return Semantics(
-      button: true,
-      label: '${item.title} · $meta',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => openPlanSkill(context, skillId!, section!),
-          child: row,
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 4 — aperçu du plan
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// 5 — l'offre
-// ---------------------------------------------------------------------------
-
-/// Ce que l'abonnement ouvre, en cinq lignes. Aucun prix, aucun verbe d'achat
-/// (guidelines Apple 3.1.1) : le libellé du bouton est celui, partagé, de
-/// [kUnlockPlanCta].
-class _UnlockCard extends StatelessWidget {
-  const _UnlockCard({required this.onSubscribe});
-
-  final VoidCallback onSubscribe;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GradientHero(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadii.xl),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  kDiagnosticUnlockTitle,
-                  style: AppFonts.display(
-                    size: 21,
-                    height: 1.12,
-                    color: AppColors.white,
-                  ),
-                ),
-                const SizedBox(height: 13),
-                const PremiumBenefitList(
-                  benefits: kDiagnosticPremiumBenefits,
-                  checkColor: AppColors.greenBright,
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Semantics(
-              button: true,
-              label: kUnlockPlanCta,
-              child: AppButton(
-                label: kUnlockPlanCta,
-                iconRight: LucideIcons.arrowRight,
-                height: 48,
-                onPressed: onSubscribe,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Ce qu'un compte sans accès TCF ne lit pas encore
-// ---------------------------------------------------------------------------
-
-/// Ce qu'un compte **sans accès TCF** lit en clair avant le bloc verrouillé.
-///
-/// Ce sont des seuils d'**affichage**, jamais une règle serveur : le backend ne
-/// verrouille pas la lecture d'un diagnostic, et `GET /api/me/plan` sert le Plan
-/// en entier à un compte gratuit. Ils viennent de la maquette (`MDiag`, étape
-/// `result` — `forces.slice(0, 2)` et `priorites.slice(0, 1)`) et ne décident
-/// d'aucun accès : le verrou réel reste `PlanRecommendedExercise.locked`, posé
-/// par le serveur.
-///
-/// 🛑 **Ce qui reste entier quel que soit l'abonnement** : le niveau estimé,
-/// l'objectif, le rail, **les quatre domaines de « Mon profil TCF »**, ce qu'il
-/// reste à mesurer, et la priorité n°1. Ce sont **ses** productions et **ses**
-/// mesures — on ne les lui vend pas. ⚠️ Corollaire à ne jamais casser :
-/// **aucune surface de cet écran ne doit nommer en clair ce que le rideau
-/// prétend cacher.** C'est exactement pour ça que le détail des deux
-/// productions (qui listait « À travailler ») n'y a plus sa place.
-const int _kFreeFocusVisible = 1;
-const int _kFreeSolidVisible = 2;
-
-/// Combien de lignes **réelles** le bloc flouté laisse deviner. C'est un
-/// échantillon, jamais le compte : le compte, lui, est exact et porte sur
-/// **tout** ce qui est masqué. Miroir web : `TEASE_SAMPLE`.
-const int _kBlurredSample = 2;
-
-/// Ce qu'il reste à annoncer, à partir d'un total **servi par le serveur** et de
-/// ce qui est affiché en clair.
-///
-/// 🛑 `0` ⇒ **aucun bloc** : une liste plus courte que le seuil s'affiche
-/// entièrement en clair, on ne fabrique jamais de reste à vendre.
-int _hiddenCount({required int total, required int visible}) =>
-    total - visible < 0 ? 0 : total - visible;
-
-String _plural(int count) => count > 1 ? 's' : '';
-
-/// Une ligne du bloc verrouillé. Elle porte du **contenu réel** : le titre et
-/// l'épreuve de ce que le serveur a effectivement observé.
-class _LockedLine {
-  const _LockedLine({required this.title, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-}
-
-/// Le bloc « il y en a d'autres » : un échantillon **réel, flouté**, et le
-/// compte exact de ce qui reste.
-///
-/// 🛑 **Rien n'est fabriqué derrière le flou.** Les lignes viennent des
-/// observations du serveur ; on ne compose jamais de fausse priorité pour
-/// remplir. Le flou est un rideau posé sur du vrai, pas un décor.
-///
-/// Il est `ExcludeSemantics` + `IgnorePointer` : ce qui est illisible à l'œil
-/// doit l'être aussi au lecteur d'écran, sinon le verrou ne tient pas.
-class _LockedPreview extends StatelessWidget {
-  const _LockedPreview({
-    required this.lines,
-    required this.label,
-    required this.onSubscribe,
-  });
-
-  final List<_LockedLine> lines;
-  final String label;
-  final VoidCallback onSubscribe;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Le rideau partagé du produit (`core/widgets/blurred_content.dart`) :
-          // `ExcludeSemantics` + `IgnorePointer` + flou, déclarés à un seul
-          // endroit.
-          BlurredContent(
-            sigma: 5,
-            child: Column(
-              children: [
-                for (final line in lines)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
-                    child: Row(
-                      children: [
-                        const PremiumLockPill(size: 22),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                line.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppFonts.ui(
-                                  size: 14,
-                                  weight: FontWeight.w600,
-                                ),
-                              ),
-                              if (line.subtitle != null)
-                                Text(
-                                  line.subtitle!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppFonts.ui(
-                                    size: 12,
-                                    color: AppColors.inkFaint,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Material(
-            color: AppColors.surface2,
-            child: InkWell(
-              // Le même parcours d'achat que partout ailleurs
-              // (`showTcfLockPaywall`) : jamais un second chemin.
-              onTap: onSubscribe,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.lineSoft)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      LucideIcons.lock,
-                      size: 15,
-                      color: AppColors.inkFaint,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: AppFonts.ui(
-                          size: 13.5,
-                          weight: FontWeight.w700,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      kUnlockPlanCta,
-                      style: AppFonts.ui(
-                        size: 13.5,
-                        weight: FontWeight.w700,
-                        color: AppColors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// La barre collante
-// ---------------------------------------------------------------------------
-
-/// La barre d'action du bilan : **une seule action principale**, et laquelle
-/// dépend de ce qu'il reste à faire.
-///
-/// - Il reste un domaine de **compréhension** à mesurer et le candidat a choisi
-///   le diagnostic complet ⇒ l'action ouvre la fiche de ce domaine, où vit
-///   déjà le geste qui lance son examen blanc. Le plan reste accessible juste
-///   en dessous.
-/// - Sinon ⇒ le plan personnalisé, fin naturelle du diagnostic.
-///
-/// 🛑 **Le choix du parcours à ouvrir n'est pas recopié ici.** Décider quoi
-/// lancer selon `PlanDomainAssessmentKind` vivait en deux copies côté Plan ;
-/// elles ont été fondues dans [openPlanAssessment], le point d'entrée public
-/// que cette barre appelle comme la fiche d'un domaine. Trois copies auraient
-/// fini par ouvrir trois écrans différents pour le même domaine. La légende dit
-/// dès ici ce qu'il y a derrière ([planAssessmentMeta]) : « Examen blanc n°1 ·
-/// ≈ 20 min », jamais une promesse plus vague que le geste.
-/// Le diagnostic **complet** enchaîne sur une épreuve de compréhension : c'est
-/// le seul endroit de l'app où une CO/CE est lancée *depuis le diagnostic*, et
-/// donc le seul où l'événement soit vrai.
-///
-/// ⚠️ Il n'existe **pas** de `DIAGNOSTIC_CO_COMPLETED` / `_CE_COMPLETED` côté
-/// mobile : la série part dans le runner QCM ordinaire, qui ne sait rien de sa
-/// provenance. Poser un `COMPLETED` demanderait de faire voyager cette
-/// provenance jusqu'au bilan — au risque de compter comme « diagnostic » un
-/// examen blanc lancé depuis les Examens. On préfère ne pas mesurer que
-/// mesurer faux.
-void _trackComprehensionStarted(
-  WidgetRef ref,
-  PlanDomainAssessment assessment,
-) {
-  final event = switch (assessment.epreuve) {
-    EpreuveType.tcfCo => AnalyticsEvent.diagnosticCoStarted,
-    EpreuveType.tcfCe => AnalyticsEvent.diagnosticCeStarted,
-    _ => null,
-  };
-  if (event == null) return;
-  ref.read(analyticsServiceProvider).track(
-        event,
-        path: AnalyticsPath.diagnostic,
-        // On y arrive par le bilan du diagnostic complet : c'est le seul
-        // chemin qui rend cette barre d'action.
-        diagnosticType: AnalyticsDiagnosticType.complete,
-      );
-}
-
-class _ResultActionBar extends ConsumerWidget {
-  const _ResultActionBar({required this.next, required this.onOpenPlan});
-
-  /// Le prochain domaine de compréhension à mesurer, **déjà désigné par le
-  /// serveur**. `null` est le cas courant : profil complet, ou diagnostic
-  /// rapide — ni l'un ni l'autre n'est une anomalie.
-  final PlanDomainAssessment? next;
-
-  final VoidCallback onOpenPlan;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final assessment = next;
-    final label = assessment == null
-        ? kDiagnosticCtaPlan
-        : 'Mesurer ma ${planDomainLabel(assessment.epreuve).toLowerCase()}';
-    final caption = assessment == null
-        ? 'Basé sur vos réponses · vous pourrez commencer par un exercice'
-        : planAssessmentMeta(assessment);
-    return FixedActionBar(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            label: label,
-            child: AppButton(
-              label: label,
-              iconRight: LucideIcons.arrowRight,
-              onPressed: assessment == null
-                  ? onOpenPlan
-                  : () {
-                      _trackComprehensionStarted(ref, assessment);
-                      openPlanAssessment(context, assessment);
-                    },
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            caption,
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(
-              size: 10.5,
-              weight: FontWeight.w700,
-              color: AppColors.inkFaint,
-              height: 1.35,
-            ),
-          ),
-          if (assessment != null) ...[
-            const SizedBox(height: 4),
-            AppButton(
-              label: kDiagnosticCtaPlan,
-              variant: AppButtonVariant.ghost,
-              height: 44,
-              onPressed: onOpenPlan,
             ),
           ],
         ],

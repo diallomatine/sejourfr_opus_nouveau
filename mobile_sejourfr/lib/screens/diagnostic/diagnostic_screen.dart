@@ -17,7 +17,6 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
-import '../tcf_production/recommended_exercise_launcher.dart';
 import 'diagnostic_controller.dart';
 import 'diagnostic_variant.dart';
 import 'widgets/diagnostic_account_gate.dart';
@@ -262,12 +261,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     }
   }
 
-  void _openRecommended(PlanRecommendedExercise exercise) {
-    // Même destination et même verrou freemium que sur le Plan : le lanceur
-    // partagé décide, l'app ne recalcule rien.
-    unawaited(openRecommendedExercise(context, ref, exercise));
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(diagnosticControllerProvider);
@@ -432,7 +425,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           hasTcfAccess: _hasTcfAccess,
           variant: variant,
           onOpenPlan: () => context.go(AppRoutes.plan),
-          onOpenRecommended: _openRecommended,
           // Même feuille que le Plan et les Compétences : un seul parcours
           // d'achat, jamais un second.
           onSubscribe: () {

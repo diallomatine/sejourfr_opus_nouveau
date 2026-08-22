@@ -114,7 +114,7 @@ class LearningPlanServiceTest {
         skillManager = mock(SkillManager.class);
         when(profileService.levelProfile(userId)).thenReturn(profil(null, null, null, null));
         when(skillManager.findActiveComprehension()).thenReturn(List.of());
-        when(skillManager.countActiveByTaskCode(anyCollection())).thenReturn(Map.of());
+        when(skillManager.findActiveExpression()).thenReturn(List.of());
         UserManager userManager = mock(UserManager.class);
         user = new User();
         user.setId(userId);
@@ -134,6 +134,9 @@ class LearningPlanServiceTest {
                 // reviendrait a tester le mock.
                 new PlanDomainAssessmentResolver(),
                 acquisitionSelector,
+                // Les competences par epreuve tournent POUR DE VRAI : elles ne
+                // font que ranger ce que le service vient de decider.
+                new PlanDomainSkillResolver(),
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.

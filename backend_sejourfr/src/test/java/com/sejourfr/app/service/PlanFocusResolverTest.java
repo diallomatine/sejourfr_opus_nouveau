@@ -182,7 +182,7 @@ class PlanFocusResolverTest {
         return new PlanCycleResolver.Resolution(
                 new PlanCycleDto(null, TargetLevel.B1, TargetLevel.B2,
                         PlanCycleState.TRAINING, 4, 4, true, List.of()),
-                List.of());
+                List.of(), List.of());
     }
 
     private static Skill skill(String code) {

@@ -144,6 +144,24 @@ public interface SkillRepository extends JpaRepository<Skill, UUID>,
     List<Skill> findByTaskCodeIsNullAndActiveTrueOrderBySectionAscDisplayOrderAsc();
 
     /**
+     * Les competences ACTIVES d'EXPRESSION, toutes taches confondues : 48 lignes
+     * sur le contenu publie (2 epreuves x 3 taches x 8), dans l'ordre du
+     * referentiel.
+     *
+     * <p>C'est le pendant de
+     * {@link #findByTaskCodeIsNullAndActiveTrueOrderBySectionAscDisplayOrderAsc()}
+     * pour l'expression, et le socle de la vue « une epreuve, ses competences »
+     * du Plan. Elle <b>remplace</b> le {@code GROUP BY} de
+     * {@link #countActiveByTaskCodes} chez {@code PlanCycleResolver} : les
+     * comptes par tache s'en derivent, donc le Plan ne paie <b>aucune requete de
+     * plus</b> — il lit les lignes au lieu de les compter.
+     *
+     * <p>{@code taskCode IS NOT NULL} identifie exactement l'expression, la base
+     * garantissant l'equivalence ({@code chk_skills_task_code_presence}).
+     */
+    List<Skill> findByTaskCodeIsNotNullAndActiveTrueOrderBySectionAscTaskCodeAscDisplayOrderAsc();
+
+    /**
      * Les competences ACTIVES d'un ou plusieurs <b>paliers</b>, tous domaines
      * confondus, dans l'ordre pedagogique (domaine, tache, rang d'affichage).
      *

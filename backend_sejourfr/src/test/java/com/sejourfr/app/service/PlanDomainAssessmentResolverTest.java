@@ -155,7 +155,7 @@ class PlanDomainAssessmentResolverTest {
         List<PlanDomainDto> domaines = new ArrayList<>();
         for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
             boolean mesure = mesures.contains(epreuve);
-            domaines.add(new PlanDomainDto(
+            domaines.add(PlanDomainDto.sansCompetences(
                     epreuve, mesure, mesure ? NiveauCecrl.A2 : null,
                     mesure ? PlanDomainPriority.A_TRAVAILLER : PlanDomainPriority.A_EVALUER,
                     null, null, List.of(), List.of()));

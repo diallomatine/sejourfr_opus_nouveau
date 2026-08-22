@@ -37,6 +37,15 @@ import java.util.List;
  * </ul>
  * Les deux listes sont <b>toujours presentes</b>, jamais {@code null}.
  *
+ * <p><b>{@link #skills()}, lui, est UNIFORME sur les quatre domaines</b> : les 24
+ * competences des trois taches en expression, les trois competences de palier en
+ * comprehension. C'est ce qui permet a l'ecran « Mon diagnostic » de se lire
+ * epreuve par epreuve avec <b>une seule</b> facon de rendre une carte, la ou
+ * {@link #paliers()} et {@link #taches()} restent les deux vues specialisees.
+ * Les trois compteurs qui l'accompagnent en sont <b>derives</b>, jamais recomptes
+ * ailleurs : leur somme vaut toujours {@code skills().size()}, ce qui interdit a
+ * un front d'afficher un « + N » faux.
+ *
  * @param epreuve           {@code TCF_CO} | {@code TCF_CE} | {@code TCF_EO} | {@code TCF_EE}
  * @param evaluated         le domaine porte un niveau opposable
  * @param niveau            niveau estime, {@code null} si jamais evalue
@@ -48,6 +57,16 @@ import java.util.List;
  *                          {@code null} quand les trois le sont
  * @param paliers           comprehension : A2, B1, B2 dans cet ordre ; vide en expression
  * @param taches            expression : taches 1, 2, 3 dans cet ordre ; vide en comprehension
+ * @param skills            <b>toutes</b> les competences actives du domaine, dans
+ *                          l'ordre du referentiel (tache puis rang d'affichage en
+ *                          expression, A2 &rarr; B1 &rarr; B2 en comprehension).
+ *                          <b>Jamais {@code null}</b> ; vide seulement si le
+ *                          referentiel l'est.
+ * @param fragileSkillCount competences observees {@code PRIORITY} ou
+ *                          {@code TO_REINFORCE}
+ * @param solidSkillCount   competences observees {@code SOLID}
+ * @param notObservedSkillCount competences jamais observees — <b>ce n'est pas une
+ *                          faiblesse</b>, c'est une absence de mesure
  */
 public record PlanDomainDto(
         EpreuveType epreuve,
@@ -57,5 +76,50 @@ public record PlanDomainDto(
         TargetLevel consolidatedLevel,
         TargetLevel blockingLevel,
         List<PlanDomainLevelDto> paliers,
-        List<PlanDomainTaskDto> taches
-) {}
+        List<PlanDomainTaskDto> taches,
+        List<PlanDomainSkillDto> skills,
+        int fragileSkillCount,
+        int solidSkillCount,
+        int notObservedSkillCount
+) {
+
+    /**
+     * Le domaine tel que {@link com.sejourfr.app.service.PlanCycleResolver} le
+     * resout : niveau, urgence, paliers et taches, <b>sans</b> sa liste de
+     * competences.
+     *
+     * <p>Cette liste ne peut pas etre remplie la : sa colonne {@code nature}
+     * depend des priorites et des acquisitions, que le Plan n'a pas encore
+     * choisies a ce moment — et son {@code locked} depend d'un acces qui n'est
+     * resolu qu'ensuite. Elle est donc posee en un seul endroit,
+     * {@code PlanDomainSkillResolver}, par {@link #withSkills}.
+     */
+    public static PlanDomainDto sansCompetences(
+            EpreuveType epreuve,
+            boolean evaluated,
+            NiveauCecrl niveau,
+            PlanDomainPriority priority,
+            TargetLevel consolidatedLevel,
+            TargetLevel blockingLevel,
+            List<PlanDomainLevelDto> paliers,
+            List<PlanDomainTaskDto> taches) {
+        return new PlanDomainDto(epreuve, evaluated, niveau, priority,
+                consolidatedLevel, blockingLevel, paliers, taches, List.of(), 0, 0, 0);
+    }
+
+    /**
+     * Le meme domaine, avec ses competences et les trois compteurs qui en sont
+     * <b>derives</b>. Reserve a {@code PlanDomainSkillResolver}, unique autorite :
+     * deux endroits qui compteraient chacun de leur cote finiraient par afficher
+     * deux totaux differents pour la meme epreuve.
+     */
+    public PlanDomainDto withSkills(
+            List<PlanDomainSkillDto> skills,
+            int fragileSkillCount,
+            int solidSkillCount,
+            int notObservedSkillCount) {
+        return new PlanDomainDto(epreuve, evaluated, niveau, priority,
+                consolidatedLevel, blockingLevel, paliers, taches,
+                skills, fragileSkillCount, solidSkillCount, notObservedSkillCount);
+    }
+}

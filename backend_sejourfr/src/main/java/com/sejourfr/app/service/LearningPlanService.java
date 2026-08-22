@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.LearningPlanSkillDto;
 import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.PlanRecentChangesDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.dto.PlanSeanceDto;
@@ -110,6 +111,7 @@ public class LearningPlanService {
     private final PlanCycleResolver cycleResolver;
     private final PlanDomainAssessmentResolver assessmentResolver;
     private final PlanAcquisitionSelector acquisitionSelector;
+    private final PlanDomainSkillResolver domainSkillResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
     private final UserManager userManager;
@@ -127,17 +129,25 @@ public class LearningPlanService {
             // de ses domaines.
             PlanCycleResolver.Resolution profil =
                     cycleResolver.resolve(user, List.of(), List.of());
+            // Les competences de chaque epreuve sont servies AUSSI ici : sans
+            // diagnostic elles sont toutes NOT_OBSERVED, ce qui est exactement
+            // ce que l'ecran doit montrer — un referentiel entier a decouvrir,
+            // pas quatre cartes vides. Seul le verrou est une vraie information,
+            // et il se lit chez son unique autorite.
+            List<PlanDomainDto> domaines = domainSkillResolver.attach(
+                    profil.domaines(), profil.referentiel(),
+                    Map.of(), Map.of(), Map.of(), accessService.resolve(userId, null));
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
                     inProgress == null ? null : inProgress.getId(), null,
                     List.of(), null, List.of(), List.of(), 0, 0, true, null,
-                    profil.domaines(), profil.cycle(),
+                    domaines, profil.cycle(),
                     // Aucun diagnostic termine : les deux domaines d'expression
                     // pointent vers le diagnostic, les deux de comprehension vers
                     // leur examen blanc de module. C'est exactement l'ecran
                     // d'onboarding du brief §6 — et il n'est jamais vide.
-                    assessmentResolver.resolve(profil.domaines(), false),
+                    assessmentResolver.resolve(domaines, false),
                     // Aucune priorite, donc aucune seance et rien qui ait bouge :
                     // le Plan sert le profil, pas une journee de travail.
                     new PlanSeanceDto(List.of(), 0), null);
@@ -365,18 +375,28 @@ public class LearningPlanService {
                 allObservations, mastery,
                 actionable.isEmpty() ? null : actionable.getFirst(), Instant.now())
                 .orElse(null);
+        // LES COMPETENCES DE CHAQUE EPREUVE : la meme verite que les cartes
+        // ci-dessus, rangee par domaine. La NATURE vient des cartes elles-memes
+        // — la recalculer aurait fini par dire « a acquerir » ici et « a
+        // renforcer » la. Une competence absente de cette table n'a aucune
+        // nature : le Plan ne demande rien dessus, et on ne fabrique pas une
+        // action pour remplir une colonne.
+        Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
+        priorities.forEach(carte -> natures.put(carte.skillId(), carte.nature()));
+        List<PlanDomainDto> domaines = domainSkillResolver.attach(
+                profil.domaines(), profil.referentiel(), latest, mastery, natures, access);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),
                 observed, observedCount, activities, true, milestone,
-                profil.domaines(), profil.cycle(),
+                domaines, profil.cycle(),
                 // « Completer mon profil » survit au diagnostic : un candidat
                 // evalue en EE/EO garde CO et CE a mesurer, et la session
                 // terminee ne se rejoue pas — ces domaines-la, s'ils manquaient
                 // encore, retomberaient sur une production.
-                assessmentResolver.resolve(profil.domaines(), true),
+                assessmentResolver.resolve(domaines, true),
                 seance, changes);
     }
 

@@ -135,6 +135,21 @@ public class SkillManager {
     }
 
     /**
+     * Les competences ACTIVES d'EXPRESSION, toutes taches confondues (48 sur le
+     * contenu publie), dans l'ordre du referentiel : domaine, tache, rang
+     * d'affichage.
+     *
+     * <p>Une seule requete bornee. C'est le referentiel dont le Plan a besoin
+     * pour lister les competences d'une epreuve, et il <b>remplace</b> le compte
+     * par tache ({@link #countActiveByTaskCode}) au lieu de s'y ajouter : on lit
+     * les lignes, on les compte en memoire, et le cout du Plan ne bouge pas.
+     */
+    public List<Skill> findActiveExpression() {
+        return repository
+                .findByTaskCodeIsNotNullAndActiveTrueOrderBySectionAscTaskCodeAscDisplayOrderAsc();
+    }
+
+    /**
      * Les competences ACTIVES d'un ou plusieurs <b>paliers</b>, dans l'ordre
      * pedagogique. C'est le referentiel du palier en construction, celui dont
      * {@code PlanAcquisitionSelector} tire les competences qui restent a

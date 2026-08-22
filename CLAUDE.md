@@ -1503,7 +1503,10 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
   (`PlanDomainPriority`, **libellés FR gelés** par `SkillLabelsTest` : « Priorité forte » /
   « À travailler » / « Entretien » / « Pas encore prioritaire » / « À évaluer », **l'ordre de
   déclaration EST l'ordre d'urgence**), `consolidatedLevel`, `blockingLevel`, les 3 `paliers`
-  en CO/CE, les `taches` observées/total en EE/EO.
+  en CO/CE, les `taches` observées/total en EE/EO. **Depuis le 2026-08-22** il porte aussi
+  `skills` (les compétences de l'épreuve, uniforme sur les 4) et les 3 compteurs
+  `fragileSkillCount`/`solidSkillCount`/`notObservedSkillCount` — cf. la section
+  *« Mon diagnostic » se lit PAR ÉPREUVE* plus bas.
 - **`cycle`** (`PlanCycleDto`) : vise **le cran au-dessus du niveau consolidé**, jamais
   l'objectif directement. 🛑 **L'objectif vient de `TargetProcedure.niveauVise`, jamais d'une
   constante** — la maquette l'affiche en dur à `B2`, ce qui retirerait son A2 à un dossier
@@ -1693,6 +1696,102 @@ Le socle existait aux trois quarts. Deux trous seulement ont été comblés :
   personne à qui attribuer un progrès (`ComprehensionObservationService` l'ignore déjà, et
   `TcfProfileService` lit par `user_id`) : un QCM d'invité serait **perdu par construction**.
   Aucune session anonyme, `diagnostic_sessions.user_id` reste `NOT NULL`, funnel intact.
+
+### « Mon diagnostic » se lit PAR ÉPREUVE (2026-08-22)
+
+Chantier d'après les maquettes `docs/plan/SejourFR - {Mobile,Web} Autonome.html` (écrans
+`MDiagBilan` ⇄ `PlanDiagScreen`). L'écran **Plan → « Mon diagnostic »** était organisé par
+**nature d'information** (niveau global → profil TCF → points forts → priorités → offre) ;
+il l'est désormais **par épreuve** : une carte dépliable par épreuve, portant son niveau
+estimé, les compétences qui l'expliquent, et l'action qui suit.
+
+**Le chemin d'accès ne bouge pas** : ligne « Mon diagnostic » du groupe de liens secondaires
+du Plan, `push('/diagnostic')` (mobile) ⇄ `/diagnostic` (web), sans cadenas — l'écran s'ouvre
+pour tout le monde.
+
+- **Ordre figé des sections, identique sur les deux fronts** : héros global (niveau estimé,
+  objectif, `N / 4 épreuves évaluées`, rail A2→B1→B2, et **4 colonnes cliquables** qui
+  déplient la carte visée) → « Mes 4 épreuves » dans l'ordre **EE · EO · CE · CO** → prochaine
+  étape (abonné) ou carte d'offre (gratuit) → note d'estimation. 🛑 L'ordre des épreuves est
+  **stable**, il ne reprend PAS l'ordre d'urgence de `LearningPlanDto.domaines` : le Plan se
+  lit par urgence, le diagnostic se lit toujours pareil. On ne retrie rien, on lit.
+- **Trois états de carte** : `ok` · **« À évaluer »** (`evaluated == false`, niveau `—`, CTA
+  vers l'assessment de `domainesAEvaluer`) · **« Évaluation incomplète »**
+  (`ProductionEvaluabilite.NON_EVALUABLE`). ⚠️ **Un domaine réellement mesuré affiche son
+  niveau** : une production inexploitable ne produit aucun niveau, mais elle n'**efface** pas
+  celui qu'une autre mesure a donné. Les deux fronts testent les états dans le **même** ordre —
+  ils divergeaient à la livraison, c'est corrigé.
+
+**Contrat serveur — `PlanDomainDto` gagne les compétences de son épreuve.**
+`PlanDomainDto.taches` ne donnait que des **compteurs**, `paliers` que 3 entrées sans titre, et
+`LearningPlanDto.observedSkills` est **plafonné à 8 toutes épreuves confondues** — une épreuve
+pouvait donc sortir vide alors qu'elle avait des compétences. Quatre champs additifs :
+`List<PlanDomainSkillDto> skills` (**jamais null**), `fragileSkillCount`, `solidSkillCount`,
+`notObservedSkillCount`. `paliers` et `taches` sont **intacts**.
+
+- **`skills` est UNIFORME sur les 4 épreuves** : les 24 compétences de l'épreuve en expression
+  (3 tâches × 8, ordre tâche puis `display_order`), les **3 compétences de palier** en
+  compréhension (A2→B1→B2). C'est ce qui donne aux fronts **une seule façon de lire une carte**.
+  🛑 La maquette invente des sous-domaines de compréhension (« Informations implicites »,
+  « Documents longs ») qui **n'existent pas** au référentiel — arbitrage du propriétaire
+  (2026-08-22) : on affiche les **3 paliers réels**, jamais un contenu fabriqué.
+- **Autorité unique `PlanDomainSkillResolver`, ZÉRO requête** — il ne décide rien : `status` et
+  `observedAt` viennent de `latestObservedBySkill`, `masteryState` de `SkillMasteryEngine`,
+  `nature` **des cartes que `LearningPlanService` vient d'empiler**, `locked` de
+  `SkillAccessService`. Jamais une copie d'une règle qui a déjà une autorité.
+- 🛑 **Rien n'est affirmé sans observation** : une compétence jamais observée sort
+  `NOT_OBSERVED` / `masteryState` **null** / `observedAt` **null** / **aucune** `nature` —
+  *null = inconnu, jamais mauvais*. Une compétence `SOLID` n'a pas de nature non plus : une
+  nature est **l'action à faire**, pas un statut.
+- **Coût inchangé : 19 requêtes avant, 19 après.** Le `GROUP BY` `countActiveByTaskCode` est
+  **remplacé** par un lot `findActiveExpression()` (48 lignes) : les compteurs par tâche s'en
+  dérivent en mémoire, et le même lot sert la liste des compétences. **Une requête troquée
+  contre une**, publiée par `PlanCycleResolver.Resolution.referentiel()` — la charger deux fois
+  aurait fait payer au Plan une donnée qu'il avait déjà en main. Les deux tests de coût gardent
+  leur **égalité**. `PlanAcquisitionSelector` n'est pas touché : le fusionner casserait le
+  retour anticipé de `PlanFocusResolver.currentFocusSkillId`, qui protège **tous** les écrans
+  de compétences.
+- **Invariant testé** : `fragileSkillCount + solidSkillCount + notObservedSkillCount ==
+  skills.size()`. C'est ce qui garantit qu'un front ne peut pas afficher un « + N » faux.
+- ⚠️ **La branche `NEEDS_DIAGNOSTIC` appelle désormais `accessService.resolve(userId, null)`** :
+  sans lui `locked` y valait `false` par défaut, donc **faux**. Correction, pas régression.
+
+**Freemium — on floute l'action, jamais la mesure.** Application par épreuve de la règle du
+2026-08-21 : 1 priorité + 1 compétence solide en clair, puis **un seul bloc de verrou par
+carte** portant le **vrai** libellé de la compétence suivante, flouté, et le compte exact
+(« + 3 compétences détectées · 2 déjà solides »). Compteurs calculés sur les
+`fragileSkillCount`/`solidSkillCount` **du domaine** — jamais sur `DiagnosticResultDto
+.fragileSkillCount`, qui est **global** et mentirait par épreuve. `N == 0` ⇒ **le bloc n'existe
+pas**. Le rideau est hors de l'arbre d'accessibilité (`aria-hidden` + `inert` ⇄
+`BlurredContent`), le compteur et le CTA vivent **hors** du rideau. Un seul chemin vers l'offre,
+**aucun événement d'audience ajouté**.
+⚠️ **Le compte des non observées est recalculé côté front** (`NOT_OBSERVED` **et** pas
+`A_ACQUERIR`) au lieu de lire `notObservedSkillCount` : ce dernier inclut les acquisitions,
+déjà affichées sous « À acquérir ». Les compter deux fois dirait qu'une compétence est à la
+fois à apprendre et sans données.
+
+**Aucune phrase ne vient du serveur.** Les résumés par (épreuve × palier) et l'encart
+d'explication vivent dans les fronts — `diagnostic_report_labels.dart` ⇄ les constantes de
+`DiagnosticReport.tsx`, miroirs mot pour mot — et l'explication est **composée de faits**
+(compétences observées, tâches, palier bloquant), jamais d'un jugement.
+
+**Ce que la maquette n'a pas et qu'on a gardé** : « Compléter mon profil » n'est plus une carte
+séparée, son parcours vit dans le bouton de chaque carte « À évaluer » (même
+`openPlanAssessment` / `usePlanAssessment`, autorité inchangée), avec un repli vers la fiche
+d'épreuve quand aucun assessment n'est servi. L'accès aux fiches de domaine survit en lien
+discret. **Supprimés** : `DiagnosticProfile.tsx` (web) et, des deux côtés, les blocs
+« points forts » / « priorités » plats, leur teaser et la barre d'action collante.
+
+🛑 **Piège de rendu à ne pas rejouer (mobile)** : la `Row` des 4 colonnes du résumé est
+enveloppée d'**`IntrinsicHeight`**. Sans lui, `CrossAxisAlignment.stretch` dans un
+`SingleChildScrollView` réclame une hauteur **infinie**, la `RenderFlex` reste `NEEDS-LAYOUT`,
+et `flushSemantics` — qui ignore les nœuds non mis en page — lève
+`!semantics.parentDataDirty` **à chaque frame** : écran blanc. Les asserts de sémantique
+étaient le **symptôme**, l'exception racine étant noyée sous les « Another exception was
+thrown ». Les 3 autres `Row + stretch` de l'app en sont déjà enveloppées — c'est la convention.
+⚠️ Et **ne pas « réparer » ce genre d'assert avec `excludeSemantics: true`** : il vide
+`visitChildrenForSemantics`, donc l'action `onTap` de l'`InkWell` disparaît du nœud et
+VoiceOver annonce « bouton » sans pouvoir l'activer.
 
 ### Écrans — ce qui n'a PAS été créé, et pourquoi
 La maquette appelle plusieurs écrans secondaires. **Créés** : fiche d'un domaine, « votre

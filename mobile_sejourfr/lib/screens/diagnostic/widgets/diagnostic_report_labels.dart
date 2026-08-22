@@ -1,11 +1,11 @@
 /// **Les phrases du rapport de diagnostic.**
 ///
-/// ⚠️ **Miroirs mot pour mot du web** (`app/_components/diagnostic/
-/// DiagnosticView.tsx` et `DiagnosticLevelCard.tsx`) : ces chaînes ne
-/// transitent pas par le réseau, chaque front en tient sa copie écrite à la
-/// main. Elles vivent ici plutôt que dans les widgets — une chaîne posée au
-/// milieu d'un `Text` est exactement la façon dont les deux fronts ont déjà
-/// divergé.
+/// L'écran lit son bilan **épreuve par épreuve** : un niveau estimé, la phrase
+/// qui l'explique, puis les compétences qui l'ont produit. Le serveur ne sert
+/// **aucune** de ces phrases — il sert des faits (un niveau, des compteurs, un
+/// palier qui bloque). Elles vivent donc ici plutôt que dans les widgets : une
+/// chaîne posée au milieu d'un `Text` est exactement la façon dont les deux
+/// fronts ont déjà divergé.
 ///
 /// ⚠️ **Vouvoiement.** La maquette du propriétaire tutoie, mais elle ne donne
 /// que la direction **visuelle** — structure, ordre des blocs, densité, ce
@@ -19,129 +19,383 @@
 library;
 
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/models/enums.dart';
+import '../../plan/plan_labels.dart';
 
 /* ------------------------------------------------------------- l'en-tête */
 
 /// Titre de l'en-tête d'écran une fois le rapport rendu.
 ///
 /// ⚠️ C'est **« Diagnostic »**, pas « Votre rapport » : la référence de cet
-/// écran est `MDiag` étape `result` (le bilan **in-app** d'un candidat
-/// connecté), et non `MRapportGratuit`, qui est celui du **visiteur**. La
-/// confusion entre les deux maquettes est ce qui avait fait dériver l'écran.
+/// écran est le bilan **in-app** d'un candidat connecté, et non le rapport du
+/// **visiteur**. La confusion entre les deux maquettes est ce qui avait fait
+/// dériver l'écran.
 const String kDiagnosticReportTitle = 'Diagnostic';
 const String kDiagnosticReportSubPremium = 'Rapport complet';
 const String kDiagnosticReportSubFree = 'Estimation d\'entraînement Séjour';
 
-/* ------------------------------------------------------ la carte de niveau */
+/* ------------------------------------------------------ le résumé global */
 
-const String kDiagnosticLevelEyebrow = 'Votre niveau estimé';
+const String kDiagnosticLevelEyebrow = 'Niveau estimé';
 const String kDiagnosticLevelObjective = 'Objectif';
 const String kDiagnosticLevelObjectiveUnknown = 'à définir';
-const String kDiagnosticLevelText =
-    'Estimation établie sur vos deux productions. Les compétences à rendre '
-    'plus stables sont listées ci-dessous.';
 
-/* ---------------------------------------------------- mon profil TCF */
+/// Les quatre épreuves **dans l'ordre de lecture du rapport** : ce qu'on vient
+/// de produire d'abord (l'écrit puis l'oral), ce qui se mesure ensuite.
+///
+/// 🛑 Ordre **figé**, identique au web : c'est une décision de lecture, pas
+/// l'ordre d'urgence du Plan (`domaines`, trié serveur), qu'on ne rejoue jamais
+/// ici.
+const List<EpreuveType> kDiagnosticEpreuveOrder = <EpreuveType>[
+  EpreuveType.tcfEe,
+  EpreuveType.tcfEo,
+  EpreuveType.tcfCe,
+  EpreuveType.tcfCo,
+];
 
-/// La ligne sous le nom d'un domaine, **sur le bilan du diagnostic**.
+const String kDiagnosticProfileComplete = 'Diagnostic complet';
+
+/// « 2 / 4 épreuves évaluées ». Le dénominateur vient du serveur
+/// (`cycle.domainsExpected`) : on ne l'écrit jamais en dur.
+String diagnosticEvaluatedCount(int done, int total) =>
+    '$done / $total épreuve${total > 1 ? 's' : ''} '
+    'évaluée${total > 1 ? 's' : ''}';
+
+/// Ce que vaut une estimation partielle — dite sans reproche : les épreuves
+/// manquantes ne sont pas ratées, elles ne sont pas mesurées.
+String diagnosticPartialText(int done, int total) =>
+    'Estimation basée sur $done épreuve${done > 1 ? 's' : ''} sur $total. '
+    'Elle se précisera dès que les autres seront évaluées.';
+
+/* --------------------------------------------------------- mes épreuves */
+
+const String kDiagnosticEpreuvesTitle = 'Mes 4 épreuves';
+const String kDiagnosticEpreuvesSub =
+    'Votre niveau épreuve par épreuve, et les compétences qui l\'expliquent';
+
+/// La pastille d'une épreuve **jamais mesurée**.
 ///
-/// ⚠️ **Volontairement différente de `planDomainSubtitle`** : le Plan explique
-/// par quoi mesurer un domaine (c'est son rôle), le bilan dit seulement où en
-/// est le profil au sortir des deux productions. Deux écrans, deux phrases —
-/// ce n'est pas une copie qui a dérivé.
-///
-/// Un domaine jamais mesuré reste **inconnu, jamais mauvais** : aucun niveau ne
-/// lui est prêté.
-String diagnosticDomainSubtitle(PlanDomain domain) {
-  final level = domain.niveau;
-  if (!domain.evaluated || level == null) return kDiagnosticDomainNotEvaluated;
-  return '${level.displayName} — quelques compétences observées';
+/// ⚠️ Elle porte volontairement le **même mot** que `PlanDomainPriority
+/// .aEvaluer` et `PlanActionNature.aEvaluer` : les trois disent la même chose,
+/// elles ne s'affichent simplement pas au même endroit. Ce n'est pas une
+/// collision à « réparer ».
+const String kDiagnosticToAssessTag = 'À évaluer';
+
+/// La pastille d'une production **rendue mais inexploitable** — le serveur n'en
+/// a tiré aucun niveau (`ProductionEvaluabilite.nonEvaluable`).
+const String kDiagnosticIncompleteTag = 'Évaluation incomplète';
+
+String diagnosticToAssessText(EpreuveType epreuve) =>
+    'Cette épreuve n\'a pas encore été évaluée : aucun niveau n\'est estimé en '
+    '${planDomainLabel(epreuve).toLowerCase()}.';
+
+/// 🛑 **Aucun reproche** : on décrit ce qui manque à la machine, jamais ce qui
+/// manquerait au candidat.
+const String kDiagnosticIncompleteText =
+    'Nous n\'avons pas reçu suffisamment de contenu pour estimer votre niveau. '
+    'Une nouvelle production de deux minutes suffit.';
+
+/// « mon expression écrite » / « ma compréhension orale ». Le français ne
+/// s'accorde pas sur le domaine mais sur son nom : *expression* est féminin
+/// mais commence par une voyelle, donc « mon ».
+String _diagnosticPossessive(EpreuveType epreuve) =>
+    epreuve.isProduction ? 'mon' : 'ma';
+
+String diagnosticAssessCta(EpreuveType epreuve) =>
+    'Évaluer ${_diagnosticPossessive(epreuve)} '
+    '${planDomainLabel(epreuve).toLowerCase()}';
+
+/// Uniquement pour une **production** (EE/EO) : elle seule peut être rendue
+/// sans être exploitable. Les deux libellés commencent par une voyelle, donc
+/// l'élision est toujours correcte.
+String diagnosticRedoCta(EpreuveType epreuve) =>
+    'Refaire l\'${planDomainLabel(epreuve).toLowerCase()}';
+
+const String kDiagnosticEstimatedLabel = 'Estimé';
+
+/// « Objectif B2 · prochain palier B1 ». L'objectif est **nullable** — il vient
+/// de la démarche déclarée, et on n'en invente aucun.
+String diagnosticEpreuveMeta(String? objective, TargetLevel? next) {
+  final target = objective ?? kDiagnosticLevelObjectiveUnknown;
+  if (next == null) return '$kDiagnosticLevelObjective $target';
+  return '$kDiagnosticLevelObjective $target · prochain palier ${next.wire}';
 }
 
-const String kDiagnosticDomainNotEvaluated =
-    'Votre profil se complétera avec une première série';
-
-/// La carte qui ouvre la mesure des domaines encore inconnus.
+/// **Le palier immédiatement au-dessus du niveau mesuré** sur cette épreuve —
+/// la marche suivante, jamais l'objectif directement.
 ///
-/// 🛑 **Elle n'est rendue que si elle est VRAIE** : le diagnostic mesure les
-/// deux domaines d'**expression**, jamais la compréhension — mais un candidat a
-/// pu passer un examen blanc CO ou CE avant. Sans domaine de compréhension à
-/// mesurer, la carte n'existe pas.
-const String kDiagnosticCompleteProfileText =
-    'Votre diagnostic n\'a pas encore évalué la compréhension. Deux épreuves '
-    'suffisent — maintenant ou plus tard depuis votre plan.';
+/// 🛑 Plafonné à B2 : le contrat TCF IRN s'y arrête. `null` quand rien n'est
+/// mesuré — on ne place pas le candidat sur une échelle par défaut.
+TargetLevel? diagnosticNextLevel(NiveauCecrl? level) => switch (level) {
+      null => null,
+      NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => TargetLevel.a2,
+      NiveauCecrl.a2 => TargetLevel.b1,
+      NiveauCecrl.b1 => TargetLevel.b2,
+      NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => TargetLevel.b2,
+    };
 
-/// ⚠️ La durée qui suit ce libellé est **calculée**, jamais écrite : elle vient
-/// des `estimatedMinutes` que le serveur pose sur chaque mesure, eux-mêmes lus
-/// chez `DureeEpreuve`. La maquette affiche « 14 min », qui n'est la durée
-/// d'aucune de nos épreuves.
-const String kDiagnosticCompleteProfileCta = 'Compléter maintenant';
+/* ------------------------------------------------ ce qu'explique le niveau */
 
-/// La seule phrase de l'écran qui dise ce que vaut l'estimation.
-const String kDiagnosticEstimationNote =
-    'Estimation d\'entraînement Séjour, non officielle. Elle ne remplace pas '
-    'le résultat du TCF.';
+/// **La phrase qui explique un niveau, épreuve par épreuve.**
+///
+/// Une par couple (épreuve × palier). Elle dit ce que le niveau **veut dire**
+/// et ce qui sépare de la marche suivante — jamais un jugement sur la personne,
+/// jamais un mot de manque quand rien n'a été observé.
+///
+/// `null` = aucun niveau mesuré ⇒ **aucune phrase**. C1/C2 (historique) se
+/// lisent comme B2 : le contrat en vigueur s'arrête là.
+String? diagnosticEpreuveResume(EpreuveType epreuve, NiveauCecrl? level) {
+  if (level == null) return null;
+  final palier = switch (level) {
+    NiveauCecrl.c1 || NiveauCecrl.c2 => NiveauCecrl.b2,
+    _ => level,
+  };
+  return _kDiagnosticResume[epreuve]?[palier];
+}
 
-/* ----------------------------------------------------------- les sections */
+const Map<EpreuveType, Map<NiveauCecrl, String>> _kDiagnosticResume =
+    <EpreuveType, Map<NiveauCecrl, String>>{
+  EpreuveType.tcfEe: <NiveauCecrl, String>{
+    NiveauCecrl.a1NonAtteint:
+        'Votre texte reste très court : les compétences attendues au A2 sont '
+            'encore à construire.',
+    NiveauCecrl.a1:
+        'Vous écrivez des phrases simples ; les compétences attendues au A2 '
+            'restent à installer.',
+    NiveauCecrl.a2:
+        'Vos productions sont compréhensibles, mais certaines compétences '
+            'attendues au B1 restent à consolider.',
+    NiveauCecrl.b1:
+        'Vos textes tiennent le B1. Ce qui manque pour le B2 : des arguments '
+            'développés et nuancés.',
+    NiveauCecrl.b2:
+        'Vos productions atteignent le niveau attendu : il s\'agit maintenant '
+            'de le conserver.',
+  },
+  EpreuveType.tcfEo: <NiveauCecrl, String>{
+    NiveauCecrl.a1NonAtteint:
+        'Votre enregistrement reste très bref : les compétences attendues au '
+            'A2 sont encore à construire.',
+    NiveauCecrl.a1:
+        'Vous répondez par des phrases courtes ; les compétences attendues au '
+            'A2 restent à installer.',
+    NiveauCecrl.a2:
+        'Vous répondez aux questions simples, mais plusieurs compétences '
+            'nécessaires au B1 restent fragiles.',
+    NiveauCecrl.b1:
+        'Vous tenez l\'échange. Défendre un avis développé est ce qui vous '
+            'sépare du B2.',
+    NiveauCecrl.b2: 'Votre discours est structuré et tenu dans la durée.',
+  },
+  EpreuveType.tcfCo: <NiveauCecrl, String>{
+    NiveauCecrl.a1NonAtteint:
+        'Les messages les plus simples ne sont pas encore repérés : c\'est le '
+            'A2 qui se construit d\'abord.',
+    NiveauCecrl.a1:
+        'Vous saisissez quelques mots-clés ; comprendre un message simple en '
+            'entier reste à travailler.',
+    NiveauCecrl.a2:
+        'Vous comprenez les messages simples et directs ; une situation B1 sur '
+            'deux reste difficile.',
+    NiveauCecrl.b1:
+        'Votre B1 est stable : les documents B2 deviennent la prochaine '
+            'marche.',
+    NiveauCecrl.b2:
+        'Vos résultats sont réguliers, y compris sur les documents longs.',
+  },
+  EpreuveType.tcfCe: <NiveauCecrl, String>{
+    NiveauCecrl.a1NonAtteint:
+        'Les documents les plus simples ne sont pas encore décodés : c\'est le '
+            'A2 qui se construit d\'abord.',
+    NiveauCecrl.a1:
+        'Vous repérez quelques mots ; lire un document simple en entier reste '
+            'à travailler.',
+    NiveauCecrl.a2:
+        'Vous repérez les informations explicites ; l\'implicite vous échappe '
+            'encore souvent.',
+    NiveauCecrl.b1:
+        'Votre B1 est presque stabilisé : quelques documents B2 sont déjà '
+            'réussis.',
+    NiveauCecrl.b2:
+        'Votre domaine le plus stable : rien à consolider en priorité.',
+  },
+};
 
-const String kDiagnosticPrioritiesTitle = 'Vos priorités';
+/// **Sur quoi ce niveau repose**, en une phrase de faits servis — jamais une
+/// interprétation.
+///
+/// - **Expression** : combien de compétences ont été observées sur combien, et
+///   comment elles se répartissent. Le détail par statut n'existe que sur cet
+///   écran, d'où une phrase à lui.
+/// - **Compréhension** : le palier consolidé et celui qui bloque. C'est
+///   exactement ce que dit déjà [planDomainSummary], qu'on **appelle** au lieu
+///   d'en écrire une seconde copie.
+///
+/// `null` ⇒ l'encart n'existe pas. Rien n'est deviné pour le remplir.
+String? diagnosticEpreuveExplanation(
+  PlanDomain domain, {
+  required int observed,
+  required int fragile,
+  required int solid,
+}) {
+  if (!domain.evaluated) return null;
+  if (domain.paliers.isNotEmpty) return planDomainSummary(domain);
 
-/// Le sous-titre des priorités, **pour un compte sans accès seulement** : il
-/// dit ce que le rideau cache, donc il n'a rien à dire à un abonné, qui les
-/// voit toutes.
-String diagnosticPrioritiesSub(int total) =>
-    'Votre priorité actuelle sur $total détectées';
+  final total = domain.skills.length;
+  if (total == 0 || observed == 0) return null;
 
-/// Repli : le serveur n'a désigné aucune priorité classée. On ne promeut pas
-/// des points relevés en priorités mesurées.
-const String kDiagnosticPrioritiesTitleUnranked = 'Ce qu\'il y a à travailler';
-const String kDiagnosticPrioritiesTextUnranked =
-    'Ces points viennent de vos deux productions. Ils ne sont pas encore '
-    'classés en priorités.';
+  final tasks = domain.taches.length;
+  final scope = tasks == 0
+      ? ''
+      : ', réparties sur $tasks tâche${tasks > 1 ? 's' : ''}';
+  final detail = <String>[
+    if (fragile > 0) '$fragile à travailler',
+    if (solid > 0) '$solid déjà solide${solid > 1 ? 's' : ''}',
+  ].join(' et ');
 
-const String kDiagnosticStrengthsTitle = 'Vos points forts';
+  final head = '$observed compétence${observed > 1 ? 's' : ''} '
+      'observée${observed > 1 ? 's' : ''} sur $total$scope';
+  return detail.isEmpty ? '$head.' : '$head : $detail.';
+}
 
-/// ⚠️ Le compte vient du serveur (`solidSkillCount`), jamais de la longueur de
-/// ce qui est affiché : un compte gratuit n'en voit que deux.
-String diagnosticStrengthsSub(int total) =>
-    'Compétences observées et déjà solides · $total';
+/* ---------------------------------------------------------- les groupes */
 
-const String kDiagnosticPlanTodayLabel = 'Aujourd\'hui';
+/// Les quatre familles d'une carte d'épreuve.
+///
+/// ⚠️ « À renforcer » et « À acquérir » portent **volontairement** les libellés
+/// gelés de `PlanActionNature` : quand les deux s'appliquent, ils disent la
+/// même chose. Ce sont ici des **titres de groupe**, décidés par le `status`
+/// (et par la `nature` pour l'acquisition), pas des pilules.
+///
+/// 🛑 « À acquérir » ne se dit **jamais** « à renforcer » : renforcer suppose un
+/// constat négatif, et sur une compétence jamais travaillée il n'y en a aucun.
+const String kDiagnosticGroupPriority = 'Priorité';
+const String kDiagnosticGroupReinforce = 'À renforcer';
+const String kDiagnosticGroupAcquire = 'À acquérir';
+const String kDiagnosticGroupSolid = 'Déjà solide';
+
+/// Ce que « À acquérir » veut dire, dit une fois par carte. Aucun mot de
+/// manque : rien n'a été observé, donc rien n'a échoué.
+String diagnosticAcquireNote(TargetLevel? level) => level == null
+    ? 'Compétences que votre plan va commencer à enseigner.'
+    : 'Compétences du palier ${level.wire} que votre plan va commencer à '
+        'enseigner.';
+
+/// Les titres de la vue **repliée** (ou d'un compte sans accès), où les trois
+/// familles ne sont pas séparées.
+const String kDiagnosticGroupWork = 'Priorités';
+const String kDiagnosticGroupMainWork = 'Priorité principale';
+const String kDiagnosticGroupFirstWork = 'À travailler en premier';
+
+/// « 1 sur 6 » — ce qu'un compte sans accès voit sur ce qui a été détecté.
+///
+/// 🛑 Les **deux** nombres sont vrais : ce que la carte montre réellement, sur
+/// ce que le serveur a servi. Miroir de `freeCounter` côté web.
+String diagnosticFreeWorkCount(int visible, int total) => '$visible sur $total';
+
+String diagnosticMoreToWork(int hidden) =>
+    '+ $hidden autre${hidden > 1 ? 's' : ''} '
+    'compétence${hidden > 1 ? 's' : ''} à travailler';
+
+/// Le repère d'une compétence, **sous son titre** : la tâche en expression, le
+/// palier en compréhension. Rien quand ni l'un ni l'autre n'est servi — on
+/// n'invente pas de rattachement.
+String diagnosticSkillSubtitle(PlanDomainSkill skill) {
+  final tache = skill.tacheNumero;
+  if (tache != null) return 'Tâche $tache';
+  final level = skill.targetLevel;
+  if (level != null) return 'Palier ${level.wire}';
+  return skill.skillCode;
+}
+
+/// « {n} compétences : pas encore assez de données pour se prononcer. »
+///
+/// 🛑 *Non observée n'est pas faible* : c'est une absence de mesure, et la
+/// phrase ne doit jamais se lire comme un reproche.
+String diagnosticNotObserved(int count) =>
+    '$count compétence${count > 1 ? 's' : ''} : pas encore assez de données '
+    'pour se prononcer.';
+
+/* ------------------------------------------------------------ le verrou */
+
+/// Le compte **exact** de ce que le rideau cache, sur une épreuve.
+///
+/// 🛑 Il se lit sur `PlanDomain.fragileSkillCount` / `.solidSkillCount`, servis
+/// par le serveur, jamais sur la longueur d'une liste tronquée à l'affichage.
+/// Les deux à zéro ⇒ `null` ⇒ **le bloc n'existe pas**.
+String? diagnosticHiddenCount({required int work, required int solid}) {
+  final parts = <String>[
+    if (work > 0)
+      '+ $work compétence${work > 1 ? 's' : ''} '
+          'détectée${work > 1 ? 's' : ''}',
+    if (solid > 0) '$solid déjà solide${solid > 1 ? 's' : ''}',
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
+/// Le repli du titre flouté quand le serveur n'a plus de ligne à laisser
+/// deviner. Jamais une compétence inventée : une formule qui n'affirme rien.
+const String kDiagnosticLockedFallback = 'Compétence détectée';
+
+/// Le mot du verrou, dans la ligne même du bloc flouté.
+const String kDiagnosticUnlockShort = 'Débloquer';
+
+/* ----------------------------------------------------------- les actions */
+
+const String kDiagnosticWorkPrioritiesCta = 'Travailler mes priorités';
+
+String diagnosticWorkDomainCta(EpreuveType epreuve) =>
+    'Travailler la ${planDomainLabel(epreuve).toLowerCase()}';
+
+const String kDiagnosticExpand = 'Voir le détail de l\'épreuve';
+const String kDiagnosticCollapse = 'Réduire';
+
+/* ------------------------------------------------------- prochaine étape */
+
+const String kDiagnosticNextStepTitle = 'Prochaine étape';
+
+String diagnosticNextStepText(String? objective) => objective == null
+    ? 'Votre plan traite ces priorités une par une, dans l\'ordre qui vous '
+        'fait progresser le plus vite.'
+    : 'Votre plan traite ces priorités une par une, dans l\'ordre qui vous '
+        'fait progresser le plus vite vers le $objective.';
+
+const String kDiagnosticAllSkillsCta = 'Voir toutes mes compétences';
 
 /* --------------------------------------------------------------- l'offre */
+
+/// Le titre de la carte d'offre. ⚠️ Distinct de celui du Plan : ici on ferme un
+/// rapport, là-bas on ouvre un écran.
+const String kDiagnosticUnlockTitle = 'Votre analyse complète est prête';
+
+String diagnosticUnlockText(String? objective) => objective == null
+    ? 'Découvrez toutes vos priorités, tous vos points forts et votre plan '
+        'personnalisé pour progresser.'
+    : 'Découvrez toutes vos priorités, tous vos points forts et votre plan '
+        'personnalisé pour progresser vers le $objective.';
 
 /// Ce que l'abonnement ouvre, dit du point de vue du candidat qui vient de lire
 /// son diagnostic.
 ///
-/// ⚠️ **Liste distincte de celle du Plan** et de celle de l'écran de passes :
-/// elle ne vend pas le catalogue, elle nomme la suite de CE rapport. Ne pas la
-/// fusionner avec un argumentaire commercial générique.
-const List<String> kDiagnosticPremiumBenefits = <String>[
-  'Toutes vos priorités détectées',
-  'Les petits sujets ciblés, compétence par compétence',
-  'Les corrections IA et la version au niveau visé',
-  'Votre plan qui se réordonne à chaque production',
-  'Le moment où vous êtes prêt pour un examen blanc',
-];
+/// 🛑 **Le premier argument porte un VRAI nombre**, celui que le serveur a
+/// réellement compté sur les quatre épreuves — jamais une constante de
+/// maquette. À zéro, il n'est pas rendu : on ne vend pas un compte vide.
+///
+/// ⚠️ Liste **distincte** de celle du Plan : elle ne vend pas le catalogue,
+/// elle nomme la suite de CE rapport.
+List<String> diagnosticUnlockBenefits(int detected) => <String>[
+      if (detected > 0)
+        'Les $detected compétence${detected > 1 ? 's' : ''} à travailler '
+            'détectée${detected > 1 ? 's' : ''} sur vos épreuves',
+      'Toutes vos compétences déjà solides',
+      'Votre plan et vos entraînements ciblés',
+    ];
 
-/// Le titre de la carte d'offre. ⚠️ Distinct de celui du Plan : ici on ferme un
-/// rapport, là-bas on ouvre un écran.
-const String kDiagnosticUnlockTitle = 'Débloquez votre plan complet';
+const String kDiagnosticUnlockCta = 'Débloquer mon diagnostic complet';
 
-/* ---------------------------------------------------------- les actions */
+/* ----------------------------------------------------------- la mention */
 
-const String kDiagnosticCtaPlan = 'Voir mon plan';
-
-/// Le repère d'une ligne qui ne porte aucun domaine (repli sans compétence).
-const String kDiagnosticPriorityRankLabel = 'Priorité détectée';
-const String kDiagnosticPointLabel = 'Point à travailler';
-
-/// Le numéro de tâche porté par un code de compétence d'**expression**
-/// (`EE2-C7` → 2). `null` en compréhension (`CO-A2`) : ces compétences
-/// n'appartiennent à aucune des six tâches officielles — on n'en invente pas.
-/// Miroir de `skillTaskNumber` (`web_sejoufr/lib/diagnostic.ts`).
-int? diagnosticSkillTaskNumber(String skillCode) {
-  final match = RegExp(r'^(?:EE|EO)([1-3])(?:-|$)').firstMatch(skillCode);
-  final task = match?.group(1);
-  return task == null ? null : int.parse(task);
-}
+/// La seule phrase de l'écran qui dise ce que vaut l'estimation.
+const String kDiagnosticEstimationNote =
+    'Votre niveau est une estimation d\'entraînement Séjour, pas un score '
+    'officiel du TCF.';

@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -83,11 +82,16 @@ class PlanCycleResolverTest {
             }
         }
         when(skillManager.findActiveComprehension()).thenReturn(competences);
-        Map<SkillTaskCode, Long> totaux = new EnumMap<>(SkillTaskCode.class);
+        // Le referentiel d'EXPRESSION est desormais lu ligne par ligne : les
+        // comptes par tache s'en derivent, et c'est ce meme lot qui servira la
+        // liste des competences de chaque epreuve. Une requete, pas deux.
+        List<Skill> taches = new ArrayList<>();
         for (SkillTaskCode code : SkillTaskCode.values()) {
-            totaux.put(code, 8L);
+            for (int rang = 1; rang <= 8; rang++) {
+                taches.add(expression(code.name() + "-C" + rang));
+            }
         }
-        when(skillManager.countActiveByTaskCode(anyCollection())).thenReturn(totaux);
+        when(skillManager.findActiveExpression()).thenReturn(taches);
     }
 
     // ------------------------------------------------------------------------

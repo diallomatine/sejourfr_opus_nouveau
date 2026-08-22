@@ -1372,6 +1372,10 @@ class PlanDomain {
     this.blockingLevel,
     this.paliers = const <PlanDomainLevel>[],
     this.taches = const <PlanDomainTask>[],
+    this.skills = const <PlanDomainSkill>[],
+    this.fragileSkillCount = 0,
+    this.solidSkillCount = 0,
+    this.notObservedSkillCount = 0,
   });
 
   /// `TCF_CO` | `TCF_CE` | `TCF_EO` | `TCF_EE`.
@@ -1398,6 +1402,31 @@ class PlanDomain {
   /// Expression : tâches 1, 2, 3 dans cet ordre. Vide en compréhension.
   final List<PlanDomainTask> taches;
 
+  /// **Toutes** les compétences actives du domaine, dans l'ordre du serveur :
+  /// les 24 des trois tâches en expression, les 3 paliers en compréhension.
+  ///
+  /// Contrairement à [paliers] / [taches], cette liste est **uniforme sur les
+  /// quatre domaines** — c'est ce qui permet à l'écran « Mon diagnostic » de
+  /// n'avoir qu'**une** façon de rendre une carte d'épreuve.
+  ///
+  /// 🛑 **L'ordre vient du serveur, on ne retrie jamais** : deux copies de la
+  /// règle désigneraient deux ordres.
+  final List<PlanDomainSkill> skills;
+
+  /// Compétences observées `PRIORITY` ou `TO_REINFORCE`.
+  final int fragileSkillCount;
+
+  /// Compétences observées `SOLID`.
+  final int solidSkillCount;
+
+  /// Compétences **jamais observées** — ce n'est pas une faiblesse, c'est une
+  /// absence de mesure.
+  ///
+  /// 🛑 Les trois compteurs sont **dérivés de [skills] côté serveur** et leur
+  /// somme vaut toujours `skills.length` : c'est ce qui rend un « + N autres »
+  /// vrai. Ne jamais les recompter ici.
+  final int notObservedSkillCount;
+
   factory PlanDomain.fromJson(Map<String, dynamic> json) => PlanDomain(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         evaluated: json['evaluated'] as bool? ?? false,
@@ -1415,6 +1444,97 @@ class PlanDomain {
         taches: _objectList(json['taches'])
             .map(PlanDomainTask.fromJson)
             .toList(growable: false),
+        // Un backend anterieur au champ ne le sert pas : liste vide et
+        // compteurs a zero, jamais une exception.
+        skills: _objectList(json['skills'])
+            .map(PlanDomainSkill.fromJson)
+            .toList(growable: false),
+        fragileSkillCount: (json['fragileSkillCount'] as num? ?? 0).toInt(),
+        solidSkillCount: (json['solidSkillCount'] as num? ?? 0).toInt(),
+        notObservedSkillCount:
+            (json['notObservedSkillCount'] as num? ?? 0).toInt(),
+      );
+}
+
+/// Une compétence du référentiel d'une **épreuve**, vue depuis le Plan : où en
+/// est le candidat dessus, et peut-il la travailler. Miroir de
+/// `PlanDomainSkillDto`.
+///
+/// **Trois nullités, trois faits différents.**
+/// - [status] vaut `notObserved` quand rien n'a jamais été observé — **jamais
+///   `null`** : une compétence est toujours dans un des quatre états, et « non
+///   observée » est un état, pas une absence de donnée ;
+/// - [masteryState] et [observedAt] valent `null` dans ce même cas : *null =
+///   inconnu, jamais mauvais* ;
+/// - [nature] vaut `null` dès que le Plan ne demande **rien** dessus — le cas de
+///   l'immense majorité des compétences. Une compétence `solid`, ou non
+///   observée hors du palier que le cycle construit, **n'est pas une action** :
+///   ne pas fabriquer une pastille pour remplir la colonne.
+class PlanDomainSkill {
+  const PlanDomainSkill({
+    required this.skillId,
+    required this.skillCode,
+    required this.title,
+    required this.status,
+    required this.locked,
+    this.section,
+    this.taskCode,
+    this.tacheNumero,
+    this.targetLevel,
+    this.masteryState,
+    this.nature,
+    this.observedAt,
+  });
+
+  final String skillId;
+
+  /// `EE1-C3`, `CO-B1`…
+  final String skillCode;
+  final String title;
+
+  /// C'est **lui** qui dit le domaine, jamais la tâche.
+  final SkillSection? section;
+
+  /// `EE1`..`EO3` ; `null` en compréhension, qui n'a aucune tâche.
+  final String? taskCode;
+
+  /// 1, 2 ou 3 ; `null` en compréhension.
+  final int? tacheNumero;
+
+  /// Le palier porté par le référentiel ; `null` s'il descend sous `A2`.
+  final TargetLevel? targetLevel;
+
+  /// Verdict de la **dernière production probante**, ou `notObserved`.
+  final LearningPlanSkillStatus status;
+
+  /// État **agrégé**, `null` sans observation.
+  final SkillMasteryState? masteryState;
+
+  /// L'**action** demandée par le Plan, ou `null` s'il n'en demande aucune.
+  final PlanActionNature? nature;
+  final DateTime? observedAt;
+
+  /// Verrou freemium, décidé par le serveur (`SkillAccessService`).
+  final bool locked;
+
+  factory PlanDomainSkill.fromJson(Map<String, dynamic> json) =>
+      PlanDomainSkill(
+        skillId: json['skillId'] as String? ?? '',
+        skillCode: json['skillCode'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        section: SkillSection.fromWireNullable(json['section'] as String?),
+        taskCode: json['taskCode'] as String?,
+        tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
+        targetLevel:
+            TargetLevel.fromWireNullable(json['targetLevel'] as String?),
+        status:
+            LearningPlanSkillStatus.fromWireNullable(json['status'] as String?) ??
+                LearningPlanSkillStatus.notObserved,
+        masteryState:
+            SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+        nature: PlanActionNature.fromWireNullable(json['nature'] as String?),
+        observedAt: DateTime.tryParse(json['observedAt'] as String? ?? ''),
+        locked: json['locked'] as bool? ?? false,
       );
 }
 

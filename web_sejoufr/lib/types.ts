@@ -918,6 +918,18 @@ export interface DiagnosticSkillObservationDto {
 }
 
 export interface DiagnosticProductionResultDto {
+    /**
+     * **Trois états, pas deux.** Bloc `written` / `oral` absent = « pas encore
+     * analysée » ; présent avec `NON_EVALUABLE` = « rendue, rien à observer » —
+     * 4 s d'audio, quelques mots : le correcteur n'a **pas** été appelé, et
+     * aucun niveau n'est affirmé. Une production inexploitable n'est pas une
+     * production faible.
+     *
+     * **Jamais `null`** côté serveur ; un backend antérieur au champ ne le sert
+     * pas du tout, donc seule la valeur `NON_EVALUABLE` **explicite** se lit
+     * comme inexploitable — jamais son absence.
+     */
+    evaluabilite: ProductionEvaluabilite;
     levelEstimate: NiveauCecrl | null;
     taskCompletion: DiagnosticTaskCompletion;
     communicationStatus: DiagnosticCommunicationStatus;
@@ -1317,6 +1329,69 @@ export interface PlanDomainDto {
     paliers: PlanDomainLevelDto[];
     /** Expression : tâches 1, 2, 3 dans cet ordre. **Vide** en compréhension. */
     taches: PlanDomainTaskDto[];
+    /**
+     * **Toutes** les compétences actives du domaine, dans l'ordre du serveur :
+     * les 24 des trois tâches en expression, les 3 paliers en compréhension.
+     *
+     * Contrairement à `paliers` / `taches`, cette liste est **uniforme sur les
+     * quatre domaines** — c'est ce qui permet à l'écran « Mon diagnostic » de
+     * n'avoir qu'**une** façon de rendre une carte d'épreuve. **Jamais `null`**
+     * (un backend antérieur au champ ne le sert pas : replier sur `[]`).
+     *
+     * 🛑 **L'ordre est décidé par le serveur, aucun front ne retrie** : deux
+     * copies de la règle désigneraient deux ordres.
+     */
+    skills: PlanDomainSkillDto[];
+    /** Compétences observées `PRIORITY` ou `TO_REINFORCE`. */
+    fragileSkillCount: number;
+    /** Compétences observées `SOLID`. */
+    solidSkillCount: number;
+    /**
+     * Compétences **jamais observées** — ce n'est pas une faiblesse, c'est une
+     * absence de mesure.
+     *
+     * 🛑 Les trois compteurs sont **dérivés de `skills` côté serveur** et leur
+     * somme vaut toujours `skills.length` : c'est ce qui rend un « + N autres »
+     * vrai. Ne jamais les recompter ici — deux dérivations finiraient par
+     * afficher deux nombres différents pour la même épreuve.
+     */
+    notObservedSkillCount: number;
+}
+
+/**
+ * Une compétence du référentiel d'une **épreuve**, vue depuis le Plan : où en
+ * est le candidat dessus, et peut-il la travailler.
+ *
+ * **Trois nullités, trois faits différents.**
+ * - `status` vaut `NOT_OBSERVED` quand rien n'a jamais été observé — **jamais
+ *   `null`** : une compétence est toujours dans un des quatre états, et « non
+ *   observée » est un état, pas une absence de donnée ;
+ * - `masteryState` et `observedAt` valent `null` dans ce même cas : *null =
+ *   inconnu, jamais mauvais* ;
+ * - `nature` vaut `null` dès que le Plan ne demande **rien** dessus — le cas de
+ *   l'immense majorité des compétences. Une compétence `SOLID`, ou non observée
+ *   hors du palier que le cycle construit, **n'est pas une action** : ne pas
+ *   fabriquer une pastille pour remplir la colonne.
+ */
+export interface PlanDomainSkillDto {
+    skillId: string;
+    /** `EE1-C3`, `CO-B1`... */
+    skillCode: string;
+    title: string;
+    /** C'est **lui** qui dit le domaine, jamais la tâche. */
+    section: SkillSection;
+    /** `null` en compréhension : CO/CE n'ont aucune tâche. */
+    taskCode: SkillTaskCode | null;
+    /** 1, 2 ou 3 ; `null` en compréhension. */
+    tacheNumero: number | null;
+    /** Le palier porté par le référentiel ; `null` s'il descend sous `A2`. */
+    targetLevel: TargetLevel | null;
+    status: LearningPlanSkillStatus;
+    masteryState: SkillMasteryState | null;
+    nature: PlanActionNature | null;
+    observedAt: string | null;
+    /** Verrou freemium, décidé par le serveur (`SkillAccessService`). */
+    locked: boolean;
 }
 
 /* ------------------------------------------------------------------- cycle */

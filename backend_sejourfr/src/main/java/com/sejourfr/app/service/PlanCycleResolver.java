@@ -82,10 +82,17 @@ import java.util.UUID;
  *
  * <h2>Cout</h2>
  * Trois requetes, quel que soit le nombre de competences : le profil TCF (qui a
- * les siennes), les six competences de comprehension en un lot, et le compte des
- * competences actives des six taches en un lot. Les etats de maitrise des
+ * les siennes), les six competences de comprehension en un lot, et les
+ * competences d'expression des six taches en un lot. Les etats de maitrise des
  * paliers de comprehension se calculent sur l'historique <b>deja en memoire</b>
  * ({@code SkillMasteryResolver.fromObservations}), sans une requete de plus.
+ *
+ * <p>⚠️ Le second lot <b>remplace</b> le {@code GROUP BY} qui comptait les
+ * competences par tache : on lit les 48 lignes du referentiel et on les compte en
+ * memoire. Le cout est donc <b>inchange</b>, et le referentiel — publie sur
+ * {@link Resolution#referentiel()} — sert ensuite a
+ * {@link PlanDomainSkillResolver} sans une requete de plus. Le charger deux fois
+ * aurait fait payer au Plan une requete pour une donnee qu'il avait deja en main.
  */
 @Component
 @RequiredArgsConstructor
@@ -107,7 +114,22 @@ public class PlanCycleResolver {
      * {@code cycle.state() == READY_FOR_GATE_MOCK}. Une seconde source dirait un
      * jour l'inverse de la premiere.
      */
-    public record Resolution(PlanCycleDto cycle, List<PlanDomainDto> domaines) {}
+    public record Resolution(
+            PlanCycleDto cycle,
+            List<PlanDomainDto> domaines,
+            /**
+             * Le <b>referentiel actif entier</b> (comprehension + expression) tel
+             * qu'il vient d'etre charge pour construire les domaines, dans
+             * l'ordre du referentiel.
+             *
+             * <p>Il est publie parce que {@link PlanDomainSkillResolver} en a
+             * besoin pour lister les competences de chaque epreuve : le
+             * recharger serait une requete payee deux fois pour la meme donnee.
+             * Les domaines rendus ici portent donc une liste de competences
+             * <b>vide</b> — c'est ce resolveur-la, et lui seul, qui la remplit
+             * une fois les priorites, les acquisitions et l'acces connus.
+             */
+            List<Skill> referentiel) {}
 
     /**
      * Le cycle et les domaines de ce candidat.
@@ -154,7 +176,21 @@ public class PlanCycleResolver {
                 evalues, TcfLevelProfile.EPREUVES_EXPECTED, profilComplet,
                 chemin(depart, vise, objectif, profilComplet, objectifAtteint));
 
-        return new Resolution(cycle, domaines(profile, allObservations, actionable, vise, objectif));
+        // Le referentiel actif, en DEUX lots bornes : les six competences de
+        // palier de la comprehension, les 48 competences des six taches. C'est
+        // exactement ce qu'il faut pour construire les domaines ET pour lister
+        // leurs competences ensuite — on le charge donc une seule fois.
+        List<Skill> comprehension = skillManager.findActiveComprehension();
+        List<Skill> expression = skillManager.findActiveExpression();
+        List<Skill> referentiel = new ArrayList<>(comprehension.size() + expression.size());
+        referentiel.addAll(comprehension);
+        referentiel.addAll(expression);
+
+        return new Resolution(
+                cycle,
+                domaines(profile, allObservations, actionable, vise, objectif,
+                        comprehension, expression),
+                List.copyOf(referentiel));
     }
 
     // ------------------------------------------------------------------------
@@ -236,7 +272,9 @@ public class PlanCycleResolver {
             List<LearningPlanObservation> allObservations,
             List<LearningPlanObservation> actionable,
             TargetLevel vise,
-            TargetLevel objectif) {
+            TargetLevel objectif,
+            List<Skill> referentielComprehension,
+            List<Skill> referentielExpression) {
 
         Map<EpreuveType, NiveauCecrl> niveaux = new EnumMap<>(EpreuveType.class);
         put(niveaux, EpreuveType.TCF_CO, profile.co());
@@ -252,12 +290,12 @@ public class PlanCycleResolver {
             if (epreuve != null) avecPriorite.add(epreuve);
         }
 
-        Map<SkillSection, Map<TargetLevel, Skill>> comprehension = comprehensionParPalier();
+        Map<SkillSection, Map<TargetLevel, Skill>> comprehension =
+                comprehensionParPalier(referentielComprehension);
         Map<UUID, SkillMasteryEngine.SkillMastery> maitrise = masteryResolver.fromObservations(
                 allObservations, idsDeComprehension(comprehension));
         Map<SkillTaskCode, Integer> observeesParTache = observeesParTache(allObservations);
-        Map<SkillTaskCode, Long> totalParTache =
-                skillManager.countActiveByTaskCode(List.of(SkillTaskCode.values()));
+        Map<SkillTaskCode, Long> totalParTache = totalParTache(referentielExpression);
 
         List<PlanDomainDto> domaines = new ArrayList<>();
         for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
@@ -273,7 +311,7 @@ public class PlanCycleResolver {
             List<PlanDomainTaskDto> taches = section.isProduction()
                     ? taches(section, observeesParTache, totalParTache)
                     : List.of();
-            domaines.add(new PlanDomainDto(
+            domaines.add(PlanDomainDto.sansCompetences(
                     epreuve, niveau != null, niveau,
                     priorite(niveau, epreuve, domainePrioritaire, avecPriorite, vise, objectif),
                     consolide, bloquant, paliers, taches));
@@ -350,14 +388,34 @@ public class PlanCycleResolver {
     }
 
     /**
-     * Competences de comprehension indexees par (domaine, palier). Une seule
-     * requete de six lignes ; la premiere competence gagne, comme chez
+     * Competences actives par tache, comptees sur le referentiel <b>deja
+     * charge</b> : les six taches sont toujours presentes, a zero si aucune
+     * competence active — sinon une epreuve pas encore seedee disparaitrait de
+     * l'ecran au lieu de s'afficher « 0 competence ».
+     */
+    private static Map<SkillTaskCode, Long> totalParTache(List<Skill> expression) {
+        Map<SkillTaskCode, Long> totaux = new EnumMap<>(SkillTaskCode.class);
+        for (SkillTaskCode code : SkillTaskCode.values()) {
+            totaux.put(code, 0L);
+        }
+        for (Skill skill : expression) {
+            SkillTaskCode code = skill.getTaskCode();
+            if (code == null) continue;
+            totaux.merge(code, 1L, Long::sum);
+        }
+        return totaux;
+    }
+
+    /**
+     * Competences de comprehension indexees par (domaine, palier), sur le lot
+     * <b>deja charge</b> ; la premiere competence gagne, comme chez
      * {@code ComprehensionObservationService}.
      */
-    private Map<SkillSection, Map<TargetLevel, Skill>> comprehensionParPalier() {
+    private static Map<SkillSection, Map<TargetLevel, Skill>> comprehensionParPalier(
+            List<Skill> comprehension) {
         Map<SkillSection, Map<TargetLevel, Skill>> parDomaine =
                 new EnumMap<>(SkillSection.class);
-        for (Skill skill : skillManager.findActiveComprehension()) {
+        for (Skill skill : comprehension) {
             if (skill.getSection() == null || !skill.getSection().isComprehension()) continue;
             TargetLevel palier = palier(skill.getTargetLevel());
             if (palier == null) continue;
@@ -434,8 +492,14 @@ public class PlanCycleResolver {
         };
     }
 
-    /** L'inverse, pour les quatre epreuves du profil et elles seules. */
-    private static SkillSection section(EpreuveType epreuve) {
+    /**
+     * L'inverse, pour les quatre epreuves du profil et elles seules.
+     *
+     * <p>Visible dans le paquet : {@link PlanDomainSkillResolver} rattache les
+     * competences aux memes quatre domaines, et une seconde table de
+     * correspondance aurait fini par en ranger une du mauvais cote.
+     */
+    static SkillSection section(EpreuveType epreuve) {
         return switch (epreuve) {
             case TCF_CO -> SkillSection.CO;
             case TCF_CE -> SkillSection.CE;
@@ -453,8 +517,12 @@ public class PlanCycleResolver {
         };
     }
 
-    /** {@code null} pour un palier hors {@code A2/B1/B2}. */
-    private static TargetLevel palier(String targetLevel) {
+    /**
+     * {@code null} pour un palier hors {@code A2/B1/B2} — la colonne
+     * {@code skills.target_level} descend plus bas que {@link TargetLevel}, et
+     * <i>null = inconnu</i> vaut mieux qu'un palier invente.
+     */
+    static TargetLevel palier(String targetLevel) {
         if (targetLevel == null) return null;
         for (TargetLevel palier : PALIERS) {
             if (palier.name().equals(targetLevel)) return palier;
