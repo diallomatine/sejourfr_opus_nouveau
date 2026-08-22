@@ -103,16 +103,29 @@ class PlanPriorityHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🛑 **Le titre est l'ÉPREUVE, pas la compétence.** Un
+                // candidat se repère sur « Expression orale » ; « Repérer une
+                // information explicite à l'oral » ne lui dit pas où il est.
+                // La compétence reste servie, juste en dessous — même ordre
+                // que les encarts groupés par épreuve plus bas dans l'écran.
                 Text(
-                  current?.title ?? 'Votre prochaine priorité se prépare',
+                  current == null
+                      ? 'Votre prochaine priorité se prépare'
+                      : current.section.label,
                   style: AppFonts.display(size: 21, height: 1.15, color: white),
                 ),
                 if (current != null) ...[
-                  const SizedBox(height: 9),
-                  _HeroChip(
-                    label: current.skillCode.isEmpty
-                        ? current.section.label
-                        : '${current.skillCode} · ${current.section.label}',
+                  const SizedBox(height: 7),
+                  Text(
+                    current.skillCode.isEmpty
+                        ? current.title
+                        : '${current.skillCode} · ${current.title}',
+                    style: AppFonts.ui(
+                      size: 14,
+                      height: 1.35,
+                      weight: FontWeight.w700,
+                      color: white.withValues(alpha: 0.92),
+                    ),
                   ),
                 ],
                 for (final note in notes) ...[
@@ -208,29 +221,6 @@ class _HeroIdentity extends StatelessWidget {
       ],
     );
   }
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: AppColors.white.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.ui(
-            size: 12.5,
-            weight: FontWeight.w700,
-            color: AppColors.white,
-          ),
-        ),
-      );
 }
 
 class _HeroLink extends StatelessWidget {

@@ -356,18 +356,15 @@
   color: var(--color-blue);
 }
 
-.priorityTag {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  margin-top: 4px;
-  padding: 6px 13px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-paper) 20%, transparent);
-  font-size: 13px;
+/* La compétence, sous le titre d'épreuve. Plus de pastille : le repère n'est
+   plus un accessoire du titre, c'est la ligne qui dit sur QUOI on travaille. */
+.prioritySkill {
+  max-width: 62ch;
+  margin: 7px 0 0;
+  color: color-mix(in srgb, var(--color-paper) 92%, transparent);
+  font-size: 15px;
   font-weight: 700;
-  /* Le repère porte désormais la tâche en toutes lettres : il se replie sur
-     deux lignes sous 360 px plutôt que de déborder de la carte. */
+  line-height: 1.35;
   text-wrap: pretty;
 }
 

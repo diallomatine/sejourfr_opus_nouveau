@@ -449,11 +449,13 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
   const identity = (
     <>
       <div className={styles.priorityTitleRow}>
-        <h2>{priority.title}</h2>
-        <span className={styles.priorityTag}>
-          {productionSectionLabel(priority.section)} · {taskLabel}
-        </span>
+        {/* 🛑 Le titre est l'ÉPREUVE, pas la compétence (miroir du mobile) : un
+            candidat se repère sur « Expression orale », pas sur « Repérer une
+            information explicite à l'oral ». La compétence reste servie, juste
+            en dessous — même ordre que les encarts groupés par épreuve. */}
+        <h2>{productionSectionLabel(priority.section)}</h2>
       </div>
+      <p className={styles.prioritySkill}>{taskLabel} · {priority.title}</p>
       {priorityLines(priority).map((line) => (
         <p className={styles.priorityText} key={line}>{line}</p>
       ))}
