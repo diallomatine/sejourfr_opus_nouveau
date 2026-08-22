@@ -21,7 +21,8 @@ import {
   Zap,
 } from "lucide-react";
 import {ApiException, learningPlanApi} from "@/lib/api";
-import {trackAudienceEvent, withTrafficSource} from "@/lib/audience";
+import {track} from "@/lib/analytics";
+import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
   PLAN_MILESTONE_SECTION_TEXT,
@@ -130,13 +131,14 @@ const VISIBLE_SKILLS = 6;
 
 /**
  * Un cadenas du Plan qui renvoie au paiement, c'est LA mesure de conversion du
- * verrou freemium. L'événement est autorisé côté serveur sur `/plan` — et c'est
- * le seul qu'on émette ici, avec `PLAN_OPENED` et
- * `PLAN_RECOMMENDED_EXERCISE_STARTED`. **Ne jamais en inventer un autre** :
- * l'allowlist est doublée serveur, tout le reste est rejeté en silence.
+ * verrou freemium — et c'est ce que la table « Quel écran déclenche l'achat ? »
+ * lit sous l'emplacement « Plan verrouillé ».
+ *
+ * 🛑 **Ne jamais inventer d'autre événement ici** : l'allowlist est doublée
+ * côté serveur, tout le reste est rejeté.
  */
 function trackPremiumClick() {
-  trackAudienceEvent("/plan", "DIAGNOSTIC_TO_PREMIUM_CLICKED");
+  track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan"});
 }
 
 function usePremiumHref(): string {
@@ -187,9 +189,11 @@ export function LearningPlanView() {
     return () => { cancelled = true; };
   }, [authStatus, user]);
 
+  // Ne sert aucun bloc de cet écran : posé pour ne pas perdre une mesure qui
+  // existait avant la migration vers `lib/analytics.ts` (cf. CLAUDE.md racine).
   useEffect(() => {
     if (!user) return;
-    trackAudienceEvent("/plan", "PLAN_OPENED", {once: true});
+    track("PLAN_OPENED", {}, {once: true});
   }, [user]);
 
   if (authStatus === "loading" || (Boolean(user) && loading)) return <PlanSkeleton />;
@@ -460,19 +464,14 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
   const startNext = () => {
     if (!next) {
       if (exercise) {
-        trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
         void start(exercise);
       }
       return;
     }
     if (next.exercise === null) {
-      /* Une **mesure** n'est pas un entraînement : elle ne compte pas dans
-         `PLAN_RECOMMENDED_EXERCISE_STARTED`, sinon la mesure de conversion des
-         exercices désignés compterait deux choses différentes. */
       void assessments.start(next.assessment);
       return;
     }
-    trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
     void start(next.exercise);
   };
 
@@ -566,7 +565,7 @@ function PriorityCard({plan, onWhy}: {plan: LearningPlanDto; onWhy: () => void})
       {(error ?? assessments.error) && (
         <p className={styles.milestoneError} role="alert">{error ?? assessments.error}</p>
       )}
-      <PaywallSheet
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan"
         open={paywallOpen || assessments.paywallOpen}
         onClose={() => { closePaywall(); assessments.closePaywall(); }}
         module="INTEGRAL"
@@ -748,10 +747,7 @@ function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
           type="button"
           className={styles.seanceRow}
           disabled={starting}
-          onClick={() => {
-            trackAudienceEvent("/plan", "PLAN_RECOMMENDED_EXERCISE_STARTED");
-            void startItem(item);
-          }}
+          onClick={() => void startItem(item)}
         >
           {icon}
           <span className={styles.seanceBody}>
@@ -766,7 +762,7 @@ function SeanceExerciseRow({item}: {item: PlanSeanceExerciseItemDto}) {
         </button>
       )}
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
   );
 }
@@ -800,7 +796,7 @@ function SeanceAssessmentRow({item}: {item: PlanSeanceAssessmentItemDto}) {
         {busy ? <span className={styles.seanceMeta}>Démarrage…</span> : <RowChevron />}
       </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
   );
 }
@@ -1079,7 +1075,7 @@ function CompleteProfileCard({plan}: {plan: LearningPlanDto}) {
       </ul>
       <p className={styles.panelNote}>{PLAN_COMPLETE_PROFILE_NOTE}</p>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </section>
   );
 }

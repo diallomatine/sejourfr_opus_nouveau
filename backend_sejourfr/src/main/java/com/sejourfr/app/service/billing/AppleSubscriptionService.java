@@ -60,6 +60,7 @@ public class AppleSubscriptionService {
     private final SubscriptionNotificationService subscriptionNotifier;
     private final OneTimeAccessService oneTimeAccessService;
     private final com.sejourfr.app.config.BillingProperties billingProperties;
+    private final MontantEncaisseResolver montantEncaisseResolver;
 
     // ------------------------------------------------------------------------
     // verify-receipt : flow client → backend après un achat sur l'app
@@ -85,9 +86,21 @@ public class AppleSubscriptionService {
      *         auto-renouvelable ; 409 si le reçu appartient à un autre user
      *         (anti-account-stealing).
      */
+    /**
+     * Variante sans montant déclaré par l'application (client antérieur au
+     * champ) : on retombera sur le prix affiché du plan.
+     */
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String signedTransactionInfo) {
+        return activateFromReceipt(userId, expectedProductId, signedTransactionInfo,
+                MontantEncaisse.INCONNU);
+    }
+
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String signedTransactionInfo,
+            MontantEncaisse montantConstate) {
         log.info(
                 "Apple verify-receipt START user={} expectedProductId={}",
                 userId, expectedProductId
@@ -123,7 +136,7 @@ public class AppleSubscriptionService {
                 // achat conserve le même transactionId → reste idempotent.
                 UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                         userId, plan, SubscriptionSource.APPLE,
-                        tx.getTransactionId(), tx.getTransactionId());
+                        tx.getTransactionId(), tx.getTransactionId(), montantConstate);
                 // type DOIT être CONSUMABLE pour qu'un pass soit ré-achetable
                 // (Apple ré-affiche la sheet à chaque achat). Un NON_CONSUMABLE
                 // est « déjà possédé » → Apple n'ouvre pas la sheet, il restaure
@@ -143,7 +156,7 @@ public class AppleSubscriptionService {
                     .findBySourceAndOriginalTransactionId(
                             SubscriptionSource.APPLE, tx.getOriginalTransactionId())
                     .isEmpty();
-            UserSubscription sub = upsert(user, plan, tx, /* renewalInfo */ null);
+            UserSubscription sub = upsert(user, plan, tx, /* renewalInfo */ null, montantConstate);
             log.info(
                     "Apple verify-receipt OK user={} productId={} originalTxId={} endsAt={} new={}",
                     userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt(), isNew
@@ -336,6 +349,15 @@ public class AppleSubscriptionService {
             Plan plan,
             JWSTransactionDecodedPayload tx,
             JWSRenewalInfoDecodedPayload renewalInfo) {
+        return upsert(user, plan, tx, renewalInfo, MontantEncaisse.INCONNU);
+    }
+
+    private UserSubscription upsert(
+            User user,
+            Plan plan,
+            JWSTransactionDecodedPayload tx,
+            JWSRenewalInfoDecodedPayload renewalInfo,
+            MontantEncaisse montantConstate) {
         if (tx.getType() != Type.AUTO_RENEWABLE_SUBSCRIPTION) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -379,6 +401,15 @@ public class AppleSubscriptionService {
         // hors périmètre tant que le récurrent reste dormant.
         if (created) {
             sub.setRealtimeEoSessionsRemaining(Math.max(0, plan.getRealtimeEoSessions()));
+            // Montant figé À LA CRÉATION seulement. Un renouvellement écrase
+            // sinon le montant du premier achat, et « combien a rapporté cette
+            // ligne » cesserait de vouloir dire quelque chose.
+            //
+            // ⚠️ Le champ `price` du JWS Apple n'est PAS utilisé : il est
+            // exprimé en milliunités et son sens dépend de la version d'API.
+            // On préfère le prix que l'application a réellement affiché
+            // (verify-receipt), sinon le prix du plan. On ne devine pas.
+            montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
         }
         return userSubscriptionManager.save(sub);
     }

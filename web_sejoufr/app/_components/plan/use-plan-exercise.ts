@@ -2,6 +2,7 @@
 
 import {useRouter} from "next/navigation";
 import {useCallback, useState} from "react";
+import {track, trackDiagnosticAssessmentStarted} from "@/lib/analytics";
 import {attemptApi, fullTcfExamApi, productionApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
 import {handleStartFailure} from "@/lib/start-failure";
@@ -48,6 +49,11 @@ export function usePlanExercise() {
     const start = useCallback(
         async (exercise: PlanRecommendedExerciseDto) => {
             setError(null);
+            // Ne sert aucun bloc de cet écran : posé pour ne pas perdre une
+            // mesure qui existait avant la migration vers `lib/analytics.ts`
+            // (cf. CLAUDE.md racine). Point unique : les 5 natures d'exercice
+            // du Plan passent toutes par ce lanceur.
+            track("PLAN_EXERCISE_STARTED", {exerciseKind: exercise.kind});
             if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
                 router.push(recommendedExerciseHref(exercise));
                 return;
@@ -150,6 +156,9 @@ export function usePlanExercise() {
             const exercise = item.exercise;
             if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
                 setError(null);
+                // `start()` ne voit jamais ce cas (il retourne avant) : la
+                // marque se pose donc ici, seule autre porte d'entrée.
+                track("PLAN_EXERCISE_STARTED", {exerciseKind: exercise.kind});
                 router.push(planSkillHref(exercise, {planStep: true}));
                 return;
             }
@@ -204,6 +213,17 @@ export function usePlanAssessment() {
                     moduleExamQuestionType: assessment.moduleExamQuestionType ?? undefined,
                     slotNumber: assessment.slotNumber ?? 1,
                 });
+                // Les deux domaines de compréhension du diagnostic complet se
+                // mesurent par cette série : c'est le seul instant où le
+                // navigateur sait POURQUOI l'examen blanc s'ouvre. Le runner,
+                // lui, ne le saura jamais — d'où la marque posée ici, que
+                // l'écran de résultat consomme (`lib/analytics.ts`).
+                if (assessment.epreuve === "TCF_CO" || assessment.epreuve === "TCF_CE") {
+                    trackDiagnosticAssessmentStarted(
+                        attempt.id,
+                        assessment.epreuve === "TCF_CO" ? "CO" : "CE",
+                    );
+                }
                 router.push(`/sessions/${attempt.id}`);
             } catch (cause) {
                 handleStartFailure(cause, {

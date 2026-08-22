@@ -7,6 +7,7 @@ import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
 import { AuthShell } from "@/app/_components/auth/AuthShell";
 import { PasswordInput } from "@/app/_components/auth/PasswordInput";
 import styles from "@/app/_components/auth/auth.module.css";
+import { track, type AnalyticsRegistrationContext } from "@/lib/analytics";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { safeInternalPath } from "@/lib/security";
@@ -39,6 +40,12 @@ function InscriptionInner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mention, setMention] = useState<TargetProcedure>("CSP");
+
+  // D'où vient cette inscription ? La seule chose que le navigateur sache, ici,
+  // c'est la destination demandée (`?next=`) et la page précédente. On n'en
+  // déduit rien au-delà : le repli est `OTHER`, jamais une provenance inventée.
+  const signupStarted = () =>
+    track("SIGNUP_STARTED", {registrationContext: registrationContextOf(nextHref)}, {once: true});
 
   useEffect(() => {
     if (status === "authenticated" && user) {
@@ -95,7 +102,13 @@ function InscriptionInner() {
         avatarTone: "red",
       }}
     >
-      <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
+      <form
+        onSubmit={handleSubmit}
+        onInput={signupStarted}
+        className={styles.form}
+        noValidate
+        suppressHydrationWarning
+      >
         {error && (
           <div className="form-error" role="alert">
             {error}
@@ -205,17 +218,20 @@ function InscriptionInner() {
           <span className={styles.submitArrow}>→</span>
         </button>
 
-        <GoogleSignInButton
-          variant="signup"
-          onSuccess={() => router.push(nextHref)}
-          onError={setError}
-        />
+        <div onClickCapture={signupStarted}>
+          <GoogleSignInButton
+            variant="signup"
+            onSuccess={() => router.push(nextHref)}
+            onError={setError}
+          />
+        </div>
 
         <p className={styles.switchLine}>
           Déjà un compte ?{" "}
           <Link
             href={`/connexion?next=${encodeURIComponent(nextHref)}`}
             className={`${styles.switchLink} ${styles.switchLinkBlue}`}
+            onClick={() => track("LOGIN_CLICKED", {})}
           >
             Se connecter →
           </Link>
@@ -223,4 +239,20 @@ function InscriptionInner() {
       </form>
     </AuthShell>
   );
+}
+
+/**
+ * Contexte d'inscription **déduit de faits**, jamais deviné : la destination
+ * demandée après création du compte est la seule intention réellement connue à
+ * cet instant.
+ *
+ * ⚠️ L'inscription faite *pendant* le diagnostic ne passe pas par ici : elle a
+ * son propre écran (`DiagnosticAccountGate`), qui déclare `DURING_DIAGNOSTIC`.
+ */
+function registrationContextOf(nextHref: string): AnalyticsRegistrationContext {
+  if (nextHref.startsWith("/diagnostic")) return "BEFORE_DIAGNOSTIC";
+  if (nextHref.startsWith("/plan")) return "AFTER_DIAGNOSTIC";
+  if (nextHref.startsWith("/paiement") || nextHref.startsWith("/tarifs")) return "PRICING";
+  if (nextHref.startsWith("/reussir")) return "LANDING";
+  return "OTHER";
 }

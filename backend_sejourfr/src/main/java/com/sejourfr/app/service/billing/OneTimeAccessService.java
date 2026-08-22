@@ -47,6 +47,18 @@ public class OneTimeAccessService {
     private final UserSubscriptionManager userSubscriptionManager;
     private final SubscriptionService subscriptionService;
     private final MailService mailService;
+    private final MontantEncaisseResolver montantEncaisseResolver;
+
+    /**
+     * Variante sans montant déclaré : le canal ne dit pas ce qu'il a prélevé,
+     * on retombe sur le prix affiché du plan.
+     */
+    public UserSubscription grantOneTimeAccess(
+            UUID userId, Plan plan, SubscriptionSource source,
+            String originalTransactionId, String externalTransactionId) {
+        return grantOneTimeAccess(userId, plan, source, originalTransactionId,
+                externalTransactionId, MontantEncaisse.INCONNU);
+    }
 
     /**
      * Crédite l'accès du pass {@code plan} à {@code userId} via {@code source}.
@@ -55,11 +67,18 @@ public class OneTimeAccessService {
      *        session/payment_intent ; Apple: transactionId ; Google:
      *        purchaseToken/orderId).
      * @param externalTransactionId id de transaction courant (traçabilité).
+     * @param montantConstate montant réellement prélevé par le canal, quand il
+     *        le déclare ; {@link MontantEncaisse#INCONNU} sinon — on retombe
+     *        alors sur le prix affiché du plan, <b>au moment de l'achat</b>.
+     *        🛑 Il est FIGÉ ici et n'est jamais recalculé ensuite :
+     *        {@code plans.price} est modifiable en console, le relire plus tard
+     *        réécrirait le chiffre d'affaires du passé.
      * @return la souscription accordée (existante en cas de replay).
      */
     public UserSubscription grantOneTimeAccess(
             UUID userId, Plan plan, SubscriptionSource source,
-            String originalTransactionId, String externalTransactionId) {
+            String originalTransactionId, String externalTransactionId,
+            MontantEncaisse montantConstate) {
 
         UserSubscription existing = userSubscriptionManager
                 .findBySourceAndOriginalTransactionId(source, originalTransactionId)
@@ -117,6 +136,10 @@ public class OneTimeAccessService {
         sub.setStartsAt(now);
         sub.setEndsAt(endsAt);
         sub.setRealtimeEoSessionsRemaining(carriedRealtime + Math.max(0, plan.getRealtimeEoSessions()));
+        // Le montant reellement encaisse, fige avec sa devise et son taux. Un
+        // montant inconnu n'ecrit rien : NULL se lit « on ne sait pas », un 0
+        // se lirait « gratuit ».
+        montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
         userSubscriptionManager.save(sub);
 
         log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",

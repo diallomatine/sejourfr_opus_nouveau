@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
@@ -55,7 +56,11 @@ class _PlanPrioritiesSectionState extends ConsumerState<PlanPrioritiesSection> {
   void _openAll() {
     final auth = ref.read(authControllerProvider);
     if (auth is! AuthAuthenticated || !auth.user.hasTcf) {
-      unawaited(showTcfLockPaywall(context));
+      unawaited(showTcfLockPaywall(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      ));
       return;
     }
     context.push(AppRoutes.planSkills);
@@ -169,7 +174,7 @@ final ButtonStyle _linkStyle = TextButton.styleFrom(
 /// pas produire.
 ///
 /// ⚠ Le verrou est **lu** sur le DTO. Jamais « à partir de la 2ᵉ ligne ».
-class _PriorityRow extends StatelessWidget {
+class _PriorityRow extends ConsumerWidget {
   const _PriorityRow({
     required this.rank,
     required this.priority,
@@ -186,7 +191,7 @@ class _PriorityRow extends StatelessWidget {
   final TargetLevel? level;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final locked = priority.locked;
     final acquisition = priority.nature == PlanActionNature.aAcquerir;
 
@@ -232,7 +237,11 @@ class _PriorityRow extends StatelessWidget {
       color: AppColors.white,
       child: InkWell(
         onTap: () => locked
-            ? unawaited(showTcfLockPaywall(context))
+            ? unawaited(showTcfLockPaywall(
+                context,
+                ref: ref,
+                ctaLocation: AnalyticsCtaLocation.lockedPlan,
+              ))
             : openPlanSkill(context, priority.skillId, priority.section),
         child: Container(
           padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),

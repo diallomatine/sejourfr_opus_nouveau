@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/skill_progress.dart';
@@ -118,14 +120,14 @@ class _PlanObservedSkillsSectionState extends State<PlanObservedSkillsSection> {
   }
 }
 
-class _ObservedRow extends StatelessWidget {
+class _ObservedRow extends ConsumerWidget {
   const _ObservedRow({required this.skill, required this.first});
 
   final LearningPlanSkill skill;
   final bool first;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final total = skill.promptCount;
     final attempted = total == 0 ? 0 : skill.attemptedCount.clamp(0, total);
     final percent = total == 0 ? 0.0 : (attempted / total) * 100;
@@ -135,7 +137,11 @@ class _ObservedRow extends StatelessWidget {
       color: AppColors.white,
       child: InkWell(
         onTap: () => skill.locked
-            ? unawaited(showTcfLockPaywall(context))
+            ? unawaited(showTcfLockPaywall(
+                context,
+                ref: ref,
+                ctaLocation: AnalyticsCtaLocation.lockedPlan,
+              ))
             : openPlanSkill(context, skill.skillId, skill.section),
         child: Container(
           padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),

@@ -19,6 +19,7 @@ import {
   publicAttemptApi,
   userContentApi,
 } from "@/lib/api";
+import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   epreuveExitMessage,
@@ -316,6 +317,9 @@ function SessionRunnerInner({ params }: PageProps) {
           setAttempt(a);
           setOpenedAsFinished(true);
           setPhase("result");
+          // N'émet quelque chose que si cette série avait été lancée pour
+          // compléter le profil du diagnostic. Sinon : rien, on n'invente pas.
+          trackDiagnosticAssessmentCompleted(attemptId);
           return;
         }
 
@@ -579,6 +583,7 @@ function SessionRunnerInner({ params }: PageProps) {
           }
           setAttempt(finalAttempt);
           setPhase("result");
+          trackDiagnosticAssessmentCompleted(attemptId);
         }}
       />
     );

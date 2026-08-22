@@ -6,8 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../core/api/audience_repository.dart';
-import '../../core/api/repositories.dart';
+import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/providers/target_level_provider.dart';
@@ -31,14 +30,6 @@ import 'widgets/diagnostic_result.dart';
 import 'widgets/diagnostic_sync.dart';
 import 'widgets/diagnostic_written.dart';
 
-bool shouldTrackDiagnosticCompletion(
-  DiagnosticJourneyStatus? previous,
-  DiagnosticJourneyStatus? current,
-) =>
-    previous != null &&
-    previous != DiagnosticJourneyStatus.completed &&
-    current == DiagnosticJourneyStatus.completed;
-
 class DiagnosticScreen extends ConsumerStatefulWidget {
   const DiagnosticScreen({super.key});
 
@@ -57,7 +48,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Timer? _autosave;
   int _wordCount = 0;
   bool _resultViewedTracked = false;
-  bool _accountGateTracked = false;
+  bool _eeStartedTracked = false;
+  bool _eoStartedTracked = false;
+  bool _accountRequiredTracked = false;
   bool _writingHydrated = false;
 
   /// Accès TCF du compte, lu **au moment du rendu** : un achat conclu pendant
@@ -74,7 +67,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     _recordingController = ref.read(recordingControllerProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _track(AudienceEvent.diagnosticViewed);
       unawaited(
         ref.read(diagnosticControllerProvider.notifier).loadCurrent(),
       );
@@ -90,18 +82,21 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     super.dispose();
   }
 
-  void _track(AudienceEvent event) {
-    unawaited(_trackBestEffort(event));
-  }
+  /// La variante choisie, telle qu'elle est **au moment de l'événement**.
+  /// Elle n'est jamais persistée : c'est une intention de front, et la seule
+  /// chose honnête à en dire est ce que le candidat avait sélectionné ici.
+  AnalyticsDiagnosticType get _diagnosticType =>
+      ref.read(diagnosticVariantProvider).isComplet
+          ? AnalyticsDiagnosticType.complete
+          : AnalyticsDiagnosticType.rapid;
 
-  Future<void> _trackBestEffort(AudienceEvent event) async {
-    try {
-      await ref
-          .read(audienceRepositoryProvider)
-          .track(path: '/diagnostic', event: event);
-    } catch (_) {
-      // La mesure d'audience ne doit jamais interrompre un diagnostic.
-    }
+  /// Émission best-effort — jamais attendue, jamais bloquante.
+  void _track(AnalyticsEvent event) {
+    ref.read(analyticsServiceProvider).track(
+          event,
+          path: AnalyticsPath.diagnostic,
+          diagnosticType: _diagnosticType,
+        );
   }
 
   DiagnosticController get _controller =>
@@ -143,7 +138,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final submitted = isGuest
         ? await _controller.submitGuestWritten(text)
         : await _controller.submitWritten(text);
-    if (submitted) _track(AudienceEvent.diagnosticWrittenCompleted);
+    if (submitted) _track(AnalyticsEvent.diagnosticEeCompleted);
   }
 
   // ---------------------------------------------------------------------------
@@ -180,7 +175,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
             mimeType: recording.fileMime,
           );
     if (!submitted) return;
-    _track(AudienceEvent.diagnosticOralCompleted);
+    _track(AnalyticsEvent.diagnosticEoCompleted);
     // En invité, l'enregistrement a déjà été recopié dans le dossier de
     // l'application : effacer le fichier temporaire ne coûte rien.
     await _recordingController.cancel();
@@ -283,30 +278,23 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final variant = ref.watch(diagnosticVariantProvider);
 
     _hydrateWriting(state);
+    // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
+    // `diagnostic_sessions.status`. On ne crée jamais une seconde vérité.
+    //
+    // Lu ici plutôt que dans le `ref.listen` ci-dessous : celui-ci ne se
+    // déclenche que sur un CHANGEMENT, donc une session reprise qui s'ouvre
+    // directement sur l'écrit ne l'aurait jamais franchi.
+    _trackStepReached(state);
 
     ref.listen<DiagnosticFlowState>(diagnosticControllerProvider,
         (previous, next) {
       _hydrateWriting(next);
-      final previousStatus = previous?.journey?.status;
-      // Une session déjà terminée hydratée à l'ouverture ne constitue pas une
-      // nouvelle conversion. Seule la transition vécue dans cet écran compte.
-      if (shouldTrackDiagnosticCompletion(
-        previousStatus,
-        next.journey?.status,
-      )) {
-        _track(AudienceEvent.diagnosticCompleted);
-      }
-      if (!_accountGateTracked &&
-          next.isGuest &&
-          next.guestStep == DiagnosticGuestStep.accountRequired) {
-        _accountGateTracked = true;
-        _track(AudienceEvent.diagnosticAccountRequired);
-      }
+      _trackStepReached(next);
       if (!_resultViewedTracked &&
           next.journey?.nextStep == DiagnosticStep.result &&
           next.journey?.result != null) {
         _resultViewedTracked = true;
-        _track(AudienceEvent.diagnosticResultViewed);
+        _track(AnalyticsEvent.diagnosticReportViewed);
       }
     });
 
@@ -447,7 +435,14 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           onOpenRecommended: _openRecommended,
           // Même feuille que le Plan et les Compétences : un seul parcours
           // d'achat, jamais un second.
-          onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+          onSubscribe: () {
+            ref.read(analyticsServiceProvider).track(
+                  AnalyticsEvent.premiumCtaClicked,
+                  path: AnalyticsPath.diagnostic,
+                  ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+                );
+            unawaited(showTcfLockPaywall(context));
+          },
         ),
       _ => _InitialState(
           isLoading: state.isLoading,
@@ -518,14 +513,43 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     };
   }
 
+  /// Une production **commencée**, c'est son écran atteint — invité comme
+  /// connecté, les deux parcours jouent les deux mêmes exercices. Une seule
+  /// émission par lancement : l'écran se reconstruit à chaque frappe.
+  void _trackStepReached(DiagnosticFlowState state) {
+    final onWritten = state.isGuest
+        ? state.guestStep == DiagnosticGuestStep.written
+        : state.journey?.nextStep == DiagnosticStep.written;
+    final onOral = state.isGuest
+        ? state.guestStep == DiagnosticGuestStep.oral
+        : state.journey?.nextStep == DiagnosticStep.oral;
+    if (onWritten && !_eeStartedTracked) {
+      _eeStartedTracked = true;
+      _track(AnalyticsEvent.diagnosticEeStarted);
+    }
+    if (onOral && !_eoStartedTracked) {
+      _eoStartedTracked = true;
+      _track(AnalyticsEvent.diagnosticEoStarted);
+    }
+    // L'écran qui demande un compte, les deux productions déjà faites —
+    // **la** mesure de conversion du parcours invité. N'existe que pour un
+    // visiteur : un compte déjà créé n'a plus de `guestStep` à atteindre.
+    if (state.isGuest &&
+        state.guestStep == DiagnosticGuestStep.accountRequired &&
+        !_accountRequiredTracked) {
+      _accountRequiredTracked = true;
+      _track(AnalyticsEvent.diagnosticAccountRequired);
+    }
+  }
+
   Future<void> _startAuthenticated() async {
     final started = await _controller.startOrResume();
-    if (started) _track(AudienceEvent.diagnosticStarted);
+    if (started) _track(AnalyticsEvent.diagnosticStarted);
   }
 
   void _startGuest() {
     _controller.startGuest();
-    _track(AudienceEvent.diagnosticStarted);
+    _track(AnalyticsEvent.diagnosticStarted);
   }
 
   /// Le choix du candidat, gardé **en mémoire de processus** : aucune ligne en

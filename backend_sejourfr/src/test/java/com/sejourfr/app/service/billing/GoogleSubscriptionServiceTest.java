@@ -78,7 +78,8 @@ class GoogleSubscriptionServiceTest {
         service = new GoogleSubscriptionService(
                 googleStoreClient, planManager, userManager, userSubscriptionManager,
                 processedEventManager, new SubscriptionNotificationService(mailService),
-                oneTimeAccessService, billingProperties);
+                oneTimeAccessService, billingProperties,
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
 
         user = new User();
         user.setId(userId);
@@ -287,7 +288,7 @@ class GoogleSubscriptionServiceTest {
         when(googleStoreClient.getProduct("integral_pass_2m", "tok")).thenReturn(pp);
         when(planManager.findByGoogleProductId("integral_pass_2m")).thenReturn(Optional.of(plan));
         when(oneTimeAccessService.grantOneTimeAccess(
-                any(), any(), any(), anyString(), any()))
+                any(), any(), any(), anyString(), any(), any()))
                 .thenReturn(localSub(SubscriptionStatus.ACTIVE));
     }
 
@@ -305,7 +306,7 @@ class GoogleSubscriptionServiceTest {
         verify(googleStoreClient, never()).acknowledgeProduct(anyString(), anyString());
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
     }
 
     @Test
@@ -337,7 +338,7 @@ class GoogleSubscriptionServiceTest {
 
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
     }
 
     /** Un échec d'acquittement quelconque reste best-effort : l'accès payé passe. */
@@ -351,6 +352,6 @@ class GoogleSubscriptionServiceTest {
 
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
     }
 }

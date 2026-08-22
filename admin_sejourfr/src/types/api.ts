@@ -1096,138 +1096,264 @@ export interface NiveauCalibrationStatsDto {
   pourcentageDivergents: number;
 }
 
-// ============ AUDIENCE DES LANDINGS (page_views) ============
+// ============ ANALYTICS (GET /api/admin/analytics) ============
+// Miroir manuel du contrat Analytics. Un SEUL endpoint sert tout l'ecran :
+// cinq endpoints imposeraient cinq fenetres de temps a garder coherentes.
+// Toutes les valeurs sont deja calculees et arrondies a somme conservee cote
+// serveur — le front n'en recalcule aucune.
 
-/** Une provenance et son entonnoir sur la fenêtre demandée. */
-export interface PageViewSourceStat {
-  source: string;
-  views: number;
-  ctaClicks: number;
-  /** Part des vues ayant abouti à un clic CTA, en %. Null si aucune vue. */
-  ctaRate: number | null;
+/** Pas de la serie temporelle, decide par le serveur selon l'amplitude. */
+export type AnalyticsGrain = "HOUR" | "DAY" | "WEEK";
+
+/** Periode reellement appliquee, telle que le serveur l'a resolue. */
+export interface AnalyticsPeriod {
+  id: string;
+  label: string;
+  days: number;
+  grain: AnalyticsGrain;
 }
-
-export interface PageViewDailyStat {
-  /** Jour ISO (yyyy-MM-dd), Europe/Paris. */
-  day: string;
-  views: number;
-  ctaClicks: number;
-}
-
-/** Allowlist du compteur agrégé backend ; valeurs absentes = zéro occurrence. */
-export type PageViewEvent =
-  | "VIEW"
-  | "CTA"
-  | "DIAGNOSTIC_VIEWED"
-  | "DIAGNOSTIC_STARTED"
-  | "DIAGNOSTIC_WRITTEN_COMPLETED"
-  | "DIAGNOSTIC_ORAL_COMPLETED"
-  | "DIAGNOSTIC_COMPLETED"
-  | "DIAGNOSTIC_RESULT_VIEWED"
-  | "PLAN_OPENED"
-  | "PLAN_RECOMMENDED_EXERCISE_STARTED"
-  | "SOCIAL_LANDING_DIAGNOSTIC_CLICKED"
-  | "SOCIAL_LANDING_CIVIQUE_CLICKED"
-  | "DIAGNOSTIC_ACCOUNT_REQUIRED"
-  | "DIAGNOSTIC_TO_PREMIUM_CLICKED";
 
 /**
- * Audience agrégée d'une landing. Compte des VUES, pas des visiteurs uniques :
- * aucun identifiant de terminal n'est posé côté navigateur (cf. migration V020).
+ * Le vecteur unique de mesure. Toutes les ventilations (source, pays, device,
+ * campagne, serie) le reutilisent, ce qui garantit que deux blocs de l'ecran
+ * ne peuvent pas repondre differemment a la meme question.
+ *
+ * `v` compte des VISITEURS DISTINCTS, jamais des vues ; `prem` compte des
+ * CLIQUEURS UNIQUES ; `pay` ne compte que les comptes dont le PREMIER paiement
+ * tombe dans la periode — un renouvellement n'est pas un nouvel abonne.
  */
-export interface PageViewStatsResponse {
-  path: string;
-  days: number;
-  /** Bornes réellement appliquées (yyyy-MM-dd, Europe/Paris, incluses). */
+export interface AnalyticsMetrics {
+  /** Visiteurs uniques. */
+  v: number;
+  /** Clics « Faire mon diagnostic ». */
+  cta: number;
+  /** Diagnostics commences. */
+  start: number;
+  /** EE demarree. */
+  ee1: number;
+  /** EE terminee. */
+  ee2: number;
+  /** EO demarree. */
+  eo1: number;
+  /** EO terminee. */
+  eo2: number;
+  /** Rapport diagnostic affiche. */
+  rep: number;
+  /** Nouvelles inscriptions (table `users`). */
+  sig: number;
+  /** Clics « Debloquer mon plan », cliqueurs uniques. */
+  prem: number;
+  /** Checkouts commences. */
+  ck: number;
+  /** Paiements reussis (table `user_subscriptions`). */
+  pay: number;
+  /** Revenu reellement encaisse, en centimes d'euro. Jamais un prix reconstitue. */
+  revEurCents: number;
+}
+
+/** Clef de mesure affichable dans un graphe ou un entonnoir. */
+export type AnalyticsMetricKey = keyof AnalyticsMetrics;
+
+export interface AnalyticsSourceStat {
+  id: string;
+  label: string;
+  m: AnalyticsMetrics;
+}
+
+/**
+ * Un point de la serie. `empty` marque un intervalle non encore ecoule (heures
+ * a venir de la journee en cours) : il se saute au trace au lieu de dessiner un
+ * zero qu'on lirait comme une chute.
+ */
+export interface AnalyticsSeriesPoint {
+  label: string;
+  short: string;
+  iso: string | null;
+  isoEnd: string | null;
+  m: AnalyticsMetrics;
+  empty: boolean;
+}
+
+export interface AnalyticsFunnelStep {
+  k: AnalyticsMetricKey;
+  label: string;
+  /** La question a laquelle l'etape repond, affichee en sous-titre. */
+  q: string;
+  value: number;
+  /** Conversion depuis l'etape precedente. `null` sur la premiere etape. */
+  conv: number | null;
+  lost: number;
+  lostShare: number;
+}
+
+/** `id` vaut `UNKNOWN` quand la geo-IP n'a rien pu conclure — jamais un pays invente. */
+export interface AnalyticsCountryStat {
+  id: string;
+  label: string;
+  v: number;
+  sig: number;
+  rep: number;
+  prem: number;
+  pay: number;
+  revEurCents: number;
+}
+
+export interface AnalyticsDeviceStat {
+  id: string;
+  label: string;
+  platform: string;
+  v: number;
+  sig: number;
+  rep: number;
+  prem: number;
+  pay: number;
+  revEurCents: number;
+}
+
+export interface AnalyticsCampaignStat {
+  id: string;
+  source: string;
+  sourceId: string;
+  name: string;
+  medium: string | null;
+  content: string | null;
+  v: number;
+  start: number;
+  rep: number;
+  sig: number;
+  prem: number;
+  pay: number;
+  revEurCents: number;
+}
+
+export interface AnalyticsCtaStat {
+  id: string;
+  label: string;
+  /** L'ecran d'ou part le clic. */
+  where: string;
+  prem: number;
+  ck: number;
+  pay: number;
+  revEurCents: number;
+}
+
+export interface AnalyticsTriggerStat {
+  id: string;
+  label: string;
+  hint: string;
+  sig: number;
+  share: number;
+}
+
+export interface AnalyticsPathStat {
+  chain: string[];
+  sig: number;
+  share: number;
+}
+
+/**
+ * Un maillon de la chaine de progression d'un format de diagnostic. `value`
+ * et `conv` (conversion depuis le maillon PRECEDENT, deja calculee cote
+ * serveur) sont `null` quand l'evenement qui l'alimente n'existe pas encore
+ * (CO/CE du format complet : les fronts n'emettent aujourd'hui que les
+ * `_STARTED`) — jamais un zero invente a la place d'une mesure absente.
+ */
+export interface AnalyticsDiagChainStep {
+  k: string;
+  label: string;
+  value: number | null;
+  conv: number | null;
+}
+
+export interface AnalyticsDiagTypeStat {
+  id: string;
+  label: string;
+  sub: string;
+  start: number;
+  done: number;
+  prem: number;
+  pay: number;
+  /** Nombre d'epreuves du format (2 en rapide, 4 en complet). */
+  steps: number;
+  /**
+   * Progression reelle du format, maillon par maillon (RAPID :
+   * start→ee2→eo2→rep ; COMPLETE : start→ee2→eo2→co2→ce2→rep). Vide quand
+   * rien n'est mesure sur la periode — jamais une chaine de zeros.
+   */
+  chain: AnalyticsDiagChainStep[];
+}
+
+/** `base` dit sur quel denominateur `v` se lit : `start` ou `rep`. */
+export interface AnalyticsAbandonStat {
+  id: string;
+  label: string;
+  sub: string;
+  v: number;
+  base: string;
+  worst: boolean;
+}
+
+export interface AnalyticsAnnotation {
+  iso: string;
+  label: string;
+  kind: string;
+}
+
+/**
+ * Constat calcule cote serveur, sans LLM. `html` ne porte que de l'emphase
+ * (`<b>`) : le front la nettoie avant affichage plutot que de faire confiance.
+ */
+export interface AnalyticsInsight {
+  tone: "OK" | "WARN" | "BAD" | "NEUTRAL";
+  html: string;
+}
+
+export interface AnalyticsResponse {
+  period: AnalyticsPeriod;
+  /** Bornes APPLIQUEES (yyyy-MM-dd, Europe/Paris, incluses). Elles font foi. */
   from: string;
   to: string;
-  views: number;
-  ctaClicks: number;
-  sources: PageViewSourceStat[];
-  daily: PageViewDailyStat[];
-  /** Compteurs bruts du funnel, toujours agrégés et anonymes. */
-  events: Partial<Record<PageViewEvent, number>>;
+  prevFrom: string | null;
+  prevTo: string | null;
+  /** Journee en cours : la periode n'est pas terminee. */
+  partial: boolean;
+  hourNow: number;
+  /** Cumul de comptes, hors periode. */
+  totalUsers: number;
+  currency: string;
+  total: AnalyticsMetrics;
+  prev: AnalyticsMetrics;
+  sources: AnalyticsSourceStat[];
+  prevSources: AnalyticsSourceStat[];
+  series: AnalyticsSeriesPoint[];
+  prevSeries: AnalyticsSeriesPoint[];
+  funnel: AnalyticsFunnelStep[];
+  prevFunnel: AnalyticsFunnelStep[];
+  countries: AnalyticsCountryStat[];
+  devices: AnalyticsDeviceStat[];
+  campaigns: AnalyticsCampaignStat[];
+  ctas: AnalyticsCtaStat[];
+  triggers: AnalyticsTriggerStat[];
+  paths: AnalyticsPathStat[];
+  diagTypes: AnalyticsDiagTypeStat[];
+  abandon: AnalyticsAbandonStat[];
+  annotations: AnalyticsAnnotation[];
+  insights: AnalyticsInsight[];
 }
 
 /**
- * Période demandée aux deux endpoints d'audience. `from`/`to` (bornes incluses,
- * Europe/Paris) l'emportent sur `days` ; une seule borne, `from > to` ou plus de
- * 365 jours d'amplitude sont refusés en 400, d'où l'union exclusive.
+ * Periode demandee. `from`/`to` (bornes incluses, Europe/Paris) l'emportent sur
+ * `days` ; une seule borne, `from > to` ou plus de 365 jours sont refuses en
+ * 400, d'ou l'union exclusive : on n'envoie jamais les deux formes.
  */
-export type AudienceRange =
-  | { days: number }
-  | { from: string; to: string };
+export type AnalyticsRange = { days: number } | { from: string; to: string };
 
-// ============ FUNNEL D'ACQUISITION (cohorte d'inscription) ============
-// Nature différente des `page_views` ci-dessus : ici on compte des COMPTES,
-// une seule fois par étape, sur la cohorte des inscrits de la fenêtre.
-
-export type FunnelStage =
-  | "SIGNUP"
-  | "DIAGNOSTIC_STARTED"
-  | "DIAGNOSTIC_COMPLETED"
-  | "PAYWALL_VIEWED"
-  | "SUBSCRIBE_CLICKED"
-  | "CHECKOUT_STARTED"
-  | "PURCHASE";
-
-/** Une étape et le nombre de comptes de la cohorte qui l'ont franchie. */
-export interface FunnelStageStat {
-  stage: FunnelStage;
-  count: number;
-}
-
-/** Les 7 étapes en colonnes, pour une ventilation (provenance ou plateforme). */
-export interface FunnelBreakdownCounts {
-  signups: number;
-  diagnosticsStarted: number;
-  diagnosticsCompleted: number;
-  paywallViewed: number;
-  subscribeClicked: number;
-  checkoutStarted: number;
-  purchases: number;
-}
-
-/** `inconnu` = comptes antérieurs à la mesure de provenance. */
-export interface FunnelSourceStat extends FunnelBreakdownCounts {
-  source: string;
-}
-
-/** `UNKNOWN` = comptes antérieurs à la mesure de plateforme. */
-export type FunnelPlatform = "WEB" | "MOBILE" | "UNKNOWN";
-
-export interface FunnelPlatformStat extends FunnelBreakdownCounts {
-  platform: FunnelPlatform;
-}
-
-export interface FunnelDailyStat {
-  /** Jour ISO (yyyy-MM-dd), Europe/Paris. */
-  day: string;
-  signups: number;
-  diagnosticsStarted: number;
-  diagnosticsCompleted: number;
-  purchases: number;
-}
-
-/** Contrôle : un compte ne doit avoir qu'une session de diagnostic. */
-export interface FunnelIntegrity {
-  accountsWithDiagnostic: number;
-  diagnosticSessionsTotal: number;
-  accountsWithMultipleDiagnosticSessions: number;
-}
-
-export interface FunnelStatsResponse {
-  days: number;
-  /** Bornes de la cohorte (yyyy-MM-dd), incluses. */
-  cohortFrom: string;
-  cohortTo: string;
-  /** Déjà ordonné SIGNUP → PURCHASE : ne pas réordonner côté front. */
-  stages: FunnelStageStat[];
-  bySource: FunnelSourceStat[];
-  byPlatform: FunnelPlatformStat[];
-  /** Série continue (zéros compris), du plus ancien au plus récent. */
-  daily: FunnelDailyStat[];
-  integrity: FunnelIntegrity;
+/** Filtres facultatifs, tous appliques cote serveur. */
+export interface AnalyticsFilters {
+  source: string | null;
+  country: string | null;
+  device: string | null;
+  platform: string | null;
 }
 
 // ============ COMPÉTENCES TCF (EE/EO) — surface admin ============

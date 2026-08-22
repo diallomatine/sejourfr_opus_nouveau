@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/models/skill_models.dart';
@@ -364,7 +365,11 @@ class _CompetenceResultScreenState
               const SizedBox(height: 13),
               _AnalysisBanner(
                 actionLabel: 'Débloquer',
-                onAction: () => showPaywallSheet(context),
+                onAction: () => showPaywallSheet(
+                  context,
+                  ref: ref,
+                  ctaLocation: AnalyticsCtaLocation.aiCorrection,
+                ),
               ),
             ],
             const SizedBox(height: 13),
@@ -373,7 +378,11 @@ class _CompetenceResultScreenState
               quota: quota,
               retrying: _retrying,
               onRetry: () => unawaited(_retryAnalysis()),
-              onUpgrade: () => showPaywallSheet(context),
+              onUpgrade: () => showPaywallSheet(
+                context,
+                ref: ref,
+                ctaLocation: AnalyticsCtaLocation.aiCorrection,
+              ),
               onRedo: prompt == null
                   ? null
                   : () => context.pushReplacement(

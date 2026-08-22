@@ -11,7 +11,7 @@
  * Tout est pur : aucune dépendance React, aucun appel réseau.
  */
 
-import { withTrafficSource, type TrafficSource } from "./audience-events";
+import { withTrafficSource, type TrafficSource } from "./traffic-source";
 import { realtimeSessionsLabel, type PlanPublicResponse } from "./types";
 
 /** Module vendu par un pass. Miroir de `ModuleAccess` côté serveur, restreint

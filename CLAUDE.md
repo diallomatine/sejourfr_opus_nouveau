@@ -284,13 +284,23 @@ cliquent son CTA, découpé par réseau de provenance.
   (page, source, événement, jour), incrémentée par `INSERT … ON CONFLICT DO
   UPDATE` (atomique). La table est donc **bornée** par construction, à
   l'inverse du problème des attempts invités signalé plus haut.
-- **Rien n'est stocké côté visiteur** : ni cookie, ni localStorage, ni
-  sessionStorage ; et rien de personnel côté serveur : ni IP, ni user-agent, ni
-  identifiant. C'est ce qui permet à `/confidentialite` de continuer d'affirmer
-  qu'aucun traceur n'est déposé, et de se passer de bandeau de consentement.
-  **Ne pas ajouter de déduplication persistante sans repasser sur la page
-  légale.** Conséquence assumée : on compte des **vues**, pas des visiteurs
-  uniques.
+- ⚠️ **RÈGLE RÉVOQUÉE le 2026-08-21 — lire la section *Analytics* plus bas.**
+  Ce système ne déposait rien sur le terminal du visiteur (ni cookie, ni
+  localStorage, ni sessionStorage) et ne comptait donc que des **vues**, jamais
+  des visiteurs uniques. Le chantier Analytics **dépose désormais un identifiant
+  de mesure d'audience first-party**, sous l'**exemption CNIL** (jamais partagé,
+  jamais cross-site, rétention 13 mois, aucun recoupement externe) — donc
+  **toujours aucun bandeau de consentement**, et `/confidentialite` a été
+  réécrite dans la même passe. Ne pas réintroduire l'ancienne formule au motif
+  qu'elle traîne encore quelque part. **Reste vrai et doit le rester** : aucun
+  outil tiers, aucun partage, aucun suivi entre sites, aucune CMP.
+- 🛑 **Ce système est LEGACY depuis le 2026-08-21.** `page_views`,
+  `PageViewService`, `PublicPageViewController`, `AdminPageViewController`,
+  `PageViewEvent` et `PageViewStatsResponse` sont **supprimés** ; la **table
+  reste en base**, plus jamais écrite, plus mappée — c'est de la donnée réelle
+  (~700 hits), même doctrine que `cout_estime_centimes`. Aucune migration
+  destructive, aucun recalcul. Ce qui suit décrit l'état d'avant, conservé pour
+  relire l'historique.
 - **Deux allowlists** dans `PageViewService` : `EVENTS_BY_PATH` borne à la fois
   les chemins et les événements admis sur chaque écran, `KNOWN_SOURCES` borne
   les provenances (tout le reste devient `autre`). L'endpoint d'écriture étant
@@ -412,6 +422,135 @@ Premium affiché → clic abonnement → paiement*.
   pilote les deux (aujourd'hui / hier / cette semaine — lundi / ce mois — le 1er
   / 7-30-90 j / une date précise), calculé côté client depuis un seul
   `parisToday()`.
+
+## Analytics — acquisition → diagnostic → inscription → premium → paiement (2026-08-21)
+
+Chantier d'après `docs/plan/BRIEF_CLAUDE_CODE_ANALYTICS_SEJOURFR.md` (112 sections)
+et sa maquette `docs/plan/SejourFR - Analytics Autonome.html`, **source de vérité
+visuelle**. L'écran vit dans l'admin sur **`/dashboard`** (`features/analytics/`) et
+**remplace** l'ancien dashboard et `features/audience/`, supprimés. Il répond à une
+seule question : *pourquoi mes visiteurs ne deviennent-ils pas abonnés, et quel
+levier améliorer en priorité ?*
+
+### Les 5 arbitrages du propriétaire
+
+1. **`anonymous_id` autorisé, sous exemption CNIL de mesure d'audience** :
+   first-party, jamais partagé, jamais cross-site, **rétention 13 mois**, aucun
+   recoupement externe ⇒ **toujours aucun bandeau de consentement**. Révoque la
+   règle « rien n'est stocké côté visiteur » ; `/confidentialite` (art. 3.2, 4, 5
+   et tout l'article 8, désormais 8.1→8.5) a été réécrite **dans la même passe**.
+2. **Analytics remplace `/dashboard`** — pas de cohabitation.
+3. **Charte SejourFR, maquette pour tout le reste** : la maquette est hors charte
+   (Bricolage Grotesque / Hanken Grotesk, bleu `oklch` ≈ #2D5BB8) ; on reprend sa
+   mise en page, sa densité et ses libellés, **jamais ses couleurs ni ses polices**.
+4. **Pays par géo-IP embarquée** (MaxMind GeoLite2). L'IP est lue en mémoire et
+   **jamais persistée**.
+5. **Revenu = montant réellement encaissé**, figé à l'écriture.
+
+### 🛑 Aucune seconde vérité — la règle qui structure tout le modèle
+
+`USER_REGISTERED`, `PAYMENT_SUCCEEDED` et `DIAGNOSTIC_COMPLETED` **ne sont PAS des
+événements**, alors que le brief §100 les liste. Ils se lisent sur `users`,
+`user_subscriptions` et `diagnostic_sessions` — V036 l'écrivait déjà : deux
+chiffres pour la même chose sont condamnés à diverger. **Un événement n'existe que
+pour ce qui n'existe QUE dans le navigateur.** Corollaire : `CHECKOUT_STARTED` est
+déclaré au registre mais **jamais écrit** dans `analytics_event` (il est posé
+serveur par `BillingService`, qui n'a pas d'`anonymousId`) — c'est
+`user_funnel_events` (V036) qui fait foi, table **conservée et continuée**.
+
+### Schéma — `V043__analytics.sql`
+
+- **`analytics_visitor`** : une ligne par `anonymous_id`. **L'attribution vit ici,
+  pas sur l'événement** — sinon le first touch cesserait d'être premier, et
+  compter les visiteurs demanderait un `COUNT(DISTINCT)`. Le **first touch
+  n'apparaît dans aucun `SET`** de l'upsert : il ne *peut pas* être réécrit. Le
+  last touch ne l'est que sur une source explicite. Pays / device / plateforme ne
+  s'écrasent jamais avec une absence d'info.
+- **`analytics_event`** : journal comportemental, `properties jsonb` à clés
+  **allowlistées** (le §6 du brief propose du jsonb libre — écarté, l'endpoint est
+  public), `dedup_key` unique.
+- **`analytics_identity`** (`anonymous_id` ⇄ `user_id`) : une **table** et non une
+  colonne, parce qu'un appareil partagé porte deux comptes. Écrite à la connexion
+  locale et aux deux sign-in sociaux, idempotente, best-effort. Un `anonymousId`
+  inconnu **n'écrit rien au lieu de lever** — sinon la FK empoisonnerait la
+  transaction de login.
+- **`analytics_annotation`** : les repères produit / marketing de la courbe.
+- **`user_subscriptions`** gagne `amount_cents`, `currency`, `amount_eur_cents`,
+  `fx_rate_to_eur`. 🛑 **Figés à l'écriture, jamais recalculés** :
+  `plans.price` est **mutable en console** (`AdminPlanService`), donc le lire à la
+  lecture falsifierait rétroactivement le chiffre d'affaires de tout l'historique.
+  Autorité unique `MontantEncaisse` + `MontantEncaisseResolver` (taux sous
+  `sejourfr.analytics.fx-rates`, POJO ≡ YAML). Devise sans taux ⇒ `amount_eur_cents`
+  **null**, jamais une conversion inventée. Les lignes existantes restent `NULL` :
+  **aucune migration de données**.
+- ⚠️ `country_code` / `currency` sont en `varchar(2)`/`varchar(3)` et non `char` :
+  Postgres rend `bpchar`, que Hibernate refuse sous `ddl-auto: validate`.
+
+### Ingestion — `POST /api/public/analytics/events`
+
+Public, **rate-limité** (`analytics:burst` 120 / 10 min, `analytics:daily` 2000 / j)
+— le trou connu de `/api/public/page-views` ne se reproduit pas. Allowlists fermées :
+événement, propriétés **par événement**, chemins (`util/AnalyticsPaths`). Hors
+allowlist ⇒ **400 nommé**. Pays et device sont résolus **serveur** (le client les
+falsifierait) ; les UTM trop longues sont **tronquées, pas rejetées** (borne de
+stockage, pas règle métier) ; un referrer est ramené à son **hôte seul**.
+⚠️ **Ajouter un écran suivi = une ligne dans `AnalyticsPaths.KNOWN`, dans la même
+passe que le front** — un chemin non déclaré est refusé, jamais rangé en « autre ».
+
+### Lecture — `GET /api/admin/analytics`
+
+**Un seul endpoint** et pas les cinq du brief : la maquette recalcule toutes ses
+sections depuis un même objet, cinq appels imposeraient cinq fenêtres de temps à
+tenir cohérentes. `FenetreMesure` **réutilisée telle quelle**, bornes appliquées
+rendues, 4 filtres facultatifs, cache 60 s (vidé à l'écriture d'une annotation).
+**Coût figé : 10 requêtes SQL, constantes**, vérifié par une **égalité** dans
+`AdminAnalyticsCoutIT` avec 2 puis 20 provenances — seule façon d'attraper un N+1.
+Zéro agrégation en Java.
+
+Règles de calcul : `v` compte des **visiteurs distincts**, jamais des vues ; `prem`
+des **cliqueurs uniques** (le volume brut de clics ne vit que dans la table CTA) ;
+`revEurCents` est la **somme réelle** des montants — **jamais** le `pay × 14,99` de
+la maquette ; `previous = 0` ⇒ delta **`null`** ; bucketing 1 j / 45 j → heure /
+jour / semaine ; séries **continues des deux côtés** ; **arrondi à somme conservée**
+(`util/RepartitionArrondie`) pour que la somme des lignes égale toujours le pied ;
+comptes de test exclus **en SQL** (`sejourfr.analytics.excluded-emails`) ;
+`direct ≠ inconnu`, et `inconnu` ne se cache jamais.
+
+⚠️ **`pay` suit la COHORTE d'inscription**, pas « premier paiement dans la
+période » : la population est celle des comptes créés dans la fenêtre, et chaque
+étape est mesurée sur ces mêmes comptes. C'est ce qui rend « 4 payants sur 50
+inscrits TikTok » vrai et les sous-totaux additionnables. **Conséquence assumée** :
+un compte inscrit avant la fenêtre qui paie pendant n'est pas compté, et le chiffre
+d'une période passée continue de monter à mesure que ses inscrits convertissent.
+« Un renouvellement n'est jamais un nouvel abonné » reste garanti.
+
+**Insights déterministes, sans LLM** (≤ 4), avec les trois seuils d'honnêteté
+hérités de l'ancien `insights.ts` : 10 inscrits pour désigner une fuite, 20 pour
+comparer les réseaux, 5 par réseau. Sous le seuil **on énonce les chiffres et on
+dit pourquoi on s'arrête là** — on masque une conclusion, jamais une donnée. Le
+classement des sources trie **payants d'abord, taux ensuite** (le taux seul
+hisserait en tête un réseau à 1 inscrit / 1 payant), `inconnu` toujours en dernier.
+
+### Limites connues — à afficher comme telles, jamais à combler par une estimation
+
+- **Le pays reste `UNKNOWN`** tant que `GeoLite2-Country.mmdb` n'est pas installée
+  (compte MaxMind requis, licence interdisant de la versionner) : poser
+  `ANALYTICS_GEOIP_DB`. Le résolveur est **inerte proprement** sans elle.
+- **Aucune provenance mobile** : ni deep link, ni install referrer, ni paramètre
+  d'URL. La plomberie est prête (un seul point de câblage) mais l'attribution
+  mobile restera « inconnu » tant qu'aucune campagne n'ouvrira l'app par un lien.
+  🛑 **Ne pas « réparer » en renvoyant `direct`** — c'était le bug d'avant.
+- **`DIAGNOSTIC_CO_COMPLETED` / `_CE_COMPLETED` ne sont pas émis** : la
+  compréhension se joue dans le runner QCM ordinaire, qui ignore pourquoi il
+  s'ouvre. Les maillons `co2`/`ce2` valent **`null`, jamais 0** — un zéro se lirait
+  « tout le monde abandonne ». Réparable en marquant l'attempt à son lancement.
+- **La série n'est pas additive** pour `v` et les cliqueurs (un visiteur actif deux
+  jours compte dans deux barres) : aucune courbe d'uniques ne l'est. Les tableaux,
+  eux, somment exactement au pied.
+- **Un job de purge à 13 mois reste à écrire** — ce n'est pas optionnel, c'est une
+  **condition de l'exemption CNIL** sur laquelle repose l'absence de bandeau.
+  L'index `idx_analytics_visitor_last_seen` est posé pour lui (il balaie par
+  dernière activité, pas par première vue).
 
 ## Temps des examens blancs — un chrono PAR ÉPREUVE (2026-08-15)
 

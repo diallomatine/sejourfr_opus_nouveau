@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useEffect, useState} from "react";
 import {ArrowLeft, LayoutGrid, Lock, RotateCcw} from "lucide-react";
 import {ApiException, learningPlanApi} from "@/lib/api";
-import {trackAudienceEvent} from "@/lib/audience";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {
   PLAN_COMPLETE_PROFILE_NOTE,
@@ -93,7 +93,9 @@ export function PlanSkillsView() {
             <Link
               className={styles.primaryButton}
               href={premiumHref}
-              onClick={() => trackAudienceEvent("/plan", "DIAGNOSTIC_TO_PREMIUM_CLICKED")}
+              onClick={() =>
+                track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan_skills"})
+              }
             >
               Débloquer mes compétences
             </Link>

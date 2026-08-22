@@ -70,7 +70,8 @@ class AuthServiceTest {
 
         service = new AuthService(authenticationManager, userManager, passwordResetTokenManager,
                 jwtService, sessionService, subscriptionService, mailService, meService,
-                passwordEncoder);
+                passwordEncoder,
+                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class));
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -98,7 +99,7 @@ class AuthServiceTest {
         when(userManager.existsByEmail("dup@test.fr")).thenReturn(true);
 
         assertThatThrownBy(() -> service.register(
-                new RegisterRequest("dup@test.fr", "password1", "A", "B", null), "ua", "ip", CTX))
+                new RegisterRequest("dup@test.fr", "password1", "A", "B", null, null), "ua", "ip", CTX))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("existe déjà");
 
@@ -117,7 +118,7 @@ class AuthServiceTest {
         stubSessionFor(logged);
 
         TokenResponse resp = service.register(
-                new RegisterRequest("User@Test.fr", "password1", " Alice ", " Martin ", null),
+                new RegisterRequest("User@Test.fr", "password1", " Alice ", " Martin ", null, null),
                 "ua", "ip", CTX);
 
         assertThat(resp.accessToken()).isEqualTo("acc");
@@ -170,7 +171,7 @@ class AuthServiceTest {
             String email = procedure.name().toLowerCase() + "@test.fr";
             UUID id = stubSuccessfulRegistration(email);
 
-            service.register(new RegisterRequest(email, "password1", "A", "B", procedure),
+            service.register(new RegisterRequest(email, "password1", "A", "B", procedure, null),
                     "ua", "ip", CTX);
 
             verify(meService).updateTargetProcedure(id, procedure);
@@ -188,7 +189,7 @@ class AuthServiceTest {
         String email = "sans@test.fr";
         stubSuccessfulRegistration(email);
 
-        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip", CTX);
+        service.register(new RegisterRequest(email, "password1", "A", "B", null, null), "ua", "ip", CTX);
 
         verify(meService, never()).updateTargetProcedure(any(), any());
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
@@ -207,7 +208,7 @@ class AuthServiceTest {
         String email = "venu@test.fr";
         stubSuccessfulRegistration(email);
 
-        service.register(new RegisterRequest(email, "password1", "A", "B", null), "ua", "ip",
+        service.register(new RegisterRequest(email, "password1", "A", "B", null, null), "ua", "ip",
                 new com.sejourfr.app.util.ClientContext(
                         com.sejourfr.app.enums.ClientPlatform.MOBILE, "tiktok"));
 
@@ -224,7 +225,7 @@ class AuthServiceTest {
         String email = "sans-contexte@test.fr";
         stubSuccessfulRegistration(email);
 
-        service.register(new RegisterRequest(email, "password1", "A", "B", null),
+        service.register(new RegisterRequest(email, "password1", "A", "B", null, null),
                 "ua", "ip", null);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
@@ -242,7 +243,7 @@ class AuthServiceTest {
                 .thenThrow(new BadCredentialsException("nope"));
 
         assertThatThrownBy(() -> service.login(
-                new LoginRequest("x@test.fr", "bad"), "ua", "ip"))
+                new LoginRequest("x@test.fr", "bad", null), "ua", "ip"))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessageContaining("Identifiants invalides");
     }
@@ -253,7 +254,7 @@ class AuthServiceTest {
         when(userManager.findByEmail("ghost@test.fr")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login(
-                new LoginRequest("ghost@test.fr", "pw"), "ua", "ip"))
+                new LoginRequest("ghost@test.fr", "pw", null), "ua", "ip"))
                 .isInstanceOf(BadCredentialsException.class);
     }
 
@@ -264,7 +265,7 @@ class AuthServiceTest {
         when(userManager.findByEmail("ok@test.fr")).thenReturn(Optional.of(u));
         stubSessionFor(u);
 
-        TokenResponse resp = service.login(new LoginRequest("ok@test.fr", "pw"), "ua", "ip");
+        TokenResponse resp = service.login(new LoginRequest("ok@test.fr", "pw", null), "ua", "ip");
 
         assertThat(u.getLastLoginAt()).isNotNull();
         assertThat(resp.tokenType()).isEqualTo("Bearer");

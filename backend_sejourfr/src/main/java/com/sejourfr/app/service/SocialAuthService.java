@@ -61,11 +61,15 @@ public class SocialAuthService {
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
     private final MailService mailService;
+    private final com.sejourfr.app.service.analytics.AnalyticsIdentityService analyticsIdentityService;
 
     public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent,
                                          String ipAddress, ClientContext client) {
         SocialIdentity identity = googleVerifier.verify(req.idToken());
         User user = findOrCreate(identity, null, null, client);
+        // Même geste qu'en connexion locale : le parcours anonyme de cet
+        // appareil rejoint le compte. Idempotent et best-effort.
+        analyticsIdentityService.link(req.anonymousId(), user.getId());
         return buildTokenResponse(user, userAgent, ipAddress);
     }
 
@@ -73,6 +77,7 @@ public class SocialAuthService {
                                         String ipAddress, ClientContext client) {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
         User user = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client);
+        analyticsIdentityService.link(req.anonymousId(), user.getId());
         return buildTokenResponse(user, userAgent, ipAddress);
     }
 

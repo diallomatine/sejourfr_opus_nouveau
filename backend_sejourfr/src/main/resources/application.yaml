@@ -204,6 +204,36 @@ sejourfr:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
 
+  # Mesure d'audience (analytics). Les valeurs par defaut vivent AUSSI dans le
+  # POJO config/AnalyticsProperties, a l'identique : un POJO qui diverge de son
+  # YAML ne se decouvre que le jour ou la cle disparait de la configuration.
+  analytics:
+    # Taux de conversion vers l'euro, par devise ISO 4217. CE N'EST PAS un taux
+    # « du jour » : la valeur est RECOPIEE dans user_subscriptions.fx_rate_to_eur
+    # au moment du paiement, et plus jamais relue pour cette ligne. La modifier
+    # ici n'affecte donc que les paiements A VENIR — le chiffre d'affaires passe
+    # ne bouge pas. Une devise absente de cette table donne un montant en euros
+    # NUL : un revenu inconnu vaut null, jamais zero, jamais une conversion
+    # inventee.
+    fx-rates:
+      EUR: 1
+      USD: 0.92
+      GBP: 1.17
+      CHF: 1.05
+      CAD: 0.68
+    # Comptes de demonstration exclus de toutes les statistiques. L'exclusion
+    # s'applique EN SQL, jamais apres coup : soustraire a la lecture laisse les
+    # pourcentages faux.
+    excluded-emails: ${ANALYTICS_EXCLUDED_EMAILS:admin@sejourfr.fr,user@sejourfr.fr,karim.test@sejourfr.fr}
+    geoip:
+      # Chemin du fichier GeoLite2-Country.mmdb. VIDE PAR DEFAUT : la base
+      # exige un compte MaxMind et sa licence interdit de la versionner, donc
+      # son absence est un cas NORMAL, pas une panne. Sans elle, le resolveur
+      # est inerte et le pays des visiteurs vaut INCONNU — jamais un pays
+      # plausible invente pour remplir le tableau.
+      database-path: ${ANALYTICS_GEOIP_DB:}
+      classpath-resource: geoip/GeoLite2-Country.mmdb
+
   # Proxys dont on accepte les en-tetes X-Forwarded-For / X-Real-IP
   # (cf. util.ClientIpResolver). VIDE PAR DEFAUT : sans configuration, l'IP
   # retenue est celle de la socket, ce qui rend les compteurs par IP

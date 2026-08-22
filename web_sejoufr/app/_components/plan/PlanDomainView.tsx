@@ -32,6 +32,7 @@ import {
   type PlanDomainLevelDto,
 } from "@/lib/types";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {track} from "@/lib/analytics";
 import {
   RowChevron,
   SkillLockBadge,
@@ -264,7 +265,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
           )}
         </div>
 
-        <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+        <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
       </div>
     </PlanShell>
   );
@@ -298,6 +299,15 @@ function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
       <Link
         className={styles.panelRow}
         href={locked ? premiumHref : planSkillHref(priority, {planStep: true})}
+        onClick={
+          locked
+            ? () =>
+                track("PREMIUM_CTA_CLICKED", {
+                  ctaLocation: "LOCKED_PLAN",
+                  screen: "plan_domaine",
+                })
+            : undefined
+        }
       >
         <span className={styles.panelBody}>
           {locked ? (
@@ -356,7 +366,7 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
         <ChevronRight size={16} aria-hidden />
       </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
   );
 }

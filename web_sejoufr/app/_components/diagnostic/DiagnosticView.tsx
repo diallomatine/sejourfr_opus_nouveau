@@ -19,9 +19,11 @@ import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritin
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {ApiException, diagnosticApi, productionApi} from "@/lib/api";
 import {
-  trackAudienceEvent,
-  withTrafficSource,
-} from "@/lib/audience";
+  rememberDiagnosticType,
+  track,
+  trackDiagnostic,
+} from "@/lib/analytics";
+import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
   type DiagnosticExerciseContent,
@@ -129,6 +131,13 @@ export function DiagnosticView() {
   // l'appareil ni dans l'URL : le profil réel se lit sur les domaines mesurés
   // (`LearningPlanDto`), jamais sur une intention. Cf. `DiagnosticIntro`.
   const [parcours, setParcours] = useState<DiagnosticParcours>("RAPIDE");
+  // La mesure lit le format au **même** endroit que les écrans : tant que le
+  // candidat n'a rien choisi, elle reste à `UNKNOWN` (cf. `lib/analytics.ts`),
+  // et un rechargement de page repart légitimement d'`UNKNOWN`.
+  const chooseParcours = useCallback((chosen: DiagnosticParcours) => {
+    setParcours(chosen);
+    rememberDiagnosticType(chosen === "COMPLET" ? "COMPLETE" : "RAPID");
+  }, []);
   if (status === "loading") return <DiagnosticSkeleton />;
   // `DualChromeShell` porte les deux chromes de la route : sidebar pour un
   // compte, fond applicatif nu pour un visiteur (qui garde le header et le
@@ -136,9 +145,9 @@ export function DiagnosticView() {
   return (
     <DualChromeShell>
       {status === "authenticated" ? (
-        <ConnectedDiagnostic parcours={parcours} onChooseParcours={setParcours} />
+        <ConnectedDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
       ) : (
-        <GuestDiagnostic parcours={parcours} onChooseParcours={setParcours} />
+        <GuestDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
       )}
     </DualChromeShell>
   );
@@ -219,15 +228,21 @@ function GuestDiagnostic({
   }, []);
 
   useEffect(() => {
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_VIEWED", {once: true});
+    track("LANDING_VIEWED", {landingPath: "/diagnostic"}, {once: true});
   }, []);
 
   const step = guestStep(local, started);
 
+  // Un exercice affiché est un exercice commencé : c'est le seul instant que le
+  // navigateur connaisse (rien n'est encore envoyé au serveur à ce stade).
   useEffect(() => {
-    if (step === "account") {
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ACCOUNT_REQUIRED", {once: true});
-    }
+    if (step === "written") trackDiagnostic("DIAGNOSTIC_EE_STARTED", {once: true});
+    if (step === "oral") trackDiagnostic("DIAGNOSTIC_EO_STARTED", {once: true});
+    // L'écran qui demande un compte, les deux productions déjà faites : LA
+    // mesure de conversion du parcours invité (cf. CLAUDE.md racine). Distinct
+    // de `DIAGNOSTIC_EO_COMPLETED` — entre les deux se joue la décision même
+    // de créer un compte.
+    if (step === "account") trackDiagnostic("DIAGNOSTIC_ACCOUNT_REQUIRED", {once: true});
   }, [step]);
 
   async function keepWritten(text: string) {
@@ -253,7 +268,7 @@ function GuestDiagnostic({
       oralDurationSec: previous?.oralDurationSec ?? null,
       savedAt: Date.now(),
     }));
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_WRITTEN_COMPLETED", {once: true});
+    trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
     setSaving(false);
   }
 
@@ -279,7 +294,7 @@ function GuestDiagnostic({
       oralDurationSec: durationSec,
       savedAt: Date.now(),
     }));
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ORAL_COMPLETED", {once: true});
+    trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
     setSaving(false);
   }
 
@@ -372,7 +387,7 @@ function GuestDiagnostic({
           // deux cartes ouvrent le même écrit, puis le même oral.
           onChooseParcours(chosen);
           setStarted(true);
-          trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
+          trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
         }}
       />
     </DiagnosticShell>
@@ -417,7 +432,6 @@ function ConnectedDiagnostic({
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
   const [pendingLocal, setPendingLocal] = useState<LocalDiagnosticProductions | null>(null);
   const trafficSource = useTrafficSource();
-  const previousJourneyStatus = useRef<DiagnosticResponse["status"] | null>(null);
 
   const loadCurrent = useCallback(async () => {
     setError(null);
@@ -619,18 +633,22 @@ function ConnectedDiagnostic({
 
   useEffect(() => {
     if (!user) return;
-    trackAudienceEvent("/diagnostic", "DIAGNOSTIC_VIEWED", {once: true});
+    track("LANDING_VIEWED", {landingPath: "/diagnostic"}, {once: true});
   }, [user]);
 
   useEffect(() => {
     if (!diagnostic) return;
-    if (diagnostic.status === "COMPLETED") {
-      if (previousJourneyStatus.current && previousJourneyStatus.current !== "COMPLETED") {
-        trackAudienceEvent("/diagnostic", "DIAGNOSTIC_COMPLETED", {once: true});
-      }
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_RESULT_VIEWED", {once: true});
+    if (diagnostic.nextStep === "WRITTEN" && diagnostic.written) {
+      trackDiagnostic("DIAGNOSTIC_EE_STARTED", {once: true});
     }
-    previousJourneyStatus.current = diagnostic.status;
+    if (diagnostic.nextStep === "ORAL" && diagnostic.oral) {
+      trackDiagnostic("DIAGNOSTIC_EO_STARTED", {once: true});
+    }
+    if (diagnostic.status === "COMPLETED") {
+      // 🛑 Pas d'événement « diagnostic terminé » : il se lit sur
+      // `diagnostic_sessions.status`, on ne crée pas une seconde vérité.
+      trackDiagnostic("DIAGNOSTIC_REPORT_VIEWED", {once: true});
+    }
   }, [diagnostic]);
 
   // L'analyse des productions est asynchrone. La session, et non le front,
@@ -693,7 +711,7 @@ function ConnectedDiagnostic({
     setError(null);
     try {
       setDiagnostic(await diagnosticApi.start());
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_STARTED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
     } catch (cause) {
       setError(errorMessage(cause, "Impossible de démarrer le diagnostic."));
     } finally {
@@ -711,7 +729,7 @@ function ConnectedDiagnostic({
         attemptId: exercise.attemptId,
         texte: text,
       });
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_WRITTEN_COMPLETED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
       clearEeDraft(exercise.productionTaskId);
       await refreshAfterSubmission(diagnostic.sessionId, "WRITTEN");
     } catch (cause) {
@@ -727,7 +745,7 @@ function ConnectedDiagnostic({
     setError(null);
     try {
       await productionApi.submitAudio(exercise.productionTaskId, exercise.attemptId, audio);
-      trackAudienceEvent("/diagnostic", "DIAGNOSTIC_ORAL_COMPLETED", {once: true});
+      trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
       await refreshAfterSubmission(diagnostic.sessionId, "ORAL");
     } catch (cause) {
       setError(errorMessage(cause, "Impossible d'envoyer votre enregistrement."));
@@ -1420,7 +1438,12 @@ function PremiumLink({
     <Link
       className={className}
       href={href}
-      onClick={() => trackAudienceEvent("/diagnostic", "DIAGNOSTIC_TO_PREMIUM_CLICKED")}
+      onClick={() =>
+        track("PREMIUM_CTA_CLICKED", {
+          ctaLocation: "DIAGNOSTIC_REPORT",
+          screen: "diagnostic_result",
+        })
+      }
     >
       {children}
     </Link>

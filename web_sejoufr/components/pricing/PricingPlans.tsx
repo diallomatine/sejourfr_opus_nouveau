@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarOff, Check, Sparkles } from "lucide-react";
 import { periodicityFromCycle, type PlanModuleTarget, type PlanPeriodicity } from "@/lib/api";
-import { trackCtaClick, trackPageView, withTrafficSource, type TrafficSource } from "@/lib/audience";
+import { track } from "@/lib/analytics";
+import { withTrafficSource, type TrafficSource } from "@/lib/traffic-source";
 import { useAuth } from "@/lib/auth-context";
 import { useTrafficSource } from "@/lib/use-traffic-source";
 import {
@@ -26,11 +27,15 @@ interface Props {
   /** Pré-sélection de la périodicité (par défaut : trimestriel). */
   defaultPeriodicity?: PlanPeriodicity;
   /**
-   * Chemin mesuré en audience ANONYME. Renseigné **seulement** par `/tarifs` :
-   * ce composant sert aussi la section tarifs de la landing, qui n'est pas
-   * `/tarifs` et ne doit pas gonfler son compteur. Absent ⇒ aucune mesure.
+   * Grille réellement mesurée. Vrai **seulement** sur `/tarifs` : ce composant
+   * sert aussi des sections d'offre embarquées, qui ne doivent pas gonfler le
+   * compteur de la page des prix. Absent ⇒ aucune mesure.
+   *
+   * ⚠️ Le **chemin** ne se passe plus en prop : il voyage avec chaque
+   * événement (`lib/analytics.ts`), donc deux surfaces ne peuvent plus se
+   * déclarer sous le même chemin par erreur.
    */
-  audiencePath?: "/tarifs";
+  measured?: boolean;
 }
 
 interface Preset {
@@ -126,7 +131,7 @@ export function PricingPlans({
   plans,
   variant = "full",
   defaultPeriodicity = "quarterly",
-  audiencePath,
+  measured = false,
 }: Props) {
   const [periodicity, setPeriodicity] = useState<PlanPeriodicity>(defaultPeriodicity);
   const { status } = useAuth();
@@ -135,15 +140,29 @@ export function PricingPlans({
   const index = useMemo(() => indexPaidPlans(plans), [plans]);
   const freePlan = plans.find((p) => p.code === "FREE") ?? null;
 
-  // Vue ANONYME de la page des prix : elle répond à la seule question qu'aucune
-  // table ne peut trancher — combien de visiteurs regardent les tarifs sans
-  // jamais créer de compte. Rien n'est écrit sur l'appareil du visiteur.
+  // Vue de la page des prix : elle répond à la seule question qu'aucune table
+  // ne peut trancher — combien de visiteurs regardent les tarifs sans jamais
+  // créer de compte.
   useEffect(() => {
-    if (audiencePath) trackPageView(audiencePath);
-  }, [audiencePath]);
+    if (!measured) return;
+    track("PRICING_VIEWED", {}, { once: true });
+  }, [measured]);
 
-  const onCta = () => {
-    if (audiencePath) trackCtaClick(audiencePath);
+  /**
+   * Un pass choisi dit **deux** choses : « cet écran a déclenché une intention
+   * d'achat » (table « Quel écran déclenche l'achat ? ») et « c'est ce pass-là
+   * qui a été choisi ». Les deux événements du registre existent pour ça.
+   */
+  const onCta = (planCode: string) => {
+    if (!measured) return;
+    track("PREMIUM_CTA_CLICKED", { ctaLocation: "PRICING", planCode, screen: "pricing" });
+    track("PRICING_CTA_CLICKED", { planCode });
+  };
+
+  /** Le compte gratuit n'est pas un achat : c'est une porte d'inscription. */
+  const onFreeCta = () => {
+    if (!measured) return;
+    track("SIGNUP_CTA_CLICKED", { ctaLocation: "PRICING" });
   };
 
   // Mode passes one-time (lot 5) : une carte par module, chaque durée étant une
@@ -186,6 +205,7 @@ export function PricingPlans({
               periodicity={periodicity}
               durationNote="Sans limite de durée"
               href={withTrafficSource("/inscription", source)}
+              onCta={onFreeCta}
             />
           )}
         </div>
@@ -228,6 +248,7 @@ export function PricingPlans({
             periodicity={periodicity}
             durationNote="Sans limite de durée"
             href={withTrafficSource("/inscription", source)}
+            onCta={onFreeCta}
           />
         )}
         {civique && (
@@ -238,7 +259,7 @@ export function PricingPlans({
             originalPrice={civique.originalPrice}
             periodicity={periodicity}
             href={withTrafficSource(`/paiement?module=CIVIQUE&period=${periodicity}`, source)}
-            onCta={onCta}
+            onCta={() => onCta(civique.code)}
           />
         )}
         {integral && (
@@ -249,7 +270,7 @@ export function PricingPlans({
             originalPrice={integral.originalPrice}
             periodicity={periodicity}
             href={withTrafficSource(`/paiement?module=INTEGRAL&period=${periodicity}`, source)}
-            onCta={onCta}
+            onCta={() => onCta(integral.code)}
           />
         )}
       </div>
@@ -367,7 +388,7 @@ function PassModuleCard({
   featured: boolean;
   authenticated: boolean | null;
   source: TrafficSource | null;
-  onCta?: () => void;
+  onCta?: (planCode: string) => void;
 }) {
   if (passes.length === 0) return null;
   return (
@@ -388,7 +409,7 @@ function PassModuleCard({
               <Link
                 href={passCheckoutHref(p.code, authenticated, source)}
                 className={`pp-pass ${popular ? "is-popular" : ""}`}
-                onClick={onCta}
+                onClick={() => onCta?.(p.code)}
               >
                 {popular && (
                   <span className="pp-pop">

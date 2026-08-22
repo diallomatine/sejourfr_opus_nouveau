@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
-import 'audience_repository.dart';
+import 'analytics_repository.dart';
 import 'attempts_repository.dart';
 import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
 import 'full_tcf_exam_repository.dart';
+import 'funnel_repository.dart';
 import 'lots_repository.dart';
 import 'learning_plan_repository.dart';
 import 'production_repository.dart';
@@ -20,8 +21,12 @@ final themesRepositoryProvider = Provider<ThemesRepository>(
   (ref) => ThemesRepository(ref.watch(apiClientProvider)),
 );
 
-final audienceRepositoryProvider = Provider<AudienceRepository>(
-  (ref) => AudienceRepository(ref.watch(apiClientProvider)),
+final analyticsRepositoryProvider = Provider<AnalyticsRepository>(
+  (ref) => AnalyticsRepository(ref.watch(apiClientProvider)),
+);
+
+final funnelRepositoryProvider = Provider<FunnelRepository>(
+  (ref) => FunnelRepository(ref.watch(apiClientProvider)),
 );
 
 final attemptsRepositoryProvider = Provider<AttemptsRepository>(

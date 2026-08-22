@@ -701,7 +701,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           />
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="production_session"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

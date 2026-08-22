@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/audience_repository.dart';
-import '../../core/api/repositories.dart';
+import '../../core/analytics/analytics.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
@@ -26,17 +25,6 @@ import 'plan_seance_state.dart';
 /// chacun leur chemin de navigation, sinon deux cartes qui désignent la même
 /// compétence finiraient par ouvrir deux écrans différents.
 
-/// Mesure agrégée — jamais bloquante, jamais un identifiant.
-Future<void> trackPlan(WidgetRef ref, AudienceEvent event) async {
-  try {
-    await ref
-        .read(audienceRepositoryProvider)
-        .track(path: '/plan', event: event);
-  } catch (_) {
-    // Une statistique agrégée ne doit jamais bloquer le plan.
-  }
-}
-
 /// Lance l'exercice désigné par le Plan.
 ///
 /// Un exercice **verrouillé n'est jamais « démarré »** (l'événement d'audience
@@ -49,7 +37,11 @@ Future<void> openPlanExercise(
   SkillMasteryState? masteryBefore,
 }) async {
   if (!exercise.locked) {
-    unawaited(trackPlan(ref, AudienceEvent.planRecommendedExerciseStarted));
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.planExerciseStarted,
+          path: AnalyticsPath.plan,
+          exerciseKind: exercise.kind.wire,
+        );
   }
   await openRecommendedExercise(
     context,
@@ -85,7 +77,11 @@ Future<void> openPlanSeanceItem(
   PlanSeanceItem item,
 ) async {
   if (planSeanceItemLocked(item)) {
-    await showTcfLockPaywall(context);
+    await showTcfLockPaywall(
+      context,
+      ref: ref,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+    );
     return;
   }
   final skillId = item.skillId;
@@ -121,7 +117,11 @@ Future<void> startPlanSeanceItem(
   PlanSeanceItem item,
 ) async {
   if (planSeanceItemLocked(item)) {
-    await showTcfLockPaywall(context);
+    await showTcfLockPaywall(
+      context,
+      ref: ref,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+    );
     return;
   }
   final assessment = item.assessment;

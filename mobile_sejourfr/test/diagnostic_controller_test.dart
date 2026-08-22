@@ -6,26 +6,8 @@ import 'package:sejourfr_mobile/core/api/diagnostic_repository.dart';
 import 'package:sejourfr_mobile/core/models/diagnostic_models.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/screens/diagnostic/diagnostic_controller.dart';
-import 'package:sejourfr_mobile/screens/diagnostic/diagnostic_screen.dart';
 
 void main() {
-  test('ne compte COMPLETED que sur une vraie transition vécue', () {
-    expect(
-      shouldTrackDiagnosticCompletion(
-        null,
-        DiagnosticJourneyStatus.completed,
-      ),
-      isFalse,
-    );
-    expect(
-      shouldTrackDiagnosticCompletion(
-        DiagnosticJourneyStatus.analyzing,
-        DiagnosticJourneyStatus.completed,
-      ),
-      isTrue,
-    );
-  });
-
   test('reprend la session serveur et passe à l’oral après l’écrit', () async {
     final gateway = _FakeDiagnosticGateway(
       currentJourney: _journey(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
@@ -92,7 +93,11 @@ class _PlanMilestoneCardState extends ConsumerState<PlanMilestoneCard> {
               label: kPlanMilestoneLockedCta,
               icon: LucideIcons.lock,
               variant: AppButtonVariant.soft,
-              onPressed: () => unawaited(showTcfLockPaywall(context)),
+              onPressed: () => unawaited(showTcfLockPaywall(
+                context,
+                ref: ref,
+                ctaLocation: AnalyticsCtaLocation.mockExam,
+              )),
             ),
             const SizedBox(height: 9),
             Text(

@@ -48,7 +48,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
 } from "./types";
-import {detectTrafficSource} from "./audience-events";
+import {detectTrafficSource} from "./traffic-source";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";

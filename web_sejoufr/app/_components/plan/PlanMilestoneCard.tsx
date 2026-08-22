@@ -104,7 +104,7 @@ export function PlanMilestoneCard({
 
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
 
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_jalon" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </section>
   );
 }

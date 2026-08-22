@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/skill_models.dart';
@@ -1339,7 +1340,36 @@ class _LockedPreview extends StatelessWidget {
 /// fini par ouvrir trois écrans différents pour le même domaine. La légende dit
 /// dès ici ce qu'il y a derrière ([planAssessmentMeta]) : « Examen blanc n°1 ·
 /// ≈ 20 min », jamais une promesse plus vague que le geste.
-class _ResultActionBar extends StatelessWidget {
+/// Le diagnostic **complet** enchaîne sur une épreuve de compréhension : c'est
+/// le seul endroit de l'app où une CO/CE est lancée *depuis le diagnostic*, et
+/// donc le seul où l'événement soit vrai.
+///
+/// ⚠️ Il n'existe **pas** de `DIAGNOSTIC_CO_COMPLETED` / `_CE_COMPLETED` côté
+/// mobile : la série part dans le runner QCM ordinaire, qui ne sait rien de sa
+/// provenance. Poser un `COMPLETED` demanderait de faire voyager cette
+/// provenance jusqu'au bilan — au risque de compter comme « diagnostic » un
+/// examen blanc lancé depuis les Examens. On préfère ne pas mesurer que
+/// mesurer faux.
+void _trackComprehensionStarted(
+  WidgetRef ref,
+  PlanDomainAssessment assessment,
+) {
+  final event = switch (assessment.epreuve) {
+    EpreuveType.tcfCo => AnalyticsEvent.diagnosticCoStarted,
+    EpreuveType.tcfCe => AnalyticsEvent.diagnosticCeStarted,
+    _ => null,
+  };
+  if (event == null) return;
+  ref.read(analyticsServiceProvider).track(
+        event,
+        path: AnalyticsPath.diagnostic,
+        // On y arrive par le bilan du diagnostic complet : c'est le seul
+        // chemin qui rend cette barre d'action.
+        diagnosticType: AnalyticsDiagnosticType.complete,
+      );
+}
+
+class _ResultActionBar extends ConsumerWidget {
   const _ResultActionBar({required this.next, required this.onOpenPlan});
 
   /// Le prochain domaine de compréhension à mesurer, **déjà désigné par le
@@ -1350,7 +1380,7 @@ class _ResultActionBar extends StatelessWidget {
   final VoidCallback onOpenPlan;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final assessment = next;
     final label = assessment == null
         ? kDiagnosticCtaPlan
@@ -1370,7 +1400,10 @@ class _ResultActionBar extends StatelessWidget {
               iconRight: LucideIcons.arrowRight,
               onPressed: assessment == null
                   ? onOpenPlan
-                  : () => openPlanAssessment(context, assessment),
+                  : () {
+                      _trackComprehensionStarted(ref, assessment);
+                      openPlanAssessment(context, assessment);
+                    },
             ),
           ),
           const SizedBox(height: 7),

@@ -507,10 +507,19 @@ class BillingController extends StateNotifier<BillingState> {
       final authState = _ref.read(authControllerProvider);
       final prevUser = authState is AuthAuthenticated ? authState.user : null;
 
+      // Le prix affiché par le store est le seul qui dise ce qui a réellement
+      // été encaissé, et dans quelle devise. On le joint au reçu : c'est le
+      // seul moment où on le connaît.
+      final priced = _pricedProduct(purchase.productID);
+
       final status = await _repo.verifyReceipt(VerifyReceiptRequest(
         source: source,
         receipt: receipt,
         productId: purchase.productID,
+        amountCents: priced == null
+            ? null
+            : (priced.rawPrice * 100).round(),
+        currency: priced?.currencyCode,
       ));
       final outcome = _outcomeFor(prevUser, status);
 
@@ -602,6 +611,20 @@ class BillingController extends StateNotifier<BillingState> {
         actionBlocked: blocking,
       );
     }
+  }
+
+  /// Le produit du store correspondant à une transaction, s'il a été chargé.
+  ///
+  /// `null` est un cas **normal** : une transaction rejouée au lancement
+  /// (StoreKit re-livre en `restored`) arrive avant tout `load()`. On préfère
+  /// alors ne rien affirmer sur le montant plutôt que de le déduire du prix du
+  /// plan, qui est libellé en euros et modifiable en console — il ne dit rien
+  /// de ce que l'utilisateur a payé.
+  ProductDetails? _pricedProduct(String productId) {
+    for (final product in state.products) {
+      if (product.productDetails.id == productId) return product.productDetails;
+    }
+    return null;
   }
 
   /// Compare l'état Premium d'avant l'achat avec le statut fraîchement

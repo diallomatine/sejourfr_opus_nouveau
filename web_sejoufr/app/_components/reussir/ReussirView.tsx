@@ -27,13 +27,12 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import {track, type AnalyticsCtaLocation, type AnalyticsDiagnosticType} from "@/lib/analytics";
 import {
   detectTrafficSource,
-  trackAudienceEvent,
-  trackPageView,
   withTrafficSource,
   type TrafficSource,
-} from "@/lib/audience";
+} from "@/lib/traffic-source";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { EPREUVE_PLANNED_SEC, minutesLabel } from "@/lib/exam-durations";
@@ -74,13 +73,13 @@ import styles from "./reussir.module.css";
  *  · durées d'épreuve TCF → `DureeEpreuve` côté serveur
  *  · une étape du Plan = 5 petits sujets → `LearningPlanStep.PROMPTS_PAR_ETAPE`
  *
- * ⚠️ MESURE D'AUDIENCE : `/reussir` n'admet que `VIEW`, `CTA`,
- * `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` et `SOCIAL_LANDING_CIVIQUE_CLICKED`
- * (`AUDIENCE_EVENTS_BY_PATH`, doublée côté serveur par
- * `PageViewService.EVENTS_BY_PATH`). Un événement inventé ici serait rejeté en
- * silence : ne rien ajouter sans toucher les deux listes. Les deux portes
- * d'entrée se comptent **séparément** — le civique n'a ni production, ni niveau
- * CECRL, ni diagnostic.
+ * ⚠️ MESURE D'AUDIENCE (`lib/analytics.ts`) : `/reussir` émet `LANDING_VIEWED`,
+ * `DIAGNOSTIC_CTA_CLICKED` et `CIVIQUE_CTA_CLICKED` — allowlist fermée doublée
+ * côté serveur (`enums/AnalyticsEvent`). Un événement inventé ici serait
+ * rejeté en silence. Les deux portes d'entrée se comptent **séparément** — le
+ * civique n'a ni production, ni niveau CECRL, ni diagnostic ; réutiliser
+ * `DIAGNOSTIC_CTA_CLICKED` pour son CTA gonflerait la mesure du diagnostic
+ * avec des clics qui n'y mènent pas.
  */
 
 type Parcours = "tcf" | "civique";
@@ -101,7 +100,9 @@ export function ReussirView({ plans }: { plans: PlanPublicResponse[] }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   useReveal(rootRef);
 
-  useEffect(() => trackPageView(TRACKED_PATH), []);
+  useEffect(() => {
+    track("LANDING_VIEWED", {landingPath: TRACKED_PATH}, {once: true});
+  }, []);
 
   return (
     <div className={styles.page} ref={rootRef}>
@@ -450,7 +451,7 @@ function DiagnosticSection() {
             <Link
               href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
               className={`${styles.btn} ${styles.btnO}`}
-              onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_CIVIQUE_CLICKED")}
+              onClick={() => track("CIVIQUE_CTA_CLICKED", {ctaLocation: "MIDDLE"})}
             >
               Passer l&apos;examen découverte
               <ArrowRight aria-hidden />
@@ -515,7 +516,7 @@ function RapportSection() {
             ton objectif.
           </p>
           <div className={styles.ctas} style={{ marginTop: 24 }} data-rv>
-            <DiagnosticCta />
+            <DiagnosticCta location="MIDDLE" />
             <span className={styles.ctaNote}>≈ 8 min · Sans carte bancaire</span>
           </div>
         </div>
@@ -1328,11 +1329,22 @@ function PlanCard({
         ))}
       </ul>
 
-      <Link href={href} className={styles.planGo}>
+      <Link href={href} className={styles.planGo} onClick={() => trackPassChosen(plan.code)}>
         Choisir ce pass
       </Link>
     </article>
   );
+}
+
+/**
+ * Un pass choisi depuis la landing dit **deux** choses différentes : « cet
+ * écran a déclenché une intention d'achat » (table « Quel écran déclenche
+ * l'achat ? ») et « c'est ce pass-là qui a été choisi ». Les deux événements
+ * du registre existent pour ça — on n'en détourne aucun.
+ */
+function trackPassChosen(planCode: string): void {
+  track("PREMIUM_CTA_CLICKED", {ctaLocation: "PRICING", planCode, screen: "reussir_offres"});
+  track("PRICING_CTA_CLICKED", {planCode});
 }
 
 // ============================================================================
@@ -1553,8 +1565,24 @@ function PageFooter() {
  * points d'entrée sont mesurés de la même façon — un bouton ajouté ailleurs
  * sans lui serait un trou silencieux dans le taux de conversion.
  */
+/** Où se trouve ce bouton dans la page, et quel format il annonce. Les deux
+ *  cartes de `#diagnostic` sont les seuls endroits où le format est **su** ;
+ *  partout ailleurs il reste `UNKNOWN` — on ne devine pas. */
+const CTA_ANALYTICS: Record<
+  "hero" | "nav" | "card" | "cardAlt" | "sticky" | "onBrand",
+  {location: AnalyticsCtaLocation; type: AnalyticsDiagnosticType}
+> = {
+  nav: {location: "HERO", type: "UNKNOWN"},
+  hero: {location: "HERO", type: "UNKNOWN"},
+  card: {location: "MIDDLE", type: "RAPID"},
+  cardAlt: {location: "MIDDLE", type: "COMPLETE"},
+  onBrand: {location: "FOOTER", type: "UNKNOWN"},
+  sticky: {location: "STICKY", type: "UNKNOWN"},
+};
+
 function DiagnosticCta({
   variant = "hero",
+  location,
 }: {
   /** `cardAlt` = la seconde carte de `#diagnostic` (« Diagnostic complet ») :
    *  même destination et **même événement** que `card`, bouton secondaire.
@@ -1562,6 +1590,9 @@ function DiagnosticCta({
    *  part** (le candidat y est encore invité) : il n'existe aucun paramètre
    *  d'URL à passer, c'est `DiagnosticIntro` qui porte le choix. */
   variant?: "hero" | "nav" | "card" | "cardAlt" | "sticky" | "onBrand";
+  /** Emplacement mesuré, quand il ne se déduit pas de la variante d'aspect —
+   *  le même bouton « hero » sert aussi au milieu de la page. */
+  location?: AnalyticsCtaLocation;
 }) {
   const { status, user } = useAuth();
   const origin = useOrigin();
@@ -1617,7 +1648,12 @@ function DiagnosticCta({
       href={destination}
       className={className}
       style={variant === "card" || variant === "cardAlt" ? { marginTop: 18 } : undefined}
-      onClick={() => trackAudienceEvent(TRACKED_PATH, "SOCIAL_LANDING_DIAGNOSTIC_CLICKED")}
+      onClick={() =>
+        track("DIAGNOSTIC_CTA_CLICKED", {
+          ctaLocation: location ?? CTA_ANALYTICS[variant].location,
+          diagnosticType: CTA_ANALYTICS[variant].type,
+        })
+      }
     >
       {label}
       <ArrowRight aria-hidden />
@@ -1761,7 +1797,7 @@ function useReveal(rootRef: React.RefObject<HTMLElement | null>) {
 
 /**
  * Provenance affichée par le badge du hero. Même détection que la mesure
- * d'audience (`lib/audience.ts`) : un seul endroit qui décide « ce visiteur
+ * d'audience (`lib/traffic-source.ts`) : un seul endroit qui décide « ce visiteur
  * vient de TikTok », sinon le badge et les chiffres divergeraient.
  *
  * Lu via `useSyncExternalStore` : le rendu serveur reste neutre, le badge se

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { track } from "@/lib/analytics";
 
 /**
  * Affiché à la place de la liste de thèmes/du runner quand l'utilisateur
@@ -28,7 +29,13 @@ export function TcfPaywallCard({ compact = false }: { compact?: boolean }) {
         <li>Statistiques par niveau et révision des erreurs</li>
       </ul>
       <div className="tpc-actions">
-        <Link href="/paiement?module=INTEGRAL" className="btn btn-red">
+        <Link
+          href="/paiement?module=INTEGRAL"
+          className="btn btn-red"
+          onClick={() =>
+            track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "tcf_verrou"})
+          }
+        >
           Voir l&apos;offre Intégral →
         </Link>
         <Link href="/paiement" className="btn btn-ghost">

@@ -10,6 +10,8 @@ import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.AnalyticsEventManager;
+import com.sejourfr.app.manager.AnalyticsIdentityManager;
 import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
@@ -54,6 +56,8 @@ public class AccountDeletionService {
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
     private final UserFunnelEventManager userFunnelEventManager;
+    private final AnalyticsIdentityManager analyticsIdentityManager;
+    private final AnalyticsEventManager analyticsEventManager;
     private final RefreshTokenManager refreshTokenManager;
 
     @Transactional
@@ -96,6 +100,17 @@ public class AccountDeletionService {
         // ne survivent pas à son anonymisation. La cascade base ne suffit pas —
         // la ligne `users` reste, seule la personne disparaît.
         userFunnelEventManager.deleteByUserId(userId);
+        // Analytics : on coupe le LIEN, on ne détruit pas la mesure. Le lien
+        // anonyme -> compte disparaît, et les événements déjà nominatifs
+        // redeviennent anonymes. Ils restent comptés dans l'audience : ce sont
+        // des gestes, ils ne nomment plus personne, et les effacer fausserait
+        // rétroactivement des totaux qui n'ont rien de personnel.
+        //
+        // Explicite pour la même raison que les étapes de funnel : la ligne
+        // `users` survit à l'anonymisation, donc ni la cascade ni le
+        // ON DELETE SET NULL de la base ne se déclenchent d'eux-mêmes.
+        analyticsIdentityManager.deleteByUserId(userId);
+        analyticsEventManager.detachUser(userId);
 
         // 3. Révocation de toutes les sessions (refresh tokens).
         refreshTokenManager.revokeAllForUser(userId);

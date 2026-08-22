@@ -36,6 +36,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { ApiException, billingApi } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import { trackSubscribeClicked } from "@/lib/funnel-events";
 import {
   findOneTimePass,
@@ -202,6 +203,12 @@ function RecapInner() {
     if (!plan) return;
     // Le CTA d'achat d'un pass : c'est ici que l'achat s'engage réellement,
     // pas au clic qui a mené sur ce récapitulatif.
+    track("PREMIUM_CTA_CLICKED", {
+      ctaLocation: "PRICING",
+      planCode: plan.code,
+      screen: "recapitulatif",
+    });
+    track("PRICING_CTA_CLICKED", {planCode: plan.code});
     trackSubscribeClicked();
     setError(null);
     setRedirecting(true);

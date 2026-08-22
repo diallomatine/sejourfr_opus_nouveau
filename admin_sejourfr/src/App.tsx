@@ -6,10 +6,10 @@ import { ToastProvider } from "./components/ui/Toast";
 import { AudioDraftReviewPage } from "./features/audioQuestions/AudioDraftReviewPage";
 import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
 import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
+import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
 import { CalibrationPage } from "./features/calibration/CalibrationPage";
 import { ExampleAudioReviewPage } from "./features/exampleAudio/ExampleAudioReviewPage";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
-import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
 import { ExamsPage } from "./features/exams/ExamsPage";
 import { PlansPage } from "./features/plans/PlansPage";
@@ -23,7 +23,6 @@ import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
 import { LoginPage } from "./pages/LoginPage";
-import { AudiencePage } from "./features/audience/AudiencePage";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
 export function App() {
@@ -43,7 +42,7 @@ export function App() {
                 }
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<AnalyticsPage />} />
                 <Route
                   path="/questions"
                   element={<Navigate to="/questions/civique" replace />}
@@ -81,7 +80,6 @@ export function App() {
                   element={<ExampleAudioReviewPage />}
                 />
                 <Route path="/calibration" element={<CalibrationPage />} />
-                <Route path="/audience" element={<AudiencePage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />

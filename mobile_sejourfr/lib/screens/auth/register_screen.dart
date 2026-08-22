@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_config.dart';
 import '../../core/auth/auth_controller.dart';
@@ -33,6 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscure = true;
   bool _submitting = false;
   bool _accepted = false;
+  bool _signupTracked = false;
   String? _error;
   Map<String, String>? _fieldErrors;
 
@@ -75,6 +77,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (_accepted) return true;
     setState(() => _error = _acceptError);
     return false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_signupTracked) return;
+    _signupTracked = true;
+    // **Une inscription COMMENCÉE**, pas une inscription créée : le compte
+    // créé se lit sur `users.created_at`, on ne crée jamais une seconde
+    // vérité. Ce qui manque côté serveur, c'est le formulaire ouvert — donc
+    // l'écart entre « a vu le formulaire » et « a un compte ».
+    //
+    // Le contexte se lit sur la destination de retour : le mobile ne demande
+    // le compte qu'une fois les deux productions faites (`DiagnosticAccountGate`),
+    // ce qui est bien un `AFTER_DIAGNOSTIC`. Partout ailleurs, une inscription
+    // ouverte dans l'app est un `MOBILE_APP` — le seul contexte que le mobile
+    // puisse constater honnêtement.
+    final redirect =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.signupStarted,
+          registrationContext: redirect == AppRoutes.diagnostic
+              ? AnalyticsRegistrationContext.afterDiagnostic
+              : AnalyticsRegistrationContext.mobileApp,
+        );
   }
 
   Future<void> _submit() async {

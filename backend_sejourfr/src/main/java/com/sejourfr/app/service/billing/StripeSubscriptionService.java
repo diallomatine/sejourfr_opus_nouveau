@@ -59,6 +59,7 @@ public class StripeSubscriptionService {
     private final SubscriptionNotificationService subscriptionNotifier;
     private final OneTimeAccessService oneTimeAccessService;
     private final BillingProperties billingProperties;
+    private final MontantEncaisseResolver montantEncaisseResolver;
 
     /**
      * Entrée unique appelée par {@code BillingService.handleWebhook}. L'event
@@ -189,8 +190,14 @@ public class StripeSubscriptionService {
         String paymentIntent = session.getPaymentIntent();
         String originalTxn = (paymentIntent != null && !paymentIntent.isBlank())
                 ? paymentIntent : session.getId();
+        // Stripe DIT ce qu'il a prélevé : `amount_total` est en unités mineures
+        // et `currency` l'accompagne. C'est le seul chiffre qui soit un fait —
+        // il tient compte des remises, de la proration et de la devise réelle,
+        // là où `plans.price` n'est que le tarif affiché.
         oneTimeAccessService.grantOneTimeAccess(
-                userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId());
+                userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId(),
+                montantEncaisseResolver.enUnitesMineures(
+                        session.getAmountTotal(), session.getCurrency()));
         log.info("Stripe one-time pass accordé user={} plan={} session={}",
                 userId, planCode, session.getId());
     }
@@ -360,6 +367,14 @@ public class StripeSubscriptionService {
         // ONE_TIME actif, cf. OneTimeAccessService).
         if (isNew && sub.getPlan() != null) {
             sub.setRealtimeEoSessionsRemaining(Math.max(0, sub.getPlan().getRealtimeEoSessions()));
+            // Montant figé À LA CRÉATION seulement : un renouvellement ne doit
+            // pas réécrire ce qu'a coûté le premier achat.
+            //
+            // Source : le prix affiché du plan. L'objet `Subscription` ne porte
+            // pas de montant exploitable directement (il faudrait relire
+            // l'invoice), et cette voie est DORMANTE — le produit vend des pass
+            // one-time, où le montant vient de `amount_total`, qui est un fait.
+            montantEncaisseResolver.duPlan(sub.getPlan()).appliquerA(sub);
         }
         userSubscriptionManager.save(sub);
         return isNew;

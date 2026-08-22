@@ -5,6 +5,7 @@ import {useState} from "react";
 import {ArrowRight, Check, FilePenLine, Lock, Mic, ShieldCheck, Sparkles, Zap} from "lucide-react";
 import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
 import {PasswordInput} from "@/app/_components/auth/PasswordInput";
+import {track} from "@/lib/analytics";
 import {ApiException} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {TCF_LEVEL_BY_PROCEDURE, type TargetProcedure} from "@/lib/types";
@@ -51,6 +52,11 @@ export function DiagnosticAccountGate({
 }) {
   const {login, register} = useAuth();
   const [mode, setMode] = useState<"register" | "login">("register");
+  // Une inscription **commencée**, c'est la première frappe dans le formulaire —
+  // pas son ouverture, que le candidat n'a peut-être jamais l'intention de
+  // remplir. `once` : une seule fois par onglet.
+  const signupStarted = () =>
+    track("SIGNUP_STARTED", {registrationContext: "DURING_DIAGNOSTIC"}, {once: true});
   const [mention, setMention] = useState<TargetProcedure>("CSP");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +160,12 @@ export function DiagnosticAccountGate({
         {error && <p className={styles.error} role="alert">{error}</p>}
 
         {mode === "register" ? (
-          <form className={styles.gateForm} onSubmit={handleRegister} noValidate>
+          <form
+            className={styles.gateForm}
+            onSubmit={handleRegister}
+            onInput={signupStarted}
+            noValidate
+          >
             <div className={styles.gateRow2}>
               <div className="field">
                 <label className="field-label" htmlFor="gate-firstName">Prénom</label>
@@ -280,10 +291,12 @@ export function DiagnosticAccountGate({
           </form>
         )}
 
-        <GoogleSignInButton
-          variant={mode === "register" ? "signup" : "signin"}
-          onError={setError}
-        />
+        <div onClickCapture={mode === "register" ? signupStarted : undefined}>
+          <GoogleSignInButton
+            variant={mode === "register" ? "signup" : "signin"}
+            onError={setError}
+          />
+        </div>
 
         <p className={styles.gateNoCard}>
           <Lock size={13} aria-hidden /> Compte gratuit, sans carte bancaire.

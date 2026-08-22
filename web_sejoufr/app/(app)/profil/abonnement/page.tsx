@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {useCallback, useEffect, useState} from "react";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {ApiException, billingApi} from "@/lib/api";
 import type {
@@ -193,15 +194,27 @@ function PremiumView({
 
             <div className="pass-actions">
                 {isIntegral ? (
-                    <Link href="/paiement?module=INTEGRAL" className="pass-btn pass-btn-primary">
+                    <Link
+                        href="/paiement?module=INTEGRAL"
+                        className="pass-btn pass-btn-primary"
+                        onClick={() => trackAccessCta()}
+                    >
                         Prolonger mon pass
                     </Link>
                 ) : (
                     <>
-                        <Link href="/paiement?module=CIVIQUE" className="pass-btn pass-btn-primary">
+                        <Link
+                            href="/paiement?module=CIVIQUE"
+                            className="pass-btn pass-btn-primary"
+                            onClick={() => trackAccessCta()}
+                        >
                             Prolonger mon Pass Civique
                         </Link>
-                        <Link href="/paiement?module=INTEGRAL" className="pass-btn pass-btn-accent">
+                        <Link
+                            href="/paiement?module=INTEGRAL"
+                            className="pass-btn pass-btn-accent"
+                            onClick={() => trackAccessCta()}
+                        >
                             Passer au Pass Intégral
                         </Link>
                     </>
@@ -401,3 +414,9 @@ const styles = `
 .ab-empty h2 { font-family: var(--font-display); font-weight: 600; font-size: 20px; margin: 0; color: var(--color-ink); }
 .ab-empty p { font-size: 13.5px; color: var(--color-muted); margin: 0; max-width: 380px; line-height: 1.5; }
 `;
+
+/** Prolonger ou monter en gamme depuis « Mon accès » : c'est une intention
+ *  d'achat, mais pas un verrou rencontré — d'où l'emplacement « Autre ». */
+function trackAccessCta(): void {
+    track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "profil_abonnement"});
+}

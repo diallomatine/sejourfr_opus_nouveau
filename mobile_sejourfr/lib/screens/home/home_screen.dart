@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
@@ -216,7 +217,16 @@ class _HomeBody extends ConsumerWidget {
         if (diagnostic?.status == DiagnosticJourneyStatus.notStarted &&
             !diagnosticDismissed)
           _DiagnosticInvitationCard(
-            onStart: () => context.push(AppRoutes.diagnostic),
+            onStart: () {
+              // Le clic qui ouvre le funnel du diagnostic. La variante n'est
+              // pas encore choisie ici : `UNKNOWN` est la seule valeur vraie.
+              ref.read(analyticsServiceProvider).track(
+                    AnalyticsEvent.diagnosticCtaClicked,
+                    ctaLocation: AnalyticsCtaLocation.hero,
+                    diagnosticType: AnalyticsDiagnosticType.unknown,
+                  );
+              context.push(AppRoutes.diagnostic);
+            },
             onLater: () => ref
                 .read(
                   diagnosticHomeDismissedProvider(diagnosticDismissKey)

@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/api/audience_repository.dart';
+import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
@@ -62,9 +62,15 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    // Une mesure d'usage, à côté du contenu de l'écran : elle ne sert aucun
+    // bloc affiché, elle existe pour ne pas perdre ce qui se comptait déjà
+    // dans l'ancien `page_views`.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(trackPlan(ref, AudienceEvent.planOpened));
+      ref.read(analyticsServiceProvider).track(
+            AnalyticsEvent.planOpened,
+            path: AnalyticsPath.plan,
+          );
     });
   }
 
@@ -211,14 +217,14 @@ Future<void> _showObjectiveSheet(
       ],
     );
 
-class _PlanContent extends StatelessWidget {
+class _PlanContent extends ConsumerWidget {
   const _PlanContent({required this.plan, required this.objective});
 
   final LearningPlan plan;
   final TargetLevel? objective;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return switch (plan.state) {
       LearningPlanState.needsDiagnostic => _PlanEmptyState(
           title: 'Construisons votre plan personnalisé',
@@ -226,7 +232,15 @@ class _PlanContent extends StatelessWidget {
               'Faites 1 exercice écrit et 1 oral pour identifier vos premières priorités.',
           actionLabel: 'Faire mon diagnostic',
           actionIcon: LucideIcons.sparkles,
-          onAction: () => context.push(AppRoutes.diagnostic),
+          onAction: () {
+            ref.read(analyticsServiceProvider).track(
+                  AnalyticsEvent.diagnosticCtaClicked,
+                  path: AnalyticsPath.plan,
+                  ctaLocation: AnalyticsCtaLocation.other,
+                  diagnosticType: AnalyticsDiagnosticType.unknown,
+                );
+            context.push(AppRoutes.diagnostic);
+          },
         ),
       LearningPlanState.diagnosticInProgress => _PlanEmptyState(
           title: 'Votre diagnostic est en cours',
@@ -365,7 +379,13 @@ class _ActivePlan extends ConsumerWidget {
             onTap: () => openPlanEvolution(context),
           )
         else if (!hasTcf)
-          PlanFreeBar(onTap: () => unawaited(showTcfLockPaywall(context))),
+          PlanFreeBar(
+            onTap: () => unawaited(showTcfLockPaywall(
+              context,
+              ref: ref,
+              ctaLocation: AnalyticsCtaLocation.lockedPlan,
+            )),
+          ),
         const SizedBox(height: 14),
         PlanPriorityHero(
           priority: current,
@@ -393,7 +413,11 @@ class _ActivePlan extends ConsumerWidget {
         if (!hasTcf) ...[
           const SizedBox(height: 18),
           PlanPaywallCard(
-            onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+            onSubscribe: () => unawaited(showTcfLockPaywall(
+              context,
+              ref: ref,
+              ctaLocation: AnalyticsCtaLocation.lockedPlan,
+            )),
           ),
         ],
         if (milestone != null && !milestoneInSeance) ...[
@@ -463,7 +487,11 @@ class _ActivePlan extends ConsumerWidget {
               right: hasTcf ? null : const PremiumLockPill(size: 22),
               onTap: () => hasTcf
                   ? context.push(AppRoutes.planSkills)
-                  : unawaited(showTcfLockPaywall(context)),
+                  : unawaited(showTcfLockPaywall(
+                      context,
+                      ref: ref,
+                      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+                    )),
             ),
             ListRow(
               icon: LucideIcons.trendingUp,

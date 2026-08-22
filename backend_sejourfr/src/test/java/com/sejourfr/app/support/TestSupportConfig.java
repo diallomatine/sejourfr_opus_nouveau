@@ -3,6 +3,9 @@ package com.sejourfr.app.support;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionDraftRepository;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionGenerationLogRepository;
 import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.AnalyticsEventManager;
+import com.sejourfr.app.manager.AnalyticsIdentityManager;
+import com.sejourfr.app.manager.AnalyticsVisitorManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
@@ -84,7 +87,10 @@ public class TestSupportConfig {
                              AudioQuestionGenerationLogRepository audioQuestionGenerationLogRepository,
                              DiagnosticSessionManager diagnosticSessionManager,
                              DiagnosticProductionAnalysisManager diagnosticProductionAnalysisManager,
-                             UserFunnelEventManager userFunnelEventManager) {
+                             UserFunnelEventManager userFunnelEventManager,
+                             AnalyticsVisitorManager analyticsVisitorManager,
+                             AnalyticsEventManager analyticsEventManager,
+                             AnalyticsIdentityManager analyticsIdentityManager) {
         return new TestData(userManager, themeManager, passwordEncoder,
                 mediaManager, passageManager, questionManager, attemptManager,
                 attemptQuestionManager, answerManager, planManager,
@@ -98,7 +104,8 @@ public class TestSupportConfig {
                 skillManager, skillRepository, skillPromptManager, userSkillAttemptManager,
                 audioQuestionDraftRepository, audioQuestionGenerationLogRepository,
                 diagnosticSessionManager, diagnosticProductionAnalysisManager,
-                userFunnelEventManager);
+                userFunnelEventManager,
+                analyticsVisitorManager, analyticsEventManager, analyticsIdentityManager);
     }
 
     @Bean

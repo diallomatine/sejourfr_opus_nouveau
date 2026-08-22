@@ -68,6 +68,17 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                         "/api/admin/audience/funnel?from=2026-08-18&to=2026-08-18"),
                 Arguments.of(HttpMethod.GET,
                         "/api/admin/page-views?path=/reussir&from=2026-08-18&to=2026-08-18"),
+                // Ecran Analytics : un seul endpoint de lecture, plus ses reperes.
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics?days=7"),
+                Arguments.of(HttpMethod.GET,
+                        "/api/admin/analytics?from=2026-08-18&to=2026-08-18"),
+                Arguments.of(HttpMethod.GET,
+                        "/api/admin/analytics?days=30&source=tiktok&country=FR"
+                        + "&device=MOBILE_WEB&platform=WEB"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/annotations"),
+                Arguments.of(HttpMethod.POST, "/api/admin/analytics/annotations"),
+                Arguments.of(HttpMethod.DELETE, "/api/admin/analytics/annotations/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/stats"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/submissions"),
                 Arguments.of(HttpMethod.GET,

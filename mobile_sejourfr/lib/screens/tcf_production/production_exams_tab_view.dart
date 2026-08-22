@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
@@ -189,7 +190,11 @@ class _ProductionExamsTabViewState
       return;
     }
     if (_isLocked(slot)) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     _openBriefing(slot);
@@ -197,7 +202,11 @@ class _ProductionExamsTabViewState
 
   void _onSlotAction({required int slot, required ExamSession? exam}) {
     if (_isLocked(slot)) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     _openBriefing(slot);
@@ -205,7 +214,11 @@ class _ProductionExamsTabViewState
 
   void _openBriefing(int slot) {
     if (!_isPremium()) {
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
       return;
     }
     showProductionExamBriefingSheet(

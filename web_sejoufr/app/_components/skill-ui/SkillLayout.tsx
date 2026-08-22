@@ -1,5 +1,6 @@
 "use client";
 
+import {track} from "@/lib/analytics";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -672,7 +673,13 @@ export function SkillLockedCard({
       </span>
       <h2 className={s.lockCardTitle}>{title}</h2>
       <p className={s.lockCardText}>{text}</p>
-      <Link href={SKILL_PREMIUM_HREF} className={`${s.primary} ${s.lockCardCta}`}>
+      <Link
+        href={SKILL_PREMIUM_HREF}
+        className={`${s.primary} ${s.lockCardCta}`}
+        onClick={() =>
+          track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "competence_verrou"})
+        }
+      >
         {ctaLabel} <ArrowRight size={16} aria-hidden />
       </Link>
     </section>

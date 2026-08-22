@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
@@ -101,7 +102,11 @@ class TcfFullExamsView extends ConsumerWidget {
       // 2+ restent premium. L'examen 1 reste rejouable (EE/EO verrouillées au
       // refaire, géré côté backend).
       if (!isPremium && slot > 1) {
-        showPaywallSheet(context);
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
         return;
       }
       showTcfFullExamBriefingSheet(

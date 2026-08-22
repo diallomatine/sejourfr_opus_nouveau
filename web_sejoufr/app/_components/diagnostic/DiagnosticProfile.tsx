@@ -233,7 +233,7 @@ export function DiagnosticCompleteProfileCard({plan}: {plan: LearningPlanDto | n
           {error}
         </p>
       )}
-      <PaywallSheet open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="DIAGNOSTIC_REPORT" screen="diagnostic_profil" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </section>
   );
 }

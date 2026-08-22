@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sejourfr_mobile/core/api/audience_repository.dart';
 import 'package:sejourfr_mobile/core/api/learning_plan_repository.dart';
 import 'package:sejourfr_mobile/core/api/repositories.dart';
 import 'package:sejourfr_mobile/core/models/dashboard_models.dart';
@@ -26,9 +25,6 @@ void main() {
         overrides: [
           learningPlanRepositoryProvider.overrideWithValue(
             _FakeLearningPlanRepository(_activePlan),
-          ),
-          audienceRepositoryProvider.overrideWithValue(
-            _FakeAudienceRepository(),
           ),
           userTargetLevelProvider.overrideWithValue(TargetLevel.b2),
           dashboardProvider.overrideWith((ref) async => _summary(estimated)),
@@ -283,12 +279,4 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
 
   @override
   Future<LearningPlan> get() async => plan;
-}
-
-class _FakeAudienceRepository implements AudienceRepository {
-  @override
-  Future<void> track({
-    required String path,
-    required AudienceEvent event,
-  }) async {}
 }

@@ -36,18 +36,13 @@ src/
 │   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
-│   ├── audience/            Deux natures de données sur un seul écran :
-│   │                        (1) funnel d'acquisition réel, cohorte des comptes
-│   │                        créés sur la fenêtre, comptage EXACT par compte
-│   │                        (inscription → diagnostic → paywall → paiement),
-│   │                        ventilé par provenance et par plateforme, plus un
-│   │                        contrôle d'intégrité « un diagnostic par compte » ;
-│   │                        (2) audience des landings (/reussir, /diagnostic,
-│   │                        /plan), agrégat ANONYME de vues de pages sans
-│   │                        traceur (cf. racine). Les deux ne se comparent pas,
-│   │                        l'écran le dit. Lecture seule. Détail dans la
-│   │                        section « Funnel & audience » plus bas.
-│   ├── dashboard/
+│   ├── analytics/           L'écran Analytics acquisition → paiement, monté sur
+│   │                        `/dashboard`. 5 onglets (Vue d'ensemble, Acquisition,
+│   │                        Diagnostic, Conversion, Utilisateurs) + Rétention
+│   │                        désactivé. Un SEUL appel serveur nourrit tout
+│   │                        l'écran. Lecture seule. Détail dans la section
+│   │                        « Analytics » plus bas. Remplace les anciennes
+│   │                        features `audience/` et `dashboard/`, supprimées.
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
 │   ├── conversations/       Vue split list/detail style "boîte mail".
@@ -94,21 +89,27 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/conversations/unread-count`
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
-- `GET /api/admin/page-views?path=…` + `GET /api/admin/page-views/paths`
-  — audience des landings et compte brut `events` du funnel (feature `audience/`).
-  La réponse renvoie les bornes appliquées (`from`/`to`) en plus de `days`
-- `GET /api/admin/audience/funnel` — funnel réel de la **cohorte** des comptes
-  créés sur la période : 7 étapes déjà ordonnées (`stages`, à ne jamais
-  réordonner côté front), ventilations `bySource` / `byPlatform`, série `daily`
-  continue et bloc `integrity` (**global, jamais filtré par la période**).
-  `source: "inconnu"` et `platform: "UNKNOWN"` = comptes antérieurs à la mesure :
-  ils s'affichent explicitement, sinon les totaux ne tombent plus juste
-- **Période, commune aux deux** (`AudienceRange` dans `types/api.ts`) : soit
-  `days` (fenêtre glissante), soit `from`/`to` (`yyyy-MM-dd`, Europe/Paris,
-  **bornes incluses**, `from == to` = une journée). Union **exclusive** : une
-  borne seule, `from > to` ou plus de 365 jours sont refusés en 400, donc on
-  n'envoie jamais les deux formes. Les bornes **renvoyées** font foi à
-  l'affichage — jamais celles que le client croit avoir demandées
+- `GET /api/admin/analytics` — **l'unique endpoint de l'écran Analytics**. Rend
+  d'un coup les KPI de la période, la période de comparaison, le funnel, les
+  ventilations (sources, campagnes, pays, appareils, CTA, contextes
+  d'inscription, parcours, formats de diagnostic, abandons), la série temporelle,
+  les annotations et les insights. Un seul endpoint et pas cinq : la maquette
+  recalcule toutes ses sections depuis un même objet, cinq appels imposeraient de
+  tenir cinq fenêtres de temps cohérentes entre elles.
+  **Coût figé : 10 requêtes SQL, constantes** quel que soit le nombre de sources
+  ou de pays (`AdminAnalyticsCoutIT` exige une égalité). Cache serveur 60 s
+- `GET|POST|DELETE /api/admin/analytics/annotations` — les repères produit /
+  marketing posés sur la courbe. Créer ou supprimer **vide le cache**, sinon
+  l'admin ne verrait pas son propre repère pendant 60 s et le reposerait
+- **Période** : soit `days` (fenêtre glissante), soit `from`/`to` (`yyyy-MM-dd`,
+  Europe/Paris, **bornes incluses**, `from == to` = une journée). Union
+  **exclusive** : une borne seule, `from > to` ou plus de 365 jours sont refusés
+  en 400, donc on n'envoie jamais les deux formes. Les bornes **renvoyées** font
+  foi à l'affichage — jamais celles que le client croit avoir demandées.
+  Filtres facultatifs : `source`, `country`, `device`, `platform`
+- ⚠️ `GET /api/admin/page-views` et `GET /api/admin/audience/funnel` **n'existent
+  plus** ; `GET /api/admin/dashboard` survit, lu par `AppLayout` pour les badges
+  de la sidebar
 - `GET|POST /api/admin/diagnostics/{code}/versions/{version}/instruction-audio`
   — inspection/génération explicite de la consigne EO fixe (seed-only ; pas de
   CRUD des sujets diagnostiques)
@@ -205,52 +206,71 @@ corriger une faute de frappe dans un sujet imposerait une migration Flyway.
   un seul endroit garantit d'avoir le contexte, la consigne et les 3 références
   complets.
 
-### Funnel & audience (`features/audience/`)
+### Analytics (`features/analytics/`)
 
-Route `/audience`, lecture seule. L'écran doit répondre **en trois secondes,
-sans lire un tableau** : combien sont arrivés et combien ont payé, **où ça
-fuit**, **quel réseau vaut le coup**. Tout le reste existe encore, mais replié.
+Route **`/dashboard`**, lecture seule. C'est l'écran conçu par Claude Design
+(`docs/plan/SejourFR - Analytics Autonome.html`, **source de vérité visuelle**),
+spécifié par `docs/plan/BRIEF_CLAUDE_CODE_ANALYTICS_SEJOURFR.md`. Il doit
+répondre en moins de trente secondes à : *combien arrivent, d'où, que font-ils,
+où abandonnent-ils, combien paient, quelle source produit du revenu.*
 
-- **Un SEUL filtre de période** en haut pilote les deux sections (aujourd'hui /
-  hier / cette semaine / ce mois / 7-30-90 j / une date précise) : un filtre par
-  section ferait comparer deux périodes sans le voir. La période **affichée**
-  vient toujours des bornes **renvoyées** par le serveur, jamais de celles que le
-  client croit avoir demandées.
-- **Ordre d'apparition** : bandeau de chiffres clés + phrase de synthèse
-  (`HeadlineBoard`) → entonnoir des 7 étapes (`FunnelSteps`) → classement des
-  provenances (`SourceRanking`) → second rideau replié (`Collapsible`) :
-  plateformes, série journalière, contrôle d'intégrité, puis toute la section
-  anonyme.
-- 🛑 **Honnêteté statistique — les seuils vivent dans `insights.ts`** et sont
-  commentés là-bas : `MIN_SIGNUPS_POUR_DESIGNER_UNE_FUITE = 10`,
-  `MIN_SIGNUPS_POUR_COMPARER_LES_RESEAUX = 20`, `MIN_SIGNUPS_PAR_RESEAU = 5`.
-  En dessous, la phrase de synthèse **ne conclut pas** : elle énonce les chiffres
-  et dit pourquoi elle s'arrête là. On ne désigne **jamais** un « meilleur
-  réseau » sur 3 inscrits. Ce qui est masqué, c'est une **conclusion**, jamais
-  une donnée — tous les chiffres restent affichés.
-- **`insights.ts` est l'unique calcul dérivé** de l'écran (chiffres de tête,
-  marche qui perd le plus, classement, phrase de synthèse, formatage
-  `count`/`percent`/`barWidth`). Aucun composant ne recalcule un taux dans son
-  JSX. `labels.ts` porte les libellés partagés (étapes, provenances,
-  plateformes, événements) — ils vivaient en double et deux tableaux pouvaient
-  nommer le même réseau différemment.
-- **Classement des provenances : payants d'abord, taux ensuite**
-  (`compareSources`). Trier sur le seul taux hisserait en tête un réseau à
-  1 inscrit et 1 payant. `inconnu` (comptes antérieurs à la mesure) reste
-  toujours en dernier : ce n'est pas un canal sur lequel investir.
-- **Le rouge est réservé au critique** : la marche qui perd le plus de comptes
-  et une alerte d'intégrité. Rien d'autre. Le bloc d'intégrité s'ouvre
-  **automatiquement** quand un compte a plusieurs diagnostics.
-- **Les étiquettes de nature** (`exact · par compte` / `anonyme · par page`) sont
-  un garde-fou de lecture, pas une décoration : elles restent visibles même quand
-  le bloc est replié (prop `nature` de `Collapsible`).
-- **Un état vide explique pourquoi il est vide** (période sans inscription,
-  mesure plus récente que la fenêtre) — jamais un tiret.
-- `components/panels.module.css` porte la coquille commune (bloc, intitulé,
-  note, état, pastille de nature) ; `dates.ts` tient l'unique notion
-  d'« aujourd'hui » (Europe/Paris) et `period.ts` traduit les préréglages en
-  `AudienceRange`. `DailyChart` est le graphe maison partagé — **aucune
-  librairie de graphes dans ce projet**.
+- **5 onglets** : `Vue d'ensemble`, `Acquisition`, `Diagnostic`, `Conversion`,
+  `Utilisateurs`, plus `Rétention` **désactivé** avec son badge « bientôt » —
+  l'emplacement vide est assumé et vient de la maquette, ne pas le retirer.
+- **Un SEUL appel** (`GET /api/admin/analytics`) nourrit tout l'écran. Une
+  seconde requête part uniquement pour peupler les listes de filtres quand un
+  filtre est posé (sans filtre, la clé de cache est identique ⇒ zéro appel).
+- 🛑 **Aucune librairie de graphes, et il ne faut pas en ajouter.** `LineChart`,
+  `Sparkline` et `QualityMap` sont du `<svg>` calculé à la main
+  (`useWidth()` + `ResizeObserver`) ; `Funnel`, `BarList`, `MiniSteps`, `TBar` et
+  `Heat` sont du DOM/CSS. La maquette fait exactement pareil.
+- **Charte SejourFR, pas celle de la maquette** (arbitrage 2026-08-21) : la
+  maquette est en Bricolage Grotesque / Hanken Grotesk et en `oklch()` ; l'écran
+  reprend sa mise en page, sa densité et ses libellés, mais **ses couleurs et ses
+  polices passent par les tokens** de `styles/global.css`. Vérifié : zéro hex,
+  zéro `oklch`, zéro nom de police dans la feature. Les dégradés passent par
+  `color-mix(in srgb, var(--blue) …%, var(--paper))`.
+
+**Les mécaniques de justesse — c'est ce qui distingue cet écran d'un tableau de
+chiffres, ne pas les simplifier :**
+
+- **Format** : espace fine insécable (U+202F) en séparateur de milliers et devant
+  `%` / `€`, signe moins **U+2212**, virgule décimale. Une valeur absente rend
+  **`—`**, jamais `0` : *null = inconnu, jamais mauvais*.
+- **`Delta`** : `null` quand la période précédente vaut 0 (jamais de division par
+  zéro), « stable » sous 0,5 % d'écart, et une option **`invert`** — une hausse
+  n'est pas toujours une bonne nouvelle, un abandon qui monte est négatif.
+- **Barres de funnel en puissance 0,42** : sans cette compression les dernières
+  étapes sont invisibles. La plus forte perte est mise en évidence, mais **jamais
+  désignée si `lost <= 0`**.
+- 🛑 **Le front ne recalcule AUCUN pourcentage.** Les ventilations arrivent déjà
+  arrondies à somme conservée (plus forts restes, `util/RepartitionArrondie`
+  côté serveur) : la somme des lignes égale toujours le pied de table. Recalculer
+  au front ferait diverger les deux.
+- 🛑 **Un maillon de chaîne à `null` ne s'affiche pas** — il ne vaut pas zéro.
+  `co2`/`ce2` arrivent `null` (cf. la limite connue plus bas) ; un zéro se lirait
+  « tout le monde abandonne à la CO ». Chaîne vide ⇒ pas de bloc.
+- **États vides honnêtes** : « Pas encore assez de données sur cette période »
+  plutôt qu'un graphe cassé. Et **`inconnu` ne se cache jamais** : un gros volume
+  d'inconnu est lui-même l'information (un trou de tracking).
+- **`insights[].html` passe par DOMPurify** (allowlist `b/strong/em/i`, zéro
+  attribut) : un nom de campagne saisi par un tiers peut atterrir là.
+- **`device` et `platform` s'excluent** : poser l'un efface l'autre, les cumuler
+  rendait un résultat vide sans que l'écran dise pourquoi.
+
+**Ce qui a été supprimé** (règle « refonte = suppression immédiate de l'ancien ») :
+`features/dashboard/`, `features/audience/` en entier, `api/audienceApi.ts`, la
+route et l'entrée de menu `/audience`, et les types morts `PageView*`,
+`AudienceRange`, `Funnel*`. **Absorbé au passage** : `parisToday()` (l'unique
+notion d'« aujourd'hui » en Europe/Paris — réutilisée, jamais réécrite) et la
+doctrine d'état vide de `panels.module.css`. Le calcul des **insights est passé
+côté serveur**, avec ses trois seuils d'honnêteté statistique (10 / 20 / 5).
+
+**Limites connues, à afficher comme telles et non à combler par une estimation :**
+le **pays** reste `UNKNOWN` tant que la base MaxMind n'est pas installée
+(`ANALYTICS_GEOIP_DB`) ; l'**attribution mobile** reste inconnue tant qu'aucune
+campagne n'ouvre l'app par un deep link ; les maillons **CO/CE terminée** du
+diagnostic complet ne sont pas mesurés.
 
 ### Titres des sujets EE/EO (`features/productionTasks/`)
 

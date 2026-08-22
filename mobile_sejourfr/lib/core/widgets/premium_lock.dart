@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../analytics/analytics.dart';
 import '../models/billing_models.dart';
 import '../theme/app_theme.dart';
 import 'app_tag.dart';
@@ -28,8 +30,20 @@ const String kPremiumLockCta = 'Voir l\'abonnement Intégral';
 
 /// Ouvre le parcours d'abonnement — **le seul**, celui de `showPaywallSheet`.
 /// Le contenu verrouillé est toujours du TCF, donc l'offre Intégral.
-Future<void> showTcfLockPaywall(BuildContext context) =>
-    showPaywallSheet(context, initialTarget: PlanModuleTarget.integral);
+///
+/// [ref] + [ctaLocation] ne se passent que sur un **vrai clic** du candidat
+/// (cf. `showPaywallSheet`) : une ouverture subie ne compte pas.
+Future<void> showTcfLockPaywall(
+  BuildContext context, {
+  WidgetRef? ref,
+  AnalyticsCtaLocation? ctaLocation,
+}) =>
+    showPaywallSheet(
+      context,
+      initialTarget: PlanModuleTarget.integral,
+      ref: ref,
+      ctaLocation: ctaLocation,
+    );
 
 /// Pilule « Abonnement » à poser à côté d'un titre ou d'un statut.
 class PremiumLockTag extends StatelessWidget {

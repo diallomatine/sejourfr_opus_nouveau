@@ -482,7 +482,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           </section>
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="competence_resultat"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

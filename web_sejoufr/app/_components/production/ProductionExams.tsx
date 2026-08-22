@@ -348,7 +348,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           onClose={() => setRetakeWarningOpen(false)}
         />
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_production"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

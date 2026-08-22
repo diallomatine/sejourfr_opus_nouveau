@@ -71,7 +71,8 @@ class AppleSubscriptionServiceTest {
         service = new AppleSubscriptionService(
                 appleStoreClient, planManager, userManager, userSubscriptionManager,
                 processedEventManager, new SubscriptionNotificationService(mailService),
-                oneTimeAccessService, billingProperties);
+                oneTimeAccessService, billingProperties,
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
 
         user = new User();
         user.setId(userId);

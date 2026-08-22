@@ -482,7 +482,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           </>
         )}
 
-        <PaywallSheet
+        <PaywallSheet ctaLocation="AI_CORRECTION" screen="competence_sujet"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
