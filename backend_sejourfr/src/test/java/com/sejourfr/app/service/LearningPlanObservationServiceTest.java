@@ -13,6 +13,7 @@ import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillCriterionStatus;
+import com.sejourfr.app.progression.service.ProductiveEvidenceAdapter;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,8 @@ class LearningPlanObservationServiceTest {
     void setUp() {
         observationManager = mock(LearningPlanObservationManager.class);
         skillAttemptManager = mock(UserSkillAttemptManager.class);
-        service = new LearningPlanObservationService(observationManager, skillAttemptManager);
+        service = new LearningPlanObservationService(observationManager, skillAttemptManager,
+                mock(ProductiveEvidenceAdapter.class));
     }
 
     @Test

@@ -405,14 +405,27 @@ public class DefaultProgressionEngine implements ProgressionEngine {
         ProgressionSnapshot projeter(Instant now) {
             Double mastery = masteryScore();
             double confiance = confidenceAt(now);
-            boolean direct = status == ProgressionStatus.SOLID && qualificationGate;
+
+            // §16, §18.3 — `directQualification` est une notion PROPRE à CO/CE :
+            // c'est elle, et elle seule, qui autorise un palier à satisfaire les
+            // prérequis inférieurs. Une compétence de production ne satisfait
+            // jamais de prérequis, donc elle ne la porte jamais.
+            boolean direct = stateKey.stateType() == ProgressionStateType.RECEPTIVE_LEVEL
+                    && status == ProgressionStatus.SOLID
+                    && qualificationGate;
 
             Integer visible;
             if (sumWeightEpoch == 0.0d) {
                 // §18.6 — jamais mesuré n'est pas « zéro ». Le candidat n'a pas
                 // régressé ; le front n'affichera aucun pourcentage.
                 visible = null;
-            } else if (status == ProgressionStatus.SOLID && direct) {
+            } else if (confirmeParSonPropreGate()) {
+                // §25 — palier ou compétence réellement confirmé : 100, et le
+                // cycle suivant repart de zéro. Le gate lu est celui du type
+                // d'état : `qualificationGate` en CO/CE, `transferGate` en
+                // EE/EO. Confondre les deux laissait une compétence acquise
+                // bloquée sous le plafond de 95 %, sans que rien ne la débloque
+                // jamais.
                 visible = 100;
             } else {
                 visible = visibleProgressVu ? visibleProgressMax : null;
@@ -424,6 +437,16 @@ public class DefaultProgressionEngine implements ProgressionEngine {
                     nonMicroSumWeightEpoch,
                     ProgressionGates.compteQualifiantes(config, vues),
                     contradictionsRecentesA(now), levelCycleId());
+        }
+
+        /** L'état est-il confirmé par le gate de SON type (§14.4, §14.5) ? */
+        private boolean confirmeParSonPropreGate() {
+            if (status != ProgressionStatus.SOLID) {
+                return false;
+            }
+            return stateKey.stateType() == ProgressionStateType.RECEPTIVE_LEVEL
+                    ? qualificationGate
+                    : transferGate;
         }
 
         private int contradictionsRecentesA(Instant now) {

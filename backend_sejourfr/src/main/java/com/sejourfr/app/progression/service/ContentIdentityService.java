@@ -112,6 +112,30 @@ public class ContentIdentityService {
     }
 
     /**
+     * §12, §12 bis — l'indépendance d'une production EE/EO.
+     *
+     * <p>C'est le <b>sujet</b> qui fait l'identité, pas la tentative : trois
+     * reprises du même petit sujet après correction ne sont pas trois preuves
+     * indépendantes. Le candidat a mémorisé une correction, il n'a pas montré
+     * qu'il savait refaire.
+     *
+     * <p>Il n'y a pas de recouvrement partiel à mesurer ici — un sujet est
+     * atomique. Donc deux classes seulement, jamais
+     * {@code NEW_CONTENT_SAME_BLUEPRINT}.
+     */
+    public IndependenceClass classerSujet(UUID userId, SkillSection section, String skillId,
+                                          String contentId, Instant occurredAt) {
+        Instant depuis = occurredAt.minus(
+                Duration.ofDays(config.independence().overlapWindowDays()));
+        boolean dejaTraite = evidenceManager.historiqueCompetence(userId, section, skillId).stream()
+                .filter(e -> !e.getOccurredAt().isBefore(depuis))
+                .anyMatch(e -> contentId.equals(e.getContentId()));
+        return dejaTraite
+                ? IndependenceClass.REPEATED_EXACT_CONTENT
+                : IndependenceClass.NEW_CONTENT;
+    }
+
+    /**
      * §12 bis.5 — quand la banque est trop pauvre pour produire une seconde
      * série indépendante, <b>on ne relâche pas le seuil</b> : on le dit.
      *

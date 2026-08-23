@@ -4,7 +4,7 @@ Spécification normative complète : `docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2
 Ce fichier-ci ne la résume pas — il dit **où en est l'implémentation** et **ce qui casse en
 silence si on l'ignore**.
 
-État au **2026-08-23** : **phases 0 et 1 livrées**. Le moteur tourne en **SHADOW** : il
+État au **2026-08-23** : **phases 0, 1 et 3 livrées**. Le moteur tourne en **SHADOW** : il
 enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 ---
@@ -22,6 +22,7 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 | **Ingestion** idempotente + replay | `progression.service.ProgressionIngestionService` |
 | **§12 bis** — `contentId` + `independenceClass` serveur | `progression.service.ContentIdentityService` |
 | **Adaptateur CO/CE** (correction du hasard, ventilation par palier) | `progression.service.ReceptiveEvidenceAdapter` |
+| **Adaptateur EE/EO** (observations IA, micro-sujets, `transferGate`) | `progression.service.ProductiveEvidenceAdapter` |
 | **Shadow mode** (prédictions, rattachement, précision) | `progression.service.ProgressionShadowService` |
 | Lecture (`prescriptionLevel`, prérequis dérivés) | `progression.service.ProgressionReadService` |
 | Verrou de la config, valeur par valeur | `ProgressionConfigTest` — **vert** |
@@ -32,9 +33,12 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 - **Aucun endpoint**, aucun DTO servi : le moteur n'est lu par personne (c'est le principe du
   shadow mode). Le branchement du Plan est la phase 2.
-- **EE/EO** : le moteur sait les traiter (`PRODUCTIVE_SKILL`, cap micro, `transferGate`), mais
-  aucun adaptateur ne convertit encore une évaluation IA en preuve — phase 3.
 - **`difficultyBand`** : le catalogue ne le porte pas. Conséquence directe ci-dessous.
+- **Corpus de stabilité IA (§45)** : *non fait, et volontairement.* Mesurer la dérive d'un
+  prompt exige d'appeler un fournisseur payant sur un corpus fixe. `CLAUDE.md` l'interdit sans
+  demande explicite du propriétaire — c'est son argent, il décide. Le corpus lui-même
+  (productions A2/B1/B2 limites, hors sujet, très courtes, très longues) est à constituer avant
+  toute campagne.
 
 ---
 
@@ -135,6 +139,18 @@ service pour aligner un contrat qui n'a pas d'émetteur.
 
 ---
 
+## Trois arbitrages d'implémentation à confirmer
+
+Aucun ne touche à `progression-config-v1.json`, mais tous les trois sont des choix que le
+propriétaire peut vouloir trancher autrement. Ils vivent en constantes documentées, pas en
+config, précisément pour qu'on les voie.
+
+| Choix | Où | Pourquoi ainsi |
+|---|---|---|
+| Confiance IA `LOW / MEDIUM / HIGH` → `0,50 / 0,75 / 0,95` | `ProductiveEvidenceAdapter.CONFIANCE_IA` | Le tool-schema livré rend un **enum**, pas un nombre, et on ne réécrit pas un contrat livré. `HIGH` ne vaut pas 1,00 : une évaluation IA n'est jamais une certitude. Candidat pour la config v2. |
+| Un micro-sujet guidé pèse `LIGHT` (0,85) | `LearningPlanObservationService.recordSkillAttemptProgression` | Checklist, amorce et astuce sont la raison d'être pédagogique du micro-sujet — et une assistance réelle. §8.2 veut qu'une preuve assistée pèse moins, sans plancher. |
+| Un micro-sujet a `scoringConfidence = 0,75` | `ProductiveEvidenceAdapter.ingererMicroSujet` | Un critère unique jugé sur une production courte : moins de matière qu'une tâche complète, donc moins de certitude. On le dit plutôt que de faire comme si. |
+
 ## Deux conséquences à connaître avant de toucher au moteur
 
 ### Toute série d'entraînement est `UNCALIBRATED` aujourd'hui
@@ -183,7 +199,7 @@ config : on analyse, on crée une v2, on rejoue.
 | 0 | config figée, T01–T36 écrits, feature flag, nettoyage front | **livré** |
 | 1 | `learning_evidence`, agrégat epoch, `progression_state`, gates, prérequis, shadow | **livré** |
 | 2 | analyse shadow → `ACTIVE` → Plan branché sur `prescriptionLevel` | — |
-| 3 | EE/EO : observations IA, cap micro, `transferGate`, corpus de stabilité | — |
+| 3 | EE/EO : observations IA, cap micro, `transferGate` | **livré** (corpus de stabilité exclu, cf. ci-dessus) |
 | 4 | calibration contenu : `difficultyBand`, séries 6/10/4, `CONTENT_BANK_TOO_SMALL` | — |
 
 Avant la phase 1, relire §27.2.1 : les accumulateurs epoch se stockent en
