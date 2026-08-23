@@ -4,7 +4,7 @@ Spécification normative complète : `docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2
 Ce fichier-ci ne la résume pas — il dit **où en est l'implémentation** et **ce qui casse en
 silence si on l'ignore**.
 
-État au **2026-08-23** : **phases 0, 1, 3 et 4 livrées**. Le moteur tourne en **SHADOW** : il
+État au **2026-08-23** : **les quatre phases livrées**. Le moteur tourne en **SHADOW**. Le moteur tourne en **SHADOW** : il
 enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 ---
@@ -28,14 +28,18 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 | **`difficulty_band`** + vue de difficulté observée | `db/migration/00_schema/V045__question_difficulty_band.sql` |
 | Difficulté empirique (propose, n'impose pas) | `progression.calibration.EmpiricalDifficultyService` |
 | Lecture (`prescriptionLevel`, prérequis dérivés) | `progression.service.ProgressionReadService` |
+| **Pont vers le Plan**, éteint en SHADOW | `progression.service.ProgressionPlanBridge` |
+| **Rapport de bascule** + états servis | `progression.service.ProgressionReportService` |
+| Console admin | `GET/POST /api/admin/progression/*` |
 | Verrou de la config, valeur par valeur | `ProgressionConfigTest` — **vert** |
 | **T01–T35** | `ProgressionEngineAcceptanceTest` — **35/35 verts** |
 | T36 (conformité front) | `scripts/verifier-contrat-front-progression.mjs` — **vert** |
 
 ## Ce qui n'existe pas encore
 
-- **Aucun endpoint**, aucun DTO servi : le moteur n'est lu par personne (c'est le principe du
-  shadow mode). Le branchement du Plan est la phase 2.
+- **Aucun front ne lit le moteur.** Les DTO existent, l'endpoint admin existe, le pont vers le
+  Plan existe — et il rend `empty()` tant qu'on est en SHADOW. Le web et le mobile n'ont rien à
+  changer aujourd'hui ; leur travail commencera le jour de la bascule.
 - **Le catalogue n'est pas tagué.** La colonne `questions.difficulty_band` existe, le tirage
   6/10/4 existe, mais **aucune question ne porte encore de bande**. Tant que ce n'est pas fait,
   toutes les séries d'entraînement restent `UNCALIBRATED` — cf. ci-dessous.
@@ -212,10 +216,29 @@ PROGRESSION_ENGINE_MODE=SHADOW   (défaut)
 PROGRESSION_ENGINE_MODE=ACTIVE
 ```
 
-🛑 On ne passe à `ACTIVE` **qu'après** validation produit des métriques shadow : précision
-des prédictions `SOLID` ≥ 70 % sur 30 jours (§47.4). Les seuils de la v1 sont des
-**hypothèses produit**, pas des mesures. Si la précision est sous 70 %, on ne bricole pas la
-config : on analyse, on crée une v2, on rejoue.
+**C'est un changement de variable d'environnement, pas un déploiement.** C'est la propriété
+qui compte : un moteur dont les seuils sont encore des hypothèses doit pouvoir être arrêté en
+une minute. Le retour arrière est symétrique.
+
+Ce que la bascule change, concrètement : `ProgressionPlanBridge` cesse de rendre `empty()`, et
+`PlanCycleResolver` lit `prescriptionLevel` du moteur au lieu de `suivant(consolide)`. Le Plan
+gagne alors une chose qu'il ne sait pas faire aujourd'hui — faire passer une **vérification**
+avant l'apprentissage normal quand un acquis vient d'être contredit (§19, §20).
+
+### La procédure
+
+1. `POST /api/admin/progression/shadow/rattacher` — rattacher les résultats disponibles ;
+2. `GET /api/admin/progression/shadow` — lire précision **et base** ;
+3. décider.
+
+🛑 On ne passe à `ACTIVE` **qu'après** validation produit : précision des prédictions `SOLID`
+≥ 70 % (§47.4), sur une base qui veuille dire quelque chose. Une précision de 100 % sur deux
+prédictions n'est pas une mesure — le rapport sert donc toujours le dénominateur à côté du
+pourcentage, et refuse de conclure quand il n'y a rien.
+
+Si la précision est sous l'objectif : **ne pas bricoler `progression-config-v1.json`**. On
+analyse, on crée `progression-config-v2.json`, on incrémente `engineVersion`, on rejoue
+(`POST .../replay`). Un ajustement sur place effacerait la trace de ce qu'on croyait avant.
 
 ---
 
@@ -225,7 +248,7 @@ config : on analyse, on crée une v2, on rejoue.
 |---|---|---|
 | 0 | config figée, T01–T36 écrits, feature flag, nettoyage front | **livré** |
 | 1 | `learning_evidence`, agrégat epoch, `progression_state`, gates, prérequis, shadow | **livré** |
-| 2 | analyse shadow → `ACTIVE` → Plan branché sur `prescriptionLevel` | — |
+| 2 | pont Plan flag-gated, rapport de bascule, console admin | **livré** — reste la décision, qui exige des données réelles |
 | 3 | EE/EO : observations IA, cap micro, `transferGate` | **livré** (corpus de stabilité exclu, cf. ci-dessus) |
 | 4 | calibration contenu : `difficultyBand`, séries 6/10/4, `CONTENT_BANK_TOO_SMALL` | **livré** (reste à taguer le catalogue) |
 

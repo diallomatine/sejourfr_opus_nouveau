@@ -318,6 +318,33 @@ visiteurs uniques. Cf. migration V020.
   ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
   le web et le mobile consomment aussi.
 
+### Admin — Moteur de progression V4.2
+
+Le **seul** endroit du produit où `masteryScore` et `confidence` sortent du moteur
+(§25 bis.2). Un front candidat n'y a jamais accès : lui servir ces valeurs lui
+permettrait de reconstituer un seuil, donc de reclasser un nombre en état
+pédagogique. → `docs/regles/progression.md`
+
+- `GET /api/admin/progression/shadow` → `ProgressionShadowReportDto`
+  `{ mode, engineVersion, precisionSolid, predictionsAvecResultat,
+  predictionsEnAttente, predictionsTotal, objectifPrecision, recommandation }`.
+  **`precisionSolid` est `null`** tant qu'aucune prédiction n'a reçu de résultat —
+  absence de mesure, jamais 0 %. La base est servie à côté du pourcentage : 100 %
+  sur deux prédictions ne veut rien dire, et `recommandation` le dit en clair.
+- `POST /api/admin/progression/shadow/rattacher` → `{ rattachees }`. Rattache
+  chaque prédiction en attente au **premier** examen qualifiant du même `stateKey`
+  survenu dans les 30 jours (§47.3). Idempotent, déclenché à la main : un job de
+  plus est une chose de plus qui peut échouer en silence.
+- `GET /api/admin/progression/utilisateurs/{userId}/etats` → les lignes brutes de
+  `progression_state`, accumulateurs epoch compris.
+- `GET /api/admin/progression/utilisateurs/{userId}/etats-servis?objectif=A2|B1|B2`
+  → `ProgressionStateDto[]` — **la forme servable à un front** : état, libellé,
+  ton, `visibleProgress` (nullable), prérequis. Aucun score interne : le DTO n'a
+  pas de champ pour ça.
+- `POST /api/admin/progression/utilisateurs/{userId}/replay` →
+  `{ clesReconstruites }`. Rejoue tout l'historique sur la version courante
+  (§29), en repartant d'une projection vide.
+
 ### Admin — Compétences TCF
 
 Console de contenu du module Compétences (cf. la section utilisateur plus haut).

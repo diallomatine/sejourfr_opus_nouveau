@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.enums.PlanActionNature;
@@ -128,6 +129,7 @@ class LearningPlanServiceTest {
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
                 masteryResolver, accessService,
                 new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
+                mock(ProgressionPlanBridge.class),
                         masteryResolver, skillManager),
                 // « Completer mon profil » tourne POUR DE VRAI : il ne fait que
                 // lire les domaines que le cycle vient de resoudre, le doubler
