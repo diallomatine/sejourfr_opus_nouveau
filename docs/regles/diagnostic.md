@@ -1,0 +1,245 @@
+# Diagnostic initial TCF
+
+> **Extrait de `CLAUDE.md` racine le 2026-08-23**, lors de la restructuration du fichier
+> (343 599 chars pour une limite de 150 000, rechargé à chaque requête). **Contenu verbatim, aucune réécriture.**
+> Origine : lignes 644-813, 1342-1405 de l'ancien `CLAUDE.md`.
+> **Lu à la demande** — ce fichier n'est jamais chargé automatiquement.
+> Ce fichier porte la loi de ce sous-système : on l'ouvre **quand on travaille dedans**.
+> Fichier jumeau : `docs/decisions/diagnostic.md`
+> Traçabilité complète : `docs/inventaire-claude-md.md`.
+
+---
+
+## Diagnostic initial TCF et Plan personnalisé
+
+Le diagnostic est un **parcours distinct** des examens blancs et de la notation
+standard. Il comporte exactement deux exercices hybrides fixes par
+version : une EE de 100–130 mots, puis une EO enregistrée de 2–3 minutes. Ils
+vivent dans `production_tasks` pour réutiliser la soumission, R2 et Whisper,
+mais portent `diagnostic_code` + `diagnostic_version` ; tous les catalogues,
+tirages, historiques, statistiques, quotas, outils admin standard, validateurs
+de rubriques et files de calibration doivent garder le filtre
+`diagnostic_code IS NULL`. Ce n'est jamais un `TCF_COMPLET`.
+
+- **Parcours : productions en invité → compte → analyse.** Un visiteur fait ses
+  **deux productions AVANT** qu'on lui demande un compte, le crée au moment
+  d'« Analyser mes réponses », et l'analyse IA ne tourne qu'ensuite. **Les
+  productions restent CÔTÉ CLIENT tant qu'il n'y a pas de compte** : aucune
+  session diagnostique anonyme, aucune ligne en base, aucun audio d'invité sur
+  R2 — `diagnostic_sessions.user_id` reste `NOT NULL`, ne rien rendre nullable.
+  Le seul besoin serveur est donc **servir les deux sujets** :
+  `GET /api/public/diagnostics/current` (public, rate-limité par IP à 120 / 10
+  min, `PublicDiagnosticResponse` **sans** `attemptId`/`submissionId`/
+  `submissionStatus`). La **version active et ses deux sujets se résolvent en un
+  seul endroit** (`DiagnosticContentResolver`, partagé par la lecture publique,
+  la création de session et la restitution) : deux résolutions séparées feraient
+  soumettre une production pour un sujet que le candidat n'a jamais lu. Funnel :
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` sur `/diagnostic` est LA mesure de conversion —
+  tout ce qui précède se joue hors base. Après inscription, l'enchaînement
+  `POST /api/diagnostics` → écrit → oral **coup sur coup** est accepté sans
+  assouplir aucune garde (`DiagnosticPostSignupSequenceIT`) ; un compte au
+  diagnostic **déjà terminé** récupère sa session `COMPLETED` (200, avec son
+  `result`, jamais de seconde session) et toute nouvelle production est refusée
+  en **422** — c'est au front d'afficher le message.
+- **Agrégat** : `diagnostic_sessions` enveloppe les deux attempts EE/EO, avec
+  unicité `(user, code, version)` **et** unicité séparée de chaque attempt. Les
+  états persistés sont `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ; le DTO
+  ajoute `NOT_STARTED` quand aucune session n'existe. `POST /api/diagnostics`
+  est idempotent et sûr en concurrence ; `GET /api/diagnostics/current` permet
+  la reprise cross-device, `GET /api/diagnostics/{id}` protège l'IDOR par 404,
+  et `POST .../{id}/retry-analysis` est borné/configuré et rate-limité.
+- **Soumission stricte** : les routes de production existantes sont réutilisées,
+  mais le bypass de quota n'est accordé que si la tâche, l'attempt, l'utilisateur,
+  la session courante et l'étape concordent. Une tâche diagnostique seule ne
+  suffit jamais. Une seule submission diagnostique est admise par attempt ; la
+  route générique `/production-submissions/{id}/retry` la refuse au profit du
+  retry agrégé. Audio, taille, durée, rate-limit et Whisper restent appliqués.
+- **Contrat IA séparé** : `diagnostic-analysis-rubrics-v1.json` et
+  `diagnostic-analysis-tool-schema-v1.json`, configurés sous
+  `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
+  impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
+  par segment réel, confiance et cohérence statut/observation. Une réponse
+  vide/illisible est transitoire et une seule réparation de format est tentée.
+  **On versionne ces deux fichiers, on ne réécrit jamais une version livrée.**
+- **`priority` est DÉRIVÉ de `status`, il n'est plus un motif de refus**
+  (`DiagnosticAnalysisReconciler`, qui passe **avant** le validateur) : une
+  divergence est réconciliée puis comptée, et le plafond de **2 priorités par
+  production** est une **troncature déterministe** (les 2 meilleures par
+  confiance puis rang d'allowlist — règle partagée `DiagnosticPriorityRanking`,
+  **jamais l'alphabet** ; le surplus est abaissé d'un cran en `TO_REINFORCE`),
+  jamais un refus. Motif : ce couple d'invariants n'était **écrit nulle part
+  dans le prompt** et portait sur un champ **redondant** (`status` fait foi, il
+  est seul persisté et contraint en base) — il a détruit un diagnostic réel,
+  donc les **deux productions** du candidat. Contrat v1 inchangé ; compteurs
+  `DiagnosticReconciliationMetrics`, famille distincte.
+- **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
+  pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
+  puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans
+  `AiEvaluationService`, `ai_evaluations`, la version ciblée, le profil TCF ni la
+  calibration. L'assemblage des deux analyses est déterministe, sans troisième
+  appel LLM, limite les priorités globales à trois et renvoie toujours un
+  `nextAction` réellement disponible, même si aucune priorité n'est assez
+  fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
+  puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
+  rétrogradée par un recorder tardif.
+- **Écran de RÉSULTAT — le « + N autres » est un VRAI nombre** (2026-08-21).
+  L'ordre des blocs est figé et identique sur les deux fronts : **Mes priorités**
+  (1 en clair, 2 lignes réelles floutées, « + N autres ») → **Points forts**
+  (même traitement) → **Compléter mon profil** (si `domainesAEvaluer` n'est pas
+  vide) → **carte d'abonnement**. Seuils d'**affichage** déclarés une fois par
+  front : `FREE_PRIORITIES`/`FREE_STRENGTHS` = 1 et `TEASE_SAMPLE` = 2 (web) ⇄
+  `_kFreeFocusVisible`/`_kFreeSolidVisible` = 1 et `_kBlurredSample` = 2 (mobile).
+  🛑 **`DiagnosticResultDto.fragileSkillCount` / `.solidSkillCount` sont
+  l'autorité du compteur, et ils sont SERVEUR** (`DiagnosticService`,
+  compétences **distinctes** de `written.skills` + `oral.skills`, `observed`,
+  statut `PRIORITY|TO_REINFORCE` / `SOLID`, dédoublonnées par code) : le calculer
+  dans chaque front aurait produit deux nombres pour la même chose. Il **ne se
+  lit pas sur `priorities`**, plafonné à 3 par règle produit — le plafond n'est
+  pas touché, et un « + 2 » de plafond n'est pas une réalité. Il ne se lit pas
+  non plus sur `strengths`, plafonné à 3 **à l'écriture** du résumé par
+  `DiagnosticSessionCoordinator`. `0` ⇒ **aucun bloc flouté**, et une liste plus
+  courte que le seuil s'affiche en clair. Contenu flouté = le **vrai**, hors
+  arbre d'accessibilité et hors parcours clavier (`aria-hidden` + `inert` ⇄
+  `BlurredContent`), l'information nette (compteur, CTA) vivant hors du rideau ;
+  un seul chemin vers l'offre, **aucun événement d'audience ajouté**.
+  ⚠️ **Trois surfaces démentaient le flou et ont été fermées** : la section web
+  « Le détail reste disponible » listait en clair **toutes** les observations —
+  elle est **remplacée** par « Vos points forts » (les seules compétences
+  `SOLID`) ; les phrases `strengths` deviennent un **repli** affiché seulement
+  quand aucune compétence solide n'existe (deux listes disaient la même chose) ;
+  et la liste « À travailler » de chaque production (web `ProductionSummary`,
+  mobile `_ProductionCard`) n'est servie qu'à un compte **avec** accès. En
+  contrepartie, la liste des priorités est **complétée** par les autres
+  fragilités observées au-delà des 3 servies : un abonné doit voir exactement ce
+  que le compteur d'un compte gratuit lui a promis.
+- ⚠️ **Corollaire de cette bifurcation : le diagnostic ne traverse AUCUN filet de
+  `AiEvaluationService`.** Il rendait donc des reproches bâtis sur un artefact de
+  transcription — cas réel : `EO2-C3` reprochait « « horreurs » pour « horaires »
+  est une erreur lexicale », alors que le candidat avait dit « horaires ».
+  **`DiagnosticOralArtifactFilter`** (livré **ACTIF** le 2026-08-14, EO **seulement**)
+  applique la règle du volet FORME au diagnostic oral : une remarque qui
+  **reproche**, **cite un passage réel** de la transcription et dont la citation
+  ne nomme **qu'1 ou 2 mots pleins** est purgée ; **0 mot porteur** (structure
+  pure) et **≥ 3** sont conservés ; transcription **dégradée**
+  (`TranscriptionQualityAudit`) ⇒ tout reproche ancré tombe. **Rien n'est extrait
+  du néant** : la règle entière vit dans **`EvaluationOralForme`**
+  (`reprocheAncreSurUneForme`, 3ᵉ occurrence ⇒ les patterns `CITATION`/`REPROCHE`
+  y ont été **déplacés** depuis `EvaluationOralArtifactFilter`, qui délègue
+  désormais), le découpage en phrases dans `EvaluationTexte` (rendue publique).
+  ⚠️ **Le diagnostic n'a PAS d'axe de critères** (ses observations sont des
+  compétences, pas `morphosyntaxe`/`lexique`) : la restriction « jamais `lexique` »
+  des productions **ne s'y transpose pas**, et le propriétaire a arbitré qu'on
+  purge quand même un reproche dit « lexical » — les deux lectures (machine qui a
+  mal entendu / candidat qui a mal prononcé) mènent au même endroit, et la grille
+  interdit déjà de noter la prononciation. **Champs purgés** :
+  `skills[].explanation` (l'observation **survit sans son explication**),
+  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (**champ obligatoire**, donc
+  remplacé, jamais vidé — par un texte qui **rassure** : « Votre production a bien
+  été analysée. Certaines remarques portaient sur la transcription, pas sur vous :
+  elles n'ont pas été retenues. » Il n'explique **plus** notre mécanique de
+  filtrage — c'est le premier écran de quelqu'un qui découvre son niveau, et la
+  trace de la purge vit dans le compteur, pas à l'écran. Même mouvement que les
+  trois avertissements oraux ramenés à un seul le 2026-08-16 ; texte gelé par
+  `DiagnosticOralArtifactFilterTest`, posé **uniquement** par le serveur, aucun
+  front ne le recopie, legacy non migré). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
+  `priority`, `confidence`, `level_estimate`, `task_completion`,
+  `communication_status`, l'ordre des priorités. 🛑 **Une purge ne peut pas rendre
+  une session `FAILED`** : le filtre tourne **après** `DiagnosticAnalysisValidator`
+  sur la sortie déjà normalisée (rien ne revalide derrière), et `purge` **avale
+  toute exception**. Compté `EvaluationPurgeMetrics.ARTEFACT_ORAL_FORME_DIAGNOSTIC`
+  — même **nature** (une purge retire une phrase) donc même famille que les 4
+  surfaces `MARQUEUR_PALIER*`, dont une est déjà diagnostique ; constante à part
+  pour distinguer les deux voies. **Contrats IA inchangés** (`diagnostic-analysis-*-v1`) :
+  c'est un contrôle serveur, pas une consigne. Legacy non migré.
+- **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
+  (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
+  le rang de la compétence dans l'allowlist de son sujet
+  (`diagnostic_task_skills.display_order`, l'ordre éditorial d'importance) qui
+  tranche ; à égalité résiduelle, écrit et oral **alternent** au lieu d'être
+  groupés (la première égalité parfaite revient à l'écrit, produit en premier).
+  L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
+  faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
+  compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une priorité se DÉRIVE des faiblesses quand le correcteur n'en désigne
+  aucune** (`DiagnosticPriorityRanking.faiblesseObservee`, appliqué par
+  `DiagnosticSessionCoordinator`). Mesuré sur deux diagnostics réels joués de
+  bout en bout — dont un sur une production A1/A2 volontairement fautive : le
+  modèle range tout en `TO_REINFORCE` et ne pose jamais `status=PRIORITY`, donc
+  `priority_skill_codes` sortait **vide** et le Plan restait `ACTIVE` sans rien à
+  faire. Rien dans les rubriques ne l'y oblige (« **au plus** deux » est satisfait
+  par zéro) et une consigne ne serait qu'un vœu : la dérivation est déterministe
+  et serveur. Une priorité **désignée l'emporte toujours** (on complète, on ne
+  remplace pas) ; `SOLID` et `NOT_OBSERVED` n'en deviennent **jamais** une — zéro
+  faiblesse observée ⇒ zéro priorité, état légitime. Bornes inchangées (2 par
+  production, 3 après fusion, alternance écrit/oral), comptage
+  `DiagnosticReconciliationMetrics.PRIORITE_DERIVEE_DE_FAIBLESSE`.
+  **Le Plan applique la même règle** : `LearningPlanPriorityResolver.actionable`
+  traite une observation `TO_REINFORCE` comme une priorité dérivée et départage
+  par **confiance** avant la récence, miroir de `DiagnosticPriorityRanking` — les
+  deux productions du diagnostic sont observées au même instant, la récence n'y
+  trie rien. `/api/me/plan` et `GET /api/diagnostics/{id}` ne peuvent donc plus
+  désigner deux étapes n°1 différentes, et le freemium suit
+  (`SkillAccessService` ouvre la compétence de la priorité, dérivée comprise).
+- **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
+  sujets et leurs allowlists de huit compétences. La console de sujets standard
+  refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
+  fixe, produit une fois explicitement et vérifié en HTTP 200. `GET
+  /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
+  son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
+  dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+  **`POST …?force=true` refait la synthèse même si l'objet existe** — seul moyen
+  de corriger un audio devenu faux quand la consigne change (cas V756 : trois
+  étapes à l'écran, quatre dans la voix), le retour anticipé idempotent ne sachant
+  que réparer l'URL. **Opt-in strict** : sans le paramètre, le comportement est
+  inchangé et aucun appel payant ne part, même sur une route rejouée. L'écrasement
+  se fait **sous la même clé** (`putObject`, last-write-wins — jamais de delete,
+  qui ouvrirait un 404 transitoire), donc l'URL en base et côté fronts ne bouge
+  pas, et `generatedNow` dit la vérité : `true` seulement si une synthèse a eu
+  lieu.
+  **V756 raccourcit les deux consignes EN PLACE dans la version 1** (EE 100-120
+  mots, EO 90-150 s) : les sujets de V755 se lisaient comme un examen complet dès
+  le premier contact, alors que le diagnostic doit se lire « 5 minutes et je
+  découvre mon niveau ». Aucun UUID ne bouge (clé de `diagnostic_sessions` **et**
+  de l'audio R2), aucune allowlist n'est touchée — les incises « et ce que vous en
+  avez pensé », « dites ce que vous cherchez » et « (activités, horaires, tarif,
+  inscription) » sont conservées exprès, sans elles `EE2-C7`, `EO1-C3` et `EO2-C4`
+  reviendraient `NOT_OBSERVED`. ⚠️ **L'audio de consigne de l'oral est donc faux
+  tant qu'il n'est pas régénéré** par le `POST` ci-dessus. V756 retire au passage
+  les bornes du diagnostic écrites en dur dans `chk_prod_task_tcf_irn_ee_word_bounds`
+  (piège de V723/V724) : un sujet diagnostique est exempté de la table officielle,
+  ses bornes vivent dans `production_tasks.mots_min/mots_max`.
+- **« Avant / après » de l'écran de résultat — SECOND APPEL LLM SÉPARÉ, ÉCRIT
+  SEULEMENT** (`service/diagnostic/exemplecible/`, livré **ACTIF**). Rend la
+  phrase du candidat **et la même phrase réécrite au palier qu'il vise** : on ne
+  lui dit pas qu'il a un problème, on lui montre à quoi ressemblerait sa propre
+  phrase un cran plus haut. Jumeau de `service/versionciblee/`, mêmes invariants :
+  **best-effort**, lancé par `ProductionPipelineAsyncRunner` **après** que
+  l'analyse est persistée et la session assemblée, **hors transaction**, toute
+  exception avalée, **aucun rejeu** — un échec laisse le diagnostic complet et la
+  session `COMPLETED`. **Le contrat d'analyse (`diagnostic-analysis-*-v1`) ne
+  bouge pas d'un octet** : le correcteur du diagnostic n'apprend jamais qu'on va
+  réécrire quoi que ce soit (v10/v11 ont mesuré qu'un bloc ajouté à une grille qui
+  juge fait tomber l'accord exact de 81,8 % à 75,6 %) ; verrou
+  `DiagnosticExempleCibleContractTest`. **La production ORALE n'est jamais
+  réécrite** — aucun appel n'est émis, aucun bloc produit. Le modèle **désigne la
+  phrase par son NUMÉRO** (`EvaluationProductionSegments`, technique v12), le
+  serveur la **résout en texte avant persistance** : aucun miroir DTO ne
+  transporte d'entier. DTO `DiagnosticResultDto.exempleCible` **nullable**
+  (`original` = sous-chaîne exacte de la production, `texte`, `segments[{extrait,
+  apport}]`, `niveauVise`) — **son absence est un cas NORMAL**. Persisté dans
+  `diagnostic_production_analyses.analysis_json.exemple_cible` (**aucune
+  migration**, legacy intact) et **pas** dans `summary_json`, que le coordinateur
+  remet à null puis reconstruit à chaque assemblage. Segments = **confort**
+  (`util/SegmentsSurlignage`) ; bornes du texte = `util/ProductionTextBounds`,
+  **plafond seul** (la borne basse décrit une production de 100 mots, on réécrit
+  une phrase) ; filet marqueurs A2 sur les `apport`, **4ᵉ surface**
+  (`EvaluationMarqueursA2`, compté `MARQUEUR_PALIER_APPORT_DIAGNOSTIC`). **Une
+  seule réparation par bloc**, et seulement sur du mécanique (numéro hors bornes,
+  texte trop long) ; compteurs dédiés `DiagnosticExempleCibleMetrics`. Retour
+  arrière : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false`.
+
+Les migrations structurantes sont V029 (agrégats/observations et séparation des
+tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
+`subject_id`, additive) et V755 (contenu initial). La suppression de
+compte purge observations et sessions **avant** les attempts. Le détail grand
+public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
