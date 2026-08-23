@@ -51,6 +51,7 @@ public class ProgressionShadowService {
     private final ProgressionProperties properties;
     private final ProgressionPredictionManager predictionManager;
     private final LearningEvidenceManager evidenceManager;
+    private final ProgressionExplanationService explanationService;
 
     /**
      * Consigne une prédiction si l'état vient d'atteindre une transition notable.
@@ -85,7 +86,10 @@ public class ProgressionShadowService {
                 || etat.status() == ProgressionStatus.READY_FOR_REASSESSMENT);
         prediction.setDirectQualification(etat.directQualification());
         prediction.setPrerequisiteSatisfied(false);
-        prediction.setPredictionReason(etat.status().name());
+        // §46 — un code du registre de raisons, pas une recopie du statut :
+        // c'est ce code qu'on croisera plus tard avec les résultats.
+        prediction.setPredictionReason(
+                explanationService.raisonIsolee(etat).name());
         return Optional.of(predictionManager.enregistrer(prediction));
     }
 

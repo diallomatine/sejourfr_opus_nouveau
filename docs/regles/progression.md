@@ -31,6 +31,7 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 | **Pont vers le Plan**, éteint en SHADOW | `progression.service.ProgressionPlanBridge` |
 | **Rapport de bascule** + états servis | `progression.service.ProgressionReportService` |
 | Console admin | `GET/POST /api/admin/progression/*` |
+| **Observabilité §46** (codes de raison, trace d'état) | `progression.service.ProgressionExplanationService` |
 | Verrou de la config, valeur par valeur | `ProgressionConfigTest` — **vert** |
 | **T01–T35** | `ProgressionEngineAcceptanceTest` — **35/35 verts** |
 | T36 (conformité front) | `scripts/verifier-contrat-front-progression.mjs` — **vert** |
@@ -241,6 +242,38 @@ analyse, on crée `progression-config-v2.json`, on incrémente `engineVersion`, 
 (`POST .../replay`). Un ajustement sur place effacerait la trace de ce qu'on croyait avant.
 
 ---
+
+## Contrat de livraison (§52), point par point
+
+| Livrable | État |
+|---|---|
+| `progression-config-v1.json` figé | ✅ verrouillé valeur par valeur par `ProgressionConfigTest` |
+| Migrations DB | ✅ V044 (moteur), V045 (bandes de difficulté) |
+| `learning_evidence` + idempotence | ✅ contrainte d'unicité en base, pas un `exists` applicatif |
+| Colonnes epoch en `double precision` | ✅ §27.2.1 |
+| Normalisation chance-adjusted CO/CE | ✅ dénominateur = `totalQuestions`, toujours |
+| `contentId` + `independenceClass` serveur | ✅ jamais fournis par le client |
+| INCOMPLETE / ABANDONED / TIME_EXPIRED / SUBMITTED | ✅ |
+| Agrégation epoch commutative | ✅ six permutations à 1e-12 (T11) |
+| `progression_state` | ✅ |
+| `qualificationGate` direct | ✅ Cas A / B / C |
+| `prerequisiteSatisfied` dérivé | ✅ jamais persisté, révocable |
+| `visibleProgress = null` sans preuve directe | ✅ §18.6, jamais 0 |
+| `activeLearningLevel` | ✅ |
+| `prescriptionLevel` avec WATCH | ✅ |
+| `progression_prediction_log` | ✅ figé à `predictedAt` |
+| Mode SHADOW | ✅ défaut, et seule bascule = variable d'env |
+| Contrat de rendu front §25 bis | ✅ `cefr`/`masteryLabel`/`masteryTone` supprimés |
+| T01–T35 verts | ✅ 35/35 |
+| Valeurs T01–T06 à 1e-6 | ✅ |
+| Test des 6 permutations | ✅ |
+| Test statique front (T36) | ✅ script Node, pas un test de front |
+| Logs `recommendationReasonCode` | ✅ trace d'état + `predictionReason` |
+| Logs `CONTENT_BANK_TOO_SMALL` | ✅ table + log, par bande |
+
+**Rien n'est marqué fait sans l'être.** Les deux seuls éléments de la spec non livrés sont
+énoncés plus haut, avec leur raison : le corpus de stabilité IA (§45, coût LLM) et le tagage du
+catalogue (travail de contenu).
 
 ## Ordre de reprise (§49)
 

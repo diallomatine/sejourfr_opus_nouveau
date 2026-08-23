@@ -56,6 +56,7 @@ public class ProgressionIngestionService {
     private final LearningEvidenceMapper mapper;
     private final ProgressionProperties properties;
     private final ProgressionShadowService shadowService;
+    private final ProgressionExplanationService explanationService;
 
     /**
      * Enregistre une preuve et reprojette son état.
@@ -116,6 +117,11 @@ public class ProgressionIngestionService {
                 .max(Instant::compareTo)
                 .orElse(null);
         stateManager.enregistrer(userId, properties.getEngineVersion(), etat, derniere);
+        // §46 — « pourquoi cette recommandation ? » doit avoir une réponse sans
+        // rejouer le moteur à la main : la confiance aura bougé entre-temps, et
+        // on ne retrouverait jamais l'état qui a produit la décision.
+        explanationService.tracer(userId, etat,
+                explanationService.raisonIsolee(etat), properties.getEngineVersion());
         return etat;
     }
 
