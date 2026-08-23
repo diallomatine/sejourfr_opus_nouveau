@@ -2,6 +2,7 @@ package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DifficultyBand;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.QuestionRepository;
@@ -99,6 +100,32 @@ public class QuestionManager {
             int size) {
         return repository.findLeastRecentlySeen(
                 userId, module.name(), difficulty.name(), questionType.name(), size);
+    }
+
+    /**
+     * Le meme tirage, restreint a une bande de difficulte — la brique du
+     * blueprint qualifiant 6/10/4 (moteur de progression V4.2 §6.2).
+     */
+    public List<Question> findLeastRecentlySeenInBand(
+            UUID userId,
+            Module module,
+            Difficulty difficulty,
+            QuestionType questionType,
+            DifficultyBand band,
+            int size) {
+        return repository.findLeastRecentlySeenInBand(
+                userId, module.name(), difficulty.name(), questionType.name(),
+                band.name(), size);
+    }
+
+    /** Combien de questions taguees de cette bande existent (§12 bis.5). */
+    public long countInBand(
+            Module module,
+            Difficulty difficulty,
+            QuestionType questionType,
+            DifficultyBand band) {
+        return repository.countInBand(
+                module.name(), difficulty.name(), questionType.name(), band.name());
     }
 
     /** Tirage aleatoire en excluant des ids deja tires (composition examen blanc). */

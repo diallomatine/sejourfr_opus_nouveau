@@ -243,6 +243,61 @@ public interface QuestionRepository
             @Param("size") int size
     );
 
+    /**
+     * Le meme tirage, <b>restreint a une bande de difficulte</b> — la brique du
+     * blueprint qualifiant 6 EASY / 10 MEDIUM / 4 HARD (moteur de progression
+     * V4.2 §6.2, §7).
+     *
+     * <p>Les questions non taguees ({@code difficulty_band IS NULL}) sont
+     * exclues, jamais rangees dans une bande par defaut : leur affecter
+     * « MEDIUM » affirmerait une mesure qui n'a pas eu lieu. Une bande qui ne
+     * peut pas etre remplie fait simplement echouer la composition calibree, et
+     * la serie retombe en {@code UNCALIBRATED} — ce qui est la verite.
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            LEFT JOIN (
+                SELECT aq.question_id AS question_id, MAX(a.started_at) AS last_seen
+                FROM attempt_questions aq
+                JOIN attempts a ON a.id = aq.attempt_id
+                WHERE a.user_id = :userId
+                GROUP BY aq.question_id
+            ) vu ON vu.question_id = q.id
+            WHERE q.is_active = true
+              AND q.module = :module
+              AND q.difficulty = :difficulty
+              AND q.difficulty_band = :band
+              AND (q.question_type = :questionType
+                   OR (:questionType = 'CO' AND q.question_type = 'CO_IMAGE'))
+            ORDER BY vu.last_seen ASC NULLS FIRST, random()
+            LIMIT :size
+            """, nativeQuery = true)
+    List<Question> findLeastRecentlySeenInBand(
+            @Param("userId") UUID userId,
+            @Param("module") String module,
+            @Param("difficulty") String difficulty,
+            @Param("questionType") String questionType,
+            @Param("band") String band,
+            @Param("size") int size
+    );
+
+    /** Combien de questions taguees d'une bande sont disponibles (§12 bis.5). */
+    @Query(value = """
+            SELECT COUNT(*) FROM questions q
+            WHERE q.is_active = true
+              AND q.module = :module
+              AND q.difficulty = :difficulty
+              AND q.difficulty_band = :band
+              AND (q.question_type = :questionType
+                   OR (:questionType = 'CO' AND q.question_type = 'CO_IMAGE'))
+            """, nativeQuery = true)
+    long countInBand(
+            @Param("module") String module,
+            @Param("difficulty") String difficulty,
+            @Param("questionType") String questionType,
+            @Param("band") String band
+    );
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------

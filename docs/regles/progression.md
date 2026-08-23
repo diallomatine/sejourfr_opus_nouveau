@@ -4,7 +4,7 @@ Spécification normative complète : `docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2
 Ce fichier-ci ne la résume pas — il dit **où en est l'implémentation** et **ce qui casse en
 silence si on l'ignore**.
 
-État au **2026-08-23** : **phases 0, 1 et 3 livrées**. Le moteur tourne en **SHADOW** : il
+État au **2026-08-23** : **phases 0, 1, 3 et 4 livrées**. Le moteur tourne en **SHADOW** : il
 enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 ---
@@ -24,6 +24,9 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 | **Adaptateur CO/CE** (correction du hasard, ventilation par palier) | `progression.service.ReceptiveEvidenceAdapter` |
 | **Adaptateur EE/EO** (observations IA, micro-sujets, `transferGate`) | `progression.service.ProductiveEvidenceAdapter` |
 | **Shadow mode** (prédictions, rattachement, précision) | `progression.service.ProgressionShadowService` |
+| **Tirage 6/10/4** + signal de banque insuffisante | `progression.service.ComprehensionSeriesComposer` |
+| **`difficulty_band`** + vue de difficulté observée | `db/migration/00_schema/V045__question_difficulty_band.sql` |
+| Difficulté empirique (propose, n'impose pas) | `progression.calibration.EmpiricalDifficultyService` |
 | Lecture (`prescriptionLevel`, prérequis dérivés) | `progression.service.ProgressionReadService` |
 | Verrou de la config, valeur par valeur | `ProgressionConfigTest` — **vert** |
 | **T01–T35** | `ProgressionEngineAcceptanceTest` — **35/35 verts** |
@@ -33,7 +36,9 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 - **Aucun endpoint**, aucun DTO servi : le moteur n'est lu par personne (c'est le principe du
   shadow mode). Le branchement du Plan est la phase 2.
-- **`difficultyBand`** : le catalogue ne le porte pas. Conséquence directe ci-dessous.
+- **Le catalogue n'est pas tagué.** La colonne `questions.difficulty_band` existe, le tirage
+  6/10/4 existe, mais **aucune question ne porte encore de bande**. Tant que ce n'est pas fait,
+  toutes les séries d'entraînement restent `UNCALIBRATED` — cf. ci-dessous.
 - **Corpus de stabilité IA (§45)** : *non fait, et volontairement.* Mesurer la dérive d'un
   prompt exige d'appeler un fournisseur payant sur un corpus fixe. `CLAUDE.md` l'interdit sans
   demande explicite du propriétaire — c'est son argent, il décide. Le corpus lui-même
@@ -153,19 +158,41 @@ config, précisément pour qu'on les voie.
 
 ## Deux conséquences à connaître avant de toucher au moteur
 
-### Toute série d'entraînement est `UNCALIBRATED` aujourd'hui
+### Une série n'est calibrée que si elle l'est *réellement*
 
-Le blueprint 6/10/4 (§6.2) exige un `difficultyBand` par question, que le catalogue ne porte
-pas encore. `ReceptiveEvidenceAdapter` classe donc **toutes** les séries d'entraînement en
-`UNCALIBRATED` : elles pèsent 0,50 au lieu de 0,70 et **ne peuvent jamais verrouiller un
-palier**.
+La machinerie est en place : `ComprehensionSeriesComposer` tire 6 EASY / 10 MEDIUM / 4 HARD
+quand la banque le permet, et `ReceptiveEvidenceAdapter` vérifie la composition **réellement
+jouée** — pas l'intention du compositeur.
 
-C'est le choix prudent, et il est délibéré : l'inverse validerait des paliers sur des séries
-dont on ignore la composition, et il faudrait ensuite les retirer aux candidats. Les examens
-blancs, eux, ont leurs strates garanties à la composition (8 A2 + 9 B1 + 8 B2) — ils sont
-calibrés par construction, et ce sont eux qui font avancer un palier aujourd'hui.
+🛑 **Il n'y a pas de « presque calibré ».** Une seule question sans bande, ou une répartition
+6/11/3, et toute la série bascule en `UNCALIBRATED`. Accepter l'approximation reviendrait à
+verrouiller des paliers sur des mesures qui ne se valent pas — et il faudrait ensuite les
+retirer aux candidats.
 
-Levée en phase 4.
+Quand une bande ne peut pas être remplie, le compositeur **ne complète pas** avec des questions
+non taguées : il rend une série jouable (priver le candidat de son entraînement serait pire),
+la marque non calibrée, et écrit `CONTENT_BANK_TOO_SMALL` avec le stock manquant par bande.
+
+**Conséquence aujourd'hui** : le catalogue n'ayant aucune bande, toutes les séries
+d'entraînement pèsent 0,50 et ne verrouillent aucun palier. Seuls les examens blancs le font —
+leurs strates sont garanties à la composition (8 A2 + 9 B1 + 8 B2). **Taguer le catalogue est
+le travail de contenu qui reste**, et c'est lui qui débloquera la progression par
+l'entraînement.
+
+### La difficulté observée propose, elle n'impose jamais
+
+La vue `question_empirical_difficulty` expose le taux de réussite réel par item, et
+`EmpiricalDifficultyService` en tire trois listes : la mesure brute, les **désaccords** (taguée
+HARD, réussie à 90 %), et les **propositions** pour les questions non taguées.
+
+🛑 **Rien ne repose une bande automatiquement.** §7 dit qu'à terme l'empirique *pourra*
+remplacer les tags manuels — « pourra », et c'est une décision produit. Une bande qui changerait
+toute seule ferait bouger la calibration des séries, donc le poids des preuves, donc des paliers
+déjà acquis : un candidat verrait un acquis disparaître sans avoir rien fait, et personne ne
+saurait pourquoi.
+
+Plancher d'échantillon : **30 réponses**. En dessous, un taux est du bruit et rien n'est
+proposé. Une question jamais répondue rend `null`, jamais « difficile ».
 
 ### Le recalcul relit l'historique d'une clé, pas un delta
 
@@ -200,7 +227,7 @@ config : on analyse, on crée une v2, on rejoue.
 | 1 | `learning_evidence`, agrégat epoch, `progression_state`, gates, prérequis, shadow | **livré** |
 | 2 | analyse shadow → `ACTIVE` → Plan branché sur `prescriptionLevel` | — |
 | 3 | EE/EO : observations IA, cap micro, `transferGate` | **livré** (corpus de stabilité exclu, cf. ci-dessus) |
-| 4 | calibration contenu : `difficultyBand`, séries 6/10/4, `CONTENT_BANK_TOO_SMALL` | — |
+| 4 | calibration contenu : `difficultyBand`, séries 6/10/4, `CONTENT_BANK_TOO_SMALL` | **livré** (reste à taguer le catalogue) |
 
 Avant la phase 1, relire §27.2.1 : les accumulateurs epoch se stockent en
 `double precision`, **jamais** en `NUMERIC(p,s)` ni en `BigDecimal`. Ils croissent

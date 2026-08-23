@@ -384,6 +384,7 @@ public class AttemptInteractionService {
                             aq.getQuestion().getId(),
                             aq.getQuestion().getQuestionType(),
                             aq.getQuestion().getDifficulty(),
+                            aq.getQuestion().getDifficultyBand(),
                             aq.getQuestion().getChoices().size(),
                             aq.getAnswer() != null,
                             aq.getAnswer() != null

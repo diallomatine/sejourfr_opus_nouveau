@@ -1,6 +1,7 @@
 package com.sejourfr.app.progression.service;
 
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DifficultyBand;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
@@ -85,6 +86,7 @@ public class ReceptiveEvidenceAdapter {
             UUID questionId,
             QuestionType questionType,
             Difficulty difficulty,
+            DifficultyBand difficultyBand,
             int optionsCount,
             boolean answered,
             boolean correct
@@ -217,14 +219,20 @@ public class ReceptiveEvidenceAdapter {
      * §6.2, §7 — la série respecte-t-elle le blueprint 6 EASY / 10 MEDIUM /
      * 4 HARD sur 20 questions ?
      *
-     * <p>Tant que le catalogue ne porte pas de {@code difficultyBand} (phase 4),
-     * <b>aucune série d'entraînement n'est calibrée</b> : elles pèsent 0,50 au
-     * lieu de 0,70 et ne peuvent jamais verrouiller un palier. C'est le choix
-     * prudent — l'inverse validerait des paliers sur des séries dont on ignore
-     * la composition, et il faudrait ensuite les retirer aux candidats.
+     * <p>La vérification porte sur ce qui a été <b>réellement joué</b>, pas sur
+     * ce que le compositeur avait l'intention de tirer. C'est la seule lecture
+     * qui résiste au temps : un tirage de repli, un contenu retiré du catalogue
+     * entre-temps, un examen recomposé — rien de tout ça ne peut faire passer
+     * une série pour comparable si elle ne l'est pas.
      *
-     * <p>Les examens blancs, eux, ont leurs strates garanties à la composition
-     * (8 A2 + 9 B1 + 8 B2 par épreuve) : ils sont calibrés par construction.
+     * <p>Une seule question sans bande suffit à faire basculer en
+     * {@code UNCALIBRATED}. Il n'y a pas de « presque calibré » : soit les vingt
+     * scores sont comparables à ceux d'une autre série, soit ils ne le sont pas.
+     *
+     * <p>Les examens blancs sont calibrés <b>par construction</b> : leurs
+     * strates sont garanties à la composition (8 A2 + 9 B1 + 8 B2 par épreuve),
+     * et §6.4 les mesure palier par palier — le blueprint des séries ne s'y
+     * applique pas.
      */
     private CalibrationStatus calibration(EvidenceSourceType sourceType,
                                           List<ReponseQcm> reponses) {
@@ -233,7 +241,22 @@ public class ReceptiveEvidenceAdapter {
                 || sourceType == EvidenceSourceType.DIAGNOSTIC) {
             return CalibrationStatus.CALIBRATED;
         }
-        return CalibrationStatus.UNCALIBRATED;
+        ProgressionConfig.ReceptiveSeriesBlueprint blueprint = config.receptiveSeriesBlueprint();
+        if (reponses.size() != blueprint.questionCount()) {
+            return CalibrationStatus.UNCALIBRATED;
+        }
+        Map<DifficultyBand, Integer> compte = new EnumMap<>(DifficultyBand.class);
+        for (ReponseQcm reponse : reponses) {
+            if (reponse.difficultyBand() == null) {
+                return CalibrationStatus.UNCALIBRATED;
+            }
+            compte.merge(reponse.difficultyBand(), 1, Integer::sum);
+        }
+        return compte.getOrDefault(DifficultyBand.EASY, 0) == blueprint.easy()
+                && compte.getOrDefault(DifficultyBand.MEDIUM, 0) == blueprint.medium()
+                && compte.getOrDefault(DifficultyBand.HARD, 0) == blueprint.hard()
+                ? CalibrationStatus.CALIBRATED
+                : CalibrationStatus.UNCALIBRATED;
     }
 
     /** Une série non calibrée porte son propre {@code sourceType} (§6.3). */

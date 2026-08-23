@@ -22,6 +22,8 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.progression.service.ComprehensionSeriesComposer;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
@@ -98,6 +100,7 @@ public class AttemptService {
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final QuestionManager questionManager;
+    private final ComprehensionSeriesComposer seriesComposer;
     private final UserManager userManager;
     private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
@@ -302,12 +305,25 @@ public class AttemptService {
         }
         skillAccessService.assertCanTrain(user.getId(), skillId);
 
+        Difficulty difficulty = comprehensionDifficulty(skill);
+        TargetLevel palier = comprehensionLevel(difficulty);
+
+        // Le blueprint 6 EASY / 10 MEDIUM / 4 HARD quand le catalogue le permet
+        // (moteur de progression V4.2 §6.2) ; sinon le tirage historique, et la
+        // serie sera marquee UNCALIBRATED en aval. Le compositeur ne triche
+        // jamais : il ne complete pas une bande manquante avec des questions
+        // non taguees pour faire passer la serie pour calibree.
+        ComprehensionSeriesComposer.SerieComposee composee =
+                palier == null
+                        ? null
+                        : seriesComposer.composer(user.getId(), skill.getSection(), palier);
         QuestionType questionType =
                 skill.getSection() == SkillSection.CO ? QuestionType.CO : QuestionType.CE;
-        Difficulty difficulty = comprehensionDifficulty(skill);
-
-        List<Question> questions = questionManager.findLeastRecentlySeen(
-                user.getId(), Module.TCF, difficulty, questionType, COMPREHENSION_SERIES_SIZE);
+        List<Question> questions = composee != null
+                ? composee.questions()
+                : questionManager.findLeastRecentlySeen(
+                        user.getId(), Module.TCF, difficulty, questionType,
+                        COMPREHENSION_SERIES_SIZE);
         if (questions.isEmpty()) {
             throw new IllegalStateException(
                     "Aucune question disponible pour la compétence " + skill.getCode() + ".");
@@ -333,6 +349,21 @@ public class AttemptService {
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
         return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Le palier CECRL d'une difficulte, ou {@code null} quand elle n'en porte
+     * pas (A1, ou un axe civique). Un palier inconnu ne se compose pas par
+     * blueprint : on ne devine pas.
+     */
+    private static TargetLevel comprehensionLevel(Difficulty difficulty) {
+        if (difficulty == null) return null;
+        return switch (difficulty) {
+            case A2 -> TargetLevel.A2;
+            case B1 -> TargetLevel.B1;
+            case B2 -> TargetLevel.B2;
+            default -> null;
+        };
     }
 
     /**

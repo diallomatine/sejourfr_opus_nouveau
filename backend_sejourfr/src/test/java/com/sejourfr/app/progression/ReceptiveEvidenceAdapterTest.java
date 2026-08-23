@@ -1,6 +1,7 @@
 package com.sejourfr.app.progression;
 
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DifficultyBand;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
@@ -169,14 +170,12 @@ class ReceptiveEvidenceAdapterTest {
     }
 
     /**
-     * §6.3, phase 4 — tant que le catalogue ne porte pas de
-     * {@code difficultyBand}, une série d'entraînement reste non calibrée : elle
-     * pèse 0,50 et ne peut jamais verrouiller un palier. Le choix inverse
-     * validerait des paliers sur des séries dont on ignore la composition.
+     * §6.3 — une série dont les questions ne portent pas de bande n'est pas
+     * comparable aux autres. Elle pèse 0,50 et ne verrouille jamais un palier.
      */
     @Test
-    @DisplayName("Une série d'entraînement reste non calibrée tant que le blueprint n'est pas tagué")
-    void serieDEntrainementNonCalibree() {
+    @DisplayName("Une série de questions non taguées reste non calibrée")
+    void serieNonTagueeNonCalibree() {
         List<ReponseQcm> reponses = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             reponses.add(reponse(QuestionType.CO, Difficulty.A2, 4, true, i < 16));
@@ -189,6 +188,70 @@ class ReceptiveEvidenceAdapterTest {
         assertThat(preuve.calibrationStatus()).isEqualTo(CalibrationStatus.UNCALIBRATED);
         assertThat(preuve.sourceType())
                 .isEqualTo(EvidenceSourceType.CO_CE_20_SERIES_UNCALIBRATED);
+    }
+
+    @Test
+    @DisplayName("Une série 6 / 10 / 4 réellement jouée est calibrée")
+    void serieAuBlueprintEstCalibree() {
+        adapter.ingerer(USER, ATTEMPT, T0, AttemptCompletionStatus.SUBMITTED,
+                EvidenceSourceType.CO_CE_20_SERIES, EvidenceEntryPoint.REVISER,
+                serieCalibree(16));
+
+        LearningEvidence preuve = capturer();
+        assertThat(preuve.calibrationStatus()).isEqualTo(CalibrationStatus.CALIBRATED);
+        assertThat(preuve.sourceType()).isEqualTo(EvidenceSourceType.CO_CE_20_SERIES);
+    }
+
+    /**
+     * 🛑 Il n'y a pas de « presque calibré ».
+     *
+     * <p>Une seule question sans bande, ou une composition 6/10/3, et la série
+     * cesse d'être comparable aux autres. Accepter l'approximation reviendrait à
+     * verrouiller des paliers sur des mesures qui ne se valent pas — et il
+     * faudrait ensuite les retirer aux candidats.
+     */
+    @Test
+    @DisplayName("Une seule question sans bande fait basculer toute la série en non calibrée")
+    void uneSeuleQuestionSansBandeSuffit() {
+        List<ReponseQcm> reponses = new ArrayList<>(serieCalibree(16));
+        reponses.set(0, reponse(QuestionType.CO, Difficulty.A2, null, 4, true, true));
+
+        adapter.ingerer(USER, ATTEMPT, T0, AttemptCompletionStatus.SUBMITTED,
+                EvidenceSourceType.CO_CE_20_SERIES, EvidenceEntryPoint.REVISER, reponses);
+
+        assertThat(capturer().calibrationStatus()).isEqualTo(CalibrationStatus.UNCALIBRATED);
+    }
+
+    @Test
+    @DisplayName("Une composition 6 / 11 / 3 n'est pas calibrée non plus")
+    void mauvaiseRepartitionNonCalibree() {
+        List<ReponseQcm> reponses = new ArrayList<>(serieCalibree(16));
+        reponses.set(19, reponse(QuestionType.CO, Difficulty.A2,
+                DifficultyBand.MEDIUM, 4, true, false));
+
+        adapter.ingerer(USER, ATTEMPT, T0, AttemptCompletionStatus.SUBMITTED,
+                EvidenceSourceType.CO_CE_20_SERIES, EvidenceEntryPoint.REVISER, reponses);
+
+        assertThat(capturer().calibrationStatus()).isEqualTo(CalibrationStatus.UNCALIBRATED);
+    }
+
+    /**
+     * §6.4 — un examen blanc est calibré <b>par construction</b> : ses strates
+     * sont garanties à la composition et il se mesure palier par palier. Le
+     * blueprint des séries ne s'y applique pas.
+     */
+    @Test
+    @DisplayName("Un examen blanc reste calibré sans porter de bandes")
+    void examenBlancCalibreParConstruction() {
+        List<ReponseQcm> reponses = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            reponses.add(reponse(QuestionType.CO, Difficulty.A2, 4, true, i < 16));
+        }
+
+        adapter.ingerer(USER, ATTEMPT, T0, AttemptCompletionStatus.SUBMITTED,
+                EvidenceSourceType.DOMAIN_MOCK, EvidenceEntryPoint.EXAM_HUB, reponses);
+
+        assertThat(capturer().calibrationStatus()).isEqualTo(CalibrationStatus.CALIBRATED);
     }
 
     /**
@@ -228,7 +291,28 @@ class ReceptiveEvidenceAdapterTest {
 
     private static ReponseQcm reponse(QuestionType type, Difficulty difficulte, int options,
                                       boolean repondue, boolean correcte) {
-        return new ReponseQcm(UUID.randomUUID(), type, difficulte, options, repondue, correcte);
+        return reponse(type, difficulte, null, options, repondue, correcte);
+    }
+
+    private static ReponseQcm reponse(QuestionType type, Difficulty difficulte,
+                                      DifficultyBand bande, int options,
+                                      boolean repondue, boolean correcte) {
+        return new ReponseQcm(
+                UUID.randomUUID(), type, difficulte, bande, options, repondue, correcte);
+    }
+
+    /** Une série de 20 respectant exactement le blueprint 6 / 10 / 4. */
+    private static List<ReponseQcm> serieCalibree(int correctes) {
+        List<ReponseQcm> reponses = new ArrayList<>();
+        List<DifficultyBand> plan = new ArrayList<>();
+        for (int i = 0; i < 6; i++) plan.add(DifficultyBand.EASY);
+        for (int i = 0; i < 10; i++) plan.add(DifficultyBand.MEDIUM);
+        for (int i = 0; i < 4; i++) plan.add(DifficultyBand.HARD);
+        for (int i = 0; i < plan.size(); i++) {
+            reponses.add(reponse(QuestionType.CO, Difficulty.A2, plan.get(i), 4,
+                    true, i < correctes));
+        }
+        return reponses;
     }
 
     private LearningEvidence capturer() {
