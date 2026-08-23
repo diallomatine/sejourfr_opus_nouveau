@@ -51,6 +51,16 @@ class EmpiricalDifficultyTest {
         assertThat(mesure(100, 0.20d, null).bandeSuggeree()).isEqualTo(DifficultyBand.HARD);
     }
 
+    /** Les égalités tombent dans MEDIUM : EASY est p > 0,75, pas p ≥ 0,75. */
+    @Test
+    @DisplayName("Une question pile au seuil est moyenne, jamais facile ni dure")
+    void egalitesDansMedium() {
+        assertThat(mesure(100, 0.75d, null).bandeSuggeree()).isEqualTo(DifficultyBand.MEDIUM);
+        assertThat(mesure(100, 0.45d, null).bandeSuggeree()).isEqualTo(DifficultyBand.MEDIUM);
+        assertThat(mesure(100, 0.7501d, null).bandeSuggeree()).isEqualTo(DifficultyBand.EASY);
+        assertThat(mesure(100, 0.4499d, null).bandeSuggeree()).isEqualTo(DifficultyBand.HARD);
+    }
+
     /**
      * Une question taguée HARD que 90 % des candidats réussissent fausse la
      * comparabilité de toutes les séries qui la contiennent. C'est la seule

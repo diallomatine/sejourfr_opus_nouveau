@@ -118,6 +118,11 @@ public class QuestionManager {
                 band.name(), size);
     }
 
+    /** Les questions de comprehension d'un perimetre, pour l'export de calibration. */
+    public List<Question> findForCalibration(String section, String difficulty) {
+        return repository.findForCalibration(section, difficulty);
+    }
+
     /** Combien de questions taguees de cette bande existent (§12 bis.5). */
     public long countInBand(
             Module module,

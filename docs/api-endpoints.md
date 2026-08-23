@@ -345,6 +345,37 @@ pédagogique. → `docs/regles/progression.md`
   `{ clesReconstruites }`. Rejoue tout l'historique sur la version courante
   (§29), en repartant d'une projection vide.
 
+### Admin — Calibration du catalogue
+
+L'outillage du tagging `difficulty_band` (§7). **Taguer précède mesurer, qui précède
+basculer** : tant qu'aucune question n'a de bande, toutes les séries d'entraînement sont
+`UNCALIBRATED`, aucun palier n'avance par l'entraînement, et les métriques shadow ne voient
+que des examens blancs — échantillon minuscule et biaisé.
+
+🛑 Aucun de ces endpoints ne pose une bande automatiquement. L'observé **propose**, un humain
+tranche.
+
+- `GET /api/admin/progression/catalogue/inventaire` → **l'indicateur d'avancement**. Par
+  (domaine, palier) : `taguees`, `nonTaguees`, `easy/medium/hard`, `seriesConstructibles` et
+  `bandeLimitante`. `seriesConstructibles` = `min(easy/6, medium/10, hard/4)` — un **minimum**,
+  pas une moyenne : 200 MEDIUM ne valent rien avec 3 HARD.
+- `GET /api/admin/progression/catalogue/export?section=CO|CE&level=A2|B1|B2` → CSV
+  `questionId,domain,level,difficulty_band,enonce`. **Non taguées d'abord** : c'est le travail
+  restant, et une liste qui commence par ce qui est fait se referme sans être lue.
+- `POST /api/admin/progression/catalogue/bandes` — corps
+  `{ affectations: [{ questionId, band }] }`. Chaque ligne est indépendante : un id inconnu est
+  compté et ignoré, il n'annule pas le lot. `band: null` **dé-tague** (cas légitime : retirer
+  un tag qu'on sait faux vaut mieux que le remplacer par un tag douteux). Réponse
+  `{ posees, retirees, introuvables[] }`.
+- `GET /api/admin/progression/catalogue/difficulte-observee?questionType=&difficulty=` → taux
+  de réussite réel par item, avec `reponses` (la taille de l'échantillon, jamais masquée).
+- `GET /api/admin/progression/catalogue/propositions?…` → les non taguées pour lesquelles les
+  données suffisent. **Sous 30 réponses, rien n'est proposé** : un taux sur trois réponses est
+  du bruit. Bornes : `EASY p > 0,75` · `MEDIUM 0,45 ≤ p ≤ 0,75` · `HARD p < 0,45`.
+- `GET /api/admin/progression/catalogue/desaccords?…` → les questions dont la bande déclarée
+  contredit l'observé (taguée HARD, réussie à 90 %). Une telle question fausse la
+  comparabilité de **toutes** les séries qui la contiennent.
+
 ### Admin — Compétences TCF
 
 Console de contenu du module Compétences (cf. la section utilisateur plus haut).

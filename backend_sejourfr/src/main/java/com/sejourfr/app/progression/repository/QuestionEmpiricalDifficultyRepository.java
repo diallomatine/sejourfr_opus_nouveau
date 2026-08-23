@@ -29,4 +29,23 @@ public interface QuestionEmpiricalDifficultyRepository
     List<Object[]> lireDifficulteEmpirique(@Param("module") String module,
                                            @Param("questionType") String questionType,
                                            @Param("difficulty") String difficulty);
+
+    /**
+     * L'inventaire du catalogue par (domaine, palier, bande) — l'indicateur
+     * d'avancement du tagging.
+     *
+     * <p>Les questions <b>non taguées</b> sortent avec {@code difficulty_band}
+     * à {@code NULL} : c'est le chiffre qui compte au début, celui du travail
+     * restant.
+     */
+    @Query(value = """
+            SELECT q.question_type, q.difficulty, q.difficulty_band, COUNT(*)
+            FROM questions q
+            WHERE q.is_active = true
+              AND q.module = 'TCF'
+              AND q.question_type IN ('CO', 'CO_IMAGE', 'CE')
+              AND q.difficulty IN ('A2', 'B1', 'B2')
+            GROUP BY q.question_type, q.difficulty, q.difficulty_band
+            """, nativeQuery = true)
+    List<Object[]> inventaireParBande();
 }

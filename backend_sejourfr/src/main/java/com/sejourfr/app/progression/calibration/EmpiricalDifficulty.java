@@ -33,16 +33,22 @@ public record EmpiricalDifficulty(
      * verrait un acquis disparaître sans avoir rien fait.
      *
      * <p>Les seuils ci-dessous sont volontairement <b>hors</b> de
-     * {@code progression-config-v1.json} : ils ne pilotent aucun calcul de
-     * progression, seulement un affichage de console. Les y mettre laisserait
-     * croire qu'un changement ici a un effet sur les états, ce qui est
-     * exactement faux.
+     * {@code progression-config-v1.json} : contrairement au bloc
+     * {@code aiScoring}, ils ne multiplient rien et n'entrent dans aucun calcul
+     * de progression — ils ne servent qu'à proposer une bande à un humain. Les y
+     * mettre laisserait croire qu'un changement ici a un effet sur les états, ce
+     * qui est exactement faux : l'effet ne vient que du tag qu'un humain
+     * décidera de poser.
      */
     public DifficultyBand bandeSuggeree() {
         if (tauxReussite == null || reponses < MIN_REPONSES) {
             return null;
         }
-        if (tauxReussite >= 0.75d) return DifficultyBand.EASY;
+        // Bornes arbitrées le 2026-08-23 : EASY p > 0,75 · MEDIUM 0,45 ≤ p ≤ 0,75
+        // · HARD p < 0,45. Les égalités tombent volontairement dans MEDIUM —
+        // une question pile au seuil n'est ni franchement facile ni franchement
+        // dure, et c'est la bande la moins engageante des trois.
+        if (tauxReussite > 0.75d) return DifficultyBand.EASY;
         if (tauxReussite >= 0.45d) return DifficultyBand.MEDIUM;
         return DifficultyBand.HARD;
     }

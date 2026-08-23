@@ -27,6 +27,7 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 | **Tirage 6/10/4** + signal de banque insuffisante | `progression.service.ComprehensionSeriesComposer` |
 | **`difficulty_band`** + vue de difficulté observée | `db/migration/00_schema/V045__question_difficulty_band.sql` |
 | Difficulté empirique (propose, n'impose pas) | `progression.calibration.EmpiricalDifficultyService` |
+| **Outillage du tagging** (inventaire, export CSV, réimport) | `progression.calibration.CatalogueCalibrationService` |
 | Lecture (`prescriptionLevel`, prérequis dérivés) | `progression.service.ProgressionReadService` |
 | **Pont vers le Plan**, éteint en SHADOW | `progression.service.ProgressionPlanBridge` |
 | **Rapport de bascule** + états servis | `progression.service.ProgressionReportService` |
@@ -44,11 +45,10 @@ enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 - **Le catalogue n'est pas tagué.** La colonne `questions.difficulty_band` existe, le tirage
   6/10/4 existe, mais **aucune question ne porte encore de bande**. Tant que ce n'est pas fait,
   toutes les séries d'entraînement restent `UNCALIBRATED` — cf. ci-dessous.
-- **Corpus de stabilité IA (§45)** : *non fait, et volontairement.* Mesurer la dérive d'un
-  prompt exige d'appeler un fournisseur payant sur un corpus fixe. `CLAUDE.md` l'interdit sans
-  demande explicite du propriétaire — c'est son argent, il décide. Le corpus lui-même
-  (productions A2/B1/B2 limites, hors sujet, très courtes, très longues) est à constituer avant
-  toute campagne.
+- **Corpus de stabilité IA (§45)** : *non fait, et volontairement.* Il relève de EE/EO, et
+  nous sommes en phase 1/2 sur CO/CE. Arbitré le 2026-08-23 : **on le fera au moment de passer
+  EE/EO en shadow, pas avant.** Il exige de toute façon d'appeler un fournisseur payant sur un
+  corpus fixe — décision du propriétaire, c'est son argent.
 
 ---
 
@@ -190,11 +190,37 @@ Quand une bande ne peut pas être remplie, le compositeur **ne complète pas** a
 non taguées : il rend une série jouable (priver le candidat de son entraînement serait pire),
 la marque non calibrée, et écrit `CONTENT_BANK_TOO_SMALL` avec le stock manquant par bande.
 
-**Conséquence aujourd'hui** : le catalogue n'ayant aucune bande, toutes les séries
-d'entraînement pèsent 0,50 et ne verrouillent aucun palier. Seuls les examens blancs le font —
-leurs strates sont garanties à la composition (8 A2 + 9 B1 + 8 B2). **Taguer le catalogue est
-le travail de contenu qui reste**, et c'est lui qui débloquera la progression par
-l'entraînement.
+**Conséquence aujourd'hui — et c'est bloquant, pas une tâche de fond.** Le catalogue n'ayant
+aucune bande :
+
+```text
+toutes les séries sont UNCALIBRATED (poids 0,50)
+  → qualificationGate toujours false (T05)
+  → activeLearningLevel ne bouge jamais par l'entraînement
+  → un candidat qui s'entraîne sans examen blanc reste prescrit sur A2 indéfiniment
+```
+
+Et donc : **les métriques shadow ne seront alimentées que par des prédictions issues d'examens
+blancs** — échantillon minuscule, biaisé, non représentatif de l'usage réel.
+
+🛑 **L'ordre est : taguer, puis mesurer, puis basculer.** La décision de bascule dépend
+entièrement de l'avancement du tagging.
+
+### L'outillage du tagging
+
+Le tagging lui-même est un travail humain, fait hors application. Le code l'outille :
+
+| Endpoint | À quoi il sert |
+|---|---|
+| `GET …/catalogue/inventaire` | **L'indicateur d'avancement** : `seriesConstructibles` par (domaine, palier), et `bandeLimitante`. |
+| `GET …/catalogue/export` | CSV de travail, **non taguées d'abord**. |
+| `POST …/catalogue/bandes` | Réimport en masse. Lignes indépendantes ; `band: null` dé-tague. |
+| `GET …/catalogue/propositions` | Les non taguées avec assez de données. `EASY p > 0,75` · `MEDIUM 0,45 ≤ p ≤ 0,75` · `HARD p < 0,45`, plancher **30 réponses**. |
+| `GET …/catalogue/desaccords` | Taguée HARD, réussie à 90 % — fausse toutes les séries qui la contiennent. |
+
+`seriesConstructibles` = `min(easy/6, medium/10, hard/4)`. **Un minimum, pas une moyenne** : la
+bande la plus pauvre décide seule, et 200 questions MEDIUM ne servent à rien avec 3 HARD. Une
+moyenne dirait « on y est presque » et enverrait produire du contenu au mauvais endroit.
 
 ### La difficulté observée propose, elle n'impose jamais
 

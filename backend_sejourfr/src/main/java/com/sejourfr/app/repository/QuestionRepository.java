@@ -281,6 +281,26 @@ public interface QuestionRepository
             @Param("size") int size
     );
 
+    /**
+     * Les questions TCF de comprehension d'un perimetre, pour l'export de
+     * calibration (§7). Les deux filtres sont facultatifs et se cumulent.
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            WHERE q.is_active = true
+              AND q.module = 'TCF'
+              AND q.difficulty IN ('A2', 'B1', 'B2')
+              AND (
+                    (:section IS NULL AND q.question_type IN ('CO', 'CO_IMAGE', 'CE'))
+                 OR (:section = 'CO' AND q.question_type IN ('CO', 'CO_IMAGE'))
+                 OR (:section = 'CE' AND q.question_type = 'CE')
+              )
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+            ORDER BY q.difficulty, q.question_type, q.created_at
+            """, nativeQuery = true)
+    List<Question> findForCalibration(@Param("section") String section,
+                                      @Param("difficulty") String difficulty);
+
     /** Combien de questions taguees d'une bande sont disponibles (§12 bis.5). */
     @Query(value = """
             SELECT COUNT(*) FROM questions q
