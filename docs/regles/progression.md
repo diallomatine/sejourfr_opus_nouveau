@@ -4,8 +4,8 @@ Spécification normative complète : `docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2
 Ce fichier-ci ne la résume pas — il dit **où en est l'implémentation** et **ce qui casse en
 silence si on l'ignore**.
 
-État au **2026-08-23** : **phase 0 livrée, moteur non écrit**. §49 impose un *hard stop* :
-rien du moteur ne s'écrit avant validation explicite du propriétaire.
+État au **2026-08-23** : **phases 0 et 1 livrées**. Le moteur tourne en **SHADOW** : il
+enregistre, calcule et prédit — et **ne touche pas au Plan servi**.
 
 ---
 
@@ -14,20 +14,27 @@ rien du moteur ne s'écrit avant validation explicite du propriétaire.
 | Livrable | Où |
 |---|---|
 | Configuration figée v1 | `backend_sejourfr/src/main/resources/progression/progression-config-v1.json` |
-| Chargeur + validation au démarrage | `com.sejourfr.app.progression.config.ProgressionConfigLoader` |
+| Chargeur + validation au démarrage | `progression.config.ProgressionConfigLoader` |
 | Feature flag SHADOW / ACTIVE | `sejourfr.progression.mode` (`application.yaml`) |
-| Contrat de domaine (enums, `LearningEvidence`, `ProgressionStateKey`, snapshots) | `com.sejourfr.app.progression.domain` |
-| Contrat du moteur (interface pure) | `com.sejourfr.app.progression.engine.ProgressionEngine` |
+| Domaine (enums, `LearningEvidence`, `ProgressionStateKey`, snapshots) | `progression.domain` |
+| **Moteur pur** (agrégat epoch, gates, machine à états, prérequis) | `progression.engine.DefaultProgressionEngine` |
+| **Schéma** (`learning_evidence`, `progression_state`, prédictions, signaux) | `db/migration/00_schema/V044__progression_engine.sql` |
+| **Ingestion** idempotente + replay | `progression.service.ProgressionIngestionService` |
+| **§12 bis** — `contentId` + `independenceClass` serveur | `progression.service.ContentIdentityService` |
+| **Adaptateur CO/CE** (correction du hasard, ventilation par palier) | `progression.service.ReceptiveEvidenceAdapter` |
+| **Shadow mode** (prédictions, rattachement, précision) | `progression.service.ProgressionShadowService` |
+| Lecture (`prescriptionLevel`, prérequis dérivés) | `progression.service.ProgressionReadService` |
 | Verrou de la config, valeur par valeur | `ProgressionConfigTest` — **vert** |
-| T01–T35 | `ProgressionEngineAcceptanceTest` — **écrits, `@Disabled`** |
+| **T01–T35** | `ProgressionEngineAcceptanceTest` — **35/35 verts** |
 | T36 (conformité front) | `scripts/verifier-contrat-front-progression.mjs` — **vert** |
 
-## Ce qui n'existe pas
+## Ce qui n'existe pas encore
 
-Le moteur. Pas de table `learning_evidence`, pas de `progression_state`, pas de
-`progression_prediction_log`, aucune migration Flyway, aucun endpoint. `PhaseZeroEngine`
-(test) lève `UnsupportedOperationException` sur chaque appel — 🛑 **ne jamais lui donner
-« juste assez » d'implémentation pour faire verdir un test.**
+- **Aucun endpoint**, aucun DTO servi : le moteur n'est lu par personne (c'est le principe du
+  shadow mode). Le branchement du Plan est la phase 2.
+- **EE/EO** : le moteur sait les traiter (`PRODUCTIVE_SKILL`, cap micro, `transferGate`), mais
+  aucun adaptateur ne convertit encore une évaluation IA en preuve — phase 3.
+- **`difficultyBand`** : le catalogue ne le porte pas. Conséquence directe ci-dessous.
 
 ---
 
@@ -128,6 +135,33 @@ service pour aligner un contrat qui n'a pas d'émetteur.
 
 ---
 
+## Deux conséquences à connaître avant de toucher au moteur
+
+### Toute série d'entraînement est `UNCALIBRATED` aujourd'hui
+
+Le blueprint 6/10/4 (§6.2) exige un `difficultyBand` par question, que le catalogue ne porte
+pas encore. `ReceptiveEvidenceAdapter` classe donc **toutes** les séries d'entraînement en
+`UNCALIBRATED` : elles pèsent 0,50 au lieu de 0,70 et **ne peuvent jamais verrouiller un
+palier**.
+
+C'est le choix prudent, et il est délibéré : l'inverse validerait des paliers sur des séries
+dont on ignore la composition, et il faudrait ensuite les retirer aux candidats. Les examens
+blancs, eux, ont leurs strates garanties à la composition (8 A2 + 9 B1 + 8 B2) — ils sont
+calibrés par construction, et ce sont eux qui font avancer un palier aujourd'hui.
+
+Levée en phase 4.
+
+### Le recalcul relit l'historique d'une clé, pas un delta
+
+§28 décrit une mise à jour O(1). Les accumulateurs le sont ; **la machine à états ne l'est
+pas** — les hystérésis, le passage `SOLID → WATCH` et la monotonie de `visibleProgress`
+dépendent de l'histoire, pas du total.
+
+`ProgressionIngestionService` relit donc l'historique **de la seule clé touchée** et rejoue le
+moteur dessus. C'est un écart assumé à la lettre de §28, pour tenir une règle qui compte
+davantage : *une règle, une autorité*. Dupliquer la machine à états dans un chemin incrémental
+garantirait qu'un jour les deux divergent — c'est le défaut le plus cher du dépôt.
+
 ## Le passage à ACTIVE
 
 ```text
@@ -147,7 +181,7 @@ config : on analyse, on crée une v2, on rejoue.
 | Phase | Contenu | État |
 |---|---|---|
 | 0 | config figée, T01–T36 écrits, feature flag, nettoyage front | **livré** |
-| 1 | `learning_evidence`, agrégat epoch, `progression_state`, gates, prérequis, shadow | à valider |
+| 1 | `learning_evidence`, agrégat epoch, `progression_state`, gates, prérequis, shadow | **livré** |
 | 2 | analyse shadow → `ACTIVE` → Plan branché sur `prescriptionLevel` | — |
 | 3 | EE/EO : observations IA, cap micro, `transferGate`, corpus de stabilité | — |
 | 4 | calibration contenu : `difficultyBand`, séries 6/10/4, `CONTENT_BANK_TOO_SMALL` | — |

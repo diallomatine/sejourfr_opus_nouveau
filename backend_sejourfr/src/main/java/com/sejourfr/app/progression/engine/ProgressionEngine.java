@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.progression.domain.DomainProjection;
 import com.sejourfr.app.progression.domain.LearningEvidence;
+import com.sejourfr.app.progression.domain.PartialPractice;
 import com.sejourfr.app.progression.domain.ProgressionSnapshot;
 import com.sejourfr.app.progression.domain.ProgressionStateKey;
 
@@ -67,12 +68,25 @@ public interface ProgressionEngine {
      * preuves.
      *
      * <p>La collection est un <b>multiensemble</b> : son ordre d'iteration ne
-     * doit avoir aucun effet sur le resultat (T11).
+     * doit avoir aucun effet sur le resultat (T11). Les doublons de cle
+     * naturelle sont ignores, pas additionnes (T12).
+     *
+     * @param partialPractice les activites laissees en cours (§23.1) : elles
+     *                        n'apportent que des points de parcours.
      */
     ProgressionSnapshot project(
             ProgressionStateKey stateKey,
             Collection<LearningEvidence> evidence,
+            Collection<PartialPractice> partialPractice,
             Instant now);
+
+    /** La forme courante : aucune activité laissée en cours à comptabiliser. */
+    default ProgressionSnapshot project(
+            ProgressionStateKey stateKey,
+            Collection<LearningEvidence> evidence,
+            Instant now) {
+        return project(stateKey, evidence, java.util.List.of(), now);
+    }
 
     /**
      * La lecture complete d'un domaine receptif : les trois paliers, les

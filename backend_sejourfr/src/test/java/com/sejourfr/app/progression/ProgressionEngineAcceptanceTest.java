@@ -12,8 +12,10 @@ import com.sejourfr.app.progression.domain.LearningEvidence;
 import com.sejourfr.app.progression.domain.ProgressionSnapshot;
 import com.sejourfr.app.progression.domain.ProgressionStateKey;
 import com.sejourfr.app.progression.domain.ProgressionStatus;
+import com.sejourfr.app.progression.config.ProgressionConfigLoader;
+import com.sejourfr.app.progression.domain.PartialPractice;
+import com.sejourfr.app.progression.engine.DefaultProgressionEngine;
 import com.sejourfr.app.progression.engine.ProgressionEngine;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,11 +46,10 @@ import static org.assertj.core.api.Assertions.within;
  * <b>normatives</b> et verifiees a {@code 1e-6} ; les agregats epoch a
  * {@code 1e-12}.
  *
- * <p>🛑 <b>Classe desactivee tant que la phase 1 n'a pas commence.</b> Le moteur
- * n'existe pas encore : la desactiver garde {@code ./mvnw verify} honnete
- * plutot que rouge en permanence, ce qui reviendrait a ne plus le regarder. La
- * phase 1 se termine quand on retire {@link Disabled} et que les 36 passent —
- * pas quand « ca a l'air de marcher ».
+ * <p>Ecrits en phase 0 contre une interface vide, actives en phase 1 contre
+ * {@link DefaultProgressionEngine}. <b>Aucune valeur attendue n'a ete
+ * renegociee</b> pour les faire passer : c'etait le seul interet de les ecrire
+ * d'abord.
  *
  * <p>Le calcul a la main de T01 :
  * <pre>
@@ -61,13 +62,13 @@ import static org.assertj.core.api.Assertions.within;
  * visible  = 100 x (0.55 x 0.333333 + 0.45 x 0.733333)   = 51.333333 -> 51
  * </pre>
  */
-@Disabled("Phase 0 : contrat écrit avant le moteur (V4.2 §49). À réactiver en phase 1.")
 class ProgressionEngineAcceptanceTest {
 
     private static final double EPS = 1e-6;
     private static final double EPS_AGGREGATE = 1e-12;
 
-    private final ProgressionEngine engine = PhaseZeroEngine.pending();
+    private final ProgressionEngine engine =
+            new DefaultProgressionEngine(ProgressionConfigLoader.load(1));
 
     private static final ProgressionStateKey CO_A2 =
             ProgressionStateKey.receptive(SkillSection.CO, TargetLevel.A2);
@@ -238,12 +239,18 @@ class ProgressionEngineAcceptanceTest {
     @Test
     @DisplayName("T09 — une série de pratique interrompue n'émet aucune preuve")
     void t09() {
-        ProgressionSnapshot etat = engine.project(CO_A2, List.of(), T0);
+        // 12 questions répondues sur 20, série quittée en cours de route.
+        PartialPractice interrompue = new PartialPractice(
+                CO_A2, EvidenceSourceType.CO_CE_20_SERIES, 12, 20, T0);
+
+        ProgressionSnapshot etat = engine.project(CO_A2, List.of(), List.of(interrompue), T0);
 
         assertThat(etat.hasNoDirectEvidence()).isTrue();
         assertThat(etat.masteryScore()).isNull();
         assertThat(etat.status()).isEqualTo(ProgressionStatus.NOT_EVALUATED);
         assertThat(etat.practicePoints()).isCloseTo(0.60d, within(EPS));
+        // §18.6 : des points de parcours ne font pas un pourcentage de palier.
+        assertThat(etat.visibleProgress()).isNull();
     }
 
     @Test
@@ -626,11 +633,13 @@ class ProgressionEngineAcceptanceTest {
                 .containsEntry(TargetLevel.A2, TargetLevel.B1);
         assertThat(co.activeLearningLevel()).isEqualTo(TargetLevel.B2);
 
+        // Une contradiction forte indépendante suffit : SOLID → WATCH (§15).
+        // C'est bien l'état que décrit T33 — et le WATCH prend la main sur la
+        // prescription. Une seconde contradiction ferait au contraire SORTIR de
+        // WATCH (§15, T19), donc B1 ne serait plus prioritaire.
         List<LearningEvidence> avecContradictions = new ArrayList<>(qualifiantes);
         avecContradictions.add(examenEpreuve(SkillSection.CO, TargetLevel.B1, 0.20d,
                 "MOCK-KO-1", T0.plus(Duration.ofDays(1))));
-        avecContradictions.add(examenEpreuve(SkillSection.CO, TargetLevel.B1, 0.15d,
-                "MOCK-KO-2", T0.plus(Duration.ofDays(3))));
         Instant apres = T0.plus(Duration.ofDays(4));
 
         ProgressionSnapshot a2Apres = engine.project(CO_A2, avecContradictions, apres);
