@@ -164,12 +164,19 @@ class TcfLotResultScreen extends ConsumerWidget {
     );
   }
 
+  /// L'encouragement de fin de série — et rien de plus.
+  ///
+  /// 🛑 Aucune de ces phrases ne dit qu'un palier est acquis ni qu'il faut
+  /// passer au suivant (§25 bis, §16) : une seule bonne série ne verrouille
+  /// jamais un niveau, c'est exactement ce que T01 verrouille. Ce verdict-là
+  /// appartient au moteur, qui exige deux séries calibrées indépendantes ou un
+  /// examen blanc fort — et le Plan le dira quand ce sera vrai.
   String _caption(int percent) {
     if (percent >= 80) {
-      return 'Excellent ! Tu es solide sur ce niveau, attaque le suivant.';
+      return 'Excellent résultat sur cette série. Continue sur ta lancée.';
     }
     if (percent >= 60) {
-      return 'Tu es sur une bonne progression. Continue à enchaîner les séries.';
+      return 'Bon résultat sur cette série. Continue à enchaîner les séries.';
     }
     if (percent >= 40) {
       return 'Encore quelques erreurs à corriger — revois et repasse cette série ou une voisine.';
@@ -484,8 +491,11 @@ class _AdviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un conseil de travail, jamais un verdict de palier : « tu maîtrises ce
+    // niveau, passe au suivant » se dérivait d'une seule série, alors que
+    // seul le moteur ouvre un palier (§16, T01).
     final advice = percent >= 80
-        ? 'Tu maîtrises bien le niveau $level. Tente le niveau supérieur pour confirmer.'
+        ? 'Très bon score sur cette série de niveau $level. Enchaîne une autre série pour confirmer.'
         : percent >= 60
             ? 'Revois les questions ratées pour combler les petits écarts.'
             : percent >= 40

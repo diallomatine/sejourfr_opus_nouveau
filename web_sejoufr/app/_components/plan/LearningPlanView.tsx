@@ -30,7 +30,7 @@ import {
 } from "@/lib/diagnostic";
 import {
   isComprehension,
-  masteryLabel,
+  masteryStateLabel,
   PLAN_COMPLETE_PROFILE_NOTE,
   PLAN_COMPLETE_PROFILE_TEXT,
   PLAN_COMPLETE_PROFILE_TITLE,
@@ -572,7 +572,7 @@ function priorityLines(priority: LearningPlanPriorityDto): string[] {
     lines.push(PLAN_REASON_A_VERIFIER);
   }
 
-  const state = masteryLabel(priority.masteryState);
+  const state = masteryStateLabel(priority.masteryState);
   if (priority.stepPromptCount > 0) {
     const done = `${priority.stepAttemptedCount} sujet${plural(priority.stepAttemptedCount)} sur ${priority.stepPromptCount} traité${plural(priority.stepAttemptedCount)} dans cette étape`;
     lines.push(state ? `${state} · ${done}.` : `${done}.`);

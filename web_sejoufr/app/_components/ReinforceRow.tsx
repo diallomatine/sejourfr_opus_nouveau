@@ -29,7 +29,7 @@ export function CategoryBarLine({
       <div className={styles.bar} role="presentation">
         {percent !== null && (
           <span
-            className={`${styles.fill} ${FILL_BY_TONE[barTone(percent)]}`}
+            className={`${styles.fill} ${FILL_BY_TONE[barTone()]}`}
             style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
           />
         )}

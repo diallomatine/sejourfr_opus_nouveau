@@ -157,7 +157,7 @@ class _ModuleCard extends StatelessWidget {
           ? 'Niveau estimé ${stat.level!.displayName}'
           : 'Pas encore évalué';
     } else if (percent != null) {
-      sub = '$percent % · ${masteryLabel(percent)}';
+      sub = '$percent % de réussite';
     } else {
       sub = 'Pas encore travaillé';
     }
@@ -200,16 +200,13 @@ class _ModuleCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           ProgressRing(
-            // L'anneau porte une information de niveau : il suit la rampe de
-            // maîtrise, jamais l'alternance décorative des pastilles (sinon
-            // une catégorie à 15 % s'affiche en bleu rassurant à côté d'une
-            // catégorie à 19 % en rouge).
+            // L'anneau montre un taux de réussite brut, il ne le juge pas :
+            // un seul accent de marque, jamais une rampe de seuils (§25 bis.3).
+            // Un état pédagogique, quand il existera, viendra servi.
             value: (percent ?? 0).toDouble(),
             size: 42,
             stroke: 5,
-            color: percent == null
-                ? AppColors.inkFaint
-                : masteryColor(percent),
+            color: percent == null ? AppColors.inkFaint : AppColors.blue,
           ),
           const SizedBox(width: 8),
           const Icon(

@@ -44,11 +44,18 @@ export function categoryExamsHref(cat: DashboardCategoryStat): string {
   }
 }
 
-/** Teinte d'une barre de progression : vert ≥ 80, ambre < 60, bleu entre les deux. */
-export function barTone(percent: number | null): "green" | "amber" | "blue" {
-  if (percent === null) return "blue";
-  if (percent >= 80) return "green";
-  if (percent < 60) return "amber";
+/**
+ * Teinte d'une barre de progression — **un accent de marque, pas un verdict**.
+ *
+ * 🛑 Elle classait le pourcentage (vert ≥ 80, ambre < 60, bleu entre les deux)
+ * jusqu'au 2026-08-23. Supprimé : un ton se dérive d'un **état servi**, jamais
+ * d'un nombre (moteur de progression V4.2, §25 bis.3, invariant I42). Une
+ * seconde table de seuils dans le front finit toujours par peindre autre chose
+ * que ce que le serveur a décidé.
+ *
+ * La fonction reste — un seul endroit décide de cette teinte, et c'est ici.
+ */
+export function barTone(): "green" | "amber" | "blue" {
   return "blue";
 }
 
@@ -61,22 +68,39 @@ export function moduleAverage(cats: DashboardCategoryStat[]): number | null {
   );
 }
 
-/** Sous-titre qualitatif d'un score de maîtrise. */
-export function masteryHint(percent: number | null): string {
-  if (percent === null) return "Commencez l'entraînement";
-  if (percent >= 75) return "Excellent niveau";
-  if (percent >= 55) return "En bonne voie";
-  return "À consolider";
+/**
+ * Sous-titre d'un taux de réussite — **il dit d'où vient le chiffre, il ne le
+ * juge pas**.
+ *
+ * 🛑 Il rendait « Excellent niveau » / « En bonne voie » / « À consolider »
+ * selon des seuils locaux. Supprimé le 2026-08-23 : un état pédagogique vient
+ * servi ou n'existe pas (§25 bis.3). Le pourcentage affiché ici est un taux de
+ * bonnes réponses, pas un score TCF ni une probabilité de réussite.
+ */
+export function successHint(percent: number | null): string {
+  return percent === null
+    ? "Commencez l'entraînement"
+    : "sur vos réponses enregistrées";
 }
 
-/** Statut d'une catégorie (badge des hubs) : Solide ≥ 80, En bonne voie ≥ 60,
- *  À renforcer en dessous, À découvrir si jamais travaillée. */
-export function categoryStatus(percent: number | null): {
+/**
+ * Badge d'une catégorie dans les hubs — **le seul fait qu'il énonce, c'est si
+ * la catégorie a déjà été travaillée**.
+ *
+ * 🛑 Il rendait « Solide » ≥ 80, « En bonne voie » ≥ 60, « À renforcer » en
+ * dessous : trois verdicts pédagogiques calculés dans le navigateur à partir
+ * d'un taux de bonnes réponses. Supprimé le 2026-08-23 (§25 bis.3, §25 bis.4).
+ *
+ * Le vrai état — « À renforcer », « En progression », « Prêt à vérifier »,
+ * « Acquis », « À vérifier » — viendra du serveur avec le moteur de
+ * progression, avec son ton (`lib/progression-contract.ts`). D'ici là, on
+ * n'invente rien : un chiffre brut ne dit pas où en est un candidat.
+ */
+export function categoryBadge(percent: number | null): {
   label: string;
   tone: "green" | "blue" | "amber" | "none";
 } {
-  if (percent === null) return { label: "À découvrir", tone: "none" };
-  if (percent >= 80) return { label: "Solide", tone: "green" };
-  if (percent >= 60) return { label: "En bonne voie", tone: "blue" };
-  return { label: "À renforcer", tone: "amber" };
+  return percent === null
+    ? { label: "À découvrir", tone: "none" }
+    : { label: "Déjà travaillé", tone: "blue" };
 }

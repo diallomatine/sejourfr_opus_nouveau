@@ -1,0 +1,126 @@
+{
+  "engineVersion": 1,
+  "weightEpoch": "2026-01-01T00:00:00Z",
+  "recencyHalfLifeDays": 45,
+
+  "sourceWeights": {
+    "FULL_MOCK_EXAM": 1.00,
+    "DOMAIN_MOCK": 0.95,
+    "FULL_TASK": 0.80,
+    "REASSESSMENT": 0.85,
+    "DIAGNOSTIC": 0.70,
+    "CO_CE_20_SERIES": 0.70,
+    "CO_CE_20_SERIES_UNCALIBRATED": 0.50,
+    "MICRO_SKILL": 0.35
+  },
+
+  "assistanceFactors": {
+    "NONE": 1.00,
+    "LIGHT": 0.85,
+    "HEAVY": 0.60,
+    "ANSWER_OR_MODEL_SEEN_BEFORE_SUBMISSION": 0.45
+  },
+
+  "independenceFactors": {
+    "NEW_CONTENT": 1.00,
+    "NEW_CONTENT_SAME_BLUEPRINT": 0.90,
+    "REPEATED_EXACT_CONTENT": 0.50
+  },
+
+  "independence": {
+    "overlapWindowDays": 60,
+    "independenceOverlapThreshold": 0.50
+  },
+
+  "confidenceK": {
+    "RECEPTIVE_LEVEL": 1.50,
+    "PRODUCTIVE_SKILL": 1.60
+  },
+
+  "thresholds": {
+    "RECEPTIVE_LEVEL": {
+      "fragileMax": 0.35,
+      "progressIn": 0.50,
+      "progressOut": 0.40,
+      "solidIn": 0.70,
+      "solidOut": 0.55,
+      "minConfidenceForProgress": 0.35,
+      "minConfidenceForSolid": 0.60
+    },
+    "PRODUCTIVE_SKILL": {
+      "fragileMax": 0.45,
+      "progressIn": 0.55,
+      "progressOut": 0.45,
+      "readyForReassessment": 0.70,
+      "solidIn": 0.75,
+      "solidOut": 0.60,
+      "minConfidenceForProgress": 0.35,
+      "minConfidenceForReady": 0.50,
+      "minConfidenceForSolid": 0.60
+    }
+  },
+
+  "strongEvidence": {
+    "RECEPTIVE_LEVEL": {
+      "positiveResult": 0.80,
+      "negativeResult": 0.25,
+      "windowDays": 30,
+      "negativeCountToDowngradeSolid": 2
+    },
+    "PRODUCTIVE_SKILL": {
+      "positiveResult": 0.85,
+      "negativeResult": 0.40,
+      "windowDays": 30,
+      "negativeCountToDowngradeSolid": 2
+    }
+  },
+
+  "qualificationGates": {
+    "RECEPTIVE_LEVEL": {
+      "mockStrongResult": 0.80,
+      "seriesPositiveResult": 0.70,
+      "diagnosticPositiveResult": 0.70,
+      "confirmationPositiveResult": 0.70
+    },
+    "PRODUCTIVE_SKILL": {
+      "transferResult": 0.75
+    }
+  },
+
+  "microEvidenceCaps": {
+    "maxConfidenceMass": 0.80
+  },
+
+  "visibleProgress": {
+    "coverageWeight": 0.55,
+    "masteryWeight": 0.45,
+    "unconfirmedCap": 95,
+    "practicePointsRequired": 3.0,
+    "practicePoints": {
+      "FULL_MOCK_EXAM": 1.50,
+      "DOMAIN_MOCK": 1.50,
+      "FULL_TASK": 1.20,
+      "REASSESSMENT": 1.20,
+      "DIAGNOSTIC": 0.80,
+      "CO_CE_20_SERIES": 1.00,
+      "CO_CE_20_SERIES_UNCALIBRATED": 0.75,
+      "MICRO_SKILL": 0.40
+    }
+  },
+
+  "receptiveSeriesBlueprint": {
+    "questionCount": 20,
+    "easy": 6,
+    "medium": 10,
+    "hard": 4
+  },
+
+  "shadowValidation": {
+    "predictionWindowDays": 30,
+    "minSolidPrecision": 0.70
+  },
+
+  "maintenance": {
+    "maxEpochAgeDays": 1095
+  }
+}

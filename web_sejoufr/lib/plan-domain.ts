@@ -665,9 +665,17 @@ export function planActivePriorities(plan: LearningPlanDto) {
     ];
 }
 
-/** Un état de maîtrise en clair, ou `null` quand rien n'a été observé — on
- *  n'invente pas un état pour une compétence que le serveur n'a jamais vue. */
-export function masteryLabel(state: SkillMasteryState | null): string | null {
+/**
+ * Un état de maîtrise **servi** mis en clair, ou `null` quand rien n'a été
+ * observé — on n'invente pas un état pour une compétence que le serveur n'a
+ * jamais vue.
+ *
+ * Renommée depuis `masteryLabel` le 2026-08-23 : ce nom désignait aussi, dans
+ * la maquette et sur le mobile, une fonction qui **classait un pourcentage**.
+ * Les deux ont été supprimées (moteur de progression V4.2, §25 bis.4) ; celle-ci
+ * ne calcule rien — elle traduit un enum reçu — et son nouveau nom le dit.
+ */
+export function masteryStateLabel(state: SkillMasteryState | null): string | null {
     return state ? SKILL_MASTERY_STATE_LABEL[state] : null;
 }
 

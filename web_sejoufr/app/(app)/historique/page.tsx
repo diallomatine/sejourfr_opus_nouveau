@@ -26,7 +26,7 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { attemptApi, dashboardApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
-import { masteryHint } from "@/lib/dashboard";
+import { successHint } from "@/lib/dashboard";
 import {
   type AttemptSummaryResponse,
   canAccessModule,
@@ -233,7 +233,7 @@ export default function HistoriquePage() {
               {stats.avg !== null ? `${stats.avg}%` : "—"}
             </div>
             <div className="res-stat-label">Score moyen</div>
-            <div className="res-stat-sub">{masteryHint(stats.avg)}</div>
+            <div className="res-stat-sub">{successHint(stats.avg)}</div>
           </div>
         </article>
         <article className="res-stat">
