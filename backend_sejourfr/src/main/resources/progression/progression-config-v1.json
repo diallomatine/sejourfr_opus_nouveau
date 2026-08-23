@@ -91,6 +91,16 @@
     "maxConfidenceMass": 0.80
   },
 
+  "aiScoring": {
+    "confidenceMapping": {
+      "LOW": 0.50,
+      "MEDIUM": 0.75,
+      "HIGH": 0.95
+    },
+    "microSkillAssistance": "LIGHT",
+    "microSkillScoringConfidence": 0.75
+  },
+
   "visibleProgress": {
     "coverageWeight": 0.55,
     "masteryWeight": 0.45,
@@ -117,7 +127,8 @@
 
   "shadowValidation": {
     "predictionWindowDays": 30,
-    "minSolidPrecision": 0.70
+    "minSolidPrecision": 0.70,
+    "minOutcomeCount": 30
   },
 
   "maintenance": {

@@ -136,6 +136,10 @@ public class ProgressionShadowService {
      * §47.4 — la métrique primaire : parmi les prédictions {@code SOLID} qui ont
      * reçu un résultat, quelle proportion a été confirmée par l'examen suivant ?
      *
+     * <p>🛑 <b>Vide tant que {@code minOutcomeCount} n'est pas atteint</b>, et
+     * c'est délibéré : une précision servie sans effectif suffisant est un
+     * go/no-go déguisé.
+     *
      * <p>Objectif initial : 70 %. 🛑 <b>Sous ce seuil, on ne bricole pas
      * {@code progression-config-v1.json}</b> : on analyse les données, on crée
      * une v2, on incrémente {@code engineVersion}, on rejoue. Un ajustement
@@ -146,7 +150,13 @@ public class ProgressionShadowService {
     public Optional<Double> precisionSolid() {
         List<ProgressionPredictionRecord> avecResultat = predictionManager.avecResultat(
                 ProgressionStatus.SOLID, properties.getEngineVersion());
-        if (avecResultat.isEmpty()) {
+
+        // 🛑 Sous l'effectif minimum, on ne rend RIEN — pas même une précision
+        // exacte. 0,70 sur quatre issues n'est pas une validation, c'est un
+        // chiffre, et un chiffre servi finit toujours par être lu comme une
+        // mesure. Le seul moyen sûr d'empêcher un go/no-go sur un échantillon
+        // minuscule est de ne pas le rendre calculable.
+        if (avecResultat.size() < config.shadowValidation().minOutcomeCount()) {
             return Optional.empty();
         }
         double seuil = config.qualificationGates().receptiveLevel().seriesPositiveResult();
@@ -154,6 +164,12 @@ public class ProgressionShadowService {
                 .filter(p -> p.getOutcomeResult() != null && p.getOutcomeResult() >= seuil)
                 .count();
         return Optional.of((double) confirmees / avecResultat.size());
+    }
+
+    /** Combien de prédictions {@code SOLID} ont effectivement reçu un résultat. */
+    public int outcomeCount() {
+        return predictionManager.avecResultat(
+                ProgressionStatus.SOLID, properties.getEngineVersion()).size();
     }
 
     /** Le moteur a-t-il le droit de piloter le Plan ? (§47) */

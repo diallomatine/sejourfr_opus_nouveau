@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.progression.config.ProgressionConfigLoader;
 import com.sejourfr.app.progression.config.ProgressionProperties;
 import com.sejourfr.app.progression.domain.AssistanceLevel;
 import com.sejourfr.app.progression.domain.EvidenceEntryPoint;
@@ -54,7 +55,8 @@ class ProductiveEvidenceAdapterTest {
                 .thenReturn(IndependenceClass.NEW_CONTENT);
 
         adapter = new ProductiveEvidenceAdapter(
-                new ProgressionProperties(), ingestionService, contentIdentity);
+                ProgressionConfigLoader.load(1), new ProgressionProperties(),
+                ingestionService, contentIdentity);
     }
 
     /**

@@ -105,13 +105,13 @@ class ProgressionExplanationServiceTest {
         return new ProgressionSnapshot(
                 ProgressionStateKey.receptive(SkillSection.CO, niveau),
                 null, 0.0d, statut, false, false, false, null, 0.0d,
-                0.0d, 0.0d, 0.0d, 0.0d, 0, 0, "CO:" + niveau + "#1");
+                0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0, 0, "CO:" + niveau + "#1");
     }
 
     private static ProgressionSnapshot competence(ProgressionStatus statut) {
         return new ProgressionSnapshot(
                 ProgressionStateKey.productive(SkillSection.EE, "EE_CONNECTEURS"),
                 null, 0.0d, statut, false, false, false, null, 0.0d,
-                0.0d, 0.0d, 0.0d, 0.0d, 0, 0, "EE:EE_CONNECTEURS#1");
+                0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0, 0, "EE:EE_CONNECTEURS#1");
     }
 }

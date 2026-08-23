@@ -258,6 +258,8 @@ public class DefaultProgressionEngine implements ProgressionEngine {
         private double sumWeightedResultEpoch;
         private double microSumWeightEpoch;
         private double nonMicroSumWeightEpoch;
+        private double microSumWeightedResultEpoch;
+        private double nonMicroSumWeightedResultEpoch;
         private double practicePoints;
 
         private ProgressionStatus status = ProgressionStatus.NOT_EVALUATED;
@@ -277,8 +279,10 @@ public class DefaultProgressionEngine implements ProgressionEngine {
             sumWeightedResultEpoch += storedW * preuve.result();
             if (preuve.family() == EvidenceSourceFamily.MICRO) {
                 microSumWeightEpoch += storedW;
+                microSumWeightedResultEpoch += storedW * preuve.result();
             } else {
                 nonMicroSumWeightEpoch += storedW;
+                nonMicroSumWeightedResultEpoch += storedW * preuve.result();
             }
             practicePoints += config.visibleProgress().practicePoints().get(preuve.sourceType());
             vues.add(preuve);
@@ -434,7 +438,8 @@ public class DefaultProgressionEngine implements ProgressionEngine {
             return new ProgressionSnapshot(stateKey, mastery, confiance, status,
                     qualificationGate, transferGate, direct, visible, practicePoints,
                     sumWeightEpoch, sumWeightedResultEpoch, microSumWeightEpoch,
-                    nonMicroSumWeightEpoch,
+                    nonMicroSumWeightEpoch, microSumWeightedResultEpoch,
+                    nonMicroSumWeightedResultEpoch,
                     ProgressionGates.compteQualifiantes(config, vues),
                     contradictionsRecentesA(now), levelCycleId());
         }

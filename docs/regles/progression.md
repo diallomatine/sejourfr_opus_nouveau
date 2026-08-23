@@ -149,17 +149,29 @@ service pour aligner un contrat qui n'a pas d'émetteur.
 
 ---
 
-## Trois arbitrages d'implémentation à confirmer
+## La notation IA est en config (bloc `aiScoring`)
 
-Aucun ne touche à `progression-config-v1.json`, mais tous les trois sont des choix que le
-propriétaire peut vouloir trancher autrement. Ils vivent en constantes documentées, pas en
-config, précisément pour qu'on les voie.
+Ces quatre valeurs **multiplient directement `baseEffectiveWeight`**. Ce sont donc des valeurs
+métier au même titre qu'un `sourceWeight`, et elles vivent dans
+`progression-config-v1.json`, pas dans une constante Java.
 
-| Choix | Où | Pourquoi ainsi |
-|---|---|---|
-| Confiance IA `LOW / MEDIUM / HIGH` → `0,50 / 0,75 / 0,95` | `ProductiveEvidenceAdapter.CONFIANCE_IA` | Le tool-schema livré rend un **enum**, pas un nombre, et on ne réécrit pas un contrat livré. `HIGH` ne vaut pas 1,00 : une évaluation IA n'est jamais une certitude. Candidat pour la config v2. |
-| Un micro-sujet guidé pèse `LIGHT` (0,85) | `LearningPlanObservationService.recordSkillAttemptProgression` | Checklist, amorce et astuce sont la raison d'être pédagogique du micro-sujet — et une assistance réelle. §8.2 veut qu'une preuve assistée pèse moins, sans plancher. |
-| Un micro-sujet a `scoringConfidence = 0,75` | `ProductiveEvidenceAdapter.ingererMicroSujet` | Un critère unique jugé sur une production courte : moins de matière qu'une tâche complète, donc moins de certitude. On le dit plutôt que de faire comme si. |
+Hors config, les changer ne bumperait pas `engineVersion`, ne déclencherait aucun replay, et
+rendrait deux campagnes shadow séparées par une telle édition **non comparables sans que rien
+ne le signale** — violation directe de I32, I33 et I34.
+
+| Réglage | Pourquoi il existe |
+|---|---|
+| `confidenceMapping` | Le tool-schema livré rend un **enum** `LOW / MEDIUM / HIGH`, pas un nombre — contrainte dure, et on ne réécrit pas un contrat livré. La traduction vers `[0,1]` doit donc exister quelque part. `HIGH` ne vaut délibérément pas 1,00 : une évaluation IA n'est jamais une certitude. |
+| `microSkillAssistance` | Checklist, amorce et astuce sont la raison d'être pédagogique du micro-sujet — et une assistance réelle. §8.2 veut qu'une preuve assistée pèse moins, sans plancher. Un micro-sujet **non guidé** reste en `NONE`. |
+| `microSkillScoringConfidence` | Un critère unique jugé sur une production courte porte moins de matière qu'une tâche complète. On le dit plutôt que de faire comme si. |
+
+🛑 **Aucune de ces valeurs n'apparaît en dur dans le code Java.** `ProgressionConfigTest` les
+verrouille une par une, et `ProgressionConfigLoader` fait échouer le démarrage si
+`confidenceMapping` ne couvre pas les trois niveaux.
+
+Seule exception, et elle est normative : le mapping `VALIDATED / PARTIAL / NOT_VALIDATED →
+1,00 / 0,50 / 0,00` de §6.5, que la spec qualifie d'**obligatoire**. Le mettre en config
+laisserait croire qu'il est réglable.
 
 ## Deux conséquences à connaître avant de toucher au moteur
 
@@ -201,14 +213,36 @@ proposé. Une question jamais répondue rend `null`, jamais « difficile ».
 
 ### Le recalcul relit l'historique d'une clé, pas un delta
 
-§28 décrit une mise à jour O(1). Les accumulateurs le sont ; **la machine à états ne l'est
-pas** — les hystérésis, le passage `SOLID → WATCH` et la monotonie de `visibleProgress`
-dépendent de l'histoire, pas du total.
+§28 décrit une mise à jour O(1). Les **accumulateurs** le sont bel et bien — quatre additions
+commutatives, rien à dupliquer et rien qui puisse diverger. Ce qui ne l'est pas, c'est la
+machine à états : les hystérésis, le passage `SOLID → WATCH` sur la *première* contradiction et
+la monotonie de `visibleProgress` dépendent de l'histoire, pas du total.
 
 `ProgressionIngestionService` relit donc l'historique **de la seule clé touchée** et rejoue le
-moteur dessus. C'est un écart assumé à la lettre de §28, pour tenir une règle qui compte
-davantage : *une règle, une autorité*. Dupliquer la machine à états dans un chemin incrémental
-garantirait qu'un jour les deux divergent — c'est le défaut le plus cher du dépôt.
+moteur dessus. À notre volume c'est borné et plus simple. Écart assumé, arbitré le 2026-08-23,
+sous trois conditions — toutes tenues :
+
+**a) Le poids stocké ne dépend que d'`occurredAt`.** `EpochWeights.toEpochWeight` applique
+`exp(lambda × days(EPOCH, occurredAt))` et ne voit jamais `now()`. `masteryScore` est un
+rapport de deux accumulateurs epoch : il ne contient aucun instant de calcul.
+🛑 **C'est le seul vrai risque de ce raccourci** : un decay relatif à `now()` rendrait la
+maîtrise time-dependent et ferait tomber I10. Verrouillé par
+`poidsIndependantDeLInstantDeCalcul` — deux lectures du même historique à 400 jours d'écart
+rendent la même maîtrise, et seule la **confiance** décroît.
+
+**b) Les quatre colonnes epoch restent écrites, en `double precision`.** Plus la ventilation
+`progression_state_family_aggregate` (§27.3), qui était créée mais **jamais écrite** avant cet
+arbitrage — sans elle on lit une masse totale sans savoir ce qui l'a remplie, et le cap micro
+de §11.1 n'est pas auditable après coup. Les deux lignes (`MICRO`, `NON_MICRO`) sont écrites à
+chaque recalcul, **même celle qui vaut zéro** : une famille absente serait indiscernable d'une
+famille jamais calculée.
+
+**c) T11b — le test qui prouve réellement le design epoch.** T11 (six permutations) ne prouve
+rien à lui seul : un recalcul complet retrie les preuves avant de replier, il est
+*trivialement* invariant par ordre. T11b compare la valeur recalculée depuis l'historique à
+celle obtenue en **accumulant les mêmes preuves une par une, dans un ordre absurde**, à
+`1e-12`. C'est la promesse de §10 — quatre additions suffisent, on peut accumuler au fil de
+l'eau sans jamais relire le passé — et c'est elle que le test verrouille.
 
 ## Le passage à ACTIVE
 
@@ -229,13 +263,25 @@ avant l'apprentissage normal quand un acquis vient d'être contredit (§19, §20
 ### La procédure
 
 1. `POST /api/admin/progression/shadow/rattacher` — rattacher les résultats disponibles ;
-2. `GET /api/admin/progression/shadow` — lire précision **et base** ;
+2. `GET /api/admin/progression/shadow` — lire le `verdict` ;
 3. décider.
 
-🛑 On ne passe à `ACTIVE` **qu'après** validation produit : précision des prédictions `SOLID`
-≥ 70 % (§47.4), sur une base qui veuille dire quelque chose. Une précision de 100 % sur deux
-prédictions n'est pas une mesure — le rapport sert donc toujours le dénominateur à côté du
-pourcentage, et refuse de conclure quand il n'y a rien.
+🛑 **Deux conditions cumulatives, et aucune précision n'est servie tant que la première n'est
+pas remplie** : `minOutcomeCount` = **30 issues rattachées**, puis `minSolidPrecision` ≥ 70 %.
+
+Sous 30 issues, `precisionSolid` vaut `null` — **y compris quand la précision serait
+calculable et juste**. Une issue rattachée et bonne donnerait 100 % ; ce chiffre serait exact
+et serait lu comme une validation. Le seul moyen sûr d'empêcher un go/no-go sur un échantillon
+minuscule est de ne pas le rendre calculable.
+
+Le `verdict` distingue quatre situations, jamais confondues :
+
+| `verdict` | Ce que ça veut dire |
+|---|---|
+| `AUCUNE_DONNEE` | Rien n'a de résultat. Absence de mesure, pas 0 %. |
+| `ECHANTILLON_INSUFFISANT` | *N* issues sur 30. Aucune précision servie. |
+| `PRECISION_INSUFFISANTE` | Effectif atteint, objectif non tenu. |
+| `OBJECTIF_ATTEINT` | Les deux conditions sont remplies. La bascule reste une décision. |
 
 Si la précision est sous l'objectif : **ne pas bricoler `progression-config-v1.json`**. On
 analyse, on crée `progression-config-v2.json`, on incrémente `engineVersion`, on rejoue

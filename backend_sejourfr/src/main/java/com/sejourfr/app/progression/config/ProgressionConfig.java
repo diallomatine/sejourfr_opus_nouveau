@@ -2,6 +2,7 @@ package com.sejourfr.app.progression.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.progression.domain.AssistanceLevel;
 import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.domain.IndependenceClass;
@@ -40,6 +41,7 @@ public record ProgressionConfig(
         Map<ProgressionStateType, StrongEvidence> strongEvidence,
         QualificationGates qualificationGates,
         MicroEvidenceCaps microEvidenceCaps,
+        AiScoring aiScoring,
         VisibleProgress visibleProgress,
         ReceptiveSeriesBlueprint receptiveSeriesBlueprint,
         ShadowValidation shadowValidation,
@@ -163,6 +165,35 @@ public record ProgressionConfig(
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record MicroEvidenceCaps(double maxConfidenceMass) {}
 
+    /**
+     * Ce que vaut une observation d'évaluateur IA (§6.5, §8.2).
+     *
+     * <p>🛑 <b>Ces quatre valeurs multiplient directement
+     * {@code baseEffectiveWeight}.</b> Ce sont donc des valeurs métier au même
+     * titre qu'un {@code sourceWeight}, et elles vivent ici pour la même raison :
+     * hors config, les changer ne bumperait pas {@code engineVersion}, ne
+     * déclencherait aucun replay, et rendrait deux campagnes shadow non
+     * comparables entre elles sans que rien ne le signale (invariants I32, I33,
+     * I34).
+     *
+     * @param confidenceMapping le contrat de sortie de l'IA porte un
+     *        <b>enum</b> {@code LOW | MEDIUM | HIGH} — contrainte dure de
+     *        tool-schema, et on ne réécrit pas un contrat livré. La traduction
+     *        vers {@code [0,1]} doit donc exister quelque part ; c'est ici, pas
+     *        dans une constante Java.
+     * @param microSkillAssistance le niveau d'assistance d'un micro-sujet
+     *        <b>guidé</b> — checklist, amorce, astuce. Un micro-sujet sans
+     *        guidage reste en {@link AssistanceLevel#NONE}.
+     * @param microSkillScoringConfidence un critère unique jugé sur une
+     *        production courte porte moins de matière qu'une tâche complète.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = false)
+    public record AiScoring(
+            Map<ObservationConfidence, Double> confidenceMapping,
+            AssistanceLevel microSkillAssistance,
+            double microSkillScoringConfidence
+    ) {}
+
     /** La progression <i>visible</i>, distincte de la maitrise (§9, §25, §26). */
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record VisibleProgress(
@@ -182,11 +213,21 @@ public record ProgressionConfig(
             int hard
     ) {}
 
-    /** Les criteres de validation du shadow mode (§47.4). */
+    /**
+     * Les critères de validation du shadow mode (§47.4).
+     *
+     * @param minOutcomeCount l'effectif <b>minimum</b> de prédictions ayant reçu
+     *        un résultat, en dessous duquel {@code minSolidPrecision} ne veut
+     *        rien dire. 0,70 sur quatre issues n'est pas une validation, c'est
+     *        un chiffre. Tant que cet effectif n'est pas atteint, aucune
+     *        précision n'est servie — pas même juste — et le rapport dit
+     *        « échantillon insuffisant ».
+     */
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record ShadowValidation(
             int predictionWindowDays,
-            double minSolidPrecision
+            double minSolidPrecision,
+            int minOutcomeCount
     ) {}
 
     /** L'age maximal d'un epoch avant replay de re-basage (§27.2.2). */

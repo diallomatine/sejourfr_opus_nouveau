@@ -15,6 +15,8 @@ import com.sejourfr.app.progression.domain.ProgressionStatus;
 import com.sejourfr.app.progression.entity.ProgressionPredictionRecord;
 import com.sejourfr.app.progression.manager.ProgressionPredictionManager;
 import com.sejourfr.app.progression.service.ProgressionIngestionService;
+import com.sejourfr.app.progression.dto.ProgressionShadowReportDto;
+import com.sejourfr.app.progression.service.ProgressionReportService;
 import com.sejourfr.app.progression.service.ProgressionShadowService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -43,6 +45,7 @@ class ProgressionShadowServiceIT extends AbstractIntegrationTest {
 
     @Autowired ProgressionIngestionService ingestionService;
     @Autowired ProgressionShadowService shadowService;
+    @Autowired ProgressionReportService reportService;
     @Autowired ProgressionPredictionManager predictionManager;
     @Autowired ProgressionProperties properties;
     @Autowired TestData data;
@@ -117,14 +120,21 @@ class ProgressionShadowServiceIT extends AbstractIntegrationTest {
     }
 
     /**
-     * §47.4 — la métrique de go/no-go. Elle est vide, pas nulle, tant qu'aucune
-     * prédiction n'a de résultat : <b>absence de mesure n'est pas 0 %</b>.
+     * 🛑 §47.4 — <b>aucune précision n'est servie sous l'effectif minimum</b>,
+     * pas même une précision exacte.
+     *
+     * <p>Une prédiction rattachée sur trente requises donnerait ici 100 %. Ce
+     * chiffre serait juste, et il serait lu comme une validation. Le seul moyen
+     * sûr d'empêcher un go/no-go sur un échantillon minuscule est de ne pas le
+     * rendre calculable — et le rapport dit « échantillon insuffisant », jamais
+     * « précision 100 % ».
      */
     @Test
-    @DisplayName("La précision SOLID est vide sans résultat, puis se calcule sur les rattachées")
-    void precisionSolid() {
+    @DisplayName("Sous l'effectif minimum, aucune précision n'est servie — même exacte")
+    void aucunePrecisionSousLEffectifMinimum() {
         User user = data.user();
         assertThat(shadowService.precisionSolid()).isEmpty();
+        assertThat(shadowService.outcomeCount()).isZero();
 
         ingestionService.ingerer(serie(user.getId(), 16, "S1", T0));
         ingestionService.ingerer(serie(user.getId(), 17, "S2", T0));
@@ -133,7 +143,18 @@ class ProgressionShadowServiceIT extends AbstractIntegrationTest {
                 predite.plus(Duration.ofDays(5))));
         shadowService.rattacherResultats(Instant.now());
 
-        assertThat(shadowService.precisionSolid()).contains(1.0d);
+        // Une issue rattachée, et elle est bonne : la précision VAUDRAIT 100 %.
+        assertThat(shadowService.outcomeCount()).isEqualTo(1);
+        assertThat(shadowService.precisionSolid()).isEmpty();
+
+        ProgressionShadowReportDto rapport = reportService.rapportShadow();
+        assertThat(rapport.precisionSolid()).isNull();
+        assertThat(rapport.minOutcomeCount()).isEqualTo(30);
+        assertThat(rapport.verdict())
+                .isEqualTo(ProgressionShadowReportDto.Verdict.ECHANTILLON_INSUFFISANT);
+        assertThat(rapport.recommandation())
+                .contains("Échantillon insuffisant")
+                .doesNotContain("%" + " de précision");
     }
 
     /**

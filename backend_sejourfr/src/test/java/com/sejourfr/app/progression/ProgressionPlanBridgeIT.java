@@ -154,8 +154,11 @@ class ProgressionPlanBridgeIT extends AbstractIntegrationTest {
         assertThat(rapport.mode()).isEqualTo(ProgressionEngineMode.SHADOW);
         assertThat(rapport.engineVersion()).isEqualTo(1);
         assertThat(rapport.objectifPrecision()).isEqualTo(0.70d);
+        assertThat(rapport.minOutcomeCount()).isEqualTo(30);
         if (rapport.predictionsAvecResultat() == 0) {
             assertThat(rapport.precisionSolid()).isNull();
+            assertThat(rapport.verdict())
+                    .isEqualTo(ProgressionShadowReportDto.Verdict.AUCUNE_DONNEE);
             assertThat(rapport.recommandation()).contains("Absence de mesure, pas 0 %");
         }
     }

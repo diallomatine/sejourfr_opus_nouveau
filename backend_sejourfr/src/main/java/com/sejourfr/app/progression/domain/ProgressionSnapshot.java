@@ -20,6 +20,10 @@ package com.sejourfr.app.progression.domain;
  * @param practicePoints  points de parcours (§26) : ils alimentent la seule
  *                        progression visible, n'ajoutent aucune masse de
  *                        confiance et ne satisfont aucun gate.
+ * @param microSumWeightedResultEpoch    la moitié manquante de l'agrégat de
+ *                        famille (§27.3) : sans le résultat pondéré, la table
+ *                        ne porterait qu'une masse et ne permettrait pas de
+ *                        rejouer le cap micro ni d'auditer ce qui l'a rempli.
  */
 public record ProgressionSnapshot(
         ProgressionStateKey stateKey,
@@ -35,6 +39,8 @@ public record ProgressionSnapshot(
         double sumWeightedResultEpoch,
         double microSumWeightEpoch,
         double nonMicroSumWeightEpoch,
+        double microSumWeightedResultEpoch,
+        double nonMicroSumWeightedResultEpoch,
         int qualifyingEvidenceCount,
         int recentStrongNegativeCount,
         String levelCycleId

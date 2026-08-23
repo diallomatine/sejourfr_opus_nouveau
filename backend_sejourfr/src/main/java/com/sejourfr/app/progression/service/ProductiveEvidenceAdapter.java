@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.progression.config.ProgressionConfig;
 import com.sejourfr.app.progression.config.ProgressionProperties;
 import com.sejourfr.app.progression.domain.AssistanceLevel;
 import com.sejourfr.app.progression.domain.CalibrationStatus;
@@ -59,25 +60,7 @@ import java.util.UUID;
 @Slf4j
 public class ProductiveEvidenceAdapter {
 
-    /**
-     * L'échelle de confiance de l'évaluateur IA, traduite en {@code [0,1]}.
-     *
-     * <p>Le contrat de sortie de l'IA porte un <b>enum</b>
-     * ({@code LOW | MEDIUM | HIGH}), pas un nombre — c'est une contrainte dure
-     * de tool-schema, et on ne réécrit pas un contrat livré. La traduction doit
-     * donc bien vivre quelque part, et c'est ici.
-     *
-     * <p>⚠️ <b>Ces trois valeurs sont un choix d'implémentation, pas une règle
-     * validée.</b> Elles sont candidates à passer dans
-     * {@code progression-config-v2.json} le jour où on recalibre — et d'ici là
-     * elles restent volontairement prudentes : {@code HIGH} ne vaut pas 1,00,
-     * parce qu'une évaluation IA n'est jamais une certitude.
-     */
-    private static final Map<ObservationConfidence, Double> CONFIANCE_IA = Map.of(
-            ObservationConfidence.LOW, 0.50d,
-            ObservationConfidence.MEDIUM, 0.75d,
-            ObservationConfidence.HIGH, 0.95d);
-
+    private final ProgressionConfig config;
     private final ProgressionProperties properties;
     private final ProgressionIngestionService ingestionService;
     private final ContentIdentityService contentIdentityService;
@@ -126,7 +109,9 @@ public class ProductiveEvidenceAdapter {
             }
             if (ingerer(userId, attemptId, section, observation.skillCode(), sourceType,
                     entryPoint, occurredAt, result,
-                    CONFIANCE_IA.getOrDefault(observation.confidence(), 0.50d),
+                    confianceIa(observation.confidence()),
+                    // Une production complète se rend sans aide : le sujet, le
+                    // chrono, et rien d'autre.
                     AssistanceLevel.NONE, contentId,
                     Map.of("status", observation.status().name()))) {
                 ecrites++;
@@ -152,15 +137,36 @@ public class ProductiveEvidenceAdapter {
         if (userId == null || sujetId == null || skillCode == null || criterion == null) {
             return false;
         }
+        // 🛑 Les deux valeurs qui suivent viennent de la config versionnée, pas
+        // d'ici : elles multiplient `baseEffectiveWeight`, donc les changer sans
+        // bumper `engineVersion` rendrait deux campagnes shadow incomparables
+        // sans que rien ne le signale (invariants I32, I33, I34).
+        ProgressionConfig.AiScoring reglages = config.aiScoring();
         return ingerer(userId, attemptId, section, skillCode, EvidenceSourceType.MICRO_SKILL,
                 EvidenceEntryPoint.COMPETENCES, occurredAt, resultDe(criterion),
-                // Un critère unique évalué par l'IA sur une production courte :
-                // moins de matière qu'une tâche complète, donc moins de
-                // certitude. On le dit plutôt que de faire comme si.
-                CONFIANCE_IA.get(ObservationConfidence.MEDIUM),
-                guide ? AssistanceLevel.LIGHT : AssistanceLevel.NONE,
+                reglages.microSkillScoringConfidence(),
+                guide ? reglages.microSkillAssistance() : AssistanceLevel.NONE,
                 contentIdentityService.contentIdDeSujet(sujetId),
                 Map.of("criterion", criterion.name()));
+    }
+
+    /**
+     * §6.5 — la confiance rendue par l'évaluateur devient
+     * {@code scoringConfidence}.
+     *
+     * <p>Une valeur absente de la table fait <b>échouer</b> plutôt que de
+     * retomber sur un défaut : la config est validée complète au démarrage
+     * ({@code ProgressionConfigLoader}), donc un trou ici signifierait qu'on lit
+     * autre chose que ce qu'on croit — et un repli silencieux pèserait une
+     * preuve avec un chiffre que personne n'a décidé.
+     */
+    private double confianceIa(ObservationConfidence confiance) {
+        Double valeur = config.aiScoring().confidenceMapping().get(confiance);
+        if (valeur == null) {
+            throw new IllegalStateException(
+                    "aiScoring.confidenceMapping ne couvre pas " + confiance);
+        }
+        return valeur;
     }
 
     private boolean ingerer(UUID userId, UUID attemptId, SkillSection section, String skillCode,

@@ -2,6 +2,7 @@ package com.sejourfr.app.progression;
 
 import com.sejourfr.app.progression.config.ProgressionConfig;
 import com.sejourfr.app.progression.config.ProgressionConfigLoader;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.progression.domain.AssistanceLevel;
 import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.domain.IndependenceClass;
@@ -181,11 +182,37 @@ class ProgressionConfigTest {
     }
 
     @Test
-    @DisplayName("Le shadow mode a son objectif de précision et sa fenêtre")
+    @DisplayName("Le shadow mode a son objectif, sa fenêtre ET son effectif minimum")
     void shadowEtMaintenance() {
         assertThat(CONFIG.shadowValidation().predictionWindowDays()).isEqualTo(30);
         assertThat(CONFIG.shadowValidation().minSolidPrecision()).isEqualTo(0.70d);
+        // 0,70 sur quatre issues n'est pas une validation, c'est un chiffre.
+        assertThat(CONFIG.shadowValidation().minOutcomeCount()).isEqualTo(30);
         assertThat(CONFIG.maintenance().maxEpochAgeDays()).isEqualTo(1095);
+    }
+
+    /**
+     * 🛑 Ces quatre valeurs multiplient directement {@code baseEffectiveWeight}.
+     *
+     * <p>Elles ont vécu en constantes Java jusqu'au 2026-08-23 : les changer ne
+     * bumpait alors ni {@code engineVersion} ni le replay, et deux campagnes
+     * shadow séparées par une telle édition n'auraient plus été comparables sans
+     * que rien ne le signale. Elles sont ici pour que ce soit impossible.
+     */
+    @Test
+    @DisplayName("La notation IA est en config, valeur par valeur")
+    void notationIa() {
+        ProgressionConfig.AiScoring aiScoring = CONFIG.aiScoring();
+        assertThat(aiScoring.confidenceMapping())
+                .containsEntry(ObservationConfidence.LOW, 0.50d)
+                .containsEntry(ObservationConfidence.MEDIUM, 0.75d)
+                .containsEntry(ObservationConfidence.HIGH, 0.95d)
+                .hasSize(ObservationConfidence.values().length);
+        // Une évaluation IA n'est jamais une certitude : HIGH ne vaut pas 1,00.
+        assertThat(aiScoring.confidenceMapping().get(ObservationConfidence.HIGH))
+                .isLessThan(1.0d);
+        assertThat(aiScoring.microSkillAssistance()).isEqualTo(AssistanceLevel.LIGHT);
+        assertThat(aiScoring.microSkillScoringConfidence()).isEqualTo(0.75d);
     }
 
     /**

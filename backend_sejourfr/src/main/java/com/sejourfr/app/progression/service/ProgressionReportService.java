@@ -69,6 +69,10 @@ public class ProgressionReportService {
         Optional<Double> precision = shadowService.precisionSolid();
         double objectif = config.shadowValidation().minSolidPrecision();
 
+        int minimum = config.shadowValidation().minOutcomeCount();
+        ProgressionShadowReportDto.Verdict verdict =
+                verdict(precision, avecResultat.size(), minimum, objectif);
+
         return new ProgressionShadowReportDto(
                 properties.getMode(),
                 version,
@@ -77,8 +81,10 @@ public class ProgressionReportService {
                 enAttente.size(),
                 avecResultat.size() + enAttente.size(),
                 objectif,
+                minimum,
+                verdict,
                 List.of(),
-                recommandation(precision, avecResultat.size(), objectif));
+                recommandation(verdict, avecResultat.size(), minimum, objectif));
     }
 
     /**
@@ -89,25 +95,43 @@ public class ProgressionReportService {
      * naïve d'un pourcentage — celle qui ferait passer un moteur en production
      * sur trois prédictions.
      */
-    private String recommandation(Optional<Double> precision, int base, double objectif) {
-        if (precision.isEmpty()) {
-            return "Aucune prédiction n'a encore reçu de résultat. "
-                    + "Absence de mesure, pas 0 % : rien ne peut être décidé.";
+    /**
+     * Les trois refus et le seul feu vert, distingués.
+     *
+     * <p>« Aucune donnée » et « échantillon insuffisant » se ressemblent sur un
+     * écran, mais n'appellent pas la même chose : l'un dit d'attendre que des
+     * candidats passent des examens, l'autre combien il en manque.
+     */
+    private ProgressionShadowReportDto.Verdict verdict(Optional<Double> precision, int base,
+                                                       int minimum, double objectif) {
+        if (base == 0) {
+            return ProgressionShadowReportDto.Verdict.AUCUNE_DONNEE;
         }
-        if (base < BASE_MINIMALE) {
-            return "Précision calculée sur seulement " + base + " prédiction(s) — "
-                    + "trop peu pour décider quoi que ce soit.";
+        if (base < minimum || precision.isEmpty()) {
+            return ProgressionShadowReportDto.Verdict.ECHANTILLON_INSUFFISANT;
         }
-        if (precision.get() < objectif) {
-            return "Précision sous l'objectif. Ne pas ajuster progression-config-v1.json : "
-                    + "analyser les données, créer une v2, incrémenter engineVersion, rejouer.";
-        }
-        return "Objectif atteint sur " + base + " prédictions. "
-                + "La bascule en ACTIVE reste une décision produit.";
+        return precision.get() < objectif
+                ? ProgressionShadowReportDto.Verdict.PRECISION_INSUFFISANTE
+                : ProgressionShadowReportDto.Verdict.OBJECTIF_ATTEINT;
     }
 
-    /** En dessous, un pourcentage de précision n'est pas une mesure. */
-    private static final int BASE_MINIMALE = 20;
+    private String recommandation(ProgressionShadowReportDto.Verdict verdict, int base,
+                                  int minimum, double objectif) {
+        return switch (verdict) {
+            case AUCUNE_DONNEE -> "Aucune prédiction n'a encore reçu de résultat. "
+                    + "Absence de mesure, pas 0 % : rien ne peut être décidé.";
+            case ECHANTILLON_INSUFFISANT -> "Échantillon insuffisant : " + base
+                    + " issue(s) sur " + minimum + " requises. Aucune précision n'est servie "
+                    + "tant que l'effectif n'est pas atteint — un pourcentage sur "
+                    + base + " issue(s) serait lu comme une mesure.";
+            case PRECISION_INSUFFISANTE -> "Précision sous l'objectif de "
+                    + Math.round(objectif * 100) + " % sur " + base + " issues. "
+                    + "Ne pas ajuster progression-config-v1.json : analyser les données, "
+                    + "créer une v2, incrémenter engineVersion, rejouer.";
+            case OBJECTIF_ATTEINT -> "Objectif atteint sur " + base + " issues. "
+                    + "La bascule en ACTIVE reste une décision produit.";
+        };
+    }
 
     /**
      * Les états d'un candidat, dans la forme <b>servable à un front</b>.

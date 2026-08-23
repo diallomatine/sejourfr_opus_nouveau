@@ -15,6 +15,9 @@ import com.sejourfr.app.progression.domain.ProgressionSnapshot;
 import com.sejourfr.app.progression.domain.ProgressionStateKey;
 import com.sejourfr.app.progression.domain.ProgressionStatus;
 import com.sejourfr.app.progression.entity.ProgressionStateRecord;
+import com.sejourfr.app.progression.domain.EvidenceSourceFamily;
+import com.sejourfr.app.progression.entity.ProgressionFamilyAggregateRecord;
+import com.sejourfr.app.progression.manager.ProgressionFamilyAggregateManager;
 import com.sejourfr.app.progression.manager.ProgressionStateManager;
 import com.sejourfr.app.progression.repository.LearningEvidenceRepository;
 import com.sejourfr.app.progression.service.ProgressionIngestionService;
@@ -27,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +52,7 @@ class ProgressionIngestionServiceIT extends AbstractIntegrationTest {
     @Autowired ProgressionIngestionService ingestionService;
     @Autowired ProgressionReadService readService;
     @Autowired ProgressionStateManager stateManager;
+    @Autowired ProgressionFamilyAggregateManager familyAggregateManager;
     @Autowired LearningEvidenceRepository evidenceRepository;
     @Autowired ProgressionProperties properties;
     @Autowired TestData data;
@@ -153,6 +158,40 @@ class ProgressionIngestionServiceIT extends AbstractIntegrationTest {
         assertThat(etat.status()).isEqualTo(ProgressionStatus.NOT_EVALUATED);
         assertThat(etat.visibleProgress()).isNull();
         assertThat(evidenceRepository.findByUserIdOrderByOccurredAtAsc(user.getId())).isEmpty();
+    }
+
+    /**
+     * §27.3 — la ventilation par famille est écrite <b>en même temps</b> que
+     * l'état, et les deux lignes existent toujours, même à zéro.
+     *
+     * <p>Une famille absente serait indiscernable d'une famille jamais
+     * calculée : six mois plus tard, on ne pourrait plus auditer ce qui a rempli
+     * la masse de confiance, ni donc vérifier le cap micro de §11.1.
+     */
+    @Test
+    @DisplayName("Les deux lignes de famille sont écrites, même celle qui vaut zéro")
+    void ventilationParFamilleEcrite() {
+        User user = data.user();
+        ingestionService.ingerer(serie(user.getId(), 16, 20, "S1", T0));
+
+        List<ProgressionFamilyAggregateRecord> familles =
+                familyAggregateManager.tous(user.getId(), properties.getEngineVersion());
+
+        assertThat(familles).hasSize(2);
+        assertThat(familles).extracting(ProgressionFamilyAggregateRecord::getSourceFamily)
+                .containsExactlyInAnyOrder(
+                        EvidenceSourceFamily.MICRO, EvidenceSourceFamily.NON_MICRO);
+
+        double total = familles.stream()
+                .mapToDouble(ProgressionFamilyAggregateRecord::getSumWeightEpoch).sum();
+        ProgressionStateRecord etat = stateManager
+                .trouver(user.getId(), "CO:A2", properties.getEngineVersion()).orElseThrow();
+        assertThat(total).isCloseTo(etat.getSumWeightEpoch(), within(1e-12));
+
+        // Une série CO/CE n'est pas un micro-sujet : cette famille-là vaut zéro,
+        // et sa ligne existe quand même.
+        assertThat(familles).filteredOn(f -> f.getSourceFamily() == EvidenceSourceFamily.MICRO)
+                .allSatisfy(f -> assertThat(f.getSumWeightEpoch()).isZero());
     }
 
     @Test

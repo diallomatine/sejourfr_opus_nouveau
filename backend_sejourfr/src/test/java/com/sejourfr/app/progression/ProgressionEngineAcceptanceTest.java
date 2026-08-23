@@ -289,6 +289,116 @@ class ProgressionEngineAcceptanceTest {
         }
     }
 
+    /**
+     * 🛑 <b>T11b — le test qui prouve le design epoch, et le seul.</b>
+     *
+     * <p>T11 ne prouve rien à lui seul : un recalcul complet depuis l'historique
+     * est <i>trivialement</i> invariant par ordre, puisqu'il retrie les preuves
+     * avant de replier. Ce que le dépôt exploite réellement, c'est autre chose :
+     * la promesse que quatre additions commutatives suffisent (§10), et donc
+     * qu'on peut accumuler au fil de l'eau <b>sans jamais relire le passé</b>.
+     *
+     * <p>Ce test compare les deux : la valeur recalculée depuis l'historique, et
+     * la valeur obtenue en additionnant les mêmes preuves une par une, dans un
+     * ordre volontairement absurde. À {@code 1e-12}. Si le poids stocké
+     * dépendait de l'instant du calcul plutôt que du seul {@code occurredAt}, ce
+     * test tomberait — et c'est précisément le risque du raccourci « recalcul
+     * par clé ».
+     */
+    @Test
+    @DisplayName("T11b — accumulation incrémentale == recalcul complet, à 1e-12")
+    void t11bAccumulationIncrementaleEgaleRecalcul() {
+        List<LearningEvidence> preuves = List.of(
+                serie(SkillSection.CO, TargetLevel.A2, 16, 20, 4, "S1",
+                        T0.minus(Duration.ofDays(37))),
+                serie(SkillSection.CO, TargetLevel.A2, 12, 20, 4, "S2",
+                        T0.minus(Duration.ofDays(19))),
+                serie(SkillSection.CO, TargetLevel.A2, 17, 20, 4, "S3",
+                        T0.minus(Duration.ofDays(4))),
+                examenEpreuve(SkillSection.CO, TargetLevel.A2, 0.62d, "MOCK", T0),
+                serieNonCalibree(SkillSection.CO, TargetLevel.A2, 14, 20, 4, "S4",
+                        T0.minus(Duration.ofDays(11))));
+
+        ProgressionSnapshot recalcule = engine.project(CO_A2, preuves, T0);
+
+        // L'accumulation « au fil de l'eau » : aucune relecture, aucun tri, et un
+        // ordre d'arrivée qui n'a rien à voir avec l'ordre pédagogique — c'est le
+        // cas d'une preuve hors-ligne qui remonte plusieurs jours plus tard.
+        double sommePoids = 0.0d;
+        double sommePonderee = 0.0d;
+        for (int i : new int[]{3, 0, 4, 2, 1}) {
+            LearningEvidence preuve = preuves.get(i);
+            double storedW = engine.toEpochWeight(
+                    engine.baseEffectiveWeight(preuve), preuve.occurredAt());
+            sommePoids += storedW;
+            sommePonderee += storedW * preuve.result();
+        }
+
+        assertThat(sommePoids)
+                .isCloseTo(recalcule.sumWeightEpoch(), within(EPS_AGGREGATE));
+        assertThat(sommePonderee)
+                .isCloseTo(recalcule.sumWeightedResultEpoch(), within(EPS_AGGREGATE));
+        assertThat(sommePonderee / sommePoids)
+                .isCloseTo(recalcule.masteryScore(), within(EPS_AGGREGATE));
+    }
+
+    /**
+     * Le corollaire de T11b, et la vraie condition de survie du raccourci
+     * « recalcul par clé » : le poids d'une preuve ne dépend que de son
+     * {@code occurredAt}, jamais de l'instant du calcul.
+     *
+     * <p>Si {@code storedW} intégrait un decay relatif à {@code now()},
+     * {@code masteryScore} deviendrait time-dependent : deux lectures du même
+     * historique à deux instants donneraient deux maîtrises différentes, et I10
+     * tomberait. Seule la <b>confiance</b> a le droit de bouger avec le temps
+     * (§11.2) — et elle seule.
+     */
+    @Test
+    @DisplayName("Le poids stocké ne dépend que d'occurredAt : la maîtrise ne bouge pas avec now")
+    void poidsIndependantDeLInstantDeCalcul() {
+        List<LearningEvidence> preuves = List.of(
+                serie(SkillSection.CO, TargetLevel.A2, 16, 20, 4, "S1",
+                        T0.minus(Duration.ofDays(30))),
+                serie(SkillSection.CO, TargetLevel.A2, 17, 20, 4, "S2", T0));
+
+        ProgressionSnapshot maintenant = engine.project(CO_A2, preuves, T0);
+        ProgressionSnapshot bienPlusTard =
+                engine.project(CO_A2, preuves, T0.plus(Duration.ofDays(400)));
+
+        assertThat(bienPlusTard.sumWeightEpoch())
+                .isCloseTo(maintenant.sumWeightEpoch(), within(EPS_AGGREGATE));
+        assertThat(bienPlusTard.sumWeightedResultEpoch())
+                .isCloseTo(maintenant.sumWeightedResultEpoch(), within(EPS_AGGREGATE));
+        assertThat(bienPlusTard.masteryScore())
+                .isCloseTo(maintenant.masteryScore(), within(EPS_AGGREGATE));
+        // La confiance, elle, a le droit de décroître — et elle seule.
+        assertThat(bienPlusTard.confidence()).isLessThan(maintenant.confidence());
+    }
+
+    /**
+     * §27.3 — la ventilation par famille se somme à l'agrégat total. Sans ça, le
+     * cap micro plafonnerait une masse qui ne correspond à rien.
+     */
+    @Test
+    @DisplayName("Les agrégats de famille se somment exactement à l'agrégat total")
+    void agregatsDeFamilleSeSomment() {
+        List<LearningEvidence> preuves = List.of(
+                microSujet(SkillSection.EE, EE_CONNECTEURS, 1.0d, 0.90d, "M1", T0),
+                microSujet(SkillSection.EE, EE_CONNECTEURS, 0.5d, 0.90d, "M2",
+                        T0.minus(Duration.ofDays(3))),
+                vraieTache(SkillSection.EE, EE_CONNECTEURS, 1.0d, 0.90d, "T1",
+                        T0.minus(Duration.ofDays(1))));
+
+        ProgressionSnapshot etat = engine.project(EE_SKILL, preuves, T0);
+
+        assertThat(etat.microSumWeightEpoch() + etat.nonMicroSumWeightEpoch())
+                .isCloseTo(etat.sumWeightEpoch(), within(EPS_AGGREGATE));
+        assertThat(etat.microSumWeightedResultEpoch() + etat.nonMicroSumWeightedResultEpoch())
+                .isCloseTo(etat.sumWeightedResultEpoch(), within(EPS_AGGREGATE));
+        assertThat(etat.microSumWeightEpoch()).isGreaterThan(0.0d);
+        assertThat(etat.nonMicroSumWeightEpoch()).isGreaterThan(0.0d);
+    }
+
     @Test
     @DisplayName("T12 — la même clé naturelle deux fois ne double pas l'agrégat")
     void t12() {

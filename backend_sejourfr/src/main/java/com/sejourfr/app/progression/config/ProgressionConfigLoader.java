@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Map;
 
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.progression.domain.AssistanceLevel;
 import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.domain.IndependenceClass;
@@ -85,6 +86,14 @@ public final class ProgressionConfigLoader {
                 IndependenceClass.class, "independenceFactors");
         requireComplete(config.confidenceK(), ProgressionStateType.class, "confidenceK");
         requireComplete(config.strongEvidence(), ProgressionStateType.class, "strongEvidence");
+        requireComplete(config.aiScoring().confidenceMapping(),
+                ObservationConfidence.class, "aiScoring.confidenceMapping");
+        if (config.aiScoring().microSkillAssistance() == null) {
+            throw new IllegalStateException(path + " : aiScoring.microSkillAssistance absent");
+        }
+        if (config.shadowValidation().minOutcomeCount() <= 0) {
+            throw new IllegalStateException(path + " : shadowValidation.minOutcomeCount doit etre > 0");
+        }
 
         if (config.recencyHalfLifeDays() <= 0) {
             throw new IllegalStateException(path + " : recencyHalfLifeDays doit etre > 0");

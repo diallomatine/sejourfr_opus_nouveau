@@ -9,6 +9,7 @@ import com.sejourfr.app.progression.domain.ProgressionStateKey;
 import com.sejourfr.app.progression.engine.ProgressionEngine;
 import com.sejourfr.app.progression.entity.LearningEvidenceRecord;
 import com.sejourfr.app.progression.manager.LearningEvidenceManager;
+import com.sejourfr.app.progression.manager.ProgressionFamilyAggregateManager;
 import com.sejourfr.app.progression.manager.ProgressionStateManager;
 import com.sejourfr.app.progression.mapper.LearningEvidenceMapper;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class ProgressionIngestionService {
     private final ProgressionEngine engine;
     private final LearningEvidenceManager evidenceManager;
     private final ProgressionStateManager stateManager;
+    private final ProgressionFamilyAggregateManager familyAggregateManager;
     private final LearningEvidenceMapper mapper;
     private final ProgressionProperties properties;
     private final ProgressionShadowService shadowService;
@@ -117,6 +119,10 @@ public class ProgressionIngestionService {
                 .max(Instant::compareTo)
                 .orElse(null);
         stateManager.enregistrer(userId, properties.getEngineVersion(), etat, derniere);
+        // §27.3 — la ventilation MICRO / NON_MICRO, écrite en même temps que
+        // l'état. C'est elle qui rend le cap micro (§11.1) auditable après coup :
+        // sans elle on lit une masse totale sans savoir ce qui l'a remplie.
+        familyAggregateManager.enregistrer(userId, properties.getEngineVersion(), etat);
         // §46 — « pourquoi cette recommandation ? » doit avoir une réponse sans
         // rejouer le moteur à la main : la confiance aura bougé entre-temps, et
         // on ne retrouverait jamais l'état qui a produit la décision.
@@ -152,6 +158,7 @@ public class ProgressionIngestionService {
     public int rejouer(UUID userId, Instant now) {
         int engineVersion = properties.getEngineVersion();
         stateManager.purgerVersion(userId, engineVersion);
+        familyAggregateManager.purgerVersion(userId, engineVersion);
 
         List<LearningEvidence> tout = mapper.toDomain(evidenceManager.historiqueComplet(userId));
         List<ProgressionStateKey> cles = tout.stream()
@@ -166,6 +173,7 @@ public class ProgressionIngestionService {
                     .max(Instant::compareTo)
                     .orElse(null);
             stateManager.enregistrer(userId, engineVersion, etat, derniere);
+            familyAggregateManager.enregistrer(userId, engineVersion, etat);
         }
         log.info("Progression : replay user={} version={} — {} clés reconstruites",
                 userId, engineVersion, cles.size());
