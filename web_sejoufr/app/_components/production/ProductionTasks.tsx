@@ -9,8 +9,8 @@ import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-cat
 import {sumProgress} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
+  productionTaskLabeledTitle,
   productionTaskSubtitle,
-  productionTaskTitle,
   skillSectionOf,
   skillTaskCodeOf,
 } from "@/lib/types";
@@ -153,7 +153,7 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
                   </span>
                   <span className={s.taskRowBody}>
                     <span className={s.taskRowTitle}>
-                      {productionTaskTitle(config.epreuve, n)}
+                      {productionTaskLabeledTitle(config.epreuve, n)}
                     </span>
                     <span className={s.taskRowText}>
                       {productionTaskSubtitle(config.epreuve, n)}

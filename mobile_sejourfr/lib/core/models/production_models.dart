@@ -2,6 +2,40 @@ import 'action_plan.dart';
 import 'enums.dart';
 import 'skill_models.dart';
 
+/// LE titre d'une tâche de production, **seule autorité du front mobile**.
+///
+/// Le backend ne sert aucun intitulé de tâche : chaque front génère le sien.
+/// Ce libellé a vécu en **trois copies** côté mobile — `displayTitle`, la carte
+/// du hub d'épreuve (`productionTaskMeta`) et le briefing d'examen complet — qui
+/// avaient divergé : le hub affichait « Message / Récit / Opinion » là où le
+/// briefing et le web affichaient « Message simple / Récit d'expérience /
+/// Point de vue argumenté ». Le candidat lisait deux noms pour la même tâche
+/// selon l'écran. Alignés le 2026-08-25 sur la formulation majoritaire.
+///
+/// ⚠️ **Libellés gelés, miroir mot pour mot du web** (`eeTaskTitle` /
+/// `eoTaskTitle`, `lib/types.ts`) : un intitulé qui bouge, ce sont les deux
+/// fronts à changer dans la même passe.
+String productionTaskTitle(EpreuveType epreuve, int tacheNumero) {
+  if (epreuve == EpreuveType.tcfEo) {
+    return switch (tacheNumero) {
+      1 => 'Entretien dirigé',
+      2 => 'Jeu de rôle',
+      3 => 'Point de vue',
+      _ => 'Tâche $tacheNumero',
+    };
+  }
+  if (epreuve == EpreuveType.tcfEe) {
+    return switch (tacheNumero) {
+      1 => 'Message simple',
+      2 => 'Récit d\'expérience',
+      3 => 'Point de vue argumenté',
+      _ => 'Tâche $tacheNumero',
+    };
+  }
+  return 'Tâche $tacheNumero';
+}
+
+
 /// Miroir mobile des DTOs backend du pipeline EO/EE (cf. PRODUCTION_TASKS_SPEC_V2.md
 /// section 8 + ProductionTaskDto.java / ProductionSubmissionDto.java).
 ///
@@ -63,25 +97,7 @@ class ProductionTaskDto {
   final int? motsMax;
 
   /// Libelle court genere cote front (le backend ne fournit pas ce titre).
-  String get displayTitle {
-    if (epreuve == EpreuveType.tcfEo) {
-      return switch (tacheNumero) {
-        1 => 'Entretien dirigé',
-        2 => 'Jeu de rôle',
-        3 => 'Point de vue',
-        _ => 'Tâche $tacheNumero',
-      };
-    }
-    if (epreuve == EpreuveType.tcfEe) {
-      return switch (tacheNumero) {
-        1 => 'Message simple',
-        2 => 'Récit d\'expérience',
-        3 => 'Point de vue argumenté',
-        _ => 'Tâche $tacheNumero',
-      };
-    }
-    return 'Tâche $tacheNumero';
-  }
+  String get displayTitle => productionTaskTitle(epreuve, tacheNumero);
 
   factory ProductionTaskDto.fromJson(Map<String, dynamic> json) =>
       ProductionTaskDto(

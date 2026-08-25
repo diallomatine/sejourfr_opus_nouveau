@@ -1989,7 +1989,12 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `/api/public/**`).
   - **Types** `lib/types.ts` : `ProductionTaskDto`, `ProductionSubmissionDto`,
     `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
-    + helpers (`productionTaskTitle/Subtitle(epreuve,n)`, `niveauCecrlLabel`,
+    + helpers (`productionTaskTitle/Subtitle(epreuve,n)`,
+    `productionTaskLabeledTitle(epreuve,n)` = « Tâche 1 : Message simple », le titre
+    préfixé de son rang qu'affiche la carte de tâche du hub — **miroir mot pour mot du
+    mobile** (`productionTaskTitle` de `core/models/production_models.dart` et
+    `productionTaskLabeledTitle` de `tcf_production/widgets/production_common.dart`) ;
+    un intitulé qui bouge, ce sont les deux fronts dans la même passe, `niveauCecrlLabel`,
     `cecrlIndex`, `formatDurationSec`, `resolveTcfLevel`, `parseEeFeedback`).
   - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
     (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec

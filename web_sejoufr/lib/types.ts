@@ -2461,6 +2461,21 @@ export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): 
     return epreuve === "TCF_EO" ? eoTaskTitle(tacheNumero) : eeTaskTitle(tacheNumero);
 }
 
+/**
+ * Intitulé d'une tâche **précédé de son rang** — « Tâche 1 : Message simple ».
+ *
+ * Le rang est un repère du candidat : les consignes, les corrigés et l'examen
+ * lui-même parlent de « tâche 1 », « tâche 2 », « tâche 3 ». La pastille
+ * numérotée de la carte ne suffit pas à le dire à voix haute.
+ *
+ * ⚠️ **Miroir mot pour mot du mobile** (`productionTaskLabeledTitle`,
+ * `widgets/production_common.dart`) : la forme du préfixe se change des deux
+ * côtés dans la même passe.
+ */
+export function productionTaskLabeledTitle(epreuve: EpreuveType, tacheNumero: number): string {
+    return `Tâche ${tacheNumero} : ${productionTaskTitle(epreuve, tacheNumero)}`;
+}
+
 /** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */
 export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number): string {
     return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);

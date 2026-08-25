@@ -980,6 +980,14 @@ bottom nav) :
   45 min, seuil 32) qui vit sur l'onglet Examens du hub.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
+- 🛑 **L'intitulé d'une tâche de production a UNE autorité** :
+  `productionTaskTitle(epreuve, tache)` dans `core/models/production_models.dart`
+  (Message simple / Récit d'expérience / Point de vue argumenté ; Entretien dirigé /
+  Jeu de rôle / Point de vue). Il a vécu en 3 copies divergentes — `displayTitle`, la
+  carte du hub, le briefing d'examen — jusqu'au 2026-08-25. `productionTaskMeta` n'en
+  porte plus que l'**intro**, et `productionTaskLabeledTitle` en rend la forme préfixée
+  « Tâche 1 : … » de la carte du hub. **Miroir mot pour mot du web** (`eeTaskTitle` /
+  `eoTaskTitle` / `productionTaskLabeledTitle`, `lib/types.ts`).
 - `/tcf/eo` et `/tcf/ee` → `ProductionTasksScreen` (les 3 tâches) ;
   `/tcf/{eo,ee}/tache/:n{,/competences}` → `ProductionTaskScreen` ;
   `/tcf/expression-{orale,ecrite}/examens` → `ProductionExamsScreen`. Enum
