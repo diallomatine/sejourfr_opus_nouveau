@@ -21,9 +21,13 @@ import java.util.concurrent.atomic.LongAdder;
  *       rapport ;</li>
  *   <li>un <b>abaissement de niveau</b> ({@code CompetenceLevelDowngradeMetrics})
  *       change le palier affiché ;</li>
- *   <li>une <b>réconciliation</b> (ici) ne rejette rien, ne retire aucune phrase
- *       et ne touche à aucun niveau : elle recalcule un champ <b>dérivé</b>
- *       ({@code priority}) et applique un plafond par troncature.</li>
+ *   <li>une <b>réconciliation</b> (ici) ne rejette rien et ne touche à aucun
+ *       niveau : elle recalcule des champs <b>dérivés</b> ({@code priority},
+ *       la confiance d'une compétence non observée) et applique les plafonds
+ *       du contrat par troncature — nombre de priorités, longueur d'un texte,
+ *       nombre d'items d'une liste. Elle ne retire jamais une phrase parce
+ *       qu'elle serait infondée (ça, c'est une purge) : seulement parce
+ *       qu'elle dépasse un plafond déjà déclaré au tool-schema.</li>
  * </ul>
  *
  * <p>Sans ces compteurs, la réconciliation serait invisible : on ne saurait pas
@@ -58,7 +62,24 @@ public class DiagnosticReconciliationMetrics {
          * dérivation sert une fois sur cent ou sur tous les diagnostics, donc on
          * ne pourrait pas juger s'il faut, un jour, contraindre le contrat.
          */
-        PRIORITE_DERIVEE_DE_FAIBLESSE
+        PRIORITE_DERIVEE_DE_FAIBLESSE,
+        /**
+         * {@code summary} au-delà de {@link DiagnosticAnalysisValidator#MAX_SUMMARY_LENGTH} :
+         * coupé sur une limite de mot. Ce compteur dit combien de fois le
+         * fournisseur ignore le {@code maxLength} du tool-schema — c'est lui
+         * qui justifiera, ou non, de resserrer la consigne des rubriques.
+         */
+        SYNTHESE_TRONQUEE,
+        /** Un item de {@code strengths} / {@code weaknesses} ou une {@code explanation} trop long : coupé. */
+        TEXTE_TRONQUE,
+        /** Plus de trois items dans {@code strengths} / {@code weaknesses} : surplus retiré. */
+        LISTE_TRONQUEE,
+        /**
+         * {@code observed=false} avec une confiance autre que {@code LOW} :
+         * ramenée à {@code LOW}. Une compétence non observée ne dit rien du
+         * candidat, il n'y a donc aucune confiance à graduer.
+         */
+        CONFIANCE_NON_OBSERVEE_DERIVEE
     }
 
     private final Map<String, LongAdder> compteurs = new ConcurrentHashMap<>();

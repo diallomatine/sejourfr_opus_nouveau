@@ -72,6 +72,26 @@ de rubriques et files de calibration doivent garder le filtre
   est seul persisté et contraint en base) — il a détruit un diagnostic réel,
   donc les **deux productions** du candidat. Contrat v1 inchangé ; compteurs
   `DiagnosticReconciliationMetrics`, famille distincte.
+- **Les LONGUEURS et les TAILLES DE LISTE sont des troncatures, jamais des
+  refus** (2026-08-25, même réconciliateur, avant le validateur) : `summary`
+  (280), un item de `strengths`/`weaknesses` (180), une `explanation` (220) et
+  le plafond de **3 items** par liste sont coupés côté serveur — coupe sur
+  limite de mot, ellipse `…`, jamais un point final inventé. Et **la confiance
+  d'une compétence non observée est ramenée à `LOW`**, comme `priority` est
+  ramené à `false` : `observed=false` ne dit rien du candidat, il n'y a aucune
+  confiance à graduer. Motif : ces `maxLength`/`maxItems` sont déclarés au
+  tool-schema mais **aucun fournisseur ne les applique** (contrairement à
+  `enum`, `required`, `additionalProperties`) ; en prod le 2026-08-25, un
+  `summary` de ~300 caractères a coûté une réparation payée **puis** tout le
+  diagnostic (submission `3136658f`, `AiEvaluationException` → `FAILED`, chaque
+  retry repayant deux appels). Compteurs `SYNTHESE_TRONQUEE`, `TEXTE_TRONQUE`,
+  `LISTE_TRONQUEE`, `CONFIANCE_NON_OBSERVEE_DERIVEE`.
+- **Ce qui reste un refus dur**, et doit le rester : ce que le serveur ne peut
+  pas inventer sans mentir — `skill_code` hors allowlist, compétence manquante,
+  `evidence_segment` absent ou hors bornes, enum invalide, champ hors contrat,
+  `level_estimate` au-dessus de B2. Une **preuve posée sur une compétence
+  déclarée non observée** n'est pas non plus effacée : c'est une contradiction
+  du correcteur, pas une mise en forme.
 - **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
   pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
   puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans

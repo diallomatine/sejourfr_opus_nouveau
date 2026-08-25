@@ -153,8 +153,136 @@ class DiagnosticAnalysisReconcilerTest {
         Map<String, Object> output = validOutput(List.of());
         output.put("skills", "pas une liste");
 
-        assertThat(reconciler.reconcile(output, skills("EE1-C1"))).isSameAs(output);
+        Map<String, Object> reconciled = reconciler.reconcile(output, skills("EE1-C1"));
+
+        assertThat(reconciled).isEqualTo(output);
         assertThat(metrics.compteurs()).isEmpty();
+        assertThat(validator.violations(reconciled, skills("EE1-C1"), segments))
+                .anyMatch(message -> message.contains("skills doit être une liste"));
+    }
+
+    /**
+     * LE CAS DE PROD DU 2026-08-25 (submission {@code 3136658f}) : un
+     * {@code summary} de 300 caractères faisait échouer l'analyse APRÈS une
+     * réparation payée, et le candidat perdait ses deux productions. Le
+     * fournisseur n'applique pas le {@code maxLength} du tool-schema : la
+     * longueur ne peut devenir dure qu'ici.
+     */
+    @Test
+    void unSummaryTropLongEstTronqueAuLieuDeCouterLeDiagnostic() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                observed("EE1-C1", "SOLID", 1, "HIGH", false)));
+        output.put("summary", "Le candidat répond à la consigne et reste compréhensible. "
+                .repeat(8));
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(validator.violations(reconciled, allowed, segments)).isEmpty();
+        String summary = String.valueOf(reconciled.get("summary"));
+        assertThat(summary).hasSizeLessThanOrEqualTo(280).endsWith("…").doesNotEndWith(" …");
+        assertThat(summary).startsWith("Le candidat répond à la consigne");
+        assertThat(metrics.compteurs()).containsEntry("SYNTHESE_TRONQUEE", 1L);
+    }
+
+    /** Un summary pile au plafond n'est pas touché : la troncature n'ampute pas. */
+    @Test
+    void unSummaireDansLePlafondNestPasTouche() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                observed("EE1-C1", "SOLID", 1, "HIGH", false)));
+        String pile = "a".repeat(280);
+        output.put("summary", pile);
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(reconciled.get("summary")).isEqualTo(pile);
+        assertThat(metrics.compteurs()).doesNotContainKey("SYNTHESE_TRONQUEE");
+    }
+
+    @Test
+    void lesItemsEtLaTailleDesListesDeRetourSontTronques() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                observed("EE1-C1", "SOLID", 1, "HIGH", false)));
+        output.put("strengths", List.of("a".repeat(200), "Intention claire"));
+        output.put("weaknesses", List.of("Un", "Deux", "Trois", "Quatre"));
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(validator.violations(reconciled, allowed, segments)).isEmpty();
+        assertThat((List<?>) reconciled.get("strengths"))
+                .hasSize(2)
+                .satisfies(liste -> assertThat(String.valueOf(liste.getFirst())).hasSize(180));
+        assertThat((List<?>) reconciled.get("weaknesses"))
+                .map(String::valueOf)
+                .containsExactly("Un", "Deux", "Trois");
+        assertThat(metrics.compteurs())
+                .containsEntry("TEXTE_TRONQUE", 1L)
+                .containsEntry("LISTE_TRONQUEE", 1L);
+    }
+
+    @Test
+    void uneExplicationTropLongueEstTronquee() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                observed("EE1-C1", "SOLID", 1, "HIGH", false)));
+        item(output, "EE1-C1").put("explanation", "Le candidat enchaîne ses idées. ".repeat(10));
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(validator.violations(reconciled, allowed, segments)).isEmpty();
+        assertThat(String.valueOf(item(reconciled, "EE1-C1").get("explanation")))
+                .hasSizeLessThanOrEqualTo(220).endsWith("…");
+        assertThat(metrics.compteurs()).containsEntry("TEXTE_TRONQUE", 1L);
+    }
+
+    /**
+     * L'AUTRE MOTIF DE PROD DU 2026-08-25 : {@code « EO2-C7 : une compétence non
+     * observée doit avoir une confiance LOW »}. Rien à graduer quand rien n'a
+     * été observé — c'est une dérivation, pas un défaut du candidat.
+     */
+    @Test
+    void laConfianceDUneCompetenceNonObserveeEstRameneeALow() {
+        List<Skill> allowed = skills("EE1-C1", "EE1-C2");
+        Map<String, Object> output = validOutput(List.of(
+                skill("EE1-C1", false, "NOT_OBSERVED", null, "HIGH", false),
+                skill("EE1-C2", false, "NOT_OBSERVED", null, null, false)));
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(validator.violations(reconciled, allowed, segments)).isEmpty();
+        assertThat(item(reconciled, "EE1-C1").get("confidence")).isEqualTo("LOW");
+        assertThat(item(reconciled, "EE1-C2").get("confidence")).isEqualTo("LOW");
+        assertThat(metrics.compteurs()).containsEntry("CONFIANCE_NON_OBSERVEE_DERIVEE", 2L);
+    }
+
+    /** La confiance d'une compétence OBSERVÉE n'est jamais touchée. */
+    @Test
+    void laConfianceDUneCompetenceObserveeNestPasAbaissee() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                observed("EE1-C1", "SOLID", 1, "HIGH", false)));
+
+        Map<String, Object> reconciled = reconciler.reconcile(output, allowed);
+
+        assertThat(item(reconciled, "EE1-C1").get("confidence")).isEqualTo("HIGH");
+        assertThat(metrics.compteurs()).doesNotContainKey("CONFIANCE_NON_OBSERVEE_DERIVEE");
+    }
+
+    /** La sortie d'origine n'est jamais mutée : la réconciliation rend une copie. */
+    @Test
+    void laSortieDOrigineNestPasMutee() {
+        List<Skill> allowed = skills("EE1-C1");
+        Map<String, Object> output = validOutput(List.of(
+                skill("EE1-C1", false, "NOT_OBSERVED", null, "HIGH", false)));
+        String summary = "Phrase longue. ".repeat(30);
+        output.put("summary", summary);
+
+        reconciler.reconcile(output, allowed);
+
+        assertThat(output.get("summary")).isEqualTo(summary);
+        assertThat(item(output, "EE1-C1").get("confidence")).isEqualTo("HIGH");
     }
 
     @SuppressWarnings("unchecked")
