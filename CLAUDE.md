@@ -123,6 +123,15 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
 - **Le freemium est opposable serveur** (403), et les fronts **lisent un `locked`** servi. Ne
   jamais coder « à partir du 2ᵉ, cadenas » ni déduire un verrou d'un rang.
   → `docs/regles/freemium.md`
+- 🛑 **Un plafond d'AFFICHAGE n'est jamais un budget PÉDAGOGIQUE.** Le moteur calcule
+  **toutes** les actions vraies, l'écran en montre un sous-ensemble — jamais l'inverse. Un
+  plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
+  action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
+  d'épreuve ne dérive jamais d'une liste déjà tronquée.
+- 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
+  sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
+  acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne
+  reste pas **vide** pour autant. → `docs/regles/plan.md`
 - 🛑 **Aucun front ne classe un nombre en état pédagogique ni en niveau CECRL.** Pas de
   `cefr(v)`, pas de `masteryLabel(v)`, pas de ton dérivé d'un pourcentage : l'état, son
   libellé et son ton arrivent **servis** (six états, `WATCH` et `READY_FOR_REASSESSMENT`

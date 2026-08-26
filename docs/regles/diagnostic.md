@@ -92,6 +92,20 @@ de rubriques et files de calibration doivent garder le filtre
   `level_estimate` au-dessus de B2. Une **preuve posée sur une compétence
   déclarée non observée** n'est pas non plus effacée : c'est une contradiction
   du correcteur, pas une mise en forme.
+- **Le déséquilibre EE/EO de la notation est MESURÉ, pas corrigé** (2026-08-26).
+  Sur les 22 analyses en base : `EE` 2 `PRIORITY` / 34 `TO_REINFORCE` / 51 `SOLID` ;
+  `EO` **0** `PRIORITY` / 10 / 57. Et 12 observations sur 12 en `SOLID`/`HIGH` sur une
+  compétence **B2** chez un candidat estimé **B1** à l'oral.
+  🛑 **Vérifié : ce n'est pas structurel.** Le tool-schema est un **fichier unique** pour les
+  deux modalités et autorise les quatre statuts ; les rubriques demandent explicitement « au
+  plus deux compétences prioritaires ». La seule consigne propre à l'oral porte sur ce que le
+  correcteur ne peut pas **entendre** (prononciation, débit, intonation), jamais sur les
+  verdicts. Le déséquilibre est donc **comportemental**.
+  Compteur posé (`DiagnosticStatusDistributionMetrics`, clés `TCF_EO:SOLID`…) : il **ne décide
+  de rien** et n'entre dans aucun calcul. À relire vers **N ≈ 100**. Aucun garde-fou, aucune
+  consigne de prompt de plus, aucun backfill — 22 lignes ne portent rien.
+  ⚠️ Ce déséquilibre compte : c'est toujours l'oral qui se retrouve sans fragilité, donc sans
+  priorité, sur les écrans. → `docs/regles/plan.md`
 - **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
   pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
   puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans

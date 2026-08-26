@@ -647,6 +647,29 @@ Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale 
   L'égalité « 2 compétences observées ou 20, même coût » reste le vrai garde-fou.
 - **La carte d'épreuve ne dérive plus des cartes affichées** : `natures` est posé depuis le
   **pool complet**, plus depuis la liste tronquée. C'était la cause directe de l'écran vide.
+- **`PlanDomainDto` sert quatre champs de plus**, tous **dérivés serveur**, mirrorés sur les
+  deux fronts : `nextTargetLevel` (le palier de **ce** domaine), `acquireCount` (compétences à
+  acquérir — **exécutables uniquement**, le compte ne promet jamais un contenu absent),
+  `readyForValidationCount`, et `notObservedWithoutActionCount` (le vrai « pas encore assez de
+  données »).
+  🛑 **Deux copies front supprimées, et elles mentaient** : `diagnosticNextLevel` (mobile) /
+  `nextLevel` (web) dérivaient « prochain palier » du seul niveau mesuré, **sans plafond par
+  l'objectif** — un candidat B1 visant le B1 lisait « prochain palier B2 » ; et le mobile
+  recomptait « pas encore assez de données » en excluant les acquisitions pendant que le
+  serveur les incluait. **Deux champs nommés distinctement** plutôt qu'une soustraction faite
+  par chaque front.
+  ⚠️ Le palier d'une compétence se lit par `planSkillTargetLevel` (`domaines[].skills[]`),
+  **jamais** par un repli sur `cycle.targetLevel` — c'est le palier **global**, et il affiche
+  un palier faux dès que deux domaines divergent.
+- **Le rideau est INSTRUMENTÉ avant d'être changé** : `PLAN_CURTAIN_SHOWN` /
+  `PLAN_CURTAIN_EXPANDED` / `PLAN_PAYWALL_VIEWED`. Le correctif fait passer le rideau de
+  « 1 sur 5 » à « 1 sur 9 ou 12 » — signal de valeur plus fort, découragement tout aussi
+  plausible. → `docs/regles/mesure-audience.md`
+- ⚠️ **« Aujourd'hui » peut légitimement rester sur un seul domaine.** Le plafond de domaines
+  secondaires est un **maximum**, pas un minimum : si le classement place trois actions
+  primaires en tête, la séance est mono-domaine, et c'est conforme. Le candidat voit ses
+  actions des autres épreuves **sur leur carte**. Poser un *plancher* de diversité serait
+  l'inverse de cette règle — décision produit non prise à ce jour.
 
 - **`PlanAcquisitionSelector`, autorité unique** de « que reste-t-il à APPRENDRE ? ».
   Source : **`skills.target_level`, qui existait déjà** (EE 8 A2 / 11 B1 / 5 B2 · EO 8/8/8 ·
