@@ -116,6 +116,7 @@ public class LearningPlanService {
     private final PlanContentAvailability contentAvailability;
     private final PlanActionRanker actionRanker;
     private final PlanConfig planConfig;
+    private final PlanDomainTargetLevelResolver targetLevelResolver;
     private final PlanDomainSkillResolver domainSkillResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
@@ -141,7 +142,13 @@ public class LearningPlanService {
             // et il se lit chez son unique autorite.
             List<PlanDomainDto> domaines = domainSkillResolver.attach(
                     profil.domaines(), profil.referentiel(),
-                    Map.of(), Map.of(), Map.of(), accessService.resolve(userId, null));
+                    Map.of(), Map.of(), Map.of(),
+                    // Le palier de chaque domaine est servi DES ICI : un candidat
+                    // sans diagnostic mais avec une serie de comprehension derriere
+                    // lui a deja un domaine mesure, donc un palier a construire.
+                    targetLevelResolver.parSection(
+                            userId, profil.domaines(), profil.cycle().objectiveLevel()),
+                    accessService.resolve(userId, null));
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
@@ -225,9 +232,15 @@ public class LearningPlanService {
         //
         // Le palier vient desormais de chaque DOMAINE, plus du cycle global.
         PlanContentAvailability.Disponibilite disponibilite = contentAvailability.charger();
+        // LE PALIER DE CHAQUE DOMAINE, resolu UNE SEULE FOIS : le selecteur
+        // d'acquisitions et la vue par epreuve servie aux fronts lisent la meme
+        // table. Deux resolutions auraient fini par proposer un palier et en
+        // afficher un autre dans la meme reponse.
+        Map<com.sejourfr.app.enums.SkillSection, TargetLevel> paliersParDomaine =
+                targetLevelResolver.parSection(
+                        userId, profil.domaines(), profil.cycle().objectiveLevel());
         List<Skill> acquisitions = acquisitionSelector.select(
-                userId, profil.domaines(), lastActivity.keySet(),
-                profil.cycle().objectiveLevel(), disponibilite);
+                profil.domaines(), lastActivity.keySet(), paliersParDomaine, disponibilite);
 
         // Priorites, competences a acquerir, etapes franchies et compétences
         // observées se recouvrent largement : on les compte ENSEMBLE, en une
@@ -466,7 +479,8 @@ public class LearningPlanService {
         Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
         composed.forEach(action -> natures.put(action.skillId(), action.nature()));
         List<PlanDomainDto> domaines = domainSkillResolver.attach(
-                profil.domaines(), profil.referentiel(), latest, mastery, natures, access);
+                profil.domaines(), profil.referentiel(), latest, mastery, natures,
+                paliersParDomaine, access);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,

@@ -1,13 +1,17 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.PlanDomainPriority;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -116,6 +120,44 @@ public class PlanDomainTargetLevelResolver {
             }
         }
         return null;
+    }
+
+    /**
+     * Le palier de <b>chacun</b> des quatre domaines, resolu <b>une seule
+     * fois</b> par lecture du Plan.
+     *
+     * <p>Trois lecteurs en ont besoin — le selecteur d'acquisitions, la vue
+     * par epreuve servie aux fronts, et le classement. Les laisser interroger
+     * chacun de leur cote aurait multiplie les appels au pont et, le jour ou il
+     * passera en {@code ACTIVE}, ouvert la porte a trois reponses differentes
+     * dans la meme reponse HTTP.
+     *
+     * <p>Un domaine <b>jamais mesure</b> est absent de la table : il se mesure
+     * avant de s'apprendre, et {@code domainesAEvaluer} porte deja cette action.
+     * Un domaine <b>a l'objectif</b> l'est aussi — il n'a plus de palier a
+     * construire.
+     */
+    public Map<SkillSection, TargetLevel> parSection(
+            UUID userId, List<PlanDomainDto> domaines, TargetLevel objectif) {
+        Map<SkillSection, TargetLevel> paliers = new EnumMap<>(SkillSection.class);
+        if (domaines == null || objectif == null) return paliers;
+        for (PlanDomainDto domaine : domaines) {
+            if (domaine == null || !domaine.evaluated()
+                    || domaine.priority() == PlanDomainPriority.A_EVALUER) {
+                continue;
+            }
+            SkillSection section = PlanCycleResolver.section(domaine.epreuve());
+            if (section == null || paliers.containsKey(section)) continue;
+            // 🛑 LA COMPREHENSION GARDE SON PALIER BLOQUANT : sa progression est
+            // SEQUENTIELLE (A2 solide avant B1), et ce prerequis peut la tenir
+            // sous le cran suivant de son niveau estime. Les deux paliers ne
+            // sont pas le meme, et c'est voulu.
+            TargetLevel palier = section.isComprehension()
+                    ? domaine.blockingLevel()
+                    : pour(userId, section, domaine.niveau(), objectif);
+            if (palier != null) paliers.put(section, palier);
+        }
+        return paliers;
     }
 
     /** Le {@link NiveauCecrl} homonyme d'un palier — la table vit dans l'enum. */

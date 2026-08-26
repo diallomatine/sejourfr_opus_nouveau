@@ -127,7 +127,7 @@ class LearningPlanServiceTest {
         // Par defaut, RIEN a acquerir : la tres grande majorite de ces tests
         // decrivent la remediation, et un selecteur qui rendrait du contenu
         // ferait passer des competences supplementaires dans chaque assertion.
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of());
         // Le catalogue est PLEIN par defaut : ces tests decrivent le moteur, pas
         // le pourrissement du contenu. Le cas « competence sans sujet publie »
@@ -170,6 +170,7 @@ class LearningPlanServiceTest {
                 // sont eux qui decident de l'ordre affiche, les doubler
                 // reviendrait a tester le mock.
                 new PlanActionRanker(PLAN_CONFIG), PLAN_CONFIG,
+                new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class)),
                 // Les competences par epreuve tournent POUR DE VRAI : elles ne
                 // font que ranger ce que le service vient de decider.
                 new PlanDomainSkillResolver(),
@@ -1546,7 +1547,7 @@ class LearningPlanServiceTest {
                 observation("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE,
                         now.minusSeconds(60))));
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         stubExercisesForEverySkill();
 
@@ -1573,7 +1574,7 @@ class LearningPlanServiceTest {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(skill("EO1-C9")));
         stubExercisesForEverySkill();
 
@@ -1623,7 +1624,7 @@ class LearningPlanServiceTest {
                         now.minusSeconds(60)),
                 observation("EE3-C2", LearningPlanSkillStatus.TO_REINFORCE,
                         now.minusSeconds(120))));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(skill("EO1-C9"), skill("EO2-C4"), skill("EO2-C5")));
         stubExercisesForEverySkill();
 
@@ -1652,7 +1653,7 @@ class LearningPlanServiceTest {
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now)));
         List<Skill> acquisitions = List.of(skill("EO1-C9"), skill("EO2-C4"),
                 skill("EO2-C5"), skill("EO2-C6"), skill("EO3-C1"), skill("EO3-C2"));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(acquisitions);
         when(skillManager.findActiveExpression()).thenReturn(acquisitions);
         stubExercisesForEverySkill();
@@ -1685,7 +1686,7 @@ class LearningPlanServiceTest {
         LearningPlanObservation fragile =
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(skill("EO1-C9")));
         // Seule la fragilite a un sujet publie.
         when(exerciseSelector.selectAll(eq(userId), anyCollection(), any()))
@@ -1719,7 +1720,7 @@ class LearningPlanServiceTest {
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         // Seule la premiere place est ouverte : c'est la fragilite.
         when(accessService.resolve(eq(userId), any())).thenReturn(
@@ -1760,7 +1761,7 @@ class LearningPlanServiceTest {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         when(accessService.resolve(eq(userId), any())).thenReturn(
                 new SkillAccessService.SkillAccess(

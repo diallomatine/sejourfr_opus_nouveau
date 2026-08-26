@@ -121,19 +121,6 @@ String diagnosticEpreuveMeta(String? objective, TargetLevel? next) {
   return '$kDiagnosticLevelObjective $target · prochain palier ${next.wire}';
 }
 
-/// **Le palier immédiatement au-dessus du niveau mesuré** sur cette épreuve —
-/// la marche suivante, jamais l'objectif directement.
-///
-/// 🛑 Plafonné à B2 : le contrat TCF IRN s'y arrête. `null` quand rien n'est
-/// mesuré — on ne place pas le candidat sur une échelle par défaut.
-TargetLevel? diagnosticNextLevel(NiveauCecrl? level) => switch (level) {
-      null => null,
-      NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => TargetLevel.a2,
-      NiveauCecrl.a2 => TargetLevel.b1,
-      NiveauCecrl.b1 => TargetLevel.b2,
-      NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => TargetLevel.b2,
-    };
-
 /* ------------------------------------------------ ce qu'explique le niveau */
 
 /// **La phrase qui explique un niveau, épreuve par épreuve.**

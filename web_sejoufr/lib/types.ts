@@ -1356,6 +1356,33 @@ export interface PlanDomainDto {
      * afficher deux nombres différents pour la même épreuve.
      */
     notObservedSkillCount: number;
+    /**
+     * Le palier que **ce domaine** construit. `null` quand il n'y a rien à
+     * construire : domaine jamais mesuré, ou **déjà à l'objectif** — il
+     * s'entretient alors, il ne redescend pas.
+     *
+     * 🛑 **Servi, jamais recalculé.** Ce front en tenait une copie (`nextLevel`,
+     * `DiagnosticReport.tsx`) qui ignorait l'objectif du candidat : un candidat
+     * B1 visant le B1 lisait « prochain palier B2 ». Supprimée le 2026-08-26.
+     */
+    nextTargetLevel: TargetLevel | null;
+    /**
+     * Compétences **à acquérir** sur ce domaine (`nature === "A_ACQUERIR"`).
+     * Sous-ensemble de `notObservedSkillCount`, et **uniquement des compétences
+     * exécutables** : le compte ne promet jamais un contenu qui n'existe pas.
+     */
+    acquireCount: number;
+    /** Compétences **prêtes à être vérifiées** (`nature === "A_VERIFIER"`). */
+    readyForValidationCount: number;
+    /**
+     * Compétences jamais observées **sur lesquelles le Plan ne demande rien** —
+     * le vrai « pas encore assez de données pour se prononcer ».
+     *
+     * 🛑 **Ne jamais le recalculer** en soustrayant les acquisitions d'une liste
+     * affichée : le mobile le faisait, et les deux nombres divergeaient du
+     * serveur dès qu'une acquisition existait.
+     */
+    notObservedWithoutActionCount: number;
 }
 
 /**

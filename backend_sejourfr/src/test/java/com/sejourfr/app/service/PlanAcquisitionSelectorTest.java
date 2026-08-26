@@ -51,6 +51,7 @@ class PlanAcquisitionSelectorTest {
     private SkillManager skillManager;
     private ProgressionPlanBridge bridge;
     private PlanAcquisitionSelector selector;
+    private PlanDomainTargetLevelResolver targetLevelResolver;
     private final List<Skill> publiees = new ArrayList<>();
 
     @BeforeEach
@@ -61,8 +62,8 @@ class PlanAcquisitionSelectorTest {
         // « cran au-dessus du niveau DU DOMAINE » qui decide. C'est bien l'etat
         // de production, et c'est la que vit le correctif.
         when(bridge.prescriptionLevel(any(), any(), any())).thenReturn(Optional.empty());
-        selector = new PlanAcquisitionSelector(
-                skillManager, new PlanDomainTargetLevelResolver(bridge));
+        targetLevelResolver = new PlanDomainTargetLevelResolver(bridge);
+        selector = new PlanAcquisitionSelector(skillManager);
         publiees.clear();
     }
 
@@ -78,8 +79,8 @@ class PlanAcquisitionSelectorTest {
                 skill("EO1-C1", SkillSection.EO, SkillTaskCode.EO1, "B1", 1),
                 skill("EO2-C1", SkillSection.EO, SkillTaskCode.EO2, "B1", 1));
 
-        List<Skill> acquis = selector.select(
-                USER, quatreDomaines(), Set.of(), TargetLevel.B2, catalogueComplet());
+        List<Skill> acquis = selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet());
 
         assertThat(acquis).extracting(Skill::getCode).containsExactly("EO1-C1", "EO2-C1");
     }
@@ -106,7 +107,8 @@ class PlanAcquisitionSelectorTest {
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.B1,
                         PlanDomainPriority.PAS_ENCORE_PRIORITAIRE));
 
-        assertThat(selector.select(USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .extracting(Skill::getCode)
                 .as("l'ecrit construit son B1, l'oral son B2")
                 .containsExactly("EE2-C1", "EO3-C1");
@@ -127,7 +129,8 @@ class PlanAcquisitionSelectorTest {
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.B1,
                         PlanDomainPriority.PAS_ENCORE_PRIORITAIRE));
 
-        assertThat(selector.select(USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .extracting(Skill::getCode).containsExactly("EO3-C1");
     }
 
@@ -145,7 +148,8 @@ class PlanAcquisitionSelectorTest {
         List<PlanDomainDto> domaines = List.of(
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.B1, PlanDomainPriority.A_TRAVAILLER));
 
-        assertThat(selector.select(USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .extracting(Skill::getCode)
                 .as("le B1 est derriere lui, on ne le lui repropose pas")
                 .containsExactly("EO3-C1");
@@ -163,7 +167,8 @@ class PlanAcquisitionSelectorTest {
         List<PlanDomainDto> domaines = List.of(
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.B2, PlanDomainPriority.ENTRETIEN));
 
-        assertThat(selector.select(USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .isEmpty();
     }
 
@@ -180,8 +185,8 @@ class PlanAcquisitionSelectorTest {
                 skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1),
                 skill("EE1-C20", SkillSection.EE, SkillTaskCode.EE1, "B2", 1));
 
-        assertThat(selector.select(
-                USER, quatreDomaines(), Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()))
                 .extracting(Skill::getCode)
                 .as("seul le palier que ce domaine construit est propose")
                 .containsExactly("EE1-C9");
@@ -201,8 +206,8 @@ class PlanAcquisitionSelectorTest {
         Skill vierge = skill("EE2-C9", SkillSection.EE, SkillTaskCode.EE2, "B1", 1);
         publie(solide, vierge);
 
-        assertThat(selector.select(USER, quatreDomaines(), Set.of(solide.getId()),
-                TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(quatreDomaines(), Set.of(solide.getId()),
+                paliers(quatreDomaines()), catalogueComplet()))
                 .extracting(Skill::getCode).containsExactly("EE2-C9");
     }
 
@@ -222,8 +227,8 @@ class PlanAcquisitionSelectorTest {
                 new PlanContentAvailability.Catalogue(
                         Set.of(avecSujets.getId()), Map.of());
 
-        assertThat(selector.select(
-                USER, quatreDomaines(), Set.of(), TargetLevel.B2, catalogue))
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogue))
                 .extracting(Skill::getCode).containsExactly("EE1-C9");
     }
 
@@ -243,8 +248,8 @@ class PlanAcquisitionSelectorTest {
                         PlanDomainPriority.A_EVALUER, null, null, List.of(), List.of())
                 : domaine);
 
-        assertThat(selector.select(
-                USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet())).isEmpty();
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet())).isEmpty();
     }
 
     /**
@@ -267,8 +272,8 @@ class PlanAcquisitionSelectorTest {
                 domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.ENTRETIEN),
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.A2, PlanDomainPriority.FORTE));
 
-        assertThat(selector.select(
-                USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .extracting(Skill::getCode)
                 .containsExactly("EO1-C9", "EE1-C8", "EE1-C9");
     }
@@ -281,10 +286,10 @@ class PlanAcquisitionSelectorTest {
                 skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1),
                 skill("EO1-C9", SkillSection.EO, SkillTaskCode.EO1, "B1", 1));
 
-        assertThat(selector.select(
-                USER, quatreDomaines(), Set.of(), TargetLevel.B2, catalogueComplet()))
-                .isEqualTo(selector.select(
-                        USER, quatreDomaines(), Set.of(), TargetLevel.B2, catalogueComplet()));
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()))
+                .isEqualTo(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()));
     }
 
     /**
@@ -294,9 +299,11 @@ class PlanAcquisitionSelectorTest {
     @Test
     @DisplayName("Sans objectif, aucune requete n'est emise")
     void sansObjectifAucuneRequeteNestEmise() {
-        assertThat(selector.select(USER, quatreDomaines(), Set.of(), null, catalogueComplet()))
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                targetLevelResolver.parSection(USER, quatreDomaines(), null), catalogueComplet()))
                 .isEmpty();
-        assertThat(selector.select(USER, List.of(), Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(List.of(), Set.of(),
+                paliers(List.of()), catalogueComplet()))
                 .isEmpty();
 
         verify(skillManager, never()).findActiveByTargetLevels(anyCollection());
@@ -319,7 +326,8 @@ class PlanAcquisitionSelectorTest {
                 domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.FORTE),
                 domaine(EpreuveType.TCF_EO, NiveauCecrl.B1, PlanDomainPriority.A_TRAVAILLER));
 
-        assertThat(selector.select(USER, domaines, Set.of(), TargetLevel.B2, catalogueComplet()))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .hasSize(2);
 
         verify(skillManager).findActiveByTargetLevels(anyCollection());
@@ -338,6 +346,11 @@ class PlanAcquisitionSelectorTest {
                             .filter(skill -> paliers.contains(skill.getTargetLevel()))
                             .toList();
                 });
+    }
+
+    /** Le palier de chaque domaine, resolu par l'autorite unique. */
+    private Map<SkillSection, TargetLevel> paliers(List<PlanDomainDto> domaines) {
+        return targetLevelResolver.parSection(USER, domaines, TargetLevel.B2);
     }
 
     /** Tout ce qui est publie a du contenu : ces tests decrivent la selection. */

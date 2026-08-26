@@ -79,6 +79,7 @@ public class PlanFocusResolver {
     private final PlanCycleResolver cycleResolver;
     private final PlanAcquisitionSelector acquisitionSelector;
     private final PlanContentAvailability contentAvailability;
+    private final PlanDomainTargetLevelResolver targetLevelResolver;
 
     /**
      * La regle, sur des listes <b>deja calculees</b> : la premiere fragilite
@@ -139,9 +140,10 @@ public class PlanFocusResolver {
         // celle que le Plan met reellement en premiere place. Ouvrir une
         // competence sans contenu publie donnerait un cadenas leve sur du vide.
         List<Skill> acquisitions = acquisitionSelector.select(
-                userId, profil.domaines(),
-                priorityResolver.lastActivityBySkill(history).keySet(),
-                profil.cycle().objectiveLevel(), contentAvailability.charger());
+                profil.domaines(), priorityResolver.lastActivityBySkill(history).keySet(),
+                targetLevelResolver.parSection(
+                        userId, profil.domaines(), profil.cycle().objectiveLevel()),
+                contentAvailability.charger());
         return focus(List.of(), acquisitions);
     }
 }

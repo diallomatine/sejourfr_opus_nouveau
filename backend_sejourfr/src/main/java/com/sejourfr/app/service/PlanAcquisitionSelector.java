@@ -98,7 +98,6 @@ import java.util.UUID;
 public class PlanAcquisitionSelector {
 
     private final SkillManager skillManager;
-    private final PlanDomainTargetLevelResolver targetLevelResolver;
 
     /**
      * <b>TOUTES</b> les competences a acquerir, deja ordonnees. Aucun plafond :
@@ -112,27 +111,28 @@ public class PlanAcquisitionSelector {
      * autorite unique qui interroge le moteur V4.2 avant de replier sur la regle
      * simple.
      *
-     * @param userId          le candidat, pour interroger le pont de progression
      * @param domaines        les quatre domaines, deja resolus : ils portent le
-     *                        niveau, l'urgence, l'etat « mesure ou non » et le
-     *                        palier bloquant de la comprehension.
+     *                        niveau, l'urgence et l'etat « mesure ou non ».
      * @param dejaTravaillees identifiants des competences sur lesquelles le
      *                        candidat a <b>au moins une ligne d'historique</b>,
      *                        {@code NOT_OBSERVED} comprise
      *                        ({@code LearningPlanPriorityResolver.lastActivityBySkill}).
-     * @param objectif        le palier vise ({@code TargetProcedure.niveauVise})
+     * @param palierParSection le palier de chaque domaine, resolu <b>une seule
+     *                        fois</b> par {@link PlanDomainTargetLevelResolver} —
+     *                        un domaine absent n'a rien a construire (jamais
+     *                        mesure, ou deja a l'objectif)
      * @param disponibilite   ce que le catalogue permet reellement de proposer :
      *                        une competence sans contenu publie n'entre pas dans
      *                        le pool et n'est comptee nulle part
      *                        ({@link PlanContentAvailability})
      */
     public List<Skill> select(
-            UUID userId,
             List<PlanDomainDto> domaines,
             Set<UUID> dejaTravaillees,
-            TargetLevel objectif,
+            Map<SkillSection, TargetLevel> palierParSection,
             PlanContentAvailability.Disponibilite disponibilite) {
-        if (domaines == null || domaines.isEmpty() || objectif == null) return List.of();
+        if (domaines == null || domaines.isEmpty()) return List.of();
+        if (palierParSection == null || palierParSection.isEmpty()) return List.of();
 
         Map<SkillSection, PlanDomainDto> parSection = new EnumMap<>(SkillSection.class);
         for (PlanDomainDto domaine : domaines) {
@@ -140,22 +140,6 @@ public class PlanAcquisitionSelector {
             SkillSection section = section(domaine.epreuve());
             if (section != null) parSection.putIfAbsent(section, domaine);
         }
-
-        // LE PALIER DE CHAQUE DOMAINE, demande une fois : le palier bloquant en
-        // comprehension (chaine de prerequis, A2 solide avant B1), le cran
-        // au-dessus du niveau du domaine en expression. Les deux ne sont pas le
-        // meme palier, et c'est voulu.
-        Map<SkillSection, TargetLevel> palierParSection = new EnumMap<>(SkillSection.class);
-        for (Map.Entry<SkillSection, PlanDomainDto> entry : parSection.entrySet()) {
-            PlanDomainDto domaine = entry.getValue();
-            if (!acquerable(domaine)) continue;
-            TargetLevel palier = entry.getKey().isComprehension()
-                    ? domaine.blockingLevel()
-                    : targetLevelResolver.pour(
-                            userId, entry.getKey(), domaine.niveau(), objectif);
-            if (palier != null) palierParSection.put(entry.getKey(), palier);
-        }
-        if (palierParSection.isEmpty()) return List.of();
 
         // Les paliers a charger, en UN lot : la reunion de ceux qu'on vient de
         // resoudre. Deux domaines au meme palier ne coutent pas deux requetes.

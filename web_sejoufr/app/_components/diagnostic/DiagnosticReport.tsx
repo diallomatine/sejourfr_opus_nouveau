@@ -285,25 +285,6 @@ function epreuveSummary(epreuve: PlanDomainEpreuve, level: NiveauCecrl): string 
   return EPREUVE_SUMMARY[epreuve][palier];
 }
 
-/**
- * **Le palier immédiatement au-dessus du niveau mesuré** sur cette épreuve — la
- * marche suivante, jamais l'objectif directement. Plafonné à B2, `null` quand
- * rien n'est mesuré : on ne place pas le candidat sur une échelle par défaut.
- */
-function nextLevel(level: NiveauCecrl | null): TargetLevel | null {
-  switch (level) {
-    case null:
-      return null;
-    case "A1_NON_ATTEINT":
-    case "A1":
-      return "A2";
-    case "A2":
-      return "B1";
-    default:
-      return "B2";
-  }
-}
-
 /** « Objectif B2 · prochain palier B1 ». L'objectif est **nullable** — il vient
  *  de la démarche déclarée, et on n'en invente aucun. */
 function epreuveMeta(objective: string | null, next: TargetLevel | null): string {
@@ -415,7 +396,10 @@ function buildCard(
     grouped.filter((row) => row.group === group).map((row) => row.skill);
   const work = [...pick("PRIORITY"), ...pick("REINFORCE"), ...pick("ACQUIRE")];
   const solid = pick("SOLID");
-  const notObserved = pick("NOT_OBSERVED").length;
+  // 🛑 SERVI, plus recompté : ce compte excluait les acquisitions ici pendant
+  // que le serveur les incluait dans `notObservedSkillCount` — deux nombres
+  // pour la même épreuve. Le serveur en publie désormais deux, nommés.
+  const notObserved = domain.notObservedWithoutActionCount;
 
   return {
     epreuve,
@@ -675,7 +659,10 @@ export function DiagnosticReport({
                 card={card}
                 hasTcf={hasTcf}
                 objective={objective}
-                buildLevel={plan?.cycle.targetLevel ?? null}
+                /* Le palier annoncé est celui de CETTE épreuve, plus celui du
+                   cycle global : depuis le 2026-08-26 deux domaines peuvent en
+                   construire deux différents. */
+                buildLevel={card.domain.nextTargetLevel}
                 open={open === card.epreuve}
                 onToggle={() => setOpen(open === card.epreuve ? null : card.epreuve)}
               />
@@ -932,7 +919,10 @@ function OkCard({
           <span className={styles.cardLevelValue} data-known="1">{niveauCecrlShort(card.niveau)}</span>
           <span className={styles.cardLevelCaption}>{LEVEL_CAPTION}</span>
           <span className={styles.cardLevelGoal}>
-            {epreuveMeta(objective, nextLevel(card.niveau))}
+            {/* 🛑 SERVI (`nextTargetLevel`), plus dérivé du niveau : la copie
+                locale ignorait l'objectif du candidat, et un candidat B1 visant
+                le B1 lisait « prochain palier B2 ». Supprimée le 2026-08-26. */}
+            {epreuveMeta(objective, card.domain.nextTargetLevel)}
           </span>
         </span>
         <span className={styles.cardChevron} data-open={open ? "1" : "0"} aria-hidden>

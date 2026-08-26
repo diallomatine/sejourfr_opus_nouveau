@@ -345,11 +345,12 @@ List<PlanPriorityGroup> planPriorityGroups(LearningPlan plan) {
   final meta = <String, _GroupMeta>{};
   final seen = <String>{};
 
-  // Le palier travaillé par une compétence de compréhension est **servi** par
-  // les domaines ; en expression, c'est celui que le cycle construit. Jamais
-  // dérivé d'un code, jamais inventé.
-  TargetLevel? levelOf(String skillId) =>
-      planSkillLevel(plan, skillId) ?? plan.cycle?.targetLevel;
+  // Le palier travaillé par une compétence est **servi** par les domaines, dans
+  // les deux familles : le palier de la compétence en compréhension, celui du
+  // référentiel en expression. Jamais dérivé d'un code, jamais inventé — et
+  // surtout plus replié sur le palier GLOBAL du cycle, qui n'a plus de sens
+  // depuis que chaque domaine construit le sien.
+  TargetLevel? levelOf(String skillId) => planSkillTargetLevel(plan, skillId);
 
   for (final priority in <LearningPlanPriority>[
     if (plan.currentPriority != null) plan.currentPriority!,

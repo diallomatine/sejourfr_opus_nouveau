@@ -176,6 +176,26 @@ TargetLevel? planSkillLevel(LearningPlan plan, String skillId) {
   return null;
 }
 
+/// Le palier que le référentiel porte sur une compétence.
+///
+/// Lu sur `domaines[].skills[]` — la liste **uniforme** des quatre domaines —,
+/// avec repli sur les paliers de compréhension. `null` quand rien ne le
+/// publie : *null = inconnu, jamais mauvais*, et aucun palier n'est fabriqué.
+///
+/// 🛑 **Jamais de repli sur `cycle.targetLevel`.** C'est le palier GLOBAL, et
+/// depuis que chaque domaine construit le sien (2026-08-26) il affiche un
+/// palier faux dès que deux domaines divergent.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillTargetLevel`, `lib/plan-domain.ts`).
+TargetLevel? planSkillTargetLevel(LearningPlan plan, String skillId) {
+  for (final domain in plan.domaines) {
+    for (final competence in domain.skills) {
+      if (competence.skillId == skillId) return competence.targetLevel;
+    }
+  }
+  return planSkillLevel(plan, skillId);
+}
+
 const String kPlanComprehensionNote =
     'En compréhension, une compétence se mesure sur une série complète : c\'est '
     'ce qui permet de savoir si la difficulté est vraiment récurrente.';

@@ -67,6 +67,35 @@ import java.util.List;
  * @param solidSkillCount   competences observees {@code SOLID}
  * @param notObservedSkillCount competences jamais observees — <b>ce n'est pas une
  *                          faiblesse</b>, c'est une absence de mesure
+ * @param nextTargetLevel   le palier que <b>ce domaine</b> construit
+ *                          ({@code PlanDomainTargetLevelResolver}, autorite
+ *                          unique). {@code null} quand il n'y a rien a
+ *                          construire : domaine jamais mesure, ou <b>deja a
+ *                          l'objectif</b> — il s'entretient alors, il ne
+ *                          redescend pas.
+ *                          <p>🛑 <b>Servi, jamais recalcule par un front.</b> Les
+ *                          deux fronts en tenaient chacun une copie
+ *                          ({@code diagnosticNextLevel}, {@code nextLevel}) qui
+ *                          ignorait l'objectif du candidat : un candidat B1
+ *                          visant le B1 lisait « prochain palier B2 ».
+ * @param acquireCount      competences <b>a acquerir</b> sur ce domaine
+ *                          ({@code nature == A_ACQUERIR}). Sous-ensemble de
+ *                          {@code notObservedSkillCount}, et <b>uniquement des
+ *                          competences EXECUTABLES</b> : le compte ne promet
+ *                          jamais un contenu qui n'existe pas
+ *                          ({@code PlanContentAvailability}).
+ * @param readyForValidationCount competences <b>pretes a etre verifiees</b>
+ *                          ({@code nature == A_VERIFIER}). Sous-ensemble de
+ *                          {@code fragileSkillCount}.
+ * @param notObservedWithoutActionCount competences jamais observees <b>sur
+ *                          lesquelles le Plan ne demande rien</b> — le vrai
+ *                          « pas encore assez de donnees pour se prononcer ».
+ *                          <p>🛑 {@code notObservedSkillCount} moins
+ *                          {@code acquireCount}, <b>calcule ici</b> : le mobile
+ *                          le derivait de son cote, et les deux nombres
+ *                          divergeaient des qu'une acquisition existait. Deux
+ *                          champs nommes distinctement plutot qu'une
+ *                          soustraction faite par chaque front.
  */
 public record PlanDomainDto(
         EpreuveType epreuve,
@@ -80,7 +109,11 @@ public record PlanDomainDto(
         List<PlanDomainSkillDto> skills,
         int fragileSkillCount,
         int solidSkillCount,
-        int notObservedSkillCount
+        int notObservedSkillCount,
+        TargetLevel nextTargetLevel,
+        int acquireCount,
+        int readyForValidationCount,
+        int notObservedWithoutActionCount
 ) {
 
     /**
@@ -104,7 +137,8 @@ public record PlanDomainDto(
             List<PlanDomainLevelDto> paliers,
             List<PlanDomainTaskDto> taches) {
         return new PlanDomainDto(epreuve, evaluated, niveau, priority,
-                consolidatedLevel, blockingLevel, paliers, taches, List.of(), 0, 0, 0);
+                consolidatedLevel, blockingLevel, paliers, taches, List.of(),
+                0, 0, 0, null, 0, 0, 0);
     }
 
     /**
@@ -117,9 +151,14 @@ public record PlanDomainDto(
             List<PlanDomainSkillDto> skills,
             int fragileSkillCount,
             int solidSkillCount,
-            int notObservedSkillCount) {
+            int notObservedSkillCount,
+            TargetLevel nextTargetLevel,
+            int acquireCount,
+            int readyForValidationCount) {
         return new PlanDomainDto(epreuve, evaluated, niveau, priority,
                 consolidatedLevel, blockingLevel, paliers, taches,
-                skills, fragileSkillCount, solidSkillCount, notObservedSkillCount);
+                skills, fragileSkillCount, solidSkillCount, notObservedSkillCount,
+                nextTargetLevel, acquireCount, readyForValidationCount,
+                notObservedSkillCount - acquireCount);
     }
 }

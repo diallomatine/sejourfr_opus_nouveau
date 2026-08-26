@@ -464,8 +464,6 @@ class _EpreuveView {
     ];
     final solid =
         lines.where((l) => l.group == _SkillGroup.solid).toList(growable: false);
-    final notObserved =
-        lines.where((l) => l.group == _SkillGroup.notObserved).length;
     final observed = domain.fragileSkillCount + domain.solidSkillCount;
 
     return _EpreuveView(
@@ -474,7 +472,10 @@ class _EpreuveView {
       domain: domain,
       assessment: assessment,
       level: domain.niveau,
-      nextLevel: diagnosticNextLevel(domain.niveau),
+      // 🛑 SERVI, plus dérivé du niveau : la copie locale ignorait l'objectif
+      // du candidat, et un candidat B1 visant le B1 lisait « prochain palier
+      // B2 ». Supprimée le 2026-08-26.
+      nextLevel: domain.nextTargetLevel,
       resume: diagnosticEpreuveResume(epreuve, domain.niveau),
       explanation: diagnosticEpreuveExplanation(
         domain,
@@ -484,7 +485,10 @@ class _EpreuveView {
       ),
       work: List.unmodifiable(work),
       solid: solid,
-      notObserved: notObserved,
+      // 🛑 SERVI aussi : ce compte excluait les acquisitions ici pendant que le
+      // serveur les incluait dans `notObservedSkillCount` — deux nombres pour
+      // la même épreuve. Le serveur en publie désormais deux, nommés.
+      notObserved: domain.notObservedWithoutActionCount,
       fragileTotal: domain.fragileSkillCount,
       solidTotal: domain.solidSkillCount,
     );
