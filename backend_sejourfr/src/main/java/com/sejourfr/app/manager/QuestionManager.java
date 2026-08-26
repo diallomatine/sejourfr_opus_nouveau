@@ -14,7 +14,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +33,30 @@ public class QuestionManager {
 
     public Optional<Question> findById(UUID id) {
         return repository.findById(id);
+    }
+
+    /**
+     * Stock de questions actives par (type, palier), en <b>une requete
+     * agregee</b>. {@code CO_IMAGE} est replie sur {@code CO}, comme partout
+     * ailleurs dans le depot. Une paire absente vaut zero : au caller de le lire
+     * ainsi.
+     *
+     * <p>Sert le filtre de faisabilite du Plan cote comprehension : une
+     * competence de palier dont le stock est vide ne peut porter aucune serie
+     * ciblee, donc aucune action.
+     */
+    public Map<QuestionType, Map<Difficulty, Long>> countActiveByTypeAndDifficulty(
+            Collection<QuestionType> types) {
+        Map<QuestionType, Map<Difficulty, Long>> stock = new EnumMap<>(QuestionType.class);
+        for (Object[] ligne : repository.countActiveByTypeAndDifficulty(types)) {
+            QuestionType type = (QuestionType) ligne[0];
+            if (type == QuestionType.CO_IMAGE) type = QuestionType.CO;
+            Difficulty palier = (Difficulty) ligne[1];
+            long compte = ((Number) ligne[2]).longValue();
+            stock.computeIfAbsent(type, cle -> new EnumMap<>(Difficulty.class))
+                    .merge(palier, compte, Long::sum);
+        }
+        return stock;
     }
 
     public List<Question> findAllById(Collection<UUID> ids) {

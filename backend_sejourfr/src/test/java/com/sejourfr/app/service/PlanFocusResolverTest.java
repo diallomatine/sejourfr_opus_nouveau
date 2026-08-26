@@ -60,6 +60,7 @@ class PlanFocusResolverTest {
     @Mock private UserManager userManager;
     @Mock private PlanCycleResolver cycleResolver;
     @Mock private PlanAcquisitionSelector acquisitionSelector;
+    @Mock private PlanContentAvailability contentAvailability;
 
     private PlanFocusResolver resolver;
 
@@ -68,14 +69,15 @@ class PlanFocusResolverTest {
     @BeforeEach
     void setUp() {
         resolver = new PlanFocusResolver(observationManager, priorityResolver,
-                sessionManager, userManager, cycleResolver, acquisitionSelector);
+                sessionManager, userManager, cycleResolver, acquisitionSelector,
+                contentAvailability);
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
         when(priorityResolver.actionable(anyList())).thenReturn(List.of());
         when(priorityResolver.lastActivityBySkill(anyList())).thenReturn(java.util.Map.of());
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         when(cycleResolver.resolve(any(), anyList(), anyList())).thenReturn(resolution());
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
                 .thenReturn(List.of());
     }
 
@@ -135,7 +137,7 @@ class PlanFocusResolverTest {
 
         verify(sessionManager, never()).findLatestCompleted(any());
         verify(cycleResolver, never()).resolve(any(), anyList(), anyList());
-        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), anyInt());
+        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), any(), any());
     }
 
     /**
@@ -149,7 +151,7 @@ class PlanFocusResolverTest {
         assertThat(resolver.currentFocusSkillId(userId)).isEmpty();
 
         verify(cycleResolver, never()).resolve(any(), anyList(), anyList());
-        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), anyInt());
+        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), any(), any());
     }
 
     @Test
@@ -158,7 +160,7 @@ class PlanFocusResolverTest {
         Skill aAcquerir = skill("EE2-C4");
         when(sessionManager.findLatestCompleted(userId))
                 .thenReturn(Optional.of(new DiagnosticSession()));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(any(), anyList(), anySet(), any(), any()))
                 .thenReturn(List.of(aAcquerir));
 
         assertThat(resolver.currentFocusSkillId(userId)).contains(aAcquerir.getId());

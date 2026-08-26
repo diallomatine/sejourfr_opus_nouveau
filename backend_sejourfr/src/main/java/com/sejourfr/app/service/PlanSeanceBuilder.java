@@ -7,6 +7,8 @@ import com.sejourfr.app.dto.PlanSeanceDto;
 import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.PlanActionNature;
+import com.sejourfr.app.service.plan.PlanConfig;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -42,7 +44,7 @@ import java.util.UUID;
  *       journee.</li>
  * </ol>
  *
- * <h2>🛑 {@value #MAX_ITEMS} est un plafond, jamais un quota</h2>
+ * <h2>🛑 Le plafond de la seance est un plafond, jamais un quota</h2>
  * Rien n'est fabrique pour remplir l'ecran. Une competence <b>solide</b> ou
  * <b>non observee hors du palier vise</b> ne devient jamais une action : si le
  * Plan n'a que deux choses vraies a proposer, il en propose deux. C'est aux
@@ -84,18 +86,29 @@ import java.util.UUID;
  * {@code exercise}, jamais le nombre de lignes.
  */
 @Component
+@RequiredArgsConstructor
 public class PlanSeanceBuilder {
 
     /**
-     * Entrainements d'une seance.
+     * Entrainements d'une seance — {@code display.todayMaxActions} de
+     * {@code plan-config-vN.json}, jamais une constante Java.
      *
-     * <p>Trois : deux ne suffisaient plus des lors que le Plan sait enseigner et
-     * pas seulement reparer. Au-dela de trois, la seance cesse d'etre une
-     * journee de travail et redevient une liste de choses a faire, ce que le
-     * Plan existe justement pour eviter. <b>Ce n'est pas un quota</b> : il n'est
-     * jamais atteint par du remplissage.
+     * <p>Trois aujourd'hui : deux ne suffisaient plus des lors que le Plan sait
+     * enseigner et pas seulement reparer. Au-dela de trois, la seance cesse
+     * d'etre une journee de travail et redevient une liste de choses a faire, ce
+     * que le Plan existe justement pour eviter. <b>Ce n'est pas un quota</b> :
+     * il n'est jamais atteint par du remplissage.
+     *
+     * <p>La <b>composition</b> de cette fenetre — au plus
+     * {@code display.todayMaxSecondaryDomainActions} action(s) de domaine
+     * secondaire — est deja appliquee par {@link PlanActionRanker} sur le pool
+     * classe. Ce composant n'a donc rien a departager : il coupe.
      */
-    public static final int MAX_ITEMS = 3;
+    private final PlanConfig config;
+
+    public int maxItems() {
+        return config.display().todayMaxActions();
+    }
 
     /**
      * La seance, de la mesure manquante au jalon.
@@ -130,15 +143,16 @@ public class PlanSeanceBuilder {
             Map<UUID, Skill> skills,
             Map<UUID, Instant> lastActivity,
             PlanRecommendedExerciseDto milestone) {
-        List<PlanSeanceItemDto> items = new ArrayList<>(MAX_ITEMS);
+        int maxItems = maxItems();
+        List<PlanSeanceItemDto> items = new ArrayList<>(maxItems);
         if (assessment != null) items.add(mesure(assessment));
         for (LearningPlanPriorityDto priority : priorities) {
-            if (items.size() >= MAX_ITEMS) break;
+            if (items.size() >= maxItems) break;
             if (priority.recommendedExercise() == null) continue;
             items.add(etape(priority, skills.get(priority.skillId()),
                     lastActivity.get(priority.skillId())));
         }
-        if (milestone != null && items.size() < MAX_ITEMS) items.add(jalon(milestone));
+        if (milestone != null && items.size() < maxItems) items.add(jalon(milestone));
         int minutes = items.stream().mapToInt(PlanSeanceBuilder::minutes).sum();
         return new PlanSeanceDto(items, minutes);
     }

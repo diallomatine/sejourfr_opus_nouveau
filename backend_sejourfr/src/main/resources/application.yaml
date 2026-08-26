@@ -1312,6 +1312,19 @@ sejourfr:
       # Zero : deux lectures de la meme production doivent rendre la meme phrase.
       temperature: 0
 
+  # -------------------------------------------------------------------------- plan
+  # Plafonds d'affichage et poids de classement du Plan : plan/plan-config-v{n}.json.
+  #
+  # 🛑 FICHIER DISTINCT de progression-config, et ca doit le rester (arbitrage du
+  # proprietaire, 2026-08-26) : progression-config porte l'integrite d'engineVersion
+  # et le REJEU de la maitrise, plan-config ne porte que de la SELECTION et de
+  # l'AFFICHAGE et bougera souvent (composition de la seance, rideau, A/B). Les
+  # melanger invaliderait le rejeu a chaque reglage d'ecran.
+  #
+  # INVARIANT : plan-config ne peut RIEN influencer du calcul de maitrise.
+  plan:
+    config-version: ${PLAN_CONFIG_VERSION:1}
+
   # ------------------------------------------------------------------ progression
   # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).
   #

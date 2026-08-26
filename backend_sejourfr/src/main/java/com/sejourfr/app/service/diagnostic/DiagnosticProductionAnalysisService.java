@@ -59,6 +59,7 @@ public class DiagnosticProductionAnalysisService {
     private final LearningPlanObservationService observationService;
     private final DiagnosticOralArtifactFilter oralArtifactFilter;
     private final ProductionValidityService validityService;
+    private final DiagnosticStatusDistributionMetrics statusMetrics;
 
     public DiagnosticProductionAnalysis analyseDiagnostic(UUID submissionId) {
         DiagnosticProductionAnalysis existing = analysisManager.findBySubmissionId(submissionId).orElse(null);
@@ -192,11 +193,32 @@ public class DiagnosticProductionAnalysisService {
                     sum(first.costEstimateMicroUsd(), second.costEstimateMicroUsd()));
         }
         Map<String, Object> normalized = validator.normalize(analysis, segments);
+        // CE QUE LE CORRECTEUR REND, modalite par modalite. Un compteur, rien
+        // d'autre : il ne decide de rien, il documente le desequilibre EE/EO
+        // mesure le 2026-08-26 (zero PRIORITY sur 57 observations orales) pour
+        // qu'on puisse le relire sur un echantillon reel.
+        if (normalized.get("skills") instanceof List<?> observees) {
+            for (Object raw : observees) {
+                if (!(raw instanceof Map<?, ?> competence)) continue;
+                if (!Boolean.TRUE.equals(competence.get("observed"))) continue;
+                statusMetrics.enregistrer(task.getEpreuve(), parseStatus(competence.get("status")));
+            }
+        }
         // APRÈS le validateur, jamais dedans : une purge retire une phrase du
         // rapport, elle ne doit pas pouvoir rendre une session FAILED. Le filtre
         // n'agit qu'à l'ORAL et ne lève jamais (cf. DiagnosticOralArtifactFilter).
         oralArtifactFilter.purge(normalized, task.getEpreuve(), production);
         return new AnalysisRun(normalized, allowed, accepted, ProductionEvaluabilite.EVALUABLE);
+    }
+
+    /** {@code null} sur une valeur hors contrat : un compteur ne leve jamais. */
+    private static LearningPlanSkillStatus parseStatus(Object valeur) {
+        if (valeur == null) return null;
+        try {
+            return LearningPlanSkillStatus.valueOf(String.valueOf(valeur).trim());
+        } catch (IllegalArgumentException horsContrat) {
+            return null;
+        }
     }
 
     /**

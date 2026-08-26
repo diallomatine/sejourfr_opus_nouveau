@@ -82,5 +82,24 @@ public interface SkillPromptRepository extends JpaRepository<SkillPrompt, UUID> 
             """)
     List<Object[]> countBySkillIds(@Param("skillIds") Collection<UUID> skillIds);
 
+    /**
+     * Les competences qui ont <b>au moins un sujet actif</b> — une seule requete
+     * agregee, jamais un compte par competence.
+     *
+     * <p>C'est le filtre de <b>faisabilite</b> du Plan cote expression : une
+     * competence sans sujet publie ne peut porter aucune action, donc elle ne
+     * doit ni entrer dans le pool, ni etre comptee a l'ecran. Le referentiel
+     * tient en quelques dizaines de lignes : on rend l'ensemble, on ne le
+     * parametre pas par une liste d'identifiants qui ferait varier le plan
+     * d'execution d'un candidat a l'autre.
+     */
+    @Query("""
+            SELECT DISTINCT p.skill.id
+            FROM SkillPrompt p
+            WHERE p.active = true
+              AND p.skill.active = true
+            """)
+    List<UUID> findSkillIdsWithActivePrompt();
+
     boolean existsByCode(String code);
 }

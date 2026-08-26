@@ -333,6 +333,26 @@ public interface QuestionRepository
     long countByPassageId(UUID passageId);
 
     /**
+     * Stock de questions actives par (type, palier), <b>en une seule requête
+     * agrégée</b>. Sert le filtre de faisabilité du Plan côté compréhension :
+     * une compétence de palier dont le stock est vide ne peut porter aucune
+     * série ciblée, donc aucune action.
+     *
+     * <p>Renvoie {@code [questionType, difficulty, count]}. `CO_IMAGE` est
+     * rendu tel quel — au caller de le replier sur `CO`, comme partout ailleurs
+     * dans le dépôt.
+     */
+    @Query("""
+            SELECT q.questionType, q.difficulty, COUNT(q)
+            FROM Question q
+            WHERE q.active = true
+              AND q.questionType IN :types
+            GROUP BY q.questionType, q.difficulty
+            """)
+    List<Object[]> countActiveByTypeAndDifficulty(
+            @Param("types") Collection<QuestionType> types);
+
+    /**
      * Compte les questions actives matchant les contraintes (les paramètres
      * null sont ignorés). Utilisé par le suggesteur de composition côté admin
      * pour exposer le stock réellement disponible avant de proposer une règle,

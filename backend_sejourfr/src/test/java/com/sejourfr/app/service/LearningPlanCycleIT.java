@@ -188,7 +188,25 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // lot). La borne est large a dessein : ce qui compte, c'est l'egalite
         // ci-dessous — une requete par competence ferait exploser la seconde
         // mesure, pas la premiere.
-        assertThat(petit).isPositive().isLessThan(30);
+        // 🛑 UN NOMBRE FIXE, ASSUME — plus une borne large (2026-08-26).
+        //
+        // 21 requetes pour un Plan complet. 19 jusqu'au 2026-08-26, +2 pour le
+        // FILTRE DE FAISABILITE : les competences d'expression qui ont un sujet
+        // publie, et le stock de questions par (type, palier). Les deux sont
+        // AGREGEES et ne dependent ni du nombre de competences, ni du nombre de
+        // domaines, ni des donnees du candidat — c'est la condition posee par le
+        // proprietaire pour que ce budget ait le droit d'augmenter.
+        //
+        // La passe « palier par domaine » n'a rien coute : les paliers se
+        // chargent toujours en UN lot, quel que soit le nombre de paliers
+        // distincts. Et les exercices ne sont plus resolus que pour les cartes
+        // AFFICHEES, la ou ils l'etaient pour tout le pool.
+        //
+        // Ce chiffre tranche la CONTRADICTION #3 du depot (« 20 requetes, +1 ou
+        // 19 ? ») : c'est 21, mesure ici, et cette ligne fait foi.
+        assertThat(petit)
+                .as("budget de requetes du Plan, fixe et assume")
+                .isEqualTo(21);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
