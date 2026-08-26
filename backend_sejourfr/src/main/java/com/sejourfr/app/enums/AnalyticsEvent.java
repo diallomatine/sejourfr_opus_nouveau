@@ -129,6 +129,48 @@ public enum AnalyticsEvent {
     PLAN_EXERCISE_STARTED(Origine.CLIENT, AnalyticsProperty.EXERCISE_KIND),
 
     // ------------------------------------------------------------------------
+    // Le RIDEAU freemium — pose avant le deploiement, pas apres.
+    //
+    // Le correctif « progression par epreuve » (2026-08-26) fait passer le
+    // rideau de « 1 sur 5 » a « 1 sur 9 ou 12 » sur un compte reel : le
+    // candidat voit desormais tout ce qu'il lui reste a faire, et l'essentiel
+    // est verrouille. Signal de valeur plus fort — mais l'effet inverse, le
+    // decouragement, est tout aussi plausible.
+    //
+    // 🛑 Ces trois evenements existent pour REPONDRE a cette question, pas pour
+    // l'illustrer. Ils sont poses AVANT le deploiement : mesures apres coup, ils
+    // n'auraient plus de point de comparaison.
+    // ------------------------------------------------------------------------
+
+    /**
+     * Un rideau freemium a ete affiche : {@code visibleCount} lignes en clair
+     * sur {@code totalCount}.
+     */
+    PLAN_CURTAIN_SHOWN(Origine.CLIENT, AnalyticsProperty.CTA_LOCATION,
+            AnalyticsProperty.EPREUVE, AnalyticsProperty.VISIBLE_COUNT,
+            AnalyticsProperty.TOTAL_COUNT),
+
+    /**
+     * Le candidat a deplie la carte qui porte le rideau — il a voulu voir.
+     *
+     * <p>⚠️ Porte {@code epreuve} comme {@link #PLAN_CURTAIN_SHOWN} : sans
+     * dimension commune, les deux evenements ne se comparent pas, et un taux de
+     * depliage par epreuve est precisement ce qu'on veut lire.
+     */
+    PLAN_CURTAIN_EXPANDED(Origine.CLIENT, AnalyticsProperty.CTA_LOCATION,
+            AnalyticsProperty.EPREUVE),
+
+    /**
+     * L'offre d'abonnement a ete <b>affichee</b> — pas cliquee.
+     *
+     * <p>🛑 Distinct de {@link #PREMIUM_CTA_CLICKED}, et il doit le rester : une
+     * vue n'est pas une intention. C'est l'ecart entre les deux qui dit si le
+     * rideau donne envie ou decourage, et confondre les deux effacerait
+     * exactement la mesure qu'on vient poser.
+     */
+    PLAN_PAYWALL_VIEWED(Origine.CLIENT, AnalyticsProperty.CTA_LOCATION),
+
+    // ------------------------------------------------------------------------
     // Premium
     // ------------------------------------------------------------------------
 

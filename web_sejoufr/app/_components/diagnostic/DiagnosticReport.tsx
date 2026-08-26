@@ -591,6 +591,15 @@ export function DiagnosticReport({
     (total, card) => (card.state === "OK" ? total + card.fragileTotal : total),
     0,
   );
+  // 🛑 L'offre a ete VUE — ce n'est pas un clic. C'est l'ecart entre cette vue
+  // et `PREMIUM_CTA_CLICKED` qui dira si le rideau donne envie ou decourage, et
+  // confondre les deux effacerait la mesure. Emis une fois par affichage de
+  // l'ecran, jamais a chaque rendu.
+  const paywallVisible = !hasTcf;
+  useEffect(() => {
+    if (!paywallVisible) return;
+    track("PLAN_PAYWALL_VIEWED", {ctaLocation: "DIAGNOSTIC_REPORT"});
+  }, [paywallVisible]);
 
   return (
     <>
@@ -894,6 +903,20 @@ function OkCard({
   // Une épreuve mesurée dont aucune compétence n'est encore observée n'a rien à
   // montrer ici : un bloc vide se lirait comme une donnée manquante.
   const showBody = visibleWork.length > 0 || showSolid;
+  const curtain = !hasTcf && hiddenWork + hiddenSolid > 0;
+  // 🛑 Le rideau se mesure LA OU IL EST RENDU, et une seule fois par carte : on
+  // veut savoir combien de fois il s'affiche, pas combien de fois React rend.
+  // Les deux compteurs sont ceux qui sont VRAIMENT à l'écran — visibles en
+  // clair d'un côté, cachés de l'autre —, jamais une longueur de liste tronquée.
+  useEffect(() => {
+    if (!curtain) return;
+    track("PLAN_CURTAIN_SHOWN", {
+      ctaLocation: "DIAGNOSTIC_REPORT",
+      epreuve: card.epreuve,
+      visibleCount: visibleWork.length + visibleSolid.length,
+      totalCount: visibleWork.length + visibleSolid.length + hiddenWork + hiddenSolid,
+    });
+  }, [curtain, card.epreuve, visibleWork.length, visibleSolid.length, hiddenWork, hiddenSolid]);
 
   return (
     <article
@@ -904,7 +927,21 @@ function OkCard({
       {/* 🛑 Le titre est un `<span>`, pas un `<h3>` : un titre est du contenu de
           flux et n'a rien à faire dans un `<button>`. L'épreuve reste nommée —
           c'est l'`aria-label` de l'article qui la porte. */}
-      <button type="button" className={styles.cardHead} onClick={onToggle} aria-expanded={open}>
+      <button
+        type="button"
+        className={styles.cardHead}
+        onClick={() => {
+          // Le geste mesuré est l'OUVERTURE : replier n'est pas vouloir voir.
+          if (!open) {
+            track("PLAN_CURTAIN_EXPANDED", {
+              ctaLocation: "DIAGNOSTIC_REPORT",
+              epreuve: card.epreuve,
+            });
+          }
+          onToggle();
+        }}
+        aria-expanded={open}
+      >
         <PlanDomainIcon epreuve={card.epreuve} active={open} />
         <span className={styles.cardHeadBody}>
           {/* 🛑 Aucune pastille ici : la **priorité du domaine** (« Priorité forte »…)

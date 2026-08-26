@@ -120,6 +120,25 @@ type AnalyticsEventProperties = {
    *  mesure qui existait avant la migration (`page_views`). */
   PLAN_OPENED: Record<string, never>;
   PLAN_EXERCISE_STARTED: {exerciseKind: PlanExerciseKind};
+  /**
+   * 🛑 **Le rideau freemium se mesure en TROIS gestes distincts** — affiché,
+   * déplié, offre vue — et les fondre effacerait exactement ce qu'on veut
+   * savoir. `PLAN_PAYWALL_VIEWED` n'est **pas** `PREMIUM_CTA_CLICKED` : une vue
+   * n'est pas une intention, et c'est l'écart entre les deux qui dit si le
+   * rideau donne envie ou décourage.
+   *
+   * Posés avant le déploiement de la « progression par épreuve » (2026-08-26),
+   * qui fait passer le rideau de « 1 sur 5 » à « 1 sur 9 ou 12 » : mesurés
+   * après coup, ils n'auraient plus de point de comparaison.
+   */
+  PLAN_CURTAIN_SHOWN: {
+    ctaLocation: AnalyticsCtaLocation;
+    epreuve: string;
+    visibleCount: number;
+    totalCount: number;
+  };
+  PLAN_CURTAIN_EXPANDED: {ctaLocation: AnalyticsCtaLocation; epreuve: string};
+  PLAN_PAYWALL_VIEWED: {ctaLocation: AnalyticsCtaLocation};
 };
 
 export type AnalyticsEvent = keyof AnalyticsEventProperties;

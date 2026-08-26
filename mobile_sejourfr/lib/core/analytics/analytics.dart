@@ -52,6 +52,13 @@ class AnalyticsService {
     // libellés de l'allowlist serveur (MICRO_TRAINING, REASSESSMENT, …), pas
     // besoin d'un second enum ici.
     String? exerciseKind,
+    // Valeur brute : `EpreuveType.wire` produit deja exactement les libelles de
+    // l'allowlist serveur (TCF_EE, TCF_EO, …), pas besoin d'un second enum ici.
+    String? epreuve,
+    // Compteurs du rideau : une TAILLE d'affichage, jamais une donnee du
+    // candidat. Le serveur les borne a quatre chiffres.
+    int? visibleCount,
+    int? totalCount,
     bool once = false,
   }) {
     if (once && !_once.add(event)) return;
@@ -68,6 +75,9 @@ class AnalyticsService {
         if (landingPath != null) 'landingPath': landingPath,
         if (landingVariant != null) 'landingVariant': landingVariant,
         if (exerciseKind != null) 'exerciseKind': exerciseKind,
+        if (epreuve != null) 'epreuve': epreuve,
+        if (visibleCount != null) 'visibleCount': '$visibleCount',
+        if (totalCount != null) 'totalCount': '$totalCount',
       },
     ));
   }

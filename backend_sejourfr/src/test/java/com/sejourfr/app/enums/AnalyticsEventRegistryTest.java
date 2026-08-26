@@ -63,6 +63,50 @@ class AnalyticsEventRegistryTest {
     }
 
     /**
+     * 🛑 <b>Le rideau se mesure en TROIS gestes distincts</b>, et les fondre
+     * effacerait exactement ce qu'on veut savoir : combien de fois il s'affiche,
+     * combien de fois le candidat le déplie, et combien de fois l'offre est
+     * <b>vue</b> — pas cliquée. {@code PREMIUM_CTA_CLICKED}, lui, reste une
+     * intention.
+     */
+    @Test
+    @DisplayName("Le rideau freemium porte ses trois gestes, et un compteur borné")
+    void leRideauPorteSesTroisGestes() {
+        assertThat(AnalyticsEvent.PLAN_CURTAIN_SHOWN.getAllowedProperties())
+                .containsExactlyInAnyOrder(AnalyticsProperty.CTA_LOCATION,
+                        AnalyticsProperty.EPREUVE, AnalyticsProperty.VISIBLE_COUNT,
+                        AnalyticsProperty.TOTAL_COUNT);
+        assertThat(AnalyticsEvent.PLAN_CURTAIN_EXPANDED.getAllowedProperties())
+                .as("la dimension commune est ce qui rend un taux de dépliage lisible")
+                .contains(AnalyticsProperty.EPREUVE);
+        assertThat(AnalyticsEvent.PLAN_PAYWALL_VIEWED.getAllowedProperties())
+                .containsExactly(AnalyticsProperty.CTA_LOCATION);
+        // Une vue n'est pas un clic : les deux ne portent pas les mêmes clés et
+        // ne peuvent pas se confondre dans une requête.
+        assertThat(AnalyticsEvent.PLAN_PAYWALL_VIEWED.allows(AnalyticsProperty.PLAN_CODE))
+                .isFalse();
+    }
+
+    /**
+     * Un compteur d'écran est une <b>taille d'affichage</b>, jamais une donnée du
+     * candidat — et la borne est ce qui empêche cette clé de devenir un champ
+     * libre numérique.
+     */
+    @Test
+    @DisplayName("Un compteur d'affichage est borné à quatre chiffres")
+    void unCompteurEstBorne() {
+        assertThat(AnalyticsProperty.VISIBLE_COUNT.normalizeOrThrow(" 12 ")).isEqualTo("12");
+        assertThat(AnalyticsProperty.TOTAL_COUNT.normalizeOrThrow("0")).isEqualTo("0");
+        assertThatThrownBy(() -> AnalyticsProperty.VISIBLE_COUNT.normalizeOrThrow("-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("visibleCount");
+        assertThatThrownBy(() -> AnalyticsProperty.TOTAL_COUNT.normalizeOrThrow("12345"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> AnalyticsProperty.TOTAL_COUNT.normalizeOrThrow("douze"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
      * 🛑 Les deux portes d'entrée de {@code /reussir} ne se confondent pas.
      * « Passer l'examen découverte » ne mène ni à une production, ni à un niveau
      * CECRL, ni à un diagnostic : les fondre gonflerait la mesure du diagnostic
