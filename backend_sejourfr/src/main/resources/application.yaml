@@ -1065,6 +1065,47 @@ sejourfr:
   # Les valeurs doivent rester identiques a celles de config/CompetenceProperties
   # (deux sources qui divergent = un comportement different selon qu'une cle est
   # presente ou non).
+  # --------------------------------------------------------------------------
+  # Diagnostic TCF 4 epreuves (lot L4). Spec : docs/review_all/10_ §4.
+  # --------------------------------------------------------------------------
+  # 🛑 LES VALEURS CI-DESSOUS SONT RECOPIEES A L'IDENTIQUE dans le POJO
+  # config/TcfDiagnosticProperties. Un POJO qui diverge de son YAML ne se
+  # decouvre que le jour ou la cle disparait de la configuration.
+  #
+  # 🛑 config-version : A INCREMENTER des qu'un reglage change le SENS d'un
+  # resultat (items-per-level, seuils). Il est recopie sur chaque session, et
+  # un diagnostic se relit avec la configuration QUI L'A PRODUIT — sans lui, un
+  # recalibrage reinterpreterait retroactivement des diagnostics deja passes.
+  #
+  # Ce qui n'est PAS ici, et n'a rien a y faire : les durees d'epreuve du TCF
+  # (DureeEpreuve) et la table des paliers par demarche (TargetProcedure). Ce
+  # sont des donnees officielles, donc du code, pas des reglages.
+  tcf-diagnostic:
+    config-version: 1
+    # 5 A2 + 5 B1 + 5 B2 = 15 items par epreuve de comprehension. La repartition
+    # egale n'est pas cosmetique : le niveau se lit sur un taux PAR PALIER, et
+    # un palier sous-dote rendrait son taux tres sensible a une seule erreur.
+    items-per-level: 5
+    # Seuils de bascule (10_ §4.3). Un palier superieur exige de tenir AUSSI
+    # les paliers inferieurs : reussir le B2 en echouant l'A2 ne fait pas un B2.
+    seuils:
+      a2: 0.60
+      a2-pour-b1: 0.80
+      b1: 0.60
+      b1-pour-b2: 0.70
+      b2: 0.60
+    # Delai de REPRISE d'un diagnostic commence, pas de peremption du resultat :
+    # passe ce delai, les sections faites comptent toujours et les autres
+    # restent « non evaluee ». Rien n'est detruit.
+    reprise: 7d
+    # Delai minimal entre deux diagnostics pour un abonne. Sans lui, une
+    # reevaluation a volonte ne mesurerait plus une progression.
+    reevaluation: 14d
+    # Plafond d'AFFICHAGE des priorites (arbitrage A6). 🛑 Ce n'est PAS un
+    # budget de calcul : le moteur classe TOUTES les taches, l'ecran en montre
+    # trois.
+    max-priorites: 3
+
   competences:
     analysis:
       # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.

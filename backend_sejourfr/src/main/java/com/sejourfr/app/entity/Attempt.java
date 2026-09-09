@@ -62,6 +62,21 @@ public class Attempt {
     @JoinColumn(name = "parent_attempt_id")
     private Attempt parentAttempt;
 
+    /**
+     * Rattache cet attempt a un diagnostic TCF 4 epreuves (V049), parent
+     * {@code TCF_COMPLET} comme sous-epreuves.
+     *
+     * <p>🛑 <b>{@code null} = attempt ORDINAIRE</b> — c'est le cas de la quasi
+     * totalite des lignes. Tous les catalogues, grilles d'examens blancs,
+     * historiques, statistiques et quotas gardent le filtre
+     * {@code tcfDiagnostic IS NULL} : sans lui, un diagnostic serait compte
+     * comme un examen blanc qu'il n'est pas. Meme discipline que
+     * {@code production_tasks.diagnosticCode}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tcf_diagnostic_id")
+    private TcfDiagnosticSession tcfDiagnostic;
+
     @OneToMany(mappedBy = "parentAttempt", fetch = FetchType.LAZY)
     private List<Attempt> subAttempts = new ArrayList<>();
 
@@ -223,6 +238,9 @@ public class Attempt {
 
     public EpreuveType getEpreuve() { return epreuve; }
     public void setEpreuve(EpreuveType epreuve) { this.epreuve = epreuve; }
+
+    public TcfDiagnosticSession getTcfDiagnostic() { return tcfDiagnostic; }
+    public void setTcfDiagnostic(TcfDiagnosticSession tcfDiagnostic) { this.tcfDiagnostic = tcfDiagnostic; }
 
     public Attempt getParentAttempt() { return parentAttempt; }
     public void setParentAttempt(Attempt parentAttempt) { this.parentAttempt = parentAttempt; }

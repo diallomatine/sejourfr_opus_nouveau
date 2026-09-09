@@ -30,6 +30,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     @Query("""
             SELECT COUNT(a) FROM Attempt a
             WHERE a.user.id = :userId
+              AND a.tcfDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -40,6 +41,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     @Query("""
             SELECT COUNT(a) FROM Attempt a
             WHERE a.user.id = :userId AND a.module = :module
+              AND a.tcfDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -70,6 +72,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND (:module IS NULL OR a.module = :module)
               AND (:moduleExamQuestionType IS NULL OR a.moduleExamQuestionType = :moduleExamQuestionType)
               AND (:themeId IS NULL OR a.lotThemeId = :themeId)
+              AND a.tcfDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -196,11 +199,17 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     /**
      * Historique des examens blancs TCF complets d'un utilisateur (parent
      * uniquement, tri descendant). Utilisé par {@code GET /api/me/full-tcf-exams}.
+     *
+     * <p>🛑 <b>Les diagnostics TCF sont exclus</b> ({@code tcfDiagnostic IS NULL},
+     * V049) : ils partagent le parent {@code TCF_COMPLET} mais ne sont pas des
+     * examens blancs — 10_ §4.1 l'interdit explicitement. Sans ce filtre, un
+     * diagnostic occuperait un slot de la grille des 20 examens.
      */
     @Query("""
             SELECT a FROM Attempt a
             WHERE a.user.id = :userId
               AND a.epreuve = :epreuve
+              AND a.tcfDiagnostic IS NULL
             ORDER BY a.startedAt DESC
             """)
     List<Attempt> findByUserAndEpreuve(
@@ -214,6 +223,11 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * {@code started_at} de chaque attempt), triés du plus récent au plus
      * ancien. Sert au calcul de la série de jours consécutifs (streak) du
      * dashboard — le calcul de la série elle-même vit côté service.
+     *
+     * <p>Les diagnostics TCF sont ici <b>comptés</b>, et c'est voulu : passer
+     * une section de diagnostic EST un jour de travail. Le filtre
+     * {@code tcfDiagnostic IS NULL} des autres requêtes protège les compteurs
+     * d'examens blancs, pas la mesure d'activité.
      */
     @Query(value = """
             SELECT DISTINCT CAST(a.started_at AT TIME ZONE 'Europe/Paris' AS date)
@@ -223,7 +237,20 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             """, nativeQuery = true)
     List<LocalDate> findDistinctActivityDates(@Param("userId") UUID userId);
 
-    long countByUserIdAndTypeAndFinishedAtIsNotNull(UUID userId, AttemptType type);
+    /**
+     * Examens blancs terminés d'un user. 🛑 Les diagnostics TCF en sont exclus :
+     * ce compteur alimente « examens blancs passés » du tableau de bord, et un
+     * diagnostic n'en est pas un.
+     */
+    @Query("""
+            SELECT COUNT(a) FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.type = :type
+              AND a.finishedAt IS NOT NULL
+              AND a.tcfDiagnostic IS NULL
+            """)
+    long countByUserIdAndTypeAndFinishedAtIsNotNull(
+            @Param("userId") UUID userId, @Param("type") AttemptType type);
 
     /**
      * Sessions d'examen blanc production (EE/EO) d'un user — attempts marqués
@@ -260,6 +287,13 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * {@code moduleExamQuestionType} : il couvre ainsi les examens module
      * standalone, les sous-attempts d'un examen blanc complet et les anciens
      * diagnostics où cette colonne est nulle.
+     *
+     * <p>🛑 <b>Les sous-épreuves d'un diagnostic TCF sont exclues</b> (V049).
+     * Ce n'est pas de la pudeur : le niveau estimé se lit sur un score calibré
+     * 100-499 établi sur 25 items, quand une section de diagnostic en compte
+     * 15. Les mélanger comparerait deux mesures qui ne mesurent pas la même
+     * chose. Le diagnostic a son propre calcul de niveau et son propre écran —
+     * cf. {@code TcfDiagnosticLevelResolver}.
      */
     @Query("""
             SELECT a FROM Attempt a
@@ -267,6 +301,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
               AND a.epreuve = :epreuve
               AND a.finishedAt IS NOT NULL
+              AND a.tcfDiagnostic IS NULL
               AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
             ORDER BY a.finishedAt DESC
             """)
