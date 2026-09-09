@@ -24,6 +24,8 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/recording_waveform.dart';
+import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
+import '../../core/router/app_router.dart';
 
 /// Écran unique EO « consigne + enregistrement » : la consigne s'affiche
 /// **sans aucun décompte**, le tap sur « Je suis prêt » lance la capture **sur
@@ -80,7 +82,11 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       final goState = GoRouterState.of(context);
       final fullExamId = goState.uri.queryParameters['fullExamId'];
       final subAttemptId = goState.uri.queryParameters['subAttemptId'];
-      if (fullExamId != null && subAttemptId != null) {
+      final tcfDiagnosticId = goState.uri.queryParameters[kTcfDiagnosticParam];
+      if ((fullExamId != null || tcfDiagnosticId != null) &&
+          subAttemptId != null) {
+        // Diagnostic comme examen complet : le sous-attempt existe deja, on le
+        // REPREND. Le serveur y compose 3 taches au niveau cible du candidat.
         ref
             .read(eoSessionProvider.notifier)
             .startInFullExam(subAttemptId: subAttemptId);
@@ -319,6 +325,16 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       return;
     }
     // Dernière tâche EO.
+    // 🛑 Section d'un DIAGNOSTIC : pas de markSubDone (le backend pose
+    // `finishedAt` des la 3e soumission) et retour aux 4 sections, jamais au
+    // bilan individuel — le candidat doit voir ce qu'il lui reste.
+    if (GoRouterState.of(context).uri.queryParameters[kTcfDiagnosticParam] !=
+        null) {
+      ref.read(eoSessionProvider.notifier).reset();
+      if (!mounted) return;
+      context.go(AppRoutes.tcfDiagnostic);
+      return;
+    }
     if (fullExamId != null) {
       try {
         await ref.read(fullTcfExamRepositoryProvider).markSubDone(
@@ -342,9 +358,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   }
 
   String _fallbackRouteFor(BuildContext context) {
-    final fullExamId =
-        GoRouterState.of(context).uri.queryParameters['fullExamId'];
-    return fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/eo';
+    final params = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = params['fullExamId'];
+    if (fullExamId != null) return '/tcf/examen-blanc/$fullExamId';
+    // Quitter une section de diagnostic ramene aux 4 sections.
+    if (params[kTcfDiagnosticParam] != null) return AppRoutes.tcfDiagnostic;
+    return '/tcf/eo';
   }
 
   Future<bool> _confirmQuit(BuildContext context) async {

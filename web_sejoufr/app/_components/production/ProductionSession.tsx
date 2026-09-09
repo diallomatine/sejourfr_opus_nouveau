@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
+import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
 import {
@@ -85,6 +86,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   /** Présent quand cette session est une épreuve d'un examen blanc TCF complet :
    *  on saute le bilan individuel et on retourne au hub de progression. */
   const fullExamId = searchParams.get("fullExamId");
+  // Section EE/EO d'un diagnostic TCF : même règle de retour qu'une épreuve
+  // d'examen complet — la fin de l'épreuve ramène aux 4 sections, jamais au
+  // bilan individuel. Le candidat doit voir ce qu'il lui reste à passer.
+  const tcfDiagnosticId = searchParams.get(TCF_DIAGNOSTIC_PARAM);
   /** URL de retour quand on CONSULTE le bilan de l'épreuve (depuis le bilan de
    *  l'examen complet) — distinct de fullExamId qui pilote une épreuve ACTIVE. */
   const backTo = searchParams.get("backTo");
@@ -242,6 +247,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
+          if (tcfDiagnosticId && allSubmitted) {
+            router.replace(TCF_DIAGNOSTIC_HUB_HREF);
+            return;
+          }
           finishedRef.current = true;
           setPhase("bilan");
           startBilanPolling();
@@ -338,6 +347,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
           }
           router.push(`/examens-blancs/tcf/${fullExamId}`);
+        } else if (tcfDiagnosticId) {
+          // Le diagnostic n'a pas de `markSubDone` : le backend pose
+          // `finishedAt` dès la 3ᵉ soumission, comme pour l'examen complet.
+          finishedRef.current = true;
+          router.push(TCF_DIAGNOSTIC_HUB_HREF);
         } else {
           await goToBilan();
         }

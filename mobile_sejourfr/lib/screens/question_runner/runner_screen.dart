@@ -28,6 +28,7 @@ import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
+import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
 
 class RunnerScreen extends ConsumerStatefulWidget {
   const RunnerScreen({super.key, required this.attemptId});
@@ -776,6 +777,15 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     context.go(
       AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
     );
+    return;
+  }
+
+  // Section CO/CE d'un DIAGNOSTIC TCF : même règle que ci-dessus — on revient
+  // aux 4 sections, jamais au dialog d'examen. Sans ça le candidat termine sa
+  // compréhension orale sur un bilan de série, sans savoir qu'il lui reste
+  // trois sections à passer.
+  if (goState.uri.queryParameters[kTcfDiagnosticParam] != null) {
+    context.go(AppRoutes.tcfDiagnostic);
     return;
   }
 

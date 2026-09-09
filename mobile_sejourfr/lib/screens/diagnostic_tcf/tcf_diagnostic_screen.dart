@@ -112,14 +112,20 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
   /// existants. Un second runner divergerait du premier.
   void _ouvrirPassation(TcfDiagnosticSectionDto section) {
     final id = section.attemptId!;
+    final sessionId = _diagnostic!.sessionId;
+    // Le parametre ne sert qu'au RETOUR : il ramene aux 4 sections au lieu du
+    // bilan individuel. Il ne change ni la passation, ni la notation.
+    final marqueur = '$kTcfDiagnosticParam=$sessionId';
     switch (section.epreuve) {
       case EpreuveType.tcfCo:
       case EpreuveType.tcfCe:
-        context.push('/runner/$id?from=tcfDiagnostic');
+        context.push('/runner/$id?$marqueur');
       case EpreuveType.tcfEe:
-        context.push('/tcf/expression-ecrite/t/0?tcfDiagnosticAttempt=$id');
+        context.push(
+            '/tcf/expression-ecrite/t/0?subAttemptId=$id&$marqueur');
       case EpreuveType.tcfEo:
-        context.push('/tcf/expression-orale/t/0?tcfDiagnosticAttempt=$id');
+        context.push(
+            '/tcf/expression-orale/t/0?subAttemptId=$id&$marqueur');
       default:
         break;
     }

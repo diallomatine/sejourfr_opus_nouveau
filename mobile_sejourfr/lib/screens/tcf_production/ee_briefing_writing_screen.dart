@@ -22,6 +22,8 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
+import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
+import '../../core/router/app_router.dart';
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
 /// le mockup `EE · 01` de sejourfr_mobile_v3.html.
@@ -59,7 +61,12 @@ class _EeBriefingWritingScreenState
       final goState = GoRouterState.of(context);
       final fullExamId = goState.uri.queryParameters['fullExamId'];
       final subAttemptId = goState.uri.queryParameters['subAttemptId'];
-      if (fullExamId != null && subAttemptId != null) {
+      final tcfDiagnosticId = goState.uri.queryParameters[kTcfDiagnosticParam];
+      if ((fullExamId != null || tcfDiagnosticId != null) &&
+          subAttemptId != null) {
+        // Diagnostic comme examen complet : le sous-attempt existe deja cote
+        // backend, on le REPREND. Le serveur y compose 3 taches au niveau cible
+        // du candidat (parent non nul, cf. ProductionExamCompositionService).
         ref
             .read(eeSessionProvider.notifier)
             .startInFullExam(subAttemptId: subAttemptId);
@@ -139,7 +146,8 @@ class _EeBriefingWritingScreenState
     // ProductionPipelineAsyncRunner). Garanti à 100 % : si le POST renvoie
     // une erreur (texte trop court, quota, etc.), on l'affiche au lieu de
     // la swallow silencieusement.
-    if (fullExamId != null) {
+    final tcfDiagnosticId = goState.uri.queryParameters[kTcfDiagnosticParam];
+    if (fullExamId != null || tcfDiagnosticId != null) {
       setState(() {
         _submitting = true;
         _submitError = null;
@@ -173,9 +181,19 @@ class _EeBriefingWritingScreenState
         // Dernière tâche EE : marquer le sous-attempt EE comme terminé
         // côté backend (les 3 submissions sont persistées, mais leurs
         // évaluations IA tournent encore en async). Le hub débloque EO.
+        if (tcfDiagnosticId != null) {
+          // 🛑 Pas de markSubDone ici : le backend pose `finishedAt` des la 3e
+          // soumission (finishSubAttemptIfFullExam), et le diagnostic n'a pas
+          // d'endpoint de cloture d'epreuve. On revient aux 4 sections — jamais
+          // au bilan individuel, le candidat doit voir ce qu'il lui reste.
+          if (!mounted) return;
+          ref.read(eeSessionProvider.notifier).reset();
+          context.go(AppRoutes.tcfDiagnostic);
+          return;
+        }
         try {
           await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-                parentAttemptId: fullExamId,
+                parentAttemptId: fullExamId!,
                 epreuveWire: 'TCF_EE',
               );
         } catch (_) {
@@ -183,7 +201,7 @@ class _EeBriefingWritingScreenState
         }
         if (!mounted) return;
         ref.read(eeSessionProvider.notifier).reset();
-        ref.invalidate(fullTcfExamProvider(fullExamId));
+        ref.invalidate(fullTcfExamProvider(fullExamId!));
         context.go('/tcf/examen-blanc/$fullExamId');
       }
       return;

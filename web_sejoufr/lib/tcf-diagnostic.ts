@@ -124,7 +124,7 @@ export function sectionHref(
     attemptId: string,
     sessionId: string,
 ): string {
-    const suffix = `?tcfDiagnosticId=${sessionId}`;
+    const suffix = `?${TCF_DIAGNOSTIC_PARAM}=${sessionId}`;
     switch (epreuve) {
         case "TCF_CO":
         case "TCF_CE":
@@ -209,3 +209,20 @@ export function rassuranceText(cible: NiveauCecrl | null): string {
 
 export const TCF_DIAGNOSTIC_DEJA_TITLE = "Déjà au niveau attendu";
 export const TCF_DIAGNOSTIC_PLAN_CTA = "Découvrir mon plan";
+
+/** L'accueil des 4 sections. Le hub relit `current()`, il n'a pas besoin d'id. */
+export const TCF_DIAGNOSTIC_HUB_HREF = "/diagnostic-tcf";
+
+/**
+ * Le paramètre que les écrans de passation reçoivent quand la section
+ * appartient à un diagnostic.
+ *
+ * 🛑 **Sa seule fonction est le RETOUR** : une section de diagnostic ramène à
+ * l'accueil des 4 sections, jamais au rapport individuel — exactement comme une
+ * épreuve d'examen complet ramène à son hub. Sans ça, le candidat termine sa
+ * compréhension orale et se retrouve sur un bilan de série, sans savoir qu'il
+ * lui reste trois sections.
+ *
+ * Il ne change **rien d'autre** : ni la passation, ni la notation, ni le chrono.
+ */
+export const TCF_DIAGNOSTIC_PARAM = "tcfDiagnosticId";

@@ -20,6 +20,7 @@ import {
   userContentApi,
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
+import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   epreuveExitMessage,
@@ -194,6 +195,9 @@ function SessionRunnerInner({ params }: PageProps) {
   /** Présent quand Cette session (CO/CE) fait partie d'un examen blanc TCF
    *  complet : pas de rapport individuel, on retourne au hub de progression. */
   const fullExamId = searchParams.get("fullExamId");
+  // Section d'un diagnostic TCF : même règle de retour qu'une épreuve
+  // d'examen complet — on ramène au hub, jamais au rapport individuel.
+  const tcfDiagnosticId = searchParams.get(TCF_DIAGNOSTIC_PARAM);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -314,6 +318,10 @@ function SessionRunnerInner({ params }: PageProps) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
+          if (tcfDiagnosticId) {
+            router.replace(TCF_DIAGNOSTIC_HUB_HREF);
+            return;
+          }
           setAttempt(a);
           setOpenedAsFinished(true);
           setPhase("result");
@@ -344,7 +352,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status, fullExamId, router]);
+  }, [attemptId, status, fullExamId, tcfDiagnosticId, router]);
 
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
@@ -544,7 +552,9 @@ function SessionRunnerInner({ params }: PageProps) {
         quitHref={
           fullExamId
             ? `/examens-blancs/tcf/${fullExamId}`
-            : isExam
+            : tcfDiagnosticId
+              ? TCF_DIAGNOSTIC_HUB_HREF
+              : isExam
               ? examReturnPath(attempt)
               : (lotQuitHref ?? "/entrainement")
         }
@@ -579,6 +589,10 @@ function SessionRunnerInner({ params }: PageProps) {
           // suivante) au lieu d'afficher le rapport individuel.
           if (fullExamId) {
             router.push(`/examens-blancs/tcf/${fullExamId}`);
+            return;
+          }
+          if (tcfDiagnosticId) {
+            router.push(TCF_DIAGNOSTIC_HUB_HREF);
             return;
           }
           setAttempt(finalAttempt);

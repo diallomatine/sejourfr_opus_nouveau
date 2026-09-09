@@ -117,3 +117,14 @@ String prioriteTitle(int rang, String epreuveLabel, String? taskCode) {
 String rassuranceText(NiveauCecrl? cible) => cible == null
     ? 'Votre plan se concentrera d\'abord sur les tâches qui ont le plus d\'impact.'
     : 'Votre plan se concentrera d\'abord sur les tâches qui ont le plus d\'impact pour atteindre ${cible.wire}.';
+
+/// Le paramètre que les écrans de passation reçoivent quand la section
+/// appartient à un diagnostic.
+///
+/// 🛑 **Sa seule fonction est le RETOUR** : une section de diagnostic ramène à
+/// l'accueil des 4 sections, jamais au bilan individuel — exactement comme une
+/// épreuve d'examen complet ramène à son hub. Il ne change rien d'autre : ni la
+/// passation, ni la notation, ni le chrono.
+///
+/// Miroir de `TCF_DIAGNOSTIC_PARAM` (`web_sejoufr/lib/tcf-diagnostic.ts`).
+const String kTcfDiagnosticParam = 'tcfDiagnosticId';
