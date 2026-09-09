@@ -65,8 +65,19 @@ public class ProductionSubmissionService {
     private final RateLimitGuard rateLimitGuard;
     private final LearningPlanService learningPlanService;
 
-    public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
+    public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId,
+                                               MultipartFile audio, UUID clientSubmissionId) {
         UUID userId = currentUser.getId();
+
+        // REJEU D'ABORD, AVANT TOUT LE RESTE. Une soumission deja rendue sous
+        // cette cle ne doit ni etre rate-limitee, ni reverifier un quota deja
+        // consomme, ni surtout repayer Whisper puis le correcteur. C'est tout
+        // l'objet de la cle : la seconde requete est la MEME requete.
+        ProductionSubmissionDto rejeu = rejeu(userId, clientSubmissionId);
+        if (rejeu != null) {
+            return rejeu;
+        }
+
         // Garde-fou cout LLM (Whisper + Claude/OpenAI) : borne le volume absolu
         // par utilisateur, tous tiers. Le quota freemium reste gere par
         // enforceQuota ; ceci ne fait que couper l'abus (boucle, compte premium
@@ -77,20 +88,43 @@ public class ProductionSubmissionService {
         enforceQuota(userId, task, attemptId);
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
-                userId, productionTaskId, attemptId, audio, null);
+                userId, productionTaskId, attemptId, audio, null, clientSubmissionId);
         return mapper.toDto(saved);
     }
 
     public ProductionSubmissionDto submitText(SubmitProductionTextRequest req) {
         UUID userId = currentUser.getId();
+
+        ProductionSubmissionDto rejeu = rejeu(userId, req.clientSubmissionId());
+        if (rejeu != null) {
+            return rejeu;
+        }
+
         rateLimitGuard.checkProductionSubmission(userId);
         ProductionTask task = loadSubmittableTask(req.productionTaskId());
         assertEpreuve(task, EpreuveType.TCF_EE);
         enforceQuota(userId, task, req.attemptId());
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
-                userId, req.productionTaskId(), req.attemptId(), null, req.texte());
+                userId, req.productionTaskId(), req.attemptId(), null, req.texte(),
+                req.clientSubmissionId());
         return mapper.toDto(saved);
+    }
+
+    /**
+     * La soumission deja rendue sous cette cle d'idempotence, ou {@code null}
+     * si c'est la premiere fois (cle absente comprise : un client qui n'en
+     * envoie pas garde l'ancien comportement).
+     *
+     * <p>On rend la ligne <b>telle qu'elle est</b>, quel que soit son statut :
+     * une correction encore en cours rend un {@code SUBMITTED}, exactement ce
+     * qu'aurait rendu le premier appel. Le client la suit ensuite par son
+     * polling habituel.
+     */
+    private ProductionSubmissionDto rejeu(UUID userId, UUID clientSubmissionId) {
+        return submissionManager.findByClientKey(userId, clientSubmissionId)
+                .map(mapper::toDto)
+                .orElse(null);
     }
 
     public ProductionSubmissionDto retry(UUID submissionId) {

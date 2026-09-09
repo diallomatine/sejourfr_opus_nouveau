@@ -96,6 +96,7 @@ class _FakeSkillRepository implements SkillRepository {
     required String texte,
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
+    String? clientSubmissionId,
   }) async =>
       throw UnimplementedError();
 
@@ -107,6 +108,7 @@ class _FakeSkillRepository implements SkillRepository {
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
     String? mimeType,
+    String? clientSubmissionId,
   }) async =>
       throw UnimplementedError();
 

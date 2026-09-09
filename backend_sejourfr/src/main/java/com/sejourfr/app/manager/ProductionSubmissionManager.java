@@ -39,6 +39,17 @@ public class ProductionSubmissionManager {
         return repository.findByIdWithTaskAndUser(id);
     }
 
+    /**
+     * Soumission deja rendue sous cette cle d'idempotence (V046), tache et
+     * attempt charges. Vide = premiere soumission sous cette cle.
+     */
+    public Optional<ProductionSubmission> findByClientKey(UUID userId, UUID clientSubmissionId) {
+        if (clientSubmissionId == null) {
+            return Optional.empty();
+        }
+        return repository.findByUserAndClientSubmissionId(userId, clientSubmissionId);
+    }
+
     public ProductionSubmission save(ProductionSubmission submission) {
         return repository.save(submission);
     }

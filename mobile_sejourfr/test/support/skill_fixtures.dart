@@ -199,6 +199,7 @@ class FakeSkillRepository implements SkillRepository {
     required String texte,
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
+    String? clientSubmissionId,
   }) async {
     lastRequestAnalysis = requestAnalysis;
     return SkillAttemptDto.fromJson(attempt);
@@ -212,6 +213,7 @@ class FakeSkillRepository implements SkillRepository {
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
     String? mimeType,
+    String? clientSubmissionId,
   }) async {
     lastRequestAnalysis = requestAnalysis;
     return SkillAttemptDto.fromJson(attempt);

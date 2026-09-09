@@ -41,6 +41,18 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
         + "WHERE s.id = :id")
     Optional<ProductionSubmission> findByIdWithTaskAndUser(@Param("id") UUID id);
 
+    /**
+     * Rejeu d'une soumission deja rendue (V046). Borne a l'utilisateur : une
+     * cle tiree par un client ne peut jamais resoudre vers la production d'un
+     * tiers, meme si deux clients tirent la meme UUID.
+     */
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask "
+        + "JOIN FETCH s.attempt "
+        + "WHERE s.user.id = :userId AND s.clientSubmissionId = :clientSubmissionId")
+    Optional<ProductionSubmission> findByUserAndClientSubmissionId(
+            @Param("userId") UUID userId,
+            @Param("clientSubmissionId") UUID clientSubmissionId);
+
     /** Historique standard : le diagnostic possède son écran agrégé dédié. */
     @Query("""
             SELECT s FROM ProductionSubmission s

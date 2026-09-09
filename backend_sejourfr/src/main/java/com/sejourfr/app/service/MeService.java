@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -98,6 +99,21 @@ public class MeService {
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
         user.setTargetProcedure(procedure);
         user.setTargetLevel(procedure == null ? null : procedure.getRequiredTcfLevel());
+        userManager.save(user);
+    }
+
+    /**
+     * Date d'examen declaree par le candidat (V047). {@code null} efface : « pas
+     * encore de date » est une reponse pleine.
+     *
+     * <p>Aucune validation sur le passe : une date depassee est une information
+     * vraie, et refuser une saisie empecherait de corriger une faute de frappe.
+     * Ce que le serveur en affiche se decide a la lecture.
+     */
+    public void updateExamDate(UUID userId, LocalDate examDate) {
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
+        user.setExamDate(examDate);
         userManager.save(user);
     }
 

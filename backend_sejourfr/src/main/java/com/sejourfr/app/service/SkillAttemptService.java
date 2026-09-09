@@ -22,6 +22,8 @@ import com.sejourfr.app.service.competence.SkillAnalysisAsyncRunner;
 import com.sejourfr.app.util.AudioEphemere;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -58,6 +60,7 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SkillAttemptService {
 
     private static final int MIN_HISTORY_LIMIT = 1;
@@ -87,6 +90,14 @@ public class SkillAttemptService {
     /** Production ECRITE (section EE). */
     public SkillAttemptDto submitText(SubmitSkillTextRequest req) {
         UUID userId = currentUser.getId();
+
+        // REJEU D'ABORD. Une production deja rendue sous cette cle ne doit ni
+        // etre rate-limitee, ni reconsommer une analyse, ni repayer le LLM.
+        SkillAttemptDto rejeu = rejeu(userId, req.clientSubmissionId());
+        if (rejeu != null) {
+            return rejeu;
+        }
+
         rateLimitGuard.checkSkillAttempt(userId);
 
         SkillPrompt prompt = loadActivePrompt(req.skillPromptId());
@@ -110,9 +121,14 @@ public class SkillAttemptService {
         boolean analyse = acceptAnalysis(userId, req.requestAnalysis());
 
         UserSkillAttempt attempt = newAttempt(userId, prompt, req.selfEvaluation(), analyse);
+        attempt.setClientSubmissionId(req.clientSubmissionId());
         attempt.setWrittenProduction(texte);
         attempt.setWordsCount(mots);
-        attempt = attemptManager.save(attempt);
+        try {
+            attempt = attemptManager.save(attempt);
+        } catch (DataIntegrityViolationException conflit) {
+            return resoudreCourseIdempotence(userId, req.clientSubmissionId(), conflit);
+        }
 
         return finish(attempt, analyse);
     }
@@ -122,8 +138,16 @@ public class SkillAttemptService {
                                        MultipartFile audio,
                                        int durationSec,
                                        SkillSelfEvaluation selfEvaluation,
-                                       boolean requestAnalysis) {
+                                       boolean requestAnalysis,
+                                       UUID clientSubmissionId) {
         UUID userId = currentUser.getId();
+
+        // REJEU D'ABORD, AVANT WHISPER : c'est ici que la cle rapporte le plus.
+        SkillAttemptDto rejeu = rejeu(userId, clientSubmissionId);
+        if (rejeu != null) {
+            return rejeu;
+        }
+
         rateLimitGuard.checkSkillAttempt(userId);
 
         SkillPrompt prompt = loadActivePrompt(skillPromptId);
@@ -171,12 +195,19 @@ public class SkillAttemptService {
                 bytes, octets -> whisperService.transcribe(octets, fileNameOf(audio)));
 
         UserSkillAttempt attempt = newAttempt(userId, prompt, selfEvaluation, analyse);
+        attempt.setClientSubmissionId(clientSubmissionId);
         attempt.setTranscript(transcrit.texte());
         // La duree detectee par Whisper fait foi sur celle annoncee par le
         // client : c'est la seule mesure faite sur le fichier reellement recu.
         attempt.setAudioDurationSec(
                 transcrit.durationSec() != null ? transcrit.durationSec() : durationSec);
-        attempt = attemptManager.save(attempt);
+        try {
+            attempt = attemptManager.save(attempt);
+        } catch (DataIntegrityViolationException conflit) {
+            // Course perdue : on rend la ligne gagnante et on jette notre
+            // transcription. Meme cout assume que cote productions completes.
+            return resoudreCourseIdempotence(userId, clientSubmissionId, conflit);
+        }
 
         return finish(attempt, analyse);
     }
@@ -305,6 +336,38 @@ public class SkillAttemptService {
         }
         analysisAccessService.assertCanAnalyse(userId);
         return true;
+    }
+
+    /**
+     * La production deja rendue sous cette cle d'idempotence (V046), ou
+     * {@code null} si c'est la premiere fois — cle absente comprise.
+     *
+     * <p>On rend la ligne telle qu'elle est : une analyse encore en cours rend
+     * un {@code SUBMITTED}, exactement ce qu'aurait rendu le premier appel.
+     */
+    private SkillAttemptDto rejeu(UUID userId, UUID clientSubmissionId) {
+        return attemptManager.findByClientKey(userId, clientSubmissionId)
+                .map(mapper::toDto)
+                .orElse(null);
+    }
+
+    /**
+     * La production gagnante d'une course sur la cle d'idempotence, ou
+     * {@code null} si le conflit n'a rien a voir avec elle — auquel cas on
+     * relaie l'exception plutot que de l'avaler.
+     */
+    private SkillAttemptDto resoudreCourseIdempotence(
+            UUID userId, UUID clientSubmissionId, DataIntegrityViolationException conflit) {
+        if (clientSubmissionId == null) {
+            throw conflit;
+        }
+        return attemptManager.findByClientKey(userId, clientSubmissionId)
+                .map(gagnante -> {
+                    log.info("Course sur la cle d'idempotence {} : la production {} l'emporte.",
+                            clientSubmissionId, gagnante.getId());
+                    return mapper.toDto(gagnante);
+                })
+                .orElseThrow(() -> conflit);
     }
 
     private UserSkillAttempt newAttempt(UUID userId,

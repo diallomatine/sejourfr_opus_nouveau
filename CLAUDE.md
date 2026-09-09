@@ -139,6 +139,15 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   → `docs/regles/progression.md`
 - **On versionne, on ne réécrit jamais** une rubrique, un tool-schema ou un contrat livré. Un
   retour arrière est un changement de variable d'environnement, pas une migration.
+- 🛑 **Toute soumission qui déclenche un appel LLM payant porte une clé d'idempotence**
+  (`clientSubmissionId`, UUID tirée par le client, V046) — productions EE/EO **et** petits
+  sujets de compétence. **Une clé par PRODUCTION, jamais par requête** : c'est le renvoi
+  après coupure qui doit porter la même clé que l'envoi initial. Le serveur rend alors la
+  MÊME ligne, sans second appel ni second décompte de quota, et le rejeu est intercepté
+  **avant** Whisper. Clé absente = comportement d'avant (un client ancien continue de
+  marcher). Unicité bornée à `(user_id, clé)` : une clé tirée par un client ne peut jamais
+  faire échouer ni résoudre vers la production d'un tiers.
+  → `web_sejoufr/lib/idempotency.ts` · `mobile_sejourfr/lib/core/utils/submission_key.dart`
 
 ### Pour tout écran
 

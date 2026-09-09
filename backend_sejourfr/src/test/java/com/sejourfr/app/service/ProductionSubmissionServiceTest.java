@@ -107,11 +107,11 @@ class ProductionSubmissionServiceTest {
     }
 
     private SubmitProductionTextRequest req() {
-        return new SubmitProductionTextRequest(taskId, attemptId, "Mon texte de production.");
+        return new SubmitProductionTextRequest(taskId, attemptId, "Mon texte de production.", null);
     }
 
     private void stubEvaluatedSubmission() {
-        when(evaluationService.submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any()))
+        when(evaluationService.submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull()))
                 .thenReturn(new ProductionSubmission());
         when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
     }
@@ -149,7 +149,7 @@ class ProductionSubmissionServiceTest {
         service.submitText(req());
 
         verify(rateLimitGuard).checkProductionSubmission(userId);
-        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any());
+        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
         // Premium : on ne consulte pas le compteur d'entrainement.
         verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
     }
@@ -165,7 +165,7 @@ class ProductionSubmissionServiceTest {
 
         service.submitText(req());
 
-        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any());
+        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
     }
 
     @Test
@@ -177,7 +177,7 @@ class ProductionSubmissionServiceTest {
         when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE)).thenReturn(1L);
 
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
-        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any());
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -191,7 +191,7 @@ class ProductionSubmissionServiceTest {
 
         service.submitText(req());
 
-        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any());
+        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
         // Bypass : pas de lecture du compteur d'entrainement.
         verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
     }
@@ -382,5 +382,85 @@ class ProductionSubmissionServiceTest {
 
         assertThat(resp.niveauGlobal()).isEqualTo(NiveauCecrl.B1);
         assertThat(resp.correspondanceTcf()).isEqualTo(correspondance);
+    }
+
+    // ------------------------------------------------------------------------
+    // Idempotence (V046) — la cle rendue par le client
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 Le test le plus important du lot L1. Sans lui, une perte de reseau en
+     * fin de soumission fait payer DEUX corrections pour une seule production,
+     * et vide deux fois le quota gratuit du candidat.
+     */
+    @Test
+    void une_soumission_rejouee_sous_la_meme_cle_ne_repaie_pas() {
+        UUID cle = UUID.randomUUID();
+        ProductionSubmission deja = new ProductionSubmission();
+        ProductionSubmissionDto dto = mock(ProductionSubmissionDto.class);
+        when(submissionManager.findByClientKey(userId, cle)).thenReturn(Optional.of(deja));
+        when(mapper.toDto(deja)).thenReturn(dto);
+
+        ProductionSubmissionDto resultat = service.submitText(
+                new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        assertThat(resultat).isSameAs(dto);
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Le rejeu passe AVANT le rate-limit : la seconde requete est la meme
+     * requete, la refuser en 429 rendrait la cle inutile precisement quand le
+     * client en a besoin (retry automatique apres coupure).
+     */
+    @Test
+    void un_rejeu_ne_consomme_ni_rate_limit_ni_quota() {
+        UUID cle = UUID.randomUUID();
+        when(submissionManager.findByClientKey(userId, cle))
+                .thenReturn(Optional.of(new ProductionSubmission()));
+        when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
+
+        service.submitText(new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        verify(rateLimitGuard, never()).checkProductionSubmission(any());
+        verify(taskManager, never()).findById(any());
+    }
+
+    /**
+     * Un client qui n'envoie pas de cle garde EXACTEMENT l'ancien comportement :
+     * la migration ne casse pas les applications deja installees.
+     */
+    @Test
+    void sans_cle_le_comportement_est_inchange() {
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
+        stubEvaluatedSubmission();
+
+        service.submitText(req());
+
+        // La cle nulle traverse le manager, qui rend vide sans requeter : c'est
+        // LUI qui porte cette garde, pour que tout appelant en beneficie.
+        verify(evaluationService).submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
+    }
+
+    /** La cle voyage jusqu'au service d'evaluation, qui seul l'ecrit en base. */
+    @Test
+    void la_cle_est_transmise_au_service_devaluation() {
+        UUID cle = UUID.randomUUID();
+        when(submissionManager.findByClientKey(userId, cle)).thenReturn(Optional.empty());
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
+        when(evaluationService.submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), eq(cle)))
+                .thenReturn(new ProductionSubmission());
+        when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
+
+        service.submitText(new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        verify(evaluationService).submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), eq(cle));
     }
 }

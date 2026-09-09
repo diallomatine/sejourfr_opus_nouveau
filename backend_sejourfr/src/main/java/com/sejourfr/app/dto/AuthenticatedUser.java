@@ -7,6 +7,7 @@ import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -29,6 +30,13 @@ public record AuthenticatedUser(
         TargetProcedure targetProcedure,
         /** Palier VISÉ, plancher de la démarche appliqué. Null si rien n'est connu. */
         TargetLevel targetLevel,
+        /**
+         * Jour de l'examen déclaré par le candidat. {@code null} = pas de date,
+         * réponse pleine et la plus fréquente. Les fronts l'affichent, ils ne
+         * dérivent RIEN d'elle : le décompte en jours est servi ailleurs, par le
+         * serveur.
+         */
+        LocalDate examDate,
         boolean isPremium,
         boolean hasCivique,
         boolean hasTcf,
@@ -44,6 +52,7 @@ public record AuthenticatedUser(
                 u.getRole(),
                 u.getTargetProcedure(),
                 TargetProcedure.niveauVise(u.getTargetProcedure(), u.getTargetLevel()),
+                u.getExamDate(),
                 access != ModuleAccess.NONE,
                 access.hasCivique(),
                 access.hasTcf(),

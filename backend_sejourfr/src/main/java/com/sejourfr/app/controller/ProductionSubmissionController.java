@@ -32,13 +32,20 @@ public class ProductionSubmissionController {
 
     private final ProductionSubmissionService productionSubmissionService;
 
-    /** EO : upload multipart de l'audio. */
+    /**
+     * EO : upload multipart de l'audio.
+     *
+     * <p>{@code clientSubmissionId} est facultatif et porte l'idempotence
+     * (V046) : rejouer la meme cle rend la meme soumission sans repayer.
+     */
     @PostMapping(value = "/api/production-submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ProductionSubmissionDto submitAudio(
             @RequestPart("audio") MultipartFile audio,
             @RequestParam("productionTaskId") UUID productionTaskId,
-            @RequestParam("attemptId") UUID attemptId) {
-        return productionSubmissionService.submitAudio(productionTaskId, attemptId, audio);
+            @RequestParam("attemptId") UUID attemptId,
+            @RequestParam(value = "clientSubmissionId", required = false) UUID clientSubmissionId) {
+        return productionSubmissionService.submitAudio(
+                productionTaskId, attemptId, audio, clientSubmissionId);
     }
 
     /** EE : texte JSON. */

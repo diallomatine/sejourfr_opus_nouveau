@@ -130,10 +130,15 @@ class ProductionRepository {
 
   /// Soumet un texte (epreuve EE). Le backend repond avec la submission deja
   /// EVALUATED (synchrone court-terme : 10-20 s d'attente cote serveur).
+  ///
+  /// [clientSubmissionId] porte l'idempotence (V046) : renvoyer la meme cle rend
+  /// la MEME submission, sans seconde correction facturee. Facultative — sans
+  /// elle, comportement d'avant a l'identique.
   Future<ProductionSubmissionDto> submitText({
     required String productionTaskId,
     required String attemptId,
     required String texte,
+    String? clientSubmissionId,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/production-submissions',
@@ -141,6 +146,7 @@ class ProductionRepository {
         'productionTaskId': productionTaskId,
         'attemptId': attemptId,
         'texte': texte,
+        if (clientSubmissionId != null) 'clientSubmissionId': clientSubmissionId,
       },
       options: Options(
         contentType: Headers.jsonContentType,
@@ -158,6 +164,7 @@ class ProductionRepository {
     required String attemptId,
     required File audioFile,
     String? mimeType,
+    String? clientSubmissionId,
   }) async {
     final filename = audioFile.path.split('/').last;
     // Si mimeType est fourni on l'utilise, sinon dio infere depuis l'extension
@@ -166,6 +173,7 @@ class ProductionRepository {
     final formData = FormData.fromMap({
       'productionTaskId': productionTaskId,
       'attemptId': attemptId,
+      if (clientSubmissionId != null) 'clientSubmissionId': clientSubmissionId,
       'audio': await MultipartFile.fromFile(
         audioFile.path,
         filename: filename,

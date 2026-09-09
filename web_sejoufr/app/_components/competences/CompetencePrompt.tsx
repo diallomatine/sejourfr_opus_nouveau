@@ -11,6 +11,7 @@ import {
   SKILL_ANALYSIS_MAX_WORDS,
   tipOf,
 } from "@/lib/skill-guidance";
+import {useSubmissionKey} from "@/lib/idempotency";
 import {isPlanStep, withPlanStep} from "@/lib/plan-step";
 import {loadSectionSkills} from "@/lib/skill-catalog";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
@@ -130,6 +131,12 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Une cle par sujet : renvoyer la meme production apres une coupure ne doit
+
+  // pas consommer une seconde des analyses offertes.
+
+  const submissionKey = useSubmissionKey();
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -225,11 +232,13 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                 audio: payload.audio,
                 durationSec: payload.durationSec ?? 0,
                 requestAnalysis,
+                clientSubmissionId: submissionKey(promptId),
               })
             : await skillApi.submitText({
                 skillPromptId: promptId,
                 texte: payload.texte ?? "",
                 requestAnalysis,
+                clientSubmissionId: submissionKey(promptId),
               });
         if (!oral) clearEeDraft(promptId);
         router.push(withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attempt.id}`, step));
@@ -242,7 +251,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         setSubmitting(false);
       }
     },
-    [submitting, analysisAllowed, promptId, oral, router, base, skillId, step],
+    [submitting, analysisAllowed, promptId, oral, router, base, skillId, step, submissionKey],
   );
 
   /** Recharge la production précédente dans la zone de saisie (§13.5, EE). */

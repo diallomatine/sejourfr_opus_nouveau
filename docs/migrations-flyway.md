@@ -27,12 +27,20 @@ db/migration/
 │   │                                             correctifs de données (V023, V024)
 │   ├── V025__schema_competences_tcf.sql         skills, skill_prompts, skill_references,
 │   │                                             user_skill_attempts (module Compétences TCF)
-│   └── V026-V031                                guidage des petits sujets (V026), qualité de
-│                                                 transcription (V027), production_tasks.titre
-│                                                 (V028, intitulé éditorial d'un sujet EE/EO),
-│                                                 diagnostic + Plan (V029), funnel (V030),
-│                                                 moteur de maîtrise (V031 : sources d'examen
-│                                                 blanc + learning_plan_observations.subject_id)
+│   ├── V026-V031                                guidage des petits sujets (V026), qualité de
+│   │                                             transcription (V027), production_tasks.titre
+│   │                                             (V028, intitulé éditorial d'un sujet EE/EO),
+│   │                                             diagnostic + Plan (V029), funnel (V030),
+│   │                                             moteur de maîtrise (V031 : sources d'examen
+│   │                                             blanc + learning_plan_observations.subject_id)
+│   ├── V032-V045                                analytics (V043), moteur de progression V4.2
+│   │                                             (V044), bande de difficulté (V045)
+│   └── V046-V048                                lot L1 de la refonte : idempotence des
+│                                                 soumissions payantes (V046, clé client +
+│                                                 index unique par utilisateur),
+│                                                 users.exam_date (V047), vue de lecture
+│                                                 v_ai_usage (V048 — une VUE, pas une table :
+│                                                 les 4 sources écrivent déjà leur coût)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)

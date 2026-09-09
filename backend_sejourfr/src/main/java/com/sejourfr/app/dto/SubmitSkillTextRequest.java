@@ -20,6 +20,13 @@ public record SubmitSkillTextRequest(
         @NotBlank String texte,
         /** Facultative et declarative : sans aucun effet sur le verdict. */
         SkillSelfEvaluation selfEvaluation,
-        @NotNull Boolean requestAnalysis
+        @NotNull Boolean requestAnalysis,
+        /**
+         * Cle d'idempotence tiree par le client (V046). Renvoyer la meme cle
+         * rend la MEME production, sans second appel LLM ni seconde analyse
+         * decomptee. <b>Facultative</b> : un client qui ne l'envoie pas garde
+         * l'ancien comportement.
+         */
+        UUID clientSubmissionId
 ) {
 }

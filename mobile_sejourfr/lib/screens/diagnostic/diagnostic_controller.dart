@@ -10,6 +10,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../plan/learning_plan_provider.dart';
 import 'diagnostic_draft_service.dart';
+import '../../core/utils/submission_key.dart';
 
 typedef SubmitDiagnosticText = Future<void> Function({
   required String productionTaskId,
@@ -792,6 +793,10 @@ final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
   final isAuthenticated = ref.watch(
     authControllerProvider.select((state) => state is AuthAuthenticated),
   );
+  // Une cle par production de diagnostic. Le renvoi apres coupure — le cas le
+  // plus frequent de ce parcours, ou le compte vient d'etre cree — retrouve la
+  // soumission au lieu d'echouer sur « deja rendue ».
+  final submissionKeys = SubmissionKeys();
   final controller = DiagnosticController(
     diagnosticRepository: ref.watch(diagnosticRepositoryProvider),
     draftStore: ref.watch(diagnosticDraftStoreProvider),
@@ -805,6 +810,8 @@ final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
         productionTaskId: productionTaskId,
         attemptId: attemptId,
         texte: texte,
+        clientSubmissionId:
+            submissionKeys.keyFor('$attemptId:$productionTaskId'),
       );
     },
     submitAudio: ({
@@ -818,6 +825,8 @@ final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
         attemptId: attemptId,
         audioFile: audioFile,
         mimeType: mimeType,
+        clientSubmissionId:
+            submissionKeys.keyFor('$attemptId:$productionTaskId'),
       );
     },
     onChanged: () => ref.read(learningPlanRevisionProvider.notifier).state++,

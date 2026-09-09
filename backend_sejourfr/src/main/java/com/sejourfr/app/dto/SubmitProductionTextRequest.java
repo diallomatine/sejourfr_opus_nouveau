@@ -13,6 +13,13 @@ import java.util.UUID;
 public record SubmitProductionTextRequest(
         @NotNull UUID productionTaskId,
         @NotNull UUID attemptId,
-        @NotBlank String texte
+        @NotBlank String texte,
+        /**
+         * Cle d'idempotence tiree par le client (V046). Renvoyer la meme cle
+         * rend la MEME soumission, sans second appel LLM ni second decompte de
+         * quota. <b>Facultative</b> : un client qui ne l'envoie pas garde
+         * l'ancien comportement.
+         */
+        UUID clientSubmissionId
 ) {
 }

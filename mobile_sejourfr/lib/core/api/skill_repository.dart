@@ -81,11 +81,15 @@ class SkillRepository {
   }
 
   /// Soumet une production écrite (section EE).
+  ///
+  /// [clientSubmissionId] porte l'idempotence (V046) : renvoyer la meme cle rend
+  /// la MEME production, sans seconde analyse decomptee. Facultative.
   Future<SkillAttemptDto> submitText({
     required String skillPromptId,
     required String texte,
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
+    String? clientSubmissionId,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/skill-attempts',
@@ -94,6 +98,7 @@ class SkillRepository {
         'texte': texte,
         'requestAnalysis': requestAnalysis,
         if (selfEvaluation != null) 'selfEvaluation': selfEvaluation.wire,
+        if (clientSubmissionId != null) 'clientSubmissionId': clientSubmissionId,
       },
       options: Options(
         contentType: Headers.jsonContentType,
@@ -112,12 +117,14 @@ class SkillRepository {
     required bool requestAnalysis,
     SkillSelfEvaluation? selfEvaluation,
     String? mimeType,
+    String? clientSubmissionId,
   }) async {
     final formData = FormData.fromMap({
       'skillPromptId': skillPromptId,
       'durationSec': durationSec,
       'requestAnalysis': requestAnalysis,
       if (selfEvaluation != null) 'selfEvaluation': selfEvaluation.wire,
+      if (clientSubmissionId != null) 'clientSubmissionId': clientSubmissionId,
       'audio': await MultipartFile.fromFile(
         audioFile.path,
         filename: audioFile.path.split('/').last,

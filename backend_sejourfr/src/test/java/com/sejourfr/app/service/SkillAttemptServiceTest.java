@@ -99,7 +99,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         assertThatThrownBy(() -> service.submitText(
-                new SubmitSkillTextRequest(prompt.getId(), "Bonjour Madame.", null, false)))
+                new SubmitSkillTextRequest(prompt.getId(), "Bonjour Madame.", null, false, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("expression orale");
         verify(attemptManager, never()).save(any());
@@ -111,7 +111,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         assertThatThrownBy(() -> service.submitAudio(
-                prompt.getId(), audioFile(), 30, null, false))
+                prompt.getId(), audioFile(), 30, null, false, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("expression écrite");
         verify(whisperService, never()).transcribe(any(), any());
@@ -123,7 +123,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(promptId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.submitText(
-                new SubmitSkillTextRequest(promptId, "Bonjour.", null, false)))
+                new SubmitSkillTextRequest(promptId, "Bonjour.", null, false, null)))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -138,7 +138,7 @@ class SkillAttemptServiceTest {
         String tooLong = "mot ".repeat(props.getAnalysis().getMaxTextWords() + 1);
 
         assertThatThrownBy(() -> service.submitText(
-                new SubmitSkillTextRequest(prompt.getId(), tooLong, null, false)))
+                new SubmitSkillTextRequest(prompt.getId(), tooLong, null, false, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("400 mots");
     }
@@ -152,7 +152,7 @@ class SkillAttemptServiceTest {
         prompt.setRecommendedMaxWords(50);
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
-        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour cher voisin", null, false));
+        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour cher voisin", null, false, null));
 
         assertThat(captureSaved().getWordsCount()).isEqualTo(3);
     }
@@ -163,7 +163,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         assertThatThrownBy(() -> service.submitText(
-                new SubmitSkillTextRequest(prompt.getId(), "   ", null, false)))
+                new SubmitSkillTextRequest(prompt.getId(), "   ", null, false, null)))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -174,7 +174,7 @@ class SkillAttemptServiceTest {
 
         assertThatThrownBy(() -> service.submitAudio(
                 prompt.getId(), audioFile(), props.getAnalysis().getMaxAudioDurationSeconds() + 1,
-                null, false))
+                null, false, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("180 secondes");
     }
@@ -184,7 +184,7 @@ class SkillAttemptServiceTest {
         SkillPrompt prompt = prompt(SkillSection.EO);
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
-        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), null, 30, null, false))
+        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), null, 30, null, false, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Aucun enregistrement");
     }
@@ -201,7 +201,7 @@ class SkillAttemptServiceTest {
                 .when(accessService).assertCanProduce(userId, prompt);
 
         assertThatThrownBy(() -> service.submitText(new SubmitSkillTextRequest(
-                prompt.getId(), "Bonjour Madame, je vous écris…", null, false)))
+                prompt.getId(), "Bonjour Madame, je vous écris…", null, false, null)))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessage(SkillAccessService.LOCKED_MESSAGE);
         // Rien n'est persiste, rien n'est envoye au correcteur.
@@ -215,7 +215,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         service.submitText(new SubmitSkillTextRequest(
-                prompt.getId(), "Bonjour Madame, je vous écris…", null, false));
+                prompt.getId(), "Bonjour Madame, je vous écris…", null, false, null));
 
         verify(accessService).assertCanProduce(userId, prompt);
         assertThat(captureSaved().getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
@@ -228,7 +228,7 @@ class SkillAttemptServiceTest {
         doThrow(new AccessDeniedException(SkillAccessService.LOCKED_MESSAGE))
                 .when(accessService).assertCanProduce(userId, prompt);
 
-        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 30, null, false))
+        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 30, null, false, null))
                 .isInstanceOf(AccessDeniedException.class);
         verify(whisperService, never()).transcribe(any(), any());
     }
@@ -281,7 +281,7 @@ class SkillAttemptServiceTest {
 
         service.submitText(new SubmitSkillTextRequest(
                 prompt.getId(), "Bonjour, je vous préviens du changement.",
-                SkillSelfEvaluation.INCERTAIN, false));
+                SkillSelfEvaluation.INCERTAIN, false, null));
 
         UserSkillAttempt saved = captureSaved();
         assertThat(saved.getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
@@ -298,7 +298,7 @@ class SkillAttemptServiceTest {
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
         service.submitText(new SubmitSkillTextRequest(
-                prompt.getId(), "Bonjour, je vous préviens du changement.", null, true));
+                prompt.getId(), "Bonjour, je vous préviens du changement.", null, true, null));
 
         UserSkillAttempt saved = captureSaved();
         assertThat(saved.getStatut()).isEqualTo(SkillAttemptStatut.SUBMITTED);
@@ -316,7 +316,7 @@ class SkillAttemptServiceTest {
         doThrow(new AccessDeniedException("épuisé")).when(analysisAccessService).assertCanAnalyse(userId);
 
         assertThatThrownBy(() -> service.submitText(new SubmitSkillTextRequest(
-                prompt.getId(), "Bonjour.", null, true)))
+                prompt.getId(), "Bonjour.", null, true, null)))
                 .isInstanceOf(AccessDeniedException.class);
 
         verify(attemptManager, never()).save(any());
@@ -334,7 +334,7 @@ class SkillAttemptServiceTest {
         when(whisperService.transcribe(any(), any())).thenReturn(
                 new WhisperTranscriptionClient.WhisperResult("je voudrais reserver", "fr", 37));
 
-        service.submitAudio(prompt.getId(), audioFile(), 40, null, true);
+        service.submitAudio(prompt.getId(), audioFile(), 40, null, true, null);
 
         UserSkillAttempt saved = captureSaved();
         assertThat(saved.getAudioObjectKey()).isNull();
@@ -357,7 +357,7 @@ class SkillAttemptServiceTest {
         when(whisperService.transcribe(any(), any())).thenReturn(
                 new WhisperTranscriptionClient.WhisperResult("quelques phrases", "fr", 20));
 
-        service.submitAudio(prompt.getId(), audioFile(), 40, null, false);
+        service.submitAudio(prompt.getId(), audioFile(), 40, null, false, null);
 
         UserSkillAttempt saved = captureSaved();
         assertThat(saved.getStatut()).isEqualTo(SkillAttemptStatut.RECORDED);
@@ -377,7 +377,7 @@ class SkillAttemptServiceTest {
             throw new com.sejourfr.app.exception.TranscriptionException("Whisper indisponible");
         });
 
-        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 40, null, true))
+        assertThatThrownBy(() -> service.submitAudio(prompt.getId(), audioFile(), 40, null, true, null))
                 .isInstanceOf(com.sejourfr.app.exception.TranscriptionException.class);
 
         assertThat(vus.get()).containsOnly((byte) 0);
@@ -390,7 +390,7 @@ class SkillAttemptServiceTest {
         SkillPrompt prompt = prompt(SkillSection.EE);
         when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
 
-        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour.", null, false));
+        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour.", null, false, null));
 
         verify(rateLimitGuard).checkSkillAttempt(userId);
     }
@@ -629,6 +629,73 @@ class SkillAttemptServiceTest {
 
     private static MockMultipartFile audioFile() {
         return new MockMultipartFile("audio", "reponse.webm", "audio/webm", new byte[]{1, 2, 3});
+    }
+
+    // ------------------------------------------------------------------------
+    // Idempotence (V046) — la cle rendue par le client
+    // ------------------------------------------------------------------------
+
+    /**
+     * A l'oral, c'est la ou la cle rapporte le plus : le rejeu passe AVANT
+     * Whisper, qui est facture a la duree de l'audio.
+     */
+    @Test
+    void uneProductionOraleRejoueeNeRepasseNiParWhisperNiParLeLlm() {
+        UUID cle = UUID.randomUUID();
+        UserSkillAttempt deja = new UserSkillAttempt();
+        deja.setId(UUID.randomUUID());
+        when(attemptManager.findByClientKey(userId, cle)).thenReturn(Optional.of(deja));
+
+        service.submitAudio(UUID.randomUUID(), audioFile(), 40, null, true, cle);
+
+        verify(whisperService, never()).transcribe(any(), any());
+        verify(attemptManager, never()).save(any());
+        verify(analysisRunner, never()).runAsync(any());
+        verify(rateLimitGuard, never()).checkSkillAttempt(any());
+    }
+
+    /** A l'ecrit, le rejeu ne reconsomme pas non plus le quota d'analyses. */
+    @Test
+    void uneProductionEcriteRejoueeNeConsommePasDeSecondeAnalyse() {
+        UUID cle = UUID.randomUUID();
+        UserSkillAttempt deja = new UserSkillAttempt();
+        deja.setId(UUID.randomUUID());
+        when(attemptManager.findByClientKey(userId, cle)).thenReturn(Optional.of(deja));
+
+        service.submitText(new SubmitSkillTextRequest(
+                UUID.randomUUID(), "Bonjour Madame.", null, true, cle));
+
+        verify(attemptManager, never()).save(any());
+        verify(analysisRunner, never()).runAsync(any());
+        verify(analysisAccessService, never()).assertCanAnalyse(any());
+    }
+
+    /** Sans cle, rien ne change : les clients deja installes continuent. */
+    @Test
+    void sansCleLeComportementEstInchange() {
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+
+        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour.", null, false, null));
+
+        // La cle nulle traverse le manager, qui rend vide sans requeter : c'est
+        // LUI qui porte cette garde, pour que tout appelant en beneficie.
+        verify(attemptManager).save(any());
+    }
+
+    /** La cle est ecrite sur la ligne : sans ca le rejeu ne retrouverait rien. */
+    @Test
+    void laCleEstPerisisteeSurLaProduction() {
+        UUID cle = UUID.randomUUID();
+        SkillPrompt prompt = prompt(SkillSection.EE);
+        when(promptManager.findActiveByIdWithSkill(prompt.getId())).thenReturn(Optional.of(prompt));
+        when(attemptManager.findByClientKey(userId, cle)).thenReturn(Optional.empty());
+
+        service.submitText(new SubmitSkillTextRequest(prompt.getId(), "Bonjour.", null, false, cle));
+
+        ArgumentCaptor<UserSkillAttempt> capture = ArgumentCaptor.forClass(UserSkillAttempt.class);
+        verify(attemptManager).save(capture.capture());
+        assertThat(capture.getValue().getClientSubmissionId()).isEqualTo(cle);
     }
 
     private static SkillAttemptDto dummyDto() {

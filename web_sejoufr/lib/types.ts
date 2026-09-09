@@ -98,6 +98,10 @@ export interface AuthenticatedUser {
      *  déclaré)`. Le backend applique déjà le plancher (`TargetProcedure.niveauVise`),
      *  donc ce champ ne contredit jamais `targetProcedure`. */
     targetLevel?: TargetLevel | null;
+    /** Jour de l'examen déclaré par le candidat, `YYYY-MM-DD`. `null` = pas de
+     *  date, réponse pleine et la plus fréquente. On l'AFFICHE, on n'en dérive
+     *  rien : le décompte en jours est servi par le serveur. */
+    examDate?: string | null;
     /** Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL). */
     isPremium?: boolean;
     /** Accès au module Civique (vrai si un Plan donnant accès Civique ou Intégral est actif). */
@@ -671,6 +675,11 @@ export interface SubmitProductionTextRequest {
     productionTaskId: string;
     attemptId: string;
     texte: string;
+    /** Clé d'idempotence tirée par le client (UUID v4). Renvoyer la même clé
+     *  rend la MÊME soumission, sans seconde correction IA facturée ni second
+     *  décompte de quota. À générer UNE fois par production, pas par requête —
+     *  c'est tout l'intérêt sur un renvoi après coupure réseau. */
+    clientSubmissionId?: string;
 }
 
 // ============================================================================
@@ -2314,6 +2323,9 @@ export interface SubmitSkillTextRequest {
     selfEvaluation?: SkillSelfEvaluation | null;
     /** False = production enregistrée sans passer par l'IA (statut RECORDED). */
     requestAnalysis: boolean;
+    /** Clé d'idempotence tirée par le client (UUID v4). Même règle que pour les
+     *  productions complètes : une clé par production, pas par requête. */
+    clientSubmissionId?: string;
 }
 
 /** GET /api/skills/analysis-quota. `remaining === -1` signifie **illimité** :

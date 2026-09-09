@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.DashboardSummaryResponse;
 import com.sejourfr.app.dto.ChangePasswordRequest;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.dto.UpdateExamDateRequest;
 import com.sejourfr.app.dto.UpdateProfileRequest;
 import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
 import com.sejourfr.app.dto.ProgressionSummaryResponse;
@@ -60,6 +61,17 @@ public class MeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateTargetPath(@Valid @RequestBody UpdateTargetProcedureRequest req) {
         meService.updateTargetProcedure(currentUser.getId(), req.targetProcedure());
+    }
+
+    /**
+     * Date d'examen du candidat. Route SEPAREE de {@code /target-path} : loger
+     * la date dans la mise a jour de la demarche l'effacerait a chaque
+     * changement de procedure. {@code examDate: null} efface volontairement.
+     */
+    @PutMapping("/exam-date")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateExamDate(@Valid @RequestBody UpdateExamDateRequest req) {
+        meService.updateExamDate(currentUser.getId(), req.examDate());
     }
 
     // ------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.TargetProcedure;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -47,6 +48,20 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "target_level", length = 8)
     private TargetLevel targetLevel;
+
+    /**
+     * Jour de l'examen vise, declare par le candidat (V047).
+     *
+     * <p>Un jour, pas un instant : une convocation ne porte pas d'heure, et un
+     * {@code Instant} obligerait a inventer un fuseau puis a le reafficher.
+     * NULL = pas de date, ce qui est une reponse PLEINE et la plus frequente —
+     * la question est facultative et ne bloque jamais le tunnel.
+     *
+     * <p>Le decompte affiche (« dans 39 jours ») se calcule <b>a la lecture</b>,
+     * jamais persiste.
+     */
+    @Column(name = "exam_date")
+    private LocalDate examDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -105,6 +120,9 @@ public class User {
         this.providerUserId = null;
         this.targetProcedure = null;
         this.targetLevel = null;
+        // La date d'examen est une donnee personnelle comme une autre : elle
+        // designe un evenement de la vie administrative du candidat.
+        this.examDate = null;
         this.active = false;
         this.deletedAt = Instant.now();
     }
@@ -129,6 +147,9 @@ public class User {
 
     public TargetLevel getTargetLevel() { return targetLevel; }
     public void setTargetLevel(TargetLevel targetLevel) { this.targetLevel = targetLevel; }
+
+    public LocalDate getExamDate() { return examDate; }
+    public void setExamDate(LocalDate examDate) { this.examDate = examDate; }
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }

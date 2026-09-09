@@ -45,6 +45,15 @@ Cf. `exams-tcf.md`.
 
 ## Me / utilisateur
 
+- `PUT /api/me/exam-date` — `{ "examDate": "2026-10-18" | null }` → 204. Jour de
+  l'examen déclaré par le candidat (V047). **Route séparée de `/api/me/target-path`**,
+  et elle doit le rester : loger la date dans la mise à jour de la démarche
+  l'effacerait à chaque changement de procédure. `null` **efface volontairement**
+  (« pas encore de date » est une réponse pleine, et la plus fréquente). Aucune
+  validation sur le passé — une date dépassée est une information vraie, et la
+  refuser empêcherait de corriger une faute de frappe. Exposée en lecture sur
+  `AuthenticatedUser.examDate` (`GET /api/auth/me`), miroir dans les 3 fronts.
+  Le décompte en jours est calculé **à la lecture**, jamais persisté.
 - `GET /api/me/questions/favorites?module=...`
 - `GET /api/me/questions/wrong?module=...[&questionType=CO|CE][&themeId=<uuid>]`
   → **tous les filtres sont appliqués en base, avant le plafond de 30 erreurs** :
@@ -95,6 +104,12 @@ Cf. `exams-tcf.md`.
   **nullable** (intitulé éditorial du sujet, V028) : les fronts retombent sur « Sujet N ».
 - `GET /api/production-tasks/{id}`
 - `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`)
+  → accepte `clientSubmissionId` (UUID **facultative**, V046) : en JSON dans le corps,
+  en `@RequestParam` (query ou champ de formulaire) en multipart. **Renvoyer la même
+  clé rend la MÊME submission**, sans second appel LLM ni second décompte de quota —
+  le rejeu est intercepté **avant** Whisper. Une clé absente = comportement d'avant à
+  l'identique. Unicité bornée à `(user_id, client_submission_id)` : une clé tirée par
+  un client ne peut jamais faire échouer ni résoudre vers la production d'un tiers.
 - `POST /api/production-submissions/{id}/retry`
 - `GET /api/production-submissions/{id}`
 - `GET /api/users/me/production-submissions?epreuve=...`
@@ -207,6 +222,11 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
 - `POST /api/realtime/eo/sessions/{id}/finish` → clôture + déclenche la notation.
 
 ## Compétences TCF (micro-entraînement EE/EO)
+
+`POST /api/skill-attempts` accepte la même `clientSubmissionId` **facultative** que
+les productions complètes (V046), avec la même sémantique : rejouer la clé rend la
+même production, sans seconde analyse décomptée ni second appel LLM.
+
 
 Voie **parallèle** aux productions complètes : un « petit sujet » travaille **une seule
 compétence**, et l'IA ne rend qu'un verdict sur son critère unique — **jamais de note /20 ni

@@ -88,6 +88,19 @@ public class ProductionSubmission {
     @Column(name = "is_diagnostic", nullable = false)
     private boolean diagnostic;
 
+    /**
+     * Cle d'idempotence tiree par le client (V046). Rejouer la meme soumission
+     * avec la meme cle rend la MEME ligne, sans second appel LLM ni second
+     * decompte de quota.
+     *
+     * <p><b>NULL est un cas normal</b>, pas une erreur : un client qui ne la
+     * fournit pas encore garde l'ancien comportement. L'unicite est bornee a
+     * {@code (user_id, client_submission_id)} — une UUID tiree par un client ne
+     * peut jamais faire echouer, ni resoudre vers, la production d'un tiers.
+     */
+    @Column(name = "client_submission_id", columnDefinition = "uuid")
+    private UUID clientSubmissionId;
+
     /** Nombre de relances manuelles via /retry. Plafonne a 3 (anti-abus). */
     @Column(name = "retry_count", nullable = false)
     private short retryCount = 0;
@@ -149,6 +162,9 @@ public class ProductionSubmission {
 
     public boolean isDiagnostic() { return diagnostic; }
     public void setDiagnostic(boolean diagnostic) { this.diagnostic = diagnostic; }
+
+    public UUID getClientSubmissionId() { return clientSubmissionId; }
+    public void setClientSubmissionId(UUID clientSubmissionId) { this.clientSubmissionId = clientSubmissionId; }
 
     public short getRetryCount() { return retryCount; }
     public void setRetryCount(short retryCount) { this.retryCount = retryCount; }

@@ -31,6 +31,17 @@ public interface UserSkillAttemptRepository extends JpaRepository<UserSkillAttem
     Optional<UserSkillAttempt> findByIdWithPrompt(@Param("id") UUID id);
 
     /**
+     * Rejeu d'une production deja rendue (V046). Borne a l'utilisateur : une
+     * cle tiree par un client ne peut jamais resoudre vers la production d'un
+     * tiers, meme si deux clients tirent la meme UUID.
+     */
+    @Query("SELECT a FROM UserSkillAttempt a JOIN FETCH a.skillPrompt "
+        + "WHERE a.user.id = :userId AND a.clientSubmissionId = :clientSubmissionId")
+    Optional<UserSkillAttempt> findByUserAndClientSubmissionId(
+            @Param("userId") UUID userId,
+            @Param("clientSubmissionId") UUID clientSubmissionId);
+
+    /**
      * Compteur du quota freemium : nombre d'analyses IA que l'utilisateur a
      * consommees a vie. On compte les analyses DEMANDEES (et acceptees), pas
      * les analyses reussies — sinon un echec fournisseur suivi d'un retry

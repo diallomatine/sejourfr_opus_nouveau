@@ -51,9 +51,11 @@ public class SkillAttemptController {
             @RequestParam("skillPromptId") UUID skillPromptId,
             @RequestParam("durationSec") int durationSec,
             @RequestParam(value = "selfEvaluation", required = false) SkillSelfEvaluation selfEvaluation,
-            @RequestParam("requestAnalysis") boolean requestAnalysis) {
+            @RequestParam("requestAnalysis") boolean requestAnalysis,
+            @RequestParam(value = "clientSubmissionId", required = false) UUID clientSubmissionId) {
         return skillAttemptService.submitAudio(
-                skillPromptId, audio, durationSec, selfEvaluation, requestAnalysis);
+                skillPromptId, audio, durationSec, selfEvaluation, requestAnalysis,
+                clientSubmissionId);
     }
 
     /**

@@ -9,6 +9,7 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../plan/learning_plan_provider.dart';
+import '../../core/utils/submission_key.dart';
 
 /// Une "session EO" = 3 taches consecutives partageant 1 meme attempt parent.
 /// Similaire a EeSessionController mais pour l'oral.
@@ -72,6 +73,11 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
         super(const AsyncData(EoSessionState.empty()));
 
   final ProductionRepository _repo;
+
+  /// Une cle par (session, tache) : renvoyer le meme enregistrement apres une
+  /// coupure ne doit ni repayer Whisper puis le correcteur, ni consommer deux
+  /// fois le quota.
+  final SubmissionKeys _keys = SubmissionKeys();
   final AttemptsRepository _attempts;
   final void Function() _onPlanChanged;
 
@@ -176,11 +182,13 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     if (task == null) {
       throw StateError('Tache $taskIndex introuvable.');
     }
+    final attemptId = current.attempt!.id;
     final submission = await _repo.submitAudio(
       productionTaskId: task.id,
-      attemptId: current.attempt!.id,
+      attemptId: attemptId,
       audioFile: audioFile,
       mimeType: mimeType,
+      clientSubmissionId: _keys.keyFor('$attemptId:${task.id}'),
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));

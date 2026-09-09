@@ -4,6 +4,7 @@ import {useParams, useRouter} from "next/navigation";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
+import {useSubmissionKey} from "@/lib/idempotency";
 import {useAuth} from "@/lib/auth-context";
 import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -39,6 +40,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const [task, setTask] = useState<ProductionTaskDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Une cle par production : renvoyer la meme tache apres une coupure ne
+  // doit pas faire payer une seconde correction.
+  const submissionKey = useSubmissionKey();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -247,7 +251,12 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
                 : undefined
             }
             onSubmit={(audio) =>
-              finalize((attemptId) => productionApi.submitAudio(task.id, attemptId, audio))
+              finalize((attemptId) =>
+                productionApi.submitAudio(
+                  task.id, attemptId, audio, undefined,
+                  submissionKey(`${attemptId}:${task.id}`),
+                ),
+              )
             }
           />
         ) : (
@@ -259,7 +268,12 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             exerciseTitle={taskTitle}
             onSubmit={(texte) =>
               finalize((attemptId) =>
-                productionApi.submitText({productionTaskId: task.id, attemptId, texte}),
+                productionApi.submitText({
+                  productionTaskId: task.id,
+                  attemptId,
+                  texte,
+                  clientSubmissionId: submissionKey(`${attemptId}:${task.id}`),
+                }),
               )
             }
           />

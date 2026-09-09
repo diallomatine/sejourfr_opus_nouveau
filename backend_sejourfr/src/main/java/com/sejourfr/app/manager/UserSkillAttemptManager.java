@@ -41,6 +41,17 @@ public class UserSkillAttemptManager {
         return repository.findByIdWithPrompt(id);
     }
 
+    /**
+     * Production deja rendue sous cette cle d'idempotence (V046), sujet charge.
+     * Vide = premiere production sous cette cle.
+     */
+    public Optional<UserSkillAttempt> findByClientKey(UUID userId, UUID clientSubmissionId) {
+        if (clientSubmissionId == null) {
+            return Optional.empty();
+        }
+        return repository.findByUserAndClientSubmissionId(userId, clientSubmissionId);
+    }
+
     public UserSkillAttempt save(UserSkillAttempt attempt) {
         return repository.save(attempt);
     }

@@ -7,6 +7,7 @@ import '../../../core/api/repositories.dart';
 import '../../../core/api/skill_repository.dart';
 import '../../../core/models/skill_models.dart';
 import '../../plan/learning_plan_provider.dart';
+import '../../../core/utils/submission_key.dart';
 
 /// Clé value-object du provider de liste : une tâche = (épreuve, numéro).
 /// `==`/`hashCode` manuels, comme partout dans le repo — sinon chaque rebuild
@@ -149,6 +150,12 @@ class SkillSubmissionController
   final String _promptId;
   final void Function() _onPlanChanged;
 
+  /// Une cle par visite du sujet. Le notifier est `autoDispose.family` : quitter
+  /// l'ecran puis y revenir pour REFAIRE le sujet en tire une nouvelle, tandis
+  /// qu'un renvoi apres coupure, sur le meme ecran, garde la meme — donc ne
+  /// consomme pas une seconde des analyses offertes.
+  final SubmissionKeys _keys = SubmissionKeys();
+
   Future<SkillAttemptDto?> submitText({
     required String texte,
     required bool requestAnalysis,
@@ -159,6 +166,7 @@ class SkillSubmissionController
             texte: texte,
             requestAnalysis: requestAnalysis,
             selfEvaluation: selfEvaluation,
+            clientSubmissionId: _keys.keyFor(_promptId),
           ));
 
   Future<SkillAttemptDto?> submitAudio({
@@ -175,6 +183,7 @@ class SkillSubmissionController
             requestAnalysis: requestAnalysis,
             selfEvaluation: selfEvaluation,
             mimeType: mimeType,
+            clientSubmissionId: _keys.keyFor(_promptId),
           ));
 
   Future<SkillAttemptDto?> _run(Future<SkillAttemptDto> Function() call) async {

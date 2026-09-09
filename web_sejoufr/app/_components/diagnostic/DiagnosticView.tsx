@@ -16,6 +16,7 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {ApiException, diagnosticApi, productionApi} from "@/lib/api";
+import {useSubmissionKey} from "@/lib/idempotency";
 import {
   rememberDiagnosticType,
   track,
@@ -410,6 +411,10 @@ function ConnectedDiagnostic({
   const {user} = useAuth();
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // Une cle par production de diagnostic. Le renvoi apres coupure — le cas le
+  // plus frequent de ce parcours, ou le compte vient d'etre cree — retrouve la
+  // soumission au lieu d'echouer sur « deja rendue ».
+  const submissionKey = useSubmissionKey();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
@@ -505,6 +510,9 @@ function ConnectedDiagnostic({
               productionTaskId: session.written.productionTaskId,
               attemptId: session.written.attemptId,
               texte: local.writtenText,
+              clientSubmissionId: submissionKey(
+                `${session.written.attemptId}:${session.written.productionTaskId}`,
+              ),
             });
             session = await refreshAfterSubmission(sessionId, "WRITTEN");
           } else if (session.written.submissionId != null) {
@@ -519,6 +527,8 @@ function ConnectedDiagnostic({
               session.oral.productionTaskId,
               session.oral.attemptId,
               local.oralAudio,
+              undefined,
+              submissionKey(`${session.oral.attemptId}:${session.oral.productionTaskId}`),
             );
             session = await refreshAfterSubmission(sessionId, "ORAL");
           } else if (session.oral.submissionId != null) {
@@ -711,6 +721,9 @@ function ConnectedDiagnostic({
         productionTaskId: exercise.productionTaskId,
         attemptId: exercise.attemptId,
         texte: text,
+        clientSubmissionId: submissionKey(
+          `${exercise.attemptId}:${exercise.productionTaskId}`,
+        ),
       });
       trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
       clearEeDraft(exercise.productionTaskId);
@@ -727,7 +740,13 @@ function ConnectedDiagnostic({
     setSubmitting(true);
     setError(null);
     try {
-      await productionApi.submitAudio(exercise.productionTaskId, exercise.attemptId, audio);
+      await productionApi.submitAudio(
+        exercise.productionTaskId,
+        exercise.attemptId,
+        audio,
+        undefined,
+        submissionKey(`${exercise.attemptId}:${exercise.productionTaskId}`),
+      );
       trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
       await refreshAfterSubmission(diagnostic.sessionId, "ORAL");
     } catch (cause) {

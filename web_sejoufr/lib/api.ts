@@ -1075,10 +1075,14 @@ export const productionApi = {
         attemptId: string,
         audio: Blob,
         filename?: string,
+        clientSubmissionId?: string,
     ): Promise<ProductionSubmissionDto> {
         const fd = new FormData();
         fd.append("audio", audio, filename ?? audioFilename(audio.type));
         const qs = new URLSearchParams({productionTaskId, attemptId});
+        // Idempotence : renvoyer la même clé rend la même soumission, sans
+        // repayer Whisper puis le correcteur.
+        if (clientSubmissionId) qs.set("clientSubmissionId", clientSubmissionId);
         return apiFetch<ProductionSubmissionDto>(
             `/api/production-submissions?${qs.toString()}`,
             {method: "POST", body: fd, auth: true},
@@ -1196,6 +1200,7 @@ export const skillApi = {
         selfEvaluation?: SkillSelfEvaluation | null;
         requestAnalysis: boolean;
         filename?: string;
+        clientSubmissionId?: string;
     }): Promise<SkillAttemptDto> {
         const fd = new FormData();
         fd.append("audio", opts.audio, opts.filename ?? audioFilename(opts.audio.type));
@@ -1205,6 +1210,7 @@ export const skillApi = {
             requestAnalysis: String(opts.requestAnalysis),
         });
         if (opts.selfEvaluation) qs.set("selfEvaluation", opts.selfEvaluation);
+        if (opts.clientSubmissionId) qs.set("clientSubmissionId", opts.clientSubmissionId);
         return apiFetch<SkillAttemptDto>(`/api/skill-attempts?${qs.toString()}`, {
             method: "POST",
             body: fd,

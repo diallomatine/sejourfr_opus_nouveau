@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useSubmissionKey } from "@/lib/idempotency";
 import {
   cecrlIndex,
   correspondanceTcfPhrase,
@@ -94,6 +95,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [bilan, setBilan] = useState<ProductionBilanResponse | null>(null);
   const [phase, setPhase] = useState<"loading" | "writing" | "bilan">("loading");
   const [currentTache, setCurrentTache] = useState<number>(1);
+  // Une cle par (session, tache). En examen blanc, une coupure sur la tache 2
+  // ne doit ni facturer deux corrections ni consommer deux fois le quota.
+  const submissionKey = useSubmissionKey();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -473,6 +477,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             productionTaskId: currentTask.id,
             attemptId,
             texte,
+            clientSubmissionId: submissionKey(`${attemptId}:${currentTask.id}`),
           });
           clearEeDraft(currentTask.id);
         } catch {
@@ -493,7 +498,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       if (audio && audio.size > 0 && currentTask && !submitting) {
         setSubmitting(true);
         try {
-          await productionApi.submitAudio(currentTask.id, attemptId, audio);
+          await productionApi.submitAudio(
+            currentTask.id, attemptId, audio, undefined,
+            submissionKey(`${attemptId}:${currentTask.id}`),
+          );
         } catch {
           // best-effort : les tâches non rendues sont comptées 0 par le bilan
         } finally {
@@ -626,7 +634,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                       : undefined
                   }
                   onSubmit={(audio) =>
-                    send((aid) => productionApi.submitAudio(currentTask.id, aid, audio))
+                    send((aid) =>
+                      productionApi.submitAudio(
+                        currentTask.id, aid, audio, undefined,
+                        submissionKey(`${aid}:${currentTask.id}`),
+                      ),
+                    )
                   }
                 />
               )
@@ -645,7 +658,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 onAutoSubmit={onEeTimeout}
                 onSubmit={(texte) =>
                   send((aid) =>
-                    productionApi.submitText({ productionTaskId: currentTask.id, attemptId: aid, texte }),
+                    productionApi.submitText({
+                      productionTaskId: currentTask.id,
+                      attemptId: aid,
+                      texte,
+                      clientSubmissionId: submissionKey(`${aid}:${currentTask.id}`),
+                    }),
                   )
                 }
               />

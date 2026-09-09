@@ -102,6 +102,18 @@ public class UserSkillAttempt {
     @Column(name = "analysis_requested", nullable = false)
     private boolean analysisRequested = false;
 
+    /**
+     * Cle d'idempotence tiree par le client (V046). Rejouer la meme production
+     * avec la meme cle rend la MEME ligne, sans second appel LLM ni second
+     * decompte du quota d'analyses.
+     *
+     * <p><b>NULL est un cas normal</b> : un client qui ne la fournit pas encore
+     * garde l'ancien comportement. Unicite bornee a
+     * {@code (user_id, client_submission_id)}.
+     */
+    @Column(name = "client_submission_id", columnDefinition = "uuid")
+    private UUID clientSubmissionId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "criterion_status", length = 16)
     private SkillCriterionStatus criterionStatus;

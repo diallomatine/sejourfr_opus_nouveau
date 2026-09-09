@@ -7,6 +7,7 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../plan/learning_plan_provider.dart';
+import '../../core/utils/submission_key.dart';
 
 /// Une "session EE" = 3 taches consecutives partageant 1 meme attempt parent.
 /// L'attempt est cree une seule fois (au start), les submissions s'y rattachent.
@@ -72,6 +73,10 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
         super(const AsyncData(EeSessionState.empty()));
 
   final ProductionRepository _repo;
+
+  /// Une cle par (session, tache) : renvoyer la meme tache apres une coupure ne
+  /// doit ni facturer deux corrections ni consommer deux fois le quota.
+  final SubmissionKeys _keys = SubmissionKeys();
   final AttemptsRepository _attempts;
   final void Function() _onPlanChanged;
 
@@ -187,6 +192,7 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
       productionTaskId: task.id,
       attemptId: attemptId,
       texte: texte,
+      clientSubmissionId: _keys.keyFor('$attemptId:${task.id}'),
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));

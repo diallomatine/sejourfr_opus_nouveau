@@ -9,6 +9,7 @@ class AuthUser {
     required this.role,
     this.targetProcedure,
     this.targetLevel,
+    this.examDate,
     this.isPremium = false,
     this.hasCivique = false,
     this.hasTcf = false,
@@ -28,6 +29,16 @@ class AuthUser {
   /// plancher, donc ce champ ne contredit jamais [targetProcedure] — null
   /// seulement quand ni l'un ni l'autre n'est connu.
   final TargetLevel? targetLevel;
+
+  /// Jour de l'examen déclaré par le candidat. `null` = pas de date, ce qui est
+  /// une réponse PLEINE et la plus fréquente — jamais « on ne lui a pas
+  /// demandé ». On l'AFFICHE, on n'en dérive rien : le décompte en jours est
+  /// calculé et servi par le serveur.
+  ///
+  /// ⚠️ [copyWith] ne peut pas l'effacer (`?? this.examDate`) : l'effacement
+  /// vient du serveur, via un rafraîchissement de `/api/auth/me` après
+  /// `PUT /api/me/exam-date`.
+  final DateTime? examDate;
 
   /// Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL).
   final bool isPremium;
@@ -73,6 +84,7 @@ class AuthUser {
   AuthUser copyWith({
     TargetProcedure? targetProcedure,
     TargetLevel? targetLevel,
+    DateTime? examDate,
     bool? isPremium,
     bool? hasCivique,
     bool? hasTcf,
@@ -87,6 +99,7 @@ class AuthUser {
         role: role,
         targetProcedure: targetProcedure ?? this.targetProcedure,
         targetLevel: targetLevel ?? this.targetLevel,
+        examDate: examDate ?? this.examDate,
         isPremium: isPremium ?? this.isPremium,
         hasCivique: hasCivique ?? this.hasCivique,
         hasTcf: hasTcf ?? this.hasTcf,
@@ -105,6 +118,11 @@ class AuthUser {
             : TargetProcedure.fromWire(json['targetProcedure'] as String),
         targetLevel:
             TargetLevel.fromWireNullable(json['targetLevel'] as String?),
+        // Le serveur envoie un JOUR (`YYYY-MM-DD`), pas un instant : pas de
+        // fuseau à appliquer, sinon la date reculerait d'un jour pour certains.
+        examDate: json['examDate'] != null
+            ? DateTime.tryParse(json['examDate'] as String)
+            : null,
         isPremium: json['isPremium'] as bool? ?? false,
         hasCivique: json['hasCivique'] as bool? ?? false,
         hasTcf: json['hasTcf'] as bool? ?? false,
@@ -124,6 +142,8 @@ class AuthUser {
         'role': role.wire,
         if (targetProcedure != null) 'targetProcedure': targetProcedure!.wire,
         if (targetLevel != null) 'targetLevel': targetLevel!.wire,
+        // Re-sérialisé en JOUR, jamais en instant : c'est le contrat de fil.
+        if (examDate != null) 'examDate': _wireDate(examDate!),
         'isPremium': isPremium,
         'hasCivique': hasCivique,
         'hasTcf': hasTcf,
@@ -131,6 +151,11 @@ class AuthUser {
           'premiumEndsAt': premiumEndsAt!.toIso8601String(),
         'authProvider': authProvider.wire,
       };
+
+  static String _wireDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 }
 
 class TokenResponse {

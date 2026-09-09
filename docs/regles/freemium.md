@@ -111,6 +111,35 @@
   complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
   épreuve déjà terminée est refusé (`enforceQuota`).
 
+### Idempotence — un renvoi ne consomme pas un second essai (V046, lot L1)
+
+Ajouté le **2026-09-09**. Le quota était protégé contre l'abus, pas contre le
+**réseau** : une production partie dont la réponse se perdait était renvoyée par
+le client, et le serveur — qui n'avait aucun moyen de reconnaître la même
+production — insérait une seconde ligne, payait une seconde correction et
+décomptait un second essai. Le candidat voyait deux rapports pour une seule
+production.
+
+- Les deux surfaces payantes portent une colonne `client_submission_id`
+  (nullable) : `production_submissions` et `user_skill_attempts`.
+- **Une clé par PRODUCTION, pas par requête** — c'est le renvoi qui doit porter
+  la clé de l'envoi initial. Les fronts la tirent une fois par production
+  (`web_sejoufr/lib/idempotency.ts`, `mobile_sejourfr/lib/core/utils/submission_key.dart`).
+- Le rejeu est intercepté **avant** le rate-limit, **avant** le quota et
+  **avant** Whisper : la seconde requête est la même requête, la refuser en 429
+  rendrait la clé inutile précisément quand le client en a besoin.
+- **Clé absente = comportement d'avant, à l'identique.** Les applications déjà
+  installées continuent de fonctionner ; NULL ne signifie jamais « soumission
+  invalide ».
+- 🛑 **L'unicité est bornée à `(user_id, clé)`, pas globale.** La clé est tirée
+  par le client : avec une unicité globale, deux appareils tirant la même UUID
+  se feraient échouer l'un l'autre — ou pire, résoudraient vers la production
+  d'un inconnu. La spec proposait l'unicité globale ; on ne la suit pas.
+- La **course** (deux requêtes parties ensemble) est tranchée par l'index
+  unique : la perdante relit la ligne gagnante et la rend. Un seul rapport, un
+  seul quota consommé. Coût assumé à l'oral : la perdante a déjà payé une
+  transcription, jetée — même arbitrage que le double-clic du diagnostic.
+
 ### Gardes des soumissions EE/EO (`ProductionAccessService`)
 
 Les **deux** voies de notation d'une production — asynchrone

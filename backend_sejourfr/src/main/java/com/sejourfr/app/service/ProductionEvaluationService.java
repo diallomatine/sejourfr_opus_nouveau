@@ -78,6 +78,23 @@ public class ProductionEvaluationService {
     public ProductionSubmission submitAndEvaluate(
             UUID userId, UUID taskId, UUID attemptId,
             MultipartFile audio, String texte) {
+        return submitAndEvaluate(userId, taskId, attemptId, audio, texte, null);
+    }
+
+    /**
+     * Meme chose, avec la cle d'idempotence du client (V046). Une cle
+     * {@code null} signifie « ce client ne sait pas encore se repeter sans
+     * dommage » : comportement d'avant, a l'identique.
+     *
+     * <p>Le rejeu NORMAL est intercepte bien plus haut, dans
+     * {@code ProductionSubmissionService}, avant Whisper. Ce qui reste ici,
+     * c'est la <b>course</b> : deux requetes parties ensemble, aucune des deux
+     * ne voyant la ligne de l'autre. L'index unique tranche, la perdante relit
+     * la ligne gagnante et la rend. Un seul rapport, un seul quota consomme.
+     */
+    public ProductionSubmission submitAndEvaluate(
+            UUID userId, UUID taskId, UUID attemptId,
+            MultipartFile audio, String texte, UUID clientSubmissionId) {
 
         User user = userManager.findById(userId)
             .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
@@ -104,6 +121,7 @@ public class ProductionEvaluationService {
         submission.setProductionTask(task);
         submission.setStatut(SubmissionStatut.SUBMITTED);
         submission.setDiagnostic(task.isDiagnostic());
+        submission.setClientSubmissionId(clientSubmissionId);
 
         if (estOral) {
             byte[] bytes = ProductionPayloadSupport.readBytes(audio);
@@ -131,13 +149,21 @@ public class ProductionEvaluationService {
             submission.setMediaDurationSec(transcrit.durationSec());
             try {
                 submission = submissionManager.save(submission);
-            } catch (DataIntegrityViolationException duplicateDiagnostic) {
+            } catch (DataIntegrityViolationException conflit) {
+                // Course perdue sur la cle d'idempotence : l'autre requete a
+                // insere la meme soumission entre notre lecture et notre
+                // insert. On rend SA ligne, et on jette notre transcription —
+                // c'est le meme cout assume qu'un double-clic diagnostic.
+                ProductionSubmission gagnante = resoudreCourseIdempotence(userId, clientSubmissionId, conflit);
+                if (gagnante != null) {
+                    return gagnante;
+                }
                 // L'index partiel uq_prod_submission_diagnostic_attempt rend le
                 // double-clic atomique.
                 if (task.isDiagnostic()) {
                     throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
                 }
-                throw duplicateDiagnostic;
+                throw conflit;
             }
             // La production, désormais : le texte. Persistée AVANT le pipeline,
             // qui saute alors Whisper (branche « transcription déjà présente »,
@@ -151,11 +177,15 @@ public class ProductionEvaluationService {
             submission.setMotsCount(mots);
             try {
                 submission = submissionManager.save(submission);
-            } catch (DataIntegrityViolationException duplicateDiagnostic) {
+            } catch (DataIntegrityViolationException conflit) {
+                ProductionSubmission gagnante = resoudreCourseIdempotence(userId, clientSubmissionId, conflit);
+                if (gagnante != null) {
+                    return gagnante;
+                }
                 if (task.isDiagnostic()) {
                     throw new BusinessException("Cette étape du diagnostic a déjà été rendue.");
                 }
-                throw duplicateDiagnostic;
+                throw conflit;
             }
         }
 
@@ -173,6 +203,29 @@ public class ProductionEvaluationService {
         // /retry. Cf. ProductionPipelineAsyncRunner.
         pipelineRunner.runPipelineAsync(submission.getId(), estOral);
         return submission;
+    }
+
+    /**
+     * La soumission gagnante d'une course sur la cle d'idempotence, ou
+     * {@code null} si le conflit n'a rien a voir avec elle.
+     *
+     * <p>On ne devine JAMAIS a partir du message d'erreur : on relit. Si la cle
+     * retrouve une ligne, la course est bien la cause et cette ligne est la
+     * bonne reponse. Sinon, l'appelant reprend son traitement d'erreur normal —
+     * un conflit qu'on ne comprend pas ne doit pas etre avale.
+     */
+    private ProductionSubmission resoudreCourseIdempotence(
+            UUID userId, UUID clientSubmissionId, DataIntegrityViolationException conflit) {
+        if (clientSubmissionId == null) {
+            return null;
+        }
+        return submissionManager.findByClientKey(userId, clientSubmissionId)
+                .map(gagnante -> {
+                    log.info("Course sur la cle d'idempotence {} : la soumission {} l'emporte.",
+                            clientSubmissionId, gagnante.getId());
+                    return gagnante;
+                })
+                .orElse(null);
     }
 
     /**
