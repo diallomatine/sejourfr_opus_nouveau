@@ -104,7 +104,7 @@ class _RecoBody extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        "Maîtrise actuelle ${top.percent ?? 0} % — c'est ici que vous avez le plus à gagner.",
+                        "Réussite actuelle ${top.percent ?? 0} % — c'est ici que vous avez le plus à gagner.",
                         style: AppFonts.ui(
                           size: 13.5,
                           color: AppColors.white.withValues(alpha: 0.9),
@@ -143,7 +143,7 @@ class _RecoBody extends StatelessWidget {
                     ? (stat.level != null
                         ? 'Niveau estimé ${stat.level!.displayName}'
                         : 'Pas encore évalué')
-                    : '${stat.percent ?? 0} % · ${masteryLabel(stat.percent ?? 0)}',
+                    : '${stat.percent ?? 0} % de réussite',
                 onTap: () => context.push(dashboardCategoryRoute(stat)),
               ),
           ],

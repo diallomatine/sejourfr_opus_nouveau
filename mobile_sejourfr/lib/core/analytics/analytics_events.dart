@@ -50,7 +50,20 @@ enum AnalyticsEvent {
   /// Lancement réel d'un exercice recommandé par le Plan — jamais émis pour un
   /// exercice verrouillé, qui ouvre l'offre au lieu de démarrer quoi que ce
   /// soit.
-  planExerciseStarted('PLAN_EXERCISE_STARTED');
+  planExerciseStarted('PLAN_EXERCISE_STARTED'),
+
+  /// 🛑 **Le rideau freemium se mesure en TROIS gestes distincts** — affiché,
+  /// déplié, offre vue — et les fondre effacerait exactement ce qu'on veut
+  /// savoir. [planPaywallViewed] n'est **pas** `PREMIUM_CTA_CLICKED` : une vue
+  /// n'est pas une intention, et c'est l'écart entre les deux qui dit si le
+  /// rideau donne envie ou décourage.
+  ///
+  /// Posés avant le déploiement de la « progression par épreuve »
+  /// (2026-08-26), qui fait passer le rideau de « 1 sur 5 » à « 1 sur 9 ou
+  /// 12 » : mesurés après coup, ils n'auraient plus de point de comparaison.
+  planCurtainShown('PLAN_CURTAIN_SHOWN'),
+  planCurtainExpanded('PLAN_CURTAIN_EXPANDED'),
+  planPaywallViewed('PLAN_PAYWALL_VIEWED');
 
   const AnalyticsEvent(this.wire);
 
@@ -134,6 +147,14 @@ const Map<AnalyticsEvent, Set<String>> kAnalyticsPropertyKeys = {
   AnalyticsEvent.diagnosticAccountRequired: {'diagnosticType'},
   AnalyticsEvent.planOpened: <String>{},
   AnalyticsEvent.planExerciseStarted: {'exerciseKind'},
+  AnalyticsEvent.planCurtainShown: {
+    'ctaLocation',
+    'epreuve',
+    'visibleCount',
+    'totalCount',
+  },
+  AnalyticsEvent.planCurtainExpanded: {'ctaLocation', 'epreuve'},
+  AnalyticsEvent.planPaywallViewed: {'ctaLocation'},
 };
 
 /// Chemins admis par le serveur. Le mobile n'a pas d'URL, mais ses écrans ont

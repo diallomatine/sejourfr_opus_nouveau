@@ -1,6 +1,8 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.service.plan.PlanConfig;
 import com.sejourfr.app.dto.LearningPlanDto;
+import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
@@ -20,6 +22,7 @@ import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -58,6 +61,83 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
     @Autowired private SkillManager skillManager;
     @Autowired private SkillAccessService accessService;
     @Autowired private EntityManager entityManager;
+    @Autowired private PlanConfig planConfig;
+
+    /**
+     * 🛑 <b>LE SCENARIO D'ACCEPTATION DU 2026-08-26</b>, reproduit depuis un
+     * compte reel (diagnostic {@code fe35354d}) :
+     *
+     * <pre>
+     * objectif B2
+     * EE = A2   3 fragilites, des competences B1 jamais travaillees
+     * EO = B1   0 fragilite, des competences B2 jamais travaillees
+     * </pre>
+     *
+     * <p>Avant ce correctif, le Plan servait <b>deux</b> actions, toutes les
+     * deux en ecrit, et la carte d'expression orale affichait « rien a
+     * travailler » — alors que 16 de ses 24 competences n'avaient jamais ete
+     * touchees et que le candidat visait un palier au-dessus.
+     *
+     * <p>Trois choses sont verrouillees ici, et ce sont les trois maillons du
+     * bug : l'oral recoit ses acquisitions <b>au palier B2</b> (le sien, pas
+     * celui du plancher global), sa carte d'epreuve <b>n'est plus vide</b>, et
+     * le pool n'est plus borne par le nombre de fragilites de l'ecrit.
+     */
+    @Test
+    @DisplayName("Compte reel : l'oral a B1 recoit ses acquisitions B2 et n'est plus vide")
+    void unOralPlusAvanceQueLEcritRecoitQuandMemeSesAcquisitions() {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        user = data.saveUser(user);
+        data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        examenQcmPasse(user, EpreuveType.TCF_CO, NiveauCecrl.A2);
+        examenQcmPasse(user, EpreuveType.TCF_CE, NiveauCecrl.A2);
+        // L'ECRIT est a A2 et porte les fragilites ; l'ORAL est a B1 et n'en a
+        // aucune. C'est exactement le compte mesure le 2026-08-25.
+        productionEvaluee(user, EpreuveType.TCF_EE, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EO, NiveauCecrl.B1);
+        for (String code : new String[]{"EE1-C8", "EE2-C3", "EE3-C3"}) {
+            observation(user, seed(code), LearningPlanSourceType.PRODUCTION_EE,
+                    LearningPlanSkillStatus.TO_REINFORCE, jours(2));
+        }
+        for (String code : new String[]{"EO1-C1", "EO2-C2", "EO3-C1"}) {
+            observation(user, seed(code), LearningPlanSourceType.PRODUCTION_EO,
+                    LearningPlanSkillStatus.SOLID, jours(2));
+        }
+        flush();
+
+        LearningPlanDto plan = service.get(user.getId());
+
+        PlanDomainDto oral = plan.domaines().stream()
+                .filter(domaine -> domaine.epreuve() == EpreuveType.TCF_EO)
+                .findFirst().orElseThrow();
+        // 1. La carte d'epreuve n'est PLUS VIDE : elle porte de vraies actions.
+        assertThat(oral.skills())
+                .filteredOn(competence -> competence.nature() == PlanActionNature.A_ACQUERIR)
+                .as("l'oral avait zero action avant le 2026-08-26")
+                .isNotEmpty()
+                // 2. ... et elles sont au palier DE L'ORAL (B2), pas a celui du
+                // plancher global (B1). C'est le cœur du correctif.
+                .allSatisfy(competence ->
+                        assertThat(competence.targetLevel()).isEqualTo(TargetLevel.B2));
+        // 3. L'ecrit garde ses fragilites ET recoit ses propres acquisitions B1 :
+        // le pool n'est plus borne par « 5 moins le nombre de fragilites ».
+        PlanDomainDto ecrit = plan.domaines().stream()
+                .filter(domaine -> domaine.epreuve() == EpreuveType.TCF_EE)
+                .findFirst().orElseThrow();
+        assertThat(ecrit.skills())
+                .filteredOn(competence -> competence.nature() == PlanActionNature.A_ACQUERIR)
+                .isNotEmpty()
+                .allSatisfy(competence ->
+                        assertThat(competence.targetLevel()).isEqualTo(TargetLevel.B1));
+        // 🛑 Aucune competence SOLIDE ni NON OBSERVEE n'a ete travestie en
+        // action pour remplir l'ecran.
+        assertThat(oral.skills())
+                .filteredOn(competence -> competence.nature() != null)
+                .allSatisfy(competence -> assertThat(competence.status())
+                        .isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED));
+    }
 
     /**
      * 🛑 Le cas de reference, reproduit ligne pour ligne : deux fragilites
@@ -90,7 +170,7 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
 
         LearningPlanDto plan = service.get(user.getId());
 
-        assertThat(plan.seance().items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(plan.seance().items()).hasSize(planConfig.display().todayMaxActions());
         assertThat(plan.seance().items().getFirst()).satisfies(mesure -> {
             assertThat(mesure.nature()).isEqualTo(PlanActionNature.A_EVALUER);
             assertThat(mesure.assessment().epreuve()).isEqualTo(EpreuveType.TCF_EO);
@@ -228,9 +308,9 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
         LearningPlanDto plan = service.get(user.getId());
 
         assertThat(toutesLesCartes(plan))
-                .hasSizeLessThanOrEqualTo(LearningPlanPriorityResolver.MAX_PRIORITIES);
+                .hasSizeLessThanOrEqualTo(planConfig.display().prioritiesMaxActions());
         assertThat(plan.seance().items())
-                .hasSizeLessThanOrEqualTo(PlanSeanceBuilder.MAX_ITEMS);
+                .hasSizeLessThanOrEqualTo(planConfig.display().todayMaxActions());
         // Aucune carte n'est une competence solide travestie en action.
         assertThat(toutesLesCartes(plan)).allSatisfy(carte ->
                 assertThat(carte.masteryState()).isNotEqualTo(SkillMasteryState.SOLID));

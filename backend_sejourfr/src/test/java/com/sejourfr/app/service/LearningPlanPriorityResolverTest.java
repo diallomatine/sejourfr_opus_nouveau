@@ -73,12 +73,12 @@ class LearningPlanPriorityResolverTest {
                 observation(quatrieme, LearningPlanSkillStatus.TO_REINFORCE,
                         LearningPlanSourceType.PRODUCTION_EE, ObservationConfidence.LOW, jours(20))));
 
-        // Le plafond est passe de 3 a 5 le 2026-08-21 : les quatre fragilites
-        // tiennent desormais toutes dans « Mes priorites ». Ce qui est verifie
-        // ici, c'est l'ORDRE, et il n'a pas bouge d'un pouce.
+        // 🛑 PLUS AUCUN PLAFOND ICI depuis le 2026-08-26 : cette methode rend
+        // TOUTES les fragilites, et c'est l'affichage qui coupe. Le plafond de
+        // cinq servait de budget au selecteur d'acquisitions, ce qui privait les
+        // domaines secondaires de toute action. Ce qui est verifie ici, c'est
+        // l'ORDRE, et il n'a pas bouge d'un pouce.
         assertThat(actionable).hasSize(4);
-        assertThat(actionable.size())
-                .isLessThanOrEqualTo(LearningPlanPriorityResolver.MAX_PRIORITIES);
         assertThat(codes(actionable))
                 .containsExactly("EE1-C1", "EE2-C2", "EO1-C3", "EO3-C4");
     }

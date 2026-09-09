@@ -124,8 +124,8 @@ class _ProgresBody extends StatelessWidget {
             Expanded(
               child: _SyntheseCard(
                 value: global,
-                color: masteryColor(global),
-                label: 'Maîtrise globale',
+                color: AppColors.blue,
+                label: 'Réussite globale',
               ),
             ),
             const SizedBox(width: 9),
@@ -297,7 +297,10 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = stat.percent ?? 0;
-    final tone = masteryColor(percent);
+    // Accent de marque, pas un verdict : la couleur ne classe plus le
+    // pourcentage (§25 bis.3 — le ton se dérive d'un état servi, jamais d'un
+    // nombre). Ce chiffre-ci est un taux de réussite brut, pas un état.
+    const tone = AppColors.blue;
 
     final String sub;
     if (stat.isProduction) {

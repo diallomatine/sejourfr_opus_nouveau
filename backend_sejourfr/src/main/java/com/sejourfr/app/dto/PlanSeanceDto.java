@@ -25,7 +25,7 @@ import java.util.List;
  * c'est l'<b>action courante</b> qui change (petit sujet suivant, verification
  * en situation, nouvelle serie ciblee), jamais le nombre de lignes.
  *
- * @param items            au plus {@code PlanSeanceBuilder.MAX_ITEMS}, dans
+ * @param items            au plus {@code display.todayMaxActions} (plan-config), dans
  *                         l'ordre d'execution ; jamais {@code null}, vide quand
  *                         le Plan n'a rien a proposer
  * @param estimatedMinutes somme <b>recalculee</b> des durees des items, jamais

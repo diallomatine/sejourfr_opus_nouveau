@@ -40,6 +40,7 @@ public class DiagnosticAnalysisValidator {
             "explanation", "confidence", "priority");
     static final int MAX_PRIORITIES_PER_PRODUCTION = 2;
     static final int MAX_SUMMARY_LENGTH = 280;
+    static final int MAX_LIST_ITEMS = 3;
     static final int MAX_LIST_ITEM_LENGTH = 180;
     static final int MAX_EXPLANATION_LENGTH = 220;
     static final int MAX_SKILL_CODE_LENGTH = 16;
@@ -63,9 +64,9 @@ public class DiagnosticAnalysisValidator {
         enumValue(output.get("communication_status"), DiagnosticCommunicationStatus.class,
                 "communication_status", violations);
         boundedString(output.get("summary"), "summary", MAX_SUMMARY_LENGTH, violations);
-        stringList(output.get("strengths"), "strengths", 3,
+        stringList(output.get("strengths"), "strengths", MAX_LIST_ITEMS,
                 MAX_LIST_ITEM_LENGTH, violations);
-        stringList(output.get("weaknesses"), "weaknesses", 3,
+        stringList(output.get("weaknesses"), "weaknesses", MAX_LIST_ITEMS,
                 MAX_LIST_ITEM_LENGTH, violations);
 
         Set<String> allowed = allowedSkills.stream().map(Skill::getCode)

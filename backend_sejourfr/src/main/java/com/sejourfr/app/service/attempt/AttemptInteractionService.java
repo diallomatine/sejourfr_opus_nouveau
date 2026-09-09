@@ -22,6 +22,11 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
+import com.sejourfr.app.progression.domain.AttemptCompletionStatus;
+import com.sejourfr.app.progression.domain.EvidenceEntryPoint;
+import com.sejourfr.app.progression.domain.EvidenceSourceType;
+import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
+import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter.ReponseQcm;
 import com.sejourfr.app.service.ComprehensionObservationService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import jakarta.persistence.EntityNotFoundException;
@@ -57,6 +62,7 @@ public class AttemptInteractionService {
     private final AttemptQuestionManager attemptQuestionManager;
     private final AnswerManager answerManager;
     private final AttemptScoringService scoringService;
+    private final ReceptiveEvidenceAdapter receptiveEvidenceAdapter;
     private final AttemptMapper mapper;
     private final QuestionMapper questionMapper;
     private final ComprehensionObservationService comprehensionObservationService;
@@ -347,7 +353,89 @@ public class AttemptInteractionService {
 
         attemptManager.save(attempt);
         recordComprehension(attempt, aqs);
+        recordProgression(attempt, aqs);
         return mapper.toResponse(attempt, aqs, true);
+    }
+
+    /**
+     * Ce que cette session apprend au <b>moteur de progression V4.2</b>
+     * (docs/regles/progression.md).
+     *
+     * <p>Second producteur, à côté de {@link #recordComprehension} : les deux
+     * coexistent volontairement le temps du shadow mode. L'ancien alimente le
+     * Plan servi aujourd'hui, le nouveau écrit dans son registre et prédit sans
+     * rien piloter. On ne bascule qu'après validation des métriques
+     * ({@code PROGRESSION_ENGINE_MODE=ACTIVE}) — d'ici là, aucun candidat ne
+     * voit un Plan calculé sur des seuils encore hypothétiques.
+     *
+     * <p><b>Best-effort, jamais bloquant</b>, même montage que le producteur
+     * voisin : transaction propre côté adaptateur, valeurs simples à la
+     * frontière, exception avalée et journalisée. La correction d'une session
+     * QCM est déterministe ; rien de ce qui alimente une projection ne doit
+     * pouvoir la faire échouer.
+     */
+    private void recordProgression(Attempt attempt, List<AttemptQuestion> aqs) {
+        if (attempt.getModule() != Module.TCF || attempt.getUser() == null || aqs.isEmpty()) {
+            return;
+        }
+        try {
+            List<ReponseQcm> reponses = aqs.stream()
+                    .map(aq -> new ReponseQcm(
+                            aq.getQuestion().getId(),
+                            aq.getQuestion().getQuestionType(),
+                            aq.getQuestion().getDifficulty(),
+                            aq.getQuestion().getDifficultyBand(),
+                            aq.getQuestion().getChoices().size(),
+                            aq.getAnswer() != null,
+                            aq.getAnswer() != null
+                                    && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
+                    .toList();
+            receptiveEvidenceAdapter.ingerer(
+                    attempt.getUser().getId(), attempt.getId(), attempt.getFinishedAt(),
+                    completionDe(attempt), sourceTypeDe(attempt), entryPointDe(attempt), reponses);
+        } catch (RuntimeException echec) {
+            log.warn("Progression non alimentée pour la session {} : {}",
+                    attempt.getId(), echec.toString());
+        }
+    }
+
+    /**
+     * §23.4 — une session close par le chrono reste <b>qualifiante</b> : les
+     * questions non répondues comptent fausses. C'est un examen, pas un
+     * entraînement, et le candidat le savait en le lançant.
+     */
+    private AttemptCompletionStatus completionDe(Attempt attempt) {
+        boolean expiree = attempt.getTimeLimitSeconds() != null
+                && AttemptChrono.horsDelai(attempt, attempt.getFinishedAt());
+        return expiree ? AttemptCompletionStatus.TIME_EXPIRED : AttemptCompletionStatus.SUBMITTED;
+    }
+
+    /**
+     * §5 — la <b>valeur pédagogique</b> de ce qui a été fait, à ne pas confondre
+     * avec le point d'entrée.
+     */
+    private EvidenceSourceType sourceTypeDe(Attempt attempt) {
+        if (attempt.getType() == AttemptType.MOCK_EXAM) {
+            return attempt.getParentAttempt() != null
+                    ? EvidenceSourceType.FULL_MOCK_EXAM
+                    : EvidenceSourceType.DOMAIN_MOCK;
+        }
+        return EvidenceSourceType.CO_CE_20_SERIES;
+    }
+
+    /**
+     * 🛑 Trace produit uniquement (§1, T24). Une série lancée depuis « Réviser »
+     * vaut exactement autant que la même depuis le Plan : ce champ n'entre dans
+     * aucun calcul, et {@code startedFromPlan == true} comme condition
+     * d'admission d'une preuve est explicitement interdit.
+     */
+    private EvidenceEntryPoint entryPointDe(Attempt attempt) {
+        if (attempt.getExamTemplate() != null) {
+            return EvidenceEntryPoint.DIAGNOSTIC;
+        }
+        return attempt.getType() == AttemptType.MOCK_EXAM
+                ? EvidenceEntryPoint.EXAM_HUB
+                : EvidenceEntryPoint.REVISER;
     }
 
     /**

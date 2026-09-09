@@ -25,7 +25,7 @@ import { ProgressDonut } from "@/app/_components/hub/ModuleHubParts";
 import { PlanDomainsSummary } from "@/app/_components/plan/PlanDomainsSummary";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { categoryHref, categoryStatus, masteryHint, moduleAverage } from "@/lib/dashboard";
+import { categoryBadge, categoryHref, moduleAverage, successHint } from "@/lib/dashboard";
 import {
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
@@ -133,7 +133,7 @@ export default function StatistiquesPage() {
         <DonutCard
           label="Maîtrise globale"
           percent={globalAvg}
-          headline={masteryHint(globalAvg)}
+          headline={successHint(globalAvg)}
           chip="Tous parcours confondus"
           chipTone="neutral"
         />
@@ -143,7 +143,7 @@ export default function StatistiquesPage() {
           headline={
             summary?.estimatedTcfLevel
               ? `Niveau estimé ${niveauCecrlLabel(summary.estimatedTcfLevel)}`
-              : masteryHint(tcfAvg)
+              : successHint(tcfAvg)
           }
           /* Un niveau qui ne porte pas sur les 4 épreuves le dit ici. */
           hint={estimatedTcfLevelScopeLabel(summary)}
@@ -153,7 +153,7 @@ export default function StatistiquesPage() {
         <DonutCard
           label="Examen civique"
           percent={civiqueAvg}
-          headline={masteryHint(civiqueAvg)}
+          headline={successHint(civiqueAvg)}
           chip={`${summary?.civique.length ?? 5} catégories`}
           chipTone="red"
         />
@@ -250,7 +250,7 @@ function CategoryRow({
   examOutOf: number;
 }) {
   const isProduction = cat.code === "TCF_EE" || cat.code === "TCF_EO";
-  const stat = categoryStatus(cat.percent);
+  const stat = categoryBadge(cat.percent);
 
   const sub = isProduction
     ? cat.level

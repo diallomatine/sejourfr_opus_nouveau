@@ -57,7 +57,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
-                new ProductionValidityService(new ProductionEvaluationProperties()));
+                new ProductionValidityService(new ProductionEvaluationProperties()),
+                new DiagnosticStatusDistributionMetrics());
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -106,7 +107,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
-                new ProductionValidityService(new ProductionEvaluationProperties()));
+                new ProductionValidityService(new ProductionEvaluationProperties()),
+                new DiagnosticStatusDistributionMetrics());
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -167,7 +169,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 submissions, transcriptions, taskSkills, skills, prompts, llm,
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
-                new ProductionValidityService(new ProductionEvaluationProperties()));
+                new ProductionValidityService(new ProductionEvaluationProperties()),
+                new DiagnosticStatusDistributionMetrics());
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -320,7 +323,8 @@ class DiagnosticProductionAnalysisServiceTest {
                     mock(DiagnosticAnalysisPromptBuilder.class), llm, reconciler, validator,
                     analyses, rubrics, observations,
                     new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
-                    new ProductionValidityService(new ProductionEvaluationProperties()));
+                    new ProductionValidityService(new ProductionEvaluationProperties()),
+                new DiagnosticStatusDistributionMetrics());
 
             ProductionTask task = new ProductionTask();
             task.setId(UUID.randomUUID());

@@ -1311,3 +1311,37 @@ sejourfr:
       max-tokens: 700
       # Zero : deux lectures de la meme production doivent rendre la meme phrase.
       temperature: 0
+
+  # -------------------------------------------------------------------------- plan
+  # Plafonds d'affichage et poids de classement du Plan : plan/plan-config-v{n}.json.
+  #
+  # 🛑 FICHIER DISTINCT de progression-config, et ca doit le rester (arbitrage du
+  # proprietaire, 2026-08-26) : progression-config porte l'integrite d'engineVersion
+  # et le REJEU de la maitrise, plan-config ne porte que de la SELECTION et de
+  # l'AFFICHAGE et bougera souvent (composition de la seance, rideau, A/B). Les
+  # melanger invaliderait le rejeu a chaque reglage d'ecran.
+  #
+  # INVARIANT : plan-config ne peut RIEN influencer du calcul de maitrise.
+  plan:
+    config-version: ${PLAN_CONFIG_VERSION:1}
+
+  # ------------------------------------------------------------------ progression
+  # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).
+  #
+  # Ces deux cles sont les SEULES qui vivent ici. Seuils, poids, demi-vie, epoch
+  # et gates vivent dans progression/progression-config-v{engine-version}.json,
+  # et nulle part ailleurs -- invariant I32. Aucune valeur metier ne se duplique
+  # dans ce YAML : il n'y a rien a garder synchronise.
+  progression:
+    # SHADOW : les preuves sont enregistrees, les etats calcules, les predictions
+    # persistees, et le Plan servi n'est PAS modifie.
+    # ACTIVE : le Plan lit prescriptionLevel et les etats du moteur.
+    # 🛑 On ne passe a ACTIVE qu'apres validation produit des metriques shadow
+    # (precision des predictions SOLID >= 70 %, cf. §47.4). Les seuils initiaux
+    # sont des hypotheses produit, pas des mesures.
+    mode: ${PROGRESSION_ENGINE_MODE:SHADOW}
+    # Une nouvelle calibration = un nouveau fichier de config + cette version
+    # incrementee + un replay controle (§29). Jamais une edition d'un fichier
+    # deja livre : un retour arriere doit rester un changement de variable
+    # d'environnement, pas une migration.
+    engine-version: ${PROGRESSION_ENGINE_VERSION:1}

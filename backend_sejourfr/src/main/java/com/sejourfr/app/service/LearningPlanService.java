@@ -22,10 +22,12 @@ import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanExerciseKind;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.plan.PlanConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,6 +113,10 @@ public class LearningPlanService {
     private final PlanCycleResolver cycleResolver;
     private final PlanDomainAssessmentResolver assessmentResolver;
     private final PlanAcquisitionSelector acquisitionSelector;
+    private final PlanContentAvailability contentAvailability;
+    private final PlanActionRanker actionRanker;
+    private final PlanConfig planConfig;
+    private final PlanDomainTargetLevelResolver targetLevelResolver;
     private final PlanDomainSkillResolver domainSkillResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
@@ -136,7 +142,13 @@ public class LearningPlanService {
             // et il se lit chez son unique autorite.
             List<PlanDomainDto> domaines = domainSkillResolver.attach(
                     profil.domaines(), profil.referentiel(),
-                    Map.of(), Map.of(), Map.of(), accessService.resolve(userId, null));
+                    Map.of(), Map.of(), Map.of(),
+                    // Le palier de chaque domaine est servi DES ICI : un candidat
+                    // sans diagnostic mais avec une serie de comprehension derriere
+                    // lui a deja un domaine mesure, donc un palier a construire.
+                    targetLevelResolver.parSection(
+                            userId, profil.domaines(), profil.cycle().objectiveLevel()),
+                    accessService.resolve(userId, null));
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
@@ -211,9 +223,24 @@ public class LearningPlanService {
         // rien : le selecteur ne rend que des competences du palier en
         // construction reellement jamais travaillees, donc zero quand il n'y en
         // a pas.
+        // 🛑 AUCUN PLAFOND ICI. Le pool est calcule ENTIER, et c'est l'affichage
+        // qui coupe (plan-config, display.*). Le budget « 5 - fragilites » qui
+        // vivait a cette ligne etait le trou principal du 2026-08-25 : un
+        // plafond d'ecran servait de budget de production a QUATRE domaines, et
+        // les deux places restantes partaient toujours au domaine le plus
+        // urgent. Dix actions vraies existaient, deux etaient servies.
+        //
+        // Le palier vient desormais de chaque DOMAINE, plus du cycle global.
+        PlanContentAvailability.Disponibilite disponibilite = contentAvailability.charger();
+        // LE PALIER DE CHAQUE DOMAINE, resolu UNE SEULE FOIS : le selecteur
+        // d'acquisitions et la vue par epreuve servie aux fronts lisent la meme
+        // table. Deux resolutions auraient fini par proposer un palier et en
+        // afficher un autre dans la meme reponse.
+        Map<com.sejourfr.app.enums.SkillSection, TargetLevel> paliersParDomaine =
+                targetLevelResolver.parSection(
+                        userId, profil.domaines(), profil.cycle().objectiveLevel());
         List<Skill> acquisitions = acquisitionSelector.select(
-                profil.cycle(), profil.domaines(), lastActivity.keySet(),
-                LearningPlanPriorityResolver.MAX_PRIORITIES - actionable.size());
+                profil.domaines(), lastActivity.keySet(), paliersParDomaine, disponibilite);
 
         // Priorites, competences a acquerir, etapes franchies et compétences
         // observées se recouvrent largement : on les compte ENSEMBLE, en une
@@ -234,20 +261,11 @@ public class LearningPlanService {
         // d'acces ferait tourner le cycle de palier une seconde fois dans la
         // meme lecture — et rendrait le cout du Plan dependant du nombre de
         // fragilites du candidat, ce que ses deux tests de cout interdisent.
+        Optional<UUID> focusSkillId = PlanFocusResolver.focus(actionable, acquisitions);
         SkillAccessService.SkillAccess access = accessService.resolve(
-                userId, PlanFocusResolver.focus(actionable, acquisitions).orElse(null));
+                userId, focusSkillId.orElse(null));
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
-        // Un seul lot pour les deux natures : une competence a acquerir se
-        // travaille par le meme micro-sujet (ou la meme serie ciblee) qu'une
-        // competence fragile. L'autorite ne change pas, seule la raison d'etre
-        // la change — et deux appels auraient double les deux requetes.
-        List<Skill> aExercer = new ArrayList<>(
-                actionable.stream().map(LearningPlanObservation::getSkill).toList());
-        aExercer.addAll(acquisitions);
-        Map<UUID, PlanRecommendedExerciseDto> exercises =
-                exerciseSelector.selectAll(userId, aExercer, access);
-
         // BASCULE DE L'ETAPE : quand le moteur juge la competence prete a etre
         // verifiee ET que l'etape est TERMINEE, la meme carte cesse de proposer
         // un micro-sujet et propose une vraie tache. L'etape ne se dedouble
@@ -270,34 +288,113 @@ public class LearningPlanService {
         // competences SOLID. Ces trois consequences sont VOULUES : ce n'est pas
         // un bug freemium, ne pas retablir un comptage des sujets ouverts pour
         // les « corriger ».
+        //
+        // Elle est calculee AVANT le classement : c'est elle qui decide de la
+        // NATURE d'une fragilite (A_RENFORCER ou A_VERIFIER), et la nature est
+        // le premier terme du score.
         Map<UUID, Boolean> readyToVerify = new LinkedHashMap<>();
         actionable.forEach(item -> readyToVerify.put(item.getSkill().getId(),
                 mastery(mastery, item).readyForReassessment()
                         && progress(progress, item).step().completed()));
-        List<Skill> toVerify = actionable.stream()
-                .filter(item -> Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())))
-                .map(LearningPlanObservation::getSkill)
+
+        // LE POOL COMPLET : toutes les fragilites, toutes les acquisitions.
+        // Rien n'est tronque ici — c'est exactement ce que le 2026-08-25 a
+        // coute : un plafond d'affichage servait de budget de production.
+        //
+        // FILTRE DE FAISABILITE (§8) : une competence sans contenu publie ne
+        // porte aucune action. Il s'applique au POOL, pas a `actionable` qui
+        // vient d'etre passe au cycle — une fragilite reelle reste une
+        // fragilite meme si son catalogue est vide, et elle ne doit pas ouvrir
+        // le gate de palier par disparition.
+        Map<UUID, LearningPlanObservation> fragilitesParSkill = new LinkedHashMap<>();
+        actionable.forEach(item -> fragilitesParSkill.put(item.getSkill().getId(), item));
+        List<Skill> fragilites = actionable.stream()
+                .map(LearningPlanObservation::getSkill).toList();
+        // Le palier d'une fragilite est celui que porte la competence : en
+        // comprehension c'est lui qui dit dans quel stock la serie ciblee va
+        // tirer. Sans lui, TOUTE competence de comprehension serait jugee
+        // inexecutable — et le Plan perdrait des fragilites reelles.
+        Map<UUID, TargetLevel> palierDesFragilites = new LinkedHashMap<>();
+        fragilites.forEach(skill -> {
+            TargetLevel palier = PlanCycleResolver.palier(skill.getTargetLevel());
+            if (palier != null) palierDesFragilites.put(skill.getId(), palier);
+        });
+        List<Skill> fragilesExecutables =
+                disponibilite.filtrer(fragilites, palierDesFragilites);
+        Map<UUID, Skill> acquisitionsParSkill = new LinkedHashMap<>();
+        acquisitions.forEach(skill -> acquisitionsParSkill.put(skill.getId(), skill));
+
+        List<PlanActionRanker.Action> pool = new ArrayList<>();
+        for (Skill skill : fragilesExecutables) {
+            LearningPlanObservation item = fragilitesParSkill.get(skill.getId());
+            pool.add(new PlanActionRanker.Action(
+                    skill.getId(), skill.getCode(), skill.getSection(),
+                    Boolean.TRUE.equals(readyToVerify.get(skill.getId()))
+                            ? PlanActionNature.A_VERIFIER : PlanActionNature.A_RENFORCER,
+                    item.getConfidence(), item.getObservedAt()));
+        }
+        for (Skill skill : acquisitions) {
+            pool.add(new PlanActionRanker.Action(
+                    skill.getId(), skill.getCode(), skill.getSection(),
+                    PlanActionNature.A_ACQUERIR, null, null));
+        }
+        Map<com.sejourfr.app.enums.SkillSection, PlanDomainDto> domainesParSection =
+                new LinkedHashMap<>();
+        profil.domaines().forEach(domaine -> domainesParSection.putIfAbsent(
+                PlanCycleResolver.section(domaine.epreuve()), domaine));
+        // CLASSEMENT puis COMPOSITION, poids et plafonds lus en configuration.
+        // La premiere place est epinglee : c'est celle que le freemium ouvre, et
+        // un classement qui la deplacerait cadenasserait l'etape n°1.
+        List<PlanActionRanker.Action> composed = actionRanker.classer(
+                pool, domainesParSection, profil.cycle().objectiveLevel(),
+                focusSkillId.orElse(null));
+
+        // L'AFFICHAGE coupe, et lui seul. Les exercices ne sont resolus que pour
+        // ce qui est reellement affiche : le pool peut compter vingt actions, en
+        // charger les sujets serait payer une lecture de catalogue par lecture
+        // du Plan.
+        List<PlanActionRanker.Action> affichees = composed.stream()
+                .limit(planConfig.display().prioritiesMaxActions())
+                .toList();
+        List<Skill> aExercer = affichees.stream()
+                .map(action -> acquisitionsParSkill.containsKey(action.skillId())
+                        ? acquisitionsParSkill.get(action.skillId())
+                        : fragilitesParSkill.get(action.skillId()).getSkill())
+                .toList();
+        Map<UUID, PlanRecommendedExerciseDto> exercises =
+                exerciseSelector.selectAll(userId, aExercer, access);
+        List<Skill> toVerify = affichees.stream()
+                .filter(action -> action.nature() == PlanActionNature.A_VERIFIER)
+                .map(action -> fragilitesParSkill.get(action.skillId()).getSkill())
                 .toList();
         Map<UUID, PlanRecommendedExerciseDto> verifications =
                 toVerify.isEmpty() ? Map.of() : reassessmentSelector.selectAll(userId, toVerify);
 
+        // LES CARTES, dans l'ordre du classement — fragilites et acquisitions
+        // melangees, parce que « reparer » et « apprendre » sont deux actions du
+        // meme parcours et que c'est le score qui les departage, plus leur
+        // categorie.
         List<LearningPlanPriorityDto> priorities = new ArrayList<>();
-        actionable.forEach(item -> priorities.add(priority(item,
-                nextExercise(item, readyToVerify, exercises, verifications),
-                progress(progress, item), mastery(mastery, item),
-                Boolean.TRUE.equals(readyToVerify.get(item.getSkill().getId())),
-                access.isSkillLocked(item.getSkill().getId()))));
-        // Les competences a acquerir viennent APRES les fragilites : on repare
-        // ce qui bloque avant d'apprendre ce qui vient. Sans exercice publie,
-        // une acquisition n'a rien a proposer et n'entre pas — jamais une carte
-        // sans action.
-        for (Skill skill : acquisitions) {
-            PlanRecommendedExerciseDto exercise = exercises.get(skill.getId());
+        for (PlanActionRanker.Action action : affichees) {
+            PlanRecommendedExerciseDto exercise = exercises.get(action.skillId());
+            LearningPlanObservation fragilite = fragilitesParSkill.get(action.skillId());
+            if (fragilite != null) {
+                boolean verifier = action.nature() == PlanActionNature.A_VERIFIER;
+                priorities.add(priority(fragilite,
+                        verifier && verifications.containsKey(action.skillId())
+                                ? verifications.get(action.skillId()) : exercise,
+                        progress(progress, fragilite), mastery(mastery, fragilite),
+                        verifier, access.isSkillLocked(action.skillId())));
+                continue;
+            }
+            // Sans exercice publie, une acquisition n'a rien a proposer et
+            // n'entre pas — jamais une carte sans action. Le filtre §8 rend ce
+            // cas quasi impossible ; il reste la ceinture.
             if (exercise == null) continue;
-            priorities.add(acquisition(skill, exercise,
-                    progress.getOrDefault(skill.getId(),
+            priorities.add(acquisition(acquisitionsParSkill.get(action.skillId()), exercise,
+                    progress.getOrDefault(action.skillId(),
                             SkillProgressCounter.SkillProgress.EMPTY),
-                    access.isSkillLocked(skill.getId())));
+                    access.isSkillLocked(action.skillId())));
         }
 
         List<LearningPlanSkillDto> observed = observedItems.stream()
@@ -352,9 +449,7 @@ public class LearningPlanService {
         // c'est ce qui rend la stickiness gratuite : sans nouvelle observation,
         // les priorites ne bougent pas, donc la seance non plus.
         Map<UUID, Skill> skillsDesPriorites = new LinkedHashMap<>();
-        actionable.forEach(item -> skillsDesPriorites.put(
-                item.getSkill().getId(), item.getSkill()));
-        acquisitions.forEach(skill -> skillsDesPriorites.put(skill.getId(), skill));
+        aExercer.forEach(skill -> skillsDesPriorites.put(skill.getId(), skill));
         // LA MESURE INDISPENSABLE ouvre la seance : le candidat a produit sur ce
         // domaine et le correcteur n'a rien pu y observer. Tant qu'on ne l'a pas
         // mesure, les exercices qui suivent travaillent a l'aveugle. C'est le
@@ -382,9 +477,10 @@ public class LearningPlanService {
         // nature : le Plan ne demande rien dessus, et on ne fabrique pas une
         // action pour remplir une colonne.
         Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
-        priorities.forEach(carte -> natures.put(carte.skillId(), carte.nature()));
+        composed.forEach(action -> natures.put(action.skillId(), action.nature()));
         List<PlanDomainDto> domaines = domainSkillResolver.attach(
-                profil.domaines(), profil.referentiel(), latest, mastery, natures, access);
+                profil.domaines(), profil.referentiel(), latest, mastery, natures,
+                paliersParDomaine, access);
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
                 completedSteps,

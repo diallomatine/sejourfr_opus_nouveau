@@ -78,6 +78,8 @@ public class PlanFocusResolver {
     private final UserManager userManager;
     private final PlanCycleResolver cycleResolver;
     private final PlanAcquisitionSelector acquisitionSelector;
+    private final PlanContentAvailability contentAvailability;
+    private final PlanDomainTargetLevelResolver targetLevelResolver;
 
     /**
      * La regle, sur des listes <b>deja calculees</b> : la premiere fragilite
@@ -134,9 +136,14 @@ public class PlanFocusResolver {
         }
         User user = userManager.findById(userId).orElse(null);
         PlanCycleResolver.Resolution profil = cycleResolver.resolve(user, history, List.of());
+        // MEME FILTRE QUE LE PLAN : la competence ouverte d'office doit etre
+        // celle que le Plan met reellement en premiere place. Ouvrir une
+        // competence sans contenu publie donnerait un cadenas leve sur du vide.
         List<Skill> acquisitions = acquisitionSelector.select(
-                profil.cycle(), profil.domaines(),
-                priorityResolver.lastActivityBySkill(history).keySet(), 1);
+                profil.domaines(), priorityResolver.lastActivityBySkill(history).keySet(),
+                targetLevelResolver.parSection(
+                        userId, profil.domaines(), profil.cycle().objectiveLevel()),
+                contentAvailability.charger());
         return focus(List.of(), acquisitions);
     }
 }

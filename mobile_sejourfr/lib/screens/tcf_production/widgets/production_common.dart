@@ -12,6 +12,11 @@ import '../tcf_production_module.dart';
 /// y fait. Source unique — la carte de tâche, la carte de consigne et l'écran
 /// des exemples corrigés la lisaient chacun de leur côté.
 ///
+/// 🛑 **L'intitulé n'est PAS écrit ici** : il vient de [productionTaskTitle]
+/// (`core/models/production_models.dart`), seule autorité du front et miroir
+/// du web. Une copie locale avait divergé — « Message » ici, « Message simple »
+/// dans le briefing d'examen et sur le web, pour la même tâche.
+///
 /// **Écrit et oral disent la même chose** : mêmes tâches, mêmes intentions,
 /// seule la façon de produire change (rédiger ou parler).
 ///
@@ -24,43 +29,37 @@ import '../tcf_production_module.dart';
   TcfProductionModule module,
   int tache,
 ) {
-  if (module.isEo) {
-    return switch (tache) {
-      1 => (
-          title: 'Entretien dirigé',
-          intro:
-              "Tu te présentes et tu réponds aux questions de l'examinateur : ton parcours, tes goûts, tes projets.",
-        ),
-      2 => (
-          title: 'Jeu de rôle',
-          intro:
-              'Tu joues une situation de la vie courante et tu poses les questions qu\'il faut pour obtenir ce que tu veux.',
-        ),
-      _ => (
-          title: 'Donner son opinion',
-          intro:
-              'Tu donnes ton point de vue sur un sujet et tu le défends avec des arguments et des exemples.',
-        ),
-    };
-  }
-  return switch (tache) {
-    1 => (
-        title: 'Message',
-        intro:
+  final intro = module.isEo
+      ? switch (tache) {
+          1 =>
+            "Tu te présentes et tu réponds aux questions de l'examinateur : ton parcours, tes goûts, tes projets.",
+          2 =>
+            'Tu joues une situation de la vie courante et tu poses les questions qu\'il faut pour obtenir ce que tu veux.',
+          _ =>
+            'Tu donnes ton point de vue sur un sujet et tu le défends avec des arguments et des exemples.',
+        }
+      : switch (tache) {
+          1 =>
             'Tu réponds à un message court — invitation, demande, annonce — en traitant chaque point demandé.',
-      ),
-    2 => (
-        title: 'Récit',
-        intro:
+          2 =>
             'Tu racontes une expérience personnelle au passé, dans l\'ordre, avec ce que tu en as retenu.',
-      ),
-    _ => (
-        title: 'Opinion',
-        intro:
+          _ =>
             'Tu donnes ton avis sur une question et tu l\'argumentes, en tenant compte de l\'avis opposé.',
-      ),
-  };
+        };
+  return (title: productionTaskTitle(module.epreuve, tache), intro: intro);
 }
+
+/// Intitulé d'une tâche **précédé de son rang** — « Tâche 1 : Message simple ».
+///
+/// Le rang est un repère du candidat : les consignes, les corrigés et l'examen
+/// lui-même parlent de « tâche 1 », « tâche 2 », « tâche 3 ». La pastille
+/// numérotée de la carte ne suffit pas à le dire à voix haute.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`productionTaskLabeledTitle`,
+/// `lib/types.ts`) : la forme du préfixe se change des deux côtés dans la même
+/// passe.
+String productionTaskLabeledTitle(TcfProductionModule module, int tache) =>
+    'Tâche $tache : ${productionTaskMeta(module, tache).title}';
 
 /// Titre affiché en tête d'une **carte de sujet**.
 ///

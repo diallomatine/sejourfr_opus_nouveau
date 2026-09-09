@@ -1376,6 +1376,10 @@ class PlanDomain {
     this.fragileSkillCount = 0,
     this.solidSkillCount = 0,
     this.notObservedSkillCount = 0,
+    this.nextTargetLevel,
+    this.acquireCount = 0,
+    this.readyForValidationCount = 0,
+    this.notObservedWithoutActionCount = 0,
   });
 
   /// `TCF_CO` | `TCF_CE` | `TCF_EO` | `TCF_EE`.
@@ -1427,6 +1431,32 @@ class PlanDomain {
   /// vrai. Ne jamais les recompter ici.
   final int notObservedSkillCount;
 
+  /// Le palier que **ce domaine** construit. `null` quand il n'y a rien à
+  /// construire : domaine jamais mesuré, ou **déjà à l'objectif** — il
+  /// s'entretient alors, il ne redescend pas.
+  ///
+  /// 🛑 **Servi, jamais recalculé.** Ce front en tenait une copie
+  /// (`diagnosticNextLevel`) qui ignorait l'objectif du candidat : un candidat
+  /// B1 visant le B1 lisait « prochain palier B2 ». Supprimée le 2026-08-26.
+  final TargetLevel? nextTargetLevel;
+
+  /// Compétences **à acquérir** sur ce domaine (`nature == aAcquerir`).
+  /// Sous-ensemble de [notObservedSkillCount], et **uniquement des compétences
+  /// exécutables** : le compte ne promet jamais un contenu qui n'existe pas.
+  final int acquireCount;
+
+  /// Compétences **prêtes à être vérifiées** (`nature == aVerifier`).
+  /// Sous-ensemble de [fragileSkillCount].
+  final int readyForValidationCount;
+
+  /// Compétences jamais observées **sur lesquelles le Plan ne demande rien** —
+  /// le vrai « pas encore assez de données pour se prononcer ».
+  ///
+  /// 🛑 **Ne jamais le recalculer** en soustrayant les acquisitions d'une liste
+  /// affichée : c'est exactement ce que cet écran faisait, et les deux nombres
+  /// divergeaient du serveur dès qu'une acquisition existait.
+  final int notObservedWithoutActionCount;
+
   factory PlanDomain.fromJson(Map<String, dynamic> json) => PlanDomain(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         evaluated: json['evaluated'] as bool? ?? false,
@@ -1453,6 +1483,13 @@ class PlanDomain {
         solidSkillCount: (json['solidSkillCount'] as num? ?? 0).toInt(),
         notObservedSkillCount:
             (json['notObservedSkillCount'] as num? ?? 0).toInt(),
+        nextTargetLevel:
+            TargetLevel.fromWireNullable(json['nextTargetLevel'] as String?),
+        acquireCount: (json['acquireCount'] as num? ?? 0).toInt(),
+        readyForValidationCount:
+            (json['readyForValidationCount'] as num? ?? 0).toInt(),
+        notObservedWithoutActionCount:
+            (json['notObservedWithoutActionCount'] as num? ?? 0).toInt(),
       );
 }
 

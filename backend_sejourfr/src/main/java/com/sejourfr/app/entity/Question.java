@@ -2,6 +2,7 @@ package com.sejourfr.app.entity;
 
 import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DifficultyBand;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionStatus;
 import com.sejourfr.app.enums.QuestionType;
@@ -54,6 +55,21 @@ public class Question {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
     private Difficulty difficulty;
+
+    /**
+     * La bande de difficulté <b>dans</b> le palier (V4.2 §7) — à ne pas
+     * confondre avec {@link #difficulty}, qui porte le palier lui-même.
+     *
+     * <p>🛑 <b>Nullable, et sans valeur par défaut.</b> Le catalogue historique
+     * n'est pas tagué, et lui affecter « MEDIUM » d'office affirmerait une
+     * mesure qui n'a pas eu lieu — indiscernable d'un vrai tag le jour où on
+     * commencera à taguer. Une série dont une seule question n'a pas de bande
+     * est {@code UNCALIBRATED} : elle compte dans la maîtrise et la progression
+     * visible, avec un poids réduit, mais ne verrouille jamais un palier.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "difficulty_band", length = 8)
+    private DifficultyBand difficultyBand;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "question_type", nullable = false, length = 24)
@@ -133,6 +149,8 @@ public class Question {
 
     public Difficulty getDifficulty() { return difficulty; }
     public void setDifficulty(Difficulty difficulty) { this.difficulty = difficulty; }
+    public DifficultyBand getDifficultyBand() { return difficultyBand; }
+    public void setDifficultyBand(DifficultyBand difficultyBand) { this.difficultyBand = difficultyBand; }
 
     public QuestionType getQuestionType() { return questionType; }
     public void setQuestionType(QuestionType questionType) { this.questionType = questionType; }

@@ -50,6 +50,13 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   `@ConfigurationProperties` **aux mêmes valeurs par défaut** (ils ne doivent jamais diverger).
   Exception assumée : une **donnée officielle** (table des paliers TCF, durées d'épreuve, tâches
   du référentiel) est du code, pas un réglage.
+- **Deux configurations versionnées, et elles ne se mélangent pas.**
+  `progression/progression-config-v{n}.json` porte l'intégrité d'`engineVersion` et le **rejeu**
+  de la maîtrise ; `plan/plan-config-v{n}.json` ne porte que **sélection et affichage** du Plan
+  (plafonds d'écran, poids de classement) et bougera souvent.
+  🛑 **`plan-config` ne peut RIEN influencer du calcul de maîtrise** — les mélanger
+  invaliderait le rejeu à chaque réglage d'écran. Une doctrine pédagogique déterministe
+  (le mapping `nextTargetLevel`) n'y va pas non plus : ce n'est pas un réglage.
 - **Un contrat de prompt se versionne, il ne se réécrit jamais.** Une version livrée reste
   chargeable ; un retour arrière est un changement de variable d'environnement, pas une
   migration. Une version inconnue **échoue au boot** — jamais de repli muet.

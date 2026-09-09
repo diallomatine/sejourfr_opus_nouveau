@@ -11,7 +11,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @ConfigurationPropertiesScan(basePackages = {
         "com.sejourfr.app.config",
-        "com.sejourfr.app.audioquestion.config"
+        "com.sejourfr.app.audioquestion.config",
+        "com.sejourfr.app.progression.config"
 })
 @EnableRetry
 @EnableAsync

@@ -123,6 +123,20 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
 - **Le freemium est opposable serveur** (403), et les fronts **lisent un `locked`** servi. Ne
   jamais coder « à partir du 2ᵉ, cadenas » ni déduire un verrou d'un rang.
   → `docs/regles/freemium.md`
+- 🛑 **Un plafond d'AFFICHAGE n'est jamais un budget PÉDAGOGIQUE.** Le moteur calcule
+  **toutes** les actions vraies, l'écran en montre un sous-ensemble — jamais l'inverse. Un
+  plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
+  action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
+  d'épreuve ne dérive jamais d'une liste déjà tronquée.
+- 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
+  sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
+  acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne
+  reste pas **vide** pour autant. → `docs/regles/plan.md`
+- 🛑 **Aucun front ne classe un nombre en état pédagogique ni en niveau CECRL.** Pas de
+  `cefr(v)`, pas de `masteryLabel(v)`, pas de ton dérivé d'un pourcentage : l'état, son
+  libellé et son ton arrivent **servis** (six états, `WATCH` et `READY_FOR_REASSESSMENT`
+  compris). Vérifiable : `node scripts/verifier-contrat-front-progression.mjs`.
+  → `docs/regles/progression.md`
 - **On versionne, on ne réécrit jamais** une rubrique, un tool-schema ou un contrat livré. Un
   retour arrière est un changement de variable d'environnement, pas une migration.
 
@@ -235,6 +249,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 |---|---|
 | un cadenas, un quota, un slot d'examen, un `locked` de DTO, « c'est gratuit ou pas ? » | `docs/regles/freemium.md` |
 | le Plan, une priorité, la séance, un jalon, une étape, le moteur de maîtrise, un domaine | `docs/regles/plan.md` |
+| le moteur de progression V4.2, une preuve, un palier CO/CE, un état pédagogique servi, `visibleProgress` | `docs/regles/progression.md` |
 | le diagnostic initial, le parcours invité→compte→analyse, l'écran de résultat du diagnostic | `docs/regles/diagnostic.md` |
 | une rubrique, un tool-schema, un filet/purge serveur, un coût LLM, le banc, l'examinateur vocal | `docs/regles/notation-ia.md` |
 | le module Compétences (micro-entraînement EE/EO), un petit sujet, une référence | `docs/regles/competences.md` |

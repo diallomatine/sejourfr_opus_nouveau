@@ -13,6 +13,7 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
 import com.sejourfr.app.service.ComprehensionObservationService;
@@ -58,8 +59,8 @@ class AttemptInteractionServiceComprehensionTest {
 
         service = new AttemptInteractionService(
                 attemptManager, attemptQuestionManager, mock(AnswerManager.class),
-                mock(AttemptScoringService.class), mock(AttemptMapper.class),
-                new QuestionMapper(), observationService);
+                mock(AttemptScoringService.class), mock(ReceptiveEvidenceAdapter.class),
+                mock(AttemptMapper.class), new QuestionMapper(), observationService);
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
     }

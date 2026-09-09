@@ -2,6 +2,7 @@ package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.DifficultyBand;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.QuestionRepository;
@@ -13,7 +14,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +33,30 @@ public class QuestionManager {
 
     public Optional<Question> findById(UUID id) {
         return repository.findById(id);
+    }
+
+    /**
+     * Stock de questions actives par (type, palier), en <b>une requete
+     * agregee</b>. {@code CO_IMAGE} est replie sur {@code CO}, comme partout
+     * ailleurs dans le depot. Une paire absente vaut zero : au caller de le lire
+     * ainsi.
+     *
+     * <p>Sert le filtre de faisabilite du Plan cote comprehension : une
+     * competence de palier dont le stock est vide ne peut porter aucune serie
+     * ciblee, donc aucune action.
+     */
+    public Map<QuestionType, Map<Difficulty, Long>> countActiveByTypeAndDifficulty(
+            Collection<QuestionType> types) {
+        Map<QuestionType, Map<Difficulty, Long>> stock = new EnumMap<>(QuestionType.class);
+        for (Object[] ligne : repository.countActiveByTypeAndDifficulty(types)) {
+            QuestionType type = (QuestionType) ligne[0];
+            if (type == QuestionType.CO_IMAGE) type = QuestionType.CO;
+            Difficulty palier = (Difficulty) ligne[1];
+            long compte = ((Number) ligne[2]).longValue();
+            stock.computeIfAbsent(type, cle -> new EnumMap<>(Difficulty.class))
+                    .merge(palier, compte, Long::sum);
+        }
+        return stock;
     }
 
     public List<Question> findAllById(Collection<UUID> ids) {
@@ -99,6 +126,37 @@ public class QuestionManager {
             int size) {
         return repository.findLeastRecentlySeen(
                 userId, module.name(), difficulty.name(), questionType.name(), size);
+    }
+
+    /**
+     * Le meme tirage, restreint a une bande de difficulte — la brique du
+     * blueprint qualifiant 6/10/4 (moteur de progression V4.2 §6.2).
+     */
+    public List<Question> findLeastRecentlySeenInBand(
+            UUID userId,
+            Module module,
+            Difficulty difficulty,
+            QuestionType questionType,
+            DifficultyBand band,
+            int size) {
+        return repository.findLeastRecentlySeenInBand(
+                userId, module.name(), difficulty.name(), questionType.name(),
+                band.name(), size);
+    }
+
+    /** Les questions de comprehension d'un perimetre, pour l'export de calibration. */
+    public List<Question> findForCalibration(String section, String difficulty) {
+        return repository.findForCalibration(section, difficulty);
+    }
+
+    /** Combien de questions taguees de cette bande existent (§12 bis.5). */
+    public long countInBand(
+            Module module,
+            Difficulty difficulty,
+            QuestionType questionType,
+            DifficultyBand band) {
+        return repository.countInBand(
+                module.name(), difficulty.name(), questionType.name(), band.name());
     }
 
     /** Tirage aleatoire en excluant des ids deja tires (composition examen blanc). */

@@ -5,7 +5,7 @@ import {useEffect, useMemo, useState} from "react";
 import {Gavel, Globe, Landmark, LayoutGrid, Lightbulb, Scale, Target, Users,} from "lucide-react";
 import {dashboardApi, publicThemeApi} from "@/lib/api";
 import {loadFailureMessage} from "@/lib/load-failure";
-import {masteryHint, moduleAverage} from "@/lib/dashboard";
+import {moduleAverage, successHint} from "@/lib/dashboard";
 import {themeSlug} from "@/lib/themes";
 import {
     type AuthenticatedUser,
@@ -179,7 +179,7 @@ export function CiviqueHub({user}: { user: AuthenticatedUser | null }) {
                     {
                         label: "Maîtrise globale",
                         value: average !== null ? `${average}%` : "—",
-                        hint: masteryHint(average),
+                        hint: successHint(average),
                         accent: true,
                     },
                     {

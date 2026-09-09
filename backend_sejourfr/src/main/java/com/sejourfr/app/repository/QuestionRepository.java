@@ -243,6 +243,81 @@ public interface QuestionRepository
             @Param("size") int size
     );
 
+    /**
+     * Le meme tirage, <b>restreint a une bande de difficulte</b> — la brique du
+     * blueprint qualifiant 6 EASY / 10 MEDIUM / 4 HARD (moteur de progression
+     * V4.2 §6.2, §7).
+     *
+     * <p>Les questions non taguees ({@code difficulty_band IS NULL}) sont
+     * exclues, jamais rangees dans une bande par defaut : leur affecter
+     * « MEDIUM » affirmerait une mesure qui n'a pas eu lieu. Une bande qui ne
+     * peut pas etre remplie fait simplement echouer la composition calibree, et
+     * la serie retombe en {@code UNCALIBRATED} — ce qui est la verite.
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            LEFT JOIN (
+                SELECT aq.question_id AS question_id, MAX(a.started_at) AS last_seen
+                FROM attempt_questions aq
+                JOIN attempts a ON a.id = aq.attempt_id
+                WHERE a.user_id = :userId
+                GROUP BY aq.question_id
+            ) vu ON vu.question_id = q.id
+            WHERE q.is_active = true
+              AND q.module = :module
+              AND q.difficulty = :difficulty
+              AND q.difficulty_band = :band
+              AND (q.question_type = :questionType
+                   OR (:questionType = 'CO' AND q.question_type = 'CO_IMAGE'))
+            ORDER BY vu.last_seen ASC NULLS FIRST, random()
+            LIMIT :size
+            """, nativeQuery = true)
+    List<Question> findLeastRecentlySeenInBand(
+            @Param("userId") UUID userId,
+            @Param("module") String module,
+            @Param("difficulty") String difficulty,
+            @Param("questionType") String questionType,
+            @Param("band") String band,
+            @Param("size") int size
+    );
+
+    /**
+     * Les questions TCF de comprehension d'un perimetre, pour l'export de
+     * calibration (§7). Les deux filtres sont facultatifs et se cumulent.
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            WHERE q.is_active = true
+              AND q.module = 'TCF'
+              AND q.difficulty IN ('A2', 'B1', 'B2')
+              AND (
+                    (:section IS NULL AND q.question_type IN ('CO', 'CO_IMAGE', 'CE'))
+                 OR (:section = 'CO' AND q.question_type IN ('CO', 'CO_IMAGE'))
+                 OR (:section = 'CE' AND q.question_type = 'CE')
+              )
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+            ORDER BY q.difficulty, q.question_type, q.created_at
+            """, nativeQuery = true)
+    List<Question> findForCalibration(@Param("section") String section,
+                                      @Param("difficulty") String difficulty);
+
+    /** Combien de questions taguees d'une bande sont disponibles (§12 bis.5). */
+    @Query(value = """
+            SELECT COUNT(*) FROM questions q
+            WHERE q.is_active = true
+              AND q.module = :module
+              AND q.difficulty = :difficulty
+              AND q.difficulty_band = :band
+              AND (q.question_type = :questionType
+                   OR (:questionType = 'CO' AND q.question_type = 'CO_IMAGE'))
+            """, nativeQuery = true)
+    long countInBand(
+            @Param("module") String module,
+            @Param("difficulty") String difficulty,
+            @Param("questionType") String questionType,
+            @Param("band") String band
+    );
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------
@@ -256,6 +331,26 @@ public interface QuestionRepository
     long countByThemeIdAndActiveTrue(UUID themeId);
 
     long countByPassageId(UUID passageId);
+
+    /**
+     * Stock de questions actives par (type, palier), <b>en une seule requête
+     * agrégée</b>. Sert le filtre de faisabilité du Plan côté compréhension :
+     * une compétence de palier dont le stock est vide ne peut porter aucune
+     * série ciblée, donc aucune action.
+     *
+     * <p>Renvoie {@code [questionType, difficulty, count]}. `CO_IMAGE` est
+     * rendu tel quel — au caller de le replier sur `CO`, comme partout ailleurs
+     * dans le dépôt.
+     */
+    @Query("""
+            SELECT q.questionType, q.difficulty, COUNT(q)
+            FROM Question q
+            WHERE q.active = true
+              AND q.questionType IN :types
+            GROUP BY q.questionType, q.difficulty
+            """)
+    List<Object[]> countActiveByTypeAndDifficulty(
+            @Param("types") Collection<QuestionType> types);
 
     /**
      * Compte les questions actives matchant les contraintes (les paramètres

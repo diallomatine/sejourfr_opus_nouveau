@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.dto.PlanDomainDto;
@@ -70,6 +71,7 @@ class PlanCycleResolverTest {
                 mock(LearningPlanObservationManager.class),
                 new SkillMasteryEngine(properties), properties);
         resolver = new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
+                mock(ProgressionPlanBridge.class),
                 masteryResolver, skillManager);
 
         List<Skill> competences = new ArrayList<>();

@@ -13,12 +13,18 @@ import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
+import com.sejourfr.app.progression.domain.EvidenceEntryPoint;
+import com.sejourfr.app.progression.domain.EvidenceSourceType;
+import com.sejourfr.app.progression.service.ProductiveEvidenceAdapter;
+import com.sejourfr.app.progression.service.ProductiveEvidenceAdapter.ObservationCompetence;
 import com.sejourfr.app.service.competence.CompetenceAnalysisFields;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,10 +44,12 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LearningPlanObservationService {
 
     private final LearningPlanObservationManager observationManager;
     private final UserSkillAttemptManager skillAttemptManager;
+    private final ProductiveEvidenceAdapter productiveEvidenceAdapter;
 
     public void recordProduction(
             ProductionSubmission submission,
@@ -78,6 +86,87 @@ public class LearningPlanObservationService {
             observation.setObservedAt(Instant.now());
             saveIdempotently(observation);
         }
+        recordProductionProgression(submission, allowedSkills, analysis, baseline);
+    }
+
+    /**
+     * La même évaluation, versée au <b>moteur de progression V4.2</b>
+     * (docs/regles/progression.md).
+     *
+     * <p>Second producteur, à côté des observations du Plan : les deux coexistent
+     * le temps du shadow mode. L'ancien alimente le Plan servi aujourd'hui, le
+     * nouveau écrit dans son registre et prédit sans rien piloter.
+     *
+     * <p><b>Best-effort, jamais bloquant</b> : la livraison de son évaluation au
+     * candidat ne doit pas dépendre de ce que le moteur en fait.
+     */
+    private void recordProductionProgression(ProductionSubmission submission,
+                                             List<Skill> allowedSkills,
+                                             Map<String, Object> analysis, boolean baseline) {
+        if (submission.getUser() == null) {
+            return;
+        }
+        try {
+            Map<String, Skill> skillsByCode = new LinkedHashMap<>();
+            allowedSkills.forEach(skill -> skillsByCode.put(skill.getCode(), skill));
+            if (!(analysis.get("skills") instanceof List<?> observations)) {
+                return;
+            }
+            List<ObservationCompetence> pourLeMoteur = new ArrayList<>();
+            for (Object item : observations) {
+                if (!(item instanceof Map<?, ?> value)) continue;
+                String code = text(value.get("skill_code"));
+                if (!skillsByCode.containsKey(code)) continue;
+                pourLeMoteur.add(new ObservationCompetence(
+                        code,
+                        Boolean.TRUE.equals(value.get("observed")),
+                        LearningPlanSkillStatus.valueOf(text(value.get("status"))),
+                        ObservationConfidence.valueOf(text(value.get("confidence")))));
+            }
+            EpreuveType epreuve = submission.getProductionTask().getEpreuve();
+            productiveEvidenceAdapter.ingererProduction(
+                    submission.getUser().getId(),
+                    submission.getAttempt() == null ? submission.getId()
+                            : submission.getAttempt().getId(),
+                    submission.getProductionTask().getId(),
+                    epreuve == EpreuveType.TCF_EO
+                            ? com.sejourfr.app.enums.SkillSection.EO
+                            : com.sejourfr.app.enums.SkillSection.EE,
+                    sourceProgression(submission, baseline),
+                    entryPointProgression(submission, baseline),
+                    Instant.now(),
+                    pourLeMoteur);
+        } catch (RuntimeException echec) {
+            log.warn("Progression non alimentée pour la production {} : {}",
+                    submission.getId(), echec.toString());
+        }
+    }
+
+    /**
+     * §5 — la <b>valeur pédagogique</b> de la production, jamais son point
+     * d'entrée. Un examen blanc est la preuve la moins assistée dont on
+     * dispose ; une tâche complète hors examen reste une preuve de transfert
+     * (§17) ; un diagnostic ne verrouille jamais seul un palier (§16, T08).
+     */
+    private static EvidenceSourceType sourceProgression(ProductionSubmission submission,
+                                                        boolean baseline) {
+        if (baseline) {
+            return EvidenceSourceType.DIAGNOSTIC;
+        }
+        if (!isMockExam(submission)) {
+            return EvidenceSourceType.FULL_TASK;
+        }
+        Attempt attempt = submission.getAttempt();
+        return attempt != null && attempt.getParentAttempt() != null
+                ? EvidenceSourceType.FULL_MOCK_EXAM
+                : EvidenceSourceType.DOMAIN_MOCK;
+    }
+
+    /** 🛑 Trace produit uniquement — n'entre dans aucun calcul (§1, T24). */
+    private static EvidenceEntryPoint entryPointProgression(ProductionSubmission submission,
+                                                            boolean baseline) {
+        if (baseline) return EvidenceEntryPoint.DIAGNOSTIC;
+        return isMockExam(submission) ? EvidenceEntryPoint.EXAM_HUB : EvidenceEntryPoint.PLAN;
     }
 
     /**
@@ -119,6 +208,37 @@ public class LearningPlanObservationService {
         observation.setBaseline(false);
         observation.setObservedAt(attempt.getUpdatedAt());
         saveIdempotently(observation);
+        recordSkillAttemptProgression(attempt, skill);
+    }
+
+    /**
+     * Le même micro-sujet, versé au moteur de progression.
+     *
+     * <p>Il y entre en {@code MICRO_SKILL} : poids 0,35, et masse de confiance
+     * <b>plafonnée</b> (§11.1). Cinquante micro-sujets parfaits ne rendront
+     * jamais une compétence {@code SOLID} à eux seuls — il faudra une vraie
+     * tâche. C'est la différence entre savoir appliquer une consigne isolée et
+     * savoir produire.
+     */
+    private void recordSkillAttemptProgression(UserSkillAttempt attempt, Skill skill) {
+        if (attempt.getUser() == null) {
+            return;
+        }
+        try {
+            // Un micro-sujet affiche une checklist, une amorce, une astuce :
+            // c'est sa raison d'être pédagogique, et c'est une assistance
+            // réelle. Une preuve assistée doit peser moins (§8.2).
+            boolean guide = attempt.getSkillPrompt().getChecklist() != null
+                    || attempt.getSkillPrompt().getAnswerStarter() != null;
+            productiveEvidenceAdapter.ingererMicroSujet(
+                    attempt.getUser().getId(), attempt.getId(),
+                    attempt.getSkillPrompt().getId(), attempt.getSkillPrompt().getSection(),
+                    skill.getCode(), attempt.getCriterionStatus(), guide,
+                    attempt.getUpdatedAt());
+        } catch (RuntimeException echec) {
+            log.warn("Progression non alimentée pour le micro-sujet {} : {}",
+                    attempt.getId(), echec.toString());
+        }
     }
 
     private static LearningPlanSourceType sourceType(

@@ -1,0 +1,29 @@
+{
+  "planConfigVersion": 1,
+  "display": {
+    "todayMaxActions": 3,
+    "todayMaxSecondaryDomainActions": 1,
+    "prioritiesMaxActions": 5
+  },
+  "ranking": {
+    "natureWeights": {
+      "A_EVALUER": 1200,
+      "A_RENFORCER": 1000,
+      "A_VERIFIER": 800,
+      "A_ACQUERIR": 600
+    },
+    "domainPriorityWeights": {
+      "FORTE": 400,
+      "A_TRAVAILLER": 300,
+      "PAS_ENCORE_PRIORITAIRE": 150,
+      "ENTRETIEN": 50,
+      "A_EVALUER": 0
+    },
+    "confidenceWeights": {
+      "HIGH": 30,
+      "MEDIUM": 20,
+      "LOW": 10
+    },
+    "levelGapWeight": 25
+  }
+}

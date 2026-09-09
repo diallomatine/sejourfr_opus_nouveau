@@ -10,6 +10,45 @@
 
 ---
 
+- **UNE MISE EN FORME NE COÛTE PLUS LE DIAGNOSTIC** (2026-08-25). En prod, sur la submission
+  `3136658f-d3f7-46cc-8344-336ee928bd85` (EO, transcription de 1 045 caractères) :
+  `Sortie diagnostic invalide submission=… — réparation unique : [summary dépasse 280
+  caractères, EO2-C7 : une compétence non observée doit avoir une confiance LOW]`, puis
+  `Pipeline async FAILED … : Sortie diagnostic invalide après réparation : summary dépasse
+  280 caractères`. Coût réel de l'incident : **deux appels LLM payés** (l'analyse + la
+  réparation), **zéro analyse persistée**, session `FAILED`, et chaque relance
+  (`max-session-retries: 3`) repayant les deux appels pour buter sur la même phrase de ~300
+  caractères. La même minute, `44f43bdd-262c-45ad-bb40-3e50f5906572` partait en réparation sur
+  le seul motif `EE2-C2 : une compétence non observée doit avoir une confiance LOW`.
+  - **Cause** : `summary.maxLength: 280` est bien déclaré dans
+    `diagnostic-analysis-tool-schema-v1.json`, mais **aucun fournisseur n'applique une longueur**
+    (correcteur par défaut : DeepSeek, `EVAL_LLM_PROVIDER`). Contrairement à `enum`, `required`
+    et `additionalProperties`, `maxLength`/`maxItems` ne sont pour le modèle qu'une indication.
+    L'ordre de préférence du dépôt — *tool-schema > longueur plafonnée > contrôle serveur
+    déterministe > consigne de prompt* — supposait ici une garantie qui n'existe pas.
+  - **Décision** : ces motifs rejoignent `priority` dans `DiagnosticAnalysisReconciler`, **avant**
+    le validateur, donc **avant toute réparation payée**. Longueurs (`summary` 280, item de
+    `strengths`/`weaknesses` 180, `explanation` 220) et taille de liste (3) sont **tronquées**
+    — coupe sur limite de mot, ellipse `…`, jamais un point final inventé, qui ferait passer une
+    phrase coupée pour une phrase finie. La confiance d'une compétence `observed=false` est
+    **ramenée à `LOW`**, exactement comme sa `priority` est ramenée à `false` : une compétence
+    non observée ne dit rien du candidat, il n'y a aucune confiance à graduer.
+  - 🛑 **Ce qui reste un refus** : ce que le serveur ne peut pas inventer sans mentir —
+    `skill_code` hors allowlist, compétence manquante, `evidence_segment` absent ou hors bornes,
+    enum invalide, champ hors contrat, `level_estimate` au-dessus de B2. Et une **preuve posée
+    sur une compétence déclarée non observée** n'est PAS effacée : c'est une contradiction du
+    correcteur, pas une mise en forme.
+  - **Contrat v1 inchangé** (ni rubriques, ni tool-schema) : on ne réécrit pas une version
+    livrée. Le `maxLength` reste au schéma comme indication au modèle ; c'est le serveur qui le
+    rend dur.
+  - **Compteurs** (`DiagnosticReconciliationMetrics`, même famille que les priorités dérivées) :
+    `SYNTHESE_TRONQUEE`, `TEXTE_TRONQUE`, `LISTE_TRONQUEE`, `CONFIANCE_NON_OBSERVEE_DERIVEE`.
+    Ils disent à quelle fréquence le fournisseur ignore le contrat — c'est eux qui justifieront,
+    ou non, de resserrer la consigne des rubriques en v2 plutôt que de tronquer.
+  - **Verrouillé** par `DiagnosticAnalysisReconcilerTest` (le cas de prod, le summary pile au
+    plafond qui n'est pas touché, les deux plafonds de liste, l'explication, la confiance
+    non observée, la non-mutation de la sortie d'origine).
+
 - **UNE PRODUCTION INEXPLOITABLE NE PRODUIT AUCUN NIVEAU** (2026-08-21, V040). Mesuré en
   base : **4 s d'audio, 7 caractères transcrits, verdict `A1_NON_ATTEINT`** — une *absence de
   preuve* enregistrée comme la *preuve du niveau le plus faible*. Et depuis que le diagnostic

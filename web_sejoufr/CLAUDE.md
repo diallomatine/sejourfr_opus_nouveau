@@ -1987,9 +1987,21 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     EO), `getSubmission` (polling, EO passe par `TRANSCRIBING`), `retrySubmission`,
     `listMine`, `lastPerTask`. **Tout est authentifié** (le catalogue n'est PAS sous
     `/api/public/**`).
+  - 🛑 **`PlanDomainDto` sert le palier ET les compteurs d'action** — `nextTargetLevel`,
+    `acquireCount`, `readyForValidationCount`, `notObservedWithoutActionCount` (2026-08-26).
+    Ne **jamais** les recalculer : la copie locale `nextLevel()` de `DiagnosticReport` ignorait
+    l'objectif du candidat (un B1 visant le B1 lisait « prochain palier B2 ») et le palier
+    propre du domaine ; elle est supprimée. Le palier d'une compétence se lit par
+    `planSkillTargetLevel`, **jamais** par un repli sur `cycle.targetLevel`, qui est le palier
+    **global**.
   - **Types** `lib/types.ts` : `ProductionTaskDto`, `ProductionSubmissionDto`,
     `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
-    + helpers (`productionTaskTitle/Subtitle(epreuve,n)`, `niveauCecrlLabel`,
+    + helpers (`productionTaskTitle/Subtitle(epreuve,n)`,
+    `productionTaskLabeledTitle(epreuve,n)` = « Tâche 1 : Message simple », le titre
+    préfixé de son rang qu'affiche la carte de tâche du hub — **miroir mot pour mot du
+    mobile** (`productionTaskTitle` de `core/models/production_models.dart` et
+    `productionTaskLabeledTitle` de `tcf_production/widgets/production_common.dart`) ;
+    un intitulé qui bouge, ce sont les deux fronts dans la même passe, `niveauCecrlLabel`,
     `cecrlIndex`, `formatDurationSec`, `resolveTcfLevel`, `parseEeFeedback`).
   - **Composants partagés** `app/_components/production/` : `ProductionFeedbackView`
     (orchestre les 6 blocs de l'écran de résultat, cf. section dédiée) avec

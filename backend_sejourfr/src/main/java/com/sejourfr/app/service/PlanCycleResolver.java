@@ -10,6 +10,7 @@ import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanCycleState;
@@ -104,6 +105,7 @@ public class PlanCycleResolver {
 
     private final TcfProfileService profileService;
     private final ComprehensionLevelResolver comprehensionLevelResolver;
+    private final ProgressionPlanBridge progressionPlanBridge;
     private final SkillMasteryResolver masteryResolver;
     private final SkillManager skillManager;
 
@@ -188,7 +190,7 @@ public class PlanCycleResolver {
 
         return new Resolution(
                 cycle,
-                domaines(profile, allObservations, actionable, vise, objectif,
+                domaines(user, profile, allObservations, actionable, vise, objectif,
                         comprehension, expression),
                 List.copyOf(referentiel));
     }
@@ -268,6 +270,7 @@ public class PlanCycleResolver {
      * de l'ecran exactement ce que « Completer mon profil » doit montrer.
      */
     private List<PlanDomainDto> domaines(
+            User user,
             TcfLevelProfile profile,
             List<LearningPlanObservation> allObservations,
             List<LearningPlanObservation> actionable,
@@ -307,7 +310,21 @@ public class PlanCycleResolver {
             TargetLevel consolide = section.isComprehension()
                     ? comprehensionLevelResolver.niveauConsolide(etats(paliers)).orElse(null)
                     : null;
-            TargetLevel bloquant = section.isComprehension() ? suivant(consolide) : null;
+            // Le palier qui bloque, et donc ce que le Plan proposera.
+            //
+            // 🛑 Deux autorités possibles, et une seule active à la fois. En
+            // SHADOW — le cas aujourd'hui — c'est `suivant(consolide)`, la règle
+            // historique, inchangée. En ACTIVE, c'est `prescriptionLevel` du
+            // moteur V4.2, qui sait en plus faire passer une VÉRIFICATION avant
+            // l'apprentissage normal quand un acquis vient d'être contredit
+            // (§19, §20).
+            //
+            // Le pont rend `empty()` en SHADOW : aucune requête, aucun effet.
+            TargetLevel bloquant = section.isComprehension()
+                    ? progressionPlanBridge
+                            .prescriptionLevel(user == null ? null : user.getId(), section, objectif)
+                            .orElseGet(() -> suivant(consolide))
+                    : null;
             List<PlanDomainTaskDto> taches = section.isProduction()
                     ? taches(section, observeesParTache, totalParTache)
                     : List.of();

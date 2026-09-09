@@ -13,9 +13,11 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +36,16 @@ public class SkillPromptManager {
 
     public Optional<SkillPrompt> findById(UUID id) {
         return repository.findById(id);
+    }
+
+    /**
+     * Les competences qui ont au moins un sujet actif — <b>une requete
+     * agregee</b>, quel que soit le nombre de competences. Sert le filtre de
+     * faisabilite du Plan : une competence sans sujet publie ne porte aucune
+     * action.
+     */
+    public Set<UUID> findSkillIdsWithActivePrompt() {
+        return new LinkedHashSet<>(repository.findSkillIdsWithActivePrompt());
     }
 
     /**

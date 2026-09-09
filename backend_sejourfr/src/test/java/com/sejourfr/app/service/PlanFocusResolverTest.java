@@ -15,6 +15,7 @@ import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +63,7 @@ class PlanFocusResolverTest {
     @Mock private UserManager userManager;
     @Mock private PlanCycleResolver cycleResolver;
     @Mock private PlanAcquisitionSelector acquisitionSelector;
+    @Mock private PlanContentAvailability contentAvailability;
 
     private PlanFocusResolver resolver;
 
@@ -68,14 +72,16 @@ class PlanFocusResolverTest {
     @BeforeEach
     void setUp() {
         resolver = new PlanFocusResolver(observationManager, priorityResolver,
-                sessionManager, userManager, cycleResolver, acquisitionSelector);
+                sessionManager, userManager, cycleResolver, acquisitionSelector,
+                contentAvailability,
+                new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class)));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
         when(priorityResolver.actionable(anyList())).thenReturn(List.of());
         when(priorityResolver.lastActivityBySkill(anyList())).thenReturn(java.util.Map.of());
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         when(cycleResolver.resolve(any(), anyList(), anyList())).thenReturn(resolution());
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of());
     }
 
@@ -135,7 +141,7 @@ class PlanFocusResolverTest {
 
         verify(sessionManager, never()).findLatestCompleted(any());
         verify(cycleResolver, never()).resolve(any(), anyList(), anyList());
-        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), anyInt());
+        verify(acquisitionSelector, never()).select(anyList(), anySet(), anyMap(), any());
     }
 
     /**
@@ -149,7 +155,7 @@ class PlanFocusResolverTest {
         assertThat(resolver.currentFocusSkillId(userId)).isEmpty();
 
         verify(cycleResolver, never()).resolve(any(), anyList(), anyList());
-        verify(acquisitionSelector, never()).select(any(), anyList(), anySet(), anyInt());
+        verify(acquisitionSelector, never()).select(anyList(), anySet(), anyMap(), any());
     }
 
     @Test
@@ -158,7 +164,7 @@ class PlanFocusResolverTest {
         Skill aAcquerir = skill("EE2-C4");
         when(sessionManager.findLatestCompleted(userId))
                 .thenReturn(Optional.of(new DiagnosticSession()));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
 
         assertThat(resolver.currentFocusSkillId(userId)).contains(aAcquerir.getId());

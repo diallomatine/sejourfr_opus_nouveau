@@ -104,7 +104,58 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
     for (final epreuve in kDiagnosticEpreuveOrder) epreuve: GlobalKey(),
   };
 
+  /// Ce que le rideau a déjà été vu couvrir, pour ne le compter qu'une fois
+  /// par épreuve et par affichage de l'écran. En mémoire : rien de plus n'est
+  /// écrit sur l'appareil pour ça.
+  final Set<EpreuveType> _rideauCompte = <EpreuveType>{};
+  bool _offreComptee = false;
+
+  /// 🛑 Le rideau se mesure **là où il est rendu**, et une seule fois par
+  /// épreuve : on veut savoir combien de fois il s'affiche, pas combien de fois
+  /// Flutter reconstruit. Les deux compteurs sont ceux qui sont vraiment à
+  /// l'écran — visibles en clair d'un côté, cachés de l'autre —, jamais une
+  /// longueur de liste tronquée.
+  void _compterRideau(_EpreuveView view) {
+    final cache = view.fragileTotal + view.solidTotal - _visiblesEnClair(view);
+    if (cache <= 0 || !_rideauCompte.add(view.epreuve)) return;
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.planCurtainShown,
+          path: AnalyticsPath.diagnostic,
+          ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+          epreuve: view.epreuve.wire,
+          visibleCount: _visiblesEnClair(view),
+          totalCount: view.fragileTotal + view.solidTotal,
+        );
+  }
+
+  /// Ce qu'un compte sans accès voit en clair sur une carte : une ligne à
+  /// travailler, une ligne solide. Les seuils d'affichage vivent sur la carte
+  /// (`_kFreeWorkVisible`, `_kFreeSolidVisible`) — on lit les mêmes, on n'en invente pas.
+  static int _visiblesEnClair(_EpreuveView view) =>
+      (view.work.isEmpty ? 0 : _kFreeWorkVisible) + (view.solid.isEmpty ? 0 : _kFreeSolidVisible);
+
+  /// L'offre a été **vue** — ce n'est pas un clic. C'est l'écart entre les deux
+  /// qui dira si le rideau donne envie ou décourage.
+  void _compterOffre() {
+    if (_offreComptee) return;
+    _offreComptee = true;
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.planPaywallViewed,
+          path: AnalyticsPath.diagnostic,
+          ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+        );
+  }
+
   void _toggle(EpreuveType epreuve) {
+    // Le geste mesuré est l'OUVERTURE : replier n'est pas vouloir voir.
+    if (_open != epreuve) {
+      ref.read(analyticsServiceProvider).track(
+            AnalyticsEvent.planCurtainExpanded,
+            path: AnalyticsPath.diagnostic,
+            ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+            epreuve: epreuve.wire,
+          );
+    }
     setState(() => _open = _open == epreuve ? null : epreuve);
   }
 
@@ -239,6 +290,10 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
             ),
             const SizedBox(height: 11),
             for (final epreuve in epreuves) ...[
+              if (!widget.hasTcfAccess) Builder(builder: (_) {
+                _compterRideau(epreuve);
+                return const SizedBox.shrink();
+              }),
               _EpreuveCard(
                 key: _cards[epreuve.epreuve],
                 view: epreuve,
@@ -263,6 +318,10 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
             ),
           ] else ...[
             const SizedBox(height: 8),
+            Builder(builder: (_) {
+              _compterOffre();
+              return const SizedBox.shrink();
+            }),
             _UnlockCard(
               objective: widget.objective,
               detected: detected,
@@ -464,8 +523,6 @@ class _EpreuveView {
     ];
     final solid =
         lines.where((l) => l.group == _SkillGroup.solid).toList(growable: false);
-    final notObserved =
-        lines.where((l) => l.group == _SkillGroup.notObserved).length;
     final observed = domain.fragileSkillCount + domain.solidSkillCount;
 
     return _EpreuveView(
@@ -474,7 +531,10 @@ class _EpreuveView {
       domain: domain,
       assessment: assessment,
       level: domain.niveau,
-      nextLevel: diagnosticNextLevel(domain.niveau),
+      // 🛑 SERVI, plus dérivé du niveau : la copie locale ignorait l'objectif
+      // du candidat, et un candidat B1 visant le B1 lisait « prochain palier
+      // B2 ». Supprimée le 2026-08-26.
+      nextLevel: domain.nextTargetLevel,
       resume: diagnosticEpreuveResume(epreuve, domain.niveau),
       explanation: diagnosticEpreuveExplanation(
         domain,
@@ -484,7 +544,10 @@ class _EpreuveView {
       ),
       work: List.unmodifiable(work),
       solid: solid,
-      notObserved: notObserved,
+      // 🛑 SERVI aussi : ce compte excluait les acquisitions ici pendant que le
+      // serveur les incluait dans `notObservedSkillCount` — deux nombres pour
+      // la même épreuve. Le serveur en publie désormais deux, nommés.
+      notObserved: domain.notObservedWithoutActionCount,
       fragileTotal: domain.fragileSkillCount,
       solidTotal: domain.solidSkillCount,
     );

@@ -1,5 +1,7 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.service.plan.PlanConfig;
+import com.sejourfr.app.service.plan.PlanConfigLoader;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
@@ -33,7 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PlanSeanceBuilderTest {
 
-    private final PlanSeanceBuilder builder = new PlanSeanceBuilder();
+    /** La configuration livree : le test lit le vrai plafond, jamais un 3 en dur. */
+    private static final PlanConfig PLAN_CONFIG = PlanConfigLoader.load(1);
+
+    private final PlanSeanceBuilder builder = new PlanSeanceBuilder(PLAN_CONFIG);
 
     @Test
     @DisplayName("Trois entrainements au maximum, meme avec plus de priorites")
@@ -46,7 +51,7 @@ class PlanSeanceBuilderTest {
 
         PlanSeanceDto seance = builder.build(null, priorites, skills(priorites), Map.of(), null);
 
-        assertThat(seance.items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(seance.items()).hasSize(PLAN_CONFIG.display().todayMaxActions());
         assertThat(seance.items()).extracting("skillCode")
                 .containsExactly("EE1-C1", "EO1-C2", "EE2-C3");
     }
@@ -200,7 +205,7 @@ class PlanSeanceBuilderTest {
 
         PlanSeanceDto seance = builder.build(mesure, priorites, skills(priorites), Map.of(), null);
 
-        assertThat(seance.items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(seance.items()).hasSize(PLAN_CONFIG.display().todayMaxActions());
         assertThat(seance.items().getFirst()).satisfies(item -> {
             assertThat(item.nature()).isEqualTo(PlanActionNature.A_EVALUER);
             assertThat(item.assessment().epreuve()).isEqualTo(EpreuveType.TCF_EO);
@@ -284,7 +289,7 @@ class PlanSeanceBuilderTest {
 
         PlanSeanceDto seance = builder.build(null, priorites, skills(priorites), Map.of(), jalon);
 
-        assertThat(seance.items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(seance.items()).hasSize(PLAN_CONFIG.display().todayMaxActions());
         assertThat(seance.items().getLast()).satisfies(item -> {
             assertThat(item.nature()).isEqualTo(PlanActionNature.A_VERIFIER);
             assertThat(item.exercise().kind()).isEqualTo(PlanExerciseKind.EPREUVE_MOCK_EXAM);

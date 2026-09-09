@@ -1,27 +1,32 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
-import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainPriority;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,19 +36,35 @@ import static org.mockito.Mockito.when;
 /**
  * <b>Ce qu'il reste a APPRENDRE</b> — la troisieme categorie du Plan.
  *
- * <p>Tout ce qui est verifie ici tient en une phrase : le selecteur ne rend que
- * des competences <b>du palier en construction</b> que le candidat n'a
- * <b>jamais travaillees</b>, et il ne fabrique <b>rien</b> pour remplir l'ecran.
+ * <p>Trois invariants, et rien d'autre : le selecteur ne rend que des
+ * competences <b>du palier que CE DOMAINE construit</b>, <b>jamais
+ * travaillees</b> et <b>reellement executables</b> — et il ne fabrique
+ * <b>rien</b> pour remplir un ecran.
+ *
+ * <p>🛑 Depuis le 2026-08-26 il ne recoit <b>aucun plafond</b> : le pool est
+ * complet, l'affichage coupe ailleurs.
  */
 class PlanAcquisitionSelectorTest {
 
+    private static final UUID USER = UUID.randomUUID();
+
     private SkillManager skillManager;
+    private ProgressionPlanBridge bridge;
     private PlanAcquisitionSelector selector;
+    private PlanDomainTargetLevelResolver targetLevelResolver;
+    private final List<Skill> publiees = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
         skillManager = mock(SkillManager.class);
+        bridge = mock(ProgressionPlanBridge.class);
+        // Le pont est en SHADOW : il rend toujours vide, donc c'est le repli
+        // « cran au-dessus du niveau DU DOMAINE » qui decide. C'est bien l'etat
+        // de production, et c'est la que vit le correctif.
+        when(bridge.prescriptionLevel(any(), any(), any())).thenReturn(Optional.empty());
+        targetLevelResolver = new PlanDomainTargetLevelResolver(bridge);
         selector = new PlanAcquisitionSelector(skillManager);
+        publiees.clear();
     }
 
     /**
@@ -58,16 +79,103 @@ class PlanAcquisitionSelectorTest {
                 skill("EO1-C1", SkillSection.EO, SkillTaskCode.EO1, "B1", 1),
                 skill("EO2-C1", SkillSection.EO, SkillTaskCode.EO2, "B1", 1));
 
-        List<Skill> acquis = selector.select(
-                cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 5);
+        List<Skill> acquis = selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet());
 
         assertThat(acquis).extracting(Skill::getCode).containsExactly("EO1-C1", "EO2-C1");
     }
 
     /**
-     * 🛑 L'invariant central : une competence d'un palier que le cycle ne
-     * construit <b>pas</b> n'entre jamais. On n'envoie pas un candidat qui
-     * construit son B1 travailler du B2 — ni du A2 qu'il a deja derriere lui.
+     * 🛑 <b>LE CORRECTIF DU 2026-08-26.</b> Chaque domaine construit <b>son</b>
+     * palier : un candidat <b>EE A2 / EO B1</b> visant le B2 travaille du B1 a
+     * l'ecrit et du <b>B2</b> a l'oral. Avant, le palier venait du niveau
+     * <b>global</b> (le plancher, A2) : les deux domaines construisaient B1, les
+     * competences B2 de l'oral n'etaient candidates a rien, et l'ecran affichait
+     * « rien a travailler ».
+     */
+    @Test
+    @DisplayName("Chaque domaine construit SON palier, jamais celui du plancher global")
+    void chaqueDomaineConstruitSonPropredPalier() {
+        publie(
+                skill("EE2-C1", SkillSection.EE, SkillTaskCode.EE2, "B1", 1),
+                skill("EE3-C1", SkillSection.EE, SkillTaskCode.EE3, "B2", 1),
+                skill("EO2-C1", SkillSection.EO, SkillTaskCode.EO2, "B1", 1),
+                skill("EO3-C1", SkillSection.EO, SkillTaskCode.EO3, "B2", 1));
+
+        List<PlanDomainDto> domaines = List.of(
+                domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.FORTE),
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.B1,
+                        PlanDomainPriority.PAS_ENCORE_PRIORITAIRE));
+
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
+                .extracting(Skill::getCode)
+                .as("l'ecrit construit son B1, l'oral son B2")
+                .containsExactly("EE2-C1", "EO3-C1");
+    }
+
+    /**
+     * 🛑 <b>« Pas encore prioritaire » n'a jamais voulu dire « zero action ».</b>
+     * Le §93 interdit de faire <b>redescendre</b> un domaine avance ; c'est
+     * l'implementation qui avait durci la regle. Un domaine secondaire recoit ses
+     * acquisitions, il passe simplement apres.
+     */
+    @Test
+    @DisplayName("Un domaine « pas encore prioritaire » recoit quand meme ses acquisitions")
+    void unDomaineSecondaireRecoitQuandMemeSesAcquisitions() {
+        publie(skill("EO3-C1", SkillSection.EO, SkillTaskCode.EO3, "B2", 1));
+
+        List<PlanDomainDto> domaines = List.of(
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.B1,
+                        PlanDomainPriority.PAS_ENCORE_PRIORITAIRE));
+
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
+                .extracting(Skill::getCode).containsExactly("EO3-C1");
+    }
+
+    /**
+     * 🛑 Et il ne <b>redescend</b> pas pour autant (§17, §93) : un domaine deja
+     * au-dessus du palier global ne refait pas le palier inferieur.
+     */
+    @Test
+    @DisplayName("Un domaine avance ne redescend jamais au palier inferieur")
+    void unDomaineAvanceNeRedescendPas() {
+        publie(
+                skill("EO2-C1", SkillSection.EO, SkillTaskCode.EO2, "B1", 1),
+                skill("EO3-C1", SkillSection.EO, SkillTaskCode.EO3, "B2", 1));
+
+        List<PlanDomainDto> domaines = List.of(
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.B1, PlanDomainPriority.A_TRAVAILLER));
+
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
+                .extracting(Skill::getCode)
+                .as("le B1 est derriere lui, on ne le lui repropose pas")
+                .containsExactly("EO3-C1");
+    }
+
+    /**
+     * Un domaine qui a <b>atteint l'objectif</b> n'a plus rien a acquerir : il
+     * s'entretient. Aucun palier au-dessus de l'objectif n'est jamais propose.
+     */
+    @Test
+    @DisplayName("Un domaine deja a l'objectif n'a plus rien a acquerir")
+    void unDomaineDejaALObjectifNaPlusRienAAcquerir() {
+        publie(skill("EO3-C1", SkillSection.EO, SkillTaskCode.EO3, "B2", 1));
+
+        List<PlanDomainDto> domaines = List.of(
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.B2, PlanDomainPriority.ENTRETIEN));
+
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
+                .isEmpty();
+    }
+
+    /**
+     * 🛑 L'invariant central : une competence d'un palier que ce domaine ne
+     * construit <b>pas</b> n'entre jamais. Ni du B2 quand il construit son B1, ni
+     * du A2 qu'il a deja derriere lui.
      */
     @Test
     @DisplayName("Une competence d'un palier non vise n'apparait pas")
@@ -77,11 +185,10 @@ class PlanAcquisitionSelectorTest {
                 skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1),
                 skill("EE1-C20", SkillSection.EE, SkillTaskCode.EE1, "B2", 1));
 
-        List<Skill> acquis = selector.select(
-                cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 5);
-
-        assertThat(acquis).extracting(Skill::getCode)
-                .as("seul le palier en construction est propose")
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()))
+                .extracting(Skill::getCode)
+                .as("seul le palier que ce domaine construit est propose")
                 .containsExactly("EE1-C9");
     }
 
@@ -99,10 +206,30 @@ class PlanAcquisitionSelectorTest {
         Skill vierge = skill("EE2-C9", SkillSection.EE, SkillTaskCode.EE2, "B1", 1);
         publie(solide, vierge);
 
-        List<Skill> acquis = selector.select(
-                cycle(TargetLevel.B1), quatreDomaines(), Set.of(solide.getId()), 5);
+        assertThat(selector.select(quatreDomaines(), Set.of(solide.getId()),
+                paliers(quatreDomaines()), catalogueComplet()))
+                .extracting(Skill::getCode).containsExactly("EE2-C9");
+    }
 
-        assertThat(acquis).extracting(Skill::getCode).containsExactly("EE2-C9");
+    /**
+     * 🆕 <b>Filtre de faisabilite</b> : une competence dont aucun sujet n'est
+     * publie ne peut porter aucune action. Elle n'entre pas dans le pool — une
+     * carte qui ouvre sur du vide est pire que pas de carte.
+     */
+    @Test
+    @DisplayName("Une competence sans contenu publie n'entre pas dans le pool")
+    void uneCompetenceSansContenuNentrePasDansLePool() {
+        Skill avecSujets = skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1);
+        Skill sansSujet = skill("EE2-C9", SkillSection.EE, SkillTaskCode.EE2, "B1", 1);
+        publie(avecSujets, sansSujet);
+
+        PlanContentAvailability.Disponibilite catalogue =
+                new PlanContentAvailability.Catalogue(
+                        Set.of(avecSujets.getId()), Map.of());
+
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogue))
+                .extracting(Skill::getCode).containsExactly("EE1-C9");
     }
 
     /**
@@ -121,27 +248,8 @@ class PlanAcquisitionSelectorTest {
                         PlanDomainPriority.A_EVALUER, null, null, List.of(), List.of())
                 : domaine);
 
-        assertThat(selector.select(cycle(TargetLevel.B1), domaines, Set.of(), 5)).isEmpty();
-    }
-
-    /**
-     * 🛑 Le plafond est un <b>plafond</b>, jamais un quota : il coupe ce qui
-     * depasse, il ne complete rien. Et sous le plafond, tout ce qui est vrai est
-     * servi.
-     */
-    @Test
-    @DisplayName("Le plafond coupe ce qui depasse et ne fabrique jamais rien")
-    void lePlafondCoupeMaisNeRemplitPas() {
-        publie(
-                skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1),
-                skill("EE2-C9", SkillSection.EE, SkillTaskCode.EE2, "B1", 1),
-                skill("EE3-C9", SkillSection.EE, SkillTaskCode.EE3, "B1", 1));
-
-        assertThat(selector.select(cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 2))
-                .extracting(Skill::getCode).containsExactly("EE1-C9", "EE2-C9");
-        assertThat(selector.select(cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 10))
-                .as("rien n'est invente pour atteindre la limite")
-                .hasSize(3);
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet())).isEmpty();
     }
 
     /**
@@ -159,12 +267,13 @@ class PlanAcquisitionSelectorTest {
 
         // L'oral est « Priorite forte », l'ecrit seulement « Entretien ».
         List<PlanDomainDto> domaines = List.of(
-                domaine(EpreuveType.TCF_CO, PlanDomainPriority.ENTRETIEN),
-                domaine(EpreuveType.TCF_CE, PlanDomainPriority.ENTRETIEN),
-                domaine(EpreuveType.TCF_EE, PlanDomainPriority.ENTRETIEN),
-                domaine(EpreuveType.TCF_EO, PlanDomainPriority.FORTE));
+                domaine(EpreuveType.TCF_CO, NiveauCecrl.A2, PlanDomainPriority.ENTRETIEN),
+                domaine(EpreuveType.TCF_CE, NiveauCecrl.A2, PlanDomainPriority.ENTRETIEN),
+                domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.ENTRETIEN),
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.A2, PlanDomainPriority.FORTE));
 
-        assertThat(selector.select(cycle(TargetLevel.B1), domaines, Set.of(), 5))
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
                 .extracting(Skill::getCode)
                 .containsExactly("EO1-C9", "EE1-C8", "EE1-C9");
     }
@@ -177,37 +286,49 @@ class PlanAcquisitionSelectorTest {
                 skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1),
                 skill("EO1-C9", SkillSection.EO, SkillTaskCode.EO1, "B1", 1));
 
-        assertThat(selector.select(cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 5))
-                .isEqualTo(selector.select(cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 5));
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()))
+                .isEqualTo(selector.select(quatreDomaines(), Set.of(),
+                paliers(quatreDomaines()), catalogueComplet()));
     }
 
     /**
-     * Sans palier en construction il n'y a rien a apprendre — et surtout aucune
-     * requete a emettre : c'est le seul cas ou le referentiel n'est pas charge.
+     * Sans objectif declare il n'y a rien a construire — et surtout aucune
+     * requete a emettre : on ne devine pas une demarche a la place du candidat.
      */
     @Test
-    @DisplayName("Sans cycle, aucune requete n'est emise")
-    void sansCycleAucuneRequeteNestEmise() {
-        assertThat(selector.select(null, quatreDomaines(), Set.of(), 5)).isEmpty();
-        assertThat(selector.select(cycle(null), quatreDomaines(), Set.of(), 5)).isEmpty();
+    @DisplayName("Sans objectif, aucune requete n'est emise")
+    void sansObjectifAucuneRequeteNestEmise() {
+        assertThat(selector.select(quatreDomaines(), Set.of(),
+                targetLevelResolver.parSection(USER, quatreDomaines(), null), catalogueComplet()))
+                .isEmpty();
+        assertThat(selector.select(List.of(), Set.of(),
+                paliers(List.of()), catalogueComplet()))
+                .isEmpty();
 
         verify(skillManager, never()).findActiveByTargetLevels(anyCollection());
     }
 
     /**
-     * 🛑 Le referentiel est charge <b>meme quand il ne reste aucune place</b> :
-     * le nombre de places depend des fragilites du candidat, et faire dependre un
-     * aller-retour en base de ses donnees rendrait le cout du Plan variable d'un
-     * compte a l'autre — donc invérifiable. Une requete bornee et previsible vaut
-     * mieux qu'une economie invisible.
+     * 🛑 <b>Un seul lot, quels que soient les paliers</b> : deux domaines qui
+     * construisent deux paliers differents ne coutent pas deux requetes. C'est la
+     * condition posee pour que le budget de requetes du Plan puisse augmenter —
+     * il augmente d'un nombre <b>fixe</b>, jamais d'un N+1.
      */
     @Test
-    @DisplayName("Le cout ne depend pas des donnees : le referentiel se charge meme sans place")
-    void leCoutNeDependPasDesDonnees() {
-        publie(skill("EE1-C9", SkillSection.EE, SkillTaskCode.EE1, "B1", 1));
+    @DisplayName("Deux paliers differents se chargent en une seule requete")
+    void deuxPaliersDifferentsSeChargentEnUneSeuleRequete() {
+        publie(
+                skill("EE2-C1", SkillSection.EE, SkillTaskCode.EE2, "B1", 1),
+                skill("EO3-C1", SkillSection.EO, SkillTaskCode.EO3, "B2", 1));
 
-        assertThat(selector.select(cycle(TargetLevel.B1), quatreDomaines(), Set.of(), 0))
-                .isEmpty();
+        List<PlanDomainDto> domaines = List.of(
+                domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.FORTE),
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.B1, PlanDomainPriority.A_TRAVAILLER));
+
+        assertThat(selector.select(domaines, Set.of(),
+                paliers(domaines), catalogueComplet()))
+                .hasSize(2);
 
         verify(skillManager).findActiveByTargetLevels(anyCollection());
     }
@@ -217,6 +338,7 @@ class PlanAcquisitionSelectorTest {
     // ------------------------------------------------------------------------
 
     private void publie(Skill... skills) {
+        publiees.addAll(Arrays.asList(skills));
         when(skillManager.findActiveByTargetLevels(anyCollection()))
                 .thenAnswer(invocation -> {
                     Collection<?> paliers = invocation.getArgument(0);
@@ -226,22 +348,31 @@ class PlanAcquisitionSelectorTest {
                 });
     }
 
-    private static PlanCycleDto cycle(TargetLevel enConstruction) {
-        return new PlanCycleDto(NiveauCecrl.A2, enConstruction, TargetLevel.B2,
-                PlanCycleState.TRAINING, 4, 4, true, List.of());
+    /** Le palier de chaque domaine, resolu par l'autorite unique. */
+    private Map<SkillSection, TargetLevel> paliers(List<PlanDomainDto> domaines) {
+        return targetLevelResolver.parSection(USER, domaines, TargetLevel.B2);
     }
 
-    /** Les quatre domaines, tous mesures, tous a la meme urgence. */
+    /** Tout ce qui est publie a du contenu : ces tests decrivent la selection. */
+    private PlanContentAvailability.Disponibilite catalogueComplet() {
+        return new PlanContentAvailability.Catalogue(
+                publiees.stream().map(Skill::getId)
+                        .collect(Collectors.toCollection(LinkedHashSet::new)),
+                Map.of());
+    }
+
+    /** Les quatre domaines, tous mesures A2, tous a la meme urgence. */
     private static List<PlanDomainDto> quatreDomaines() {
         return List.of(
-                domaine(EpreuveType.TCF_CO, PlanDomainPriority.A_TRAVAILLER),
-                domaine(EpreuveType.TCF_CE, PlanDomainPriority.A_TRAVAILLER),
-                domaine(EpreuveType.TCF_EE, PlanDomainPriority.A_TRAVAILLER),
-                domaine(EpreuveType.TCF_EO, PlanDomainPriority.A_TRAVAILLER));
+                domaine(EpreuveType.TCF_CO, NiveauCecrl.A2, PlanDomainPriority.A_TRAVAILLER),
+                domaine(EpreuveType.TCF_CE, NiveauCecrl.A2, PlanDomainPriority.A_TRAVAILLER),
+                domaine(EpreuveType.TCF_EE, NiveauCecrl.A2, PlanDomainPriority.A_TRAVAILLER),
+                domaine(EpreuveType.TCF_EO, NiveauCecrl.A2, PlanDomainPriority.A_TRAVAILLER));
     }
 
-    private static PlanDomainDto domaine(EpreuveType epreuve, PlanDomainPriority priority) {
-        return PlanDomainDto.sansCompetences(epreuve, true, NiveauCecrl.A2, priority,
+    private static PlanDomainDto domaine(
+            EpreuveType epreuve, NiveauCecrl niveau, PlanDomainPriority priority) {
+        return PlanDomainDto.sansCompetences(epreuve, true, niveau, priority,
                 TargetLevel.A2, TargetLevel.B1, List.of(), List.of());
     }
 

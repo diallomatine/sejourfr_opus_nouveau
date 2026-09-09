@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useEffect, useState} from "react";
 import {BookOpen, Headphones, LayoutGrid, Mic, PenLine, SpellCheck, Target, Waves,} from "lucide-react";
 import {dashboardApi} from "@/lib/api";
-import {masteryHint, moduleAverage} from "@/lib/dashboard";
+import {moduleAverage, successHint} from "@/lib/dashboard";
 import {
     type AuthenticatedUser,
     canAccessModule,
@@ -177,7 +177,7 @@ export function TcfHub({user}: { user: AuthenticatedUser | null }) {
                     {
                         label: "Maîtrise globale",
                         value: average !== null ? `${average}%` : "—",
-                        hint: masteryHint(average),
+                        hint: successHint(average),
                         accent: true,
                     },
                     {

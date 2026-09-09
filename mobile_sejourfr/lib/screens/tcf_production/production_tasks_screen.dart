@@ -311,7 +311,7 @@ class _TaskCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        meta.title,
+                        productionTaskLabeledTitle(module, numero),
                         style: AppFonts.ui(size: 15.5, weight: FontWeight.w800),
                       ),
                       const SizedBox(height: 3),

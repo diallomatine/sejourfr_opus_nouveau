@@ -39,7 +39,7 @@ class PlanDomainSkillResolverTest {
 
         PlanDomainSkillDto rendu = premiere(resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(skill),
-                Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
+                Map.of(), Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
 
         assertThat(rendu.status()).isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED);
         assertThat(rendu.masteryState()).isNull();
@@ -70,7 +70,7 @@ class PlanDomainSkillResolverTest {
                 Map.of(fragile.getId(), observation(fragile, LearningPlanSkillStatus.TO_REINFORCE),
                         priorite.getId(), observation(priorite, LearningPlanSkillStatus.PRIORITY),
                         solide.getId(), observation(solide, LearningPlanSkillStatus.SOLID)),
-                Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+                Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst();
 
         assertThat(domaine.fragileSkillCount()).isEqualTo(2);
         assertThat(domaine.solidSkillCount()).isEqualTo(1);
@@ -95,7 +95,7 @@ class PlanDomainSkillResolverTest {
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(skill), Map.of(),
                 Map.of(skill.getId(), new SkillMasteryEngine.SkillMastery(
                         SkillMasteryState.SOLID, 0, 0, 0, 0, 0, false, false, false, null)),
-                Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
+                Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
 
         assertThat(rendu.status()).isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED);
         assertThat(rendu.masteryState()).isNull();
@@ -110,7 +110,7 @@ class PlanDomainSkillResolverTest {
         List<PlanDomainSkillDto> skills = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(acquise, muette),
                 Map.of(), Map.of(), Map.of(acquise.getId(), PlanActionNature.A_ACQUERIR),
-                SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
+                Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
 
         assertThat(skills.getFirst().nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
         assertThat(skills.get(1).nature()).isNull();
@@ -126,7 +126,7 @@ class PlanDomainSkillResolverTest {
         List<PlanDomainSkillDto> skills = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_CO)), List.of(b2, a2, b1),
                 Map.of(), Map.of(), Map.of(),
-                SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
+                Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
 
         assertThat(skills).extracting(PlanDomainSkillDto::skillCode)
                 .containsExactly("CO-A2", "CO-B1", "CO-B2");
@@ -144,7 +144,7 @@ class PlanDomainSkillResolverTest {
 
         List<PlanDomainSkillDto> skills = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(ouverte, fermee),
-                Map.of(), Map.of(), Map.of(),
+                Map.of(), Map.of(), Map.of(), Map.of(),
                 new SkillAccessService.SkillAccess(
                         false, Set.of(ouverte.getId()), Set.of())).getFirst().skills();
 
@@ -158,6 +158,68 @@ class PlanDomainSkillResolverTest {
 
     private static PlanDomainSkillDto premiere(List<PlanDomainDto> domaines) {
         return domaines.getFirst().skills().getFirst();
+    }
+
+    /**
+     * 🛑 <b>Les compteurs d'action sont SERVIS, plus derives par les fronts.</b>
+     *
+     * <p>Le mobile recomptait « pas encore assez de donnees » de son cote, en
+     * excluant les acquisitions ; le serveur, lui, comptait tous les
+     * {@code NOT_OBSERVED}. Les deux nombres divergeaient des qu'une acquisition
+     * existait, sur le meme ecran. Deux champs nommes distinctement, tous deux
+     * calcules ici.
+     */
+    @Test
+    @DisplayName("Les compteurs d'action sont derives du pool, cote serveur")
+    void lesCompteursDActionSontDerivesDuPool() {
+        Skill fragile = expression("EE1-C1", SkillTaskCode.EE1, "A2", 1);
+        Skill aVerifier = expression("EE1-C2", SkillTaskCode.EE1, "A2", 2);
+        Skill aAcquerir = expression("EE2-C1", SkillTaskCode.EE2, "B1", 1);
+        Skill sansAction = expression("EE3-C1", SkillTaskCode.EE3, "B2", 1);
+
+        PlanDomainDto domaine = resolver.attach(
+                List.of(domaine(EpreuveType.TCF_EE)),
+                List.of(fragile, aVerifier, aAcquerir, sansAction),
+                Map.of(fragile.getId(), observation(fragile, LearningPlanSkillStatus.TO_REINFORCE),
+                        aVerifier.getId(),
+                        observation(aVerifier, LearningPlanSkillStatus.TO_REINFORCE)),
+                Map.of(),
+                Map.of(fragile.getId(), PlanActionNature.A_RENFORCER,
+                        aVerifier.getId(), PlanActionNature.A_VERIFIER,
+                        aAcquerir.getId(), PlanActionNature.A_ACQUERIR),
+                Map.of(SkillSection.EE, TargetLevel.B1),
+                SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+
+        assertThat(domaine.acquireCount()).isEqualTo(1);
+        assertThat(domaine.readyForValidationCount()).isEqualTo(1);
+        assertThat(domaine.notObservedSkillCount())
+                .as("l'acquisition ET la competence sans action sont non observees")
+                .isEqualTo(2);
+        assertThat(domaine.notObservedWithoutActionCount())
+                .as("« pas encore assez de donnees » ne compte PAS ce que le Plan va enseigner")
+                .isEqualTo(1);
+        // Le palier du domaine est recopie tel quel : les fronts cessent d'en
+        // tenir chacun une copie qui ignorait l'objectif du candidat.
+        assertThat(domaine.nextTargetLevel()).isEqualTo(TargetLevel.B1);
+    }
+
+    /**
+     * Un domaine <b>deja a l'objectif</b> n'a pas de palier a construire, et le
+     * dire est un fait : {@code null} n'est pas une donnee manquante.
+     */
+    @Test
+    @DisplayName("Sans palier a construire, nextTargetLevel vaut null")
+    void sansPalierAConstruireLeChampVautNull() {
+        Skill skill = expression("EE1-C1", SkillTaskCode.EE1, "A2", 1);
+
+        PlanDomainDto domaine = resolver.attach(
+                List.of(domaine(EpreuveType.TCF_EE)), List.of(skill),
+                Map.of(), Map.of(), Map.of(), Map.of(),
+                SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+
+        assertThat(domaine.nextTargetLevel()).isNull();
+        assertThat(domaine.acquireCount()).isZero();
+        assertThat(domaine.notObservedWithoutActionCount()).isEqualTo(1);
     }
 
     private static PlanDomainDto domaine(EpreuveType epreuve) {

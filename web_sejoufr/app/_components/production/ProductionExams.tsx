@@ -48,11 +48,18 @@ const SLOTS = PRODUCTION_EXAM_SLOTS;
 /** Examen 1 offert à tous les comptes (règle backend `ProductionAccessService`). */
 const FREE_SLOTS = 1;
 
-/** Bande de difficulté par slot (composition déterministe backend) :
- *  1-3 = A2 facile, 4-6 = B1 moyen, 7-10 = B2 difficile. */
+/**
+ * Bande de difficulté **du sujet**, par slot — composition déterministe côté
+ * backend : 1-3 = A2 facile, 4-6 = B1 moyen, 7-10 = B2 difficile.
+ *
+ * Ce n'est **pas** un niveau attribué au candidat, et §25 bis.6 ne s'y applique
+ * pas : c'est l'étiquette du contenu proposé, comme « série de niveau A2 ». Un
+ * verdict sur le candidat, lui, ne s'affiche que si le serveur envoie
+ * `confirmedLevel` — jamais déduit d'un pourcentage ni d'un numéro de slot.
+ */
 function slotBand(slot: number): { label: string; niveau: string } {
-  if (slot <= 3) return { label: "Facile · A2", niveau: "A2" };
-  if (slot <= 6) return { label: "Moyen · B1", niveau: "B1" };
+  if (slot <= 3) return { label: "Facile · A2", niveau: "A2" }; // t36-ok: niveau du sujet, pas du candidat
+  if (slot <= 6) return { label: "Moyen · B1", niveau: "B1" }; // t36-ok: niveau du sujet, pas du candidat
   return { label: "Difficile · B2", niveau: "B2" };
 }
 

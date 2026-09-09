@@ -102,7 +102,7 @@ Est-ce que ces mentions décrivent des tests qui **existent encore** (auquel cas
 
 ---
 
-## #3 — Coût du Plan : 20 requêtes, +1, ou 19 ? ⛔ NON TRANCHÉE
+## #3 — Coût du Plan : 20 requêtes, +1, ou 19 ? ✅ TRANCHÉE (2026-08-26)
 
 Trois chiffres pour le **même** compteur, tous dans la section *Plan adaptatif*, tous présentés
 comme « verrouillé par un test qui compte les statements ».
@@ -130,6 +130,19 @@ Origine : `CLAUDE.md` racine **l. 1783-1789**. Aujourd'hui : `docs/regles/plan.m
 > **Coût inchangé : 19 requêtes avant, 19 après.** Le `GROUP BY` `countActiveByTaskCode` est
 > **remplacé** par un lot `findActiveExpression()` (48 lignes) […] Les deux tests de coût
 > gardent leur **égalité**.
+
+### ✅ Tranchée le 2026-08-26 — c'est **21**
+
+La passe « progression par épreuve » a rendu la question mesurable et l'a mesurée :
+**21 requêtes** pour un Plan complet (19 auparavant, +2 pour le filtre de faisabilité,
+toutes deux **agrégées**). `LearningPlanCycleIT` ne borne plus « moins de 30 » : il
+assert `isEqualTo(21)`, un **nombre fixe et assumé** — arbitrage du propriétaire :
+*« le budget de requêtes a le droit d'augmenter, à condition que la disponibilité de
+contenu se résolve en une requête agrégée, jamais en N+1 »*.
+
+🛑 Le vrai garde-fou reste l'**égalité** « 2 compétences observées ou 20, même coût » :
+c'est elle qui attrape un N+1, pas la valeur absolue. Quand ce nombre bouge, on met
+cette ligne à jour **et** on dit pourquoi.
 
 ### La question à trancher
 

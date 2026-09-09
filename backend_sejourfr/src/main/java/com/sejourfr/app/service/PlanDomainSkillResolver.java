@@ -81,7 +81,15 @@ public class PlanDomainSkillResolver {
      * @param mastery     les etats de maitrise deja calcules sur ce meme
      *                    historique ; une competence absente n'a pas d'etat
      * @param natures     l'action demandee par le Plan, competence par
-     *                    competence — exactement celle des cartes servies
+     *                    competence — <b>tout le pool</b>, pas seulement les
+     *                    cartes affichees. C'est la difference qui a fait
+     *                    apparaitre « rien a travailler » sur une epreuve qui
+     *                    avait seize competences a apprendre : la carte lisait
+     *                    une liste deja tronquee par un plafond d'ecran.
+     * @param paliers     le palier que chaque domaine construit
+     *                    ({@code PlanDomainTargetLevelResolver}, autorite
+     *                    unique) — recopie tel quel sur le domaine pour que les
+     *                    fronts cessent d'en tenir chacun une copie
      * @param access      ce que ce candidat peut travailler
      */
     public List<PlanDomainDto> attach(
@@ -90,6 +98,7 @@ public class PlanDomainSkillResolver {
             Map<UUID, LearningPlanObservation> latest,
             Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
             Map<UUID, PlanActionNature> natures,
+            Map<SkillSection, TargetLevel> paliers,
             SkillAccessService.SkillAccess access) {
 
         Map<SkillSection, List<Skill>> parSection = parSection(referentiel);
@@ -101,6 +110,8 @@ public class PlanDomainSkillResolver {
             int fragiles = 0;
             int solides = 0;
             int nonObservees = 0;
+            int aAcquerir = 0;
+            int aVerifier = 0;
             for (Skill skill : competences) {
                 LearningPlanObservation observation = latest.get(skill.getId());
                 LearningPlanSkillStatus status = observation == null
@@ -110,16 +121,22 @@ public class PlanDomainSkillResolver {
                     case SOLID -> solides++;
                     case NOT_OBSERVED -> nonObservees++;
                 }
+                PlanActionNature nature = natures.get(skill.getId());
+                if (nature == PlanActionNature.A_ACQUERIR) aAcquerir++;
+                if (nature == PlanActionNature.A_VERIFIER) aVerifier++;
                 skills.add(new PlanDomainSkillDto(
                         skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
                         skill.getTaskCode(), tacheNumero(skill.getTaskCode()),
                         PlanCycleResolver.palier(skill.getTargetLevel()),
                         status, etat(observation, mastery, skill.getId()),
-                        natures.get(skill.getId()),
+                        nature,
                         observation == null ? null : observation.getObservedAt(),
                         access.isSkillLocked(skill.getId())));
             }
-            enrichis.add(domaine.withSkills(List.copyOf(skills), fragiles, solides, nonObservees));
+            enrichis.add(domaine.withSkills(List.copyOf(skills), fragiles, solides, nonObservees,
+                    paliers == null ? null
+                            : paliers.get(PlanCycleResolver.section(domaine.epreuve())),
+                    aAcquerir, aVerifier));
         }
         return List.copyOf(enrichis);
     }

@@ -553,9 +553,11 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
 - 🔴 **Trou corrigé** : une priorité de compréhension ressortait avec
   `recommendedExercise == null`, donc **une carte sans action**. `RecommendedExerciseSelector`
   (autorité existante, **pas** un 4ᵉ sélecteur) désigne désormais la série ciblée.
-> ⚠ **CONTRADICTION #3** — voir `docs/decisions/contradictions-ouvertes.md`. Non tranchée.
+> ✅ **CONTRADICTION #3 TRANCHÉE le 2026-08-26 : c'est 21 requêtes.** Le chiffre ci-dessous
+> est l'état d'avant ; il est conservé pour la traçabilité. Voir la section
+> « Progression PAR ÉPREUVE » plus bas et `docs/decisions/contradictions-ouvertes.md`.
 
-- **Coût** : le Plan complet fait **20 requêtes, constantes** avec 2 ou 20 compétences
+- **Coût (état 2026-08-21, dépassé)** : le Plan complet faisait **20 requêtes, constantes** avec 2 ou 20 compétences
   observées — verrouillé par deux tests qui comptent les statements. La passe séance +
   changements a ajouté **zéro** requête ; la passe « à acquérir » en a ajouté **une** (le
   référentiel du palier, chargé en un lot — cf. la section suivante).
@@ -589,14 +591,94 @@ un candidat A2 qui vise le B2, donc à qui il reste **un palier entier**. Le Pla
   et `SkillLabelsTest` fige l'égalité pour que personne ne « répare » l'un des deux.
   `PlanDomainPriority` qualifie un **domaine**, jamais une action : « À travailler » et
   « Entretien » restent là-bas.
+### Progression PAR ÉPREUVE, confirmation GLOBALE (2026-08-26)
+
+> *`NON FRAGILE ≠ PLUS RIEN À APPRENDRE`, et **`PLAFOND UI ≠ BUDGET PÉDAGOGIQUE`**.*
+
+Mesuré sur `billodiallo2@gmail.com` (diagnostic `fe35354d`) : **EE A2 / EO B1, objectif B2**.
+Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale affichait
+« rien à travailler » — alors que 16 de ses 24 compétences n'avaient jamais été touchées.
+**10 actions vraies existaient, 2 étaient servies.** Quatre causes, corrigées ensemble :
+
+- 🛑 **Le palier d'apprentissage est celui DU DOMAINE**, plus celui du niveau **global**
+  (le plancher des domaines évalués). `PlanDomainTargetLevelResolver`, **autorité unique** :
+  il **appelle** `ProgressionPlanBridge.prescriptionLevel` (moteur V4.2, décrit comme « le
+  seul niveau que le Plan a le droit de proposer ») et **retombe** sur « le cran au-dessus du
+  niveau du domaine, plafonné par l'objectif » quand le pont rend `empty()` — ce qui est le
+  cas aujourd'hui en `SHADOW` et hors compréhension. ⚠️ **Ne jamais écrire une seconde règle
+  de palier ailleurs** : le pont reste la porte, son extension à EE/EO est un chantier séparé.
+  Amende les **§37/§39** du brief (le palier se lisait sur le niveau global).
+  🛑 **N'amende PAS le §93**, qui interdit de faire *redescendre* un domaine avancé et n'a
+  jamais dit qu'il ne recevait rien — c'est l'implémentation qui avait durci « pas
+  prioritaire » en « zéro action ». Un domaine `PAS_ENCORE_PRIORITAIRE` reçoit ses
+  acquisitions ; il passe simplement après.
+- 🛑 **Le moteur calcule TOUT, l'affichage coupe.** `LearningPlanPriorityResolver.actionable`
+  n'a plus de plafond, et le sélecteur d'acquisitions **ne reçoit plus de budget** — la ligne
+  `MAX_PRIORITIES - actionable.size()` faisait servir un plafond d'écran de budget de
+  production aux **quatre** domaines à la fois. Ordre : pool complet → filtre de faisabilité →
+  classement → composition → troncature d'affichage.
+- 🆕 **Filtre de faisabilité — une action n'existe que si elle est EXÉCUTABLE**
+  (`PlanContentAvailability`, **2 requêtes agrégées, jamais un compte par compétence**).
+  Deux branches : expression ⇒ « ≥ 1 petit sujet actif » ; compréhension ⇒ « ≥ 1 question
+  active **à ce palier** » (la série ciblée ne tire son contenu qu'au démarrage). Il **logue
+  ce qu'il coupe** : aujourd'hui il ne coupe rien (48/48 compétences ont 15 sujets ; 134 à 214
+  questions par palier), donc **toute ligne dans les logs signale un pourrissement du
+  catalogue**. ⚠️ Le palier d'une fragilité de compréhension doit être fourni au filtre —
+  sans lui, toute compétence CO/CE serait jugée inexécutable et le Plan perdrait des
+  fragilités réelles.
+- 🆕 **Classement et composition configurables** (`PlanActionRanker`) : score additif
+  `nature + urgence du domaine + écart à l'objectif + confiance`, départages `observedAt` puis
+  code. 🛑 **Aucune horloge** — la récence est un *départage*, jamais un poids, sinon la
+  stickiness de la séance ne serait plus gratuite. **La première place est épinglée** :
+  c'est celle que le freemium ouvre (`PlanFocusResolver`), un classement qui la déplacerait
+  cadenasserait l'étape n°1. **Composition d'Aujourd'hui** : au plus
+  `display.todayMaxSecondaryDomainActions` action(s) de domaine **secondaire** dans la
+  fenêtre — un **maximum**, jamais un minimum : si tout le haut du classement est primaire, la
+  séance reste sur un seul domaine, et c'est légitime.
+- 🛑 **`plan-config-v{n}.json`, fichier DISTINCT de `progression-config`**
+  (`sejourfr.plan.config-version`). Les deux ont des cycles de vie **opposés** :
+  `progression-config` porte l'intégrité d'`engineVersion` et le **rejeu** de la maîtrise ;
+  `plan-config` ne porte que **sélection et affichage** (`display.*`, `ranking.*`) et bougera
+  souvent. **INVARIANT : `plan-config` ne peut RIEN influencer du calcul de maîtrise.**
+  ⚠️ Le mapping `nextTargetLevel` **n'y est pas** : c'est de la doctrine pédagogique
+  déterministe et testée, pas un réglage.
+- **Coût : 21 requêtes**, fixe et assumé (19 + 2 agrégées pour la faisabilité), verrouillé par
+  `LearningPlanCycleIT`. ⚠️ **Tranche la CONTRADICTION #3** (« 20, +1 ou 19 ? ») : c'est **21**.
+  L'égalité « 2 compétences observées ou 20, même coût » reste le vrai garde-fou.
+- **La carte d'épreuve ne dérive plus des cartes affichées** : `natures` est posé depuis le
+  **pool complet**, plus depuis la liste tronquée. C'était la cause directe de l'écran vide.
+- **`PlanDomainDto` sert quatre champs de plus**, tous **dérivés serveur**, mirrorés sur les
+  deux fronts : `nextTargetLevel` (le palier de **ce** domaine), `acquireCount` (compétences à
+  acquérir — **exécutables uniquement**, le compte ne promet jamais un contenu absent),
+  `readyForValidationCount`, et `notObservedWithoutActionCount` (le vrai « pas encore assez de
+  données »).
+  🛑 **Deux copies front supprimées, et elles mentaient** : `diagnosticNextLevel` (mobile) /
+  `nextLevel` (web) dérivaient « prochain palier » du seul niveau mesuré, **sans plafond par
+  l'objectif** — un candidat B1 visant le B1 lisait « prochain palier B2 » ; et le mobile
+  recomptait « pas encore assez de données » en excluant les acquisitions pendant que le
+  serveur les incluait. **Deux champs nommés distinctement** plutôt qu'une soustraction faite
+  par chaque front.
+  ⚠️ Le palier d'une compétence se lit par `planSkillTargetLevel` (`domaines[].skills[]`),
+  **jamais** par un repli sur `cycle.targetLevel` — c'est le palier **global**, et il affiche
+  un palier faux dès que deux domaines divergent.
+- **Le rideau est INSTRUMENTÉ avant d'être changé** : `PLAN_CURTAIN_SHOWN` /
+  `PLAN_CURTAIN_EXPANDED` / `PLAN_PAYWALL_VIEWED`. Le correctif fait passer le rideau de
+  « 1 sur 5 » à « 1 sur 9 ou 12 » — signal de valeur plus fort, découragement tout aussi
+  plausible. → `docs/regles/mesure-audience.md`
+- ⚠️ **« Aujourd'hui » peut légitimement rester sur un seul domaine.** Le plafond de domaines
+  secondaires est un **maximum**, pas un minimum : si le classement place trois actions
+  primaires en tête, la séance est mono-domaine, et c'est conforme. Le candidat voit ses
+  actions des autres épreuves **sur leur carte**. Poser un *plancher* de diversité serait
+  l'inverse de cette règle — décision produit non prise à ce jour.
+
 - **`PlanAcquisitionSelector`, autorité unique** de « que reste-t-il à APPRENDRE ? ».
   Source : **`skills.target_level`, qui existait déjà** (EE 8 A2 / 11 B1 / 5 B2 · EO 8/8/8 ·
   CO et CE 1 par palier) — **aucune migration, aucun contenu créé, aucun appel LLM**, la
   sélection est **déterministe**. Trois conditions : (1) la compétence appartient au
-  **palier que le cycle construit** en expression, ou au **palier bloquant de son domaine**
-  en compréhension (⚠️ **les deux ne sont pas le même palier, et c'est voulu** : la
-  compréhension a une chaîne de prérequis, A2 solide avant B1, que le palier global du
-  cycle peut dépasser) ; (2) son domaine a **déjà été mesuré** — un domaine jamais mesuré
+  **palier que SON DOMAINE construit** en expression (`PlanDomainTargetLevelResolver`,
+  2026-08-26 — c'était le palier du cycle **global** avant, cf. section ci-dessus), ou au
+  **palier bloquant de son domaine** en compréhension (⚠️ **les deux ne sont pas le même
+  palier, et c'est voulu** : la compréhension a une chaîne de prérequis, A2 solide avant B1) ; (2) son domaine a **déjà été mesuré** — un domaine jamais mesuré
   se mesure d'abord, et cette porte existe déjà (`domainesAEvaluer`) ; (3) le candidat n'a
   **aucune ligne d'historique** dessus, `NOT_OBSERVED` comprise. Ordre : urgence du domaine
   (celle que `PlanCycleResolver` a **déjà** décidée, jamais recalculée), puis ordre des

@@ -285,25 +285,6 @@ function epreuveSummary(epreuve: PlanDomainEpreuve, level: NiveauCecrl): string 
   return EPREUVE_SUMMARY[epreuve][palier];
 }
 
-/**
- * **Le palier immédiatement au-dessus du niveau mesuré** sur cette épreuve — la
- * marche suivante, jamais l'objectif directement. Plafonné à B2, `null` quand
- * rien n'est mesuré : on ne place pas le candidat sur une échelle par défaut.
- */
-function nextLevel(level: NiveauCecrl | null): TargetLevel | null {
-  switch (level) {
-    case null:
-      return null;
-    case "A1_NON_ATTEINT":
-    case "A1":
-      return "A2";
-    case "A2":
-      return "B1";
-    default:
-      return "B2";
-  }
-}
-
 /** « Objectif B2 · prochain palier B1 ». L'objectif est **nullable** — il vient
  *  de la démarche déclarée, et on n'en invente aucun. */
 function epreuveMeta(objective: string | null, next: TargetLevel | null): string {
@@ -415,7 +396,10 @@ function buildCard(
     grouped.filter((row) => row.group === group).map((row) => row.skill);
   const work = [...pick("PRIORITY"), ...pick("REINFORCE"), ...pick("ACQUIRE")];
   const solid = pick("SOLID");
-  const notObserved = pick("NOT_OBSERVED").length;
+  // 🛑 SERVI, plus recompté : ce compte excluait les acquisitions ici pendant
+  // que le serveur les incluait dans `notObservedSkillCount` — deux nombres
+  // pour la même épreuve. Le serveur en publie désormais deux, nommés.
+  const notObserved = domain.notObservedWithoutActionCount;
 
   return {
     epreuve,
@@ -607,6 +591,15 @@ export function DiagnosticReport({
     (total, card) => (card.state === "OK" ? total + card.fragileTotal : total),
     0,
   );
+  // 🛑 L'offre a ete VUE — ce n'est pas un clic. C'est l'ecart entre cette vue
+  // et `PREMIUM_CTA_CLICKED` qui dira si le rideau donne envie ou decourage, et
+  // confondre les deux effacerait la mesure. Emis une fois par affichage de
+  // l'ecran, jamais a chaque rendu.
+  const paywallVisible = !hasTcf;
+  useEffect(() => {
+    if (!paywallVisible) return;
+    track("PLAN_PAYWALL_VIEWED", {ctaLocation: "DIAGNOSTIC_REPORT"});
+  }, [paywallVisible]);
 
   return (
     <>
@@ -675,7 +668,10 @@ export function DiagnosticReport({
                 card={card}
                 hasTcf={hasTcf}
                 objective={objective}
-                buildLevel={plan?.cycle.targetLevel ?? null}
+                /* Le palier annoncé est celui de CETTE épreuve, plus celui du
+                   cycle global : depuis le 2026-08-26 deux domaines peuvent en
+                   construire deux différents. */
+                buildLevel={card.domain.nextTargetLevel}
                 open={open === card.epreuve}
                 onToggle={() => setOpen(open === card.epreuve ? null : card.epreuve)}
               />
@@ -907,6 +903,20 @@ function OkCard({
   // Une épreuve mesurée dont aucune compétence n'est encore observée n'a rien à
   // montrer ici : un bloc vide se lirait comme une donnée manquante.
   const showBody = visibleWork.length > 0 || showSolid;
+  const curtain = !hasTcf && hiddenWork + hiddenSolid > 0;
+  // 🛑 Le rideau se mesure LA OU IL EST RENDU, et une seule fois par carte : on
+  // veut savoir combien de fois il s'affiche, pas combien de fois React rend.
+  // Les deux compteurs sont ceux qui sont VRAIMENT à l'écran — visibles en
+  // clair d'un côté, cachés de l'autre —, jamais une longueur de liste tronquée.
+  useEffect(() => {
+    if (!curtain) return;
+    track("PLAN_CURTAIN_SHOWN", {
+      ctaLocation: "DIAGNOSTIC_REPORT",
+      epreuve: card.epreuve,
+      visibleCount: visibleWork.length + visibleSolid.length,
+      totalCount: visibleWork.length + visibleSolid.length + hiddenWork + hiddenSolid,
+    });
+  }, [curtain, card.epreuve, visibleWork.length, visibleSolid.length, hiddenWork, hiddenSolid]);
 
   return (
     <article
@@ -917,7 +927,21 @@ function OkCard({
       {/* 🛑 Le titre est un `<span>`, pas un `<h3>` : un titre est du contenu de
           flux et n'a rien à faire dans un `<button>`. L'épreuve reste nommée —
           c'est l'`aria-label` de l'article qui la porte. */}
-      <button type="button" className={styles.cardHead} onClick={onToggle} aria-expanded={open}>
+      <button
+        type="button"
+        className={styles.cardHead}
+        onClick={() => {
+          // Le geste mesuré est l'OUVERTURE : replier n'est pas vouloir voir.
+          if (!open) {
+            track("PLAN_CURTAIN_EXPANDED", {
+              ctaLocation: "DIAGNOSTIC_REPORT",
+              epreuve: card.epreuve,
+            });
+          }
+          onToggle();
+        }}
+        aria-expanded={open}
+      >
         <PlanDomainIcon epreuve={card.epreuve} active={open} />
         <span className={styles.cardHeadBody}>
           {/* 🛑 Aucune pastille ici : la **priorité du domaine** (« Priorité forte »…)
@@ -932,7 +956,10 @@ function OkCard({
           <span className={styles.cardLevelValue} data-known="1">{niveauCecrlShort(card.niveau)}</span>
           <span className={styles.cardLevelCaption}>{LEVEL_CAPTION}</span>
           <span className={styles.cardLevelGoal}>
-            {epreuveMeta(objective, nextLevel(card.niveau))}
+            {/* 🛑 SERVI (`nextTargetLevel`), plus dérivé du niveau : la copie
+                locale ignorait l'objectif du candidat, et un candidat B1 visant
+                le B1 lisait « prochain palier B2 ». Supprimée le 2026-08-26. */}
+            {epreuveMeta(objective, card.domain.nextTargetLevel)}
           </span>
         </span>
         <span className={styles.cardChevron} data-open={open ? "1" : "0"} aria-hidden>

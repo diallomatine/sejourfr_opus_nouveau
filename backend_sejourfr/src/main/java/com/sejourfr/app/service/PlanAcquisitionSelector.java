@@ -1,6 +1,5 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.entity.Skill;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -100,31 +100,39 @@ public class PlanAcquisitionSelector {
     private final SkillManager skillManager;
 
     /**
-     * Les competences a acquerir, deja ordonnees, au plus {@code limite}.
+     * <b>TOUTES</b> les competences a acquerir, deja ordonnees. Aucun plafond :
+     * le pool est complet, et c'est l'affichage qui coupe ensuite
+     * ({@code plan-config}, {@code display.*}).
      *
-     * @param cycle           le cycle de palier, tel que {@link PlanCycleResolver}
-     *                        l'a resolu : c'est lui qui porte le palier en
-     *                        construction. {@code null} ou sans palier &rarr;
-     *                        rien a acquerir.
-     * @param domaines        les quatre domaines, deja resolus : ils portent
-     *                        l'urgence, l'etat « mesure ou non » et le palier
-     *                        bloquant de la comprehension.
+     * <p>🛑 <b>Le palier est celui DU DOMAINE</b>, plus celui du cycle global.
+     * C'est le correctif du 2026-08-26 : un candidat EE A2 / EO B1 visant le B2
+     * construisait B1 partout, et l'oral n'avait litteralement rien a faire. Le
+     * palier de chaque domaine se demande a {@link PlanDomainTargetLevelResolver},
+     * autorite unique qui interroge le moteur V4.2 avant de replier sur la regle
+     * simple.
+     *
+     * @param domaines        les quatre domaines, deja resolus : ils portent le
+     *                        niveau, l'urgence et l'etat « mesure ou non ».
      * @param dejaTravaillees identifiants des competences sur lesquelles le
      *                        candidat a <b>au moins une ligne d'historique</b>,
      *                        {@code NOT_OBSERVED} comprise
      *                        ({@code LearningPlanPriorityResolver.lastActivityBySkill}).
-     * @param limite          nombre maximal de competences rendues ; {@code <= 0}
-     *                        rend une liste vide — mais <b>apres</b> le
-     *                        chargement, pour que le cout du Plan ne depende pas
-     *                        du nombre de fragilites du candidat (cf. § Cout).
+     * @param palierParSection le palier de chaque domaine, resolu <b>une seule
+     *                        fois</b> par {@link PlanDomainTargetLevelResolver} —
+     *                        un domaine absent n'a rien a construire (jamais
+     *                        mesure, ou deja a l'objectif)
+     * @param disponibilite   ce que le catalogue permet reellement de proposer :
+     *                        une competence sans contenu publie n'entre pas dans
+     *                        le pool et n'est comptee nulle part
+     *                        ({@link PlanContentAvailability})
      */
     public List<Skill> select(
-            PlanCycleDto cycle,
             List<PlanDomainDto> domaines,
             Set<UUID> dejaTravaillees,
-            int limite) {
-        if (cycle == null || cycle.targetLevel() == null) return List.of();
+            Map<SkillSection, TargetLevel> palierParSection,
+            PlanContentAvailability.Disponibilite disponibilite) {
         if (domaines == null || domaines.isEmpty()) return List.of();
+        if (palierParSection == null || palierParSection.isEmpty()) return List.of();
 
         Map<SkillSection, PlanDomainDto> parSection = new EnumMap<>(SkillSection.class);
         for (PlanDomainDto domaine : domaines) {
@@ -133,28 +141,22 @@ public class PlanAcquisitionSelector {
             if (section != null) parSection.putIfAbsent(section, domaine);
         }
 
-        // Les paliers a charger : celui du cycle pour l'expression, et le palier
-        // BLOQUANT de chaque domaine de comprehension deja mesure — la
-        // comprehension a une chaine de prerequis (A2 solide avant B1), et le
-        // palier global du cycle peut la depasser.
+        // Les paliers a charger, en UN lot : la reunion de ceux qu'on vient de
+        // resoudre. Deux domaines au meme palier ne coutent pas deux requetes.
         Set<String> paliers = new LinkedHashSet<>();
-        paliers.add(cycle.targetLevel().name());
-        for (Map.Entry<SkillSection, PlanDomainDto> entry : parSection.entrySet()) {
-            if (!entry.getKey().isComprehension()) continue;
-            PlanDomainDto domaine = entry.getValue();
-            if (!acquerable(domaine) || domaine.blockingLevel() == null) continue;
-            paliers.add(domaine.blockingLevel().name());
-        }
+        palierParSection.values().forEach(palier -> paliers.add(palier.name()));
 
         List<Skill> candidates = new ArrayList<>();
+        Map<UUID, TargetLevel> palierParCompetence = new LinkedHashMap<>();
         for (Skill skill : skillManager.findActiveByTargetLevels(paliers)) {
             SkillSection section = skill.getSection();
             if (section == null) continue;
-            PlanDomainDto domaine = parSection.get(section);
-            if (domaine == null || !acquerable(domaine)) continue;
+            TargetLevel attendu = palierParSection.get(section);
+            if (attendu == null) continue;
             if (dejaTravaillees != null && dejaTravaillees.contains(skill.getId())) continue;
-            if (!palierAttendu(skill, section, domaine, cycle.targetLevel())) continue;
+            if (!attendu.name().equals(skill.getTargetLevel())) continue;
             candidates.add(skill);
+            palierParCompetence.put(skill.getId(), attendu);
         }
 
         candidates.sort(Comparator
@@ -162,8 +164,12 @@ public class PlanAcquisitionSelector {
                 .thenComparingInt(skill -> ordreEpreuve(skill.getSection()))
                 .thenComparingInt(PlanAcquisitionSelector::ordreTache)
                 .thenComparingInt(Skill::getDisplayOrder));
-        return List.copyOf(candidates.subList(
-                0, Math.min(Math.max(limite, 0), candidates.size())));
+        // FILTRE DE FAISABILITE, avant tout classement : une competence sans
+        // contenu publie ne doit ni entrer dans le pool, ni etre comptee a
+        // l'ecran. Une carte qui ouvre sur du vide est pire que pas de carte.
+        return disponibilite == null
+                ? List.copyOf(candidates)
+                : List.copyOf(disponibilite.filtrer(candidates, palierParCompetence));
     }
 
     /**
@@ -173,16 +179,6 @@ public class PlanAcquisitionSelector {
      */
     private static boolean acquerable(PlanDomainDto domaine) {
         return domaine.evaluated() && domaine.priority() != PlanDomainPriority.A_EVALUER;
-    }
-
-    /**
-     * Le palier attendu de cette competence : le palier bloquant de son domaine
-     * en comprehension (progression sequentielle), celui du cycle en expression.
-     */
-    private static boolean palierAttendu(
-            Skill skill, SkillSection section, PlanDomainDto domaine, TargetLevel duCycle) {
-        TargetLevel attendu = section.isComprehension() ? domaine.blockingLevel() : duCycle;
-        return attendu != null && attendu.name().equals(skill.getTargetLevel());
     }
 
     /** L'urgence deja decidee par le serveur pour ce domaine ; inconnu = en dernier. */

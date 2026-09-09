@@ -1356,6 +1356,33 @@ export interface PlanDomainDto {
      * afficher deux nombres différents pour la même épreuve.
      */
     notObservedSkillCount: number;
+    /**
+     * Le palier que **ce domaine** construit. `null` quand il n'y a rien à
+     * construire : domaine jamais mesuré, ou **déjà à l'objectif** — il
+     * s'entretient alors, il ne redescend pas.
+     *
+     * 🛑 **Servi, jamais recalculé.** Ce front en tenait une copie (`nextLevel`,
+     * `DiagnosticReport.tsx`) qui ignorait l'objectif du candidat : un candidat
+     * B1 visant le B1 lisait « prochain palier B2 ». Supprimée le 2026-08-26.
+     */
+    nextTargetLevel: TargetLevel | null;
+    /**
+     * Compétences **à acquérir** sur ce domaine (`nature === "A_ACQUERIR"`).
+     * Sous-ensemble de `notObservedSkillCount`, et **uniquement des compétences
+     * exécutables** : le compte ne promet jamais un contenu qui n'existe pas.
+     */
+    acquireCount: number;
+    /** Compétences **prêtes à être vérifiées** (`nature === "A_VERIFIER"`). */
+    readyForValidationCount: number;
+    /**
+     * Compétences jamais observées **sur lesquelles le Plan ne demande rien** —
+     * le vrai « pas encore assez de données pour se prononcer ».
+     *
+     * 🛑 **Ne jamais le recalculer** en soustrayant les acquisitions d'une liste
+     * affichée : le mobile le faisait, et les deux nombres divergeaient du
+     * serveur dès qu'une acquisition existait.
+     */
+    notObservedWithoutActionCount: number;
 }
 
 /**
@@ -2459,6 +2486,21 @@ export function eoTaskSubtitle(tacheNumero: number): string {
 /** Titre d'une tâche selon l'épreuve productive (EE / EO). */
 export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): string {
     return epreuve === "TCF_EO" ? eoTaskTitle(tacheNumero) : eeTaskTitle(tacheNumero);
+}
+
+/**
+ * Intitulé d'une tâche **précédé de son rang** — « Tâche 1 : Message simple ».
+ *
+ * Le rang est un repère du candidat : les consignes, les corrigés et l'examen
+ * lui-même parlent de « tâche 1 », « tâche 2 », « tâche 3 ». La pastille
+ * numérotée de la carte ne suffit pas à le dire à voix haute.
+ *
+ * ⚠️ **Miroir mot pour mot du mobile** (`productionTaskLabeledTitle`,
+ * `widgets/production_common.dart`) : la forme du préfixe se change des deux
+ * côtés dans la même passe.
+ */
+export function productionTaskLabeledTitle(epreuve: EpreuveType, tacheNumero: number): string {
+    return `Tâche ${tacheNumero} : ${productionTaskTitle(epreuve, tacheNumero)}`;
 }
 
 /** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */

@@ -54,7 +54,32 @@ public enum AnalyticsProperty {
      * cette valeur aux trois fronts, et une seconde liste ici aurait fini par
      * nommer differemment le meme exercice.
      */
-    EXERCISE_KIND("exerciseKind", Kind.ENUM, PlanExerciseKind.class);
+    EXERCISE_KIND("exerciseKind", Kind.ENUM, PlanExerciseKind.class),
+
+    /**
+     * L'epreuve concernee par le geste ({@code TCF_EE}, {@code TCF_EO}...).
+     *
+     * <p>Reprend {@link EpreuveType} <b>tel quel</b>, meme raison que
+     * {@link #EXERCISE_KIND} : le Plan sert deja cette valeur aux trois fronts.
+     */
+    EPREUVE("epreuve", Kind.ENUM, EpreuveType.class),
+
+    /**
+     * Combien de lignes le rideau freemium laisse voir <b>en clair</b>.
+     *
+     * <p>🛑 Avec {@link #TOTAL_COUNT}, c'est ce qui rend le rideau mesurable :
+     * le correctif « progression par epreuve » l'a fait passer de « 1 sur 5 » a
+     * « 1 sur 9 ou 12 » sur un compte reel. Signal de valeur plus fort, mais
+     * l'effet inverse — le decouragement — est tout aussi plausible. On mesure
+     * avant de trancher ; on ne tranche pas sur l'intuition.
+     */
+    VISIBLE_COUNT("visibleCount", Kind.COUNT, null),
+
+    /** Combien de lignes le rideau cache, verrouillees comprises. */
+    TOTAL_COUNT("totalCount", Kind.COUNT, null);
+
+    /** Compteur d'affichage : entier positif, quatre chiffres au plus. */
+    private static final Pattern COUNT = Pattern.compile("^\\d{1,4}$");
 
     /**
      * Slug editorial : minuscules, chiffres, tiret, underscore. 40 caracteres.
@@ -66,7 +91,7 @@ public enum AnalyticsProperty {
     /** Code de plan : majuscules, chiffres, underscore ({@code INTEGRAL_PASS_2M}). */
     private static final Pattern CODE = Pattern.compile("^[A-Z0-9][A-Z0-9_]{0,63}$");
 
-    private enum Kind { ENUM, PATH, SLUG, CODE }
+    private enum Kind { ENUM, PATH, SLUG, CODE, COUNT }
 
     private final String key;
     private final Kind kind;
@@ -112,6 +137,15 @@ public enum AnalyticsProperty {
                     throw refus(raw, "un code de plan en majuscules, chiffres ou « _ » (64 caractères max)");
                 }
                 yield code;
+            }
+            // Un compteur d'ecran, borne a quatre chiffres : c'est une TAILLE
+            // d'affichage, jamais une donnee du candidat. La borne est ce qui
+            // empeche cette cle de devenir un champ libre numerique.
+            case COUNT -> {
+                if (!COUNT.matcher(value).matches()) {
+                    throw refus(raw, "un entier positif de 4 chiffres au plus");
+                }
+                yield String.valueOf(Integer.parseInt(value));
             }
         };
     }

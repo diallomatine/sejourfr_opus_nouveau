@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { categoryStatus } from "@/lib/dashboard";
+import { categoryBadge } from "@/lib/dashboard";
 import styles from "./moduleHub.module.css";
 
 /**
@@ -79,7 +79,7 @@ const DONUT_FILL = {
 
 /** Donut 52px : teinte selon le statut de la catégorie, "—" si jamais travaillée. */
 export function ProgressDonut({ percent }: { percent: number | null }) {
-  const { tone } = categoryStatus(percent);
+  const { tone } = categoryBadge(percent);
   const clamped = percent === null ? 0 : Math.min(100, Math.max(0, percent));
   return (
     <div className={styles.donut} role="presentation">
@@ -162,7 +162,7 @@ export function CategoryCard({
   meta: string;
   ctas: CategoryCta[];
 }) {
-  const status = categoryStatus(percent);
+  const status = categoryBadge(percent);
   return (
     <article className={styles.card}>
       <div className={styles.cardTop}>

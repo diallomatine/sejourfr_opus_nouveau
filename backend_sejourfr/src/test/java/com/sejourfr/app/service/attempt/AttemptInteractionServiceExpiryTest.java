@@ -15,6 +15,7 @@ import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
 import com.sejourfr.app.service.ComprehensionObservationService;
@@ -66,8 +67,9 @@ class AttemptInteractionServiceExpiryTest {
         AttemptMapper mapper = mock(AttemptMapper.class);
 
         service = new AttemptInteractionService(
-                attemptManager, attemptQuestionManager, answerManager, scoringService, mapper,
-                new QuestionMapper(), mock(ComprehensionObservationService.class));
+                attemptManager, attemptQuestionManager, answerManager, scoringService,
+                mock(ReceptiveEvidenceAdapter.class), mapper, new QuestionMapper(),
+                mock(ComprehensionObservationService.class));
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
     }

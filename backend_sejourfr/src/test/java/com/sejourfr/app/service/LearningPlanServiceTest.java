@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.enums.PlanActionNature;
@@ -40,6 +41,8 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.sejourfr.app.service.plan.PlanConfig;
+import com.sejourfr.app.service.plan.PlanConfigLoader;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -69,6 +72,29 @@ class LearningPlanServiceTest {
     private ReassessmentExerciseSelector reassessmentSelector;
     private PlanMilestoneSelector milestoneSelector;
     private PlanAcquisitionSelector acquisitionSelector;
+    private PlanContentAvailability contentAvailability;
+
+    /** La configuration livree : les tests lisent les vrais plafonds. */
+    private static final PlanConfig PLAN_CONFIG = PlanConfigLoader.load(1);
+
+    /**
+     * Catalogue plein : rien n'est jamais ecarte faute de contenu. Ces tests
+     * decrivent le MOTEUR ; le pourrissement du catalogue a son propre test.
+     */
+    private static PlanContentAvailability.Disponibilite catalogueComplet() {
+        return new PlanContentAvailability.Disponibilite() {
+            @Override
+            public boolean estExecutable(Skill competence, TargetLevel palier) {
+                return true;
+            }
+
+            @Override
+            public List<Skill> filtrer(
+                    List<Skill> candidates, Map<UUID, TargetLevel> paliers) {
+                return candidates;
+            }
+        };
+    }
     private SkillProgressCounter progressCounter;
     private SkillAccessService accessService;
     private TcfProfileService profileService;
@@ -101,8 +127,13 @@ class LearningPlanServiceTest {
         // Par defaut, RIEN a acquerir : la tres grande majorite de ces tests
         // decrivent la remediation, et un selecteur qui rendrait du contenu
         // ferait passer des competences supplementaires dans chaque assertion.
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of());
+        // Le catalogue est PLEIN par defaut : ces tests decrivent le moteur, pas
+        // le pourrissement du contenu. Le cas « competence sans sujet publie »
+        // a son propre test (PlanContentAvailabilityTest).
+        contentAvailability = mock(PlanContentAvailability.class);
+        when(contentAvailability.charger()).thenReturn(catalogueComplet());
         when(milestoneSelector.select(eq(userId), anyCollection(), anyMap(), anyCollection(),
                 anyBoolean(), any()))
                 .thenReturn(Optional.empty());
@@ -128,19 +159,25 @@ class LearningPlanServiceTest {
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
                 masteryResolver, accessService,
                 new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
+                mock(ProgressionPlanBridge.class),
                         masteryResolver, skillManager),
                 // « Completer mon profil » tourne POUR DE VRAI : il ne fait que
                 // lire les domaines que le cycle vient de resoudre, le doubler
                 // reviendrait a tester le mock.
                 new PlanDomainAssessmentResolver(),
-                acquisitionSelector,
+                acquisitionSelector, contentAvailability,
+                // Le classement et la composition tournent POUR DE VRAI : ce
+                // sont eux qui decident de l'ordre affiche, les doubler
+                // reviendrait a tester le mock.
+                new PlanActionRanker(PLAN_CONFIG), PLAN_CONFIG,
+                new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class)),
                 // Les competences par epreuve tournent POUR DE VRAI : elles ne
                 // font que ranger ce que le service vient de decider.
                 new PlanDomainSkillResolver(),
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.
-                new PlanSeanceBuilder(),
+                new PlanSeanceBuilder(PLAN_CONFIG),
                 new PlanRecentChangesResolver(new SkillMasteryEngine(planProperties)),
                 userManager);
     }
@@ -1313,7 +1350,7 @@ class LearningPlanServiceTest {
         var result = service.get(userId);
 
         // Trois priorites visibles, donc trois entrainements — pas quatre.
-        assertThat(result.seance().items()).hasSize(PlanSeanceBuilder.MAX_ITEMS);
+        assertThat(result.seance().items()).hasSize(PLAN_CONFIG.display().todayMaxActions());
         assertThat(result.seance().items()).extracting("skillCode")
                 .containsExactly("EE1-C1", "EO1-C2", "EE2-C3");
         // Chaque item porte l'exercice DEJA designe pour sa priorite.
@@ -1510,7 +1547,7 @@ class LearningPlanServiceTest {
                 observation("EE2-C3", LearningPlanSkillStatus.TO_REINFORCE,
                         now.minusSeconds(60))));
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         stubExercisesForEverySkill();
 
@@ -1537,7 +1574,7 @@ class LearningPlanServiceTest {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(skill("EO1-C9")));
         stubExercisesForEverySkill();
 
@@ -1562,12 +1599,20 @@ class LearningPlanServiceTest {
     }
 
     /**
-     * 🛑 <b>Le plafond n'est pas un quota</b> : le selecteur ne recoit que les
-     * places qui restent, et rien n'est fabrique pour les remplir. Une seule
-     * competence vraiment a acquerir en rend une, pas cinq.
+     * 🛑 <b>LE SELECTEUR NE RECOIT PLUS AUCUN BUDGET</b> (2026-08-26).
+     *
+     * <p>Ce test disait exactement l'inverse jusqu'a cette date : il verifiait
+     * que le selecteur d'acquisitions recevait « les places qui restent », soit
+     * {@code 5 - fragilites}. C'etait le trou principal — un plafond d'affichage
+     * servait de budget de production aux <b>quatre</b> domaines a la fois, et
+     * les places restantes partaient toujours au domaine le plus urgent. Mesure
+     * du 2026-08-25 : dix actions vraies existaient, deux etaient servies, et
+     * l'expression orale affichait « rien a travailler ».
+     *
+     * <p>Le moteur calcule tout ; l'affichage coupe.
      */
     @Test
-    void lesPlacesRestantesSontCellesQueLesFragilitesLaissent() {
+    void leSelecteurDAcquisitionsNeRecoitAucunPlafond() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now());
@@ -1579,18 +1624,53 @@ class LearningPlanServiceTest {
                         now.minusSeconds(60)),
                 observation("EE3-C2", LearningPlanSkillStatus.TO_REINFORCE,
                         now.minusSeconds(120))));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
-                .thenReturn(List.of());
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
+                .thenReturn(List.of(skill("EO1-C9"), skill("EO2-C4"), skill("EO2-C5")));
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
 
-        ArgumentCaptor<Integer> limite = ArgumentCaptor.forClass(Integer.class);
-        verify(acquisitionSelector).select(any(), anyList(), anySet(), limite.capture());
-        assertThat(limite.getValue())
-                .as("cinq places au total, trois fragilites : il en reste deux")
-                .isEqualTo(LearningPlanPriorityResolver.MAX_PRIORITIES - 3);
-        assertThat(result.nextPriorities()).hasSize(2);
+        // Trois fragilites + trois acquisitions = six actions vraies. L'ecran en
+        // montre cinq (display.prioritiesMaxActions), le moteur les connait
+        // toutes — c'est ce que la carte d'epreuve lit.
+        assertThat(result.nextPriorities()).hasSize(4);
+        assertThat(result.currentPriority()).isNotNull();
+    }
+
+    /**
+     * Le plafond d'affichage coupe la liste servie, <b>jamais le calcul</b> :
+     * les competences que l'ecran ne montre pas gardent leur nature sur la carte
+     * d'epreuve, la ou le candidat va lire « ce qu'il me reste a faire ».
+     */
+    @Test
+    void cequiDepasseLePlafondGardeSaNatureSurLaCarteDEpreuve() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        Instant now = Instant.now();
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, now)));
+        List<Skill> acquisitions = List.of(skill("EO1-C9"), skill("EO2-C4"),
+                skill("EO2-C5"), skill("EO2-C6"), skill("EO3-C1"), skill("EO3-C2"));
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
+                .thenReturn(acquisitions);
+        when(skillManager.findActiveExpression()).thenReturn(acquisitions);
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        // Cinq lignes servies au maximum...
+        assertThat(result.nextPriorities()).hasSize(
+                PLAN_CONFIG.display().prioritiesMaxActions() - 1);
+        // ... mais les SIX acquisitions portent bien leur nature cote domaine.
+        assertThat(result.domaines())
+                .filteredOn(domaine -> domaine.epreuve() == EpreuveType.TCF_EO)
+                .singleElement()
+                .satisfies(domaine -> assertThat(domaine.skills())
+                        .filteredOn(competence ->
+                                competence.nature() == PlanActionNature.A_ACQUERIR)
+                        .hasSize(6));
     }
 
     /**
@@ -1606,7 +1686,7 @@ class LearningPlanServiceTest {
         LearningPlanObservation fragile =
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(skill("EO1-C9")));
         // Seule la fragilite a un sujet publie.
         when(exerciseSelector.selectAll(eq(userId), anyCollection(), any()))
@@ -1640,7 +1720,7 @@ class LearningPlanServiceTest {
                 observation("EE1-C1", LearningPlanSkillStatus.TO_REINFORCE, Instant.now());
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(fragile));
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         // Seule la premiere place est ouverte : c'est la fragilite.
         when(accessService.resolve(eq(userId), any())).thenReturn(
@@ -1681,7 +1761,7 @@ class LearningPlanServiceTest {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
         when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
         Skill aAcquerir = skill("EO1-C9");
-        when(acquisitionSelector.select(any(), anyList(), anySet(), anyInt()))
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
         when(accessService.resolve(eq(userId), any())).thenReturn(
                 new SkillAccessService.SkillAccess(

@@ -186,6 +186,32 @@ stockage, pas règle métier) ; un referrer est ramené à son **hôte seul**.
 ⚠️ **Ajouter un écran suivi = une ligne dans `AnalyticsPaths.KNOWN`, dans la même
 passe que le front** — un chemin non déclaré est refusé, jamais rangé en « autre ».
 
+### Le RIDEAU freemium — trois gestes, jamais fondus (2026-08-26)
+
+Posés **avant** le déploiement de la « progression par épreuve », qui fait passer le rideau du
+diagnostic de « 1 sur 5 » à « 1 sur 9 ou 12 » : mesurés après coup, ils n'auraient plus de
+point de comparaison. Signal de valeur plus fort — mais le découragement est tout aussi
+plausible, et **on ne tranche pas sur l'intuition**.
+
+| Événement | Propriétés |
+|---|---|
+| `PLAN_CURTAIN_SHOWN` | `ctaLocation`, `epreuve`, `visibleCount`, `totalCount` |
+| `PLAN_CURTAIN_EXPANDED` | `ctaLocation`, `epreuve` |
+| `PLAN_PAYWALL_VIEWED` | `ctaLocation` |
+
+- 🛑 **`PLAN_PAYWALL_VIEWED` n'est PAS `PREMIUM_CTA_CLICKED`** : une vue n'est pas une
+  intention, et c'est l'**écart entre les deux** qui répond à la question. Les fondre
+  effacerait exactement la mesure qu'on vient poser.
+- `PLAN_CURTAIN_EXPANDED` porte `epreuve` comme `SHOWN` : sans dimension commune, un taux de
+  dépliage par épreuve ne se lit pas. Seule l'**ouverture** compte — replier n'est pas vouloir
+  voir.
+- Les deux compteurs sont ceux **réellement à l'écran** (clair d'un côté, caché de l'autre),
+  jamais une longueur de liste tronquée. Émis **là où le rideau est rendu**, une fois par
+  épreuve et par affichage.
+- `epreuve` reprend `EpreuveType` tel quel ; `visibleCount` / `totalCount` passent par un
+  `Kind.COUNT` **borné à quatre chiffres** — c'est une **taille d'affichage**, jamais une donnée
+  du candidat, et la borne est ce qui empêche cette clé de devenir un champ libre numérique.
+
 ### Lecture — `GET /api/admin/analytics`
 
 **Un seul endpoint** et pas les cinq du brief : la maquette recalcule toutes ses

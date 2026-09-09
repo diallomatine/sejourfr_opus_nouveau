@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/enums.dart';
+import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_production/tcf_production_module.dart' show TcfProductionModule;
@@ -141,32 +142,41 @@ void showProductionExamBriefingSheet(
   );
 }
 
+/// Une ligne du sommaire du briefing.
+///
+/// 🛑 **Aucun intitulé de tâche ici** : [label] est lu sur
+/// [productionTaskTitle], seule autorité du front. Trois copies écrites à la
+/// main avaient divergé — ce briefing annonçait « Présentation » et
+/// « Opinion » là où le hub d'épreuve ouvrait « Entretien dirigé » et « Point
+/// de vue ».
 class _ExamTask {
   const _ExamTask({
     required this.index,
-    required this.label,
+    required this.epreuve,
     required this.detail,
   });
 
   final int index;
-  final String label;
+  final EpreuveType epreuve;
   final String detail;
+
+  String get label => productionTaskTitle(epreuve, index);
 }
 
 const _eeTasks = <_ExamTask>[
   _ExamTask(
     index: 1,
-    label: 'Message simple',
+    epreuve: EpreuveType.tcfEe,
     detail: 'Email, invitation, annulation · 30-60 mots',
   ),
   _ExamTask(
     index: 2,
-    label: 'Récit',
+    epreuve: EpreuveType.tcfEe,
     detail: 'Expérience personnelle · 40-90 mots',
   ),
   _ExamTask(
     index: 3,
-    label: 'Opinion',
+    epreuve: EpreuveType.tcfEe,
     detail: 'Argumentation simple · 40-90 mots',
   ),
 ];
@@ -174,17 +184,17 @@ const _eeTasks = <_ExamTask>[
 const _eoTasks = <_ExamTask>[
   _ExamTask(
     index: 1,
-    label: 'Présentation',
+    epreuve: EpreuveType.tcfEo,
     detail: 'Parler de soi, travail, loisirs',
   ),
   _ExamTask(
     index: 2,
-    label: 'Jeu de rôle',
+    epreuve: EpreuveType.tcfEo,
     detail: 'Poser des questions et interagir',
   ),
   _ExamTask(
     index: 3,
-    label: 'Opinion',
+    epreuve: EpreuveType.tcfEo,
     detail: 'Donner son avis et argumenter',
   ),
 ];

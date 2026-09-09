@@ -19,7 +19,7 @@ import {
 import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
 import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {masteryHint, moduleAverage} from "@/lib/dashboard";
+import {moduleAverage, successHint} from "@/lib/dashboard";
 import {
     diagnosticCompletedExerciseCount,
     diagnosticDashboardState,
@@ -172,7 +172,7 @@ export default function DashboardPage() {
             </span>
                         <span className="stat-label">Maîtrise globale</span>
                         <span className="stat-sub">
-              {masteryHint(summary?.globalSuccessPercent ?? null)}
+              {successHint(summary?.globalSuccessPercent ?? null)}
             </span>
                     </div>
                 </article>

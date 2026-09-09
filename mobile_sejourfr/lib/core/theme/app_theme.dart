@@ -103,16 +103,6 @@ extension LearningPlanSkillStatusColor on LearningPlanSkillStatus {
       };
 }
 
-/// Rampe de couleur d'une maîtrise 0-100 (rouge → corail → ardoise → bleu →
-/// Bleu France). Reprise de `mBarColor` de la maquette, re-teintée marque.
-Color masteryColor(num value) {
-  if (value < 40) return const Color(0xFFCB4341);
-  if (value < 55) return const Color(0xFFC96A3F);
-  if (value < 70) return const Color(0xFF5C73A6);
-  if (value < 85) return const Color(0xFF3355B0);
-  return AppColors.blue;
-}
-
 /// Rampe **pastel** de la barre de niveau A1 → B2, pensée pour rester lisible
 /// sur le dégradé foncé du bilan. Distincte de [CecrlColor] — qui reste la
 /// seule table à décider de la teinte d'un niveau **plein** (badge, pastille) :
@@ -131,13 +121,18 @@ const cecrlScaleRamp = <Color>[
 const kFlagBlue = Color(0xFF0055A4);
 const kFlagRed = Color(0xFFEF4135);
 
-/// Libellé qualitatif d'une maîtrise 0-100 (cf. `masteryLabel` maquette).
-String masteryLabel(num value) {
-  if (value >= 80) return 'Solide';
-  if (value >= 60) return 'En bonne voie';
-  if (value >= 40) return 'À renforcer';
-  return 'Fragile';
-}
+/// 🛑 `masteryColor(num)` et `masteryLabel(num)` ont été SUPPRIMÉS le
+/// 2026-08-23 (moteur de progression V4.2, §25 bis.4) : ils classaient un
+/// pourcentage en état pédagogique côté client, c'est-à-dire qu'ils rejouaient
+/// le moteur à partir d'un nombre. Deux tables de seuils pour une même règle
+/// finissent toujours par désigner autre chose que le serveur.
+///
+/// Un état pédagogique se lit **servi** : `status`, `statusLabel` et son ton
+/// viennent du backend (six états, cf. `ProgressionStatus`). Un pourcentage
+/// brut de réussite se peint en accent neutre, jamais en verdict.
+///
+/// Le vérificateur `scripts/verifier-contrat-front-progression.mjs` échoue si
+/// l'un des deux réapparaît, ici ou ailleurs.
 
 /// Ombres réutilisables partagées entre les cartes du produit.
 class AppShadows {
