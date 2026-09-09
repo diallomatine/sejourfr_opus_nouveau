@@ -3,6 +3,9 @@
 > **Créé le 2026-08-23**, à la restructuration de `CLAUDE.md` racine.
 > Ces trois points sont des endroits où le dépôt **se dit deux choses différentes**. La
 > restructuration ne les a **pas tranchés** — sauf #1, qui l'était déjà dans le texte lui-même.
+> **Les trois sont désormais tranchées** : #1 le 2026-08-21, #3 le 2026-08-26, #2 le
+> **2026-09-10** (tests front). Le fichier reste ouvert comme **journal** — on y consigne la
+> décision et son motif, on n'en retire pas l'entrée.
 > **Lu à la demande.** À ouvrir avant de trancher un de ces points.
 >
 > Chaque entrée donne les **deux formulations verbatim**, leur emplacement d'origine dans
@@ -52,7 +55,7 @@ séance et les lignes de priorité **verrouillés**, plus la liste que reprend l
 
 ---
 
-## #2 — Tests front : interdits, mais encore cités comme garde-fous ⛔ NON TRANCHÉE
+## #2 — Tests front : interdits, mais encore cités comme garde-fous ✅ TRANCHÉE (2026-09-10)
 
 ### Formulation A — la règle générale (posée le 2026-08-09)
 
@@ -101,6 +104,42 @@ Est-ce que ces mentions décrivent des tests qui **existent encore** (auquel cas
 `ls web_sejoufr/lib/*.test.ts mobile_sejourfr/test/*_test.dart`.
 
 ---
+
+### ✅ Ce qui fait foi aujourd'hui — arbitrage du propriétaire, 2026-09-10
+
+**Le décompte réel**, mesuré à l'audit (`40_SEJOURFR_AUDIT.md` §7.3, blocage **B9**) : **41
+fichiers de test versionnés** sur les fronts — 16 en TypeScript (`web_sejoufr/lib/*.test.ts`)
+et 25 en Dart (`mobile_sejourfr/test/`), dont des tests de **widget**. La formulation A
+décrivait donc un état qui n'existait pas, pendant que `docs/review_all/` (`00_` §14, `10_`
+§13, `30_` §14) **exigeait** au contraire des tests de rendu des deux côtés. Trois
+instructions incompatibles, sur un sujet qu'on rencontre dès qu'on touche un front.
+
+Arbitrage, mot du propriétaire : « **on n'ajoute plus de nouveaux tests front.** »
+
+- **Aucun NOUVEAU test front**, quelle que soit sa nature.
+- **Les 41 existants sont conservés** et doivent rester verts. Un test rendu rouge par un
+  changement voulu se **met à jour ou se supprime** ; il ne bloque jamais le changement.
+- **Aucune suppression en masse.** `50_` §3.5 propose de retirer ceux qui verrouillent une
+  **dérivation métier côté client** (`estimated-tcf-level`, `target_procedure_levels`,
+  `niveau_cecrl_display`, `skill-progress`) — mais **au moment où cette dérivation partira
+  côté serveur**, et pas avant : un test disparaît **avec le code qu'il testait**, jamais seul.
+- Les exigences de « tests de rendu web et mobile » de `docs/review_all/` sont **retirées**.
+- La vérification d'un changement front reste `npx tsc --noEmit` / `npm run build` /
+  `flutter analyze`, plus la relecture croisée et le **test backend**, qui protège les trois
+  fronts d'un seul endroit.
+
+**Sur la question posée ci-dessus** (« ces mentions décrivent-elles des tests qui existent
+encore ? ») : **oui**, ils existent — `lib/skill-labels.test.ts` et
+`test/skill_models_test.dart` sont bien là. Les textes de `docs/regles/notation-ia.md` et
+`docs/regles/competences.md` sont donc **exacts**, et n'ont pas à être réécrits.
+
+⚠️ **État constaté au moment de l'arbitrage** : **10 des 25 tests Dart sont rouges**, et
+l'étaient **avant** ce chantier (vérifié par `git stash` aux lots L1 et L4). Ils ne bloquent
+rien, mais ils ne protègent plus rien non plus. Les remettre au vert ou les supprimer est un
+**chantier à part**, qui n'a pas été demandé.
+
+Amendé dans `CLAUDE.md` racine, `web_sejoufr/CLAUDE.md` et `mobile_sejourfr/CLAUDE.md` le
+même jour.
 
 ## #3 — Coût du Plan : 20 requêtes, +1, ou 19 ? ✅ TRANCHÉE (2026-08-26)
 

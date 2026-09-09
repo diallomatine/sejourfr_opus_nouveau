@@ -272,13 +272,22 @@ standard 36px, variante `.cocarde.lg` à 56px.
 
 ## Conventions de code
 
-- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
-  `CLAUDE.md` racine). Aucun nouveau `*.test.ts` — ni test de helper, ni gel de libellé, ni test de
-  composant. La vérification d'un changement web, c'est `npx tsc --noEmit` + `npm run build`, et le
-  propriétaire teste lui-même à l'écran. Les tests déjà présents (`npm test`, runner natif de Node)
-  restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
-  se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
-  métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, **reconfirmée
+  par le propriétaire le 2026-09-10**, cf. § Tests du `CLAUDE.md` racine). Aucun nouveau
+  `*.test.ts` — ni test de helper, ni gel de libellé, ni test de composant. La vérification d'un
+  changement web, c'est `npx tsc --noEmit` + `npm run build`, et le propriétaire teste lui-même à
+  l'écran. Les tests déjà présents (`npm test`, runner natif de Node) restent en place et doivent
+  rester verts : un test qui devient rouge à cause d'un changement voulu se **met à jour ou se
+  supprime**, il ne bloque jamais le changement. Toute la couverture de règles métier vit côté
+  backend, d'où elle protège les trois fronts d'un seul endroit.
+- ⚠️ **`npm run build` échoue en « Turbopack is not supported on this platform » ?** Ce n'est ni
+  la plateforme ni le code : le paquet natif `node_modules/@next/swc-darwin-arm64` a été installé
+  **sans son binaire** (`next-swc.darwin-arm64.node`, ~116 Mo) — un défaut connu de npm sur les
+  dépendances optionnelles. Le `package-lock.json` est correct, il n'y a **rien à committer**.
+  Remède :
+  `rm -rf node_modules/@next/swc-darwin-arm64 && npm install @next/swc-darwin-arm64@<version de next> --no-save`
+  🛑 **Ne pas « corriger » en basculant le script sur `next build --webpack`** : ça masquerait une
+  installation incomplète et ferait diverger le build local du build de production.
 - **🏆 RÈGLE D'OR — TOUT est responsive.** Chaque page et chaque composant doit fonctionner
   parfaitement du **mobile (~360 px)** au **desktop (1280+)**. Aucune page n'est « finie » tant
   qu'elle n'a pas été pensée mobile-first et vérifiée mentalement à **360 / 768 / 1280**. Concrètement :

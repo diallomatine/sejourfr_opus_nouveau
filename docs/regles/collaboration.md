@@ -122,6 +122,13 @@ backend**, unitaires (`*Test`) et d'intégration (`*IT`). Cette règle **prime**
 consigne de test écrite ailleurs dans ce fichier ou dans un `CLAUDE.md` local, et sur
 l'habitude « tests dans la même passe » — qui ne vaut désormais **que** pour le backend.
 
+> ✅ **Amendé le 2026-09-10 par le propriétaire.** La règle reste « **aucun NOUVEAU**
+> test front », mais **les 41 tests déjà versionnés sont conservés** et doivent rester
+> verts — la formulation « les seuls tests du dépôt sont ceux du backend » était
+> contredite par le dépôt lui-même. Aucune suppression en masse ; un test part **avec le
+> code qu'il testait**, jamais seul. Détail et motif :
+> `docs/decisions/contradictions-ouvertes.md` #2.
+
 Ce que ça implique concrètement :
 
 - Un changement purement front (écran, style, libellé, composant, provider, routing) se

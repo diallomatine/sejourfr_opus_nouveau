@@ -79,10 +79,18 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   **vérifie des trois côtés dans la même passe**. Idem pour un **bugfix** : dès qu'on corrige
   un bug sur un parcours commun, on vérifie le même comportement de l'autre côté et on aligne.
   Avant de fermer : *« web et mobile font-ils exactement pareil, sans régression ? »*
-- 🛑 **Aucun test sur les fronts. Jamais.** Ni `*.test.ts`, ni `flutter_test`, ni test de
-  widget, de libellé gelé ou de layout. Les seuls tests du dépôt sont ceux du **backend**.
-  Cette règle **prime** sur toute consigne de test écrite ailleurs. Vérification d'un
-  changement front : `npx tsc --noEmit` / `npm run build` / `flutter analyze`, rien de plus.
+- 🛑 **Aucun NOUVEAU test sur les fronts.** Ni `*.test.ts`, ni `flutter_test`, ni test de
+  widget, de libellé gelé ou de layout. Cette règle **prime** sur toute consigne de test écrite
+  ailleurs — y compris `docs/review_all/`, dont les exigences de « tests de rendu web et
+  mobile » sont **retirées**. Vérification d'un changement front : `npx tsc --noEmit` /
+  `npm run build` / `flutter analyze`, rien de plus.
+  **Les tests front déjà présents sont CONSERVÉS** (16 en TS, 25 en Dart, tous versionnés) et
+  doivent rester verts : un test rendu rouge par un changement voulu se **met à jour ou se
+  supprime**, il ne bloque jamais le changement. On n'en supprime aucun en masse.
+  ⚠️ **Arbitré le 2026-09-10 par le propriétaire.** La formulation précédente — « Aucun test
+  sur les fronts. Jamais. Les seuls tests du dépôt sont ceux du backend. » — était contredite
+  par 41 fichiers réellement versionnés, ce que l'audit a mis au jour
+  (`docs/review_all/40_SEJOURFR_AUDIT.md` §7.3, blocage B9).
 - **Backend : tests dans la même passe.** Feature, bugfix, règle métier, endpoint, migration à
   impact logique ne se ferment pas sans test(s) qui verrouillent le comportement. Avant un
   refactor d'un bloc non couvert : écrire le filet d'abord.

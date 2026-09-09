@@ -3087,9 +3087,9 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 - ~~**In-app purchase** (Premium)~~ ✅ fait au lot 4d (cf. section dédiée plus bas).
 - **Mode sombre** : la palette est prête (l'identité visuelle marche en dark), mais `buildAppTheme()` ne fait
   que le clair pour l'instant.
-- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du
-  `CLAUDE.md` racine). Aucun nouveau `*_test.dart` — ni test de widget, ni test de modèle, ni gel de
-  libellé, ni test de layout. La vérification d'un changement mobile, c'est `flutter analyze` (zéro
+- 🛑 **Tests : on n'en écrit PLUS sur ce sous-projet** (règle posée le 2026-08-09, **reconfirmée
+  par le propriétaire le 2026-09-10**, cf. § Tests du `CLAUDE.md` racine). Aucun nouveau
+  `*_test.dart` — ni test de widget, ni test de modèle, ni gel de libellé, ni test de layout. La vérification d'un changement mobile, c'est `flutter analyze` (zéro
   warning nouveau), et le propriétaire teste lui-même à l'écran. Les tests déjà présents dans `test/`
   restent en place et doivent rester verts : un test qui devient rouge à cause d'un changement voulu
   se **met à jour ou se supprime**, il ne bloque jamais le changement. Toute la couverture de règles
