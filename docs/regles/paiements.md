@@ -255,3 +255,65 @@ le `signedTransactionInfo` inclus dans la notification est déjà autoritatif
 toute la chaîne de renouvellements. Les events arrivant pour un
 subscription_id inconnu (race avec checkout.session.completed) sont logués
 et ignorés.
+
+
+---
+
+## Le paywall est CONTEXTUALISÉ (lot L5, 2026-09-10)
+
+`10_` §5 : « Personnalisation obligatoire : niveau actuel, niveau cible, les 3
+priorités réelles, et la date d'examen si renseignée. **Un paywall sans ces
+éléments est un bug.** »
+
+🛑 **Mais un paywall qui MENT est pire qu'un paywall générique.** Chaque élément
+est **facultatif** et se calcule sur ce que le serveur a réellement servi :
+
+| Donnée absente | Ce qu'on affiche |
+|---|---|
+| Plan pas en cache | le message générique, inchangé |
+| `startingLevel` nul | on n'annonce aucun niveau mesuré |
+| `objectiveLevel` nul | « Votre plan est prêt », sans palier |
+| aucune priorité | aucune liste |
+| `examDate` nulle | ni échéance, ni recommandation de pass |
+
+🛑 **Best-effort, jamais bloquant, jamais de spinner.** La feuille s'ouvre tout
+de suite ; le contexte s'ajoute quand il arrive. Un indicateur d'attente devant
+une offre est le meilleur moyen de perdre l'acheteur. Un échec de chargement ne
+dégrade rien et n'empêche jamais l'achat.
+
+**Aucun appel réseau de plus** : le web lit le Plan **en cache**
+(`learningPlanApi.getCached`) et le mobile son provider **déjà vivant** ; le
+catalogue de pass vient des produits que le contrôleur de facturation a déjà
+chargés.
+
+### Le levier propre aux pass : aligner la durée sur l'échéance
+
+> « Votre examen est le 18 octobre. Le pass 2 mois couvre toute votre
+> préparation. »
+
+🛑 **On ne recommande que ce que le catalogue propose réellement**, et seulement
+un pass qui **couvre** l'échéance — promettre une couverture qu'un pass ne tient
+pas serait pire que se taire. Et parmi ceux qui couvrent, **le plus court** : on
+répond au besoin, on ne pousse pas au plus cher. Aucun pass assez long ⇒ on
+n'affiche rien.
+
+Ce levier n'existe que depuis `users.exam_date` (V047, lot L1).
+
+### Ce que la spec demandait de réécrire, et qui n'existait pas
+
+`50_` §3.4 liste des formulations à supprimer (« 14,99 €/mois », « Annulable à
+tout moment », « renouvellement le 9 octobre », « Passez Premium »).
+**Vérifié à la livraison de L5 : aucune n'existe dans le code.** Le dépôt parle
+déjà correctement des pass (« Paiement unique — aucun renouvellement
+automatique »). Le seul « S'abonner » du web est le bouton de **newsletter** du
+pied de page, sans rapport avec le paiement. La réécriture portait sur les
+specs, pas sur l'application.
+
+⚠️ Le mobile garde « annulable à tout moment » **uniquement dans la branche
+abonnement** (`oneTime == false`), qui est dormante et exacte pour un abonnement
+récurrent. Ne pas la supprimer : elle redeviendra vraie si les abonnements sont
+réactivés.
+
+**Règles pures, une fois par front** : `web_sejoufr/lib/paywall-context.ts` ⇄
+`mobile_sejourfr/lib/core/widgets/paywall_context.dart`, miroirs l'un de
+l'autre.

@@ -12,6 +12,9 @@ import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/paywall_context.dart';
+import '../plan/learning_plan_provider.dart';
+import '../../core/auth/auth_controller.dart';
 
 /// Écran paywall plein écran. Affiche un toggle mensuel/trimestriel/annuel et
 /// deux cards Civique + Intégral avec les prix réels du store (devise locale).
@@ -170,6 +173,101 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     };
   }
 
+  /// L'en-tête contextualisé (`10_` §5) : niveau, objectif, priorités réelles
+  /// et échéance.
+  ///
+  /// 🛑 **Best-effort, et jamais bloquant.** Le Plan est lu depuis son provider
+  /// existant — s'il n'est pas chargé, ou s'il échoue, on ne rend **rien** et
+  /// le paywall garde son message générique. Un paywall qui attend une donnée
+  /// est un paywall qu'on ne voit pas.
+  Widget _buildContexte(BillingState state) {
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final user = ref.watch(authControllerProvider);
+    final examDate = user is AuthAuthenticated ? user.user.examDate : null;
+
+    final ctx = paywallContext(plan: plan, examDate: examDate);
+    // Le catalogue passe par les produits DÉJÀ chargés par le contrôleur : le
+    // paywall ne déclenche aucun appel de plus pour se contextualiser.
+    final pass = passRecommande(
+        ctx, state.products.map((p) => p.plan).toList(growable: false));
+    final echeance = echeanceLine(ctx);
+
+    if (!ctx.isContextualised && pass == null && echeance == null) {
+      return const SizedBox.shrink();
+    }
+
+    final pitch = paywallPitch(ctx);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (ctx.isContextualised)
+            Text(
+              paywallTitle(ctx),
+              textAlign: TextAlign.center,
+              style: AppFonts.display(size: 22, weight: FontWeight.w600),
+            ),
+          if (pitch != null) ...[
+            const SizedBox(height: 6),
+            Text(pitch,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
+          ],
+          if (echeance != null) ...[
+            const SizedBox(height: 8),
+            Text(echeance,
+                textAlign: TextAlign.center,
+                style: AppFonts.label(size: 12, color: AppColors.redDark)),
+          ],
+          // Les priorités RÉELLES, dans l'ordre servi. Un paywall qui promet un
+          // plan sans montrer ce qu'il contient ne prouve rien.
+          if (ctx.priorities.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final p in ctx.priorities)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 6, right: 8),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: p == ctx.priorities.first
+                            ? AppColors.red
+                            : AppColors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(p.title,
+                          style: AppFonts.ui(
+                              size: 13, color: AppColors.ink)),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          // Le levier propre aux pass : aligner la durée sur l'échéance.
+          if (pass != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.blueLight,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Text(pass.phrase,
+                  style: AppFonts.ui(size: 13, color: AppColors.blueDark)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent(BuildContext context, BillingState state) {
     // Mode passes one-time (lot 5) : pas de toggle de périodicité, on rend une
     // carte par module avec ses passes (durée + prix). Le mode abonnement
@@ -183,6 +281,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildContexte(state),
           Text(
             oneTime ? 'Accès' : 'Abonnement',
             style: AppFonts.mono(size: 11, color: AppColors.muted),

@@ -1,10 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
+import { billingApi, learningPlanApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import {
+  echeanceLine,
+  isContextualised,
+  passRecommande,
+  paywallContext,
+  paywallPitch,
+  paywallTitle,
+  type PaywallContext,
+} from "@/lib/paywall-context";
+import type { PlanPublicResponse } from "@/lib/types";
 
 interface PaywallSheetProps {
   open: boolean;
@@ -48,6 +60,36 @@ export function PaywallSheet({
     if (open) trackPaywallViewed();
   }, [open]);
 
+  const { user } = useAuth();
+  const [ctx, setCtx] = useState<PaywallContext | null>(null);
+  const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
+
+  /**
+   * Contextualisation **best-effort** (`10_` §5). Deux règles :
+   *
+   * 🛑 Un échec ne dégrade jamais le paywall — on retombe sur le message
+   * générique, et surtout on ne bloque pas l'achat.
+   * 🛑 Aucun indicateur d'attente : la feuille s'ouvre tout de suite, le
+   * contexte s'ajoute quand il arrive. Un spinner devant une offre est le
+   * meilleur moyen de perdre l'acheteur.
+   */
+  useEffect(() => {
+    if (!open) return;
+    let annule = false;
+    void (async () => {
+      const [plan, catalogue] = await Promise.all([
+        learningPlanApi.getCached().catch(() => null),
+        billingApi.listPlans().catch(() => null),
+      ]);
+      if (annule) return;
+      setCtx(paywallContext(plan, user));
+      setPlans(catalogue);
+    })();
+    return () => {
+      annule = true;
+    };
+  }, [open, user]);
+
   // La provenance suit le visiteur jusqu'à la page d'achat.
   const paymentHref = useTrafficSourceHref(`/paiement?module=${module}`);
 
@@ -68,6 +110,11 @@ export function PaywallSheet({
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const contextualise = ctx !== null && isContextualised(ctx);
+  const pitch = contextualise ? paywallPitch(ctx) : null;
+  const echeance = ctx ? echeanceLine(ctx) : null;
+  const pass = ctx ? passRecommande(ctx, plans) : null;
 
   return (
     <div
@@ -97,8 +144,26 @@ export function PaywallSheet({
           </svg>
         </div>
 
-        <h2 id="paywall-title" className="pws-title">{title}</h2>
-        <p className="pws-text">{message}</p>
+        <h2 id="paywall-title" className="pws-title">
+          {contextualise ? paywallTitle(ctx!) : title}
+        </h2>
+        <p className="pws-text">{pitch ?? message}</p>
+
+        {/* L'échéance du candidat, quand il l'a déclarée. */}
+        {echeance && <p className="pws-echeance">{echeance}</p>}
+
+        {/* Les priorités RÉELLES, dans l'ordre servi (`10_` §5). Un paywall qui
+            promet un plan sans montrer ce qu'il contient ne prouve rien. */}
+        {contextualise && ctx!.priorities.length > 0 && (
+          <ul className="pws-priorites">
+            {ctx!.priorities.map((p) => (
+              <li key={p.skillId}>{p.title}</li>
+            ))}
+          </ul>
+        )}
+
+        {/* Le levier propre aux pass : aligner la durée sur l'échéance. */}
+        {pass && <p className="pws-pass">{pass.phrase}</p>}
 
         <div className="pws-features">
           <div className="pws-feature">
@@ -179,6 +244,48 @@ export function PaywallSheet({
           border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           box-shadow: 0 8px 24px -8px rgba(30, 58, 140, 0.4);
+        }
+        .pws-echeance {
+          margin: 0 0 10px;
+          font-family: var(--font-mono);
+          font-size: 12px;
+          color: var(--color-red-dark);
+        }
+        .pws-priorites {
+          list-style: none;
+          margin: 0 0 12px;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          text-align: left;
+        }
+        .pws-priorites li {
+          font-size: 14px;
+          color: var(--color-ink);
+          padding-left: 14px;
+          position: relative;
+        }
+        .pws-priorites li::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 7px;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--color-red);
+        }
+        .pws-priorites li:nth-child(n + 2)::before {
+          background: var(--color-amber);
+        }
+        .pws-pass {
+          margin: 0 0 12px;
+          font-size: 13px;
+          color: var(--color-blue-dark);
+          background: var(--color-blue-light);
+          border-radius: 10px;
+          padding: 10px 12px;
         }
         .pws-title {
           font-family: var(--font-display);
