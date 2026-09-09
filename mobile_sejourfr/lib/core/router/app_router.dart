@@ -12,6 +12,8 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_full_exams_screen.dart';
 import '../../screens/diagnostic/diagnostic_screen.dart';
+import '../../screens/diagnostic_tcf/tcf_diagnostic_result_screen.dart';
+import '../../screens/diagnostic_tcf/tcf_diagnostic_screen.dart';
 import '../../screens/examens/examens_screen.dart';
 import '../../screens/reviser/reviser_screen.dart';
 import '../../screens/home/home_screen.dart';
@@ -152,6 +154,15 @@ class AppRoutes {
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
+
+  /// Le diagnostic TCF **4 epreuves** (L4). 🛑 Distinct de [diagnostic], qui
+  /// porte le diagnostic INITIAL (une production ecrite + une orale) : deux
+  /// objets produit differents, que 10_ §4.1 interdit de confondre.
+  static const tcfDiagnostic = '/diagnostic-tcf';
+  static const tcfDiagnosticResult = '/diagnostic-tcf/:sessionId/resultat';
+
+  static String tcfDiagnosticResultPath(String sessionId) =>
+      '/diagnostic-tcf/$sessionId/resultat';
   static const plan = '/plan';
 
   /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
@@ -497,6 +508,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.diagnostic,
         builder: (_, __) => const DiagnosticScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfDiagnostic,
+        builder: (_, __) => const TcfDiagnosticScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfDiagnosticResult,
+        builder: (_, state) => TcfDiagnosticResultScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.examReport,

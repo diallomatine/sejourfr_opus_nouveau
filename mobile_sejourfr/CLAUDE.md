@@ -499,6 +499,38 @@ Profil, gelée en miroir du web par `test/estimated_tcf_level_test.dart`. Elle
 **constate un périmètre**, elle ne reproche pas un inachèvement, et ne porte aucun
 chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc rien non plus.
 
+## Diagnostic TCF — 4 épreuves (L4, `screens/diagnostic_tcf/`)
+
+🛑 **À ne pas confondre avec `/diagnostic`**, le diagnostic *initial* (une production
+écrite + une orale). Deux objets produit différents, que `10_` §4.1 interdit de confondre
+— comme il interdit d'appeler celui-ci un **examen blanc**.
+
+- **Routes** : `AppRoutes.tcfDiagnostic` (`/diagnostic-tcf`, T06) et
+  `AppRoutes.tcfDiagnosticResult` (`/diagnostic-tcf/:sessionId/resultat`, T12).
+  **Authentifiées** — contrairement à `/diagnostic`, il n'y a rien à faire ici sans compte.
+- **Modèles** `core/models/tcf_diagnostic_models.dart` · **réseau**
+  `core/api/tcf_diagnostic_repository.dart` (`tcfDiagnosticRepositoryProvider`).
+- **Libellés purs** dans `tcf_diagnostic_labels.dart`, **miroir mot pour mot** de
+  `web_sejoufr/lib/tcf-diagnostic.ts` : un libellé qui bouge, ce sont deux fichiers dans la
+  même passe.
+
+🛑 **Aucun écran de passation n'est créé** : `_ouvrirPassation` route les sections QCM vers
+le runner existant et les productions vers la session EE/EO existante.
+
+🛑 **Le chrono se pose AVANT d'ouvrir l'écran de passation** (`startSection`) : sans cette
+ancre, la section n'a aucune échéance. Idempotent — reprendre ne rend pas de temps.
+
+🛑 **Aucun niveau ne transite par l'accueil** : `TcfDiagnosticDto` n'en porte pas (`10_`
+§4.2 interdit tout résultat partiel entre les sections). Ne pas l'enrichir.
+
+🛑 **`niveauGlobal` et le `niveau` d'une épreuve sont NULLABLES** : c'est « non évaluée »,
+jamais A1. L'écran de résultat les **nomme** ; il n'invente aucun palier.
+
+🛑 **Aucun `locked` sur le résultat** : le paywall porte sur le plan, pas sur le constat.
+
+`current()` rend `null` sur un **204** — une lecture n'ouvre jamais un diagnostic par effet
+de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
+
 ## Diagnostic TCF initial et Plan personnalisé
 
 - `/diagnostic` est hors shell **et publique** (allowlist `isOnPublicPage` du redirect global,

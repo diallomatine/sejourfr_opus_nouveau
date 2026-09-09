@@ -975,6 +975,44 @@ chose. Ce qui a bougé **côté web**, et pourquoi :
   l'aside), le titre `planTitle(cycle)` contre la pastille d'objectif du mobile,
   et « Toutes mes compétences » ⇄ « Tout voir » (déjà arbitré).
 
+## Diagnostic TCF — 4 épreuves (L4)
+
+🛑 **À ne pas confondre avec `/diagnostic`**, le diagnostic *initial* (une production
+écrite + une orale). Ce sont deux objets produit différents, et `10_` §4.1 interdit de
+les confondre — comme il interdit d'appeler celui-ci un **examen blanc**.
+
+- **Routes** : `/diagnostic-tcf` (T06, l'accueil des 4 sections) et
+  `/diagnostic-tcf/[sessionId]/resultat` (T12).
+- **Composants** : `app/_components/diagnostic-tcf/{TcfDiagnosticHub,TcfDiagnosticResult}.tsx`.
+  Règles et libellés **purs** dans `lib/tcf-diagnostic.ts`, **miroir mot pour mot** de
+  `mobile_sejourfr/lib/screens/diagnostic_tcf/tcf_diagnostic_labels.dart`.
+- **Client** : `tcfDiagnosticApi` (`lib/api.ts`). `current()` rend `null` sur un **204** :
+  🛑 une lecture n'ouvre **jamais** un diagnostic par effet de bord — l'ouverture est un
+  geste, et elle consomme l'unique diagnostic gratuit.
+
+🛑 **Aucun écran de passation n'est créé.** `sectionHref` route les sections QCM vers
+`/sessions/[attemptId]` et les productions vers la session EE/EO existante. Un second
+parcours de passation divergerait du premier à la première évolution.
+
+🛑 **Le chrono se pose AVANT d'ouvrir le runner** (`startSection`) : sans cette ancre, la
+section n'a aucune échéance. L'appel est idempotent — reprendre ne rend pas de temps.
+
+🛑 **Aucun niveau ne transite par l'accueil.** `TcfDiagnosticDto` n'en porte pas : `10_`
+§4.2 interdit tout résultat partiel entre les sections — « le résultat est le moment de
+conversion, il ne doit pas être dilué ». Ne pas « enrichir » ce DTO.
+
+🛑 **Aucun `locked` sur le résultat** : le paywall porte sur le plan, pas sur le constat.
+Et une épreuve **non évaluée** (`niveau: null`) est **nommée** à l'écran, jamais rendue en
+« A1 » — c'est l'invariant que V040/V041/V042 ont payé.
+
+Trois choses que l'accueil dit **avant**, pas après : qu'une section commencée se termine
+d'une traite, que l'oral utilise le micro, et que le délai de reprise écoulé n'est pas une
+perte (les sections faites comptent toujours).
+
+Le rail de paliers **réutilise `PlanLevelRail`** ; il ne connaît que A2/B1/B2, donc
+`railLevel()` rend `null` hors de cette échelle et on ne dessine rien plutôt que de
+rabattre le candidat sur un palier qui n'est pas le sien.
+
 ## Diagnostic TCF initial + Plan (2026-08-09)
 
 - **Le backend décide du parcours** : `DiagnosticResponse.status` et

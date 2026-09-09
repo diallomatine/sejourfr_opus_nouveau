@@ -145,3 +145,67 @@ export function niveauOuNonEvalue(
 ): string {
     return niveau === null ? NIVEAU_NON_EVALUE : label(niveau);
 }
+
+/**
+ * Le palier à afficher sur le rail A2 — B1 — B2, ou `null` quand le niveau
+ * mesuré sort de cette échelle.
+ *
+ * 🛑 On **réutilise** `PlanLevelRail` plutôt que d'écrire une seconde jauge :
+ * deux rails finiraient par ne plus se ressembler. Mais le rail ne connaît que
+ * A2/B1/B2, alors que le diagnostic peut mesurer `A1_NON_ATTEINT`, `A1`, `C1`
+ * ou `C2`. Dans ces cas on ne dessine **rien** plutôt que de rabattre le
+ * candidat sur un palier qui n'est pas le sien.
+ */
+export function railLevel(niveau: NiveauCecrl | null): "A2" | "B1" | "B2" | null {
+    switch (niveau) {
+        case "A2":
+        case "B1":
+        case "B2":
+            return niveau;
+        default:
+            return null;
+    }
+}
+
+/**
+ * L'épreuve est-elle déjà à la cible ?
+ *
+ * 🛑 **Le front ne compare pas des paliers lui-même** : le serveur sert
+ * `dejaAuNiveau`, cette fonction ne fait que tester l'appartenance. Ne pas la
+ * remplacer par une comparaison d'index CECRL côté client.
+ */
+export function estDejaAuNiveau(
+    epreuve: EpreuveType,
+    dejaAuNiveau: {epreuve: EpreuveType}[],
+): boolean {
+    return dejaAuNiveau.some((e) => e.epreuve === epreuve);
+}
+
+/** Titre du bloc de conversion, contextualisé par la cible servie. */
+export function blocageTitle(cible: NiveauCecrl | null): string {
+    return cible
+        ? `Ce qui vous empêche aujourd'hui d'atteindre ${cible}`
+        : "Ce qui vous limite aujourd'hui";
+}
+
+/** « Priorité 1 — Expression orale, tâche 3 ». La tâche est nommée, jamais la compétence. */
+export function prioriteTitle(
+    rang: number,
+    epreuveLabel: string,
+    taskCode: string | null,
+): string {
+    const tache = taskCode ? `, tâche ${taskCode.slice(-1)}` : "";
+    return `Priorité ${rang} — ${epreuveLabel}${tache}`;
+}
+
+/** Le bloc de rassurance : personne n'a besoin de tout retravailler. */
+export const TCF_DIAGNOSTIC_RASSURANCE_TITLE =
+    "Vous n'avez pas besoin de tout retravailler";
+export function rassuranceText(cible: NiveauCecrl | null): string {
+    return cible
+        ? `Votre plan se concentrera d'abord sur les tâches qui ont le plus d'impact pour atteindre ${cible}.`
+        : "Votre plan se concentrera d'abord sur les tâches qui ont le plus d'impact.";
+}
+
+export const TCF_DIAGNOSTIC_DEJA_TITLE = "Déjà au niveau attendu";
+export const TCF_DIAGNOSTIC_PLAN_CTA = "Découvrir mon plan";

@@ -6,6 +6,7 @@ import 'attempts_repository.dart';
 import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
+import 'tcf_diagnostic_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'funnel_repository.dart';
 import 'lots_repository.dart';
@@ -67,6 +68,12 @@ final contactRepositoryProvider = Provider<ContactRepository>(
 
 final diagnosticRepositoryProvider = Provider<DiagnosticRepository>(
   (ref) => DiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le diagnostic TCF 4 epreuves (L4). Distinct de [diagnosticRepositoryProvider],
+/// qui porte le diagnostic INITIAL : deux objets produit differents.
+final tcfDiagnosticRepositoryProvider = Provider<TcfDiagnosticRepository>(
+  (ref) => TcfDiagnosticRepository(ref.watch(apiClientProvider)),
 );
 
 final learningPlanRepositoryProvider = Provider<LearningPlanRepository>(
