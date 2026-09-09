@@ -758,6 +758,93 @@ export interface TcfDiagnosticResultDto {
     /** Épreuves déjà à la cible — le bloc « Déjà au niveau attendu ». */
     dejaAuNiveau: TcfDiagnosticEpreuveNiveau[];
     completedAt: string | null;
+    /**
+     * Ce qui a bougé depuis le diagnostic précédent (L7).
+     *
+     * 🛑 **`null` est le cas NORMAL** : c'est le premier diagnostic, il n'y a
+     * rien à comparer. L'écran n'affiche alors aucun bloc de progression — il
+     * n'en fabrique pas un vide.
+     */
+    progression: TcfDiagnosticProgressionDto | null;
+}
+
+// ----------------------------------------------------------------------------
+// L7 — LA BOUCLE DE RÉÉVALUATION
+// Miroirs stricts de TcfReassessmentEligibilityDto et TcfDiagnosticProgressionDto.
+// ----------------------------------------------------------------------------
+
+/**
+ * Le sens d'une variation de palier entre deux diagnostics.
+ *
+ * 🛑 **`INCONNUE` n'est pas `STABLE`.** Une épreuve non évaluée d'un côté ou de
+ * l'autre n'a ni progressé ni régressé : elle n'est pas comparable. Afficher
+ * « = » dessus laisserait croire qu'un niveau a été tenu alors que personne
+ * n'a rien mesuré.
+ */
+export type NiveauEvolution = "HAUSSE" | "STABLE" | "BAISSE" | "INCONNUE";
+
+/** L'évolution d'une épreuve. `avant` et `apres` sont nuls indépendamment. */
+export interface TcfEpreuveEvolution {
+    epreuve: EpreuveType;
+    avant: NiveauCecrl | null;
+    apres: NiveauCecrl | null;
+    evolution: NiveauEvolution;
+}
+
+/**
+ * La comparaison au diagnostic précédent (`10_` §4.6, `30_` §7 bloc 2).
+ *
+ * 🛑 **Le serveur dit d'où à où ; « Vous avez progressé ! » appartient à
+ * l'écran.** Et rien ici ne se recalcule côté front.
+ */
+export interface TcfDiagnosticProgressionDto {
+    previousSessionId: string;
+    previousCompletedAt: string | null;
+    previousNiveauGlobal: NiveauCecrl | null;
+    niveauGlobal: NiveauEvolution;
+    epreuves: TcfEpreuveEvolution[];
+}
+
+/** Ce qui empêche aujourd'hui de relancer un diagnostic. `null` = rien. */
+export type TcfReassessmentBlocker = "PREMIUM_REQUIRED" | "INTERVAL_NOT_ELAPSED";
+
+/**
+ * **Peut-il relancer, et sinon pourquoi ?** — l'écran T11 (`30_` §5.6) et la
+ * boucle de réévaluation (`10_` §4.6), servis.
+ *
+ * 🛑 **Le front ne recalcule rien d'ici** : ni les 14 jours, ni les jours
+ * restants, ni « c'est le premier ». Le serveur sert ce DTO **et** garde
+ * l'ouverture avec le même calcul — un bouton actif que l'API refuse est donc
+ * impossible par construction.
+ */
+export interface TcfReassessmentEligibilityDto {
+    canStart: boolean;
+    blocker: TcfReassessmentBlocker | null;
+    /**
+     * Porte **commerciale** : l'écran ouvre le paywall. Strictement
+     * `blocker === "PREMIUM_REQUIRED"` — un délai non écoulé n'est pas un
+     * cadenas, payer ne l'ouvre pas.
+     */
+    locked: boolean;
+    /** La phrase exacte à afficher. `null` quand rien ne bloque. */
+    message: string | null;
+    /** Aucun diagnostic à ce jour : c'est l'**initial**, offert. Pas une réévaluation. */
+    first: boolean;
+    /** Un diagnostic est ouvert : l'action est « Reprendre », pas « Relancer ». */
+    inProgress: boolean;
+    /** Le délai de la règle, pour pouvoir le **dire** sans le connaître. */
+    intervalDays: number;
+    availableAt: string | null;
+    daysUntilAvailable: number | null;
+    /**
+     * Une priorité du Plan a été terminée depuis le dernier diagnostic :
+     * `10_` §4.6 ouvre alors la réévaluation **sans attendre** le délai.
+     */
+    triggeredByPlan: boolean;
+    lastSessionId: string | null;
+    lastCompletedAt: string | null;
+    /** 🛑 `null` = **non évalué**, jamais A1. */
+    lastNiveauGlobal: NiveauCecrl | null;
 }
 
 // ============================================================================

@@ -175,6 +175,7 @@ class TcfDiagnosticResultDto {
     this.niveauGlobal,
     this.cible,
     this.completedAt,
+    this.progression,
   });
 
   final String sessionId;
@@ -190,6 +191,13 @@ class TcfDiagnosticResultDto {
   final List<TcfDiagnosticEpreuveNiveau> dejaAuNiveau;
 
   final DateTime? completedAt;
+
+  /// Ce qui a bougé depuis le diagnostic précédent (L7).
+  ///
+  /// 🛑 **`null` est le cas NORMAL** : c'est le premier diagnostic, il n'y a
+  /// rien à comparer. L'écran n'affiche alors aucun bloc — il n'en fabrique
+  /// pas un vide.
+  final TcfDiagnosticProgressionDto? progression;
 
   factory TcfDiagnosticResultDto.fromJson(Map<String, dynamic> json) =>
       TcfDiagnosticResultDto(
@@ -211,6 +219,192 @@ class TcfDiagnosticResultDto {
             .toList(),
         completedAt: json['completedAt'] != null
             ? DateTime.tryParse(json['completedAt'] as String)
+            : null,
+        progression: json['progression'] != null
+            ? TcfDiagnosticProgressionDto.fromJson(
+                json['progression'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
+// ----------------------------------------------------------------------------
+// L7 — LA BOUCLE DE RÉÉVALUATION
+// Miroirs de `TcfDiagnosticProgressionDto` et `TcfReassessmentEligibilityDto`.
+// ----------------------------------------------------------------------------
+
+/// Le sens d'une variation de palier entre deux diagnostics.
+///
+/// 🛑 **`inconnue` n'est pas `stable`.** Une épreuve non évaluée d'un côté ou
+/// de l'autre n'a ni progressé ni régressé : elle n'est pas comparable.
+/// Afficher « = » dessus laisserait croire qu'un niveau a été tenu alors que
+/// personne n'a rien mesuré.
+enum NiveauEvolution {
+  hausse('HAUSSE'),
+  stable('STABLE'),
+  baisse('BAISSE'),
+  inconnue('INCONNUE');
+
+  const NiveauEvolution(this.wire);
+  final String wire;
+
+  static NiveauEvolution fromWire(String value) =>
+      NiveauEvolution.values.firstWhere((e) => e.wire == value);
+}
+
+/// L'évolution d'une épreuve. `avant` et `apres` sont nuls indépendamment.
+class TcfEpreuveEvolution {
+  const TcfEpreuveEvolution({
+    required this.epreuve,
+    required this.evolution,
+    this.avant,
+    this.apres,
+  });
+
+  final EpreuveType epreuve;
+  final NiveauCecrl? avant;
+  final NiveauCecrl? apres;
+  final NiveauEvolution evolution;
+
+  factory TcfEpreuveEvolution.fromJson(Map<String, dynamic> json) =>
+      TcfEpreuveEvolution(
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        avant: json['avant'] != null
+            ? NiveauCecrl.fromWire(json['avant'] as String)
+            : null,
+        apres: json['apres'] != null
+            ? NiveauCecrl.fromWire(json['apres'] as String)
+            : null,
+        evolution: NiveauEvolution.fromWire(json['evolution'] as String),
+      );
+}
+
+/// La comparaison au diagnostic précédent (`10_` §4.6, `30_` §7 bloc 2).
+///
+/// 🛑 **Le serveur dit d'où à où ; « Vous avez progressé ! » appartient à
+/// l'écran.** Rien ici ne se recalcule côté mobile.
+class TcfDiagnosticProgressionDto {
+  const TcfDiagnosticProgressionDto({
+    required this.previousSessionId,
+    required this.niveauGlobal,
+    required this.epreuves,
+    this.previousCompletedAt,
+    this.previousNiveauGlobal,
+  });
+
+  final String previousSessionId;
+  final DateTime? previousCompletedAt;
+  final NiveauCecrl? previousNiveauGlobal;
+  final NiveauEvolution niveauGlobal;
+  final List<TcfEpreuveEvolution> epreuves;
+
+  factory TcfDiagnosticProgressionDto.fromJson(Map<String, dynamic> json) =>
+      TcfDiagnosticProgressionDto(
+        previousSessionId: json['previousSessionId'] as String,
+        previousCompletedAt: json['previousCompletedAt'] != null
+            ? DateTime.tryParse(json['previousCompletedAt'] as String)
+            : null,
+        previousNiveauGlobal: json['previousNiveauGlobal'] != null
+            ? NiveauCecrl.fromWire(json['previousNiveauGlobal'] as String)
+            : null,
+        niveauGlobal: NiveauEvolution.fromWire(json['niveauGlobal'] as String),
+        epreuves: (json['epreuves'] as List<dynamic>? ?? const [])
+            .map((e) => TcfEpreuveEvolution.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Ce qui empêche aujourd'hui de relancer un diagnostic. `null` = rien.
+enum TcfReassessmentBlocker {
+  premiumRequired('PREMIUM_REQUIRED'),
+  intervalNotElapsed('INTERVAL_NOT_ELAPSED');
+
+  const TcfReassessmentBlocker(this.wire);
+  final String wire;
+
+  static TcfReassessmentBlocker fromWire(String value) =>
+      TcfReassessmentBlocker.values.firstWhere((e) => e.wire == value);
+}
+
+/// **Peut-il relancer, et sinon pourquoi ?** — l'écran T11 (`30_` §5.6) et la
+/// boucle de réévaluation (`10_` §4.6), servis.
+///
+/// 🛑 **Le front ne recalcule rien d'ici** : ni les 14 jours, ni les jours
+/// restants, ni « c'est le premier ». Le serveur sert ce DTO **et** garde
+/// l'ouverture avec le même calcul — un bouton actif que l'API refuse est donc
+/// impossible par construction.
+class TcfReassessmentEligibilityDto {
+  const TcfReassessmentEligibilityDto({
+    required this.canStart,
+    required this.locked,
+    required this.first,
+    required this.inProgress,
+    required this.intervalDays,
+    required this.triggeredByPlan,
+    this.blocker,
+    this.message,
+    this.availableAt,
+    this.daysUntilAvailable,
+    this.lastSessionId,
+    this.lastCompletedAt,
+    this.lastNiveauGlobal,
+  });
+
+  final bool canStart;
+  final TcfReassessmentBlocker? blocker;
+
+  /// Porte **commerciale** : l'écran ouvre le paywall. Strictement
+  /// `blocker == premiumRequired` — un délai non écoulé n'est pas un cadenas,
+  /// payer ne l'ouvre pas.
+  final bool locked;
+
+  /// La phrase exacte à afficher. `null` quand rien ne bloque.
+  final String? message;
+
+  /// Aucun diagnostic à ce jour : c'est l'**initial**, offert. Pas une
+  /// réévaluation.
+  final bool first;
+
+  /// Un diagnostic est ouvert : l'action est « Reprendre », pas « Relancer ».
+  final bool inProgress;
+
+  /// Le délai de la règle, pour pouvoir le **dire** sans le connaître.
+  final int intervalDays;
+
+  final DateTime? availableAt;
+  final int? daysUntilAvailable;
+
+  /// Une priorité du Plan a été terminée depuis le dernier diagnostic :
+  /// `10_` §4.6 ouvre alors la réévaluation **sans attendre** le délai.
+  final bool triggeredByPlan;
+
+  final String? lastSessionId;
+  final DateTime? lastCompletedAt;
+
+  /// 🛑 `null` = **non évalué**, jamais A1.
+  final NiveauCecrl? lastNiveauGlobal;
+
+  factory TcfReassessmentEligibilityDto.fromJson(Map<String, dynamic> json) =>
+      TcfReassessmentEligibilityDto(
+        canStart: json['canStart'] as bool? ?? false,
+        blocker: json['blocker'] != null
+            ? TcfReassessmentBlocker.fromWire(json['blocker'] as String)
+            : null,
+        locked: json['locked'] as bool? ?? false,
+        message: json['message'] as String?,
+        first: json['first'] as bool? ?? false,
+        inProgress: json['inProgress'] as bool? ?? false,
+        intervalDays: json['intervalDays'] as int? ?? 0,
+        availableAt: json['availableAt'] != null
+            ? DateTime.tryParse(json['availableAt'] as String)
+            : null,
+        daysUntilAvailable: json['daysUntilAvailable'] as int?,
+        triggeredByPlan: json['triggeredByPlan'] as bool? ?? false,
+        lastSessionId: json['lastSessionId'] as String?,
+        lastCompletedAt: json['lastCompletedAt'] != null
+            ? DateTime.tryParse(json['lastCompletedAt'] as String)
+            : null,
+        lastNiveauGlobal: json['lastNiveauGlobal'] != null
+            ? NiveauCecrl.fromWire(json['lastNiveauGlobal'] as String)
             : null,
       );
 }

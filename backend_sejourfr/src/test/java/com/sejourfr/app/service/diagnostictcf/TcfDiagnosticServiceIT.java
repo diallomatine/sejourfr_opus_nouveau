@@ -1,6 +1,7 @@
 package com.sejourfr.app.service.diagnostictcf;
 
 import com.sejourfr.app.dto.TcfDiagnosticDto;
+import com.sejourfr.app.dto.TcfReassessmentEligibilityDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
@@ -8,6 +9,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TcfDiagnosticSectionState;
+import com.sejourfr.app.enums.TcfReassessmentBlocker;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -43,6 +45,8 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
     private EntityManager entityManager;
     @Autowired
     private TcfDiagnosticSectionStarter sectionStarter;
+    @Autowired
+    private TcfReassessmentService reassessmentService;
 
     @Test
     @DisplayName("Ouvrir crée un parent et ses sections, toutes « à faire »")
@@ -126,6 +130,48 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
         assertThatThrownBy(() -> service.ouvrir(user.getId()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("déjà été réalisé");
+    }
+
+    @Test
+    @DisplayName("L7 — l'éligibilité servie dit la même chose que le refus d'ouverture")
+    void eligibiliteEtRefusSontDaccord() {
+        User user = testData.user();
+
+        // Avant tout diagnostic : offert, et ce n'est pas une réévaluation.
+        TcfReassessmentEligibilityDto avant = reassessmentService.eligibilite(user.getId());
+        assertThat(avant.canStart()).isTrue();
+        assertThat(avant.first()).isTrue();
+        assertThat(avant.locked()).isFalse();
+
+        TcfDiagnosticSession premier = service.ouvrir(user.getId());
+        service.cloturer(user.getId(), premier.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        TcfReassessmentEligibilityDto apres = reassessmentService.eligibilite(user.getId());
+        assertThat(apres.canStart()).isFalse();
+        assertThat(apres.locked()).isTrue();
+        assertThat(apres.blocker()).isEqualTo(TcfReassessmentBlocker.PREMIUM_REQUIRED);
+        assertThat(apres.lastSessionId()).isEqualTo(premier.getId());
+        assertThat(apres.lastCompletedAt()).isNotNull();
+        assertThat(apres.intervalDays()).isEqualTo(14);
+
+        // 🛑 Le message servi et le message du refus sont le MEME : c'est
+        // l'unique autorite de L7, et c'est ce que ce test verrouille.
+        assertThatThrownBy(() -> service.ouvrir(user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(apres.message());
+    }
+
+    @Test
+    @DisplayName("L7 — un premier diagnostic n'a rien à comparer : progression null, jamais un « +0 »")
+    void premierResultatSansProgression() {
+        User user = testData.user();
+        TcfDiagnosticSession session = service.ouvrir(user.getId());
+        service.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+
+        assertThat(viewService.resultat(session, null).progression()).isNull();
     }
 
     @Test

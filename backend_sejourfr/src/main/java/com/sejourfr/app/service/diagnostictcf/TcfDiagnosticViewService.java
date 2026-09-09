@@ -1,6 +1,7 @@
 package com.sejourfr.app.service.diagnostictcf;
 
 import com.sejourfr.app.dto.TcfDiagnosticDto;
+import com.sejourfr.app.dto.TcfDiagnosticProgressionDto;
 import com.sejourfr.app.dto.TcfDiagnosticPriorityDto;
 import com.sejourfr.app.dto.TcfDiagnosticResultDto;
 import com.sejourfr.app.dto.TcfDiagnosticSectionDto;
@@ -8,6 +9,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticReadService.Section;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,8 @@ public class TcfDiagnosticViewService {
     private final TcfDiagnosticReadService readService;
     private final TcfDiagnosticPriorityResolver priorityResolver;
     private final AttemptManager attemptManager;
+    private final TcfDiagnosticSessionManager sessionManager;
+    private final TcfDiagnosticProgressionResolver progressionResolver;
 
     /**
      * L'ecran d'accueil : les 4 sections et leur etat.
@@ -104,6 +108,33 @@ public class TcfDiagnosticViewService {
                 epreuves,
                 priorites,
                 dejaAuNiveau,
-                session.getCompletedAt());
+                session.getCompletedAt(),
+                progression(session, sections));
+    }
+
+    /**
+     * La comparaison au diagnostic clos precedent (L7, 10_ §4.6).
+     *
+     * <p>🛑 <b>{@code null} est le cas normal</b> : c'est le premier
+     * diagnostic. On ne fabrique pas un bloc « +0 » pour remplir l'ecran.
+     *
+     * <p>Les sections du diagnostic precedent sont <b>recalculees</b>, pas
+     * relues d'un cache : c'est ce qui permet a un recalibrage de se refleter
+     * des deux cotes de la comparaison au lieu d'opposer une mesure ancienne a
+     * une mesure neuve.
+     */
+    private TcfDiagnosticProgressionDto progression(
+            TcfDiagnosticSession session, List<Section> apres) {
+        if (session.getUser() == null) {
+            return null;
+        }
+        return sessionManager
+                .findPreviousCompleted(session.getUser().getId(), session)
+                .map(precedent -> progressionResolver.comparer(
+                        precedent.getId(),
+                        precedent.getCompletedAt(),
+                        readService.sections(precedent),
+                        apres))
+                .orElse(null);
     }
 }

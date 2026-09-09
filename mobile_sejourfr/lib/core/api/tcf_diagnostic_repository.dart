@@ -17,6 +17,7 @@ abstract interface class TcfDiagnosticGateway {
   Future<TcfDiagnosticDto> startSection(String sessionId, EpreuveType epreuve);
   Future<TcfDiagnosticResultDto> result(String sessionId);
   Future<TcfDiagnosticResultDto> readResult(String sessionId);
+  Future<TcfReassessmentEligibilityDto> eligibility();
 }
 
 class TcfDiagnosticRepository implements TcfDiagnosticGateway {
@@ -84,5 +85,22 @@ class TcfDiagnosticRepository implements TcfDiagnosticGateway {
       '/api/tcf-diagnostics/$sessionId/result',
     );
     return TcfDiagnosticResultDto.fromJson(res.data!);
+  }
+
+  /// **Peut-il relancer, et sinon pourquoi ?** (L7)
+  ///
+  /// 🛑 C'est la seule façon correcte de le savoir. Ne jamais le déduire d'un
+  /// `completedAt` ni recompter les 14 jours ici : la règle a une seule
+  /// autorité, et elle est serveur — elle connaît aussi la dérogation du Plan,
+  /// que le mobile ne voit pas.
+  ///
+  /// Jamais 204 — un candidat sans aucun diagnostic reçoit
+  /// `first: true, canStart: true`.
+  @override
+  Future<TcfReassessmentEligibilityDto> eligibility() async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/tcf-diagnostics/eligibility',
+    );
+    return TcfReassessmentEligibilityDto.fromJson(res.data!);
   }
 }

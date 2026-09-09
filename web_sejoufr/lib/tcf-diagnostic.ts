@@ -13,9 +13,11 @@
 import type {
     EpreuveType,
     NiveauCecrl,
+    NiveauEvolution,
     TcfDiagnosticDto,
     TcfDiagnosticSectionDto,
     TcfDiagnosticSectionState,
+    TcfReassessmentEligibilityDto,
 } from "./types";
 
 /** Titre de la page. « Diagnostic TCF », jamais « examen blanc » (`10_` §4.1). */
@@ -226,3 +228,130 @@ export const TCF_DIAGNOSTIC_HUB_HREF = "/diagnostic-tcf";
  * Il ne change **rien d'autre** : ni la passation, ni la notation, ni le chrono.
  */
 export const TCF_DIAGNOSTIC_PARAM = "tcfDiagnosticId";
+
+// ----------------------------------------------------------------------------
+// L7 — LA BOUCLE DE RÉÉVALUATION
+//
+// 🛑 **Rien ici ne décide.** `canStart`, `locked`, `daysUntilAvailable` et le
+// `message` arrivent servis ; ces fonctions ne font que les mettre en mots. Ne
+// jamais recompter les 14 jours depuis `lastCompletedAt` : le serveur connaît
+// aussi la dérogation du Plan, que le front ne peut pas voir.
+// ----------------------------------------------------------------------------
+
+/** T11 — l'écran « Diagnostic déjà réalisé » (`30_` §5.6). */
+export const TCF_DIAGNOSTIC_DEJA_FAIT_TITLE =
+    "Votre diagnostic initial a déjà été réalisé";
+export const TCF_DIAGNOSTIC_VOIR_CTA = "Voir mon diagnostic";
+export const TCF_DIAGNOSTIC_REEVALUER_CTA = "Réévaluer mon niveau";
+export const TCF_DIAGNOSTIC_DEBLOQUER_CTA = "Débloquer ma réévaluation";
+export const TCF_DIAGNOSTIC_MESURER_TITLE = "Mesurer votre progression";
+
+/**
+ * « Vous l'avez passé le 12 mars. Votre niveau estimé était B1. »
+ *
+ * 🛑 Sans niveau mesuré, on ne l'annonce pas : `null` = non évalué, jamais A1.
+ */
+export function derniereMesureLine(e: TcfReassessmentEligibilityDto): string | null {
+    if (!e.lastCompletedAt) return null;
+    const jour = formatJourCourt(e.lastCompletedAt);
+    return e.lastNiveauGlobal
+        ? `Vous l'avez passé le ${jour}. Votre niveau estimé était ${e.lastNiveauGlobal}.`
+        : `Vous l'avez passé le ${jour}.`;
+}
+
+/**
+ * Ce que le bloc Premium promet — contextualisé par le palier réellement mesuré
+ * et la cible, jamais deux paliers inventés.
+ */
+export function reevaluationPitch(
+    e: TcfReassessmentEligibilityDto,
+    cible: NiveauCecrl | null,
+): string {
+    if (e.lastNiveauGlobal && cible && e.lastNiveauGlobal !== cible) {
+        return `Avec Premium, réévaluez votre niveau et vérifiez que vous êtes réellement passé de ${e.lastNiveauGlobal} à ${cible}.`;
+    }
+    return "Avec Premium, réévaluez votre niveau et mesurez votre progression.";
+}
+
+/**
+ * La règle, dite au candidat. Elle est **servie** (`intervalDays`) : ce fichier
+ * ne connaît pas le nombre 14, et c'est voulu.
+ */
+export function reevaluationRegleLine(e: TcfReassessmentEligibilityDto): string {
+    return `Une réévaluation est possible tous les ${e.intervalDays} jours.`;
+}
+
+/**
+ * Pourquoi la réévaluation est ouverte **avant** le délai.
+ *
+ * `null` quand ce n'est pas le cas : on n'invente pas une bonne nouvelle.
+ */
+export function declencheParLePlanLine(
+    e: TcfReassessmentEligibilityDto,
+): string | null {
+    return e.triggeredByPlan
+        ? "Vous avez terminé une priorité de votre plan : votre réévaluation est ouverte dès maintenant."
+        : null;
+}
+
+/** Le symbole d'une évolution. `INCONNUE` n'en a **aucun** — rien à montrer. */
+export function evolutionSymbole(e: NiveauEvolution): string | null {
+    switch (e) {
+        case "HAUSSE":
+            return "↑";
+        case "BAISSE":
+            return "↓";
+        case "STABLE":
+            return "=";
+        case "INCONNUE":
+            return null;
+    }
+}
+
+/**
+ * « ↑ depuis A2 », « = », ou rien.
+ *
+ * 🛑 **`INCONNUE` ne rend jamais « = ».** L'épreuve n'était pas évaluée d'un
+ * côté ou de l'autre : il n'y a pas de comparaison à annoncer, et « = » se
+ * lirait « vous avez tenu votre niveau ».
+ */
+export function evolutionLabel(
+    evolution: NiveauEvolution,
+    avant: NiveauCecrl | null,
+): string | null {
+    switch (evolution) {
+        case "HAUSSE":
+            return avant ? `↑ depuis ${avant}` : "↑";
+        case "BAISSE":
+            return avant ? `↓ depuis ${avant}` : "↓";
+        case "STABLE":
+            return "=";
+        case "INCONNUE":
+            return null;
+    }
+}
+
+/** Le titre du bloc de progression, honnête dans les trois sens. */
+export function progressionTitle(evolution: NiveauEvolution): string {
+    switch (evolution) {
+        case "HAUSSE":
+            return "Votre niveau a progressé";
+        case "BAISSE":
+            return "Votre niveau a baissé";
+        case "STABLE":
+            return "Votre niveau est stable";
+        case "INCONNUE":
+            return "Depuis votre dernier diagnostic";
+    }
+}
+
+/** « 12 mars ». Le jour, sans heure : une date d'examen n'est pas un instant. */
+export function formatJourCourt(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const mois = [
+        "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    ];
+    return `${d.getDate()} ${mois[d.getMonth()]}`;
+}

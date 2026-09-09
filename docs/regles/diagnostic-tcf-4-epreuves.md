@@ -134,6 +134,50 @@ toujours** et les autres restent « non évaluée » : le candidat peut demander
 résultat sur ce qui existe. Rien n'est détruit — d'où l'absence d'un état
 `EXPIRE`, qui laisserait croire à une perte.
 
+## La boucle de réévaluation (L7)
+
+Trois portes, et **leur nature compte** :
+
+| # | Porte | `locked` ? | Ce qui l'ouvre |
+|---|---|:--:|---|
+| 1 | Le premier diagnostic | non | rien — il est offert, sans condition |
+| 2 | Accès TCF | **oui** | l'achat. C'est la porte commerciale |
+| 3 | Délai minimal entre deux passations (14 j) | non | le temps, **ou** une priorité du Plan terminée |
+
+🛑 **La porte 3 n'est pas un cadenas.** Payer ne l'ouvre pas, et l'écran ne doit
+jamais y afficher un CTA d'achat. Sans ce délai, une réévaluation à volonté ne
+mesurerait plus une progression — juste le bruit de deux passations rapprochées.
+
+🛑 **La porte 2 ne verrouille jamais le résultat déjà obtenu.** Le paywall porte
+sur la nouvelle mesure, jamais sur le constat rendu (`10_` §4.5).
+
+**Le déclencheur produit**, et c'est tout ce que L7 ajoute au moteur : une
+**étape franchie** depuis le dernier diagnostic ouvre la porte 3 **avant** son
+terme (`10_` §4.6 : « ou déclenchée par le plan quand une priorité est
+terminée »). Le candidat qui a réellement fait progresser une compétence
+n'attend pas quatorze jours pour le vérifier ; celui qui n'a rien fait attend.
+La notion d'étape franchie n'est **pas** redéfinie : elle est lue chez
+`LearningPlanPriorityResolver.franchies`, la même que celle qui coche les étapes
+du Plan.
+
+**Une seule autorité** : `TcfReassessmentService` sert `GET
+/api/tcf-diagnostics/eligibility` **et** garde `POST /api/tcf-diagnostics`. Le
+message du refus et celui de l'écran sont le même objet — verrouillé par
+`TcfDiagnosticServiceIT.eligibiliteEtRefusSontDaccord`.
+
+**La comparaison** (`TcfDiagnosticProgressionResolver`, pur) accompagne le
+résultat d'une réévaluation. Elle rend un sens de variation par épreuve et pour
+le palier global.
+
+🛑 **`INCONNUE` n'est pas `STABLE`.** Une épreuve non évaluée d'un côté ou de
+l'autre n'est pas comparable : afficher « = » dessus se lirait « vous avez tenu
+votre niveau » alors que personne n'a rien mesuré. C'est l'incident
+V040/V041/V042 sous un autre déguisement.
+
+🛑 **`BAISSE` existe et se sert.** Masquer une baisse rendrait invendable
+exactement ce qu'une réévaluation payante promet de mesurer. La façon de le dire
+appartient aux fronts ; le fait appartient au serveur.
+
 ## Configuration
 
 `sejourfr.tcf-diagnostic` dans `application.yaml`, miroir exact de

@@ -149,6 +149,14 @@ class _TcfDiagnosticResultScreenState
         ),
         const SizedBox(height: 16),
 
+        // 1 bis — ce qui a bougé depuis le diagnostic précédent (L7).
+        // 🛑 Absent au premier diagnostic : `progression` vaut alors `null`, et
+        // on n'affiche pas un bloc vide.
+        if (r.progression != null) ...[
+          _ProgressionCard(progression: r.progression!),
+          const SizedBox(height: 16),
+        ],
+
         // 2 — le niveau par épreuve.
         Text('Votre niveau par épreuve',
             style: AppFonts.display(size: 18, color: AppColors.ink)),
@@ -241,6 +249,65 @@ class _TcfDiagnosticResultScreenState
             textAlign: TextAlign.center,
             style: AppFonts.ui(size: 12, color: AppColors.inkFaint)),
       ],
+    );
+  }
+}
+
+/// Le bloc de progression (L7) : d'où à où, épreuve par épreuve.
+///
+/// 🛑 **Sobre.** C'est une mesure, pas une célébration, et il doit rester
+/// lisible quand elle baisse.
+class _ProgressionCard extends StatelessWidget {
+  const _ProgressionCard({required this.progression});
+
+  final TcfDiagnosticProgressionDto progression;
+
+  @override
+  Widget build(BuildContext context) {
+    final quand = progression.previousCompletedAt;
+    final avant = progression.previousNiveauGlobal;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(progressionTitle(progression.niveauGlobal),
+              style: AppFonts.display(size: 17, color: AppColors.ink)),
+          const SizedBox(height: 4),
+          Text(
+            'Diagnostic du ${quand == null ? 'précédent' : formatJourCourt(quand)}'
+            '${avant == null ? '' : ' — niveau estimé ${avant.wire}'}',
+            style: AppFonts.label(size: 11, color: AppColors.inkFaint),
+          ),
+          const SizedBox(height: 10),
+          for (final e in progression.epreuves)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Text(epreuvePresentation(e.epreuve).icon,
+                      style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(epreuvePresentation(e.epreuve).label,
+                        style: AppFonts.ui(size: 14, color: AppColors.ink)),
+                  ),
+                  // 🛑 `inconnue` n'affiche RIEN de comparatif : « = » se
+                  // lirait « vous avez tenu votre niveau » alors que rien n'a
+                  // été comparé.
+                  Text(
+                    evolutionLabel(e.evolution, e.avant) ?? kNiveauNonEvalue,
+                    style: AppFonts.label(
+                      size: 12,
+                      color: e.evolution == NiveauEvolution.hausse
+                          ? AppColors.blueDark
+                          : AppColors.inkFaint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

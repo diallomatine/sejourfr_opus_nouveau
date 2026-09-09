@@ -29,6 +29,7 @@ import type {
   PublicDiagnosticResponse,
   TcfDiagnosticDto,
   TcfDiagnosticResultDto,
+  TcfReassessmentEligibilityDto,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
@@ -886,6 +887,22 @@ export const tcfDiagnosticApi = {
     readResult(sessionId: string): Promise<TcfDiagnosticResultDto> {
         return apiFetch<TcfDiagnosticResultDto>(
             `/api/tcf-diagnostics/${sessionId}/result`, {auth: true},
+        );
+    },
+
+    /**
+     * **Peut-il relancer, et sinon pourquoi ?** (L7)
+     *
+     * 🛑 C'est la seule façon correcte de le savoir. Ne jamais le déduire d'un
+     * `completedAt` ni recompter les 14 jours ici : la règle a une seule
+     * autorité, et elle est serveur.
+     *
+     * Jamais 204 — un candidat sans aucun diagnostic reçoit
+     * `{first: true, canStart: true}`.
+     */
+    eligibility(): Promise<TcfReassessmentEligibilityDto> {
+        return apiFetch<TcfReassessmentEligibilityDto>(
+            "/api/tcf-diagnostics/eligibility", {auth: true},
         );
     },
 };

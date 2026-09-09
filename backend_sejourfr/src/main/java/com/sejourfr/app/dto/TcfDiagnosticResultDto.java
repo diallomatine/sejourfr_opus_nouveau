@@ -26,7 +26,15 @@ public record TcfDiagnosticResultDto(
         List<TcfDiagnosticPriorityDto> priorites,
         /** Epreuves deja au niveau cible — le bloc « Deja au niveau attendu ». */
         List<EpreuveNiveau> dejaAuNiveau,
-        Instant completedAt
+        Instant completedAt,
+        /**
+         * <b>Ce qui a bouge depuis le diagnostic precedent</b> (L7).
+         *
+         * <p>🛑 <b>{@code null} est le cas NORMAL</b> : c'est le premier
+         * diagnostic, il n'y a rien a comparer. L'ecran n'affiche alors aucun
+         * bloc de progression — il n'en fabrique pas un vide.
+         */
+        TcfDiagnosticProgressionDto progression
 ) {
     /** Le niveau d'une epreuve. {@code niveau} nul = non evaluee. */
     public record EpreuveNiveau(

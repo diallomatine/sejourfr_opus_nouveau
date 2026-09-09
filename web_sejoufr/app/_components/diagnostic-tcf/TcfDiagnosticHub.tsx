@@ -17,6 +17,7 @@
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {EPREUVE_PRESENTATION, minutesLabel, EO_PAR_TACHE_LABEL} from "@/lib/exam-durations";
 import {
     TCF_DIAGNOSTIC_ESTIMATION_NOTE,
@@ -24,17 +25,31 @@ import {
     TCF_DIAGNOSTIC_REPRISE_ECOULEE,
     TCF_DIAGNOSTIC_RESULT_NOTE,
     TCF_DIAGNOSTIC_SECTION_WARNING,
+    TCF_DIAGNOSTIC_DEBLOQUER_CTA,
+    TCF_DIAGNOSTIC_DEJA_FAIT_TITLE,
+    TCF_DIAGNOSTIC_MESURER_TITLE,
+    TCF_DIAGNOSTIC_REEVALUER_CTA,
     TCF_DIAGNOSTIC_SUBTITLE,
     TCF_DIAGNOSTIC_TITLE,
+    TCF_DIAGNOSTIC_VOIR_CTA,
+    declencheParLePlanLine,
+    derniereMesureLine,
     joursRestants,
     progressionLabel,
     resultatDisponible,
     sectionCtaLabel,
     sectionEtatLabel,
+    reevaluationPitch,
+    reevaluationRegleLine,
     sectionHref,
     sectionIndisponible,
 } from "@/lib/tcf-diagnostic";
-import type {EpreuveType, TcfDiagnosticDto, TcfDiagnosticSectionDto} from "@/lib/types";
+import type {
+    EpreuveType,
+    TcfDiagnosticDto,
+    TcfDiagnosticSectionDto,
+    TcfReassessmentEligibilityDto,
+} from "@/lib/types";
 
 type Etat =
     | {kind: "loading"}
@@ -46,10 +61,25 @@ export function TcfDiagnosticHub() {
     const router = useRouter();
     const [etat, setEtat] = useState<Etat>({kind: "loading"});
     const [action, setAction] = useState(false);
+    /**
+     * L'éligibilité **servie** (L7). 🛑 Elle n'est jamais déduite du diagnostic
+     * : le serveur connaît aussi la dérogation du Plan, que cet écran ne voit
+     * pas. `null` = pas encore chargée, ou l'appel a échoué — l'écran dégrade
+     * alors vers ce qu'il sait, il n'invente aucun droit.
+     */
+    const [eligibilite, setEligibilite] =
+        useState<TcfReassessmentEligibilityDto | null>(null);
+    const [paywall, setPaywall] = useState(false);
 
     const charger = useCallback(async () => {
         try {
-            const courant = await tcfDiagnosticApi.current();
+            // L'éligibilité est **best-effort** : son échec ne doit pas priver
+            // le candidat de son diagnostic.
+            const [courant, elig] = await Promise.all([
+                tcfDiagnosticApi.current(),
+                tcfDiagnosticApi.eligibility().catch(() => null),
+            ]);
+            setEligibilite(elig);
             setEtat(courant ? {kind: "pret", diagnostic: courant} : {kind: "absent"});
         } catch (e) {
             setEtat({
@@ -178,6 +208,23 @@ export function TcfDiagnosticHub() {
     }
 
     const d = etat.diagnostic;
+
+    // T11 (`30_` §5.6) — un diagnostic CLOS n'affiche pas quatre sections
+    // « Terminée » : il affiche ce qu'il a mesuré, et la porte de réévaluation.
+    if (d.status === "COMPLETED") {
+        return (
+            <DiagnosticDejaFait
+                eligibilite={eligibilite}
+                busy={action}
+                onVoir={() => router.push(`/diagnostic-tcf/${d.sessionId}/resultat`)}
+                onRelancer={() => void ouvrir()}
+                onPaywall={() => setPaywall(true)}
+                paywallOpen={paywall}
+                onPaywallClose={() => setPaywall(false)}
+            />
+        );
+    }
+
     const jours = joursRestants(d.expiresAt);
 
     return (
@@ -227,6 +274,107 @@ export function TcfDiagnosticHub() {
             )}
 
             <p className="tcfd-fine">{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
+            <Styles />
+        </section>
+    );
+}
+
+/**
+ * T11 — « Votre diagnostic initial a déjà été réalisé » (`30_` §5.6).
+ *
+ * 🛑 **Le résultat existant n'est jamais bloqué.** Le paywall porte sur la
+ * nouvelle mesure, jamais sur le constat déjà rendu (`10_` §4.5) : « Voir mon
+ * diagnostic » est toujours le CTA principal.
+ *
+ * 🛑 **Rien n'est décidé ici.** `canStart`, `locked` et le `message` arrivent
+ * servis ; sans eux (appel en échec), on n'affiche que le constat — on ne
+ * fabrique pas un bouton dont on ignore s'il sera accepté.
+ */
+function DiagnosticDejaFait({
+    eligibilite,
+    busy,
+    onVoir,
+    onRelancer,
+    onPaywall,
+    paywallOpen,
+    onPaywallClose,
+}: {
+    eligibilite: TcfReassessmentEligibilityDto | null;
+    busy: boolean;
+    onVoir: () => void;
+    onRelancer: () => void;
+    onPaywall: () => void;
+    paywallOpen: boolean;
+    onPaywallClose: () => void;
+}) {
+    const derniere = eligibilite ? derniereMesureLine(eligibilite) : null;
+    const parLePlan = eligibilite ? declencheParLePlanLine(eligibilite) : null;
+
+    return (
+        <section className="tcfd">
+            <header className="tcfd-head">
+                <h1>{TCF_DIAGNOSTIC_DEJA_FAIT_TITLE}</h1>
+                {derniere && <p className="tcfd-lead">{derniere}</p>}
+            </header>
+
+            <button type="button" className="btn btn-lg" onClick={onVoir}>
+                {TCF_DIAGNOSTIC_VOIR_CTA}
+            </button>
+
+            {eligibilite && (
+                <div className="tcfd-reeval">
+                    <p className="tcfd-reeval-title">{TCF_DIAGNOSTIC_MESURER_TITLE}</p>
+
+                    {eligibilite.locked && (
+                        <>
+                            <p className="tcfd-reeval-pitch">
+                                {reevaluationPitch(eligibilite, null)}
+                            </p>
+                            <button type="button" className="btn" onClick={onPaywall}>
+                                {TCF_DIAGNOSTIC_DEBLOQUER_CTA}
+                            </button>
+                        </>
+                    )}
+
+                    {!eligibilite.locked && eligibilite.canStart && (
+                        <>
+                            {parLePlan && <p className="tcfd-reeval-pitch">{parLePlan}</p>}
+                            <button
+                                type="button"
+                                className="btn"
+                                disabled={busy}
+                                onClick={onRelancer}
+                            >
+                                {TCF_DIAGNOSTIC_REEVALUER_CTA}
+                            </button>
+                        </>
+                    )}
+
+                    {/* Délai non écoulé : ce n'est pas un cadenas, et l'écran ne
+                        doit pas le présenter comme tel — aucun CTA d'achat ici. */}
+                    {!eligibilite.locked && !eligibilite.canStart && eligibilite.message && (
+                        <p className="tcfd-avis" role="status">
+                            {eligibilite.message}
+                        </p>
+                    )}
+
+                    <p className="tcfd-fine">{reevaluationRegleLine(eligibilite)}</p>
+                </div>
+            )}
+
+            <p className="tcfd-fine">{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
+
+            <PaywallSheet
+                open={paywallOpen}
+                onClose={onPaywallClose}
+                module="INTEGRAL"
+                ctaLocation="DIAGNOSTIC_REPORT"
+                screen="diagnostic_tcf_reevaluation"
+                title={TCF_DIAGNOSTIC_MESURER_TITLE}
+                message={
+                    eligibilite ? reevaluationPitch(eligibilite, null) : undefined
+                }
+            />
             <Styles />
         </section>
     );
@@ -348,6 +496,27 @@ function Styles() {
                 padding: 12px 14px;
                 margin: 0;
                 font-size: 14px;
+            }
+            /* Le bloc de réévaluation (L7). Il vit sous le CTA principal :
+               le constat déjà rendu passe toujours avant la nouvelle mesure. */
+            .tcfd-reeval {
+                border: 1px solid var(--color-line);
+                border-radius: 16px;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .tcfd-reeval-title {
+                font-family: var(--font-display);
+                font-size: 18px;
+                color: var(--color-ink);
+                margin: 0;
+            }
+            .tcfd-reeval-pitch {
+                color: var(--color-muted);
+                font-size: 14px;
+                margin: 0;
             }
             .tcfd-error {
                 background: var(--color-red-light);

@@ -11,12 +11,10 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
-import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
-import com.sejourfr.app.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,7 +46,7 @@ public class TcfDiagnosticService {
     private final TcfDiagnosticSessionManager sessionManager;
     private final AttemptManager attemptManager;
     private final UserManager userManager;
-    private final SubscriptionService subscriptionService;
+    private final TcfReassessmentService reassessmentService;
     private final TcfDiagnosticSectionStarter sectionStarter;
     private final TcfDiagnosticReadService readService;
     private final TcfDiagnosticProperties props;
@@ -109,29 +107,13 @@ public class TcfDiagnosticService {
     /**
      * Le candidat a-t-il le droit d'ouvrir un NOUVEAU diagnostic ?
      *
-     * <p>Le message est celui que l'ecran affiche : il nomme la raison, jamais
-     * un refus technique.
+     * <p>🛑 <b>Delegue a {@link TcfReassessmentService}</b> depuis L7, et ce
+     * n'est pas cosmetique : la meme regle sert desormais l'ecran (qui annonce
+     * ce qui est possible) et ce garde (qui refuse). Tant qu'elle vivait ici,
+     * l'ecran n'avait aucun moyen de la connaitre sans la recalculer.
      */
     private void assertPeutOuvrirUnNouveau(UUID userId) {
-        long deja = sessionManager.countByUser(userId);
-        if (deja == 0) {
-            return; // Le premier est offert, sans condition.
-        }
-        if (!subscriptionService.hasTcf(userId)) {
-            throw new BusinessException(
-                    "Votre diagnostic initial a déjà été réalisé. "
-                            + "Passez Premium pour réévaluer votre niveau et mesurer votre progression.");
-        }
-        Instant plusRecent = sessionManager.findLatest(userId)
-                .map(TcfDiagnosticSession::getStartedAt)
-                .orElse(Instant.EPOCH);
-        Instant ouvrableA = plusRecent.plus(props.getReevaluation());
-        if (Instant.now().isBefore(ouvrableA)) {
-            long jours = java.time.Duration.between(Instant.now(), ouvrableA).toDays() + 1;
-            throw new BusinessException(
-                    "Une réévaluation est possible tous les " + props.getReevaluation().toDays()
-                            + " jours. Vous pourrez en relancer une dans " + jours + " jour(s).");
-        }
+        reassessmentService.assertPeutOuvrirUnNouveau(userId);
     }
 
     private Attempt creerParent(User user, Instant now) {

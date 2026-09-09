@@ -34,6 +34,23 @@ public class TcfDiagnosticSessionManager {
         return repository.findByUserOrderByStartedAtDesc(userId);
     }
 
+    /**
+     * Le diagnostic <b>clos</b> qui precede {@code session}, le plus recent
+     * d'abord. Sert a la comparaison de la boucle de reevaluation (L7).
+     *
+     * <p>Un diagnostic encore en cours n'est jamais un point de comparaison :
+     * ses sections non faites rendraient des paliers nuls, et « non evaluee »
+     * n'est pas un niveau d'ou l'on progresse.
+     */
+    public Optional<TcfDiagnosticSession> findPreviousCompleted(
+            UUID userId, TcfDiagnosticSession session) {
+        return repository.findByUserOrderByStartedAtDesc(userId).stream()
+                .filter(d -> !d.getId().equals(session.getId()))
+                .filter(d -> d.getCompletedAt() != null)
+                .filter(d -> d.getStartedAt().isBefore(session.getStartedAt()))
+                .findFirst();
+    }
+
     public long countByUser(UUID userId) {
         return repository.countByUserId(userId);
     }

@@ -2,6 +2,7 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.TcfDiagnosticDto;
 import com.sejourfr.app.dto.TcfDiagnosticResultDto;
+import com.sejourfr.app.dto.TcfReassessmentEligibilityDto;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
@@ -9,6 +10,7 @@ import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticSectionStarter;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticViewService;
+import com.sejourfr.app.service.diagnostictcf.TcfReassessmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +41,7 @@ public class TcfDiagnosticController {
     private final TcfDiagnosticService service;
     private final TcfDiagnosticViewService viewService;
     private final TcfDiagnosticSectionStarter sectionStarter;
+    private final TcfReassessmentService reassessmentService;
     private final CurrentUser currentUser;
 
     /**
@@ -61,6 +64,23 @@ public class TcfDiagnosticController {
                 .map(viewService::vue)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * <b>Peut-il relancer, et sinon pourquoi ?</b> — la boucle de reevaluation
+     * (10_ §4.6), servie a l'ecran T11 (30_ §5.6).
+     *
+     * <p>🛑 <b>Elle existe pour que les fronts cessent de deviner.</b> Avant
+     * L7, savoir si une reevaluation etait possible exigeait de la tenter et de
+     * lire un 400 — donc, en pratique, de recalculer les 14 jours cote client.
+     * Cette route et le garde d'ouverture lisent le <b>meme</b> calcul.
+     *
+     * <p>Jamais 204 : un candidat sans aucun diagnostic recoit
+     * {@code first=true, canStart=true}, ce qui est une reponse, pas un vide.
+     */
+    @GetMapping("/eligibility")
+    public TcfReassessmentEligibilityDto eligibilite() {
+        return reassessmentService.eligibilite(currentUser.getId());
     }
 
     @GetMapping("/{id}")

@@ -153,7 +153,19 @@ blanc.
   le diagnostic. N'exige **pas** les 4 sections : passé le délai de reprise, on
   calcule sur les sections réalisées, les autres restant « non évaluée ».
 - `GET /api/tcf-diagnostics/{id}/result` — relire un résultat sans rien
-  reclôturer.
+  reclôturer. Depuis L7, la réponse porte `progression` : la comparaison au
+  diagnostic clos précédent. 🛑 **`null` est le cas normal** (premier
+  diagnostic), et une épreuve non évaluée d'un côté rend `INCONNUE`, jamais
+  `STABLE`.
+- `GET /api/tcf-diagnostics/eligibility` → `TcfReassessmentEligibilityDto`
+  (**L7**). « Peut-il relancer, et sinon pourquoi ? » — jamais 204 : sans aucun
+  diagnostic la réponse est `{first: true, canStart: true}`.
+  🛑 **C'est la seule façon correcte de le savoir.** Le même calcul sert cette
+  route **et** le garde d'ouverture de `POST /api/tcf-diagnostics` : un front
+  qui recompterait les 14 jours afficherait tôt ou tard un bouton que le serveur
+  refuse — et il ne peut de toute façon pas voir la dérogation du Plan.
+  `locked` vaut strictement `blocker == PREMIUM_REQUIRED` : un délai non écoulé
+  n'est pas un cadenas, payer ne l'ouvre pas.
 
 **La passation ne passe pas par ces routes** : les sections QCM répondent sur
 `/api/attempts/{id}/answers`, les productions sur `/api/production-submissions`

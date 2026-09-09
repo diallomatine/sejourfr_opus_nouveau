@@ -3,14 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/models/billing_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
+import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
 import 'tcf_diagnostic_labels.dart';
 
@@ -34,6 +37,14 @@ class TcfDiagnosticScreen extends ConsumerStatefulWidget {
 
 class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
   TcfDiagnosticDto? _diagnostic;
+
+  /// L'éligibilité **servie** (L7).
+  ///
+  /// 🛑 Elle n'est jamais déduite du diagnostic : le serveur connaît aussi la
+  /// dérogation du Plan, que cet écran ne voit pas. `null` = pas encore
+  /// chargée, ou l'appel a échoué — l'écran dégrade alors vers ce qu'il sait,
+  /// il n'invente aucun droit.
+  TcfReassessmentEligibilityDto? _eligibilite;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -50,10 +61,17 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
       _error = null;
     });
     try {
-      final courant = await ref.read(tcfDiagnosticRepositoryProvider).current();
+      final repo = ref.read(tcfDiagnosticRepositoryProvider);
+      // L'éligibilité est **best-effort** : son échec ne doit pas priver le
+      // candidat de son diagnostic.
+      final resultats = await Future.wait<Object?>([
+        repo.current(),
+        repo.eligibility().then<Object?>((e) => e).catchError((_) => null),
+      ]);
       if (!mounted) return;
       setState(() {
-        _diagnostic = courant;
+        _diagnostic = resultats[0] as TcfDiagnosticDto?;
+        _eligibilite = resultats[1] as TcfReassessmentEligibilityDto?;
         _loading = false;
       });
     } catch (e) {
@@ -176,7 +194,93 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
       return _ErreurView(message: _error!, onRetry: _load);
     }
     final d = _diagnostic;
-    return d == null ? _amorce() : _sections(d);
+    if (d == null) return _amorce();
+    // T11 (`30_` §5.6) — un diagnostic CLOS n'affiche pas quatre sections
+    // « Terminée » : il affiche ce qu'il a mesuré, et la porte de réévaluation.
+    if (d.status == TcfDiagnosticStatus.completed) return _dejaFait(d);
+    return _sections(d);
+  }
+
+  /// T11 — « Votre diagnostic initial a déjà été réalisé ».
+  ///
+  /// 🛑 **Le résultat existant n'est jamais bloqué.** Le paywall porte sur la
+  /// nouvelle mesure, jamais sur le constat déjà rendu (`10_` §4.5) : « Voir
+  /// mon diagnostic » reste le CTA principal.
+  ///
+  /// 🛑 **Rien n'est décidé ici.** Sans éligibilité servie (appel en échec), on
+  /// n'affiche que le constat — on ne fabrique pas un bouton dont on ignore
+  /// s'il sera accepté.
+  Widget _dejaFait(TcfDiagnosticDto d) {
+    final e = _eligibilite;
+    final derniere = e == null ? null : derniereMesureLine(e);
+    final parLePlan = e == null ? null : declencheParLePlanLine(e);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        Text(kTcfDiagnosticDejaFaitTitle,
+            style: AppFonts.display(size: 22, color: AppColors.ink)),
+        if (derniere != null) ...[
+          const SizedBox(height: 8),
+          Text(derniere,
+              style: AppFonts.ui(size: 14, color: AppColors.inkSoft)),
+        ],
+        const SizedBox(height: 16),
+        AppButton(
+          label: kTcfDiagnosticVoirCta,
+          onPressed: () => context.push('/diagnostic-tcf/${d.sessionId}/resultat'),
+        ),
+        if (e != null) ...[
+          const SizedBox(height: 16),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kTcfDiagnosticMesurerTitle,
+                    style: AppFonts.display(size: 17, color: AppColors.ink)),
+                const SizedBox(height: 8),
+                if (e.locked) ...[
+                  Text(reevaluationPitch(e, null),
+                      style: AppFonts.ui(size: 14, color: AppColors.inkSoft)),
+                  const SizedBox(height: 12),
+                  AppButton(
+                    label: kTcfDiagnosticDebloquerCta,
+                    onPressed: () => showPaywallSheet(
+                      context,
+                      ref: ref,
+                      initialTarget: PlanModuleTarget.integral,
+                      ctaLocation: AnalyticsCtaLocation.diagnosticReport,
+                    ),
+                  ),
+                ] else if (e.canStart) ...[
+                  if (parLePlan != null) ...[
+                    Text(parLePlan,
+                        style: AppFonts.ui(size: 14, color: AppColors.inkSoft)),
+                    const SizedBox(height: 12),
+                  ],
+                  AppButton(
+                    label: kTcfDiagnosticReevaluerCta,
+                    onPressed: _busy ? null : _ouvrir,
+                    isLoading: _busy,
+                  ),
+                ] else if (e.message != null)
+                  // Délai non écoulé : ce n'est pas un cadenas, et l'écran ne
+                  // doit pas le présenter comme tel — aucun CTA d'achat ici.
+                  Text(e.message!,
+                      style: AppFonts.ui(size: 14, color: AppColors.blueDark)),
+                const SizedBox(height: 10),
+                Text(reevaluationRegleLine(e),
+                    style: AppFonts.ui(size: 12, color: AppColors.inkFaint)),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        Text(kTcfDiagnosticEstimationNote,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 12, color: AppColors.inkFaint)),
+      ],
+    );
   }
 
   /// Aucun diagnostic ouvert : on montre ce qui attend, puis on propose.

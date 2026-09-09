@@ -128,3 +128,93 @@ String rassuranceText(NiveauCecrl? cible) => cible == null
 ///
 /// Miroir de `TCF_DIAGNOSTIC_PARAM` (`web_sejoufr/lib/tcf-diagnostic.ts`).
 const String kTcfDiagnosticParam = 'tcfDiagnosticId';
+
+// ----------------------------------------------------------------------------
+// L7 — LA BOUCLE DE RÉÉVALUATION
+//
+// 🛑 **Rien ici ne décide.** `canStart`, `locked`, `daysUntilAvailable` et le
+// `message` arrivent servis ; ces fonctions ne font que les mettre en mots. Ne
+// jamais recompter les 14 jours depuis `lastCompletedAt` : le serveur connaît
+// aussi la dérogation du Plan, que le mobile ne peut pas voir.
+//
+// Miroir mot pour mot de `web_sejoufr/lib/tcf-diagnostic.ts`.
+// ----------------------------------------------------------------------------
+
+/// T11 — l'écran « Diagnostic déjà réalisé » (`30_` §5.6).
+const String kTcfDiagnosticDejaFaitTitle =
+    'Votre diagnostic initial a déjà été réalisé';
+const String kTcfDiagnosticVoirCta = 'Voir mon diagnostic';
+const String kTcfDiagnosticReevaluerCta = 'Réévaluer mon niveau';
+const String kTcfDiagnosticDebloquerCta = 'Débloquer ma réévaluation';
+const String kTcfDiagnosticMesurerTitle = 'Mesurer votre progression';
+
+/// « Vous l'avez passé le 12 mars. Votre niveau estimé était B1. »
+///
+/// 🛑 Sans niveau mesuré, on ne l'annonce pas : `null` = non évalué, jamais A1.
+String? derniereMesureLine(TcfReassessmentEligibilityDto e) {
+  final quand = e.lastCompletedAt;
+  if (quand == null) return null;
+  final jour = formatJourCourt(quand);
+  final niveau = e.lastNiveauGlobal;
+  return niveau == null
+      ? 'Vous l\'avez passé le $jour.'
+      : 'Vous l\'avez passé le $jour. Votre niveau estimé était ${niveau.wire}.';
+}
+
+/// Ce que le bloc Premium promet, contextualisé par ce qui a été mesuré.
+String reevaluationPitch(
+  TcfReassessmentEligibilityDto e,
+  NiveauCecrl? cible,
+) {
+  final actuel = e.lastNiveauGlobal;
+  if (actuel != null && cible != null && actuel != cible) {
+    return 'Avec Premium, réévaluez votre niveau et vérifiez que vous êtes '
+        'réellement passé de ${actuel.wire} à ${cible.wire}.';
+  }
+  return 'Avec Premium, réévaluez votre niveau et mesurez votre progression.';
+}
+
+/// La règle, dite au candidat. Elle est **servie** : ce fichier ne connaît pas
+/// le nombre 14, et c'est voulu.
+String reevaluationRegleLine(TcfReassessmentEligibilityDto e) =>
+    'Une réévaluation est possible tous les ${e.intervalDays} jours.';
+
+/// Pourquoi la réévaluation est ouverte **avant** le délai. `null` sinon : on
+/// n'invente pas une bonne nouvelle.
+String? declencheParLePlanLine(TcfReassessmentEligibilityDto e) =>
+    e.triggeredByPlan
+        ? 'Vous avez terminé une priorité de votre plan : votre réévaluation '
+            'est ouverte dès maintenant.'
+        : null;
+
+/// « ↑ depuis A2 », « = », ou `null`.
+///
+/// 🛑 **`inconnue` ne rend jamais « = ».** L'épreuve n'était pas évaluée d'un
+/// côté ou de l'autre : il n'y a pas de comparaison à annoncer, et « = » se
+/// lirait « vous avez tenu votre niveau ».
+String? evolutionLabel(NiveauEvolution evolution, NiveauCecrl? avant) =>
+    switch (evolution) {
+      NiveauEvolution.hausse =>
+        avant == null ? '↑' : '↑ depuis ${avant.wire}',
+      NiveauEvolution.baisse =>
+        avant == null ? '↓' : '↓ depuis ${avant.wire}',
+      NiveauEvolution.stable => '=',
+      NiveauEvolution.inconnue => null,
+    };
+
+/// Le titre du bloc de progression, honnête dans les trois sens.
+String progressionTitle(NiveauEvolution evolution) => switch (evolution) {
+      NiveauEvolution.hausse => 'Votre niveau a progressé',
+      NiveauEvolution.baisse => 'Votre niveau a baissé',
+      NiveauEvolution.stable => 'Votre niveau est stable',
+      NiveauEvolution.inconnue => 'Depuis votre dernier diagnostic',
+    };
+
+/// « 12 mars ». Le jour, sans heure : une date d'examen n'est pas un instant.
+String formatJourCourt(DateTime d) {
+  const mois = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+  ];
+  return '${d.day} ${mois[d.month - 1]}';
+}

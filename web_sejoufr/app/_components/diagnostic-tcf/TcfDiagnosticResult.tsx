@@ -26,7 +26,10 @@ import {
     TCF_DIAGNOSTIC_PLAN_CTA,
     TCF_DIAGNOSTIC_RASSURANCE_TITLE,
     blocageTitle,
+    evolutionLabel,
+    formatJourCourt,
     prioriteTitle,
+    progressionTitle,
     railLevel,
     rassuranceText,
 } from "@/lib/tcf-diagnostic";
@@ -111,6 +114,52 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
                     </p>
                 )}
             </header>
+
+            {/* 1 bis — ce qui a bougé depuis le diagnostic précédent (L7).
+                🛑 Absent au premier diagnostic : `progression` vaut alors
+                `null`, et on n'affiche pas un bloc vide. */}
+            {r.progression && (
+                <div className="tcfr-progression">
+                    <p className="tcfr-progression-title">
+                        {progressionTitle(r.progression.niveauGlobal)}
+                    </p>
+                    <p className="tcfr-progression-meta">
+                        Diagnostic du{" "}
+                        {r.progression.previousCompletedAt
+                            ? formatJourCourt(r.progression.previousCompletedAt)
+                            : "précédent"}
+                        {r.progression.previousNiveauGlobal
+                            ? ` — niveau estimé ${r.progression.previousNiveauGlobal}`
+                            : ""}
+                    </p>
+                    <ul className="tcfr-progression-list">
+                        {r.progression.epreuves.map((e) => {
+                            const p =
+                                EPREUVE_PRESENTATION[
+                                    e.epreuve as keyof typeof EPREUVE_PRESENTATION
+                                ];
+                            const label = evolutionLabel(e.evolution, e.avant);
+                            return (
+                                <li key={e.epreuve}>
+                                    <span aria-hidden>{p?.icon}</span>
+                                    <span className="tcfr-progression-label">
+                                        {p?.label ?? e.epreuve}
+                                    </span>
+                                    <span
+                                        className="tcfr-progression-evo"
+                                        data-evolution={e.evolution}
+                                    >
+                                        {/* 🛑 INCONNUE n'affiche RIEN : « = » se
+                                            lirait « vous avez tenu votre niveau »
+                                            alors que rien n'a été comparé. */}
+                                        {label ?? NIVEAU_NON_EVALUE}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
 
             {/* 2 — le niveau par épreuve. */}
             <h2 className="tcfr-h2">Votre niveau par épreuve</h2>
@@ -248,6 +297,54 @@ function Styles() {
             .tcfr-manquant {
                 margin: 4px 0 0;
                 font-size: 13px;
+                color: var(--color-blue-dark);
+            }
+            /* Le bloc de progression (L7). Sobre : c'est une mesure, pas une
+               célébration — et il doit rester lisible quand elle baisse. */
+            .tcfr-progression {
+                border: 1px solid var(--color-line);
+                border-radius: 16px;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .tcfr-progression-title {
+                font-family: var(--font-display);
+                font-size: 18px;
+                color: var(--color-ink);
+                margin: 0;
+            }
+            .tcfr-progression-meta {
+                font-family: var(--font-mono);
+                font-size: 12px;
+                color: var(--color-muted-2);
+                margin: 0;
+            }
+            .tcfr-progression-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .tcfr-progression-list li {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+            }
+            .tcfr-progression-label {
+                flex: 1;
+                color: var(--color-ink);
+            }
+            .tcfr-progression-evo {
+                font-family: var(--font-mono);
+                font-size: 13px;
+                color: var(--color-muted);
+            }
+            .tcfr-progression-evo[data-evolution="HAUSSE"] {
                 color: var(--color-blue-dark);
             }
             .tcfr-h2 {
