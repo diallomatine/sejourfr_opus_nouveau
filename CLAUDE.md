@@ -260,6 +260,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | le Plan, une priorité, la séance, un jalon, une étape, le moteur de maîtrise, un domaine | `docs/regles/plan.md` |
 | le moteur de progression V4.2, une preuve, un palier CO/CE, un état pédagogique servi, `visibleProgress` | `docs/regles/progression.md` |
 | le diagnostic initial, le parcours invité→compte→analyse, l'écran de résultat du diagnostic | `docs/regles/diagnostic.md` |
+| le diagnostic TCF **4 épreuves**, ses sections, son calcul de niveau et ses priorités | `docs/regles/diagnostic-tcf-4-epreuves.md` |
 | une rubrique, un tool-schema, un filet/purge serveur, un coût LLM, le banc, l'examinateur vocal | `docs/regles/notation-ia.md` |
 | le module Compétences (micro-entraînement EE/EO), un petit sujet, une référence | `docs/regles/competences.md` |
 | un score QCM, un niveau CECRL dérivé, l'ordre des propositions, une explication qui cite des lettres | `docs/regles/qcm.md` |

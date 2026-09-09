@@ -84,6 +84,39 @@ public class AttemptCompositionService {
         return new ArrayList<>(picked);
     }
 
+    /**
+     * Compose une section de COMPREHENSION du diagnostic TCF : {@code perLevel}
+     * items par palier, soit 5 A2 + 5 B1 + 5 B2 = 15 par defaut (10_ §4.1).
+     *
+     * <p>🛑 <b>Ce n'est pas un examen blanc raccourci.</b> La repartition est
+     * EGALE entre paliers, la ou l'examen module suit 8/9/8 : le niveau du
+     * diagnostic se lit sur un <b>taux par palier</b>
+     * ({@code TcfDiagnosticLevelResolver}), et un palier sous-dote rendrait son
+     * taux beaucoup plus sensible a une seule erreur.
+     *
+     * <p>🛑 <b>Aucun repli hors palier.</b> {@code composeModuleExam} complete
+     * une strate creuse par un tirage libre, parce qu'un examen doit faire son
+     * compte. Ici ce serait nuisible : une question dont on ignore le palier ne
+     * peut entrer dans aucun taux. Le diagnostic sert donc <b>ce qui existe</b>,
+     * et le calcul ajuste ses denominateurs — c'est le mode degrade de 10_ §9,
+     * silencieux pour le candidat.
+     *
+     * @param deterministic tirage stable plutot qu'aleatoire (tests, rejeu)
+     */
+    public List<Question> composeDiagnosticComprehension(
+            QuestionType questionType, int perLevel, boolean deterministic) {
+        if (questionType != QuestionType.CO && questionType != QuestionType.CE) {
+            throw new IllegalArgumentException(
+                    "Le diagnostic ne tire que CO ou CE, pas " + questionType + ".");
+        }
+        LinkedHashSet<Question> picked = new LinkedHashSet<>();
+        List<UUID> exclude = new ArrayList<>();
+        for (Difficulty palier : List.of(Difficulty.A2, Difficulty.B1, Difficulty.B2)) {
+            addStrata(picked, exclude, Module.TCF, questionType, palier, perLevel, deterministic);
+        }
+        return new ArrayList<>(picked);
+    }
+
     private void addStrata(
             LinkedHashSet<Question> picked, List<UUID> exclude,
             Module module, QuestionType questionType, Difficulty difficulty, int count,

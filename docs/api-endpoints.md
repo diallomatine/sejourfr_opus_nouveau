@@ -130,6 +130,42 @@ Cf. `exams-tcf.md`.
 
 Cf. `pipeline-evaluation-eo-ee.md`.
 
+## Diagnostic TCF — 4 épreuves (L4)
+
+🛑 **Distinct de `/api/diagnostics`**, qui porte le diagnostic *initial* (une
+production écrite + une orale). Ce sont deux objets produit différents et `10_`
+§4.1 interdit de les confondre — comme il interdit d'appeler celui-ci un examen
+blanc.
+
+- `POST /api/tcf-diagnostics` → `TcfDiagnosticDto`. Ouvre un diagnostic, ou rend
+  celui déjà en cours. **Idempotent** : deux appuis sur « Commencer » ne créent
+  pas deux diagnostics. Le premier est offert ; les suivants sont une
+  réévaluation réservée aux abonnés TCF et espacée de 14 jours (configurable) —
+  sans ce délai, une réévaluation à volonté ne mesurerait plus une progression.
+- `GET /api/tcf-diagnostics/current` → `TcfDiagnosticDto`, ou **204** si le
+  candidat n'en a jamais ouvert. 🛑 Une lecture n'ouvre jamais un diagnostic par
+  effet de bord : l'ouverture est un geste, et elle consomme l'unique gratuit.
+- `GET /api/tcf-diagnostics/{id}` → l'état des 4 sections.
+- `POST /api/tcf-diagnostics/{id}/sections/{epreuve}/start` — pose l'ancre du
+  chrono de la section (`TCF_CO|TCF_CE|TCF_EE|TCF_EO`). Idempotent : rappelé, il
+  rend le temps réellement restant, il ne le remet pas à zéro.
+- `POST /api/tcf-diagnostics/{id}/result` → `TcfDiagnosticResultDto`, et clôture
+  le diagnostic. N'exige **pas** les 4 sections : passé le délai de reprise, on
+  calcule sur les sections réalisées, les autres restant « non évaluée ».
+- `GET /api/tcf-diagnostics/{id}/result` — relire un résultat sans rien
+  reclôturer.
+
+**La passation ne passe pas par ces routes** : les sections QCM répondent sur
+`/api/attempts/{id}/answers`, les productions sur `/api/production-submissions`
+avec l'`attemptId` de la section — exactement comme l'examen complet. Aucun
+pipeline n'est dupliqué.
+
+🛑 **`niveauGlobal` et le `niveau` d'une épreuve peuvent être `null`** : c'est
+« non évaluée », jamais le palier le plus bas. Une épreuve non évaluée est
+**exclue** du plancher global (A7) et doit être nommée à l'écran.
+🛑 **Aucun `locked` sur ces réponses** : le paywall porte sur le plan, jamais sur
+le constat (`10_` §4.5).
+
 ## Diagnostic initial TCF et Plan
 
 Parcours offert une fois par version et distinct d'un examen blanc : une EE

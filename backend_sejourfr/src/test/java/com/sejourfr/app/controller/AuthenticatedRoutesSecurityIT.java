@@ -60,6 +60,9 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/plan"),
                 Arguments.of(HttpMethod.GET, "/api/me/questions/favorites"),
                 Arguments.of(HttpMethod.PUT, "/api/me/exam-date"),
+                // TcfDiagnosticController — le diagnostic TCF 4 épreuves
+                Arguments.of(HttpMethod.POST, "/api/tcf-diagnostics"),
+                Arguments.of(HttpMethod.GET, "/api/tcf-diagnostics/current"),
                 // Étapes de funnel déclarées par le candidat (paywall vu, clic abonnement).
                 Arguments.of(HttpMethod.POST, "/api/me/funnel-events"),
                 // Diagnostic initial : agrégat nominatif et reprenable.

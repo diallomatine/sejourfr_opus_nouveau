@@ -25,6 +25,15 @@ public class AttemptQuestionManager {
     public Optional<AttemptQuestion> findById(UUID id) {
         return repository.findById(id);
     }
+    /**
+     * Items poses et reussis d'un attempt, ventiles par palier
+     * ({@code [Difficulty, posés, réussis]}). Sert au calcul de niveau du
+     * diagnostic TCF, qui lit un taux PAR PALIER et jamais sur le total.
+     */
+    public java.util.List<Object[]> aggregateByDifficulty(UUID attemptId) {
+        return repository.aggregateByDifficulty(attemptId);
+    }
+
 
     public List<AttemptQuestion> findByAttemptOrderedByPosition(UUID attemptId) {
         return repository.findByAttemptIdOrderByPositionAsc(attemptId);

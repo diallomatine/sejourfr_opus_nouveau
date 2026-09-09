@@ -35,12 +35,19 @@ db/migration/
 │   │                                             blanc + learning_plan_observations.subject_id)
 │   ├── V032-V045                                analytics (V043), moteur de progression V4.2
 │   │                                             (V044), bande de difficulté (V045)
-│   └── V046-V048                                lot L1 de la refonte : idempotence des
+│   ├── V046-V048                                lot L1 de la refonte : idempotence des
 │                                                 soumissions payantes (V046, clé client +
 │                                                 index unique par utilisateur),
 │                                                 users.exam_date (V047), vue de lecture
 │                                                 v_ai_usage (V048 — une VUE, pas une table :
 │                                                 les 4 sources écrivent déjà leur coût)
+│   └── V049__diagnostic_tcf_complet.sql         lot L4 : tcf_diagnostic_sessions +
+│                                                 attempts.tcf_diagnostic_id. 🛑 CE
+│                                                 DISCRIMINANT SE FILTRE PARTOUT
+│                                                 (`tcf_diagnostic_id IS NULL`), comme
+│                                                 production_tasks.diagnostic_code : sans
+│                                                 lui un diagnostic occuperait un slot de
+│                                                 la grille des examens blancs
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
