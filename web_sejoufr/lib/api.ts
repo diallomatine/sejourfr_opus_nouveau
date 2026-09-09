@@ -27,6 +27,8 @@ import type {
   ProductionSubmissionDto,
   ProductionTaskDto,
   PublicDiagnosticResponse,
+  TcfDiagnosticDto,
+  TcfDiagnosticResultDto,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
@@ -819,6 +821,74 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
         return plan;
     });
 }
+
+/**
+ * Le diagnostic TCF **4 épreuves** (L4).
+ *
+ * 🛑 Distinct de `diagnosticApi`, qui porte le diagnostic **initial** (une
+ * production écrite + une orale). Deux objets produit différents.
+ *
+ * La **passation** n'est pas ici : les sections QCM répondent par `attemptApi`
+ * et les productions par `productionApi`, exactement comme l'examen complet.
+ */
+export const tcfDiagnosticApi = {
+    /**
+     * Ouvre le diagnostic, ou rend celui en cours. **Idempotent** côté serveur :
+     * un double appui ne crée pas deux diagnostics — ce qui compte, le premier
+     * étant le seul gratuit.
+     */
+    open(): Promise<TcfDiagnosticDto> {
+        return apiFetch<TcfDiagnosticDto>("/api/tcf-diagnostics", {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /**
+     * Le diagnostic courant, ou `null` si le candidat n'en a jamais ouvert
+     * (**204** côté serveur).
+     *
+     * 🛑 Une lecture n'ouvre jamais de diagnostic par effet de bord : ne pas
+     * remplacer cet appel par `open()` pour « simplifier » un écran.
+     */
+    async current(): Promise<TcfDiagnosticDto | null> {
+        const res = await apiFetch<TcfDiagnosticDto | null>(
+            "/api/tcf-diagnostics/current", {auth: true},
+        );
+        return res ?? null;
+    },
+
+    get(sessionId: string): Promise<TcfDiagnosticDto> {
+        return apiFetch<TcfDiagnosticDto>(`/api/tcf-diagnostics/${sessionId}`, {auth: true});
+    },
+
+    /**
+     * Pose l'ancre du chrono d'une section. À appeler **avant** d'ouvrir le
+     * runner : sans elle la section n'a aucune échéance. Idempotent — rappelée,
+     * elle rend le temps réellement restant.
+     */
+    startSection(sessionId: string, epreuve: EpreuveType): Promise<TcfDiagnosticDto> {
+        return apiFetch<TcfDiagnosticDto>(
+            `/api/tcf-diagnostics/${sessionId}/sections/${epreuve}/start`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /** Calcule le résultat et clôture. N'exige pas les 4 sections. */
+    result(sessionId: string): Promise<TcfDiagnosticResultDto> {
+        return apiFetch<TcfDiagnosticResultDto>(
+            `/api/tcf-diagnostics/${sessionId}/result`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /** Relit un résultat sans rien reclôturer. */
+    readResult(sessionId: string): Promise<TcfDiagnosticResultDto> {
+        return apiFetch<TcfDiagnosticResultDto>(
+            `/api/tcf-diagnostics/${sessionId}/result`, {auth: true},
+        );
+    },
+};
 
 export const diagnosticApi = {
     current: fetchCurrentDiagnostic,

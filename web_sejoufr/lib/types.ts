@@ -683,6 +683,84 @@ export interface SubmitProductionTextRequest {
 }
 
 // ============================================================================
+// DIAGNOSTIC TCF — 4 ÉPREUVES (L4)
+// Miroir strict de TcfDiagnostic*Dto côté Java.
+//
+// 🛑 À NE PAS CONFONDRE avec le diagnostic INITIAL (une production écrite + une
+// orale), plus bas dans ce fichier : ce sont deux objets produit distincts, et
+// `10_` §4.1 interdit de les confondre — comme il interdit d'appeler celui-ci un
+// examen blanc.
+// ============================================================================
+
+export type TcfDiagnosticStatus = "IN_PROGRESS" | "COMPLETED";
+
+/** État d'une section, **dérivé serveur**. Le front ne le recalcule jamais. */
+export type TcfDiagnosticSectionState = "A_FAIRE" | "EN_COURS" | "TERMINEE";
+
+export interface TcfDiagnosticSectionDto {
+    epreuve: EpreuveType;
+    /** `null` = section absente du diagnostic (mode dégradé : pas de contenu). */
+    attemptId: string | null;
+    etat: TcfDiagnosticSectionState;
+    /** Chrono de la section. `null` en EO, qui se chronomètre par tâche. */
+    timeLimitSeconds: number | null;
+    totalQuestions: number | null;
+}
+
+/**
+ * L'écran d'accueil du diagnostic.
+ *
+ * 🛑 **Aucun niveau ici, et ce n'est pas un oubli** : `10_` §4.2 interdit tout
+ * résultat partiel entre les sections — « le résultat est le moment de
+ * conversion, il ne doit pas être dilué ».
+ */
+export interface TcfDiagnosticDto {
+    sessionId: string;
+    status: TcfDiagnosticStatus;
+    startedAt: string;
+    expiresAt: string;
+    completedAt: string | null;
+    /** Le délai de reprise est passé. **Rien n'est perdu** : les sections faites comptent. */
+    repriseEcoulee: boolean;
+    sections: TcfDiagnosticSectionDto[];
+}
+
+/** Une priorité du diagnostic. Le score de tri n'est **pas** exposé, volontairement. */
+export interface TcfDiagnosticPriorityDto {
+    rang: number;
+    epreuve: EpreuveType;
+    /** « EE1 »… « EO3 ». `null` en compréhension : la priorité porte sur l'épreuve. */
+    taskCode: string | null;
+    niveauTache: NiveauCecrl | null;
+    niveauEpreuve: NiveauCecrl | null;
+}
+
+/** Le niveau d'une épreuve. `niveau: null` = **non évaluée**, jamais un A1. */
+export interface TcfDiagnosticEpreuveNiveau {
+    epreuve: EpreuveType;
+    niveau: NiveauCecrl | null;
+}
+
+/**
+ * L'écran de résultat (`10_` §4.5).
+ *
+ * 🛑 **Aucun `locked`** : le paywall porte sur le plan, jamais sur le constat.
+ * 🛑 `niveauGlobal` peut être `null` (aucune épreuve évaluée) et une épreuve
+ * peut avoir un `niveau` nul — c'est « non évaluée », et l'écran doit le
+ * **nommer** au lieu d'afficher un palier inventé.
+ */
+export interface TcfDiagnosticResultDto {
+    sessionId: string;
+    niveauGlobal: NiveauCecrl | null;
+    cible: NiveauCecrl | null;
+    epreuves: TcfDiagnosticEpreuveNiveau[];
+    priorites: TcfDiagnosticPriorityDto[];
+    /** Épreuves déjà à la cible — le bloc « Déjà au niveau attendu ». */
+    dejaAuNiveau: TcfDiagnosticEpreuveNiveau[];
+    completedAt: string | null;
+}
+
+// ============================================================================
 // DIAGNOSTIC TCF + PLAN PERSONNALISÉ
 // Miroirs stricts des records Diagnostic* / LearningPlan* côté Java. Le front
 // affiche les décisions du serveur : il ne recalcule ni niveau ni priorité.
