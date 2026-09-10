@@ -94,6 +94,7 @@ export function AppLayout() {
           ↳ Audios exemples EO
         </NavItem>
         <NavItem to="/calibration">↳ Calibration notation</NavItem>
+        <NavItem to="/couts-ia">↳ Coût de l'IA</NavItem>
 
         <div className={styles.navSection}>Commerce</div>
         <NavItem to="/plans">↳ Plans & tarifs</NavItem>

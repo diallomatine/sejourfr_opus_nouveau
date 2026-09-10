@@ -69,6 +69,10 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET,
                         "/api/admin/page-views?path=/reussir&from=2026-08-18&to=2026-08-18"),
                 // Ecran Analytics : un seul endpoint de lecture, plus ses reperes.
+                // L12 — la supervision du cout IA. Elle lit des chiffres de
+                // facturation : elle n'est jamais ouverte a un compte non ADMIN.
+                Arguments.of(HttpMethod.GET, "/api/admin/ai-costs"),
+                Arguments.of(HttpMethod.GET, "/api/admin/ai-costs?days=7"),
                 Arguments.of(HttpMethod.GET, "/api/admin/analytics"),
                 Arguments.of(HttpMethod.GET, "/api/admin/analytics?days=7"),
                 Arguments.of(HttpMethod.GET,

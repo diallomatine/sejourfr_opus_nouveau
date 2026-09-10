@@ -157,6 +157,16 @@ blanc.
   diagnostic clos précédent. 🛑 **`null` est le cas normal** (premier
   diagnostic), et une épreuve non évaluée d'un côté rend `INCONNUE`, jamais
   `STABLE`.
+- `GET /api/admin/ai-costs?days=30` (ou `from`/`to`) → `AdminAiCostResponse`
+  (**L12**, ADMIN). Ce que l'IA a coûté sur la fenêtre : total, par nature
+  d'appel, par source, par modèle, et le coût moyen d'un diagnostic mené à
+  terme. Tout vient de la vue `v_ai_usage` (V048) — aucune cinquième écriture.
+  🛑 **`coutMicroUsd` et `coutLegacyCentimes` ne s'additionnent jamais** : deux
+  unités, deux devises, deux époques.
+  🛑 **Un coût inconnu vaut `null`, jamais 0**, et `lignesSansCout` le compte :
+  sans ce nombre, un total bas se lit « l'IA ne coûte presque rien » là où la
+  vérité est « on ne sait pas ce qu'elle a coûté ».
+  🛑 Cette route ne déclenche **aucun appel LLM** : elle lit une vue.
 - `GET /api/tcf-diagnostics/eligibility` → `TcfReassessmentEligibilityDto`
   (**L7**). « Peut-il relancer, et sinon pourquoi ? » — jamais 204 : sans aucun
   diagnostic la réponse est `{first: true, canStart: true}`.

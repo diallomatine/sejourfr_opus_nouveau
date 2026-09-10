@@ -274,3 +274,59 @@ fois le profil complet, il n'y a plus rien à relativiser ni à proposer.
   désormais **épinglés** sur `INITIAL_TCF` : ils portent sur la paire. Ce qu'ils
   gardent reste vivant (filet de l'oral inexploitable, séquencement de deux
   productions) pour le diagnostic TCF 4 épreuves et les examens blancs.
+
+
+---
+
+# L12 — la supervision des coûts IA
+
+## D-L12-1 · Le « coût moyen d'un diagnostic » est un **rapport de deux totaux**
+
+`00_` §8.4 demande « le coût moyen d'un diagnostic complet ».
+
+**Décidé** : `SUM(cout_micro_usd)` des sources `DIAGNOSTIC%` sur la fenêtre,
+divisé par le nombre de diagnostics **clos** sur la même fenêtre.
+
+**Pourquoi pas une vraie moyenne par session** : `v_ai_usage` ne porte pas
+l'identifiant de la soumission — son `usage_id` est celui de la ligne
+d'évaluation, de transcription ou d'analyse. Rattacher chaque appel à sa session
+demanderait de **réécrire une vue livrée**, et le dépôt versionne au lieu de
+réécrire.
+
+**Ce que la différence coûte** : elle ne se voit que sur les diagnostics à cheval
+sur les bornes, et elle s'efface dès que la fenêtre dépasse quelques jours. Si
+le propriétaire veut la moyenne exacte, c'est un `v_ai_usage` v2 avec une
+colonne `submission_id`, l'ancienne vue restant chargeable.
+
+## D-L12-2 · Le coût moyen ne compte **que** les micro-USD
+
+**Décidé** : les lignes anciennes (centimes d'euro) n'entrent pas dans la
+moyenne.
+
+**Pourquoi** : mélanger deux unités et deux devises dans une moyenne est
+exactement ce que V048 interdit. Mieux vaut une moyenne qui ne porte que sur la
+période où le coût est réellement connu qu'une moyenne fausse sur toute
+l'histoire.
+
+## D-L12-3 · Pas de croisement gratuit / abonné
+
+`00_` §7.2 proposait une `source` du type `FREE_EE_TRAINING`.
+
+**Constaté, pas décidé** : ces valeurs sont **incalculables a posteriori** —
+savoir si un appel a été payé par un quota gratuit exige l'état de l'abonnement
+*à l'instant de l'appel*, que rien ne persiste. V048 l'avait déjà tranché ; cet
+écran s'y tient et n'affiche que ce que les lignes portent réellement.
+
+Le croisement reste possible, par une jointure datée sur `user_subscriptions` —
+c'est un travail à part, et il vaut mieux le faire explicitement que de remplir
+une colonne de valeurs devinées.
+
+## D-L12-4 · Le « pack 3 mois » de `00_` §14 n'est pas dans ce lot
+
+`00_` §14 rangeait L12 comme « Pack 3 mois, optimisation paywall, tableau de
+bord coûts IA ». `50_` §8 **remplace** ce plan et ne retient que « supervision
+des coûts IA ».
+
+**Décidé** : suivre `50_`, qui fait autorité. Un nouveau pass est une décision
+de grille tarifaire (Stripe + Apple + Google), pas une tâche d'implémentation —
+`docs/bascule-prix-integral.md` documente ce que coûte l'ouverture d'une durée.

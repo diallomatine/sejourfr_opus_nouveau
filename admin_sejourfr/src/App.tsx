@@ -7,6 +7,7 @@ import { AudioDraftReviewPage } from "./features/audioQuestions/AudioDraftReview
 import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
 import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
 import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
+import { AiCostsPage } from "./features/aiCosts/AiCostsPage";
 import { CalibrationPage } from "./features/calibration/CalibrationPage";
 import { ExampleAudioReviewPage } from "./features/exampleAudio/ExampleAudioReviewPage";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
@@ -80,6 +81,7 @@ export function App() {
                   element={<ExampleAudioReviewPage />}
                 />
                 <Route path="/calibration" element={<CalibrationPage />} />
+                <Route path="/couts-ia" element={<AiCostsPage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />

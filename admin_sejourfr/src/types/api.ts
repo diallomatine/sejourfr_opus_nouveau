@@ -1616,3 +1616,50 @@ export type AdminSkillPromptUpdateRequest = Omit<
 export interface AdminSkillReferencesUpdateRequest {
   references: SkillReferenceDto[];
 }
+
+
+// ============================================================================
+// COÛT IA — miroir strict de `AdminAiCostResponse` (lot L12)
+//
+// 🛑 **Deux colonnes de coût, JAMAIS additionnées.** `coutMicroUsd` est en
+// millionièmes de DOLLAR, écrit par les pipelines actuels ; `coutLegacyCentimes`
+// en centimes d'EURO, plus jamais écrit, présent sur les lignes anciennes. Deux
+// unités, deux devises, deux époques : les sommer produirait un nombre qui ne
+// veut rien dire.
+//
+// 🛑 **Un coût inconnu vaut `null`, jamais 0.** `lignesSansCout` les compte.
+// Sans ce nombre, un total bas se lit « l'IA ne coûte presque rien » alors
+// qu'il se lit « on ne sait pas ce qu'elle a coûté ».
+// ============================================================================
+
+export interface AiCostLigne {
+  /** `null` sur le total : un agrégat d'ensemble n'a pas de nom. */
+  cle: string | null;
+  appels: number;
+  /** 🛑 Appels dont le coût est **inconnu**. Jamais comptés zéro. */
+  lignesSansCout: number;
+  /** `null` sur une transcription : Whisper facture à la DURÉE, pas au token. */
+  tokensInput: number | null;
+  tokensOutput: number | null;
+  tokensInputCacheHit: number | null;
+  coutMicroUsd: number | null;
+  coutLegacyCentimes: number | null;
+}
+
+export interface AiCostMoyen {
+  sessions: number;
+  /** `null` = aucun coût connu sur la fenêtre. Jamais 0. */
+  moyenneMicroUsd: number | null;
+  totalMicroUsd: number | null;
+}
+
+export interface AdminAiCostResponse {
+  /** Bornes **appliquées** par le serveur, pas celles demandées. */
+  from: string;
+  to: string;
+  total: AiCostLigne;
+  parFamille: AiCostLigne[];
+  parSource: AiCostLigne[];
+  parModele: AiCostLigne[];
+  diagnosticComplet: AiCostMoyen;
+}

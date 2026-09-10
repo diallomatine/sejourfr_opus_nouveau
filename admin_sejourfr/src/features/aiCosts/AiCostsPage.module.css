@@ -1,0 +1,59 @@
+.periodes {
+  display: flex;
+  gap: 6px;
+}
+
+.periode,
+.periodeActive {
+  border: 1px solid var(--color-line);
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.periodeActive {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+}
+
+.totaux {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.chiffre {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chiffreLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.chiffre strong {
+  font-size: 22px;
+  color: var(--color-ink);
+}
+
+/* Un coût inconnu n'est pas une erreur, mais il doit se voir : c'est lui qui
+   dit à quel point les autres chiffres sont fiables. */
+.alerte {
+  color: var(--color-amber, #e8a317);
+}
+
+.note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
