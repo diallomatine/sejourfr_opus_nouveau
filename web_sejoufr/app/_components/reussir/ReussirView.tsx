@@ -35,7 +35,6 @@ import {
 } from "@/lib/traffic-source";
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { EPREUVE_PLANNED_SEC, minutesLabel } from "@/lib/exam-durations";
 import {
   formatPassPrice,
   passCheckoutHref,
@@ -189,8 +188,12 @@ function Hero() {
           </div>
 
           <ul className={styles.heroTrust} data-rv>
+            {/* 🛑 Le diagnostic rapide n'a plus d'oral depuis L3 : une seule
+                production écrite transversale. Promettre « 1 écrit + 1 oral »
+                sur la landing ferait attendre un enregistrement qui n'arrive
+                jamais. */}
             <li>
-              <Check aria-hidden /> 1 écrit + 1 oral
+              <Check aria-hidden /> 1 production écrite
             </li>
             <li>
               <Check aria-hidden /> Résultat immédiat
@@ -356,26 +359,19 @@ function MethodeSection() {
 // ③ PAR OÙ COMMENCER — c'est ici que les deux examens se séparent
 // ============================================================================
 
+
 /**
- * Le temps de la **compréhension** annoncé par la carte « Diagnostic complet ».
+ * Le format du diagnostic civique, tel que l'écran l'annonce.
  *
- * ⚠️ Recalculé depuis `lib/exam-durations.ts` — la seule table de durées du web,
- * miroir de `DureeEpreuve` — et **jamais écrit en dur** : raccourcir une épreuve
- * raccourcit la promesse. La maquette annonçait « ≈ 22 min » pour le parcours
- * complet ; la CO et la CE valent à elles seules 20 + 35 min.
- *
- * Aucun **total** n'est annoncé : les deux productions se mesurent sur les
- * bornes des sujets servis (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`,
- * écran `DiagnosticIntro`), et aucun DTO n'est disponible sur une landing —
- * additionner ici reviendrait à fabriquer un chiffre.
+ * 🛑 **40, comme l'épreuve** : c'est ce qui rend le résultat directement
+ * comparable au seuil, sans projection. La valeur vient de `20_` §4 et de la
+ * configuration serveur ; elle est recopiée ici parce qu'une landing est rendue
+ * **sans appel authentifié** — mais elle ne doit jamais diverger.
  */
-const DIAGNOSTIC_COMPREHENSION_LABEL = minutesLabel(
-  EPREUVE_PLANNED_SEC.TCF_CO + EPREUVE_PLANNED_SEC.TCF_CE,
-);
+const CIVIQUE_DIAGNOSTIC_QUESTIONS = 40;
+const CIVIQUE_DIAGNOSTIC_HREF = "/diagnostic-civique";
 
 function DiagnosticSection() {
-  const origin = useOrigin();
-
   return (
     <section className={`${styles.sec} ${styles.paper}`} id="diagnostic">
       <div className={styles.wrap}>
@@ -384,9 +380,14 @@ function DiagnosticSection() {
           <h2 className={styles.h2} style={{ marginTop: 14 }}>
             Commence par savoir où tu en es.
           </h2>
+          {/* 🛑 **Deux examens, deux diagnostics** — et on ne fait pas choisir
+              entre « rapide » et « complet ». Le visiteur sait quel examen il
+              passe ; il ne sait pas ce qu'est un « diagnostic complet ». La
+              profondeur du parcours TCF (rapide puis complet) se découvre
+              ensuite, une fois qu'il est entré. */}
           <p className={styles.lead} style={{ marginTop: 14 }}>
-            Pas un QCM de plus&nbsp;: tu produis du français, et l&apos;analyse porte sur
-            ce que tu sais réellement faire. Deux formats, gratuits tous les deux.
+            Deux examens obligatoires, deux diagnostics. Choisis celui que tu
+            prépares&nbsp;: les deux sont gratuits.
           </p>
         </div>
 
@@ -395,67 +396,37 @@ function DiagnosticSection() {
             <div className={`${styles.pad} ${styles.shotWash}`}>
               <div className={styles.rowI} style={{ flexWrap: "wrap", gap: 10 }}>
                 <h3 className={styles.h3} style={{ fontSize: 21 }}>
-                  Diagnostic rapide
+                  <span aria-hidden>🇫🇷</span> TCF IRN
                 </h3>
-                <span className={`${styles.pill} ${styles.pReco}`}>Recommandé</span>
+                <span className={`${styles.pill} ${styles.pReco}`}>Sans compte</span>
               </div>
               <p className={styles.label} style={{ marginTop: 7 }}>
-                Expression écrite + expression orale · ≈ 8 min
+                Une production écrite · ≈ 8 min
               </p>
               <p className={styles.leadSm} style={{ marginTop: 14 }}>
-                Une estimation de ton niveau de production, et tes premières compétences à
-                travailler. Sans compte pour commencer.
+                Estime ton niveau et découvre ce qu&apos;il faut travailler pour
+                atteindre ton objectif. Tu commences à écrire tout de suite&nbsp;;
+                le compte n&apos;arrive qu&apos;au moment de l&apos;analyse.
               </p>
-              <DiagnosticCta variant="card" />
+              <DiagnosticCta variant="card" label="Commencer le diagnostic TCF" />
             </div>
           </div>
 
           <div className={styles.card} data-rv>
             <div className={styles.pad}>
               <h3 className={styles.h3} style={{ fontSize: 21 }}>
-                Diagnostic complet
+                <span aria-hidden>🏛️</span> Examen civique
               </h3>
               <p className={styles.label} style={{ marginTop: 7 }}>
-                EE + EO, puis CO + CE · {DIAGNOSTIC_COMPREHENSION_LABEL} de compréhension
+                {CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen
               </p>
               <p className={styles.leadSm} style={{ marginTop: 14 }}>
-                Ton profil sur les quatre épreuves du TCF. Tu commences par les mêmes
-                exercices&nbsp;; la compréhension se joue juste après la création de ton
-                compte, pour que ses résultats te restent.
+                Identifie les thèmes et les notions que tu dois renforcer avant
+                l&apos;examen. Ton résultat se lit directement sur l&apos;échelle
+                de l&apos;épreuve.
               </p>
-              <DiagnosticCta variant="cardAlt" />
+              <CiviqueDiagnosticCta />
             </div>
-          </div>
-        </div>
-
-        <p className={styles.mini} style={{ textAlign: "center", marginTop: 16 }}>
-          Tu peux commencer par l&apos;écrit et l&apos;oral, puis compléter la
-          compréhension quand tu veux.
-        </p>
-
-        {/* L'examen civique n'est PAS un diagnostic : il n'a ni production, ni
-            palier CECRL, ni compétences. Il a donc sa propre entrée, séparée des
-            deux cartes ci-dessus — et sa propre mesure d'audience, sans quoi on
-            savait combien de visiteurs voient cette offre, jamais combien y
-            entrent. */}
-        <div className={`${styles.card} ${styles.band}`} style={{ marginTop: 28 }} data-rv>
-          <div className={`${styles.pad} ${styles.bandInner}`}>
-            <span className={styles.bandBody}>
-              <span className={styles.label}>Tu prépares aussi l&apos;examen civique&nbsp;?</span>
-              <b className={styles.bandTitle}>Examen civique blanc</b>
-              <span className={styles.mini}>
-                40 questions · 45 min · les 5 thèmes. Le format réel de l&apos;épreuve, avec
-                ton score et les thèmes qui te coûtent des points.
-              </span>
-            </span>
-            <Link
-              href={withTrafficSource("/examens-blancs/civique-decouverte", origin)}
-              className={`${styles.btn} ${styles.btnO}`}
-              onClick={() => track("CIVIQUE_CTA_CLICKED", {ctaLocation: "MIDDLE"})}
-            >
-              Passer l&apos;examen découverte
-              <ArrowRight aria-hidden />
-            </Link>
           </div>
         </div>
       </div>
@@ -463,9 +434,47 @@ function DiagnosticSection() {
   );
 }
 
-// ============================================================================
-// ④ LE RAPPORT DE DIAGNOSTIC
-// ============================================================================
+/**
+ * Le CTA du diagnostic **civique**.
+ *
+ * 🛑 **Il ne peut pas commencer sans compte**, contrairement au TCF : le
+ * civique est un QCM rattaché à un `attempt`, donc à un utilisateur. Le TCF
+ * rapide, lui, se rédige sur l'appareil et ne demande le compte qu'au moment de
+ * l'analyse. On envoie donc l'inscription **avec la destination**, pour que le
+ * visiteur retombe sur son diagnostic une fois inscrit — jamais sur un tableau
+ * de bord vide.
+ */
+function CiviqueDiagnosticCta() {
+  const { status } = useAuth();
+  const origin = useOrigin();
+
+  const destination = withTrafficSource(
+    status === "authenticated"
+      ? CIVIQUE_DIAGNOSTIC_HREF
+      : `/inscription?next=${encodeURIComponent(CIVIQUE_DIAGNOSTIC_HREF)}`,
+    origin,
+  );
+
+  return (
+    <Link
+      href={destination}
+      className={`${styles.btn} ${styles.btnO} ${styles.btnFull}`}
+      style={{ marginTop: 18 }}
+      onClick={() =>
+        track("DIAGNOSTIC_CTA_CLICKED", {
+          ctaLocation: "MIDDLE",
+          // 🛑 Le civique n'est ni `RAPID` ni `COMPLETE` : ces deux valeurs
+          // décrivent la profondeur du parcours TCF. `UNKNOWN` est la seule
+          // vraie ici — on ne devine jamais une valeur (cf. `lib/analytics.ts`).
+          diagnosticType: "UNKNOWN",
+        })
+      }
+    >
+      Commencer le diagnostic civique
+      <ArrowRight aria-hidden />
+    </Link>
+  );
+}
 
 const PRIORITES_VISIBLES: { mod: string; tone: string; title: string; meta: string; pill: string; pillTone: string }[] = [
   {
@@ -1385,7 +1394,7 @@ const FAQ: { q: string; a: string; open?: boolean }[] = [
   },
   {
     q: "Combien de temps prend-il ?",
-    a: "Environ 8 minutes : un exercice d'expression écrite, puis un oral enregistré. L'analyse arrive juste après.",
+    a: "Environ 8 minutes pour le TCF : une production écrite, et l'analyse arrive juste après. Le diagnostic civique, lui, est un QCM au format de l'examen (40 questions).",
   },
   {
     q: "SejourFR prépare-t-il aussi l'examen civique ?",
@@ -1583,6 +1592,7 @@ const CTA_ANALYTICS: Record<
 function DiagnosticCta({
   variant = "hero",
   location,
+  label: labelImpose,
 }: {
   /** `cardAlt` = la seconde carte de `#diagnostic` (« Diagnostic complet ») :
    *  même destination et **même événement** que `card`, bouton secondaire.
@@ -1593,6 +1603,11 @@ function DiagnosticCta({
   /** Emplacement mesuré, quand il ne se déduit pas de la variante d'aspect —
    *  le même bouton « hero » sert aussi au milieu de la page. */
   location?: AnalyticsCtaLocation;
+  /** Libellé imposé. Sert aux cartes qui nomment leur EXAMEN (« Commencer le
+   *  diagnostic TCF ») : à côté d'une carte civique, « Commencer gratuitement »
+   *  ne dirait plus lequel des deux on lance. Ignoré quand le diagnostic est
+   *  déjà terminé — la carte renvoie alors au Plan, et le dire compte plus. */
+  label?: string;
 }) {
   const { status, user } = useAuth();
   const origin = useOrigin();
@@ -1620,7 +1635,7 @@ function DiagnosticCta({
   // /inscription reviendrait à remettre le mur avant la valeur.
   const destination = withTrafficSource(completed ? "/plan" : "/diagnostic", origin);
 
-  const label = completed
+  const labelParDefaut = completed
     ? // Un diagnostic terminé ne se refait pas : la carte « complet » renvoie
       // vers le Plan, qui porte justement l'invitation à compléter le profil.
       variant === "cardAlt"
@@ -1633,6 +1648,7 @@ function DiagnosticCta({
         : variant === "cardAlt"
           ? "Faire le diagnostic complet"
           : "Faire mon diagnostic gratuit";
+  const label = completed ? labelParDefaut : (labelImpose ?? labelParDefaut);
 
   const className = [
     styles.btn,

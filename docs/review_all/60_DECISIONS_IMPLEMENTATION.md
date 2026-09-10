@@ -968,3 +968,58 @@ sortis en une minute.
 C'est la deuxième fois dans cette session (après le CSS non appliqué). La leçon
 est la même et elle est maintenant écrite : **un écran neuf doit être parcouru
 de bout en bout avant d'être annoncé fini.**
+
+
+---
+
+# Les deux diagnostics sur `/reussir` (2026-09-10)
+
+**Demandé** : deux grosses cartes, TCF IRN et Examen civique, pour que le
+visiteur choisisse son diagnostic et le fasse.
+
+## D-R-1 · On fait choisir un EXAMEN, pas une profondeur de diagnostic
+
+La section `#diagnostic` proposait « Diagnostic rapide » et « Diagnostic
+complet » — deux **parcours TCF**, décrits dans les termes d'avant L3 (« EE +
+EO », « puis CO + CE »).
+
+**Décidé** : les deux cartes portent désormais les deux **examens**.
+
+**Pourquoi c'est mieux, et pas seulement demandé** : un visiteur sait quel examen
+il passe ; il ne sait pas ce qu'est un « diagnostic complet ». La profondeur du
+parcours TCF (rapide puis complet) se découvre **ensuite**, une fois entré — et
+c'est exactement l'ordre de l'architecture arbitrée.
+
+## D-R-2 · Le CTA civique passe par l'inscription, et c'est une contrainte réelle
+
+🛑 **Le diagnostic civique ne peut pas commencer sans compte**, contrairement au
+TCF. Le civique est un QCM rattaché à un `attempt`, donc à un utilisateur ; le
+TCF rapide, lui, se rédige sur l'appareil et ne demande le compte qu'au moment
+de l'analyse (`50_` §3.1).
+
+**Décidé** : le CTA civique envoie `/inscription?next=/diagnostic-civique` pour
+un visiteur, et directement au diagnostic pour un compte connecté. Le `next`
+n'est pas décoratif — sans lui, l'inscrit retomberait sur un tableau de bord
+vide au lieu du diagnostic qu'il venait faire.
+
+La carte TCF porte le badge **« Sans compte »** : c'est un vrai avantage, et le
+mettre à côté d'une carte qui, elle, en demande un, évite de faire passer la
+différence pour une incohérence.
+
+## D-R-3 · Deux formulations que L3 avait rendues fausses
+
+En relisant la page, deux promesses ne tenaient plus depuis que le diagnostic
+rapide n'a **qu'une production écrite** :
+
+- le hero annonçait « **1 écrit + 1 oral** » — un enregistrement qui n'arrive
+  jamais ;
+- la FAQ décrivait « un exercice d'expression écrite, **puis un oral
+  enregistré** ».
+
+Corrigées. Ce n'était pas demandé, mais une landing qui promet une étape
+inexistante coûte plus cher qu'un écran mal cadré : le candidat le découvre
+**après** être entré.
+
+`DIAGNOSTIC_COMPREHENSION_LABEL` n'avait plus d'appelant après la refonte de la
+section : supprimée plutôt que laissée en place — une constante orpheline
+laisse croire qu'un écran l'affiche.
