@@ -1,5 +1,6 @@
 import type {Metadata} from "next";
-import {LearningPlanView} from "@/app/_components/plan/LearningPlanView";
+import {Suspense} from "react";
+import {PlanModules} from "@/app/_components/plan/PlanModules";
 
 export const metadata: Metadata = {
   title: "Mon plan personnalisé — SejourFR",
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function PlanPage() {
-  return <LearningPlanView />;
+  return (
+    // `useSearchParams` impose une frontière de Suspense côté App Router.
+    <Suspense fallback={null}>
+      <PlanModules />
+    </Suspense>
+  );
 }

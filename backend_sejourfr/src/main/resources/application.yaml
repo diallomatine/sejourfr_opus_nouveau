@@ -1080,6 +1080,31 @@ sejourfr:
   # Ce qui n'est PAS ici, et n'a rien a y faire : les durees d'epreuve du TCF
   # (DureeEpreuve) et la table des paliers par demarche (TargetProcedure). Ce
   # sont des donnees officielles, donc du code, pas des reglages.
+  # Diagnostic CIVIQUE (20_ §4). 🛑 Aucun cout LLM : le civique est du QCM
+  # deterministe, sa correction ne passe par aucun modele. Le quota est donc
+  # distinct de celui des analyses IA.
+  # Les valeurs par defaut vivent AUSSI dans config/CivicDiagnosticProperties,
+  # a l'identique : un POJO qui diverge de son YAML ne se decouvre que le jour
+  # ou la cle disparait de la configuration.
+  civic-diagnostic:
+    # 🛑 A incrementer des qu'un reglage ci-dessous change le SENS d'un
+    # resultat. Un diagnostic se relit avec la configuration QUI L'A PRODUIT.
+    config-version: 1
+    # 17 + 7 = 24 questions, ~15 min (20_ §4.2). Le ratio des mises en
+    # situation (~29 %) reprend celui de l'examen reel (12 sur 40).
+    connaissances: 17
+    mises-en-situation: 7
+    # 🛑 Contrainte explicite de 20_ §4.2 : « ne jamais evaluer un theme sur une
+    # seule question ». Un theme juge sur une reponse produirait un etat qui ne
+    # veut rien dire -- et c'est cet etat qui decide ensuite du plan.
+    min-par-theme: 3
+    seuils:
+      solide: 0.80
+      faible: 0.55
+    # Meme raison qu'au TCF : sans delai, une reevaluation a volonte ne
+    # mesurerait plus une progression.
+    reevaluation: 14d
+
   tcf-diagnostic:
     config-version: 1
     # 5 A2 + 5 B1 + 5 B2 = 15 items par epreuve de comprehension. La repartition

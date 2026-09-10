@@ -77,6 +77,21 @@ public class Attempt {
     @JoinColumn(name = "tcf_diagnostic_id")
     private TcfDiagnosticSession tcfDiagnostic;
 
+    /**
+     * Rattache cet attempt a un diagnostic CIVIQUE (V052).
+     *
+     * <p>🛑 <b>Meme discipline que {@link #tcfDiagnostic}</b>, et pour la meme
+     * raison : 20_ §4.1 oppose explicitement le diagnostic a l'examen blanc.
+     * Sans ce discriminant, un diagnostic civique occuperait un slot de la
+     * grille d'examens blancs et compterait dans « examens blancs passes ».
+     *
+     * <p>{@code null} = attempt ORDINAIRE, ce qui est le cas de la quasi
+     * totalite des lignes.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "civic_diagnostic_id")
+    private CivicDiagnosticSession civicDiagnostic;
+
     @OneToMany(mappedBy = "parentAttempt", fetch = FetchType.LAZY)
     private List<Attempt> subAttempts = new ArrayList<>();
 
@@ -232,6 +247,11 @@ public class Attempt {
 
     public AttemptType getType() { return type; }
     public void setType(AttemptType type) { this.type = type; }
+
+    public CivicDiagnosticSession getCivicDiagnostic() { return civicDiagnostic; }
+    public void setCivicDiagnostic(CivicDiagnosticSession civicDiagnostic) {
+        this.civicDiagnostic = civicDiagnostic;
+    }
 
     public Module getModule() { return module; }
     public void setModule(Module module) { this.module = module; }

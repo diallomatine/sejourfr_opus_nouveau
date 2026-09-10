@@ -31,6 +31,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             SELECT COUNT(a) FROM Attempt a
             WHERE a.user.id = :userId
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -42,6 +43,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             SELECT COUNT(a) FROM Attempt a
             WHERE a.user.id = :userId AND a.module = :module
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -73,6 +75,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND (:moduleExamQuestionType IS NULL OR a.moduleExamQuestionType = :moduleExamQuestionType)
               AND (:themeId IS NULL OR a.lotThemeId = :themeId)
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
               AND NOT EXISTS (
                   SELECT 1 FROM DiagnosticSession d
                   WHERE d.writtenAttempt = a OR d.oralAttempt = a
@@ -210,6 +213,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             WHERE a.user.id = :userId
               AND a.epreuve = :epreuve
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
             ORDER BY a.startedAt DESC
             """)
     List<Attempt> findByUserAndEpreuve(
@@ -248,6 +252,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.type = :type
               AND a.finishedAt IS NOT NULL
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
             """)
     long countByUserIdAndTypeAndFinishedAtIsNotNull(
             @Param("userId") UUID userId, @Param("type") AttemptType type);
@@ -302,6 +307,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.epreuve = :epreuve
               AND a.finishedAt IS NOT NULL
               AND a.tcfDiagnostic IS NULL
+              AND a.civicDiagnostic IS NULL
               AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
             ORDER BY a.finishedAt DESC
             """)

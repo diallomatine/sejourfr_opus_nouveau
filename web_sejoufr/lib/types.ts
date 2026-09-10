@@ -3809,3 +3809,150 @@ export const FULL_TCF_EXAM_EPREUVES = [
     "TCF_EE",
     "TCF_EO",
 ] as const;
+
+
+// ============================================================================
+// DIAGNOSTIC CIVIQUE (L9) — miroir strict de `CivicDiagnostic*Dto`
+//
+// 🛑 **À NE PAS CONFONDRE avec l'examen blanc civique.** `20_` §4.1 les oppose
+// ligne à ligne : 24 questions contre 40, couverture équilibrée contre
+// représentative, il CRÉE le plan là où l'examen blanc VÉRIFIE la préparation.
+//
+// 🛑 **Aucun coût LLM** : le civique est du QCM déterministe.
+// ============================================================================
+
+/** L'état d'un thème au diagnostic (`20_` §4.4). */
+export type CivicThemeState = "SOLIDE" | "A_RENFORCER" | "FAIBLE" | "NON_EVALUE";
+
+/**
+ * Libellés FR **gelés** (miroir de l'enum backend et de son pendant Dart).
+ *
+ * 🛑 `NON_EVALUE` se dit « Non évalué » et **jamais** « Faible » : un thème
+ * qu'on n'a pas mesuré n'a pas été raté.
+ */
+export const CIVIC_THEME_STATE_LABEL: Record<CivicThemeState, string> = {
+    SOLIDE: "Solide",
+    A_RENFORCER: "À renforcer",
+    FAIBLE: "Faible",
+    NON_EVALUE: "Non évalué",
+};
+
+/**
+ * L'état d'un diagnostic civique.
+ *
+ * 🛑 **Aucun score ici**, et ce n'est pas un oubli : le résultat est le moment
+ * de conversion, le diluer pendant la passation le détruit.
+ */
+export interface CivicDiagnosticDto {
+    sessionId: string;
+    /**
+     * L'attempt à ouvrir dans le runner de questions **existant**.
+     * 🛑 Aucun écran de passation n'est créé pour le diagnostic — un second
+     * runner divergerait du premier.
+     */
+    attemptId: string;
+    status: "IN_PROGRESS" | "COMPLETED";
+    mention: Difficulty;
+    total: number;
+    repondues: number;
+    startedAt: string;
+    completedAt: string | null;
+}
+
+/** Un thème et son état. `taux: null` = **non évalué**, jamais `0`. */
+export interface CivicThemeResultat {
+    themeId: string;
+    code: string;
+    label: string;
+    etat: CivicThemeState;
+    bonnes: number;
+    posees: number;
+    taux: number | null;
+}
+
+/**
+ * Un thème qui coûte des points.
+ *
+ * 🛑 **Le rang n'est pas un score** : il ordonne, il ne quantifie pas.
+ */
+export interface CivicPrioriteTheme {
+    rang: number;
+    themeId: string;
+    code: string;
+    label: string;
+    etat: CivicThemeState;
+    manques: number;
+}
+
+/**
+ * L'écran de résultat du diagnostic civique (`20_` §4.5).
+ *
+ * 🛑 **Le constat est intégralement gratuit** : aucun `locked` ici. Le paywall
+ * porte sur l'accompagnement, jamais sur ce que le candidat vient de mesurer.
+ *
+ * 🛑 **`projection40` vient du SERVEUR.** Ni écrite en dur dans une maquette,
+ * ni recalculée ici : deux calculs de la même chose finissent par afficher deux
+ * nombres. Et c'est une **projection**, jamais un pronostic de réussite.
+ * `null` si rien n'a été posé — « on n'a rien mesuré » ne se dit pas « vous
+ * auriez 0 sur 40 ».
+ */
+export interface CivicDiagnosticResultDto {
+    sessionId: string;
+    mention: Difficulty;
+    bonnes: number;
+    posees: number;
+    projection40: number | null;
+    seuilReussite: number;
+    /** Les 5 thèmes, **tous**, y compris ceux qu'aucune question n'a touchés. */
+    themes: CivicThemeResultat[];
+    /** Comptées à part : appliquer une règle à un cas concret est une compétence distincte. */
+    situations: {reussies: number; posees: number};
+    /** Au niveau THÈME tant que le tagging des notions n'est pas fait (`20_` §3.4). */
+    priorites: CivicPrioriteTheme[];
+    completedAt: string | null;
+}
+
+
+// ============================================================================
+// PRÉPARATION — l'état UNIQUE des deux modules (arbitrage du 2026-09-10)
+//
+// 🛑 **TROIS PORTES, UN SEUL ÉTAT.** L'Accueil (« quelle est ma prochaine
+// action ? »), le Plan (« pourquoi n'est-il pas encore prêt ? ») et les Examens
+// (« où retrouver mon diagnostic ? ») lisent tous les trois ce DTO. Trois
+// écrans qui déduiraient chacun leur version finiraient par proposer trois
+// choses différentes au même candidat.
+//
+// 🛑 **Asymétrie assumée** : le TCF a DEUX diagnostics (rapide puis complet),
+// le civique UN SEUL. Le civique est du QCM déterministe, rapide et sans coût
+// LLM — un pré-diagnostic n'y apporterait rien et dupliquerait le tunnel du
+// TCF. D'où `ESTIMATION_FAITE`, qui n'existe que côté TCF.
+// ============================================================================
+
+export type PreparationEtape =
+    | "DIAGNOSTIC_A_FAIRE"
+    | "DIAGNOSTIC_EN_COURS"
+    /** **TCF uniquement** : la première estimation est faite, le complet non. */
+    | "ESTIMATION_FAITE"
+    | "PLAN_PRET";
+
+export interface ModulePreparation {
+    etape: PreparationEtape;
+    /** Avancement (2 épreuves, 14 questions). `null` si la notion n'a pas de sens ici. */
+    fait: number | null;
+    total: number | null;
+    sessionId: string | null;
+    /** **TCF** : 🛑 `null` = pas encore mesuré, jamais A1. */
+    niveau: NiveauCecrl | null;
+    cible: NiveauCecrl | null;
+    /**
+     * **CIVIQUE** : thèmes à renforcer ou faibles.
+     * 🛑 `null` tant qu'aucun diagnostic n'est clos — `0` voudrait dire « tout
+     * est solide », ce qui est une tout autre nouvelle.
+     */
+    aRenforcer: number | null;
+}
+
+export interface PreparationDto {
+    tcf: ModulePreparation;
+    civique: ModulePreparation;
+}

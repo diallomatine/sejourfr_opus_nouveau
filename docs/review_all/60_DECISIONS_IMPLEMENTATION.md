@@ -584,3 +584,97 @@ la formulation générale plutôt qu'un palier inventé.
 - **T28 « Progrès »** : toujours pas commencé (cf. §L11).
 - 🛑 **Aucun de ces écrans n'a été ouvert.** `tsc`, `build` et `analyze` passent,
   les tests aussi — mais rien ne remplace un œil sur le rendu.
+
+
+---
+
+# L9 + l'architecture des deux parcours (arbitrage du 2026-09-10)
+
+Le propriétaire a tranché la structure d'ensemble :
+
+> **TCF** : diagnostic rapide → diagnostic complet → Plan
+> **Civique** : diagnostic → Plan
+> **Accueil** : agrège l'état des deux
+> **Plan / Réviser / Examens / Progrès** : toggle TCF | Examen civique
+> « Mais il n'y a qu'un seul état backend. Les trois écrans ne créent pas trois
+> parcours différents. »
+
+## Correction : L9 n'était **pas** bloqué par le tagging
+
+**J'avais écrit** que L9 et L10 étaient bloqués sur le tagging des 1 016
+questions. **C'est faux, et la spec le disait déjà** :
+
+- `20_` §3.4, mode dégradé : « Thème sous le seuil de tagging → **Plan et
+  diagnostic au niveau thème** pour ce thème uniquement » ;
+- `20_` §4.5, bloc 4 : « (au niveau thème si le tagging n'est pas suffisant) ».
+
+Le repli par thème n'est pas un contournement : c'est le mode dégradé **conçu**.
+Le tagging rend le plan plus fin, il ne le conditionne pas. Attendre le chantier
+éditorial aurait privé le candidat de ce qui était déjà mesurable — les 5
+thèmes, les 1 016 questions et les 176 mises en situation existent depuis le
+début.
+
+## D-L9-1 · **Un seul** diagnostic civique, et c'est une asymétrie assumée
+
+**Décidé** (arbitrage) : pas de rapide + complet côté civique.
+
+**Pourquoi** : le civique est du QCM **déterministe**, rapide et sans coût LLM.
+Un pré-diagnostic n'apporterait rien et dupliquerait le tunnel du TCF. Le TCF a
+deux diagnostics parce qu'ils servent deux objectifs différents — le rapide crée
+la confiance et donne une estimation, le complet mesure réellement CO/CE/EE/EO.
+
+Conséquence dans le code : `PreparationEtape.ESTIMATION_FAITE` n'existe **que**
+côté TCF.
+
+## D-L9-2 · UN SEUL ÉTAT BACKEND, trois portes
+
+**Décidé** : `GET /api/me/preparation` sert l'état des deux modules, et
+l'Accueil, le Plan et les Examens le lisent tous les trois.
+
+**Pourquoi c'est structurel** : trois écrans qui déduiraient chacun leur version
+proposeraient trois choses différentes au même candidat. C'est le défaut le plus
+cher du dépôt (« une règle = une autorité »), appliqué à la navigation.
+
+🛑 **Le serveur expose l'ÉTAPE, pas la phrase.** « Faire mon diagnostic
+complet » et « Votre plan TCF n'est pas encore prêt » vivent dans
+`lib/preparation.ts` et son miroir Dart.
+
+## D-L9-3 · Le diagnostic civique n'est PAS un examen blanc, et la base le dit
+
+`attempts.civic_diagnostic_id`, exactement comme V049 l'a fait pour le TCF.
+Sans lui, un diagnostic occuperait un slot de la grille d'examens blancs et
+compterait dans « examens blancs passés ». Les 6 requêtes de comptage portent
+désormais **les deux** filtres.
+
+## D-L9-4 · Ce que la composition garantit, et ce qu'elle ne garantit pas
+
+**Garanti** : un minimum de 3 questions de connaissance par thème (`20_` §4.2 :
+« ne jamais évaluer un thème sur une seule question »), et 7 mises en situation
+tirées **à part** pour pouvoir les compter séparément.
+
+**Pas encore garanti** : « aucune notion évaluée plus de 2 fois » et « réparties
+sur des notions différentes » — ces deux contraintes **exigent** le tagging.
+Elles arriveront avec lui, sans changer le contrat.
+
+🛑 **Le mode dégradé ne fait jamais échouer le diagnostic** : un catalogue
+sous-doté sur une mention donne un diagnostic plus court, et les thèmes non
+servis ressortent « non évalué ». Refuser d'ouvrir priverait le candidat de tout,
+y compris de ce qui était mesurable.
+
+## D-L9-5 · Le plan civique v1 est **par thème**, et il le dit à l'écran
+
+L'onglet civique du Plan affiche les thèmes à travailler, dans l'ordre servi par
+le diagnostic, chacun ouvrant l'entraînement correspondant — plus une phrase qui
+annonce que le plan deviendra « notion par notion » quand le référentiel sera
+complété.
+
+**Ce n'est pas L10.** La répétition espacée (Leitner) et le plan par notion
+restent entiers. Mais un plan par thème est utilisable **aujourd'hui**, et c'est
+le repli que la spec a conçu.
+
+## Reste à faire
+
+- **Miroir mobile** du diagnostic civique, de « Ma préparation » et du toggle ;
+- **toggle sur Réviser, Examens et Progrès** (la 3ᵉ porte : les Examens) ;
+- **L10** : Leitner + plan par notion, qui eux demandent vraiment le tagging ;
+- **T28 « Progrès »**, toujours pas commencé.

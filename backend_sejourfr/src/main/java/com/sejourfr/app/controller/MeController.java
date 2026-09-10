@@ -3,6 +3,7 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.ChangeEmailRequest;
 import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.PreparationDto;
 import com.sejourfr.app.dto.ChangePasswordRequest;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
@@ -17,6 +18,7 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.MeService;
+import com.sejourfr.app.service.PreparationService;
 import com.sejourfr.app.service.UserDashboardService;
 import com.sejourfr.app.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -51,6 +53,7 @@ public class MeController {
     private final AttemptService attemptService;
     private final UserProfileService userProfileService;
     private final UserDashboardService userDashboardService;
+    private final PreparationService preparationService;
     private final CurrentUser currentUser;
 
     // ------------------------------------------------------------------------
@@ -146,6 +149,23 @@ public class MeController {
      * Sert à l'écran "Progression" mobile : header + 3 stats cards. Voir
      * {@link MeService#progressionSummary} pour le détail de l'agrégation.
      */
+    /**
+     * <b>Ou en sont les deux preparations</b> — l'etat UNIQUE que l'Accueil, le
+     * Plan et les Examens lisent tous les trois.
+     *
+     * <p>🛑 <b>Trois portes, un seul etat.</b> L'Accueil montre la prochaine
+     * action, le Plan explique pourquoi il n'est pas encore pret, les Examens
+     * gardent le diagnostic a cote des examens blancs. Les trois ne creent pas
+     * trois parcours : ils rendent le meme fait (arbitrage du 2026-09-10).
+     *
+     * <p>🛑 <b>Le serveur expose l'ETAPE, pas la phrase.</b> « Faire mon
+     * diagnostic complet » appartient aux fronts.
+     */
+    @GetMapping("/preparation")
+    public PreparationDto preparation() {
+        return preparationService.lire(currentUser.getId());
+    }
+
     @GetMapping("/progression")
     public ProgressionSummaryResponse progression(@RequestParam Module module) {
         return meService.progressionSummary(currentUser.getId(), module);

@@ -28,6 +28,9 @@ import type {
   ProductionTaskDto,
   PublicDiagnosticResponse,
   TcfDiagnosticDto,
+  CivicDiagnosticDto,
+  PreparationDto,
+  CivicDiagnosticResultDto,
   TcfDiagnosticResultDto,
   TcfReassessmentEligibilityDto,
   QuestionReviewResponse,
@@ -755,6 +758,17 @@ export const userContentApi = {
      * C'est cette date qui alimente le compte à rebours et le pass recommandé
      * du paywall (L5) : sans elle, `passRecommande` ne peut rien proposer.
      */
+    /**
+     * **Où en sont les deux préparations** — l'état UNIQUE.
+     *
+     * 🛑 L'Accueil, le Plan et les Examens lisent **cet** appel. Ne jamais
+     * dériver l'étape d'un module ailleurs : trois déductions finiraient par
+     * proposer trois choses différentes au même candidat.
+     */
+    preparation(): Promise<PreparationDto> {
+        return apiFetch<PreparationDto>("/api/me/preparation", {auth: true});
+    },
+
     updateExamDate(examDate: string | null): Promise<void> {
         return apiFetch<void>(`/api/me/exam-date`, {
             method: "PUT",
@@ -925,6 +939,58 @@ export const tcfDiagnosticApi = {
     eligibility(): Promise<TcfReassessmentEligibilityDto> {
         return apiFetch<TcfReassessmentEligibilityDto>(
             "/api/tcf-diagnostics/eligibility", {auth: true},
+        );
+    },
+};
+
+/**
+ * Le diagnostic CIVIQUE (L9, `20_` §4).
+ *
+ * 🛑 **Distinct de l'examen blanc civique** : 24 questions contre 40,
+ * couverture équilibrée contre représentative, il CRÉE le plan là où l'examen
+ * blanc VÉRIFIE la préparation.
+ *
+ * 🛑 **La passation ne passe pas par ici** : les réponses vont sur
+ * `/api/attempts/{id}/answers`, exactement comme n'importe quelle série. Aucun
+ * runner n'est dupliqué.
+ *
+ * 🛑 **Aucun appel LLM** : le civique est du QCM déterministe.
+ */
+export const civicDiagnosticApi = {
+    /** Ouvre, ou rend celui en cours. **Idempotent** : pas deux tirages. */
+    open(): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>("/api/civic-diagnostics", {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /**
+     * Le diagnostic courant, ou `null` (**204**).
+     *
+     * 🛑 Une lecture n'ouvre jamais de diagnostic par effet de bord : ne pas
+     * remplacer cet appel par `open()` pour « simplifier » un écran — l'ouvrir
+     * consomme l'unique diagnostic gratuit.
+     */
+    async current(): Promise<CivicDiagnosticDto | null> {
+        const res = await apiFetch<CivicDiagnosticDto | null>(
+            "/api/civic-diagnostics/current", {auth: true},
+        );
+        return res ?? null;
+    },
+
+    /** Calcule le résultat et clôture. */
+    result(sessionId: string): Promise<CivicDiagnosticResultDto> {
+        return apiFetch<CivicDiagnosticResultDto>(
+            `/api/civic-diagnostics/${sessionId}/result`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /** Relit un résultat sans rien reclôturer. */
+    readResult(sessionId: string): Promise<CivicDiagnosticResultDto> {
+        return apiFetch<CivicDiagnosticResultDto>(
+            `/api/civic-diagnostics/${sessionId}/result`, {auth: true},
         );
     },
 };

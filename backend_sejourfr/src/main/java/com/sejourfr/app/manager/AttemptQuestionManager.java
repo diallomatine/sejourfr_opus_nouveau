@@ -34,6 +34,11 @@ public class AttemptQuestionManager {
         return repository.aggregateByDifficulty(attemptId);
     }
 
+    /** {@code [themeId, QuestionType, poses, reussis]} — diagnostic civique (L9). */
+    public java.util.List<Object[]> aggregateByThemeAndType(UUID attemptId) {
+        return repository.aggregateByThemeAndType(attemptId);
+    }
+
 
     public List<AttemptQuestion> findByAttemptOrderedByPosition(UUID attemptId) {
         return repository.findByAttemptIdOrderByPositionAsc(attemptId);

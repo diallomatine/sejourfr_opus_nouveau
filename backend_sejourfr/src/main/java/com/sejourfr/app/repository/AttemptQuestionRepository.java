@@ -37,4 +37,28 @@ public interface AttemptQuestionRepository extends JpaRepository<AttemptQuestion
             GROUP BY aq.question.difficulty
             """)
     List<Object[]> aggregateByDifficulty(@Param("attemptId") UUID attemptId);
+
+    /**
+     * Agregat par THEME et par type de question, pour le diagnostic civique
+     * (L9) : {@code [themeId, QuestionType, poses, reussis]}.
+     *
+     * <p>Le type est dans le regroupement parce que 20_ §4.5 compte les
+     * <b>mises en situation a part</b> : appliquer une regle a un cas concret
+     * est une competence distincte de la restituer, et l'ecran le dit.
+     *
+     * <p>🛑 <b>Une question sans reponse compte comme posee et non reussie</b>,
+     * comme au TCF : dans un diagnostic qu'on termine d'une traite, ne pas
+     * repondre est une reponse. C'est different d'un theme jamais TIRE, qui lui
+     * n'apparait pas du tout ici et ressort « non evalue ».
+     */
+    @Query("""
+            SELECT aq.question.theme.id,
+                   aq.question.questionType,
+                   COUNT(aq),
+                   SUM(CASE WHEN aq.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+            WHERE aq.attempt.id = :attemptId
+            GROUP BY aq.question.theme.id, aq.question.questionType
+            """)
+    List<Object[]> aggregateByThemeAndType(@Param("attemptId") UUID attemptId);
 }

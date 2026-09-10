@@ -17,6 +17,7 @@ import {
     Zap,
 } from "lucide-react";
 import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
+import {PreparationCard} from "@/app/_components/preparation/PreparationCard";
 import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleAverage, successHint} from "@/lib/dashboard";
@@ -148,6 +149,14 @@ export default function DashboardPage() {
                     Entraînement du jour
                 </Link>
             </header>
+
+            {/* 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
+                diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état
+                UNIQUE servi par `/api/me/preparation` — c'est ce qui garantit
+                que les trois écrans proposent la même prochaine action.
+                Placée avant tout indicateur : quand une préparation n'est pas
+                commencée, c'est ça la prochaine action, pas un pourcentage. */}
+            <PreparationCard />
 
             {diagnostic && (
                 <DashboardPlanCard
