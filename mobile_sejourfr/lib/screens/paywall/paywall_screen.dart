@@ -224,6 +224,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           // plan sans montrer ce qu'il contient ne prouve rien.
           if (ctx.priorities.isNotEmpty) ...[
             const SizedBox(height: 12),
+            Text(kPaywallPrioritesLabel.toUpperCase(),
+                style: AppFonts.label(size: 11, color: AppColors.inkFaint)),
+            const SizedBox(height: 6),
             for (final p in ctx.priorities)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
@@ -246,6 +249,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           style: AppFonts.ui(
                               size: 13, color: AppColors.ink)),
                     ),
+                  ],
+                ),
+              ),
+          ],
+          // 🛑 Les bénéfices du PLAN, seulement quand le paywall sait de quoi
+          // il parle. Ouvert depuis un cadenas quelconque, il n'a rien de
+          // personnel à promettre et ce bloc n'apparaît pas.
+          if (ctx.isContextualised) ...[
+            const SizedBox(height: 16),
+            for (final benefit in paywallBenefits(ctx))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(benefit.title,
+                        style: AppFonts.ui(
+                            size: 14.5,
+                            weight: FontWeight.w600,
+                            color: AppColors.ink)),
+                    const SizedBox(height: 3),
+                    Text(benefit.text,
+                        style: AppFonts.ui(
+                            size: 13, color: AppColors.inkSoft, height: 1.5)),
                   ],
                 ),
               ),

@@ -355,3 +355,78 @@ export function formatJourCourt(iso: string): string {
     ];
     return `${d.getDate()} ${mois[d.getMonth()]}`;
 }
+
+// ----------------------------------------------------------------------------
+// La MENTION d'une épreuve, et le mini-plan du rapport complet
+//
+// 🛑 **Rien n'est dérivé d'un niveau.** « Objectif atteint » se lit sur
+// `dejaAuNiveau`, que le serveur sert ; « Prioritaire » se lit sur le rang 1 de
+// `priorites`, que le serveur a classé. Le front met en mots des faits servis,
+// il ne compare aucun palier — c'est l'invariant « aucun front ne classe un
+// nombre en état pédagogique ».
+// ----------------------------------------------------------------------------
+
+/** Le ton d'une mention. `hot` = ce qui bloque le plus, `ok` = rien à y faire. */
+export type EpreuveMentionTone = "ok" | "warn" | "hot";
+
+export interface EpreuveMention {
+    label: string;
+    tone: EpreuveMentionTone;
+}
+
+/**
+ * La mention affichée à côté du niveau d'une épreuve.
+ *
+ * 🛑 `null` quand l'épreuve n'est **pas mesurée** : la colonne de niveau dit
+ * déjà « Non évaluée », et y accoler « À renforcer » serait un verdict que
+ * personne n'a rendu.
+ */
+export function epreuveMention(
+    epreuve: EpreuveType,
+    niveau: NiveauCecrl | null,
+    dejaAuNiveau: {epreuve: EpreuveType}[],
+    priorites: {rang: number; epreuve: EpreuveType}[],
+): EpreuveMention | null {
+    if (niveau === null) return null;
+    if (estDejaAuNiveau(epreuve, dejaAuNiveau)) {
+        return {label: "Objectif atteint", tone: "ok"};
+    }
+    const premiere = priorites.find((p) => p.rang === 1);
+    if (premiere && premiere.epreuve === epreuve) {
+        return {label: "Prioritaire", tone: "hot"};
+    }
+    return {label: "À renforcer", tone: "warn"};
+}
+
+/** Le bloc « Votre plan est prêt » du rapport complet. */
+export const TCF_DIAGNOSTIC_PLAN_PRET_TITLE = "Votre plan est prêt";
+
+/** « Votre plan B2 est prêt » quand la cible est connue. */
+export function planPretTitle(cible: NiveauCecrl | null): string {
+    return cible ? `Votre plan ${cible} est prêt` : TCF_DIAGNOSTIC_PLAN_PRET_TITLE;
+}
+
+/** « EO · Tâche 3 » — la forme courte du mini-plan. */
+export function prioriteCourte(epreuveCourte: string, taskCode: string | null): string {
+    return taskCode ? `${epreuveCourte} · Tâche ${taskCode.slice(-1)}` : epreuveCourte;
+}
+
+/** La pastille d'une ligne du mini-plan : le rang 1 est le seul « Prioritaire ». */
+export function prioritePastille(rang: number): EpreuveMention {
+    return rang === 1
+        ? {label: "Prioritaire", tone: "hot"}
+        : {label: "À renforcer", tone: "warn"};
+}
+
+/**
+ * « 4 compétences ciblées détectées dans vos réponses ».
+ *
+ * 🛑 Le nombre est **servi** (`tachesSousLaCible`), non plafonné, et `0` rend
+ * `null` : on n'annonce jamais un compteur vide, et on ne le recalcule pas sur
+ * la liste des priorités, bornée à trois.
+ */
+export function competencesCibleesLine(taches: number): string | null {
+    if (taches <= 0) return null;
+    return `${taches} compétence${taches > 1 ? "s" : ""} ciblée${taches > 1 ? "s" : ""} `
+        + `détectée${taches > 1 ? "s" : ""} dans vos réponses`;
+}

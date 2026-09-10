@@ -169,3 +169,52 @@ String formatJour(DateTime d) {
   ];
   return '${d.day} ${mois[d.month - 1]}';
 }
+
+/* --------------------------------------------------------------------------
+   Ce que le paywall PROMET, quand il sait de quoi il parle
+
+   🛑 **Deux jeux de bénéfices, et ce n'est pas cosmétique.** Ouvert depuis un
+   plan qu'on connaît, le paywall parle du PLAN — c'est ce que le candidat vient
+   d'entrevoir sur son rapport de diagnostic. Ouvert depuis un cadenas
+   quelconque, il n'a rien de personnel à dire. Servir les bénéfices du plan à
+   quelqu'un qui n'a pas de plan promettrait un contenu qui n'existe pas encore.
+
+   Miroir de `web_sejoufr/lib/paywall-context.ts`.
+   -------------------------------------------------------------------------- */
+
+typedef PaywallBenefit = ({String title, String text});
+
+/// Le titre du bloc de priorités.
+const String kPaywallPrioritesLabel = 'Vos premières priorités';
+
+/// Les quatre bénéfices du plan.
+///
+/// Le deuxième nomme le palier RÉELLEMENT mesuré (« pourquoi vous restez B1 »)
+/// : c'est la phrase qui porte, et elle n'a de sens que si on connaît ce
+/// palier. Sans lui, on garde la formulation générale — jamais un palier
+/// inventé.
+List<PaywallBenefit> paywallBenefits(PaywallContext ctx) => [
+      (
+        title: 'Travaillez ce qui compte vraiment',
+        text: 'Les entraînements sont choisis selon votre diagnostic.',
+      ),
+      (
+        title: ctx.currentLevel == null
+            ? 'Comprenez ce qui vous bloque'
+            : 'Comprenez pourquoi vous restez ${ctx.currentLevel!.wire}',
+        text: 'Chaque production est corrigée et expliquée.',
+      ),
+      (
+        title: 'Voyez réellement votre progression',
+        text: 'Votre niveau et vos priorités évoluent après vos entraînements.',
+      ),
+      (
+        title: 'Un plan qui s\'adapte',
+        text: 'Quand une compétence progresse, SejourFR ajuste la suite.',
+      ),
+    ];
+
+/// « Commencer mon plan B2 » — ou sans palier quand la démarche est inconnue.
+String paywallCta(PaywallContext ctx) => ctx.objectiveLevel == null
+    ? 'Commencer mon plan'
+    : 'Commencer mon plan ${ctx.objectiveLevel!.name.toUpperCase()}';

@@ -218,3 +218,78 @@ String formatJourCourt(DateTime d) {
   ];
   return '${d.day} ${mois[d.month - 1]}';
 }
+
+// ----------------------------------------------------------------------------
+// La MENTION d'une épreuve, et le mini-plan du rapport complet
+//
+// 🛑 **Rien n'est dérivé d'un niveau.** « Objectif atteint » se lit sur
+// `dejaAuNiveau`, que le serveur sert ; « Prioritaire » se lit sur le rang 1
+// des priorités, que le serveur a classées. Le front met en mots des faits
+// servis, il ne compare aucun palier.
+//
+// Miroir mot pour mot de `web_sejoufr/lib/tcf-diagnostic.ts`.
+// ----------------------------------------------------------------------------
+
+/// Le ton d'une mention. `hot` = ce qui bloque le plus, `ok` = rien à y faire.
+enum EpreuveMentionTone { ok, warn, hot }
+
+typedef EpreuveMention = ({String label, EpreuveMentionTone tone});
+
+/// La mention affichée à côté du niveau d'une épreuve.
+///
+/// 🛑 `null` quand l'épreuve n'est **pas mesurée** : la colonne de niveau dit
+/// déjà « Non évaluée », et y accoler « À renforcer » serait un verdict que
+/// personne n'a rendu.
+EpreuveMention? epreuveMention(
+  EpreuveType epreuve,
+  NiveauCecrl? niveau,
+  List<TcfDiagnosticEpreuveNiveau> dejaAuNiveau,
+  List<TcfDiagnosticPriorityDto> priorites,
+) {
+  if (niveau == null) return null;
+  if (dejaAuNiveau.any((e) => e.epreuve == epreuve)) {
+    return (label: 'Objectif atteint', tone: EpreuveMentionTone.ok);
+  }
+  final premiere = priorites.where((p) => p.rang == 1).firstOrNull;
+  if (premiere != null && premiere.epreuve == epreuve) {
+    return (label: 'Prioritaire', tone: EpreuveMentionTone.hot);
+  }
+  return (label: 'À renforcer', tone: EpreuveMentionTone.warn);
+}
+
+/// « Votre plan B2 est prêt » quand la cible est connue.
+String planPretTitle(NiveauCecrl? cible) =>
+    cible == null ? 'Votre plan est prêt' : 'Votre plan ${cible.wire} est prêt';
+
+/// « EO · Tâche 3 » — la forme courte du mini-plan.
+String prioriteCourte(String epreuveCourte, String? taskCode) => taskCode == null
+    ? epreuveCourte
+    : '$epreuveCourte · Tâche ${taskCode.substring(taskCode.length - 1)}';
+
+/// La pastille d'une ligne du mini-plan : le rang 1 est le seul « Prioritaire ».
+EpreuveMention prioritePastille(int rang) => rang == 1
+    ? (label: 'Prioritaire', tone: EpreuveMentionTone.hot)
+    : (label: 'À renforcer', tone: EpreuveMentionTone.warn);
+
+/// « 4 compétences ciblées détectées dans vos réponses ».
+///
+/// 🛑 Le nombre est **servi**, non plafonné, et `0` rend `null` : on n'annonce
+/// jamais un compteur vide, et on ne le recalcule pas sur la liste des
+/// priorités, bornée à trois.
+String? competencesCibleesLine(int taches) {
+  if (taches <= 0) return null;
+  final s = taches > 1 ? 's' : '';
+  return '$taches compétence$s ciblée$s détectée$s dans vos réponses';
+}
+
+/// La forme COURTE d'une épreuve, pour le mini-plan.
+///
+/// 🛑 Elle ne remplace pas [epreuvePresentation] : le libellé complet reste
+/// celui du tableau des niveaux. Ici la place manque.
+String epreuveCourte(EpreuveType e) => switch (e) {
+      EpreuveType.tcfCo => 'CO',
+      EpreuveType.tcfCe => 'CE',
+      EpreuveType.tcfEe => 'EE',
+      EpreuveType.tcfEo => 'EO',
+      _ => e.wire,
+    };

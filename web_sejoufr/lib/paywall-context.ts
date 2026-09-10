@@ -175,3 +175,60 @@ function formatJour(iso: string): string {
     ][Number(mois) - 1];
     return nom ? `${Number(jour)} ${nom}` : iso;
 }
+
+/* --------------------------------------------------------------------------
+   Ce que le paywall PROMET, quand il sait de quoi il parle
+
+   🛑 **Deux jeux de bénéfices, et ce n'est pas cosmétique.** Ouvert depuis un
+   plan qu'on connaît, le paywall parle du PLAN — c'est ce que le candidat vient
+   d'entrevoir sur son rapport de diagnostic. Ouvert depuis un cadenas
+   quelconque (un examen blanc, une correction IA), il n'a rien de personnel à
+   dire et retombe sur ce que l'abonnement ouvre en général. Servir les
+   bénéfices du plan à quelqu'un qui n'a pas de plan promettrait un contenu qui
+   n'existe pas encore.
+   -------------------------------------------------------------------------- */
+
+export interface PaywallBenefit {
+    title: string;
+    text: string;
+}
+
+/** Le titre du bloc de priorités. */
+export const PAYWALL_PRIORITES_LABEL = "Vos premières priorités";
+
+/**
+ * Les quatre bénéfices du plan (`30_`, maquette paywall).
+ *
+ * Le deuxième nomme le palier RÉELLEMENT mesuré (« pourquoi vous restez B1 ») :
+ * c'est la phrase qui porte, et elle n'a de sens que si on connaît ce palier.
+ * Sans lui, on garde la formulation générale — jamais un palier inventé.
+ */
+export function paywallBenefits(ctx: PaywallContext): PaywallBenefit[] {
+    return [
+        {
+            title: "Travaillez ce qui compte vraiment",
+            text: "Les entraînements sont choisis selon votre diagnostic.",
+        },
+        {
+            title: ctx.currentLevel
+                ? `Comprenez pourquoi vous restez ${ctx.currentLevel}`
+                : "Comprenez ce qui vous bloque",
+            text: "Chaque production est corrigée et expliquée.",
+        },
+        {
+            title: "Voyez réellement votre progression",
+            text: "Votre niveau et vos priorités évoluent après vos entraînements.",
+        },
+        {
+            title: "Un plan qui s'adapte",
+            text: "Quand une compétence progresse, SejourFR ajuste la suite.",
+        },
+    ];
+}
+
+/** « Commencer mon plan B2 » — ou sans palier quand la démarche est inconnue. */
+export function paywallCta(ctx: PaywallContext): string {
+    return ctx.objectiveLevel
+        ? `Commencer mon plan ${ctx.objectiveLevel}`
+        : "Commencer mon plan";
+}

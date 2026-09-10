@@ -173,14 +173,36 @@ class _TcfDiagnosticResultScreenState
                   child: Text(epreuvePresentation(e.epreuve).label,
                       style: AppFonts.ui(size: 14, color: AppColors.ink)),
                 ),
-                Text(
-                  e.niveau == null ? kNiveauNonEvalue : e.niveau!.shortName,
-                  style: AppFonts.ui(
-                    size: e.niveau == null ? 12 : 14,
-                    weight: FontWeight.w700,
-                    // Non évaluée : atténué, jamais alarmant — ce n'est pas un échec.
-                    color: e.niveau == null ? AppColors.inkFaint : AppColors.ink,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      e.niveau == null ? kNiveauNonEvalue : e.niveau!.shortName,
+                      style: AppFonts.ui(
+                        size: e.niveau == null ? 12 : 14,
+                        weight: FontWeight.w700,
+                        // Non évaluée : atténué, jamais alarmant — ce n'est
+                        // pas un échec.
+                        color:
+                            e.niveau == null ? AppColors.inkFaint : AppColors.ink,
+                      ),
+                    ),
+                    // 🛑 La mention se lit sur des FAITS SERVIS : `dejaAuNiveau`
+                    // et le rang 1 des priorités. Aucun palier n'est comparé
+                    // ici, et elle est absente sur une épreuve non mesurée —
+                    // « Non évaluée » + « À renforcer » serait un verdict que
+                    // personne n'a rendu.
+                    if (epreuveMention(
+                            e.epreuve, e.niveau, r.dejaAuNiveau, r.priorites)
+                        case final mention?)
+                      Text(
+                        mention.label,
+                        style: AppFonts.label(
+                          size: 10.5,
+                          color: _mentionColor(mention.tone),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -236,7 +258,59 @@ class _TcfDiagnosticResultScreenState
             ),
         ],
 
-        // 6 — le plan.
+        // 6 — le plan, en aperçu. C'est ce bloc qui transforme un constat en
+        // promesse : le candidat voit l'ordre dans lequel son plan va le
+        // prendre, avant même de l'ouvrir. Absent sans priorité — on ne promet
+        // pas un plan vide.
+        if (r.priorites.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(planPretTitle(r.cible),
+                    style: AppFonts.display(size: 18, color: AppColors.ink)),
+                const SizedBox(height: 10),
+                for (final p in r.priorites)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          child: Text('${p.rang}',
+                              style: AppFonts.label(
+                                  size: 12, color: AppColors.inkFaint)),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            prioriteCourte(
+                                epreuveCourte(p.epreuve), p.taskCode),
+                            style:
+                                AppFonts.ui(size: 14, color: AppColors.ink),
+                          ),
+                        ),
+                        _Pastille(mention: prioritePastille(p.rang)),
+                      ],
+                    ),
+                  ),
+                if (competencesCibleesLine(r.tachesSousLaCible)
+                    case final ligne?) ...[
+                  const SizedBox(height: 10),
+                  Text(ligne,
+                      style:
+                          AppFonts.ui(size: 12, color: AppColors.inkSoft)),
+                ],
+              ],
+            ),
+          ),
+        ],
+
+        // 7 — l'ouverture du plan. C'est ICI que l'abonnement se joue, et
+        // nulle part avant : le candidat a ses quatre niveaux et ses priorités
+        // réelles sous les yeux. Le rapport du diagnostic RAPIDE ne pousse
+        // rien — il n'a qu'une production écrite derrière lui.
         const SizedBox(height: 20),
         AppButton(
           label: r.cible == null
@@ -350,6 +424,40 @@ class _PrioriteCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// La couleur d'une mention d'épreuve. Le rouge est réservé à ce qui bloque
+/// vraiment — la priorité n°1, et elle seule.
+Color _mentionColor(EpreuveMentionTone tone) => switch (tone) {
+      EpreuveMentionTone.ok => AppColors.green,
+      EpreuveMentionTone.warn => AppColors.amber,
+      EpreuveMentionTone.hot => AppColors.red,
+    };
+
+/// La pastille d'une ligne du mini-plan.
+class _Pastille extends StatelessWidget {
+  const _Pastille({required this.mention});
+
+  final EpreuveMention mention;
+
+  @override
+  Widget build(BuildContext context) {
+    final chaud = mention.tone == EpreuveMentionTone.hot;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: chaud ? AppColors.redLight : AppColors.amberLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        mention.label,
+        style: AppFonts.ui(
+          size: 11,
+          color: chaud ? AppColors.redDark : AppColors.amberDark,
+        ),
       ),
     );
   }

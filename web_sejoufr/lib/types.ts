@@ -766,6 +766,17 @@ export interface TcfDiagnosticResultDto {
      * n'en fabrique pas un vide.
      */
     progression: TcfDiagnosticProgressionDto | null;
+    /**
+     * Combien de tâches d'expression **mesurées** restent sous la cible.
+     *
+     * 🛑 **Non plafonné**, contrairement à `priorites` qui l'est à trois par
+     * règle produit. C'est lui, et lui seul, qui fait le « N compétences
+     * ciblées détectées » de l'écran : le lire sur une liste tronquée
+     * afficherait « 3 » quel que soit le nombre réel.
+     *
+     * 🛑 `0` est un état **normal** — tout est à la cible. Aucune ligne alors.
+     */
+    tachesSousLaCible: number;
 }
 
 // ----------------------------------------------------------------------------

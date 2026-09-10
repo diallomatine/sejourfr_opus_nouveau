@@ -34,7 +34,22 @@ public record TcfDiagnosticResultDto(
          * diagnostic, il n'y a rien a comparer. L'ecran n'affiche alors aucun
          * bloc de progression — il n'en fabrique pas un vide.
          */
-        TcfDiagnosticProgressionDto progression
+        TcfDiagnosticProgressionDto progression,
+        /**
+         * Combien de taches d'expression mesurees sont <b>sous la cible</b>.
+         *
+         * <p>🛑 <b>Ce compte n'est PAS plafonne</b>, a la difference de
+         * {@link #priorites()} qui l'est a trois par regle produit. C'est lui,
+         * et lui seul, qui fait le « N competences ciblees detectees » de
+         * l'ecran : le calculer sur une liste deja tronquee afficherait « 3 »
+         * quel que soit le nombre reel.
+         *
+         * <p>🛑 <b>{@code 0} est un etat NORMAL</b> — toutes les taches
+         * mesurees sont a la cible. Les fronts ne rendent alors aucune ligne.
+         * Une tache <b>non mesuree</b> n'entre pas dans ce compte : elle n'est
+         * pas « en dessous », elle est inconnue.
+         */
+        int tachesSousLaCible
 ) {
     /** Le niveau d'une epreuve. {@code niveau} nul = non evaluee. */
     public record EpreuveNiveau(

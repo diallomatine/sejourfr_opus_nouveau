@@ -26,7 +26,12 @@ import {
     TCF_DIAGNOSTIC_PLAN_CTA,
     TCF_DIAGNOSTIC_RASSURANCE_TITLE,
     blocageTitle,
+    competencesCibleesLine,
+    epreuveMention,
     evolutionLabel,
+    planPretTitle,
+    prioriteCourte,
+    prioritePastille,
     formatJourCourt,
     prioriteTitle,
     progressionTitle,
@@ -34,7 +39,21 @@ import {
     rassuranceText,
 } from "@/lib/tcf-diagnostic";
 import {niveauCecrlLabel} from "@/lib/types";
-import type {TcfDiagnosticResultDto} from "@/lib/types";
+import type {EpreuveType, NiveauCecrl, TcfDiagnosticResultDto} from "@/lib/types";
+
+/**
+ * La forme COURTE d'une épreuve, pour le mini-plan (« EO · Tâche 3 »).
+ *
+ * 🛑 Elle ne remplace pas `EPREUVE_PRESENTATION` : le libellé complet reste
+ * celui du tableau des niveaux. Ici la place manque, et « EO » se lit aussi
+ * bien dans une liste de trois lignes qu'on parcourt du regard.
+ */
+const EPREUVE_COURTE: Record<"TCF_CO" | "TCF_CE" | "TCF_EE" | "TCF_EO", string> = {
+    TCF_CO: "CO",
+    TCF_CE: "CE",
+    TCF_EE: "EE",
+    TCF_EO: "EO",
+};
 
 type Etat =
     | {kind: "loading"}
@@ -85,6 +104,19 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
     }
 
     const r = etat.resultat;
+    /**
+     * La mention d'une épreuve. Fermée sur `r` pour rester lisible dans le
+     * JSX ; toute la règle vit dans `lib/tcf-diagnostic.ts`, partagée avec le
+     * mobile.
+     */
+    const mention = (e: {epreuve: string; niveau: NiveauCecrl | null}) =>
+        epreuveMention(
+            e.epreuve as EpreuveType,
+            e.niveau,
+            r.dejaAuNiveau,
+            r.priorites,
+        );
+
     const rail = railLevel(r.niveauGlobal);
     const nonEvaluees = r.epreuves.filter((e) => e.niveau === null);
 
@@ -171,13 +203,29 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
                         <li key={e.epreuve} className="tcfr-epreuve">
                             <span aria-hidden>{p?.icon}</span>
                             <span className="tcfr-epreuve-label">{p?.label ?? e.epreuve}</span>
-                            <span
-                                className="tcfr-epreuve-niveau"
-                                data-evaluee={e.niveau !== null}
-                            >
-                                {e.niveau === null
-                                    ? NIVEAU_NON_EVALUE
-                                    : niveauCecrlLabel(e.niveau)}
+                            <span className="tcfr-epreuve-right">
+                                <span
+                                    className="tcfr-epreuve-niveau"
+                                    data-evaluee={e.niveau !== null}
+                                >
+                                    {e.niveau === null
+                                        ? NIVEAU_NON_EVALUE
+                                        : niveauCecrlLabel(e.niveau)}
+                                </span>
+                                {/* 🛑 La mention se lit sur des FAITS SERVIS :
+                                    `dejaAuNiveau` et le rang 1 des priorités.
+                                    Aucun palier n'est comparé ici. Absente sur
+                                    une épreuve non mesurée — « Non évaluée » +
+                                    « À renforcer » serait un verdict que
+                                    personne n'a rendu. */}
+                                {mention(e) && (
+                                    <span
+                                        className="tcfr-epreuve-mention"
+                                        data-tone={mention(e)!.tone}
+                                    >
+                                        {mention(e)!.label}
+                                    </span>
+                                )}
                             </span>
                         </li>
                     );
@@ -243,7 +291,46 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
                 </div>
             )}
 
-            {/* 6 — le plan. */}
+            {/* 6 — le plan, en aperçu. C'est ce bloc qui transforme un constat
+                en promesse : le candidat voit l'ordre dans lequel son plan va
+                le prendre, avant même de l'ouvrir. Absent sans priorité — on ne
+                promet pas un plan vide. */}
+            {r.priorites.length > 0 && (
+                <div className="tcfr-planpret">
+                    <h2 className="tcfr-h2">{planPretTitle(r.cible)}</h2>
+                    <ol className="tcfr-mini">
+                        {r.priorites.map((p) => {
+                            const pastille = prioritePastille(p.rang);
+                            return (
+                                <li key={`${p.epreuve}-${p.taskCode ?? "epreuve"}`}>
+                                    <span className="tcfr-mini-n">{p.rang}</span>
+                                    <span className="tcfr-mini-label">
+                                        {prioriteCourte(
+                                            EPREUVE_COURTE[
+                                                p.epreuve as keyof typeof EPREUVE_COURTE
+                                            ] ?? p.epreuve,
+                                            p.taskCode,
+                                        )}
+                                    </span>
+                                    <span className="tcfr-pill" data-tone={pastille.tone}>
+                                        {pastille.label}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                    {competencesCibleesLine(r.tachesSousLaCible) && (
+                        <p className="tcfr-mini-note">
+                            {competencesCibleesLine(r.tachesSousLaCible)}
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* 7 — l'ouverture du plan. C'est ICI que l'abonnement se joue, et
+                nulle part avant : le candidat a ses quatre niveaux et ses
+                priorités réelles sous les yeux. Le rapport du diagnostic RAPIDE
+                ne pousse rien — il n'a qu'une production écrite derrière lui. */}
             <Link href="/plan" className="btn btn-lg tcfr-cta">
                 {TCF_DIAGNOSTIC_PLAN_CTA}
                 {r.cible ? ` ${r.cible}` : ""}
@@ -347,6 +434,84 @@ function Styles() {
             .tcfr-progression-evo[data-evolution="HAUSSE"] {
                 color: var(--color-blue-dark);
             }
+            /* La colonne de droite d'une épreuve : le niveau, et sa mention. */
+            .tcfr-epreuve-right {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 2px;
+            }
+            .tcfr-epreuve-mention {
+                font-family: var(--font-mono);
+                font-size: 10.5px;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: var(--color-muted-2);
+            }
+            .tcfr-epreuve-mention[data-tone="ok"] {
+                color: var(--color-success, #168f5b);
+            }
+            .tcfr-epreuve-mention[data-tone="warn"] {
+                color: var(--color-amber, #e8a317);
+            }
+            .tcfr-epreuve-mention[data-tone="hot"] {
+                color: var(--color-red);
+            }
+
+            /* Le plan en aperçu : trois lignes, l'ordre dans lequel le plan
+               prendra le candidat. */
+            .tcfr-planpret {
+                border: 1px solid var(--color-line);
+                border-radius: 16px;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .tcfr-mini {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .tcfr-mini li {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+            }
+            .tcfr-mini-n {
+                font-family: var(--font-mono);
+                font-size: 12px;
+                color: var(--color-muted-2);
+                min-width: 12px;
+            }
+            .tcfr-mini-label {
+                flex: 1;
+                color: var(--color-ink);
+            }
+            .tcfr-pill {
+                font-size: 11px;
+                border-radius: 999px;
+                padding: 3px 9px;
+                white-space: nowrap;
+            }
+            .tcfr-pill[data-tone="hot"] {
+                background: var(--color-red-light);
+                color: var(--color-red-dark);
+            }
+            .tcfr-pill[data-tone="warn"] {
+                background: var(--color-amber-light, #fdf3e0);
+                color: var(--color-amber-dark, #8a5d00);
+            }
+            .tcfr-mini-note {
+                margin: 0;
+                font-size: 12px;
+                color: var(--color-muted);
+            }
+
             .tcfr-h2 {
                 font-family: var(--font-display);
                 font-size: 20px;

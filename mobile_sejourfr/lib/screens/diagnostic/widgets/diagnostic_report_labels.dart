@@ -37,6 +37,14 @@ const String kDiagnosticReportSubFree = 'Estimation d\'entraînement Séjour';
 /* ------------------------------------------------------ le résumé global */
 
 const String kDiagnosticLevelEyebrow = 'Niveau estimé';
+
+/// 🛑 **Wording IMPOSÉ** par `10_` §3.1 : « Niveau estimé **sur cet exercice**.
+/// Jamais « votre niveau TCF » ».
+///
+/// Le diagnostic rapide n'observe qu'une production écrite. Annoncer « niveau
+/// estimé » tout court laisserait croire au candidat qu'il connaît son niveau
+/// TCF — trois épreuves sur quatre n'ont pas été mesurées.
+const String kDiagnosticLevelEyebrowExercice = 'Niveau estimé sur cet exercice';
 const String kDiagnosticLevelObjective = 'Objectif';
 const String kDiagnosticLevelObjectiveUnknown = 'à définir';
 
@@ -427,3 +435,61 @@ const String kDiagnosticCompletCta = 'Faire mon diagnostic complet';
 /// 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
 const String kDiagnosticCompletNote =
     '4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois';
+
+// ----------------------------------------------------------------------------
+// « Ce que nous avons observé » — bloc 2 du rapport rapide (`10_` §3.6)
+//
+// **Exactement trois lignes : une positive, deux à améliorer.** C'est la seule
+// chose que le candidat retient d'un rapport qu'il lit une fois.
+//
+// 🛑 **Rien n'est dérivé.** Le point fort est une observation que le serveur a
+// marquée SOLIDE ; les deux points à améliorer sont les priorités que le
+// serveur a CLASSÉES. Le front choisit dans une liste servie, il ne juge pas.
+//
+// 🛑 **On n'invente jamais une ligne pour remplir le bloc.**
+//
+// Miroir mot pour mot de
+// `web_sejoufr/app/_components/diagnostic/DiagnosticReport.tsx`.
+// ----------------------------------------------------------------------------
+
+const String kDiagnosticObserveTitle = 'Ce que nous avons observé';
+const String kDiagnosticObservePositive = 'Positive';
+const String kDiagnosticObserveAmeliorer = 'À améliorer';
+
+/// Plafond de `10_` §3.6 : deux points à améliorer, pas une liste.
+const int kDiagnosticObserveMaxAmeliorer = 2;
+
+enum DiagnosticObservationTone { ok, up }
+
+typedef DiagnosticObservation = ({
+  DiagnosticObservationTone ton,
+  String kicker,
+  String titre,
+  String? texte,
+});
+
+/// Les trois observations, dans l'ordre de la maquette.
+///
+/// [solides] : observations de la production écrite marquées SOLIDE **par le
+/// serveur**. [priorites] : les priorités classées **par le serveur**.
+List<DiagnosticObservation> diagnosticObservations(
+  List<DiagnosticSkillObservation> solides,
+  List<DiagnosticSkillObservation> priorites,
+) {
+  final positive = solides.where((s) => s.observed).firstOrNull;
+  return [
+    if (positive != null)
+      (
+        ton: DiagnosticObservationTone.ok,
+        kicker: kDiagnosticObservePositive,
+        titre: positive.skillTitle,
+        texte: positive.explanation,
+      ),
+    ...priorites.take(kDiagnosticObserveMaxAmeliorer).map((s) => (
+          ton: DiagnosticObservationTone.up,
+          kicker: kDiagnosticObserveAmeliorer,
+          titre: s.skillTitle,
+          texte: s.explanation,
+        )),
+  ];
+}

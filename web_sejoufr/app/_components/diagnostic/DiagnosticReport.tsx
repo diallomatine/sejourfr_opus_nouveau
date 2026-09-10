@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {useCallback, useEffect, useMemo, useState, type ReactNode} from "react";
-import {ArrowRight, Check, ChevronDown, Info, Lock, Play, RotateCcw, Sparkles} from "lucide-react";
+import {ArrowRight, ArrowUp, Check, ChevronDown, Info, Lock, Play, RotateCcw, Sparkles} from "lucide-react";
 import {learningPlanApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {PlanBlur, PlanDomainIcon, PlanLevelRail} from "@/app/_components/plan/PlanBits";
@@ -26,6 +26,7 @@ import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
   niveauCecrlShort,
   type DiagnosticResultDto,
+  type DiagnosticSkillObservationDto,
   type LearningPlanDto,
   type NiveauCecrl,
   type PlanDomainAssessmentDto,
@@ -61,6 +62,16 @@ const REPORT_SUB_FREE = "Estimation d'entraînement Séjour";
 /** ⚠️ Le libellé du niveau estimé contient **toujours** le mot « estimé »
  *  (règle du dépôt). Miroir de `kDiagnosticLevelEyebrow` côté mobile. */
 const HERO_EYEBROW = "Niveau estimé";
+
+/**
+ * 🛑 **Wording IMPOSÉ** par `10_` §3.1 : « Niveau estimé **sur cet exercice**.
+ * Jamais « votre niveau TCF » ».
+ *
+ * Le diagnostic rapide n'observe qu'une production écrite. Annoncer « votre
+ * niveau estimé » tout court laisserait croire au candidat qu'il connaît son
+ * niveau TCF — trois épreuves sur quatre n'ont pas été mesurées.
+ */
+const HERO_EYEBROW_EXERCICE = "Niveau estimé sur cet exercice";
 const HERO_OBJECTIVE = "Objectif";
 /** 🛑 `objectiveLevel` est **nullable** : aucun front n'invente « B2 » quand le
  *  candidat n'a déclaré ni démarche ni palier. */
@@ -192,6 +203,64 @@ function nextText(objective: string | null): string {
   return objective
     ? `Votre plan traite ces priorités une par une, dans l'ordre qui vous fait progresser le plus vite vers le ${objective}.`
     : "Votre plan traite ces priorités une par une, dans l'ordre qui vous fait progresser le plus vite.";
+}
+
+/* --------------------------------------------------------------------------
+   L3 — « Ce que nous avons observé » (`10_` §3.6 bloc 2)
+
+   **Exactement trois lignes : une positive, deux à améliorer.** C'est la seule
+   chose que le candidat retient d'un rapport qu'il lit une fois.
+
+   🛑 **Rien n'est dérivé.** Le point fort est une observation que le serveur a
+   marquée SOLIDE ; les deux points à améliorer sont les priorités que le
+   serveur a CLASSÉES. Le front choisit dans une liste servie, il ne juge pas.
+
+   🛑 **On n'invente jamais une ligne pour remplir le bloc.** Pas d'observation
+   solide ⇒ pas de ligne positive. Aucune priorité ⇒ pas de bloc du tout.
+   -------------------------------------------------------------------------- */
+
+const OBSERVE_TITLE = "Ce que nous avons observé";
+const OBSERVE_POSITIVE = "Positive";
+const OBSERVE_AMELIORER = "À améliorer";
+
+/** Plafond de `10_` §3.6 : deux points à améliorer, pas une liste. */
+const OBSERVE_MAX_AMELIORER = 2;
+
+interface Observation {
+  ton: "ok" | "up";
+  kicker: string;
+  titre: string;
+  texte: string | null;
+}
+
+/**
+ * Les trois observations, dans l'ordre de la maquette.
+ *
+ * @param solides   observations de la production écrite marquées SOLIDE par le
+ *                  serveur — la première fait la ligne positive
+ * @param priorites les priorités classées par le serveur, dans son ordre
+ */
+function observations(
+  solides: DiagnosticSkillObservationDto[],
+  priorites: DiagnosticSkillObservationDto[],
+): Observation[] {
+  const positive = solides.find((skill) => skill.observed) ?? null;
+  return [
+    ...(positive
+      ? [{
+          ton: "ok" as const,
+          kicker: OBSERVE_POSITIVE,
+          titre: positive.skillTitle,
+          texte: positive.explanation,
+        }]
+      : []),
+    ...priorites.slice(0, OBSERVE_MAX_AMELIORER).map((skill) => ({
+      ton: "up" as const,
+      kicker: OBSERVE_AMELIORER,
+      titre: skill.skillTitle,
+      texte: skill.explanation,
+    })),
+  ];
 }
 
 /* --------------------------------------------------------------------------
@@ -595,6 +664,23 @@ export function DiagnosticReport({
   // clic, et les trois autres restent compactes.
   const [open, setOpen] = useState<PlanDomainEpreuve | null>("TCF_EE");
 
+  /**
+   * Les trois observations du bloc 2, calculées sur ce que le serveur a servi :
+   * les compétences qu'il a marquées SOLIDES sur la production écrite, et les
+   * priorités qu'il a classées.
+   */
+  const observees = useMemo(
+    () =>
+      observations(
+        // 🛑 `SOLID` est un statut **servi** : on filtre dessus, on ne le
+        // déduit pas. Un front qui classerait lui-même une observation en
+        // « point fort » inventerait un verdict.
+        (result?.written?.skills ?? []).filter((skill) => skill.status === "SOLID"),
+        result?.priorities ?? [],
+      ),
+    [result],
+  );
+
   const cards = useMemo(
     () =>
       plan
@@ -653,7 +739,13 @@ export function DiagnosticReport({
       <section className={styles.hero} aria-labelledby="hero-title">
         <div className={styles.heroTop}>
           <div className={styles.heroMain}>
-            <p className={styles.heroEyebrow} id="hero-title">{HERO_EYEBROW}</p>
+            {/* 🛑 « sur cet exercice » tant que les 4 épreuves ne sont pas
+                mesurées (`10_` §3.1, wording imposé) : le candidat ne connaît
+                pas encore son niveau TCF, et l'écran ne doit pas le laisser
+                croire. */}
+            <p className={styles.heroEyebrow} id="hero-title">
+              {complete ? HERO_EYEBROW : HERO_EYEBROW_EXERCICE}
+            </p>
             <div className={styles.heroPair}>
               {/* Forme **courte** (« <A1 »), miroir de `NiveauCecrl.shortName` :
                   « A1 non atteint » en corps de titre déborde et ne se lit plus. */}
@@ -695,6 +787,33 @@ export function DiagnosticReport({
         )}
       </section>
 
+      {/* --------------------------- ce que nous avons observé (bloc 2) ---
+          Trois lignes, une positive et deux à améliorer. Absent quand le
+          serveur n'a rien classé : un bloc vide ne se remplit pas. */}
+      {!complete && observees.length > 0 && (
+        <section aria-labelledby="observe-title">
+          <SectionHead title={OBSERVE_TITLE} titleId="observe-title" />
+          <ul className={styles.observations}>
+            {observees.map((observation) => (
+              <li key={`${observation.kicker}-${observation.titre}`} data-ton={observation.ton}>
+                <span className={styles.observationIcon} aria-hidden>
+                  {observation.ton === "ok" ? (
+                    <Check size={15} strokeWidth={2.8} />
+                  ) : (
+                    <ArrowUp size={15} strokeWidth={2.6} />
+                  )}
+                </span>
+                <div>
+                  <p className={styles.observationKicker}>{observation.kicker}</p>
+                  <strong>{observation.titre}</strong>
+                  {observation.texte && <p>{observation.texte}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ------------- L3 : la transition, puis le diagnostic complet -------
           Rendus tant que les 4 épreuves ne sont pas mesurées — c'est
           exactement l'état d'un diagnostic rapide. Une fois le profil complet,
@@ -732,8 +851,15 @@ export function DiagnosticReport({
         </section>
       )}
 
-      {/* ------------------------------------------------ les 4 épreuves */}
-      {cards.length > 0 && (
+      {/* ------------------------------------------------ les 4 épreuves
+          🛑 **Seulement une fois le profil COMPLET.** Après le diagnostic
+          rapide, trois épreuves sur quatre n'ont pas été mesurées : les
+          afficher en « — » juste après avoir dit « ce n'est qu'une première
+          estimation » fait doublon, et transforme un rapport de porte d'entrée
+          en tableau de bord. La maquette du rapide n'en a pas.
+          Le niveau par épreuve est le sujet du rapport du diagnostic COMPLET
+          (`/diagnostic-tcf/…/resultat`). */}
+      {complete && cards.length > 0 && (
         <section aria-labelledby="epreuves-title">
           <SectionHead title={EPREUVES_TITLE} text={EPREUVES_TEXT} titleId="epreuves-title" />
           <div className={styles.cards}>
@@ -755,8 +881,14 @@ export function DiagnosticReport({
         </section>
       )}
 
-      {/* --------------------------------- prochaine étape, ou l'offre */}
-      {hasTcf ? (
+      {/* --------------------------------- prochaine étape, ou l'offre
+          🛑 **Le paywall ne se joue PAS ici.** Sur le parcours voulu, le
+          rapport rapide mène au diagnostic complet, et c'est le rapport du
+          COMPLET qui met l'abonnement en avant — le candidat y a alors ses
+          quatre niveaux et ses priorités réelles sous les yeux. Pousser
+          l'offre dès la première estimation vend un plan bâti sur une seule
+          production écrite. */}
+      {!complete ? null : hasTcf ? (
         <section aria-labelledby="next-title">
           <SectionHead title={NEXT_TITLE} titleId="next-title" />
           <div className={styles.nextCard}>

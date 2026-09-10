@@ -176,6 +176,7 @@ class TcfDiagnosticResultDto {
     this.cible,
     this.completedAt,
     this.progression,
+    this.tachesSousLaCible = 0,
   });
 
   final String sessionId;
@@ -198,6 +199,16 @@ class TcfDiagnosticResultDto {
   /// rien à comparer. L'écran n'affiche alors aucun bloc — il n'en fabrique
   /// pas un vide.
   final TcfDiagnosticProgressionDto? progression;
+
+  /// Combien de tâches d'expression **mesurées** restent sous la cible.
+  ///
+  /// 🛑 **Non plafonné**, contrairement à [priorites] qui l'est à trois par
+  /// règle produit. C'est lui, et lui seul, qui fait le « N compétences
+  /// ciblées détectées » de l'écran : le lire sur une liste tronquée
+  /// afficherait « 3 » quel que soit le nombre réel.
+  ///
+  /// 🛑 `0` est un état **normal** — tout est à la cible. Aucune ligne alors.
+  final int tachesSousLaCible;
 
   factory TcfDiagnosticResultDto.fromJson(Map<String, dynamic> json) =>
       TcfDiagnosticResultDto(
@@ -224,6 +235,7 @@ class TcfDiagnosticResultDto {
             ? TcfDiagnosticProgressionDto.fromJson(
                 json['progression'] as Map<String, dynamic>)
             : null,
+        tachesSousLaCible: (json['tachesSousLaCible'] as num? ?? 0).toInt(),
       );
 }
 

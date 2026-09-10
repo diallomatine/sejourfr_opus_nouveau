@@ -2564,3 +2564,77 @@ button.cardHead:focus-visible {
   font-size: 12px;
   color: var(--color-muted-2);
 }
+
+/* ==========================================================================
+   « Ce que nous avons observé » — bloc 2 du rapport rapide (`10_` §3.6)
+
+   Trois lignes, jamais plus : une positive, deux à améliorer. La pastille
+   porte la couleur, le texte reste noir — c'est un constat, pas une alerte.
+   ========================================================================== */
+
+.observations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.observations li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+.observations strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--color-ink);
+}
+
+.observations li p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.observationKicker {
+  margin: 0 0 2px !important;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.observations li[data-ton="ok"] .observationKicker {
+  color: var(--color-success, #168f5b);
+}
+
+.observations li[data-ton="up"] .observationKicker {
+  color: var(--color-amber, #e8a317);
+}
+
+.observationIcon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.observations li[data-ton="ok"] .observationIcon {
+  background: var(--color-success-light, #e6f4ed);
+  color: var(--color-success, #168f5b);
+}
+
+.observations li[data-ton="up"] .observationIcon {
+  background: var(--color-amber-light, #fdf3e0);
+  color: var(--color-amber, #e8a317);
+}

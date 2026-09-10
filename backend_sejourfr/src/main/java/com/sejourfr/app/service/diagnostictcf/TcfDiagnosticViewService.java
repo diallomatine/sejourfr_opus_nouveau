@@ -109,7 +109,34 @@ public class TcfDiagnosticViewService {
                 priorites,
                 dejaAuNiveau,
                 session.getCompletedAt(),
-                progression(session, sections));
+                progression(session, sections),
+                tachesSousLaCible(session, sections, cible));
+    }
+
+    /**
+     * Combien de taches d'expression <b>mesurees</b> restent sous la cible.
+     *
+     * <p>🛑 <b>Non plafonne</b>, contrairement aux priorites : c'est le compte
+     * reel, celui que l'ecran annonce (« 4 competences ciblees detectees »).
+     * Le lire sur la liste des priorites, bornee a trois, afficherait « 3 »
+     * quel que soit le nombre veritable.
+     *
+     * <p>🛑 <b>Une tache non mesuree ne compte pas.</b> Elle n'est pas « en
+     * dessous de la cible » : elle est inconnue, et {@code null} n'est jamais
+     * un verdict.
+     *
+     * <p>Sans cible connue (demarche non declaree), le compte est nul : « sous
+     * la cible » n'a alors aucun sens.
+     */
+    private int tachesSousLaCible(
+            TcfDiagnosticSession session, List<Section> sections, NiveauCecrl cible) {
+        if (cible == null) {
+            return 0;
+        }
+        return (int) readService.tachesMesurees(session, sections).stream()
+                .filter(t -> t.niveauTache() != null)
+                .filter(t -> TcfDiagnosticLevelResolver.ecart(t.niveauTache(), cible) > 0)
+                .count();
     }
 
     /**

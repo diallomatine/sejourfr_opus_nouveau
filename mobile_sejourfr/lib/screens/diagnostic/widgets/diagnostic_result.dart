@@ -263,6 +263,15 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
     // Le compte de l'offre se lit sur le **compteur serveur** de chaque
     // domaine (`fragileSkillCount`), jamais sur une liste affichée.
     final detected = epreuves.fold<int>(0, (sum, e) => sum + e.fragileTotal);
+    // 🛑 `SOLID` est un statut **servi** : on filtre dessus, on ne le déduit
+    // pas. Un front qui classerait lui-même une observation en « point fort »
+    // inventerait un verdict.
+    final observees = diagnosticObservations(
+      (widget.result?.written?.skills ?? const [])
+          .where((s) => s.status == LearningPlanSkillStatus.solid)
+          .toList(growable: false),
+      widget.result?.priorities ?? const [],
+    );
 
     return SingleChildScrollView(
       // La liste tient en quatre cartes : elle est construite d'un bloc pour
@@ -292,7 +301,26 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
             const SizedBox(height: 14),
             const _DiagnosticCompletCard(),
           ],
-          if (epreuves.isNotEmpty) ...[
+          // --------------------------- ce que nous avons observé (bloc 2)
+          // Trois lignes, une positive et deux à améliorer. Absent quand le
+          // serveur n'a rien classé : un bloc vide ne se remplit pas.
+          if (!complete && observees.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const _SectionHead(title: kDiagnosticObserveTitle),
+            const SizedBox(height: 11),
+            for (final observation in observees) ...[
+              _ObservationCard(observation: observation),
+              const SizedBox(height: 10),
+            ],
+          ],
+
+          // 🛑 Les 4 épreuves n'apparaissent qu'une fois le profil COMPLET.
+          // Après le diagnostic rapide, trois épreuves sur quatre n'ont pas été
+          // mesurées : les afficher en « — » juste après avoir dit « ce n'est
+          // qu'une première estimation » fait doublon, et transforme un rapport
+          // de porte d'entrée en tableau de bord. Le niveau par épreuve est le
+          // sujet du rapport du diagnostic COMPLET.
+          if (complete && epreuves.isNotEmpty) ...[
             const SizedBox(height: 24),
             const _SectionHead(
               title: kDiagnosticEpreuvesTitle,
@@ -318,7 +346,12 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
               const SizedBox(height: 12),
             ],
           ],
-          if (widget.hasTcfAccess) ...[
+          // 🛑 **Le paywall ne se joue PAS ici.** Sur le parcours voulu, le
+          // rapport rapide mène au diagnostic complet, et c'est le rapport du
+          // COMPLET qui met l'abonnement en avant — le candidat y a alors ses
+          // quatre niveaux et ses priorités réelles sous les yeux.
+          if (!complete) ...[
+          ] else if (widget.hasTcfAccess) ...[
             const SizedBox(height: 8),
             const _SectionHead(title: kDiagnosticNextStepTitle),
             const SizedBox(height: 11),
@@ -620,7 +653,13 @@ class _GlobalCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  kDiagnosticLevelEyebrow.toUpperCase(),
+                  // 🛑 « sur cet exercice » tant que les 4 épreuves ne sont
+                  // pas mesurées (`10_` §3.1, wording imposé) : le candidat ne
+                  // connaît pas encore son niveau TCF.
+                  (complete
+                          ? kDiagnosticLevelEyebrow
+                          : kDiagnosticLevelEyebrowExercice)
+                      .toUpperCase(),
                   style: AppFonts.eyebrow(
                     color: AppColors.white.withValues(alpha: 0.85),
                   ),
@@ -1845,6 +1884,73 @@ class _DiagnosticCompletCard extends ConsumerWidget {
           Text(
             kDiagnosticCompletNote,
             style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Une ligne de « Ce que nous avons observé ».
+///
+/// La pastille porte la couleur, le texte reste noir — c'est un constat, pas
+/// une alerte.
+class _ObservationCard extends StatelessWidget {
+  const _ObservationCard({required this.observation});
+
+  final DiagnosticObservation observation;
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = observation.ton == DiagnosticObservationTone.ok;
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: ok ? AppColors.greenLight : AppColors.amberLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              ok ? LucideIcons.check : LucideIcons.arrowUp,
+              size: 15,
+              color: ok ? AppColors.green : AppColors.amber,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  observation.kicker.toUpperCase(),
+                  style: AppFonts.label(
+                    size: 10.5,
+                    color: ok ? AppColors.green : AppColors.amber,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  observation.titre,
+                  style: AppFonts.ui(
+                    size: 14.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.ink,
+                  ),
+                ),
+                if (observation.texte case final texte?) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    texte,
+                    style: AppFonts.ui(
+                        size: 13, color: AppColors.inkSoft, height: 1.5),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),

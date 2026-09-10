@@ -496,3 +496,91 @@ livrée en L7, moteur de progression V4.2). C'est le prochain morceau à prendre
 **Les trois chantiers de contenu** de `50_` §9 restent entiers, et le document
 les nomme lui-même comme le chemin critique : ~1 016 taggings, ~120 mises en
 situation, ~15 sujets EO1.
+
+
+---
+
+# Alignement sur les maquettes `grok_ecran` (2026-09-10)
+
+Le propriétaire a fourni cinq écrans de référence — diagnostic rapide,
+diagnostic complet, paywall, plan premium, plan gratuit — et a rappelé le
+parcours voulu :
+
+> un seul diagnostic à faire (le **rapide**) → son rapport → on propose le
+> **diagnostic complet** (toutes les épreuves, comme un examen blanc) → et c'est
+> **dans le rapport du complet** qu'on met en avant le paywall, puis le plan.
+
+## D-M-1 · Le rapport du diagnostic RAPIDE cesse de ressembler à celui du complet
+
+**Constaté** : l'écran affichait « Mes 4 épreuves » avec leurs niveaux, les
+priorités et le bloc d'offre — après **une seule production écrite**. Trois
+épreuves sur quatre s'affichaient en « — », juste sous une carte qui venait de
+dire « ce n'est qu'une première estimation ».
+
+**Décidé**, tant que le profil n'est pas complet :
+
+- le hero dit « **Niveau estimé sur cet exercice** » — wording imposé par
+  `10_` §3.1, « jamais votre niveau TCF » ;
+- le bloc **« Ce que nous avons observé »** apparaît : exactement trois lignes,
+  une positive et deux à améliorer ;
+- les **4 épreuves** et le bloc d'**offre** n'apparaissent plus. Ils reviennent
+  dès que les quatre épreuves sont mesurées.
+
+🛑 **Le paywall ne se joue plus sur le rapport rapide.** Pousser l'abonnement
+après une seule production écrite vend un plan bâti sur presque rien. Il se joue
+sur le rapport du **complet**, où le candidat a ses quatre niveaux et ses
+priorités réelles sous les yeux — c'est exactement ce que le propriétaire a
+demandé.
+
+## D-M-2 · Les trois observations se **choisissent** dans du servi, elles ne se jugent pas
+
+La ligne positive est une observation que le serveur a marquée `SOLID` sur la
+production écrite ; les deux « à améliorer » sont les priorités que le serveur a
+**classées**. Le front filtre et met en mots — il ne classe pas.
+
+🛑 **Aucune ligne n'est fabriquée pour remplir le bloc** : pas d'observation
+solide ⇒ pas de ligne positive ; aucune priorité ⇒ pas de bloc.
+
+## D-M-3 · Le rapport du COMPLET gagne les mentions et l'aperçu du plan
+
+- chaque épreuve porte sa **mention** : « Objectif atteint » / « À renforcer » /
+  « Prioritaire ». 🛑 Elle se lit sur des **faits servis** — `dejaAuNiveau` et le
+  rang 1 des priorités — jamais sur une comparaison de paliers faite au front.
+  Absente sur une épreuve non mesurée : « Non évaluée » + « À renforcer » serait
+  un verdict que personne n'a rendu ;
+- un bloc **« Votre plan B2 est prêt »** : les trois priorités en forme courte
+  (« EO · Tâche 3 ») avec leur pastille, et le compte réel de compétences
+  ciblées.
+
+**Nouveau champ serveur** : `TcfDiagnosticResultDto.tachesSousLaCible`.
+🛑 **Non plafonné**, contrairement aux priorités bornées à trois : le lire sur
+la liste tronquée afficherait « 3 » quel que soit le nombre réel. Une tâche
+**non mesurée** n'y entre pas — elle n'est pas « sous la cible », elle est
+inconnue.
+
+## D-M-4 · Le paywall parle du plan **quand il le connaît**, et pas autrement
+
+La maquette montre quatre bénéfices qui parlent du plan (« Comprenez pourquoi
+vous restez B1 », « Un plan qui s'adapte »), là où la feuille servait une liste
+générique sur le catalogue de questions.
+
+**Décidé** : deux jeux. Contextualisé ⇒ les bénéfices du plan et le CTA
+« Commencer mon plan B2 ». Ouvert depuis un cadenas quelconque (examen blanc,
+correction IA) ⇒ la liste générique et « Voir les abonnements ».
+
+**Pourquoi pas un seul jeu** : servir les bénéfices du plan à quelqu'un qui n'a
+pas encore de plan promettrait un contenu qui n'existe pas. C'est la même règle
+que L5 — « un paywall qui ment est pire qu'un paywall générique ».
+
+Le deuxième bénéfice nomme le palier **réellement mesuré** ; sans lui, on garde
+la formulation générale plutôt qu'un palier inventé.
+
+## Reste à faire sur les écrans
+
+- **Plan premium / plan gratuit** : les deux écrans existent déjà et sont plus
+  riches que les maquettes (séance du jour, jalons, cycle de palier, changements
+  récents). Ils n'ont **pas** été repris cette passe — il faut les comparer
+  ligne à ligne aux maquettes 04 et 05, et c'est un travail à part entière.
+- **T28 « Progrès »** : toujours pas commencé (cf. §L11).
+- 🛑 **Aucun de ces écrans n'a été ouvert.** `tsc`, `build` et `analyze` passent,
+  les tests aussi — mais rien ne remplace un œil sur le rendu.
