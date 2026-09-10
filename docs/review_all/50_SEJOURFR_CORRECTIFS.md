@@ -286,8 +286,14 @@ Supprimer de `10_` §11 les tables `tcf_plan`, `tcf_plan_item`, `tcf_plan_step`.
 - **§13** : supprimer les tests de rendu front ; conserver tous les tests de moteur et de quota,
   qui restent backend.
 - **§9 mode dégradé** : conservé comme filet, sans cas d'usage réel aujourd'hui.
-- **Nouveau, issu de l'audit B12** : EO1 n'a qu'**un sujet par niveau**. Chantier de contenu à
-  planifier avec L6 — un candidat qui refait EO1 retombe sur le même sujet.
+- **Correctif à l'audit B12** : « EO1 n'a qu'un sujet par niveau » n'est pas un manque. À l'EO1 du
+  TCF IRN, le candidat ne lit aucun sujet : l'examinateur mène un **entretien guidé** sur lui-même
+  et son quotidien. Un seul « sujet » par niveau est donc conforme au format, et il ne faut surtout
+  pas en inventer quinze.
+  Ce qui doit varier, c'est le **jeu de questions posées**. Modéliser une banque de relances
+  rattachée à la tâche EO1 (`eo1_question_set` : ~15 jeux de 4 à 6 questions, tirage aléatoire,
+  scopé par niveau), afin qu'un candidat qui refait EO1 ne rejoue pas le même échange.
+  Aucun nouveau `production_task` n'est créé pour cela.
 
 ---
 
@@ -534,7 +540,7 @@ Le code n'est pas le chemin critique. Ces trois chantiers le sont.
 |---|---|---|
 | Tagging des 1 016 questions civiques sur 28 notions | ~1 016 validations humaines assistées | L8 → L10 |
 | Mises en situation civiques | ~120 questions à produire | répétition entre examens blancs (le diagnostic, lui, tient avec le stock actuel) |
-| Sujets EO1 | 3 aujourd'hui, viser ~18 | L6 |
+| Banques de questions EO1 | ~15 jeux de relances | L6 |
 
 ---
 

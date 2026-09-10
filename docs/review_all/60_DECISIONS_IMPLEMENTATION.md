@@ -11,10 +11,16 @@
 > d'un invariant du dépôt — celles-là sont dans le code et dans `docs/regles/`.
 >
 > Ordre : par lot, le plus récent en bas.
+>
+> 👉 **Ce qui RESTE à faire est listé ailleurs** : `70_RESTE_A_FAIRE.md`, qui
+> agrège ce document, `50_` et l'état réel du code et des contenus.
 
 ---
 
 # Où en sont les lots (au 2026-09-10)
+
+⚠️ **Ce tableau date du début du chantier et n'a plus été tenu à jour.** L9, L10
+et T28 ont été livrés depuis. L'état courant est dans `70_RESTE_A_FAIRE.md` §7.
 
 | Lot | État | Ce qui reste |
 |---|---|---|
