@@ -14,6 +14,31 @@
 
 ---
 
+# Où en sont les lots (au 2026-09-10)
+
+| Lot | État | Ce qui reste |
+|---|---|---|
+| **L1** socle | ✅ livré | — |
+| **L4** diagnostic TCF 4 épreuves | ✅ livré | 1 réserve : sévérité EE/EO dérivée des bandes du correcteur (§5.3 interdit une 7ᵉ famille de prompts) |
+| **L5** paywall contextualisé | ✅ livré | — (la date d'examen qui l'alimente est arrivée en L3) |
+| **L7** boucle de réévaluation | ✅ livré | T28 (« Progrès ») renvoyé à L11 |
+| **L3** diagnostic écrit rapide | ✅ livré | pool de sujets (D-L3-3) si voulu |
+| **L8** référentiel de notions | 🟡 **moitié code livrée** | **~1 016 taggings** — décisions humaines, pas des lignes à écrire |
+| **L9** diagnostic civique | ⛔ bloqué | dépend du tagging (L8) |
+| **L10** Plan civique + Leitner | ⛔ bloqué | dépend du tagging (L8) |
+| **L11** examens blancs + Progrès | 🟡 **moitié codable** | « branchés » dépend de L10 ; **T28 est libre et c'est le prochain morceau** |
+| **L6** rapport micro + EO1 | 🟡 code livré | ~15 sujets EO1 (D-L6-2) |
+| **L12** supervision des coûts IA | ✅ livré | — |
+
+**Ce qui bloque vraiment n'est pas du code.** `50_` §9 le dit, l'audit §9 le
+répète : les trois chantiers du chemin critique sont éditoriaux — ~1 016
+taggings, ~120 mises en situation, ~15 sujets EO1.
+
+---
+
+
+---
+
 # L7 — la boucle de réévaluation
 
 ## D-L7-1 · L'éligibilité est une **route dédiée**, pas un champ du diagnostic
