@@ -25,8 +25,15 @@ import java.util.UUID;
  * @param projection40  le report sur l'echelle de l'examen reel.
  *                      🛑 {@code null} si rien n'a ete pose — « on n'a rien
  *                      mesure » ne se dit pas « vous auriez 0 sur 40 »
- * @param seuilReussite 32, la regle de l'epreuve. Servi pour que l'ecran le
- *                      DISE sans le connaitre
+ * @param seuilReussite    32, la regle de l'epreuve. Servi pour que l'ecran le
+ *                         DISE sans le connaitre
+ * @param formatQuestions  40, le nombre de questions de l'epreuve reelle.
+ *                         🛑 Servi lui aussi, et pour une raison precise :
+ *                         quand {@code posees == formatQuestions}, le score EST
+ *                         le resultat et l'ecran doit le dire tel quel. En mode
+ *                         degrade il faut projeter, et l'ecran doit alors le
+ *                         dire aussi. Sans ce nombre, le front devrait ecrire
+ *                         « 40 » en dur pour trancher
  * @param themes        les 5 themes, <b>tous</b>, y compris ceux qu'aucune
  *                      question n'a touches — un theme absent de la liste
  *                      disparaitrait de l'ecran au lieu de se dire « non
@@ -45,6 +52,7 @@ public record CivicDiagnosticResultDto(
         int posees,
         Integer projection40,
         int seuilReussite,
+        int formatQuestions,
         List<ThemeResultat> themes,
         Situations situations,
         List<PrioriteTheme> priorites,

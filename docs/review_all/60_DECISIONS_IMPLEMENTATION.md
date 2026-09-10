@@ -678,3 +678,94 @@ le repli que la spec a conçu.
 - **toggle sur Réviser, Examens et Progrès** (la 3ᵉ porte : les Examens) ;
 - **L10** : Leitner + plan par notion, qui eux demandent vraiment le tagging ;
 - **T28 « Progrès »**, toujours pas commencé.
+
+
+---
+
+# Le diagnostic civique passe à 40 questions (2026-09-10)
+
+**Arbitré** : « passe à 40 questions, comme l'examen, et comme ça à la fin on a
+quelque chose de cohérent. »
+
+`20_` §4.2 proposait 17 + 7 = 24. Le compte est aligné sur l'épreuve réelle :
+**28 connaissances + 12 mises en situation = 40**, le ratio des mises en
+situation restant celui de l'examen (12/40), que la spec citait déjà comme
+référence.
+
+## Ce que ça change, et pourquoi c'est mieux
+
+Avec 24 questions, il fallait **projeter** : « soit environ 30 / 40 à l'examen ».
+Une projection se discute — le candidat peut se demander sur quoi elle repose.
+Avec 40, **le score EST le résultat** : 30 / 40, seuil 32, rien à convertir.
+
+Conséquence dans le code : `formatQuestions` (40) est désormais **servi** à côté
+de `seuilReussite` (32), et l'écran choisit sa phrase.
+
+- `posees == formatQuestions` ⇒ on annonce le seuil, sans « soit environ » ;
+- catalogue sous-doté sur une mention ⇒ on **projette**, et on le dit.
+
+🛑 **La projection n'est pas supprimée pour autant** : le mode dégradé de
+`20_` §3.4 reste possible, et un report doit alors se présenter comme un report.
+
+## Le plancher par thème monte de 3 à 4
+
+28 questions de connaissance sur 5 thèmes en autorisent 4 chacun (20) et
+laissent 8 au complément. Un plancher qui ne bouge pas quand le total grandit
+rend le minimum de moins en moins significatif.
+
+## Ce qui distingue encore le diagnostic de l'examen blanc
+
+Le format est le même, la nature ne l'est pas — et `20_` §4.1 l'oppose sur trois
+axes, dont **deux tiennent toujours** :
+
+| | Diagnostic | Examen blanc |
+|---|---|---|
+| Format | 40 questions | 40 questions |
+| **Couverture** | **équilibrée** sur les 5 thèmes, plancher par thème | **représentative** de l'examen |
+| **Effet** | **crée** le plan | **met à jour** le plan |
+
+C'est la couverture qui compte : un examen blanc représentatif peut ne poser que
+deux questions sur un thème, ce qui ne permet pas d'en juger l'état. Le
+diagnostic garantit un plancher, précisément pour que chaque thème reçoive un
+état exploitable.
+
+🛑 **Le diagnostic reste NON CHRONOMÉTRÉ**, et c'est une décision : un
+diagnostic doit mesurer ce que quelqu'un sait, pas à quelle vitesse. Ajouter les
+45 minutes de l'épreuve en ferait un examen blanc déguisé, ce que §4.1 interdit.
+**À confirmer** si le propriétaire préfère l'inverse — c'est une ligne de
+configuration.
+
+---
+
+# Le mobile de L9 (2026-09-10)
+
+Livré en parité avec le web :
+
+- modèles et repository du diagnostic civique, `PreparationDto` et ses libellés
+  (miroirs mot pour mot de `lib/preparation.ts` et `lib/civic-diagnostic.ts`) ;
+- écrans du diagnostic civique et de son résultat, routes enregistrées ;
+- carte **« Ma préparation »** en tête de l'Accueil ;
+- **toggle TCF | Examen civique** sur le Plan, avec la raison exacte pour
+  laquelle chaque module n'est pas encore prêt.
+
+## D-M-5 · L'onglet civique du Plan mobile ne simule pas un plan
+
+Sur le web, l'onglet civique affiche les thèmes prioritaires servis par le
+diagnostic. Sur mobile, il **renvoie au résultat du diagnostic** plutôt que de
+les répéter.
+
+**Pourquoi cette différence assumée** : la répétition espacée (L10) n'existe pas.
+Répéter les priorités dans un écran intitulé « Mon plan » laisserait croire à un
+plan qui n'existe pas encore. Le web s'en approche parce que sa liste ouvre
+directement l'entraînement du thème ; le mobile n'a pas cette porte au même
+endroit, et une liste sans action n'est pas un plan.
+
+**À réunifier** quand L10 arrive : les deux fronts serviront alors le vrai plan
+civique.
+
+## Reste à faire
+
+- **toggle sur Réviser, Examens et Progrès** — la 3ᵉ porte (les Examens) n'est
+  toujours pas branchée ;
+- **L10** : Leitner + plan par notion, qui demandent le tagging ;
+- **T28 « Progrès »**.

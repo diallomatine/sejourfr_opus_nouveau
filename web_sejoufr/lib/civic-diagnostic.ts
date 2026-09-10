@@ -17,8 +17,14 @@ import type {
 } from "./types";
 
 export const CIVIC_DIAGNOSTIC_TITLE = "Mon diagnostic — Examen civique";
-export const CIVIC_DIAGNOSTIC_SUBTITLE =
-    "24 questions, environ 15 minutes, sur les 5 thèmes de l'examen.";
+/**
+ * 🛑 Le nombre de questions n'est **pas** écrit ici : il est servi
+ * (`total` / `formatQuestions`). Le figer dans une phrase reproduirait
+ * exactement le piège de la table des paliers en six copies.
+ */
+export function civicDiagnosticSubtitle(total: number): string {
+    return `${total} questions, comme à l'examen, réparties sur les 5 thèmes.`;
+}
 
 /**
  * 🛑 Le diagnostic **n'est pas** un examen blanc (`20_` §4.1), et l'écran doit
@@ -51,18 +57,29 @@ export function progressionLabel(repondues: number, total: number): string {
 }
 
 /**
- * La phrase de projection (`20_` §4.4), **verbatim de la spec**.
+ * La phrase sous le score.
  *
- * 🛑 `projection40` vient du serveur : ce fichier ne le recalcule pas. `null`
- * ⇒ aucune phrase — « on n'a rien mesuré » ne se dit pas « vous auriez 0 ».
+ * **Deux formulations, et la différence est de l'honnêteté :**
  *
- * 🛑 **Aucune promesse de réussite.** On dit le seuil, on ne dit jamais
- * « vous êtes prêt » ni « vous allez échouer ».
+ * - le diagnostic a posé **le format entier** (40 questions, comme l'épreuve) ⇒
+ *   le score **est** le résultat, on ne projette rien et on ne dit surtout pas
+ *   « soit environ » ;
+ * - le catalogue était sous-doté sur cette mention et il en manque ⇒ on
+ *   **projette**, et on le dit, parce qu'un report n'est pas une mesure.
+ *
+ * 🛑 `projection40` vient du serveur : ce fichier ne le recalcule pas. `null` ⇒
+ * aucune phrase — « on n'a rien mesuré » ne se dit pas « vous auriez 0 ».
+ *
+ * 🛑 **Aucune promesse de réussite.** On dit le seuil, jamais « vous êtes prêt »
+ * ni « vous allez échouer ».
  */
 export function projectionLine(r: CivicDiagnosticResultDto): string | null {
     if (r.projection40 === null) return null;
-    return `Soit environ ${r.projection40} / 40 à l'examen. `
-        + `Le seuil de réussite est de ${r.seuilReussite}.`;
+    const seuil = `Le seuil de réussite est de ${r.seuilReussite}.`;
+    if (r.posees === r.formatQuestions) {
+        return seuil;
+    }
+    return `Soit environ ${r.projection40} / ${r.formatQuestions} à l'examen. ${seuil}`;
 }
 
 /** La pastille d'un thème. `NON_EVALUE` n'a **pas** de couleur d'alerte. */
@@ -85,7 +102,7 @@ export const CIVIC_SITUATIONS_TEXT =
     "Les mises en situation demandent d'appliquer les règles à un cas concret. "
     + "C'est souvent ce qui fait la différence à l'examen.";
 
-/** « 4 sur 7 réussies ». `null` quand aucune n'a été posée (mode dégradé). */
+/** « 8 sur 12 réussies ». `null` quand aucune n'a été posée (mode dégradé). */
 export function situationsLine(r: CivicDiagnosticResultDto): string | null {
     if (r.situations.posees <= 0) return null;
     return `${r.situations.reussies} sur ${r.situations.posees} réussie`

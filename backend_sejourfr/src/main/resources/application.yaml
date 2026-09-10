@@ -1090,14 +1090,20 @@ sejourfr:
     # 🛑 A incrementer des qu'un reglage ci-dessous change le SENS d'un
     # resultat. Un diagnostic se relit avec la configuration QUI L'A PRODUIT.
     config-version: 1
-    # 17 + 7 = 24 questions, ~15 min (20_ §4.2). Le ratio des mises en
-    # situation (~29 %) reprend celui de l'examen reel (12 sur 40).
-    connaissances: 17
-    mises-en-situation: 7
+    # 🛑 28 + 12 = 40, LE FORMAT DE L'EXAMEN REEL (arbitrage du 2026-09-10).
+    # 20_ §4.2 proposait 17 + 7 = 24 ; le compte a ete aligne sur l'epreuve pour
+    # que le resultat soit DIRECTEMENT comparable au seuil de 32. Avec 24
+    # questions il fallait projeter, et une projection se discute ; avec 40, le
+    # score EST le resultat.
+    # Le ratio des mises en situation reste celui de l'examen (12 sur 40).
+    connaissances: 28
+    mises-en-situation: 12
     # 🛑 Contrainte explicite de 20_ §4.2 : « ne jamais evaluer un theme sur une
     # seule question ». Un theme juge sur une reponse produirait un etat qui ne
     # veut rien dire -- et c'est cet etat qui decide ensuite du plan.
-    min-par-theme: 3
+    # Releve de 3 a 4 avec le passage a 40 : 28 questions de connaissance sur
+    # 5 themes en autorisent 4 chacun et laissent 8 au complement.
+    min-par-theme: 4
     seuils:
       solide: 0.80
       faible: 0.55

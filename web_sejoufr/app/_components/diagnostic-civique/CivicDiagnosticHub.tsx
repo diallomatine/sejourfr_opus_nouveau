@@ -24,7 +24,7 @@ import {
     CIVIC_DIAGNOSTIC_RESULT_CTA,
     CIVIC_DIAGNOSTIC_RESUME_CTA,
     CIVIC_DIAGNOSTIC_START_CTA,
-    CIVIC_DIAGNOSTIC_SUBTITLE,
+    civicDiagnosticSubtitle,
     CIVIC_DIAGNOSTIC_TITLE,
     progressionLabel,
 } from "@/lib/civic-diagnostic";
@@ -119,7 +119,13 @@ export function CivicDiagnosticHub() {
         return (
             <section className="cvd">
                 <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-                <p className="cvd-lead">{CIVIC_DIAGNOSTIC_SUBTITLE}</p>
+                {/* 🛑 Le nombre de questions n'est pas écrit en dur : tant que
+                    le serveur n'a rien servi, on décrit le parcours sans le
+                    chiffrer plutôt que d'annoncer un compte qui pourrait
+                    changer. */}
+                <p className="cvd-lead">
+                    Le format de l&apos;examen, réparti sur les 5 thèmes.
+                </p>
                 <p className="cvd-note">{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
                 <button
                     type="button"
@@ -140,7 +146,7 @@ export function CivicDiagnosticHub() {
     return (
         <section className="cvd">
             <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-            <p className="cvd-lead">{CIVIC_DIAGNOSTIC_SUBTITLE}</p>
+            <p className="cvd-lead">{civicDiagnosticSubtitle(d.total)}</p>
             <p className="cvd-progress">{progressionLabel(d.repondues, d.total)}</p>
 
             {termine ? (

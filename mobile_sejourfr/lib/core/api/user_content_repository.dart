@@ -1,3 +1,4 @@
+import '../models/preparation_models.dart';
 import '../models/dashboard_models.dart';
 import '../models/enums.dart';
 import '../models/question_models.dart';
@@ -99,6 +100,18 @@ class UserContentRepository {
       '/api/me/target-path',
       data: {'targetProcedure': procedure.wire},
     );
+  }
+
+  /// **Où en sont les deux préparations** — l'état UNIQUE.
+  ///
+  /// 🛑 L'Accueil, le Plan et les Examens lisent **cet** appel. Ne jamais
+  /// déduire l'étape d'un module ailleurs : trois déductions finiraient par
+  /// proposer trois choses différentes au même candidat.
+  Future<PreparationDto> preparation() async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/me/preparation',
+    );
+    return PreparationDto.fromJson(res.data!);
   }
 
   /// La date d'examen déclarée (`10_` §3.2, question 3). Format `YYYY-MM-DD`.

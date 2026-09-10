@@ -43,7 +43,7 @@ class CivicDiagnosticServiceIT extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
 
     @Test
-    @DisplayName("Ouvrir tire 24 questions, dont des mises en situation, et couvre les thèmes")
+    @DisplayName("Ouvrir tire le FORMAT DE L'EXAMEN (40), dont des mises en situation")
     void ouvrirComposeLeDiagnostic() {
         User user = testData.user();
 
@@ -57,7 +57,10 @@ class CivicDiagnosticServiceIT extends AbstractIntegrationTest {
         assertThat(session.getAttempt().getSlotNumber()).isNull();
 
         var vue = viewService.vue(session);
-        assertThat(vue.total()).isPositive();
+        // 🛑 40 questions, comme l'épreuve réelle : c'est ce qui rend le score
+        // DIRECTEMENT comparable au seuil de 32, sans passer par une projection
+        // qui se discute (arbitrage du 2026-09-10).
+        assertThat(vue.total()).isEqualTo(40);
         assertThat(vue.repondues()).isZero();
 
         // Les mises en situation sont tirées À PART : c'est ce qui permet de
@@ -120,9 +123,13 @@ class CivicDiagnosticServiceIT extends AbstractIntegrationTest {
                 viewService.resultat(service.lire(user.getId(), session.getId()));
 
         assertThat(resultat.seuilReussite()).isEqualTo(32);
-        assertThat(resultat.posees()).isPositive();
-        // Aucune réponse donnée ⇒ tout est posé et raté : la projection est une
-        // vraie mesure, pas un `null`.
+        assertThat(resultat.formatQuestions()).isEqualTo(40);
+        // Au format plein, le score EST le résultat : la projection lui est
+        // égale, et l'écran n'a plus à dire « soit environ ».
+        assertThat(resultat.posees()).isEqualTo(40);
+        assertThat(resultat.projection40()).isEqualTo(resultat.bonnes());
+        // Aucune réponse donnée ⇒ tout est posé et raté : c'est une vraie
+        // mesure, pas un `null`.
         assertThat(resultat.projection40()).isNotNull().isZero();
 
         // 🛑 LES 5 THÈMES, toujours. Un thème absent de la liste disparaîtrait

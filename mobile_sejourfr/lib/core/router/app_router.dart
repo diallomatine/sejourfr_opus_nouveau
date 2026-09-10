@@ -49,6 +49,8 @@ import '../../screens/plan/plan_screen.dart';
 import '../../screens/plan/plan_serie_result_screen.dart';
 import '../../screens/plan/plan_skills_screen.dart';
 import '../../screens/plan/plan_step_labels.dart';
+import '../../screens/diagnostic_civique/civic_diagnostic_screen.dart';
+import '../../screens/diagnostic_civique/civic_diagnostic_result_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
@@ -159,6 +161,14 @@ class AppRoutes {
   /// porte le diagnostic INITIAL (une production ecrite + une orale) : deux
   /// objets produit differents, que 10_ §4.1 interdit de confondre.
   static const tcfDiagnostic = '/diagnostic-tcf';
+
+  /// Le diagnostic CIVIQUE (L9). 🛑 Un seul cote civique, contrairement au TCF
+  /// qui en a deux : arbitrage du 2026-09-10.
+  static const civicDiagnostic = '/diagnostic-civique';
+  static const civicDiagnosticResult = '/diagnostic-civique/:sessionId/resultat';
+
+  static String civicDiagnosticResultPath(String sessionId) =>
+      '/diagnostic-civique/$sessionId/resultat';
   static const tcfDiagnosticResult = '/diagnostic-tcf/:sessionId/resultat';
 
   static String tcfDiagnosticResultPath(String sessionId) =>
@@ -512,6 +522,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.tcfDiagnostic,
         builder: (_, __) => const TcfDiagnosticScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.civicDiagnostic,
+        builder: (_, __) => const CivicDiagnosticScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.civicDiagnosticResult,
+        builder: (_, state) => CivicDiagnosticResultScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.tcfDiagnosticResult,

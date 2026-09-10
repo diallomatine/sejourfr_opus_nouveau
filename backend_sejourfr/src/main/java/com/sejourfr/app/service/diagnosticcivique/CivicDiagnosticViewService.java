@@ -120,6 +120,7 @@ public class CivicDiagnosticViewService {
                 posees,
                 CivicExamFormat.projection(bonnes, posees),
                 CivicExamFormat.SEUIL_REUSSITE,
+                CivicExamFormat.QUESTIONS,
                 themes,
                 new CivicDiagnosticResultDto.Situations(situationsReussies, situationsPosees),
                 priorites(themes),

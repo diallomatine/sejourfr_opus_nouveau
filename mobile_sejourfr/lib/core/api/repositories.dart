@@ -6,6 +6,7 @@ import 'attempts_repository.dart';
 import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
+import 'civic_diagnostic_repository.dart';
 import 'tcf_diagnostic_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'funnel_repository.dart';
@@ -74,6 +75,13 @@ final diagnosticRepositoryProvider = Provider<DiagnosticRepository>(
 /// qui porte le diagnostic INITIAL : deux objets produit differents.
 final tcfDiagnosticRepositoryProvider = Provider<TcfDiagnosticRepository>(
   (ref) => TcfDiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le diagnostic CIVIQUE (L9). Un seul diagnostic cote civique, contrairement
+/// au TCF qui en a deux : le civique est du QCM deterministe et rapide, un
+/// pre-diagnostic n'y apporterait rien (arbitrage du 2026-09-10).
+final civicDiagnosticRepositoryProvider = Provider<CivicDiagnosticRepository>(
+  (ref) => CivicDiagnosticRepository(ref.watch(apiClientProvider)),
 );
 
 final learningPlanRepositoryProvider = Provider<LearningPlanRepository>(

@@ -267,10 +267,10 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
     // pas. Un front qui classerait lui-même une observation en « point fort »
     // inventerait un verdict.
     final observees = diagnosticObservations(
-      (widget.result?.written?.skills ?? const [])
+      (widget.result.written?.skills ?? const [])
           .where((s) => s.status == LearningPlanSkillStatus.solid)
           .toList(growable: false),
-      widget.result?.priorities ?? const [],
+      widget.result.priorities,
     );
 
     return SingleChildScrollView(

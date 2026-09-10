@@ -33,8 +33,19 @@ public class CivicDiagnosticProperties {
      */
     private int configVersion = 1;
 
-    /** Questions de CONNAISSANCE tirees (20_ §4.2 : 17). */
-    private int connaissances = 17;
+    /**
+     * Questions de CONNAISSANCE tirees.
+     *
+     * <p>🛑 <b>28 + 12 = 40, le format de l'examen reel</b> (arbitrage du
+     * proprietaire, 2026-09-10). 20_ §4.2 proposait 17 + 7 = 24 ; le compte a
+     * ete aligne sur l'epreuve pour que le resultat soit <b>directement</b>
+     * comparable au seuil de 32. Avec 24 questions il fallait projeter, et une
+     * projection se discute ; avec 40, le score EST le resultat.
+     *
+     * <p>Le ratio des mises en situation reste celui de l'examen (12 sur 40),
+     * que 20_ §4.2 citait deja comme reference.
+     */
+    private int connaissances = 28;
 
     /**
      * Mises en situation tirees (20_ §4.2 : 7, soit ~29 %).
@@ -43,7 +54,7 @@ public class CivicDiagnosticProperties {
      * (12 sur 40). Une mise en situation demande d'appliquer une regle a un cas
      * concret — c'est une competence distincte, et l'ecran la compte a part.
      */
-    private int misesEnSituation = 7;
+    private int misesEnSituation = 12;
 
     /**
      * Minimum de questions de connaissance par theme (20_ §4.2).
@@ -51,8 +62,13 @@ public class CivicDiagnosticProperties {
      * <p>🛑 Contrainte explicite de la spec : « <b>ne jamais evaluer un theme
      * sur une seule question</b> ». Un theme juge sur une reponse produirait un
      * etat qui ne veut rien dire.
+     *
+     * <p>Releve de 3 a 4 avec le passage a 40 questions : 28 questions de
+     * connaissance sur 5 themes en autorisent 4 chacun (20) et laissent 8 au
+     * complement. Un plancher qui ne bouge pas quand le total grandit rend le
+     * minimum de moins en moins significatif.
      */
-    private int minParTheme = 3;
+    private int minParTheme = 4;
 
     /** Seuils de bascule de l'etat d'un theme (20_ §4.4). */
     private Seuils seuils = new Seuils();

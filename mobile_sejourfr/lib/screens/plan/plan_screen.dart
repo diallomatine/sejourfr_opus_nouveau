@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/api/repositories.dart';
+import '../../core/models/preparation_labels.dart';
+import '../../core/models/preparation_models.dart';
 import '../../core/api/api_client.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
@@ -66,6 +69,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    // L'état UNIQUE des deux préparations : il décide de ce que chaque onglet
+    // affiche, et il est chargé une fois pour l'écran.
+    unawaited(_chargerPreparation());
     // Une mesure d'usage, à côté du contenu de l'écran : elle ne sert aucun
     // bloc affiché, elle existe pour ne pas perdre ce qui se comptait déjà
     // dans l'ancien `page_views`.
@@ -108,6 +114,55 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     await ref.read(learningPlanProvider.future);
   }
 
+  /// L'état UNIQUE des deux préparations. 🛑 Le MÊME que celui de l'Accueil et
+  /// des Examens : trois écrans qui déduiraient chacun leur version
+  /// proposeraient trois choses différentes au même candidat.
+  PreparationDto? _prep;
+
+  /// L'onglet ouvert. `null` tant que l'état n'est pas connu — on n'ouvre pas
+  /// par défaut sur un module qui n'a rien à dire.
+  bool? _civique;
+
+  Future<void> _chargerPreparation() async {
+    try {
+      final prep = await ref.read(userContentRepositoryProvider).preparation();
+      if (!mounted) return;
+      setState(() {
+        _prep = prep;
+        _civique ??= moduleCiviqueParDefaut(prep);
+      });
+    } catch (_) {
+      // 🛑 L'échec ne masque pas le plan TCF : il existait avant cet onglet et
+      // doit rester atteignable.
+      if (mounted) setState(() => _civique ??= false);
+    }
+  }
+
+  Widget _onglet(AsyncValue<LearningPlan> plan, TargetLevel? objective) {
+    final prep = _prep;
+    final civique = _civique ?? false;
+
+    // 🛑 La raison pour laquelle le plan n'est pas prêt vient de l'état UNIQUE,
+    // pas d'une déduction locale.
+    final indisponible = prep == null
+        ? null
+        : planIndisponible(civique ? prep.civique : prep.tcf, civique: civique);
+    if (indisponible != null) {
+      return _PlanIndisponible(info: indisponible);
+    }
+    if (civique) {
+      return const _PlanCiviqueBientot();
+    }
+    return plan.when(
+      loading: () => const _LoadingPlan(),
+      error: (error, _) => _PlanError(
+        message: ApiClient.toApiException(error).message,
+        onRetry: () => ref.invalidate(learningPlanProvider),
+      ),
+      data: (value) => _PlanContent(plan: value, objective: objective),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final plan = ref.watch(learningPlanProvider);
@@ -127,21 +182,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
               large: true,
               right: _ObjectiveButton(objective: objective),
             ),
+            // Le toggle TCF | Examen civique. Le CONTENU dépend de l'état du
+            // module : tant que le diagnostic qui construit le plan n'est pas
+            // fait, l'onglet explique pourquoi et ouvre la seule porte qui
+            // débloque — jamais un plan vide.
+            _ModuleTabs(
+              civique: _civique ?? false,
+              onChange: (v) => setState(() => _civique = v),
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.blue,
                 onRefresh: _refresh,
-                child: plan.when(
-                  loading: () => const _LoadingPlan(),
-                  error: (error, _) => _PlanError(
-                    message: ApiClient.toApiException(error).message,
-                    onRetry: () => ref.invalidate(learningPlanProvider),
-                  ),
-                  data: (value) => _PlanContent(
-                    plan: value,
-                    objective: objective,
-                  ),
-                ),
+                child: _onglet(plan, objective),
               ),
             ),
           ],
@@ -774,4 +827,124 @@ String _shortDate(DateTime date) {
     'décembre',
   ];
   return '${local.day} ${months[local.month - 1]} ${local.year}';
+}
+
+/// Le toggle TCF | Examen civique.
+class _ModuleTabs extends StatelessWidget {
+  const _ModuleTabs({required this.civique, required this.onChange});
+
+  final bool civique;
+  final ValueChanged<bool> onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        children: [
+          Expanded(child: _Onglet(
+            label: kTcfLabel, actif: !civique, onTap: () => onChange(false))),
+          const SizedBox(width: 8),
+          Expanded(child: _Onglet(
+            label: kCiviqueLabel, actif: civique, onTap: () => onChange(true))),
+        ],
+      ),
+    );
+  }
+}
+
+class _Onglet extends StatelessWidget {
+  const _Onglet({required this.label, required this.actif, required this.onTap});
+
+  final String label;
+  final bool actif;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: actif ? AppColors.blueLight : Colors.transparent,
+          border: Border.all(color: actif ? AppColors.blue : AppColors.line),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: AppFonts.ui(
+            size: 14,
+            weight: FontWeight.w600,
+            color: actif ? AppColors.blue : AppColors.muted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le plan d'un module n'est pas encore constructible : on dit POURQUOI, et on
+/// ouvre la seule porte qui débloque.
+class _PlanIndisponible extends StatelessWidget {
+  const _PlanIndisponible({required this.info});
+
+  final PlanIndisponible info;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+      children: [
+        Text(info.titre,
+            textAlign: TextAlign.center,
+            style: AppFonts.display(size: 22, color: AppColors.ink)),
+        const SizedBox(height: 10),
+        Text(info.texte,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(
+                size: 14, color: AppColors.inkSoft, height: 1.55)),
+        const SizedBox(height: 20),
+        AppButton(
+          label: info.cta,
+          onPressed: () => context.push(info.route),
+        ),
+      ],
+    );
+  }
+}
+
+/// Le plan civique par NOTION (Leitner) n'existe pas encore.
+///
+/// 🛑 On le dit, on ne le simule pas. Le diagnostic civique sert déjà ses
+/// priorités par thème sur son écran de résultat ; les répéter ici sans le
+/// moteur de répétition espacée laisserait croire à un plan qui n'existe pas.
+class _PlanCiviqueBientot extends StatelessWidget {
+  const _PlanCiviqueBientot();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+      children: [
+        Text('Votre diagnostic civique est terminé',
+            textAlign: TextAlign.center,
+            style: AppFonts.display(size: 22, color: AppColors.ink)),
+        const SizedBox(height: 10),
+        Text(
+          'Retrouvez les thèmes qui vous coûtent le plus de points sur votre '
+          'résultat de diagnostic.',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.55),
+        ),
+        const SizedBox(height: 20),
+        AppButton(
+          label: 'Voir mon diagnostic civique',
+          onPressed: () => context.push(AppRoutes.civicDiagnostic),
+        ),
+      ],
+    );
+  }
 }

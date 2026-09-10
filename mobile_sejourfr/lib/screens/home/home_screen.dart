@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
+import '../../core/widgets/preparation_card.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
@@ -214,6 +215,14 @@ class _HomeBody extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
+        // 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
+        // diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état UNIQUE
+        // servi par `/api/me/preparation` — c'est ce qui garantit que les trois
+        // écrans proposent la même prochaine action.
+        // Placée avant tout indicateur : quand une préparation n'est pas
+        // commencée, c'est ça la prochaine action, pas un pourcentage.
+        const PreparationCard(),
+        const SizedBox(height: 20),
         if (diagnostic?.status == DiagnosticJourneyStatus.notStarted &&
             !diagnosticDismissed)
           _DiagnosticInvitationCard(

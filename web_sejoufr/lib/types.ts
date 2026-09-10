@@ -3903,6 +3903,14 @@ export interface CivicDiagnosticResultDto {
     posees: number;
     projection40: number | null;
     seuilReussite: number;
+    /**
+     * 40, le format de l'épreuve réelle — **servi**, pas écrit en dur.
+     *
+     * 🛑 Quand `posees === formatQuestions`, le score **est** le résultat et
+     * l'écran le dit tel quel. En mode dégradé (catalogue sous-doté sur une
+     * mention) il faut projeter, et l'écran doit le dire aussi.
+     */
+    formatQuestions: number;
     /** Les 5 thèmes, **tous**, y compris ceux qu'aucune question n'a touchés. */
     themes: CivicThemeResultat[];
     /** Comptées à part : appliquer une règle à un cas concret est une compétence distincte. */
