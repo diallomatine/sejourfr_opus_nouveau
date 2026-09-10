@@ -374,9 +374,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       // **diagnostic** se fait entièrement avant l'inscription — le compte
       // n'est demandé qu'au moment d'envoyer les deux productions à l'analyse.
       // Le Plan (`/plan`), lui, reste authentifié : il n'existe qu'après.
+      // Le **diagnostic civique** se passe lui aussi avant l'inscription
+      // (V053, arbitrage du propriétaire du 2026-09-10) : son accueil, son
+      // écran de résultat — qui n'affiche alors QUE la demande de compte — et
+      // le **runner**, puisque la passation réutilise l'écran de questions
+      // existant plutôt que d'en dupliquer un second.
       final isOnPublicPage = loc == AppRoutes.helpWebview ||
           loc == AppRoutes.about ||
-          loc == AppRoutes.diagnostic;
+          loc == AppRoutes.diagnostic ||
+          loc == AppRoutes.civicDiagnostic ||
+          loc.startsWith('/diagnostic-civique/') ||
+          loc.startsWith('/runner/');
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {

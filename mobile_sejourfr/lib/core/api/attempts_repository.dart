@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:sejourfr_mobile/core/models/attempt_summary.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 
@@ -16,6 +17,21 @@ class AttemptsRepository {
   AttemptsRepository(this._client);
 
   final ApiClient _client;
+
+  /// Le préfixe des routes de passation.
+  ///
+  /// 🛑 **Une session sans compte joue les MÊMES écrans** : le diagnostic
+  /// civique se passe désormais avant l'inscription (`V053`), et la démo
+  /// invitée existait déjà. Un second runner divergerait du premier à la
+  /// première évolution — on ne change que le chemin.
+  static String _base({required bool guest}) =>
+      guest ? '/api/public/attempts' : '/api/attempts';
+
+  /// Route publique : aucun jeton n'est envoyé, et un 401 ne doit surtout pas
+  /// déclencher la déconnexion globale de l'intercepteur.
+  static Options? _options({required bool guest}) => guest
+      ? Options(extra: const {'skipAuth': true, 'skipRefresh': true})
+      : null;
 
   Future<Attempt> start(StartAttemptRequest req) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
@@ -49,9 +65,12 @@ class AttemptsRepository {
         ),
       );
 
-  Future<Attempt> getById(String id) async {
+  /// [guest] : la session appartient à un visiteur — elle est retrouvée par
+  /// son **IP**, côté serveur, et non par un compte.
+  Future<Attempt> getById(String id, {bool guest = false}) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
-      '/api/attempts/$id',
+      '${_base(guest: guest)}/$id',
+      options: _options(guest: guest),
     );
     return Attempt.fromJson(res.data!);
   }
@@ -94,20 +113,23 @@ class AttemptsRepository {
     required String attemptId,
     required String attemptQuestionId,
     required List<String> choiceIds,
+    bool guest = false,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
-      '/api/attempts/$attemptId/answers',
+      '${_base(guest: guest)}/$attemptId/answers',
       data: {
         'attemptQuestionId': attemptQuestionId,
         'choiceIds': choiceIds,
       },
+      options: _options(guest: guest),
     );
     return AnswerResult.fromJson(res.data!);
   }
 
-  Future<Attempt> finish(String attemptId) async {
+  Future<Attempt> finish(String attemptId, {bool guest = false}) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
-      '/api/attempts/$attemptId/finish',
+      '${_base(guest: guest)}/$attemptId/finish',
+      options: _options(guest: guest),
     );
     return Attempt.fromJson(res.data!);
   }

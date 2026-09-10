@@ -1,30 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/eyebrow.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../diagnostic_intro_labels.dart';
-import '../diagnostic_variant.dart';
 import 'diagnostic_common.dart';
 
-/// L'entrée du diagnostic : le budget annoncé, le **choix de la variante**,
-/// puis le détail des deux exercices.
+/// L'entrée du diagnostic — **on y choisit un EXAMEN**, pas une profondeur.
 ///
-/// 🛑 Les deux variantes lancent **le même parcours** (écrit puis oral) : la
-/// différence se joue **après l'analyse**, quand le bilan propose ou non de
-/// mesurer la compréhension. Rien n'est envoyé au serveur ici — cf.
-/// `diagnostic_variant.dart`.
+/// 🛑 **Arbitrage du propriétaire, 2026-09-10.** Cet écran a longtemps proposé
+/// « rapide » et « complet » : deux ambitions du seul TCF, alors que le
+/// candidat prépare **deux examens obligatoires** et sait lequel il passe. La
+/// profondeur du parcours TCF se découvre ensuite, sur le rapport, quand elle a
+/// un sens. `DiagnosticVariant` est **supprimé** — ne pas le réintroduire.
+///
+/// 🛑 **Les deux se passent SANS COMPTE** (`V053`) : « l'utilisateur doit
+/// pouvoir passer le diagnostic avant de créer son compte, il saisit le texte
+/// ou répond au QCM et seulement après on lui demande de créer son compte pour
+/// voir le résultat. » La mécanique diffère — le TCF garde ses productions sur
+/// l'appareil, le civique joue un attempt invité qu'une inscription *adopte* —
+/// mais **la promesse est la même des deux côtés**, et les deux cartes la
+/// portent.
 class DiagnosticIntro extends StatelessWidget {
   const DiagnosticIntro({
     super.key,
     required this.isStarting,
     required this.onStart,
-    required this.variant,
-    required this.onVariantChanged,
     this.written,
     this.oral,
     this.isGuest = false,
@@ -32,11 +40,9 @@ class DiagnosticIntro extends StatelessWidget {
   });
 
   final bool isStarting;
-  final VoidCallback onStart;
 
-  /// L'intention courante et son changement — un simple état de front.
-  final DiagnosticVariant variant;
-  final ValueChanged<DiagnosticVariant> onVariantChanged;
+  /// Lance le diagnostic **TCF**. Le civique, lui, est une navigation.
+  final VoidCallback onStart;
 
   /// Les deux sujets servis, quand ils existent : c'est d'eux que sortent les
   /// mesures annoncées. Absents (compte sans session, réseau), l'écran retombe
@@ -49,76 +55,95 @@ class DiagnosticIntro extends StatelessWidget {
 
   final String? errorMessage;
 
+  /// Le format du diagnostic civique, tel que cet écran l'annonce.
+  ///
+  /// 🛑 **40, comme l'épreuve** : c'est ce qui rend le résultat directement
+  /// comparable au seuil, sans projection. Recopié ici parce que l'écran est
+  /// rendu avant tout appel civique — mais il ne doit jamais diverger de la
+  /// configuration serveur (`sejourfr.civic-diagnostic`).
+  static const int _civiqueQuestions = 40;
+
+  /// Le temps des deux productions, dérivé des sujets servis. `null` quand la
+  /// base ne porte aucune borne : on n'invente pas une durée.
+  String? get _tcfDuration {
+    final minutes = (diagnosticWrittenMinutes(written) ?? 0) +
+        (diagnosticOralMinutes(oral) ?? 0);
+    return minutes > 0 ? '≈ $minutes min' : null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final duree = _tcfDuration;
     return Column(
       children: [
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
             children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                decoration: BoxDecoration(
-                  gradient:
-                      AppGradients.hero(AppColors.blueDark, AppColors.blue),
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  boxShadow: AppShadows.md,
-                ),
-                // 🛑 **Aucune pilule de budget en tête.** Le coût est annoncé
-                // sur **chaque carte de variante**, une fois par option — comme
-                // sur la maquette et sur le web. Un second chiffre au-dessus du
-                // titre resservait celui de l'option sélectionnée et se
-                // désaccordait dès qu'on changeait d'avis.
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Découvrez votre niveau TCF',
-                      style: AppFonts.display(
-                        size: 28,
-                        color: AppColors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Obtenez une première estimation de votre niveau et '
-                      'découvrez ce qui vous bloque pour atteindre votre '
-                      'objectif.',
-                      style: AppFonts.ui(
-                        size: 14.5,
-                        color: AppColors.white.withValues(alpha: 0.9),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Quel examen préparez-vous ?',
+                style: AppFonts.display(size: 26, color: AppColors.ink),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Les deux diagnostics sont gratuits. Choisissez celui qui '
+                'correspond à votre démarche ; vous pourrez faire l’autre plus '
+                'tard.',
+                style: AppFonts.ui(
+                  size: 14,
+                  color: AppColors.inkSoft,
+                  height: 1.5,
                 ),
               ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 16),
+                DiagnosticErrorBanner(message: errorMessage!),
+              ],
               const SizedBox(height: 18),
-              for (final option in DiagnosticVariant.values)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _VariantCard(
-                    variant: option,
-                    selected: option == variant,
-                    // La variante « rapide » est celle que le produit
-                    // recommande : deux productions suffisent à ouvrir un Plan,
-                    // la compréhension se complète ensuite sans rien perdre.
-                    recommended: option == DiagnosticVariant.rapide,
-                    duration: diagnosticVariantDurationLabel(
-                      option,
-                      written,
-                      oral,
-                    ),
-                    onSelect: () => onVariantChanged(option),
-                  ),
+
+              _ExamCard(
+                emoji: '🇫🇷',
+                title: 'TCF IRN',
+                meta: oral != null
+                    ? 'Expression écrite + expression orale'
+                    : 'Une production écrite',
+                duration: duree,
+                highlights: const [
+                  'Une estimation de votre niveau, sur ce que vous savez '
+                      'réellement produire',
+                  'Ce qu’il faut travailler pour atteindre votre objectif',
+                  'Vous commencez à écrire tout de suite',
+                ],
+                highlighted: true,
+              ),
+              const SizedBox(height: 12),
+              _ExamCard(
+                emoji: '🏛️',
+                title: 'Examen civique',
+                meta: '$_civiqueQuestions questions, le format de l’examen',
+                highlights: const [
+                  'Les thèmes et notions à renforcer avant l’examen',
+                  'Un résultat qui se lit directement sur l’échelle de '
+                      'l’épreuve',
+                ],
+                // 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053) — même promesse
+                // que le TCF, et on la dit avant le tap.
+                note: 'Vous répondez tout de suite ; le compte n’arrive qu’au '
+                    'moment de voir votre résultat.',
+                action: AppButton(
+                  label: 'Commencer le diagnostic civique',
+                  variant: AppButtonVariant.outline,
+                  iconRight: LucideIcons.arrowRight,
+                  onPressed: () => context.push(AppRoutes.civicDiagnostic),
                 ),
-              const SizedBox(height: 8),
+              ),
+
+              const SizedBox(height: 24),
               // 🛑 On n'annonce que ce qui existe (L3) : sans étape orale, dire
               // « les deux premiers exercices » puis n'en montrer qu'un fausse
               // l'engagement du candidat dès la première seconde.
               Eyebrow(oral == null
-                  ? 'LE PREMIER EXERCICE'
+                  ? 'CE QUE CONTIENT LE DIAGNOSTIC TCF'
                   : 'LES DEUX PREMIERS EXERCICES'),
               const SizedBox(height: 10),
               _IntroItem(
@@ -150,10 +175,6 @@ class DiagnosticIntro extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              if (errorMessage != null) ...[
-                DiagnosticErrorBanner(message: errorMessage!),
-                const SizedBox(height: 18),
-              ],
               Text(
                 'Votre diagnostic reste accessible ensuite : vous pouvez '
                 'compléter les épreuves manquantes quand vous voulez.',
@@ -178,7 +199,7 @@ class DiagnosticIntro extends StatelessWidget {
         ),
         FixedActionBar(
           child: AppButton(
-            label: diagnosticVariantCta(variant),
+            label: 'Commencer le diagnostic TCF',
             iconRight: LucideIcons.arrowRight,
             isLoading: isStarting,
             onPressed: isStarting ? null : onStart,
@@ -189,166 +210,125 @@ class DiagnosticIntro extends StatelessWidget {
   }
 }
 
-/// Une des deux options d'entrée. Sélectionnée, elle se teinte et son bord
-/// passe au bleu — aucune information n'est masquée sur l'autre.
-class _VariantCard extends StatelessWidget {
-  const _VariantCard({
-    required this.variant,
-    required this.selected,
-    required this.recommended,
-    required this.duration,
-    required this.onSelect,
+/// Une des deux cartes d'examen. La carte du TCF n'a **pas** de bouton : son
+/// action est la barre fixe du bas, qui reste atteignable quel que soit le
+/// défilement.
+class _ExamCard extends StatelessWidget {
+  const _ExamCard({
+    required this.emoji,
+    required this.title,
+    required this.meta,
+    required this.highlights,
+    this.duration,
+    this.note,
+    this.action,
+    this.highlighted = false,
   });
 
-  final DiagnosticVariant variant;
-  final bool selected;
-  final bool recommended;
-  final String duration;
-  final VoidCallback onSelect;
+  final String emoji;
+  final String title;
+  final String meta;
+  final List<String> highlights;
+  final String? duration;
+  final String? note;
+  final Widget? action;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '${diagnosticVariantTitle(variant)} · $duration',
-      child: AppCard(
-        onTap: onSelect,
-        padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
-        color: selected ? AppColors.blueSoft : AppColors.white,
-        border: Border.all(
-          color: selected ? AppColors.blue : AppColors.line,
-          width: selected ? 1.5 : 1,
-        ),
-        boxShadow: selected ? AppShadows.md : AppShadows.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.blue : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selected ? AppColors.blue : AppColors.line,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: selected
-                      ? const Icon(
-                          LucideIcons.check,
-                          size: 12,
-                          color: AppColors.white,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    diagnosticVariantTitle(variant),
-                    style: AppFonts.display(size: 19),
-                  ),
-                ),
-                if (recommended) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                      border: Border.all(color: AppColors.blueLight),
-                    ),
-                    child: Text(
-                      'Recommandé',
-                      style: AppFonts.ui(
-                        size: 11,
-                        weight: FontWeight.w700,
-                        color: AppColors.blue,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 7),
-            Padding(
-              padding: const EdgeInsets.only(left: 30),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      diagnosticVariantScope(variant),
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        weight: FontWeight.w600,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(
-                    LucideIcons.clock,
-                    size: 13,
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      color: highlighted ? AppColors.blueSoft : AppColors.white,
+      border: Border.all(
+        color: highlighted ? AppColors.blue : AppColors.line,
+        width: highlighted ? 1.5 : 1,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(title, style: AppFonts.display(size: 19)),
+              ),
+              const SizedBox(width: 8),
+              // 🛑 « Sans compte » des DEUX côtés : les deux diagnostics se
+              // passent avant l'inscription.
+              const AppTag(label: 'Sans compte', tone: TagTone.blue),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  meta,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w600,
                     color: AppColors.inkFaint,
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    duration,
+                ),
+              ),
+              if (duration != null) ...[
+                const SizedBox(width: 12),
+                const Icon(LucideIcons.clock,
+                    size: 13, color: AppColors.inkFaint),
+                const SizedBox(width: 5),
+                Text(
+                  duration!,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final highlight in highlights) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 3),
+                  child: Icon(LucideIcons.check,
+                      size: 14, color: AppColors.blue),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    highlight,
                     style: AppFonts.ui(
-                      size: 12.5,
-                      weight: FontWeight.w600,
-                      color: AppColors.inkFaint,
+                      size: 13.5,
+                      height: 1.4,
+                      color: AppColors.inkSoft,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(left: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final highlight
-                      in diagnosticVariantHighlights(variant)) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 3),
-                          child: Icon(
-                            LucideIcons.check,
-                            size: 14,
-                            color: AppColors.blue,
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            highlight,
-                            style: AppFonts.ui(
-                              size: 13.5,
-                              height: 1.4,
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ],
+            const SizedBox(height: 8),
+          ],
+          if (note != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              note!,
+              style: AppFonts.ui(
+                size: 12.5,
+                color: AppColors.inkFaint,
+                height: 1.45,
               ),
             ),
           ],
-        ),
+          if (action != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, child: action!),
+          ],
+        ],
       ),
     );
   }

@@ -946,7 +946,7 @@ export const tcfDiagnosticApi = {
 /**
  * Le diagnostic CIVIQUE (L9, `20_` §4).
  *
- * 🛑 **Distinct de l'examen blanc civique** : 24 questions contre 40,
+ * 🛑 **Distinct de l'examen blanc civique** : même format (40 questions),
  * couverture équilibrée contre représentative, il CRÉE le plan là où l'examen
  * blanc VÉRIFIE la préparation.
  *
@@ -992,6 +992,43 @@ export const civicDiagnosticApi = {
         return apiFetch<CivicDiagnosticResultDto>(
             `/api/civic-diagnostics/${sessionId}/result`, {auth: true},
         );
+    },
+
+    /**
+     * **Adopte** un diagnostic passé sans compte (V053).
+     *
+     * 🛑 Rien n'est rejoué : ce sont les mêmes questions, déjà corrigées. Le
+     * serveur ne fait que poser le porteur. Idempotent — un double appel
+     * pendant l'inscription rend la même session.
+     */
+    adopt(sessionId: string): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>(
+            `/api/civic-diagnostics/${sessionId}/adopt`,
+            {method: "POST", auth: true},
+        );
+    },
+};
+
+/**
+ * Le diagnostic civique **avant le compte** (`V053`).
+ *
+ * 🛑 **Aucune route de résultat ici, et c'est délibéré** : le résultat est ce
+ * qu'on échange contre le compte (arbitrage du propriétaire, 2026-09-10). La
+ * passation, elle, passe par `publicAttemptApi` — le même runner que la démo,
+ * aucun écran de passation n'est dupliqué.
+ */
+export const publicCivicDiagnosticApi = {
+    /** Tire les 40 questions et ouvre la session du visiteur. */
+    open(procedure: TargetProcedure): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>(
+            `/api/public/civic-diagnostics?procedure=${procedure}`,
+            {method: "POST"},
+        );
+    },
+
+    /** L'avancement de la session du visiteur. **404 dès qu'un compte l'a adoptée.** */
+    get(sessionId: string): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>(`/api/public/civic-diagnostics/${sessionId}`);
     },
 };
 

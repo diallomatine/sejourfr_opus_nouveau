@@ -24,8 +24,9 @@ import java.util.UUID;
 /**
  * Le diagnostic civique d'un candidat (V052, lot L9).
  *
- * <p>🛑 <b>Ce n'est PAS un examen blanc</b> (20_ §4.1) : 24 questions au lieu de
- * 40, couverture equilibree sur les 5 themes au lieu de representative, et il
+ * <p>🛑 <b>Ce n'est PAS un examen blanc</b> (20_ §4.1) : meme format (40
+ * questions), mais couverture equilibree sur les 5 themes au lieu de
+ * representative, et il
  * CREE le plan au lieu de verifier la preparation. Les deux objets coexistent,
  * et {@code attempts.civic_diagnostic_id} les tient a l'ecart l'un de l'autre.
  *
@@ -46,11 +47,30 @@ public class CivicDiagnosticSession {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    /**
+     * Le porteur du diagnostic — <b>{@code null} tant qu'il n'y a pas de
+     * compte</b> (V053).
+     *
+     * <p>🛑 Un visiteur repond a ses 40 questions AVANT de s'inscrire
+     * (arbitrage du 2026-09-10) : la session existe des le premier tirage,
+     * c'est {@link #clientIp} qui la rattache a son navigateur, et
+     * l'inscription l'<i>adopte</i>. Toute lecture par compte
+     * ({@code findLatest}, {@code countByUser}) filtre sur {@code user.id} :
+     * une session sans porteur reste invisible de tous les ecrans connectes.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    /** L'attempt qui porte les 24 questions. Un seul : pas de sous-epreuves. */
+    /**
+     * L'IP du visiteur, posee <b>uniquement</b> sur une session sans compte.
+     * Miroir de {@code attempts.client_ip} : c'est le seul controle qui empeche
+     * d'adopter le diagnostic d'un tiers dont on aurait l'identifiant.
+     */
+    @Column(name = "client_ip", length = 45)
+    private String clientIp;
+
+    /** L'attempt qui porte les 40 questions. Un seul : pas de sous-epreuves. */
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "attempt_id", nullable = false, unique = true)
     private Attempt attempt;

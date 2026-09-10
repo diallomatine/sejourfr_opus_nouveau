@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+
 import '../models/civic_diagnostic_models.dart';
+import '../models/enums.dart';
 import 'api_client.dart';
 
 /// Le diagnostic **civique** (L9, `20_` §4).
@@ -16,6 +19,16 @@ abstract interface class CivicDiagnosticGateway {
   Future<CivicDiagnosticDto?> current();
   Future<CivicDiagnosticResultDto> result(String sessionId);
   Future<CivicDiagnosticResultDto> readResult(String sessionId);
+
+  /// Ouvre un diagnostic **sans compte** (`V053`).
+  Future<CivicDiagnosticDto> openGuest(TargetProcedure procedure);
+
+  /// L'avancement d'une session de visiteur. **404 dès qu'un compte l'a
+  /// adoptée** : elle n'est plus lisible que par son porteur.
+  Future<CivicDiagnosticDto> guest(String sessionId);
+
+  /// **Adopte** la session passée en visiteur : elle devient celle du compte.
+  Future<CivicDiagnosticDto> adopt(String sessionId);
 }
 
 class CivicDiagnosticRepository implements CivicDiagnosticGateway {
@@ -63,4 +76,47 @@ class CivicDiagnosticRepository implements CivicDiagnosticGateway {
     );
     return CivicDiagnosticResultDto.fromJson(res.data!);
   }
+
+  /// Ouvre le diagnostic d'un **visiteur** (`V053`).
+  ///
+  /// 🛑 **La démarche pilote le tirage** : mesurer un candidat naturalisation
+  /// sur le programme d'une carte de séjour lui rendrait un diagnostic flatteur
+  /// et un plan incomplet.
+  ///
+  /// 🛑 **Il n'existe AUCUNE route de résultat publique**, et c'est délibéré :
+  /// le résultat est ce qu'on échange contre le compte.
+  @override
+  Future<CivicDiagnosticDto> openGuest(TargetProcedure procedure) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/public/civic-diagnostics',
+      queryParameters: {'procedure': procedure.wire},
+      options: _publicOptions,
+    );
+    return CivicDiagnosticDto.fromJson(res.data!);
+  }
+
+  @override
+  Future<CivicDiagnosticDto> guest(String sessionId) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/public/civic-diagnostics/$sessionId',
+      options: _publicOptions,
+    );
+    return CivicDiagnosticDto.fromJson(res.data!);
+  }
+
+  /// L'adoption. **Idempotent** : un second appel sur une session déjà adoptée
+  /// par ce compte la rend telle quelle. 🛑 Rien n'est rejoué — mêmes
+  /// questions, mêmes réponses, déjà corrigées.
+  @override
+  Future<CivicDiagnosticDto> adopt(String sessionId) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/civic-diagnostics/$sessionId/adopt',
+    );
+    return CivicDiagnosticDto.fromJson(res.data!);
+  }
+
+  /// Route publique : aucun jeton, et un 401 ne doit pas déclencher la
+  /// déconnexion globale de l'intercepteur.
+  static final Options _publicOptions =
+      Options(extra: const {'skipAuth': true, 'skipRefresh': true});
 }

@@ -271,6 +271,74 @@ sourcées ; une ligne `NOT_OBSERVED` reste historisée mais n'efface jamais une
 preuve antérieure. Le Plan reste séparé de l'historique et des statistiques de
 progression.
 
+## Diagnostic civique (L9)
+
+Le pendant civique du diagnostic TCF. 🛑 **Ce n'est PAS l'examen blanc civique**
+(`20_` §4.1) : même format (40 questions), mais couverture **équilibrée** sur les
+5 thèmes au lieu de représentative, et il **crée** le plan là où l'examen blanc
+**vérifie** la préparation. Le discriminant `attempts.civic_diagnostic_id` les
+tient à l'écart de la grille des examens blancs.
+
+🛑 **Aucune de ces routes n'appelle un LLM** : le civique est du QCM
+déterministe, sa correction ne coûte rien. Le quota est donc distinct de celui
+des analyses IA.
+
+🛑 **La passation ne passe pas par ces routes** : les réponses vont sur
+`/api/attempts/{id}/answers` (ou `/api/public/attempts/{id}/answers` sans
+compte), exactement comme n'importe quelle série — aucun runner n'est dupliqué.
+
+- `POST /api/civic-diagnostics` → `CivicDiagnosticDto`. Ouvre, ou rend celui
+  déjà en cours. **Idempotent** : deux appuis ne font pas deux tirages, donc pas
+  deux mesures incomparables.
+- `GET /api/civic-diagnostics/current` → `CivicDiagnosticDto`, ou **204**.
+  🛑 Une lecture n'ouvre **jamais** un diagnostic par effet de bord : l'ouverture
+  est un geste du candidat, et elle consomme son unique diagnostic gratuit.
+- `GET /api/civic-diagnostics/{id}` → l'état d'avancement.
+- `POST /api/civic-diagnostics/{id}/result` → `CivicDiagnosticResultDto`, et
+  **clôture** la session. `GET` sur la même adresse relit sans rien reclôturer.
+  🛑 **Aucun `locked`** : « le constat est intégralement gratuit, le paywall
+  porte sur l'accompagnement » (`20_` §4.5).
+  🛑 `projection40` vaut `null` quand rien n'a été posé — « on n'a rien mesuré »
+  ne se dit pas « vous auriez 0 ».
+
+### Le diagnostic civique se passe AVANT le compte (V053)
+
+🛑 **Arbitrage du propriétaire, 2026-09-10** : « que ce soit le diagnostic examen
+civique ou TCF, l'utilisateur doit pouvoir passer le diagnostic avant de créer
+son compte, il saisit le texte ou répond au QCM et seulement après on lui demande
+de créer son compte pour voir le résultat. »
+
+⚠️ **La mécanique diffère de celle du TCF, et c'est délibéré.** Le TCF invité
+garde ses productions **sur l'appareil** (rien à corriger tant qu'aucun modèle
+n'est appelé). Le civique est du QCM : le corriger côté client obligerait à
+**servir les bonnes réponses à un visiteur**, et jouer 40 questions hors
+`attempts` obligerait à écrire un **second runner**. On réutilise donc l'attempt
+invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sessions
+.user_id` devient nullable, avec un `client_ip` en regard.
+
+- `POST /api/public/civic-diagnostics?procedure=CSP|CR|NAT` → `CivicDiagnosticDto`
+  (**201**, public, rate-limité par IP comme la démo). Tire les 40 questions et
+  ouvre la session du visiteur. `procedure` absente ⇒ **CSP**, le périmètre le
+  plus étroit — mesurer un candidat sur des questions qu'il n'a pas à connaître
+  produirait un diagnostic faussement sévère.
+  🛑 **Pas idempotent** : sans compte, il n'y a rien sur quoi retrouver « celui
+  déjà en cours ». Le front garde l'identifiant rendu.
+- `GET /api/public/civic-diagnostics/{id}` → l'avancement du visiteur.
+  **404 dès qu'un compte l'a adoptée** : une session adoptée n'est plus lisible
+  que par son porteur, même depuis la même IP — deux personnes derrière le même
+  NAT ne se lisent pas.
+- 🛑 **Il n'existe AUCUNE route de résultat publique**, et c'est le cœur de la
+  règle : le résultat est ce qu'on échange contre le compte.
+- `POST /api/civic-diagnostics/{id}/adopt` → `CivicDiagnosticDto`
+  (**authentifié**). Le visiteur vient de créer son compte : la session devient
+  la sienne. 🛑 **Rien n'est rejoué, rien n'est retiré** — mêmes questions, déjà
+  corrigées à la volée ; le serveur ne fait que poser le porteur (et rattache les
+  lignes `answers` restées sans compte). **Idempotent** sur une session déjà
+  adoptée par ce compte ; **404** sur celle d'un autre navigateur ou d'un autre
+  compte. Le **quota du compte s'applique** (`20_` §4.3) : un compte qui a déjà
+  son diagnostic gratuit ne s'en offre pas un second en repassant par le tunnel
+  invité — le front propose alors le diagnostic existant.
+
 ## Expression orale en temps réel (examinateur vocal, EO T1/T2)
 
 Schéma de connexion **(A)** : le backend émet un **token éphémère** dont le setup

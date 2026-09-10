@@ -44,7 +44,7 @@ import type {
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
-import {DiagnosticIntro, type DiagnosticParcours} from "./DiagnosticIntro";
+import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
 import {DiagnosticSteps} from "./DiagnosticSteps";
 import styles from "./diagnostic.module.css";
@@ -108,19 +108,18 @@ function retryErrorMessage(cause: unknown): string {
  */
 export function DiagnosticView() {
   const {status} = useAuth();
-  // 🛑 **La variante choisie à l'entrée ne quitte JAMAIS la mémoire.** Elle
-  // vit ici, au-dessus de la bascule invité ⇄ connecté, précisément pour
-  // survivre à l'inscription — qui se fait *en place*, sans quitter la page —
-  // et au sign-in Google, qui s'ouvre en popup. Rien n'est écrit en base, sur
-  // l'appareil ni dans l'URL : le profil réel se lit sur les domaines mesurés
-  // (`LearningPlanDto`), jamais sur une intention. Cf. `DiagnosticIntro`.
-  const [parcours, setParcours] = useState<DiagnosticParcours>("RAPIDE");
-  // La mesure lit le format au **même** endroit que les écrans : tant que le
-  // candidat n'a rien choisi, elle reste à `UNKNOWN` (cf. `lib/analytics.ts`),
-  // et un rechargement de page repart légitimement d'`UNKNOWN`.
-  const chooseParcours = useCallback((chosen: DiagnosticParcours) => {
-    setParcours(chosen);
-    rememberDiagnosticType(chosen === "COMPLET" ? "COMPLETE" : "RAPID");
+  /**
+   * 🛑 **On ne choisit plus une PROFONDEUR de diagnostic ici.** L'écran d'entrée
+   * fait choisir un EXAMEN (TCF ou civique) ; ce composant ne porte que le
+   * tunnel TCF, et ce tunnel est le diagnostic **rapide**. La profondeur —
+   * enchaîner le diagnostic complet — se propose sur le rapport, quand elle a
+   * un sens.
+   *
+   * La mesure enregistre donc `RAPID` au démarrage, ce qui est simplement la
+   * vérité : c'est le diagnostic rapide qui commence.
+   */
+  const commencerTcf = useCallback(() => {
+    rememberDiagnosticType("RAPID");
   }, []);
   if (status === "loading") return <DiagnosticSkeleton />;
   // `DualChromeShell` porte les deux chromes de la route : sidebar pour un
@@ -129,9 +128,9 @@ export function DiagnosticView() {
   return (
     <DualChromeShell>
       {status === "authenticated" ? (
-        <ConnectedDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
+        <ConnectedDiagnostic onStartTcf={commencerTcf} />
       ) : (
-        <GuestDiagnostic parcours={parcours} onChooseParcours={chooseParcours} />
+        <GuestDiagnostic onStartTcf={commencerTcf} />
       )}
     </DualChromeShell>
   );
@@ -158,14 +157,7 @@ function guestStep(
   return started ? "written" : "presentation";
 }
 
-function GuestDiagnostic({
-  parcours,
-  onChooseParcours,
-}: {
-  parcours: DiagnosticParcours;
-  onChooseParcours: (parcours: DiagnosticParcours) => void;
-}) {
-  const complete = parcours === "COMPLET";
+function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const [subjects, setSubjects] = useState<PublicDiagnosticResponse | null>(null);
   const [local, setLocal] = useState<LocalDiagnosticProductions | null>(null);
   const [loading, setLoading] = useState(true);
@@ -313,7 +305,7 @@ function GuestDiagnostic({
   if (step === "account") {
     return (
       <DiagnosticShell guest>
-        <DiagnosticSteps current="account" guest complete={complete} oral={subjects.oral !== null} />
+        <DiagnosticSteps current="account" guest complete={false} oral={subjects.oral !== null} />
         <DiagnosticAccountGate
           writtenWords={countEeWords(local?.writtenText ?? "")}
           oralDurationSec={local?.oralDurationSec ?? null}
@@ -328,7 +320,7 @@ function GuestDiagnostic({
     const oral = subjects.oral;
     return (
       <DiagnosticShell guest compact>
-        <DiagnosticSteps current="oral" guest complete={complete} />
+        <DiagnosticSteps current="oral" guest complete={false} />
         <ExerciseHeader
           kind="oral"
           note={
@@ -354,7 +346,7 @@ function GuestDiagnostic({
   if (step === "written") {
     return (
       <DiagnosticShell guest compact>
-        <DiagnosticSteps current="written" guest complete={complete} oral={subjects.oral !== null} />
+        <DiagnosticSteps current="written" guest complete={false} oral={subjects.oral !== null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(subjects.written)}
@@ -377,10 +369,8 @@ function GuestDiagnostic({
         guest
         written={subjects.written}
         oral={subjects.oral}
-        onStart={(chosen) => {
-          // Le choix ne change QUE ce qu'on enchaînera après le rapport : les
-          // deux cartes ouvrent le même écrit, puis le même oral.
-          onChooseParcours(chosen);
+        onStart={() => {
+          onStartTcf();
           setStarted(true);
           trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
         }}
@@ -411,14 +401,7 @@ type Handoff =
   /** Une des deux tâches avait déjà une soumission : on n'a envoyé que l'autre. */
   | {kind: "partially-reused"};
 
-function ConnectedDiagnostic({
-  parcours,
-  onChooseParcours,
-}: {
-  parcours: DiagnosticParcours;
-  onChooseParcours: (parcours: DiagnosticParcours) => void;
-}) {
-  const complete = parcours === "COMPLET";
+function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const {user} = useAuth();
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -720,9 +703,9 @@ function ConnectedDiagnostic({
     };
   }, [diagnostic]);
 
-  async function start(chosen: DiagnosticParcours) {
+  async function start() {
     if (submitting) return;
-    onChooseParcours(chosen);
+    onStartTcf();
     setSubmitting(true);
     setError(null);
     try {
@@ -905,7 +888,7 @@ function ConnectedDiagnostic({
           submitting={submitting}
           written={diagnostic.written}
           oral={diagnostic.oral}
-          onStart={(chosen) => void start(chosen)}
+          onStart={() => void start()}
         />
       </DiagnosticShell>
     );
@@ -1007,7 +990,7 @@ function ConnectedDiagnostic({
         {/* Dernière marche du fil : le rapport est en cours de production. Le
             parcours complet y voit encore « Compréhension » en attente, ce qui
             annonce la suite avant même que le rapport ne la propose. */}
-        <DiagnosticSteps current="report" guest={false} complete={complete} />
+        <DiagnosticSteps current="report" guest={false} complete={false} />
         <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
       </DiagnosticShell>
     );
@@ -1040,7 +1023,7 @@ function ConnectedDiagnostic({
     const exercise = diagnostic.written;
     return (
       <DiagnosticShell compact>
-        <DiagnosticSteps current="written" guest={false} complete={complete} />
+        <DiagnosticSteps current="written" guest={false} complete={false} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -1059,7 +1042,7 @@ function ConnectedDiagnostic({
     const exercise = diagnostic.oral;
     return (
       <DiagnosticShell compact>
-        <DiagnosticSteps current="oral" guest={false} complete={complete} />
+        <DiagnosticSteps current="oral" guest={false} complete={false} />
         <ExerciseHeader kind="oral" />
         <EoRecordingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -1081,7 +1064,7 @@ function ConnectedDiagnostic({
   return (
     <DiagnosticShell>
       {notice}
-      <DiagnosticSteps current="report" guest={false} complete={complete} />
+      <DiagnosticSteps current="report" guest={false} complete={false} />
       <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
     </DiagnosticShell>
   );

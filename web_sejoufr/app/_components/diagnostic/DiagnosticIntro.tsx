@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {useEffect, useState} from "react";
 import {ArrowRight, BookOpen, Check, Clock3, FilePenLine, Headphones, Mic} from "lucide-react";
 import {diagnosticApi} from "@/lib/api";
@@ -11,7 +12,6 @@ import {
   diagnosticWrittenMeasureLabel,
   diagnosticWrittenMinutes,
 } from "@/lib/diagnostic";
-import {EPREUVE_PLANNED_SEC} from "@/lib/exam-durations";
 import type {PublicDiagnosticResponse} from "@/lib/types";
 import styles from "./diagnostic.module.css";
 
@@ -35,23 +35,19 @@ import styles from "./diagnostic.module.css";
  * `RAPIDE` : sans conséquence, le rapport propose de toute façon de compléter
  * le profil à partir de `domainesAEvaluer`.
  */
-export type DiagnosticParcours = "RAPIDE" | "COMPLET";
-
-/** ⚠️ La compréhension ne se joue **jamais** avant le compte : un attempt sans
- *  compte n'a personne à qui attribuer un progrès et ses résultats seraient
- *  perdus. Le parcours complet enchaîne donc CO puis CE **après** l'analyse. */
-const COMPREHENSION_NOTE =
-  "La compréhension orale et écrite se joue juste après la création de votre compte : ce sont deux examens blancs, et leur résultat doit être rattaché à un compte pour entrer dans votre profil.";
+/**
+ * Le format du diagnostic civique, tel que cet écran l'annonce.
+ *
+ * 🛑 **40, comme l'épreuve** : c'est ce qui rend le résultat directement
+ * comparable au seuil, sans projection. Recopié ici parce que l'écran est rendu
+ * avant tout appel civique — mais il ne doit jamais diverger de la
+ * configuration serveur (`sejourfr.civic-diagnostic`).
+ */
+const CIVIQUE_DIAGNOSTIC_QUESTIONS = 40;
+const CIVIQUE_DIAGNOSTIC_HREF = "/diagnostic-civique";
 
 const FOOT_NOTE =
   "Votre diagnostic reste accessible ensuite : vous pouvez compléter les épreuves manquantes quand vous voulez.";
-
-/** Minutes de compréhension annoncées **avant** qu'un examen existe. Repli
- *  déclaré une seule fois pour tout le web (`lib/exam-durations.ts`) : ici,
- *  aucun DTO ne porte encore de durée. Recalculé, jamais écrit en dur. */
-const COMPREHENSION_MINUTES = Math.round(
-  (EPREUVE_PLANNED_SEC.TCF_CO + EPREUVE_PLANNED_SEC.TCF_CE) / 60,
-);
 
 /**
  * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
@@ -114,6 +110,26 @@ function minutesLabel(minutes: number | null): string | null {
  * Deux cartes, comme la maquette. Elles ne mènent pas à deux tunnels : elles
  * annoncent deux ambitions, et c'est l'après-rapport qui diffère.
  */
+/**
+ * Écran d'entrée du diagnostic, **identique pour un visiteur et pour un
+ * compte** : c'est le même parcours, seul le moment où l'on demande le compte
+ * change.
+ *
+ * 🛑 **On choisit un EXAMEN, pas une profondeur de diagnostic.** Cet écran a
+ * longtemps proposé « rapide » et « complet » — deux ambitions du seul TCF,
+ * alors que le candidat prépare **deux examens obligatoires** et sait lequel il
+ * passe. La profondeur du parcours TCF (rapide puis complet) se découvre
+ * ensuite, sur le rapport, quand elle a un sens.
+ *
+ * 🛑 **Les deux se passent SANS COMPTE** (`V053`, arbitrage du propriétaire du
+ * 2026-09-10) : « l'utilisateur doit pouvoir passer le diagnostic avant de créer
+ * son compte, il saisit le texte ou répond au QCM et seulement après on lui
+ * demande de créer son compte pour voir le résultat. » La mécanique diffère —
+ * le TCF garde ses productions sur l'appareil (`50_` §3.1), le civique joue un
+ * attempt invité (user NULL + IP, comme la démo) qu'une inscription *adopte* —
+ * mais **la promesse faite ici est la même des deux côtés**, et les deux cartes
+ * la portent.
+ */
 export function DiagnosticIntro({
   error,
   submitting,
@@ -127,19 +143,19 @@ export function DiagnosticIntro({
   guest?: boolean;
   written?: DiagnosticExerciseContent | null;
   oral?: DiagnosticExerciseContent | null;
-  onStart: (parcours: DiagnosticParcours) => void;
+  /** Lance le diagnostic **TCF**. Le civique, lui, est un lien. */
+  onStart: () => void;
 }) {
   const measures = useIntroMeasures(written, oral);
   const express = expressionMinutes(measures.written, measures.oral);
-  const complete = express == null ? null : express + COMPREHENSION_MINUTES;
 
   return (
     <section className={styles.intro}>
       <p className={styles.eyebrow}>Diagnostic</p>
-      <h1>Découvrez votre niveau TCF</h1>
+      <h1>Quel examen préparez-vous&nbsp;?</h1>
       <p className={styles.lead}>
-        Obtenez une première estimation de votre niveau, et découvrez précisément ce qui
-        vous bloque pour atteindre votre objectif.
+        Les deux diagnostics sont gratuits. Choisissez celui qui correspond à
+        votre démarche&nbsp;; vous pourrez faire l&apos;autre plus tard.
       </p>
 
       {error && <p className={styles.error} role="alert">{error}</p>}
@@ -147,14 +163,16 @@ export function DiagnosticIntro({
       <div className={styles.choice}>
         <article className={`${styles.choiceCard} ${styles.choiceCardReco}`}>
           <div className={styles.choiceHead}>
-            <h2>Diagnostic rapide</h2>
-            <span className={styles.choiceBadge}>Recommandé</span>
+            <h2>
+              <span aria-hidden>🇫🇷</span> TCF IRN
+            </h2>
+            <span className={styles.choiceBadge}>Sans compte</span>
           </div>
           <p className={styles.choiceMeta}>
             <span>
               {measures.oral
                 ? "Expression écrite + expression orale"
-                : "Une seule production écrite"}
+                : "Une production écrite"}
             </span>
             {minutesLabel(express) && (
               <span>
@@ -164,64 +182,71 @@ export function DiagnosticIntro({
           </p>
           <ul className={styles.choiceList}>
             <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Analyse de votre capacité
-              réelle de production
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Une estimation de
+              votre niveau, sur ce que vous savez réellement produire
             </li>
             <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Première estimation de niveau
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Ce qu&apos;il faut
+              travailler pour atteindre votre objectif
             </li>
             <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Vos premières compétences
-              détectées
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Vous commencez à
+              écrire tout de suite
             </li>
           </ul>
           <button
             className={styles.primaryButton}
             type="button"
             disabled={submitting}
-            onClick={() => onStart("RAPIDE")}
+            onClick={onStart}
           >
-            {submitting ? "Préparation…" : "Commencer le diagnostic"}
+            {submitting ? "Préparation…" : "Commencer le diagnostic TCF"}
             {!submitting && <ArrowRight size={17} aria-hidden />}
           </button>
         </article>
 
         <article className={styles.choiceCard}>
           <div className={styles.choiceHead}>
-            <h2>Diagnostic complet</h2>
+            <h2>
+              <span aria-hidden>🏛️</span> Examen civique
+            </h2>
+            {/* 🛑 « Sans compte » des DEUX côtés depuis V053. Le badge sur la
+                seule carte TCF laissait croire que le civique se paie d'une
+                inscription à l'entrée — ce n'est plus vrai. */}
+            <span className={styles.choiceBadge}>Sans compte</span>
           </div>
           <p className={styles.choiceMeta}>
-            <span>EE + EO + CO + CE</span>
-            {minutesLabel(complete) && (
-              <span>
-                <Clock3 size={14} aria-hidden /> {minutesLabel(complete)}
-              </span>
-            )}
+            <span>{CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen</span>
           </p>
           <ul className={styles.choiceList}>
             <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Un profil complet dès
-              maintenant sur les 4 épreuves du TCF
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Les thèmes et notions
+              à renforcer avant l&apos;examen
             </li>
             <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Les mêmes analyses, sur les
-              quatre domaines
+              <Check size={15} strokeWidth={2.8} aria-hidden /> Un résultat qui se lit
+              directement sur l&apos;échelle de l&apos;épreuve
             </li>
           </ul>
-          <p className={styles.choiceNote}>{COMPREHENSION_NOTE}</p>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            disabled={submitting}
-            onClick={() => onStart("COMPLET")}
-          >
-            {submitting ? "Préparation…" : "Faire le diagnostic complet"}
-            {!submitting && <ArrowRight size={17} aria-hidden />}
-          </button>
+          {/* 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053, arbitrage du
+              propriétaire du 2026-09-10) — même promesse que le TCF, et on la
+              dit avant le clic. ⚠️ Cette carte a annoncé l'inverse (« Ce
+              diagnostic demande un compte ») et envoyait sur
+              `/inscription?next=…` : le motif invoqué — un QCM est rattaché à
+              un attempt, donc à un utilisateur — était faux, l'attempt invité
+              existant déjà pour la démo. Ne pas remettre le détour. */}
+          <p className={styles.choiceNote}>
+            Vous répondez tout de suite&nbsp;; le compte n&apos;arrive qu&apos;au
+            moment de voir votre résultat.
+          </p>
+          <Link className={styles.secondaryButton} href={CIVIQUE_DIAGNOSTIC_HREF}>
+            Commencer le diagnostic civique
+            <ArrowRight size={17} aria-hidden />
+          </Link>
         </article>
       </div>
 
-      <p className={styles.introBandTitle}>Les deux parcours commencent par les mêmes exercices</p>
+      <p className={styles.introBandTitle}>Ce que contient le diagnostic TCF</p>
       <ul className={styles.introList}>
         <li>
           <span className={styles.introIcon} aria-hidden>

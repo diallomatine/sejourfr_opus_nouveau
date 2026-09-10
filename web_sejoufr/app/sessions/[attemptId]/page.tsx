@@ -551,7 +551,13 @@ function SessionRunnerInner({ params }: PageProps) {
         }
         initialFavoriteIds={favoriteIds}
         eyebrow={
-          isGuest
+          // 🛑 Un diagnostic civique n'est ni un examen blanc ni une « démo »,
+          // et il se joue désormais AVANT le compte (V053) : sans ce cas, un
+          // visiteur lisait « Examen blanc · Démo » au-dessus de ses 40
+          // questions de diagnostic.
+          civicDiagnosticId
+            ? "Diagnostic · Examen civique"
+            : isGuest
             ? isExam
               ? "Examen blanc · Démo"
               : isLot

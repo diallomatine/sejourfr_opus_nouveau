@@ -15,6 +15,7 @@ import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
@@ -34,7 +35,7 @@ import java.util.UUID;
  * Le parcours du diagnostic civique (lot L9, spec 20_ §4).
  *
  * <p>🛑 <b>Ce n'est pas un examen blanc</b>, et 20_ §4.1 les oppose ligne a
- * ligne : 24 questions contre 40, couverture equilibree contre representative,
+ * ligne : meme format (40 questions), couverture equilibree contre representative,
  * il CREE le plan la ou l'examen blanc VERIFIE la preparation. Les deux objets
  * coexistent, et {@code attempts.civic_diagnostic_id} les tient a l'ecart.
  *
@@ -56,6 +57,7 @@ public class CivicDiagnosticService {
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final UserManager userManager;
+    private final AnswerManager answerManager;
     private final SubscriptionService subscriptionService;
     private final CivicDiagnosticComposer composer;
     private final CivicDiagnosticProperties props;
@@ -79,7 +81,45 @@ public class CivicDiagnosticService {
         }
 
         assertPeutOuvrirUnNouveau(userId);
-        Difficulty mention = mention(user);
+        return creer(user, null, mention(user.getTargetProcedure()));
+    }
+
+    /**
+     * Ouvre un diagnostic pour un <b>visiteur sans compte</b> (V053).
+     *
+     * <p>🛑 <b>Arbitrage du proprietaire, 2026-09-10</b> : « que ce soit le
+     * diagnostic examen civique ou TCF, l'utilisateur doit pouvoir passer le
+     * diagnostic AVANT de creer son compte ». Il repond a ses 40 questions,
+     * <b>puis</b> on lui demande un compte pour voir le resultat.
+     *
+     * <p>🛑 <b>Pourquoi une session en base et pas un stockage local</b>, alors
+     * que le TCF garde ses productions sur l'appareil : corriger du QCM cote
+     * client obligerait a SERVIR LES BONNES REPONSES a un visiteur, et jouer 40
+     * questions hors {@code attempts} obligerait a ecrire un SECOND RUNNER.
+     * Les deux sont interdits. On reutilise donc l'attempt invite de la demo
+     * (user NULL + client_ip), deja en place.
+     *
+     * <p>🛑 <b>Aucun quota ici</b> : le compteur du gratuit
+     * ({@link #assertPeutOuvrirUnNouveau}) porte sur un COMPTE, et il n'y en a
+     * pas encore. Le frein d'un visiteur est le rate-limit par IP, pose au
+     * bord d'entree.
+     */
+    @Transactional
+    public CivicDiagnosticSession ouvrirInvite(TargetProcedure procedure, String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            throw new BusinessException("Impossible de déterminer l'IP du client");
+        }
+        return creer(null, clientIp, mention(procedure));
+    }
+
+    /**
+     * Le tirage, l'attempt et la session — <b>un seul endroit</b>, que le
+     * porteur soit un compte ou une IP.
+     *
+     * <p>Deux chemins de creation divergeraient a la premiere evolution du
+     * format, et l'un des deux produirait alors une mesure incomparable.
+     */
+    private CivicDiagnosticSession creer(User user, String clientIp, Difficulty mention) {
         List<Question> questions = composer.composer(mention);
         if (questions.isEmpty()) {
             throw new BusinessException(
@@ -89,16 +129,15 @@ public class CivicDiagnosticService {
         Instant now = Instant.now();
         Attempt attempt = new Attempt();
         attempt.setUser(user);
+        // L'IP tient lieu de porteur tant qu'il n'y a pas de compte : c'est
+        // exactement le contrat de l'attempt de demo.
+        attempt.setClientIp(clientIp);
         // 🛑 MOCK_EXAM porte le comportement de passation (pas de correction
         // live, chrono), pas la nature de l'objet : c'est le discriminant
         // `civicDiagnostic` qui dit que ce n'est PAS un examen blanc, et les
         // grilles le filtrent sur lui.
         attempt.setType(AttemptType.MOCK_EXAM);
         attempt.setModule(Module.CIVIQUE);
-        // 🛑 La mention vit sur la SESSION, pas sur l'attempt : elle y est
-        // recopiee au moment du diagnostic et ne se relit jamais depuis
-        // `users`. Changer de demarche ne doit pas reinterpreter un diagnostic
-        // deja passe.
         attempt.setStatus(AttemptStatus.EN_COURS);
         attempt.setTotalQuestions(questions.size());
         attempt.setStartedAt(now);
@@ -107,7 +146,12 @@ public class CivicDiagnosticService {
 
         CivicDiagnosticSession session = new CivicDiagnosticSession();
         session.setUser(user);
+        session.setClientIp(clientIp);
         session.setAttempt(attempt);
+        // 🛑 La mention vit sur la SESSION, pas sur l'attempt : elle y est
+        // recopiee au moment du diagnostic et ne se relit jamais depuis
+        // `users`. Changer de demarche ne doit pas reinterpreter un diagnostic
+        // deja passe.
         session.setMention(mention);
         session.setConfigVersion(props.getConfigVersion());
         session.setStatus(TcfDiagnosticStatus.IN_PROGRESS);
@@ -126,7 +170,8 @@ public class CivicDiagnosticService {
         }
 
         log.info("Diagnostic civique ouvert : session={} user={} mention={} questions={}",
-                session.getId(), userId, mention, questions.size());
+                session.getId(), user == null ? "invite" : user.getId(),
+                mention, questions.size());
         return session;
     }
 
@@ -167,8 +212,7 @@ public class CivicDiagnosticService {
      * un candidat sur des questions de naturalisation qu'il n'a pas a connaitre
      * produirait un diagnostic faussement severe.
      */
-    private static Difficulty mention(User user) {
-        TargetProcedure procedure = user.getTargetProcedure();
+    private static Difficulty mention(TargetProcedure procedure) {
         if (procedure == null) {
             return Difficulty.CSP;
         }
@@ -216,6 +260,79 @@ public class CivicDiagnosticService {
         return sessionManager.save(session);
     }
 
+    /**
+     * Le diagnostic d'un <b>visiteur</b>, identifie par l'IP de son navigateur.
+     *
+     * <p>🛑 <b>404 des qu'un compte porte la session</b> : une fois adoptee,
+     * elle n'est plus lisible que par son porteur, meme depuis la meme IP.
+     * Sans cette porte, deux personnes derriere le meme NAT liraient le
+     * diagnostic l'une de l'autre.
+     */
+    @Transactional
+    public CivicDiagnosticSession lireInvite(UUID sessionId, String clientIp) {
+        CivicDiagnosticSession session = sessionManager.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("Diagnostic introuvable : " + sessionId));
+        if (session.getUser() != null
+                || clientIp == null
+                || !clientIp.equals(session.getClientIp())) {
+            throw new NotFoundException("Diagnostic introuvable : " + sessionId);
+        }
+        return cloturerSiAttemptTermine(session);
+    }
+
+    /**
+     * <b>L'adoption</b> : le visiteur vient de creer son compte (ou de se
+     * connecter), et son diagnostic devient le sien.
+     *
+     * <p>🛑 <b>Rien n'est rejoue, rien n'est retire.</b> Ce sont les MEMES
+     * questions, deja corrigees a la volee cote serveur : on ne fait que poser
+     * le porteur. Un second tirage produirait une mesure differente de celle
+     * que le candidat vient de passer.
+     *
+     * <p>🛑 <b>Le quota du compte s'applique</b> ({@code 20_} §4.3) : un compte
+     * qui a deja son diagnostic gratuit ne s'en offre pas un second en
+     * repassant par le tunnel invite. Le message renvoye est celui de
+     * {@link #assertPeutOuvrirUnNouveau}, et le front propose alors le
+     * diagnostic existant.
+     *
+     * <p><b>Idempotent</b> : reappeler avec la meme session deja adoptee par ce
+     * compte rend la session, sans rien refaire — un double appui pendant
+     * l'inscription ne doit pas produire une erreur.
+     */
+    @Transactional
+    public CivicDiagnosticSession adopter(UUID userId, UUID sessionId, String clientIp) {
+        CivicDiagnosticSession session = sessionManager.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("Diagnostic introuvable : " + sessionId));
+
+        if (session.getUser() != null) {
+            if (session.getUser().getId().equals(userId)) {
+                return cloturerSiAttemptTermine(session);
+            }
+            throw new NotFoundException("Diagnostic introuvable : " + sessionId);
+        }
+        if (clientIp == null || !clientIp.equals(session.getClientIp())) {
+            throw new NotFoundException("Diagnostic introuvable : " + sessionId);
+        }
+
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+        assertPeutOuvrirUnNouveau(userId);
+
+        session.setUser(user);
+        // 🛑 L'IP s'efface a l'adoption : elle n'a plus de role, et la garder
+        // ferait d'une donnee de tunnel une donnee de compte.
+        session.setClientIp(null);
+
+        Attempt attempt = session.getAttempt();
+        attempt.setUser(user);
+        attempt.setClientIp(null);
+        attemptManager.save(attempt);
+        answerManager.rattacherAuCompte(user, attempt.getId());
+
+        log.info("Diagnostic civique adopte : session={} user={}", session.getId(), userId);
+        return cloturerSiAttemptTermine(sessionManager.save(session));
+    }
+
     /** Un diagnostic precis. 404 sur celui d'autrui : on ne revele pas son existence. */
     @Transactional
     public CivicDiagnosticSession lire(UUID userId, UUID sessionId) {
@@ -230,7 +347,7 @@ public class CivicDiagnosticService {
     /**
      * Cloture le diagnostic et fige sa date de fin.
      *
-     * <p>Il n'exige pas que les 24 questions soient repondues : le resultat se
+     * <p>Il n'exige pas que les 40 questions soient repondues : le resultat se
      * calcule sur ce qui a ete <b>pose et repondu</b>, et une question sautee
      * ne devient jamais une mauvaise reponse (elle sort du denominateur).
      */

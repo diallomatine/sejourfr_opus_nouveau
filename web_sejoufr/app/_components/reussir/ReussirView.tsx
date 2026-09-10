@@ -414,16 +414,23 @@ function DiagnosticSection() {
 
           <div className={styles.card} data-rv>
             <div className={styles.pad}>
-              <h3 className={styles.h3} style={{ fontSize: 21 }}>
-                <span aria-hidden>🏛️</span> Examen civique
-              </h3>
+              {/* 🛑 « Sans compte » des DEUX côtés depuis V053 : les deux
+                  diagnostics se passent avant l'inscription. Le badge sur une
+                  seule carte laissait croire que le civique, lui, se paie d'un
+                  compte à l'entrée. */}
+              <div className={styles.rowI} style={{ flexWrap: "wrap", gap: 10 }}>
+                <h3 className={styles.h3} style={{ fontSize: 21 }}>
+                  <span aria-hidden>🏛️</span> Examen civique
+                </h3>
+                <span className={`${styles.pill} ${styles.pReco}`}>Sans compte</span>
+              </div>
               <p className={styles.label} style={{ marginTop: 7 }}>
                 {CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen
               </p>
               <p className={styles.leadSm} style={{ marginTop: 14 }}>
                 Identifie les thèmes et les notions que tu dois renforcer avant
-                l&apos;examen. Ton résultat se lit directement sur l&apos;échelle
-                de l&apos;épreuve.
+                l&apos;examen. Tu réponds tout de suite&nbsp;; le compte n&apos;arrive
+                qu&apos;au moment de voir ton résultat.
               </p>
               <CiviqueDiagnosticCta />
             </div>
@@ -437,23 +444,20 @@ function DiagnosticSection() {
 /**
  * Le CTA du diagnostic **civique**.
  *
- * 🛑 **Il ne peut pas commencer sans compte**, contrairement au TCF : le
- * civique est un QCM rattaché à un `attempt`, donc à un utilisateur. Le TCF
- * rapide, lui, se rédige sur l'appareil et ne demande le compte qu'au moment de
- * l'analyse. On envoie donc l'inscription **avec la destination**, pour que le
- * visiteur retombe sur son diagnostic une fois inscrit — jamais sur un tableau
- * de bord vide.
+ * 🛑 **Il commence SANS COMPTE, comme le TCF** (`V053`, arbitrage du
+ * propriétaire du 2026-09-10) : le visiteur répond à ses 40 questions, et le
+ * compte ne lui est demandé qu'au moment de voir son résultat. Ce CTA vise donc
+ * **directement** le diagnostic.
+ *
+ * ⚠️ Il passait par `/inscription?next=…`, au motif qu'un QCM est rattaché à un
+ * `attempt` donc à un utilisateur. C'est **faux depuis V053** : l'attempt
+ * invité existe déjà pour la démo (user NULL + IP), et l'inscription se
+ * contente d'*adopter* la session. Ne pas remettre le détour.
  */
 function CiviqueDiagnosticCta() {
-  const { status } = useAuth();
   const origin = useOrigin();
 
-  const destination = withTrafficSource(
-    status === "authenticated"
-      ? CIVIQUE_DIAGNOSTIC_HREF
-      : `/inscription?next=${encodeURIComponent(CIVIQUE_DIAGNOSTIC_HREF)}`,
-    origin,
-  );
+  const destination = withTrafficSource(CIVIQUE_DIAGNOSTIC_HREF, origin);
 
   return (
     <Link

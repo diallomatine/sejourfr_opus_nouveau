@@ -154,6 +154,12 @@ final runnerControllerProvider = StateNotifierProvider.family
       ref.watch(userContentRepositoryProvider),
       attemptId,
       isPremium: isPremium,
+      // 🛑 **Pas de compte ⇒ session de visiteur.** C'est la seule règle
+      // possible : une session atteinte sans être authentifié ne peut être que
+      // publique (démo, ou diagnostic civique passé avant l'inscription, V053).
+      // Sans elle, le runner appelait les routes authentifiées et un visiteur
+      // recevait un 401 sur sa première réponse.
+      guest: auth is! AuthAuthenticated,
     );
   },
 );
@@ -164,7 +170,9 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     this._userContentRepo,
     this._attemptId, {
     required bool isPremium,
+    required bool guest,
   })  : _isPremium = isPremium,
+        _guest = guest,
         super(const AsyncValue.loading()) {
     _load();
   }
@@ -173,6 +181,10 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   final UserContentRepository _userContentRepo;
   final String _attemptId;
   final bool _isPremium;
+
+  /// La session est jouée **sans compte** : passation par `/api/public/attempts`,
+  /// et aucun appel à `/api/me/*` (l'API publique n'expose pas les favoris).
+  final bool _guest;
 
   /// Filtres déduits du premier batch, pour pouvoir étendre la session
   /// d'entraînement avec les mêmes critères.
@@ -199,7 +211,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   Future<void> _load() async {
     state = const AsyncValue.loading();
     try {
-      final attempt = await _repo.getById(_attemptId);
+      final attempt = await _repo.getById(_attemptId, guest: _guest);
       final answers = <String, List<String>>{
         for (final q in attempt.questions)
           if (q.selectedChoiceIds.isNotEmpty) q.id: q.selectedChoiceIds,
@@ -225,11 +237,16 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
 
       // Charge les favoris pour le module actif. Si ça échoue, on continue
       // sans : c'est juste un état d'affichage du bouton bookmark.
+      // 🛑 Jamais en visiteur : l'API publique n'expose pas `/api/me/*`, et
+      // l'appel partirait avec un jeton absent.
       Set<String> favorites = const {};
-      try {
-        final favList = await _userContentRepo.favorites(module: attempt.module);
-        favorites = favList.map((q) => q.id).toSet();
-      } catch (_) {}
+      if (!_guest) {
+        try {
+          final favList =
+              await _userContentRepo.favorites(module: attempt.module);
+          favorites = favList.map((q) => q.id).toSet();
+        } catch (_) {}
+      }
 
       // En training démo (non-premium), la session est figée à ce batch :
       // pas d'extension possible, le runner doit savoir qu'il est sur la
@@ -256,6 +273,8 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   /// Bascule l'état favori de la question courante. Mise à jour optimiste,
   /// rollback silencieux en cas d'erreur réseau.
   Future<void> toggleFavoriteCurrent() async {
+    // Les favoris vivent sous `/api/me/*` : ils n'existent pas sans compte.
+    if (_guest) return;
     final cur = state.valueOrNull;
     if (cur == null) return;
     final questionId = cur.current.question.id;
@@ -333,6 +352,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         attemptId: attemptIdForQ,
         attemptQuestionId: qId,
         choiceIds: selected,
+        guest: _guest,
       );
       final after = state.valueOrNull!;
       state = AsyncValue.data(after.copyWith(
@@ -470,7 +490,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     if (cur == null) return null;
     state = AsyncValue.data(cur.copyWith(submitting: true));
     try {
-      final finished = await _repo.finish(cur.activeAttempt.id);
+      final finished = await _repo.finish(cur.activeAttempt.id, guest: _guest);
       state = AsyncValue.data(cur.copyWith(
         activeAttempt: finished,
         submitting: false,

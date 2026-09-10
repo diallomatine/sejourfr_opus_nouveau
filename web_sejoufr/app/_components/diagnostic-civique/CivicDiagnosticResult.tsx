@@ -19,7 +19,10 @@
  */
 import {useCallback, useEffect, useState} from "react";
 import Link from "next/link";
-import {ApiException, civicDiagnosticApi} from "@/lib/api";
+import {ApiException, civicDiagnosticApi, publicCivicDiagnosticApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {adopterSiInvite, lireInvite} from "@/lib/civic-diagnostic-guest";
+import {CivicDiagnosticGate} from "./CivicDiagnosticGate";
 import {
     CIVIC_DIAGNOSTIC_PLAN_CTA,
     CIVIC_DIAGNOSTIC_TITLE,
@@ -35,18 +38,49 @@ import {
     themeTone,
 } from "@/lib/civic-diagnostic";
 import {CIVIC_THEME_STATE_LABEL} from "@/lib/types";
-import type {CivicDiagnosticResultDto} from "@/lib/types";
+import type {CivicDiagnosticResultDto, TargetProcedure} from "@/lib/types";
 
 type Etat =
     | {kind: "loading"}
+    /** Visiteur : le résultat est ce qu'on échange contre le compte (`V053`). */
+    | {kind: "compte"; repondues: number; total: number; procedure: TargetProcedure}
     | {kind: "pret"; resultat: CivicDiagnosticResultDto}
     | {kind: "erreur"; message: string};
 
 export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
+    const {status} = useAuth();
     const [etat, setEtat] = useState<Etat>({kind: "loading"});
 
     const charger = useCallback(async () => {
         try {
+            if (status !== "authenticated") {
+                // 🛑 **Aucun résultat pour un visiteur.** On ne montre que ce
+                // qu'il a déjà : combien de questions il a traitées. Le
+                // serveur n'expose d'ailleurs pas de résultat public — cet
+                // écran ne pourrait pas mentir même s'il le voulait.
+                const invite = lireInvite();
+                if (invite?.sessionId === sessionId) {
+                    const dto = await publicCivicDiagnosticApi.get(sessionId);
+                    setEtat({
+                        kind: "compte",
+                        repondues: dto.repondues,
+                        total: dto.total,
+                        procedure: invite.procedure,
+                    });
+                    return;
+                }
+                // Session inconnue de cet appareil : le compte tranchera.
+                setEtat({
+                    kind: "erreur",
+                    message: "Connectez-vous pour retrouver ce diagnostic.",
+                });
+                return;
+            }
+
+            // 🛑 **L'adoption d'abord**, et son échec n'arrête rien : un compte
+            // qui avait déjà son diagnostic gratuit se voit refuser l'adoption
+            // et doit tout de même voir SON résultat.
+            await adopterSiInvite();
             // 🛑 `result()` (POST) et non `readResult()` : c'est lui qui
             // CLÔTURE la session. Sans cette clôture, le diagnostic reste
             // « en cours » pour toujours et le Plan continue de réclamer un
@@ -63,11 +97,24 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
                         : "Impossible de charger votre résultat.",
             });
         }
-    }, [sessionId]);
+    }, [sessionId, status]);
 
     useEffect(() => {
+        // `loading` = l'auth n'a pas tranché. Décider ici montrerait l'écran de
+        // compte à quelqu'un qui en a déjà un, le temps du refresh de jeton.
+        if (status === "loading") return;
         void charger();
-    }, [charger]);
+    }, [charger, status]);
+
+    if (etat.kind === "compte") {
+        return (
+            <CivicDiagnosticGate
+                repondues={etat.repondues}
+                total={etat.total}
+                procedure={etat.procedure}
+            />
+        );
+    }
 
     if (etat.kind === "loading") {
         return (

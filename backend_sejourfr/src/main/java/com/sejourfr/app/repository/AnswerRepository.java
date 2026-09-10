@@ -1,10 +1,12 @@
 package com.sejourfr.app.repository;
 
 import com.sejourfr.app.entity.Answer;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,24 @@ import java.util.UUID;
 
 @Repository
 public interface AnswerRepository extends JpaRepository<Answer, UUID> {
+
+    /**
+     * Rattache a un compte les reponses d'un attempt joue <b>sans compte</b>
+     * (adoption d'un diagnostic civique invite, V053).
+     *
+     * <p>Les statistiques, elles, passent toutes par
+     * {@code a.attemptQuestion.attempt.user} : ce backfill ne les change pas,
+     * il evite seulement de laisser des lignes {@code answers} sans porteur
+     * alors que leur attempt en a un.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE Answer a SET a.user = :user
+        WHERE a.user IS NULL
+          AND a.attemptQuestion.id IN (
+              SELECT aq.id FROM AttemptQuestion aq WHERE aq.attempt.id = :attemptId)
+        """)
+    int rattacherAuCompte(@Param("user") User user, @Param("attemptId") UUID attemptId);
 
     // ------------------------------------------------------------------------
     // Stats globales utilisateur

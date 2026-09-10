@@ -6,6 +6,8 @@ import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticViewService;
+import com.sejourfr.app.util.ClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +22,7 @@ import java.util.UUID;
  * Le diagnostic CIVIQUE (lot L9, spec 20_ §4).
  *
  * <p>🛑 <b>Distinct de l'examen blanc civique</b>, et 20_ §4.1 les oppose ligne
- * a ligne : 24 questions contre 40, couverture equilibree contre
+ * a ligne : meme format (40 questions), couverture equilibree contre
  * representative, il CREE le plan la ou l'examen blanc VERIFIE la preparation.
  *
  * <p>La <b>passation</b> ne passe pas par ici : les reponses vont sur
@@ -38,6 +40,7 @@ public class CivicDiagnosticController {
     private final CivicDiagnosticService service;
     private final CivicDiagnosticViewService viewService;
     private final CurrentUser currentUser;
+    private final ClientIpResolver clientIpResolver;
 
     /**
      * Ouvre un diagnostic, ou rend celui deja en cours. <b>Idempotent</b> :
@@ -60,6 +63,24 @@ public class CivicDiagnosticController {
                 .map(viewService::vue)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * <b>L'adoption</b> d'un diagnostic passe sans compte (V053).
+     *
+     * <p>Le visiteur a repondu a ses 40 questions, il vient de creer son compte
+     * (ou de se connecter) : la session devient la sienne. 🛑 <b>Rien n'est
+     * retire, rien n'est rejoue</b> — ce sont les memes questions, deja
+     * corrigees a la volee.
+     *
+     * <p><b>Idempotent</b> : un second appel sur une session deja adoptee par
+     * ce compte la rend telle quelle. 404 sur celle d'un autre navigateur ou
+     * d'un autre compte.
+     */
+    @PostMapping("/{id}/adopt")
+    public CivicDiagnosticDto adopter(@PathVariable UUID id, HttpServletRequest httpRequest) {
+        return viewService.vue(service.adopter(
+                currentUser.getId(), id, clientIpResolver.resolve(httpRequest)));
     }
 
     @GetMapping("/{id}")

@@ -1394,6 +1394,39 @@ détour par `/inscription`.
   `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
 
+### Le diagnostic civique se passe AVANT le compte (V053, 2026-09-10)
+
+🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou
+TCF, l'utilisateur doit pouvoir passer le diagnostic avant de créer son compte,
+il saisit le texte ou répond au QCM et seulement après on lui demande de créer
+son compte pour voir le résultat. » Règle complète et invariants :
+`docs/regles/diagnostic.md`.
+
+⚠️ **Ceci RÉVOQUE** « le diagnostic civique ne peut pas commencer sans compte,
+c'est un QCM rattaché à un attempt » : faux — l'attempt invité (`user_id IS NULL`
++ `client_ip`) existe depuis la démo. Ne pas remettre le détour par
+`/inscription?next=…`, ni sur `/diagnostic`, ni sur `/reussir`.
+
+- **Client** : `publicCivicDiagnosticApi` (`open(procedure)` / `get(id)`) +
+  `civicDiagnosticApi.adopt(sessionId)` dans `lib/api.ts`.
+- **Adresse locale** : `lib/civic-diagnostic-guest.ts` — `localStorage`, **deux
+  UUID et une démarche**, rien d'autre (contrairement au TCF, dont
+  `diagnostic-local-store.ts` garde les productions en IndexedDB : le civique
+  laisse ses réponses au serveur, qui seul peut les corriger). `etatInvite()`
+  **efface** l'adresse sur un 404 — une session adoptée ailleurs ne doit pas
+  rejouer son échec à chaque visite.
+- **Écrans** : `CivicDiagnosticHub` porte le choix de démarche (3 boutons) puis
+  le tirage public ; `CivicDiagnosticResult` rend `CivicDiagnosticGate` tant que
+  l'auth n'a pas basculé, et **adopte avant de lire** dès qu'elle bascule.
+  🛑 **Aucun résultat n'est montré à un visiteur** — le serveur n'expose d'ailleurs
+  aucune route de résultat publique.
+- **Passation** : le runner `/sessions/[attemptId]` était **déjà** dual-mode
+  (`GUEST_BACKEND` + `publicAttemptApi`) et route déjà vers
+  `civicDiagnosticResultHref` : rien n'y a été ajouté, sauf l'eyebrow — un
+  diagnostic civique ne s'annonce pas « Examen blanc · Démo ».
+- **Badge « Sans compte » sur les DEUX cartes** (`/reussir`, `/diagnostic`) :
+  l'asymétrie décrivait une contrainte qui n'existe plus.
+
 ### Écran de RÉSULTAT du diagnostic — la maquette IN-APP (2026-08-21)
 
 ⚠️ **La maquette contient DEUX écrans de diagnostic, et ce n'est pas le même

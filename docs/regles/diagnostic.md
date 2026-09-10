@@ -277,3 +277,54 @@ tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
 `subject_id`, additive) et V755 (contenu initial). La suppression de
 compte purge observations et sessions **avant** les attempts. Le détail grand
 public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
+
+
+## Le diagnostic se passe AVANT le compte — des DEUX côtés (V053, 2026-09-10)
+
+🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou
+TCF, l'utilisateur doit pouvoir passer le diagnostic avant de créer son compte,
+il saisit le texte ou répond au QCM et seulement après on lui demande de créer
+son compte pour voir le résultat. »
+
+La règle produit est **la même des deux côtés**. La mécanique, non — et la
+différence est délibérée, pas un oubli de parité :
+
+| | TCF invité | Civique invité |
+|---|---|---|
+| Ce qui est produit | un texte (et un audio) | 40 réponses à un QCM |
+| Où ça vit avant le compte | **l'appareil** (IndexedDB / `SharedPreferences`) | **le serveur** (attempt invité, `user_id IS NULL` + `client_ip`) |
+| Ce que l'appareil garde | la production entière | **deux UUID** : la session et son attempt |
+| Le compte est demandé | à « Analyser mes réponses » | à « Voir mon résultat » |
+
+🛑 **Pourquoi le civique ne peut pas garder ses réponses sur l'appareil** : le
+corriger côté client obligerait à **servir les bonnes réponses à un visiteur**,
+et jouer 40 questions hors `attempts` obligerait à écrire un **second runner** —
+les deux sont interdits. On réutilise donc la mécanique d'attempt invité qui
+existe déjà pour la démo.
+
+Les invariants qui tiennent ce tunnel :
+
+- 🛑 **La session civique existe dès le premier tirage**, avant le compte : c'est
+  elle qui porte `attempts.civic_diagnostic_id`. Sans elle, les 40 questions d'un
+  visiteur seraient un **examen blanc** pour toutes les grilles.
+- 🛑 **Aucune route de résultat publique.** Le résultat est ce qu'on échange
+  contre le compte : le serveur n'en sert aucun sans authentification, donc aucun
+  front ne peut mentir sur ce point.
+- 🛑 **La démarche est demandée AVANT le tirage** (CSP / CR / NAT) : c'est elle
+  qui choisit les questions. Absente ⇒ **CSP**, le périmètre le plus étroit.
+  Mesurer un candidat naturalisation sur le programme d'une carte de séjour
+  produirait un diagnostic flatteur et un plan incomplet.
+- 🛑 **L'adoption ne rejoue rien** : mêmes questions, mêmes réponses déjà
+  corrigées ; le serveur pose seulement le porteur. Un second tirage rendrait au
+  candidat un résultat qui n'est pas celui qu'il vient de passer.
+- 🛑 **Le quota du compte s'applique à l'adoption** (`20_` §4.3) : sinon il
+  suffirait de se déconnecter pour se refaire un diagnostic gratuit indéfiniment.
+  Conséquence assumée : un compte qui a déjà son diagnostic **perd** les réponses
+  du tunnel invité — les fronts retombent alors sur son diagnostic existant, sans
+  message d'erreur.
+- 🛑 **Une session adoptée n'est plus lisible publiquement**, même depuis la même
+  IP : deux personnes derrière le même NAT ne se lisent pas.
+
+Routes et détail : `docs/api-endpoints.md`, section « Diagnostic civique (L9) ».
+Journal de la décision : `docs/review_all/60_DECISIONS_IMPLEMENTATION.md`,
+section « Le diagnostic se passe AVANT le compte ».

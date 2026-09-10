@@ -2748,6 +2748,38 @@ des deux défauts. Le changer d'un seul côté rouvre l'écart.
 **« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
 avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
+## Le diagnostic civique se passe AVANT le compte (V053, 2026-09-10)
+
+🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou
+TCF, l'utilisateur doit pouvoir passer le diagnostic avant de créer son compte,
+il saisit le texte ou répond au QCM et seulement après on lui demande de créer
+son compte pour voir le résultat. » Règle complète et invariants :
+`docs/regles/diagnostic.md`.
+
+- **Routes publiques** : `/diagnostic-civique`, `/diagnostic-civique/:id/resultat`
+  **et `/runner/:attemptId`** rejoignent l'allowlist `isOnPublicPage` du redirect
+  global — la passation réutilise le runner existant, aucun second écran n'est
+  créé.
+- **Réseau** : `CivicDiagnosticRepository.openGuest(procedure)` / `.guest(id)`
+  (routes `/api/public/civic-diagnostics`, `skipAuth` + `skipRefresh`) et
+  `.adopt(id)` (authentifiée).
+- 🛑 **Le runner a désormais un mode invité** : `AttemptsRepository
+  .getById/submitAnswer/finish` prennent un `guest` qui bascule le préfixe sur
+  `/api/public/attempts`. `RunnerController` le dérive d'**une seule règle** —
+  *pas de compte ⇒ session de visiteur* — et **saute les favoris** (l'API
+  publique n'expose pas `/api/me/*`). Ne pas déduire le mode d'autre chose : une
+  session atteinte sans être authentifié ne peut être que publique.
+- **Adresse locale** : `civic_diagnostic_guest_store.dart` — `SharedPreferences`,
+  **deux UUID et une démarche**. Contrairement au TCF (`DiagnosticDraftStore`,
+  qui garde texte et audio), le civique laisse ses réponses au serveur : lui seul
+  peut les corriger sans révéler les bonnes réponses.
+- **Écrans** : `CivicDiagnosticScreen` demande la démarche (3 tuiles) puis tire ;
+  `CivicDiagnosticResultScreen` rend `_gate` — eyebrow, compteur de réponses, et
+  les deux boutons d'auth avec `redirect` — tant qu'il n'y a pas de compte, et
+  **adopte avant de lire** dès qu'il y en a un.
+  🛑 **Aucun résultat pour un visiteur** : le serveur n'expose aucune route de
+  résultat publique.
+
 ## Examen blanc TCF complet (orchestration des 4 épreuves)
 
 Backend : cf. `CLAUDE.md` racine section « Examen blanc TCF complet ». Côté mobile, l'orchestration vit

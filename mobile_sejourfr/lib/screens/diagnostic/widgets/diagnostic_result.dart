@@ -21,7 +21,6 @@ import '../../plan/plan_actions.dart';
 import '../../plan/plan_labels.dart';
 import '../../plan/plan_series_launcher.dart';
 import '../../plan/widgets/plan_tokens.dart';
-import '../diagnostic_variant.dart';
 import 'diagnostic_report_labels.dart';
 
 /// **Mon diagnostic** — le bilan in-app d'un candidat connecté.
@@ -52,7 +51,6 @@ class DiagnosticResultView extends ConsumerStatefulWidget {
     super.key,
     required this.result,
     required this.hasTcfAccess,
-    required this.variant,
     required this.onOpenPlan,
     required this.onSubscribe,
     this.objective,
@@ -68,7 +66,6 @@ class DiagnosticResultView extends ConsumerStatefulWidget {
   /// Ce que le candidat a choisi à l'entrée. **Rien n'est persisté** : elle ne
   /// sert plus qu'à dire la vérité à l'audience quand une épreuve de
   /// compréhension est lancée depuis ce bilan.
-  final DiagnosticVariant variant;
 
   /// Accès TCF réel du compte (`AuthUser.hasTcf`). Il décide de ce qui est
   /// **flouté** ; aucune règle de verrou n'est recalculée ici — celui d'une
@@ -216,8 +213,13 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
   ///
   /// ⚠️ L'événement d'audience n'existe que pour la **compréhension** : c'est
   /// le seul endroit de l'app où une CO/CE est lancée *depuis le diagnostic*,
-  /// donc le seul où il soit vrai. Il porte la variante **réellement choisie**,
-  /// jamais « complet » par défaut.
+  /// donc le seul où il soit vrai.
+  ///
+  /// 🛑 Il porte **`rapid`**, la nature du diagnostic réellement passé — pas
+  /// « complet ». Depuis l'arbitrage du 2026-09-10 le candidat n'a jamais
+  /// déclaré vouloir un « diagnostic complet » : il a passé le diagnostic TCF,
+  /// puis choisi ici de mesurer une épreuve de plus. Miroir de
+  /// `currentDiagnosticType` côté web, posé une fois au démarrage.
   void _assess(PlanDomainAssessment assessment) {
     final event = switch (assessment.epreuve) {
       EpreuveType.tcfCo => AnalyticsEvent.diagnosticCoStarted,
@@ -228,9 +230,7 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
       ref.read(analyticsServiceProvider).track(
             event,
             path: AnalyticsPath.diagnostic,
-            diagnosticType: widget.variant.isComplet
-                ? AnalyticsDiagnosticType.complete
-                : AnalyticsDiagnosticType.rapid,
+            diagnosticType: AnalyticsDiagnosticType.rapid,
           );
     }
     openPlanAssessment(context, assessment);

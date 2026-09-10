@@ -18,6 +18,29 @@ const String kCivicDiagnosticNotExam =
     'Ce n\'est pas un examen blanc : il sert à repérer ce qu\'il vous reste à travailler.';
 
 const String kCivicDiagnosticStartCta = 'Commencer mon diagnostic';
+
+/// Le tunnel **invité** (`V053`), en mots.
+///
+/// 🛑 **La démarche est demandée AVANT le tirage**, et ce n'est pas un
+/// formulaire de confort : c'est elle qui choisit les questions. Un candidat
+/// naturalisation mesuré sur des questions de carte de séjour repartirait avec
+/// un diagnostic flatteur et un plan incomplet.
+const String kCivicDiagnosticGuestTitle = 'Quelle démarche préparez-vous ?';
+const String kCivicDiagnosticGuestLead =
+    'Vos 40 questions sont tirées sur le programme de votre démarche.';
+
+/// 🛑 Promesse tenue par le serveur : aucun compte n'est demandé pour répondre.
+const String kCivicDiagnosticGuestNote =
+    'Pas besoin de compte pour commencer. Il ne vous sera demandé qu\'au moment '
+    'de voir votre résultat.';
+const String kCivicDiagnosticGuestBadge = 'Sans compte';
+
+/// Le résultat est ce qu'on échange contre le compte — dit sans détour.
+const String kCivicDiagnosticGateEyebrow = 'Dernière étape';
+const String kCivicDiagnosticGateTitle = 'Vos réponses sont enregistrées';
+const String kCivicDiagnosticGateLead =
+    'Créez votre compte gratuit pour voir votre résultat et votre plan. '
+    'Vos 40 réponses sont déjà en sécurité : elles vous suivent.';
 const String kCivicDiagnosticResumeCta = 'Reprendre';
 const String kCivicDiagnosticResultCta = 'Voir mon résultat';
 const String kCivicDiagnosticPlanCta = 'Découvrir mon plan';

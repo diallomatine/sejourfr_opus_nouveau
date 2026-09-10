@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Le tirage des 24 questions du diagnostic civique (20_ §4.2).
+ * Le tirage des 40 questions du diagnostic civique (20_ §4.2).
  *
  * <h2>Ce que la composition garantit, et pourquoi</h2>
  * <ul>

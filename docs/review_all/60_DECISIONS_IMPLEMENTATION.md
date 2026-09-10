@@ -990,21 +990,29 @@ il passe ; il ne sait pas ce qu'est un « diagnostic complet ». La profondeur d
 parcours TCF (rapide puis complet) se découvre **ensuite**, une fois entré — et
 c'est exactement l'ordre de l'architecture arbitrée.
 
-## D-R-2 · Le CTA civique passe par l'inscription, et c'est une contrainte réelle
+## D-R-2 · ~~Le CTA civique passe par l'inscription~~ — **RÉVOQUÉ le 2026-09-10**
 
-🛑 **Le diagnostic civique ne peut pas commencer sans compte**, contrairement au
-TCF. Le civique est un QCM rattaché à un `attempt`, donc à un utilisateur ; le
+> ⚠️ **Cette décision est fausse et a été annulée le jour même.** Elle est
+> conservée en entier parce que son *motif* était une erreur d'analyse, pas une
+> préférence : le corriger vaut d'être écrit. Ce qui fait foi désormais :
+> « Le diagnostic civique se passe AVANT le compte (V053) », plus bas.
+
+~~🛑 **Le diagnostic civique ne peut pas commencer sans compte**, contrairement
+au TCF. Le civique est un QCM rattaché à un `attempt`, donc à un utilisateur ; le
 TCF rapide, lui, se rédige sur l'appareil et ne demande le compte qu'au moment
-de l'analyse (`50_` §3.1).
+de l'analyse (`50_` §3.1).~~
 
-**Décidé** : le CTA civique envoie `/inscription?next=/diagnostic-civique` pour
-un visiteur, et directement au diagnostic pour un compte connecté. Le `next`
-n'est pas décoratif — sans lui, l'inscrit retomberait sur un tableau de bord
-vide au lieu du diagnostic qu'il venait faire.
+~~**Décidé** : le CTA civique envoie `/inscription?next=/diagnostic-civique` pour
+un visiteur, et directement au diagnostic pour un compte connecté.~~
 
-La carte TCF porte le badge **« Sans compte »** : c'est un vrai avantage, et le
-mettre à côté d'une carte qui, elle, en demande un, évite de faire passer la
-différence pour une incohérence.
+**Pourquoi c'était faux** : « un attempt est rattaché à un utilisateur » est
+inexact dans ce dépôt depuis longtemps — la **démo invitée** joue des attempts
+`user_id IS NULL` + `client_ip` depuis 2026-05. La contrainte que j'ai
+invoquée n'existait pas ; je l'ai déduite du modèle sans vérifier le code qui la
+contredisait à trois fichiers de là (`AttemptService.startGuestDemo`).
+
+La carte TCF portait seule le badge **« Sans compte »**. Les deux le portent
+maintenant : la différence était un défaut, pas un avantage à mettre en scène.
 
 ## D-R-3 · Deux formulations que L3 avait rendues fausses
 
@@ -1023,3 +1031,139 @@ inexistante coûte plus cher qu'un écran mal cadré : le candidat le découvre
 `DIAGNOSTIC_COMPREHENSION_LABEL` n'avait plus d'appelant après la refonte de la
 section : supprimée plutôt que laissée en place — une constante orpheline
 laisse croire qu'un écran l'affiche.
+
+
+---
+
+# Le diagnostic se passe AVANT le compte — des DEUX côtés (2026-09-10)
+
+**Demandé, verbatim** : *« et en plus que ce soit le diagnostic examen civique ou
+tcf, l'utilisateur doit pouvoir passer le diagnostic avant de créer son compte,
+il saisit le texte ou répond au qcm et seulement après on lui demande de créer
+son compte pour voir le resultat. »*
+
+Le TCF le faisait déjà (`50_` §3.1). Le civique, non — et **D-R-2 prétendait que
+c'était impossible**. Ça ne l'était pas.
+
+## D-G-1 · Le civique PERSISTE sa session invitée, le TCF garde tout sur l'appareil
+
+C'est la décision de fond de ce lot, et les deux mécaniques diffèrent
+**volontairement**.
+
+| | TCF invité | Civique invité |
+|---|---|---|
+| Ce qui est produit | un texte (et un audio) | 40 réponses à un QCM |
+| Où ça vit avant le compte | **l'appareil** (IndexedDB / `SharedPreferences`) | **le serveur** (attempt invité) |
+| Ce que l'appareil garde | la production entière | **deux UUID** : la session et son attempt |
+
+**Pourquoi le civique ne peut pas faire comme le TCF**, et c'est le vrai
+argument — deux invariants du dépôt l'interdisent :
+
+1. corriger du QCM côté client obligerait à **servir les bonnes réponses à un
+   visiteur** ;
+2. jouer 40 questions hors `attempts` obligerait à écrire un **second runner** —
+   explicitement interdit (« un second runner divergerait du premier à la
+   première évolution »).
+
+**Décidé** : on réutilise la mécanique d'attempt invité **qui existe déjà** pour
+la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sessions.user_id`
+devient nullable, avec un `client_ip` en regard (V053).
+
+**Ce que ça coûte si on revient dessus** : une migration (rendre `user_id`
+`NOT NULL` à nouveau) et la suppression de deux routes publiques. Les sessions
+invitées non adoptées devraient être purgées d'abord — rien ne les purge
+aujourd'hui, et c'est un **manque assumé** : elles sont inertes (invisibles de
+tout écran connecté, exclues des grilles par `civic_diagnostic_id`), mais elles
+s'accumulent. À traiter le jour où le volume le justifie.
+
+## D-G-2 · La session existe dès le premier tirage, pas à l'adoption
+
+On aurait pu ne créer que l'attempt et fabriquer la session au moment de
+l'inscription.
+
+**Décidé** : la session existe **avant** le compte.
+
+**Pourquoi** : c'est elle qui porte `attempts.civic_diagnostic_id`. Sans elle,
+les 40 questions d'un visiteur seraient un **examen blanc** aux yeux de toutes
+les grilles — dès la première question, et pendant tout le temps qu'il met à
+répondre. Les six requêtes de `AttemptRepository` qui filtrent
+`AND a.civicDiagnostic IS NULL` n'ont pas de seconde chance.
+
+## D-G-3 · La démarche est demandée AVANT le tirage
+
+Le tirage dépend de la mention (CSP / CR / NAT) : un CSP ne doit pas être mesuré
+sur des questions de naturalisation. Un visiteur n'a pas encore déclaré la
+sienne.
+
+**Décidé** : l'écran d'entrée du diagnostic civique demande la démarche — trois
+boutons —, la passe au tirage, et **préremplit** ensuite le formulaire de compte.
+
+**L'alternative rejetée** : tirer sur CSP par défaut sans rien demander. Le
+périmètre le plus étroit est le bon repli quand on ne sait pas (le serveur le
+garde pour une `procedure` absente), mais un candidat **naturalisation** mesuré
+sur le programme d'une carte de séjour repart avec un diagnostic **flatteur** et
+un plan **incomplet** — sur le segment qui a le plus à travailler. Une question
+valait mieux.
+
+## D-G-4 · L'adoption ne rejoue rien, et applique le quota du compte
+
+`POST /api/civic-diagnostics/{id}/adopt` pose le porteur sur la session, sur son
+attempt et sur les lignes `answers` restées sans compte. **Aucune question n'est
+retirée, aucune réponse n'est rejouée** : un second tirage rendrait au candidat
+un résultat qui n'est pas celui qu'il vient de passer.
+
+**Le quota s'applique** (`20_` §4.3, « le premier est offert ») : un compte qui a
+déjà son diagnostic gratuit voit l'adoption refusée.
+
+**Ce que ça coûte, et je l'assume** : ce candidat-là **perd** les 40 réponses
+qu'il vient de donner. Le cas est rare (il faut *se connecter* à un compte qui a
+déjà son diagnostic, au lieu de s'inscrire) et il a déjà un résultat à lire. Les
+fronts retombent silencieusement sur le diagnostic du compte plutôt que
+d'afficher une erreur. **L'alternative — adopter quand même — casserait le
+freemium** : il suffirait de se déconnecter pour se refaire un diagnostic gratuit
+autant de fois qu'on veut.
+
+## D-G-5 · Une session adoptée n'est plus lisible publiquement
+
+`GET /api/public/civic-diagnostics/{id}` rend **404** dès que la session a un
+porteur, même depuis la même IP.
+
+**Pourquoi ce n'est pas de la prudence excessive** : deux personnes derrière le
+même NAT (une box, un cybercafé, un foyer) partagent une IP. Sans cette porte,
+la seconde lirait l'avancement du diagnostic de la première rien qu'en ayant son
+identifiant.
+
+## D-G-6 · Le mobile gagne un mode invité sur le runner
+
+Le runner mobile n'appelait que les routes authentifiées : un visiteur recevait
+un 401 sur sa première réponse.
+
+**Décidé** : `AttemptsRepository.getById/submitAnswer/finish` prennent un
+`guest`, qui bascule le préfixe sur `/api/public/attempts` et pose
+`skipAuth`/`skipRefresh`. `RunnerController` le dérive d'une seule règle —
+**pas de compte ⇒ session de visiteur** — parce qu'une session atteinte sans être
+authentifié ne peut être que publique. Les favoris sont sautés (l'API publique
+n'expose pas `/api/me/*`).
+
+**Aucun second runner n'a été écrit**, et `/runner/:id` rejoint l'allowlist des
+pages publiques du router, à côté de `/diagnostic`.
+
+## D-G-7 · Ce qui a été corrigé au passage
+
+- Le badge **« Sans compte »** est sur les **deux** cartes, sur `/reussir` comme
+  sur `/diagnostic` : il décrivait une asymétrie qui n'existe plus.
+- L'eyebrow du runner disait « Examen blanc · Démo » au-dessus des 40 questions
+  d'un diagnostic civique invité. Il dit « Diagnostic · Examen civique ».
+- Les commentaires « 24 questions contre 40 » (backend et fronts) dataient
+  d'avant le passage à 40 : la comparaison était devenue fausse.
+
+## D-G-8 · Le `DiagnosticVariant` mobile est supprimé
+
+Le mobile posait encore le choix « rapide / complet » que le web avait déjà
+abandonné.
+
+**Décidé** : `diagnostic_variant.dart` est supprimé, l'écran d'entrée fait
+choisir un **examen**, et l'événement d'audience porte `rapid` — miroir du
+`currentDiagnosticType` posé une fois côté web. Le sous-titre d'en-tête de la
+présentation disparaît : un budget au-dessus du titre ne vaudrait que pour une
+des deux cartes, et chaque carte annonce le sien.

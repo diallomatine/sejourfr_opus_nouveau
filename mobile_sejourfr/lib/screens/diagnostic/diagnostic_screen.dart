@@ -18,7 +18,6 @@ import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import 'diagnostic_controller.dart';
-import 'diagnostic_variant.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
 import 'widgets/diagnostic_common.dart';
@@ -81,13 +80,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     super.dispose();
   }
 
-  /// La variante choisie, telle qu'elle est **au moment de l'événement**.
-  /// Elle n'est jamais persistée : c'est une intention de front, et la seule
-  /// chose honnête à en dire est ce que le candidat avait sélectionné ici.
-  AnalyticsDiagnosticType get _diagnosticType =>
-      ref.read(diagnosticVariantProvider).isComplet
-          ? AnalyticsDiagnosticType.complete
-          : AnalyticsDiagnosticType.rapid;
+  /// La nature du diagnostic lancé depuis cet écran.
+  ///
+  /// 🛑 **Toujours `rapid`**, et ce n'est pas un raccourci : depuis l'arbitrage
+  /// du 2026-09-10 on n'entre plus par « rapide ou complet » mais par un
+  /// **examen**, et le parcours joué ici est celui des deux productions. La
+  /// profondeur se décide ensuite, sur le rapport, à partir des domaines
+  /// réellement mesurés. Inventer `complete` ici mesurerait une intention que
+  /// le candidat n'a jamais exprimée.
+  AnalyticsDiagnosticType get _diagnosticType => AnalyticsDiagnosticType.rapid;
 
   /// Émission best-effort — jamais attendue, jamais bloquante.
   void _track(AnalyticsEvent event) {
@@ -266,10 +267,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final state = ref.watch(diagnosticControllerProvider);
     final recording = ref.watch(recordingControllerProvider);
     final objective = ref.watch(userTargetLevelProvider)?.wire;
-    // Une intention de front, jamais persistée : elle ne change pas le parcours
-    // joué, seulement ce que le bilan enchaîne (cf. `diagnostic_variant.dart`).
-    final variant = ref.watch(diagnosticVariantProvider);
-
     _hydrateWriting(state);
     // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
     // `diagnostic_sessions.status`. On ne crée jamais une seconde vérité.
@@ -313,7 +310,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                 title: _showsReport(state)
                     ? kDiagnosticReportTitle
                     : 'Diagnostic TCF',
-                sub: _headerSub(state, variant),
+                sub: _headerSub(state),
                 onBack:
                     state.isSubmitting || state.isSyncing ? null : _confirmBack,
               ),
@@ -322,7 +319,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                   state: state,
                   recording: recording,
                   objective: objective,
-                  variant: variant,
                 ),
               ),
             ],
@@ -336,14 +332,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     required DiagnosticFlowState state,
     required RecordingState recording,
     required String? objective,
-    required DiagnosticVariant variant,
   }) {
     if (state.isGuest) {
-      return _guestContent(
-        state: state,
-        recording: recording,
-        variant: variant,
-      );
+      return _guestContent(state: state, recording: recording);
     }
 
     if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
@@ -390,8 +381,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // mesures viennent alors du catalogue public, chargé en repli.
           written: journey.written ?? state.subjects?.written,
           oral: journey.oral ?? state.subjects?.oral,
-          variant: variant,
-          onVariantChanged: _onVariantChanged,
           onStart: () => unawaited(_startAuthenticated()),
         ),
       DiagnosticStep.written when journey.written != null =>
@@ -423,7 +412,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // déjà résolu sur le compte, jamais une règle « étape 1 ouverte »
           // réécrite côté app.
           hasTcfAccess: _hasTcfAccess,
-          variant: variant,
           onOpenPlan: () => context.go(AppRoutes.plan),
           // Même feuille que le Plan et les Compétences : un seul parcours
           // d'achat, jamais un second.
@@ -450,7 +438,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget _guestContent({
     required DiagnosticFlowState state,
     required RecordingState recording,
-    required DiagnosticVariant variant,
   }) {
     final subjects = state.subjects;
     if (subjects == null) {
@@ -467,8 +454,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           written: subjects.written,
           oral: subjects.oral,
           isGuest: true,
-          variant: variant,
-          onVariantChanged: _onVariantChanged,
           onStart: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(
@@ -506,7 +491,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         DiagnosticAccountGate(
           errorMessage: state.errorMessage,
           noticeMessage: state.noticeMessage,
-          variantNote: diagnosticVariantAccountNote(variant),
           onRegister: _openRegister,
           onLogin: _openLogin,
         ),
@@ -552,12 +536,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     _track(AnalyticsEvent.diagnosticStarted);
   }
 
-  /// Le choix du candidat, gardé **en mémoire de processus** : aucune ligne en
-  /// base, aucun champ envoyé au serveur, et donc rien à nettoyer si l'app se
-  /// ferme — on retombe alors sur le diagnostic rapide.
-  void _onVariantChanged(DiagnosticVariant variant) =>
-      ref.read(diagnosticVariantProvider.notifier).state = variant;
-
   /// Le rapport est-il à l'écran ? Il ne l'est qu'une fois le parcours
   /// authentifié arrivé à son terme — jamais en invité, jamais en cours
   /// d'analyse.
@@ -568,23 +546,19 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       state.journey?.nextStep == DiagnosticStep.result &&
       state.journey?.result != null;
 
-  String _headerSub(DiagnosticFlowState state, DiagnosticVariant variant) {
+  String _headerSub(DiagnosticFlowState state) {
     if (state.isSyncing) return 'Envoi de vos réponses';
     if (_showsReport(state)) {
       return _hasTcfAccess
           ? kDiagnosticReportSubPremium
           : kDiagnosticReportSubFree;
     }
-    // Le sous-titre de la présentation suit la variante, comme la pilule de
-    // budget de l'écran : deux chiffres différents pour le même écran se
-    // liraient comme une contradiction.
+    // 🛑 La présentation ne porte plus de sous-titre : elle fait choisir un
+    // EXAMEN, et un chiffre de budget au-dessus du titre ne vaudrait que pour
+    // l'une des deux cartes. Chaque carte annonce le sien.
     if (state.isGuest) {
       return switch (state.guestStep) {
-        DiagnosticGuestStep.presentation => diagnosticVariantHeaderSub(
-            variant,
-            state.subjects?.written,
-            state.subjects?.oral,
-          ),
+        DiagnosticGuestStep.presentation => '',
         DiagnosticGuestStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticGuestStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticGuestStep.accountRequired => 'Analyser mes réponses',
@@ -592,11 +566,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     }
     final journey = state.journey;
     if (journey == null || journey.nextStep == DiagnosticStep.presentation) {
-      return diagnosticVariantHeaderSub(
-        variant,
-        journey?.written ?? state.subjects?.written,
-        journey?.oral ?? state.subjects?.oral,
-      );
+      return '';
     }
     return _stepLabel(journey.nextStep);
   }

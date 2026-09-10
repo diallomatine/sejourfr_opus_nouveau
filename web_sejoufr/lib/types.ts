@@ -3815,7 +3815,7 @@ export const FULL_TCF_EXAM_EPREUVES = [
 // DIAGNOSTIC CIVIQUE (L9) — miroir strict de `CivicDiagnostic*Dto`
 //
 // 🛑 **À NE PAS CONFONDRE avec l'examen blanc civique.** `20_` §4.1 les oppose
-// ligne à ligne : 24 questions contre 40, couverture équilibrée contre
+// ligne à ligne : même format (40 questions), couverture équilibrée contre
 // représentative, il CRÉE le plan là où l'examen blanc VÉRIFIE la préparation.
 //
 // 🛑 **Aucun coût LLM** : le civique est du QCM déterministe.

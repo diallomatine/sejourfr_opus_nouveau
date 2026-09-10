@@ -1,6 +1,7 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Answer;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.AnswerRepository;
@@ -24,6 +25,16 @@ public class AnswerManager {
 
     public Answer save(Answer answer) {
         return repository.save(answer);
+    }
+
+    /**
+     * Rattache a {@code user} les reponses sans porteur d'un attempt joue en
+     * visiteur (adoption d'un diagnostic civique invite, V053).
+     *
+     * @return le nombre de lignes rattachees
+     */
+    public int rattacherAuCompte(User user, UUID attemptId) {
+        return repository.rattacherAuCompte(user, attemptId);
     }
 
     // ------------------------------------------------------------------------

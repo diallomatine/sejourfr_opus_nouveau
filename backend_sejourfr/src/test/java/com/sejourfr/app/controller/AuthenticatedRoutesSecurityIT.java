@@ -69,6 +69,15 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/diagnostics/current"),
                 Arguments.of(HttpMethod.POST, "/api/diagnostics"),
                 Arguments.of(HttpMethod.GET, "/api/diagnostics/" + RANDOM_ID),
+                // CivicDiagnosticController — le resultat et l'adoption sont
+                // le moment ou le compte devient necessaire (V053).
+                Arguments.of(HttpMethod.GET, "/api/civic-diagnostics/current"),
+                Arguments.of(HttpMethod.POST, "/api/civic-diagnostics"),
+                Arguments.of(HttpMethod.GET, "/api/civic-diagnostics/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST,
+                        "/api/civic-diagnostics/" + RANDOM_ID + "/adopt"),
+                Arguments.of(HttpMethod.POST,
+                        "/api/civic-diagnostics/" + RANDOM_ID + "/result"),
                 Arguments.of(HttpMethod.POST,
                         "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController

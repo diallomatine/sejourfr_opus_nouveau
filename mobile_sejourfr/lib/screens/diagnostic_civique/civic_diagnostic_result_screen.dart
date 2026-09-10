@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/civic_diagnostic_repository.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/screen_header.dart';
+import 'civic_diagnostic_guest_store.dart';
 import 'civic_diagnostic_labels.dart';
 
 /// Le résultat du diagnostic **civique** (`20_` §4.5).
@@ -21,6 +25,13 @@ import 'civic_diagnostic_labels.dart';
 ///
 /// 🛑 **Un thème NON ÉVALUÉ n'est pas faible.** Il se dit « Non évalué », en
 /// atténué, et n'entre dans aucune priorité.
+///
+/// 🛑 **Un VISITEUR n'obtient aucun résultat ici** (`V053`, arbitrage du
+/// propriétaire du 2026-09-10) : il a répondu à ses 40 questions, et c'est
+/// précisément le résultat qu'on échange contre le compte. L'écran lui montre
+/// ce qu'il a déjà — le nombre de réponses enregistrées — et le renvoie vers
+/// l'inscription. Le serveur n'expose d'ailleurs aucune route de résultat
+/// publique : cet écran ne pourrait pas mentir même s'il le voulait.
 class CivicDiagnosticResultScreen extends ConsumerStatefulWidget {
   const CivicDiagnosticResultScreen({super.key, required this.sessionId});
 
@@ -33,9 +44,18 @@ class CivicDiagnosticResultScreen extends ConsumerStatefulWidget {
 
 class _CivicDiagnosticResultScreenState
     extends ConsumerState<CivicDiagnosticResultScreen> {
+  final _store = CivicDiagnosticGuestStore();
+
   CivicDiagnosticResultDto? _resultat;
+
+  /// L'avancement du visiteur, quand il n'y a pas encore de compte.
+  CivicDiagnosticDto? _invite;
+
   bool _loading = true;
   String? _error;
+
+  bool get _authentifie =>
+      ref.read(authControllerProvider) is AuthAuthenticated;
 
   @override
   void initState() {
@@ -44,18 +64,40 @@ class _CivicDiagnosticResultScreenState
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final repo = ref.read(civicDiagnosticRepositoryProvider);
     try {
+      if (!_authentifie) {
+        // 🛑 Aucun résultat pour un visiteur : on ne montre que ce qu'il a
+        // déjà, le nombre de questions traitées.
+        final etat = await repo.guest(widget.sessionId);
+        if (!mounted) return;
+        setState(() {
+          _invite = etat;
+          _loading = false;
+        });
+        return;
+      }
+
+      // 🛑 **L'adoption d'abord**, et son échec n'arrête rien : un compte qui
+      // avait déjà son diagnostic gratuit se voit refuser l'adoption et doit
+      // tout de même voir SON résultat.
+      await _adopterSiInvite(repo);
+
       // 🛑 `result()` (POST) et non `readResult()` : c'est lui qui CLÔTURE la
       // session. Sans cette clôture, le diagnostic reste « en cours » pour
       // toujours et le Plan continue de réclamer un diagnostic que le candidat
       // vient de terminer. L'appel est idempotent : une session déjà close est
       // rendue telle quelle.
-      final r = await ref
-          .read(civicDiagnosticRepositoryProvider)
-          .result(widget.sessionId);
+      final r = await repo.result(widget.sessionId);
       if (!mounted) return;
       setState(() {
         _resultat = r;
+        _invite = null;
         _loading = false;
       });
     } catch (e) {
@@ -65,6 +107,18 @@ class _CivicDiagnosticResultScreenState
         _loading = false;
       });
     }
+  }
+
+  Future<void> _adopterSiInvite(CivicDiagnosticGateway repo) async {
+    final invite = await _store.read();
+    if (invite == null) return;
+    try {
+      await repo.adopt(invite.sessionId);
+    } catch (_) {
+      // Refus le plus probable : le quota du compte. Le résultat du compte
+      // existe quand même, on le lit juste après.
+    }
+    await _store.forget();
   }
 
   @override
@@ -87,6 +141,10 @@ class _CivicDiagnosticResultScreenState
 
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());
+
+    final invite = _invite;
+    if (invite != null) return _gate(invite);
+
     final r = _resultat;
     if (r == null) {
       return Center(
@@ -214,6 +272,57 @@ class _CivicDiagnosticResultScreenState
       ],
     );
   }
+
+  /// L'écran de compte du diagnostic passé en visiteur (`V053`).
+  ///
+  /// 🛑 **Aucun résultat n'est montré ici.** Ni score, ni thème, ni projection :
+  /// c'est exactement ce qu'on échange contre le compte. 🛑 **Les réponses ne
+  /// sont pas en jeu** — elles sont déjà corrigées côté serveur, sur une session
+  /// que l'inscription se contente d'*adopter*, et l'écran le dit.
+  Widget _gate(CivicDiagnosticDto invite) {
+    final destination = AppRoutes.civicDiagnosticResultPath(widget.sessionId);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        Text(kCivicDiagnosticGateEyebrow.toUpperCase(),
+            style: AppFonts.label(size: 11, color: AppColors.red)),
+        const SizedBox(height: 8),
+        Text(kCivicDiagnosticGateTitle, style: AppFonts.display(size: 24)),
+        const SizedBox(height: 10),
+        Text(kCivicDiagnosticGateLead,
+            style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.55)),
+        const SizedBox(height: 12),
+        Text(
+          civicProgressionLabel(invite.repondues, invite.total),
+          style: AppFonts.label(size: 12, color: AppColors.inkFaint),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!, style: AppFonts.ui(size: 13, color: AppColors.red)),
+        ],
+        const SizedBox(height: 22),
+        AppButton(
+          label: 'Créer mon compte gratuit',
+          onPressed: () => context.push(
+              authFlowLocation(AppRoutes.register, destination)),
+        ),
+        const SizedBox(height: 10),
+        AppButton(
+          label: 'J\'ai déjà un compte',
+          variant: AppButtonVariant.soft,
+          onPressed: () => context.push(loginLocationFor(destination)),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Gratuit, sans carte bancaire. Vos réponses sont déjà enregistrées : '
+          'elles vous suivent.',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint, height: 1.5),
+        ),
+      ],
+    );
+  }
+
 }
 
 /// Une ligne de thème : la pastille porte l'état, le texte reste noir.
@@ -270,4 +379,5 @@ class _ThemeRow extends StatelessWidget {
         CivicThemeTone.hot => AppColors.red,
         CivicThemeTone.muted => AppColors.line,
       };
+
 }

@@ -35,6 +35,30 @@ export const CIVIC_DIAGNOSTIC_NOT_EXAM =
     "Ce n'est pas un examen blanc : il sert à repérer ce qu'il vous reste à travailler.";
 
 export const CIVIC_DIAGNOSTIC_START_CTA = "Commencer mon diagnostic";
+
+/**
+ * Le tunnel **invité** (`V053`), en mots.
+ *
+ * 🛑 **La démarche est demandée AVANT le tirage**, et ce n'est pas un
+ * formulaire de confort : c'est elle qui choisit les questions. Un candidat
+ * naturalisation mesuré sur des questions de carte de séjour repartirait avec
+ * un diagnostic flatteur et un plan incomplet.
+ */
+export const CIVIC_DIAGNOSTIC_GUEST_TITLE = "Quelle démarche préparez-vous ?";
+export const CIVIC_DIAGNOSTIC_GUEST_LEAD =
+    "Vos 40 questions sont tirées sur le programme de votre démarche.";
+/** 🛑 Promesse tenue par le serveur : aucun compte n'est demandé pour répondre. */
+export const CIVIC_DIAGNOSTIC_GUEST_NOTE =
+    "Pas besoin de compte pour commencer. Il ne vous sera demandé qu'au moment "
+    + "de voir votre résultat.";
+export const CIVIC_DIAGNOSTIC_GUEST_BADGE = "Sans compte";
+
+/** Le résultat est ce qu'on échange contre le compte — dit sans détour. */
+export const CIVIC_DIAGNOSTIC_GATE_EYEBROW = "Dernière étape";
+export const CIVIC_DIAGNOSTIC_GATE_TITLE = "Vos réponses sont enregistrées";
+export const CIVIC_DIAGNOSTIC_GATE_LEAD =
+    "Créez votre compte gratuit pour voir votre résultat et votre plan. "
+    + "Vos 40 réponses sont déjà en sécurité : elles vous suivent.";
 export const CIVIC_DIAGNOSTIC_RESUME_CTA = "Reprendre";
 export const CIVIC_DIAGNOSTIC_RESULT_CTA = "Voir mon résultat";
 export const CIVIC_DIAGNOSTIC_PLAN_CTA = "Découvrir mon plan";
