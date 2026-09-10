@@ -21,6 +21,7 @@ import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/blurred_content.dart';
 import '../../core/widgets/list_group.dart';
@@ -186,16 +187,21 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
               large: true,
               right: _ObjectiveButton(objective: objective),
             ),
-            // Le toggle TCF | Examen civique. Le CONTENU dépend de l'état du
-            // module : tant que le diagnostic qui construit le plan n'est pas
-            // fait, l'onglet explique pourquoi et ouvre la seule porte qui
-            // débloque — jamais un plan vide.
-            _ModuleTabs(
-              // 🛑 Le toggle s'affiche DES LE PREMIER RENDU, avant meme que
-              // l'etat soit connu : c'est une navigation, pas un resultat. Le
-              // faire attendre laisserait un ecran sans porte vers le civique.
-              civique: _civique ?? false,
-              onChange: (v) => setState(() => _civique = v),
+            // 🛑 **Le MÊME toggle que les Examens et Réviser**, et pas une
+            // copie : `SegmentedTabs` + `parcoursSegments` portent déjà les
+            // deux couleurs du produit (rouge = TCF, bleu = civique). Une
+            // seconde implémentation du même contrôle finirait par diverger.
+            //
+            // 🛑 Il s'affiche DÈS LE PREMIER RENDU, avant même que l'état soit
+            // connu : c'est une navigation, pas un résultat. Le faire attendre
+            // laissait l'écran sans aucune porte vers le civique.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: SegmentedTabs<bool>(
+                tabs: parcoursSegments(tcf: false, civique: true),
+                value: _civique ?? false,
+                onChanged: (v) => setState(() => _civique = v),
+              ),
             ),
             Expanded(
               child: RefreshIndicator(
@@ -834,63 +840,6 @@ String _shortDate(DateTime date) {
     'décembre',
   ];
   return '${local.day} ${months[local.month - 1]} ${local.year}';
-}
-
-/// Le toggle TCF | Examen civique.
-class _ModuleTabs extends StatelessWidget {
-  const _ModuleTabs({required this.civique, required this.onChange});
-
-  final bool civique;
-  final ValueChanged<bool> onChange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Row(
-        children: [
-          Expanded(child: _Onglet(
-            label: kTcfLabel, actif: !civique, onTap: () => onChange(false))),
-          const SizedBox(width: 8),
-          Expanded(child: _Onglet(
-            label: kCiviqueLabel, actif: civique, onTap: () => onChange(true))),
-        ],
-      ),
-    );
-  }
-}
-
-class _Onglet extends StatelessWidget {
-  const _Onglet({required this.label, required this.actif, required this.onTap});
-
-  final String label;
-  final bool actif;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: actif ? AppColors.blueLight : Colors.transparent,
-          border: Border.all(color: actif ? AppColors.blue : AppColors.line),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.ui(
-            size: 14,
-            weight: FontWeight.w600,
-            color: actif ? AppColors.blue : AppColors.muted,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Le plan d'un module n'est pas encore constructible : on dit POURQUOI, et on

@@ -871,3 +871,35 @@ C'est exactement la limite que j'ai signalée à chaque livraison — « je n'ai
 ouvert aucun écran » — et c'est la première fois qu'elle coûte quelque chose de
 visible. Le prochain écran écrit avec un `Styles()` doit être ouvert avant
 d'être annoncé.
+
+
+---
+
+# Le toggle du Plan est celui des Examens (2026-09-10)
+
+> « remets le même toggle qui se trouve dans /examens-blancs, avec 2 couleurs
+> différentes. »
+
+**J'avais écrit un troisième toggle** — des pastilles bleues, sans icône, sans
+la distinction de couleur — alors que le produit en avait déjà un, et le bon.
+
+## Ce que j'ai fait, et pourquoi pas une copie
+
+`50_` §10 et `CLAUDE.md` disent la même chose : « duplication = signal, à la 2ᵉ
+occurrence on extrait ». Le toggle était **inline dans `/examens-blancs`** côté
+web ; il en fallait un identique sur `/plan`. Le copier aurait garanti qu'ils
+divergent.
+
+- **Web** : extrait dans `app/_components/ModuleToggle.tsx`, avec ses styles.
+  `/examens-blancs` l'importe désormais au lieu de le définir, et ses règles CSS
+  locales ont été **supprimées** — deux définitions du même contrôle, c'est
+  celle qu'on regarde le moins qui finit par mentir.
+- **Mobile** : rien à extraire, `SegmentedTabs` + `parcoursSegments` existaient
+  déjà et portaient déjà les deux couleurs. Mes onglets maison sont supprimés.
+
+## Les deux couleurs ne sont pas décoratives
+
+🛑 Rouge = TCF, bleu = civique — **partout** dans le produit : les icônes de
+module des examens blancs, les cartes de Progrès, les pastilles de thème. Un
+candidat reconnaît son parcours à la couleur avant de lire le mot. Un toggle
+monochrome cassait ce repère au moment précis où il sert le plus.

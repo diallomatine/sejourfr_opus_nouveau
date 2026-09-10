@@ -21,6 +21,7 @@ import {useEffect, useState} from "react";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {ArrowRight} from "lucide-react";
+import {ModuleToggle, type ParcoursModule} from "@/app/_components/ModuleToggle";
 import {userContentApi} from "@/lib/api";
 import {
     CIVIQUE_LABEL,
@@ -32,8 +33,6 @@ import type {PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
 import {CivicPlanPanel} from "./CivicPlanPanel";
 
-type ModuleKey = "TCF" | "CIVIQUE";
-
 export function PlanModules() {
     const search = useSearchParams();
     const [prep, setPrep] = useState<PreparationDto | null>(null);
@@ -44,7 +43,7 @@ export function PlanModules() {
      * page sans aucune porte vers le civique : c'est une navigation, pas un
      * résultat.
      */
-    const [module, setModule] = useState<ModuleKey>(() => {
+    const [module, setModule] = useState<ParcoursModule>(() => {
         const demande = search.get("module");
         return demande === "CIVIQUE" ? "CIVIQUE" : "TCF";
     });
@@ -82,31 +81,20 @@ export function PlanModules() {
 
     return (
         <>
-            <div className="plm-tabs" role="tablist" aria-label="Module de préparation">
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={module === "TCF"}
-                    className={module === "TCF" ? "plm-tab-on" : "plm-tab"}
-                    onClick={() => {
+            {/* 🛑 **Le MÊME toggle que `/examens-blancs`**, et pas une copie :
+                le composant est partagé. Deux implémentations du même contrôle
+                finiraient par diverger — c'est le défaut le plus cher de ce
+                dépôt. Les deux couleurs (rouge = TCF, bleu = civique) sont
+                celles du produit : un candidat reconnaît son parcours à la
+                couleur avant de lire le mot. */}
+            <div className="plm-tabs">
+                <ModuleToggle
+                    active={module}
+                    onChange={(m) => {
                         setChoisi(true);
-                        setModule("TCF");
+                        setModule(m);
                     }}
-                >
-                    {TCF_LABEL}
-                </button>
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={module === "CIVIQUE"}
-                    className={module === "CIVIQUE" ? "plm-tab-on" : "plm-tab"}
-                    onClick={() => {
-                        setChoisi(true);
-                        setModule("CIVIQUE");
-                    }}
-                >
-                    {CIVIQUE_LABEL}
-                </button>
+                />
             </div>
 
             {indisponible ? (
@@ -142,29 +130,12 @@ export function PlanModules() {
 function Styles() {
     return (
         <style>{`
+            /* La gouttiere du toggle. Le toggle lui-meme porte ses propres
+               styles : il est partage avec la page des examens blancs. */
             .plm-tabs {
-                display: flex;
-                gap: 8px;
-                max-width: 560px;
-                margin: 0 auto 16px;
-                padding: 0 16px;
-            }
-            .plm-tab,
-            .plm-tab-on {
-                flex: 1;
-                border: 1px solid var(--color-line);
-                background: transparent;
-                border-radius: 999px;
-                padding: 9px 14px;
-                font-size: 14px;
-                font-weight: 600;
-                color: var(--color-muted);
-                cursor: pointer;
-            }
-            .plm-tab-on {
-                border-color: var(--color-blue);
-                color: var(--color-blue);
-                background: var(--color-blue-light);
+                width: min(100%, 1180px);
+                margin: 0 auto;
+                padding: 24px 28px 0;
             }
             .plm-vide {
                 max-width: 480px;

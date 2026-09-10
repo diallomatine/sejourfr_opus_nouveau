@@ -4,6 +4,7 @@ import {useRouter} from "next/navigation";
 import {type ReactNode, useEffect, useMemo, useState} from "react";
 import {Lightbulb, Target, Waves} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {ModuleToggle} from "@/app/_components/ModuleToggle";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
@@ -475,43 +476,6 @@ function civiqueScoreLabel(a: AttemptSummaryResponse | null): string {
 }
 
 // ============================================================================
-// TOGGLE PARCOURS — 2 boutons demi-largeur (TCF / Examen civique). On n'affiche
-// que les examens du parcours sélectionné, plutôt que de tout empiler.
-// ============================================================================
-function ModuleToggle({
-                          active,
-                          onChange,
-                      }: {
-    active: ExamModule;
-    onChange: (m: ExamModule) => void;
-}) {
-    return (
-        <div className="ebh-toggle" role="tablist" aria-label="Choisir un parcours">
-            <button
-                type="button"
-                role="tab"
-                aria-selected={active === "TCF"}
-                className={`ebh-toggle-btn ebh-toggle-btn-red${active === "TCF" ? " is-active" : ""}`}
-                onClick={() => onChange("TCF")}
-            >
-                <Waves size={18} strokeWidth={1.8} aria-hidden/>
-                TCF IRN
-            </button>
-            <button
-                type="button"
-                role="tab"
-                aria-selected={active === "CIVIQUE"}
-                className={`ebh-toggle-btn ebh-toggle-btn-blue${active === "CIVIQUE" ? " is-active" : ""}`}
-                onClick={() => onChange("CIVIQUE")}
-            >
-                <Lightbulb size={18} strokeWidth={1.8} aria-hidden/>
-                Examen civique
-            </button>
-        </div>
-    );
-}
-
-// ============================================================================
 // SECTION MODULE — card TCF IRN / Examen civique (chrome + grille en children)
 // ============================================================================
 function ModuleExamsSection({
@@ -883,42 +847,6 @@ const styles = `
     font-size: 13.5px;
     margin-bottom: 16px;
   }
-
-  /* ===== toggle parcours (2 boutons demi-largeur) ===== */
-  .ebh-toggle {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 22px;
-  }
-  .ebh-toggle-btn {
-    flex: 1 1 0;
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid var(--color-line);
-    background: #fff;
-    font-family: var(--font-sans);
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--color-muted);
-    cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-  }
-  .ebh-toggle-btn svg { flex-shrink: 0; }
-  .ebh-toggle-btn:hover {
-    color: var(--color-ink);
-    border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  }
-  .ebh-toggle-btn.is-active {
-    color: #fff;
-    border-color: transparent;
-  }
-  .ebh-toggle-btn-red.is-active { background: var(--color-red); }
-  .ebh-toggle-btn-blue.is-active { background: var(--color-blue); }
 
   /* ===== card module ===== */
   .ebh-module {
