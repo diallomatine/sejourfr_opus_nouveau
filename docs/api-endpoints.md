@@ -157,6 +157,24 @@ blanc.
   diagnostic clos précédent. 🛑 **`null` est le cas normal** (premier
   diagnostic), et une épreuve non évaluée d'un côté rend `INCONNUE`, jamais
   `STABLE`.
+- `GET /api/admin/civic-notions` → `CivicNotionDto[]` (**L8**, ADMIN). Le
+  référentiel de travail (40 notions, 5 thèmes) avec la **couverture mesurée**
+  par notion **et par mention**.
+  🛑 **Aucun seuil n'est appliqué serveur** : la règle de `50_` §6.1 dégrade par
+  notion *et* par mention — une notion pleinement utilisable en NAT peut être
+  vide en CSP. On sert les comptes, l'appelant tranche pour SA mention.
+  🛑 Les `suggestions` ne comptent **pas** comme couverture : une proposition de
+  machine n'est pas un tag.
+- `GET /api/admin/civic-notions/questions?theme=&tagged=false&limit=&offset=`
+  (**L8**, ADMIN). La file de tagging, ordre déterministe (`created_at, id`) :
+  paginer 1 016 questions ne doit jamais en faire revoir ni en sauter une.
+- `PUT /api/admin/civic-notions/questions/{id}` `{notionCode}` (**L8**, ADMIN).
+  Pose le tag **validé par un humain**. `notionCode: null` efface — se tromper
+  doit rester rattrapable. Une notion **fusionnée** est refusée : la poser
+  recréerait du travail à défaire.
+  🛑 **Aucune de ces routes n'appelle un LLM.** `question_notion_suggestions`
+  est créée vide et rien dans le dépôt ne la remplit : « le job propose, un
+  humain valide » (`50_` §6.1.3), et lancer le job coûte de l'argent.
 - `GET /api/admin/ai-costs?days=30` (ou `from`/`to`) → `AdminAiCostResponse`
   (**L12**, ADMIN). Ce que l'IA a coûté sur la fenêtre : total, par nature
   d'appel, par source, par modèle, et le coût moyen d'un diagnostic mené à

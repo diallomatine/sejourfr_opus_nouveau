@@ -378,3 +378,96 @@ présenter, poser des questions utiles à un interlocuteur), plus son rattacheme
 aux compétences `EO1-C*` existantes. Aucune migration de schéma, aucun code :
 uniquement un seed sur `production_tasks` + `diagnostic_task_skills`, sur le
 modèle de V755.
+
+
+---
+
+# L8 — le référentiel de notions civiques
+
+## D-L8-1 · La moitié **code** est livrée, la moitié **contenu** ne l'est pas
+
+L'audit (§9) le dit lui-même : « **Chantier éditorial, pas de code.** La partie
+code (tables + écran de tagging) est **M** ; la partie contenu est le vrai
+coût. » Et `50_` §9 : « Le code n'est pas le chemin critique. »
+
+**Livré** : le référentiel de travail seedé (40 notions, 5 thèmes), le tag
+validé sur `questions`, la table de suggestions, la file de tagging paginée,
+l'écran d'administration, et la couverture mesurée par notion × mention qui
+alimente la porte de revue §6.1.3.
+
+**Non livré, et volontairement** : les ~1 016 taggings eux-mêmes. Ce sont des
+validations humaines ; les produire sans le propriétaire reviendrait à décider
+seul du programme civique, et `50_` §6.1.3 l'interdit explicitement — « le job
+propose, un humain valide ».
+
+## D-L8-2 · Deux tables, parce qu'il y a **deux autorités**
+
+**Décidé** : `questions.civic_notion_id` porte le tag **validé** (une notion,
+posée par un humain, c'est lui qui fait foi partout) ;
+`question_notion_suggestions` porte ce qu'une machine **propose** (plusieurs par
+question, avec confiance).
+
+**Pourquoi pas une seule colonne avec un drapeau `validated`** : parce qu'une
+suggestion non validée se serait mise à compter comme couverture au premier
+`GROUP BY` distrait, et le plan civique se serait construit sur ce qu'un modèle
+a cru voir.
+
+## D-L8-3 · La table de suggestions est créée **vide**, et rien ne la remplit
+
+**Décidé** : aucun job de suggestion n'est écrit.
+
+**Pourquoi** : le remplir, c'est 1 016 appels LLM payants. La règle du dépôt est
+sans ambiguïté — « aucun test ni aucune mesure qui appelle un LLM payant sans
+demande explicite ; on **propose** la mesure et son coût, il décide ».
+
+**Ce qu'il resterait à faire, le jour où c'est décidé** : un job qui lit les
+questions non taguées, demande à un modèle 1 à 3 notions avec confiance parmi
+les 40, et écrit dans `question_notion_suggestions`. L'écran les affiche déjà.
+Aucune migration, aucun changement de contrat.
+
+## D-L8-4 · Aucune fusion préventive
+
+`50_` §6.1.1 signale quatre couples « à surveiller » : `dd_logement` /
+`vs_logement_pratique`, `pv_laicite` / `vs_laicite_quotidien`, `inst_commune` /
+`inst_departement_region`, `hg_patrimoine` / `hg_langue_culture`.
+
+**Décidé** : les seeder **séparés**. Les fusionner d'avance déciderait à la
+place des pièces, alors que la spec veut trancher « sur pièces », après le
+tagging.
+
+**Le mécanisme de fusion existe** : `merged_into_id` + désactivation. Une notion
+fusionnée n'est jamais supprimée — les questions déjà taguées gardent leur lien
+et la décision reste lisible en base. Le service refuse de poser une notion
+fusionnée, en nommant celle qui la reprend.
+
+## D-L8-5 · La règle de volume n'est **pas** en base
+
+`50_` §6.1 remplace « 6 questions par notion et par mention » par une règle qui
+**dégrade** (≥ 5 ⇒ éligible comme priorité ; 1 à 4 ⇒ visible en révision
+seulement ; 0 ⇒ invisible ; < 12 toutes mentions ⇒ candidate à la fusion).
+
+**Décidé** : aucune contrainte SQL, aucun seuil appliqué côté serveur. Les
+comptes sont servis, l'appelant tranche pour **sa** mention.
+
+**Pourquoi** : une contrainte figerait un seuil que le tagging doit précisément
+pouvoir faire bouger, et un verdict global effacerait la nuance par mention qui
+est tout l'intérêt de la nouvelle règle. L'écran d'administration colore les
+lignes selon ces seuils — c'est un confort de lecture, pas une décision.
+
+---
+
+# Ce qui reste, et pourquoi ça ne se code pas cette nuit
+
+**L9** (diagnostic civique + mises en situation) et **L10** (Plan civique +
+Leitner) dépendent tous deux du **tagging**, qui est le chantier de D-L8-1. Un
+plan civique par notions sur un catalogue non tagué n'aurait rien à proposer ;
+un diagnostic civique tirerait au hasard dans des notions vides.
+
+**L11** a deux moitiés. « Examens blancs branchés » dépend des boîtes de Leitner
+(L10), qui n'existent pas. « Progrès unifié » (T28, `30_` §7) est indépendant et
+codable : le socle existe (profil TCF par épreuve, comparaison de diagnostics
+livrée en L7, moteur de progression V4.2). C'est le prochain morceau à prendre.
+
+**Les trois chantiers de contenu** de `50_` §9 restent entiers, et le document
+les nomme lui-même comme le chemin critique : ~1 016 taggings, ~120 mises en
+situation, ~15 sujets EO1.

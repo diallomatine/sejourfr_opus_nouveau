@@ -95,6 +95,7 @@ export function AppLayout() {
         </NavItem>
         <NavItem to="/calibration">↳ Calibration notation</NavItem>
         <NavItem to="/couts-ia">↳ Coût de l'IA</NavItem>
+        <NavItem to="/notions-civiques">↳ Notions civiques</NavItem>
 
         <div className={styles.navSection}>Commerce</div>
         <NavItem to="/plans">↳ Plans & tarifs</NavItem>

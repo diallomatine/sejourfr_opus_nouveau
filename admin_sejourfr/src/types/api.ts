@@ -1663,3 +1663,65 @@ export interface AdminAiCostResponse {
   parModele: AiCostLigne[];
   diagnosticComplet: AiCostMoyen;
 }
+
+
+// ============================================================================
+// NOTIONS CIVIQUES — miroir strict de `CivicNotionDto` / `QuestionTaggingDto`
+// (lot L8)
+//
+// 🛑 **Référentiel de TRAVAIL, pas liste figée** (`50_` §6.1). Une notion qui
+// fusionne est **désactivée** et pointe vers celle qui la reprend : elle n'est
+// jamais supprimée, les questions déjà taguées gardent leur lien.
+//
+// 🛑 **Deux autorités, à ne pas confondre.** `notionCode` sur une question est
+// le tag VALIDÉ par un humain. Les `suggestions` sont ce qu'une machine
+// propose : elles accompagnent, elles ne décident pas.
+// ============================================================================
+
+export interface CivicNotionCouvertureMention {
+  mention: string;
+  questions: number;
+}
+
+export interface CivicNotionDto {
+  id: string;
+  code: string;
+  label: string;
+  themeCode: string;
+  displayOrder: number;
+  active: boolean;
+  /** Code de la notion qui reprend celle-ci après fusion. `null` = vivante. */
+  mergedIntoCode: string | null;
+  questionsTaguees: number;
+  /**
+   * 🛑 La couverture se lit **par mention** : la règle de `50_` §6.1 dégrade
+   * par notion ET par mention. Un total global cacherait qu'une notion pleine
+   * en NAT est vide en CSP.
+   */
+  parMention: CivicNotionCouvertureMention[];
+  /** 🛑 Une suggestion n'est **pas** une couverture. */
+  suggestions: number;
+}
+
+export interface CivicTaggingSuggestion {
+  notionCode: string;
+  notionLabel: string;
+  confidence: number;
+}
+
+export interface CivicTaggingQuestion {
+  questionId: string;
+  enonce: string;
+  themeCode: string;
+  mention: string;
+  /** 🛑 `null` = **pas encore taguée**, jamais « sans notion ». */
+  notionCode: string | null;
+  notionLabel: string | null;
+  suggestions: CivicTaggingSuggestion[];
+}
+
+export interface CivicTaggingQueue {
+  questions: CivicTaggingQuestion[];
+  /** Questions civiques actives encore sans notion, **tous thèmes**. */
+  resteATaguer: number;
+}

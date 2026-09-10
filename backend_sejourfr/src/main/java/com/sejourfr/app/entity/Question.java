@@ -35,6 +35,19 @@ public class Question {
     @JoinColumn(name = "theme_id", nullable = false)
     private Theme theme;
 
+    /**
+     * Notion civique <b>VALIDEE PAR UN HUMAIN</b> (V051, lot L8).
+     *
+     * <p>🛑 <b>{@code null} = pas encore taguee</b>, jamais « sans notion ».
+     * Une question non taguee attend ; elle n'est pas hors programme.
+     *
+     * <p>🛑 A ne pas confondre avec {@code question_notion_suggestions}, ou une
+     * machine PROPOSE. Le tag qui fait foi est celui-ci, et lui seul.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "civic_notion_id")
+    private CivicNotion civicNotion;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "passage_id")
     private Passage passage;
@@ -137,6 +150,9 @@ public class Question {
 
     public Theme getTheme() { return theme; }
     public void setTheme(Theme theme) { this.theme = theme; }
+
+    public CivicNotion getCivicNotion() { return civicNotion; }
+    public void setCivicNotion(CivicNotion civicNotion) { this.civicNotion = civicNotion; }
 
     public Passage getPassage() { return passage; }
     public void setPassage(Passage passage) { this.passage = passage; }
