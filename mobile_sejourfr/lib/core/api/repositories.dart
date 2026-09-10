@@ -8,6 +8,7 @@ import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
 import 'civic_diagnostic_repository.dart';
 import 'civic_plan_repository.dart';
+import 'progress_repository.dart';
 import 'tcf_diagnostic_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'funnel_repository.dart';
@@ -90,6 +91,13 @@ final civicDiagnosticRepositoryProvider = Provider<CivicDiagnosticRepository>(
 /// tagging des notions retroactif.
 final civicPlanRepositoryProvider = Provider<CivicPlanRepository>(
   (ref) => CivicPlanRepository(ref.watch(apiClientProvider)),
+);
+
+/// L'ecran PROGRES (T28). 🛑 Rien n'est calcule cote app : ce service assemble
+/// ce que d'autres autorites servent deja (profil TCF, resolveur d'evolution,
+/// moteur de maitrise, plan civique).
+final progressRepositoryProvider = Provider<ProgressRepository>(
+  (ref) => ProgressRepository(ref.watch(apiClientProvider)),
 );
 
 final learningPlanRepositoryProvider = Provider<LearningPlanRepository>(

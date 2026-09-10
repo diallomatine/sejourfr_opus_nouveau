@@ -7,6 +7,7 @@ import type {
   AttemptResponse,
   CivicPlanDto,
   CivicPlanGrain,
+  ProgressDto,
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
@@ -1008,6 +1009,23 @@ export const civicDiagnosticApi = {
             `/api/civic-diagnostics/${sessionId}/adopt`,
             {method: "POST", auth: true},
         );
+    },
+};
+
+/**
+ * **Progrès** (T28, `30_` §7) — « montrer le mouvement, pas un tableau de bord ».
+ *
+ * 🛑 **Rien n'est calculé côté front** : les paliers, les sens d'évolution, les
+ * états de maîtrise et les compteurs arrivent servis. Cet écran met en forme.
+ */
+export const progressApi = {
+    /**
+     * 🛑 **Jamais `null`** : un candidat sans diagnostic reçoit
+     * `disponible: false` sur chaque moitié. L'écran a besoin de savoir
+     * *pourquoi* il n'a rien à montrer.
+     */
+    get(): Promise<ProgressDto> {
+        return apiFetch<ProgressDto>("/api/me/progress", {auth: true});
     },
 };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProgresMouvement } from "@/app/_components/progres/ProgresMouvement";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
@@ -158,6 +159,12 @@ export default function StatistiquesPage() {
           chipTone="red"
         />
       </section>
+
+      {/* 🛑 **Ce qui a BOUGÉ** (T28, `30_` §7), greffé ici plutôt que sur une
+          troisième page « progression » : le dépôt en a déjà deux, et elles
+          répondent à « où j'en suis ». Ce bloc répond à « qu'est-ce qui a
+          bougé ». */}
+      <ProgresMouvement />
 
       {/* Les 4 domaines du TCF, dans l'ordre d'urgence décidé par le serveur :
           un pourcentage global ne dit pas OÙ le candidat bloque, une épreuve

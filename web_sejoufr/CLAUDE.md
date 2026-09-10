@@ -1394,6 +1394,34 @@ détour par `/inscription`.
   `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
 
+### Progrès — « ce qui a bougé » (T28, 2026-09-10)
+
+`GET /api/me/progress` → `ProgresMouvement` (`app/_components/progres/`), greffé
+**en tête de `/statistiques`**, au-dessus de la maîtrise par catégorie. Règles
+complètes : `docs/regles/progression.md`, section « Écran Progrès ».
+
+⚠️ **Ce n'est pas un écran de plus.** `/statistiques` répond à « où j'en suis » ;
+ce bloc répond à « qu'est-ce qui a bougé ». Une troisième page « progression »
+aurait été la troisième réponse à la même question — le dépôt en a déjà deux
+(`/statistiques`, `/plan/progression`). ⚠️ **Pas de toggle TCF | Civique** non
+plus (`30_` §7 en met un) : l'écran empile déjà les deux parcours, un toggle ne
+gouvernerait que sa moitié haute.
+
+- **Libellés** : `lib/progres.ts`, **miroir mot pour mot** de
+  `progres_labels.dart`. Le serveur n'expose que des faits.
+- 🛑 **Aucun pourcentage de progression vers un palier** : on nomme deux paliers
+  (« B1 → objectif B2 »), on ne trace pas de barre entre eux.
+- 🛑 **Aucune gamification** : l'activité se dit en jours travaillés et en
+  semaines, sans record ni objectif. Le streak reste sur `/dashboard`.
+- 🛑 **`INCONNUE` ne rend AUCUN marqueur**, surtout pas « = » : une épreuve non
+  comparable n'a ni progressé ni tenu. `BAISSE` se dit (`↓ depuis B1`).
+- 🛑 **Le bloc 5 est un LIEN** vers `/historique`, pas une seconde liste.
+- 🛑 **Freemium** : les compteurs de compétences restent servis même verrouillés,
+  seul le **détail** disparaît.
+- ⚠️ `activite.fenetreJours` vaut **28** (quatre semaines pleines), pas 30 : une
+  frise dont la somme ne vaut pas son compteur serait pire qu'un arrondi. La
+  fenêtre est servie — ne jamais écrire « 30 » en dur.
+
 ### Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 
 ⚠️ **Révoque le `CivicPlanPanel` précédent**, qui recopiait les priorités

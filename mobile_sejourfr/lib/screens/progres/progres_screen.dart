@@ -14,6 +14,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/screen_header.dart';
+import 'progres_mouvement.dart';
 
 /// Onglet « Progrès » de la refonte 2026 (cf. `MProgres` maquette) :
 /// 3 anneaux de synthèse (global / TCF / Civique), une liste encartée par
@@ -119,6 +120,11 @@ class _ProgresBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
+        // 🛑 **Ce qui a BOUGÉ** (T28, `30_` §7), greffé ici plutôt que sur un
+        // troisième écran de progression : celui-ci répond déjà à « où j'en
+        // suis », ce bloc répond à « qu'est-ce qui a bougé ».
+        const ProgresMouvement(),
+        const SizedBox(height: 20),
         Row(
           children: [
             Expanded(

@@ -193,6 +193,22 @@ enum EpreuveType {
   static EpreuveType fromWire(String value) =>
       EpreuveType.values.firstWhere((e) => e.wire == value);
 
+  /// Le nom de l'épreuve, tel qu'un candidat le lit.
+  ///
+  /// 🛑 **Une seule table**, et c'est celle-ci. Elle est le pendant Dart de
+  /// `EPREUVE_PRESENTATION` côté web, qui joue déjà ce rôle. ⚠️ Plusieurs écrans
+  /// d'examen complet écrivent encore ces libellés en dur (dette antérieure) :
+  /// les migrer se fait au fil de l'eau, on n'en ajoute pas une copie de plus.
+  String get displayLabel => switch (this) {
+        EpreuveType.civique => 'Examen civique',
+        EpreuveType.tcfCo => 'Compréhension orale',
+        EpreuveType.tcfCe => 'Compréhension écrite',
+        EpreuveType.tcfStructure => 'Structure de la langue',
+        EpreuveType.tcfEo => 'Expression orale',
+        EpreuveType.tcfEe => 'Expression écrite',
+        EpreuveType.tcfComplet => 'Examen complet',
+      };
+
   bool get isProduction =>
       this == EpreuveType.tcfEo || this == EpreuveType.tcfEe;
   bool get isAudio => this == EpreuveType.tcfEo;

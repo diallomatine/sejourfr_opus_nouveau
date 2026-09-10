@@ -3838,6 +3838,121 @@ export const CIVIC_THEME_STATE_LABEL: Record<CivicThemeState, string> = {
 };
 
 // ============================================================================
+// PROGRÈS (T28) — miroirs de `ProgressDto`
+// ============================================================================
+
+/** Une semaine de la frise d'activité. `jours` vaut 0 à 7. */
+export interface ProgressSemaineDto {
+    debut: string;
+    jours: number;
+}
+
+/**
+ * L'activité récente — des **faits**, jamais un jeu.
+ *
+ * 🛑 Ni flamme, ni record, ni objectif hebdomadaire (`30_` §7 : « pas de série
+ * de flammes, pas de gamification agressive »). Un compteur qu'on peut casser
+ * transforme une mesure en dette.
+ */
+export interface ProgressActiviteDto {
+    joursActifs: number;
+    /** **Servi** : aucun écran n'écrit la fenêtre en dur, donc aucun ne ment. */
+    fenetreJours: number;
+    /** De la plus ancienne à la plus récente — le sens de lecture d'une frise. */
+    semaines: ProgressSemaineDto[];
+}
+
+/** Un point de l'historique des estimations TCF. */
+export interface ProgressEstimationDto {
+    sessionId: string;
+    niveau: NiveauCecrl | null;
+    mesureA: string | null;
+}
+
+/** Une épreuve, son palier d'aujourd'hui, et ce qui a bougé. */
+export interface ProgressEpreuveDto {
+    epreuve: EpreuveType;
+    /** `null` = jamais évaluée. 🛑 Jamais rendu en « A1 ». */
+    niveau: NiveauCecrl | null;
+    niveauInitial: NiveauCecrl | null;
+    evolution: NiveauEvolution;
+}
+
+/**
+ * Une compétence tenue.
+ *
+ * 🛑 `preuveA` est la date de la **dernière observation solide** — pas une
+ * « date d'acquisition » : le moteur agrège plusieurs observations, aucune ne
+ * marque un instant d'acquisition.
+ */
+export interface ProgressCompetenceDto {
+    skillId: string;
+    code: string;
+    titre: string;
+    section: SkillSection;
+    preuveA: string | null;
+}
+
+/**
+ * Bloc 3 — « 4 compétences maîtrisées sur 11 travaillées ».
+ *
+ * 🛑 **Les compteurs sont servis même verrouillés** : c'est le *détail* qui est
+ * premium, pas le fait d'avoir progressé.
+ */
+export interface ProgressCompetencesDto {
+    travaillees: number;
+    maitrisees: number;
+    /** Vide quand `locked`. */
+    dernieres: ProgressCompetenceDto[];
+    locked: boolean;
+}
+
+export interface ProgressTcfDto {
+    /** `false` tant qu'aucun diagnostic n'est clos : rien à tracer. */
+    disponible: boolean;
+    niveauActuel: NiveauCecrl | null;
+    objectif: NiveauCecrl | null;
+    /** Du plus ancien au plus récent. 🛑 Une courbe demande **deux** points. */
+    historique: ProgressEstimationDto[];
+    /** Les 4 épreuves, **toutes**, évaluées ou non. */
+    epreuves: ProgressEpreuveDto[];
+    competences: ProgressCompetencesDto;
+}
+
+/** Un résultat civique, directement comparable au seuil. */
+export interface ProgressScoreDto {
+    sessionId: string;
+    bonnes: number;
+    posees: number;
+    seuil: number;
+    format: number;
+    mesureA: string | null;
+}
+
+/** 🛑 **Aucune métrique CECRL côté civique** (`20_` §12). */
+export interface ProgressCiviqueDto {
+    disponible: boolean;
+    historique: ProgressScoreDto[];
+    travaillees: number;
+    maitrisees: number;
+    /** L'écran doit pouvoir **nommer** ce qu'il compte : notions ou thèmes. */
+    grainNotion: boolean;
+}
+
+/**
+ * **Progrès** (`30_` §7) — « montrer le mouvement, pas un tableau de bord ».
+ *
+ * 🛑 `activite` est **transverse** : les jours de travail ne se répartissent pas
+ * par module — une séance civique et une production TCF sont le même effort du
+ * même jour.
+ */
+export interface ProgressDto {
+    activite: ProgressActiviteDto;
+    tcf: ProgressTcfDto;
+    civique: ProgressCiviqueDto;
+}
+
+// ============================================================================
 // PLAN CIVIQUE (L10) — miroirs de `CivicPlanDto`
 // ============================================================================
 

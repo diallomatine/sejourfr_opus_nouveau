@@ -84,6 +84,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 // de securite d'un refus d'acces. Ce 403-la est verrouille par
                 // `CivicPlanServiceIT`, ou il est le sujet du test.
                 Arguments.of(HttpMethod.GET, "/api/me/civic-plan"),
+                // ProgressController (T28) — « montrer le mouvement ».
+                Arguments.of(HttpMethod.GET, "/api/me/progress"),
                 Arguments.of(HttpMethod.POST,
                         "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController

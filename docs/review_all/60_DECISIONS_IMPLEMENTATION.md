@@ -1308,3 +1308,129 @@ verrouillé par `CivicPlanServiceIT`, où il est le **sujet** du test.
   séance civique (« 2 séries sur 4 terminées ») que rien ne porte. Le plan sert
   « À faire maintenant » et les priorités ; la séance viendra avec une décision
   sur ce qu'est une semaine civique.
+
+
+---
+
+# T28 — L'écran Progrès : montrer le mouvement (2026-09-10)
+
+**Demandé** : « continue avec T28, l'écran Progrès ».
+
+**Une contradiction dans les specs, qu'il fallait trancher.** `50_` §8 marque
+T28 « **oui | rien** » — il existerait déjà — et `40_` §6.1 renvoie vers
+`/statistiques`, `/plan/progression` et `screens/progres/`. Mais `30_` §7 décrit
+cinq blocs dont **aucun** n'existe : historique des estimations, évolution par
+épreuve depuis le diagnostic, compétences tenues avec date, activité sur 30
+jours.
+
+**Ce que j'ai lu** : ce qui existe montre un **état** (la maîtrise en %) ; T28
+demande un **mouvement**. Ce ne sont pas les mêmes blocs, et le `50_` a lu
+« écran de progression » là où la spec dit « ce qui a bougé ». J'ai donc
+construit les cinq blocs — et je les ai **greffés** sur les écrans existants au
+lieu d'en ouvrir un troisième.
+
+## D-T28-1 · Pas de troisième page « progression »
+
+Le dépôt en a déjà deux (`/statistiques`, `/plan/progression`), plus
+`screens/progres/` côté mobile.
+
+**Décidé** : le bloc « Ce qui a bougé » se greffe **en tête** de l'écran de
+progression existant, au-dessus de la maîtrise par catégorie.
+
+**Pourquoi** : une troisième page aurait été la troisième réponse à la même
+question, et le dépôt interdit la cohabitation (« refonte = suppression
+immédiate de l'ancien »). Ici il n'y a rien à supprimer : les deux blocs
+répondent à deux questions différentes — « où j'en suis » puis « qu'est-ce qui a
+bougé » — et se lisent dans cet ordre.
+
+**Ce que ça coûte si on revient dessus** : extraire le composant dans sa propre
+route. Il est déjà autonome (il fait son propre appel), donc c'est un
+déplacement, pas une réécriture.
+
+## D-T28-2 · Pas de toggle TCF | Civique
+
+`30_` §7 en met un en tête.
+
+**Décidé** : les deux moitiés sont servies **ensemble** et s'affichent l'une
+sous l'autre, comme le fait déjà l'écran d'accueil.
+
+**Pourquoi** : l'écran de progression existant montre **déjà** les deux parcours
+empilés, sans toggle. En ajouter un ne gouvernerait que la moitié haute de la
+page — deux logiques de navigation sur un même écran, dont une invisible depuis
+le bas. Le contenu de la spec est là ; c'est sa navigation qui s'adapte à
+l'écran d'accueil.
+
+## D-T28-3 · La fenêtre d'activité vaut 28 jours, pas 30
+
+`30_` §7 écrit « sur 30 jours ».
+
+**Décidé** : 28, soit quatre semaines pleines.
+
+**Pourquoi** : 30 jours ne font pas un nombre entier de semaines. Avec une frise
+de quatre semaines, les deux derniers jours tombaient **hors de la frise** tout
+en comptant dans le total affiché au-dessus — un compteur que sa propre
+illustration contredit. Le test l'a attrapé avant la livraison, et c'est
+exactement ce qu'il était écrit pour attraper.
+
+La fenêtre est **servie** (`fenetreJours`) : aucun écran n'écrit « 30 » en dur,
+donc aucun ne peut mentir sur ce qu'il compte.
+
+## D-T28-4 · Aucune gamification, et le streak reste où il est
+
+`30_` §7 : « pas de série de flammes, pas de gamification agressive ».
+
+**Décidé** : l'activité se dit en **jours travaillés** et en semaines. Pas de
+record, pas d'objectif hebdomadaire, et **le streak n'est pas repris ici** — il
+vit sur le tableau de bord, où il est une information.
+
+**Pourquoi** : un compteur qu'on peut **casser** transforme une mesure en dette.
+Le même chiffre, montré sur un écran de bilan à côté de ce qu'on a acquis,
+changerait de nature.
+
+## D-T28-5 · Le bloc 5 est un LIEN, pas une seconde liste
+
+`30_` §7 bloc 5 : « productions et rapports, consultables à vie ».
+
+**Décidé** : le DTO ne porte **aucune** liste d'historique ; les fronts servent
+un lien vers les écrans qui existent (`/historique`, « Mes historiques »).
+
+**Pourquoi** : ces écrans portent déjà des filtres, des scores et des accès aux
+rapports. En reconstruire une version courte ici créerait une seconde vérité —
+et c'est toujours celle qu'on regarde le moins qui finit par mentir.
+
+## D-T28-6 · Le service assemble, il ne mesure pas
+
+**Décidé** : `ProgressService` ne calcule **aucun** niveau, palier ou état. Il
+appelle les autorités existantes — `TcfProfileService` (le seul endroit d'où
+sort le niveau TCF), `TargetProcedure.niveauVise` (l'objectif),
+`TcfDiagnosticProgressionResolver.evolution` (écrit en L7 **pour cet écran**,
+son javadoc cite déjà `30_` §7), le moteur de maîtrise, et le moteur du plan
+civique livré à L10.
+
+**Pourquoi** : c'est la seule façon d'être sûr que Progrès et le reste de l'app
+disent la même chose. Un écran de bilan qui recalcule finit toujours par
+afficher un autre niveau que celui du Plan.
+
+**Conséquence visible** : le niveau **actuel** d'une épreuve vient du profil
+TCF (meilleur résultat, toutes sources), pas du dernier diagnostic — et le
+niveau **initial** vient du premier diagnostic clos. C'est bien « niveau actuel
++ évolution depuis le diagnostic », au mot près de la spec.
+
+## D-T28-7 · `EpreuveType.displayLabel` côté mobile
+
+Le nom d'une épreuve était écrit en dur dans quatre écrans d'examen complet.
+
+**Décidé** : un `displayLabel` sur l'enum, pendant Dart d'`EPREUVE_PRESENTATION`
+côté web (qui joue déjà ce rôle). Le nouvel écran l'appelle ; les quatre copies
+antérieures sont une **dette notée**, à migrer au fil de l'eau — je ne les ai pas
+touchées dans cette passe pour ne pas mêler un refactor à une livraison.
+
+## Ce que T28 ne fait PAS
+
+- **Aucune courbe dessinée** : avec un seul diagnostic il n'y a rien à tracer, et
+  le front liste les mesures dès qu'il y en a deux. Une vraie courbe (SVG,
+  interpolation) attend d'avoir des candidats avec trois réévaluations — la
+  dessiner sur deux points serait de la décoration.
+- **L'activité n'est pas ventilée par module** (cf. D-T28-3, second point).
+- **Le bloc « régularité » ne juge pas** : il compte les semaines portant au
+  moins une séance. Aucun seuil, aucun « bien / à améliorer ».

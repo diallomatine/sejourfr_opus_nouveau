@@ -186,6 +186,42 @@ public class CivicPlanService {
     }
 
 
+
+    /**
+     * Ce que l'ecran <b>Progres</b> (T28) compte : combien de cibles ont ete
+     * travaillees, et combien sont tenues.
+     *
+     * <p>🛑 <b>Compte sur TOUTES les cibles, jamais sur {@code priorites}</b> :
+     * cette liste est plafonnee a trois par regle d'affichage, et compter dessus
+     * afficherait « 3 » quel que soit le nombre reel. C'est exactement le defaut
+     * qui a prive trois domaines sur quatre de toute action cote TCF
+     * (2026-08-25).
+     *
+     * <p>Tout a zero quand aucun diagnostic n'est clos : rien n'a ete mesure.
+     *
+     * @param travaillees cibles portant au moins une reponse
+     * @param maitrisees  dont l'etat servi est {@code MAITRISEE}
+     * @param grainNotion le plan travaille-t-il deja par notion ? L'ecran doit
+     *                    pouvoir <b>nommer</b> ce qu'il compte
+     */
+    public record Compteurs(int travaillees, int maitrisees, boolean grainNotion) {
+    }
+
+    @Transactional(readOnly = true)
+    public Compteurs compteurs(UUID userId) {
+        CivicPlanDto plan = plan(userId);
+        if (!plan.disponible()) return new Compteurs(0, 0, false);
+
+        // Les cibles maitrisees sont servies entieres (`solides` + `aRevoir`) ;
+        // les autres se comptent par `priorites` + `autresPriorites`, qui est
+        // precisement le total non tronque.
+        int maitrisees = plan.solides().size() + plan.aRevoir().size();
+        int proposables = plan.priorites().size() + plan.autresPriorites();
+        return new Compteurs(
+                maitrisees + proposables, maitrisees,
+                plan.grain().courant() == CivicPlanGrain.NOTION);
+    }
+
     // ------------------------------------------------------------------------
     // La serie ciblee
     // ------------------------------------------------------------------------

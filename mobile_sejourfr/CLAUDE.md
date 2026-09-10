@@ -2748,6 +2748,31 @@ des deux défauts. Le changer d'un seul côté rouvre l'écart.
 **« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
 avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
+## Progrès — « ce qui a bougé » (T28, 2026-09-10)
+
+`GET /api/me/progress` → `ProgresMouvement` (`screens/progres/progres_mouvement.dart`),
+greffé **en tête de `ProgresScreen`**, au-dessus des anneaux de maîtrise. Règles
+complètes : `docs/regles/progression.md`, section « Écran Progrès ».
+
+⚠️ **Ce n'est pas un écran de plus** : `ProgresScreen` répond à « où j'en suis »,
+ce bloc à « qu'est-ce qui a bougé ». ⚠️ **Pas de toggle TCF | Civique** (`30_` §7
+en met un) : l'écran empile déjà les deux parcours.
+
+- **Modèles / réseau** : `core/models/progress_models.dart` +
+  `core/api/progress_repository.dart` (`progressRepositoryProvider`).
+- **Libellés purs** : `screens/progres/progres_labels.dart`, **miroir mot pour
+  mot** de `web_sejoufr/lib/progres.ts`.
+- 🛑 **Aucun pourcentage de progression vers un palier**, **aucune
+  gamification** (pas de flamme, pas de record — le streak reste sur l'Accueil).
+- 🛑 **`inconnue` ne rend AUCUN marqueur**, surtout pas « = ». `baisse` se dit.
+- 🛑 **Le bloc 5 est un LIEN** vers « Mes historiques », pas une seconde liste.
+- 🛑 **Freemium** : les compteurs de compétences restent, seul le détail part
+  (`PremiumLockPill`).
+- **`EpreuveType.displayLabel`** (`core/models/enums.dart`) est désormais **la**
+  table des noms d'épreuve, pendant Dart d'`EPREUVE_PRESENTATION` côté web.
+  ⚠️ Quatre écrans d'examen complet les écrivent encore en dur : dette antérieure,
+  à migrer au fil de l'eau — ne pas en ajouter une copie de plus.
+
 ## Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 
 ⚠️ **Révoque `_PlanCiviquePanel`** (supprimé de `plan_screen.dart`), qui

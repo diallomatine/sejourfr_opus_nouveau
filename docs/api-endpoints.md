@@ -339,6 +339,48 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
   son diagnostic gratuit ne s'en offre pas un second en repassant par le tunnel
   invité — le front propose alors le diagnostic existant.
 
+## Progrès (T28)
+
+« Montrer le **mouvement**, pas un tableau de bord » (`30_` §7). À distinguer de
+`/api/me/dashboard`, qui sert la **maîtrise** par catégorie : celui-ci répond à
+« où j'en suis », celui-là à « qu'est-ce qui a bougé ».
+
+🛑 **Ce service n'invente aucune mesure** : il assemble ce que d'autres autorités
+servent déjà — profil TCF (`TcfProfileService`), résolveur d'évolution (L7),
+moteur de maîtrise des compétences, moteur du plan civique (L10). Aucun niveau,
+aucun palier, aucun état n'est recalculé.
+
+- `GET /api/me/progress` → `ProgressDto`.
+  🛑 **Jamais 204** : un candidat sans diagnostic reçoit `disponible: false` sur
+  chaque moitié. L'écran a besoin de savoir *pourquoi* il n'a rien à montrer.
+  🛑 **Aucun pourcentage de progression vers un palier** (`30_` §7, règle
+  explicite) : un palier CECRL n'est pas une barre. On sert des **paliers** et
+  des **sens d'évolution**.
+  🛑 **Aucune série de flammes, aucune gamification** (`30_` §7). L'activité se
+  dit en **jours travaillés** et en semaines, sans record à battre. Le streak
+  existe déjà sur le tableau de bord, où il est une information ; le ramener ici
+  en ferait un enjeu.
+  🛑 **Aucune liste d'historique** : le bloc 5 de la spec est déjà servi par les
+  écrans d'historique existants. Le redupliquer créerait une seconde vérité — les
+  fronts servent un **lien**.
+  🛑 `evolution` vaut `INCONNUE` dès qu'un des deux côtés n'est pas évalué, et
+  **`INCONNUE` n'est pas `STABLE`** : les confondre déguiserait l'incident
+  V040/V041/V042 en bonne nouvelle. `BAISSE` existe et se sert.
+  🛑 Les 4 épreuves sont **toujours** servies, évaluées ou non : une épreuve
+  absente de la liste disparaîtrait de l'écran au lieu de se dire « non
+  évaluée ».
+  🛑 `competences` porte ses **compteurs même verrouillés** (`30_` §7 : « blocs 1
+  et 2 visibles, 3 et 5 verrouillés ») : c'est le **détail** qui est premium, pas
+  le fait d'avoir progressé.
+  ⚠️ `activite.fenetreJours` vaut **28** (quatre semaines pleines), là où
+  `30_` §7 écrit « 30 jours » : 30 ne fait pas un nombre entier de semaines, et
+  une frise dont la somme ne vaut pas le compteur affiché au-dessus serait pire
+  qu'un ordre de grandeur arrondi. La fenêtre est **servie** — aucun écran ne
+  l'écrit en dur.
+  ⚠️ `activite` est **transverse**, pas ventilée par module : les jours de
+  travail ne se répartissent pas — une séance civique et une production TCF sont
+  le même effort du même jour.
+
 ## Plan civique (L10)
 
 Le pendant civique du Plan TCF. 🛑 **Deux plans, deux moteurs, aucun effet

@@ -361,3 +361,66 @@ Avant la phase 1, relire §27.2.1 : les accumulateurs epoch se stockent en
 `double precision`, **jamais** en `NUMERIC(p,s)` ni en `BigDecimal`. Ils croissent
 exponentiellement — `≈ 2.6e24` à J+3650 — et un décimal à précision fixe déborde en
 silence, sur une donnée matérialisée que rien ne recalcule dans le chemin nominal.
+
+
+---
+
+## Écran Progrès (T28, 2026-09-10) — le MOUVEMENT, pas l'état
+
+🛑 **À distinguer de `/api/me/dashboard`**, qui sert la **maîtrise** par
+catégorie. Le dashboard répond à « où j'en suis » ; `GET /api/me/progress`
+répond à « **qu'est-ce qui a bougé** » (`30_` §7). Les deux coexistent, et
+l'écran de progression des deux fronts les affiche l'un sous l'autre plutôt que
+d'ouvrir une troisième page « progression » — le dépôt en avait déjà deux.
+
+🛑 **Ce service n'invente aucune mesure.** Il assemble ce que d'autres autorités
+servent déjà :
+
+| Ce qu'il affiche | D'où ça vient |
+|---|---|
+| niveau TCF actuel, par épreuve | `TcfProfileService` — « le SEUL endroit d'où sort ce niveau » |
+| objectif | `TcfDiagnosticService.cible(user)` → `TargetProcedure.niveauVise` |
+| sens d'une évolution | `TcfDiagnosticProgressionResolver.evolution` (L7, écrit pour cet écran) |
+| compétences tenues | moteur de maîtrise (`SkillMasteryResolver`) |
+| compteurs civiques | moteur du plan civique (L10) |
+| jours travaillés | `AttemptRepository.findDistinctActivityDates` (celui du streak) |
+
+Aucun niveau, aucun palier, aucun état n'est recalculé ici.
+
+### Les règles que cet écran fait respecter
+
+- 🛑 **Aucun pourcentage de progression vers un palier** (`30_` §7, règle
+  explicite). Un palier CECRL n'est pas une barre : « 68 % vers le B2 » n'a aucun
+  sens mesurable et se lit pourtant comme une promesse. On nomme deux paliers.
+- 🛑 **Aucune gamification.** Pas de flamme, pas de record, pas d'objectif
+  hebdomadaire. L'activité se dit en **jours travaillés** et en semaines. Le
+  streak existe déjà sur le tableau de bord, où il est une information ; le
+  ramener ici en ferait un enjeu — et un compteur qu'on peut **casser**
+  transforme une mesure en dette.
+- 🛑 **`INCONNUE` n'est pas `STABLE`.** Une épreuve non évaluée d'un côté n'a ni
+  progressé ni tenu : le front ne rend **aucun** marqueur, surtout pas « = ».
+  `BAISSE` existe et se sert — la masquer rendrait la réévaluation invendable.
+- 🛑 **Les 4 épreuves sont toujours servies**, évaluées ou non. Une épreuve
+  absente de la liste disparaîtrait de l'écran au lieu de se dire « non
+  évaluée ».
+- 🛑 **Freemium : les compteurs de compétences restent, le DÉTAIL part**
+  (`30_` §7 : « blocs 1 et 2 visibles, 3 et 5 verrouillés »). Cacher le nombre
+  reviendrait à cacher au candidat ce qu'il a lui-même produit.
+- 🛑 **Aucune seconde liste d'historique.** Le bloc 5 de la spec est déjà servi
+  par les écrans d'historique existants ; on sert un **lien**.
+- 🛑 **Aucune métrique CECRL côté civique** (`20_` §12) : le civique se mesure en
+  points sur 40 et en cibles tenues.
+
+### Deux écarts avec `30_` §7, assumés
+
+- **La fenêtre d'activité vaut 28 jours, pas 30.** 30 ne fait pas un nombre
+  entier de semaines, et une frise de quatre semaines dont la somme **ne vaut
+  pas** le compteur affiché au-dessus est un défaut bien pire qu'un ordre de
+  grandeur arrondi. La fenêtre est **servie** (`fenetreJours`) : aucun écran ne
+  l'écrit en dur, donc aucun ne peut mentir sur ce qu'il compte.
+- **L'activité est transverse**, pas ventilée par module : les jours de travail
+  ne se répartissent pas — une séance civique et une production TCF sont le même
+  effort du même jour.
+
+Routes : `docs/api-endpoints.md`, section « Progrès (T28) ». Journal :
+`docs/review_all/60_DECISIONS_IMPLEMENTATION.md`, section « T28 ».
