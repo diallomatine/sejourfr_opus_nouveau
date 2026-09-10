@@ -178,9 +178,20 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
     );
 }
 
+/**
+ * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
+ *
+ * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
+ * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
+ * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
+ * écrans invisiblement nus — le toggle du Plan y compris.
+ *
+ * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
+ * classes sont préfixées pour qu'il n'y ait aucune collision.
+ */
 function Styles() {
     return (
-        <style jsx>{`
+        <style>{`
             .cvr {
                 max-width: 480px;
                 margin: 0 auto;
@@ -295,10 +306,10 @@ function Styles() {
                 border-radius: 50%;
                 flex: 0 0 auto;
             }
-            li[data-tone="ok"] .cvr-theme-dot { background: var(--color-success, #168f5b); }
-            li[data-tone="warn"] .cvr-theme-dot { background: var(--color-amber, #e8a317); }
-            li[data-tone="hot"] .cvr-theme-dot { background: var(--color-red); }
-            li[data-tone="muted"] .cvr-theme-dot { background: var(--color-line); }
+            .cvr li[data-tone="ok"] .cvr-theme-dot { background: var(--color-success, #168f5b); }
+            .cvr li[data-tone="warn"] .cvr-theme-dot { background: var(--color-amber, #e8a317); }
+            .cvr li[data-tone="hot"] .cvr-theme-dot { background: var(--color-red); }
+            .cvr li[data-tone="muted"] .cvr-theme-dot { background: var(--color-line); }
             .cvr-theme-label {
                 flex: 1;
                 color: var(--color-ink);
@@ -311,8 +322,8 @@ function Styles() {
                 color: var(--color-muted);
             }
             /* Non évalué : atténué, jamais alarmant — ce n'est pas un échec. */
-            li[data-tone="muted"] .cvr-theme-etat { color: var(--color-muted-2); }
-            li[data-tone="hot"] .cvr-theme-etat { color: var(--color-red-dark); }
+            .cvr li[data-tone="muted"] .cvr-theme-etat { color: var(--color-muted-2); }
+            .cvr li[data-tone="hot"] .cvr-theme-etat { color: var(--color-red-dark); }
             .cvr-situations,
             .cvr-rassurance {
                 border: 1px solid var(--color-line);

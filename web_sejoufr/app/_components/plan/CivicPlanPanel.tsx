@@ -100,9 +100,20 @@ export function CivicPlanPanel({sessionId}: {sessionId: string}) {
     );
 }
 
+/**
+ * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
+ *
+ * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
+ * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
+ * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
+ * écrans invisiblement nus — le toggle du Plan y compris.
+ *
+ * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
+ * classes sont préfixées pour qu'il n'y ait aucune collision.
+ */
 function Styles() {
     return (
-        <style jsx>{`
+        <style>{`
             .cvp {
                 max-width: 480px;
                 margin: 0 auto;
@@ -134,8 +145,8 @@ function Styles() {
                 border-radius: 14px;
                 padding: 14px;
             }
-            li[data-tone="hot"] { border-left-color: var(--color-red); }
-            li[data-tone="warn"] { border-left-color: var(--color-amber, #e8a317); }
+            .cvp-list li[data-tone="hot"] { border-left-color: var(--color-red); }
+            .cvp-list li[data-tone="warn"] { border-left-color: var(--color-amber, #e8a317); }
             .cvp-rang {
                 font-family: var(--font-mono);
                 font-size: 13px;

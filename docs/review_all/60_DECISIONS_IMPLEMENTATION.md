@@ -812,3 +812,62 @@ Deux gardes qui vont avec :
 `CivicPlanPanel` relisait l'état de préparation pour retrouver l'identifiant de
 session. Il le reçoit désormais de l'onglet, qui l'a déjà : deux appels pour la
 même vérité, c'est celle qu'on regarde le moins qui finit par mentir.
+
+
+---
+
+# Le bug qui rendait mes écrans nus (2026-09-10)
+
+> « je ne vois toujours pas de toggle dans /plan »
+
+**Le toggle était bien là. Il n'avait simplement aucun style.**
+
+## Ce qui s'est passé
+
+`<style jsx>` (styled-jsx) scope ses règles aux éléments rendus par **le même
+composant** : il ajoute une classe de scope aux éléments du JSX voisin et
+réécrit `.plm-tabs` en `.plm-tabs.jsx-1a2b`.
+
+Quand la balise vit dans un `Styles()` séparé qui **ne rend que le
+`<style>`**, aucun élément ne reçoit cette classe. Les règles sont bien
+injectées dans la page, et elles ne matchent **rien**.
+
+Résultat : deux `<button>` aux styles par défaut du navigateur, côte à côte,
+sans bordure, sans fond, sans padding. Ça ne se lit pas comme un toggle — ça ne
+se lit pas du tout.
+
+## Sept écrans étaient concernés
+
+Pas seulement le toggle : `CivicDiagnosticHub`, `CivicDiagnosticResult`,
+`TcfDiagnosticHub`, `TcfDiagnosticResult`, `CivicPlanPanel`, `PlanModules`,
+`PreparationCard`. Soit **tout ce que j'ai écrit dans cette session, plus
+l'écran de L4**. Le motif s'est propagé par copie.
+
+## La correction
+
+`<style>` **sans** l'attribut `jsx` — du CSS global, ce que **tout le reste du
+dépôt** utilise déjà (`app/(app)/layout.tsx`, `PaywallSheet`, `/profil`…).
+Vérifié : aucun autre composant n'utilisait `<style jsx>`.
+
+Deux précautions qui vont avec :
+
+- toutes les classes sont **préfixées** (`.plm-`, `.cvd-`, `.cvr-`, `.cvp-`,
+  `.prep-`, `.tcfd-`, `.tcfr-`) ;
+- les sélecteurs d'**élément** (`li[data-tone="hot"]`) sont désormais **scopés
+  sous leur conteneur** — en global, ils auraient teinté n'importe quel `li`
+  du site portant le même attribut.
+
+Un commentaire est posé sur chaque `Styles()` pour que personne ne « corrige »
+en remettant l'attribut.
+
+## Ce que ça dit de ma vérification
+
+`tsc`, `npm run build` et les tests passaient à chaque fois — et ils passaient
+pour de bonnes raisons : le code était valide, le markup était rendu, le CSS
+était syntaxiquement correct. **Aucun de ces outils ne vérifie qu'une règle
+s'applique à quelque chose.**
+
+C'est exactement la limite que j'ai signalée à chaque livraison — « je n'ai
+ouvert aucun écran » — et c'est la première fois qu'elle coûte quelque chose de
+visible. Le prochain écran écrit avec un `Styles()` doit être ouvert avant
+d'être annoncé.

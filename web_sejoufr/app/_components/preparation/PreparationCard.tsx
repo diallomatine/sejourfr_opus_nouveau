@@ -67,9 +67,20 @@ function ModuleLigne({label, action}: {label: string; action: PreparationAction}
     );
 }
 
+/**
+ * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
+ *
+ * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
+ * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
+ * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
+ * écrans invisiblement nus — le toggle du Plan y compris.
+ *
+ * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
+ * classes sont préfixées pour qu'il n'y ait aucune collision.
+ */
 function Styles() {
     return (
-        <style jsx>{`
+        <style>{`
             .prep {
                 display: flex;
                 flex-direction: column;
