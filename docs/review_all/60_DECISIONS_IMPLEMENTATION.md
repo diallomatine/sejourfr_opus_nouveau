@@ -903,3 +903,68 @@ divergent.
 module des examens blancs, les cartes de Progrès, les pastilles de thème. Un
 candidat reconnaît son parcours à la couleur avant de lire le mot. Un toggle
 monochrome cassait ce repère au moment précis où il sert le plus.
+
+
+---
+
+# Trois défauts trouvés à l'usage sur le diagnostic civique (2026-09-10)
+
+> « Je viens de faire un diagnostic examen civique, à la fin je suis sur
+> `/sessions/…`, un peu éloigné d'une page de diagnostic. Et puis je reviens
+> dans `/plan`, on me demande toujours de faire un diagnostic. »
+
+Un seul parcours réel a mis au jour trois défauts que ni `tsc`, ni le build, ni
+2 828 tests n'ont vus. Le deuxième et le troisième **découlaient** du premier.
+
+## 1. Le runner ne savait pas qu'il portait un diagnostic
+
+L4 avait résolu exactement ce problème pour le TCF avec `TCF_DIAGNOSTIC_PARAM` :
+une section de diagnostic ramène au diagnostic, jamais au bilan de série. **Je
+ne l'ai pas fait pour le civique** — j'ai poussé le runner sans marqueur.
+
+**Corrigé** : `CIVIC_DIAGNOSTIC_PARAM`, mêmes trois points de sortie que le TCF
+(reprise d'un attempt déjà fini, bouton « quitter », fin de série).
+
+🛑 **Une différence assumée** : le TCF ramène au **hub** (il a quatre sections,
+il faut montrer les trois autres) ; le civique mène **droit au résultat** — il
+n'en a qu'une, et le renvoyer à un accueil qui redemanderait « Voir mon
+résultat » ajouterait une étape à un parcours terminé.
+
+## 2. La session n'était jamais close
+
+Le résultat n'était atteignable que par le hub, et seul `POST /result` clôt la
+session. Le candidat ne revenant jamais au hub, la session restait
+`IN_PROGRESS` — **pour toujours**.
+
+**Deux corrections, à deux niveaux** :
+
+- l'écran de résultat appelle `result()` (POST, idempotent) et non
+  `readResult()` : ouvrir son résultat clôt son diagnostic ;
+- 🛑 **et surtout, une clôture PARESSEUSE côté serveur** : si l'attempt est
+  terminé mais la session ouverte, elle se clôt **à la première lecture**. Sans
+  ça, un candidat qui répond à ses 40 questions puis ferme l'app garderait un
+  diagnostic « en cours » indéfiniment. C'est le même patron que la clôture
+  paresseuse de l'examen complet : **l'état vrai est celui de l'attempt**, la
+  session le rattrape.
+
+Cette seconde correction répare aussi les sessions **déjà bloquées** : aucune
+migration, elles se réparent à la première ouverture.
+
+## 3. Le Plan disait « Faire » à quelqu'un qui avait commencé
+
+`planIndisponible` rendait la même carte quel que soit l'état du module.
+
+🛑 **Un diagnostic commencé ne se « fait » pas, il se REPREND.** Redemander
+« Faire mon diagnostic » à quelqu'un qui vient d'en répondre la moitié lui fait
+croire que son travail est perdu. La carte porte désormais l'avancement réel
+(« Vous avez répondu à 14 questions sur 40. ») — servi, jamais fabriqué.
+
+## Ce que ça confirme
+
+Les trois défauts sont **invisibles à la compilation** : le code était valide, le
+markup rendu, les tests verts. Le premier parcours réel les a tous les trois
+sortis en une minute.
+
+C'est la deuxième fois dans cette session (après le CSS non appliqué). La leçon
+est la même et elle est maintenant écrite : **un écran neuf doit être parcouru
+de bout en bout avant d'être annoncé fini.**

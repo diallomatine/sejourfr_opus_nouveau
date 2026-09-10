@@ -179,21 +179,52 @@ public class CivicDiagnosticService {
         };
     }
 
-    /** Le diagnostic courant, ou vide si le candidat n'en a jamais ouvert. */
-    @Transactional(readOnly = true)
+    /**
+     * Le diagnostic courant, ou vide si le candidat n'en a jamais ouvert.
+     *
+     * <p>🛑 <b>Cloture PARESSEUSE</b> : si l'attempt est termine mais que la
+     * session est restee ouverte, on la clot ici. Sans ca, un candidat qui
+     * repond a ses 40 questions puis quitte sans ouvrir son resultat garde un
+     * diagnostic « en cours » <b>pour toujours</b> — et le Plan continue de lui
+     * reclamer un diagnostic qu'il vient de terminer. Defaut constate a
+     * l'usage, et il se repare tout seul a la premiere lecture.
+     *
+     * <p>Meme patron que la cloture paresseuse de l'examen complet : l'etat
+     * vrai est celui de l'attempt, la session le rattrape a la lecture.
+     */
+    @Transactional
     public Optional<CivicDiagnosticSession> courant(UUID userId) {
-        return sessionManager.findLatest(userId);
+        return sessionManager.findLatest(userId).map(this::cloturerSiAttemptTermine);
+    }
+
+    /**
+     * Clot la session dont l'attempt est deja fini.
+     *
+     * <p>Idempotent, et sans effet sur une session dont l'attempt tourne
+     * encore : c'est l'attempt qui fait foi, pas l'inverse.
+     */
+    private CivicDiagnosticSession cloturerSiAttemptTermine(CivicDiagnosticSession session) {
+        if (session.getStatus() == TcfDiagnosticStatus.COMPLETED) {
+            return session;
+        }
+        if (session.getAttempt().getFinishedAt() == null) {
+            return session;
+        }
+        session.setStatus(TcfDiagnosticStatus.COMPLETED);
+        session.setCompletedAt(session.getAttempt().getFinishedAt());
+        log.info("Diagnostic civique cloture a la lecture : session={}", session.getId());
+        return sessionManager.save(session);
     }
 
     /** Un diagnostic precis. 404 sur celui d'autrui : on ne revele pas son existence. */
-    @Transactional(readOnly = true)
+    @Transactional
     public CivicDiagnosticSession lire(UUID userId, UUID sessionId) {
         CivicDiagnosticSession session = sessionManager.findById(sessionId)
                 .orElseThrow(() -> new NotFoundException("Diagnostic introuvable : " + sessionId));
         if (session.getUser() == null || !session.getUser().getId().equals(userId)) {
             throw new NotFoundException("Diagnostic introuvable : " + sessionId);
         }
-        return session;
+        return cloturerSiAttemptTermine(session);
     }
 
     /**

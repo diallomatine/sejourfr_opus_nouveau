@@ -24,11 +24,17 @@ import {
     CIVIC_DIAGNOSTIC_RESULT_CTA,
     CIVIC_DIAGNOSTIC_RESUME_CTA,
     CIVIC_DIAGNOSTIC_START_CTA,
+    CIVIC_DIAGNOSTIC_PARAM,
     civicDiagnosticSubtitle,
     CIVIC_DIAGNOSTIC_TITLE,
     progressionLabel,
 } from "@/lib/civic-diagnostic";
 import type {CivicDiagnosticDto} from "@/lib/types";
+
+/** Le runner, avec le marqueur de retour vers le diagnostic. */
+function runnerHref(attemptId: string, sessionId: string): string {
+    return `/sessions/${attemptId}?${CIVIC_DIAGNOSTIC_PARAM}=${sessionId}`;
+}
 
 type Etat =
     | {kind: "loading"}
@@ -66,7 +72,10 @@ export function CivicDiagnosticHub() {
         setAction(true);
         try {
             const ouvert = await civicDiagnosticApi.open();
-            router.push(`/sessions/${ouvert.attemptId}`);
+            // 🛑 Le marqueur voyage avec l'attempt : c'est LUI qui ramène au
+            // diagnostic à la fin. Sans lui, le candidat termine ses questions
+            // et atterrit sur le bilan de série générique.
+            router.push(runnerHref(ouvert.attemptId, ouvert.sessionId));
         } catch (e) {
             setEtat({
                 kind: "erreur",
@@ -165,7 +174,7 @@ export function CivicDiagnosticHub() {
                         type="button"
                         className="btn btn-lg"
                         disabled={action}
-                        onClick={() => router.push(`/sessions/${d.attemptId}`)}
+                        onClick={() => router.push(runnerHref(d.attemptId, d.sessionId))}
                     >
                         {d.repondues > 0
                             ? CIVIC_DIAGNOSTIC_RESUME_CTA

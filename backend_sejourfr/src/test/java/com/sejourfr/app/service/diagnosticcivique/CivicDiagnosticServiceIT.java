@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -145,6 +146,44 @@ class CivicDiagnosticServiceIT extends AbstractIntegrationTest {
         // Les priorités sont rangées du plus coûteux au moins coûteux.
         assertThat(resultat.priorites()).isSortedAccordingTo(
                 (a, b) -> Integer.compare(b.manques(), a.manques()));
+    }
+
+    @Test
+    @DisplayName("🛑 Un attempt terminé clôt la session TOUT SEUL, à la première lecture")
+    void clotureParesseuse() {
+        User user = testData.user();
+        CivicDiagnosticSession session = service.ouvrir(user.getId());
+        // ⚠️ Flush AVANT le SQL direct : `save()` ne flushe pas, et l'UPDATE ne
+        // toucherait aucune ligne.
+        entityManager.flush();
+
+        // Le candidat répond à ses questions puis quitte sans ouvrir son
+        // résultat : c'est le runner qui a fini l'attempt, pas lui qui a
+        // demandé son bilan.
+        int touches = jdbc.update(
+                "UPDATE attempts SET finished_at = now(), status = 'TERMINE' WHERE id = ?",
+                session.getAttempt().getId());
+        assertThat(touches).isEqualTo(1);
+        entityManager.clear();
+
+        // 🛑 Sans cette clôture paresseuse, la session resterait « en cours »
+        // POUR TOUJOURS, et le Plan continuerait de réclamer un diagnostic que
+        // le candidat vient de terminer. Défaut constaté à l'usage.
+        var relu = service.courant(user.getId()).orElseThrow();
+        assertThat(relu.getStatus()).isEqualTo(TcfDiagnosticStatus.COMPLETED);
+        assertThat(relu.getCompletedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Un attempt encore en cours ne clôt rien : c'est l'attempt qui fait foi")
+    void attemptEnCoursNeClotRien() {
+        User user = testData.user();
+        service.ouvrir(user.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.courant(user.getId()).orElseThrow().getStatus())
+                .isEqualTo(TcfDiagnosticStatus.IN_PROGRESS);
     }
 
     @Test

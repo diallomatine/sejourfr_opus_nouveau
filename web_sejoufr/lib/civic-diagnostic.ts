@@ -129,3 +129,34 @@ export function rassuranceText(r: CivicDiagnosticResultDto): string | null {
 
 /** Le teaser du plan (`20_` §4.5 bloc 6). */
 export const CIVIC_PLAN_TEASER_TITLE = "Votre plan de révision est prêt";
+
+/**
+ * Le paramètre que le runner reçoit quand la série appartient à un diagnostic
+ * civique.
+ *
+ * 🛑 **Sa seule fonction est le RETOUR** — exactement comme
+ * `TCF_DIAGNOSTIC_PARAM`. Sans lui, le candidat termine ses 40 questions et
+ * atterrit sur le bilan de série générique, très loin de son diagnostic : c'est
+ * précisément ce qui a été constaté à l'usage. Il ne change **rien d'autre** :
+ * ni la passation, ni la correction, ni le décompte.
+ *
+ * Miroir de `kCivicDiagnosticParam` côté mobile.
+ */
+export const CIVIC_DIAGNOSTIC_PARAM = "civicDiagnosticId";
+
+/** L'accueil du diagnostic civique. */
+export const CIVIC_DIAGNOSTIC_HUB_HREF = "/diagnostic-civique";
+
+/**
+ * Où le runner renvoie à la fin d'un diagnostic civique : **le résultat**, pas
+ * l'accueil.
+ *
+ * 🛑 Différence assumée avec le TCF, et elle vient de la forme : le diagnostic
+ * TCF a quatre sections, donc terminer l'une d'elles ramène au hub qui montre
+ * les trois autres. Le civique n'en a **qu'une** — le renvoyer à un accueil qui
+ * lui redemanderait de cliquer « Voir mon résultat » ajouterait une étape à un
+ * parcours terminé.
+ */
+export function civicDiagnosticResultHref(sessionId: string): string {
+    return `/diagnostic-civique/${sessionId}/resultat`;
+}

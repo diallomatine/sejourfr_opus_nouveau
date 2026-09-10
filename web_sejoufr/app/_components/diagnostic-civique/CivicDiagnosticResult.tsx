@@ -47,7 +47,13 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
 
     const charger = useCallback(async () => {
         try {
-            setEtat({kind: "pret", resultat: await civicDiagnosticApi.readResult(sessionId)});
+            // 🛑 `result()` (POST) et non `readResult()` : c'est lui qui
+            // CLÔTURE la session. Sans cette clôture, le diagnostic reste
+            // « en cours » pour toujours et le Plan continue de réclamer un
+            // diagnostic que le candidat vient de terminer — le défaut constaté
+            // à l'usage. L'appel est idempotent : une session déjà close est
+            // rendue telle quelle.
+            setEtat({kind: "pret", resultat: await civicDiagnosticApi.result(sessionId)});
         } catch (e) {
             setEtat({
                 kind: "erreur",

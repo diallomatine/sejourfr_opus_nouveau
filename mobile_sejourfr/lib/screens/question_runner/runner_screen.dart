@@ -28,6 +28,7 @@ import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
+import '../diagnostic_civique/civic_diagnostic_labels.dart';
 import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
 
 class RunnerScreen extends ConsumerStatefulWidget {
@@ -786,6 +787,17 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   // trois sections à passer.
   if (goState.uri.queryParameters[kTcfDiagnosticParam] != null) {
     context.go(AppRoutes.tcfDiagnostic);
+    return;
+  }
+
+  // DIAGNOSTIC CIVIQUE : même mécanisme, une seule différence — il n'a qu'UNE
+  // session, donc la fin mène droit au RÉSULTAT plutôt qu'à un accueil qui
+  // redemanderait un clic. Sans ce renvoi, le candidat termine ses 40 questions
+  // et atterrit sur le bilan de série générique, très loin du diagnostic qu'il
+  // vient de faire.
+  final civicId = goState.uri.queryParameters[kCivicDiagnosticParam];
+  if (civicId != null) {
+    context.go(AppRoutes.civicDiagnosticResultPath(civicId));
     return;
   }
 

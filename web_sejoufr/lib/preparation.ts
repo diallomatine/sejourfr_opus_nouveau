@@ -149,12 +149,32 @@ export function planIndisponible(
     if (m.etape === "PLAN_PRET") return null;
 
     if (module === "CIVIQUE") {
+        // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
+        // Redemander « Faire mon diagnostic » à quelqu'un qui vient d'en
+        // répondre la moitié lui fait croire que son travail est perdu.
+        return m.etape === "DIAGNOSTIC_EN_COURS"
+            ? {
+                  titre: "Votre diagnostic civique est commencé",
+                  texte: avancement(m)
+                      ?? "Terminez-le pour que votre plan se construise.",
+                  cta: "Reprendre mon diagnostic",
+                  href: "/diagnostic-civique",
+              }
+            : {
+                  titre: "Votre plan civique commence par un diagnostic",
+                  texte:
+                      "Répondez à quelques questions pour identifier les thèmes et les notions à travailler.",
+                  cta: "Faire mon diagnostic civique",
+                  href: "/diagnostic-civique",
+              };
+    }
+
+    if (m.etape === "DIAGNOSTIC_EN_COURS") {
         return {
-            titre: "Votre plan civique commence par un diagnostic",
-            texte:
-                "Répondez à quelques questions pour identifier les thèmes et les notions à travailler.",
-            cta: "Faire mon diagnostic civique",
-            href: "/diagnostic-civique",
+            titre: "Votre diagnostic TCF est commencé",
+            texte: avancement(m) ?? "Terminez-le pour que votre plan se construise.",
+            cta: "Reprendre mon diagnostic",
+            href: m.fait !== null ? "/diagnostic-tcf" : "/diagnostic",
         };
     }
 
@@ -175,6 +195,19 @@ export function planIndisponible(
         cta: "Faire mon diagnostic",
         href: "/diagnostic",
     };
+}
+
+/**
+ * « Vous avez répondu à 14 questions sur 40. »
+ *
+ * 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un
+ * compteur pour remplir une phrase.
+ */
+function avancement(m: ModulePreparation): string | null {
+    if (m.fait === null || m.total === null) return null;
+    return m.total > 4
+        ? `Vous avez répondu à ${m.fait} question${m.fait > 1 ? "s" : ""} sur ${m.total}.`
+        : `Vous avez terminé ${m.fait} épreuve${m.fait > 1 ? "s" : ""} sur ${m.total}.`;
 }
 
 /** Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire. */

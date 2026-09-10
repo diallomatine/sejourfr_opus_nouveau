@@ -21,6 +21,10 @@ import {
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
+import {
+  CIVIC_DIAGNOSTIC_PARAM,
+  civicDiagnosticResultHref,
+} from "@/lib/civic-diagnostic";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   epreuveExitMessage,
@@ -198,6 +202,12 @@ function SessionRunnerInner({ params }: PageProps) {
   // Section d'un diagnostic TCF : même règle de retour qu'une épreuve
   // d'examen complet — on ramène au hub, jamais au rapport individuel.
   const tcfDiagnosticId = searchParams.get(TCF_DIAGNOSTIC_PARAM);
+  /**
+   * Diagnostic CIVIQUE : même mécanisme, une seule différence — il n'a qu'une
+   * session, donc la fin mène droit au **résultat** plutôt qu'à un accueil qui
+   * redemanderait un clic.
+   */
+  const civicDiagnosticId = searchParams.get(CIVIC_DIAGNOSTIC_PARAM);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -322,6 +332,10 @@ function SessionRunnerInner({ params }: PageProps) {
             router.replace(TCF_DIAGNOSTIC_HUB_HREF);
             return;
           }
+          if (civicDiagnosticId) {
+            router.replace(civicDiagnosticResultHref(civicDiagnosticId));
+            return;
+          }
           setAttempt(a);
           setOpenedAsFinished(true);
           setPhase("result");
@@ -352,7 +366,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status, fullExamId, tcfDiagnosticId, router]);
+  }, [attemptId, status, fullExamId, tcfDiagnosticId, civicDiagnosticId, router]);
 
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
@@ -554,7 +568,9 @@ function SessionRunnerInner({ params }: PageProps) {
             ? `/examens-blancs/tcf/${fullExamId}`
             : tcfDiagnosticId
               ? TCF_DIAGNOSTIC_HUB_HREF
-              : isExam
+              : civicDiagnosticId
+                ? civicDiagnosticResultHref(civicDiagnosticId)
+                : isExam
               ? examReturnPath(attempt)
               : (lotQuitHref ?? "/entrainement")
         }
@@ -593,6 +609,13 @@ function SessionRunnerInner({ params }: PageProps) {
           }
           if (tcfDiagnosticId) {
             router.push(TCF_DIAGNOSTIC_HUB_HREF);
+            return;
+          }
+          // 🛑 Le diagnostic civique mène DROIT au résultat : sans ce renvoi,
+          // le candidat termine ses 40 questions et atterrit sur le bilan de
+          // série générique, très loin du diagnostic qu'il vient de faire.
+          if (civicDiagnosticId) {
+            router.push(civicDiagnosticResultHref(civicDiagnosticId));
             return;
           }
           setAttempt(finalAttempt);

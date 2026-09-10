@@ -45,9 +45,14 @@ class _CivicDiagnosticResultScreenState
 
   Future<void> _load() async {
     try {
+      // 🛑 `result()` (POST) et non `readResult()` : c'est lui qui CLÔTURE la
+      // session. Sans cette clôture, le diagnostic reste « en cours » pour
+      // toujours et le Plan continue de réclamer un diagnostic que le candidat
+      // vient de terminer. L'appel est idempotent : une session déjà close est
+      // rendue telle quelle.
       final r = await ref
           .read(civicDiagnosticRepositoryProvider)
-          .readResult(widget.sessionId);
+          .result(widget.sessionId);
       if (!mounted) return;
       setState(() {
         _resultat = r;

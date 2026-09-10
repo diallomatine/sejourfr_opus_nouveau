@@ -124,6 +124,23 @@ typedef PlanIndisponible = ({
 PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique}) {
   if (m.etape == PreparationEtape.planPret) return null;
 
+  // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
+  // Redemander « Faire mon diagnostic » à quelqu'un qui vient d'en répondre la
+  // moitié lui fait croire que son travail est perdu.
+  if (m.etape == PreparationEtape.diagnosticEnCours) {
+    return (
+      titre: civique
+          ? 'Votre diagnostic civique est commencé'
+          : 'Votre diagnostic TCF est commencé',
+      texte: _avancement(m) ??
+          'Terminez-le pour que votre plan se construise.',
+      cta: 'Reprendre mon diagnostic',
+      route: civique
+          ? '/diagnostic-civique'
+          : (m.fait != null ? '/diagnostic-tcf' : '/diagnostic'),
+    );
+  }
+
   if (civique) {
     return (
       titre: 'Votre plan civique commence par un diagnostic',
@@ -151,6 +168,19 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
     cta: 'Faire mon diagnostic',
     route: '/diagnostic',
   );
+}
+
+/// « Vous avez répondu à 14 questions sur 40. »
+///
+/// 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un
+/// compteur pour remplir une phrase.
+String? _avancement(ModulePreparation m) {
+  final fait = m.fait;
+  final total = m.total;
+  if (fait == null || total == null) return null;
+  return total > 4
+      ? 'Vous avez répondu à $fait question${fait > 1 ? 's' : ''} sur $total.'
+      : 'Vous avez terminé $fait épreuve${fait > 1 ? 's' : ''} sur $total.';
 }
 
 /// Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire.

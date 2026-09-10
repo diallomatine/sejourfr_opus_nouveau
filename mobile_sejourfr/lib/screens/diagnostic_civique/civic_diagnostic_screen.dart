@@ -74,7 +74,10 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
       final ouvert = await ref.read(civicDiagnosticRepositoryProvider).open();
       if (!mounted) return;
       setState(() => _busy = false);
-      context.push('/runner/${ouvert.attemptId}');
+      // 🛑 Le marqueur voyage avec l'attempt : c'est LUI qui ramène au
+      // diagnostic à la fin. Sans lui, le candidat termine ses questions et
+      // atterrit sur le bilan de série générique.
+      context.push(civicRunnerPath(ouvert.attemptId, ouvert.sessionId));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -170,7 +173,10 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
                 ? kCivicDiagnosticResumeCta
                 : kCivicDiagnosticStartCta,
             onPressed:
-                _busy ? null : () => context.push('/runner/${d.attemptId}'),
+                _busy
+                    ? null
+                    : () => context.push(
+                        civicRunnerPath(d.attemptId, d.sessionId)),
           ),
           // Le résultat reste demandable même sans avoir tout répondu : une
           // question sautée sort du dénominateur, elle ne devient jamais une
