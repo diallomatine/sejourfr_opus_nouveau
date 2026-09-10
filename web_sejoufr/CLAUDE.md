@@ -1394,6 +1394,34 @@ détour par `/inscription`.
   `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
 
+### Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
+
+⚠️ **Révoque le `CivicPlanPanel` précédent**, qui recopiait les priorités
+*figées* du dernier diagnostic (il prenait un `sessionId` en prop — il n'en
+prend plus). Le plan est maintenant un **moteur** : `GET /api/me/civic-plan`
+relit tout l'historique des réponses, séries et examens blancs compris
+(`20_` §8.2), et dit **quand y revenir**. Règles complètes :
+`docs/regles/plan.md`, section « Plan CIVIQUE ».
+
+- **Client** : `civicPlanApi` (`get()` / `serie(cibleId, grain)`).
+  🛑 **Pas de « recompute »** : le plan est un dérivé relu à chaque appel côté
+  serveur, il n'existe aucune table de progression.
+- **Libellés** : `lib/civic-plan.ts`, **miroir mot pour mot** de
+  `civic_plan_labels.dart`. 🛑 Le serveur n'expose que des faits — pas de
+  `reason_text` servi, contrairement au schéma de `20_` §10.
+- 🛑 **Le plan DIT à quel grain il travaille** (`civicPlanGrainNote`) : thème par
+  thème tant que les questions ne sont pas taguées, notion par notion ensuite.
+  Au lancement, **0 question sur 1 016** est taguée — c'est la phase 1 de
+  `20_` §3.3, pas une panne. Ne pas masquer cette note pour « faire propre ».
+- 🛑 **Le verrou porte sur la SÉRIE, jamais sur le constat** : les priorités sont
+  rendues entières (titre, état, compteurs) pour un compte gratuit, et le
+  `locked` servi ouvre `PaywallSheet`. Le **403** de `serie()` est la même règle,
+  routé par `handleStartFailure` — jamais une erreur technique.
+- **La série est un `TRAINING` ordinaire** : elle atterrit sur
+  `/sessions/{attemptId}`, aucun écran de passation n'est créé.
+- 🛑 `plan.priorites` est un **plafond d'affichage** : `autresPriorites` compte
+  ce que la liste ne montre pas. Ne jamais s'en servir pour borner un calcul.
+
 ### Le diagnostic civique se passe AVANT le compte (V053, 2026-09-10)
 
 🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou

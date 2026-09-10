@@ -107,9 +107,14 @@ export function PlanModules() {
                 </section>
             ) : module === "TCF" ? (
                 <LearningPlanView />
-            ) : prep?.civique.sessionId ? (
-                <CivicPlanPanel sessionId={prep.civique.sessionId} />
-            ) : null}
+            ) : (
+                /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
+                   L10) : c'est un moteur, plus un echo du diagnostic. Il n'a
+                   donc plus besoin du `sessionId` que cet onglet lui passait —
+                   et il se tait de lui-meme tant qu'aucun diagnostic n'est
+                   termine (`disponible: false`). */
+                <CivicPlanPanel />
+            )}
 
             <Styles />
         </>

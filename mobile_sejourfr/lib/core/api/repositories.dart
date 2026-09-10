@@ -7,6 +7,7 @@ import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'diagnostic_repository.dart';
 import 'civic_diagnostic_repository.dart';
+import 'civic_plan_repository.dart';
 import 'tcf_diagnostic_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'funnel_repository.dart';
@@ -82,6 +83,13 @@ final tcfDiagnosticRepositoryProvider = Provider<TcfDiagnosticRepository>(
 /// pre-diagnostic n'y apporterait rien (arbitrage du 2026-09-10).
 final civicDiagnosticRepositoryProvider = Provider<CivicDiagnosticRepository>(
   (ref) => CivicDiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le PLAN civique (L10). 🛑 Rien n'est persiste cote serveur : le plan se
+/// recalcule a chaque lecture depuis l'historique des reponses, ce qui rend le
+/// tagging des notions retroactif.
+final civicPlanRepositoryProvider = Provider<CivicPlanRepository>(
+  (ref) => CivicPlanRepository(ref.watch(apiClientProvider)),
 );
 
 final learningPlanRepositoryProvider = Provider<LearningPlanRepository>(

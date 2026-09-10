@@ -78,6 +78,12 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                         "/api/civic-diagnostics/" + RANDOM_ID + "/adopt"),
                 Arguments.of(HttpMethod.POST,
                         "/api/civic-diagnostics/" + RANDOM_ID + "/result"),
+                // CivicPlanController (L10). ⚠️ Seule la LECTURE est ici :
+                // `POST …/serie` rend un 403 METIER a un compte gratuit
+                // (freemium), et cette matrice ne sait pas distinguer un refus
+                // de securite d'un refus d'acces. Ce 403-la est verrouille par
+                // `CivicPlanServiceIT`, ou il est le sujet du test.
+                Arguments.of(HttpMethod.GET, "/api/me/civic-plan"),
                 Arguments.of(HttpMethod.POST,
                         "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController

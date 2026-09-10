@@ -3837,6 +3837,128 @@ export const CIVIC_THEME_STATE_LABEL: Record<CivicThemeState, string> = {
     NON_EVALUE: "Non évalué",
 };
 
+// ============================================================================
+// PLAN CIVIQUE (L10) — miroirs de `CivicPlanDto`
+// ============================================================================
+
+/**
+ * L'état de maîtrise d'une cible civique (`20_` §5.2).
+ *
+ * 🛑 `NON_EVALUEE` n'est **pas** un mauvais verdict : moins de deux réponses ne
+ * conclut rien. C'est l'invariant `null = inconnu` appliqué au civique.
+ */
+export type CivicMaitrise =
+    | "NON_EVALUEE"
+    | "A_TRAVAILLER"
+    | "EN_PROGRESSION"
+    | "MAITRISEE";
+
+/** Libellés FR **gelés** (miroir de l'enum backend et de son pendant Dart). */
+export const CIVIC_MAITRISE_LABEL: Record<CivicMaitrise, string> = {
+    NON_EVALUEE: "Non évaluée",
+    A_TRAVAILLER: "À travailler",
+    EN_PROGRESSION: "En progression",
+    MAITRISEE: "Maîtrisée",
+};
+
+/**
+ * Le **grain** auquel le plan travaille (`20_` §3.3).
+ *
+ * 🛑 Il se **mesure**, il ne se décrète pas : un thème passe en `NOTION` quand
+ * la part de ses questions taguées franchit le seuil. Tant que le tagging n'est
+ * pas fait, `THEME` est le mode **prévu** par la spec, pas une panne.
+ */
+export type CivicPlanGrain = "THEME" | "NOTION";
+
+/** L'état du tagging, et ce qu'il autorise. */
+export interface CivicPlanGrainDto {
+    /** `NOTION` seulement quand **tous** les thèmes ont basculé. */
+    courant: CivicPlanGrain;
+    themesParNotion: number;
+    themesTotal: number;
+    taguees: number;
+    total: number;
+}
+
+/**
+ * La dernière mesure **comparable au seuil** : le diagnostic.
+ *
+ * 🛑 Ce n'est **pas** une estimation courante. Mélanger des séries
+ * d'entraînement à un examen produirait un nombre qui ressemble à un score sans
+ * en être un.
+ */
+export interface CivicPlanResultatDto {
+    bonnes: number;
+    posees: number;
+    seuil: number;
+    format: number;
+    mesureA: string | null;
+}
+
+/**
+ * Une cible du plan : une **notion**, ou un **thème** tant que ce thème n'a pas
+ * basculé.
+ *
+ * 🛑 **Tout est dérivé serveur** — `maitrise`, `boite` et `prochaineRevue` se
+ * replient sur l'historique des réponses à chaque lecture. Aucun front ne
+ * classe un compteur en état pédagogique.
+ */
+export interface CivicPlanCibleDto {
+    id: string;
+    code: string;
+    label: string;
+    grain: CivicPlanGrain;
+    themeId: string;
+    themeCode: string;
+    themeLabel: string;
+    /** 🛑 `NON_EVALUE` n'est pas « faible ». */
+    etatDuTheme: CivicThemeState;
+    maitrise: CivicMaitrise;
+    boite: number;
+    reponses: number;
+    correctes: number;
+    erreursRecentes: number;
+    derniereErreur: string | null;
+    /** `null` = jamais vue, donc **jamais** « en retard ». */
+    prochaineRevue: string | null;
+    aRevoir: boolean;
+    /** Servi pour l'admin et les tests — **jamais montré au candidat**. */
+    score: number;
+    contenuInsuffisant: boolean;
+    questionsSerie: number;
+    dureeEstimeeSec: number;
+    /** 🛑 Le verrou porte sur la **série**, jamais sur le constat. */
+    locked: boolean;
+}
+
+/**
+ * **Le plan civique** (`20_` §6).
+ *
+ * 🛑 **Des faits, jamais des phrases** : aucun `reason_text` n'arrive du
+ * serveur. Les libellés vivent dans `lib/civic-plan.ts`, miroir mot pour mot de
+ * `civic_plan_labels.dart`.
+ *
+ * 🛑 **Rien n'est persisté côté serveur** : le plan se recalcule à chaque
+ * lecture depuis l'historique des réponses. Il n'y a donc pas de « recompute ».
+ */
+export interface CivicPlanDto {
+    /** `false` quand aucun diagnostic n'est terminé : rien à bâtir. */
+    disponible: boolean;
+    mention: Difficulty;
+    resultat: CivicPlanResultatDto | null;
+    /** « À faire maintenant » — la cible de rang 1. */
+    prochaine: CivicPlanCibleDto | null;
+    /** 🛑 Plafond d'**affichage** : le moteur en a classé davantage. */
+    priorites: CivicPlanCibleDto[];
+    /** Ce que la liste ne montre pas (« + 6 autres notions à consolider »). */
+    autresPriorites: number;
+    /** Révisions d'entretien. 🛑 **Jamais une priorité rouge** (`20_` §5.2). */
+    aRevoir: CivicPlanCibleDto[];
+    solides: CivicPlanCibleDto[];
+    grain: CivicPlanGrainDto;
+    calculeA: string;
+}
+
 /**
  * L'état d'un diagnostic civique.
  *

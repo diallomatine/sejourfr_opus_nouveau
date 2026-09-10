@@ -976,3 +976,128 @@ VESTIGES** : note **/100 par critère**, critères « Prononciation » et « Flu
 reproduire contredirait deux règles écrites (note retirée d'une tâche isolée le 2026-08-08 ;
 interdiction de juger la prononciation depuis une transcription). La bonne référence est
 `WResultat.jsx`.
+
+
+---
+
+## Plan CIVIQUE — répétition espacée et grain mesuré (L10, 2026-09-10)
+
+🛑 **À ne pas confondre avec le Plan TCF.** Deux plans, deux moteurs, aucun effet
+croisé (`20_` §12) : le civique ne porte **aucune** métrique CECRL, et le TCF
+ignore les notions civiques. L'onglet du Plan choisit lequel s'affiche.
+
+Source : `GET /api/me/civic-plan`. Écrans : `CivicPlanPanel.tsx` ⇄
+`civic_plan_view.dart`, libellés `lib/civic-plan.ts` ⇄ `civic_plan_labels.dart`.
+
+### Ce qui n'existe pas, et pourquoi
+
+🛑 **Aucune table.** `20_` §10 prévoyait `civic_plan`, `civic_plan_item`,
+`user_civic_notion_progress` et un **job quotidien** pour les échéances. Rien de
+tout cela n'a été construit : l'état Leitner se **replie sur l'historique des
+réponses** à chaque lecture (`CivicLeitnerResolver`). Trois raisons, dans
+l'ordre de leur poids :
+
+1. 🛑 **le tagging est rétroactif.** Au lancement du lot, **0 question sur
+   1 016** est taguée. Une table de progression serait née vide et le serait
+   restée pour tout l'historique déjà produit ; avec un dérivé, le jour où une
+   question reçoit sa notion, les réponses déjà données comptent pour elle ;
+2. **recalibrer ne demande aucune migration** — changer un intervalle relit tout
+   l'historique au prochain appel (doctrine du dépôt : « un dérivé se relit, il
+   ne se persiste pas ») ;
+3. **aucun job** : une échéance calculée à la lecture se franchit toute seule.
+
+Corollaire : il n'y a **pas** de route `/recompute`. Recalculer, c'est relire.
+
+🛑 **Aucun `reason_text` servi.** `20_` §10 en prévoyait un ; les phrases vivent
+dans les deux fronts, en miroir mot pour mot. Le serveur n'expose que des faits.
+
+### Leitner (`20_` §5.1)
+
+Cinq boîtes, intervalles **0 / 1 / 3 / 7 / 21 jours**. Réponse juste ⇒ boîte + 1
+(max 5) ; 🛑 **réponse fausse ⇒ retour boîte 1, toujours**, quelle que soit la
+hauteur atteinte. L'échéance se compte depuis la **dernière** présentation.
+
+🛑 **L'ORDRE fait la boîte** : le repli rejoue les réponses triées par instant.
+Un `ORDER BY` oublié se verrait comme un plan qui change sans raison.
+
+🛑 **Toutes les sources comptent** — diagnostic, série ciblée, examen blanc
+(`20_` §8.2). Écarter une source rendrait le plan sourd à la moitié de ce que le
+candidat produit.
+
+### État de maîtrise (`20_` §5.2)
+
+`NON_EVALUEE` (< 2 réponses) · `A_TRAVAILLER` (boîte 1-2) · `EN_PROGRESSION`
+(boîte 3) · `MAITRISEE` (boîte 4-5 **et** dernière réponse juste).
+
+🛑 **`NON_EVALUEE` n'est pas un mauvais verdict** : moins de deux réponses ne
+conclut rien. C'est l'invariant `null = inconnu`, dont la confusion inverse a
+produit les faux `A1_NON_ATTEINT` du TCF (V040/V041/V042).
+
+🛑 **Un THÈME n'est JAMAIS `MAITRISEE`.** Une notion se tient sur quelques
+questions ; un thème en porte deux cents. Quatre bonnes réponses de suite sur un
+thème ne prouvent rien, et l'annoncer acquis reproduirait « NON FRAGILE ≠ PLUS
+RIEN À APPRENDRE ». Le garde-fou **rabat** `MAITRISEE` sur `EN_PROGRESSION` au
+grain thème — il ne peut qu'abaisser, jamais relever.
+
+### Score de priorité (`20_` §5.3)
+
+```
+score = 3 × (erreur dans les 7 derniers jours)
+      + 2 × min(erreurs sur 30 jours, 3)
+      + 2 × (pointé par le diagnostic)
+      + 2 × (échéance Leitner franchie)
+      + 1 × (poids du thème : FAIBLE 2, À_RENFORCER 1, sinon 0)
+      − 3 × (maîtrisée)
+      − 10 × (contenu insuffisant)
+```
+
+🛑 **`NON_EVALUE` pèse 0**, comme `SOLIDE` : un thème que le diagnostic n'a pas
+touché n'est pas faible.
+
+🛑 **Le malus de contenu insuffisant est écrasant (−10)**, et c'est voulu : une
+notion qui n'a pas de quoi remplir une série ne doit **jamais** remonter en
+priorité (`20_` §3.4). Un filtre en amont l'aurait rendue invisible aux mesures.
+
+🛑 **Au grain notion, « pointé par le diagnostic » vaut toujours `false`** : le
+diagnostic mesure des **thèmes**. Le compter pour chaque notion d'un thème
+faible compterait le même signal deux fois, le poids du thème le portant déjà.
+
+### Le grain se MESURE, thème par thème (`20_` §3.3)
+
+Un thème passe au grain **notion** quand ≥ 80 % de ses questions actives sont
+taguées (`sejourfr.civic-plan.seuil-tagging`). 🛑 **Par thème, jamais
+globalement** : un thème tagué à 90 % n'attend pas celui qui est à 10 %. Un
+thème sans question active reste au grain thème — diviser par zéro pour conclure
+« 100 % tagué » basculerait un thème vide.
+
+Le DTO sert `themesParNotion / themesTotal` et l'écran **le dit** : le plan ne se
+présente jamais plus précis qu'il ne l'est. `courant = NOTION` seulement quand
+**tous** les thèmes ont basculé.
+
+### Freemium
+
+🛑 **Le verrou porte sur la SÉRIE, jamais sur le constat** (`20_` §6, variante
+non abonné). Les priorités sont servies **entières** à tout le monde — titre,
+état, compteurs. `locked` porte sur l'action, et le **403** de
+`POST /api/me/civic-plan/cibles/{id}/serie` est la **même règle**, cette fois
+opposable : un front dont le statut premium en cache est périmé reçoit un refus
+attendu, à router vers l'offre.
+
+### La série ciblée
+
+`POST /api/me/civic-plan/cibles/{id}/serie?grain=…` crée un **`TRAINING`
+ordinaire** joué dans le runner existant — aucun écran de passation n'est créé,
+aucun slot d'examen blanc n'est consommé.
+
+🛑 **Ce n'est pas un tirage au hasard** : l'ordre porte l'intention du plan — ce
+que le candidat a **raté en dernier** vient d'abord, puis ce qu'il n'a **jamais
+vu**, puis le reste. Sans cet ordre, « travailler ce point » redonnerait les
+questions déjà réussies. `random()` départage à l'intérieur d'un rang.
+
+### Le bloc « objectif » sert le DIAGNOSTIC, pas une estimation courante
+
+`20_` §6 bloc 1 parle d'un « résultat estimé aujourd'hui » dérivé des « dernières
+réponses ». 🛑 **On ne le fabrique pas.** Mélanger des séries d'entraînement
+(correction immédiate, questions choisies par le plan) à un examen produirait un
+nombre qui ressemble à un score sans en être un. Le diagnostic, lui, pose le
+format entier : son score **est** le résultat, directement comparable au seuil.

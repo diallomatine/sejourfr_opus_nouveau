@@ -6,8 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/repositories.dart';
-import '../diagnostic_civique/civic_diagnostic_labels.dart';
-import '../../core/models/civic_diagnostic_models.dart';
+import 'civic_plan_view.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/preparation_models.dart';
 import '../../core/api/api_client.dart';
@@ -154,9 +153,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
       return _PlanIndisponible(info: indisponible);
     }
     if (civique) {
-      // Le diagnostic civique est clos (sinon `planIndisponible` a deja rendu
-      // la carte d'explication) : son identifiant sert a relire ses priorites.
-      return _PlanCiviquePanel(sessionId: prep!.civique.sessionId!);
+      // 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`, L10) :
+      // c'est un moteur, plus un echo du diagnostic. Il n'a donc plus besoin du
+      // `sessionId` que cet onglet lui passait.
+      return const CivicPlanView();
     }
     return plan.when(
       loading: () => const _LoadingPlan(),
@@ -872,139 +872,3 @@ class _PlanIndisponible extends StatelessWidget {
   }
 }
 
-/// **Le plan civique, version thème** (`20_` §3.4, mode dégradé assumé).
-///
-/// 🛑 **C'est un plan par THÈME, et il le dit.** Le plan par *notion* et la
-/// répétition espacée (L10) demandent que les 1 016 questions soient taguées —
-/// un chantier éditorial qui n'est pas fait. La spec prévoit noir sur blanc ce
-/// repli : « Plan et diagnostic au niveau thème ». Attendre le tagging pour
-/// n'offrir *rien* priverait le candidat de ce qui est déjà mesurable.
-///
-/// 🛑 **Rien n'est dérivé ici.** L'ordre des thèmes et leur état arrivent servis
-/// par le résultat du diagnostic : ce panneau les met en mots et ouvre le thème.
-class _PlanCiviquePanel extends ConsumerStatefulWidget {
-  const _PlanCiviquePanel({required this.sessionId});
-
-  final String sessionId;
-
-  @override
-  ConsumerState<_PlanCiviquePanel> createState() => _PlanCiviquePanelState();
-}
-
-class _PlanCiviquePanelState extends ConsumerState<_PlanCiviquePanel> {
-  CivicDiagnosticResultDto? _resultat;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final r = await ref
-          .read(civicDiagnosticRepositoryProvider)
-          .readResult(widget.sessionId);
-      if (mounted) setState(() {
-        _resultat = r;
-        _loading = false;
-      });
-    } catch (_) {
-      // Best-effort : l'onglet reste sobre plutôt que d'afficher une erreur
-      // pour un plan dont le constat existe déjà côté diagnostic.
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const _LoadingPlan();
-    final r = _resultat;
-    if (r == null) {
-      return _PlanIndisponible(
-        info: (
-          titre: 'Votre plan civique n\'a pas pu être chargé',
-          texte: 'Votre diagnostic est bien enregistré : réessayez dans un instant.',
-          cta: 'Voir mon diagnostic civique',
-          route: AppRoutes.civicDiagnostic,
-        ),
-      );
-    }
-
-    if (r.priorites.isEmpty) {
-      // 🛑 Aucune priorité n'est une BONNE nouvelle, pas un écran vide.
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-        children: [
-          Text('Tous vos thèmes sont solides',
-              textAlign: TextAlign.center,
-              style: AppFonts.display(size: 22, color: AppColors.ink)),
-          const SizedBox(height: 10),
-          Text(
-            'Rien ne ressort comme prioritaire. Enchaînez sur un examen blanc '
-            'pour vous mettre en conditions réelles.',
-            textAlign: TextAlign.center,
-            style:
-                AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.55),
-          ),
-          const SizedBox(height: 20),
-          AppButton(
-            label: 'Faire un examen blanc',
-            onPressed: () => context.push(AppRoutes.civiqueExamsBlanc),
-          ),
-        ],
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        Text(kCivicPrioritesTitle,
-            style: AppFonts.display(size: 20, color: AppColors.ink)),
-        const SizedBox(height: 10),
-        for (final p in r.priorites) ...[
-          AppCard(
-            onTap: () => context.push('/civique/theme/${p.themeId}'),
-            child: Row(
-              children: [
-                Text('${p.rang}',
-                    style:
-                        AppFonts.label(size: 13, color: AppColors.inkFaint)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(p.label,
-                          style: AppFonts.ui(size: 15, color: AppColors.ink)),
-                      const SizedBox(height: 2),
-                      Text(p.etat.label,
-                          style: AppFonts.label(
-                            size: 11,
-                            color: p.etat == CivicThemeState.faible
-                                ? AppColors.red
-                                : AppColors.amber,
-                          )),
-                    ],
-                  ),
-                ),
-                const Icon(LucideIcons.chevronRight,
-                    size: 18, color: AppColors.inkFaint),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        const SizedBox(height: 6),
-        // Le plan par notion arrive avec le tagging : on le dit, on ne le
-        // promet pas.
-        Text(
-          'Votre plan travaille thème par thème. Il deviendra plus précis, '
-          'notion par notion, quand le référentiel civique sera complété.',
-          style: AppFonts.ui(size: 12, color: AppColors.inkFaint, height: 1.5),
-        ),
-      ],
-    );
-  }
-}

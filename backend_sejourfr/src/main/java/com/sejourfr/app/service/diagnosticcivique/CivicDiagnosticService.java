@@ -213,14 +213,7 @@ public class CivicDiagnosticService {
      * produirait un diagnostic faussement severe.
      */
     private static Difficulty mention(TargetProcedure procedure) {
-        if (procedure == null) {
-            return Difficulty.CSP;
-        }
-        return switch (procedure) {
-            case CSP -> Difficulty.CSP;
-            case CR -> Difficulty.CR;
-            case NAT -> Difficulty.NAT;
-        };
+        return TargetProcedure.mentionCivique(procedure);
     }
 
     /**

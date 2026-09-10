@@ -339,6 +339,47 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
   son diagnostic gratuit ne s'en offre pas un second en repassant par le tunnel
   invité — le front propose alors le diagnostic existant.
 
+## Plan civique (L10)
+
+Le pendant civique du Plan TCF. 🛑 **Deux plans, deux moteurs, aucun effet
+croisé** (`20_` §12) : le civique ne porte **aucune** métrique CECRL. Règles
+complètes : `docs/regles/plan.md`, section « Plan CIVIQUE ».
+
+🛑 **Rien n'est persisté** : le plan se **recalcule à chaque lecture** depuis
+l'historique des réponses (aucune table `civic_plan`, `civic_plan_item` ni
+`user_civic_notion_progress`, contrairement au schéma de `20_` §10). Corollaire :
+il n'existe **pas** de route `/recompute` — recalculer, c'est relire. Ce que ça
+rapporte : le tagging est **rétroactif**, et aucun job quotidien n'est nécessaire
+pour les échéances.
+
+- `GET /api/me/civic-plan` → `CivicPlanDto`.
+  🛑 **Jamais 204** : sans diagnostic terminé, la réponse porte
+  `disponible: false`. L'écran a besoin de savoir *pourquoi* il n'a rien à
+  montrer pour ouvrir la porte qui débloque.
+  🛑 **Le constat est intégralement gratuit** : les priorités sont servies
+  entières — titre, état de maîtrise, compteurs — à un compte gratuit comme à un
+  abonné. Seule la **série** porte `locked`.
+  🛑 `priorites` est un **plafond d'affichage**, jamais un budget de calcul : le
+  moteur classe toutes les cibles, et `autresPriorites` compte le reste.
+  🛑 `grain` dit à quel **grain** le plan travaille (`THEME` / `NOTION`) et sur
+  combien de thèmes il a basculé : le plan ne se présente jamais plus précis
+  qu'il ne l'est. Tant que les questions ne sont pas taguées, `THEME` est le mode
+  **prévu** par `20_` §3.3 (phase 1), pas une panne.
+  🛑 `resultat` est le score du **diagnostic**, pas une estimation courante :
+  mélanger des séries d'entraînement à un examen produirait un nombre qui
+  ressemble à un score sans en être un.
+- `POST /api/me/civic-plan/cibles/{cibleId}/serie?grain=THEME|NOTION` →
+  `AttemptResponse` (**201**). Ouvre la **série ciblée** : un `TRAINING`
+  ordinaire, joué dans le runner existant, qui ne consomme aucun slot d'examen
+  blanc.
+  🛑 **403 sans abonnement** — la même règle que le `locked` servi, cette fois
+  opposable. À router vers l'offre, jamais à afficher en erreur technique.
+  🛑 **Le tirage n'est pas aléatoire** : ce que le candidat a raté en dernier
+  vient d'abord, puis ce qu'il n'a jamais vu. Sans cet ordre, « travailler ce
+  point » redonnerait les questions déjà réussies.
+  `grain` est **rendu tel quel par le plan** : on ne devine pas la nature d'un
+  identifiant.
+
 ## Expression orale en temps réel (examinateur vocal, EO T1/T2)
 
 Schéma de connexion **(A)** : le backend émet un **token éphémère** dont le setup

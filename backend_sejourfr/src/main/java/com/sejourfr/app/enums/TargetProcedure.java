@@ -41,6 +41,39 @@ public enum TargetProcedure {
     }
 
     /**
+     * La <b>mention civique</b> sur laquelle le candidat est mesuré : le
+     * périmètre de programme que sa démarche lui demande de connaître.
+     *
+     * <p>C'est la seconde moitié de ce que porte cet enum, et elle vit ici pour
+     * la même raison que la première : elle a déjà commencé à se recopier
+     * (diagnostic civique, puis plan civique). Un {@code switch} de trois lignes
+     * dans un service est exactement la forme qu'avait la table des paliers
+     * avant de vivre en six copies.
+     *
+     * <p>🛑 <b>Démarche absente ⇒ {@code CSP}</b>, le périmètre le plus étroit —
+     * et c'est l'appelant qui applique ce repli, pas cette méthode : mesurer un
+     * candidat sur des questions de naturalisation qu'il n'a pas à connaître
+     * produirait un diagnostic faussement sévère.
+     */
+    public Difficulty mentionCivique() {
+        return switch (this) {
+            case CSP -> Difficulty.CSP;
+            case CR -> Difficulty.CR;
+            case NAT -> Difficulty.NAT;
+        };
+    }
+
+    /**
+     * La mention civique d'un candidat, repli compris.
+     *
+     * <p>🛑 <b>{@code null} ⇒ {@code CSP}</b> : le périmètre le plus étroit. Une
+     * démarche non déclarée n'autorise pas à supposer la plus exigeante.
+     */
+    public static Difficulty mentionCivique(TargetProcedure procedure) {
+        return procedure == null ? Difficulty.CSP : procedure.mentionCivique();
+    }
+
+    /**
      * Le palier réellement VISÉ par un candidat : le plus haut entre ce que sa
      * démarche exige et ce qu'il a déclaré viser.
      *

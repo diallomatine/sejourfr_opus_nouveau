@@ -2748,6 +2748,33 @@ des deux défauts. Le changer d'un seul côté rouvre l'écart.
 **« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
 avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
+## Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
+
+⚠️ **Révoque `_PlanCiviquePanel`** (supprimé de `plan_screen.dart`), qui
+recopiait les priorités *figées* du dernier diagnostic. Le plan est maintenant un
+**moteur** : `GET /api/me/civic-plan` relit tout l'historique des réponses,
+séries et examens blancs compris (`20_` §8.2). Règles complètes :
+`docs/regles/plan.md`, section « Plan CIVIQUE ».
+
+- **Écran** : `screens/plan/civic_plan_view.dart` (`CivicPlanView`), rendu par
+  l'onglet civique du Plan. Il ne prend **plus** de `sessionId` : il lit sa
+  propre source et se tait de lui-même tant qu'aucun diagnostic n'est terminé
+  (`disponible: false`).
+- **Modèles / réseau** : `core/models/civic_plan_models.dart` +
+  `core/api/civic_plan_repository.dart` (`civicPlanRepositoryProvider`).
+  🛑 **Pas de « recompute »** : aucune table de progression n'existe côté
+  serveur, le plan est un dérivé relu à chaque appel.
+- **Libellés purs** : `screens/plan/civic_plan_labels.dart`, **miroir mot pour
+  mot** de `web_sejoufr/lib/civic-plan.ts`.
+- 🛑 **Le plan DIT à quel grain il travaille** (`civicPlanGrainNote`) : thème par
+  thème tant que les questions ne sont pas taguées. Au lancement, **0 question
+  sur 1 016** est taguée — phase 1 de `20_` §3.3, pas une panne.
+- 🛑 **Le verrou porte sur la SÉRIE, jamais sur le constat** : les priorités sont
+  rendues entières, seul le geste porte `PremiumLockPill`. Le **403** de
+  `serie()` passe par `showPaywallOrError`, jamais par un message d'erreur.
+- **La série est un `TRAINING` ordinaire** : elle ouvre `/runner/{attemptId}`,
+  aucun écran de passation n'est créé.
+
 ## Le diagnostic civique se passe AVANT le compte (V053, 2026-09-10)
 
 🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou

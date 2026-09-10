@@ -1111,6 +1111,30 @@ sejourfr:
     # mesurerait plus une progression.
     reevaluation: 14d
 
+  # Le PLAN civique (L10, 20_ §5 et §6).
+  # 🛑 Aucun config-version ici, et c'est voulu : le plan est un DERIVE relu a
+  # chaque lecture, donc rien ne se reinterprete retroactivement. Changer un
+  # reglage change le plan au prochain appel, sans migration.
+  civic-plan:
+    # Part des questions actives d'un theme qui doivent etre TAGUEES pour que le
+    # plan y travaille par notion (20_ §3.3). La bascule est PAR THEME : un
+    # theme tague a 90 % n'attend pas celui qui est a 10 %.
+    # 🛑 Au lancement de L10, 0 question sur 1 016 est taguee -- les cinq themes
+    # sont donc au grain THEME, ce qui est le mode PREVU par la spec (phase 1).
+    seuil-tagging: 0.80
+    # 20_ §3.4 : sous ce compte, la notion est `insufficient_content` et n'est
+    # JAMAIS proposee en priorite. Compte PAR MENTION : une notion peut etre
+    # dotee pour un NAT et vide pour un CSP.
+    questions-min-par-notion: 4
+    # 🛑 Plafonds d'AFFICHAGE, jamais des budgets de calcul. Le moteur classe
+    # TOUTES les cibles et le DTO compte le reste (« + 6 autres notions »).
+    priorites-visibles: 3
+    revisions-visibles: 3
+    # 20_ §6 bloc 2 : « 10 questions ciblees · ~6 min ». La duree se DERIVE de
+    # ces deux valeurs -- raccourcir la serie raccourcit la promesse.
+    questions-par-serie: 10
+    secondes-par-question: 36
+
   tcf-diagnostic:
     config-version: 1
     # 5 A2 + 5 B1 + 5 B2 = 15 items par epreuve de comprehension. La repartition

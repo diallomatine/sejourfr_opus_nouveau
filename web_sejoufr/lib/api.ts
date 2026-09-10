@@ -5,6 +5,8 @@ import type {
   AnswerResultResponse,
   ApiError,
   AttemptResponse,
+  CivicPlanDto,
+  CivicPlanGrain,
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
@@ -1004,6 +1006,41 @@ export const civicDiagnosticApi = {
     adopt(sessionId: string): Promise<CivicDiagnosticDto> {
         return apiFetch<CivicDiagnosticDto>(
             `/api/civic-diagnostics/${sessionId}/adopt`,
+            {method: "POST", auth: true},
+        );
+    },
+};
+
+/**
+ * **Le plan civique** (L10, `20_` §6).
+ *
+ * 🛑 **Il n'y a pas de « recompute ».** Le plan est un dérivé relu à chaque
+ * appel côté serveur : recalculer, c'est relire. Aucune table de progression
+ * n'existe, et c'est ce qui rend le tagging rétroactif.
+ */
+export const civicPlanApi = {
+    /**
+     * Le plan.
+     *
+     * 🛑 **Jamais `null`** : sans diagnostic terminé, la réponse porte
+     * `disponible: false`. L'écran a besoin de savoir *pourquoi* il n'a rien à
+     * montrer pour ouvrir la porte qui débloque.
+     */
+    get(): Promise<CivicPlanDto> {
+        return apiFetch<CivicPlanDto>("/api/me/civic-plan", {auth: true});
+    },
+
+    /**
+     * Ouvre la **série ciblée** d'une cible du plan.
+     *
+     * C'est un `TRAINING` ordinaire : le résultat s'ouvre dans
+     * `/sessions/{attemptId}`. 🛑 **403 sans abonnement** — même règle que le
+     * `locked` servi, cette fois opposable : à router vers l'offre par
+     * `handleStartFailure`, jamais à afficher en erreur technique.
+     */
+    serie(cibleId: string, grain: CivicPlanGrain): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>(
+            `/api/me/civic-plan/cibles/${cibleId}/serie?grain=${grain}`,
             {method: "POST", auth: true},
         );
     },

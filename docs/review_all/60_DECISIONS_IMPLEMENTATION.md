@@ -1167,3 +1167,144 @@ choisir un **examen**, et l'événement d'audience porte `rapid` — miroir du
 `currentDiagnosticType` posé une fois côté web. Le sous-titre d'en-tête de la
 présentation disparaît : un budget au-dessus du titre ne vaudrait que pour une
 des deux cartes, et chaque carte annonce le sien.
+
+
+---
+
+# L10 — Le plan civique par notion, et sa répétition espacée (2026-09-10)
+
+**Demandé** : « continue avec L10, le plan civique par notion ».
+
+**Le fait qui commande tout le lot** : **0 question civique sur 1 016 est
+taguée**. Un plan « par notion » livré tel quel serait donc **vide pour tout le
+monde**, indéfiniment — le chantier de tagging (≈ 1 016 validations humaines,
+`50_` §9) n'est pas fait et ne se fait pas en écrivant du code.
+
+`20_` §3.3 prévoit exactement ce cas : phase 1 au grain **thème**, phase 2 au
+grain **notion**, bascule automatique **thème par thème** à 80 % de tagging. Le
+lot construit donc **les deux grains** et le commutateur qui les sépare.
+
+## D-L10-1 · Aucune table de progression — l'état Leitner est un DÉRIVÉ
+
+`20_` §10 prévoyait trois tables (`civic_plan`, `civic_plan_item`,
+`user_civic_notion_progress`) et un **job quotidien** pour les échéances
+franchies (§5.4).
+
+**Décidé : aucune des trois n'existe.** La boîte Leitner se **replie** sur
+l'historique des réponses à chaque lecture (`CivicLeitnerResolver` : rejouer les
+réponses dans l'ordre, juste ⇒ +1, faux ⇒ boîte 1).
+
+**Pourquoi c'est mieux, et pas seulement moins de code** :
+
+1. 🛑 **le tagging devient rétroactif.** C'est l'argument décisif dans l'état
+   actuel du catalogue : le jour où une question reçoit sa notion, **toutes** les
+   réponses déjà données comptent pour elle. Une table de progression serait née
+   vide — 0 tagué — et le serait restée pour tout l'historique déjà produit. Le
+   plan par notion n'aurait rien mesuré avant des mois ;
+2. **recalibrer ne demande aucune migration** : changer un intervalle relit tout
+   au prochain appel. C'est la doctrine explicite du dépôt (« un dérivé se relit,
+   il ne se persiste pas ») ;
+3. **le job quotidien disparaît** : une échéance calculée à la lecture se
+   franchit toute seule. Pas de batch à surveiller, pas de retard possible.
+
+**Ce que ça coûte** : chaque lecture du plan relit les réponses civiques du
+candidat (une projection de trois colonnes, ordonnée). Pour un candidat lourd,
+quelques milliers de lignes. Si ça devient un problème mesuré, le remède est un
+cache, pas une table — persister rendrait le tagging à nouveau non rétroactif.
+
+**Coût du retour arrière** : réécrire le resolver en lecture de table, plus une
+migration de reconstruction. Rien n'est perdu : l'historique des réponses reste
+la source.
+
+## D-L10-2 · Un THÈME n'est jamais « maîtrisé »
+
+Le mode dégradé fait tourner le **même** moteur au grain thème. Sans garde-fou,
+quatre bonnes réponses de suite auraient annoncé un thème de deux cents questions
+« maîtrisé ».
+
+**Décidé** : au grain thème, `MAITRISEE` est **rabattu** sur `EN_PROGRESSION`.
+
+**Pourquoi** : c'est exactement le défaut que le dépôt nomme « NON FRAGILE ≠
+PLUS RIEN À APPRENDRE ». Et le garde-fou respecte la règle du dépôt — il ne peut
+qu'**abaisser**, jamais relever.
+
+**Conséquence assumée** : le bloc « Déjà solide » (`20_` §6 bloc 6) reste
+**vide** tant que le tagging n'a pas commencé. C'est honnête : on n'a rien à y
+mettre.
+
+## D-L10-3 · Le bloc « objectif » sert le diagnostic, pas une estimation courante
+
+`20_` §6 bloc 1 demande un « Résultat estimé aujourd'hui 30 / 40 », dérivé « de
+vos dernières réponses ».
+
+**Décidé : on ne le fabrique pas.** Le plan sert le score du **diagnostic**, avec
+son seuil et son format.
+
+**Pourquoi** : une estimation tirée de séries d'entraînement mélangerait des
+questions **choisies par le plan** (donc les plus difficiles pour ce candidat) et
+corrigées **immédiatement**, avec un examen. Le nombre ressemblerait à un score
+sans en être un — et c'est précisément le genre de chiffre qu'un candidat prend
+pour un pronostic. Le diagnostic, lui, pose le format entier : son score **est**
+le résultat, directement comparable au seuil de 32.
+
+## D-L10-4 · Aucun `reason_text` calculé serveur
+
+`20_` §10 prévoyait `civic_plan_item.reason_text`.
+
+**Décidé** : le serveur n'expose que des **faits** (état, boîte, échéance, compte
+d'erreurs). Les phrases vivent dans `lib/civic-plan.ts` ⇄ `civic_plan_labels.dart`,
+miroirs mot pour mot.
+
+**Pourquoi** : c'est la doctrine du dépôt, déjà appliquée au diagnostic civique.
+Un texte composé serveur ne se relit pas dans deux mises en page différentes, et
+se dupliquerait de toute façon dès qu'un écran voudrait le dire autrement.
+
+## D-L10-5 · La série ciblée n'est pas un tirage au hasard
+
+**Décidé** : l'ordre du tirage porte l'intention du plan — ce que le candidat a
+**raté en dernier**, puis ce qu'il n'a **jamais vu**, puis le reste, `random()`
+départageant à l'intérieur d'un rang.
+
+**Pourquoi** : sans cet ordre, « travailler Le Parlement » redonnerait les
+questions déjà réussies, et la série ciblée ne serait qu'un lot avec un autre
+nom. C'est ce qui la distingue de la bibliothèque ouverte.
+
+## D-L10-6 · `TargetProcedure` porte la mention civique
+
+La table démarche → mention (`CSP`/`CR`/`NAT`) commençait sa deuxième copie
+(diagnostic civique, puis plan civique).
+
+**Décidé** : `TargetProcedure.mentionCivique()` — même endroit que
+`getRequiredTcfLevel()`, et le diagnostic l'appelle désormais.
+
+**Pourquoi** : c'est la forme exacte qu'avait la table des paliers **avant** de
+vivre en six copies et de tirer un candidat NAT vers le B1. À la deuxième
+occurrence, on extrait.
+
+## D-L10-7 · La route de série n'entre pas dans la matrice de droits
+
+`POST …/serie` rend un **403 métier** à un compte gratuit. La matrice
+`AuthenticatedRoutesSecurityIT` affirme « ni 401 ni 403 », et ne sait pas
+distinguer un refus de sécurité d'un refus d'accès.
+
+**Décidé** : seule la lecture (`GET /api/me/civic-plan`) y figure ; le 403 est
+verrouillé par `CivicPlanServiceIT`, où il est le **sujet** du test.
+
+## Ce que L10 ne fait PAS, et qui reste ouvert
+
+- 🛑 **Le tagging des 1 016 questions.** Tant qu'il n'avance pas, les cinq thèmes
+  restent au grain thème. C'est un chantier **éditorial**, pas logiciel, et il
+  demande une décision de dépense (`PROMPT_TAG_NOTION_v1`, `50_` §6.1.2) que je
+  n'ai pas prise.
+- **Les domaines de situation** (`20_` §2.6, `civic_situation_domain`) : les
+  mises en situation ne sont pas encore une cible à part. Le diagnostic les
+  compte déjà séparément ; leur donner leurs propres boîtes Leitner demande un
+  référentiel qui n'existe pas en base.
+- **`civic_notions.short_description`** : `20_` §6 montre une phrase sous le
+  titre d'une notion (« Comprendre le rôle de l'Assemblée nationale et du
+  Sénat »). Elle n'existe ni en colonne ni en contenu, et je ne l'ai pas
+  inventée — l'écran affiche le libellé de la notion et son thème.
+- **Le bloc « Votre semaine »** (`20_` §6 bloc 3) : il suppose une notion de
+  séance civique (« 2 séries sur 4 terminées ») que rien ne porte. Le plan sert
+  « À faire maintenant » et les priorités ; la séance viendra avec une décision
+  sur ce qu'est une semaine civique.
