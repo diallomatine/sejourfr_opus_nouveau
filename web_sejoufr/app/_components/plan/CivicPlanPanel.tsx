@@ -16,7 +16,7 @@
 import {useEffect, useState} from "react";
 import Link from "next/link";
 import {ArrowRight} from "lucide-react";
-import {civicDiagnosticApi, userContentApi} from "@/lib/api";
+import {civicDiagnosticApi} from "@/lib/api";
 import {CIVIC_PRIORITES_TITLE, themeTone} from "@/lib/civic-diagnostic";
 import {themeSlug} from "@/lib/themes";
 import {CIVIC_THEME_STATE_LABEL} from "@/lib/types";
@@ -32,27 +32,31 @@ const TOUT_SOLIDE_TEXT =
     "Rien ne ressort comme prioritaire. Enchaînez sur un examen blanc pour vous mettre "
     + "en conditions réelles.";
 
-export function CivicPlanPanel() {
+/**
+ * @param sessionId le diagnostic civique clos. 🛑 Il est **passé** par l'onglet
+ *                  plutôt que relu ici : l'état de préparation est déjà chargé
+ *                  au-dessus, et le redemander ferait deux appels pour la même
+ *                  vérité — celle qu'on regarde le moins finit par mentir.
+ */
+export function CivicPlanPanel({sessionId}: {sessionId: string}) {
     const [resultat, setResultat] = useState<CivicDiagnosticResultDto | null>(null);
 
     useEffect(() => {
         let vivant = true;
-        void (async () => {
-            try {
-                const prep = await userContentApi.preparation();
-                const sessionId = prep.civique.sessionId;
-                if (!sessionId || !vivant) return;
-                const r = await civicDiagnosticApi.readResult(sessionId);
+        civicDiagnosticApi
+            .readResult(sessionId)
+            .then((r) => {
                 if (vivant) setResultat(r);
-            } catch {
-                // Best-effort : l'onglet reste vide plutôt que d'afficher une
-                // erreur pour un plan qui existe déjà côté diagnostic.
-            }
-        })();
+            })
+            .catch(() => {
+                // Best-effort : l'onglet reste sobre plutôt que d'afficher une
+                // erreur pour un plan dont le constat existe déjà côté
+                // diagnostic.
+            });
         return () => {
             vivant = false;
         };
-    }, []);
+    }, [sessionId]);
 
     if (!resultat) return null;
 

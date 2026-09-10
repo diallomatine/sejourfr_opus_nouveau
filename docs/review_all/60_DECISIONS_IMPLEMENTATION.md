@@ -748,20 +748,24 @@ Livré en parité avec le web :
 - **toggle TCF | Examen civique** sur le Plan, avec la raison exacte pour
   laquelle chaque module n'est pas encore prêt.
 
-## D-M-5 · L'onglet civique du Plan mobile ne simule pas un plan
+## D-M-5 · ~~L'onglet civique du Plan mobile ne simule pas un plan~~ — **RÉVOQUÉ**
 
-Sur le web, l'onglet civique affiche les thèmes prioritaires servis par le
-diagnostic. Sur mobile, il **renvoie au résultat du diagnostic** plutôt que de
-les répéter.
+**Ce que j'avais décidé** : sur mobile, l'onglet civique renvoyait au résultat du
+diagnostic au lieu d'afficher les thèmes prioritaires, au motif qu'« une liste
+sans action n'est pas un plan ».
 
-**Pourquoi cette différence assumée** : la répétition espacée (L10) n'existe pas.
-Répéter les priorités dans un écran intitulé « Mon plan » laisserait croire à un
-plan qui n'existe pas encore. Le web s'en approche parce que sa liste ouvre
-directement l'entraînement du thème ; le mobile n'a pas cette porte au même
-endroit, et une liste sans action n'est pas un plan.
+**Révoqué le 2026-09-10 par le propriétaire** : « quand il fait le diagnostic
+civique, il peut **déjà voir son plan civique** ».
 
-**À réunifier** quand L10 arrive : les deux fronts serviront alors le vrai plan
-civique.
+**Mon erreur** : j'ai traité l'absence de Leitner comme si elle rendait le plan
+par thème illégitime. Elle ne le rend pas illégitime — `20_` §3.4 le **conçoit**.
+Et la « liste sans action » n'en était pas une : chaque thème ouvre son
+entraînement (`/civique/theme/:id`), exactement comme sur le web. J'ai construit
+un obstacle qui n'existait pas.
+
+**Corrigé** : les deux fronts servent le même plan civique par thème, avec la
+même phrase qui annonce qu'il deviendra « notion par notion » avec le
+référentiel.
 
 ## Reste à faire
 
@@ -769,3 +773,42 @@ civique.
   toujours pas branchée ;
 - **L10** : Leitner + plan par notion, qui demandent le tagging ;
 - **T28 « Progrès »**.
+
+
+---
+
+# Le toggle du Plan (2026-09-10)
+
+**Correction de deux affirmations fausses de ma part.**
+
+## Le toggle existait déjà ailleurs
+
+J'ai écrit trois fois que le toggle « TCF | Examen civique » restait à faire sur
+Réviser, Examens et Progrès. **C'est faux** : `ModuleSwitch` existe côté mobile
+(`selectedModuleProvider`), Réviser le porte, et Progrès affiche les deux
+modules **côte à côte** — une variante, pas une absence. Rien à faire de ce côté.
+
+## Le toggle du Plan ne doit jamais attendre
+
+**Décidé** : sur `/plan`, les deux onglets se rendent **au premier rendu**,
+avant même que l'état de préparation soit connu.
+
+**Pourquoi c'est une vraie correction** : mon implémentation ne rendait rien tant
+que `/api/me/preparation` n'avait pas répondu. Sur un compte neuf — les deux
+diagnostics à faire — la page restait donc sans **aucune** porte vers le
+civique, exactement le cas que le propriétaire vise : « même si aucun diagnostic
+n'est fait des 2 côtés ». Un toggle est une **navigation**, pas un résultat : il
+n'a pas à attendre une mesure.
+
+Deux gardes qui vont avec :
+
+- **un clic l'emporte sur le défaut** : l'onglet ne se déplace jamais sous les
+  doigts du candidat quand la réponse serveur arrive ;
+- **l'échec de l'appel ne masque rien** : les deux onglets restent là, et le plan
+  TCF reste atteignable — il existait avant cet onglet.
+
+## Un appel réseau en moins
+
+`CivicPlanPanel` relisait l'état de préparation pour retrouver l'identifiant de
+session. Il le reçoit désormais de l'onglet, qui l'a déjà : deux appels pour la
+même vérité, c'est celle qu'on regarde le moins qui finit par mentir.

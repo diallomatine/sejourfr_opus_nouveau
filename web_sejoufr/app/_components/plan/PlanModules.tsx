@@ -37,7 +37,19 @@ type ModuleKey = "TCF" | "CIVIQUE";
 export function PlanModules() {
     const search = useSearchParams();
     const [prep, setPrep] = useState<PreparationDto | null>(null);
-    const [module, setModule] = useState<ModuleKey | null>(null);
+    /**
+     * 🛑 **Le toggle ne se fait jamais attendre.** L'onglet ouvert par défaut
+     * vient de l'URL quand elle le dit, sinon du TCF — et il sera corrigé dès
+     * que l'état arrive. Le rendre `null` le temps du chargement laissait la
+     * page sans aucune porte vers le civique : c'est une navigation, pas un
+     * résultat.
+     */
+    const [module, setModule] = useState<ModuleKey>(() => {
+        const demande = search.get("module");
+        return demande === "CIVIQUE" ? "CIVIQUE" : "TCF";
+    });
+    /** L'utilisateur a cliqué : son choix l'emporte sur le module par défaut. */
+    const [choisi, setChoisi] = useState(false);
 
     useEffect(() => {
         let vivant = true;
@@ -46,26 +58,20 @@ export function PlanModules() {
             .then((p) => {
                 if (!vivant) return;
                 setPrep(p);
-                // L'URL l'emporte (le résultat du diagnostic civique y renvoie),
-                // sinon on ouvre sur le module qui a quelque chose à dire.
+                // L'URL et un clic l'emportent tous deux sur le défaut : on ne
+                // déplace jamais un onglet sous les doigts du candidat.
                 const demande = search.get("module");
-                setModule(
-                    demande === "CIVIQUE" || demande === "TCF"
-                        ? demande
-                        : moduleParDefaut(p),
-                );
+                if (choisi || demande === "CIVIQUE" || demande === "TCF") return;
+                setModule(moduleParDefaut(p));
             })
             .catch(() => {
-                // 🛑 L'échec ne masque pas le plan TCF : il existait avant cet
-                // onglet et doit rester atteignable.
-                if (vivant) setModule("TCF");
+                // 🛑 L'échec ne masque rien : les deux onglets restent là, et le
+                // plan TCF reste atteignable — il existait avant cet onglet.
             });
         return () => {
             vivant = false;
         };
-    }, [search]);
-
-    if (module === null) return null;
+    }, [search, choisi]);
 
     const indisponible =
         prep && module === "TCF"
@@ -82,7 +88,10 @@ export function PlanModules() {
                     role="tab"
                     aria-selected={module === "TCF"}
                     className={module === "TCF" ? "plm-tab-on" : "plm-tab"}
-                    onClick={() => setModule("TCF")}
+                    onClick={() => {
+                        setChoisi(true);
+                        setModule("TCF");
+                    }}
                 >
                     {TCF_LABEL}
                 </button>
@@ -91,7 +100,10 @@ export function PlanModules() {
                     role="tab"
                     aria-selected={module === "CIVIQUE"}
                     className={module === "CIVIQUE" ? "plm-tab-on" : "plm-tab"}
-                    onClick={() => setModule("CIVIQUE")}
+                    onClick={() => {
+                        setChoisi(true);
+                        setModule("CIVIQUE");
+                    }}
                 >
                     {CIVIQUE_LABEL}
                 </button>
@@ -107,9 +119,9 @@ export function PlanModules() {
                 </section>
             ) : module === "TCF" ? (
                 <LearningPlanView />
-            ) : (
-                <CivicPlanPanel />
-            )}
+            ) : prep?.civique.sessionId ? (
+                <CivicPlanPanel sessionId={prep.civique.sessionId} />
+            ) : null}
 
             <Styles />
         </>
