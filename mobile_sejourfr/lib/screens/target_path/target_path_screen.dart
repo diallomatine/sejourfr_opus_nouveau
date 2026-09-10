@@ -26,6 +26,17 @@ class TargetPathScreen extends ConsumerStatefulWidget {
 
 class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
   TargetProcedure? _selected;
+
+  /// La date d'examen (`10_` §3.2, question 3) — **facultative**, et c'est le
+  /// point : « Pas encore » est une réponse, pas un formulaire incomplet.
+  ///
+  /// Elle vit ici parce que c'est le seul écran où le candidat déclare sa
+  /// démarche : les deux réponses vont ensemble. Sans elle, le compte à
+  /// rebours et le pass recommandé du paywall (L5) ne s'affichent jamais.
+  ///
+  /// 🛑 **Route serveur SÉPARÉE de la démarche** : loger la date dans la mise
+  /// à jour de la procédure l'effacerait à chaque changement de celle-ci.
+  DateTime? _examDate;
   bool _saving = false;
   String? _error;
 
@@ -39,6 +50,7 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
     final auth = ref.read(authControllerProvider);
     if (auth is AuthAuthenticated) {
       _selected = auth.user.targetProcedure;
+      _examDate = auth.user.examDate;
     }
   }
 
@@ -51,7 +63,11 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
       _saving = true;
     });
     try {
-      await ref.read(userContentRepositoryProvider).updateTargetPath(choice);
+      final repository = ref.read(userContentRepositoryProvider);
+      await repository.updateTargetPath(choice);
+      // Best-effort et à part : un échec sur la date ne doit pas faire échouer
+      // le choix de démarche, qui est le vrai objet de cet écran.
+      await repository.updateExamDate(_examDate).catchError((_) {});
       await ref.read(authControllerProvider.notifier).refreshUser();
       if (!mounted) return;
       // Navigation explicite via `go` : plus fiable que `pop` après un
@@ -113,6 +129,14 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
             ],
             const SizedBox(height: 4),
             const _NoCompensationNote(),
+            const SizedBox(height: 20),
+            const Eyebrow('VOTRE DATE D\'EXAMEN (FACULTATIF)'),
+            const SizedBox(height: 8),
+            _ExamDateField(
+              value: _examDate,
+              onPick: (picked) => setState(() => _examDate = picked),
+              onClear: () => setState(() => _examDate = null),
+            ),
             if (_error != null) ...[
               const SizedBox(height: 6),
               Container(
@@ -240,6 +264,76 @@ class _PathCard extends StatelessWidget {
                 border: Border.all(color: AppColors.line2, width: 2),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La date d'examen, ou « Pas encore de date ».
+///
+/// 🛑 **Un jour, jamais un instant.** Une convocation porte une date ; la
+/// stocker avec une heure la ferait basculer d'un fuseau à l'autre.
+class _ExamDateField extends StatelessWidget {
+  const _ExamDateField({
+    required this.value,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final DateTime? value;
+  final ValueChanged<DateTime> onPick;
+  final VoidCallback onClear;
+
+  static const _mois = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final d = value;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            d == null
+                ? 'Pas encore de date'
+                : '${d.day} ${_mois[d.month - 1]} ${d.year}',
+            style: AppFonts.ui(
+              size: 15,
+              color: d == null ? AppColors.muted : AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Si vous la connaissez, votre plan s\'organisera autour d\'elle.',
+            style: AppFonts.ui(size: 12.5, color: AppColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () async {
+                  final now = DateTime.now();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: d ?? now.add(const Duration(days: 60)),
+                    firstDate: now,
+                    lastDate: now.add(const Duration(days: 365 * 3)),
+                  );
+                  if (picked != null) onPick(picked);
+                },
+                child: Text(d == null ? 'Choisir une date' : 'Modifier'),
+              ),
+              if (d != null)
+                TextButton(
+                  onPressed: onClear,
+                  child: const Text('Effacer'),
+                ),
+            ],
+          ),
         ],
       ),
     );

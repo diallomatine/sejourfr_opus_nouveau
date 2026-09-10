@@ -8,6 +8,7 @@ import {PasswordInput} from "@/app/_components/auth/PasswordInput";
 import {track} from "@/lib/analytics";
 import {ApiException} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {userContentApi} from "@/lib/api";
 import {TCF_LEVEL_BY_PROCEDURE, type TargetProcedure} from "@/lib/types";
 import styles from "./diagnostic.module.css";
 
@@ -68,6 +69,16 @@ export function DiagnosticAccountGate({
   const signupStarted = () =>
     track("SIGNUP_STARTED", {registrationContext: "DURING_DIAGNOSTIC"}, {once: true});
   const [mention, setMention] = useState<TargetProcedure>("CSP");
+  /**
+   * La date d'examen (`10_` §3.2, question 3) — **facultative**, et c'est le
+   * point : « Pas encore » est une réponse, pas un formulaire incomplet.
+   *
+   * Elle est posée ICI plutôt que sur un quatrième écran parce que c'est le
+   * seul moment du tunnel où le candidat remplit déjà un formulaire. C'est
+   * elle qui rend possibles le compte à rebours et le pass recommandé du
+   * paywall (L5) : sans elle, ils ne s'affichent jamais.
+   */
+  const [examDate, setExamDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +95,14 @@ export function DiagnosticAccountGate({
         password: String(form.get("password") ?? ""),
         targetProcedure: mention,
       });
+      // 🛑 **Best-effort, et APRÈS l'inscription.** La date ne voyage pas dans
+      // la requête d'inscription : `50_` §3.1 interdit d'y mélanger du métier,
+      // et un endpoint d'inscription à double responsabilité est plus dur à
+      // sécuriser. Un échec ici ne doit surtout pas faire échouer un compte
+      // déjà créé — le candidat pourra toujours la saisir dans son profil.
+      if (examDate) {
+        await userContentApi.updateExamDate(examDate).catch(() => undefined);
+      }
     } catch (cause) {
       setError(authError(cause, "Impossible de créer le compte. Réessayez dans un instant."));
       setSubmitting(false);
@@ -260,6 +279,24 @@ export function DiagnosticAccountGate({
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="gate-exam-date">
+                Votre date d&apos;examen <span className={styles.gateOptional}>(facultatif)</span>
+              </label>
+              <input
+                id="gate-exam-date"
+                name="examDate"
+                className="field-input"
+                type="date"
+                value={examDate}
+                onChange={(event) => setExamDate(event.target.value)}
+              />
+              <p className={styles.gateHint}>
+                Si vous la connaissez, votre plan s&apos;organisera autour d&apos;elle.
+                Sinon, laissez vide.
+              </p>
             </div>
 
             <label className={styles.gateCheck}>

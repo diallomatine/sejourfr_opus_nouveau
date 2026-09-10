@@ -100,6 +100,30 @@ class UserContentRepository {
       data: {'targetProcedure': procedure.wire},
     );
   }
+
+  /// La date d'examen déclarée (`10_` §3.2, question 3). Format `YYYY-MM-DD`.
+  ///
+  /// 🛑 **Une date, pas un instant** : une convocation porte un JOUR. Envoyer
+  /// un horodatage ferait basculer la date d'un fuseau à l'autre.
+  ///
+  /// 🛑 **Route séparée de `target-path`** : loger la date dans la mise à jour
+  /// de la démarche l'effacerait à chaque changement de procédure. `null`
+  /// efface volontairement — « pas encore de date » est une réponse.
+  ///
+  /// C'est elle qui alimente le compte à rebours et le pass recommandé du
+  /// paywall (L5) : sans elle, `passRecommande` ne peut rien proposer.
+  Future<void> updateExamDate(DateTime? examDate) async {
+    await _client.dio.put(
+      '/api/me/exam-date',
+      data: {
+        'examDate': examDate == null
+            ? null
+            : '${examDate.year.toString().padLeft(4, '0')}-'
+                '${examDate.month.toString().padLeft(2, '0')}-'
+                '${examDate.day.toString().padLeft(2, '0')}',
+      },
+    );
+  }
 }
 
 class UserStats {

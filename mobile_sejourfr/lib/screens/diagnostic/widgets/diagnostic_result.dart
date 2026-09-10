@@ -282,6 +282,16 @@ class _DiagnosticResultViewState extends ConsumerState<DiagnosticResultView> {
             open: _open,
             onSelect: _focus,
           ),
+          // ------------- L3 : la transition, puis le diagnostic complet.
+          // Rendus tant que les 4 épreuves ne sont pas mesurées — c'est
+          // exactement l'état d'un diagnostic rapide. Profil complet, il n'y a
+          // plus rien à relativiser ni à proposer.
+          if (!complete) ...[
+            const SizedBox(height: 20),
+            const _TransitionCard(),
+            const SizedBox(height: 14),
+            const _DiagnosticCompletCard(),
+          ],
           if (epreuves.isNotEmpty) ...[
             const SizedBox(height: 24),
             const _SectionHead(
@@ -1729,6 +1739,113 @@ class _SectionHead extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloc 3 de `10_` §3.6 — la mise en perspective.
+///
+/// 🛑 **Fond distinct, et c'est voulu** : ce bloc contredit partiellement ce
+/// que le candidat vient de lire. Il ne doit pas se confondre avec un
+/// paragraphe de plus.
+class _TransitionCard extends StatelessWidget {
+  const _TransitionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      color: AppColors.blueLight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            kDiagnosticTransitionTitle,
+            style: AppFonts.display(size: 18, color: AppColors.blueDark),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            kDiagnosticTransitionText,
+            style: AppFonts.ui(size: 14, color: AppColors.ink, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            kDiagnosticTransitionEmphasis,
+            style: AppFonts.ui(
+              size: 14,
+              weight: FontWeight.w600,
+              color: AppColors.blueDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloc 4 de `10_` §3.6 — le diagnostic TCF complet, qui existe depuis L4.
+class _DiagnosticCompletCard extends ConsumerWidget {
+  const _DiagnosticCompletCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            kDiagnosticCompletTitle,
+            style: AppFonts.display(size: 19, color: AppColors.ink),
+          ),
+          const SizedBox(height: 12),
+          for (final e in kDiagnosticCompletEpreuves)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Text(e.icon, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  Text(
+                    e.label,
+                    style: AppFonts.ui(size: 14, color: AppColors.ink),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Text(
+            kDiagnosticCompletPromise,
+            style: AppFonts.ui(size: 14, color: AppColors.ink),
+          ),
+          const SizedBox(height: 6),
+          for (final benefit in kDiagnosticCompletBenefits)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(LucideIcons.check, size: 15, color: AppColors.blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      benefit,
+                      style: AppFonts.ui(size: 13.5, color: AppColors.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 14),
+          AppButton(
+            label: kDiagnosticCompletCta,
+            onPressed: () => context.push(AppRoutes.tcfDiagnostic),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            kDiagnosticCompletNote,
+            style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+          ),
         ],
       ),
     );

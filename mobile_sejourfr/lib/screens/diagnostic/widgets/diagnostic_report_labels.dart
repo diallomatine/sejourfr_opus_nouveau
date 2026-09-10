@@ -386,3 +386,44 @@ const String kDiagnosticUnlockCta = 'Débloquer mon diagnostic complet';
 const String kDiagnosticEstimationNote =
     'Votre niveau est une estimation d\'entraînement Séjour, pas un score '
     'officiel du TCF.';
+
+// ----------------------------------------------------------------------------
+// L3 — la TRANSITION et l'appel au diagnostic complet (`10_` §3.6, blocs 3 et 4)
+//
+// 🛑 **Le bloc de transition n'est pas décoratif, c'est une obligation
+// d'honnêteté.** Le diagnostic rapide n'observe qu'une production ÉCRITE :
+// annoncer un palier sans dire de quoi il est tiré laisserait le candidat
+// croire qu'il connaît son niveau TCF. Il ne le connaît pas — trois épreuves
+// sur quatre n'ont pas été mesurées, et `null` reste inconnu, jamais un
+// verdict.
+//
+// Miroirs mot pour mot de `web_sejoufr/app/_components/diagnostic/DiagnosticReport.tsx`.
+// ----------------------------------------------------------------------------
+
+const String kDiagnosticTransitionTitle = 'Ce n\'est qu\'une première estimation';
+const String kDiagnosticTransitionText =
+    'Cet exercice analyse votre manière de vous exprimer à l\'écrit. '
+    'Au TCF, votre niveau dépend aussi de votre expression orale, de votre '
+    'compréhension orale et de votre compréhension écrite.';
+const String kDiagnosticTransitionEmphasis =
+    'Votre niveau peut donc être différent selon les épreuves.';
+
+const String kDiagnosticCompletTitle =
+    'Découvrez où vous en êtes vraiment au TCF';
+const List<({String icon, String label})> kDiagnosticCompletEpreuves = [
+  (icon: '🎧', label: 'Compréhension orale'),
+  (icon: '📖', label: 'Compréhension écrite'),
+  (icon: '✍️', label: 'Expression écrite'),
+  (icon: '🎤', label: 'Expression orale'),
+];
+const String kDiagnosticCompletPromise = 'À la fin, vous connaîtrez :';
+const List<String> kDiagnosticCompletBenefits = [
+  'votre niveau par épreuve',
+  'les tâches qui vous limitent',
+  'vos priorités pour atteindre votre objectif',
+];
+const String kDiagnosticCompletCta = 'Faire mon diagnostic complet';
+
+/// 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
+const String kDiagnosticCompletNote =
+    '4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois';

@@ -21,6 +21,7 @@ import {
   type PlanDomainEpreuve,
 } from "@/lib/plan-domain";
 import {LEARNING_PLAN_SKILL_STATUS_LABEL} from "@/lib/diagnostic";
+import {TCF_DIAGNOSTIC_HUB_HREF} from "@/lib/tcf-diagnostic";
 import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {
   niveauCecrlShort,
@@ -192,6 +193,43 @@ function nextText(objective: string | null): string {
     ? `Votre plan traite ces priorités une par une, dans l'ordre qui vous fait progresser le plus vite vers le ${objective}.`
     : "Votre plan traite ces priorités une par une, dans l'ordre qui vous fait progresser le plus vite.";
 }
+
+/* --------------------------------------------------------------------------
+   L3 — la TRANSITION et l'appel au diagnostic complet (`10_` §3.6, blocs 3 et 4)
+
+   🛑 **Le bloc de transition n'est pas décoratif, c'est une obligation
+   d'honnêteté.** Le diagnostic rapide n'observe qu'une production ÉCRITE :
+   annoncer un palier sans dire de quoi il est tiré laisserait le candidat
+   croire qu'il connaît son niveau TCF. Il ne le connaît pas — trois épreuves
+   sur quatre n'ont pas été mesurées, et `null` reste inconnu, jamais un
+   verdict.
+   -------------------------------------------------------------------------- */
+
+const TRANSITION_TITLE = "Ce n'est qu'une première estimation";
+const TRANSITION_TEXT =
+  "Cet exercice analyse votre manière de vous exprimer à l'écrit. "
+  + "Au TCF, votre niveau dépend aussi de votre expression orale, de votre "
+  + "compréhension orale et de votre compréhension écrite.";
+const TRANSITION_EMPHASIS =
+  "Votre niveau peut donc être différent selon les épreuves.";
+
+const COMPLET_TITLE = "Découvrez où vous en êtes vraiment au TCF";
+const COMPLET_EPREUVES: {icon: string; label: string}[] = [
+  {icon: "🎧", label: "Compréhension orale"},
+  {icon: "📖", label: "Compréhension écrite"},
+  {icon: "✍️", label: "Expression écrite"},
+  {icon: "🎤", label: "Expression orale"},
+];
+const COMPLET_PROMISE = "À la fin, vous connaîtrez :";
+const COMPLET_BENEFITS = [
+  "votre niveau par épreuve",
+  "les tâches qui vous limitent",
+  "vos priorités pour atteindre votre objectif",
+];
+const COMPLET_CTA = "Faire mon diagnostic complet";
+/** 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes. */
+const COMPLET_NOTE =
+  "4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois";
 
 const OFFER_TITLE = "Votre analyse complète est prête";
 
@@ -656,6 +694,43 @@ export function DiagnosticReport({
           </div>
         )}
       </section>
+
+      {/* ------------- L3 : la transition, puis le diagnostic complet -------
+          Rendus tant que les 4 épreuves ne sont pas mesurées — c'est
+          exactement l'état d'un diagnostic rapide. Une fois le profil complet,
+          il n'y a plus rien à relativiser ni à proposer. */}
+      {!complete && (
+        <section className={styles.transition} aria-labelledby="transition-title">
+          <h2 id="transition-title">{TRANSITION_TITLE}</h2>
+          <p>{TRANSITION_TEXT}</p>
+          <p className={styles.transitionEmphasis}>{TRANSITION_EMPHASIS}</p>
+        </section>
+      )}
+
+      {!complete && (
+        <section className={styles.completCard} aria-labelledby="complet-title">
+          <h2 id="complet-title">{COMPLET_TITLE}</h2>
+          <ul className={styles.completEpreuves}>
+            {COMPLET_EPREUVES.map((epreuve) => (
+              <li key={epreuve.label}>
+                <span aria-hidden>{epreuve.icon}</span> {epreuve.label}
+              </li>
+            ))}
+          </ul>
+          <p className={styles.completPromise}>{COMPLET_PROMISE}</p>
+          <ul className={styles.completBenefits}>
+            {COMPLET_BENEFITS.map((benefit) => (
+              <li key={benefit}>
+                <Check size={15} strokeWidth={2.8} aria-hidden /> {benefit}
+              </li>
+            ))}
+          </ul>
+          <Link href={TCF_DIAGNOSTIC_HUB_HREF} className={styles.nextPrimary}>
+            {COMPLET_CTA} <ArrowRight size={17} aria-hidden />
+          </Link>
+          <p className={styles.completNote}>{COMPLET_NOTE}</p>
+        </section>
+      )}
 
       {/* ------------------------------------------------ les 4 épreuves */}
       {cards.length > 0 && (

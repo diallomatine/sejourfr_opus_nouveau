@@ -108,3 +108,169 @@ Le champ `daysUntilAvailable` est servi **aussi** quand le Plan a ouvert la
 porte en avance (avec `triggeredByPlan = true`), pour que l'écran puisse dire
 *pourquoi* le bouton est là. Aucun écran ne l'utilise encore dans ce sens : ils
 affichent la phrase du Plan. À supprimer si ça reste inutilisé.
+
+
+---
+
+# L3 — le diagnostic écrit rapide
+
+## D-L3-1 · La FORME du diagnostic est une **donnée**, pas un drapeau
+
+**Décidé** : un diagnostic a une étape orale **si et seulement si** son couple
+(`diagnostic_code`, `diagnostic_version`) porte un sujet `TCF_EO` actif.
+`INITIAL_TCF` v1 en a un, `QUICK_TCF` v1 n'en a pas. Aucun booléen de
+configuration ne double cette information.
+
+**Alternative écartée** : un `quick-diagnostic.enabled: true`. Refusé parce
+qu'un drapeau peut **contredire** le contenu servi : à `true` avec un seed
+absent, le candidat se voit réclamer une production dont le sujet n'existe pas.
+
+**Retour arrière** : `DIAGNOSTIC_CODE=INITIAL_TCF`. Aucune migration, aucun
+recalcul. Les sessions déjà passées gardent la forme sous laquelle elles ont été
+menées — V050 rend l'oral **facultatif**, elle ne le supprime jamais.
+
+## D-L3-2 · Aucune table `quick_diag_subject`
+
+`50_` §5.1 la liste comme « seule table réellement nouvelle du module TCF ».
+
+**Décidé** : ne pas la créer. Le même tableau, deux lignes plus haut, tranche
+que `tcf_subject` reste `production_tasks` — « une tâche = un sujet dans le
+dépôt. **Ne pas séparer** sans besoin avéré ». Un sujet de diagnostic rapide est
+exactement cela : un énoncé, des bornes de mots, et une allowlist de compétences
+observables (`diagnostic_task_skills`), c'est-à-dire les `observation_targets`
+de la spec sous leur nom du dépôt.
+
+**Ce qu'une seconde table aurait coûté** : un second tirage, un second jeu de
+bornes, un second lien aux compétences, et un second chemin de soumission.
+
+## D-L3-3 · **Un seul sujet**, pas un pool
+
+`10_` §3.3 demande « un pool de sujets, tirage aléatoire ».
+
+**Décidé** : un seul énoncé en v1 — le sujet de référence de la spec.
+
+**Pourquoi** : `uq_prod_task_diagnostic UNIQUE (diagnostic_code,
+diagnostic_version, epreuve)` (V029) impose une tâche par modalité et par
+version, et cette unicité **garantit** que la lecture publique (visiteur sans
+compte) et la création de session servent le même énoncé. La relâcher apporte
+peu ici : le diagnostic rapide se fait **une fois par compte**, il n'y a donc
+pas de « je retombe sur le même sujet », et des énoncés différents rendraient
+les niveaux estimés moins comparables entre candidats.
+
+**Le code serveur sait déjà tirer** (`writtenPool`, `drawWrittenTask`,
+`writtenTaskOrDraw`, et le paramètre `writtenTaskId` que le client renvoie).
+Ouvrir le pool = remplacer cette unicité par un index sur
+(code, version, epreuve, id) et seeder les énoncés. **Trois énoncés
+supplémentaires sont rédigés** et attendent cette décision :
+
+1. **Votre ville et vos habitudes** — décrivez votre quartier ou votre ville, et
+   ce qu'on y trouve ; racontez une sortie ou une rencontre qui s'y est passée
+   récemment ; expliquez ce qui manque selon vous à cet endroit, et pourquoi
+   cela compte pour vous.
+2. **Votre travail ou vos études** — décrivez en quoi consistent vos journées ;
+   racontez un moment récent qui s'est bien, ou mal, passé ; expliquez ce que
+   vous aimeriez faire dans un an, et pourquoi.
+3. **Une personne qui compte pour vous** — décrivez cette personne et ce qui la
+   caractérise ; racontez un moment passé avec elle dont vous vous souvenez ;
+   expliquez ce qu'elle vous a appris, et ce que vous aimeriez lui dire
+   aujourd'hui.
+
+Tous partagent la **même allowlist** de 8 compétences : deux candidats tirant
+deux sujets doivent être mesurés sur exactement les mêmes signaux, sans quoi le
+niveau dépendrait du tirage.
+
+## D-L3-4 · **Aucune version v2** des rubriques de diagnostic
+
+`50_` §5.3 demande « une nouvelle version de `diagnostic-analysis-rubrics`
+(v1 → v2), adaptée à une production unique écrite ».
+
+**Décidé** : garder la v1, inchangée.
+
+**Pourquoi, mesuré sur le fichier** : la v1 est déjà **par production**, pas par
+paire. Elle prend `analysis_type=INITIAL_DIAGNOSTIC` et `modality`, et sa seule
+section orale (« Oral enregistré ») ne se déclenche que sur `modality=EO`, qui
+n'arrivera jamais sur le diagnostic rapide. Le « un seul appel LLM » de `10_`
+§3.5 découle de la production unique, sans toucher au prompt.
+
+**Ce qu'un bump aurait coûté** : rendre incomparables les mesures v1 déjà
+faites, pour un contenu identique. Le dépôt a une mesure de ce risque
+(v10/v11 : un bloc ajouté à une grille fait tomber l'accord exact de 81,8 % à
+75,6 %).
+
+## D-L3-5 · Bornes de mots : **recevabilité 100-300**, demande 150-220
+
+`10_` §3.3 donne deux nombres différents : « Longueur demandée : 150 à
+220 mots » et « Seuil de recevabilité : 100 mots ».
+
+**Décidé** : `mots_min = 100`, `mots_max = 300` — ces colonnes portent la
+recevabilité (ce que le serveur accepte). La demande de 150-220 vit dans la
+consigne, que le correcteur lit pour juger si les éléments demandés sont
+accomplis.
+
+**Le plafond à 300 est un choix**, la spec n'en donne pas : un diagnostic ne
+doit pas renvoyer chez lui quelqu'un qui a écrit **plus**. Le but est de
+mesurer, et refuser un texte généreux perd exactement la personne qu'on cherche
+à convertir.
+
+## D-L3-6 · Les rate-limits de `10_` §3.7 sont déjà tenus, **par construction**
+
+**Constaté, pas décidé.** La décision Q1 (`50_` §3.1) supprime toute soumission
+anonyme : le texte ne touche jamais le serveur sans jeton. « 3 soumissions /
+heure / IP » n'a donc plus de surface à protéger, et la seule route publique
+(`/api/public/diagnostics/current`, lecture de contenu seedé) a déjà sa limite
+(120 / 10 min). « 1 analyse gratuite par compte » est garanti par l'unicité
+`(user_id, diagnostic_code, diagnostic_version)`, et « 1 analyse / heure /
+compte » par le fait qu'un compte n'a qu'une session, plus le plafond de
+3 relances.
+
+**Aucun code ajouté** : un limiteur de plus aurait gardé une porte qui n'existe
+plus.
+
+## D-L3-7 · La date d'examen est posée **au moment du compte**, best-effort
+
+`10_` §3.2 place les trois questions **avant** l'exercice. La colonne
+`users.exam_date` existe depuis V047 (L1) mais **aucun front ne l'écrivait** —
+`passRecommande` et le compte à rebours du paywall (L5) ne pouvaient donc jamais
+s'afficher.
+
+**Décidé** : la date est demandée là où le candidat remplit déjà un formulaire —
+l'écran de compte du tunnel (web) et l'écran de démarche (mobile) — et non sur
+un quatrième écran avant l'exercice.
+
+**Pourquoi** : trois questions avant de rédiger allongent la porte d'entrée que
+`10_` §3.1 veut courte ; et la démarche (question 2) était déjà demandée à
+l'inscription.
+
+🛑 **Elle ne voyage jamais dans la requête d'inscription** (`50_` §3.1 :
+authentification et métier ne se mélangent pas) : appel séparé, après, et
+**best-effort** — un échec ne fait pas échouer un compte déjà créé.
+
+## D-L3-8 · L'écran de résultat garde sa structure, et gagne les blocs 3 et 4
+
+`10_` §3.6 impose cinq blocs. L'écran livré (web `DiagnosticReport`, mobile
+`DiagnosticResultView`) en a déjà une version **plus riche** — héros global,
+« Mes 4 épreuves », prochaine étape, offre — construite pour le diagnostic
+précédent.
+
+**Décidé** : ne pas la remplacer, et ajouter les deux blocs réellement absents :
+la **transition** (« Ce n'est qu'une première estimation ») et l'appel au
+**diagnostic TCF complet**, qui existe depuis L4.
+
+**Le bloc 3 n'est pas négociable** : avec une seule production écrite, annoncer
+un palier sans dire de quoi il est tiré laisserait le candidat croire qu'il
+connaît son niveau TCF. Il ne le connaît pas.
+
+Les deux ne s'affichent que tant que les 4 épreuves ne sont pas mesurées : une
+fois le profil complet, il n'y a plus rien à relativiser ni à proposer.
+
+## Réserves ouvertes
+
+- Un candidat qui avait une session `INITIAL_TCF` **en cours** ne la verra plus
+  après la bascule (la lecture se fait par (code, version)). Son diagnostic
+  **terminé**, lui, reste en base et continue d'alimenter son profil. L'audit et
+  V756 indiquent que très peu de diagnostics ont été menés à terme ; le coût réel
+  est donc proche de zéro, mais il n'est pas nul.
+- `DiagnosticOralInexploitableIT` et `DiagnosticPostSignupSequenceIT` sont
+  désormais **épinglés** sur `INITIAL_TCF` : ils portent sur la paire. Ce qu'ils
+  gardent reste vivant (filet de l'oral inexploitable, séquencement de deux
+  productions) pour le diagnostic TCF 4 épreuves et les examens blancs.

@@ -740,6 +740,28 @@ export const userContentApi = {
             auth: true,
         });
     },
+
+    /**
+     * La date d'examen déclarée (`10_` §3.2, question 3). Format `YYYY-MM-DD`.
+     *
+     * 🛑 **Une date, pas un instant** : une convocation porte un JOUR. Envoyer
+     * un horodatage ferait basculer la date d'un fuseau à l'autre.
+     *
+     * 🛑 **Route séparée de `target-path`**, et ce n'est pas cosmétique : loger
+     * la date dans la mise à jour de la démarche l'effacerait à chaque
+     * changement de procédure. `null` efface volontairement — « pas encore de
+     * date » est une réponse, pas une absence de réponse.
+     *
+     * C'est cette date qui alimente le compte à rebours et le pass recommandé
+     * du paywall (L5) : sans elle, `passRecommande` ne peut rien proposer.
+     */
+    updateExamDate(examDate: string | null): Promise<void> {
+        return apiFetch<void>(`/api/me/exam-date`, {
+            method: "PUT",
+            json: {examDate},
+            auth: true,
+        });
+    },
 };
 
 // ============================================================================
