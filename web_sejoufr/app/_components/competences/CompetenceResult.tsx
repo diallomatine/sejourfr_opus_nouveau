@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {competenceNextAction} from "@/lib/competence-next-action";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useId, useState} from "react";
 import {
@@ -431,26 +432,48 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                   defaultOpen={referencesOpenByDefault(view)}
                 />
 
-                <div className={s.actions}>
-                  <button
-                    type="button"
-                    className={`btn btn-ghost ${s.actionWide}`}
-                    disabled={!nextId}
-                    title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
-                    onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
-                  >
-                    Sujet suivant
-                    <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn ${s.actionWide}`}
-                    onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
-                  >
-                    <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
-                    S&apos;entraîner sur ce point
-                  </button>
-                </div>
+                {/* Bloc 6 du rapport court (`10_` §8.2) : la prochaine action
+                    dépend de CE QUI VIENT D'ÊTRE MESURÉ, et ce n'est jamais un
+                    simple « Retour ». Le verdict arrive servi ; ce composant ne
+                    le dérive pas.
+
+                    Sans analyse (production rendue sans analyse demandée, ou
+                    analyse encore en cours), on retombe sur les deux actions
+                    neutres : proposer « Essayez encore une fois » sans savoir
+                    ce qui a été mesuré serait un jugement inventé. */}
+                {analysis ? (
+                  <NextActionCard
+                    status={analysis.status}
+                    hasNextPrompt={nextId != null}
+                    onRetry={() =>
+                      router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))
+                    }
+                    onNext={() =>
+                      nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))
+                    }
+                  />
+                ) : (
+                  <div className={s.actions}>
+                    <button
+                      type="button"
+                      className={`btn btn-ghost ${s.actionWide}`}
+                      disabled={!nextId}
+                      title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
+                      onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
+                    >
+                      Sujet suivant
+                      <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${s.actionWide}`}
+                      onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
+                    >
+                      <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
+                      S&apos;entraîner sur ce point
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Colonne latérale. Elle n'apparaît qu'une fois le sujet chargé :
@@ -491,6 +514,71 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
         />
       </SkillShell>
     </DualChromeShell>
+  );
+}
+
+/**
+ * Bloc 6 du rapport court : **la prochaine action** (`10_` §8.2).
+ *
+ * 🛑 « JAMAIS un simple « Retour » ». Trois sorties, une par verdict servi :
+ * rejouer le même point quand le critère n'est pas atteint, enchaîner un sujet
+ * quand ça progresse, revenir au plan quand c'est acquis. Enchaîner un sujet de
+ * plus sur une compétence non acquise n'empile que des échecs.
+ *
+ * Le libellé et le choix vivent dans `lib/competence-next-action.ts`, partagé
+ * mot pour mot avec le mobile.
+ */
+function NextActionCard({
+  status,
+  hasNextPrompt,
+  onRetry,
+  onNext,
+}: {
+  status: SkillCriterionStatus;
+  hasNextPrompt: boolean;
+  onRetry: () => void;
+  onNext: () => void;
+}) {
+  const action = competenceNextAction(status, hasNextPrompt);
+  return (
+    <div className={s.nextAction}>
+      <p className={s.nextActionTitle}>{action.title}</p>
+      <p className={s.nextActionHint}>{action.hint}</p>
+      <div className={s.actions}>
+        {action.kind === "PLAN" ? (
+          <Link href="/plan" className={`btn ${s.actionWide}`}>
+            {action.cta}
+            <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={`btn ${s.actionWide}`}
+            onClick={action.kind === "REESSAYER" ? onRetry : onNext}
+          >
+            {action.kind === "REESSAYER" ? (
+              <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
+            ) : null}
+            {action.cta}
+            {action.kind === "SUJET_SUIVANT" && (
+              <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
+            )}
+          </button>
+        )}
+        {/* La sortie secondaire existe toujours, mais elle ne porte jamais la
+            décision : elle est là pour qui veut faire autrement. */}
+        {action.kind !== "REESSAYER" && (
+          <button type="button" className={`btn btn-ghost ${s.actionWide}`} onClick={onRetry}>
+            S&apos;entraîner sur ce point
+          </button>
+        )}
+        {action.kind === "REESSAYER" && hasNextPrompt && (
+          <button type="button" className={`btn btn-ghost ${s.actionWide}`} onClick={onNext}>
+            Sujet suivant
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

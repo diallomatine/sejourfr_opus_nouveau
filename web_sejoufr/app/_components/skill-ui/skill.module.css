@@ -4411,3 +4411,34 @@
     font-size: 22px;
   }
 }
+
+/* ==========================================================================
+   Bloc 6 du rapport court — la prochaine action (`10_` §8.2)
+
+   🛑 Elle a sa propre surface : c'est la seule chose de l'écran qui dit quoi
+   faire MAINTENANT, et elle se perdait au milieu de deux boutons neutres.
+   ========================================================================== */
+
+.nextAction {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nextActionTitle {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.nextActionHint {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}

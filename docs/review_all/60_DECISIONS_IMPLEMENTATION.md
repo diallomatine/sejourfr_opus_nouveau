@@ -330,3 +330,51 @@ des coûts IA ».
 **Décidé** : suivre `50_`, qui fait autorité. Un nouveau pass est une décision
 de grille tarifaire (Stripe + Apple + Google), pas une tâche d'implémentation —
 `docs/bascule-prix-integral.md` documente ce que coûte l'ouverture d'une durée.
+
+
+---
+
+# L6 — le rapport de micro-sujet et le contenu EO1
+
+## D-L6-1 · Seul le bloc 6 manquait
+
+L'audit (§9) résume L6 par « déjà livré ; reste : aligner le rapport de
+micro-sujet sur les 6 blocs de `10_` §8.2 ; contenu EO1 ».
+
+**Mesuré sur l'écran** : les blocs 1 à 5 existent déjà, et sous une forme plus
+riche que la spec — carte de niveau (bloc 1), leviers (blocs 2-3), exemple cible
+avant/après (bloc 4), mémo « à retenir » (bloc 5). Le routage par
+`schema_version` demandé par §8.3 existe aussi : `levelProgress` présent ⇒
+contrat v3, absent ⇒ restitution historique conservée telle quelle.
+
+**Ce qui manquait vraiment** : le **bloc 6**, « Prochaine action », et la spec
+est catégorique — « JAMAIS un simple « Retour » ». L'écran offrait deux boutons
+neutres, identiques quel que soit le verdict.
+
+**Décidé** : trois sorties, une par verdict **servi**. Critère non atteint ⇒ on
+rejoue le même point (enchaîner un sujet de plus sur une compétence non acquise
+n'empile que des échecs). Partiel ⇒ sujet suivant. Validé ⇒ retour au plan.
+
+Sans analyse (production rendue sans analyse demandée, ou analyse en cours), on
+retombe sur les deux actions neutres : proposer « Essayez encore une fois » sans
+savoir ce qui a été mesuré serait un jugement inventé.
+
+## D-L6-2 · Les sujets EO1 ne sont **pas** produits sans arbitrage
+
+Blocage B12 de l'audit : EO1 n'a **qu'un sujet par niveau** (3 au total, contre
+20 pour EO2). Un candidat qui refait EO1 retombe sur le même sujet.
+
+**Décidé** : ne pas les écrire cette nuit. Ce n'est pas un manque de temps —
+c'est le même raisonnement que **D3** (les ~120 mises en situation civiques),
+que le propriétaire a lui-même gardé comme une décision d'auteur : du contenu
+seedé est difficile à retirer une fois en base, et un sujet EO1 mal calibré
+fausse une mesure de niveau.
+
+**Ce qu'il faut décider** : viser ~18 sujets EO1 (6 par palier A2/B1/B2), ou
+accepter la répétition. L'audit le classe explicitement « non bloquant ».
+
+**Ce que ça coûte à écrire** : chaque sujet EO1 est un énoncé court (se
+présenter, poser des questions utiles à un interlocuteur), plus son rattachement
+aux compétences `EO1-C*` existantes. Aucune migration de schéma, aucun code :
+uniquement un seed sur `production_tasks` + `diagnostic_task_skills`, sur le
+modèle de V755.

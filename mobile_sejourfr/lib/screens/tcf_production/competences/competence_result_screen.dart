@@ -17,8 +17,11 @@ import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/pressable_card.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../tcf_production_module.dart';
+import '../../../core/router/app_router.dart';
+import '../../../core/widgets/app_card.dart';
 import '../widgets/action_plan.dart';
 import '../widgets/evaluation_loading_view.dart';
+import 'competence_next_action.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
 import '../widgets/production_state_views.dart';
@@ -438,7 +441,20 @@ class _CompetenceResultScreenState
           ),
         ],
         const SizedBox(height: 20),
-        _Actions(module: widget.module, prompt: prompt),
+        // Bloc 6 du rapport court (`10_` §8.2) : la prochaine action dépend de
+        // CE QUI VIENT D'ÊTRE MESURÉ, et ce n'est jamais un simple « Retour ».
+        // Sans analyse (production sans analyse demandée, ou analyse encore en
+        // cours), on retombe sur les deux actions neutres : proposer
+        // « Essayez encore une fois » sans savoir ce qui a été mesuré serait un
+        // jugement inventé.
+        if (analysis != null)
+          _NextActionCard(
+            module: widget.module,
+            prompt: prompt,
+            status: analysis.status,
+          )
+        else
+          _Actions(module: widget.module, prompt: prompt),
       ],
     );
   }
@@ -1143,6 +1159,94 @@ class _NoAnalysisCard extends StatelessWidget {
               height: 44,
               onPressed: canAnalyse ? onRedo : onUpgrade,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloc 6 du rapport court : **la prochaine action** (`10_` §8.2).
+///
+/// 🛑 « JAMAIS un simple « Retour » ». Trois sorties, une par verdict servi :
+/// rejouer le même point quand le critère n'est pas atteint, enchaîner un sujet
+/// quand ça progresse, revenir au plan quand c'est acquis. Enchaîner un sujet
+/// de plus sur une compétence non acquise n'empile que des échecs.
+///
+/// Le libellé et le choix vivent dans `competence_next_action.dart`, partagé
+/// mot pour mot avec le web.
+class _NextActionCard extends StatelessWidget {
+  const _NextActionCard({
+    required this.module,
+    required this.prompt,
+    required this.status,
+  });
+
+  final TcfProductionModule module;
+  final SkillPromptDto? prompt;
+  final SkillCriterionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final next = prompt?.nextPromptId;
+    final action = competenceNextAction(status, next != null);
+    void rejouer() {
+      if (prompt == null) return;
+      context.pushReplacement(
+        competencePromptPath(module, prompt!.skillId, prompt!.id),
+      );
+    }
+
+    void suivant() {
+      if (prompt == null || next == null) return;
+      context.pushReplacement(
+        competencePromptPath(module, prompt!.skillId, next),
+      );
+    }
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            action.title,
+            style: AppFonts.display(size: 17, color: AppColors.ink),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            action.hint,
+            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: action.cta,
+            iconRight: action.kind == CompetenceNextKind.reessayer
+                ? null
+                : LucideIcons.arrowRight,
+            icon: action.kind == CompetenceNextKind.reessayer
+                ? LucideIcons.rotateCcw
+                : null,
+            variant:
+                module.isEo ? AppButtonVariant.accent : AppButtonVariant.primary,
+            height: 46,
+            onPressed: switch (action.kind) {
+              CompetenceNextKind.reessayer => rejouer,
+              CompetenceNextKind.sujetSuivant => suivant,
+              CompetenceNextKind.plan => () => context.go(AppRoutes.plan),
+            },
+          ),
+          const SizedBox(height: 8),
+          // La sortie secondaire existe toujours, mais elle ne porte jamais la
+          // décision : elle est là pour qui veut faire autrement.
+          AppButton(
+            label: action.kind == CompetenceNextKind.reessayer
+                ? 'Sujet suivant'
+                : 'S\'entraîner sur ce point',
+            variant: AppButtonVariant.outline,
+            height: 46,
+            onPressed: action.kind == CompetenceNextKind.reessayer
+                ? (next == null ? null : suivant)
+                : rejouer,
+          ),
         ],
       ),
     );
