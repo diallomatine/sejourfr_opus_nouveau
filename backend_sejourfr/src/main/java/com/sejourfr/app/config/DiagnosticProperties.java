@@ -6,7 +6,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "sejourfr.diagnostic")
 public class DiagnosticProperties {
 
-    private String initialCode = "INITIAL_TCF";
+    /**
+     * Code du diagnostic servi. {@code QUICK_TCF} = le diagnostic ecrit rapide
+     * (L3, une production transversale) ; {@code INITIAL_TCF} = la paire EE+EO
+     * historique. Valeur par defaut IDENTIQUE a celle d'application.yaml.
+     *
+     * <p>🛑 Ce n'est pas un drapeau de fonctionnalite : la FORME du parcours se
+     * lit sur le contenu de ce couple (code, version) — presence ou absence
+     * d'un sujet {@code TCF_EO} actif. Ne jamais ajouter un booleen a cote, il
+     * pourrait contredire ce qui est reellement servi.
+     */
+    private String initialCode = "QUICK_TCF";
     private Analysis analysis = new Analysis();
     private ExempleCible exempleCible = new ExempleCible();
 

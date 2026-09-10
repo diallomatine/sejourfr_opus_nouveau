@@ -149,6 +149,10 @@ function guestStep(
   started: boolean,
 ): GuestStep {
   const hasWritten = Boolean(local?.writtenText?.trim());
+  // 🛑 `isLocalDiagnosticComplete` connaît la FORME du parcours (L3) : sur le
+  // diagnostic rapide, l'écrit seul suffit et l'étape orale n'existe pas. Ne
+  // pas remplacer par un test sur l'audio — le candidat resterait bloqué sur
+  // un enregistrement qu'on ne lui demande pas.
   if (isLocalDiagnosticComplete(local)) return "account";
   if (hasWritten) return "oral";
   return started ? "written" : "presentation";
@@ -238,6 +242,7 @@ function GuestDiagnostic({
       subjects.diagnosticVersion,
       subjects.written.productionTaskId,
       text,
+      subjects.oral !== null,
     );
     if (!ok) setStoredOnDevice(false);
     // La mémoire fait foi pour l'écran courant : même si le disque a refusé,
@@ -250,6 +255,7 @@ function GuestDiagnostic({
       oralTaskId: previous?.oralTaskId ?? null,
       oralAudio: previous?.oralAudio ?? null,
       oralDurationSec: previous?.oralDurationSec ?? null,
+      oralRequired: subjects.oral !== null,
       savedAt: Date.now(),
     }));
     trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
@@ -257,7 +263,9 @@ function GuestDiagnostic({
   }
 
   async function keepOral(audio: Blob, durationSec: number) {
-    if (!subjects || saving) return;
+    // Sans sujet oral il n'y a rien à enregistrer : l'écran n'est pas
+    // atteignable, et ce garde le dit au type comme au lecteur.
+    if (!subjects?.oral || saving) return;
     setSaving(true);
     setError(null);
     const ok = await saveLocalOral(
@@ -273,9 +281,10 @@ function GuestDiagnostic({
       diagnosticVersion: subjects.diagnosticVersion,
       writtenTaskId: previous?.writtenTaskId ?? null,
       writtenText: previous?.writtenText ?? null,
-      oralTaskId: subjects.oral.productionTaskId,
+      oralTaskId: subjects.oral!.productionTaskId,
       oralAudio: audio,
       oralDurationSec: durationSec,
+      oralRequired: true,
       savedAt: Date.now(),
     }));
     trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
@@ -304,17 +313,19 @@ function GuestDiagnostic({
   if (step === "account") {
     return (
       <DiagnosticShell guest>
-        <DiagnosticSteps current="account" guest complete={complete} />
+        <DiagnosticSteps current="account" guest complete={complete} oral={subjects.oral !== null} />
         <DiagnosticAccountGate
           writtenWords={countEeWords(local?.writtenText ?? "")}
           oralDurationSec={local?.oralDurationSec ?? null}
+          hasOral={subjects.oral !== null}
           storedOnDevice={storedOnDevice}
         />
       </DiagnosticShell>
     );
   }
 
-  if (step === "oral") {
+  if (step === "oral" && subjects.oral) {
+    const oral = subjects.oral;
     return (
       <DiagnosticShell guest compact>
         <DiagnosticSteps current="oral" guest complete={complete} />
@@ -327,13 +338,13 @@ function GuestDiagnostic({
           }
         />
         <EoRecordingForm
-          task={diagnosticExerciseAsProductionTask(subjects.oral)}
+          task={diagnosticExerciseAsProductionTask(oral)}
           submitting={saving}
           error={error}
           submitLabel="Terminer et analyser"
-          promptSlot={<ExercisePrompt exercise={subjects.oral} kind="oral" />}
+          promptSlot={<ExercisePrompt exercise={oral} kind="oral" />}
           criteriaSlot={null}
-          maxDurationSec={subjects.oral.durationMaxSeconds}
+          maxDurationSec={oral.durationMaxSeconds}
           onSubmit={(audio, durationSec) => void keepOral(audio, durationSec)}
         />
       </DiagnosticShell>
@@ -343,13 +354,13 @@ function GuestDiagnostic({
   if (step === "written") {
     return (
       <DiagnosticShell guest compact>
-        <DiagnosticSteps current="written" guest complete={complete} />
+        <DiagnosticSteps current="written" guest complete={complete} oral={subjects.oral !== null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(subjects.written)}
           submitting={saving}
           error={error}
-          submitLabel="Continuer vers l'oral"
+          submitLabel={subjects.oral ? "Continuer vers l'oral" : "Valider mon diagnostic"}
           promptSlot={<ExercisePrompt exercise={subjects.written} kind="written" />}
           criteriaSlot={null}
           onSubmit={(text) => void keepWritten(text)}
@@ -474,7 +485,11 @@ function ConnectedDiagnostic({
       setPendingLocal(local);
       setHandoff({kind: "running", label: "Création de votre diagnostic…"});
       try {
-        let session = await diagnosticApi.start();
+        // 🛑 Le sujet REELLEMENT rédigé est renvoyé au serveur : depuis L3 le
+        // sujet écrit peut être tiré, et sans cet identifiant la session
+        // s'ouvrirait sur un autre énoncé que celui traité par le candidat.
+        // Vérifié serveur — un identifiant inconnu retombe sur un tirage.
+        let session = await diagnosticApi.start(local.writtenTaskId ?? undefined);
         setDiagnostic(session);
 
         if (
@@ -536,18 +551,26 @@ function ConnectedDiagnostic({
           }
         }
 
-        const bothReceived =
-          session.written?.submissionId != null && session.oral?.submissionId != null;
-        if (!bothReceived) {
+        // 🛑 On attend un accusé pour CHAQUE production que ce diagnostic
+        // comporte — une seule sur le diagnostic rapide (L3). Exiger un oral
+        // que le serveur n'a pas ouvert ferait échouer un parcours réussi et
+        // laisserait le candidat devant un message d'erreur mensonger.
+        const allReceived =
+          session.written?.submissionId != null &&
+          (session.oral == null || session.oral.submissionId != null);
+        if (!allReceived) {
           setHandoff({
             kind: "error",
-            message: "Le serveur n'a pas confirmé la réception de vos deux réponses.",
+            message: session.oral
+              ? "Le serveur n'a pas confirmé la réception de vos deux réponses."
+              : "Le serveur n'a pas confirmé la réception de votre réponse.",
           });
           return;
         }
 
-        // Accusé de réception des DEUX productions : c'est seulement ici qu'on
-        // a le droit d'effacer ce qui est gardé sur l'appareil.
+        // Accusé de réception de TOUTES les productions attendues : c'est
+        // seulement ici qu'on a le droit d'effacer ce qui est gardé sur
+        // l'appareil.
         await clearLocalDiagnostic(local.diagnosticCode, local.diagnosticVersion);
         if (local.writtenTaskId) clearEeDraft(local.writtenTaskId);
         setPendingLocal(null);
@@ -1023,7 +1046,7 @@ function ConnectedDiagnostic({
           task={diagnosticExerciseAsProductionTask(exercise)}
           submitting={submitting}
           error={error}
-          submitLabel="Continuer vers l'oral"
+          submitLabel={diagnostic.oral ? "Continuer vers l'oral" : "Lancer mon analyse"}
           promptSlot={<ExercisePrompt exercise={exercise} kind="written" />}
           criteriaSlot={null}
           onSubmit={(text) => void submitWritten(exercise, text)}

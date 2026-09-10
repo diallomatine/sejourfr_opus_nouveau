@@ -95,9 +95,15 @@ public class DiagnosticSessionCoordinator {
         DiagnosticSession session = sessionManager.findByIdForUpdate(found.getId()).orElse(null);
         if (session == null || session.getStatus() == DiagnosticSessionStatus.COMPLETED) return;
 
+        // 🛑 Un diagnostic SANS étape orale (rapide, L3) n'attend rien d'oral :
+        // `attendOral` est faux, et tous les tests ci-dessous s'y adaptent. Ne
+        // jamais remplacer par « oral == null ⇒ pas encore rendu » — le
+        // diagnostic rapide resterait éternellement IN_PROGRESS.
+        boolean attendOral = session.hasOral();
         ProductionSubmission written = onlySubmission(session.getWrittenAttempt().getId());
-        ProductionSubmission oral = onlySubmission(session.getOralAttempt().getId());
-        if (written == null || oral == null) {
+        ProductionSubmission oral = attendOral
+                ? onlySubmission(session.getOralAttempt().getId()) : null;
+        if (written == null || (attendOral && oral == null)) {
             session.setStatus(DiagnosticSessionStatus.IN_PROGRESS);
             session.setErrorMessage(null);
             sessionManager.save(session);
@@ -107,7 +113,7 @@ public class DiagnosticSessionCoordinator {
         // jamais écraser alors FAILED par ANALYZING : aucune analyse ne
         // redémarrera pour la première production avant le retry explicite.
         if (written.getStatut() == SubmissionStatut.FAILED
-                || oral.getStatut() == SubmissionStatut.FAILED) {
+                || (oral != null && oral.getStatut() == SubmissionStatut.FAILED)) {
             session.setStatus(DiagnosticSessionStatus.FAILED);
             sessionManager.save(session);
             return;
@@ -117,7 +123,7 @@ public class DiagnosticSessionCoordinator {
         // des deux JSON ne suffit donc jamais : les deux productions doivent
         // avoir achevé toute leur finalisation avant de compléter l'agrégat.
         if (written.getStatut() != SubmissionStatut.EVALUATED
-                || oral.getStatut() != SubmissionStatut.EVALUATED) {
+                || (oral != null && oral.getStatut() != SubmissionStatut.EVALUATED)) {
             session.setStatus(DiagnosticSessionStatus.ANALYZING);
             session.setErrorMessage(null);
             sessionManager.save(session);
@@ -125,9 +131,9 @@ public class DiagnosticSessionCoordinator {
         }
         DiagnosticProductionAnalysis writtenAnalysis =
                 analysisManager.findBySubmissionId(written.getId()).orElse(null);
-        DiagnosticProductionAnalysis oralAnalysis =
-                analysisManager.findBySubmissionId(oral.getId()).orElse(null);
-        if (writtenAnalysis == null || oralAnalysis == null) {
+        DiagnosticProductionAnalysis oralAnalysis = oral == null ? null
+                : analysisManager.findBySubmissionId(oral.getId()).orElse(null);
+        if (writtenAnalysis == null || (attendOral && oralAnalysis == null)) {
             session.setStatus(DiagnosticSessionStatus.ANALYZING);
             session.setErrorMessage(null);
             sessionManager.save(session);
@@ -142,7 +148,7 @@ public class DiagnosticSessionCoordinator {
         sessionManager.save(session);
 
         finishAttempt(session.getWrittenAttempt());
-        finishAttempt(session.getOralAttempt());
+        if (session.hasOral()) finishAttempt(session.getOralAttempt());
     }
 
     private ProductionSubmission onlySubmission(UUID attemptId) {
@@ -153,7 +159,9 @@ public class DiagnosticSessionCoordinator {
     private List<ProductionSubmission> submissions(DiagnosticSession session) {
         List<ProductionSubmission> result = new ArrayList<>();
         result.addAll(submissionManager.findByAttemptId(session.getWrittenAttempt().getId()));
-        result.addAll(submissionManager.findByAttemptId(session.getOralAttempt().getId()));
+        if (session.hasOral()) {
+            result.addAll(submissionManager.findByAttemptId(session.getOralAttempt().getId()));
+        }
         return result;
     }
 
@@ -163,16 +171,21 @@ public class DiagnosticSessionCoordinator {
             DiagnosticProductionAnalysis oral) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("written_submission_id", written.getSubmission().getId().toString());
-        summary.put("oral_submission_id", oral.getSubmission().getId().toString());
+        // 🛑 La clé reste présente et vaut null quand il n'y a pas d'oral : une
+        // clé ABSENTE et une clé nulle se lisent différemment côté relecture
+        // d'un résumé ancien.
+        summary.put("oral_submission_id",
+                oral == null ? null : oral.getSubmission().getId().toString());
 
         LinkedHashSet<String> strengths = new LinkedHashSet<>();
         strengths.addAll(strings(written.getAnalysisJson().get("strengths")));
-        strengths.addAll(strings(oral.getAnalysisJson().get("strengths")));
+        if (oral != null) strengths.addAll(strings(oral.getAnalysisJson().get("strengths")));
         summary.put("strengths", strengths.stream().limit(3).toList());
 
         List<Map<String, Object>> selected = mergePriorities(
                 ranked(written.getAnalysisJson(), session.getWrittenTask().getId()),
-                ranked(oral.getAnalysisJson(), session.getOralTask().getId()));
+                oral == null ? List.of()
+                        : ranked(oral.getAnalysisJson(), session.getOralTask().getId()));
         summary.put("priority_skill_codes", selected.stream()
                 .map(item -> String.valueOf(item.get("skill_code"))).toList());
         summary.put("main_priority_explanation", selected.isEmpty() ? null

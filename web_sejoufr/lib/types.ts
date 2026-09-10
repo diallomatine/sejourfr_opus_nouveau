@@ -932,7 +932,12 @@ export interface PublicDiagnosticResponse {
     diagnosticCode: string;
     diagnosticVersion: number;
     written: PublicDiagnosticExerciseDto;
-    oral: PublicDiagnosticExerciseDto;
+    /**
+     * 🛑 **`null` = ce diagnostic n'a PAS d'étape orale** (diagnostic rapide,
+     * L3 / `50_` §3.2). Ce n'est pas une panne : un écran qui le traiterait
+     * comme telle bloquerait tout le parcours invité.
+     */
+    oral: PublicDiagnosticExerciseDto | null;
 }
 
 /**

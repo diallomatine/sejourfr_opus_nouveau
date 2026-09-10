@@ -170,7 +170,13 @@ class _FakeDiagnosticGateway implements DiagnosticGateway {
   Future<DiagnosticJourney> current() async => currentJourney;
 
   @override
-  Future<DiagnosticJourney> startOrResume() async => currentJourney;
+  Future<DiagnosticJourney> startOrResume({String? writtenTaskId}) async {
+    lastWrittenTaskId = writtenTaskId;
+    return currentJourney;
+  }
+
+  /// Le sujet que le contrôleur a réellement renvoyé au serveur (L3).
+  String? lastWrittenTaskId;
 
   @override
   Future<DiagnosticJourney> detail(String sessionId) async {

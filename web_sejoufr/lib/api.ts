@@ -926,9 +926,20 @@ export const diagnosticApi = {
         return cached(`${DIAGNOSTIC_CACHE_PREFIX}current`, fetchCurrentDiagnostic);
     },
 
-    start(): Promise<DiagnosticResponse> {
+    /**
+     * Ouvre la session, ou rend celle déjà commencée. **Idempotent.**
+     *
+     * `writtenTaskId` est le sujet que le candidat a réellement lu et traité
+     * (L3). Il est **facultatif** et **vérifié serveur** : un identifiant
+     * inconnu retombe sur un tirage plutôt que de bloquer un candidat dont le
+     * sujet a été désactivé entre-temps.
+     */
+    start(writtenTaskId?: string): Promise<DiagnosticResponse> {
         invalidateDiagnosticAndPlan();
-        return apiFetch<DiagnosticResponse>("/api/diagnostics", {
+        const query = writtenTaskId
+            ? `?writtenTaskId=${encodeURIComponent(writtenTaskId)}`
+            : "";
+        return apiFetch<DiagnosticResponse>(`/api/diagnostics${query}`, {
             method: "POST",
             auth: true,
         }).then(afterDiagnosticRead);

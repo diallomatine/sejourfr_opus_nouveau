@@ -13,15 +13,22 @@ import java.util.Optional;
 import java.util.UUID;
 import jakarta.persistence.LockModeType;
 
+/**
+ * 🛑 <b>Les jointures sur l'oral sont des LEFT JOIN, et ce n'est pas une
+ * optimisation.</b> Depuis L3 (V050) un diagnostic peut n'avoir qu'une
+ * production écrite : un {@code JOIN FETCH} interne ferait <b>disparaître</b>
+ * la session entière de tous ces résultats, et le candidat verrait un
+ * diagnostic « jamais commencé » alors qu'il vient de le rédiger.
+ */
 @Repository
 public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSession, UUID> {
 
     @Query("""
             SELECT d FROM DiagnosticSession d
             JOIN FETCH d.writtenTask
-            JOIN FETCH d.oralTask
+            LEFT JOIN FETCH d.oralTask
             JOIN FETCH d.writtenAttempt
-            JOIN FETCH d.oralAttempt
+            LEFT JOIN FETCH d.oralAttempt
             WHERE d.user.id = :userId
               AND d.diagnosticCode = :code
               AND d.diagnosticVersion = :version
@@ -34,9 +41,9 @@ public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSes
     @Query("""
             SELECT d FROM DiagnosticSession d
             JOIN FETCH d.writtenTask
-            JOIN FETCH d.oralTask
+            LEFT JOIN FETCH d.oralTask
             JOIN FETCH d.writtenAttempt
-            JOIN FETCH d.oralAttempt
+            LEFT JOIN FETCH d.oralAttempt
             WHERE d.id = :id AND d.user.id = :userId
             """)
     Optional<DiagnosticSession> findOwnedWithContent(
@@ -45,9 +52,9 @@ public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSes
     @Query("""
             SELECT d FROM DiagnosticSession d
             JOIN FETCH d.writtenTask
-            JOIN FETCH d.oralTask
+            LEFT JOIN FETCH d.oralTask
             JOIN FETCH d.writtenAttempt
-            JOIN FETCH d.oralAttempt
+            LEFT JOIN FETCH d.oralAttempt
             WHERE d.writtenAttempt.id = :attemptId OR d.oralAttempt.id = :attemptId
             """)
     Optional<DiagnosticSession> findByAttemptIdWithContent(@Param("attemptId") UUID attemptId);
@@ -57,9 +64,9 @@ public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSes
             SELECT d FROM DiagnosticSession d
             JOIN FETCH d.user
             JOIN FETCH d.writtenTask
-            JOIN FETCH d.oralTask
+            LEFT JOIN FETCH d.oralTask
             JOIN FETCH d.writtenAttempt
-            JOIN FETCH d.oralAttempt
+            LEFT JOIN FETCH d.oralAttempt
             WHERE d.id = :id
             """)
     Optional<DiagnosticSession> findByIdForUpdate(@Param("id") UUID id);

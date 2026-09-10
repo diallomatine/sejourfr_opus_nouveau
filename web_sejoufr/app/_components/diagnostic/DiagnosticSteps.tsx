@@ -28,8 +28,18 @@ const LABELS: Record<DiagnosticStepKey, string> = {
 export function diagnosticSteps(options: {
   guest: boolean;
   complete: boolean;
+  /**
+   * Ce diagnostic comporte-t-il une étape orale ? (L3)
+   *
+   * 🛑 Le diagnostic rapide n'en a pas, et la marche ne doit **pas** être
+   * dessinée : une barre qui annonce une étape qui n'arrivera jamais fait
+   * croire au candidat qu'il n'a pas fini, exactement au moment où on lui
+   * demande de créer son compte. Absent ⇒ `true`, la forme historique.
+   */
+  oral?: boolean;
 }): DiagnosticStepKey[] {
-  const steps: DiagnosticStepKey[] = ["written", "oral"];
+  const steps: DiagnosticStepKey[] =
+    options.oral === false ? ["written"] : ["written", "oral"];
   // Un compte déjà créé n'a plus de marche « Compte » à franchir : l'afficher
   // ferait compter une étape que le candidat ne verra jamais.
   if (options.guest) steps.push("account");
@@ -42,12 +52,14 @@ export function DiagnosticSteps({
   current,
   guest,
   complete,
+  oral,
 }: {
   current: DiagnosticStepKey;
   guest: boolean;
   complete: boolean;
+  oral?: boolean;
 }) {
-  const steps = diagnosticSteps({guest, complete});
+  const steps = diagnosticSteps({guest, complete, oral});
   const index = Math.max(0, steps.indexOf(current));
   return (
     <ol className={styles.steps} aria-label="Étapes du diagnostic">

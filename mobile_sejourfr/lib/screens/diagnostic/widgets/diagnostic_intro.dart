@@ -114,7 +114,12 @@ class DiagnosticIntro extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 8),
-              const Eyebrow('LES DEUX PREMIERS EXERCICES'),
+              // 🛑 On n'annonce que ce qui existe (L3) : sans étape orale, dire
+              // « les deux premiers exercices » puis n'en montrer qu'un fausse
+              // l'engagement du candidat dès la première seconde.
+              Eyebrow(oral == null
+                  ? 'LE PREMIER EXERCICE'
+                  : 'LES DEUX PREMIERS EXERCICES'),
               const SizedBox(height: 10),
               _IntroItem(
                 icon: LucideIcons.penLine,
@@ -123,14 +128,16 @@ class DiagnosticIntro extends StatelessWidget {
                     diagnosticWrittenMeasureLabel(written) ?? 'un court texte',
                 text: 'Vous rédigez un court texte.',
               ),
-              const SizedBox(height: 10),
-              _IntroItem(
-                icon: LucideIcons.mic,
-                title: 'Oral',
-                measure: diagnosticOralMeasureLabel(oral) ??
-                    'un court enregistrement',
-                text: 'Vous vous enregistrez, sans conversation en direct.',
-              ),
+              if (oral != null) ...[
+                const SizedBox(height: 10),
+                _IntroItem(
+                  icon: LucideIcons.mic,
+                  title: 'Oral',
+                  measure: diagnosticOralMeasureLabel(oral) ??
+                      'un court enregistrement',
+                  text: 'Vous vous enregistrez, sans conversation en direct.',
+                ),
+              ],
               const SizedBox(height: 16),
               Text(
                 'Pas besoin d’être parfait. Répondez naturellement : '

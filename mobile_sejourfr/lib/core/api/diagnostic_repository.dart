@@ -8,7 +8,13 @@ abstract interface class DiagnosticGateway {
   Future<PublicDiagnostic> publicCurrent();
 
   Future<DiagnosticJourney> current();
-  Future<DiagnosticJourney> startOrResume();
+  /// Ouvre la session, ou rend celle déjà commencée. **Idempotent.**
+  ///
+  /// [writtenTaskId] est le sujet que le candidat a réellement lu et traité
+  /// (L3). **Facultatif** et **vérifié serveur** : un identifiant inconnu
+  /// retombe sur un tirage plutôt que de bloquer un candidat dont le sujet a
+  /// été désactivé entre-temps.
+  Future<DiagnosticJourney> startOrResume({String? writtenTaskId});
   Future<DiagnosticJourney> detail(String sessionId);
   Future<DiagnosticJourney> retryAnalysis(String sessionId);
 }
@@ -38,9 +44,12 @@ class DiagnosticRepository implements DiagnosticGateway {
   }
 
   @override
-  Future<DiagnosticJourney> startOrResume() async {
+  Future<DiagnosticJourney> startOrResume({String? writtenTaskId}) async {
     final response = await _client.dio.post<Map<String, dynamic>>(
       '/api/diagnostics',
+      queryParameters: writtenTaskId == null
+          ? null
+          : {'writtenTaskId': writtenTaskId},
     );
     return DiagnosticJourney.fromJson(response.data!);
   }

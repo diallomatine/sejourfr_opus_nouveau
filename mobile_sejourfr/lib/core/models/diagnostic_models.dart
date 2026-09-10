@@ -455,9 +455,13 @@ class PublicDiagnosticExercise extends DiagnosticExerciseView {
       );
 }
 
-/// Les deux sujets du diagnostic tels qu'un visiteur les reçoit avant tout
-/// compte. Il n'y a **ni session, ni attempt, ni soumission** ici : rien n'est
-/// créé côté serveur tant que le visiteur ne s'est pas inscrit.
+/// Les sujets du diagnostic tels qu'un visiteur les reçoit avant tout compte.
+/// Il n'y a **ni session, ni attempt, ni soumission** ici : rien n'est créé
+/// côté serveur tant que le visiteur ne s'est pas inscrit.
+///
+/// 🛑 **[oral] peut être nul** : le diagnostic rapide (L3, `50_` §3.2) n'a
+/// qu'une production écrite transversale. C'est une FORME, pas une panne — un
+/// écran qui le traiterait comme telle bloquerait tout le parcours invité.
 class PublicDiagnostic {
   const PublicDiagnostic({
     required this.diagnosticCode,
@@ -469,7 +473,9 @@ class PublicDiagnostic {
   final String diagnosticCode;
   final int diagnosticVersion;
   final PublicDiagnosticExercise written;
-  final PublicDiagnosticExercise oral;
+
+  /// `null` = ce diagnostic n'a pas d'étape orale.
+  final PublicDiagnosticExercise? oral;
 
   factory PublicDiagnostic.fromJson(Map<String, dynamic> json) =>
       PublicDiagnostic(
@@ -478,9 +484,11 @@ class PublicDiagnostic {
         written: PublicDiagnosticExercise.fromJson(
           json['written'] as Map<String, dynamic>,
         ),
-        oral: PublicDiagnosticExercise.fromJson(
-          json['oral'] as Map<String, dynamic>,
-        ),
+        oral: json['oral'] == null
+            ? null
+            : PublicDiagnosticExercise.fromJson(
+                json['oral'] as Map<String, dynamic>,
+              ),
       );
 }
 

@@ -1324,7 +1324,15 @@ sejourfr:
   # Diagnostic initial : même fournisseur/modèle que production-evaluation,
   # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).
   diagnostic:
-    initial-code: INITIAL_TCF
+    # QUELLE FORME DE DIAGNOSTIC EST SERVIE, et c'est une DONNÉE, pas un drapeau.
+    #   · QUICK_TCF   (L3) une seule production écrite transversale, 8-10 min ;
+    #   · INITIAL_TCF (historique) la paire EE 100-120 mots + EO 2 min.
+    # Le serveur ne sait rien d'autre : il regarde si ce couple (code, version)
+    # porte un sujet TCF_EO actif, et sert l'étape orale si oui. C'est ce qui
+    # rend le retour arrière gratuit -- reposer INITIAL_TCF ici suffit, sans
+    # migration, sans recalcul, et les sessions déjà passées gardent la forme
+    # sous laquelle elles ont été menées.
+    initial-code: ${DIAGNOSTIC_CODE:QUICK_TCF}
     analysis:
       rubrics-version: ${DIAGNOSTIC_RUBRICS_VERSION:v1}
       tool-schema-version: ${DIAGNOSTIC_TOOL_SCHEMA_VERSION:v1}

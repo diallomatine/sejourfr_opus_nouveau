@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -28,11 +29,21 @@ public class DiagnosticController {
         return diagnosticService.current(currentUser.getId());
     }
 
-    /** Idempotent : crée la version active ou renvoie la session déjà commencée. */
+    /**
+     * Idempotent : crée la version active ou renvoie la session déjà commencée.
+     *
+     * <p>{@code writtenTaskId} est le sujet que le candidat a réellement lu et
+     * traité, quand le diagnostic tire dans un pool (L3). Il est <b>facultatif</b>
+     * — un client ancien continue de marcher — et <b>vérifié serveur</b> contre
+     * le pool actif : un identifiant arbitraire ne peut pas ouvrir le diagnostic
+     * sur une tâche officielle du TCF.
+     */
     @PostMapping
-    public DiagnosticResponse startOrResume(HttpServletRequest http) {
+    public DiagnosticResponse startOrResume(
+            HttpServletRequest http,
+            @RequestParam(required = false) UUID writtenTaskId) {
         return diagnosticService.startOrResume(currentUser.getId(),
-                clientContextResolver.resolve(http).platform());
+                clientContextResolver.resolve(http).platform(), writtenTaskId);
     }
 
     @GetMapping("/{sessionId}")

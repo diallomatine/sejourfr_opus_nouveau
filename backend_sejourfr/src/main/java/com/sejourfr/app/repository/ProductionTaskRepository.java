@@ -44,6 +44,21 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTask, 
     Optional<ProductionTask> findByDiagnosticCodeAndDiagnosticVersionAndEpreuveAndActiveTrue(
             String diagnosticCode, Integer diagnosticVersion, EpreuveType epreuve);
 
+    /**
+     * Le <b>pool</b> de sujets diagnostic d'une modalité/version (L3).
+     *
+     * <p>Le diagnostic rapide tire au sort parmi plusieurs énoncés du même
+     * patron. L'ordre est <b>déterministe</b> ({@code created_at}, puis
+     * {@code id} pour départager) : le tirage se fait ensuite explicitement, il
+     * ne doit jamais dépendre de l'ordre que Postgres a bien voulu rendre.
+     *
+     * <p>Le variant {@code Optional} ci-dessus reste utilisé partout où le
+     * couple (code, version, épreuve) n'a qu'une ligne — il lèverait sinon
+     * {@code IncorrectResultSizeDataAccessException}.
+     */
+    List<ProductionTask> findByDiagnosticCodeAndDiagnosticVersionAndEpreuveAndActiveTrueOrderByCreatedAtAscIdAsc(
+            String diagnosticCode, Integer diagnosticVersion, EpreuveType epreuve);
+
     /** Version active la plus récente du diagnostic, déterminée par le contenu. */
     @Query("""
             SELECT MAX(t.diagnosticVersion) FROM ProductionTask t

@@ -49,16 +49,23 @@ public class DiagnosticSession {
     @JoinColumn(name = "written_task_id", nullable = false)
     private ProductionTask writtenTask;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "oral_task_id", nullable = false)
+    /**
+     * Sujet oral. 🛑 <b>{@code null} = ce diagnostic n'a PAS d'étape orale</b>
+     * (diagnostic rapide, L3 / V050) — jamais « oral perdu ». Les sessions qui
+     * en avaient une la gardent : c'est une mesure réelle, et le dépôt ne
+     * recalcule aucun verdict rétroactivement.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "oral_task_id")
     private ProductionTask oralTask;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "written_attempt_id", nullable = false)
     private Attempt writtenAttempt;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "oral_attempt_id", nullable = false)
+    /** Attempt oral. {@code null} quand le diagnostic n'a pas d'étape orale. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "oral_attempt_id")
     private Attempt oralAttempt;
 
     @Enumerated(EnumType.STRING)
@@ -102,6 +109,15 @@ public class DiagnosticSession {
 
     @PreUpdate
     void preUpdate() { updatedAt = Instant.now(); }
+
+    /**
+     * Ce diagnostic comporte-t-il une étape orale ?
+     *
+     * <p>Lu sur la session, pas sur la configuration : une session ouverte sous
+     * {@code INITIAL_TCF} garde son oral même après la bascule vers le
+     * diagnostic rapide.
+     */
+    public boolean hasOral() { return oralAttempt != null; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

@@ -437,9 +437,15 @@ public class ProductionEvaluationService {
         int plancher = ProductionTextBounds.of(task.getMotsMin(), task.getMotsMax(),
             props.getMinTextWords(), props.getMaxTextWords()).min();
         if (mots < plancher) {
-            throw new BusinessException(
-                "Votre texte est trop court : " + mots + " mots, il en faut au moins "
-                + plancher + " pour cette tache.");
+            // 🛑 Le diagnostic ne parle pas de « tache » et ne reprimande pas :
+            // c'est une porte d'entree, et le candidat n'a encore rien appris de
+            // nous (10_ §3.3, formulation imposee). Aucun appel LLM n'a ete emis
+            // a ce stade -- la garde est AVANT le pipeline.
+            throw new BusinessException(task.isDiagnostic()
+                ? "Nous n'avons pas assez d'éléments pour estimer votre niveau. "
+                  + "Complétez votre texte : il faut au moins " + plancher + " mots."
+                : "Votre texte est trop court : " + mots + " mots, il en faut au moins "
+                  + plancher + " pour cette tache.");
         }
         if (task.getMotsMax() != null) {
             if (mots > task.getMotsMax()) {

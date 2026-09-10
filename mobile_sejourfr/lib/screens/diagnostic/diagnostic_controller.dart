@@ -294,6 +294,8 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
           ? DiagnosticGuestStep.presentation
           : DiagnosticGuestStep.written;
     }
+    // `isComplete` connaît la FORME du parcours : sur le diagnostic rapide,
+    // l'écrit seul suffit et l'étape orale n'existe pas.
     if (usable.isComplete) return DiagnosticGuestStep.accountRequired;
     if (usable.hasWritten) return DiagnosticGuestStep.oral;
     return DiagnosticGuestStep.written;
@@ -317,6 +319,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         diagnosticVersion: subjects.diagnosticVersion,
         taskId: subjects.written.productionTaskId,
         text: text,
+        oralRequired: subjects.oral != null,
       );
       if (!mounted) return;
       state = state.copyWith(draft: draft);
@@ -335,12 +338,18 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         diagnosticVersion: subjects.diagnosticVersion,
         taskId: subjects.written.productionTaskId,
         text: text,
+        oralRequired: subjects.oral != null,
       );
       if (!mounted) return false;
       state = state.copyWith(
         draft: draft,
         isSubmitting: false,
-        guestStep: DiagnosticGuestStep.oral,
+        // 🛑 Sans étape orale (diagnostic rapide, L3), l'écrit rendu mène
+        // DIRECTEMENT au compte. Renvoyer vers `oral` bloquerait le visiteur
+        // sur un écran d'enregistrement qui n'a pas de sujet.
+        guestStep: subjects.oral == null
+            ? DiagnosticGuestStep.accountRequired
+            : DiagnosticGuestStep.oral,
         clearError: true,
       );
       return true;
@@ -354,9 +363,12 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
           diagnosticVersion: subjects.diagnosticVersion,
           writtenTaskId: subjects.written.productionTaskId,
           writtenText: text,
+          oralRequired: subjects.oral != null,
         ),
         isSubmitting: false,
-        guestStep: DiagnosticGuestStep.oral,
+        guestStep: subjects.oral == null
+            ? DiagnosticGuestStep.accountRequired
+            : DiagnosticGuestStep.oral,
         errorMessage: _localSaveWarning,
       );
       return true;
@@ -368,13 +380,15 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
     String? mimeType,
   }) async {
     final subjects = state.subjects;
-    if (subjects == null) return false;
+    // Sans sujet oral, l'écran n'est pas atteignable : ce garde le dit au type
+    // comme au lecteur.
+    if (subjects?.oral == null) return false;
     state = state.copyWith(isSubmitting: true, clearError: true);
     try {
       final draft = await _draftStore.saveOral(
-        diagnosticCode: subjects.diagnosticCode,
+        diagnosticCode: subjects!.diagnosticCode,
         diagnosticVersion: subjects.diagnosticVersion,
-        taskId: subjects.oral.productionTaskId,
+        taskId: subjects.oral!.productionTaskId,
         source: audioFile,
         mimeType: mimeType,
       );
@@ -421,7 +435,12 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       clearNotice: true,
     );
     try {
-      var journey = await _diagnosticRepository.startOrResume();
+      // 🛑 Le sujet RÉELLEMENT rédigé est renvoyé au serveur : depuis L3 il
+      // peut être tiré, et sans cet identifiant la session s'ouvrirait sur un
+      // autre énoncé que celui traité par le candidat.
+      var journey = await _diagnosticRepository.startOrResume(
+        writtenTaskId: draft.writtenTaskId,
+      );
       if (!mounted) return false;
       state = state.copyWith(journey: journey);
       _onChanged();
@@ -475,7 +494,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       }
 
       state = state.copyWith(syncStage: DiagnosticSyncStage.confirming);
-      if (!_serverHasBothProductions(journey)) {
+      if (!_serverHasAllProductions(journey)) {
         state = state.copyWith(
           journey: journey,
           isSyncing: false,
@@ -485,8 +504,8 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         return false;
       }
 
-      // Accusé de réception des DEUX productions : la copie locale n'a plus
-      // de raison d'être.
+      // Accusé de réception de TOUTES les productions attendues : la copie
+      // locale n'a plus de raison d'être.
       await _clearDraft();
       if (!mounted) return false;
       state = state.copyWith(
@@ -518,16 +537,21 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         journey.status == DiagnosticJourneyStatus.failed) {
       return true;
     }
-    return _serverHasBothProductions(journey);
+    return _serverHasAllProductions(journey);
   }
 
-  static bool _serverHasBothProductions(DiagnosticJourney journey) {
+  /// Le serveur a-t-il accusé réception de TOUT ce que cette session porte ?
+  ///
+  /// 🛑 Une session sans étape orale (diagnostic rapide, L3) est complète avec
+  /// son seul écrit. Exiger un oral que le serveur n'a pas ouvert ferait
+  /// échouer un parcours réussi et afficherait un message d'erreur mensonger.
+  static bool _serverHasAllProductions(DiagnosticJourney journey) {
     if (journey.status == DiagnosticJourneyStatus.analyzing ||
         journey.status == DiagnosticJourneyStatus.completed) {
       return true;
     }
     return journey.written?.submissionId != null &&
-        journey.oral?.submissionId != null;
+        (journey.oral == null || journey.oral!.submissionId != null);
   }
 
   /// Efface la copie locale sur demande explicite du candidat.

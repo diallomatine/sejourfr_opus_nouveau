@@ -80,6 +80,18 @@ public class ProductionTaskManager {
                 code, version, epreuve);
     }
 
+    /**
+     * Le <b>pool</b> de sujets diagnostic d'une modalite/version (L3), dans un
+     * ordre deterministe. Vide = cette modalite n'existe pas sur ce couple —
+     * c'est ainsi que le diagnostic rapide declare n'avoir aucune etape orale.
+     */
+    public List<ProductionTask> findActiveDiagnosticPool(
+            String code, int version, EpreuveType epreuve) {
+        return repository
+                .findByDiagnosticCodeAndDiagnosticVersionAndEpreuveAndActiveTrueOrderByCreatedAtAscIdAsc(
+                        code, version, epreuve);
+    }
+
     /** Catalogue d'une epreuve, <b>desactivees comprises</b> : console admin uniquement. */
     public List<ProductionTask> findAllByEpreuve(EpreuveType epreuve) {
         return repository.findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(epreuve);

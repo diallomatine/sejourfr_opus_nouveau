@@ -35,6 +35,19 @@ export interface LocalDiagnosticProductions {
   oralTaskId: string | null;
   oralAudio: Blob | null;
   oralDurationSec: number | null;
+  /**
+   * Ce diagnostic comportait-il une étape orale ? (L3)
+   *
+   * 🛑 **La FORME du parcours est enregistrée avec la production**, pas
+   * déduite au moment de la relecture. Un enregistrement écrit sous le
+   * diagnostic à deux productions doit rester « incomplet » tant que son oral
+   * manque, même si la configuration a basculé entre-temps sur le diagnostic
+   * rapide — sinon on enverrait au serveur une session qu'il refuserait.
+   *
+   * Absent des enregistrements antérieurs à L3 ⇒ `true` : ils ont tous été
+   * faits sous la paire écrit + oral.
+   */
+  oralRequired: boolean;
   /** Date de la dernière écriture, pour départager deux entrées résiduelles. */
   savedAt: number;
 }
@@ -49,6 +62,8 @@ interface StoredRecord {
   oralAudioBuffer: ArrayBuffer | null;
   oralAudioType: string | null;
   oralDurationSec: number | null;
+  /** Absent sur un enregistrement d'avant L3 ⇒ lu comme `true`. */
+  oralRequired?: boolean;
   savedAt: number;
 }
 
@@ -116,6 +131,9 @@ function toPublic(record: StoredRecord): LocalDiagnosticProductions {
           })
         : null,
     oralDurationSec: record.oralDurationSec,
+    // Un enregistrement d'avant L3 n'a pas ce champ : il a forcément été fait
+    // sous la paire écrit + oral.
+    oralRequired: record.oralRequired ?? true,
     savedAt: record.savedAt,
   };
 }
@@ -130,6 +148,8 @@ function emptyRecord(diagnosticCode: string, diagnosticVersion: number): StoredR
     oralAudioBuffer: null,
     oralAudioType: null,
     oralDurationSec: null,
+    // Écrasé dès la première écriture de l'écrit, qui connaît la forme servie.
+    oralRequired: true,
     savedAt: Date.now(),
   };
 }
@@ -179,6 +199,7 @@ export async function saveLocalWritten(
   diagnosticVersion: number,
   productionTaskId: string,
   text: string,
+  oralRequired: boolean,
 ): Promise<boolean> {
   const db = await openDb();
   if (!db) return false;
@@ -188,6 +209,7 @@ export async function saveLocalWritten(
     ...current,
     writtenTaskId: productionTaskId,
     writtenText: text,
+    oralRequired,
     savedAt: Date.now(),
   });
   db.close();
@@ -250,9 +272,18 @@ export async function clearLocalDiagnostic(
   db.close();
 }
 
-/** Les deux productions sont là : il ne manque plus que le compte. */
+/**
+ * Tout ce que ce diagnostic demandait est là : il ne manque plus que le compte.
+ *
+ * 🛑 **« Tout » dépend de la FORME du parcours** (L3). Le diagnostic rapide
+ * n'a qu'une production écrite : y exiger un audio laisserait le candidat
+ * bloqué sur une étape orale qui n'existe pas. La forme est lue sur
+ * l'enregistrement lui-même, jamais sur la configuration du moment.
+ */
 export function isLocalDiagnosticComplete(
   local: LocalDiagnosticProductions | null | undefined,
 ): local is LocalDiagnosticProductions {
-  return Boolean(local?.writtenText?.trim() && local?.oralAudio && local.oralAudio.size > 0);
+  if (!local?.writtenText?.trim()) return false;
+  if (!local.oralRequired) return true;
+  return Boolean(local.oralAudio && local.oralAudio.size > 0);
 }

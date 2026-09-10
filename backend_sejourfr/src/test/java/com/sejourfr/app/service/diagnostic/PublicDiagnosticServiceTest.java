@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,8 +31,8 @@ class PublicDiagnosticServiceTest {
                 "https://cdn.example/audio.mp3");
         when(content.activeCode()).thenReturn("INITIAL_TCF");
         when(content.activeVersion("INITIAL_TCF")).thenReturn(1);
-        when(content.writtenTask("INITIAL_TCF", 1)).thenReturn(written);
-        when(content.oralTask("INITIAL_TCF", 1)).thenReturn(oral);
+        when(content.drawWrittenTask("INITIAL_TCF", 1)).thenReturn(written);
+        when(content.oralTask("INITIAL_TCF", 1)).thenReturn(Optional.of(oral));
 
         PublicDiagnosticResponse response = service.current();
 
@@ -58,19 +59,39 @@ class PublicDiagnosticServiceTest {
     }
 
     @Test
+    void diagnosticRapideSansEtapeOrale() {
+        ProductionTask written = task(EpreuveType.TCF_EE, "Vous et votre quotidien",
+                100, 300, null, null, null);
+        when(content.activeCode()).thenReturn("QUICK_TCF");
+        when(content.activeVersion("QUICK_TCF")).thenReturn(1);
+        when(content.drawWrittenTask("QUICK_TCF", 1)).thenReturn(written);
+        when(content.oralTask("QUICK_TCF", 1)).thenReturn(Optional.empty());
+
+        PublicDiagnosticResponse response = service.current();
+
+        // 🛑 `oral` NUL est une FORME, pas une panne (L3, `50_` §3.2). Un front
+        // qui le traiterait comme une erreur bloquerait tout le parcours.
+        assertThat(response.oral()).isNull();
+        assertThat(response.written().productionTaskId()).isEqualTo(written.getId());
+        // Le sujet écrit doit rester servi avec son identité : c'est lui que le
+        // client renvoie à la création de session.
+        assertThat(response.written().epreuve()).isEqualTo(EpreuveType.TCF_EE);
+    }
+
+    @Test
     void neToucheQuAuCatalogueDeContenu() {
         when(content.activeCode()).thenReturn("INITIAL_TCF");
         when(content.activeVersion("INITIAL_TCF")).thenReturn(1);
-        when(content.writtenTask("INITIAL_TCF", 1))
+        when(content.drawWrittenTask("INITIAL_TCF", 1))
                 .thenReturn(task(EpreuveType.TCF_EE, "EE", 100, 130, null, null, null));
         when(content.oralTask("INITIAL_TCF", 1))
-                .thenReturn(task(EpreuveType.TCF_EO, "EO", null, null, 120, 180, null));
+                .thenReturn(Optional.of(task(EpreuveType.TCF_EO, "EO", null, null, 120, 180, null)));
 
         service.current();
 
         verify(content).activeCode();
         verify(content).activeVersion("INITIAL_TCF");
-        verify(content).writtenTask("INITIAL_TCF", 1);
+        verify(content).drawWrittenTask("INITIAL_TCF", 1);
         verify(content).oralTask("INITIAL_TCF", 1);
         verifyNoMoreInteractions(content);
     }

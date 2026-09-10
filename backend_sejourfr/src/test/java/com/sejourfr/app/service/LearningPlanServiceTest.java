@@ -196,9 +196,9 @@ class LearningPlanServiceTest {
     @Test
     void sansSessionLeServeurDemandeLeDiagnostic() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
                 .thenReturn(Optional.empty());
 
         var result = service.get(userId);
@@ -212,9 +212,9 @@ class LearningPlanServiceTest {
         DiagnosticSession session = new DiagnosticSession();
         session.setId(UUID.randomUUID());
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
                 .thenReturn(Optional.of(session));
 
         var result = service.get(userId);
@@ -899,7 +899,7 @@ class LearningPlanServiceTest {
         assertThat(service.get(userId).completedSteps()).isEmpty();
         // Et avant meme le diagnostic, le champ existe deja vide.
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.empty());
         assertThat(service.get(userId).completedSteps()).isEmpty();
     }
@@ -1055,9 +1055,9 @@ class LearningPlanServiceTest {
     @Test
     void lesQuatreDomainesSontServisMemeSansDiagnostic() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
                 .thenReturn(Optional.empty());
         when(profileService.levelProfile(userId))
                 .thenReturn(profil(NiveauCecrl.B1, null, null, null));
@@ -1083,9 +1083,9 @@ class LearningPlanServiceTest {
     @Test
     void sansAucuneMesureLeProfilEntierResteAEvaluer() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
                 .thenReturn(Optional.empty());
 
         var result = service.get(userId);
@@ -1420,9 +1420,9 @@ class LearningPlanServiceTest {
     @Test
     void sansDiagnosticLaSeanceEstVideEtRienNaChange() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("INITIAL_TCF"))
+        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
                 .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "INITIAL_TCF", 1))
+        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
                 .thenReturn(Optional.empty());
 
         var result = service.get(userId);

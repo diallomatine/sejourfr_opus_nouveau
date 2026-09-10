@@ -146,7 +146,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
 
   int _maxOralSeconds(DiagnosticFlowState state) =>
       (state.isGuest
-          ? state.subjects?.oral.durationMaxSeconds
+          ? state.subjects?.oral?.durationMaxSeconds
           : state.journey?.oral?.durationMaxSeconds) ??
       180;
 
@@ -480,8 +480,12 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           onChanged: (text) => _onWritingChanged(text, isGuest: true),
           onSubmit: () => unawaited(_submitWritten(isGuest: true)),
         ),
-      DiagnosticGuestStep.oral => DiagnosticOralStep(
-          exercise: subjects.oral,
+      // 🛑 L'étape orale ne se rend que si ce diagnostic en porte une (L3).
+      // Sans sujet, le contrôleur a déjà envoyé le visiteur au compte : ce cas
+      // n'est donc pas atteignable, et le repli le dit sans planter.
+      DiagnosticGuestStep.oral when subjects.oral != null =>
+        DiagnosticOralStep(
+          exercise: subjects.oral!,
           recording: recording,
           isSubmitting: state.isSubmitting,
           errorMessage: state.errorMessage,
@@ -495,7 +499,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
               unawaited(_recordingController.openSystemSettings()),
           onSubmit: () => unawaited(_submitOral(isGuest: true)),
         ),
-      DiagnosticGuestStep.accountRequired => DiagnosticAccountGate(
+      // Le compte est aussi le repli de `oral` sans sujet oral : c'est là que
+      // le contrôleur envoie le visiteur, et l'écran doit dire la même chose.
+      DiagnosticGuestStep.accountRequired ||
+      DiagnosticGuestStep.oral =>
+        DiagnosticAccountGate(
           errorMessage: state.errorMessage,
           noticeMessage: state.noticeMessage,
           variantNote: diagnosticVariantAccountNote(variant),

@@ -27,6 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -66,6 +67,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * l'attempt, correspondance d'épreuve, chrono, une soumission par tâche, quota)
  * restent réellement exercées.
  */
+/*
+ * 🛑 Épinglé sur `INITIAL_TCF` : ce test porte sur la SÉQUENCE de deux
+ * productions rendues coup sur coup, transcription comprise. Depuis L3, le
+ * diagnostic servi par défaut est `QUICK_TCF`, qui n'a qu'une production
+ * écrite — le tunnel rapide a son propre test (`DiagnosticRapideIT`).
+ *
+ * Ce qu'il continue de garder n'est pas mort pour autant : propriété de
+ * l'attempt, correspondance d'épreuve, une soumission par tâche, quota
+ * freemium. Ces gardes servent toutes les productions, diagnostic TCF
+ * 4 épreuves et examens blancs compris.
+ */
+@TestPropertySource(properties = "sejourfr.diagnostic.initial-code=INITIAL_TCF")
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DiagnosticPostSignupSequenceIT extends AbstractIntegrationTest {
 

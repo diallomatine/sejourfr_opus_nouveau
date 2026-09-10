@@ -29,17 +29,32 @@ public class DiagnosticSessionCreator {
     private final AttemptService attemptService;
     private final DiagnosticSessionManager sessionManager;
 
+    /**
+     * @param requestedWrittenTaskId le sujet que le candidat a réellement lu et
+     *                               traité, quand le diagnostic tire dans un
+     *                               pool (L3). {@code null} ⇒ tirage ici.
+     *                               🛑 Il est <b>vérifié</b> contre le pool
+     *                               actif : un identifiant reçu du client ne
+     *                               désigne jamais une tâche arbitraire.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public DiagnosticSession create(UUID userId, String code, int version, ClientPlatform platform) {
+    public DiagnosticSession create(UUID userId, String code, int version,
+                                    ClientPlatform platform, UUID requestedWrittenTaskId) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         // Mêmes sujets que ceux servis publiquement au visiteur sans compte
         // (cf. DiagnosticContentResolver) : ce qu'il a rédigé avant de
         // s'inscrire doit correspondre à la tâche de la session créée ici.
-        ProductionTask writtenTask = content.writtenTask(code, version);
-        ProductionTask oralTask = content.oralTask(code, version);
+        ProductionTask writtenTask =
+                content.writtenTaskOrDraw(code, version, requestedWrittenTaskId);
+        // 🛑 L'étape orale n'existe que si le CONTENU en porte une. Le
+        // diagnostic rapide (L3) n'en a pas, et créer un attempt orphelin
+        // « au cas où » réclamerait au candidat une production dont le sujet
+        // n'existe pas.
+        ProductionTask oralTask = content.oralTask(code, version).orElse(null);
         Attempt writtenAttempt = attemptService.createDiagnosticProductionAttempt(userId, EpreuveType.TCF_EE);
-        Attempt oralAttempt = attemptService.createDiagnosticProductionAttempt(userId, EpreuveType.TCF_EO);
+        Attempt oralAttempt = oralTask == null ? null
+                : attemptService.createDiagnosticProductionAttempt(userId, EpreuveType.TCF_EO);
 
         DiagnosticSession session = new DiagnosticSession();
         session.setUser(user);

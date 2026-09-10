@@ -70,14 +70,22 @@ public class DiagnosticService {
                 .orElseGet(() -> notStarted(code, version));
     }
 
-    public DiagnosticResponse startOrResume(UUID userId, ClientPlatform platform) {
+    /**
+     * @param writtenTaskId le sujet que le candidat a réellement lu et traité
+     *                      quand le diagnostic tire dans un pool (L3).
+     *                      {@code null} ⇒ tirage serveur. Il est vérifié contre
+     *                      le pool actif — un identifiant reçu du client ne
+     *                      désigne jamais une tâche arbitraire du catalogue.
+     */
+    public DiagnosticResponse startOrResume(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId) {
         String code = content.activeCode();
         int version = content.activeVersion(code);
         DiagnosticSession existing = sessionManager
                 .findByUserAndVersionWithContent(userId, code, version).orElse(null);
         if (existing != null) return toResponse(userId, existing);
         try {
-            sessionCreator.create(userId, code, version, platform);
+            sessionCreator.create(userId, code, version, platform, writtenTaskId);
         } catch (DataIntegrityViolationException concurrentStart) {
             // La transaction concurrente gagnante porte l'unique session ; la
             // transaction de ce caller a rollbacké ses deux attempts.
@@ -117,7 +125,10 @@ public class DiagnosticService {
     @Transactional(readOnly = true)
     protected DiagnosticResponse toResponse(UUID userId, DiagnosticSession session) {
         ProductionSubmission writtenSubmission = submission(session.getWrittenAttempt().getId());
-        ProductionSubmission oralSubmission = submission(session.getOralAttempt().getId());
+        // 🛑 Pas d'étape orale (diagnostic rapide, L3) ⇒ pas de soumission orale
+        // à chercher, et surtout pas une étape « ORAL » à réclamer.
+        ProductionSubmission oralSubmission = session.hasOral()
+                ? submission(session.getOralAttempt().getId()) : null;
         DiagnosticResultDto result = session.getStatus() == DiagnosticSessionStatus.COMPLETED
                 ? result(userId, session, writtenSubmission, oralSubmission) : null;
         return new DiagnosticResponse(
@@ -125,7 +136,9 @@ public class DiagnosticService {
                 DiagnosticJourneyStatus.valueOf(session.getStatus().name()),
                 step(session, writtenSubmission, oralSubmission),
                 exercise(session.getWrittenTask(), session.getWrittenAttempt().getId(), writtenSubmission),
-                exercise(session.getOralTask(), session.getOralAttempt().getId(), oralSubmission),
+                session.hasOral()
+                        ? exercise(session.getOralTask(), session.getOralAttempt().getId(), oralSubmission)
+                        : null,
                 result, session.getStartedAt(), session.getCompletedAt(), session.getErrorMessage(),
                 session.getStatus() == DiagnosticSessionStatus.FAILED
                         && session.getRetryCount() < properties.getAnalysis().getMaxSessionRetries());
@@ -154,7 +167,10 @@ public class DiagnosticService {
             ProductionSubmission oral) {
         if (session.getStatus() == DiagnosticSessionStatus.COMPLETED) return DiagnosticStep.RESULT;
         if (written == null) return DiagnosticStep.WRITTEN;
-        if (oral == null) return DiagnosticStep.ORAL;
+        // 🛑 Sans étape orale, l'écrit rendu mène DIRECTEMENT à l'analyse. Le
+        // test historique (`oral == null ⇒ ORAL`) enverrait le diagnostic
+        // rapide sur un écran d'enregistrement qui n'existe pas.
+        if (session.hasOral() && oral == null) return DiagnosticStep.ORAL;
         return DiagnosticStep.ANALYSIS;
     }
 

@@ -36,10 +36,11 @@ public interface DiagnosticProductionAnalysisRepository
               AND a.levelEstimate IS NOT NULL
               AND EXISTS (
                   SELECT 1 FROM DiagnosticSession ds
+                    LEFT JOIN ds.oralAttempt oa
                   WHERE ds.user.id = :userId
                     AND ds.status = com.sejourfr.app.enums.DiagnosticSessionStatus.COMPLETED
                     AND (ds.writtenAttempt.id = s.attempt.id
-                         OR ds.oralAttempt.id = s.attempt.id))
+                         OR oa.id = s.attempt.id))
             """)
     List<DiagnosticEpreuveLevel> findCompletedLevelsByUser(@Param("userId") UUID userId);
 }

@@ -21,6 +21,7 @@ class DiagnosticDraft {
     this.audioFileName,
     this.audioMime,
     this.savedAt,
+    this.oralRequired = true,
   });
 
   final String diagnosticCode;
@@ -36,6 +37,18 @@ class DiagnosticDraft {
   final String? audioMime;
   final DateTime? savedAt;
 
+  /// Ce diagnostic comportait-il une étape orale ? (L3)
+  ///
+  /// 🛑 **La FORME du parcours est enregistrée AVEC la production**, jamais
+  /// relue sur la configuration du moment. Un brouillon écrit sous le
+  /// diagnostic à deux productions doit rester incomplet tant que son oral
+  /// manque, même si le serveur a basculé entre-temps sur le diagnostic
+  /// rapide — sinon on enverrait une session que le serveur refuserait.
+  ///
+  /// Absent des brouillons antérieurs à L3 ⇒ `true` : ils ont tous été faits
+  /// sous la paire écrit + oral.
+  final bool oralRequired;
+
   bool get hasWritten =>
       (writtenTaskId?.isNotEmpty ?? false) &&
       (writtenText?.trim().isNotEmpty ?? false);
@@ -43,7 +56,11 @@ class DiagnosticDraft {
   bool get hasOral =>
       (oralTaskId?.isNotEmpty ?? false) && (audioFileName?.isNotEmpty ?? false);
 
-  bool get isComplete => hasWritten && hasOral;
+  /// Tout ce que CE diagnostic demandait est là.
+  ///
+  /// 🛑 Sur le diagnostic rapide, l'écrit seul suffit : exiger un audio
+  /// laisserait le visiteur bloqué sur une étape qu'on ne lui demande pas.
+  bool get isComplete => hasWritten && (!oralRequired || hasOral);
 
   bool get isEmpty => !hasWritten && !hasOral;
 
@@ -59,6 +76,7 @@ class DiagnosticDraft {
     String? audioFileName,
     String? audioMime,
     DateTime? savedAt,
+    bool? oralRequired,
     bool clearOral = false,
   }) =>
       DiagnosticDraft(
@@ -71,6 +89,7 @@ class DiagnosticDraft {
             clearOral ? null : (audioFileName ?? this.audioFileName),
         audioMime: clearOral ? null : (audioMime ?? this.audioMime),
         savedAt: savedAt ?? this.savedAt,
+        oralRequired: oralRequired ?? this.oralRequired,
       );
 }
 
@@ -88,6 +107,7 @@ class DiagnosticDraftStore {
   static const _kAudioName = 'diagnostic_draft_audio_name';
   static const _kAudioMime = 'diagnostic_draft_audio_mime';
   static const _kSavedAt = 'diagnostic_draft_saved_at';
+  static const _kOralRequired = 'diagnostic_draft_oral_required';
 
   static const _folder = 'diagnostic';
 
@@ -110,6 +130,8 @@ class DiagnosticDraftStore {
       audioFileName: audioExists ? audioName : null,
       audioMime: audioExists ? prefs.getString(_kAudioMime) : null,
       savedAt: savedAt == null ? null : DateTime.tryParse(savedAt),
+      // Absent = brouillon d'avant L3, donc fait sous la paire écrit + oral.
+      oralRequired: prefs.getBool(_kOralRequired) ?? true,
     );
   }
 
@@ -118,6 +140,7 @@ class DiagnosticDraftStore {
     required int diagnosticVersion,
     required String taskId,
     required String text,
+    required bool oralRequired,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
@@ -125,6 +148,7 @@ class DiagnosticDraftStore {
     await prefs.setInt(_kVersion, diagnosticVersion);
     await prefs.setString(_kWrittenTask, taskId);
     await prefs.setString(_kWrittenText, text);
+    await prefs.setBool(_kOralRequired, oralRequired);
     await prefs.setString(_kSavedAt, now.toIso8601String());
     final current = await read();
     return (current ??
@@ -135,6 +159,7 @@ class DiagnosticDraftStore {
         .copyWith(
       writtenTaskId: taskId,
       writtenText: text,
+      oralRequired: oralRequired,
       savedAt: now,
     );
   }

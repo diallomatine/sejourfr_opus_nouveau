@@ -337,7 +337,10 @@ public class ProductionAccessService {
         boolean written = attempt.getId().equals(session.getWrittenAttempt().getId())
                 && task.getId().equals(session.getWrittenTask().getId())
                 && attempt.getEpreuve() == EpreuveType.TCF_EE;
-        boolean oral = attempt.getId().equals(session.getOralAttempt().getId())
+        // 🛑 `hasOral()` d'abord : un diagnostic rapide (L3) n'a pas d'attempt
+        // oral, et le déréférencer ici ferait tomber TOUTE soumission écrite.
+        boolean oral = session.hasOral()
+                && attempt.getId().equals(session.getOralAttempt().getId())
                 && task.getId().equals(session.getOralTask().getId())
                 && attempt.getEpreuve() == EpreuveType.TCF_EO;
         if (!written && !oral) {

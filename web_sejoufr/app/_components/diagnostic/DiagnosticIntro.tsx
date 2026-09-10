@@ -65,7 +65,10 @@ function useIntroMeasures(
   oral: DiagnosticExerciseContent | null | undefined,
 ): {written: DiagnosticExerciseMeasure | null; oral: DiagnosticExerciseMeasure | null} {
   const [fallback, setFallback] = useState<PublicDiagnosticResponse | null>(null);
-  const missing = written == null || oral == null;
+  // 🛑 Seul l'ÉCRIT manquant déclenche le repli. Depuis L3, un oral nul est une
+  // FORME légitime (le diagnostic rapide n'en a pas) : le tester ici ferait
+  // partir un appel réseau à chaque affichage, pour rapporter le même `null`.
+  const missing = written == null;
 
   useEffect(() => {
     if (!missing || fallback) return;
@@ -148,7 +151,11 @@ export function DiagnosticIntro({
             <span className={styles.choiceBadge}>Recommandé</span>
           </div>
           <p className={styles.choiceMeta}>
-            <span>Expression écrite + expression orale</span>
+            <span>
+              {measures.oral
+                ? "Expression écrite + expression orale"
+                : "Une seule production écrite"}
+            </span>
             {minutesLabel(express) && (
               <span>
                 <Clock3 size={14} aria-hidden /> {minutesLabel(express)}
@@ -228,20 +235,27 @@ export function DiagnosticIntro({
             <p className={styles.introNote}>Vous rédigez un court texte.</p>
           </div>
         </li>
-        <li>
-          <span className={styles.introIcon} aria-hidden>
-            <Mic size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Oral</b>
-              <span>{diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}</span>
-            </p>
-            <p className={styles.introNote}>
-              Vous vous enregistrez, sans conversation en direct.
-            </p>
-          </div>
-        </li>
+        {/* 🛑 L'étape orale n'est annoncée que si elle existe : promettre un
+            enregistrement qui n'arrivera pas fausse l'engagement du candidat
+            dès la première seconde. */}
+        {measures.oral && (
+          <li>
+            <span className={styles.introIcon} aria-hidden>
+              <Mic size={18} />
+            </span>
+            <div>
+              <p className={styles.introHead}>
+                <b>Oral</b>
+                <span>
+                  {diagnosticOralMeasureLabel(measures.oral) ?? "un court enregistrement"}
+                </span>
+              </p>
+              <p className={styles.introNote}>
+                Vous vous enregistrez, sans conversation en direct.
+              </p>
+            </div>
+          </li>
+        )}
         <li className={styles.introListLater}>
           <span className={styles.introIcon} aria-hidden>
             <Headphones size={18} />

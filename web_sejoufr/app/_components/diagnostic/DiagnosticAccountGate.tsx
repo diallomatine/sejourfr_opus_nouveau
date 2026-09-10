@@ -41,10 +41,20 @@ function formatDuration(seconds: number | null): string | null {
 export function DiagnosticAccountGate({
   writtenWords,
   oralDurationSec,
+  hasOral = true,
   storedOnDevice,
 }: {
   writtenWords: number;
   oralDurationSec: number | null;
+  /**
+   * Ce diagnostic comportait-il une étape orale ? (L3)
+   *
+   * 🛑 `false` sur le diagnostic rapide. L'écran ne doit alors ni compter deux
+   * réponses ni afficher une ligne « Expression orale » cochée : le candidat
+   * n'a rien enregistré, et lui montrer une coche là-dessus est un mensonge
+   * juste avant de lui demander son e-mail.
+   */
+  hasOral?: boolean;
   /** `false` quand le navigateur a refusé l'écriture disque (navigation privée,
    *  quota) : on le dit franchement plutôt que de promettre une reprise qui
    *  n'aurait pas lieu. */
@@ -102,7 +112,11 @@ export function DiagnosticAccountGate({
     <div className={styles.gate}>
       <section className={styles.gateMain} aria-labelledby="gate-title">
         <p className={styles.eyebrow}>Dernière étape</p>
-        <h1 id="gate-title">Vos deux réponses sont prêtes</h1>
+        <h1 id="gate-title">
+          {hasOral ? "Vos deux réponses sont prêtes" : "Votre texte est enregistré"}
+        </h1>
+        {/* 🛑 Formulation imposée (`10_` §3.4) : l'écran ne doit PAS laisser
+            croire que quelque chose est déjà analysé — rien ne l'est encore. */}
         <p className={styles.gateLead}>
           Créez votre compte gratuit pour lancer l&apos;analyse. C&apos;est lui qui portera
           votre résultat et votre plan de travail.
@@ -115,19 +129,25 @@ export function DiagnosticAccountGate({
             <small>{writtenWords} mot{writtenWords > 1 ? "s" : ""} rédigés</small>
             <i aria-hidden><Check size={13} strokeWidth={3.2} /></i>
           </li>
-          <li>
-            <span aria-hidden><Mic size={16} /></span>
-            <b>Expression orale</b>
-            <small>{duration ? `${duration} enregistrées` : "Enregistrement prêt"}</small>
-            <i aria-hidden><Check size={13} strokeWidth={3.2} /></i>
-          </li>
+          {hasOral && (
+            <li>
+              <span aria-hidden><Mic size={16} /></span>
+              <b>Expression orale</b>
+              <small>{duration ? `${duration} enregistrées` : "Enregistrement prêt"}</small>
+              <i aria-hidden><Check size={13} strokeWidth={3.2} /></i>
+            </li>
+          )}
         </ul>
 
         <p className={styles.gateSafety}>
           <ShieldCheck size={15} aria-hidden />
           {storedOnDevice
-            ? "Vos réponses sont conservées sur cet appareil : vous pouvez fermer cette page, elles seront toujours là."
-            : "Vos réponses sont conservées dans cet onglet. Évitez de le fermer avant d'avoir créé votre compte."}
+            ? (hasOral
+                ? "Vos réponses sont conservées sur cet appareil : vous pouvez fermer cette page, elles seront toujours là."
+                : "Votre texte est enregistré sur cet appareil : vous pouvez fermer cette page, il sera toujours là.")
+            : (hasOral
+                ? "Vos réponses sont conservées dans cet onglet. Évitez de le fermer avant d'avoir créé votre compte."
+                : "Votre texte est conservé dans cet onglet. Évitez de le fermer avant d'avoir créé votre compte.")}
         </p>
 
         <div className={styles.gateTabs} role="tablist" aria-label="Créer un compte ou se connecter">
