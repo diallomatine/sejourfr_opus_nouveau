@@ -87,6 +87,27 @@ const Map<String, String> kMentionLabel = {
   'NAT': 'Naturalisation',
 };
 
+/// Ce que l'écran dit à un compte **dont la démarche est déjà connue**.
+///
+/// 🛑 **On ne repose pas une question déjà posée.** La démarche est collectée à
+/// l'inscription / à l'onboarding (`TargetPathScreen`) : la redemander ici
+/// ferait croire qu'elle n'a pas été enregistrée. Elle reste **affichée**,
+/// parce qu'elle choisit les questions — le candidat doit pouvoir vérifier sur
+/// quel programme il va être mesuré —, et modifiable d'un bouton vers l'écran
+/// qui en est déjà l'autorité.
+///
+/// Miroir de `civicProcedureLine` côté web.
+String civicProcedureLine(String wire) =>
+    'Vous préparez : ${kMentionLabel[wire] ?? wire}.';
+
+const String kCivicDiagnosticProcedureChangeCta = 'Modifier ma démarche';
+
+/// L'écran qui est **déjà** l'autorité de la démarche (`TargetPathScreen`),
+/// avec le retour vers ce hub. Miroir du `/parcours?from=…` du web : aucun
+/// écran neuf n'est créé pour changer de démarche.
+const String kCivicProcedureChangePath =
+    '/target-path?from=%2Fdiagnostic-civique';
+
 /// « 12 sur 40 répondues ». Compté sur ce que le serveur a servi.
 String civicProgressionLabel(int repondues, int total) =>
     '$repondues sur $total répondue${repondues > 1 ? 's' : ''}';

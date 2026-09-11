@@ -93,6 +93,22 @@
   min-width: 0;
 }
 
+/* L'en-tête SANS flèche de retour se CENTRE sur mobile : la colonne y occupe
+   toute la largeur, et un titre calé à gauche — juste sous le burger flottant
+   du shell connecté — se lisait mal. Au-delà de 620 px, la borne du kit (celle
+   où la colonne se détache de ses bords), on revient à l'alignement à gauche de
+   la maquette.
+
+   🛑 Un en-tête QUI PORTE une flèche garde son alignement à gauche à toutes les
+   largeurs : centrer son texte le décalerait de sa flèche. */
+.topPlain {
+  justify-content: center;
+}
+
+.topPlain .topText {
+  text-align: center;
+}
+
 .kicker {
   margin: 0 0 2px;
   font-size: 12px;
@@ -1510,6 +1526,14 @@
     padding-top: 8px;
   }
 
+  .topPlain {
+    justify-content: flex-start;
+  }
+
+  .topPlain .topText {
+    text-align: left;
+  }
+
   .title {
     font-size: 24px;
   }
@@ -1517,5 +1541,24 @@
   /* La barre collée ne sort pas de la colonne : elle la suit. */
   .sticky {
     border-radius: var(--sf-radius-lg) var(--sf-radius-lg) 0 0;
+  }
+}
+
+/* ---------- La gouttière du burger de l'espace connecté ---------- */
+
+/* 🛑 Sous 900 px, l'espace connecté range sa barre latérale derrière un burger
+   `position: fixed` (`.ms-toggle`, 44 px posé à 12 px du coin haut-gauche, cf.
+   `globals.css`) : il recouvrait le début de l'eyebrow et du titre, devenus le
+   premier bloc de ces écrans. Même remède que partout ailleurs dans l'espace
+   connecté (`/dashboard`, `/statistiques`, les hubs de module…) : une gouttière
+   de 64 px, soit 12 (marge du bouton) + 44 (sa taille) + 8 (respiration).
+
+   La gouttière existe EXACTEMENT quand le burger existe — même borne que sa
+   règle d'affichage — et seulement dans un shell qui le porte : un écran du kit
+   servi hors espace connecté (`/diagnostic` public, sous le `SiteHeader`) n'a
+   pas de burger, donc pas de gouttière. */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .app {
+    padding-top: 64px;
   }
 }

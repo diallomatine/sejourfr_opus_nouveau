@@ -163,7 +163,7 @@ export function LearningPlanView() {
   }, [user]);
 
   if (authStatus === "loading" || (Boolean(user) && loading)) {
-    return <Top kicker="Votre parcours personnalisé" title="Mon plan" />;
+    return <Top kicker="Votre parcours personnalisé" title="Mon plan du jour" />;
   }
 
   if (!user) {
@@ -218,7 +218,7 @@ function PlanMessage({title, text, cta, href, alert}: {
 }) {
   return (
     <>
-      <Top kicker="Votre parcours personnalisé" title="Mon plan" />
+      <Top kicker="Votre parcours personnalisé" title="Mon plan du jour" />
       <Section>
         <Pad>
           <Stack>
@@ -250,7 +250,7 @@ function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
     <>
       <Top
         kicker={objective ? `Votre parcours personnalisé vers ${objective}` : "Votre parcours personnalisé"}
-        title="Mon plan"
+        title="Mon plan du jour"
       />
 
       <Pad>
@@ -342,7 +342,7 @@ function TcfPlanFree({plan}: {plan: LearningPlanDto}) {
     <>
       <Top
         kicker="Créé à partir de votre diagnostic"
-        title={objective ? `Mon plan ${objective}` : "Mon plan"}
+        title={objective ? `Mon plan du jour ${objective}` : "Mon plan du jour"}
       />
 
       <Pad>

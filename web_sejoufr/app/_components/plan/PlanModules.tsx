@@ -20,7 +20,7 @@
 import {useEffect, useState} from "react";
 import {useSearchParams} from "next/navigation";
 import {Landmark} from "lucide-react";
-import {ModuleToggle, SejourApp} from "@/app/_components/sejour/SejourKit";
+import {ModuleToggle, SejourApp, TopSlot} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleParDefaut, planIndisponible} from "@/lib/preparation";
@@ -71,12 +71,11 @@ export function PlanModules() {
         };
     }, [search, choisi]);
 
-    const indisponible =
-        prep && module === "TCF"
-            ? planIndisponible(prep.tcf, "TCF")
-            : prep && module === "CIVIQUE"
-              ? planIndisponible(prep.civique, "CIVIQUE")
-              : null;
+    /* 🛑 L'état du module affiché, tel que le serveur le sert. La porte
+       d'entrée en a besoin en entier : l'étape dit lequel des trois écrans
+       rendre, et `sessionId` désigne le diagnostic rapide à relire. */
+    const moduleprep = prep ? (module === "TCF" ? prep.tcf : prep.civique) : null;
+    const indisponible = moduleprep ? planIndisponible(moduleprep, module) : null;
 
     /* La barre d'action collée en bas n'existe que sur les écrans gratuits :
        elle porte le CTA de déblocage. Sa réserve de place se pose ici, seul
@@ -84,35 +83,46 @@ export function PlanModules() {
        🛑 L'accès se **lit** (`canAccessModule`), il ne se devine pas. */
     const sticky = Boolean(!indisponible && !canAccessModule(user, module));
 
+    /* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une seconde
+       implémentation du même contrôle finirait par diverger.
+
+       🛑 **Il se pose SOUS l'en-tête de page** (eyebrow + titre), pas au-dessus
+       — l'écran s'annonce, puis on choisit son parcours. Comme l'en-tête
+       appartient à l'état affiché (le titre et l'eyebrow changent avec lui), le
+       toggle descend par `TopSlot` : c'est `Top` qui le place, dans les sept
+       variantes à la fois, sans qu'aucune ne le recopie. */
+    const toggle = (
+        <ModuleToggle
+            current={module === "TCF" ? "tcf" : "civique"}
+            onSelect={(m) => {
+                setChoisi(true);
+                setModule(m === "tcf" ? "TCF" : "CIVIQUE");
+            }}
+        />
+    );
+
     return (
         <SejourApp sticky={sticky}>
-            {/* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une
-                seconde implémentation du même contrôle finirait par diverger. */}
-            <ModuleToggle
-                current={module === "TCF" ? "tcf" : "civique"}
-                onSelect={(m) => {
-                    setChoisi(true);
-                    setModule(m === "tcf" ? "TCF" : "CIVIQUE");
-                }}
-            />
-
-            {indisponible ? (
-                <PlanGate
-                    gate={indisponible}
-                    kicker={
-                        module === "TCF"
-                            ? "Votre parcours personnalisé"
-                            : "Votre préparation personnalisée à l'Examen civique"
-                    }
-                    icon={module === "CIVIQUE" ? Landmark : undefined}
-                />
-            ) : module === "TCF" ? (
-                <LearningPlanView />
-            ) : (
-                /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
-                   L10) : c'est un moteur, plus un écho du diagnostic. */
-                <CivicPlanPanel />
-            )}
+            <TopSlot node={toggle}>
+                {indisponible ? (
+                    <PlanGate
+                        gate={indisponible}
+                        prep={moduleprep}
+                        kicker={
+                            module === "TCF"
+                                ? "Votre parcours personnalisé"
+                                : "Votre préparation personnalisée à l'Examen civique"
+                        }
+                        icon={module === "CIVIQUE" ? Landmark : undefined}
+                    />
+                ) : module === "TCF" ? (
+                    <LearningPlanView />
+                ) : (
+                    /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
+                       L10) : c'est un moteur, plus un écho du diagnostic. */
+                    <CivicPlanPanel />
+                )}
+            </TopSlot>
         </SejourApp>
     );
 }

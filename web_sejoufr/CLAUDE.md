@@ -782,11 +782,39 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `Top`, `Card`, `LevelTrack`, `GoalStrip`, `Observation`, `NoteCard`,
   `ExamRow`, `ThemeLine`, `Prio`, `ProgressMini`, `SkillRow`, `PathCard`,
   `NowCard`, `MiniPlan`, `LockRow`, `CheckList`, `DoneRow`, `PillMeta`,
-  `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`…).
+  `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`, **`TopSlot`**…).
 - **Miroir Flutter** : `mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`,
   mêmes briques, mêmes noms (préfixe `Sf`). 🛑 **Un motif ajouté d'un côté
   s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit *est* la garantie de parité de
   ces écrans ; deux kits qui divergent, ce sont deux produits.
+
+**`TopSlot` — ce qui se glisse SOUS l'en-tête (2026-09-12).** Sur le Plan,
+l'ordre est **eyebrow → titre → bascule TCF/Civique** : l'écran s'annonce, puis
+on choisit son parcours. L'en-tête appartient à l'**état affiché** (son eyebrow
+et son titre changent avec lui), donc `PlanModules` ne rend plus le
+`ModuleToggle` lui-même — il le passe en `<TopSlot node={…}>` et c'est `Top` qui
+le pose, dans les sept variantes à la fois. 🛑 **Corollaire à ne pas casser** :
+la bascule est une navigation, pas un résultat — tout état du Plan rend son
+`Top`, y compris le **chargement** de `/api/me/civic-plan` (qui rendait `null`),
+sinon le candidat perd la porte de l'autre parcours. Miroir Flutter :
+`SfTopSlot`.
+
+**L'en-tête ne passe jamais sous le burger (2026-09-12).** Sous 900 px,
+l'espace connecté range sa barre latérale derrière `.ms-toggle`, un burger
+`position: fixed` de 44 px posé à 12 px du coin haut-gauche : il recouvrait le
+début de l'eyebrow et du titre. `sejour.module.css` réserve donc la même
+gouttière de 64 px que le reste de l'espace connecté (`/dashboard`,
+`/statistiques`, les hubs), mais **seulement là où le burger existe** —
+`:global(.app-shell--has-drawer) .app`, à la **même borne** que sa règle
+d'affichage. Un écran du kit servi hors espace connecté (`/diagnostic` public,
+sous le `SiteHeader`) n'a pas de burger, donc pas de gouttière.
+
+**En-tête centré sous 620 px (2026-09-12).** `Top` pose `.topPlain` quand il n'a
+**pas** de flèche de retour : eyebrow et titre se centrent sur mobile, et
+reviennent à gauche au-dessus de 620 px — la borne que le kit utilise déjà pour
+son confort de lecture, pas un breakpoint de plus. 🛑 Un en-tête **qui porte une
+flèche** garde son alignement à gauche à toutes les largeurs : centrer son texte
+le décalerait de sa flèche. Miroir Flutter : `plain` dans `SfTop`.
 
 **Colonne unique, cadrée à 560 px et centrée.** Ce sont des écrans de lecture,
 pas des tableaux de bord : les élargir casserait la hiérarchie de la maquette.

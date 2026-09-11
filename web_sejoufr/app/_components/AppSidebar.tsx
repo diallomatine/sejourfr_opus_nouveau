@@ -5,7 +5,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   Flame,
-  Home,
   LayoutGrid,
   Lightbulb,
   ListChecks,
@@ -113,9 +112,6 @@ function AppSidebarInner() {
       </Link>
 
       <nav className="app-nav" aria-label="Espace personnel">
-        <SideLink href="/" pathname={pathname} icon={<Home size={18} />}>
-          Accueil
-        </SideLink>
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
           Tableau de bord
         </SideLink>

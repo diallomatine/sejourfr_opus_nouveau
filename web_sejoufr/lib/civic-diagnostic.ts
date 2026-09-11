@@ -11,7 +11,7 @@
  * arrivent servis. Il ne fait que les mettre en mots.
  */
 import type {Tone} from "@/app/_components/sejour/SejourKit";
-import type {CivicDiagnosticResultDto, CivicThemeState} from "./types";
+import type {CivicDiagnosticResultDto, CivicThemeState, TargetProcedure} from "./types";
 
 /**
  * Le format OFFICIEL de l'examen — miroir de `CivicExamFormat` côté Java, où
@@ -120,6 +120,22 @@ export const MENTION_LABEL: Record<string, string> = {
     CR: "Carte de résident",
     NAT: "Naturalisation",
 };
+
+/**
+ * Ce que l'écran dit à un compte **dont la démarche est déjà connue**.
+ *
+ * 🛑 **On ne repose pas une question déjà posée.** La démarche est collectée à
+ * l'inscription / à l'onboarding (`DiagnosticAccountGate`, `/parcours`) : la
+ * redemander ici ferait croire qu'elle n'a pas été enregistrée. Elle reste
+ * **affichée**, parce qu'elle choisit les questions — le candidat doit pouvoir
+ * vérifier sur quel programme il va être mesuré —, et modifiable d'un lien vers
+ * l'écran qui en est déjà l'autorité.
+ */
+export function civicProcedureLine(procedure: TargetProcedure): string {
+    return `Vous préparez : ${MENTION_LABEL[procedure]}.`;
+}
+
+export const CIVIC_DIAGNOSTIC_PROCEDURE_CHANGE_CTA = "Modifier ma démarche";
 
 /** « 12 sur 24 répondues ». Compté sur ce que le serveur a servi. */
 export function progressionLabel(repondues: number, total: number): string {

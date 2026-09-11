@@ -19,7 +19,7 @@
  */
 
 import type {ReactNode} from "react";
-import {ArrowUp, BookOpen, Check, Headphones, Info, Mic, PenLine} from "lucide-react";
+import {ArrowUp, Check, Info} from "lucide-react";
 import {
   Card,
   CheckList,
@@ -36,103 +36,28 @@ import {
   sejourStyles as styles,
 } from "@/app/_components/sejour/SejourKit";
 import {TCF_DIAGNOSTIC_HUB_HREF, levelTrackPosition} from "@/lib/tcf-diagnostic";
+import {
+  DIAGNOSTIC_COMPLET_BENEFITS,
+  DIAGNOSTIC_COMPLET_CTA,
+  DIAGNOSTIC_COMPLET_EPREUVES,
+  DIAGNOSTIC_COMPLET_NOTE,
+  DIAGNOSTIC_COMPLET_PROMISE,
+  DIAGNOSTIC_COMPLET_TITLE,
+  DIAGNOSTIC_GOAL_PREFIX,
+  DIAGNOSTIC_INCOMPLETE_TEXT,
+  DIAGNOSTIC_LEVEL_EYEBROW,
+  DIAGNOSTIC_LEVEL_UNKNOWN,
+  DIAGNOSTIC_OBJECTIVE_UNKNOWN,
+  DIAGNOSTIC_OBSERVE_TITLE,
+  DIAGNOSTIC_REPORT_BACK_HREF,
+  DIAGNOSTIC_REPORT_KICKER,
+  DIAGNOSTIC_REPORT_TITLE,
+  DIAGNOSTIC_TRANSITION_EMPHASIS,
+  DIAGNOSTIC_TRANSITION_TEXT,
+  DIAGNOSTIC_TRANSITION_TITLE,
+  observationLines,
+} from "./report-labels";
 import {niveauCecrlShort, type DiagnosticResultDto} from "@/lib/types";
-
-/* ------------------------------------------------------------- les libellés */
-
-const BACK_HREF = "/dashboard";
-const TOP_KICKER = "Diagnostic rapide terminé";
-const TOP_TITLE = "Votre estimation";
-
-/**
- * 🛑 **Wording imposé** : « Niveau estimé **sur cet exercice** », jamais « votre
- * niveau TCF ». Trois épreuves sur quatre n'ont pas été mesurées.
- */
-const HERO_LABEL = "Niveau estimé sur cet exercice";
-const HERO_GOAL = "Votre objectif :";
-/** 🛑 L'objectif est **nullable** : aucun front n'invente « B2 » pour un
- *  candidat qui n'a déclaré ni démarche ni palier. */
-const OBJECTIVE_UNKNOWN = "à définir";
-/** Ce qu'on affiche à la place d'un niveau qui n'existe pas. */
-const LEVEL_UNKNOWN = "—";
-
-/** 🛑 « Rendue, rien à observer » ≠ « faible ». La phrase ne juge pas la
- *  production : elle dit ce qui manque pour conclure. */
-const INCOMPLETE_TEXT =
-  "Nous n'avons pas reçu suffisamment de contenu pour estimer votre niveau."
-  + " Une nouvelle production de deux minutes suffit.";
-
-const OBSERVE_TITLE = "Ce que nous avons observé";
-const OBSERVE_POSITIVE = "Positive";
-const OBSERVE_AMELIORER = "À améliorer";
-/** Plafond d'AFFICHAGE, arbitré produit : deux points à améliorer, pas une
- *  liste. Le serveur en sert jusqu'à trois ; on n'en montre que deux. */
-const OBSERVE_MAX_AMELIORER = 2;
-
-const TRANSITION_TITLE = "Ce n'est qu'une première estimation";
-const TRANSITION_TEXT =
-  "Cet exercice analyse votre manière de vous exprimer à l'écrit. "
-  + "Au TCF, votre niveau dépend aussi de votre expression orale, de votre "
-  + "compréhension orale et de votre compréhension écrite.";
-const TRANSITION_EMPHASIS = "Votre niveau peut donc être différent selon les épreuves.";
-
-const COMPLET_TITLE = "Découvrez où vous en êtes vraiment au TCF";
-const COMPLET_EPREUVES = [
-  {icon: Headphones, label: "Compréhension orale"},
-  {icon: BookOpen, label: "Compréhension écrite"},
-  {icon: PenLine, label: "Expression écrite"},
-  {icon: Mic, label: "Expression orale"},
-] as const;
-const COMPLET_PROMISE = "À la fin, vous connaîtrez :";
-const COMPLET_BENEFITS = [
-  "votre niveau par épreuve",
-  "les tâches qui vous limitent actuellement",
-  "vos priorités pour atteindre votre objectif",
-];
-const COMPLET_CTA = "Faire mon diagnostic complet";
-const COMPLET_NOTE = "Examen blanc complet dans les conditions du TCF.";
-
-/* ------------------------------------------------------ les trois observations */
-
-interface ObservationLine {
-  tone: "ok" | "up";
-  kicker: string;
-  title: string;
-  text: string | null;
-}
-
-/**
- * Une ligne positive, puis deux à améliorer — dans cet ordre.
- *
- * 🛑 **Rien n'est dérivé.** Le point fort est une observation que le serveur a
- * marquée `SOLID` ; les points à améliorer sont les priorités qu'il a classées.
- * Le front choisit dans une liste servie, il ne juge pas.
- *
- * ⚠️ Le repli sur `strengths` existe parce que le serveur sert deux formes du
- * même fait : des observations nommées (titre + explication) et, quand il n'en
- * a aucune, des phrases nues. On n'invente pas de ligne pour remplir le bloc —
- * ni l'une ni l'autre ⇒ pas de ligne positive.
- */
-function observationLines(result: DiagnosticResultDto | null): ObservationLine[] {
-  const solide = (result?.written?.skills ?? []).find(
-    (skill) => skill.observed && skill.status === "SOLID",
-  );
-  const positive: ObservationLine[] = solide
-    ? [{tone: "ok", kicker: OBSERVE_POSITIVE, title: solide.skillTitle, text: solide.explanation}]
-    : (result?.strengths ?? [])
-        .slice(0, 1)
-        .map((phrase) => ({tone: "ok" as const, kicker: OBSERVE_POSITIVE, title: phrase, text: null}));
-
-  return [
-    ...positive,
-    ...(result?.priorities ?? []).slice(0, OBSERVE_MAX_AMELIORER).map((skill) => ({
-      tone: "up" as const,
-      kicker: OBSERVE_AMELIORER,
-      title: skill.skillTitle,
-      text: skill.explanation,
-    })),
-  ];
-}
 
 /* ------------------------------------------------------------------- écran */
 
@@ -152,22 +77,26 @@ export function DiagnosticReport({
   // observer » : l'absence du champ, elle, ne veut rien dire (backend ancien).
   const inexploitable = written?.evaluabilite === "NON_EVALUABLE";
   const niveau = written?.levelEstimate ?? null;
-  const analyse = inexploitable ? INCOMPLETE_TEXT : written?.summary ?? null;
+  const analyse = inexploitable ? DIAGNOSTIC_INCOMPLETE_TEXT : written?.summary ?? null;
   const track = levelTrackPosition(niveau, targetLevel);
   const observations = observationLines(result);
 
   return (
     <SejourApp>
       {notice}
-      <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} />
+      <Top
+        backTo={DIAGNOSTIC_REPORT_BACK_HREF}
+        kicker={DIAGNOSTIC_REPORT_KICKER}
+        title={DIAGNOSTIC_REPORT_TITLE}
+      />
 
       {/* 1 — le niveau. L'élément dominant de l'écran. */}
       <Pad>
         <Card variant="hero">
-          <p className={styles.label}>{HERO_LABEL}</p>
-          <p className={styles.level}>{niveau ? niveauCecrlShort(niveau) : LEVEL_UNKNOWN}</p>
+          <p className={styles.label}>{DIAGNOSTIC_LEVEL_EYEBROW}</p>
+          <p className={styles.level}>{niveau ? niveauCecrlShort(niveau) : DIAGNOSTIC_LEVEL_UNKNOWN}</p>
           <p className={styles.goalLine}>
-            {HERO_GOAL} <span>{targetLevel ?? OBJECTIVE_UNKNOWN}</span>
+            {DIAGNOSTIC_GOAL_PREFIX} <span>{targetLevel ?? DIAGNOSTIC_OBJECTIVE_UNKNOWN}</span>
           </p>
           {/* Piste absente quand un palier sort de l'échelle affichée : mieux
               vaut rien qu'un candidat rabattu sur un palier qui n'est pas le sien. */}
@@ -185,7 +114,7 @@ export function DiagnosticReport({
       {/* 2 — ce que nous avons observé. Absent quand le serveur n'a rien
           classé : un bloc vide ne se remplit pas. */}
       {observations.length > 0 && (
-        <Section title={OBSERVE_TITLE}>
+        <Section title={DIAGNOSTIC_OBSERVE_TITLE}>
           <Pad>
             <Stack>
               {observations.map((line) => (
@@ -207,26 +136,26 @@ export function DiagnosticReport({
           d'honnêteté : le diagnostic rapide n'observe qu'un écrit. */}
       <Section>
         <Pad>
-          <NoteCard variant="soft" icon={Info} title={TRANSITION_TITLE}>
-            <p className={styles.insight}>{TRANSITION_TEXT}</p>
-            <span className={styles.emphasis}>{TRANSITION_EMPHASIS}</span>
+          <NoteCard variant="soft" icon={Info} title={DIAGNOSTIC_TRANSITION_TITLE}>
+            <p className={styles.insight}>{DIAGNOSTIC_TRANSITION_TEXT}</p>
+            <span className={styles.emphasis}>{DIAGNOSTIC_TRANSITION_EMPHASIS}</span>
           </NoteCard>
         </Pad>
       </Section>
 
       {/* 4 — le diagnostic complet, seule suite proposée par cet écran. */}
-      <Section title={COMPLET_TITLE}>
+      <Section title={DIAGNOSTIC_COMPLET_TITLE}>
         <Pad>
           <Stack>
-            {COMPLET_EPREUVES.map((epreuve) => (
+            {DIAGNOSTIC_COMPLET_EPREUVES.map((epreuve) => (
               <ExamRow key={epreuve.label} icon={epreuve.icon} title={epreuve.label} />
             ))}
             <Card>
-              <p className={styles.label}>{COMPLET_PROMISE}</p>
-              <CheckList items={COMPLET_BENEFITS} />
+              <p className={styles.label}>{DIAGNOSTIC_COMPLET_PROMISE}</p>
+              <CheckList items={DIAGNOSTIC_COMPLET_BENEFITS} />
             </Card>
-            <Cta href={TCF_DIAGNOSTIC_HUB_HREF} caption={COMPLET_NOTE}>
-              {COMPLET_CTA}
+            <Cta href={TCF_DIAGNOSTIC_HUB_HREF} caption={DIAGNOSTIC_COMPLET_NOTE}>
+              {DIAGNOSTIC_COMPLET_CTA}
             </Cta>
           </Stack>
         </Pad>

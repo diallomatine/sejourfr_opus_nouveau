@@ -978,6 +978,32 @@ interdiction de juger la prononciation depuis une transcription). La bonne réf�
 `WResultat.jsx`.
 
 
+### La porte d'entrée du Plan TCF a TROIS états, pas deux (2026-09-12)
+
+L'écran servi quand le plan n'est pas prêt lit `PreparationEtape`
+(`PreparationService.tcf()`), **servie** — aucun front ne déduit d'un score ou d'un
+compteur lequel des diagnostics est fait :
+
+- `DIAGNOSTIC_A_FAIRE` → la carte « votre plan commence par un diagnostic », CTA vers le
+  diagnostic **rapide** (`/diagnostic`) ;
+- `ESTIMATION_FAITE` → **rappel de l'estimation rapide** (niveau de la production écrite,
+  objectif si `cible` est servie, observations servies), CTA primaire vers le diagnostic
+  **complet** (`/diagnostic-tcf`) + accès secondaire « Revoir mon diagnostic rapide » ;
+- `PLAN_PRET` → le plan.
+
+🛑 **Pas de niveau ⇒ pas de carte de rappel.** Ni « — », ni A1 à la place d'un verdict que
+personne n'a rendu (`null` = inconnu). Une relecture en échec ou en attente n'ampute pas la
+porte : le rappel n'apparaît simplement pas.
+
+🛑 **La relecture vise `prep.sessionId`, jamais `diagnostics/current`.** `current()` est borné
+au couple (code, version) actif : sur une v2 du diagnostic il rendrait `NOT_STARTED` et la
+porte perdrait l'estimation, alors que `PreparationService` retient la dernière session close.
+
+**Aucun écran de rapport n'a été créé** — `/diagnostic` sert déjà le rapport quand la session
+est `COMPLETED` (`DiagnosticView` ⇄ `DiagnosticScreen`). Libellés partagés :
+`app/_components/diagnostic/report-labels.ts` ⇄ `diagnostic_report_labels.dart` — la porte du
+Plan en est le 2ᵉ lecteur, d'où l'extraction plutôt qu'une recopie.
+
 ---
 
 ## Plan CIVIQUE — répétition espacée et grain mesuré (L10, 2026-09-10)

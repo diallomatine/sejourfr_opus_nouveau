@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Kit « parcours » — primitives partagées par les 7 écrans de diagnostic et de
  * plan (TCF et civique), web et miroir du kit Flutter
@@ -21,6 +23,7 @@ import {
   AlertCircle,
   type LucideIcon,
 } from "lucide-react";
+import { createContext, useContext } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import styles from "./sejour.module.css";
 
@@ -71,6 +74,25 @@ export function SejourApp({
   );
 }
 
+/**
+ * Ce qui se glisse SOUS l'en-tête de page, dans TOUS les états d'un écran.
+ *
+ * 🛑 **L'ordre « eyebrow → titre → bascule de module » est posé ICI**, une
+ * seule fois : l'écran parent fournit le nœud, `Top` le pose. Sans ce relais,
+ * le parent devrait rendre la bascule lui-même — donc AVANT l'en-tête, l'ordre
+ * qu'on corrige — ou la faire descendre en prop jusqu'aux sept variantes du
+ * Plan (chargement, sans diagnostic, gratuit, abonné, TCF, civique…), chacune
+ * portant son propre `Top`. Une bascule recopiée sept fois finit toujours par
+ * diverger d'un état à l'autre.
+ *
+ * Miroir Flutter : `SfTopSlot` (`core/widgets/sejour/sejour_kit.dart`).
+ */
+const TopSlotContext = createContext<ReactNode>(null);
+
+export function TopSlot({ node, children }: { node: ReactNode; children: ReactNode }) {
+  return <TopSlotContext.Provider value={node}>{children}</TopSlotContext.Provider>;
+}
+
 export function Top({
   backTo,
   onBack,
@@ -84,23 +106,30 @@ export function Top({
   title: string;
   badge?: string;
 }) {
+  const slot = useContext(TopSlotContext);
+  /* Sans flèche de retour, l'en-tête se centre sur mobile (cf. `.topPlain`) :
+     l'alignement se décide ici, une fois, pas dans chaque écran. */
+  const plain = !backTo && !onBack;
   return (
-    <header className={styles.top}>
-      {backTo ? (
-        <Link href={backTo} className={styles.iconBtn} aria-label="Retour">
-          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
-        </Link>
-      ) : onBack ? (
-        <button type="button" onClick={onBack} className={styles.iconBtn} aria-label="Retour">
-          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
-        </button>
-      ) : null}
-      <div className={styles.topText}>
-        {kicker ? <p className={styles.kicker}>{kicker}</p> : null}
-        <h1 className={styles.title}>{title}</h1>
-        {badge ? <span className={styles.badge}>{badge}</span> : null}
-      </div>
-    </header>
+    <>
+      <header className={cx(styles.top, plain && styles.topPlain)}>
+        {backTo ? (
+          <Link href={backTo} className={styles.iconBtn} aria-label="Retour">
+            <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+          </Link>
+        ) : onBack ? (
+          <button type="button" onClick={onBack} className={styles.iconBtn} aria-label="Retour">
+            <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+        <div className={styles.topText}>
+          {kicker ? <p className={styles.kicker}>{kicker}</p> : null}
+          <h1 className={styles.title}>{title}</h1>
+          {badge ? <span className={styles.badge}>{badge}</span> : null}
+        </div>
+      </header>
+      {slot}
+    </>
   );
 }
 

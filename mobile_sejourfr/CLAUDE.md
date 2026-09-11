@@ -1116,7 +1116,7 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `SfNowCard`, `SfMiniPlan`, `SfLockRow`, `SfLockItem`, `SfCheckRow`, `SfPill`,
   `SfPillMeta`, `SfChoiceCard`, `SfButton`, `SfStatGrid`, `SfBulletList`,
   `SfThreshold`, `SfHeadline`, `SfStickyBar`, `SfUnlockHero`, `SfSection`,
-  `SfStack`.
+  `SfStack`, **`SfTopSlot`**.
 - **Miroir web** : `web_sejoufr/app/_components/sejour/SejourKit.tsx` +
   `sejour.module.css`, mêmes briques, mêmes noms (sans le préfixe `Sf`).
   🛑 **Un motif ajouté d'un côté s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit
@@ -1135,6 +1135,26 @@ restés sur `ScreenHeader`) et elles avaient déjà divergé — 22 px d'un côt
 l'autre. Le kit tranche à **22**, la taille de `.sf-title` côté maquette. Il vit
 **dans le scroll**, contrairement à `ScreenHeader` : c'est l'anatomie de `<Top>`,
 et le titre y a la place de tenir sur deux lignes.
+
+**`SfTopSlot` — ce qui se glisse SOUS l'en-tête (2026-09-12).** Sur le Plan,
+l'ordre est **eyebrow → titre → bascule TCF/Civique** : l'écran s'annonce, puis
+on choisit son parcours. L'en-tête appartient à l'**état affiché** (son eyebrow
+et son titre changent avec lui), donc `PlanScreen` ne rend plus la bascule
+lui-même — il la passe en `SfTopSlot(below:)` et c'est `SfTop` qui la pose, dans
+toutes les variantes à la fois. 🛑 **Corollaire à ne pas casser** : la bascule
+est une navigation, pas un résultat — tout état du Plan rend son `SfTop`, y
+compris le **chargement**, l'**erreur** et le plan civique **indisponible**,
+sinon le candidat perd la porte de l'autre parcours. Miroir web : `TopSlot`.
+
+**En-tête centré quand il n'a pas de flèche (2026-09-12).** `SfTop` centre son
+eyebrow, son titre et ses pastilles dès que `onBack == null` — c'est le cas du
+Plan. 🛑 Un en-tête **qui porte une flèche** (les deux écrans du diagnostic
+civique) garde son alignement à gauche : centrer son texte le décalerait de sa
+flèche. Miroir de `.topPlain` côté web, qui revient à gauche au-dessus de
+620 px — une largeur que l'app, verrouillée en portrait, n'atteint pas.
+⚠️ La **gouttière du burger** qui accompagne cette règle côté web n'a **aucun
+équivalent ici** : le chrome mobile est une bottom nav, rien ne flotte au-dessus
+de l'en-tête. Ne pas lui inventer de marge haute.
 
 **Ton d'état : quatre valeurs, pas trois.** `SfTone.ok` / `.warn` / `.hot` /
 **`.muted`**. 🛑 `muted` = **non mesuré**, et ce n'est pas un quatrième degré de

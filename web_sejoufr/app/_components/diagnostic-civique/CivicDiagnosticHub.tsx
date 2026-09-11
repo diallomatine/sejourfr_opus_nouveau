@@ -44,6 +44,7 @@ import {
     CIVIC_DIAGNOSTIC_GUEST_TITLE,
     CIVIC_DIAGNOSTIC_NOT_EXAM,
     CIVIC_DIAGNOSTIC_PARAM,
+    CIVIC_DIAGNOSTIC_PROCEDURE_CHANGE_CTA,
     CIVIC_DIAGNOSTIC_RESULT_CTA,
     CIVIC_DIAGNOSTIC_RESUME_CTA,
     CIVIC_DIAGNOSTIC_START_CTA,
@@ -60,6 +61,8 @@ import {
     CIVIC_INTRO_TITLE,
     CIVIC_THEMES_COUNT,
     civicDiagnosticResultHref,
+    CIVIC_DIAGNOSTIC_HUB_HREF,
+    civicProcedureLine,
     MENTION_LABEL,
     progressionLabel,
 } from "@/lib/civic-diagnostic";
@@ -229,6 +232,18 @@ export function CivicDiagnosticHub() {
         [action, router],
     );
 
+    /**
+     * La démarche que le compte porte **déjà**.
+     *
+     * 🛑 **Une question déjà posée ne se repose pas.** Elle est collectée à
+     * l'inscription (`DiagnosticAccountGate`) et éditable dans `/parcours` :
+     * la redemander sur l'écran de lancement laissait croire qu'elle n'avait
+     * pas été enregistrée. `null` (invité, ou compte sans démarche) ⇒ le
+     * sélecteur reste, c'est le seul moment où l'information manque vraiment.
+     */
+    const demarcheDuCompte: TargetProcedure | null =
+        status === "authenticated" ? user?.targetProcedure ?? null : null;
+
     if (etat.kind === "loading") {
         return (
             <SejourApp>
@@ -382,32 +397,60 @@ export function CivicDiagnosticHub() {
 
             {/* 🛑 La démarche n'est pas un confort : elle choisit les questions.
                 Un candidat naturalisation mesuré sur le programme d'une carte de
-                séjour repart avec un diagnostic flatteur et un plan incomplet. */}
-            <Section title={CIVIC_DIAGNOSTIC_GUEST_TITLE}>
-                <Pad>
-                    <Stack>
-                        {MENTIONS.map((m) => (
-                            <ChoiceCard
-                                key={m}
-                                label={MENTION_LABEL[m]}
-                                selected={procedure === m}
-                                onSelect={() => setProcedure(m)}
-                            />
-                        ))}
-                    </Stack>
-                </Pad>
-            </Section>
+                séjour repart avec un diagnostic flatteur et un plan incomplet.
+
+                🛑 Mais on ne la REDEMANDE pas à qui l'a déjà donnée : un compte
+                qui la porte la voit rappelée, pas remise en question. */}
+            {demarcheDuCompte === null && (
+                <Section title={CIVIC_DIAGNOSTIC_GUEST_TITLE}>
+                    <Pad>
+                        <Stack>
+                            {MENTIONS.map((m) => (
+                                <ChoiceCard
+                                    key={m}
+                                    label={MENTION_LABEL[m]}
+                                    selected={procedure === m}
+                                    onSelect={() => setProcedure(m)}
+                                />
+                            ))}
+                        </Stack>
+                    </Pad>
+                </Section>
+            )}
 
             <Section>
                 <Pad>
-                    <Cta
-                        variant="blue"
-                        disabled={action || !procedure}
-                        onClick={() => void ouvrir()}
-                        caption={CIVIC_INTRO_FREE_CAPTION}
-                    >
-                        {CIVIC_DIAGNOSTIC_START_CTA}
-                    </Cta>
+                    <Stack>
+                        {/* La démarche reste LISIBLE : c'est elle qui choisit les
+                            questions, le candidat doit pouvoir vérifier sur quel
+                            programme il va être mesuré. */}
+                        {demarcheDuCompte !== null && (
+                            <p className={s.tiny}>{civicProcedureLine(demarcheDuCompte)}</p>
+                        )}
+                        <Cta
+                            variant="blue"
+                            disabled={action || !procedure}
+                            onClick={() => void ouvrir()}
+                            caption={CIVIC_INTRO_FREE_CAPTION}
+                        >
+                            {CIVIC_DIAGNOSTIC_START_CTA}
+                        </Cta>
+                        {/* Aucun écran neuf : `/parcours` est déjà l'autorité de
+                            la démarche, et il revient ici après enregistrement. */}
+                        {demarcheDuCompte !== null && (
+                            <Cta
+                                variant="line"
+                                disabled={action}
+                                onClick={() =>
+                                    router.push(
+                                        `/parcours?from=${encodeURIComponent(CIVIC_DIAGNOSTIC_HUB_HREF)}`,
+                                    )
+                                }
+                            >
+                                {CIVIC_DIAGNOSTIC_PROCEDURE_CHANGE_CTA}
+                            </Cta>
+                        )}
+                    </Stack>
                 </Pad>
                 <p className={s.footNote}>{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
                 {status !== "authenticated" && (

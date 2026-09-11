@@ -17,6 +17,19 @@ import type {ModulePreparation, PreparationDto} from "./types";
 
 export const PREPARATION_TITLE = "Ma préparation";
 
+/**
+ * Où se relit le diagnostic RAPIDE déjà passé.
+ *
+ * 🛑 **Aucun écran de rapport n'est recréé** : `/diagnostic` sert déjà le
+ * rapport quand la session est `COMPLETED` (web `DiagnosticView`, mobile
+ * `DiagnosticScreen`). Une seconde route vers le même contenu aurait fini par
+ * en montrer une version qui ne bouge plus.
+ */
+export const DIAGNOSTIC_RAPIDE_HREF = "/diagnostic";
+
+/** Le lien secondaire de la porte d'entrée : consulter ce qui est déjà fait. */
+export const PLAN_GATE_RAPPORT_CTA = "Revoir mon diagnostic rapide";
+
 export const TCF_LABEL = "TCF IRN";
 export const CIVIQUE_LABEL = "Examen civique";
 
@@ -39,7 +52,7 @@ export function tcfAction(m: ModulePreparation): PreparationAction {
             return {
                 statut: "Diagnostic non réalisé",
                 cta: "Faire mon diagnostic",
-                href: "/diagnostic",
+                href: DIAGNOSTIC_RAPIDE_HREF,
             };
         case "DIAGNOSTIC_EN_COURS":
             return {
@@ -48,7 +61,7 @@ export function tcfAction(m: ModulePreparation): PreparationAction {
                         ? `Diagnostic complet : ${m.fait} / ${m.total} épreuves`
                         : "Diagnostic en cours",
                 cta: "Reprendre",
-                href: m.fait !== null ? "/diagnostic-tcf" : "/diagnostic",
+                href: m.fait !== null ? "/diagnostic-tcf" : DIAGNOSTIC_RAPIDE_HREF,
             };
         case "ESTIMATION_FAITE":
             return {
@@ -174,7 +187,7 @@ export function planIndisponible(
             titre: "Votre diagnostic TCF est commencé",
             texte: avancement(m) ?? "Terminez-le pour que votre plan se construise.",
             cta: "Reprendre mon diagnostic",
-            href: m.fait !== null ? "/diagnostic-tcf" : "/diagnostic",
+            href: m.fait !== null ? "/diagnostic-tcf" : DIAGNOSTIC_RAPIDE_HREF,
         };
     }
 
@@ -193,7 +206,7 @@ export function planIndisponible(
         texte:
             "Une première estimation écrite, puis les quatre épreuves : c'est ce qui permet de savoir quoi travailler en premier.",
         cta: "Faire mon diagnostic",
-        href: "/diagnostic",
+        href: DIAGNOSTIC_RAPIDE_HREF,
     };
 }
 

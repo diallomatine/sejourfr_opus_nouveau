@@ -622,7 +622,7 @@ String planTopKicker(TargetLevel? objective) => objective == null
 /// Le kicker d'un compte **sans accès** : son plan vient de son diagnostic.
 const String kPlanTopKickerFree = 'Créé à partir de votre diagnostic';
 
-const String kPlanTitle = 'Mon plan';
+const String kPlanTitle = 'Mon plan du jour';
 
 /// Le titre d'un compte sans accès nomme le palier visé quand il est connu.
 String planTitleFree(TargetLevel? objective) =>

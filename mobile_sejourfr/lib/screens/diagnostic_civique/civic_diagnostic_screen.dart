@@ -349,6 +349,12 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
 
   /// L'intro : le format de l'épreuve, le livret, la démarche, le départ.
   List<Widget> _intro() {
+    /// 🛑 **Une question déjà posée ne se repose pas.** La démarche est
+    /// collectée à l'inscription / à l'onboarding (`TargetPathScreen`) : la
+    /// redemander sur l'écran de lancement laissait croire qu'elle n'avait pas
+    /// été enregistrée. `null` (invité, ou compte sans démarche) ⇒ le sélecteur
+    /// reste, c'est le seul moment où l'information manque vraiment.
+    final demarcheDuCompte = _procedureDuCompte();
     return [
       const Padding(padding: sfGutter, child: SfInsight(kCivicIntroLead)),
 
@@ -392,30 +398,54 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
       // 🛑 La démarche n'est pas un confort : elle choisit les questions. Un
       // candidat naturalisation mesuré sur le programme d'une carte de séjour
       // repart avec un diagnostic flatteur et un plan incomplet.
-      SfSection(
-        flush: true,
-        title: kCivicDiagnosticGuestTitle,
-        child: SfStack(
-          pad: false,
-          children: [
-            for (final p in TargetProcedure.values)
-              SfChoiceCard(
-                label: kMentionLabel[p.wire] ?? p.wire,
-                selected: p == _procedure,
-                onTap: () => setState(() => _procedure = p),
-              ),
-          ],
+      //
+      // 🛑 Mais on ne la REDEMANDE pas à qui l'a déjà donnée : un compte qui la
+      // porte la voit rappelée, pas remise en question.
+      if (demarcheDuCompte == null)
+        SfSection(
+          flush: true,
+          title: kCivicDiagnosticGuestTitle,
+          child: SfStack(
+            pad: false,
+            children: [
+              for (final p in TargetProcedure.values)
+                SfChoiceCard(
+                  label: kMentionLabel[p.wire] ?? p.wire,
+                  selected: p == _procedure,
+                  onTap: () => setState(() => _procedure = p),
+                ),
+            ],
+          ),
         ),
-      ),
 
       SfSection(
         flush: true,
-        child: SfButton(
-          label: kCivicDiagnosticStartCta,
-          variant: SfButtonVariant.blue,
-          caption: kCivicIntroFreeCaption,
-          // 🛑 Inerte tant qu'aucune démarche n'est cochée.
-          onPressed: _busy || _procedure == null ? null : _ouvrir,
+        child: SfStack(
+          pad: false,
+          children: [
+            // La démarche reste LISIBLE : c'est elle qui choisit les questions,
+            // le candidat doit pouvoir vérifier sur quel programme il va être
+            // mesuré.
+            if (demarcheDuCompte != null)
+              SfTiny(civicProcedureLine(demarcheDuCompte.wire)),
+            SfButton(
+              label: kCivicDiagnosticStartCta,
+              variant: SfButtonVariant.blue,
+              caption: kCivicIntroFreeCaption,
+              // 🛑 Inerte tant qu'aucune démarche n'est cochée.
+              onPressed: _busy || _procedure == null ? null : _ouvrir,
+            ),
+            // Aucun écran neuf : `TargetPathScreen` est déjà l'autorité de la
+            // démarche, et il revient ici après enregistrement.
+            if (demarcheDuCompte != null)
+              SfButton(
+                label: kCivicDiagnosticProcedureChangeCta,
+                variant: SfButtonVariant.line,
+                onPressed: _busy
+                    ? null
+                    : () => context.push(kCivicProcedureChangePath),
+              ),
+          ],
         ),
       ),
       const SizedBox(height: 14),

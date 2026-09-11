@@ -1628,6 +1628,29 @@ class SfChoiceCard extends StatelessWidget {
 /// restés sur `ScreenHeader`), et elles avaient déjà divergé — 22 px d'un côté,
 /// 28 de l'autre. La taille du kit est celle de `.sf-title`, donc 22, comme le
 /// web : c'est la maquette qui tranche, pas la dernière passe.
+/// Ce qui se glisse SOUS l'en-tête de page, dans TOUS les états d'un écran.
+///
+/// 🛑 **L'ordre « eyebrow → titre → bascule de module » est posé ICI**, une
+/// seule fois : l'écran parent fournit le widget, [SfTop] le pose. Sans ce
+/// relais, le parent devrait rendre la bascule lui-même — donc AU-DESSUS de
+/// l'en-tête, l'ordre qu'on corrige — ou la faire descendre jusqu'aux sept
+/// variantes du Plan (chargement, sans diagnostic, gratuit, abonné, TCF,
+/// civique…), chacune portant son propre [SfTop]. Une bascule recopiée sept
+/// fois finit toujours par diverger d'un état à l'autre.
+///
+/// Miroir web : `TopSlot` (`app/_components/sejour/SejourKit.tsx`).
+class SfTopSlot extends InheritedWidget {
+  const SfTopSlot({super.key, required this.below, required super.child});
+
+  final Widget below;
+
+  static Widget? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SfTopSlot>()?.below;
+
+  @override
+  bool updateShouldNotify(SfTopSlot oldWidget) => below != oldWidget.below;
+}
+
 class SfTop extends StatelessWidget {
   const SfTop({
     super.key,
@@ -1646,7 +1669,16 @@ class SfTop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final below = SfTopSlot.maybeOf(context);
+    // 🛑 **Un en-tête SANS flèche de retour se centre**, et c'est la largeur
+    // d'un téléphone qui le veut : un titre calé à gauche s'y lit mal. Un
+    // en-tête qui PORTE une flèche garde son alignement à gauche — centrer son
+    // texte le décalerait de sa flèche.
+    //
+    // Miroir de `.topPlain` côté web, qui revient à gauche au-delà de 620 px :
+    // une largeur que l'app, verrouillée en portrait, n'atteint pas.
+    final plain = onBack == null;
+    final header = Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1657,11 +1689,13 @@ class SfTop extends StatelessWidget {
           ],
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  plain ? CrossAxisAlignment.center : CrossAxisAlignment.start,
               children: [
                 if (kicker != null) ...[
                   Text(
                     kicker!,
+                    textAlign: plain ? TextAlign.center : TextAlign.start,
                     style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w600,
@@ -1672,6 +1706,7 @@ class SfTop extends StatelessWidget {
                 ],
                 Text(
                   title,
+                  textAlign: plain ? TextAlign.center : TextAlign.start,
                   style: AppFonts.display(size: 22, weight: FontWeight.w700, height: 1.15),
                 ),
                 if (badges.isNotEmpty) ...[
@@ -1679,6 +1714,8 @@ class SfTop extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
+                    alignment:
+                        plain ? WrapAlignment.center : WrapAlignment.start,
                     children: [for (final b in badges) SfBadge(b)],
                   ),
                 ],
@@ -1687,6 +1724,11 @@ class SfTop extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (below == null) return header;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, below],
     );
   }
 }

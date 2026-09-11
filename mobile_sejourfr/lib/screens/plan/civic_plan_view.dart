@@ -105,11 +105,29 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
 
   @override
   Widget build(BuildContext context) {
+    // 🛑 **La bascule de parcours ne se fait jamais attendre.** C'est l'en-tête
+    // qui la porte (`SfTopSlot`), donc on le rend dès le premier passage, avant
+    // le plan : une roue seule laissait l'écran sans aucune porte vers le TCF
+    // tant que `/api/me/civic-plan` n'avait pas répondu.
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.blue));
+      return ListView(
+        children: const [
+          SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
+          SizedBox(height: 40),
+          Center(child: CircularProgressIndicator(color: AppColors.blue)),
+        ],
+      );
     }
     final plan = _plan;
-    if (plan == null || !plan.disponible) return const SizedBox.shrink();
+    // Même raison : un plan civique indisponible ne rend pas un écran muet,
+    // il garde son en-tête — donc la bascule vers l'autre parcours.
+    if (plan == null || !plan.disponible) {
+      return ListView(
+        children: const [
+          SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
+        ],
+      );
+    }
 
     final auth = ref.watch(authControllerProvider);
     final hasCivique = auth is AuthAuthenticated && auth.user.hasCivique;

@@ -108,7 +108,7 @@ String? civicRevueLabel(CivicPlanCible cible, DateTime maintenant) {
 const String kCivicPlanTopKicker =
     'Votre préparation personnalisée à l\'Examen civique';
 const String kCivicPlanTopKickerFree = 'Créé à partir de votre diagnostic';
-const String kCivicPlanScreenTitle = 'Mon plan';
+const String kCivicPlanScreenTitle = 'Mon plan du jour';
 
 /// Ce que fait le moteur. Le mot varie avec le **grain servi** : tant que les
 /// questions ne sont pas taguées, le plan choisit un thème, pas une notion.

@@ -110,6 +110,17 @@ String? aRenforcerLine(ModulePreparation m) {
   return '$n thème${n > 1 ? 's' : ''} à renforcer';
 }
 
+/// Le lien secondaire de la porte d'entrée du Plan : consulter ce qui est
+/// déjà fait.
+///
+/// 🛑 **Aucun écran de rapport n'est recréé** : `/diagnostic` sert déjà le
+/// rapport quand la session est close (`DiagnosticScreen`, miroir du web).
+/// Une seconde route vers le même contenu aurait fini par en montrer une
+/// version qui ne bouge plus.
+///
+/// Miroir de `PLAN_GATE_RAPPORT_CTA` (`web_sejoufr/lib/preparation.ts`).
+const String kPlanGateRapportCta = 'Revoir mon diagnostic rapide';
+
 /// Le Plan d'un module peut-il être construit ?
 typedef PlanIndisponible = ({
   String titre,
