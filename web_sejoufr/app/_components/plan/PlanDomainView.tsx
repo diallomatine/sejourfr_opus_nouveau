@@ -24,7 +24,7 @@ import {
   planSkillMeta,
 } from "@/lib/plan-domain";
 import {PlanBlur, PlanDomainIcon, PlanDomainPriorityPill, PlanNaturePill, PlanTaskRow} from "./PlanBits";
-import {BlockHead, EmptyCard, PlanShell} from "./LearningPlanView";
+import {BlockHead, EmptyCard, PlanShell} from "./PlanLayout";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {
   type LearningPlanDto,

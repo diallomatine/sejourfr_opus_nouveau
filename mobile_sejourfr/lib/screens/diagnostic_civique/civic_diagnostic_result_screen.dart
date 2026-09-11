@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/civic_diagnostic_repository.dart';
@@ -9,22 +10,22 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
-import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
+import 'civic_diagnostic_blocks.dart';
 import 'civic_diagnostic_guest_store.dart';
 import 'civic_diagnostic_labels.dart';
 
-/// Le résultat du diagnostic **civique** (`20_` §4.5).
+/// Le résultat du diagnostic **civique** (`20_` §4.5, maquette
+/// `civique-resultat`).
 ///
-/// Ordre imposé : résultat → vos thèmes → mises en situation → ce qui coûte le
-/// plus de points → rassurance → teaser du plan.
+/// Ordre imposé : score → vos thèmes → mises en situation → ce qui coûte le
+/// plus de points → rassurance → aperçu du plan.
 ///
 /// 🛑 **Le constat est intégralement gratuit.** Aucun `locked` : le paywall
 /// porte sur l'accompagnement, jamais sur ce que le candidat vient de mesurer.
 ///
 /// 🛑 **Un thème NON ÉVALUÉ n'est pas faible.** Il se dit « Non évalué », en
-/// atténué, et n'entre dans aucune priorité.
+/// neutre, et n'entre dans aucune priorité.
 ///
 /// 🛑 **Un VISITEUR n'obtient aucun résultat ici** (`V053`, arbitrage du
 /// propriétaire du 2026-09-10) : il a répondu à ses 40 questions, et c'est
@@ -125,17 +126,7 @@ class _CivicDiagnosticResultScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            ScreenHeader(
-              title: kCivicDiagnosticTitle,
-              onBack: () => context.pop(),
-            ),
-            Expanded(child: _body()),
-          ],
-        ),
-      ),
+      body: SafeArea(child: _body()),
     );
   }
 
@@ -148,128 +139,196 @@ class _CivicDiagnosticResultScreenState
     final r = _resultat;
     if (r == null) {
       return Center(
-        child: Text(_error ?? 'Résultat indisponible.',
-            style: AppFonts.ui(size: 14, color: AppColors.red)),
+        child: Padding(
+          padding: sfGutter,
+          child: Text(
+            _error ?? 'Résultat indisponible.',
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 14, color: AppColors.red),
+          ),
+        ),
       );
     }
 
-    final projection = projectionLine(r);
-    final situations = situationsLine(r);
-    final rassurance = civicRassuranceText(r);
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.only(bottom: 32),
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(mentionBadge(r.mention.wire),
-                style: AppFonts.label(size: 11, color: AppColors.blueDark)),
-          ),
+        SfTop(
+          onBack: () => context.pop(),
+          kicker: kCivicResultKicker,
+          title: kCivicResultTitle,
+          badges: const [kCivicResultBadge],
         ),
-        const SizedBox(height: 14),
-
-        // 1 — le résultat. L'élément dominant.
-        AppCard(
-          color: AppColors.blueLight,
-          child: Column(
-            children: [
-              Text('VOTRE RÉSULTAT',
-                  style: AppFonts.label(size: 11, color: AppColors.blueDark)),
-              const SizedBox(height: 6),
-              Text('${r.bonnes} / ${r.posees}',
-                  style: AppFonts.display(size: 44, color: AppColors.blue)),
-              // 🛑 Absent si rien n'a été posé : « on n'a rien mesuré » ne se
-              // dit pas « vous auriez 0 sur 40 ».
-              if (projection != null) ...[
-                const SizedBox(height: 8),
-                Text(projection,
-                    textAlign: TextAlign.center,
-                    style: AppFonts.ui(
-                        size: 13.5, color: AppColors.ink, height: 1.5)),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // 2 — les 5 thèmes, TOUS, y compris les non évalués.
-        Text('Vos thèmes',
-            style: AppFonts.display(size: 18, color: AppColors.ink)),
-        const SizedBox(height: 8),
-        for (final t in r.themes) ...[
-          _ThemeRow(label: t.label, etat: t.etat),
-          const SizedBox(height: 8),
-        ],
-
-        // 3 — les mises en situation, bloc distinct : c'est une compétence
-        // différente, et c'est souvent ce qui fait la différence.
-        if (situations != null) ...[
-          const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(kCivicSituationsTitle,
-                    style: AppFonts.display(size: 16, color: AppColors.ink)),
-                const SizedBox(height: 6),
-                Text(situations,
-                    style: AppFonts.display(size: 22, color: AppColors.blue)),
-                const SizedBox(height: 6),
-                Text(kCivicSituationsText,
-                    style: AppFonts.ui(
-                        size: 13, color: AppColors.inkSoft, height: 1.5)),
-              ],
-            ),
-          ),
-        ],
-
-        // 4 — ce qui coûte le plus de points. Titre volontairement concret.
-        if (r.priorites.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text(kCivicPrioritesTitle,
-              style: AppFonts.display(size: 18, color: AppColors.ink)),
-          const SizedBox(height: 8),
-          for (final p in r.priorites) ...[
-            _ThemeRow(label: p.label, etat: p.etat, rang: p.rang),
-            const SizedBox(height: 8),
-          ],
-        ],
-
-        // 5 — rassurance. 🛑 Absente si aucun thème n'est solide.
-        if (rassurance != null) ...[
-          const SizedBox(height: 12),
-          AppCard(
-            color: AppColors.greenLight,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(kCivicRassuranceTitle,
-                    style: AppFonts.display(size: 16, color: AppColors.ink)),
-                const SizedBox(height: 6),
-                Text(rassurance,
-                    style: AppFonts.ui(
-                        size: 13, color: AppColors.inkSoft, height: 1.5)),
-              ],
-            ),
-          ),
-        ],
-
-        // 6 — le teaser du plan.
-        const SizedBox(height: 22),
-        Text(kCivicPlanTeaserTitle,
-            style: AppFonts.display(size: 18, color: AppColors.ink)),
-        const SizedBox(height: 10),
-        AppButton(
-          label: kCivicDiagnosticPlanCta,
-          onPressed: () => context.go('/plan?module=CIVIQUE'),
-        ),
+        _hero(r),
+        _themes(r),
+        _situations(r),
+        _priorites(r),
+        _rassurance(r),
+        _plan(r),
       ],
+    );
+  }
+
+  /// 1 — le score. L'élément dominant de l'écran.
+  Widget _hero(CivicDiagnosticResultDto r) {
+    final perspective = civicPerspectiveLine(r);
+    return Padding(
+      padding: sfGutter,
+      child: SfCard(
+        variant: SfCardVariant.hero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SfLabel(kCivicScoreLabel),
+            const SizedBox(height: 6),
+            SfScore(score: r.bonnes, total: r.posees),
+            // 🛑 Absente si rien n'a été posé : « on n'a rien mesuré » ne se
+            // dit pas « vous auriez 0 sur 40 ».
+            if (perspective != null) ...[
+              const SizedBox(height: 12),
+              SfInsight(perspective),
+            ],
+            const SizedBox(height: 12),
+            SfThreshold(civicThresholdLine(r)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 2 — les 5 thèmes, **tous**, y compris ceux qu'aucune question n'a touchés.
+  Widget _themes(CivicDiagnosticResultDto r) {
+    return SfSection(
+      flush: true,
+      title: kCivicThemesTitle,
+      child: SfCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          children: [
+            for (var i = 0; i < r.themes.length; i++)
+              SfThemeLine(
+                tone: sfToneOf(r.themes[i].etat),
+                name: r.themes[i].label,
+                status: r.themes[i].etat.label,
+                last: i == r.themes.length - 1,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 3 — les mises en situation, bloc distinct : c'est une compétence
+  /// différente, et c'est souvent ce qui fait la différence.
+  ///
+  /// 🛑 **Toute la section disparaît** quand aucune n'a été posée (mode
+  /// dégradé) : un bloc à zéro se lirait comme un échec.
+  Widget _situations(CivicDiagnosticResultDto r) {
+    final ligne = situationsLine(r);
+    if (ligne == null) return const SizedBox.shrink();
+    return SfSection(
+      flush: true,
+      title: kCivicSituationsTitle,
+      child: SfCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SfLabel(kCivicSituationsLabel),
+            const SizedBox(height: 6),
+            SfHeadline(ligne),
+            const SizedBox(height: 8),
+            const SfTiny(kCivicSituationsText),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 4 — ce qui coûte le plus de points.
+  ///
+  /// Le rang, le thème et l'état sont **servis** ; aucune phrase explicative
+  /// n'existe côté serveur, on n'en invente pas. 🛑 L'étiquette porte l'état et
+  /// le titre le thème : le grain est le THÈME (`20_` §3.4), `label` EST déjà
+  /// le thème, et répéter la même chaîne deux fois ne dirait rien.
+  Widget _priorites(CivicDiagnosticResultDto r) {
+    final visibles = _visibles(r);
+    if (visibles.isEmpty) return const SizedBox.shrink();
+    return SfSection(
+      flush: true,
+      title: kCivicPrioritesTitle,
+      child: SfStack(
+        pad: false,
+        children: [
+          for (var i = 0; i < visibles.length; i++)
+            SfPrio(
+              rank: i + 1,
+              tag: visibles[i].etat.label,
+              title: visibles[i].label,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 🛑 **Plafond d'AFFICHAGE, jamais un budget** : le serveur classe tous les
+  /// thèmes sous l'objectif, l'écran en montre trois et compte le reste.
+  List<CivicPrioriteTheme> _visibles(CivicDiagnosticResultDto r) =>
+      r.priorites.take(kCivicPrioritesVisibles).toList();
+
+  /// 5 — rassurance. 🛑 Absente si aucun thème n'est solide.
+  Widget _rassurance(CivicDiagnosticResultDto r) {
+    final texte = civicRassuranceText(r);
+    if (texte == null) return const SizedBox.shrink();
+    return SfSection(
+      flush: true,
+      child: SfNoteCard(
+        icon: LucideIcons.check,
+        title: kCivicRassuranceTitle,
+        variant: SfCardVariant.ok,
+        child: SfTiny(texte, color: AppColors.ink2),
+      ),
+    );
+  }
+
+  /// 6 — l'aperçu du plan et sa porte d'entrée.
+  Widget _plan(CivicDiagnosticResultDto r) {
+    final visibles = _visibles(r);
+    final autres = civicAutresPrioritesLine(r.priorites.length);
+    return SfSection(
+      flush: true,
+      title: kCivicPlanTeaserTitle,
+      child: SfStack(
+        pad: false,
+        children: [
+          if (visibles.isNotEmpty)
+            SfCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SfMiniPlan(
+                    rows: [
+                      for (final p in visibles)
+                        SfMiniRow(
+                          label: p.label,
+                          pill: p.etat.label,
+                          tone: sfToneOf(p.etat),
+                        ),
+                    ],
+                  ),
+                  if (autres != null) ...[
+                    const SizedBox(height: 10),
+                    SfTiny(autres),
+                  ],
+                ],
+              ),
+            ),
+          SfButton(
+            label: kCivicDiagnosticPlanCta,
+            variant: SfButtonVariant.blue,
+            onPressed: () => context.go('/plan?module=CIVIQUE'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -282,102 +341,58 @@ class _CivicDiagnosticResultScreenState
   Widget _gate(CivicDiagnosticDto invite) {
     final destination = AppRoutes.civicDiagnosticResultPath(widget.sessionId);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.only(bottom: 32),
       children: [
-        Text(kCivicDiagnosticGateEyebrow.toUpperCase(),
-            style: AppFonts.label(size: 11, color: AppColors.red)),
-        const SizedBox(height: 8),
-        Text(kCivicDiagnosticGateTitle, style: AppFonts.display(size: 24)),
-        const SizedBox(height: 10),
-        Text(kCivicDiagnosticGateLead,
-            style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.55)),
-        const SizedBox(height: 12),
-        Text(
-          civicProgressionLabel(invite.repondues, invite.total),
-          style: AppFonts.label(size: 12, color: AppColors.inkFaint),
+        SfTop(
+          onBack: () => context.pop(),
+          kicker: kCivicDiagnosticGateEyebrow,
+          title: kCivicDiagnosticGateTitle,
+          badges: const [kCivicDiagnosticGuestBadge],
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: AppFonts.ui(size: 13, color: AppColors.red)),
-        ],
-        const SizedBox(height: 22),
-        AppButton(
-          label: 'Créer mon compte gratuit',
-          onPressed: () => context.push(
-              authFlowLocation(AppRoutes.register, destination)),
+        Padding(
+          padding: sfGutter,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SfInsight(kCivicDiagnosticGateLead),
+              const SizedBox(height: 12),
+              SfLabel(civicProgressionLabel(invite.repondues, invite.total)),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!,
+                    style: AppFonts.ui(size: 13, color: AppColors.red)),
+              ],
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
-        AppButton(
-          label: 'J\'ai déjà un compte',
-          variant: AppButtonVariant.soft,
-          onPressed: () => context.push(loginLocationFor(destination)),
+        SfSection(
+          flush: true,
+          child: SfStack(
+            pad: false,
+            children: [
+              SfButton(
+                label: 'Créer mon compte gratuit',
+                variant: SfButtonVariant.blue,
+                onPressed: () => context.push(
+                    authFlowLocation(AppRoutes.register, destination)),
+              ),
+              SfButton(
+                label: 'J\'ai déjà un compte',
+                variant: SfButtonVariant.line,
+                onPressed: () => context.push(loginLocationFor(destination)),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
-        Text(
-          'Gratuit, sans carte bancaire. Vos réponses sont déjà enregistrées : '
-          'elles vous suivent.',
-          textAlign: TextAlign.center,
-          style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint, height: 1.5),
+        Padding(
+          padding: sfGutter,
+          child: SfTiny(
+            'Gratuit, sans carte bancaire. Vos réponses sont déjà enregistrées : '
+            'elles vous suivent.',
+          ),
         ),
       ],
     );
   }
-
-}
-
-/// Une ligne de thème : la pastille porte l'état, le texte reste noir.
-class _ThemeRow extends StatelessWidget {
-  const _ThemeRow({required this.label, required this.etat, this.rang});
-
-  final String label;
-  final CivicThemeState etat;
-  final int? rang;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = civicThemeTone(etat);
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          if (rang case final r?) ...[
-            Text('$r',
-                style: AppFonts.label(size: 12, color: AppColors.inkFaint)),
-            const SizedBox(width: 10),
-          ],
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: _tonColor(tone),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label,
-                style: AppFonts.ui(size: 14, color: AppColors.ink)),
-          ),
-          Text(
-            etat.label,
-            style: AppFonts.label(
-              size: 11,
-              // Non évalué : atténué, jamais alarmant — ce n'est pas un échec.
-              color: tone == CivicThemeTone.muted
-                  ? AppColors.inkFaint
-                  : _tonColor(tone),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Color _tonColor(CivicThemeTone tone) => switch (tone) {
-        CivicThemeTone.ok => AppColors.green,
-        CivicThemeTone.warn => AppColors.amber,
-        CivicThemeTone.hot => AppColors.red,
-        CivicThemeTone.muted => AppColors.line,
-      };
-
 }

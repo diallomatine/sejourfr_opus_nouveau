@@ -18,7 +18,7 @@ import {
 } from "@/lib/plan-domain";
 import type {LearningPlanDto, PlanDomainDto} from "@/lib/types";
 import {PlanDomainIcon, PlanDomainPriorityPill, PlanTaskRow} from "./PlanBits";
-import {EmptyCard, PlanShell} from "./LearningPlanView";
+import {EmptyCard, PlanShell} from "./PlanLayout";
 import {RowChevron, SkillMasteryPill} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 

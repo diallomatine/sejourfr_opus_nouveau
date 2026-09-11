@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/civic_diagnostic_repository.dart';
@@ -10,13 +11,11 @@ import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_tag.dart';
-import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_diagnostic_guest_store.dart';
 import 'civic_diagnostic_labels.dart';
 
-/// L'accueil du diagnostic **civique** (`20_` §4).
+/// L'accueil du diagnostic **civique** (`20_` §4, maquette `civique-intro`).
 ///
 /// 🛑 **Ce n'est PAS un examen blanc**, et l'écran le dit avant de commencer :
 /// couverture équilibrée sur les 5 thèmes, il sert à repérer quoi travailler,
@@ -35,6 +34,8 @@ import 'civic_diagnostic_labels.dart';
 /// qui choisit les questions —, répond à ses 40 questions, et le compte n'est
 /// demandé qu'au résultat. Dès qu'il s'authentifie, la session invitée est
 /// **adoptée** : mêmes questions, mêmes réponses, rien n'est rejoué.
+///
+/// Miroir de `web_sejoufr/app/_components/diagnostic-civique/CivicDiagnosticHub.tsx`.
 class CivicDiagnosticScreen extends ConsumerStatefulWidget {
   const CivicDiagnosticScreen({super.key});
 
@@ -52,8 +53,15 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
   /// ici, il passe par l'écran de compte.
   bool _invite = false;
 
-  /// La démarche choisie avant le tirage. Elle ne sert qu'au visiteur.
-  TargetProcedure _procedure = TargetProcedure.csp;
+  /// La démarche déclarée avant le tirage.
+  ///
+  /// 🛑 `null` tant que rien n'est coché, et le bouton reste **inerte** : la
+  /// démarche choisit les questions, la préremplir à CSP mesurerait un candidat
+  /// naturalisation sur le programme le plus étroit sans qu'il l'ait demandé.
+  TargetProcedure? _procedure;
+
+  /// Les 5 thèmes du livret : **libellés éditoriaux servis**, jamais recopiés.
+  List<String> _themes = const [];
 
   bool _loading = true;
   bool _busy = false;
@@ -66,6 +74,7 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
   void initState() {
     super.initState();
     _load();
+    _chargerThemes();
   }
 
   Future<void> _load() async {
@@ -84,6 +93,7 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
         setState(() {
           _diagnostic = courant;
           _invite = false;
+          _procedure = _procedureDuCompte();
           _loading = false;
         });
         return;
@@ -103,7 +113,7 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
       setState(() {
         _diagnostic = etat;
         _invite = etat != null;
-        _procedure = invite?.procedure ?? TargetProcedure.csp;
+        _procedure = invite?.procedure;
         _loading = false;
       });
     } catch (e) {
@@ -113,6 +123,29 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Le livret vient du serveur : recopier ses cinq libellés dans le front en
+  /// ferait une sixième copie qui dériverait au premier ajustement éditorial.
+  ///
+  /// 🛑 Lecture **publique** : l'écran s'ouvre sans compte, et un échec laisse
+  /// simplement la carte de côté — on ne déclare pas le livret vide sur une
+  /// panne réseau.
+  Future<void> _chargerThemes() async {
+    try {
+      final themes = await ref
+          .read(themesRepositoryProvider)
+          .listPublic(module: AppModule.civique);
+      if (!mounted) return;
+      setState(() => _themes = themes.map((t) => t.name).toList());
+    } catch (_) {
+      // Silencieux : la carte du livret est informative, pas bloquante.
+    }
+  }
+
+  TargetProcedure? _procedureDuCompte() {
+    final etat = ref.read(authControllerProvider);
+    return etat is AuthAuthenticated ? etat.user.targetProcedure : null;
   }
 
   /// **L'adoption**, best-effort : son échec le plus probable est le quota (un
@@ -135,17 +168,28 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
 
   /// Ouvrir est idempotent côté compte : un double appui ne retire pas.
   Future<void> _ouvrir() async {
-    if (_busy) return;
+    final procedure = _procedure;
+    if (_busy || procedure == null) return;
     setState(() => _busy = true);
     final repo = ref.read(civicDiagnosticRepositoryProvider);
     try {
-      final invite = !_authentifie;
-      final ouvert =
-          invite ? await repo.openGuest(_procedure) : await repo.open();
-      if (invite) {
+      final CivicDiagnosticDto ouvert;
+      if (_authentifie) {
+        // 🛑 Côté compte, le serveur tire sur `users.target_procedure` :
+        // changer de démarche ici doit donc la **déclarer** avant le tirage,
+        // sinon l'écran promet un programme et le serveur en sert un autre.
+        if (procedure != _procedureDuCompte()) {
+          await ref
+              .read(userContentRepositoryProvider)
+              .updateTargetPath(procedure);
+          await ref.read(authControllerProvider.notifier).refreshUser();
+        }
+        ouvert = await repo.open();
+      } else {
+        ouvert = await repo.openGuest(procedure);
         // L'adresse de la session, pour la reprise et pour l'adoption au
         // moment du compte.
-        await _store.write(ouvert, _procedure);
+        await _store.write(ouvert, procedure);
       }
       if (!mounted) return;
       setState(() => _busy = false);
@@ -198,17 +242,7 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            ScreenHeader(
-              title: kCivicDiagnosticTitle,
-              onBack: () => context.pop(),
-            ),
-            Expanded(child: _body()),
-          ],
-        ),
-      ),
+      body: SafeArea(child: _body()),
     );
   }
 
@@ -216,179 +250,186 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     final d = _diagnostic;
-    if (d == null && !_authentifie) return _choixDemarche();
-
-    final termine = d?.status == TcfDiagnosticStatus.completed;
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.only(bottom: 32),
       children: [
-        if (_invite) ...[
-          const AppTag(
-            label: kCivicDiagnosticGuestBadge,
-            tone: TagTone.blue,
-          ),
-          const SizedBox(height: 12),
-        ],
-        Text(
-          d == null
-              // 🛑 Tant que le serveur n'a rien servi, on décrit le parcours
-              // sans le chiffrer plutôt que d'annoncer un compte qui pourrait
-              // changer.
-              ? 'Le format de l\'examen, réparti sur les 5 thèmes.'
-              : civicDiagnosticSubtitle(d.total),
-          style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.5),
+        SfTop(
+          onBack: () => context.pop(),
+          kicker: kCivicIntroKicker,
+          title: kCivicIntroTitle,
+          badges: _invite ? const [kCivicDiagnosticGuestBadge] : const [],
         ),
-        if (d != null) ...[
-          const SizedBox(height: 10),
-          Text(civicProgressionLabel(d.repondues, d.total),
-              style: AppFonts.label(size: 12, color: AppColors.inkFaint)),
-        ],
-        if (!termine) ...[
-          const SizedBox(height: 12),
-          Text(kCivicDiagnosticNotExam,
-              style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: AppFonts.ui(size: 13, color: AppColors.red)),
-        ],
-        const SizedBox(height: 20),
-        if (d == null)
-          AppButton(
-            label: kCivicDiagnosticStartCta,
-            onPressed: _busy ? null : _ouvrir,
-            isLoading: _busy,
-          )
-        else if (termine)
-          AppButton(
-            label: kCivicDiagnosticResultCta,
-            onPressed: _busy ? null : () => _voirResultat(d.sessionId),
-            isLoading: _busy,
-          )
-        else ...[
-          AppButton(
-            label: d.repondues > 0
-                ? kCivicDiagnosticResumeCta
-                : kCivicDiagnosticStartCta,
-            onPressed:
-                _busy
-                    ? null
-                    : () => context.push(
-                        civicRunnerPath(d.attemptId, d.sessionId)),
-          ),
-          // Le résultat reste demandable même sans avoir tout répondu : une
-          // question sautée sort du dénominateur, elle ne devient jamais une
-          // mauvaise réponse.
-          if (d.repondues > 0) ...[
-            const SizedBox(height: 10),
-            AppButton(
-              label: kCivicDiagnosticResultCta,
-              variant: AppButtonVariant.outline,
-              onPressed: _busy ? null : () => _voirResultat(d.sessionId),
-            ),
-          ],
-        ],
-        if (_invite) ...[
-          const SizedBox(height: 14),
-          Text(kCivicDiagnosticGuestNote,
-              style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint,
-                  height: 1.5)),
-        ],
-      ],
-    );
-  }
-
-  /// L'entrée du visiteur : sa démarche, puis le tirage.
-  ///
-  /// 🛑 La démarche n'est pas un confort : elle choisit les questions. Un
-  /// candidat naturalisation mesuré sur le programme d'une carte de séjour
-  /// repart avec un diagnostic flatteur et un plan incomplet.
-  Widget _choixDemarche() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        const AppTag(label: kCivicDiagnosticGuestBadge, tone: TagTone.blue),
-        const SizedBox(height: 12),
-        Text(kCivicDiagnosticGuestTitle, style: AppFonts.display(size: 22)),
-        const SizedBox(height: 8),
-        Text(kCivicDiagnosticGuestLead,
-            style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.5)),
-        const SizedBox(height: 16),
-        for (final p in TargetProcedure.values) ...[
-          _DemarcheTile(
-            procedure: p,
-            selected: p == _procedure,
-            onTap: () => setState(() => _procedure = p),
-          ),
-          const SizedBox(height: 8),
-        ],
-        const SizedBox(height: 6),
-        Text(kCivicDiagnosticNotExam,
-            style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: AppFonts.ui(size: 13, color: AppColors.red)),
-        ],
-        const SizedBox(height: 18),
-        AppButton(
-          label: kCivicDiagnosticStartCta,
-          onPressed: _busy ? null : _ouvrir,
-          isLoading: _busy,
-        ),
-        const SizedBox(height: 14),
-        Text(kCivicDiagnosticGuestNote,
-            style: AppFonts.ui(
-                size: 12.5, color: AppColors.inkFaint, height: 1.5)),
-      ],
-    );
-  }
-}
-
-class _DemarcheTile extends StatelessWidget {
-  const _DemarcheTile({
-    required this.procedure,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final TargetProcedure procedure;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.blueSoft : AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(
-              color: selected ? AppColors.blue : AppColors.line,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Text(procedure.wire,
-                  style: AppFonts.label(size: 12, color: AppColors.blue)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  kMentionLabel[procedure.wire] ?? procedure.wire,
-                  style: AppFonts.ui(size: 14, color: AppColors.ink),
+        if (_error != null)
+          SfSection(
+            flush: true,
+            child: SfStack(
+              pad: false,
+              children: [
+                SfNoteCard(
+                  icon: LucideIcons.circleAlert,
+                  title: _error!,
+                  variant: SfCardVariant.warn,
                 ),
+                SfButton(
+                  label: 'Réessayer',
+                  variant: SfButtonVariant.line,
+                  onPressed: _busy ? null : _load,
+                ),
+              ],
+            ),
+          ),
+        if (d != null) ..._reprise(d) else ..._intro(),
+      ],
+    );
+  }
+
+  /// Un diagnostic déjà ouvert : on ne redécrit pas le format, on dit où il en
+  /// est et on le rouvre.
+  List<Widget> _reprise(CivicDiagnosticDto d) {
+    final termine = d.status == TcfDiagnosticStatus.completed;
+    return [
+      SfSection(
+        flush: true,
+        child: SfStack(
+          pad: false,
+          children: [
+            SfCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SfLabel(kCivicDiagnosticEnCoursLabel),
+                  const SizedBox(height: 6),
+                  SfHeadline(civicProgressionLabel(d.repondues, d.total)),
+                  if (!termine) ...[
+                    const SizedBox(height: 8),
+                    const SfTiny(kCivicDiagnosticNotExam),
+                  ],
+                ],
+              ),
+            ),
+            if (termine)
+              SfButton(
+                label: kCivicDiagnosticResultCta,
+                variant: SfButtonVariant.blue,
+                onPressed: _busy ? null : () => _voirResultat(d.sessionId),
+              )
+            else ...[
+              SfButton(
+                label: d.repondues > 0
+                    ? kCivicDiagnosticResumeCta
+                    : kCivicDiagnosticStartCta,
+                variant: SfButtonVariant.blue,
+                onPressed: _busy
+                    ? null
+                    : () =>
+                        context.push(civicRunnerPath(d.attemptId, d.sessionId)),
+              ),
+              // Le résultat reste demandable même sans avoir tout répondu : une
+              // question sautée sort du dénominateur, elle ne devient jamais
+              // une mauvaise réponse.
+              if (d.repondues > 0)
+                SfButton(
+                  label: kCivicDiagnosticResultCta,
+                  variant: SfButtonVariant.line,
+                  onPressed: _busy ? null : () => _voirResultat(d.sessionId),
+                ),
+            ],
+          ],
+        ),
+      ),
+      if (_invite) ...[
+        const SizedBox(height: 14),
+        const Padding(
+          padding: sfGutter,
+          child: SfTiny(kCivicDiagnosticGuestNote),
+        ),
+      ],
+    ];
+  }
+
+  /// L'intro : le format de l'épreuve, le livret, la démarche, le départ.
+  List<Widget> _intro() {
+    return [
+      const Padding(padding: sfGutter, child: SfInsight(kCivicIntroLead)),
+
+      // 🛑 Le format de l'épreuve, pas celui de la maquette : 40 questions et
+      // un seuil de 32, miroir de `CivicExamFormat`. Aucune durée n'est
+      // annoncée — le diagnostic n'a pas de chrono et le serveur n'en sert
+      // aucune : l'inventer serait promettre un temps qui n'existe pas.
+      const SfSection(
+        flush: true,
+        child: SfCard(
+          child: SfStatGrid(
+            stats: [
+              (value: '$kCivicExamQuestions', label: kCivicIntroStatQuestions),
+              (value: '$kCivicThemesCount', label: kCivicIntroStatThemes),
+              (
+                value: '$kCivicExamSeuilReussite / $kCivicExamQuestions',
+                label: kCivicIntroStatSeuil,
               ),
             ],
           ),
         ),
       ),
-    );
+
+      if (_themes.isNotEmpty)
+        SfSection(
+          flush: true,
+          child: SfCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SfLabel(kCivicIntroThemesTitle),
+                const SizedBox(height: 6),
+                SfBulletList(items: _themes),
+                const SizedBox(height: 12),
+                const SfTiny(kCivicIntroSituationsNote),
+              ],
+            ),
+          ),
+        ),
+
+      // 🛑 La démarche n'est pas un confort : elle choisit les questions. Un
+      // candidat naturalisation mesuré sur le programme d'une carte de séjour
+      // repart avec un diagnostic flatteur et un plan incomplet.
+      SfSection(
+        flush: true,
+        title: kCivicDiagnosticGuestTitle,
+        child: SfStack(
+          pad: false,
+          children: [
+            for (final p in TargetProcedure.values)
+              SfChoiceCard(
+                label: kMentionLabel[p.wire] ?? p.wire,
+                selected: p == _procedure,
+                onTap: () => setState(() => _procedure = p),
+              ),
+          ],
+        ),
+      ),
+
+      SfSection(
+        flush: true,
+        child: SfButton(
+          label: kCivicDiagnosticStartCta,
+          variant: SfButtonVariant.blue,
+          caption: kCivicIntroFreeCaption,
+          // 🛑 Inerte tant qu'aucune démarche n'est cochée.
+          onPressed: _busy || _procedure == null ? null : _ouvrir,
+        ),
+      ),
+      const SizedBox(height: 14),
+      const Padding(
+        padding: sfGutter,
+        child: SfTiny(kCivicDiagnosticNotExam),
+      ),
+      if (!_authentifie) ...[
+        const SizedBox(height: 8),
+        const Padding(
+          padding: sfGutter,
+          child: SfTiny(kCivicDiagnosticGuestNote),
+        ),
+      ],
+    ];
   }
 }

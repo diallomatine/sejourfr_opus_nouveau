@@ -13,7 +13,7 @@ import {
   planSkillMeta,
   planTransitionLine,
 } from "@/lib/plan-domain";
-import {BlockHead, EmptyCard, PlanShell} from "./LearningPlanView";
+import {BlockHead, EmptyCard, PlanShell} from "./PlanLayout";
 import {PlanPathList} from "./PlanBits";
 import {
   type LearningPlanDto,

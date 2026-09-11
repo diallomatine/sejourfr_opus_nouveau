@@ -29,6 +29,19 @@
      « À renforcer », tipline, icône d'encart) prend celui-ci. */
   --color-amber-dark: #8A6100;
 
+  /* Palette d'état du kit « parcours » (diagnostic + plan). Trois familles
+     seulement : vert = acquis, ambre = à renforcer, rouge = prioritaire. Le
+     jaune ne sert QUE au liseré de la priorité 3, pour la distinguer de
+     l'ambre de la priorité 2 — jamais en texte. */
+  --color-green-light: #E6F6EE;
+  --color-green-dark: #0F5C3A;
+  --color-green-border: #BFE8D2;
+  --color-amber-light: #FBF3E0;
+  --color-amber-border: #EAD4A0;
+  --color-yellow: #D4A017;
+  --color-blue-mid: #2A4BB0;
+  --color-line-strong: #D4DAE6;
+
   /* Dégradés de bandeau (hero « Compétences »). Deuxième butée dérivée de la
      couleur de marque elle-même : on éclaircit le bleu / le rouge, on
      n'introduit aucune teinte nouvelle. */

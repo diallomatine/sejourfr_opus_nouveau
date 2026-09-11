@@ -165,6 +165,15 @@ déjà — `civicDiagnosticId`, `tcfDiagnosticId`), et un DTO de fin de série
 portant l'état **avant** et **après**. 🛑 La transition doit être **servie**, pas
 recalculée par un front, et la boîte ne s'affiche jamais.
 
+⚠️ **Confirmé et aggravé le 2026-09-11.** La maquette du propriétaire porte un
+encart « Progression détectée » sur le Plan civique (« Le Président de la
+République est maintenant maîtrisé. Votre prochaine priorité devient : Le
+Parlement »). Il **n'a pas pu être implémenté** : `CivicPlanDto` ne sert aucun
+équivalent de `recentChanges` — ni transition, ni avant/après. Les deux fronts
+l'ont omis plutôt que de fabriquer la phrase depuis `solides`, ce qui aurait
+affirmé un mouvement jamais mesuré. Le manque est donc maintenant **visible dans
+une maquette validée**, et non plus seulement dans une spec.
+
 ## 3.2. Export des données personnelles (G04)
 
 `40_` §6.1 le notait « non vérifié ». **Vérifié maintenant** :
@@ -224,9 +233,21 @@ travail à part entière, et rien n'est cassé en attendant.
 
 ## 3.7. Plan premium / plan gratuit contre les maquettes 04 et 05
 
-Noté dans `60_` et jamais fait : les deux écrans de Plan existent et sont **plus
-riches** que les maquettes (séance du jour, jalons, cycle de palier, changements
-récents). Ils n'ont pas été comparés ligne à ligne.
+✅ **Fait le 2026-09-11**, et bien plus largement : le propriétaire a fourni une
+maquette complète (`~/Desktop/grok_ecran`) et les **7 écrans** de diagnostic et
+de plan ont été refaits à l'identique sur les deux fronts, autour d'un **kit
+partagé** (`web_sejoufr/app/_components/sejour/SejourKit.tsx` ⇄
+`mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`).
+
+Ce que ça a **retiré** des deux Plans : la séance du jour (« Aujourd'hui », une
+*vue* des priorités, donc un doublon) et « Mon profil TCF » (déjà porté par
+`/plan/progression` et `/statistiques`). Ce que ça a **gardé**, hors maquette et
+faute d'autre porte : le jalon, « Compléter mon profil » et le chemin de palier.
+
+⚠️ **Trois blocs de la maquette sont OMIS faute de données** — ils sont le vrai
+reste à faire, et ils convergent tous vers §3.1 : le parcours par notion du plan
+civique, son encart « Progression détectée », et les sous-compétences d'une
+priorité civique. Aucun n'a été fabriqué.
 
 ## 3.8. La courbe de progression (T28 bloc 1)
 

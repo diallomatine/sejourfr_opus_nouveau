@@ -18,26 +18,47 @@
  * atténué, et n'entre dans aucune priorité.
  */
 import {useCallback, useEffect, useState} from "react";
-import Link from "next/link";
+import {AlertCircle, Check} from "lucide-react";
 import {ApiException, civicDiagnosticApi, publicCivicDiagnosticApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {adopterSiInvite, lireInvite} from "@/lib/civic-diagnostic-guest";
 import {CivicDiagnosticGate} from "./CivicDiagnosticGate";
 import {
+    autresPrioritesLine,
     CIVIC_DIAGNOSTIC_PLAN_CTA,
-    CIVIC_DIAGNOSTIC_TITLE,
     CIVIC_PLAN_TEASER_TITLE,
     CIVIC_PRIORITES_TITLE,
+    CIVIC_PRIORITES_VISIBLES,
     CIVIC_RASSURANCE_TITLE,
+    CIVIC_RESULT_BADGE,
+    CIVIC_RESULT_KICKER,
+    CIVIC_RESULT_SCORE_LABEL,
+    CIVIC_RESULT_TITLE,
+    CIVIC_SITUATIONS_LABEL,
     CIVIC_SITUATIONS_TEXT,
     CIVIC_SITUATIONS_TITLE,
-    mentionBadge,
-    projectionLine,
+    CIVIC_THEMES_TITLE,
+    kitTone,
+    perspectiveLine,
     rassuranceText,
     situationsLine,
-    themeTone,
+    thresholdLine,
 } from "@/lib/civic-diagnostic";
 import {CIVIC_THEME_STATE_LABEL} from "@/lib/types";
+import {
+    Card,
+    Cta,
+    MiniPlan,
+    NoteCard,
+    Pad,
+    Prio,
+    Section,
+    sejourStyles as s,
+    SejourApp,
+    Stack,
+    ThemeLine,
+    Top,
+} from "@/app/_components/sejour/SejourKit";
 import type {CivicDiagnosticResultDto, TargetProcedure} from "@/lib/types";
 
 type Etat =
@@ -118,312 +139,148 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "loading") {
         return (
-            <section className="cvr" aria-busy="true">
-                <div className="cvr-skel cvr-skel-hero" />
-                <Styles />
-            </section>
+            <SejourApp>
+                <Top kicker={CIVIC_RESULT_KICKER} title={CIVIC_RESULT_TITLE} />
+                <Pad>
+                    <p className={s.sub} aria-busy="true">
+                        Chargement…
+                    </p>
+                </Pad>
+            </SejourApp>
         );
     }
 
     if (etat.kind === "erreur") {
         return (
-            <section className="cvr">
-                <p className="cvr-error">{etat.message}</p>
-                <Styles />
-            </section>
+            <SejourApp>
+                <Top kicker={CIVIC_RESULT_KICKER} title={CIVIC_RESULT_TITLE} />
+                <Section>
+                    <Pad>
+                        <NoteCard variant="warn" icon={AlertCircle} title={etat.message} />
+                    </Pad>
+                </Section>
+            </SejourApp>
         );
     }
 
     const r = etat.resultat;
-    const projection = projectionLine(r);
+    const perspective = perspectiveLine(r);
     const situations = situationsLine(r);
     const rassurance = rassuranceText(r);
+    const prioritesVisibles = r.priorites.slice(0, CIVIC_PRIORITES_VISIBLES);
+    const autres = autresPrioritesLine(r.priorites.length);
 
     return (
-        <section className="cvr">
-            <header className="cvr-head">
-                <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-                <span className="cvr-mention">{mentionBadge(r.mention)}</span>
-            </header>
+        <SejourApp>
+            <Top
+                kicker={CIVIC_RESULT_KICKER}
+                title={CIVIC_RESULT_TITLE}
+                badge={CIVIC_RESULT_BADGE}
+            />
 
             {/* 1 — le résultat. L'élément dominant. */}
-            <div className="cvr-hero">
-                <p className="cvr-eyebrow">Votre résultat</p>
-                <p className="cvr-score">
-                    {r.bonnes} <small>/ {r.posees}</small>
-                </p>
-                {/* 🛑 Absent si rien n'a été posé : « on n'a rien mesuré » ne se
-                    dit pas « vous auriez 0 sur 40 ». */}
-                {projection && <p className="cvr-projection">{projection}</p>}
-                {r.projection40 !== null && (
-                    <div className="cvr-bar" aria-hidden>
-                        <span
-                            className="cvr-bar-fill"
-                            style={{width: `${Math.min(100, (r.projection40 / 40) * 100)}%`}}
-                        />
-                        <span
-                            className="cvr-bar-seuil"
-                            style={{left: `${(r.seuilReussite / 40) * 100}%`}}
-                        />
-                    </div>
-                )}
-            </div>
+            <Pad>
+                <Card variant="hero">
+                    <p className={s.label}>{CIVIC_RESULT_SCORE_LABEL}</p>
+                    <p className={s.score}>
+                        {r.bonnes} <small>/ {r.posees}</small>
+                    </p>
+                    {/* 🛑 Absente si rien n'a été posé : « on n'a rien mesuré »
+                        ne se dit pas « vous auriez 0 sur 40 ». */}
+                    {perspective && <p className={s.insight}>{perspective}</p>}
+                    <p className={s.threshold}>{thresholdLine(r)}</p>
+                </Card>
+            </Pad>
 
             {/* 2 — les 5 thèmes, TOUS, y compris les non évalués. */}
-            <h2 className="cvr-h2">Vos thèmes</h2>
-            <ul className="cvr-themes">
-                {r.themes.map((t) => (
-                    <li key={t.code} data-tone={themeTone(t.etat)}>
-                        <span className="cvr-theme-dot" aria-hidden />
-                        <span className="cvr-theme-label">{t.label}</span>
-                        <span className="cvr-theme-etat">
-                            {CIVIC_THEME_STATE_LABEL[t.etat]}
-                        </span>
-                    </li>
-                ))}
-            </ul>
+            <Section title={CIVIC_THEMES_TITLE}>
+                <Pad>
+                    <Card padding="tight">
+                        {r.themes.map((t) => (
+                            <ThemeLine
+                                key={t.code}
+                                tone={kitTone(t.etat)}
+                                name={t.label}
+                                status={CIVIC_THEME_STATE_LABEL[t.etat]}
+                            />
+                        ))}
+                    </Card>
+                </Pad>
+            </Section>
 
             {/* 3 — les mises en situation, bloc distinct : c'est une compétence
-                différente, et c'est souvent ce qui fait la différence. */}
+                différente, et c'est souvent ce qui fait la différence.
+                🛑 Masqué quand aucune n'a été posée (mode dégradé) : un bloc à
+                « 0 sur 0 » ne dit rien et se lit comme un échec. */}
             {situations && (
-                <div className="cvr-situations">
-                    <p className="cvr-situations-title">{CIVIC_SITUATIONS_TITLE}</p>
-                    <p className="cvr-situations-score">{situations}</p>
-                    <p className="cvr-situations-text">{CIVIC_SITUATIONS_TEXT}</p>
-                </div>
+                <Section title={CIVIC_SITUATIONS_TITLE} flush>
+                    <Card>
+                        <p className={s.label}>{CIVIC_SITUATIONS_LABEL}</p>
+                        <p className={s.sitScore}>{situations}</p>
+                        <p className={s.tiny}>{CIVIC_SITUATIONS_TEXT}</p>
+                    </Card>
+                </Section>
             )}
 
-            {/* 4 — ce qui coûte le plus de points. Titre volontairement concret. */}
-            {r.priorites.length > 0 && (
-                <>
-                    <h2 className="cvr-h2">{CIVIC_PRIORITES_TITLE}</h2>
-                    <ol className="cvr-priorites">
-                        {r.priorites.map((p) => (
-                            <li key={p.code} data-tone={themeTone(p.etat)}>
-                                <span className="cvr-theme-dot" aria-hidden />
-                                <span className="cvr-theme-label">{p.label}</span>
-                                <span className="cvr-theme-etat">
-                                    {CIVIC_THEME_STATE_LABEL[p.etat]}
-                                </span>
-                            </li>
-                        ))}
-                    </ol>
-                </>
+            {/* 4 — ce qui coûte le plus de points. Titre volontairement concret.
+                Le rang, le thème et l'état sont SERVIS ; aucune phrase
+                explicative n'existe côté serveur, on n'en invente pas. */}
+            {prioritesVisibles.length > 0 && (
+                <Section title={CIVIC_PRIORITES_TITLE}>
+                    <Pad>
+                        <Stack>
+                            {prioritesVisibles.map((p, i) => (
+                                <Prio
+                                    key={p.code}
+                                    rank={(i + 1) as 1 | 2 | 3}
+                                    tag={CIVIC_THEME_STATE_LABEL[p.etat]}
+                                    title={p.label}
+                                />
+                            ))}
+                        </Stack>
+                    </Pad>
+                </Section>
             )}
 
             {/* 5 — rassurance. 🛑 Absente si aucun thème n'est solide : « 0 thème
                 est déjà solide » sonnerait faux au pire moment. */}
             {rassurance && (
-                <div className="cvr-rassurance">
-                    <p className="cvr-rassurance-title">{CIVIC_RASSURANCE_TITLE}</p>
-                    <p className="cvr-rassurance-text">{rassurance}</p>
-                </div>
+                <Section>
+                    <Pad>
+                        <NoteCard
+                            variant="ok"
+                            icon={Check}
+                            iconTone="ok"
+                            title={CIVIC_RASSURANCE_TITLE}
+                        >
+                            <p className={s.tiny}>{rassurance}</p>
+                        </NoteCard>
+                    </Pad>
+                </Section>
             )}
 
             {/* 6 — le teaser du plan. */}
-            <h2 className="cvr-h2">{CIVIC_PLAN_TEASER_TITLE}</h2>
-            <Link href="/plan?module=CIVIQUE" className="btn btn-lg">
-                {CIVIC_DIAGNOSTIC_PLAN_CTA}
-            </Link>
-
-            <Styles />
-        </section>
-    );
-}
-
-/**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
- *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
- * écrans invisiblement nus — le toggle du Plan y compris.
- *
- * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
- * classes sont préfixées pour qu'il n'y ait aucune collision.
- */
-function Styles() {
-    return (
-        <style>{`
-            .cvr {
-                max-width: 480px;
-                margin: 0 auto;
-                padding: 24px 16px 48px;
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            }
-            .cvr-head {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            }
-            .cvr-head h1 {
-                font-family: var(--font-display);
-                font-size: 24px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .cvr-mention {
-                align-self: flex-start;
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--color-blue-dark);
-                background: var(--color-blue-light);
-                border-radius: 999px;
-                padding: 4px 10px;
-            }
-            .cvr-hero {
-                background: var(--color-blue-light);
-                border-radius: 18px;
-                padding: 20px;
-                text-align: center;
-            }
-            .cvr-eyebrow {
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--color-blue-dark);
-                margin: 0;
-            }
-            .cvr-score {
-                font-family: var(--font-display);
-                font-size: 46px;
-                color: var(--color-blue);
-                margin: 6px 0 0;
-            }
-            .cvr-score small {
-                font-size: 22px;
-                color: var(--color-blue-dark);
-            }
-            .cvr-projection {
-                margin: 8px 0 0;
-                font-size: 13.5px;
-                line-height: 1.5;
-                color: var(--color-ink);
-            }
-            /* La barre porte le SEUIL, pas une promesse : le trait dit où est 32,
-               il ne dit jamais « vous êtes prêt ». */
-            .cvr-bar {
-                position: relative;
-                height: 8px;
-                border-radius: 999px;
-                background: #fff;
-                margin-top: 12px;
-                overflow: visible;
-            }
-            .cvr-bar-fill {
-                position: absolute;
-                inset: 0 auto 0 0;
-                border-radius: 999px;
-                background: var(--color-blue);
-            }
-            .cvr-bar-seuil {
-                position: absolute;
-                top: -3px;
-                bottom: -3px;
-                width: 2px;
-                background: var(--color-blue-dark);
-            }
-            .cvr-h2 {
-                font-family: var(--font-display);
-                font-size: 18px;
-                color: var(--color-ink);
-                margin: 8px 0 0;
-            }
-            .cvr-themes,
-            .cvr-priorites {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .cvr-themes li,
-            .cvr-priorites li {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                border: 1px solid var(--color-line);
-                border-radius: 14px;
-                padding: 12px 14px;
-                font-size: 14px;
-            }
-            .cvr-theme-dot {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                flex: 0 0 auto;
-            }
-            .cvr li[data-tone="ok"] .cvr-theme-dot { background: var(--color-success, #168f5b); }
-            .cvr li[data-tone="warn"] .cvr-theme-dot { background: var(--color-amber, #e8a317); }
-            .cvr li[data-tone="hot"] .cvr-theme-dot { background: var(--color-red); }
-            .cvr li[data-tone="muted"] .cvr-theme-dot { background: var(--color-line); }
-            .cvr-theme-label {
-                flex: 1;
-                color: var(--color-ink);
-            }
-            .cvr-theme-etat {
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                color: var(--color-muted);
-            }
-            /* Non évalué : atténué, jamais alarmant — ce n'est pas un échec. */
-            .cvr li[data-tone="muted"] .cvr-theme-etat { color: var(--color-muted-2); }
-            .cvr li[data-tone="hot"] .cvr-theme-etat { color: var(--color-red-dark); }
-            .cvr-situations,
-            .cvr-rassurance {
-                border: 1px solid var(--color-line);
-                border-radius: 16px;
-                padding: 16px;
-            }
-            .cvr-rassurance {
-                background: var(--color-success-light, #e6f4ed);
-                border-color: transparent;
-            }
-            .cvr-situations-title,
-            .cvr-rassurance-title {
-                margin: 0;
-                font-family: var(--font-display);
-                font-size: 16px;
-                color: var(--color-ink);
-            }
-            .cvr-situations-score {
-                margin: 6px 0 0;
-                font-family: var(--font-display);
-                font-size: 22px;
-                color: var(--color-blue);
-            }
-            .cvr-situations-text,
-            .cvr-rassurance-text {
-                margin: 6px 0 0;
-                font-size: 13px;
-                line-height: 1.5;
-                color: var(--color-muted);
-            }
-            .cvr-error {
-                background: var(--color-red-light);
-                color: var(--color-red-dark);
-                border-radius: 12px;
-                padding: 12px 14px;
-                margin: 0;
-            }
-            .cvr-skel {
-                background: var(--color-line);
-                border-radius: 16px;
-                animation: cvr-pulse 1.3s ease-in-out infinite;
-            }
-            .cvr-skel-hero { height: 160px; }
-            @keyframes cvr-pulse {
-                0%, 100% { opacity: 0.55; }
-                50% { opacity: 0.9; }
-            }
-        `}</style>
+            <Section title={CIVIC_PLAN_TEASER_TITLE}>
+                <Pad>
+                    <Stack>
+                        {prioritesVisibles.length > 0 && (
+                            <Card>
+                                <MiniPlan
+                                    rows={prioritesVisibles.map((p) => ({
+                                        label: p.label,
+                                        pill: CIVIC_THEME_STATE_LABEL[p.etat],
+                                        tone: kitTone(p.etat),
+                                    }))}
+                                />
+                                {autres && <p className={s.tiny}>{autres}</p>}
+                            </Card>
+                        )}
+                        <Cta href="/plan?module=CIVIQUE" variant="blue">
+                            {CIVIC_DIAGNOSTIC_PLAN_CTA}
+                        </Cta>
+                    </Stack>
+                </Pad>
+            </Section>
+        </SejourApp>
     );
 }

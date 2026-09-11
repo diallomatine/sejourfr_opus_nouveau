@@ -6,35 +6,36 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/billing_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/start_failure.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../../core/widgets/premium_lock.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_plan_labels.dart';
 
-/// **Le plan civique** (L10, `20_` §6).
+/// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
 ///
-/// ⚠️ **Révoque le panneau précédent**, qui recopiait les priorités *figées* du
-/// dernier diagnostic. Le plan est maintenant un **moteur** : il relit tout
-/// l'historique des réponses à chaque lecture, y compris celles des séries et
-/// des examens blancs (`20_` §8.2), et il dit **quand y revenir**.
+/// Le plan est un **moteur** : il relit tout l'historique des réponses à chaque
+/// lecture, y compris celles des séries et des examens blancs, et il dit
+/// **quand y revenir**.
 ///
-/// 🛑 **Rien n'est dérivé ici.** L'ordre des cibles, leur état de maîtrise, leur
-/// échéance et leur verrou arrivent **servis**. Cet écran les met en mots
-/// (`civic_plan_labels.dart`) et ouvre ce qui existe déjà.
+/// 🛑 **Rien n'est dérivé ici.** L'ordre des cibles, leur état de maîtrise,
+/// l'état de leur thème, leur échéance et leur verrou arrivent **servis**. Cet
+/// écran les met en mots (`civic_plan_labels.dart`) et ouvre ce qui existe déjà.
+///
+/// 🛑 **La boîte Leitner ne s'affiche jamais** : on montre `maitrise` et
+/// `prochaineRevue`, jamais `boite`.
 ///
 /// 🛑 **Le plan travaille au grain que le tagging permet**, et il le dit
 /// (`20_` §3.3) : thème par thème tant que les questions ne sont pas taguées,
-/// notion par notion ensuite. Ce n'est pas une panne, c'est la phase 1 de la
-/// spec.
+/// notion par notion ensuite. Ce n'est pas une panne, c'est la phase 1.
 ///
 /// 🛑 **Le constat est intégralement gratuit.** Le `locked` servi porte sur la
-/// **série**, jamais sur ce que le candidat a mesuré : un compte gratuit voit
-/// ses priorités entières, avec leurs états et leurs compteurs.
+/// **série**, jamais sur ce que le candidat a mesuré : un compte sans pass voit
+/// ses priorités entières, avec leurs états.
 class CivicPlanView extends ConsumerStatefulWidget {
   const CivicPlanView({super.key});
 
@@ -46,6 +47,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   CivicPlan? _plan;
   bool _loading = true;
   String? _enCours;
+  CivicPassDuree _duree = CivicPassDuree.troisMois;
 
   @override
   void initState() {
@@ -77,7 +79,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   Future<void> _commencer(CivicPlanCible cible) async {
     if (_enCours != null) return;
     if (cible.locked) {
-      unawaited(showPaywallSheet(context));
+      unawaited(_ouvrirOffre());
       return;
     }
     setState(() => _enCours = cible.id);
@@ -87,7 +89,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
           .serie(cible.id, cible.grain);
       if (!mounted) return;
       setState(() => _enCours = null);
-      context.push('/runner/${attempt.id}');
+      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
       setState(() => _enCours = null);
@@ -95,306 +97,386 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     }
   }
 
+  /// **La seule porte d'achat** : l'écran d'offre, qui porte les vrais passes
+  /// et leurs prix du store. La durée choisie ici n'est qu'une préférence
+  /// affichée — c'est là-bas qu'on achète.
+  Future<void> _ouvrirOffre() =>
+      showPaywallSheet(context, initialTarget: PlanModuleTarget.civique);
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColors.blue));
     }
     final plan = _plan;
     if (plan == null || !plan.disponible) return const SizedBox.shrink();
 
-    final grainNote = civicPlanGrainNote(plan.grain);
-    final autres = civicPlanAutresLabel(plan);
-    final maintenant = DateTime.now();
+    final auth = ref.watch(authControllerProvider);
+    final hasCivique = auth is AuthAuthenticated && auth.user.hasCivique;
+
+    if (!hasCivique) {
+      return Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.blue,
+              onRefresh: _load,
+              child: ListView(children: _free(plan)),
+            ),
+          ),
+          SfStickyBar(
+            child: SfButton(
+              label: kCivicPlanUnlockCta,
+              caption: civicPlanUnlockCaption(_duree),
+              variant: SfButtonVariant.blue,
+              onPressed: () => unawaited(_ouvrirOffre()),
+            ),
+          ),
+        ],
+      );
+    }
 
     return RefreshIndicator(
+      color: AppColors.blue,
       onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          // 1 — l'objectif. 🛑 Le seuil est SERVI : l'écran le dit sans le
-          // connaître, et il ne promet jamais la réussite.
-          if (plan.resultat != null) ...[
-            _Objectif(resultat: plan.resultat!),
-            const SizedBox(height: 16),
-          ],
-
-          if (plan.prochaine != null) ...[
-            _MaintenantCard(
-              cible: plan.prochaine!,
-              busy: _enCours == plan.prochaine!.id,
-              onStart: () => unawaited(_commencer(plan.prochaine!)),
-            ),
-            const SizedBox(height: 20),
-            Text(kCivicPlanPrioritiesTitle,
-                style: AppFonts.display(size: 20, color: AppColors.ink)),
-            const SizedBox(height: 10),
-            for (var i = 0; i < plan.priorites.length; i++) ...[
-              _PrioriteRow(
-                rang: i + 1,
-                cible: plan.priorites[i],
-                busy: _enCours == plan.priorites[i].id,
-                onStart: () => unawaited(_commencer(plan.priorites[i])),
-              ),
-              const SizedBox(height: 10),
-            ],
-            if (autres != null)
-              Text(autres,
-                  style: AppFonts.ui(
-                      size: 12.5, color: AppColors.inkFaint, height: 1.5)),
-          ] else
-            _RienDePrioritaire(),
-
-          // 5 — révision d'entretien. 🛑 Secondaire, et JAMAIS présentée comme
-          // une alerte : ce sont des points acquis qu'on entretient.
-          if (plan.aRevoir.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            Text(kCivicPlanReviewTitle,
-                style: AppFonts.display(size: 20, color: AppColors.ink)),
-            const SizedBox(height: 8),
-            for (final cible in plan.aRevoir)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(cible.label,
-                          style: AppFonts.ui(size: 14, color: AppColors.ink)),
-                    ),
-                    Text(civicRevueLabel(cible, maintenant) ?? '',
-                        style: AppFonts.ui(
-                            size: 12.5, color: AppColors.inkFaint)),
-                  ],
-                ),
-              ),
-          ],
-
-          // 6 — ce qui est acquis. Le candidat n'a pas besoin de tout réviser.
-          if (plan.solides.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            Text(kCivicPlanSolidTitle,
-                style: AppFonts.display(size: 20, color: AppColors.ink)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final cible in plan.solides)
-                  _SolidePill(label: cible.label, themeId: cible.themeId),
-              ],
-            ),
-          ],
-
-          if (grainNote != null) ...[
-            const SizedBox(height: 20),
-            Text(grainNote,
-                style: AppFonts.ui(
-                    size: 12, color: AppColors.inkFaint, height: 1.5)),
-          ],
-        ],
-      ),
+      child: ListView(children: _premium(plan)),
     );
   }
-}
 
-class _Objectif extends StatelessWidget {
-  const _Objectif({required this.resultat});
+  /* --------------------------------------------------------- avec pass ---- */
 
-  final CivicPlanResultat resultat;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(kCivicPlanResultTitle.toUpperCase(),
-              style: AppFonts.label(size: 11, color: AppColors.inkFaint)),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text('${resultat.bonnes}',
-                  style: AppFonts.display(size: 32, color: AppColors.blue)),
-              Text(' / ${resultat.posees}',
-                  style: AppFonts.display(size: 22, color: AppColors.ink)),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$kCivicPlanResultSeuil : ${resultat.seuil} / ${resultat.format}',
-            style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
-          ),
-        ],
+  List<Widget> _premium(CivicPlan plan) {
+    final maintenant = DateTime.now();
+    return <Widget>[
+      const SfTop(
+        kicker: kCivicPlanTopKicker,
+        title: kCivicPlanScreenTitle,
       ),
-    );
+      const SizedBox(height: 14),
+      _contextCard(plan),
+      if (plan.prochaine != null)
+        SfSection(
+          title: kCivicPlanNowTitle,
+          flush: true,
+          child: _nowCard(plan.prochaine!, free: false),
+        )
+      else
+        _nothingUrgent(),
+      ..._prioritiesSection(plan, free: false),
+      ..._doneSection(plan),
+      ..._reviewSection(plan, maintenant),
+      const SizedBox(height: 28),
+    ];
   }
-}
 
-/// Bloc 2 — « À faire maintenant », le bloc dominant de l'écran.
-class _MaintenantCard extends StatelessWidget {
-  const _MaintenantCard({
-    required this.cible,
-    required this.busy,
-    required this.onStart,
-  });
+  /* -------------------------------------------------------- sans pass ----- */
 
-  final CivicPlanCible cible;
-  final bool busy;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      color: AppColors.blueLight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(kCivicPlanNowTitle.toUpperCase(),
-              style: AppFonts.label(size: 11, color: AppColors.blueDark)),
-          const SizedBox(height: 8),
-          Text(cible.themeLabel,
-              style: AppFonts.ui(size: 12.5, color: AppColors.blueDark)),
-          const SizedBox(height: 2),
-          Text(cible.label, style: AppFonts.display(size: 21)),
-          const SizedBox(height: 6),
-          Text(civicPlanRaison(cible),
-              style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft)),
-          const SizedBox(height: 2),
-          Text(civicSerieLabel(cible),
-              style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft)),
-          const SizedBox(height: 14),
-          AppButton(
-            label: cible.locked ? kCivicPlanLockedCta : kCivicPlanNowCta,
-            iconRight: cible.locked ? LucideIcons.lock : LucideIcons.arrowRight,
-            isLoading: busy,
-            onPressed: busy ? null : onStart,
-          ),
-          if (cible.locked) ...[
-            const SizedBox(height: 10),
-            Text(kCivicPlanLockedNote,
-                style: AppFonts.ui(
-                    size: 12, color: AppColors.inkFaint, height: 1.5)),
-          ],
-        ],
+  List<Widget> _free(CivicPlan plan) {
+    final resultat = plan.resultat;
+    return <Widget>[
+      const SfTop(
+        kicker: kCivicPlanTopKickerFree,
+        title: kCivicPlanScreenTitle,
       ),
-    );
-  }
-}
-
-/// Une ligne de priorité. 🛑 Le constat est **entier** même verrouillé : seul le
-/// geste porte le cadenas.
-class _PrioriteRow extends StatelessWidget {
-  const _PrioriteRow({
-    required this.rang,
-    required this.cible,
-    required this.busy,
-    required this.onStart,
-  });
-
-  final int rang;
-  final CivicPlanCible cible;
-  final bool busy;
-  final VoidCallback onStart;
-
-  static Color _tone(CivicCibleTone tone) => switch (tone) {
-        CivicCibleTone.hot => AppColors.red,
-        CivicCibleTone.warn => AppColors.amber,
-        CivicCibleTone.ok => AppColors.green,
-        CivicCibleTone.muted => AppColors.line,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: busy ? null : onStart,
-      border: Border(
-        left: BorderSide(color: _tone(civicCibleTone(cible)), width: 4),
-        top: const BorderSide(color: AppColors.line),
-        right: const BorderSide(color: AppColors.line),
-        bottom: const BorderSide(color: AppColors.line),
-      ),
-      child: Row(
-        children: [
-          Text('$rang',
-              style: AppFonts.label(size: 13, color: AppColors.inkFaint)),
-          const SizedBox(width: 12),
-          Expanded(
+      const SizedBox(height: 14),
+      if (resultat != null)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SfCard(
+            variant: SfCardVariant.hero,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(cible.label,
-                    style: AppFonts.ui(size: 15, color: AppColors.ink)),
-                const SizedBox(height: 2),
-                Text(
-                  '${cible.themeLabel} · ${cible.maitrise.label} · '
-                  '${civicPlanRaison(cible)}',
-                  style: AppFonts.ui(
-                      size: 12, color: AppColors.inkFaint, height: 1.45),
+                const SfLabel(kCivicPlanResultLabel),
+                const SizedBox(height: 6),
+                SfScore(
+                  score: resultat.bonnes,
+                  total: resultat.posees,
+                  compact: true,
                 ),
+                const SizedBox(height: 8),
+                SfTiny(civicPlanResultNote(resultat)),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          if (cible.locked)
-            const PremiumLockPill()
-          else
-            Text(kCivicPlanWorkCta,
-                style: AppFonts.ui(
-                    size: 13.5,
-                    weight: FontWeight.w600,
-                    color: AppColors.blue)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SolidePill extends StatelessWidget {
-  const _SolidePill({required this.label, required this.themeId});
-
-  final String label;
-  final String themeId;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/civique/theme/$themeId'),
-      borderRadius: BorderRadius.circular(AppRadii.pill),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.line),
-          borderRadius: BorderRadius.circular(AppRadii.pill),
         ),
-        child: Text('✅ $label',
-            style: AppFonts.ui(size: 13.5, color: AppColors.ink)),
+      ..._themesSection(plan),
+      ..._prioritiesSection(plan, free: true),
+      if (plan.prochaine != null)
+        SfSection(
+          title: kCivicPlanFirstStepTitle,
+          flush: true,
+          child: _nowCard(plan.prochaine!, free: true),
+        ),
+      const SfSection(
+        flush: true,
+        child: SfUnlockHero(
+          title: kCivicPlanUnlockHeroTitle,
+          text: kCivicPlanUnlockHeroText,
+        ),
+      ),
+      _passSection(),
+      const SizedBox(height: 24),
+    ];
+  }
+
+  /* ------------------------------------------------------------ blocs ----- */
+
+  /// Le contexte du plan : ce qu'il reste à renforcer, à quel grain il
+  /// travaille, et comment il choisit.
+  Widget _contextCard(CivicPlan plan) {
+    final themes = civicPlanThemesPill(plan);
+    final cibles = civicPlanCiblesPill(plan);
+    final grain = civicPlanGrainNote(plan.grain);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SfCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (themes != null || cibles != null) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (themes != null)
+                    SfPillMeta(label: themes, icon: LucideIcons.layers),
+                  if (cibles != null)
+                    SfPillMeta(label: cibles, icon: LucideIcons.target),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            SfTiny(civicPlanEngineLine(plan.grain)),
+            if (grain != null) ...[
+              const SizedBox(height: 6),
+              SfTiny(grain),
+            ],
+          ],
+        ),
       ),
     );
   }
-}
 
-/// 🛑 Aucune priorité est une BONNE nouvelle, pas un écran vide.
-class _RienDePrioritaire extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
+  /// La carte d'action. [free] choisit la **mise en page** ; ce qui décide du
+  /// bouton ou des cadenas reste le `locked` **servi** sur la cible.
+  Widget _nowCard(CivicPlanCible cible, {required bool free}) {
+    final card = SfNowCard(
+      icon: LucideIcons.landmark,
+      title: cible.label,
+      subtitle: cible.themeLabel.isEmpty ? null : cible.themeLabel,
+      badge: free ? null : kCivicPlanNowBadge,
+      objectiveLabel: kCivicPlanNowWhy,
+      objective: civicPlanRaison(cible),
+      meta: [SfMeta(LucideIcons.list, civicSerieLabel(cible))],
+      action: free && cible.locked
+          ? null
+          : SfButton(
+              label: cible.locked ? kCivicPlanLockedCta : kCivicPlanNowCta,
+              variant: SfButtonVariant.blue,
+              onPressed: _enCours == cible.id
+                  ? null
+                  : () => unawaited(_commencer(cible)),
+            ),
+      caption: cible.locked ? kCivicPlanLockedNote : null,
+    );
+
+    if (!free || !cible.locked) return card;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 12),
-        Text(kCivicPlanAllGoodTitle,
-            textAlign: TextAlign.center,
-            style: AppFonts.display(size: 22, color: AppColors.ink)),
-        const SizedBox(height: 10),
-        Text(kCivicPlanAllGoodText,
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(size: 14, color: AppColors.inkSoft, height: 1.55)),
-        const SizedBox(height: 20),
-        AppButton(
-          label: 'Faire un examen blanc',
-          onPressed: () => context.push(AppRoutes.civiqueExamsBlanc),
+        card,
+        const SizedBox(height: sfGap),
+        SfCard(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final label in kCivicPlanStepLocks) SfLockItem(label: label),
+            ],
+          ),
         ),
       ],
     );
   }
+
+  /// Les thèmes **mesurés et non solides**, avec leur état servi. Un thème
+  /// jamais mesuré n'y figure pas : il n'a rien raté.
+  List<Widget> _themesSection(CivicPlan plan) {
+    final themes = civicPlanThemesATravailler(plan);
+    if (themes.isEmpty) return const <Widget>[];
+    return <Widget>[
+      SfSection(
+        title: kCivicPlanThemesTitle,
+        flush: true,
+        child: SfCard(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < themes.length; i++)
+                SfThemeLine(
+                  tone: _tone(civicThemeTone(themes[i].etatDuTheme)),
+                  name: themes[i].themeLabel,
+                  status: themes[i].etatDuTheme.label,
+                  last: i == themes.length - 1,
+                ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _prioritiesSection(CivicPlan plan, {required bool free}) {
+    if (plan.priorites.isEmpty) return const <Widget>[];
+    final autres = civicPlanAutresLabel(plan);
+    return <Widget>[
+      SfSection(
+        title: kCivicPlanPrioritiesTitle,
+        child: SfStack(
+          children: [
+            for (var i = 0; i < plan.priorites.length; i++)
+              _priorityCard(plan.priorites[i], i + 1, free: free),
+            if (autres != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: SfTiny(autres),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// Une priorité.
+  ///
+  /// ⚠️ **Pas de sous-liste de compétences** : le serveur n'en sert aucune sur
+  /// une cible civique (`20_` §4). On montre la maîtrise servie et la raison,
+  /// jamais un sous-arbre fabriqué.
+  Widget _priorityCard(CivicPlanCible cible, int rank, {required bool free}) {
+    return SfPrio(
+      rank: rank,
+      tag: cible.themeLabel.isEmpty ? kCivicPlanPrioritiesTitle : cible.themeLabel,
+      title: cible.label,
+      text: cible.maitrise.label,
+      child: free
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: SfTiny(civicPlanRaison(cible)),
+            ),
+    );
+  }
+
+  List<Widget> _doneSection(CivicPlan plan) {
+    if (plan.solides.isEmpty) return const <Widget>[];
+    return <Widget>[
+      SfSection(
+        title: kCivicPlanDoneTitle,
+        flush: true,
+        child: SfCard(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final cible in plan.solides)
+                SfCheckRow(label: civicPlanDoneRow(cible), large: true),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  /// « À revoir bientôt ». 🛑 Jamais une alerte : ce sont des points acquis
+  /// qu'on entretient — et **jamais** la boîte Leitner.
+  List<Widget> _reviewSection(CivicPlan plan, DateTime maintenant) {
+    if (plan.aRevoir.isEmpty) return const <Widget>[];
+    return <Widget>[
+      SfSection(
+        title: kCivicPlanReviewTitle,
+        child: SfStack(
+          children: [
+            for (final cible in plan.aRevoir)
+              SfCard(
+                variant: SfCardVariant.soft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SfLabel(kCivicPlanReviewPill),
+                    const SizedBox(height: 4),
+                    Text(
+                      cible.label,
+                      style: AppFonts.display(size: 15, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    SfTiny(civicPlanReviewText(cible, maintenant)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// Le sélecteur de durée du Pass Civique. **Aucun prix** : il dit la durée,
+  /// l'écran d'offre porte les tarifs du store et l'achat.
+  Widget _passSection() {
+    return SfSection(
+      flush: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SfLabel(kCivicPassTitle),
+          const SizedBox(height: 8),
+          for (final duree in CivicPassDuree.values) ...[
+            SfChoiceCard(
+              label: duree.label,
+              subtitle: kCivicPassSubtitle,
+              selected: _duree == duree,
+              onTap: () => setState(() => _duree = duree),
+            ),
+            const SizedBox(height: sfGap),
+          ],
+          const SfTiny(kCivicPassNote),
+        ],
+      ),
+    );
+  }
+
+  /// 🛑 Aucune priorité est une BONNE nouvelle, pas un écran vide.
+  Widget _nothingUrgent() {
+    return SfSection(
+      flush: true,
+      child: SfNoteCard(
+        icon: LucideIcons.circleCheck,
+        title: kCivicPlanAllGoodTitle,
+        variant: SfCardVariant.ok,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SfTiny(kCivicPlanAllGoodText),
+            const SizedBox(height: 12),
+            SfButton(
+              label: kCivicPlanExamCta,
+              variant: SfButtonVariant.blue,
+              onPressed: () => context.push(AppRoutes.civiqueExamsBlanc),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Le ton du kit correspondant au ton servi. `muted` n'a pas d'équivalent —
+  /// les cibles non mesurées ne sont jamais rendues avec une couleur d'alerte,
+  /// elles sont filtrées en amont.
+  SfTone _tone(CivicCibleTone tone) => switch (tone) {
+        CivicCibleTone.hot => SfTone.hot,
+        CivicCibleTone.warn => SfTone.warn,
+        CivicCibleTone.ok => SfTone.ok,
+        CivicCibleTone.muted => SfTone.warn,
+      };
 }

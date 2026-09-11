@@ -18,23 +18,22 @@
  * diagnostic unique.
  */
 import {useEffect, useState} from "react";
-import Link from "next/link";
 import {useSearchParams} from "next/navigation";
-import {ArrowRight} from "lucide-react";
-import {ModuleToggle, type ParcoursModule} from "@/app/_components/ModuleToggle";
+import {Landmark} from "lucide-react";
+import {ModuleToggle, SejourApp} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
-import {
-    CIVIQUE_LABEL,
-    TCF_LABEL,
-    moduleParDefaut,
-    planIndisponible,
-} from "@/lib/preparation";
-import type {PreparationDto} from "@/lib/types";
+import {useAuth} from "@/lib/auth-context";
+import {moduleParDefaut, planIndisponible} from "@/lib/preparation";
+import {canAccessModule, type PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
 import {CivicPlanPanel} from "./CivicPlanPanel";
+import {PlanGate} from "./PlanGate";
+
+type ParcoursModule = "TCF" | "CIVIQUE";
 
 export function PlanModules() {
     const search = useSearchParams();
+    const {user} = useAuth();
     const [prep, setPrep] = useState<PreparationDto | null>(null);
     /**
      * 🛑 **Le toggle ne se fait jamais attendre.** L'onglet ouvert par défaut
@@ -79,90 +78,41 @@ export function PlanModules() {
               ? planIndisponible(prep.civique, "CIVIQUE")
               : null;
 
+    /* La barre d'action collée en bas n'existe que sur les écrans gratuits :
+       elle porte le CTA de déblocage. Sa réserve de place se pose ici, seul
+       endroit qui connaît à la fois le module affiché et l'accès du compte.
+       🛑 L'accès se **lit** (`canAccessModule`), il ne se devine pas. */
+    const sticky = Boolean(!indisponible && !canAccessModule(user, module));
+
     return (
-        <>
-            {/* 🛑 **Le MÊME toggle que `/examens-blancs`**, et pas une copie :
-                le composant est partagé. Deux implémentations du même contrôle
-                finiraient par diverger — c'est le défaut le plus cher de ce
-                dépôt. Les deux couleurs (rouge = TCF, bleu = civique) sont
-                celles du produit : un candidat reconnaît son parcours à la
-                couleur avant de lire le mot. */}
-            <div className="plm-tabs">
-                <ModuleToggle
-                    active={module}
-                    onChange={(m) => {
-                        setChoisi(true);
-                        setModule(m);
-                    }}
-                />
-            </div>
+        <SejourApp sticky={sticky}>
+            {/* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une
+                seconde implémentation du même contrôle finirait par diverger. */}
+            <ModuleToggle
+                current={module === "TCF" ? "tcf" : "civique"}
+                onSelect={(m) => {
+                    setChoisi(true);
+                    setModule(m === "tcf" ? "TCF" : "CIVIQUE");
+                }}
+            />
 
             {indisponible ? (
-                <section className="plm-vide">
-                    <h2>{indisponible.titre}</h2>
-                    <p>{indisponible.texte}</p>
-                    <Link href={indisponible.href} className="btn btn-lg">
-                        {indisponible.cta} <ArrowRight size={16} aria-hidden />
-                    </Link>
-                </section>
+                <PlanGate
+                    gate={indisponible}
+                    kicker={
+                        module === "TCF"
+                            ? "Votre parcours personnalisé"
+                            : "Votre préparation personnalisée à l'Examen civique"
+                    }
+                    icon={module === "CIVIQUE" ? Landmark : undefined}
+                />
             ) : module === "TCF" ? (
                 <LearningPlanView />
             ) : (
                 /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
-                   L10) : c'est un moteur, plus un echo du diagnostic. Il n'a
-                   donc plus besoin du `sessionId` que cet onglet lui passait —
-                   et il se tait de lui-meme tant qu'aucun diagnostic n'est
-                   termine (`disponible: false`). */
+                   L10) : c'est un moteur, plus un écho du diagnostic. */
                 <CivicPlanPanel />
             )}
-
-            <Styles />
-        </>
-    );
-}
-
-/**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
- *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
- * écrans invisiblement nus — le toggle du Plan y compris.
- *
- * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
- * classes sont préfixées pour qu'il n'y ait aucune collision.
- */
-function Styles() {
-    return (
-        <style>{`
-            /* La gouttiere du toggle. Le toggle lui-meme porte ses propres
-               styles : il est partage avec la page des examens blancs. */
-            .plm-tabs {
-                width: min(100%, 1180px);
-                margin: 0 auto;
-                padding: 24px 28px 0;
-            }
-            .plm-vide {
-                max-width: 480px;
-                margin: 0 auto;
-                padding: 8px 16px 48px;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-            }
-            .plm-vide h2 {
-                font-family: var(--font-display);
-                font-size: 22px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .plm-vide p {
-                margin: 0;
-                font-size: 14px;
-                line-height: 1.55;
-                color: var(--color-muted);
-            }
-        `}</style>
+        </SejourApp>
     );
 }

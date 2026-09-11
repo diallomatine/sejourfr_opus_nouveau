@@ -22,7 +22,6 @@ import {
   track,
   trackDiagnostic,
 } from "@/lib/analytics";
-import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
   type DiagnosticExerciseContent,
@@ -42,7 +41,6 @@ import type {
   DiagnosticResponse,
   PublicDiagnosticResponse,
 } from "@/lib/types";
-import {useTrafficSource} from "@/lib/use-traffic-source";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
@@ -413,7 +411,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
   const [pendingLocal, setPendingLocal] = useState<LocalDiagnosticProductions | null>(null);
-  const trafficSource = useTrafficSource();
 
   const loadCurrent = useCallback(async () => {
     setError(null);
@@ -960,17 +957,15 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         </DiagnosticShell>
       );
     }
-    const planHref = withTrafficSource("/plan", trafficSource);
+    // 🛑 **Hors du `DiagnosticShell`** : le rapport porte son propre en-tête de
+    // retour (le `Top` du kit). Le garder dans la coque aurait affiché deux
+    // sorties l'une au-dessus de l'autre.
     return (
-      <DiagnosticShell>
-        <DiagnosticReport
-          diagnostic={diagnostic}
-          targetLevel={user.targetLevel ?? null}
-          hasTcf={user.hasTcf ?? false}
-          planHref={planHref}
-          notice={notice}
-        />
-      </DiagnosticShell>
+      <DiagnosticReport
+        diagnostic={diagnostic}
+        targetLevel={user.targetLevel ?? null}
+        notice={notice}
+      />
     );
   }
 

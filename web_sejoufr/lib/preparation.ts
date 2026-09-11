@@ -198,6 +198,31 @@ export function planIndisponible(
 }
 
 /**
+ * Le **même** écran « pas encore de plan », dérivé de l'état que sert
+ * `GET /api/me/plan` — le repli quand `preparation()` n'a pas répondu.
+ *
+ * 🛑 Il n'écrit **aucune phrase** : il rappelle `planIndisponible`, seule
+ * autorité, avec l'étape correspondante. Deux copies de ces quatre lignes
+ * auraient fini par proposer deux actions différentes sur le même écran.
+ */
+export function planIndisponibleDepuisEtat(
+    etape: "DIAGNOSTIC_A_FAIRE" | "DIAGNOSTIC_EN_COURS",
+    module: "TCF" | "CIVIQUE",
+): PlanIndisponible {
+    const m: ModulePreparation = {
+        etape,
+        fait: null,
+        total: null,
+        sessionId: null,
+        niveau: null,
+        cible: null,
+        aRenforcer: null,
+    };
+    // `planIndisponible` ne rend `null` que sur `PLAN_PRET`, exclu par le type.
+    return planIndisponible(m, module)!;
+}
+
+/**
  * « Vous avez répondu à 14 questions sur 40. »
  *
  * 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un

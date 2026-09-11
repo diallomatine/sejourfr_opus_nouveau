@@ -31,7 +31,7 @@ import {
   PlanLevelRail,
   PlanTaskRow,
 } from "./PlanBits";
-import {BlockHead, EmptyCard, PlanRecentChanges, PlanShell} from "./LearningPlanView";
+import {BlockHead, EmptyCard, PlanRecentChanges, PlanShell} from "./PlanLayout";
 import {usePlanAssessment} from "./use-plan-exercise";
 import type {
   LearningPlanDto,

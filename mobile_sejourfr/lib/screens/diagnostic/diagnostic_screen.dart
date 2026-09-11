@@ -7,14 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/analytics/analytics.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/enums.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/premium_lock.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import 'diagnostic_controller.dart';
@@ -50,14 +49,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   bool _eoStartedTracked = false;
   bool _accountRequiredTracked = false;
   bool _writingHydrated = false;
-
-  /// Accès TCF du compte, lu **au moment du rendu** : un achat conclu pendant
-  /// que l'écran est ouvert doit lever les cadenas sans le remonter. Un visiteur
-  /// n'a pas d'accès — et n'atteint de toute façon jamais l'écran de résultat.
-  bool get _hasTcfAccess {
-    final auth = ref.watch(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.hasTcf;
-  }
 
   @override
   void initState() {
@@ -266,7 +257,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(diagnosticControllerProvider);
     final recording = ref.watch(recordingControllerProvider);
-    final objective = ref.watch(userTargetLevelProvider)?.wire;
+    final objective = ref.watch(userTargetLevelProvider);
     _hydrateWriting(state);
     // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
     // `diagnostic_sessions.status`. On ne crée jamais une seconde vérité.
@@ -302,11 +293,10 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           child: Column(
             children: [
               ScreenHeader(
-                // Une fois le rapport rendu, l'en-tête EST le titre de la
-                // maquette (« Votre rapport ») : l'écran a cessé d'être un
-                // parcours, il est devenu un document. C'est ce qui permet au
-                // corps de commencer directement par la carte de niveau, sans
-                // badge ni titre-phrase.
+                // Une fois le rapport rendu, l'en-tête EST le `Top` de la
+                // maquette : l'écran a cessé d'être un parcours, il est devenu
+                // un document. C'est ce qui permet au corps de commencer
+                // directement par la carte hero.
                 title: _showsReport(state)
                     ? kDiagnosticReportTitle
                     : 'Diagnostic TCF',
@@ -331,7 +321,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget _content({
     required DiagnosticFlowState state,
     required RecordingState recording,
-    required String? objective,
+    required TargetLevel? objective,
   }) {
     if (state.isGuest) {
       return _guestContent(state: state, recording: recording);
@@ -408,21 +398,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticStep.result when journey.result != null => DiagnosticResultView(
           result: journey.result!,
           objective: objective,
-          // Le serveur reste l'arbitre du verrou : on ne lit ici que l'accès
-          // déjà résolu sur le compte, jamais une règle « étape 1 ouverte »
-          // réécrite côté app.
-          hasTcfAccess: _hasTcfAccess,
-          onOpenPlan: () => context.go(AppRoutes.plan),
-          // Même feuille que le Plan et les Compétences : un seul parcours
-          // d'achat, jamais un second.
-          onSubscribe: () {
-            ref.read(analyticsServiceProvider).track(
-                  AnalyticsEvent.premiumCtaClicked,
-                  path: AnalyticsPath.diagnostic,
-                  ctaLocation: AnalyticsCtaLocation.diagnosticReport,
-                );
-            unawaited(showTcfLockPaywall(context));
-          },
         ),
       _ => _InitialState(
           isLoading: state.isLoading,
@@ -548,11 +523,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
 
   String _headerSub(DiagnosticFlowState state) {
     if (state.isSyncing) return 'Envoi de vos réponses';
-    if (_showsReport(state)) {
-      return _hasTcfAccess
-          ? kDiagnosticReportSubPremium
-          : kDiagnosticReportSubFree;
-    }
+    if (_showsReport(state)) return kDiagnosticReportKicker;
     // 🛑 La présentation ne porte plus de sous-titre : elle fait choisir un
     // EXAMEN, et un chiffre de budget au-dessus du titre ne vaudrait que pour
     // l'une des deux cartes. Chaque carte annonce le sien.
@@ -584,9 +555,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         DiagnosticStep.written => 'Étape 1 sur 2 · Écrit',
         DiagnosticStep.oral => 'Étape 2 sur 2 · Oral',
         DiagnosticStep.analysis => 'Analyse personnalisée',
-        // Le rapport passe par `_headerSub`, qui distingue l'estimation
-        // gratuite du rapport complet ; cette entrée ne sert plus que de repli.
-        DiagnosticStep.result => kDiagnosticReportSubFree,
+        // Le rapport passe par `_headerSub` ; cette entrée n'est qu'un repli.
+        DiagnosticStep.result => kDiagnosticReportKicker,
         DiagnosticStep.presentation => 'Présentation',
       };
 }

@@ -1,452 +1,448 @@
 "use client";
 
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
+import {Landmark, ListChecks, Lock} from "lucide-react";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {civicPlanApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {
+  CIVIC_PLAN_LOCKED_CTA,
+  CIVIC_PLAN_LOCKED_NOTE,
+  CIVIC_PLAN_NOW_CTA,
+  CIVIC_PLAN_NOW_TITLE,
+  CIVIC_PLAN_PRIORITIES_TITLE,
+  CIVIC_PLAN_RESULT_SEUIL,
+  CIVIC_PLAN_RESULT_TITLE,
+  CIVIC_PLAN_REVIEW_TITLE,
+  CIVIC_PLAN_WORK_CTA,
+  civicPlanAutresLabel,
+  civicPlanGrainNote,
+  civicPlanRaison,
+  civicRevueLabel,
+  civicSerieLabel,
+} from "@/lib/civic-plan";
+import {planIndisponibleDepuisEtat} from "@/lib/preparation";
+import {handleStartFailure} from "@/lib/start-failure";
+import {
+  canAccessModule,
+  CIVIC_MAITRISE_LABEL,
+  CIVIC_THEME_STATE_LABEL,
+  type CivicPlanCibleDto,
+  type CivicPlanDto,
+  type CivicThemeState,
+} from "@/lib/types";
+import {
+  Card,
+  Cta,
+  DoneRow,
+  LockItem,
+  LockList,
+  NowCard,
+  Pad,
+  PillMeta,
+  Pills,
+  Prio,
+  Section,
+  Stack,
+  ThemeLine,
+  Top,
+  cx,
+  sejourStyles,
+  type Tone,
+} from "@/app/_components/sejour/SejourKit";
+import {PlanGate} from "./PlanGate";
+import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from "./PlanPaywallCard";
+
 /**
- * **Le plan civique** (L10, `20_` §6).
- *
- * ⚠️ **Révoque le panneau précédent**, qui recopiait les priorités *figées* du
- * dernier diagnostic. Le plan est maintenant un **moteur** : il relit tout
- * l'historique des réponses à chaque lecture, y compris celles des séries et
- * des examens blancs (`20_` §8.2), et il dit **quand y revenir**.
+ * **Le plan civique** (L10) — refonte du 2026-09-11 sur le kit `sejour/`.
  *
  * 🛑 **Rien n'est dérivé ici.** L'ordre des cibles, leur état de maîtrise, leur
  * échéance et leur verrou arrivent **servis**. Ce panneau les met en mots
- * (`lib/civic-plan.ts`) et ouvre ce qui existe déjà — la série ciblée, les
- * séries du thème, l'examen blanc.
+ * (`lib/civic-plan.ts`) et ouvre ce qui existe déjà — la série ciblée.
  *
- * 🛑 **Le plan travaille au grain que le tagging permet**, et il le dit
- * (`20_` §3.3) : thème par thème tant que les questions ne sont pas taguées,
- * notion par notion ensuite. Ce n'est pas une panne, c'est la phase 1 de la
- * spec — et attendre le tagging pour offrir quoi que ce soit priverait le
- * candidat de ce qui est déjà mesurable.
+ * 🛑 **La boîte Leitner ne s'affiche JAMAIS** au candidat : on montre
+ * `maitrise` et `prochaineRevue`.
  *
- * 🛑 **Le constat est intégralement gratuit.** Le `locked` servi porte sur la
- * **série**, jamais sur ce que le candidat a mesuré : un compte gratuit voit
- * ses priorités entières, avec leurs états et leurs compteurs.
+ * 🛑 **Le plan travaille au grain que le tagging permet, et il le DIT**
+ * (`grain.courant`) : thème par thème tant que les questions ne sont pas
+ * taguées, notion par notion ensuite. Le code lit le grain servi, il ne présume
+ * pas la notion.
+ *
+ * 🛑 **Le constat est intégralement gratuit.** `locked` porte sur la **série**,
+ * jamais sur ce que le candidat a mesuré.
  */
-import {useCallback, useEffect, useState} from "react";
-import Link from "next/link";
-import {useRouter} from "next/navigation";
-import {ArrowRight, Lock} from "lucide-react";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {civicPlanApi} from "@/lib/api";
-import {
-    CIVIC_PLAN_ALL_GOOD_TEXT,
-    CIVIC_PLAN_ALL_GOOD_TITLE,
-    CIVIC_PLAN_EXAM_HREF,
-    CIVIC_PLAN_LOCKED_CTA,
-    CIVIC_PLAN_LOCKED_NOTE,
-    CIVIC_PLAN_NOW_CTA,
-    CIVIC_PLAN_NOW_TITLE,
-    CIVIC_PLAN_PRIORITIES_TITLE,
-    CIVIC_PLAN_RESULT_SEUIL,
-    CIVIC_PLAN_RESULT_TITLE,
-    CIVIC_PLAN_REVIEW_TITLE,
-    CIVIC_PLAN_SOLID_TITLE,
-    CIVIC_PLAN_WORK_CTA,
-    civicCibleTone,
-    civicPlanAutresLabel,
-    civicPlanGrainNote,
-    civicPlanRaison,
-    civicRevueLabel,
-    civicSerieLabel,
-} from "@/lib/civic-plan";
-import {handleStartFailure} from "@/lib/start-failure";
-import {themeSlug} from "@/lib/themes";
-import {CIVIC_MAITRISE_LABEL} from "@/lib/types";
-import type {CivicPlanCibleDto, CivicPlanDto} from "@/lib/types";
-
 export function CivicPlanPanel() {
-    const router = useRouter();
-    const [plan, setPlan] = useState<CivicPlanDto | null>(null);
-    const [erreur, setErreur] = useState<string | null>(null);
-    const [enCours, setEnCours] = useState<string | null>(null);
-    const [paywall, setPaywall] = useState(false);
+  const {user} = useAuth();
+  const router = useRouter();
+  const [plan, setPlan] = useState<CivicPlanDto | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState<string | null>(null);
+  const [paywall, setPaywall] = useState(false);
 
-    useEffect(() => {
-        let vivant = true;
-        civicPlanApi
-            .get()
-            .then((p) => {
-                if (vivant) setPlan(p);
-            })
-            .catch(() => {
-                // Best-effort : l'onglet reste sobre. Le constat existe déjà
-                // côté diagnostic, on ne remplace pas un plan par une erreur.
-            });
-        return () => {
-            vivant = false;
-        };
-    }, []);
-
-    /**
-     * Ouvre la série ciblée. 🛑 Le **403** est un refus attendu — le verrou du
-     * serveur et le `locked` servi sont la même règle — et il ouvre l'offre,
-     * jamais un message d'erreur technique.
-     */
-    const commencer = useCallback(
-        async (cible: CivicPlanCibleDto) => {
-            if (enCours) return;
-            if (cible.locked) {
-                setPaywall(true);
-                return;
-            }
-            setEnCours(cible.id);
-            setErreur(null);
-            try {
-                const attempt = await civicPlanApi.serie(cible.id, cible.grain);
-                router.push(`/sessions/${attempt.id}`);
-            } catch (e) {
-                handleStartFailure(e, {
-                    onPaywall: () => setPaywall(true),
-                    onMessage: setErreur,
-                    fallbackMessage: "Impossible de démarrer cette série.",
-                });
-                setEnCours(null);
-            }
-        },
-        [enCours, router],
+  useEffect(() => {
+    let vivant = true;
+    civicPlanApi.get().then(
+      (p) => { if (vivant) setPlan(p); },
+      () => { /* best-effort : jamais une erreur technique à la place d'un plan */ },
     );
+    return () => { vivant = false; };
+  }, []);
 
-    if (!plan || !plan.disponible) return null;
+  /**
+   * Ouvre la série ciblée. 🛑 Le **403** est un refus attendu — le verrou du
+   * serveur et le `locked` servi sont la même règle — et il ouvre l'offre,
+   * jamais un message d'erreur technique.
+   */
+  const commencer = useCallback(
+    async (cible: CivicPlanCibleDto) => {
+      if (enCours) return;
+      if (cible.locked) {
+        setPaywall(true);
+        return;
+      }
+      setEnCours(cible.id);
+      setErreur(null);
+      try {
+        const attempt = await civicPlanApi.serie(cible.id, cible.grain);
+        router.push(`/sessions/${attempt.id}`);
+      } catch (e) {
+        handleStartFailure(e, {
+          onPaywall: () => setPaywall(true),
+          onMessage: setErreur,
+          fallbackMessage: "Impossible de démarrer cette série.",
+        });
+        setEnCours(null);
+      }
+    },
+    [enCours, router],
+  );
 
-    const grainNote = civicPlanGrainNote(plan.grain);
-    const autres = civicPlanAutresLabel(plan);
-    const maintenant = new Date();
+  if (!plan) return null;
 
+  if (!plan.disponible) {
     return (
-        <section className="cvp">
-            {/* 1 — l'objectif. 🛑 Le seuil est SERVI : l'écran le dit sans le
-                connaître, et il ne promet jamais la réussite. */}
-            {plan.resultat && (
-                <div className="cvp-objectif">
-                    <p className="cvp-eyebrow">{CIVIC_PLAN_RESULT_TITLE}</p>
-                    <p className="cvp-score">
-                        <strong>{plan.resultat.bonnes}</strong> / {plan.resultat.posees}
-                    </p>
-                    <p className="cvp-seuil">
-                        {CIVIC_PLAN_RESULT_SEUIL} : {plan.resultat.seuil} /{" "}
-                        {plan.resultat.format}
-                    </p>
-                </div>
-            )}
-
-            {erreur && (
-                <p className="cvp-erreur" role="alert">
-                    {erreur}
-                </p>
-            )}
-
-            {plan.prochaine ? (
-                <>
-                    {/* 2 — à faire maintenant, le bloc dominant. */}
-                    <div className="cvp-now">
-                        <p className="cvp-eyebrow">{CIVIC_PLAN_NOW_TITLE}</p>
-                        <p className="cvp-now-theme">{plan.prochaine.themeLabel}</p>
-                        <h2>{plan.prochaine.label}</h2>
-                        <p className="cvp-now-raison">{civicPlanRaison(plan.prochaine)}</p>
-                        <p className="cvp-now-serie">{civicSerieLabel(plan.prochaine)}</p>
-                        <button
-                            type="button"
-                            className="btn btn-lg"
-                            disabled={enCours === plan.prochaine.id}
-                            onClick={() => void commencer(plan.prochaine!)}
-                        >
-                            {plan.prochaine.locked ? (
-                                <>
-                                    <Lock size={15} aria-hidden /> {CIVIC_PLAN_LOCKED_CTA}
-                                </>
-                            ) : (
-                                <>
-                                    {CIVIC_PLAN_NOW_CTA}{" "}
-                                    <ArrowRight size={16} aria-hidden />
-                                </>
-                            )}
-                        </button>
-                        {plan.prochaine.locked && (
-                            <p className="cvp-note">{CIVIC_PLAN_LOCKED_NOTE}</p>
-                        )}
-                    </div>
-
-                    {/* 4 — les priorités, entières, verrouillées ou non. */}
-                    <h2 className="cvp-h2">{CIVIC_PLAN_PRIORITIES_TITLE}</h2>
-                    <ol className="cvp-list">
-                        {plan.priorites.map((cible, rang) => (
-                            <li key={cible.id} data-tone={civicCibleTone(cible)}>
-                                <span className="cvp-rang">{rang + 1}</span>
-                                <div className="cvp-body">
-                                    <p className="cvp-label">{cible.label}</p>
-                                    <p className="cvp-meta">
-                                        {cible.themeLabel} ·{" "}
-                                        {CIVIC_MAITRISE_LABEL[cible.maitrise]} ·{" "}
-                                        {civicPlanRaison(cible)}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="cvp-cta"
-                                    disabled={enCours === cible.id}
-                                    onClick={() => void commencer(cible)}
-                                >
-                                    {cible.locked ? (
-                                        <Lock size={14} aria-hidden />
-                                    ) : (
-                                        <>
-                                            {CIVIC_PLAN_WORK_CTA}{" "}
-                                            <ArrowRight size={15} aria-hidden />
-                                        </>
-                                    )}
-                                </button>
-                            </li>
-                        ))}
-                    </ol>
-                    {autres && <p className="cvp-note">{autres}</p>}
-                </>
-            ) : (
-                <div className="cvp-vide">
-                    <h2>{CIVIC_PLAN_ALL_GOOD_TITLE}</h2>
-                    <p>{CIVIC_PLAN_ALL_GOOD_TEXT}</p>
-                    <Link href={CIVIC_PLAN_EXAM_HREF} className="btn">
-                        Faire un examen blanc <ArrowRight size={16} aria-hidden />
-                    </Link>
-                </div>
-            )}
-
-            {/* 5 — révision d'entretien. 🛑 Secondaire, et JAMAIS présentée
-                comme une alerte : ce sont des points acquis qu'on entretient. */}
-            {plan.aRevoir.length > 0 && (
-                <>
-                    <h2 className="cvp-h2">{CIVIC_PLAN_REVIEW_TITLE}</h2>
-                    <ul className="cvp-soft">
-                        {plan.aRevoir.map((cible) => (
-                            <li key={cible.id}>
-                                <span>{cible.label}</span>
-                                <em>{civicRevueLabel(cible, maintenant)}</em>
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
-
-            {/* 6 — ce qui est acquis. Le candidat n'a pas besoin de tout réviser. */}
-            {plan.solides.length > 0 && (
-                <>
-                    <h2 className="cvp-h2">{CIVIC_PLAN_SOLID_TITLE}</h2>
-                    <ul className="cvp-solides">
-                        {plan.solides.map((cible) => (
-                            <li key={cible.id}>
-                                <Link href={`/entrainement/civique/${themeSlug(cible.themeCode)}`}>
-                                    ✅ {cible.label}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
-
-            {grainNote && <p className="cvp-note">{grainNote}</p>}
-
-            <PaywallSheet
-                open={paywall}
-                module="CIVIQUE"
-                onClose={() => setPaywall(false)}
-            />
-            <Styles />
-        </section>
+      <PlanGate
+        kicker="Votre préparation personnalisée à l'Examen civique"
+        gate={planIndisponibleDepuisEtat("DIAGNOSTIC_A_FAIRE", "CIVIQUE")}
+        icon={Landmark}
+      />
     );
+  }
+
+  const premium = canAccessModule(user, "CIVIQUE");
+  return (
+    <>
+      {premium
+        ? <CiviquePremium plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />
+        : <CiviqueGratuit plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />}
+      <PaywallSheet open={paywall} module="CIVIQUE" onClose={() => setPaywall(false)} />
+    </>
+  );
 }
 
+interface PanelProps {
+  plan: CivicPlanDto;
+  enCours: string | null;
+  onStart: (cible: CivicPlanCibleDto) => void;
+  erreur: string | null;
+}
+
+/* ----------------------------------------------------------------- abonné */
+
+function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
+  const grain = grainWord(plan);
+  const aConsolider = plan.priorites.length + plan.autresPriorites;
+  const grainNote = civicPlanGrainNote(plan.grain);
+  const autres = civicPlanAutresLabel(plan);
+  const maintenant = useMemo(() => new Date(), []);
+
+  return (
+    <>
+      <Top kicker="Votre préparation personnalisée à l'Examen civique" title="Mon plan" />
+
+      <Pad>
+        <Card>
+          <Pills>
+            <PillMeta>{aConsolider} {grain.pluriel} à consolider</PillMeta>
+            {plan.aRevoir.length > 0 && (
+              <PillMeta>{plan.aRevoir.length} à revoir bientôt</PillMeta>
+            )}
+          </Pills>
+          <p className={sejourStyles.tiny}>
+            Le plan choisit {grain.leProchain} selon vos résultats, puis réévalue après chaque
+            séance.
+          </p>
+        </Card>
+      </Pad>
+
+      {erreur && (
+        <Pad>
+          <p className={sejourStyles.tiny} role="alert">{erreur}</p>
+        </Pad>
+      )}
+
+      {plan.prochaine && (
+        <Section title={CIVIC_PLAN_NOW_TITLE}>
+          <Pad>
+            <CivicNowCard
+              cible={plan.prochaine}
+              badge="Priorité n°1"
+              busy={enCours === plan.prochaine.id}
+              onStart={() => onStart(plan.prochaine!)}
+            />
+          </Pad>
+        </Section>
+      )}
+
+      {plan.priorites.length > 0 && (
+        <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
+          <Pad>
+            <Stack>
+              {plan.priorites.slice(0, 3).map((cible, index) => (
+                <Prio
+                  key={cible.id}
+                  rank={index === 0 ? 1 : index === 1 ? 2 : 3}
+                  tag={cible.themeLabel}
+                  title={cible.label}
+                  text={`${CIVIC_MAITRISE_LABEL[cible.maitrise]} · ${civicPlanRaison(cible)}`}
+                >
+                  <button
+                    type="button"
+                    className={sejourStyles.link}
+                    disabled={enCours === cible.id}
+                    onClick={() => onStart(cible)}
+                  >
+                    {cible.locked ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA}
+                  </button>
+                </Prio>
+              ))}
+            </Stack>
+            {autres && <p className={sejourStyles.tiny}>{autres}</p>}
+          </Pad>
+        </Section>
+      )}
+
+      {plan.solides.length > 0 && (
+        <Section title="Déjà travaillé et validé">
+          <Pad>
+            <Card padding="rows">
+              {plan.solides.map((cible) => (
+                <DoneRow
+                  key={cible.id}
+                  label={`${cible.label} — ${CIVIC_MAITRISE_LABEL[cible.maitrise]}`}
+                />
+              ))}
+            </Card>
+          </Pad>
+        </Section>
+      )}
+
+      {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
+          acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
+          montre l'état de maîtrise et l'échéance, tous deux servis. */}
+      {plan.aRevoir.length > 0 && (
+        <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
+          <Card variant="soft">
+            <p className={sejourStyles.label}>Révision courte</p>
+            <Stack>
+              {plan.aRevoir.map((cible) => (
+                <div key={cible.id}>
+                  <b>{cible.label}</b>
+                  <p className={sejourStyles.tiny}>
+                    {CIVIC_MAITRISE_LABEL[cible.maitrise]}
+                    {civicRevueLabel(cible, maintenant)
+                      ? ` · ${civicRevueLabel(cible, maintenant)}`
+                      : ""}
+                  </p>
+                </div>
+              ))}
+            </Stack>
+          </Card>
+        </Section>
+      )}
+
+      {grainNote && <p className={sejourStyles.footNote}>{grainNote}</p>}
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- gratuit */
+
+function CiviqueGratuit({plan, enCours, onStart, erreur}: PanelProps) {
+  const themes = useMemo(() => themesATravailler(plan), [plan]);
+  const grainNote = civicPlanGrainNote(plan.grain);
+
+  return (
+    <>
+      <Top kicker="Créé à partir de votre diagnostic" title="Mon plan" />
+
+      {plan.resultat && (
+        <Pad>
+          <Card variant="hero">
+            <p className={sejourStyles.label}>{CIVIC_PLAN_RESULT_TITLE}</p>
+            <p className={cx(sejourStyles.score, sejourStyles.scoreMd)}>
+              {plan.resultat.bonnes} <small>/ {plan.resultat.posees}</small>
+            </p>
+            <p className={sejourStyles.tiny}>
+              {CIVIC_PLAN_RESULT_SEUIL} : {plan.resultat.seuil} / {plan.resultat.format}
+            </p>
+          </Card>
+        </Pad>
+      )}
+
+      {themes.length > 0 && (
+        <Section title="Thèmes à travailler">
+          <Pad>
+            <Card padding="tight">
+              {themes.map((theme) => (
+                <ThemeLine
+                  key={theme.code}
+                  tone={theme.tone}
+                  name={theme.label}
+                  status={CIVIC_THEME_STATE_LABEL[theme.etat]}
+                />
+              ))}
+            </Card>
+          </Pad>
+        </Section>
+      )}
+
+      {plan.priorites.length > 0 && (
+        <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
+          <Pad>
+            <Stack>
+              {plan.priorites.slice(0, 3).map((cible, index) => (
+                <Prio
+                  key={cible.id}
+                  rank={index === 0 ? 1 : index === 1 ? 2 : 3}
+                  tag={cible.themeLabel}
+                  title={cible.label}
+                  text={CIVIC_MAITRISE_LABEL[cible.maitrise]}
+                />
+              ))}
+            </Stack>
+          </Pad>
+        </Section>
+      )}
+
+      {erreur && (
+        <Pad>
+          <p className={sejourStyles.tiny} role="alert">{erreur}</p>
+        </Pad>
+      )}
+
+      {plan.prochaine && (
+        <Section title="Votre première étape est prête">
+          <Pad>
+            <CivicNowCard
+              cible={plan.prochaine}
+              busy={enCours === plan.prochaine.id}
+              onStart={() => onStart(plan.prochaine!)}
+            />
+          </Pad>
+        </Section>
+      )}
+
+      {grainNote && <p className={sejourStyles.footNote}>{grainNote}</p>}
+
+      <PlanPaywall
+        module="CIVIQUE"
+        benefits={CIVIC_PLAN_PREMIUM_BENEFITS}
+        text={CIVIC_PLAN_PREMIUM_TEXT}
+        cta="Débloquer mon plan"
+      />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------- une cible */
+
 /**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
+ * « À faire maintenant ».
  *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**.
+ * 🛑 **Aucun « objectif de cette séance »** : le serveur n'en sert aucun et on
+ * n'en fabrique pas. Ce que l'encart annonce, c'est ce que le plan a
+ * **observé** — état de maîtrise servi et raison composée de faits.
+ *
+ * 🛑 Le verrou se **lit** (`locked`) : verrouillée, la cible garde son nom et
+ * son état — c'est la **série** qui est fermée, pas le constat.
  */
-function Styles() {
-    return (
-        <style>{`
-            .cvp {
-                max-width: 480px;
-                margin: 0 auto;
-                padding: 8px 16px 48px;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-            }
-            .cvp-eyebrow {
-                margin: 0;
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: var(--color-muted-2);
-            }
-            .cvp-objectif {
-                border: 1px solid var(--color-line);
-                border-radius: 14px;
-                padding: 14px;
-            }
-            .cvp-score {
-                margin: 6px 0 0;
-                font-family: var(--font-display);
-                font-size: 30px;
-                color: var(--color-ink);
-            }
-            .cvp-score strong { color: var(--color-blue); }
-            .cvp-seuil {
-                margin: 2px 0 0;
-                font-size: 13px;
-                color: var(--color-muted);
-            }
-            .cvp-now {
-                background: var(--color-blue-light);
-                border-radius: 16px;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            }
-            .cvp-now h2 {
-                margin: 0;
-                font-family: var(--font-display);
-                font-size: 21px;
-                color: var(--color-ink);
-            }
-            .cvp-now-theme {
-                margin: 0;
-                font-size: 12.5px;
-                color: var(--color-blue-dark, #15296b);
-            }
-            .cvp-now-raison,
-            .cvp-now-serie {
-                margin: 0;
-                font-size: 13.5px;
-                color: var(--color-muted);
-            }
-            .cvp-now .btn { margin-top: 8px; }
-            .cvp-h2 {
-                font-family: var(--font-display);
-                font-size: 20px;
-                color: var(--color-ink);
-                margin: 6px 0 0;
-            }
-            .cvp-list {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            .cvp-list li {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                border: 1px solid var(--color-line);
-                border-left-width: 4px;
-                border-radius: 14px;
-                padding: 14px;
-            }
-            .cvp-list li[data-tone="hot"] { border-left-color: var(--color-red); }
-            .cvp-list li[data-tone="warn"] { border-left-color: var(--color-amber, #e8a317); }
-            .cvp-list li[data-tone="ok"] { border-left-color: var(--color-green, #168f5b); }
-            .cvp-rang {
-                font-family: var(--font-mono);
-                font-size: 13px;
-                color: var(--color-muted-2);
-            }
-            .cvp-body { flex: 1; min-width: 0; }
-            .cvp-label {
-                margin: 0;
-                font-size: 15px;
-                color: var(--color-ink);
-            }
-            .cvp-meta {
-                margin: 2px 0 0;
-                font-size: 12px;
-                line-height: 1.45;
-                color: var(--color-muted);
-            }
-            .cvp-cta {
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                background: none;
-                border: 0;
-                cursor: pointer;
-                font-size: 13.5px;
-                font-weight: 600;
-                color: var(--color-blue);
-                white-space: nowrap;
-            }
-            .cvp-cta:disabled { opacity: 0.55; cursor: default; }
-            .cvp-soft {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .cvp-soft li {
-                display: flex;
-                justify-content: space-between;
-                gap: 10px;
-                font-size: 14px;
-                color: var(--color-ink);
-            }
-            .cvp-soft em {
-                font-style: normal;
-                font-size: 12.5px;
-                color: var(--color-muted-2);
-            }
-            .cvp-solides {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-            .cvp-solides a {
-                font-size: 13.5px;
-                color: var(--color-ink);
-                text-decoration: none;
-                border: 1px solid var(--color-line);
-                border-radius: 999px;
-                padding: 6px 12px;
-            }
-            .cvp-erreur {
-                margin: 0;
-                background: var(--color-red-light);
-                color: var(--color-red-dark);
-                border-radius: 12px;
-                padding: 12px 14px;
-                font-size: 13.5px;
-            }
-            .cvp-note {
-                margin: 4px 0 0;
-                font-size: 12px;
-                line-height: 1.5;
-                color: var(--color-muted-2);
-            }
-            .cvp-vide {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
-            .cvp-vide h2 {
-                font-family: var(--font-display);
-                font-size: 20px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .cvp-vide p {
-                margin: 0;
-                font-size: 14px;
-                color: var(--color-muted);
-            }
-        `}</style>
-    );
+function CivicNowCard({cible, badge, busy, onStart}: {
+  cible: CivicPlanCibleDto;
+  badge?: string;
+  busy: boolean;
+  onStart: () => void;
+}) {
+  const sousTitre = cible.label === cible.themeLabel ? undefined : cible.themeLabel;
+  return (
+    <>
+      <NowCard
+        icon={Landmark}
+        title={cible.label}
+        subtitle={sousTitre}
+        badge={badge}
+        objectiveLabel="Ce que le plan a observé"
+        objective={`${CIVIC_MAITRISE_LABEL[cible.maitrise]} · ${civicPlanRaison(cible)}`}
+        meta={[{icon: ListChecks, label: civicSerieLabel(cible)}]}
+      >
+        {cible.locked ? (
+          <LockList>
+            <LockItem icon={Lock} label="Questions ciblées" />
+            <LockItem icon={Lock} label="Explications de vos erreurs" />
+            <LockItem icon={Lock} label="Suivi de maîtrise" />
+            <LockItem icon={Lock} label="Révisions au bon moment" />
+          </LockList>
+        ) : (
+          <Cta variant="blue" onClick={onStart} disabled={busy}>
+            {CIVIC_PLAN_NOW_CTA}
+          </Cta>
+        )}
+      </NowCard>
+      {cible.locked && <p className={sejourStyles.tiny}>{CIVIC_PLAN_LOCKED_NOTE}</p>}
+    </>
+  );
+}
+
+/* --------------------------------------------------------------- lecture */
+
+/**
+ * Les thèmes que le plan désigne, **dans l'ordre servi**, avec l'état que le
+ * serveur porte sur chaque cible (`etatDuTheme`).
+ *
+ * 🛑 On ne reconstruit pas les cinq thèmes du référentiel : le plan civique
+ * n'en sert pas la liste, et l'inventer serait affirmer un état sur un thème
+ * dont il ne dit rien. `SOLIDE` sort de « à travailler » — il n'y a rien à y
+ * faire.
+ */
+function themesATravailler(plan: CivicPlanDto) {
+  const vus = new Map<string, {code: string; label: string; etat: CivicThemeState; tone: Tone}>();
+  for (const cible of [...plan.priorites, ...plan.aRevoir, ...plan.solides]) {
+    if (cible.etatDuTheme === "SOLIDE") continue;
+    if (vus.has(cible.themeCode)) continue;
+    vus.set(cible.themeCode, {
+      code: cible.themeCode,
+      label: cible.themeLabel,
+      etat: cible.etatDuTheme,
+      tone: themeTone(cible.etatDuTheme),
+    });
+  }
+  return [...vus.values()];
+}
+
+/** 🛑 `NON_EVALUE` n'a **pas** de ton d'alerte : c'est une absence de mesure,
+ *  pas un échec — et son libellé servi le dit. */
+function themeTone(etat: CivicThemeState): Tone {
+  if (etat === "FAIBLE") return "hot";
+  if (etat === "SOLIDE") return "ok";
+  if (etat === "NON_EVALUE") return "muted";
+  return "warn";
+}
+
+/** Le mot du grain, **lu** sur `grain.courant` : le plan ne se présente jamais
+ *  plus précis qu'il ne l'est. */
+function grainWord(plan: CivicPlanDto) {
+  return plan.grain.courant === "NOTION"
+    ? {pluriel: "notions", leProchain: "la prochaine notion"}
+    : {pluriel: "thèmes", leProchain: "le prochain thème"};
 }

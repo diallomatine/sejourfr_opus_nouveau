@@ -1,28 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/utils/cecrl_track.dart';
+import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 import 'tcf_diagnostic_labels.dart';
 
-/// T12 — le résultat du diagnostic TCF 4 épreuves (`10_` §4.5).
+/// T12 — le résultat du diagnostic TCF 4 épreuves.
 ///
-/// Ordre des blocs, imposé par la spec : niveau global → niveau par épreuve →
-/// ce qui bloque → rassurance → déjà au niveau → plan.
+/// Ordre des blocs, imposé par la maquette :
+/// 1. la carte hero — niveau global, objectif, rail, phrase d'analyse ;
+/// 2. « Votre niveau par épreuve » — les quatre, dans l'ordre servi ;
+/// 3. la progression, quand il y a un diagnostic précédent à comparer ;
+/// 4. « Ce qui vous empêche aujourd'hui d'atteindre {cible} » — trois priorités ;
+/// 5. « Vous n'avez pas besoin de tout retravailler » ;
+/// 6. « Votre plan {cible} est prêt » — l'aperçu, puis l'ouverture du plan.
 ///
-/// 🛑 **Aucun résultat n'est masqué derrière le paywall.** « Le paywall porte
-/// sur le plan, pas sur le constat » : le DTO ne porte aucun `locked`, et cet
-/// écran n'en invente pas.
+/// 🛑 **Aucun résultat n'est masqué derrière le paywall.** Le paywall porte sur
+/// le plan, pas sur le constat : le DTO ne porte aucun `locked`, et cet écran
+/// n'en invente pas.
 ///
 /// 🛑 **Une épreuve non évaluée est NOMMÉE, pas escamotée.** `niveau == null`
-/// signifie « on n'a pas mesuré », jamais « A1 ».
+/// signifie « on n'a pas mesuré », jamais « A1 » : la ligne perd son palier et
+/// son état, elle ne gagne pas un verdict que personne n'a rendu.
 class TcfDiagnosticResultScreen extends ConsumerStatefulWidget {
   const TcfDiagnosticResultScreen({super.key, required this.sessionId});
 
@@ -76,8 +84,8 @@ class _TcfDiagnosticResultScreenState
         child: Column(
           children: [
             ScreenHeader(
-              title: 'Mon diagnostic',
-              sub: kTcfDiagnosticTitle,
+              title: kTcfDiagnosticResultTitle,
+              sub: kTcfDiagnosticResultKicker,
               onBack: () => context.pop(),
             ),
             Expanded(child: _body()),
@@ -89,21 +97,21 @@ class _TcfDiagnosticResultScreenState
 
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
+    final error = _error;
+    if (error != null) {
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_error!,
-                textAlign: TextAlign.center,
-                style: AppFonts.ui(size: 14, color: AppColors.ink)),
+            SfInsight(error),
             const SizedBox(height: 16),
-            AppButton(
+            SfButton(
               label: 'Réessayer',
+              variant: SfButtonVariant.line,
+              icon: null,
               onPressed: _load,
-              variant: AppButtonVariant.outline,
-              fullWidth: false,
             ),
           ],
         ),
@@ -111,226 +119,213 @@ class _TcfDiagnosticResultScreenState
     }
 
     final r = _resultat!;
-    final nonEvaluees =
-        r.epreuves.where((e) => e.niveau == null).toList(growable: false);
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.only(top: 6, bottom: 32),
       children: [
-        // 1 — le niveau. L'élément dominant.
-        AppCard(
-          color: AppColors.blueLight,
-          child: Column(
+        Padding(
+          padding: sfGutter,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: const AppTag(
+              label: kTcfDiagnosticResultBadge,
+              tone: TagTone.blue,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(padding: sfGutter, child: _HeroCard(resultat: r)),
+        SfSection(
+          title: kTcfDiagnosticEpreuvesTitle,
+          child: SfStack(
             children: [
-              Text('VOTRE NIVEAU ESTIMÉ',
-                  style: AppFonts.label(size: 11, color: AppColors.blueDark)),
-              const SizedBox(height: 6),
-              Text(
-                r.niveauGlobal?.shortName ?? '—',
-                style: AppFonts.display(size: 48, color: AppColors.blue),
-              ),
-              if (r.cible != null) ...[
-                const SizedBox(height: 4),
-                Text('Objectif : ${r.cible!.wire}',
-                    style: AppFonts.ui(size: 14, color: AppColors.ink)),
-              ],
-              // Une épreuve manquante se dit, elle ne se devine pas.
-              if (nonEvaluees.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '${nonEvaluees.map((e) => epreuvePresentation(e.epreuve).label).join(', ')} : '
-                  '${kNiveauNonEvalue.toLowerCase()}.',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(size: 12, color: AppColors.blueDark),
-                ),
-              ],
+              // 🛑 **Ordre servi**, jamais retrié : le serveur envoie les quatre
+              // épreuves, l'écran les rend dans cet ordre.
+              for (final e in r.epreuves) _EpreuveRow(niveau: e, resultat: r),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-
-        // 1 bis — ce qui a bougé depuis le diagnostic précédent (L7).
-        // 🛑 Absent au premier diagnostic : `progression` vaut alors `null`, et
-        // on n'affiche pas un bloc vide.
-        if (r.progression != null) ...[
-          _ProgressionCard(progression: r.progression!),
-          const SizedBox(height: 16),
-        ],
-
-        // 2 — le niveau par épreuve.
-        Text('Votre niveau par épreuve',
-            style: AppFonts.display(size: 18, color: AppColors.ink)),
-        const SizedBox(height: 8),
-        for (final e in r.epreuves) ...[
-          AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Text(epreuvePresentation(e.epreuve).icon,
-                    style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(epreuvePresentation(e.epreuve).label,
-                      style: AppFonts.ui(size: 14, color: AppColors.ink)),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      e.niveau == null ? kNiveauNonEvalue : e.niveau!.shortName,
-                      style: AppFonts.ui(
-                        size: e.niveau == null ? 12 : 14,
-                        weight: FontWeight.w700,
-                        // Non évaluée : atténué, jamais alarmant — ce n'est
-                        // pas un échec.
-                        color:
-                            e.niveau == null ? AppColors.inkFaint : AppColors.ink,
-                      ),
-                    ),
-                    // 🛑 La mention se lit sur des FAITS SERVIS : `dejaAuNiveau`
-                    // et le rang 1 des priorités. Aucun palier n'est comparé
-                    // ici, et elle est absente sur une épreuve non mesurée —
-                    // « Non évaluée » + « À renforcer » serait un verdict que
-                    // personne n'a rendu.
-                    if (epreuveMention(
-                            e.epreuve, e.niveau, r.dejaAuNiveau, r.priorites)
-                        case final mention?)
-                      Text(
-                        mention.label,
-                        style: AppFonts.label(
-                          size: 10.5,
-                          color: _mentionColor(mention.tone),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+        // La réévaluation : absent au premier diagnostic (`progression` null).
+        if (r.progression case final progression?)
+          SfSection(
+            child: SfStack(
+              children: [_ProgressionCard(progression: progression)],
             ),
           ),
-          const SizedBox(height: 8),
-        ],
-
-        // 3 — ce qui bloque. Le bloc de conversion.
-        if (r.priorites.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(blocageTitle(r.cible),
-              style: AppFonts.display(size: 18, color: AppColors.ink)),
-          const SizedBox(height: 8),
-          for (final p in r.priorites) ...[
-            _PrioriteCard(priorite: p, cible: r.cible),
-            const SizedBox(height: 8),
-          ],
-        ],
-
-        // 4 — rassurance.
-        const SizedBox(height: 8),
-        AppCard(
-          color: AppColors.surface2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(kTcfDiagnosticRassuranceTitle,
-                  style: AppFonts.ui(
-                      size: 14,
-                      weight: FontWeight.w700,
-                      color: AppColors.ink)),
-              const SizedBox(height: 4),
-              Text(rassuranceText(r.cible),
-                  style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
-            ],
-          ),
-        ),
-
-        // 5 — déjà au niveau. Visuellement secondaire.
-        if (r.dejaAuNiveau.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(kTcfDiagnosticDejaTitle.toUpperCase(),
-              style: AppFonts.label(size: 11, color: AppColors.inkFaint)),
-          const SizedBox(height: 6),
-          for (final e in r.dejaAuNiveau)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text(
-                '✓ ${epreuvePresentation(e.epreuve).label}'
-                '${e.niveau != null ? ' — ${e.niveau!.shortName}' : ''}',
-                style: AppFonts.ui(size: 13, color: AppColors.green),
-              ),
-            ),
-        ],
-
-        // 6 — le plan, en aperçu. C'est ce bloc qui transforme un constat en
-        // promesse : le candidat voit l'ordre dans lequel son plan va le
-        // prendre, avant même de l'ouvrir. Absent sans priorité — on ne promet
-        // pas un plan vide.
-        if (r.priorites.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        if (r.priorites.isNotEmpty)
+          SfSection(
+            title: blocageTitle(r.cible),
+            child: SfStack(
               children: [
-                Text(planPretTitle(r.cible),
-                    style: AppFonts.display(size: 18, color: AppColors.ink)),
-                const SizedBox(height: 10),
                 for (final p in r.priorites)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          child: Text('${p.rang}',
-                              style: AppFonts.label(
-                                  size: 12, color: AppColors.inkFaint)),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            prioriteCourte(
-                                epreuveCourte(p.epreuve), p.taskCode),
-                            style:
-                                AppFonts.ui(size: 14, color: AppColors.ink),
-                          ),
-                        ),
-                        _Pastille(mention: prioritePastille(p.rang)),
-                      ],
+                  SfPrio(
+                    rank: p.rang,
+                    tag: prioriteTag(p.rang),
+                    title: prioriteIntitule(
+                      epreuvePresentation(p.epreuve).label,
+                      p.taskCode,
                     ),
+                    // 🛑 Phrase gelée côté front, indexée par la tâche. Un
+                    // couple inconnu ⇒ pas de phrase, jamais une phrase
+                    // générique.
+                    text: prioritePhrase(p.epreuve, p.taskCode),
                   ),
-                if (competencesCibleesLine(r.tachesSousLaCible)
-                    case final ligne?) ...[
-                  const SizedBox(height: 10),
-                  Text(ligne,
-                      style:
-                          AppFonts.ui(size: 12, color: AppColors.inkSoft)),
-                ],
               ],
             ),
           ),
-        ],
-
-        // 7 — l'ouverture du plan. C'est ICI que l'abonnement se joue, et
-        // nulle part avant : le candidat a ses quatre niveaux et ses priorités
-        // réelles sous les yeux. Le rapport du diagnostic RAPIDE ne pousse
-        // rien — il n'a qu'une production écrite derrière lui.
-        const SizedBox(height: 20),
-        AppButton(
-          label: r.cible == null
-              ? kTcfDiagnosticPlanCta
-              : '$kTcfDiagnosticPlanCta ${r.cible!.wire}',
-          onPressed: () => context.go('/plan'),
+        SfSection(
+          child: SfStack(
+            children: [
+              SfNoteCard(
+                icon: LucideIcons.check,
+                variant: SfCardVariant.ok,
+                title: kTcfDiagnosticRassuranceTitle,
+                child: SfTiny(rassuranceText(r.cible)),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 14),
-        Text(kTcfDiagnosticEstimationNote,
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(size: 12, color: AppColors.inkFaint)),
+        // On ne promet pas un plan vide : sans priorité servie, pas d'aperçu.
+        if (r.priorites.isNotEmpty)
+          SfSection(
+            title: planPretTitle(r.cible),
+            child: SfStack(
+              children: [
+                SfCard(child: _MiniPlan(resultat: r)),
+                SfButton(
+                  label: r.cible == null
+                      ? kTcfDiagnosticPlanCta
+                      : '$kTcfDiagnosticPlanCta ${r.cible!.wire}',
+                  onPressed: () => context.go(AppRoutes.plan),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 20),
+        Padding(
+          padding: sfGutter,
+          child: Center(child: SfTiny(kTcfDiagnosticEstimationNote)),
+        ),
       ],
     );
   }
 }
 
-/// Le bloc de progression (L7) : d'où à où, épreuve par épreuve.
+/// La carte de tête : le niveau global et ce qu'il reste à franchir.
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.resultat});
+
+  final TcfDiagnosticResultDto resultat;
+
+  @override
+  Widget build(BuildContext context) {
+    final niveau = resultat.niveauGlobal;
+    final track = cecrlTrack(niveau, resultat.cible);
+    final analyse = analyseGlobale(
+      niveau,
+      resultat.cible,
+      resultat.dejaAuNiveau,
+      resultat.priorites,
+    );
+
+    return SfCard(
+      variant: SfCardVariant.hero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SfLabel(kTcfDiagnosticNiveauLabel),
+          const SizedBox(height: 8),
+          if (niveau != null)
+            SfLevel(niveau.shortName)
+          else
+            const AppTag(label: kNiveauNonEvalue, tone: TagTone.neutral),
+          if (resultat.cible case final cible?) ...[
+            const SizedBox(height: 12),
+            SfGoalLine(prefix: kTcfDiagnosticGoalPrefix, goal: cible.wire),
+          ],
+          if (track != null)
+            SfLevelTrack(
+              levels: track.levels,
+              currentIndex: track.currentIndex,
+              goalIndex: track.goalIndex,
+              youLabel: 'Actuel',
+            ),
+          if (analyse != null) ...[
+            const SizedBox(height: 16),
+            SfInsight(analyse),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Une ligne du tableau des niveaux.
+class _EpreuveRow extends StatelessWidget {
+  const _EpreuveRow({required this.niveau, required this.resultat});
+
+  final TcfDiagnosticEpreuveNiveau niveau;
+  final TcfDiagnosticResultDto resultat;
+
+  @override
+  Widget build(BuildContext context) {
+    final presentation = epreuvePresentation(niveau.epreuve);
+    // 🛑 L'état se **lit** sur `dejaAuNiveau` et sur le rang 1 des priorités,
+    // servis par le serveur. Aucun palier n'est comparé ici, et l'épreuve non
+    // mesurée n'en reçoit aucun.
+    final mention = epreuveMention(
+      niveau.epreuve,
+      niveau.niveau,
+      resultat.dejaAuNiveau,
+      resultat.priorites,
+    );
+    return SfExamRow(
+      icon: presentation.icon,
+      title: presentation.label,
+      subtitle: niveau.niveau == null ? kTcfDiagnosticNonEvalueeSub : null,
+      level: niveau.niveau?.shortName,
+      status: mention?.label,
+      tone: mention == null ? null : _sfTone(mention.tone),
+    );
+  }
+}
+
+/// L'aperçu numéroté du plan à venir, et ce que les réponses ont fait remonter.
+class _MiniPlan extends StatelessWidget {
+  const _MiniPlan({required this.resultat});
+
+  final TcfDiagnosticResultDto resultat;
+
+  @override
+  Widget build(BuildContext context) {
+    final ligne = competencesCibleesLine(resultat.tachesSousLaCible);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SfMiniPlan(
+          rows: [
+            for (final p in resultat.priorites)
+              SfMiniRow(
+                label: prioriteCourte(epreuveCourte(p.epreuve), p.taskCode),
+                pill: prioritePastille(p.rang).label,
+                tone: _sfTone(prioritePastille(p.rang).tone),
+              ),
+          ],
+        ),
+        if (ligne != null) ...[
+          const SizedBox(height: 10),
+          SfTiny(ligne),
+        ],
+      ],
+    );
+  }
+}
+
+/// Ce qui a bougé depuis le diagnostic précédent.
 ///
-/// 🛑 **Sobre.** C'est une mesure, pas une célébration, et il doit rester
-/// lisible quand elle baisse.
+/// 🛑 **Sobre.** C'est une mesure, pas une célébration, et elle doit rester
+/// lisible quand elle baisse. `inconnue` n'affiche **rien** de comparatif :
+/// « = » se lirait « vous avez tenu votre niveau » alors que rien n'a été
+/// comparé.
 class _ProgressionCard extends StatelessWidget {
   const _ProgressionCard({required this.progression});
 
@@ -340,41 +335,45 @@ class _ProgressionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final quand = progression.previousCompletedAt;
     final avant = progression.previousNiveauGlobal;
-    return AppCard(
+    return SfCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(progressionTitle(progression.niveauGlobal),
-              style: AppFonts.display(size: 17, color: AppColors.ink)),
-          const SizedBox(height: 4),
           Text(
+            progressionTitle(progression.niveauGlobal),
+            style: AppFonts.display(size: 16, weight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          SfTiny(
             'Diagnostic du ${quand == null ? 'précédent' : formatJourCourt(quand)}'
             '${avant == null ? '' : ' — niveau estimé ${avant.wire}'}',
-            style: AppFonts.label(size: 11, color: AppColors.inkFaint),
           ),
           const SizedBox(height: 10),
           for (final e in progression.epreuves)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(
                 children: [
-                  Text(epreuvePresentation(e.epreuve).icon,
-                      style: const TextStyle(fontSize: 16)),
+                  Icon(
+                    epreuvePresentation(e.epreuve).icon,
+                    size: 18,
+                    color: AppColors.blue,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(epreuvePresentation(e.epreuve).label,
-                        style: AppFonts.ui(size: 14, color: AppColors.ink)),
+                    child: Text(
+                      epreuvePresentation(e.epreuve).label,
+                      style: AppFonts.ui(size: 13.5),
+                    ),
                   ),
-                  // 🛑 `inconnue` n'affiche RIEN de comparatif : « = » se
-                  // lirait « vous avez tenu votre niveau » alors que rien n'a
-                  // été comparé.
                   Text(
                     evolutionLabel(e.evolution, e.avant) ?? kNiveauNonEvalue,
-                    style: AppFonts.label(
+                    style: AppFonts.ui(
                       size: 12,
+                      weight: FontWeight.w700,
                       color: e.evolution == NiveauEvolution.hausse
-                          ? AppColors.blueDark
-                          : AppColors.inkFaint,
+                          ? AppColors.blue
+                          : AppColors.muted,
                     ),
                   ),
                 ],
@@ -386,79 +385,11 @@ class _ProgressionCard extends StatelessWidget {
   }
 }
 
-class _PrioriteCard extends StatelessWidget {
-  const _PrioriteCard({required this.priorite, required this.cible});
-
-  final TcfDiagnosticPriorityDto priorite;
-  final NiveauCecrl? cible;
-
-  @override
-  Widget build(BuildContext context) {
-    // Le rang 1 est le plus urgent : il porte le rouge, les suivants l'ambre.
-    final accent = priorite.rang == 1 ? AppColors.red : AppColors.amber;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border(left: BorderSide(color: accent, width: 3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            prioriteTitle(
-              priorite.rang,
-              epreuvePresentation(priorite.epreuve).label,
-              priorite.taskCode,
-            ),
-            style: AppFonts.ui(
-                size: 14, weight: FontWeight.w700, color: AppColors.ink),
-          ),
-          if (priorite.niveauTache != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              '${priorite.niveauTache!.shortName}'
-              '${cible != null ? ' → ${cible!.wire}' : ''}',
-              style: AppFonts.ui(size: 12, color: AppColors.inkSoft),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// La couleur d'une mention d'épreuve. Le rouge est réservé à ce qui bloque
-/// vraiment — la priorité n°1, et elle seule.
-Color _mentionColor(EpreuveMentionTone tone) => switch (tone) {
-      EpreuveMentionTone.ok => AppColors.green,
-      EpreuveMentionTone.warn => AppColors.amber,
-      EpreuveMentionTone.hot => AppColors.red,
+/// Le ton du kit pour une mention servie. Les deux échelles disent la même
+/// chose ; l'enum du fichier de libellés reste le miroir mot pour mot du web,
+/// et la traduction vers le kit vit ici, une seule fois.
+SfTone _sfTone(EpreuveMentionTone tone) => switch (tone) {
+      EpreuveMentionTone.ok => SfTone.ok,
+      EpreuveMentionTone.warn => SfTone.warn,
+      EpreuveMentionTone.hot => SfTone.hot,
     };
-
-/// La pastille d'une ligne du mini-plan.
-class _Pastille extends StatelessWidget {
-  const _Pastille({required this.mention});
-
-  final EpreuveMention mention;
-
-  @override
-  Widget build(BuildContext context) {
-    final chaud = mention.tone == EpreuveMentionTone.hot;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(
-        color: chaud ? AppColors.redLight : AppColors.amberLight,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        mention.label,
-        style: AppFonts.ui(
-          size: 11,
-          color: chaud ? AppColors.redDark : AppColors.amberDark,
-        ),
-      ),
-    );
-  }
-}

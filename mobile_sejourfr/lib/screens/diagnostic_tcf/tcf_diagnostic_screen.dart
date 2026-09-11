@@ -302,8 +302,8 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
                     children: [
-                      Text(epreuvePresentation(e).icon,
-                          style: const TextStyle(fontSize: 18)),
+                      Icon(epreuvePresentation(e).icon,
+                          size: 18, color: AppColors.blue),
                       const SizedBox(width: 10),
                       Text(
                         epreuvePresentation(e).label,
@@ -411,7 +411,7 @@ class _SectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(p.icon, style: const TextStyle(fontSize: 20)),
+              Icon(p.icon, size: 20, color: AppColors.blue),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

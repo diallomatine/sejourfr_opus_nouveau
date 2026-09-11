@@ -159,6 +159,17 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
 
 ### Pour tout écran
 
+- 🛑 **Les 7 écrans de diagnostic et de plan passent par le KIT, pas par du CSS
+  d'écran.** Résultat du diagnostic rapide TCF, résultat du diagnostic TCF
+  complet, Plan TCF (abonné / gratuit / sans diagnostic), résultat du diagnostic
+  civique, Plan civique (abonné / gratuit) : ils assemblent les primitives de
+  `web_sejoufr/app/_components/sejour/SejourKit.tsx` et de
+  `mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`, **miroirs l'un de
+  l'autre, brique pour brique**. Un motif qui manque s'ajoute **dans les deux
+  kits dans la même passe** — c'est ce qui garantit que les deux fronts montrent
+  le même écran. La maquette de référence est `~/Desktop/grok_ecran`
+  (code des écrans : `src/components/sejour/screens/`, captures :
+  `screenshots/`). Conventions détaillées : le `CLAUDE.md` de chaque front.
 - 🛑 **Jamais de couleur ni de font en dur.** Toujours les tokens locaux (`var(--color-*)`,
   `AppColors.*`, `AppFonts.*`). Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques
   seulement) ; **Plus Jakarta Sans** (web/mobile) ou **Inter** (admin), **Fraunces** (titres,

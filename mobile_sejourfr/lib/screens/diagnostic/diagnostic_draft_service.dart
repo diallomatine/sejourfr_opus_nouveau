@@ -244,7 +244,10 @@ class DiagnosticDraftStore {
 
   Future<bool> _exists(String name) async {
     try {
-      return File('${(await _directory()).path}/$name').exists();
+      // `await` obligatoire ICI : sans lui le `Future` sort du `try` et une
+      // erreur de système de fichiers échappe au `catch` au lieu de rendre
+      // « pas de brouillon ».
+      return await File('${(await _directory()).path}/$name').exists();
     } catch (_) {
       return false;
     }

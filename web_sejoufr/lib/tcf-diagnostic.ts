@@ -170,6 +170,33 @@ export function railLevel(niveau: NiveauCecrl | null): "A2" | "B1" | "B2" | null
 }
 
 /**
+ * Les trois paliers de la piste de niveau du kit (`LevelTrack`).
+ *
+ * 🛑 C'est l'échelle du TCF IRN telle qu'elle est **affichée**, pas une échelle
+ * de classement : rien ici ne décide d'un niveau, on place un palier déjà servi.
+ */
+const NIVEAU_TRACK: readonly string[] = ["A2", "B1", "B2"];
+
+/**
+ * Où poser « Vous » et « Objectif » sur la piste.
+ *
+ * `null` — donc **aucune piste dessinée** — dès que l'un des deux paliers sort
+ * de l'échelle A2/B1/B2 (`A1`, `A1_NON_ATTEINT`, `C1`, `C2`, ou aucun objectif
+ * déclaré). Même règle que `railLevel` : on préfère ne rien montrer plutôt que
+ * de rabattre le candidat sur un palier qui n'est pas le sien.
+ */
+export function levelTrackPosition(
+    niveau: NiveauCecrl | null,
+    cible: string | null,
+): {levels: readonly string[]; currentIndex: number; goalIndex: number} | null {
+    const current = railLevel(niveau);
+    if (!current || !cible) return null;
+    const goalIndex = NIVEAU_TRACK.indexOf(cible);
+    if (goalIndex < 0) return null;
+    return {levels: NIVEAU_TRACK, currentIndex: NIVEAU_TRACK.indexOf(current), goalIndex};
+}
+
+/**
  * L'épreuve est-elle déjà à la cible ?
  *
  * 🛑 **Le front ne compare pas des paliers lui-même** : le serveur sert
@@ -183,6 +210,55 @@ export function estDejaAuNiveau(
     return dejaAuNiveau.some((e) => e.epreuve === epreuve);
 }
 
+/**
+ * **La phrase d'analyse sous le niveau global.**
+ *
+ * 🛑 Elle n'est pas servie, et elle ne **dérive** aucun état : chaque branche
+ * se lit sur des listes que le serveur a composées (`dejaAuNiveau`,
+ * `priorites`). Aucun palier n'est comparé ici, aucun nombre n'est classé.
+ *
+ * `null` quand rien de sûr ne peut être dit — un hero sans phrase vaut mieux
+ * qu'une phrase qui affirme ce que personne n'a mesuré.
+ */
+export function analyseGlobale(r: {
+    niveauGlobal: NiveauCecrl | null;
+    cible: NiveauCecrl | null;
+    dejaAuNiveau: {epreuve: EpreuveType}[];
+    priorites: {epreuve: EpreuveType}[];
+}): string | null {
+    if (r.niveauGlobal === null) return null;
+    const vise = r.cible;
+    if (r.priorites.length === 0) {
+        return vise
+            ? `Les épreuves mesurées sont au niveau attendu pour le ${vise}. Votre plan sert maintenant à le tenir dans la durée.`
+            : "Les épreuves mesurées sont au niveau attendu. Votre plan sert maintenant à le tenir dans la durée.";
+    }
+    if (r.dejaAuNiveau.length === 0) {
+        return vise
+            ? `Votre progression vers le ${vise} passe par quelques tâches précises, que votre plan prend l'une après l'autre.`
+            : "Votre progression passe par quelques tâches précises, que votre plan prend l'une après l'autre.";
+    }
+    return vise
+        ? `Vous avez déjà plusieurs acquis solides. Votre progression vers le ${vise} dépend maintenant surtout de certaines tâches.`
+        : "Vous avez déjà plusieurs acquis solides. Votre progression dépend maintenant surtout de certaines tâches.";
+}
+
+/**
+ * Le ton d'une évolution **servie** (`NiveauEvolution`), pour la pastille du
+ * bloc de réévaluation. `null` sur `STABLE` et `INCONNUE` : rien à colorer —
+ * un niveau tenu n'est ni un succès ni une alerte.
+ */
+export function evolutionTone(e: NiveauEvolution): "ok" | "warn" | null {
+    switch (e) {
+        case "HAUSSE":
+            return "ok";
+        case "BAISSE":
+            return "warn";
+        default:
+            return null;
+    }
+}
+
 /** Titre du bloc de conversion, contextualisé par la cible servie. */
 export function blocageTitle(cible: NiveauCecrl | null): string {
     return cible
@@ -190,14 +266,55 @@ export function blocageTitle(cible: NiveauCecrl | null): string {
         : "Ce qui vous limite aujourd'hui";
 }
 
-/** « Priorité 1 — Expression orale, tâche 3 ». La tâche est nommée, jamais la compétence. */
-export function prioriteTitle(
-    rang: number,
-    epreuveLabel: string,
-    taskCode: string | null,
-): string {
-    const tache = taskCode ? `, tâche ${taskCode.slice(-1)}` : "";
-    return `Priorité ${rang} — ${epreuveLabel}${tache}`;
+/**
+ * L'étiquette de rang d'une priorité — « Priorité 1 ».
+ *
+ * Séparée du titre depuis la refonte : la carte `Prio` du kit porte le rang
+ * dans son kicker et l'objet de la priorité dans son titre. Une seule chaîne
+ * pour les deux obligeait à couper au tiret à l'affichage.
+ */
+export function prioriteTag(rang: number): string {
+    return `Priorité ${rang}`;
+}
+
+/** « Expression orale — Tâche 3 ». La tâche est nommée, jamais la compétence. */
+export function prioriteLibelle(epreuveLabel: string, taskCode: string | null): string {
+    return taskCode ? `${epreuveLabel} — Tâche ${taskCode.slice(-1)}` : epreuveLabel;
+}
+
+/**
+ * **Ce que le candidat a à faire sur cette tâche, en une phrase.**
+ *
+ * 🛑 Le serveur ne sert **aucune** phrase de priorité : il sert l'épreuve, le
+ * `taskCode` et le rang. Ces phrases sont donc des **libellés gelés**, indexés
+ * par `(epreuve, taskCode)` — le couple exact que le serveur désigne — et
+ * elles décrivent **la tâche officielle du TCF**, jamais la personne.
+ *
+ * 🛑 **Un couple absent ne rend rien.** On n'écrit pas de phrase générique pour
+ * remplir la carte : le rang, l'épreuve et la tâche suffisent à dire ce qui
+ * bloque. Vaut pour tout `taskCode` inconnu d'une version ultérieure du
+ * référentiel.
+ *
+ * ⚠️ Miroir attendu côté mobile (`tcf_diagnostic_labels.dart`) : un libellé qui
+ * bouge, ce sont deux fichiers dans la même passe.
+ */
+const PRIORITE_PHRASE: Record<string, string> = {
+    // Expression écrite — les 3 tâches officielles.
+    "TCF_EE:EE1": "Donner les informations attendues et écrire un message complet.",
+    "TCF_EE:EE2": "Raconter et décrire avec assez de détails et de liens entre vos idées.",
+    "TCF_EE:EE3": "Structurer et développer davantage vos idées.",
+    // Expression orale — les 3 tâches officielles.
+    "TCF_EO:EO1": "Vous présenter et répondre avec des phrases plus développées.",
+    "TCF_EO:EO2": "Poser des questions plus développées et naturelles.",
+    "TCF_EO:EO3": "Développer vos arguments et mieux nuancer votre opinion.",
+    // Compréhension : la priorité porte sur l'épreuve, `taskCode` est nul.
+    "TCF_CO:": "Suivre des documents plus longs et repérer l'implicite.",
+    "TCF_CE:": "Lire des documents plus longs et repérer l'implicite.",
+};
+
+/** La phrase d'une priorité, ou `null` si le couple n'en a pas. */
+export function prioritePhrase(epreuve: EpreuveType, taskCode: string | null): string | null {
+    return PRIORITE_PHRASE[`${epreuve}:${taskCode ?? ""}`] ?? null;
 }
 
 /** Le bloc de rassurance : personne n'a besoin de tout retravailler. */

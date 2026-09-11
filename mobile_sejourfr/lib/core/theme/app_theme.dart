@@ -51,6 +51,24 @@ class AppColors {
   /// widget.
   static const amberDark = Color(0xFF9A6A0B);
 
+  /// Vert **de texte** sur fond vert clair (libellé « Objectif atteint »,
+  /// titre d'un encart de réassurance). [green] sur [greenLight] passe tout
+  /// juste ; ce ton-ci est celui du kit « parcours ».
+  static const greenDark = Color(0xFF0F5C3A);
+
+  /// Filet du bloc vert et du bloc ambre du kit « parcours » : ni [line] (trop
+  /// froid sur ces fonds) ni la teinte pleine (trop dure).
+  static const greenBorder = Color(0xFFBFE8D2);
+  static const amberBorder = Color(0xFFEAD4A0);
+
+  /// Liseré de la **priorité 3** uniquement. L'ambre porte déjà la priorité 2 :
+  /// sans ce jaune, les rangs 2 et 3 seraient indistinguables. 🛑 Jamais en
+  /// texte — il ne passe aucun contraste sur blanc.
+  static const yellow = Color(0xFFD4A017);
+
+  /// Filet plus marqué que [line] : contour d'un choix non coché.
+  static const lineStrong = Color(0xFFD4DAE6);
+
   // Alias sémantiques maquette.
   static const inkSoft = muted;
   static const inkFaint = muted2;

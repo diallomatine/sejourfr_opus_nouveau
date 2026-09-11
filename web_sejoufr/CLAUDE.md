@@ -763,6 +763,84 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   reste en place pour les URLs déjà partagées et pour `/paiement` en mode
   prolongation, il n'est simplement plus le chemin nominal.
 
+## Le kit « parcours » — les 7 écrans de diagnostic et de plan (2026-09-11)
+
+⚠️ **Cette section prime sur les descriptions d'écran plus anciennes de ce
+fichier** (« Plan adaptatif », « Écran de RÉSULTAT du diagnostic », « Diagnostic
+TCF — 4 épreuves ») : leurs *règles produit* restent vraies, leur *anatomie*
+a été refaite sur la maquette du propriétaire.
+
+Le propriétaire a fourni une maquette complète (`~/Desktop/grok_ecran` — code des
+écrans dans `src/components/sejour/screens/`, captures dans `screenshots/`) après
+avoir constaté que les écrans livrés ne correspondaient pas à la demande. Les
+**7 écrans** ont été refaits à l'identique, alimentés par nos vrais DTO.
+
+- **`app/_components/sejour/sejour.module.css`** — portage 1:1 du design system
+  de la maquette, remappé sur les tokens `@theme`. 🛑 **Autorité visuelle** de
+  ces écrans : un style nouveau s'ajoute ICI, jamais dans un écran.
+- **`app/_components/sejour/SejourKit.tsx`** — les primitives (`SejourApp`,
+  `Top`, `Card`, `LevelTrack`, `GoalStrip`, `Observation`, `NoteCard`,
+  `ExamRow`, `ThemeLine`, `Prio`, `ProgressMini`, `SkillRow`, `PathCard`,
+  `NowCard`, `MiniPlan`, `LockRow`, `CheckList`, `DoneRow`, `PillMeta`,
+  `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`…).
+- **Miroir Flutter** : `mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`,
+  mêmes briques, mêmes noms (préfixe `Sf`). 🛑 **Un motif ajouté d'un côté
+  s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit *est* la garantie de parité de
+  ces écrans ; deux kits qui divergent, ce sont deux produits.
+
+**Colonne unique, cadrée à 560 px et centrée.** Ce sont des écrans de lecture,
+pas des tableaux de bord : les élargir casserait la hiérarchie de la maquette.
+La barre latérale de `(app)` joue le rôle de la barre d'onglets du mockup —
+`sf-tabs` n'est **pas** porté sur le web.
+
+**Ton d'état : quatre valeurs, pas trois.** `ok` / `warn` / `hot` / **`muted`**.
+🛑 `muted` = **non mesuré**, et ce n'est pas un quatrième degré de gravité. Sans
+lui, un thème `NON_EVALUE` retombait sur `warn` et s'affichait en ambre : le
+front désignait comme fragile quelque chose que le serveur n'a jamais évalué.
+`null = inconnu, jamais mauvais`.
+
+**Écrans refaits** : `diagnostic/DiagnosticReport.tsx` (1466 → ~240 l.),
+`diagnostic-tcf/TcfDiagnosticResult.tsx`, `diagnostic-civique/{CivicDiagnosticHub,
+CivicDiagnosticResult}.tsx`, `plan/{PlanModules,LearningPlanView,CivicPlanPanel,
+PlanPaywallCard,PlanMilestoneCard}.tsx`.
+**Créés** : `plan/PlanGate.tsx` (l'état « pas encore de plan »),
+`plan/PlanLayout.tsx` (les briques restées aux 4 écrans secondaires).
+**Supprimés** : `plan/PlanGroups.tsx`, `plan/PlanEncart.tsx`, 1306 lignes de
+`diagnostic/diagnostic.module.css` et 1310 de `plan/plan.module.css` — ces deux
+feuilles ne servent plus que les écrans **secondaires** (`/plan/competences`,
+`/plan/domaine/[x]`, `/plan/evolution`, `/plan/progression`), qui sont hors
+périmètre de la maquette et n'ont pas été refaits.
+
+**Le paywall reste le nôtre** (plusieurs pass), habillé maquette : carte hero
+bleue, `CheckList`, sélecteur de durée (`PassCard`) et `Sticky`. 🛑 **Aucun prix
+écrit dans le code** — `billingApi.listPlans` + `oneTimePassesOf` /
+`popularPassCodeOf` / `passCheckoutHref` (`lib/passes.ts`). Ne pas reprendre le
+« 14,99 €/mois » du mockup, qui n'a pas de serveur derrière lui.
+
+### Ce que la maquette demande et que la base ne sert pas
+
+🛑 **On n'a rien fabriqué.** Ces blocs sont **omis**, et c'est voulu :
+
+| Bloc de la maquette | Pourquoi |
+|---|---|
+| Plan civique : « Votre parcours — {notion} » (5 étapes) | Aucune table de parcours civique, aucun DTO d'étapes. Le seul axe servi est la boîte Leitner. |
+| Plan civique : encart « Progression détectée » | `CivicPlanDto` ne sert **aucun** `recentChanges` — ni transition, ni avant/après. C'est le manque C09 de `70_RESTE_A_FAIRE` §3.1. |
+| Plan civique : notions (« Le Parlement ») | 0 question taguée sur 1 016 ⇒ `grain.courant == THEME`. L'écran affiche le thème et **dit** son grain. |
+| Sous-compétences d'une priorité civique | Pas de sous-arbre servi. |
+| « Objectif de cette séance » | Aucun `reason_text` servi (refus explicite du DTO). Remplacé par ce qui **est** servi. |
+| Durée du diagnostic civique (« 15 min ») | Aucune durée n'existe : l'attempt est créé sans `timeLimitSeconds`, `DureeEpreuve` ne couvre pas `CIVIQUE`. Remplacé par « Seuil de réussite · 32 / 40 ». |
+
+**Le diagnostic civique fait 40 questions** (28 + 12), pas les 24 du mockup :
+quand `posees == formatQuestions`, le score **EST** le résultat — on écrit
+« Votre résultat », jamais une projection.
+
+**Blocs hors maquette conservés**, parce que rien d'autre ne les porte : le
+**jalon** (`milestone`), **« Compléter mon profil »** (`domainesAEvaluer`),
+**« Mon chemin vers l'objectif »** (`cycle.path`) et la carte d'accès secondaires.
+**Blocs supprimés** : « Aujourd'hui » (la séance — une *vue* des priorités, donc
+un doublon) et « Mon profil TCF » (déjà porté par `/plan/progression` et
+`/statistiques`).
+
 ## Plan adaptatif — `/plan` refondu (2026-08-21)
 
 `GET /api/me/plan` sert désormais, en plus des priorités, **quatre blocs

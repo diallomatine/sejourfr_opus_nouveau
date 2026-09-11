@@ -1,3 +1,6 @@
+import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 
@@ -43,7 +46,6 @@ const String kNiveauNonEvalue = 'Non évaluée';
 
 const String kTcfDiagnosticRassuranceTitle =
     'Vous n\'avez pas besoin de tout retravailler';
-const String kTcfDiagnosticDejaTitle = 'Déjà au niveau attendu';
 const String kTcfDiagnosticPlanCta = 'Découvrir mon plan';
 const String kTcfDiagnosticStartCta = 'Commencer mon diagnostic';
 const String kTcfDiagnosticResultCta = 'Voir mon résultat';
@@ -62,12 +64,16 @@ String sectionEtatLabel(TcfDiagnosticSectionState etat) => switch (etat) {
     };
 
 /// Libellé et pictogramme d'une épreuve. Table unique du mobile pour cet écran.
-({String icon, String label}) epreuvePresentation(EpreuveType e) => switch (e) {
-      EpreuveType.tcfCo => (icon: '🎧', label: 'Compréhension orale'),
-      EpreuveType.tcfCe => (icon: '📖', label: 'Compréhension écrite'),
-      EpreuveType.tcfEe => (icon: '✍️', label: 'Expression écrite'),
-      EpreuveType.tcfEo => (icon: '🎙️', label: 'Expression orale'),
-      _ => (icon: '•', label: e.wire),
+({IconData icon, String label}) epreuvePresentation(EpreuveType e) =>
+    switch (e) {
+      EpreuveType.tcfCo =>
+        (icon: LucideIcons.headphones, label: 'Compréhension orale'),
+      EpreuveType.tcfCe =>
+        (icon: LucideIcons.bookOpen, label: 'Compréhension écrite'),
+      EpreuveType.tcfEe =>
+        (icon: LucideIcons.penLine, label: 'Expression écrite'),
+      EpreuveType.tcfEo => (icon: LucideIcons.mic, label: 'Expression orale'),
+      _ => (icon: LucideIcons.circleDot, label: e.wire),
     };
 
 /// « 2 sections sur 4 terminées ». Compté sur ce que le serveur a servi.
@@ -105,14 +111,15 @@ String blocageTitle(NiveauCecrl? cible) => cible == null
     ? 'Ce qui vous limite aujourd\'hui'
     : 'Ce qui vous empêche aujourd\'hui d\'atteindre ${cible.wire}';
 
-/// « Priorité 1 — Expression orale, tâche 3 ». La tâche est nommée, jamais la
-/// compétence : `eo_nuancer` ne se comprend pas, « tâche 3 » si.
-String prioriteTitle(int rang, String epreuveLabel, String? taskCode) {
-  final tache = taskCode == null
-      ? ''
-      : ', tâche ${taskCode.substring(taskCode.length - 1)}';
-  return 'Priorité $rang — $epreuveLabel$tache';
-}
+/// Le kicker d'une carte de priorité : « Priorité 1 ».
+String prioriteTag(int rang) => 'Priorité $rang';
+
+/// « Expression orale — Tâche 3 ». La tâche est nommée, jamais la compétence :
+/// `eo_nuancer` ne se comprend pas, « tâche 3 » si.
+String prioriteIntitule(String epreuveLabel, String? taskCode) =>
+    taskCode == null
+        ? epreuveLabel
+        : '$epreuveLabel — Tâche ${taskCode.substring(taskCode.length - 1)}';
 
 String rassuranceText(NiveauCecrl? cible) => cible == null
     ? 'Votre plan se concentrera d\'abord sur les tâches qui ont le plus d\'impact.'
@@ -293,3 +300,88 @@ String epreuveCourte(EpreuveType e) => switch (e) {
       EpreuveType.tcfEo => 'EO',
       _ => e.wire,
     };
+
+// ----------------------------------------------------------------------------
+// LE RAPPORT DU DIAGNOSTIC COMPLET — en-tête, carte hero, phrases de priorité
+//
+// 🛑 **Rien ici ne classe.** Les niveaux, les listes et les rangs arrivent
+// servis ; ce bloc ne fait que les mettre en mots.
+//
+// Miroir mot pour mot de `web_sejoufr/lib/tcf-diagnostic.ts`.
+// ----------------------------------------------------------------------------
+
+const String kTcfDiagnosticResultKicker = 'TCF IRN';
+const String kTcfDiagnosticResultTitle = 'Mon diagnostic TCF';
+const String kTcfDiagnosticResultBadge = 'Diagnostic complet';
+
+const String kTcfDiagnosticNiveauLabel = 'Votre niveau estimé';
+const String kTcfDiagnosticGoalPrefix = 'Objectif : ';
+const String kTcfDiagnosticEpreuvesTitle = 'Votre niveau par épreuve';
+
+/// Le libellé de la colonne de droite quand l'épreuve n'a pas été passée.
+/// Il remplace le niveau, il ne s'y ajoute pas.
+const String kTcfDiagnosticNonEvalueeSub = kNiveauNonEvalue;
+
+/// **La phrase d'analyse de la carte hero.**
+///
+/// 🛑 Elle se lit sur des **listes servies** — ce qui est déjà à l'objectif, ce
+/// qui reste prioritaire — jamais sur une comparaison de paliers faite ici.
+/// Aucun niveau mesuré ⇒ aucune phrase : on ne commente pas ce qu'on n'a pas vu.
+String? analyseGlobale(
+  NiveauCecrl? niveauGlobal,
+  NiveauCecrl? cible,
+  List<TcfDiagnosticEpreuveNiveau> dejaAuNiveau,
+  List<TcfDiagnosticPriorityDto> priorites,
+) {
+  if (niveauGlobal == null) return null;
+  final vise = cible?.wire;
+  if (priorites.isEmpty) {
+    return vise == null
+        ? 'Les épreuves mesurées sont au niveau attendu. Votre plan sert '
+            'maintenant à le tenir dans la durée.'
+        : 'Les épreuves mesurées sont au niveau attendu pour le $vise. Votre '
+            'plan sert maintenant à le tenir dans la durée.';
+  }
+  if (dejaAuNiveau.isEmpty) {
+    return vise == null
+        ? 'Votre progression passe par quelques tâches précises, que votre plan '
+            'prend l\'une après l\'autre.'
+        : 'Votre progression vers le $vise passe par quelques tâches précises, '
+            'que votre plan prend l\'une après l\'autre.';
+  }
+  return vise == null
+      ? 'Vous avez déjà plusieurs acquis solides. Votre progression dépend '
+          'maintenant surtout de certaines tâches.'
+      : 'Vous avez déjà plusieurs acquis solides. Votre progression vers le '
+          '$vise dépend maintenant surtout de certaines tâches.';
+}
+
+/// **Ce que dit une priorité, tâche par tâche.**
+///
+/// 🛑 Le serveur ne sert **aucune** de ces phrases : il sert une épreuve, une
+/// tâche et un rang. La table est **gelée** côté front, indexée par le code de
+/// tâche officiel. Un couple inconnu rend `null` — **on n'affiche alors pas de
+/// phrase**, on n'en invente pas.
+///
+/// En compréhension, `taskCode` est toujours `null` : la phrase est celle de
+/// l'épreuve entière.
+String? prioritePhrase(EpreuveType epreuve, String? taskCode) {
+  if (taskCode != null) return _kPrioritePhraseTache[taskCode];
+  return _kPrioritePhraseEpreuve[epreuve];
+}
+
+const Map<String, String> _kPrioritePhraseTache = <String, String>{
+  'EE1': 'Donner les informations attendues et écrire un message complet.',
+  'EE2': 'Raconter et décrire avec assez de détails et de liens entre vos '
+      'idées.',
+  'EE3': 'Structurer et développer davantage vos idées.',
+  'EO1': 'Vous présenter et répondre avec des phrases plus développées.',
+  'EO2': 'Poser des questions plus développées et naturelles.',
+  'EO3': 'Développer vos arguments et mieux nuancer votre opinion.',
+};
+
+const Map<EpreuveType, String> _kPrioritePhraseEpreuve =
+    <EpreuveType, String>{
+  EpreuveType.tcfCo: 'Suivre des documents plus longs et repérer l\'implicite.',
+  EpreuveType.tcfCe: 'Lire des documents plus longs et repérer l\'implicite.',
+};

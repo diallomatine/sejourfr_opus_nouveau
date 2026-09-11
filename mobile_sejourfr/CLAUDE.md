@@ -1097,6 +1097,94 @@ de découpage par `QuestionType`. À raffiner quand on aura le besoin.
 feedback → fin de série. L'archi actuelle est délibérément minimale : le tap module redirige vers
 les écrans `/training` et `/tcf/expression-*` existants en attendant.
 
+### Le kit « parcours » — les 7 écrans de diagnostic et de plan (2026-09-11)
+
+⚠️ **Cette section prime sur les descriptions d'écran plus anciennes de ce
+fichier** (« Refonte du Plan — coach adaptatif », l'écran de RÉSULTAT du
+diagnostic, « Diagnostic TCF — 4 épreuves ») : leurs *règles produit* restent
+vraies, leur *anatomie* a été refaite sur la maquette du propriétaire.
+
+Le propriétaire a fourni une maquette complète (`~/Desktop/grok_ecran` — code des
+écrans dans `src/components/sejour/screens/`, captures dans `screenshots/`) après
+avoir constaté que les écrans livrés ne correspondaient pas à la demande. Les
+**7 écrans** ont été refaits à l'identique, alimentés par nos vrais DTO.
+
+- **`core/widgets/sejour/sejour_kit.dart`** — les primitives : `SfTop`,
+  `SfBadge`, `SfCard`, `SfLevel`, `SfScore`, `SfLevelTrack`, `SfGoalStrip`,
+  `SfGoalLine`, `SfEmphasis`, `SfObservation`, `SfNoteCard`, `SfExamRow`,
+  `SfThemeLine`, `SfPrio`, `SfProgressMini`, `SfSkillRow`, `SfPathCard`,
+  `SfNowCard`, `SfMiniPlan`, `SfLockRow`, `SfLockItem`, `SfCheckRow`, `SfPill`,
+  `SfPillMeta`, `SfChoiceCard`, `SfButton`, `SfStatGrid`, `SfBulletList`,
+  `SfThreshold`, `SfHeadline`, `SfStickyBar`, `SfUnlockHero`, `SfSection`,
+  `SfStack`.
+- **Miroir web** : `web_sejoufr/app/_components/sejour/SejourKit.tsx` +
+  `sejour.module.css`, mêmes briques, mêmes noms (sans le préfixe `Sf`).
+  🛑 **Un motif ajouté d'un côté s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit
+  *est* la garantie de parité de ces écrans.
+- 🛑 **Aucun `BoxDecoration` ni `TextStyle` ad hoc** dans un écran de ce
+  périmètre : tout passe par le kit, `AppColors`, `AppFonts`, `AppRadii`.
+
+⚠️ **La typo n'est pas celle de la maquette, et c'est voulu.** La maquette (et le
+web) sont en Plus Jakarta Sans + Fraunces ; le mobile a migré vers **Bricolage
+Grotesque + Hanken Grotesk**. Les écrans reprennent la **mise en page** de la
+maquette dans la typo du mobile — `AppFonts.display` / `AppFonts.ui`, jamais une
+fonte nommée.
+
+⚠️ **`SfTop` a vécu en trois copies** (`CivicTop`, `PlanTop`, plus les écrans
+restés sur `ScreenHeader`) et elles avaient déjà divergé — 22 px d'un côté, 28 de
+l'autre. Le kit tranche à **22**, la taille de `.sf-title` côté maquette. Il vit
+**dans le scroll**, contrairement à `ScreenHeader` : c'est l'anatomie de `<Top>`,
+et le titre y a la place de tenir sur deux lignes.
+
+**Ton d'état : quatre valeurs, pas trois.** `SfTone.ok` / `.warn` / `.hot` /
+**`.muted`**. 🛑 `muted` = **non mesuré**, et ce n'est pas un quatrième degré de
+gravité. Sans lui, un thème `NON_EVALUE` retombait sur `warn` et s'affichait en
+ambre : le front désignait comme fragile quelque chose que le serveur n'a jamais
+évalué. `null = inconnu, jamais mauvais`. Le mapping vit dans `sfToneOf`
+(`screens/diagnostic_civique/civic_diagnostic_blocks.dart`), miroir de `kitTone`
+côté web.
+
+**Écrans refaits** : `diagnostic/widgets/diagnostic_result.dart` (1959 → ~220 l.),
+`diagnostic_tcf/tcf_diagnostic_result_screen.dart`,
+`diagnostic_civique/{civic_diagnostic_screen,civic_diagnostic_result_screen}.dart`,
+`plan/plan_screen.dart` + `plan/widgets/plan_tcf_view.dart` +
+`plan/civic_plan_view.dart`.
+**Supprimés** : `plan/widgets/{plan_priority_hero,plan_priorities_section,
+plan_profile_section,plan_seance_section,plan_banner,plan_group_card,
+plan_paywall_card}.dart`, `plan/plan_milestone_card.dart`,
+`core/widgets/sejour/sf_goal_line.dart` et `plan/widgets/plan_blocks.dart` (fondus
+dans le kit), `test/plan_screen_test.dart` (il gelait l'anatomie supprimée).
+
+⚠️ `plan/widgets/plan_tokens.dart` **reste** : `PlanDomainTile`, `PlanLevelRail`,
+`PlanNote`, `PlanRankBadge` et `PlanDomainPriorityTag` servent encore les écrans
+**secondaires** (`plan_domain_screen`, `plan_progress_screen`,
+`plan_skills_screen`, `plan_evolution_screen`), hors périmètre de la maquette.
+
+### Ce que la maquette demande et que la base ne sert pas
+
+🛑 **On n'a rien fabriqué.** Ces blocs sont **omis**, et c'est voulu :
+
+| Bloc de la maquette | Pourquoi |
+|---|---|
+| Plan civique : « Votre parcours — {notion} » (5 étapes) | Aucune table de parcours civique, aucun DTO d'étapes. Le seul axe servi est la boîte Leitner. |
+| Plan civique : encart « Progression détectée » | `CivicPlanDto` ne sert **aucun** `recentChanges` — ni transition, ni avant/après. C'est le manque C09 de `70_RESTE_A_FAIRE` §3.1. |
+| Plan civique : notions (« Le Parlement ») | 0 question taguée sur 1 016 ⇒ `grain.courant == THEME`. L'écran affiche le thème et **dit** son grain. |
+| Sous-compétences d'une priorité civique | Pas de sous-arbre servi. |
+| « Objectif de cette séance » | Aucun `reason_text` servi (refus explicite du DTO). |
+| TCF : « Votre parcours — Tâche N » quand la priorité n°1 est en CO/CE | Pas de `taches[]` en compréhension, donc aucun compteur servi. |
+| Durée du diagnostic civique (« 15 min ») | Aucune durée n'existe : l'attempt est créé sans `time_limit_seconds`, `DureeEpreuve` ne couvre pas `CIVIQUE`. Remplacé par « Seuil de réussite · 32 / 40 ». |
+
+**Le diagnostic civique fait 40 questions** (28 + 12), pas les 24 du mockup :
+quand `posees == formatQuestions`, le score **EST** le résultat.
+
+**Blocs hors maquette conservés**, parce que rien d'autre ne les porte : le
+**jalon**, **« Compléter mon profil »** (`domainesAEvaluer`), **l'état du cycle**
+(`planCycleStateText`) et les **4 accès secondaires** en `ListGroup`.
+**Blocs supprimés** : la *séance du jour* (« Aujourd'hui » et sa feuille
+« Pourquoi cette séance ? »), *« Mon profil TCF »*, les *bandeaux de tête*
+(`PlanUpdatedBanner`, `PlanFreeBar`) et la carte d'offre bleue (remplacée par
+`SfUnlockHero` + `SfStickyBar`).
+
 ### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
 
 L'écran `/plan` suit la maquette « coach adaptatif ». **Ordre des blocs, du plus immédiat

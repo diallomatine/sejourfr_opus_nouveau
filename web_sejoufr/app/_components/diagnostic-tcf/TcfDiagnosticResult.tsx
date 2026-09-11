@@ -1,51 +1,93 @@
 "use client";
 
 /**
- * T12 — le résultat du diagnostic TCF 4 épreuves (`10_` §4.5).
+ * **Le résultat du diagnostic TCF complet (4 épreuves).**
  *
  * Ordre des blocs, imposé par la spec : niveau global → niveau par épreuve →
- * ce qui bloque → rassurance → déjà au niveau → plan.
+ * (progression, s'il y en a une) → ce qui bloque → rassurance → le plan.
  *
  * 🛑 **Aucun résultat n'est masqué derrière le paywall.** « Le paywall porte
- * sur le plan, pas sur le constat » (`10_` §4.5) : le DTO ne porte donc aucun
- * `locked`, et cet écran n'en invente pas.
+ * sur le plan, pas sur le constat » : le DTO ne porte aucun `locked`, et cet
+ * écran n'en invente pas.
  *
  * 🛑 **Une épreuve non évaluée est NOMMÉE, pas escamotée.** `niveau: null`
  * signifie « on n'a pas mesuré », jamais « A1 » : afficher un palier plancher
- * serait rendre un verdict que personne n'a rendu (invariant V040/V041/V042).
+ * serait rendre un verdict que personne n'a rendu (V040/V041/V042).
+ *
+ * 🛑 **Aucun style local.** Tout l'habillage vient du kit partagé
+ * `app/_components/sejour/`.
  */
+
 import {useCallback, useEffect, useState} from "react";
-import Link from "next/link";
+import {BookOpen, Check, Headphones, Mic, PenLine, type LucideIcon} from "lucide-react";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
 import {EPREUVE_PRESENTATION} from "@/lib/exam-durations";
-import {PlanLevelRail} from "@/app/_components/plan/PlanBits";
+import {
+    Card,
+    Cta,
+    ExamRow,
+    LevelTrack,
+    MiniPlan,
+    NoteCard,
+    Pad,
+    Prio,
+    SejourApp,
+    Section,
+    Stack,
+    Top,
+    sejourStyles as styles,
+} from "@/app/_components/sejour/SejourKit";
 import {
     NIVEAU_NON_EVALUE,
-    TCF_DIAGNOSTIC_DEJA_TITLE,
     TCF_DIAGNOSTIC_ESTIMATION_NOTE,
     TCF_DIAGNOSTIC_PLAN_CTA,
     TCF_DIAGNOSTIC_RASSURANCE_TITLE,
+    analyseGlobale,
     blocageTitle,
     competencesCibleesLine,
     epreuveMention,
     evolutionLabel,
+    evolutionTone,
+    formatJourCourt,
+    levelTrackPosition,
     planPretTitle,
     prioriteCourte,
+    prioriteLibelle,
     prioritePastille,
-    formatJourCourt,
-    prioriteTitle,
+    prioritePhrase,
+    prioriteTag,
     progressionTitle,
-    railLevel,
     rassuranceText,
 } from "@/lib/tcf-diagnostic";
-import {niveauCecrlLabel} from "@/lib/types";
+import {niveauCecrlShort} from "@/lib/types";
 import type {EpreuveType, NiveauCecrl, TcfDiagnosticResultDto} from "@/lib/types";
+
+const BACK_HREF = "/dashboard";
+const TOP_KICKER = "TCF IRN";
+const TOP_TITLE = "Mon diagnostic TCF";
+const TOP_BADGE = "Diagnostic complet";
+const HERO_LABEL = "Votre niveau estimé";
+const HERO_GOAL = "Objectif :";
+const LEVEL_UNKNOWN = "—";
+const PLAN_HREF = "/plan";
+const EPREUVES_TITLE = "Votre niveau par épreuve";
+const ERROR_FALLBACK = "Impossible de charger votre résultat.";
+const RETRY = "Réessayer";
+
+/** L'icône d'une épreuve. La seule table d'icônes de cet écran : le reste du
+ *  libellé (nom, volume) vient d'`EPREUVE_PRESENTATION`. */
+const EPREUVE_ICON: Record<"TCF_CO" | "TCF_CE" | "TCF_EE" | "TCF_EO", LucideIcon> = {
+    TCF_CO: Headphones,
+    TCF_CE: BookOpen,
+    TCF_EE: PenLine,
+    TCF_EO: Mic,
+};
 
 /**
  * La forme COURTE d'une épreuve, pour le mini-plan (« EO · Tâche 3 »).
  *
  * 🛑 Elle ne remplace pas `EPREUVE_PRESENTATION` : le libellé complet reste
- * celui du tableau des niveaux. Ici la place manque, et « EO » se lit aussi
+ * celui du tableau des épreuves. Ici la place manque, et « EO » se lit aussi
  * bien dans une liste de trois lignes qu'on parcourt du regard.
  */
 const EPREUVE_COURTE: Record<"TCF_CO" | "TCF_CE" | "TCF_EE" | "TCF_EO", string> = {
@@ -54,6 +96,22 @@ const EPREUVE_COURTE: Record<"TCF_CO" | "TCF_CE" | "TCF_EE" | "TCF_EO", string> 
     TCF_EE: "EE",
     TCF_EO: "EO",
 };
+
+function epreuveLabel(epreuve: string): string {
+    return (
+        EPREUVE_PRESENTATION[epreuve as keyof typeof EPREUVE_PRESENTATION]?.label ?? epreuve
+    );
+}
+
+function epreuveIcon(epreuve: string): LucideIcon {
+    return EPREUVE_ICON[epreuve as keyof typeof EPREUVE_ICON] ?? BookOpen;
+}
+
+/** Le liseré de rang de la carte `Prio`, borné aux trois teintes du kit. Le
+ *  serveur plafonne déjà `priorites` à trois ; ceci ne fait que le typer. */
+function rangPrio(rang: number): 1 | 2 | 3 {
+    return rang <= 1 ? 1 : rang === 2 ? 2 : 3;
+}
 
 type Etat =
     | {kind: "loading"}
@@ -69,10 +127,7 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
         } catch (e) {
             setEtat({
                 kind: "erreur",
-                message:
-                    e instanceof ApiException
-                        ? e.message
-                        : "Impossible de charger votre résultat.",
+                message: e instanceof ApiException ? e.message : ERROR_FALLBACK,
             });
         }
     }, [sessionId]);
@@ -83,564 +138,227 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "loading") {
         return (
-            <section className="tcfr" aria-busy="true">
-                <div className="tcfr-skel tcfr-skel-hero" />
-                <div className="tcfr-skel tcfr-skel-card" />
-                <Styles />
-            </section>
+            <SejourApp>
+                <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} />
+                <Pad>
+                    <Card variant="hero">
+                        <p className={styles.label}>{HERO_LABEL}</p>
+                        <p className={styles.level} aria-busy>
+                            {LEVEL_UNKNOWN}
+                        </p>
+                    </Card>
+                </Pad>
+            </SejourApp>
         );
     }
 
     if (etat.kind === "erreur") {
         return (
-            <section className="tcfr">
-                <p className="tcfr-error">{etat.message}</p>
-                <button type="button" className="btn" onClick={() => void charger()}>
-                    Réessayer
-                </button>
-                <Styles />
-            </section>
+            <SejourApp>
+                <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} />
+                <Pad>
+                    <Stack>
+                        <Card variant="warn">
+                            <p className={styles.insight} role="alert">
+                                {etat.message}
+                            </p>
+                        </Card>
+                        <Cta variant="line" onClick={() => void charger()}>
+                            {RETRY}
+                        </Cta>
+                    </Stack>
+                </Pad>
+            </SejourApp>
         );
     }
 
     const r = etat.resultat;
+    const track = levelTrackPosition(r.niveauGlobal, r.cible);
+    const analyse = analyseGlobale(r);
+    const nonEvaluees = r.epreuves.filter((e) => e.niveau === null);
+
     /**
      * La mention d'une épreuve. Fermée sur `r` pour rester lisible dans le
      * JSX ; toute la règle vit dans `lib/tcf-diagnostic.ts`, partagée avec le
      * mobile.
      */
     const mention = (e: {epreuve: string; niveau: NiveauCecrl | null}) =>
-        epreuveMention(
-            e.epreuve as EpreuveType,
-            e.niveau,
-            r.dejaAuNiveau,
-            r.priorites,
-        );
-
-    const rail = railLevel(r.niveauGlobal);
-    const nonEvaluees = r.epreuves.filter((e) => e.niveau === null);
+        epreuveMention(e.epreuve as EpreuveType, e.niveau, r.dejaAuNiveau, r.priorites);
 
     return (
-        <section className="tcfr">
-            {/* 1 — le niveau. L'élément dominant de l'écran. */}
-            <header className="tcfr-hero">
-                <p className="tcfr-eyebrow">Votre niveau estimé</p>
-                <p className="tcfr-level">
-                    {r.niveauGlobal ? niveauCecrlLabel(r.niveauGlobal) : "—"}
-                </p>
-                {r.cible && <p className="tcfr-cible">Objectif : {r.cible}</p>}
-                {rail && <PlanLevelRail current={rail} />}
+        <SejourApp>
+            <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} badge={TOP_BADGE} />
 
-                {/* Une épreuve manquante se dit, elle ne se devine pas. */}
-                {nonEvaluees.length > 0 && (
-                    <p className="tcfr-manquant" role="status">
-                        {nonEvaluees
-                            .map(
-                                (e) =>
-                                    EPREUVE_PRESENTATION[
-                                        e.epreuve as keyof typeof EPREUVE_PRESENTATION
-                                    ]?.label ?? e.epreuve,
-                            )
-                            .join(", ")}{" "}
-                        : {NIVEAU_NON_EVALUE.toLowerCase()}.
+            {/* 1 — le niveau global. L'élément dominant de l'écran. */}
+            <Pad>
+                <Card variant="hero">
+                    <p className={styles.label}>{HERO_LABEL}</p>
+                    <p className={styles.level}>
+                        {r.niveauGlobal ? niveauCecrlShort(r.niveauGlobal) : LEVEL_UNKNOWN}
                     </p>
-                )}
-            </header>
+                    {r.cible && (
+                        <p className={styles.goalLine}>
+                            {HERO_GOAL} <span>{r.cible}</span>
+                        </p>
+                    )}
+                    {track && (
+                        <LevelTrack
+                            levels={[...track.levels]}
+                            currentIndex={track.currentIndex}
+                            goalIndex={track.goalIndex}
+                            youLabel="Actuel"
+                        />
+                    )}
+                    {analyse && <p className={styles.insight}>{analyse}</p>}
+                    {/* Une épreuve manquante se dit, elle ne se devine pas. */}
+                    {nonEvaluees.length > 0 && (
+                        <p className={styles.tiny} role="status">
+                            {nonEvaluees.map((e) => epreuveLabel(e.epreuve)).join(", ")} :{" "}
+                            {NIVEAU_NON_EVALUE.toLowerCase()}.
+                        </p>
+                    )}
+                </Card>
+            </Pad>
 
-            {/* 1 bis — ce qui a bougé depuis le diagnostic précédent (L7).
+            {/* 2 — le niveau par épreuve. Le statut se LIT sur les listes
+                servies (`dejaAuNiveau`, rang 1 de `priorites`) : aucun palier
+                n'est comparé ici. */}
+            <Section title={EPREUVES_TITLE}>
+                <Pad>
+                    <Stack>
+                        {r.epreuves.map((e) => {
+                            const m = mention(e);
+                            return (
+                                <ExamRow
+                                    key={e.epreuve}
+                                    icon={epreuveIcon(e.epreuve)}
+                                    title={epreuveLabel(e.epreuve)}
+                                    level={e.niveau ? niveauCecrlShort(e.niveau) : undefined}
+                                    status={m ? m.label : NIVEAU_NON_EVALUE}
+                                    tone={m?.tone}
+                                />
+                            );
+                        })}
+                    </Stack>
+                </Pad>
+            </Section>
+
+            {/* 3 — ce qui a bougé depuis le diagnostic précédent.
                 🛑 Absent au premier diagnostic : `progression` vaut alors
                 `null`, et on n'affiche pas un bloc vide. */}
             {r.progression && (
-                <div className="tcfr-progression">
-                    <p className="tcfr-progression-title">
-                        {progressionTitle(r.progression.niveauGlobal)}
-                    </p>
-                    <p className="tcfr-progression-meta">
-                        Diagnostic du{" "}
-                        {r.progression.previousCompletedAt
-                            ? formatJourCourt(r.progression.previousCompletedAt)
-                            : "précédent"}
-                        {r.progression.previousNiveauGlobal
-                            ? ` — niveau estimé ${r.progression.previousNiveauGlobal}`
-                            : ""}
-                    </p>
-                    <ul className="tcfr-progression-list">
-                        {r.progression.epreuves.map((e) => {
-                            const p =
-                                EPREUVE_PRESENTATION[
-                                    e.epreuve as keyof typeof EPREUVE_PRESENTATION
-                                ];
-                            const label = evolutionLabel(e.evolution, e.avant);
-                            return (
-                                <li key={e.epreuve}>
-                                    <span aria-hidden>{p?.icon}</span>
-                                    <span className="tcfr-progression-label">
-                                        {p?.label ?? e.epreuve}
-                                    </span>
-                                    <span
-                                        className="tcfr-progression-evo"
-                                        data-evolution={e.evolution}
-                                    >
-                                        {/* 🛑 INCONNUE n'affiche RIEN : « = » se
-                                            lirait « vous avez tenu votre niveau »
-                                            alors que rien n'a été comparé. */}
-                                        {label ?? NIVEAU_NON_EVALUE}
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
+                <Section title={progressionTitle(r.progression.niveauGlobal)}>
+                    <Pad>
+                        <Stack>
+                            <p className={styles.tiny}>
+                                Diagnostic du{" "}
+                                {r.progression.previousCompletedAt
+                                    ? formatJourCourt(r.progression.previousCompletedAt)
+                                    : "précédent"}
+                                {r.progression.previousNiveauGlobal
+                                    ? ` — niveau estimé ${r.progression.previousNiveauGlobal}`
+                                    : ""}
+                            </p>
+                            {r.progression.epreuves.map((e) => (
+                                <ExamRow
+                                    key={e.epreuve}
+                                    icon={epreuveIcon(e.epreuve)}
+                                    title={epreuveLabel(e.epreuve)}
+                                    level={e.apres ? niveauCecrlShort(e.apres) : undefined}
+                                    /* 🛑 `INCONNUE` n'affiche RIEN d'évolutif :
+                                       « = » se lirait « vous avez tenu votre
+                                       niveau » alors que rien n'a été comparé. */
+                                    status={
+                                        evolutionLabel(e.evolution, e.avant) ?? NIVEAU_NON_EVALUE
+                                    }
+                                    tone={evolutionTone(e.evolution) ?? undefined}
+                                />
+                            ))}
+                        </Stack>
+                    </Pad>
+                </Section>
             )}
 
-            {/* 2 — le niveau par épreuve. */}
-            <h2 className="tcfr-h2">Votre niveau par épreuve</h2>
-            <ul className="tcfr-epreuves">
-                {r.epreuves.map((e) => {
-                    const p =
-                        EPREUVE_PRESENTATION[e.epreuve as keyof typeof EPREUVE_PRESENTATION];
-                    return (
-                        <li key={e.epreuve} className="tcfr-epreuve">
-                            <span aria-hidden>{p?.icon}</span>
-                            <span className="tcfr-epreuve-label">{p?.label ?? e.epreuve}</span>
-                            <span className="tcfr-epreuve-right">
-                                <span
-                                    className="tcfr-epreuve-niveau"
-                                    data-evaluee={e.niveau !== null}
-                                >
-                                    {e.niveau === null
-                                        ? NIVEAU_NON_EVALUE
-                                        : niveauCecrlLabel(e.niveau)}
-                                </span>
-                                {/* 🛑 La mention se lit sur des FAITS SERVIS :
-                                    `dejaAuNiveau` et le rang 1 des priorités.
-                                    Aucun palier n'est comparé ici. Absente sur
-                                    une épreuve non mesurée — « Non évaluée » +
-                                    « À renforcer » serait un verdict que
-                                    personne n'a rendu. */}
-                                {mention(e) && (
-                                    <span
-                                        className="tcfr-epreuve-mention"
-                                        data-tone={mention(e)!.tone}
-                                    >
-                                        {mention(e)!.label}
-                                    </span>
-                                )}
-                            </span>
-                        </li>
-                    );
-                })}
-            </ul>
-
-            {/* 3 — ce qui bloque. Le bloc de conversion. */}
+            {/* 4 — ce qui bloque. Le bloc de conversion. */}
             {r.priorites.length > 0 && (
-                <>
-                    <h2 className="tcfr-h2">{blocageTitle(r.cible)}</h2>
-                    <ol className="tcfr-priorites">
-                        {r.priorites.map((p) => {
-                            const pres =
-                                EPREUVE_PRESENTATION[
-                                    p.epreuve as keyof typeof EPREUVE_PRESENTATION
-                                ];
-                            return (
-                                <li key={`${p.epreuve}-${p.taskCode ?? "epreuve"}`}>
-                                    <p className="tcfr-priorite-title">
-                                        {prioriteTitle(
-                                            p.rang,
-                                            pres?.label ?? p.epreuve,
-                                            p.taskCode,
-                                        )}
-                                    </p>
-                                    {p.niveauTache && (
-                                        <p className="tcfr-priorite-meta">
-                                            {niveauCecrlLabel(p.niveauTache)}
-                                            {r.cible ? ` → ${r.cible}` : ""}
-                                        </p>
-                                    )}
-                                </li>
-                            );
-                        })}
-                    </ol>
-                </>
+                <Section title={blocageTitle(r.cible)}>
+                    <Pad>
+                        <Stack>
+                            {r.priorites.map((p) => (
+                                <Prio
+                                    key={`${p.epreuve}-${p.taskCode ?? "epreuve"}`}
+                                    rank={rangPrio(p.rang)}
+                                    tag={prioriteTag(p.rang)}
+                                    title={prioriteLibelle(epreuveLabel(p.epreuve), p.taskCode)}
+                                    /* 🛑 Couple inconnu ⇒ aucune phrase. On
+                                       n'invente pas une consigne générique. */
+                                    text={prioritePhrase(p.epreuve, p.taskCode) ?? undefined}
+                                />
+                            ))}
+                        </Stack>
+                    </Pad>
+                </Section>
             )}
 
-            {/* 4 — rassurance. */}
-            <div className="tcfr-rassurance">
-                <p className="tcfr-rassurance-title">{TCF_DIAGNOSTIC_RASSURANCE_TITLE}</p>
-                <p className="tcfr-rassurance-text">{rassuranceText(r.cible)}</p>
-            </div>
-
-            {/* 5 — déjà au niveau. Visuellement secondaire, comme la spec le veut. */}
-            {r.dejaAuNiveau.length > 0 && (
-                <div className="tcfr-deja">
-                    <p className="tcfr-deja-title">{TCF_DIAGNOSTIC_DEJA_TITLE}</p>
-                    <ul>
-                        {r.dejaAuNiveau.map((e) => {
-                            const p =
-                                EPREUVE_PRESENTATION[
-                                    e.epreuve as keyof typeof EPREUVE_PRESENTATION
-                                ];
-                            return (
-                                <li key={e.epreuve}>
-                                    ✓ {p?.label ?? e.epreuve}
-                                    {e.niveau ? ` — ${niveauCecrlLabel(e.niveau)}` : ""}
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
-            )}
+            {/* 5 — rassurance. */}
+            <Section>
+                <Pad>
+                    <NoteCard
+                        variant="ok"
+                        icon={Check}
+                        iconTone="ok"
+                        title={TCF_DIAGNOSTIC_RASSURANCE_TITLE}
+                    >
+                        <p className={styles.tiny}>{rassuranceText(r.cible)}</p>
+                    </NoteCard>
+                </Pad>
+            </Section>
 
             {/* 6 — le plan, en aperçu. C'est ce bloc qui transforme un constat
                 en promesse : le candidat voit l'ordre dans lequel son plan va
                 le prendre, avant même de l'ouvrir. Absent sans priorité — on ne
                 promet pas un plan vide. */}
-            {r.priorites.length > 0 && (
-                <div className="tcfr-planpret">
-                    <h2 className="tcfr-h2">{planPretTitle(r.cible)}</h2>
-                    <ol className="tcfr-mini">
-                        {r.priorites.map((p) => {
-                            const pastille = prioritePastille(p.rang);
-                            return (
-                                <li key={`${p.epreuve}-${p.taskCode ?? "epreuve"}`}>
-                                    <span className="tcfr-mini-n">{p.rang}</span>
-                                    <span className="tcfr-mini-label">
-                                        {prioriteCourte(
-                                            EPREUVE_COURTE[
-                                                p.epreuve as keyof typeof EPREUVE_COURTE
-                                            ] ?? p.epreuve,
-                                            p.taskCode,
-                                        )}
-                                    </span>
-                                    <span className="tcfr-pill" data-tone={pastille.tone}>
-                                        {pastille.label}
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ol>
-                    {competencesCibleesLine(r.tachesSousLaCible) && (
-                        <p className="tcfr-mini-note">
-                            {competencesCibleesLine(r.tachesSousLaCible)}
-                        </p>
-                    )}
-                </div>
-            )}
+            <Section title={r.priorites.length > 0 ? planPretTitle(r.cible) : undefined}>
+                <Pad>
+                    <Stack>
+                        {r.priorites.length > 0 && (
+                            <Card>
+                                <MiniPlan
+                                    rows={r.priorites.map((p) => {
+                                        const pastille = prioritePastille(p.rang);
+                                        return {
+                                            label: prioriteCourte(
+                                                EPREUVE_COURTE[
+                                                    p.epreuve as keyof typeof EPREUVE_COURTE
+                                                ] ?? p.epreuve,
+                                                p.taskCode,
+                                            ),
+                                            pill: pastille.label,
+                                            tone: pastille.tone,
+                                        };
+                                    })}
+                                />
+                                {competencesCibleesLine(r.tachesSousLaCible) && (
+                                    <p className={styles.tiny}>
+                                        {competencesCibleesLine(r.tachesSousLaCible)}
+                                    </p>
+                                )}
+                            </Card>
+                        )}
+                        {/* C'est ICI que l'abonnement se joue, et nulle part
+                            avant : le candidat a ses quatre niveaux et ses
+                            priorités réelles sous les yeux. Le CTA reste servi
+                            même sans priorité — un candidat déjà au niveau doit
+                            pouvoir atteindre son plan. */}
+                        <Cta href={PLAN_HREF}>
+                            {TCF_DIAGNOSTIC_PLAN_CTA}
+                            {r.cible ? ` ${r.cible}` : ""}
+                        </Cta>
+                    </Stack>
+                </Pad>
+            </Section>
 
-            {/* 7 — l'ouverture du plan. C'est ICI que l'abonnement se joue, et
-                nulle part avant : le candidat a ses quatre niveaux et ses
-                priorités réelles sous les yeux. Le rapport du diagnostic RAPIDE
-                ne pousse rien — il n'a qu'une production écrite derrière lui. */}
-            <Link href="/plan" className="btn btn-lg tcfr-cta">
-                {TCF_DIAGNOSTIC_PLAN_CTA}
-                {r.cible ? ` ${r.cible}` : ""}
-            </Link>
-
-            <p className="tcfr-fine">{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
-            <Styles />
-        </section>
-    );
-}
-
-/**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
- *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
- * écrans invisiblement nus — le toggle du Plan y compris.
- *
- * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
- * classes sont préfixées pour qu'il n'y ait aucune collision.
- */
-function Styles() {
-    return (
-        <style>{`
-            .tcfr {
-                max-width: 480px;
-                margin: 0 auto;
-                padding: 24px 16px 48px;
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            }
-            .tcfr-hero {
-                background: var(--color-blue-light);
-                border-radius: 20px;
-                padding: 24px 20px;
-                text-align: center;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            .tcfr-eyebrow {
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: var(--color-blue-dark);
-                margin: 0;
-            }
-            .tcfr-level {
-                font-family: var(--font-display);
-                font-size: 56px;
-                line-height: 1;
-                color: var(--color-blue);
-                margin: 0;
-            }
-            .tcfr-cible {
-                margin: 0;
-                color: var(--color-ink-2);
-            }
-            .tcfr-manquant {
-                margin: 4px 0 0;
-                font-size: 13px;
-                color: var(--color-blue-dark);
-            }
-            /* Le bloc de progression (L7). Sobre : c'est une mesure, pas une
-               célébration — et il doit rester lisible quand elle baisse. */
-            .tcfr-progression {
-                border: 1px solid var(--color-line);
-                border-radius: 16px;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            .tcfr-progression-title {
-                font-family: var(--font-display);
-                font-size: 18px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .tcfr-progression-meta {
-                font-family: var(--font-mono);
-                font-size: 12px;
-                color: var(--color-muted-2);
-                margin: 0;
-            }
-            .tcfr-progression-list {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .tcfr-progression-list li {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                font-size: 14px;
-            }
-            .tcfr-progression-label {
-                flex: 1;
-                color: var(--color-ink);
-            }
-            .tcfr-progression-evo {
-                font-family: var(--font-mono);
-                font-size: 13px;
-                color: var(--color-muted);
-            }
-            .tcfr-progression-evo[data-evolution="HAUSSE"] {
-                color: var(--color-blue-dark);
-            }
-            /* La colonne de droite d'une épreuve : le niveau, et sa mention. */
-            .tcfr-epreuve-right {
-                display: flex;
-                flex-direction: column;
-                align-items: flex-end;
-                gap: 2px;
-            }
-            .tcfr-epreuve-mention {
-                font-family: var(--font-mono);
-                font-size: 10.5px;
-                letter-spacing: 0.05em;
-                text-transform: uppercase;
-                color: var(--color-muted-2);
-            }
-            .tcfr-epreuve-mention[data-tone="ok"] {
-                color: var(--color-success, #168f5b);
-            }
-            .tcfr-epreuve-mention[data-tone="warn"] {
-                color: var(--color-amber, #e8a317);
-            }
-            .tcfr-epreuve-mention[data-tone="hot"] {
-                color: var(--color-red);
-            }
-
-            /* Le plan en aperçu : trois lignes, l'ordre dans lequel le plan
-               prendra le candidat. */
-            .tcfr-planpret {
-                border: 1px solid var(--color-line);
-                border-radius: 16px;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            .tcfr-mini {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .tcfr-mini li {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                font-size: 14px;
-            }
-            .tcfr-mini-n {
-                font-family: var(--font-mono);
-                font-size: 12px;
-                color: var(--color-muted-2);
-                min-width: 12px;
-            }
-            .tcfr-mini-label {
-                flex: 1;
-                color: var(--color-ink);
-            }
-            .tcfr-pill {
-                font-size: 11px;
-                border-radius: 999px;
-                padding: 3px 9px;
-                white-space: nowrap;
-            }
-            .tcfr-pill[data-tone="hot"] {
-                background: var(--color-red-light);
-                color: var(--color-red-dark);
-            }
-            .tcfr-pill[data-tone="warn"] {
-                background: var(--color-amber-light, #fdf3e0);
-                color: var(--color-amber-dark, #8a5d00);
-            }
-            .tcfr-mini-note {
-                margin: 0;
-                font-size: 12px;
-                color: var(--color-muted);
-            }
-
-            .tcfr-h2 {
-                font-family: var(--font-display);
-                font-size: 20px;
-                color: var(--color-ink);
-                margin: 8px 0 0;
-            }
-            .tcfr-epreuves,
-            .tcfr-priorites,
-            .tcfr-deja ul {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-            .tcfr-epreuve {
-                display: grid;
-                grid-template-columns: auto minmax(0, 1fr) auto;
-                gap: 10px;
-                align-items: center;
-                border: 1px solid var(--color-line);
-                border-radius: 14px;
-                padding: 12px 14px;
-            }
-            .tcfr-epreuve-label {
-                color: var(--color-ink);
-            }
-            .tcfr-epreuve-niveau {
-                font-family: var(--font-mono);
-                font-size: 13px;
-                color: var(--color-ink);
-                white-space: nowrap;
-            }
-            /* Non évaluée : atténué, jamais alarmant — ce n'est pas un échec. */
-            .tcfr-epreuve-niveau[data-evaluee="false"] {
-                color: var(--color-muted-2);
-                font-size: 12px;
-            }
-            .tcfr-priorites li {
-                border-left: 3px solid var(--color-red);
-                background: var(--color-red-light);
-                border-radius: 0 12px 12px 0;
-                padding: 12px 14px;
-            }
-            .tcfr-priorites li:nth-child(2) {
-                border-left-color: var(--color-amber);
-                background: color-mix(in srgb, var(--color-amber) 10%, white);
-            }
-            .tcfr-priorites li:nth-child(3) {
-                border-left-color: var(--color-amber);
-                background: color-mix(in srgb, var(--color-amber) 6%, white);
-            }
-            .tcfr-priorite-title {
-                margin: 0;
-                font-weight: 600;
-                color: var(--color-ink);
-            }
-            .tcfr-priorite-meta {
-                margin: 2px 0 0;
-                font-family: var(--font-mono);
-                font-size: 12px;
-                color: var(--color-muted);
-            }
-            .tcfr-rassurance {
-                background: var(--color-paper);
-                border-radius: 14px;
-                padding: 14px 16px;
-            }
-            .tcfr-rassurance-title {
-                margin: 0;
-                font-weight: 600;
-                color: var(--color-ink);
-            }
-            .tcfr-rassurance-text {
-                margin: 4px 0 0;
-                color: var(--color-muted);
-                font-size: 14px;
-            }
-            .tcfr-deja-title {
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--color-muted-2);
-                margin: 0 0 6px;
-            }
-            .tcfr-deja li {
-                color: var(--color-green);
-                font-size: 14px;
-            }
-            .tcfr-cta {
-                text-align: center;
-                text-decoration: none;
-            }
-            .tcfr-fine {
-                margin: 0;
-                font-size: 12px;
-                color: var(--color-muted-2);
-                text-align: center;
-            }
-            .tcfr-error {
-                background: var(--color-red-light);
-                color: var(--color-red-dark);
-                border-radius: 12px;
-                padding: 12px 14px;
-                margin: 0;
-            }
-            .tcfr-skel {
-                background: var(--color-paper-2);
-                border-radius: 16px;
-            }
-            .tcfr-skel-hero {
-                height: 180px;
-            }
-            .tcfr-skel-card {
-                height: 220px;
-            }
-        `}</style>
+            <p className={styles.footNote}>{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
+        </SejourApp>
     );
 }

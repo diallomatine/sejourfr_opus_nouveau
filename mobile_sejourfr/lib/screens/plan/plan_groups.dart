@@ -1,138 +1,21 @@
 /// **Le regroupement « épreuve → tâche » du Plan.**
 ///
-/// La séance et les priorités ne sont plus des listes plates : elles se lisent
-/// par **épreuve**, puis par **tâche** — « où je travaille → quelle compétence
-/// → quoi faire ». C'est une **vue**, dérivée ici, de ce que le serveur sert
-/// déjà : on ne retrie **jamais** les lignes à l'intérieur d'un groupe, et
-/// l'ordre des groupes est celui de leur première ligne. Le serveur reste seul
-/// à décider de l'ordre du Plan.
+/// Les priorités ne sont pas une liste plate : elles se lisent par **épreuve**,
+/// puis par **tâche** — « où je travaille → quelle compétence → quoi faire ».
+/// C'est une **vue**, dérivée ici, de ce que le serveur sert déjà : on ne
+/// retrie **jamais** les lignes à l'intérieur d'un groupe, et l'ordre des
+/// groupes est celui de leur première ligne. Le serveur reste seul à décider de
+/// l'ordre du Plan.
 ///
-/// 🛑 **Rien n'est recalculé.** Le verrou vient des `locked` servis, la coche de
-/// `lastActivityAt` (`planSeanceItemDone`), la nature de `nature`, le palier des
-/// domaines. Aucun rang de ligne n'entre dans une décision.
+/// 🛑 **Rien n'est recalculé.** Le verrou vient des `locked` servis, la nature
+/// de `nature`, le palier des domaines. Aucun rang de ligne n'entre dans une
+/// décision.
 library;
 
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import 'plan_labels.dart';
-import 'plan_seance_state.dart';
-
-/* ------------------------------------------------------------- la séance ---- */
-
-/// Une ligne de séance, avec les deux faits que l'encart lui demande.
-class PlanSeanceGroupRow {
-  const PlanSeanceGroupRow({
-    required this.item,
-    required this.done,
-    required this.locked,
-    required this.minutes,
-  });
-
-  final PlanSeanceItem item;
-  final bool done;
-  final bool locked;
-  final int minutes;
-}
-
-/// Un encart de séance : une épreuve, éventuellement une tâche, ses lignes.
-class PlanSeanceGroup {
-  const PlanSeanceGroup({
-    required this.key,
-    required this.epreuve,
-    required this.task,
-    required this.context,
-    required this.rows,
-  });
-
-  final String key;
-
-  /// `null` sur un jalon d'examen complet, qui ne relève d'aucune épreuve.
-  final EpreuveType? epreuve;
-
-  /// La tâche d'expression du groupe. `null` en compréhension, sur une mesure
-  /// et sur un jalon — leur repère est [context].
-  final SkillTaskCode? task;
-
-  /// Le repère de l'encart quand il n'a pas de tâche (« Niveau B1 », « Jalon »,
-  /// « Examen blanc n°1 »). `null` quand rien n'est servi pour le composer.
-  final String? context;
-
-  final List<PlanSeanceGroupRow> rows;
-
-  int get minutes => rows.fold(0, (sum, row) => sum + row.minutes);
-
-  int get doneCount => rows.where((row) => row.done).length;
-
-  bool get done => rows.isNotEmpty && doneCount == rows.length;
-
-  /// 🛑 **Un encart est verrouillé quand TOUTES ses lignes le sont**, jamais
-  /// parce qu'il n'est pas le premier : c'est le serveur qui ouvre la première
-  /// place du Plan, et il peut en ouvrir une autre. Un encart qui garde une
-  /// ligne ouverte se déplie.
-  bool get locked => rows.isNotEmpty && rows.every((row) => row.locked);
-}
-
-/// La séance, groupée. L'ordre des encarts suit l'ordre d'exécution servi.
-List<PlanSeanceGroup> planSeanceGroups(PlanSeance seance) {
-  final keys = <String>[];
-  final rows = <String, List<PlanSeanceGroupRow>>{};
-  final meta = <String, PlanSeanceGroup>{};
-
-  for (final item in seance.items) {
-    final section = item.section;
-    final epreuve = item.milestone?.epreuve ??
-        item.assessment?.epreuve ??
-        (section == null ? null : planEpreuveOfSection(section));
-    final task = section != null && section.isProduction
-        ? SkillTaskCode.fromSkillCode(item.skillCode)
-        : null;
-    final context = task != null
-        ? null
-        : planGroupContextLabel(
-            level: item.level,
-            assessment: item.assessment,
-            milestone: item.milestone,
-          );
-    final key = task?.wire ??
-        '${epreuve?.wire ?? '-'}·${context ?? item.nature.wire}';
-
-    if (!rows.containsKey(key)) {
-      keys.add(key);
-      rows[key] = <PlanSeanceGroupRow>[];
-      meta[key] = PlanSeanceGroup(
-        key: key,
-        epreuve: epreuve,
-        task: task,
-        context: context,
-        rows: const <PlanSeanceGroupRow>[],
-      );
-    }
-    rows[key]!.add(
-      PlanSeanceGroupRow(
-        item: item,
-        done: planSeanceItemDone(item),
-        locked: planSeanceItemLocked(item),
-        minutes: item.exercise?.estimatedMinutes ??
-            item.milestone?.estimatedMinutes ??
-            item.assessment?.estimatedMinutes ??
-            0,
-      ),
-    );
-  }
-
-  return keys
-      .map(
-        (key) => PlanSeanceGroup(
-          key: key,
-          epreuve: meta[key]!.epreuve,
-          task: meta[key]!.task,
-          context: meta[key]!.context,
-          rows: List<PlanSeanceGroupRow>.unmodifiable(rows[key]!),
-        ),
-      )
-      .toList(growable: false);
-}
 
 /* ---------------------------------------------------------- les priorités ---- */
 

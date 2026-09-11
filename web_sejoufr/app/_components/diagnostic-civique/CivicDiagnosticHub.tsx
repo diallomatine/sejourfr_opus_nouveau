@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * L'accueil du diagnostic **civique** (`20_` §4).
+ * L'accueil du diagnostic **civique** (`20_` §4) — l'écran d'intro.
  *
  * 🛑 **Ce n'est PAS un examen blanc**, et l'écran le dit avant de commencer :
  * il sert à repérer quoi travailler, pas à vérifier si on est prêt. Sans cette
@@ -23,7 +23,14 @@
  */
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
-import {ApiException, civicDiagnosticApi, publicCivicDiagnosticApi} from "@/lib/api";
+import {AlertCircle} from "lucide-react";
+import {
+    ApiException,
+    civicDiagnosticApi,
+    publicCivicDiagnosticApi,
+    publicThemeApi,
+    userContentApi,
+} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
     adopterSiInvite,
@@ -31,21 +38,43 @@ import {
     etatInvite,
 } from "@/lib/civic-diagnostic-guest";
 import {
+    CIVIC_DIAGNOSTIC_EN_COURS_LABEL,
     CIVIC_DIAGNOSTIC_GUEST_BADGE,
-    CIVIC_DIAGNOSTIC_GUEST_LEAD,
     CIVIC_DIAGNOSTIC_GUEST_NOTE,
     CIVIC_DIAGNOSTIC_GUEST_TITLE,
     CIVIC_DIAGNOSTIC_NOT_EXAM,
+    CIVIC_DIAGNOSTIC_PARAM,
     CIVIC_DIAGNOSTIC_RESULT_CTA,
     CIVIC_DIAGNOSTIC_RESUME_CTA,
     CIVIC_DIAGNOSTIC_START_CTA,
-    CIVIC_DIAGNOSTIC_PARAM,
-    civicDiagnosticSubtitle,
-    CIVIC_DIAGNOSTIC_TITLE,
+    CIVIC_EXAM_QUESTIONS,
+    CIVIC_EXAM_SEUIL_REUSSITE,
+    CIVIC_INTRO_FREE_CAPTION,
+    CIVIC_INTRO_KICKER,
+    CIVIC_INTRO_LEAD,
+    CIVIC_INTRO_SITUATIONS_NOTE,
+    CIVIC_INTRO_STAT_QUESTIONS,
+    CIVIC_INTRO_STAT_SEUIL,
+    CIVIC_INTRO_STAT_THEMES,
+    CIVIC_INTRO_THEMES_TITLE,
+    CIVIC_INTRO_TITLE,
+    CIVIC_THEMES_COUNT,
+    civicDiagnosticResultHref,
     MENTION_LABEL,
     progressionLabel,
 } from "@/lib/civic-diagnostic";
-import {civicDiagnosticResultHref} from "@/lib/civic-diagnostic";
+import {
+    Card,
+    ChoiceCard,
+    Cta,
+    NoteCard,
+    Pad,
+    Section,
+    sejourStyles as s,
+    SejourApp,
+    Stack,
+    Top,
+} from "@/app/_components/sejour/SejourKit";
 import type {CivicDiagnosticDto, TargetProcedure} from "@/lib/types";
 
 /** Le runner, avec le marqueur de retour vers le diagnostic. */
@@ -57,18 +86,19 @@ const MENTIONS: TargetProcedure[] = ["CSP", "CR", "NAT"];
 
 type Etat =
     | {kind: "loading"}
-    /** Visiteur sans diagnostic ouvert : il choisit sa démarche. */
-    | {kind: "invite"}
-    | {kind: "absent"}
+    /** Aucun diagnostic ouvert : le candidat choisit sa démarche. */
+    | {kind: "intro"}
     | {kind: "pret"; diagnostic: CivicDiagnosticDto; invite: boolean}
     | {kind: "erreur"; message: string};
 
 export function CivicDiagnosticHub() {
     const router = useRouter();
-    const {status} = useAuth();
+    const {status, user, refreshUser} = useAuth();
     const [etat, setEtat] = useState<Etat>({kind: "loading"});
     const [action, setAction] = useState(false);
-    const [procedure, setProcedure] = useState<TargetProcedure>("CSP");
+    const [procedure, setProcedure] = useState<TargetProcedure | null>(null);
+    /** Les 5 thèmes du livret : **libellés éditoriaux servis**, jamais recopiés. */
+    const [themes, setThemes] = useState<string[]>([]);
 
     const charger = useCallback(async () => {
         try {
@@ -83,11 +113,11 @@ export function CivicDiagnosticHub() {
                     return;
                 }
                 const courant = await civicDiagnosticApi.current();
-                setEtat(courant ? {kind: "pret", diagnostic: courant, invite: false} : {kind: "absent"});
+                setEtat(courant ? {kind: "pret", diagnostic: courant, invite: false} : {kind: "intro"});
                 return;
             }
             const invite = await etatInvite();
-            setEtat(invite ? {kind: "pret", diagnostic: invite, invite: true} : {kind: "invite"});
+            setEtat(invite ? {kind: "pret", diagnostic: invite, invite: true} : {kind: "intro"});
         } catch (e) {
             setEtat({
                 kind: "erreur",
@@ -106,16 +136,47 @@ export function CivicDiagnosticHub() {
         void charger();
     }, [charger, status]);
 
+    // La démarche déjà déclarée présélectionne le choix : la redemander à vide
+    // à quelqu'un qui l'a donnée au parcours serait une question de plus.
+    useEffect(() => {
+        if (user?.targetProcedure) setProcedure(user.targetProcedure);
+    }, [user?.targetProcedure]);
+
+    useEffect(() => {
+        if (etat.kind !== "intro") return;
+        // Lecture publique pour tout le monde : un 401 sur un catalogue ne se
+        // montre jamais au visiteur. Un échec laisse simplement la carte de
+        // côté — on ne déclare pas le livret vide sur une panne réseau.
+        publicThemeApi
+            .list("CIVIQUE")
+            .then((liste) =>
+                setThemes(
+                    [...liste]
+                        .sort((a, b) => a.displayOrder - b.displayOrder)
+                        .map((t) => t.name),
+                ),
+            )
+            .catch(() => setThemes([]));
+    }, [etat.kind]);
+
     /** Ouvrir est idempotent côté compte : un double appui ne retire pas. */
     const ouvrir = useCallback(async () => {
-        if (action) return;
+        if (action || !procedure) return;
         setAction(true);
         try {
-            const ouvert =
-                status === "authenticated"
-                    ? await civicDiagnosticApi.open()
-                    : await publicCivicDiagnosticApi.open(procedure);
-            if (status !== "authenticated") {
+            let ouvert: CivicDiagnosticDto;
+            if (status === "authenticated") {
+                // 🛑 Côté compte, le serveur tire sur `users.target_procedure` :
+                // changer de démarche ici doit donc la **déclarer** avant le
+                // tirage, sinon l'écran promet un programme et le serveur en
+                // sert un autre.
+                if (procedure !== user?.targetProcedure) {
+                    await userContentApi.updateTargetPath(procedure);
+                    await refreshUser();
+                }
+                ouvert = await civicDiagnosticApi.open();
+            } else {
+                ouvert = await publicCivicDiagnosticApi.open(procedure);
                 // L'adresse de la session, pour la reprise après rechargement
                 // et pour l'adoption au moment du compte.
                 ecrireInvite(ouvert, procedure);
@@ -134,7 +195,7 @@ export function CivicDiagnosticHub() {
             });
             setAction(false);
         }
-    }, [action, procedure, router, status]);
+    }, [action, procedure, refreshUser, router, status, user?.targetProcedure]);
 
     /**
      * Voir le résultat.
@@ -168,251 +229,191 @@ export function CivicDiagnosticHub() {
         [action, router],
     );
 
-    if (etat.kind === "loading") return <Squelette />;
+    if (etat.kind === "loading") {
+        return (
+            <SejourApp>
+                <Top kicker={CIVIC_INTRO_KICKER} title={CIVIC_INTRO_TITLE} />
+                <Pad>
+                    <p className={s.sub} aria-busy="true">
+                        Chargement…
+                    </p>
+                </Pad>
+            </SejourApp>
+        );
+    }
 
     if (etat.kind === "erreur") {
         return (
-            <section className="cvd">
-                <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-                <p className="cvd-error">{etat.message}</p>
-                <button type="button" className="btn" onClick={() => void charger()}>
-                    Réessayer
-                </button>
-                <Styles />
-            </section>
+            <SejourApp>
+                <Top kicker={CIVIC_INTRO_KICKER} title={CIVIC_INTRO_TITLE} />
+                <Section>
+                    <Pad>
+                        <Stack>
+                            <NoteCard variant="warn" icon={AlertCircle} title={etat.message} />
+                            <Cta variant="line" onClick={() => void charger()}>
+                                Réessayer
+                            </Cta>
+                        </Stack>
+                    </Pad>
+                </Section>
+            </SejourApp>
         );
     }
 
-    if (etat.kind === "invite") {
+    if (etat.kind === "pret") {
+        const d = etat.diagnostic;
+        const termine = d.status === "COMPLETED";
         return (
-            <section className="cvd">
-                <span className="cvd-badge">{CIVIC_DIAGNOSTIC_GUEST_BADGE}</span>
-                <h1>{CIVIC_DIAGNOSTIC_GUEST_TITLE}</h1>
-                <p className="cvd-lead">{CIVIC_DIAGNOSTIC_GUEST_LEAD}</p>
-                {/* 🛑 La démarche n'est pas un confort : elle choisit les
-                    questions. Un candidat naturalisation mesuré sur le
-                    programme d'une carte de séjour repart avec un diagnostic
-                    flatteur et un plan incomplet. */}
-                <div className="cvd-mentions" role="radiogroup" aria-label="Ma démarche">
-                    {MENTIONS.map((m) => (
-                        <button
-                            key={m}
-                            type="button"
-                            role="radio"
-                            aria-checked={procedure === m}
-                            className={`cvd-mention${procedure === m ? " is-active" : ""}`}
-                            onClick={() => setProcedure(m)}
-                        >
-                            <span className="cvd-mention-code">{m}</span>
-                            <span className="cvd-mention-name">{MENTION_LABEL[m]}</span>
-                        </button>
-                    ))}
-                </div>
-                <p className="cvd-note">{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
-                <button
-                    type="button"
-                    className="btn btn-lg"
-                    disabled={action}
-                    onClick={() => void ouvrir()}
-                >
-                    {CIVIC_DIAGNOSTIC_START_CTA}
-                </button>
-                <p className="cvd-note">{CIVIC_DIAGNOSTIC_GUEST_NOTE}</p>
-                <Styles />
-            </section>
-        );
-    }
-
-    if (etat.kind === "absent") {
-        return (
-            <section className="cvd">
-                <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-                {/* 🛑 Le nombre de questions n'est pas écrit en dur : tant que
-                    le serveur n'a rien servi, on décrit le parcours sans le
-                    chiffrer plutôt que d'annoncer un compte qui pourrait
-                    changer. */}
-                <p className="cvd-lead">
-                    Le format de l&apos;examen, réparti sur les 5 thèmes.
-                </p>
-                <p className="cvd-note">{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
-                <button
-                    type="button"
-                    className="btn btn-lg"
-                    disabled={action}
-                    onClick={() => void ouvrir()}
-                >
-                    {CIVIC_DIAGNOSTIC_START_CTA}
-                </button>
-                <Styles />
-            </section>
-        );
-    }
-
-    const d = etat.diagnostic;
-    const termine = d.status === "COMPLETED";
-
-    return (
-        <section className="cvd">
-            {etat.invite && <span className="cvd-badge">{CIVIC_DIAGNOSTIC_GUEST_BADGE}</span>}
-            <h1>{CIVIC_DIAGNOSTIC_TITLE}</h1>
-            <p className="cvd-lead">{civicDiagnosticSubtitle(d.total)}</p>
-            <p className="cvd-progress">{progressionLabel(d.repondues, d.total)}</p>
-
-            {termine ? (
-                <button
-                    type="button"
-                    className="btn btn-lg"
-                    disabled={action}
-                    onClick={() => void voirResultat(d.sessionId, etat.invite)}
-                >
-                    {CIVIC_DIAGNOSTIC_RESULT_CTA}
-                </button>
-            ) : (
-                <>
-                    <p className="cvd-note">{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
-                    <button
-                        type="button"
-                        className="btn btn-lg"
-                        disabled={action}
-                        onClick={() => router.push(runnerHref(d.attemptId, d.sessionId))}
-                    >
-                        {d.repondues > 0
-                            ? CIVIC_DIAGNOSTIC_RESUME_CTA
-                            : CIVIC_DIAGNOSTIC_START_CTA}
-                    </button>
-                    {/* Le résultat reste demandable même sans avoir tout répondu :
-                        une question sautée sort du dénominateur, elle ne devient
-                        jamais une mauvaise réponse. */}
-                    {d.repondues > 0 && (
-                        <button
-                            type="button"
-                            className="btn btn-ghost"
-                            disabled={action}
-                            onClick={() => void voirResultat(d.sessionId, etat.invite)}
-                        >
-                            {CIVIC_DIAGNOSTIC_RESULT_CTA}
-                        </button>
+            <SejourApp>
+                <Top
+                    kicker={CIVIC_INTRO_KICKER}
+                    title={CIVIC_INTRO_TITLE}
+                    badge={etat.invite ? CIVIC_DIAGNOSTIC_GUEST_BADGE : undefined}
+                />
+                <Section>
+                    <Pad>
+                        <Stack>
+                            <Card>
+                                <p className={s.label}>{CIVIC_DIAGNOSTIC_EN_COURS_LABEL}</p>
+                                <p className={s.sitScore}>
+                                    {progressionLabel(d.repondues, d.total)}
+                                </p>
+                                {!termine && (
+                                    <p className={s.tiny}>{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
+                                )}
+                            </Card>
+                            {termine ? (
+                                <Cta
+                                    variant="blue"
+                                    disabled={action}
+                                    onClick={() => void voirResultat(d.sessionId, etat.invite)}
+                                >
+                                    {CIVIC_DIAGNOSTIC_RESULT_CTA}
+                                </Cta>
+                            ) : (
+                                <>
+                                    <Cta
+                                        variant="blue"
+                                        disabled={action}
+                                        onClick={() =>
+                                            router.push(runnerHref(d.attemptId, d.sessionId))
+                                        }
+                                    >
+                                        {d.repondues > 0
+                                            ? CIVIC_DIAGNOSTIC_RESUME_CTA
+                                            : CIVIC_DIAGNOSTIC_START_CTA}
+                                    </Cta>
+                                    {/* Le résultat reste demandable même sans avoir tout
+                                        répondu : une question sautée sort du dénominateur,
+                                        elle ne devient jamais une mauvaise réponse. */}
+                                    {d.repondues > 0 && (
+                                        <Cta
+                                            variant="line"
+                                            disabled={action}
+                                            onClick={() =>
+                                                void voirResultat(d.sessionId, etat.invite)
+                                            }
+                                        >
+                                            {CIVIC_DIAGNOSTIC_RESULT_CTA}
+                                        </Cta>
+                                    )}
+                                </>
+                            )}
+                        </Stack>
+                    </Pad>
+                    {etat.invite && (
+                        <p className={s.footNote}>{CIVIC_DIAGNOSTIC_GUEST_NOTE}</p>
                     )}
-                </>
+                </Section>
+            </SejourApp>
+        );
+    }
+
+    return (
+        <SejourApp>
+            <Top kicker={CIVIC_INTRO_KICKER} title={CIVIC_INTRO_TITLE} />
+
+            <Pad>
+                <p className={s.sub}>{CIVIC_INTRO_LEAD}</p>
+            </Pad>
+
+            {/* 🛑 Le format de l'épreuve, pas celui de la maquette : 40 questions
+                et un seuil de 32, miroir de `CivicExamFormat`. Aucune durée n'est
+                annoncée — le diagnostic n'a pas de chrono et le serveur n'en sert
+                aucune : l'inventer serait promettre un temps qui n'existe pas. */}
+            <Section>
+                <Pad>
+                    <Card>
+                        <div className={s.statGrid}>
+                            <div>
+                                <b>{CIVIC_EXAM_QUESTIONS}</b>
+                                <span>{CIVIC_INTRO_STAT_QUESTIONS}</span>
+                            </div>
+                            <div>
+                                <b>{CIVIC_THEMES_COUNT}</b>
+                                <span>{CIVIC_INTRO_STAT_THEMES}</span>
+                            </div>
+                            <div>
+                                <b>
+                                    {CIVIC_EXAM_SEUIL_REUSSITE} / {CIVIC_EXAM_QUESTIONS}
+                                </b>
+                                <span>{CIVIC_INTRO_STAT_SEUIL}</span>
+                            </div>
+                        </div>
+                    </Card>
+                </Pad>
+            </Section>
+
+            {themes.length > 0 && (
+                <Section>
+                    <Pad>
+                        <Card>
+                            <p className={s.label}>{CIVIC_INTRO_THEMES_TITLE}</p>
+                            <ul className={s.themeList}>
+                                {themes.map((nom) => (
+                                    <li key={nom}>{nom}</li>
+                                ))}
+                            </ul>
+                            <p className={s.tiny}>{CIVIC_INTRO_SITUATIONS_NOTE}</p>
+                        </Card>
+                    </Pad>
+                </Section>
             )}
-            {etat.invite && <p className="cvd-note">{CIVIC_DIAGNOSTIC_GUEST_NOTE}</p>}
-            <Styles />
-        </section>
-    );
-}
 
-function Squelette() {
-    return (
-        <section className="cvd" aria-busy="true">
-            <div className="cvd-skel cvd-skel-h1" />
-            <div className="cvd-skel cvd-skel-line" />
-            <Styles />
-        </section>
-    );
-}
+            {/* 🛑 La démarche n'est pas un confort : elle choisit les questions.
+                Un candidat naturalisation mesuré sur le programme d'une carte de
+                séjour repart avec un diagnostic flatteur et un plan incomplet. */}
+            <Section title={CIVIC_DIAGNOSTIC_GUEST_TITLE}>
+                <Pad>
+                    <Stack>
+                        {MENTIONS.map((m) => (
+                            <ChoiceCard
+                                key={m}
+                                label={MENTION_LABEL[m]}
+                                selected={procedure === m}
+                                onSelect={() => setProcedure(m)}
+                            />
+                        ))}
+                    </Stack>
+                </Pad>
+            </Section>
 
-/**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
- *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
- * écrans invisiblement nus — le toggle du Plan y compris.
- *
- * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
- * classes sont préfixées pour qu'il n'y ait aucune collision.
- */
-function Styles() {
-    return (
-        <style>{`
-            .cvd {
-                max-width: 480px;
-                margin: 0 auto;
-                padding: 24px 16px 48px;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-            }
-            .cvd h1 {
-                font-family: var(--font-display);
-                font-size: 26px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .cvd-badge {
-                align-self: flex-start;
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: var(--color-blue);
-                background: var(--color-blue-light);
-                border-radius: 999px;
-                padding: 4px 10px;
-            }
-            .cvd-lead,
-            .cvd-note {
-                color: var(--color-muted);
-                margin: 0;
-            }
-            .cvd-note {
-                font-size: 13px;
-            }
-            .cvd-progress {
-                font-family: var(--font-mono);
-                font-size: 12px;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--color-muted-2);
-                margin: 0;
-            }
-            .cvd-mentions {
-                display: grid;
-                gap: 8px;
-            }
-            .cvd-mention {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                width: 100%;
-                text-align: left;
-                background: var(--color-surface);
-                border: 1px solid var(--color-line);
-                border-radius: 12px;
-                padding: 12px 14px;
-                cursor: pointer;
-            }
-            .cvd-mention.is-active {
-                border-color: var(--color-blue);
-                box-shadow: 0 0 0 1px var(--color-blue) inset;
-            }
-            .cvd-mention-code {
-                font-family: var(--font-mono);
-                font-size: 12px;
-                color: var(--color-blue);
-            }
-            .cvd-mention-name {
-                font-size: 14px;
-                color: var(--color-ink);
-            }
-            .cvd-error {
-                background: var(--color-red-light);
-                color: var(--color-red-dark);
-                border-radius: 12px;
-                padding: 12px 14px;
-                margin: 0;
-            }
-            .cvd-skel {
-                background: var(--color-line);
-                border-radius: 10px;
-                animation: cvd-pulse 1.3s ease-in-out infinite;
-            }
-            .cvd-skel-h1 { height: 30px; width: 70%; }
-            .cvd-skel-line { height: 16px; width: 90%; }
-            @keyframes cvd-pulse {
-                0%, 100% { opacity: 0.55; }
-                50% { opacity: 0.9; }
-            }
-        `}</style>
+            <Section>
+                <Pad>
+                    <Cta
+                        variant="blue"
+                        disabled={action || !procedure}
+                        onClick={() => void ouvrir()}
+                        caption={CIVIC_INTRO_FREE_CAPTION}
+                    >
+                        {CIVIC_DIAGNOSTIC_START_CTA}
+                    </Cta>
+                </Pad>
+                <p className={s.footNote}>{CIVIC_DIAGNOSTIC_NOT_EXAM}</p>
+                {status !== "authenticated" && (
+                    <p className={s.footNote}>{CIVIC_DIAGNOSTIC_GUEST_NOTE}</p>
+                )}
+            </Section>
+        </SejourApp>
     );
 }
