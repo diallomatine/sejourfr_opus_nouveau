@@ -2,6 +2,8 @@ package com.sejourfr.app.service.plancivique;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * La <b>répétition espacée</b> du module civique — 5 boîtes ({@code 20_} §5.1,
@@ -72,5 +74,36 @@ public final class CivicLeitner {
     /** Garde-fou de lecture : une boîte hors bornes ne doit jamais lever. */
     private static int borne(int boite) {
         return Math.min(Math.max(boite, PREMIERE), DERNIERE);
+    }
+
+    /**
+     * <b>Le parcours d'une cible</b> : ou en est le candidat, etape par etape.
+     *
+     * <p>🛑 C'est ce qui rend <b>l'effet Leitner visible</b> ({@code 30_} §510 :
+     * « l'effet doit etre visible, c'est ce qui rend la valeur Premium
+     * tangible »), sans jamais publier le numero de boite, que la meme regle
+     * interdit d'afficher — les fronts n'en recoivent que des etats, et posent
+     * dessus leurs libelles geles.
+     *
+     * <p>Une cible <b>maitrisee</b> a franchi tout son parcours : aucune etape
+     * n'est « en cours », sinon l'ecran redemanderait un travail deja fait.
+     *
+     * <p>⚠️ <b>Le parcours peut RECULER</b> : une erreur renvoie en
+     * {@link #PREMIERE} ({@link #suivante}). C'est voulu — c'est precisement ce
+     * que le candidat doit voir.
+     *
+     * @param boite     la boite repliee sur l'historique
+     * @param maitrisee l'etat pedagogique deja derive, pour ne pas le recalculer
+     * @return exactement {@link #DERNIERE} etats, du premier au dernier
+     */
+    public static List<CivicEtapeEtat> parcours(int boite, boolean maitrisee) {
+        int courante = borne(boite) - 1;
+        List<CivicEtapeEtat> etapes = new ArrayList<>(DERNIERE);
+        for (int i = 0; i < DERNIERE; i++) {
+            etapes.add(maitrisee || i < courante
+                    ? CivicEtapeEtat.FRANCHIE
+                    : i == courante ? CivicEtapeEtat.EN_COURS : CivicEtapeEtat.A_VENIR);
+        }
+        return List.copyOf(etapes);
     }
 }

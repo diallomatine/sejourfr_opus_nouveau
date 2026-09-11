@@ -14,6 +14,26 @@ import 'enums.dart';
 ///
 /// 🛑 [nonEvaluee] n'est **pas** un mauvais verdict : moins de deux réponses ne
 /// conclut rien. C'est l'invariant `null = inconnu` appliqué au civique.
+/// L'état d'une étape du parcours d'une cible. Miroir Java `CivicEtapeEtat`.
+///
+/// 🛑 **Servi, jamais dérivé** : c'est le serveur qui situe le candidat.
+enum CivicEtapeEtat {
+  franchie('FRANCHIE'),
+  enCours('EN_COURS'),
+  aVenir('A_VENIR');
+
+  const CivicEtapeEtat(this.wire);
+
+  final String wire;
+
+  /// Une valeur inconnue se lit « pas encore atteinte » : on n'invente pas une
+  /// progression qu'on ne comprend pas.
+  static CivicEtapeEtat fromWire(String wire) => values.firstWhere(
+        (e) => e.wire == wire,
+        orElse: () => CivicEtapeEtat.aVenir,
+      );
+}
+
 enum CivicMaitrise {
   nonEvaluee('NON_EVALUEE', 'Non évaluée'),
   aTravailler('A_TRAVAILLER', 'À travailler'),
@@ -120,6 +140,7 @@ class CivicPlanCible {
     required this.etatDuTheme,
     required this.maitrise,
     required this.boite,
+    required this.parcours,
     required this.reponses,
     required this.correctes,
     required this.erreursRecentes,
@@ -144,7 +165,14 @@ class CivicPlanCible {
   /// 🛑 `nonEvalue` n'est pas « faible ».
   final CivicThemeState etatDuTheme;
   final CivicMaitrise maitrise;
+
+  /// 🛑 Ne s'affiche **jamais** (`30_` §510). Ce qu'on montre, c'est [parcours].
   final int boite;
+
+  /// **Où en est le candidat**, étape par étape — exactement 5 états, du
+  /// premier au dernier. 🛑 **Servi** : un front ne situe jamais lui-même une
+  /// progression. Les libellés sont gelés dans `civic_plan_labels.dart`.
+  final List<CivicEtapeEtat> parcours;
   final int reponses;
   final int correctes;
   final int erreursRecentes;
@@ -175,6 +203,9 @@ class CivicPlanCible {
             CivicThemeState.fromWire(json['etatDuTheme'] as String? ?? 'NON_EVALUE'),
         maitrise: CivicMaitrise.fromWire(json['maitrise'] as String? ?? 'NON_EVALUEE'),
         boite: (json['boite'] as num?)?.toInt() ?? 1,
+        parcours: (json['parcours'] as List<dynamic>? ?? const <dynamic>[])
+            .map((e) => CivicEtapeEtat.fromWire(e as String? ?? ''))
+            .toList(growable: false),
         reponses: (json['reponses'] as num?)?.toInt() ?? 0,
         correctes: (json['correctes'] as num?)?.toInt() ?? 0,
         erreursRecentes: (json['erreursRecentes'] as num?)?.toInt() ?? 0,

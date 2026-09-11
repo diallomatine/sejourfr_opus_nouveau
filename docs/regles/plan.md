@@ -1024,6 +1024,43 @@ Un `ORDER BY` oublié se verrait comme un plan qui change sans raison.
 (`20_` §8.2). Écarter une source rendrait le plan sourd à la moitié de ce que le
 candidat produit.
 
+### Le parcours d'une cible — l'effet Leitner rendu visible (2026-09-11)
+
+`30_` §510 demande deux choses en une phrase : « **l'effet Leitner doit être
+visible** — c'est ce qui rend la valeur Premium tangible » et « **ne jamais
+afficher le numéro de boîte**, seulement l'état et la prochaine échéance ».
+Longtemps, seule la seconde moitié était tenue : le plan se réordonnait en
+silence, donc il ne se distinguait pas d'une liste de thèmes.
+
+`CivicPlanDto.Cible.parcours` sert désormais **exactement 5 `CivicEtapeEtat`**
+(`FRANCHIE` / `EN_COURS` / `A_VENIR`), calculés par `CivicLeitner.parcours` :
+
+```
+boîte 1 → EN_COURS  A_VENIR  A_VENIR  A_VENIR  A_VENIR
+boîte 3 → FRANCHIE FRANCHIE  EN_COURS A_VENIR  A_VENIR
+MAITRISEE → tout FRANCHIE, aucune étape en cours
+```
+
+🛑 **Le numéro de boîte n'est jamais publié à l'écran.** Il reste sur le DTO pour
+l'admin et les tests ; le candidat voit une **position dans un parcours nommé**
+(« Étape 3 / 5 »). C'est la forme validée par la maquette du propriétaire, et
+elle honore les deux moitiés de la règle.
+
+🛑 **Les libellés des 5 étapes sont GELÉS côté front**, en miroir mot pour mot
+(`CIVIC_PATH_LABELS` dans `web_sejoufr/lib/civic-plan.ts` ⇄ `kCivicPathLabels`
+dans `mobile_sejourfr/lib/screens/plan/civic_plan_labels.dart`). Le DTO civique
+sert des **faits, jamais des phrases** — c'est la règle de tout ce module.
+
+🛑 **Aucun front ne situe le candidat.** Une première version dérivait les trois
+états depuis `boite` dans les deux fronts : c'était un front qui classe un nombre
+en état pédagogique, et deux implémentations vouées à diverger. Ne pas y revenir.
+`CivicLeitnerParcoursTest` verrouille le contrat.
+
+⚠️ **Le parcours peut RECULER** — une erreur renvoie en première étape, comme la
+boîte. C'est voulu : c'est exactement ce que le candidat doit voir. Un
+`parcours` vide (client servi par un backend antérieur au champ) n'affiche
+**aucune carte**, jamais des étapes fabriquées.
+
 ### État de maîtrise (`20_` §5.2)
 
 `NON_EVALUEE` (< 2 réponses) · `A_TRAVAILLER` (boîte 1-2) · `EN_PROGRESSION`

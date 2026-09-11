@@ -162,6 +162,13 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         )
       else
         _nothingUrgent(),
+      // Le parcours de la notion en cours — c'est ICI que l'effet Leitner
+      // devient visible : ce que le candidat a franchi, où il en est, et ce
+      // qu'il reste avant que la notion soit tenue.
+      // Parcours vide = serveur anterieur au champ : on n'affiche pas une
+      // carte creuse plutot que de fabriquer des etapes.
+      if (plan.prochaine?.parcours.isNotEmpty ?? false)
+        _pathSection(plan.prochaine!),
       ..._prioritiesSection(plan, free: false),
       ..._doneSection(plan),
       ..._reviewSection(plan, maintenant),
@@ -326,6 +333,23 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         ),
       ),
     ];
+  }
+
+  /// Le parcours d'une cible, dérivé de sa boîte Leitner **servie**.
+  /// 🛑 Le numéro de boîte ne s'affiche jamais : il se rend en position dans
+  /// un parcours nommé (`civicPath`).
+  Widget _pathSection(CivicPlanCible cible) {
+    final etapes = civicPath(cible);
+    final courante = etapes.where((e) => e.state == SfStepState.now).firstOrNull;
+    return SfSection(
+      flush: true,
+      title: '$kCivicPathTitle — ${cible.label}',
+      child: SfPathCard(
+        currentLabel: courante?.label ?? kCivicPathLabels.last,
+        counterLabel: civicPathCounter(cible),
+        steps: etapes,
+      ),
+    );
   }
 
   List<Widget> _prioritiesSection(CivicPlan plan, {required bool free}) {

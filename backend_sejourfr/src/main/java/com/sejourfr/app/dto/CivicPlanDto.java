@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.service.plancivique.CivicEtapeEtat;
 import com.sejourfr.app.service.plancivique.CivicMaitrise;
 import com.sejourfr.app.service.plancivique.CivicPlanGrain;
 
@@ -124,7 +125,16 @@ public record CivicPlanDto(
      *                          🛑 {@code NON_EVALUE} n'est pas « faible »
      * @param maitrise          l'etat pedagogique. 🛑 <b>Servi</b> : aucun front
      *                          ne classe un compteur en etat
-     * @param boite             la boite Leitner (1 a 5)
+     * @param boite             la boite Leitner (1 a 5). 🛑 <b>Ne s'affiche
+     *                          jamais</b> ({@code 30_} §510) : elle est servie
+     *                          pour l'admin et les tests. Ce que l'ecran montre,
+     *                          c'est {@code parcours}
+     * @param parcours          <b>ou en est le candidat</b>, etape par etape —
+     *                          exactement 5 etats, du premier au dernier. 🛑
+     *                          C'est ce qui rend l'effet Leitner <b>visible</b>
+     *                          sans publier un numero de boite. Les libelles des
+     *                          etapes sont geles cote front : ce DTO sert des
+     *                          faits, jamais des phrases
      * @param reponses          reponses enregistrees sur cette cible
      * @param correctes         dont justes
      * @param erreursRecentes   erreurs sur 30 jours (ce que le score compte)
@@ -155,6 +165,7 @@ public record CivicPlanDto(
             CivicThemeState etatDuTheme,
             CivicMaitrise maitrise,
             int boite,
+            List<CivicEtapeEtat> parcours,
             int reponses,
             int correctes,
             int erreursRecentes,

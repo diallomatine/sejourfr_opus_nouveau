@@ -1166,13 +1166,35 @@ dans le kit), `test/plan_screen_test.dart` (il gelait l'anatomie supprimée).
 
 | Bloc de la maquette | Pourquoi |
 |---|---|
-| Plan civique : « Votre parcours — {notion} » (5 étapes) | Aucune table de parcours civique, aucun DTO d'étapes. Le seul axe servi est la boîte Leitner. |
 | Plan civique : encart « Progression détectée » | `CivicPlanDto` ne sert **aucun** `recentChanges` — ni transition, ni avant/après. C'est le manque C09 de `70_RESTE_A_FAIRE` §3.1. |
 | Plan civique : notions (« Le Parlement ») | 0 question taguée sur 1 016 ⇒ `grain.courant == THEME`. L'écran affiche le thème et **dit** son grain. |
 | Sous-compétences d'une priorité civique | Pas de sous-arbre servi. |
 | « Objectif de cette séance » | Aucun `reason_text` servi (refus explicite du DTO). |
 | TCF : « Votre parcours — Tâche N » quand la priorité n°1 est en CO/CE | Pas de `taches[]` en compréhension, donc aucun compteur servi. |
 | Durée du diagnostic civique (« 15 min ») | Aucune durée n'existe : l'attempt est créé sans `time_limit_seconds`, `DureeEpreuve` ne couvre pas `CIVIQUE`. Remplacé par « Seuil de réussite · 32 / 40 ». |
+
+**⚠️ Correctif du 2026-09-11 — le parcours civique EXISTE, et il est SERVI.**
+Il avait d'abord été omis, à tort. Le backend sert désormais
+`CivicPlanDto.Cible.parcours` : **exactement 5 `CivicEtapeEtat`**
+(`FRANCHIE` / `EN_COURS` / `A_VENIR`), dérivés de la boîte Leitner par
+`CivicLeitner.parcours` et verrouillés par `CivicLeitnerParcoursTest`.
+
+🛑 **Les fronts n'affichent que ce qui est servi.** Une première version dérivait
+ces états depuis `boite` dans les deux fronts : c'était un front qui classe un
+nombre en état pédagogique — interdit par le dépôt — et deux implémentations
+vouées à diverger. `civicPath` / `civicPathCounter` (`lib/civic-plan.ts` ⇄
+`civic_plan_labels.dart`) ne font plus que **poser un libellé gelé sur un état
+servi**. Le bloc est rendu sur le Plan civique **abonné**, entre « À faire
+maintenant » et « Vos priorités ».
+
+🛑 **Le numéro de boîte ne s'affiche jamais** (`30_` §510) : il reste servi pour
+l'admin et les tests, et l'écran montre une **position dans un parcours nommé** —
+« Étape 3 / 5 », la forme validée par la maquette du propriétaire, qui sert
+l'autre moitié de la même règle (« l'effet Leitner doit être **visible** »).
+
+⚠️ **Le parcours peut RECULER** : une erreur renvoie en première étape. C'est
+voulu — c'est précisément ce que le candidat doit voir. Un `parcours` vide (client
+servi par un backend antérieur au champ) n'affiche **aucune carte**.
 
 **Le diagnostic civique fait 40 questions** (28 + 12), pas les 24 du mockup :
 quand `posees == formatQuestions`, le score **EST** le résultat.

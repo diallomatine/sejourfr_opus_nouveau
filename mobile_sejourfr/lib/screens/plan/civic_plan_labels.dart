@@ -1,5 +1,6 @@
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 
 /// Les **mots** du plan civique (L10, `20_` §6) — **purs**, déclarés une fois
 /// pour tout le mobile.
@@ -257,3 +258,50 @@ const String kCivicPlanExamCta = 'Faire un examen blanc';
 
 /// Le badge de la carte d'action : son rang, pas le titre de la section.
 const String kCivicPlanNowBadge = 'Priorité n°1';
+
+/* ------------------------------------------------ Le parcours d'une cible */
+
+/// **Les 5 étapes d'une notion**, du premier contact à la maîtrise tenue.
+///
+/// 🛑 Libellés **gelés** : le serveur sert l'ÉTAT de chaque étape
+/// (`Cible.parcours`), jamais sa phrase. Miroir mot pour mot de
+/// `CIVIC_PATH_LABELS` (`web_sejoufr/lib/civic-plan.ts`).
+const List<String> kCivicPathLabels = <String>[
+  'Comprendre l\'essentiel',
+  'Première série ciblée',
+  'Corriger vos confusions',
+  'Série de validation',
+  'Vérifier la maîtrise',
+];
+
+const String kCivicPathTitle = 'Votre parcours';
+
+/// Le parcours d'une cible : l'état **servi** de chaque étape, habillé du
+/// libellé gelé de son rang.
+///
+/// 🛑 **Rien n'est dérivé ici.** Une première version calculait ces états depuis
+/// `boite` — un front qui classe un nombre en état pédagogique, ce que le dépôt
+/// interdit. Le serveur les sert (`CivicLeitner.parcours`), l'écran les affiche.
+List<SfPathStep> civicPath(CivicPlanCible cible) => <SfPathStep>[
+      for (var i = 0;
+          i < cible.parcours.length && i < kCivicPathLabels.length;
+          i++)
+        SfPathStep(
+          label: kCivicPathLabels[i],
+          state: switch (cible.parcours[i]) {
+            CivicEtapeEtat.franchie => SfStepState.done,
+            CivicEtapeEtat.enCours => SfStepState.now,
+            CivicEtapeEtat.aVenir => SfStepState.todo,
+          },
+        ),
+    ];
+
+/// « Étape 3 / 5 » — le rang de l'étape en cours, lu sur ce qui est servi.
+String civicPathCounter(CivicPlanCible cible) {
+  final total = cible.parcours.length < kCivicPathLabels.length
+      ? cible.parcours.length
+      : kCivicPathLabels.length;
+  final rang = cible.parcours.indexOf(CivicEtapeEtat.enCours) + 1;
+  // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
+  return 'Étape ${rang > 0 ? rang : total} / $total';
+}

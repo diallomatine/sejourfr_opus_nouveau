@@ -21,6 +21,10 @@ import {
   civicPlanRaison,
   civicRevueLabel,
   civicSerieLabel,
+    CIVIC_PATH_LABELS,
+    CIVIC_PATH_TITLE,
+    civicPath,
+    civicPathCounter,
 } from "@/lib/civic-plan";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {handleStartFailure} from "@/lib/start-failure";
@@ -50,6 +54,7 @@ import {
   cx,
   sejourStyles,
   type Tone,
+  PathCard,
 } from "@/app/_components/sejour/SejourKit";
 import {PlanGate} from "./PlanGate";
 import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from "./PlanPaywallCard";
@@ -192,6 +197,24 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
               onStart={() => onStart(plan.prochaine!)}
             />
           </Pad>
+        </Section>
+      )}
+
+      {/* Le parcours de la notion en cours — c'est ICI que l'effet Leitner
+          devient visible : ce que le candidat a franchi, où il en est, et ce
+          qu'il reste avant que la notion soit tenue. */}
+      {plan.prochaine && plan.prochaine.parcours.length > 0 && (
+        <Section title={`${CIVIC_PATH_TITLE} — ${plan.prochaine.label}`} flush>
+          <PathCard
+            // Aucune étape en cours = la notion est tenue : on nomme la
+            // dernière plutôt que de laisser l'en-tête vide.
+            currentLabel={
+              civicPath(plan.prochaine).find((e) => e.state === "now")?.label
+              ?? CIVIC_PATH_LABELS[CIVIC_PATH_LABELS.length - 1]
+            }
+            counterLabel={civicPathCounter(plan.prochaine)}
+            steps={civicPath(plan.prochaine)}
+          />
         </Section>
       )}
 

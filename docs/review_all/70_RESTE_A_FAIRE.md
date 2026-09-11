@@ -244,10 +244,15 @@ Ce que ça a **retiré** des deux Plans : la séance du jour (« Aujourd'hui »,
 `/plan/progression` et `/statistiques`). Ce que ça a **gardé**, hors maquette et
 faute d'autre porte : le jalon, « Compléter mon profil » et le chemin de palier.
 
-⚠️ **Trois blocs de la maquette sont OMIS faute de données** — ils sont le vrai
-reste à faire, et ils convergent tous vers §3.1 : le parcours par notion du plan
-civique, son encart « Progression détectée », et les sous-compétences d'une
-priorité civique. Aucun n'a été fabriqué.
+⚠️ **Deux blocs de la maquette restent OMIS faute de données** : l'encart
+« Progression détectée » du plan civique et les sous-compétences d'une priorité
+civique. Aucun n'a été fabriqué — cf. §3.1.
+
+✅ **Le parcours par notion, lui, est livré** (2026-09-11, après remarque du
+propriétaire) : `CivicPlanDto.Cible.parcours` sert 5 `CivicEtapeEtat`, dérivés
+de la boîte Leitner côté serveur et affichés tels quels par les deux fronts.
+C'est la moitié de C09 qui se referme — l'effet Leitner devient **visible** sur
+le Plan, sans que le numéro de boîte soit jamais publié.
 
 ## 3.8. La courbe de progression (T28 bloc 1)
 

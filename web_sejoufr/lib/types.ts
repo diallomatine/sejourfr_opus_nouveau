@@ -3962,6 +3962,9 @@ export interface ProgressDto {
  * 🛑 `NON_EVALUEE` n'est **pas** un mauvais verdict : moins de deux réponses ne
  * conclut rien. C'est l'invariant `null = inconnu` appliqué au civique.
  */
+/** L'état d'une étape du parcours d'une cible civique. Miroir Java. */
+export type CivicEtapeEtat = "FRANCHIE" | "EN_COURS" | "A_VENIR";
+
 export type CivicMaitrise =
     | "NON_EVALUEE"
     | "A_TRAVAILLER"
@@ -4029,7 +4032,14 @@ export interface CivicPlanCibleDto {
     /** 🛑 `NON_EVALUE` n'est pas « faible ». */
     etatDuTheme: CivicThemeState;
     maitrise: CivicMaitrise;
+    /** 🛑 Ne s'affiche JAMAIS (`30_` §510). Ce qu'on montre, c'est `parcours`. */
     boite: number;
+    /**
+     * **Où en est le candidat**, étape par étape — exactement 5 états, du
+     * premier au dernier. 🛑 **Servi** : un front ne situe jamais lui-même une
+     * progression. Les libellés sont gelés dans `lib/civic-plan.ts`.
+     */
+    parcours: CivicEtapeEtat[];
     reponses: number;
     correctes: number;
     erreursRecentes: number;

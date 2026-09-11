@@ -385,7 +385,10 @@ public class CivicPlanService {
                 id, code, label, grain,
                 theme.getId(), theme.getCode(), theme.getName(),
                 etatDuTheme,
-                etat.maitrise(), etat.boite(), etat.reponses(), etat.correctes(),
+                etat.maitrise(), etat.boite(),
+                CivicLeitner.parcours(
+                        etat.boite(), etat.maitrise() == CivicMaitrise.MAITRISEE),
+                etat.reponses(), etat.correctes(),
                 etat.erreursRecentes(), etat.derniereErreur(), etat.prochaineRevue(),
                 etat.aRevoir(maintenant),
                 score, insuffisant,

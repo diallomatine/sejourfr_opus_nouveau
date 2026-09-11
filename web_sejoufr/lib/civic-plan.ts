@@ -141,3 +141,55 @@ export function civicRevueLabel(cible: CivicPlanCibleDto, maintenant: Date): str
 
 /** Où travailler une cible sans passer par la série (bibliothèque ouverte). */
 export const CIVIC_PLAN_EXAM_HREF = "/examens-blancs?module=CIVIQUE";
+
+/* ------------------------------------------------- Le parcours d'une cible */
+
+/**
+ * **Les 5 étapes d'une notion**, du premier contact à la maîtrise tenue.
+ *
+ * 🛑 Ce sont des **libellés gelés** : le serveur sert l'ÉTAT de chaque étape
+ * (`Cible.parcours`), jamais sa phrase. Miroir mot pour mot de
+ * `kCivicPathLabels` (`mobile_sejourfr/lib/screens/plan/civic_plan_labels.dart`).
+ */
+export const CIVIC_PATH_LABELS = [
+    "Comprendre l'essentiel",
+    "Première série ciblée",
+    "Corriger vos confusions",
+    "Série de validation",
+    "Vérifier la maîtrise",
+] as const;
+
+export const CIVIC_PATH_TITLE = "Votre parcours";
+
+/**
+ * Le parcours d'une cible : l'état **servi** de chaque étape, habillé du
+ * libellé gelé de son rang.
+ *
+ * 🛑 **Rien n'est dérivé ici.** Une première version calculait ces états depuis
+ * `boite` — un front qui classe un nombre en état pédagogique, ce que le dépôt
+ * interdit. Le serveur les sert (`CivicLeitner.parcours`), l'écran les affiche.
+ *
+ * Une étape servie sans libellé connu est **ignorée** : on n'invente pas un
+ * nom d'étape parce que le serveur en a ajouté une.
+ */
+export function civicPath(
+    cible: CivicPlanCibleDto,
+): {label: string; state: "done" | "now" | "todo"}[] {
+    return cible.parcours
+        .slice(0, CIVIC_PATH_LABELS.length)
+        .map((etat, i) => ({
+            label: CIVIC_PATH_LABELS[i],
+            state:
+                etat === "FRANCHIE" ? ("done" as const)
+                    : etat === "EN_COURS" ? ("now" as const)
+                        : ("todo" as const),
+        }));
+}
+
+/** « Étape 3 / 5 » — le rang de l'étape en cours, lu sur ce qui est servi. */
+export function civicPathCounter(cible: CivicPlanCibleDto): string {
+    const total = Math.min(cible.parcours.length, CIVIC_PATH_LABELS.length);
+    const rang = cible.parcours.findIndex((e) => e === "EN_COURS") + 1;
+    // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
+    return `Étape ${rang > 0 ? rang : total} / ${total}`;
+}
