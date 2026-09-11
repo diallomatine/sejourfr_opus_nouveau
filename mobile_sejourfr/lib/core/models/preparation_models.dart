@@ -35,6 +35,7 @@ class ModulePreparation {
     this.fait,
     this.total,
     this.sessionId,
+    this.estimationSessionId,
     this.niveau,
     this.cible,
     this.aRenforcer,
@@ -46,7 +47,18 @@ class ModulePreparation {
   /// à cette étape.
   final int? fait;
   final int? total;
+
+  /// Le diagnostic à **reprendre** : le complet dès qu'il est ouvert.
   final String? sessionId;
+
+  /// **TCF** : la session du diagnostic **RAPIDE** déjà clos.
+  ///
+  /// 🛑 **Servie à toutes les étapes**, indépendamment de [etape] et de
+  /// [sessionId] — dès que le complet démarre, [sessionId] désigne le complet,
+  /// et sans ce champ le rapport du rapide (le seul résultat que le candidat
+  /// possède alors) devenait introuvable. `null` = aucun rapide clos, donc rien
+  /// à relire : c'est le seul état où la porte du Plan n'affiche pas de rapport.
+  final String? estimationSessionId;
 
   /// **TCF** : 🛑 `null` = pas encore mesuré, jamais A1.
   final NiveauCecrl? niveau;
@@ -64,6 +76,7 @@ class ModulePreparation {
         fait: (json['fait'] as num?)?.toInt(),
         total: (json['total'] as num?)?.toInt(),
         sessionId: json['sessionId'] as String?,
+        estimationSessionId: json['estimationSessionId'] as String?,
         niveau: json['niveau'] != null
             ? NiveauCecrl.fromWire(json['niveau'] as String)
             : null,

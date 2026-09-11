@@ -79,6 +79,18 @@ public class PreparationService {
     private PreparationDto.ModulePreparation tcf(UUID userId, User user) {
         NiveauCecrl cible = tcfDiagnosticService.cible(user).orElse(null);
 
+        // 🛑 Le diagnostic RAPIDE clos se lit INDEPENDAMMENT de l'etape, et
+        // avant elle. Il decidait autrefois de l'etape seulement quand aucun
+        // complet n'existait ; des que le complet demarrait, son identifiant
+        // disparaissait de la reponse et son rapport — le seul resultat que le
+        // candidat possede alors — devenait introuvable pour les fronts. Le
+        // fait « une estimation existe » ne depend pas de l'etape courante.
+        // Cout : une lecture indexee de plus, assumee, parce qu'un champ qui
+        // ne dit vrai qu'a certaines etapes finit par etre lu aux autres.
+        UUID estimation = diagnosticSessionManager.findLatestCompleted(userId)
+                .map(DiagnosticSession::getId)
+                .orElse(null);
+
         // --- Le diagnostic COMPLET decide de l'etape des qu'il existe.
         Optional<TcfDiagnosticSession> complet = tcfDiagnosticManager.findLatest(userId);
         if (complet.isPresent()) {
@@ -95,15 +107,15 @@ public class PreparationService {
                     session.getId(),
                     clos ? tcfReadService.niveauGlobal(sections).orElse(null) : null,
                     cible,
-                    null);
+                    null,
+                    estimation);
         }
 
-        // --- Sinon, le diagnostic RAPIDE.
-        Optional<DiagnosticSession> rapide = diagnosticSessionManager.findLatestCompleted(userId);
-        if (rapide.isPresent()) {
+        // --- Sinon, le diagnostic RAPIDE porte l'etape lui-meme.
+        if (estimation != null) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.ESTIMATION_FAITE,
-                    null, null, rapide.get().getId(), null, cible, null);
+                    null, null, estimation, null, cible, null, estimation);
         }
 
         // 🛑 La session du diagnostic rapide se retrouve par (code, version) —
@@ -117,10 +129,10 @@ public class PreparationService {
         return enCours
                 .map(session -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_EN_COURS,
-                        null, null, session.getId(), null, cible, null))
+                        null, null, session.getId(), null, cible, null, null))
                 .orElseGet(() -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_A_FAIRE,
-                        null, null, null, null, cible, null));
+                        null, null, null, null, cible, null, null));
     }
 
     /**
@@ -134,7 +146,7 @@ public class PreparationService {
         Optional<CivicDiagnosticSession> session = civicDiagnosticManager.findLatest(userId);
         if (session.isEmpty()) {
             return new PreparationDto.ModulePreparation(
-                    PreparationEtape.DIAGNOSTIC_A_FAIRE, null, null, null, null, null, null);
+                    PreparationEtape.DIAGNOSTIC_A_FAIRE, null, null, null, null, null, null, null);
         }
 
         CivicDiagnosticSession diagnostic = session.get();
@@ -142,7 +154,7 @@ public class PreparationService {
         if (diagnostic.getStatus() != TcfDiagnosticStatus.COMPLETED) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.DIAGNOSTIC_EN_COURS,
-                    vue.repondues(), vue.total(), diagnostic.getId(), null, null, null);
+                    vue.repondues(), vue.total(), diagnostic.getId(), null, null, null, null);
         }
 
         int aRenforcer = (int) civicViewService.resultat(diagnostic).themes().stream()
@@ -151,6 +163,6 @@ public class PreparationService {
                 .count();
         return new PreparationDto.ModulePreparation(
                 PreparationEtape.PLAN_PRET,
-                vue.repondues(), vue.total(), diagnostic.getId(), null, null, aRenforcer);
+                vue.repondues(), vue.total(), diagnostic.getId(), null, null, aRenforcer, null);
     }
 }

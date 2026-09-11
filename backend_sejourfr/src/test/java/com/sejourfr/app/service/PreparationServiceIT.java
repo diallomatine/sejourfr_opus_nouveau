@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.PreparationDto;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.PreparationEtape;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticService;
@@ -77,6 +78,70 @@ class PreparationServiceIT extends AbstractIntegrationTest {
 
         assertThat(service.lire(user.getId()).tcf().etape())
                 .isEqualTo(PreparationEtape.PLAN_PRET);
+    }
+
+    @Test
+    @DisplayName("🛑 Le diagnostic RAPIDE clos reste désigné quand le COMPLET est en cours")
+    void estimationSurvitAuDemarrageDuComplet() {
+        User user = testData.user();
+        var rapide = testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        tcfService.ouvrir(user.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        // L'étape suit le COMPLET, c'est inchangé…
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_EN_COURS);
+        assertThat(tcf.fait()).isZero();
+        assertThat(tcf.total()).isEqualTo(4);
+        // …et `sessionId` désigne toujours le complet, celui qu'on reprend.
+        assertThat(tcf.sessionId()).isNotEqualTo(rapide.getId());
+        // 🛑 …mais le rapport du RAPIDE reste atteignable. Sans ce champ, la
+        // porte du Plan perdait le seul résultat que le candidat possède entre
+        // la fin du rapide et la fin du complet — deux sens sur `sessionId`
+        // n'auraient pas pu les porter tous les deux.
+        assertThat(tcf.estimationSessionId()).isEqualTo(rapide.getId());
+    }
+
+    @Test
+    @DisplayName("Le diagnostic RAPIDE clos, sans complet : l'étape ET l'estimation le désignent")
+    void estimationFaiteDesigneLaMemeSession() {
+        User user = testData.user();
+        var rapide = testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.ESTIMATION_FAITE);
+        assertThat(tcf.sessionId()).isEqualTo(rapide.getId());
+        assertThat(tcf.estimationSessionId()).isEqualTo(rapide.getId());
+    }
+
+    @Test
+    @DisplayName("🛑 Un diagnostic rapide INACHEVÉ n'est pas une estimation")
+    void rapideInacheveNEstPasUneEstimation() {
+        User user = testData.user();
+        testData.diagnosticSession(user, DiagnosticSessionStatus.IN_PROGRESS);
+        entityManager.flush();
+        entityManager.clear();
+
+        // `null` = rien à relire, et c'est le seul état où la porte du Plan
+        // n'affiche aucun rapport. On n'invente pas un rapport à partir d'une
+        // session qui n'a jamais été analysée.
+        assertThat(service.lire(user.getId()).tcf().estimationSessionId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Le civique ne porte jamais d'estimation : il n'a qu'un diagnostic")
+    void civiqueNaPasDEstimation() {
+        User user = testData.user();
+        civicService.ouvrir(user.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.lire(user.getId()).civique().estimationSessionId()).isNull();
     }
 
     @Test

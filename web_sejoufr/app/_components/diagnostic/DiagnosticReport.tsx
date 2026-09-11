@@ -74,6 +74,7 @@ export function DiagnosticReport({
   targetLevel,
   notice,
   embedded = false,
+  closingCta = true,
 }: {
   diagnostic: {result: DiagnosticResultDto | null};
   /** Palier visé, servi par `/api/auth/me`. `null` = démarche non déclarée. */
@@ -86,6 +87,11 @@ export function DiagnosticReport({
    * l'erreur qu'une copie du composant aurait produite autrement.
    */
   embedded?: boolean;
+  /**
+   * `false` : **l'hôte fournit le geste de fin**, le rapport n'affiche pas le
+   * sien. Jamais deux boutons pour le même parcours dans deux formulations.
+   */
+  closingCta?: boolean;
 }) {
   const result = diagnostic.result;
   const written = result?.written ?? null;
@@ -163,9 +169,11 @@ export function DiagnosticReport({
               <p className={styles.label}>{DIAGNOSTIC_COMPLET_PROMISE}</p>
               <CheckList items={DIAGNOSTIC_COMPLET_BENEFITS} />
             </Card>
-            <Cta href={TCF_DIAGNOSTIC_HUB_HREF} caption={DIAGNOSTIC_COMPLET_NOTE}>
-              {DIAGNOSTIC_COMPLET_CTA}
-            </Cta>
+            {closingCta && (
+              <Cta href={TCF_DIAGNOSTIC_HUB_HREF} caption={DIAGNOSTIC_COMPLET_NOTE}>
+                {DIAGNOSTIC_COMPLET_CTA}
+              </Cta>
+            )}
           </Stack>
         </Pad>
       </Section>

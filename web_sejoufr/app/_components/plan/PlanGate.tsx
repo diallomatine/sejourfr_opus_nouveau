@@ -17,20 +17,25 @@ import type {DiagnosticResultDto, ModulePreparation} from "@/lib/types";
  * `planIndisponible` (`lib/preparation.ts`) — **la même autorité** que
  * l'Accueil et les Examens, pour que le candidat ne se voie pas proposer trois
  * choses différentes selon l'écran où il arrive. Aucune phrase n'est écrite
- * ici.
+ * ici, et **aucun état n'est déduit d'un compteur** : l'étape, sa phrase et son
+ * geste arrivent servis.
  *
- * 🛑 **Trois états, et c'est le SERVEUR qui dit lequel** (`prep.etape`) :
- * `DIAGNOSTIC_A_FAIRE` ouvre le diagnostic rapide, `ESTIMATION_FAITE` affiche
- * le **rapport du diagnostic rapide** (arbitrage du propriétaire), `PLAN_PRET`
- * n'arrive jamais ici — l'appelant affiche le vrai Plan. Aucun front ne déduit
- * cet état d'un compteur ni d'un score.
+ * 🛑 **Dès que le diagnostic RAPIDE est fait et tant que le Plan n'est pas
+ * prêt, cette porte affiche SON RAPPORT** (arbitrage du propriétaire). Le
+ * déclencheur n'est pas une étape mais un **fait servi** :
+ * `prep.estimationSessionId`, l'identifiant de la session rapide close, servi à
+ * **toutes** les étapes. Il couvre donc aussi bien « rapide fait, complet pas
+ * commencé » que « complet entamé, 0 à 3 épreuves sur 4 » — c'est le second cas
+ * qui manquait, parce que l'étape y bascule sur `DIAGNOSTIC_EN_COURS` et que
+ * `sessionId` y désigne le **complet**. Le seul état sans rapport est celui où
+ * aucun rapide n'a été clos : il n'y a rien à montrer.
  *
- * 🛑 **En `ESTIMATION_FAITE`, le rapport est le COMPOSANT DE `/diagnostic`,
- * encastré** (`DiagnosticReport embedded`), pas un résumé écrit ici : deux
- * lectures du même diagnostic auraient fini par en dire deux choses. Il porte
- * **son propre CTA de fin** vers le diagnostic complet — c'est pourquoi
- * `gate.cta` n'est pas rendu dans cet état, il ferait doublon sur la même
- * destination.
+ * 🛑 **Le rapport est le COMPOSANT DE `/diagnostic`, encastré** — pas un résumé
+ * écrit ici : deux lectures du même diagnostic auraient fini par en dire deux
+ * choses. Et **la porte garde le geste de fin** (`closingCta={false}`) : sa
+ * phrase dépend de l'étape servie, alors que le bouton du rapport dit toujours
+ * « Faire mon diagnostic complet » — un contresens une fois le complet entamé,
+ * où l'étape sert « Reprendre mon diagnostic ».
  */
 export function PlanGate({
   gate,
@@ -51,29 +56,45 @@ export function PlanGate({
   const {user} = useAuth();
   const rapide = useDiagnosticRapide(prep);
 
+  /* L'explication vient EN TÊTE : le rapport dit où en est le candidat, il ne
+     dit pas pourquoi son plan manque encore. */
+  const explication = (
+    <NoteCard icon={Icon} title={gate.titre} titleSize="lg">
+      <p className={sejourStyles.sub}>{gate.texte}</p>
+    </NoteCard>
+  );
+  const action = <Cta href={gate.href}>{gate.cta}</Cta>;
+
   return (
     <>
       <Top kicker={kicker} title="Mon plan du jour" />
-      <Section>
-        <Pad>
-          <Stack>
-            {/* L'explication vient EN TÊTE : le rapport dit où en est le
-                candidat, il ne dit pas pourquoi son plan manque encore. */}
-            <NoteCard icon={Icon} title={gate.titre} titleSize="lg">
-              <p className={sejourStyles.sub}>{gate.texte}</p>
-            </NoteCard>
-            {!rapide && <Cta href={gate.href}>{gate.cta}</Cta>}
-          </Stack>
-        </Pad>
-      </Section>
-      {rapide && (
-        <DiagnosticReport
-          embedded
-          diagnostic={{result: rapide}}
-          /* 🛑 La MÊME source de palier que la page `/diagnostic` : l'objectif
-             vient du compte, jamais d'un second champ qui dériverait. */
-          targetLevel={user?.targetLevel ?? null}
-        />
+      {rapide ? (
+        <>
+          <Section>
+            <Pad>{explication}</Pad>
+          </Section>
+          <DiagnosticReport
+            embedded
+            closingCta={false}
+            diagnostic={{result: rapide}}
+            /* 🛑 La MÊME source de palier que la page `/diagnostic` :
+               l'objectif vient du compte, jamais d'un second champ qui
+               dériverait. */
+            targetLevel={user?.targetLevel ?? null}
+          />
+          <Section>
+            <Pad>{action}</Pad>
+          </Section>
+        </>
+      ) : (
+        <Section>
+          <Pad>
+            <Stack>
+              {explication}
+              {action}
+            </Stack>
+          </Pad>
+        </Section>
       )}
     </>
   );
@@ -82,17 +103,17 @@ export function PlanGate({
 /**
  * Le résultat du diagnostic RAPIDE déjà passé — lu, jamais recalculé.
  *
- * 🛑 On relit **la session que le serveur a désignée** (`prep.sessionId`), pas
- * « la session courante » : `preparation()` retient la dernière session close,
- * qui peut appartenir à une version antérieure du diagnostic — `current()`
- * répondrait alors `NOT_STARTED` et la porte perdrait le rapport du candidat.
+ * 🛑 On relit **la session que le serveur a désignée**
+ * (`prep.estimationSessionId`), pas « la session courante » : `current()` est
+ * borné au couple (code, version) actif et répondrait `NOT_STARTED` sur une
+ * version antérieure du diagnostic.
  *
  * 🛑 **Aucun repli en cas d'échec** : le rapport n'apparaît pas, la porte
- * retombe sur sa forme minimale avec son CTA. Un rapport absent est un état
+ * retombe sur sa forme minimale avec son geste. Un rapport absent est un état
  * normal ; un rapport reconstitué de mémoire ne l'est pas.
  */
 function useDiagnosticRapide(prep: ModulePreparation | null | undefined) {
-  const sessionId = prep?.etape === "ESTIMATION_FAITE" ? prep.sessionId : null;
+  const sessionId = prep?.estimationSessionId ?? null;
   /* Le résultat est retenu AVEC la session dont il vient : sans ce couple, une
      bascule de module rendrait une seconde le rapport de l'autre parcours. */
   const [lu, setLu] = useState<{sessionId: string; result: DiagnosticResultDto | null} | null>(

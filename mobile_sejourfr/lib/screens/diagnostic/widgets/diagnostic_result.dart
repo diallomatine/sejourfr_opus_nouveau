@@ -36,14 +36,24 @@ import 'diagnostic_report_labels.dart';
 /// candidat doit retrouver, pas un résumé maison qui finirait par dire autre
 /// chose. Miroir de la prop `embedded` du web : là-bas elle retire la chrome de
 /// page, ici l'écran n'en a jamais eu — il est **la liste défilante**, et
-/// l'appelant lui passe sa tête par [leading] plutôt que d'imbriquer deux
-/// scrollables.
+/// l'appelant lui passe sa tête par [leading] et son pied par [trailing]
+/// plutôt que d'imbriquer deux scrollables.
+///
+/// 🛑 **Un seul geste de fin à l'écran.** L'hôte peut porter le sien
+/// ([closingCta] à `false`) : la porte du Plan le fait, parce que sa phrase
+/// dépend de l'étape servie — « Faire mon diagnostic TCF complet » tant que
+/// rien n'est commencé, « Reprendre mon diagnostic » une fois le complet
+/// entamé, cas où le bouton de fin du rapport serait un contresens. La section
+/// « Découvrez où vous en êtes vraiment au TCF » reste, elle informe ; c'est le
+/// bouton seul qui s'efface.
 class DiagnosticResultView extends StatelessWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     this.objective,
     this.leading = const <Widget>[],
+    this.trailing = const <Widget>[],
+    this.closingCta = true,
   });
 
   final DiagnosticResult result;
@@ -51,6 +61,14 @@ class DiagnosticResultView extends StatelessWidget {
   /// Ce que l'écran hôte pose **au-dessus** du rapport, dans le même défilement
   /// (son en-tête, son explication). Vide : le rapport est seul à l'écran.
   final List<Widget> leading;
+
+  /// Ce que l'écran hôte pose **en dessous**, dans le même défilement — son
+  /// geste de fin, quand il le porte lui-même.
+  final List<Widget> trailing;
+
+  /// `false` : **l'hôte fournit le geste de fin**, le rapport n'affiche pas le
+  /// sien. Jamais deux boutons pour le même parcours dans deux formulations.
+  final bool closingCta;
 
   /// Le palier visé, servi par la démarche déclarée du compte. `null` = pas
   /// encore choisi : la ligne d'objectif n'est pas rendue et le rail s'arrête
@@ -106,14 +124,16 @@ class DiagnosticResultView extends StatelessWidget {
               for (final e in kDiagnosticCompletEpreuves)
                 SfExamRow(icon: e.icon, title: e.label),
               const _PromiseCard(),
-              SfButton(
-                label: kDiagnosticCompletCta,
-                caption: kDiagnosticCompletNote,
-                onPressed: () => context.push(AppRoutes.tcfDiagnostic),
-              ),
+              if (closingCta)
+                SfButton(
+                  label: kDiagnosticCompletCta,
+                  caption: kDiagnosticCompletNote,
+                  onPressed: () => context.push(AppRoutes.tcfDiagnostic),
+                ),
             ],
           ),
         ),
+        ...trailing,
       ],
     );
   }

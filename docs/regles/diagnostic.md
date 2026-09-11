@@ -328,3 +328,31 @@ Les invariants qui tiennent ce tunnel :
 Routes et détail : `docs/api-endpoints.md`, section « Diagnostic civique (L9) ».
 Journal de la décision : `docs/review_all/60_DECISIONS_IMPLEMENTATION.md`,
 section « Le diagnostic se passe AVANT le compte ».
+
+---
+
+## `estimationSessionId` — le rapide reste relisible après le démarrage du complet (2026-09-12)
+
+`PreparationService.tcf()` ne servait, dans la branche « complet présent », que le `sessionId`
+de la session **TCF 4 épreuves** : le `findLatestCompleted` qui retrouve la session du rapide
+n'était atteint que si aucun complet n'existait. Dès le démarrage du complet, l'identifiant du
+rapide **disparaissait de la réponse** et son rapport devenait introuvable pour les trois
+fronts. Aucun correctif front ne pouvait compenser ça.
+
+`PreparationDto.ModulePreparation` porte donc **`estimationSessionId`** (`UUID`, nullable),
+résolu **avant** le branchement d'étape et servi à **toutes** les étapes — y compris
+`PLAN_PRET`. `sessionId` garde son sens inchangé : « le diagnostic à reprendre ».
+
+🛑 **Champ distinct, jamais un `sessionId` surchargé.** Deux sens sur un même champ finissent
+toujours par se contredire, et les fronts auraient dû deviner lequel ils lisent selon l'étape.
+Même doctrine que `nextTargetLevel` vs `cycle.targetLevel`.
+
+**Coût assumé** : une lecture indexée de plus sur `/api/me/preparation`, à toutes les étapes.
+Le champ aurait pu n'être calculé que quand le plan n'est pas prêt, mais un champ qui ne dit
+vrai qu'à certaines étapes finit par être lu aux autres. Commenté dans le service.
+
+Civique : toujours `null` (il n'a qu'un diagnostic), verrouillé par test. Gelé par
+`PreparationServiceIT` — `estimationSurvitAuDemarrageDuComplet` est le test du bug ; un rapide
+`IN_PROGRESS` rend `null`, on n'invente pas un rapport.
+
+Lecteur : la porte d'entrée du Plan TCF → `docs/regles/plan.md`.

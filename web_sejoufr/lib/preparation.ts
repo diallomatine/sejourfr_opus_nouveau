@@ -224,6 +224,7 @@ export function planIndisponibleDepuisEtat(
         fait: null,
         total: null,
         sessionId: null,
+        estimationSessionId: null,
         niveau: null,
         cible: null,
         aRenforcer: null,

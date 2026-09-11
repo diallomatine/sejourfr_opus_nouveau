@@ -4247,7 +4247,19 @@ export interface ModulePreparation {
     /** Avancement (2 épreuves, 14 questions). `null` si la notion n'a pas de sens ici. */
     fait: number | null;
     total: number | null;
+    /** Le diagnostic à **reprendre** : le complet dès qu'il est ouvert. */
     sessionId: string | null;
+    /**
+     * **TCF** : la session du diagnostic **RAPIDE** déjà clos.
+     *
+     * 🛑 **Servie à toutes les étapes**, indépendamment de `etape` et de
+     * `sessionId` — dès que le complet démarre, `sessionId` désigne le complet,
+     * et sans ce champ le rapport du rapide (le seul résultat que le candidat
+     * possède alors) devenait introuvable. `null` = aucun rapide clos, donc
+     * rien à relire : c'est le seul état où la porte du Plan n'affiche pas de
+     * rapport.
+     */
+    estimationSessionId: string | null;
     /** **TCF** : 🛑 `null` = pas encore mesuré, jamais A1. */
     niveau: NiveauCecrl | null;
     cible: NiveauCecrl | null;

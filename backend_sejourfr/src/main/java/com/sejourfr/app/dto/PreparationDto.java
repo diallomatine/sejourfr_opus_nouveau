@@ -40,6 +40,19 @@ public record PreparationDto(
      * @param aRenforcer <b>CIVIQUE</b> : combien de themes sont a renforcer ou
      *                   faibles. 🛑 {@code null} tant qu'aucun diagnostic n'est
      *                   clos — {@code 0} voudrait dire « tout est solide »
+     * @param estimationSessionId <b>TCF</b> : la session du diagnostic
+     *                   <b>RAPIDE</b> deja clos, s'il y en a une.
+     *                   🛑 <b>Servie a TOUTES les etapes</b>, independamment de
+     *                   {@code etape} et de {@code sessionId} : des que le
+     *                   diagnostic complet est ouvert, {@code sessionId}
+     *                   designe le complet, et le rapport du rapide — le seul
+     *                   resultat que le candidat possede alors — devenait
+     *                   introuvable pour les fronts. Champ <b>nomme
+     *                   distinctement</b> plutot qu'un {@code sessionId}
+     *                   surcharge : deux sens sur un meme champ finissent
+     *                   toujours par se contredire. {@code null} = aucun
+     *                   diagnostic rapide clos, donc rien a relire — c'est le
+     *                   seul etat ou la porte du Plan n'affiche pas de rapport
      */
     public record ModulePreparation(
             PreparationEtape etape,
@@ -48,6 +61,7 @@ public record PreparationDto(
             UUID sessionId,
             NiveauCecrl niveau,
             NiveauCecrl cible,
-            Integer aRenforcer
+            Integer aRenforcer,
+            UUID estimationSessionId
     ) {}
 }

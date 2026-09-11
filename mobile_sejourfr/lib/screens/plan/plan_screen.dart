@@ -286,20 +286,27 @@ class _PlanError extends StatelessWidget {
 ///
 /// 🛑 **Aucun contenu inventé** : ni priorité, ni parcours, ni niveau. Le titre,
 /// le texte, le geste et sa destination viennent tous de [planIndisponible],
-/// l'état unique des deux préparations.
+/// l'état unique des deux préparations — **aucun état n'est déduit d'un
+/// compteur**.
 ///
-/// 🛑 **Trois états, et c'est le SERVEUR qui dit lequel**
-/// ([ModulePreparation.etape]) : `DIAGNOSTIC_A_FAIRE` ouvre le diagnostic
-/// rapide, `ESTIMATION_FAITE` affiche le **rapport du diagnostic rapide**
-/// (arbitrage du propriétaire), `PLAN_PRET` n'arrive jamais ici. Aucun front ne
-/// déduit cet état d'un compteur ni d'un score.
+/// 🛑 **Dès que le diagnostic RAPIDE est fait et tant que le Plan n'est pas
+/// prêt, cette porte affiche SON RAPPORT** (arbitrage du propriétaire). Le
+/// déclencheur n'est pas une étape mais un **fait servi** :
+/// [ModulePreparation.estimationSessionId], l'identifiant de la session rapide
+/// close, servi à **toutes** les étapes. Il couvre donc aussi bien « rapide
+/// fait, complet pas commencé » que « complet entamé, 0 à 3 épreuves sur 4 » —
+/// c'est le second cas qui manquait, parce que l'étape y bascule sur
+/// `DIAGNOSTIC_EN_COURS` et que [ModulePreparation.sessionId] y désigne le
+/// **complet**. Le seul état sans rapport est celui où aucun rapide n'a été
+/// clos : il n'y a rien à montrer.
 ///
-/// 🛑 **En `ESTIMATION_FAITE`, le rapport est l'ÉCRAN DE `/diagnostic`,
-/// encastré** ([DiagnosticResultView] avec son `leading`), pas un résumé écrit
-/// ici : deux lectures du même diagnostic auraient fini par en dire deux
-/// choses. Il porte **son propre bouton de fin** vers le diagnostic complet —
-/// c'est pourquoi [PlanIndisponible.cta] n'est pas rendu dans cet état, il
-/// ferait doublon sur la même destination.
+/// 🛑 **Le rapport est l'ÉCRAN DE `/diagnostic`, encastré**
+/// ([DiagnosticResultView] et ses slots) — pas un résumé écrit ici : deux
+/// lectures du même diagnostic auraient fini par en dire deux choses. Et **la
+/// porte garde le geste de fin** (`closingCta: false`) : sa phrase dépend de
+/// l'étape servie, alors que le bouton du rapport dit toujours « Faire mon
+/// diagnostic complet » — un contresens une fois le complet entamé, où l'étape
+/// sert « Reprendre mon diagnostic ».
 class _PlanIndisponible extends ConsumerStatefulWidget {
   const _PlanIndisponible({required this.info, this.prep});
 
@@ -328,25 +335,22 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
   @override
   void didUpdateWidget(_PlanIndisponible old) {
     super.didUpdateWidget(old);
-    if (old.prep?.sessionId != widget.prep?.sessionId ||
-        old.prep?.etape != widget.prep?.etape) {
+    if (old.prep?.estimationSessionId != widget.prep?.estimationSessionId) {
       unawaited(_chargerRapide());
     }
   }
 
-  /// 🛑 On relit **la session que le serveur a désignée** (`prep.sessionId`),
-  /// pas « la session courante » : `preparation()` retient la dernière session
-  /// close, qui peut appartenir à une version antérieure du diagnostic —
-  /// `current()` répondrait alors « pas commencé » et la porte perdrait le
-  /// rapport du candidat.
+  /// 🛑 On relit **la session que le serveur a désignée**
+  /// (`prep.estimationSessionId`), pas « la session courante » : `current()`
+  /// est borné au couple (code, version) actif et répondrait « pas commencé »
+  /// sur une version antérieure du diagnostic.
   ///
   /// 🛑 **Aucun repli en cas d'échec** : le rapport n'apparaît pas, la porte
-  /// retombe sur sa forme minimale avec son bouton. Un rapport absent est un
+  /// retombe sur sa forme minimale avec son geste. Un rapport absent est un
   /// état normal ; un rapport reconstitué de mémoire ne l'est pas.
   Future<void> _chargerRapide() async {
-    final prep = widget.prep;
-    final sessionId = prep?.sessionId;
-    if (prep?.etape != PreparationEtape.estimationFaite || sessionId == null) {
+    final sessionId = widget.prep?.estimationSessionId;
+    if (sessionId == null) {
       if (mounted && _rapide != null) setState(() => _rapide = null);
       return;
     }
@@ -390,6 +394,18 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
         ),
       ];
 
+  /// Le geste de fin, porté par la porte : sa phrase vient de l'étape servie.
+  List<Widget> _action() => [
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SfButton(
+            label: widget.info.cta,
+            onPressed: () => context.push(widget.info.route),
+          ),
+        ),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final rapide = _rapide;
@@ -400,20 +416,15 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
         // vient du compte, jamais d'un second champ qui dériverait.
         objective: ref.watch(userTargetLevelProvider),
         leading: _tete(),
+        closingCta: false,
+        trailing: [..._action(), const SizedBox(height: 16)],
       );
     }
 
     return ListView(
       children: [
         ..._tete(),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SfButton(
-            label: widget.info.cta,
-            onPressed: () => context.push(widget.info.route),
-          ),
-        ),
+        ..._action(),
         const SizedBox(height: 28),
       ],
     );

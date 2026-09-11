@@ -978,31 +978,32 @@ interdiction de juger la prononciation depuis une transcription). La bonne réf�
 `WResultat.jsx`.
 
 
-### La porte d'entrée du Plan TCF a TROIS états, pas deux (2026-09-12)
+### La porte d'entrée du Plan TCF montre le RAPPORT du diagnostic rapide (2026-09-12)
 
-L'écran servi quand le plan n'est pas prêt lit `PreparationEtape`
-(`PreparationService.tcf()`), **servie** — aucun front ne déduit d'un score ou d'un
-compteur lequel des diagnostics est fait :
+L'écran servi quand le plan n'est pas prêt ne résume plus l'estimation à la main : il **rend
+le rapport du diagnostic rapide en entier**, le composant même que sert `/diagnostic`
+(`DiagnosticReport` ⇄ `DiagnosticResultView`), réutilisé et non recopié.
 
-- `DIAGNOSTIC_A_FAIRE` → la carte « votre plan commence par un diagnostic », CTA vers le
-  diagnostic **rapide** (`/diagnostic`) ;
-- `ESTIMATION_FAITE` → **rappel de l'estimation rapide** (niveau de la production écrite,
-  objectif si `cible` est servie, observations servies), CTA primaire vers le diagnostic
-  **complet** (`/diagnostic-tcf`) + accès secondaire « Revoir mon diagnostic rapide » ;
-- `PLAN_PRET` → le plan.
+🛑 **Le déclencheur est un FAIT servi, pas une étape** : `prep.estimationSessionId != null`.
+Aucun front ne teste `etape`, ne compte `N < 4`, ne déduit rien d'un compteur. La seule
+question posée côté front est « puis-je relire une session de diagnostic rapide ? ».
 
-🛑 **Pas de niveau ⇒ pas de carte de rappel.** Ni « — », ni A1 à la place d'un verdict que
-personne n'a rendu (`null` = inconnu). Une relecture en échec ou en attente n'ampute pas la
-porte : le rappel n'apparaît simplement pas.
+| Situation | Carte en tête (servie) | Rapport | CTA de la porte |
+|---|---|---|---|
+| aucun rapide clos | « Votre plan TCF commence par un diagnostic » | — | « Faire mon diagnostic » → `/diagnostic` |
+| rapide clos, complet pas commencé | « Votre plan TCF n'est pas encore prêt » | oui | « Faire mon diagnostic TCF complet » |
+| rapide clos, complet entamé (0/4→3/4) | « Votre diagnostic TCF est commencé — N sur 4 » | oui | « Reprendre mon diagnostic » |
+| `PLAN_PRET` | — | — | le plan |
 
-🛑 **La relecture vise `prep.sessionId`, jamais `diagnostics/current`.** `current()` est borné
-au couple (code, version) actif : sur une v2 du diagnostic il rendrait `NOT_STARTED` et la
-porte perdrait l'estimation, alors que `PreparationService` retient la dernière session close.
+**Quand le rapport est encastré, c'est l'HÔTE qui porte le geste de fin** — `closingCta:
+false` efface le bouton du rapport, jamais sa section d'information. Une règle unique pour
+tous les états encastrés : sans complet les deux boutons visaient la même destination avec
+deux phrases, et une fois le complet entamé « Faire mon diagnostic complet » est un
+contresens. La phrase affichée reste celle que le serveur a rendue pour l'étape.
 
-**Aucun écran de rapport n'a été créé** — `/diagnostic` sert déjà le rapport quand la session
-est `COMPLETED` (`DiagnosticView` ⇄ `DiagnosticScreen`). Libellés partagés :
-`app/_components/diagnostic/report-labels.ts` ⇄ `diagnostic_report_labels.dart` — la porte du
-Plan en est le 2ᵉ lecteur, d'où l'extraction plutôt qu'une recopie.
+Rapport absent, en échec ou en latence : il ne s'affiche pas, la porte retombe sur sa forme
+minimale. Un rapport absent est un état normal ; un rapport reconstitué de mémoire ne l'est
+pas.
 
 ---
 
