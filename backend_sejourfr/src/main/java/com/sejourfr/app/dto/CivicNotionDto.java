@@ -26,6 +26,8 @@ public record CivicNotionDto(
         UUID id,
         String code,
         String label,
+        /** La frontiere metier de la notion, {@code null} si elle n'en a pas. */
+        String description,
         String themeCode,
         int displayOrder,
         boolean active,

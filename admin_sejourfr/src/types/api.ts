@@ -1687,6 +1687,13 @@ export interface CivicNotionDto {
   id: string;
   code: string;
   label: string;
+  /**
+   * La **frontière métier** de la notion (V055) — ce qui la distingue de sa
+   * voisine. Même texte que celui donné au prompt de pré-tagging : une seule
+   * autorité pour le modèle, l'écran et le relecteur.
+   * `null` pour une notion dont la frontière ne pose aucun problème.
+   */
+  description: string | null;
   themeCode: string;
   displayOrder: number;
   active: boolean;

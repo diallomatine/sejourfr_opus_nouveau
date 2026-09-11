@@ -78,6 +78,7 @@ public class CivicNotionService {
                     notion.getId(),
                     notion.getCode(),
                     notion.getLabel(),
+                    notion.getDescription(),
                     notion.getThemeCode(),
                     notion.getDisplayOrder(),
                     notion.isActive(),

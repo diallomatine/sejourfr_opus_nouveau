@@ -51,6 +51,20 @@ public class CivicNotion {
     @Column(name = "display_order", nullable = false)
     private short displayOrder;
 
+    /**
+     * La <b>frontiere</b> de la notion, en langage metier (V055).
+     *
+     * <p>Trois lecteurs doivent dire la meme chose : le prompt de pre-tagging,
+     * l'ecran d'administration et le relecteur humain. C'est pour ca qu'elle
+     * vit en base et non en constante de prompt — en constante, elle aurait
+     * diverge de l'ecran a la premiere retouche.
+     *
+     * <p>{@code null} pour une notion dont la frontiere ne pose aucun probleme :
+     * decrire ce qui ne se dispute rien ajoute du bruit au prompt.
+     */
+    @Column(columnDefinition = "text")
+    private String description;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
