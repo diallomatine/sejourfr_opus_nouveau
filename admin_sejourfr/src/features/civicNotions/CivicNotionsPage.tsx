@@ -6,6 +6,7 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import type {
   CivicNotionDto,
+  CivicTaggingGesteVerdict,
   CivicTaggingQuestion,
   CivicTaggingSuggestion,
 } from "../../types/api";
@@ -57,10 +58,74 @@ const VERDICTS: Record<string, string> = {
   SKIPPED: "Déjà vue · laissée en attente",
 };
 
+/**
+ * ⚠️ Le MÊME verdict serveur ne dit pas la même chose selon la suggestion qui
+ * le porte. Un `VALIDATED` posé sur une suggestion « aucune notion » ne veut
+ * pas dire « une notion a été retenue » : il veut dire que le relecteur a
+ * **confirmé un trou du référentiel**. Sans cette table, le badge mentirait sur
+ * ce qui s'est passé la veille — exactement ce qu'il existe pour éviter.
+ */
+const VERDICTS_AUCUNE_NOTION: Record<string, string> = {
+  VALIDATED: "Déjà relue · trou du référentiel confirmé",
+  CORRECTED: "Déjà relue · trou infirmé, notion posée à la main",
+};
+
+function libelleVerdict(verdict: string, aucuneNotion: boolean): string {
+  if (aucuneNotion && VERDICTS_AUCUNE_NOTION[verdict]) {
+    return VERDICTS_AUCUNE_NOTION[verdict];
+  }
+  return VERDICTS[verdict] ?? "Déjà relue";
+}
+
 interface Geste {
   questionId: string;
   notionCode: string | null;
-  verdict: string | null;
+  /**
+   * 🛑 Typé `CivicTaggingGesteVerdict` et non `string` : `VALIDATED` et
+   * `CORRECTED` sont la décision du serveur et deviennent ainsi inexprimables
+   * ici. Une contrainte dure vaut mieux qu'une consigne.
+   */
+  verdict: CivicTaggingGesteVerdict | null;
+}
+
+/**
+ * 🛑 **L'unique lecture du fait.** `notionCode === null` sur une suggestion =
+ * le modèle a conclu qu'**aucune notion du référentiel ne convient**. C'est un
+ * verdict, pas une absence : `confidence` et `rationale` l'accompagnent.
+ *
+ * ⚠️ À ne pas confondre avec `suggestions: []` — « le pré-tagging n'a pas
+ * couvert cette question », qui est une absence de verdict. Deux états
+ * différents, deux rendus différents.
+ */
+function estAucuneNotion(suggestion: CivicTaggingSuggestion): boolean {
+  return suggestion.notionCode === null;
+}
+
+/**
+ * Ce que « Valider » écrit — **un seul endroit**, partagé par le bouton et par
+ * le raccourci `V`, sinon les deux finiraient par diverger sur le cas rare.
+ *
+ * `null` = il n'y a rien à valider (aucune suggestion du tout).
+ */
+function gesteDeValidation(question: CivicTaggingQuestion): Geste | null {
+  const meilleure = question.suggestions[0];
+  if (!meilleure) return null;
+  if (estAucuneNotion(meilleure)) {
+    // Le relecteur confirme le modèle : il acte un TROU du référentiel. Le
+    // serveur traduit ce geste en `VALIDATED` et refuse en 400 si la meilleure
+    // suggestion n'était pas « aucune notion ».
+    return { questionId: question.questionId, notionCode: null, verdict: "CONFIRM_NONE" };
+  }
+  return {
+    questionId: question.questionId,
+    notionCode: meilleure.notionCode,
+    verdict: null,
+  };
+}
+
+/** Le libellé porté par une suggestion, jamais « null » à l'écran. */
+function libelleSuggestion(suggestion: CivicTaggingSuggestion): string {
+  return suggestion.notionLabel ?? suggestion.notionCode ?? "notion inconnue";
 }
 
 function niveauDeConfiance(confidence: number): { mot: string; classe: string } {
@@ -70,9 +135,13 @@ function niveauDeConfiance(confidence: number): { mot: string; classe: string } 
   return { mot: "confiance faible", classe: styles.jaugeFaible };
 }
 
-/** Le verdict porté par n'importe laquelle des suggestions vaut pour la question. */
-function verdictDeLaQuestion(question: CivicTaggingQuestion): string | null {
-  return question.suggestions.find((s) => s.reviewVerdict)?.reviewVerdict ?? null;
+/**
+ * La suggestion qui porte le verdict vaut pour la question — on rend la
+ * suggestion elle-même, pas seulement son verdict : le libellé du badge dépend
+ * aussi de ce sur quoi le verdict a été rendu (une notion, ou « aucune »).
+ */
+function suggestionRelue(question: CivicTaggingQuestion): CivicTaggingSuggestion | null {
+  return question.suggestions.find((s) => s.reviewVerdict) ?? null;
 }
 
 /**
@@ -198,7 +267,6 @@ export function CivicNotionsPage() {
       if (!questionActive) return;
 
       const touche = event.key.toLowerCase();
-      const meilleure = questionActive.suggestions[0];
       const alternative = questionActive.suggestions[1];
 
       if (event.key === "ArrowDown" || touche === "j") {
@@ -208,15 +276,16 @@ export function CivicNotionsPage() {
         setActif((i) => Math.max(i - 1, 0));
         event.preventDefault();
       } else if (touche === "v" || event.key === "Enter") {
-        if (!meilleure) return;
-        executer({
-          questionId: questionActive.questionId,
-          notionCode: meilleure.notionCode,
-          verdict: null,
-        });
+        // Sur une carte « aucune notion », le même geste écrit `CONFIRM_NONE` :
+        // c'est `gesteDeValidation` qui tranche, pas ce bloc.
+        const geste = gesteDeValidation(questionActive);
+        if (!geste) return;
+        executer(geste);
         event.preventDefault();
       } else if (touche === "a") {
-        if (!alternative) return;
+        // Un « aucune notion » en n°2 ne se « retient » pas : le serveur ne
+        // sait confirmer un trou que sur la suggestion la mieux notée.
+        if (!alternative || estAucuneNotion(alternative)) return;
         executer({
           questionId: questionActive.questionId,
           notionCode: alternative.notionCode,
@@ -406,8 +475,8 @@ function AideClavier() {
   const raccourcis: [string, string][] = [
     ["↓ / J", "question suivante"],
     ["↑ / K", "question précédente"],
-    ["V · Entrée", "valider la suggestion n°1"],
-    ["A", "retenir l'alternative (suggestion n°2)"],
+    ["V · Entrée", "valider la suggestion n°1 — ou confirmer le trou si elle conclut « aucune notion »"],
+    ["A", "retenir l'alternative (suggestion n°2), sauf si elle conclut « aucune notion »"],
     ["C", "ouvrir la liste des notions du thème"],
     ["R", "rejeter — aucune notion ne convient"],
     ["P", "passer — je ne tranche pas"],
@@ -456,7 +525,10 @@ function CarteRelecture({
 }: CarteProps) {
   const meilleure = question.suggestions[0];
   const alternative = question.suggestions[1];
-  const verdict = verdictDeLaQuestion(question);
+  const relue = suggestionRelue(question);
+  /** Le modèle dit qu'aucune notion ne convient : « Valider » acte un trou. */
+  const confirmeUnTrou = !!meilleure && estAucuneNotion(meilleure);
+  const gesteValider = gesteDeValidation(question);
 
   return (
     <article
@@ -473,8 +545,10 @@ function CarteRelecture({
         )}
         {/* ⚠️ Une question déjà relue le DIT : sinon le relecteur qui revient
             ne sait pas ce qu'il a déjà écarté et refait le même arbitrage. */}
-        {verdict && (
-          <span className={styles.verdict}>{VERDICTS[verdict] ?? "Déjà relue"}</span>
+        {relue?.reviewVerdict && (
+          <span className={styles.verdict}>
+            {libelleVerdict(relue.reviewVerdict, estAucuneNotion(relue))}
+          </span>
         )}
       </header>
 
@@ -516,29 +590,44 @@ function CarteRelecture({
               <div className={styles.alternative}>
                 <span className={styles.alternativeTitre}>Alternative</span>
                 <Suggestion suggestion={alternative} />
-                <button
-                  type="button"
-                  className={styles.alternativeBouton}
-                  onClick={() =>
-                    onGeste({
-                      questionId: question.questionId,
-                      notionCode: alternative.notionCode,
-                      verdict: null,
-                    })
-                  }
-                >
-                  Retenir celle-ci <kbd className={styles.touche}>A</kbd>
-                </button>
+                {estAucuneNotion(alternative) ? (
+                  <p className={styles.alternativeNote}>
+                    Un « aucune notion » ne se confirme qu'en suggestion n°1 : si
+                    vraiment aucune notion du thème ne convient, c'est
+                    « Rejeter ».
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.alternativeBouton}
+                    onClick={() =>
+                      onGeste({
+                        questionId: question.questionId,
+                        notionCode: alternative.notionCode,
+                        verdict: null,
+                      })
+                    }
+                  >
+                    Retenir celle-ci <kbd className={styles.touche}>A</kbd>
+                  </button>
+                )}
               </div>
             )}
           </>
         ) : (
-          // 🛑 Vide est l'état NORMAL : rien ne remplit la table de suggestions
-          // sans décision du propriétaire, parce que la remplir coûte.
-          <p className={styles.sansSuggestion}>
-            Aucune suggestion pour cette question — le pré-tagging ne l'a pas
-            couverte. Choisir la notion à la main.
-          </p>
+          // ⚠️ ABSENCE de verdict, à ne pas confondre avec le verdict
+          // « aucune notion » rendu juste au-dessus : ici le modèle n'a rien dit
+          // du tout. 🛑 Vide est l'état NORMAL : rien ne remplit la table de
+          // suggestions sans décision du propriétaire, parce que la remplir coûte.
+          <div className={styles.sansSuggestion}>
+            <span className={styles.sansSuggestionTitre}>
+              Pas de verdict du modèle
+            </span>
+            <p className={styles.sansSuggestionTexte}>
+              Le pré-tagging n'a pas couvert cette question — ce n'est pas un
+              « aucune notion ». Choisir la notion à la main.
+            </p>
+          </div>
         )}
       </div>
 
@@ -557,7 +646,14 @@ function CarteRelecture({
               });
             }}
           >
-            <option value="">— corriger avec une autre notion —</option>
+            {/* Corriger reste ouvert sur une carte « aucune notion » : le
+                relecteur dit alors que le modèle s'est trompé, et le serveur
+                écrit `CORRECTED`. */}
+            <option value="">
+              {confirmeUnTrou
+                ? "— le modèle se trompe : choisir une notion —"
+                : "— corriger avec une autre notion —"}
+            </option>
             {notions.map((n) => (
               <option key={n.code} value={n.code}>
                 {n.label}
@@ -567,25 +663,25 @@ function CarteRelecture({
         </label>
 
         <div className={styles.boutons}>
+          {/* ⚠️ Le bouton reste ACTIF sur une carte « aucune notion » : c'est
+              là que se révèlent les trous du référentiel. Mais il ne dit plus
+              « Valider » — ce serait le même clic pour un geste qui n'a rien à
+              voir. */}
           <button
             type="button"
-            className={styles.valider}
-            disabled={!meilleure}
+            className={`${styles.valider} ${confirmeUnTrou ? styles.validerTrou : ""}`}
+            disabled={!gesteValider}
             title={
-              meilleure
-                ? `Retenir « ${meilleure.notionLabel} »`
-                : "Aucune suggestion à valider"
+              !meilleure
+                ? "Aucune suggestion à valider"
+                : confirmeUnTrou
+                  ? "Confirmer que le modèle a raison : aucune notion du référentiel ne couvre cette question. C'est un trou du référentiel à combler, pas un tag."
+                  : `Retenir « ${libelleSuggestion(meilleure)} »`
             }
-            onClick={() =>
-              meilleure &&
-              onGeste({
-                questionId: question.questionId,
-                notionCode: meilleure.notionCode,
-                verdict: null,
-              })
-            }
+            onClick={() => gesteValider && onGeste(gesteValider)}
           >
-            Valider <kbd className={styles.touche}>V</kbd>
+            {confirmeUnTrou ? "Confirmer le trou" : "Valider"}{" "}
+            <kbd className={styles.touche}>V</kbd>
           </button>
           <button
             type="button"
@@ -629,15 +725,31 @@ function CarteRelecture({
 function Suggestion({ suggestion }: { suggestion: CivicTaggingSuggestion }) {
   const pourcent = Math.round(Math.max(0, Math.min(1, suggestion.confidence)) * 100);
   const niveau = niveauDeConfiance(suggestion.confidence);
+  const aucune = estAucuneNotion(suggestion);
 
   return (
-    <div className={styles.suggestion}>
+    <div className={`${styles.suggestion} ${aucune ? styles.suggestionAucune : ""}`}>
       <div className={styles.suggestionTete}>
-        <span className={styles.suggestionNotion}>{suggestion.notionLabel}</span>
-        <span className={styles.suggestionCode}>{suggestion.notionCode}</span>
+        {aucune ? (
+          <>
+            <span className={styles.aucuneNotionTitre}>
+              Aucune notion correspondante
+            </span>
+            <span className={styles.aucuneMarque}>verdict du modèle</span>
+          </>
+        ) : (
+          <>
+            <span className={styles.suggestionNotion}>
+              {libelleSuggestion(suggestion)}
+            </span>
+            {suggestion.notionCode && (
+              <span className={styles.suggestionCode}>{suggestion.notionCode}</span>
+            )}
+          </>
+        )}
         {suggestion.reviewVerdict && (
           <span className={styles.verdict}>
-            {VERDICTS[suggestion.reviewVerdict] ?? "Déjà relue"}
+            {libelleVerdict(suggestion.reviewVerdict, aucune)}
           </span>
         )}
       </div>
@@ -654,6 +766,13 @@ function Suggestion({ suggestion }: { suggestion: CivicTaggingSuggestion }) {
       </div>
       {suggestion.rationale && (
         <p className={styles.rationale}>{suggestion.rationale}</p>
+      )}
+      {aucune && (
+        <p className={styles.aucuneNote}>
+          Le modèle a lu la question et n'a trouvé aucune notion du référentiel
+          pour la porter. Confirmer, c'est acter un trou du référentiel ; choisir
+          une notion ci-dessous, c'est dire qu'il s'est trompé.
+        </p>
       )}
     </div>
   );

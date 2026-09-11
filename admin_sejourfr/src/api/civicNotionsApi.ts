@@ -1,6 +1,7 @@
 import { apiRequest } from "./http";
 import type {
   CivicNotionDto,
+  CivicTaggingGesteVerdict,
   CivicTaggingQueue,
   CivicTaggingQuestion,
   CivicTaggingSuggestion,
@@ -22,8 +23,12 @@ import type {
  */
 function normaliserSuggestion(suggestion: CivicTaggingSuggestion): CivicTaggingSuggestion {
   return {
-    notionCode: suggestion.notionCode,
-    notionLabel: suggestion.notionLabel,
+    // 🛑 `null` est une INFORMATION ici — « le modèle a conclu qu'aucune notion
+    // ne convient » — et pas un champ manquant. On le laisse passer tel quel :
+    // le remplacer par une sentinelle (`"AUCUNE"`, `"—"`) rendrait ce verdict
+    // indiscernable d'un vrai code et finirait affiché à l'écran.
+    notionCode: suggestion.notionCode ?? null,
+    notionLabel: suggestion.notionLabel ?? null,
     confidence: typeof suggestion.confidence === "number" ? suggestion.confidence : 0,
     rationale: suggestion.rationale ?? null,
     reviewVerdict: suggestion.reviewVerdict ?? null,
@@ -74,18 +79,26 @@ export const civicNotionsApi = {
   /**
    * Écrit le geste du relecteur sur une question.
    *
-   * Les quatre gestes produisent quatre écritures distinctes :
-   * - valider   → `{notionCode: <suggestion n°1>, verdict: null}`
-   * - corriger  → `{notionCode: <autre notion>,   verdict: null}`
-   * - rejeter   → `{notionCode: null,             verdict: "REJECTED"}`
-   * - passer    → `{notionCode: null,             verdict: "SKIPPED"}`
+   * Les gestes produisent des écritures distinctes :
+   * - valider une suggestion normale → `{notionCode: <suggestion n°1>, verdict: null}`
+   * - valider une suggestion « aucune notion » → `{notionCode: null, verdict: "CONFIRM_NONE"}`
+   * - corriger  → `{notionCode: <autre notion>, verdict: null}`
+   * - rejeter   → `{notionCode: null,           verdict: "REJECTED"}`
+   * - passer    → `{notionCode: null,           verdict: "SKIPPED"}`
    *
-   * 🛑 **Le client n'envoie jamais `VALIDATED` ni `CORRECTED`.** C'est le
-   * serveur qui compare la notion retenue à la suggestion la mieux notée : la
-   * mesure de justesse du pré-tagging ne peut pas dépendre du client, sinon
-   * elle mesure le client.
+   * 🛑 **Le client n'envoie jamais `VALIDATED` ni `CORRECTED`** — le type
+   * `CivicTaggingGesteVerdict` les rend inexprimables. C'est le serveur qui
+   * compare la notion retenue à la suggestion la mieux notée : la mesure de
+   * justesse du pré-tagging ne peut pas dépendre du client, sinon elle mesure
+   * le client. `CONFIRM_NONE` est un **geste** (« je confirme le trou »), que
+   * le serveur traduit en `VALIDATED` — et refuse en 400 si la meilleure
+   * suggestion n'était pas « aucune notion ».
    */
-  taguer(questionId: string, notionCode: string | null, verdict: string | null) {
+  taguer(
+    questionId: string,
+    notionCode: string | null,
+    verdict: CivicTaggingGesteVerdict | null,
+  ) {
     return apiRequest<void>(`/api/admin/civic-notions/questions/${questionId}`, {
       method: "PUT",
       body: { notionCode, verdict },

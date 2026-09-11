@@ -1731,9 +1731,34 @@ export interface CivicTaggingChoix {
  */
 export type CivicReviewVerdict = "VALIDATED" | "CORRECTED" | "REJECTED" | "SKIPPED";
 
+/**
+ * Ce que le CLIENT a le droit d'écrire dans `verdict`.
+ *
+ * 🛑 Volontairement **disjoint** de `CivicReviewVerdict` : `VALIDATED` et
+ * `CORRECTED` n'y figurent pas, donc ils ne peuvent pas être envoyés — la
+ * contrainte est portée par le type, pas par une consigne.
+ *
+ * `CONFIRM_NONE` est un **geste**, pas un verdict : le relecteur confirme que
+ * le modèle a raison de ne trouver aucune notion. Le serveur le traduit en
+ * `VALIDATED` et **refuse (400)** si la meilleure suggestion n'était pas
+ * « aucune notion ».
+ */
+export type CivicTaggingGesteVerdict = "CONFIRM_NONE" | "REJECTED" | "SKIPPED";
+
 export interface CivicTaggingSuggestion {
-  notionCode: string;
-  notionLabel: string;
+  /**
+   * 🛑 `null` = le modèle a conclu qu'**aucune notion du référentiel ne
+   * convient**. Ce n'est pas une absence de suggestion : `confidence`,
+   * `rationale` et `reviewVerdict` sont servis normalement, et c'est
+   * l'information qui révèle les **trous du référentiel**.
+   *
+   * 🛑 Ne jamais convertir ce `null` en chaîne sentinelle (`"AUCUNE"`, `"—"`) :
+   * c'est lui qui distingue « le modèle a tranché : rien ne colle » d'une
+   * question que le pré-tagging n'a pas couverte (`suggestions: []`). Une
+   * sentinelle finirait par s'afficher telle quelle.
+   */
+  notionCode: string | null;
+  notionLabel: string | null;
   /** 0 → 1. */
   confidence: number;
   /** Pourquoi le modèle propose cette notion. `null` = le job ne l'a pas écrit. */

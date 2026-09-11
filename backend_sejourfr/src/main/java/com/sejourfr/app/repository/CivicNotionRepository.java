@@ -49,9 +49,19 @@ public interface CivicNotionRepository extends JpaRepository<CivicNotion, UUID> 
             """, nativeQuery = true)
     List<Object[]> couvertureParNotionEtMention();
 
+    /**
+     * Combien de propositions machine pointent vers chaque notion.
+     *
+     * <p>🛑 <b>{@code notion_id IS NOT NULL} explicite</b> (V057) : une
+     * suggestion « aucune notion ne convient » ne pointe vers aucune notion et
+     * n'a donc rien a compter ici. Sans ce filtre, le {@code GROUP BY}
+     * produirait un groupe a cle nulle, muet dans le referentiel mais pret a
+     * etre pris un jour pour la couverture d'une notion.
+     */
     @Query(value = """
             SELECT notion_id, COUNT(*)
             FROM question_notion_suggestions
+            WHERE notion_id IS NOT NULL
             GROUP BY notion_id
             """, nativeQuery = true)
     List<Object[]> suggestionsParNotion();

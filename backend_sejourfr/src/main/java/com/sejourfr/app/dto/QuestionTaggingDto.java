@@ -38,6 +38,22 @@ public record QuestionTaggingDto(
     public record Choix(String label, boolean correct) {}
 
     /**
+     * Une proposition de la machine.
+     *
+     * <p>🛑 <b>{@code notionCode} et {@code notionLabel} NULS = le modele a
+     * conclu qu'AUCUNE notion du referentiel ne convient</b> (V057). C'est un
+     * verdict, pas une erreur ni une absence de suggestion : c'est ainsi que
+     * l'ecran sait afficher « Aucune notion correspondante », et c'est le
+     * signal qui fera decouvrir les notions manquantes. {@code confidence},
+     * {@code rationale} et {@code reviewVerdict} sont servis normalement.
+     *
+     * <p>🛑 <b>Le {@code null} n'est JAMAIS remplace par une chaine</b>
+     * (« AUCUNE », « — »…) : le front a besoin du {@code null} pour distinguer
+     * sans deviner, et une sentinelle finirait par s'afficher telle quelle.
+     *
+     * @param notionCode    code de la notion proposee, {@code null} pour
+     *                      « aucune notion ne convient »
+     * @param notionLabel   libelle de cette notion, {@code null} de meme
      * @param rationale     la phrase par laquelle la machine se justifie,
      *                      {@code null} si la campagne n'en a pas produit
      * @param reviewVerdict ce que la relecture humaine en a fait,

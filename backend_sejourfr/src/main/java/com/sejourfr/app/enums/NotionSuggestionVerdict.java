@@ -30,8 +30,28 @@ public enum NotionSuggestionVerdict {
     /** Il passe sans trancher : la question <b>reste dans la file</b>. */
     SKIPPED;
 
-    /** Le seul verdict qu'un client puisse demander explicitement : « pose le tag ». */
+    /** Le verdict que demande un client qui pose une notion : « pose le tag ». */
     public static final String DEMANDE_TAG = "TAG";
+
+    /**
+     * Le geste « <b>je confirme qu'aucune notion ne convient</b> » (V057).
+     *
+     * <p>🛑 <b>Ce n'est PAS un cinquieme etat stocke</b> : le serveur inscrit
+     * {@link #VALIDATED}, parce que la proposition du modele — « aucune » —
+     * etait juste. C'est exactement ce qui rend la mesure possible : sans ce
+     * geste, confirmer un trou du referentiel n'aurait aucune ecriture, et un
+     * modele qui dit « non » a raison ne se distinguerait pas d'un modele
+     * qu'on ignore.
+     *
+     * <p>🛑 Le serveur le <b>refuse</b> quand la meilleure suggestion de la
+     * question n'est pas « aucune notion » : le client affirmerait alors
+     * quelque chose de faux sur la qualite du modele. Meme principe que
+     * l'interdiction d'annoncer {@link #VALIDATED} directement.
+     *
+     * <p>🛑 <b>Aucun tag n'est pose</b> : {@code civic_notion_id} reste nul.
+     * Confirmer un trou n'est pas ranger la question quelque part.
+     */
+    public static final String DEMANDE_CONFIRM_NONE = "CONFIRM_NONE";
 
     /** Ce verdict pose-t-il le tag valide sur la question ? */
     public boolean poseLaNotion() {

@@ -1209,11 +1209,68 @@ mélanger dans le même taux de `VALIDATED`.
 ne recopie une suggestion vers `questions.civic_notion_id`. « Le job propose, un
 humain valide » (`50_` §6.1.3). Vérifié par `CivicTaggingVerdictIT`.
 
+### « Aucune notion ne convient » est un VERDICT, pas un silence (V057)
+
+Le pré-tagging peut conclure qu'**aucune notion du référentiel ne convient**
+(valeur `AUCUNE` du tool-schema). C'est l'information de **première importance**
+du chantier : c'est elle qui révèle les **trous du référentiel**. Elle était
+**perdue** — `notion_id` était `NOT NULL`, donc l'import n'écrivait pas de ligne
+et la question sortait des métriques (49 lignes pour 50 entrées au pilote).
+
+`question_notion_suggestions.notion_id` est donc **nullable** : `NULL` = le
+modèle a conclu qu'aucune notion ne convient. 🛑 **Ce n'est PAS la même chose
+que l'absence de ligne**, qui dit « cette question n'a pas été pré-taguée ».
+🛑 **Aucune notion technique « AUCUNE » n'existe dans `civic_notions`** (décision
+du propriétaire) : le référentiel ne contient que de vraies notions
+pédagogiques, et l'absence de rattachement s'écrit avec l'absence de valeur.
+
+🛑 **L'unicité tient en `UNIQUE NULLS NOT DISTINCT`** (PG 15+) : sans elle, deux
+`NULL` seraient distincts et un rejeu de lot empilerait dix lignes « aucune
+notion » sur la même question — un trou compté dix fois.
+
+🛑 **Toute lecture de cette table est en `LEFT JOIN`** : une jointure interne sur
+`civic_notions` fait disparaître ces lignes **en silence**, c'est-à-dire
+exactement celles qu'on cherche. Les tris qui départagent sur `n.code` portent un
+`NULLS LAST` explicite pour rester déterministes.
+
+**Les quatre gestes sur une suggestion « aucune notion »** :
+
+| geste du relecteur | requête | stocké | tag posé |
+|---|---|---|---|
+| **valider** (« il y a bien un trou ») | `CONFIRM_NONE` | `VALIDATED` | non |
+| **corriger** (« si, c'est cette notion-là ») | `{notionCode: X}` | `CORRECTED` | oui |
+| **rejeter** | `REJECTED` | `REJECTED` | non |
+| **passer** | `SKIPPED` | `SKIPPED` | non |
+
+🛑 **`CONFIRM_NONE` stocke `VALIDATED`** — la proposition du modèle (« aucune »)
+était juste, et c'est exactement ce qui rend la métrique mesurable. Il est
+**refusé (400)** quand la meilleure suggestion de la question n'est pas « aucune
+notion », y compris quand il n'y en a aucune : le client affirmerait quelque
+chose de faux sur la qualité du modèle. Même principe que l'interdiction
+d'annoncer `VALIDATED` soi-même. ⚠️ Corriger depuis une suggestion « aucune »
+donne bien **`CORRECTED`** : le modèle s'était trompé.
+
+⚠️ **Aucune contrainte n'interdit une ligne « aucune » à côté d'une ligne
+« notion X » sur la même question** : le tool-schema du job accepte `AUCUNE` en
+`notion` **et** en `alternative`, et sa règle 8 demande une alternative quand
+deux réponses se défendent. « Probablement rien, sinon `hg_patrimoine` » est une
+hésitation honnête, et c'est le matériau de la porte de revue ; l'interdire
+ferait taire l'une des deux moitiés. La cohérence se juge sur la **meilleure**
+suggestion, à la lecture.
+
+**Côté DTO** : `QuestionTaggingDto.Suggestion.notionCode` / `notionLabel` sont
+**nullables** — c'est ainsi que l'écran affiche « Aucune notion correspondante ».
+🛑 **Jamais de chaîne sentinelle** (`"AUCUNE"`, `"—"`) : le front a besoin du
+`null` pour distinguer sans deviner, et une sentinelle finirait par s'afficher
+telle quelle.
+
 **Contrat REST** (figé) : `PUT /api/admin/civic-notions/questions/{id}` avec
 `{notionCode, verdict}`. `verdict` nul ou `"TAG"` + `notionCode` ⇒ le serveur
-pose et déduit ; `"REJECTED"` / `"SKIPPED"` ⇒ on marque seulement, aucun
-`notionCode` accepté ; `notionCode` nul sans verdict ⇒ **effacement**, le
-comportement d'avant V054 (rétrocompatibilité). `GET .../questions` sert
+pose et déduit ; `"CONFIRM_NONE"` ⇒ le relecteur confirme qu'aucune notion ne
+convient, le serveur stocke `VALIDATED` et ne pose rien (V057) ; `"REJECTED"` /
+`"SKIPPED"` ⇒ on marque seulement, aucun `notionCode` accepté ; `notionCode` nul
+sans verdict ⇒ **effacement**, le comportement d'avant V054
+(rétrocompatibilité). `GET .../questions` sert
 l'énoncé, l'**explication**, les **propositions** et, par suggestion, sa
 `rationale` et son `reviewVerdict`.
 

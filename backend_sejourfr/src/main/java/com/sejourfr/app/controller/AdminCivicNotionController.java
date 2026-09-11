@@ -75,12 +75,33 @@ public class AdminCivicNotionController {
      *   <li>{@code notionCode} + pas de verdict (ou {@code "TAG"}) : le serveur
      *       pose la notion et <b>deduit</b> {@code VALIDATED} ou
      *       {@code CORRECTED} ;</li>
+     *   <li>{@code verdict = "CONFIRM_NONE"} (sans {@code notionCode}) : le
+     *       relecteur confirme qu'<b>aucune notion ne convient reellement</b>,
+     *       c'est-a-dire qu'il est d'accord avec le modele. Le serveur stocke
+     *       {@code VALIDATED} — la proposition « aucune » etait juste — et ne
+     *       pose aucun tag. 🛑 Refuse (400) si la meilleure suggestion de la
+     *       question n'est pas « aucune notion » : le client affirmerait
+     *       quelque chose de faux sur la qualite du modele ;</li>
      *   <li>{@code verdict = "REJECTED"} / {@code "SKIPPED"} : aucune notion
      *       posee, on marque seulement — la question reste dans la file ;</li>
      *   <li>{@code notionCode} nul sans verdict : le tag s'efface. Se tromper
      *       doit rester rattrapable depuis l'ecran ; effacer ne dit pas « cette
      *       question n'a pas de notion », mais « elle attend a nouveau ».</li>
      * </ul>
+     *
+     * <p><b>Les quatre gestes sur une suggestion « aucune notion »</b> (V057) :
+     *
+     * <table>
+     *   <tr><th>geste</th><th>requete</th><th>stocke</th><th>tag pose</th></tr>
+     *   <tr><td>Valider (« il y a bien un trou »)</td>
+     *       <td>{@code CONFIRM_NONE}</td><td>{@code VALIDATED}</td><td>non</td></tr>
+     *   <tr><td>Corriger (« si, c'est cette notion-la »)</td>
+     *       <td>{@code {notionCode: X}}</td><td>{@code CORRECTED}</td><td>oui</td></tr>
+     *   <tr><td>Rejeter</td>
+     *       <td>{@code REJECTED}</td><td>{@code REJECTED}</td><td>non</td></tr>
+     *   <tr><td>Passer</td>
+     *       <td>{@code SKIPPED}</td><td>{@code SKIPPED}</td><td>non</td></tr>
+     * </table>
      *
      * <p>🛑 <b>Un client ne peut pas annoncer {@code VALIDATED} ni
      * {@code CORRECTED}</b> : la comparaison a la suggestion la mieux notee est
@@ -97,9 +118,10 @@ public class AdminCivicNotionController {
 
     /**
      * @param notionCode code de la notion retenue, ou {@code null} pour effacer
-     * @param verdict    {@code null} / {@code "TAG"} / {@code "REJECTED"} /
-     *                   {@code "SKIPPED"} — jamais {@code VALIDATED} ni
-     *                   {@code CORRECTED}, que le serveur deduit lui-meme
+     * @param verdict    {@code null} / {@code "TAG"} / {@code "CONFIRM_NONE"} /
+     *                   {@code "REJECTED"} / {@code "SKIPPED"} — jamais
+     *                   {@code VALIDATED} ni {@code CORRECTED}, que le serveur
+     *                   deduit lui-meme
      */
     public record TagRequest(String notionCode, String verdict) {}
 }

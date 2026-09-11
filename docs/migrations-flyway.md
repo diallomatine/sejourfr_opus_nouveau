@@ -53,6 +53,17 @@ db/migration/
 │   │                                             D'APPLICATION AUTOMATIQUE d'une
 │   │                                             suggestion vers
 │   │                                             questions.civic_notion_id
+│   ├── V055-V057                                le référentiel de notions s'ajuste :
+│   │                                             `description` d'une notion + notion
+│   │                                             « fêtes et jours fériés » (V055),
+│   │                                             frontière droits ⇄ dates (V056), et
+│   │                                             la suggestion « AUCUNE notion ne
+│   │                                             convient » (V057 : `notion_id`
+│   │                                             nullable, unicité en NULLS NOT
+│   │                                             DISTINCT). 🛑 V057 NE CRÉE AUCUNE
+│   │                                             notion technique « AUCUNE » :
+│   │                                             l'absence de rattachement s'écrit
+│   │                                             avec l'absence de valeur
 │   └── V049__diagnostic_tcf_complet.sql         lot L4 : tcf_diagnostic_sessions +
 │                                                 attempts.tcf_diagnostic_id. 🛑 CE
 │                                                 DISCRIMINANT SE FILTRE PARTOUT
@@ -161,8 +172,10 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V054`**
-  (traçabilité du pré-tagging de notions) → le prochain est `V055`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V057`**
+  (`question_notion_suggestions.notion_id` devient nullable — « aucune notion du
+  référentiel ne convient » est un VERDICT, et son unicité tient en
+  `UNIQUE NULLS NOT DISTINCT`) → le prochain est `V058`.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
   numéro, donc un `UPDATE` en `V0xx` s'exécute **avant** les `INSERT` des plages 200/300 et
   ne trouve aucune ligne. On garde la DDL en `00_schema` et on pose l'`UPDATE` dans la plage

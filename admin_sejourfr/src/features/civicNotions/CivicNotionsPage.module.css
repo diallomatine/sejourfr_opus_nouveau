@@ -317,9 +317,68 @@
   color: var(--muted-2);
 }
 
+/* ⚠️ « Le modèle a conclu qu'AUCUNE notion ne convient » est un VERDICT, et
+   c'est ce qui révèle les trous du référentiel : il se voit. Ambre plein +
+   anatomie identique à une suggestion normale (titre, jauge, rationale), pour
+   que le relecteur n'ait pas à réapprendre à lire la carte. */
+.suggestionAucune {
+  border: 1px solid var(--amber);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--amber-soft);
+  padding: 8px 10px;
+}
+
+.aucuneNotionTitre {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.aucuneMarque {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--amber);
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.aucuneNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ⚠️ L'ABSENCE de verdict — le pré-tagging n'a rien dit. Traits pointillés,
+   aucun aplat : rien ne s'est passé, il n'y a rien à confirmer. C'est ce qui la
+   distingue au premier coup d'œil du bloc ambre ci-dessus. */
 .sansSuggestion {
-  margin: 5px 0 0;
+  margin-top: 5px;
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+}
+
+.sansSuggestionTitre {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.sansSuggestionTexte {
+  margin: 4px 0 0;
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--muted);
 }
 
@@ -382,6 +441,13 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted-2);
+}
+
+.alternativeNote {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .alternativeBouton {
@@ -479,6 +545,22 @@
   border-color: var(--rule);
   background: var(--surface);
   color: var(--muted-2);
+}
+
+/* ⚠️ Confirmer un trou du référentiel n'est PAS le clic habituel : même place,
+   mais un autre libellé et une autre couleur, pour que la main ne le fasse pas
+   par réflexe. Ambre, comme partout ailleurs dans l'admin pour « regarde ça ».
+   Placé APRÈS `.valider kbd` : même spécificité, c'est l'ordre qui tranche. */
+.validerTrou {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.validerTrou kbd {
+  border-color: var(--ink);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .rejeter {

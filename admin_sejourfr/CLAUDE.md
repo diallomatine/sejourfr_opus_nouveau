@@ -314,14 +314,37 @@ question**, d'où une **carte de relecture** et non une ligne de tableau.
   trancher sans les deux tiers du texte.
 - **La bonne réponse ne se distingue jamais par la seule couleur** : glyphe `✓`,
   graisse, et le libellé « bonne réponse » écrit en toutes lettres.
-- 🛑 **Quatre gestes, quatre écritures distinctes.** `PUT …/{questionId}`
-  `{notionCode, verdict}` : valider = `{suggestion n°1, null}`, corriger =
-  `{autre notion, null}`, rejeter = `{null, "REJECTED"}`, passer =
-  `{null, "SKIPPED"}`. **Le client n'envoie jamais `VALIDATED` ni `CORRECTED`** :
-  c'est le serveur qui compare la notion retenue à la suggestion la mieux notée.
-  Une mesure de justesse du pré-tagging qui dépend du client mesure le client.
+- 🛑 **Cinq gestes, cinq écritures distinctes.** `PUT …/{questionId}`
+  `{notionCode, verdict}` : valider = `{suggestion n°1, null}`, **confirmer un
+  trou** = `{null, "CONFIRM_NONE"}`, corriger = `{autre notion, null}`, rejeter =
+  `{null, "REJECTED"}`, passer = `{null, "SKIPPED"}`. **Le client n'envoie jamais
+  `VALIDATED` ni `CORRECTED`** — le type `CivicTaggingGesteVerdict`
+  (`"CONFIRM_NONE" | "REJECTED" | "SKIPPED"`) les rend inexprimables : c'est le
+  serveur qui compare la notion retenue à la suggestion la mieux notée. Une
+  mesure de justesse du pré-tagging qui dépend du client mesure le client.
+  `CONFIRM_NONE` est un **geste**, pas un verdict : le serveur le traduit en
+  `VALIDATED` et refuse en 400 si la meilleure suggestion n'était pas
+  « aucune notion ».
+- 🛑 **Trois états de suggestion, jamais deux.** (1) suggestion normale ;
+  (2) `suggestions[0].notionCode === null` ⇒ **le modèle a conclu qu'aucune
+  notion du référentiel ne convient** — un verdict, servi avec sa `confidence`
+  et sa `rationale`, et c'est lui qui révèle les **trous du référentiel** ;
+  (3) `suggestions: []` ⇒ le pré-tagging n'a pas couvert la question, une
+  **absence** de verdict. (2) se rend en ambre plein avec la même anatomie
+  qu'une suggestion normale, (3) en encadré pointillé muet. 🛑 **Ne jamais
+  convertir ce `null` en sentinelle** (`"AUCUNE"`, `"—"`) : c'est lui qui
+  distingue (2) de (3), et une sentinelle finirait affichée telle quelle.
+  Sur (2), « Valider » devient **« Confirmer le trou »** (ambre, libellé et
+  `title` explicites — le geste est rare et conséquent), le raccourci `V` écrit
+  `CONFIRM_NONE`, et un « aucune notion » arrivé en **suggestion n°2** ne se
+  « retient » pas (le raccourci `A` se tait) : le serveur ne sait confirmer un
+  trou que sur la mieux notée.
 - `suggestions[].reviewVerdict` non nul ⇒ **badge « déjà relue »** sur la carte.
   Sans lui, le relecteur qui revient refait l'arbitrage qu'il a déjà rendu.
+  ⚠️ **Le même verdict ne dit pas la même chose selon la suggestion qui le
+  porte** : `VALIDATED` sur un « aucune notion » se lit « trou du référentiel
+  confirmé », `CORRECTED` « trou infirmé, notion posée à la main »
+  (`VERDICTS_AUCUNE_NOTION`).
 - **Le `<select>` ne propose que les notions du thème courant** — volontaire :
   une suggestion qui pointe vers un autre thème est inapplicable, et c'est un
   signal éditorial.

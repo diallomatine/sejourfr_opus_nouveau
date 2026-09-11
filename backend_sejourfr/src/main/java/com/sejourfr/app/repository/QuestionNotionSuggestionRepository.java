@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -28,37 +27,65 @@ import java.util.UUID;
 public interface QuestionNotionSuggestionRepository
         extends JpaRepository<com.sejourfr.app.entity.CivicNotion, UUID> {
 
-    /** Les suggestions de PLUSIEURS questions, en une requete : l'ecran en affiche 25 d'un coup. */
+    /**
+     * Les suggestions de PLUSIEURS questions, en une requete : l'ecran en
+     * affiche 25 d'un coup.
+     *
+     * <p>🛑 <b>{@code LEFT JOIN}, jamais {@code JOIN}</b> (V057). Une
+     * suggestion « aucune notion ne convient » porte {@code notion_id NULL} :
+     * une jointure interne la ferait disparaitre EN SILENCE, et c'est
+     * exactement la ligne qui revele un trou du referentiel. Colonnes
+     * {@code n.code} / {@code n.label} nulles dans ce cas — le service les sert
+     * telles quelles, sans sentinelle.
+     *
+     * <p>{@code NULLS LAST} explicite : a confiance egale, « aucune notion »
+     * passe apres les notions nommees, et le tri reste deterministe.
+     */
     @Query(value = """
             SELECT s.question_id, n.code, n.label, s.confidence, s.rationale, s.review_verdict
             FROM question_notion_suggestions s
-                     JOIN civic_notions n ON n.id = s.notion_id
+                     LEFT JOIN civic_notions n ON n.id = s.notion_id
             WHERE s.question_id IN (:questionIds)
-            ORDER BY s.question_id, s.confidence DESC, n.code
+            ORDER BY s.question_id, s.confidence DESC, n.code NULLS LAST
             """, nativeQuery = true)
     List<Object[]> parQuestions(@Param("questionIds") Collection<UUID> questionIds);
 
     /**
-     * La notion <b>la mieux notee</b> proposee pour une question.
+     * La suggestion <b>la mieux notee</b> d'une question, sous une forme qui
+     * distingue <b>trois</b> cas.
+     *
+     * <p>🛑 Le retour est une <b>liste d'au plus une ligne</b>
+     * {@code (id, notion_id)} et non un {@code Optional<UUID>} : depuis V057,
+     * « aucune ligne » et « la meilleure ligne conclut qu'aucune notion ne
+     * convient » sont deux situations differentes, et un {@code Optional} vide
+     * les confondrait. La colonne {@code s.id} est la pour ca — elle est
+     * toujours non nulle, donc la PRESENCE de la ligne se lit sans ambiguite.
+     *
+     * <ul>
+     *   <li>liste vide — aucune campagne n'a tourne sur cette question ;</li>
+     *   <li>une ligne, {@code notion_id} nul — le modele a conclu « aucune
+     *       notion » ;</li>
+     *   <li>une ligne, {@code notion_id} renseigne — la notion proposee.</li>
+     * </ul>
      *
      * <p>🛑 C'est la seule reference qui distingue {@code VALIDATED} de
      * {@code CORRECTED}, et elle est lue <b>cote serveur</b> : un client qui
      * annoncerait lui-meme « j'ai validé » pourrait mentir sur la metrique de
      * qualite du modele.
      *
-     * <p>Le departage {@code n.code} rend la lecture deterministe : deux
-     * suggestions a la meme confiance ne doivent pas donner deux verdicts selon
-     * l'humeur du planificateur.
+     * <p>Le departage {@code n.code NULLS LAST} rend la lecture deterministe :
+     * deux suggestions a la meme confiance ne doivent pas donner deux verdicts
+     * selon l'humeur du planificateur.
      */
     @Query(value = """
-            SELECT s.notion_id
+            SELECT s.id, s.notion_id
             FROM question_notion_suggestions s
-                     JOIN civic_notions n ON n.id = s.notion_id
+                     LEFT JOIN civic_notions n ON n.id = s.notion_id
             WHERE s.question_id = :questionId
-            ORDER BY s.confidence DESC, n.code
+            ORDER BY s.confidence DESC, n.code NULLS LAST
             LIMIT 1
             """, nativeQuery = true)
-    Optional<UUID> meilleureSuggestion(@Param("questionId") UUID questionId);
+    List<Object[]> meilleureSuggestion(@Param("questionId") UUID questionId);
 
     /**
      * Inscrit le verdict de relecture sur <b>toutes</b> les suggestions d'une

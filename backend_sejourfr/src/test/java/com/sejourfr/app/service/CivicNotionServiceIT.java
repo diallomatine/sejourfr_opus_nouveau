@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>Ce que ce test verrouille :
  * <ul>
- *   <li>les 40 notions du référentiel de travail sont bien seedées, réparties
+ *   <li>les notions du référentiel de travail sont bien seedées, réparties
  *       sur les cinq thèmes ;</li>
  *   <li>🛑 une question non taguée est <b>en attente</b>, pas hors programme —
  *       et le tag s'efface, parce que se tromper doit rester rattrapable ;</li>
@@ -39,11 +39,14 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Autowired private EntityManager entityManager;
 
     @Test
-    @DisplayName("Les 40 notions du référentiel de travail sont seedées sur les 5 thèmes")
+    @DisplayName("Les 41 notions du référentiel de travail sont seedées sur les 5 thèmes")
     void referentielSeede() {
         var referentiel = service.referentiel();
 
-        assertThat(referentiel).hasSize(40);
+        // 40 notions de travail (V051) + `hg_fetes_jours_feries`, ouverte par
+        // V055 : le référentiel n'est PAS figé, il s'ajuste à la porte de revue
+        // quand le tagging montre un trou. Ce compte suit donc les migrations.
+        assertThat(referentiel).hasSize(41);
         assertThat(referentiel).extracting(CivicNotionDto::themeCode).containsOnly(
                 "CIV_PRINCIPES", "CIV_INSTITUTIONS", "CIV_DROITS_DEVOIRS",
                 "CIV_HISTOIRE_GEO", "CIV_SOCIETE");
@@ -56,7 +59,8 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
         });
         assertThat(referentiel).extracting(CivicNotionDto::code)
                 .contains("pv_laicite", "vs_laicite_quotidien",
-                        "dd_logement", "vs_logement_pratique");
+                        "dd_logement", "vs_logement_pratique",
+                        "hg_fetes_jours_feries");
     }
 
     @Test

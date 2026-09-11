@@ -114,8 +114,14 @@ public class CivicNotionService {
         Map<UUID, List<QuestionTaggingDto.Suggestion>> suggestions = new LinkedHashMap<>();
         for (Object[] row : manager.suggestionsParQuestions(ids)) {
             suggestions.computeIfAbsent((UUID) row[0], k -> new ArrayList<>())
+                    // 🛑 `notionCode` / `notionLabel` NULS quand le modele a
+                    // conclu « aucune notion ne convient » (V057). Aucune
+                    // sentinelle : une chaine « AUCUNE » finirait par
+                    // s'afficher telle quelle, et le front ne pourrait plus
+                    // distinguer sans deviner.
                     .add(new QuestionTaggingDto.Suggestion(
-                            String.valueOf(row[1]), String.valueOf(row[2]),
+                            row[1] == null ? null : String.valueOf(row[1]),
+                            row[2] == null ? null : String.valueOf(row[2]),
                             ((Number) row[3]).doubleValue(),
                             row[4] == null ? null : String.valueOf(row[4]),
                             row[5] == null ? null : String.valueOf(row[5])));
@@ -174,9 +180,29 @@ public class CivicNotionService {
      *   <tr><th>geste</th><th>{@code civic_notion_id}</th><th>suggestions</th></tr>
      *   <tr><td>notion retenue = la mieux notee</td><td>posee</td><td>{@code VALIDATED}</td></tr>
      *   <tr><td>autre notion retenue</td><td>posee</td><td>{@code CORRECTED}</td></tr>
+     *   <tr><td>{@code CONFIRM_NONE}</td><td>intacte</td><td>{@code VALIDATED}</td></tr>
      *   <tr><td>{@code REJECTED}</td><td>intacte</td><td>{@code REJECTED}</td></tr>
      *   <tr><td>{@code SKIPPED}</td><td>intacte</td><td>{@code SKIPPED}</td></tr>
      * </table>
+     *
+     * <h3>Les quatre gestes sur une suggestion « aucune notion » (V057)</h3>
+     *
+     * <table>
+     *   <tr><th>geste du relecteur</th><th>requete</th><th>stocke</th><th>tag pose</th></tr>
+     *   <tr><td><b>Valider</b> (« il y a bien un trou »)</td>
+     *       <td>{@code CONFIRM_NONE}</td><td>{@code VALIDATED}</td><td>non</td></tr>
+     *   <tr><td><b>Corriger</b> (« si, c'est cette notion-la »)</td>
+     *       <td>{@code {notionCode: X}}</td><td>{@code CORRECTED}</td><td>oui</td></tr>
+     *   <tr><td><b>Rejeter</b></td>
+     *       <td>{@code REJECTED}</td><td>{@code REJECTED}</td><td>non</td></tr>
+     *   <tr><td><b>Passer</b></td>
+     *       <td>{@code SKIPPED}</td><td>{@code SKIPPED}</td><td>non</td></tr>
+     * </table>
+     *
+     * <p>⚠️ <b>Corriger depuis une suggestion « aucune » donne bien
+     * {@code CORRECTED}</b> : le modele s'etait trompe. La comparaison le fait
+     * seule — poser une notion alors que la meilleure suggestion ne designe
+     * aucune notion, ce sont deux choses differentes.
      *
      * <p>🛑 <b>SEULS {@code VALIDATED} et {@code CORRECTED} posent une
      * notion.</b> Rejeter et passer ne touchent jamais la question : rejeter dit
@@ -197,8 +223,9 @@ public class CivicNotionService {
      * recreerait du travail a defaire au tour suivant.
      *
      * @param verdictDemande {@code null} ou {@code "TAG"} pour poser la notion,
-     *                       {@code "REJECTED"} / {@code "SKIPPED"} pour marquer
-     *                       sans poser
+     *                       {@code "CONFIRM_NONE"} pour confirmer qu'aucune ne
+     *                       convient, {@code "REJECTED"} / {@code "SKIPPED"}
+     *                       pour marquer sans poser
      * @param relecteurId    qui tranche, ou {@code null} pour une relecture
      *                       faite hors ecran (script, reprise) — on ne lui
      *                       invente pas un auteur
@@ -211,6 +238,11 @@ public class CivicNotionService {
         String demande = verdictDemande == null || verdictDemande.isBlank()
                 ? null : verdictDemande.trim().toUpperCase();
         boolean tagExplicite = NotionSuggestionVerdict.DEMANDE_TAG.equals(demande);
+
+        if (NotionSuggestionVerdict.DEMANDE_CONFIRM_NONE.equals(demande)) {
+            return confirmerAucuneNotion(questionId, notionCode, relecteurId);
+        }
+
         NotionSuggestionVerdict marquage =
                 demande == null || tagExplicite ? null : verdictSansTag(demande);
 
@@ -233,22 +265,78 @@ public class CivicNotionService {
 
         poser(questionId, notion);
         // 🛑 Deduit ici, jamais recu : c'est LA mesure du pre-tagging.
-        NotionSuggestionVerdict verdict = manager.meilleureSuggestion(questionId)
-                .map(meilleure -> meilleure.equals(notion.getId())
-                        ? NotionSuggestionVerdict.VALIDATED
-                        : NotionSuggestionVerdict.CORRECTED)
-                .orElse(null);
-        if (verdict == null) {
+        CivicNotionManager.MeilleureSuggestion meilleure =
+                manager.meilleureSuggestion(questionId);
+        if (!meilleure.existe()) {
             // Aucune campagne n'a tourne sur cette question : il n'y a rien a
             // qualifier. L'etat NORMAL aujourd'hui, pas une anomalie.
             log.info("Tagging civique : question={} notion={} (sans suggestion)",
                     questionId, notionCode);
             return null;
         }
+        // 🛑 `designe` est faux quand la meilleure suggestion conclut « aucune
+        // notion » : poser une notion la-dessus CORRIGE le modele, ca ne le
+        // valide pas.
+        NotionSuggestionVerdict verdict = meilleure.designe(notion.getId())
+                ? NotionSuggestionVerdict.VALIDATED
+                : NotionSuggestionVerdict.CORRECTED;
         int marquees = manager.marquerVerdict(questionId, verdict, relecteurId);
         log.info("Tagging civique : question={} notion={} verdict={} suggestions={}",
                 questionId, notionCode, verdict, marquees);
         return verdict;
+    }
+
+    /**
+     * <b>{@code CONFIRM_NONE}</b> — le relecteur confirme qu'aucune notion ne
+     * convient reellement : il est d'accord avec le modele (V057).
+     *
+     * <p>🛑 <b>Le serveur stocke {@code VALIDATED}</b>, parce que la
+     * proposition du modele — « aucune » — etait juste. C'est exactement ce qui
+     * rend la metrique mesurable : sans ce geste, confirmer un trou du
+     * referentiel n'ecrivait rien, et un modele qui dit « non » a raison ne se
+     * distinguait pas d'un modele qu'on ignore.
+     *
+     * <p>🛑 <b>Refuse si la meilleure suggestion n'est PAS « aucune notion »</b>
+     * — y compris quand il n'y a aucune suggestion du tout : le client
+     * affirmerait alors quelque chose de faux sur la qualite du modele. Meme
+     * principe que l'interdiction d'annoncer {@code VALIDATED} directement, et
+     * meme raison : cette ligne est une mesure, pas une preference d'ecran.
+     *
+     * <p>🛑 <b>Aucun tag n'est pose</b> : {@code civic_notion_id} reste nul.
+     * Confirmer un trou n'est pas ranger la question quelque part.
+     */
+    private NotionSuggestionVerdict confirmerAucuneNotion(
+            UUID questionId, String notionCode, UUID relecteurId) {
+
+        if (notionCode != null && !notionCode.isBlank()) {
+            // « aucune notion ne convient » et « c'est cette notion » sont deux
+            // gestes contraires. Corriger le modele se demande avec le seul
+            // notionCode, et donne CORRECTED.
+            throw new BusinessException(
+                    "Un verdict « CONFIRM_NONE » ne pose aucune notion : "
+                            + "n'envoyez pas de notionCode avec lui.");
+        }
+        if (!manager.existeQuestionCivique(questionId)) {
+            throw new NotFoundException("Question introuvable : " + questionId);
+        }
+        CivicNotionManager.MeilleureSuggestion meilleure =
+                manager.meilleureSuggestion(questionId);
+        if (!meilleure.conclutAucuneNotion()) {
+            throw new BusinessException(
+                    "« CONFIRM_NONE » confirme que le modele a eu raison de ne "
+                            + "proposer aucune notion. Ici sa meilleure "
+                            + (meilleure.existe()
+                                    ? "suggestion en propose une : corrigez-la "
+                                      + "en envoyant la notion retenue, ou rejetez."
+                                    : "suggestion n'existe pas : cette question "
+                                      + "n'a pas ete pre-taguee, rejetez-la ou "
+                                      + "passez."));
+        }
+        int marquees = manager.marquerVerdict(
+                questionId, NotionSuggestionVerdict.VALIDATED, relecteurId);
+        log.info("Relecture civique : question={} CONFIRM_NONE -> VALIDATED suggestions={}",
+                questionId, marquees);
+        return NotionSuggestionVerdict.VALIDATED;
     }
 
     /** {@code REJECTED} / {@code SKIPPED} : on marque, on ne pose rien. */

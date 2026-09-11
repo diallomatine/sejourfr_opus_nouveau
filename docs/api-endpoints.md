@@ -173,6 +173,11 @@ blanc.
   posée s'il y en a une, et les `suggestions` triées par confiance décroissante —
   chacune avec sa `rationale` (nullable) et son `reviewVerdict` (nullable tant
   qu'elle n'est pas relue).
+  🛑 **`notionCode` et `notionLabel` d'une suggestion sont NULLABLES** (V057) :
+  `null` = le modèle a conclu qu'**aucune notion du référentiel ne convient**.
+  C'est un verdict, pas une erreur ni une absence de suggestion — c'est ainsi que
+  l'écran affiche « Aucune notion correspondante ». Jamais de chaîne sentinelle
+  (`"AUCUNE"`, `"—"`) : le front a besoin du `null` pour distinguer sans deviner.
   🛑 **La file ne propose que des questions de CONNAISSANCE** : les mises en
   situation relèvent des domaines `sit_*` (`50_` §6.2) et ne se taguent pas par
   notion. `resteATaguer` compte la même chose — c'est l'avancement qui déclenche
@@ -189,8 +194,19 @@ blanc.
     est refusé (400) : deux gestes contraires ne se devinent pas.
   - `notionCode: null` sans verdict ⇒ **effacement**, comportement d'avant V054.
     🛑 **Rétrocompatible** : un corps `{notionCode}` seul marche à l'identique.
+  - `verdict = "CONFIRM_NONE"` (sans `notionCode`) ⇒ le relecteur **confirme
+    qu'aucune notion ne convient** : il est d'accord avec le modèle. Le serveur
+    stocke **`VALIDATED`** — la proposition « aucune » était juste — et **ne pose
+    aucun tag**. 🛑 **400** si la meilleure suggestion de la question n'est pas
+    « aucune notion » (y compris s'il n'y en a aucune) : le client affirmerait
+    quelque chose de faux sur la qualité du modèle. Un `notionCode` avec ce
+    verdict est refusé (400) de même.
   - 🛑 Un client **ne peut pas** annoncer `VALIDATED` ni `CORRECTED` (400) :
     c'est la métrique de qualité du modèle, et elle se calcule serveur.
+  - **Les quatre gestes sur une suggestion « aucune notion »** (V057) :
+    *valider* = `CONFIRM_NONE` → stocké `VALIDATED`, pas de tag ·
+    *corriger* = `{notionCode: X}` → stocké **`CORRECTED`** (le modèle s'était
+    trompé), tag posé · *rejeter* = `REJECTED` · *passer* = `SKIPPED`.
   - Une notion **fusionnée** est refusée : la poser recréerait du travail à
     défaire.
   🛑 **Aucune de ces routes n'appelle un LLM.** `question_notion_suggestions`

@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.NotionSuggestionVerdict;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.CivicNotionManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * LES QUATRE VERDICTS DE RELECTURE DU PRÉ-TAGGING (V054), contre la vraie base.
+ * LES VERDICTS DE RELECTURE DU PRÉ-TAGGING (V054, V057), contre la vraie base.
  *
  * <p>Ce que ce test verrouille, et pourquoi chacun compte :
  * <ul>
@@ -41,7 +42,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *       pourrait la mentir ;</li>
  *   <li>🛑 <b>aucune suggestion ne s'applique toute seule</b> : la seule
  *       présence d'une proposition à confiance 1.0 ne pose aucun tag ;</li>
- *   <li>la <b>rétrocompatibilité</b> de {@code {notionCode}} seul.</li>
+ *   <li>la <b>rétrocompatibilité</b> de {@code {notionCode}} seul ;</li>
+ *   <li>🛑 <b>« aucune notion ne convient » est une LIGNE, pas un silence</b>
+ *       (V057) : elle est servie par la file (d'où le {@code LEFT JOIN}), elle
+ *       ne peut exister qu'une fois par question ({@code UNIQUE NULLS NOT
+ *       DISTINCT}), et {@code CONFIRM_NONE} la confirme en stockant
+ *       {@code VALIDATED} sans poser de tag. C'est ce verdict qui révélera les
+ *       trous du référentiel pendant le job sur les 790 questions.</li>
  * </ul>
  */
 class CivicTaggingVerdictIT extends AbstractIntegrationTest {
@@ -50,6 +57,7 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
     private static final String AUTRE = "pv_symboles";
 
     @Autowired private CivicNotionService service;
+    @Autowired private CivicNotionManager manager;
     @Autowired private TestData data;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private EntityManager entityManager;
@@ -329,6 +337,217 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // ========================================================================
+    // « AUCUNE NOTION NE CONVIENT » — le verdict qui révèle les trous du
+    // référentiel (V057).
+    // ========================================================================
+
+    @Test
+    @DisplayName("🛑 Une suggestion « aucune notion » est SERVIE par la file (LEFT JOIN)")
+    void laSuggestionAucuneNotionEstServie() {
+        Question question = data.question();
+        entityManager.flush();
+        // Le cas réel du pilote : « Quel roi a établi l'édit de Nantes ? » —
+        // AUCUNE, 0,60. Avec un JOIN interne, cette ligne disparaît en silence
+        // et la question sort des métriques : 49 lignes pour 50 entrées.
+        suggererAucune(question.getId(), 0.60);
+        entityManager.clear();
+
+        assertThat(fileDuThemeDe(question.getId()))
+                .filteredOn(q -> q.questionId().equals(question.getId()))
+                .singleElement()
+                .satisfies(q -> assertThat(q.suggestions()).singleElement().satisfies(s -> {
+                    // 🛑 NULL, jamais une sentinelle « AUCUNE » : le front doit
+                    // pouvoir distinguer sans deviner.
+                    assertThat(s.notionCode()).isNull();
+                    assertThat(s.notionLabel()).isNull();
+                    // Le reste est servi normalement — c'est la justification
+                    // qui dira au relecteur quelle notion manque.
+                    assertThat(s.confidence()).isEqualTo(0.60);
+                    assertThat(s.rationale()).isEqualTo("Parce que.");
+                    assertThat(s.reviewVerdict()).isNull();
+                }));
+    }
+
+    @Test
+    @DisplayName("🛑 UNIQUE NULLS NOT DISTINCT : une seule ligne « aucune notion » par question")
+    void uneSeuleLigneAucuneNotionParQuestion() {
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.60);
+        assertThat(nombreDeSuggestions(question.getId())).isEqualTo(1);
+
+        // Sans NULLS NOT DISTINCT, Postgres tient deux NULL pour distincts :
+        // rien n'empêcherait dix lignes « aucune notion » sur la même question,
+        // et un trou du référentiel se compterait dix fois.
+        assertThatThrownBy(() -> suggererAucune(question.getId(), 0.42))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("🛑 CONFIRM_NONE sur une suggestion « aucune » : stocké VALIDATED, AUCUN tag posé")
+    void confirmNoneStockeValidated() {
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.60);
+        User relecteur = data.admin();
+        entityManager.flush();
+        entityManager.clear();
+
+        NotionSuggestionVerdict verdict =
+                service.relire(question.getId(), null, "CONFIRM_NONE", relecteur.getId());
+
+        // 🛑 VALIDATED, parce que la proposition du modèle — « aucune » — était
+        // juste. C'est exactement ce qui rend la métrique mesurable.
+        assertThat(verdict).isEqualTo(NotionSuggestionVerdict.VALIDATED);
+        assertThat(verdicts(question.getId()))
+                .containsOnly(NotionSuggestionVerdict.VALIDATED.name());
+        // 🛑 Et aucun tag : confirmer un trou n'est pas ranger la question.
+        assertThat(notionDe(question.getId())).isNull();
+        assertThat(relecteurs(question.getId())).containsOnly(relecteur.getId());
+    }
+
+    @Test
+    @DisplayName("🛑 CONFIRM_NONE est REFUSÉ quand la meilleure suggestion propose une vraie notion")
+    void confirmNoneRefuseSurUneVraieNotion() {
+        Question question = questionAvecSuggestions();
+        User relecteur = data.admin();
+        entityManager.flush();
+        entityManager.clear();
+
+        // Le client affirmerait que le modèle n'a proposé aucune notion alors
+        // qu'il en a proposé une : c'est un mensonge sur sa qualité, au même
+        // titre qu'annoncer VALIDATED soi-même.
+        assertThatThrownBy(() -> service.relire(
+                question.getId(), null, "CONFIRM_NONE", relecteur.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("CONFIRM_NONE");
+        assertThat(verdicts(question.getId())).containsOnlyNulls();
+        assertThat(notionDe(question.getId())).isNull();
+    }
+
+    @Test
+    @DisplayName("CONFIRM_NONE sur une question JAMAIS pré-taguée est refusé lui aussi")
+    void confirmNoneRefuseSansAucuneSuggestion() {
+        Question question = data.question();
+        entityManager.flush();
+        entityManager.clear();
+
+        // « Le modèle a eu raison de dire non » n'a aucun sens quand le modèle
+        // n'a rien dit : l'absence de ligne n'est pas un verdict.
+        assertThatThrownBy(() -> service.relire(
+                question.getId(), null, "CONFIRM_NONE", data.admin().getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("pas ete pre-taguee");
+    }
+
+    @Test
+    @DisplayName("CONFIRM_NONE avec un notionCode est refusé : deux gestes contraires")
+    void confirmNoneAvecNotionCodeRefuse() {
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.60);
+        entityManager.clear();
+
+        assertThatThrownBy(() -> service.relire(
+                question.getId(), MIEUX_NOTEE, "CONFIRM_NONE", data.admin().getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("notionCode");
+        assertThat(verdicts(question.getId())).containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("🛑 Corriger une suggestion « aucune » donne CORRECTED, pas VALIDATED")
+    void corrigerUneSuggestionAucuneDonneCorrected() {
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.60);
+        entityManager.clear();
+
+        NotionSuggestionVerdict verdict =
+                service.relire(question.getId(), MIEUX_NOTEE, null, data.admin().getId());
+
+        // ⚠️ Le modèle s'était trompé : il disait « rien », le relecteur trouve
+        // une notion. Rendre VALIDATED ici gonflerait le taux d'accord.
+        assertThat(verdict).isEqualTo(NotionSuggestionVerdict.CORRECTED);
+        assertThat(notionDe(question.getId())).isEqualTo(MIEUX_NOTEE);
+        assertThat(verdicts(question.getId()))
+                .containsOnly(NotionSuggestionVerdict.CORRECTED.name());
+    }
+
+    @Test
+    @DisplayName("🛑 Les TROIS cas de meilleureSuggestion se distinguent sans ambiguïté")
+    void troisCasDeMeilleureSuggestion() {
+        Question sansSuggestion = data.question();
+        Question aucuneNotion = data.question();
+        Question avecNotion = data.question();
+        entityManager.flush();
+        suggererAucune(aucuneNotion.getId(), 0.60);
+        suggerer(avecNotion.getId(), MIEUX_NOTEE, 0.88);
+        entityManager.clear();
+
+        // 1. La question n'a pas été pré-taguée : rien à qualifier.
+        CivicNotionManager.MeilleureSuggestion absente =
+                manager.meilleureSuggestion(sansSuggestion.getId());
+        assertThat(absente.existe()).isFalse();
+        assertThat(absente.conclutAucuneNotion()).isFalse();
+
+        // 2. Le modèle a conclu « aucune notion » : c'est un VERDICT.
+        CivicNotionManager.MeilleureSuggestion aucune =
+                manager.meilleureSuggestion(aucuneNotion.getId());
+        assertThat(aucune.existe()).isTrue();
+        assertThat(aucune.conclutAucuneNotion()).isTrue();
+        assertThat(aucune.designe(idDeLaNotion(MIEUX_NOTEE))).isFalse();
+
+        // 3. Le modèle a proposé une notion.
+        CivicNotionManager.MeilleureSuggestion notion =
+                manager.meilleureSuggestion(avecNotion.getId());
+        assertThat(notion.existe()).isTrue();
+        assertThat(notion.conclutAucuneNotion()).isFalse();
+        assertThat(notion.designe(idDeLaNotion(MIEUX_NOTEE))).isTrue();
+    }
+
+    @Test
+    @DisplayName("« Aucune » cohabite avec une alternative, et la CONFIANCE départage")
+    void aucuneNotionEtAlternativeCohabitent() {
+        // Le tool-schema du job accepte « AUCUNE » en notion ET en alternative
+        // (règle 8 : donner l'autre option quand on hésite). « Probablement
+        // rien, sinon pv_laicite » est une hésitation honnête : l'interdire
+        // ferait taire l'une des deux moitiés.
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.62);
+        suggerer(question.getId(), MIEUX_NOTEE, 0.31);
+        entityManager.clear();
+
+        assertThat(nombreDeSuggestions(question.getId())).isEqualTo(2);
+        assertThat(service.relire(question.getId(), null, "CONFIRM_NONE", data.admin().getId()))
+                .isEqualTo(NotionSuggestionVerdict.VALIDATED);
+        // Les DEUX lignes portent le verdict : la relecture qualifie la
+        // QUESTION, jamais une ligne isolée (V054).
+        assertThat(verdicts(question.getId()))
+                .hasSize(2)
+                .containsOnly(NotionSuggestionVerdict.VALIDATED.name());
+    }
+
+    @Test
+    @DisplayName("À confiance ÉGALE, la notion nommée passe avant « aucune » (NULLS LAST)")
+    void aConfianceEgaleLaNotionNommeePasseDevant() {
+        Question question = data.question();
+        entityManager.flush();
+        suggererAucune(question.getId(), 0.70);
+        suggerer(question.getId(), MIEUX_NOTEE, 0.70);
+        entityManager.clear();
+
+        // Le tri doit rester déterministe avec un NULL : sans NULLS LAST, deux
+        // exécutions pourraient rendre deux verdicts différents.
+        assertThat(manager.meilleureSuggestion(question.getId()).designe(idDeLaNotion(MIEUX_NOTEE)))
+                .isTrue();
+        assertThatThrownBy(() -> service.relire(
+                question.getId(), null, "CONFIRM_NONE", data.admin().getId()))
+                .isInstanceOf(BusinessException.class);
+    }
+
     // ------------------------------------------------------------------------
 
     /** Une question civique et deux suggestions, la mieux notée d'abord. */
@@ -353,6 +572,35 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
                 VALUES (?, (SELECT id FROM civic_notions WHERE code = ?), ?,
                         'test-model', 'PROMPT_TAG_NOTION_v1', 'Parce que.', ?)
                 """, questionId, notionCode, confidence, UUID.randomUUID());
+    }
+
+    /**
+     * Écrit la suggestion « <b>aucune notion du référentiel ne convient</b> »
+     * (V057) — telle que l'import d'un lot l'écrit quand le modèle répond
+     * {@code AUCUNE}.
+     *
+     * <p>🛑 {@code notion_id NULL}, et <b>aucune notion technique
+     * « AUCUNE »</b> dans {@code civic_notions} : le référentiel ne contient
+     * que de vraies notions pédagogiques.
+     */
+    private void suggererAucune(UUID questionId, double confidence) {
+        jdbc.update("""
+                INSERT INTO question_notion_suggestions
+                    (question_id, notion_id, confidence, model, prompt_version, rationale, batch_id)
+                VALUES (?, NULL, ?, 'test-model', 'PROMPT_TAG_NOTION_v1', 'Parce que.', ?)
+                """, questionId, confidence, UUID.randomUUID());
+    }
+
+    private int nombreDeSuggestions(UUID questionId) {
+        Integer n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM question_notion_suggestions WHERE question_id = ?",
+                Integer.class, questionId);
+        return n == null ? 0 : n;
+    }
+
+    private UUID idDeLaNotion(String code) {
+        return jdbc.queryForObject(
+                "SELECT id FROM civic_notions WHERE code = ?", UUID.class, code);
     }
 
     /**
