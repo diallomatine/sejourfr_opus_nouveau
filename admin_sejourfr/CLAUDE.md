@@ -137,6 +137,10 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/production-tasks?epreuve=…&tacheNumero=…` +
   `PATCH /api/admin/production-tasks/{id}/titre` (feature `productionTasks/` —
   intitulés éditoriaux des sujets EE/EO)
+- `GET /api/admin/civic-notions`,
+  `GET /api/admin/civic-notions/questions?theme=…&tagged=false&limit=&offset=`,
+  `PUT /api/admin/civic-notions/questions/{questionId}`
+  `{notionCode, verdict}` (feature `civicNotions/`)
 
 ### Compétences TCF EE/EO (`features/skills/`)
 
@@ -297,6 +301,43 @@ consigne, et toutes les consignes d'une même tâche commencent pareil.
   appliquée, **c'est la base qui fait foi**, comme pour les Compétences.
 - **`queryKey`** : `["adminProductionTasks", filters]` ; la mutation invalide le
   préfixe `["adminProductionTasks"]`.
+
+### Notions civiques et tagging (`features/civicNotions/`)
+
+Route `/civic-notions`. L'outil du chantier éditorial sur le chemin critique :
+1 016 questions à rattacher à une notion. **Sa seule métrique est le temps par
+question**, d'où une **carte de relecture** et non une ligne de tableau.
+
+- **Le relecteur voit ce que le modèle a lu** : énoncé, les 4 propositions,
+  **la bonne réponse**, l'explication, la notion suggérée, sa **confiance** et
+  sa **rationale**. Taguer sur le seul énoncé (≈ 60 caractères sur 321), c'est
+  trancher sans les deux tiers du texte.
+- **La bonne réponse ne se distingue jamais par la seule couleur** : glyphe `✓`,
+  graisse, et le libellé « bonne réponse » écrit en toutes lettres.
+- 🛑 **Quatre gestes, quatre écritures distinctes.** `PUT …/{questionId}`
+  `{notionCode, verdict}` : valider = `{suggestion n°1, null}`, corriger =
+  `{autre notion, null}`, rejeter = `{null, "REJECTED"}`, passer =
+  `{null, "SKIPPED"}`. **Le client n'envoie jamais `VALIDATED` ni `CORRECTED`** :
+  c'est le serveur qui compare la notion retenue à la suggestion la mieux notée.
+  Une mesure de justesse du pré-tagging qui dépend du client mesure le client.
+- `suggestions[].reviewVerdict` non nul ⇒ **badge « déjà relue »** sur la carte.
+  Sans lui, le relecteur qui revient refait l'arbitrage qu'il a déjà rendu.
+- **Le `<select>` ne propose que les notions du thème courant** — volontaire :
+  une suggestion qui pointe vers un autre thème est inapplicable, et c'est un
+  signal éditorial.
+- **La file n'a pas de pagination par pages.** Le filtre est `tagged=false` :
+  une question taguée QUITTE la file et tout ce qui suit remonte d'un cran, donc
+  un « page suivante » sauterait des questions en silence. L'écran travaille en
+  **fenêtre** à `offset` fixe, masque localement ce qui a été traité dans la
+  session (une question `REJECTED`/`SKIPPED` reste `tagged=false` et
+  remonterait sinon aussitôt en tête), et n'offre « enjamber vers les 25
+  suivantes » qu'une fois la fenêtre vidée.
+- **Raccourcis clavier** (↓/J, ↑/K, V·Entrée, A, C, R, P, ?), neutralisés dès
+  que le focus est dans un champ ou sous un modificateur.
+- **`queryKey`** : `["civic-notions"]` et `["civic-tagging", theme, offset]` —
+  chaque geste invalide **les deux** : la file se vide, la couverture monte.
+- Le pré-tagging est **lu**, jamais produit ici : 🛑 **aucun appel LLM n'est
+  déclenché depuis cet écran**.
 
 ### Calibration de la notation IA (`features/calibration/`)
 

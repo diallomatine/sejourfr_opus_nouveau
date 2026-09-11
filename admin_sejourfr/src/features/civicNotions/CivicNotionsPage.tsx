@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { civicNotionsApi } from "../../api/civicNotionsApi";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
-import type { CivicNotionDto } from "../../types/api";
+import type {
+  CivicNotionDto,
+  CivicTaggingQuestion,
+  CivicTaggingSuggestion,
+} from "../../types/api";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import styles from "./CivicNotionsPage.module.css";
 
@@ -35,12 +39,48 @@ const PAGE = 25;
 const SEUIL_PLEINEMENT_UTILISABLE = 5;
 const SEUIL_CANDIDATE_FUSION = 12;
 
+/** Au-dessus, le modèle est sûr de lui ; en dessous, la relecture est le vrai travail. */
+const CONFIANCE_FORTE = 0.8;
+const CONFIANCE_MOYENNE = 0.55;
+
+const LETTRES = ["A", "B", "C", "D", "E", "F"];
+
+/**
+ * 🛑 Ce que le SERVEUR a écrit, jamais ce que le client croit avoir fait :
+ * `VALIDATED` / `CORRECTED` sont sa décision. Une valeur inconnue d'un backend
+ * plus récent se lit « Déjà relue » plutôt que de casser la carte.
+ */
+const VERDICTS: Record<string, string> = {
+  VALIDATED: "Déjà relue · suggestion retenue",
+  CORRECTED: "Déjà relue · corrigée à la main",
+  REJECTED: "Déjà relue · aucune notion ne convenait",
+  SKIPPED: "Déjà vue · laissée en attente",
+};
+
+interface Geste {
+  questionId: string;
+  notionCode: string | null;
+  verdict: string | null;
+}
+
+function niveauDeConfiance(confidence: number): { mot: string; classe: string } {
+  if (confidence >= CONFIANCE_FORTE) return { mot: "confiance forte", classe: styles.jaugeForte };
+  if (confidence >= CONFIANCE_MOYENNE)
+    return { mot: "confiance moyenne", classe: styles.jaugeMoyenne };
+  return { mot: "confiance faible", classe: styles.jaugeFaible };
+}
+
+/** Le verdict porté par n'importe laquelle des suggestions vaut pour la question. */
+function verdictDeLaQuestion(question: CivicTaggingQuestion): string | null {
+  return question.suggestions.find((s) => s.reviewVerdict)?.reviewVerdict ?? null;
+}
+
 /**
  * **Le référentiel de notions civiques et son tagging** (lot L8).
  *
  * C'est l'outil du chantier **éditorial** qui est sur le chemin critique :
  * 1 016 questions à rattacher à une notion. Le code ne fait pas ce travail, il
- * l'outille.
+ * l'outille — donc sa seule métrique est le temps par question.
  *
  * 🛑 **Le job propose, un humain valide** (`50_` §6.1.3). Aucune suggestion
  * n'est pré-sélectionnée, aucune fusion n'est appliquée automatiquement.
@@ -50,7 +90,19 @@ const SEUIL_CANDIDATE_FUSION = 12;
 export function CivicNotionsPage() {
   const [theme, setTheme] = useState<string>(THEMES[0].code);
   const [offset, setOffset] = useState(0);
+  const [actif, setActif] = useState(0);
+  const [aideVisible, setAideVisible] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  /**
+   * Les questions traitées **dans cette session**, cachées de la file sans
+   * attendre le rechargement. Deux raisons, pas une : la carte disparaît au
+   * geste (c'est le gain de temps), et une question `REJECTED` / `SKIPPED`
+   * reste `tagged=false` côté serveur — sans ce filtre elle remonterait aussitôt
+   * en tête et le relecteur tournerait en rond.
+   */
+  const [traitees, setTraitees] = useState<ReadonlySet<string>>(new Set());
   const queryClient = useQueryClient();
+  const cartes = useRef(new Map<string, HTMLElement>());
 
   const referentiel = useQuery({
     queryKey: ["civic-notions"],
@@ -64,22 +116,144 @@ export function CivicNotionsPage() {
   });
 
   const taguer = useMutation({
-    mutationFn: ({ questionId, notionCode }: { questionId: string; notionCode: string | null }) =>
-      civicNotionsApi.taguer(questionId, notionCode),
+    mutationFn: ({ questionId, notionCode, verdict }: Geste) =>
+      civicNotionsApi.taguer(questionId, notionCode, verdict),
+    onMutate: ({ questionId }: Geste) => {
+      setErreur(null);
+      setTraitees((prev) => new Set(prev).add(questionId));
+    },
     onSuccess: () => {
       // Les deux vues bougent ensemble : la file se vide, la couverture monte.
       void queryClient.invalidateQueries({ queryKey: ["civic-tagging"] });
       void queryClient.invalidateQueries({ queryKey: ["civic-notions"] });
     },
+    onError: (error: Error, { questionId }: Geste) => {
+      // Rien n'a été écrit : la carte revient, sinon le relecteur croirait
+      // avoir tranché une question qui l'attend toujours.
+      setTraitees((prev) => {
+        const suivant = new Set(prev);
+        suivant.delete(questionId);
+        return suivant;
+      });
+      setErreur(error.message || "L'enregistrement a échoué.");
+    },
   });
 
   /** Les notions du thème courant, seules proposables : une question
-   *  d'histoire ne se tague pas sur une notion d'institutions. */
+   *  d'histoire ne se tague pas sur une notion d'institutions. Une suggestion
+   *  qui pointe ailleurs est inapplicable — et c'est un signal éditorial. */
   const notionsDuTheme = useMemo(
-    () =>
-      (referentiel.data ?? []).filter((n) => n.themeCode === theme && n.active),
+    () => (referentiel.data ?? []).filter((n) => n.themeCode === theme && n.active),
     [referentiel.data, theme],
   );
+
+  const questions = useMemo(
+    () => (file.data?.questions ?? []).filter((q) => !traitees.has(q.questionId)),
+    [file.data, traitees],
+  );
+
+  const fenetreEpuisee =
+    !!file.data && file.data.questions.length > 0 && questions.length === 0;
+  const finDeFile = !!file.data && file.data.questions.length < PAGE;
+
+  const indexActif = questions.length === 0 ? 0 : Math.min(actif, questions.length - 1);
+  const questionActive = questions[indexActif];
+
+  const changerTheme = (code: string) => {
+    setTheme(code);
+    setOffset(0);
+    setActif(0);
+  };
+
+  const mutate = taguer.mutate;
+  const executer = useCallback((geste: Geste) => mutate(geste), [mutate]);
+
+  /**
+   * Raccourcis. Ils ne se déclenchent jamais quand le focus est dans un champ
+   * (le `<select>` des notions garde ses propres flèches) ni sous un
+   * modificateur — un `⌘R` doit rester un rechargement.
+   */
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const cible = event.target as HTMLElement | null;
+      if (cible) {
+        const balise = cible.tagName;
+        if (
+          balise === "INPUT" ||
+          balise === "TEXTAREA" ||
+          balise === "SELECT" ||
+          cible.isContentEditable
+        ) {
+          if (event.key === "Escape") cible.blur();
+          return;
+        }
+      }
+
+      if (event.key === "?") {
+        setAideVisible((v) => !v);
+        event.preventDefault();
+        return;
+      }
+      if (!questionActive) return;
+
+      const touche = event.key.toLowerCase();
+      const meilleure = questionActive.suggestions[0];
+      const alternative = questionActive.suggestions[1];
+
+      if (event.key === "ArrowDown" || touche === "j") {
+        setActif((i) => Math.min(i + 1, questions.length - 1));
+        event.preventDefault();
+      } else if (event.key === "ArrowUp" || touche === "k") {
+        setActif((i) => Math.max(i - 1, 0));
+        event.preventDefault();
+      } else if (touche === "v" || event.key === "Enter") {
+        if (!meilleure) return;
+        executer({
+          questionId: questionActive.questionId,
+          notionCode: meilleure.notionCode,
+          verdict: null,
+        });
+        event.preventDefault();
+      } else if (touche === "a") {
+        if (!alternative) return;
+        executer({
+          questionId: questionActive.questionId,
+          notionCode: alternative.notionCode,
+          verdict: null,
+        });
+        event.preventDefault();
+      } else if (touche === "c") {
+        const carte = cartes.current.get(questionActive.questionId);
+        carte?.querySelector<HTMLSelectElement>("select")?.focus();
+        event.preventDefault();
+      } else if (touche === "r") {
+        executer({
+          questionId: questionActive.questionId,
+          notionCode: null,
+          verdict: "REJECTED",
+        });
+        event.preventDefault();
+      } else if (touche === "p") {
+        executer({
+          questionId: questionActive.questionId,
+          notionCode: null,
+          verdict: "SKIPPED",
+        });
+        event.preventDefault();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [executer, questionActive, questions.length]);
+
+  useEffect(() => {
+    if (!questionActive) return;
+    cartes.current
+      .get(questionActive.questionId)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [questionActive]);
 
   return (
     <>
@@ -94,10 +268,7 @@ export function CivicNotionsPage() {
                 key={t.code}
                 type="button"
                 className={t.code === theme ? styles.themeActive : styles.theme}
-                onClick={() => {
-                  setTheme(t.code);
-                  setOffset(0);
-                }}
+                onClick={() => changerTheme(t.code)}
               >
                 {t.label}
               </button>
@@ -113,80 +284,109 @@ export function CivicNotionsPage() {
             ? `${file.data.resteATaguer} question(s) civique(s) active(s) encore sans notion, tous thèmes confondus.`
             : undefined
         }
+        actions={
+          <button
+            type="button"
+            className={styles.aideBouton}
+            onClick={() => setAideVisible((v) => !v)}
+          >
+            {aideVisible ? "Masquer les raccourcis" : "Raccourcis clavier"}
+          </button>
+        }
         noPadding
       >
-        {file.isLoading && <Spinner />}
-        {file.data && file.data.questions.length === 0 && (
-          <EmptyState title="Rien à taguer sur ce thème." />
+        {aideVisible && <AideClavier />}
+
+        {erreur && (
+          <div className={styles.erreur} role="alert">
+            {erreur} — la question est revenue dans la file.
+          </div>
         )}
-        {file.data && file.data.questions.length > 0 && (
-          <>
-            <table className={tableStyles.table}>
-              <thead>
-                <tr>
-                  <th>Question</th>
-                  <th>Mention</th>
-                  <th>Suggestions</th>
-                  <th>Notion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {file.data.questions.map((question) => (
-                  <tr key={question.questionId}>
-                    <td className={styles.enonce}>{question.enonce}</td>
-                    <td>{question.mention}</td>
-                    <td className={styles.suggestions}>
-                      {/* 🛑 Affichées, jamais pré-sélectionnées : un tag validé
-                          est toujours un geste. Vide est l'état NORMAL — rien
-                          ne remplit cette table sans décision du propriétaire. */}
-                      {question.suggestions.length === 0
-                        ? "—"
-                        : question.suggestions
-                            .map((s) => `${s.notionLabel} (${Math.round(s.confidence * 100)} %)`)
-                            .join(" · ")}
-                    </td>
-                    <td>
-                      <select
-                        className={styles.select}
-                        value={question.notionCode ?? ""}
-                        disabled={taguer.isPending}
-                        onChange={(event) =>
-                          taguer.mutate({
-                            questionId: question.questionId,
-                            notionCode: event.target.value || null,
-                          })
-                        }
-                      >
-                        <option value="">— pas encore taguée —</option>
-                        {notionsDuTheme.map((n) => (
-                          <option key={n.code} value={n.code}>
-                            {n.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className={styles.pagination}>
-              <button
-                type="button"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE))}
-              >
-                Précédent
-              </button>
-              <span>{offset + 1}–{offset + file.data.questions.length}</span>
-              <button
-                type="button"
-                disabled={file.data.questions.length < PAGE}
-                onClick={() => setOffset(offset + PAGE)}
-              >
-                Suivant
-              </button>
-            </div>
-          </>
+
+        <div className={styles.fenetre}>
+          <span className={styles.fenetreEtat}>
+            Fenêtre {offset + 1}–{offset + PAGE} de la file
+          </span>
+          {/* Le filtre est `tagged=false` : une question validée QUITTE la file
+              et tout ce qui suit remonte d'un cran. Un « page suivante »
+              classique sauterait donc des questions en silence — on ne l'offre
+              qu'une fois la fenêtre vidée, et uniquement pour enjamber ce qu'on
+              a délibérément laissé en attente. */}
+          <span className={styles.fenetreNote}>
+            la file se vide par le haut : ce qui est tagué en sort, ce qui est
+            rejeté ou passé y reste.
+          </span>
+          {offset > 0 && (
+            <button
+              type="button"
+              className={styles.fenetreBouton}
+              onClick={() => {
+                setOffset(0);
+                setActif(0);
+              }}
+            >
+              Revenir en tête de file
+            </button>
+          )}
+        </div>
+
+        {file.isLoading && <Spinner />}
+
+        {file.data && file.data.questions.length === 0 && (
+          <EmptyState
+            title="Rien à taguer sur ce thème."
+            description={
+              offset > 0
+                ? "La fenêtre courante est au-delà de la fin de la file — revenir en tête."
+                : undefined
+            }
+          />
+        )}
+
+        {fenetreEpuisee && (
+          <EmptyState
+            title="Fenêtre traitée."
+            description={
+              finDeFile
+                ? "Il ne reste rien d'autre sur ce thème pour cette fenêtre."
+                : "Les questions rejetées ou passées restent dans la file : avancer la fenêtre permet de les enjamber."
+            }
+          />
+        )}
+
+        {fenetreEpuisee && !finDeFile && (
+          <div className={styles.fenetreActions}>
+            <button
+              type="button"
+              className={styles.fenetreBoutonFort}
+              onClick={() => {
+                setOffset(offset + PAGE);
+                setActif(0);
+              }}
+            >
+              Enjamber vers les {PAGE} suivantes
+            </button>
+          </div>
+        )}
+
+        {questions.length > 0 && (
+          <div className={styles.file}>
+            {questions.map((question, index) => (
+              <CarteRelecture
+                key={question.questionId}
+                question={question}
+                rang={offset + index + 1}
+                actif={index === indexActif}
+                notions={notionsDuTheme}
+                onFocus={() => setActif(index)}
+                onGeste={executer}
+                enregistrer={(element) => {
+                  if (element) cartes.current.set(question.questionId, element);
+                  else cartes.current.delete(question.questionId);
+                }}
+              />
+            ))}
+          </div>
         )}
       </Panel>
 
@@ -202,6 +402,263 @@ export function CivicNotionsPage() {
   );
 }
 
+function AideClavier() {
+  const raccourcis: [string, string][] = [
+    ["↓ / J", "question suivante"],
+    ["↑ / K", "question précédente"],
+    ["V · Entrée", "valider la suggestion n°1"],
+    ["A", "retenir l'alternative (suggestion n°2)"],
+    ["C", "ouvrir la liste des notions du thème"],
+    ["R", "rejeter — aucune notion ne convient"],
+    ["P", "passer — je ne tranche pas"],
+    ["?", "afficher ou masquer cette aide"],
+  ];
+  return (
+    <div className={styles.aide}>
+      {raccourcis.map(([touche, quoi]) => (
+        <div key={touche} className={styles.aideLigne}>
+          <kbd className={styles.touche}>{touche}</kbd>
+          <span>{quoi}</span>
+        </div>
+      ))}
+      <div className={styles.aideNote}>
+        Les raccourcis se taisent dès que le focus est dans un champ.
+      </div>
+    </div>
+  );
+}
+
+interface CarteProps {
+  question: CivicTaggingQuestion;
+  rang: number;
+  actif: boolean;
+  notions: CivicNotionDto[];
+  onFocus: () => void;
+  onGeste: (geste: Geste) => void;
+  enregistrer: (element: HTMLElement | null) => void;
+}
+
+/**
+ * Une question = une carte de relecture, pas une ligne de tableau.
+ *
+ * Le relecteur voit ce que le modèle a lu : énoncé, propositions, bonne
+ * réponse, explication. Sans ce contexte, l'énoncé seul (≈ 60 caractères) ne
+ * suffit pas à identifier la notion et la relecture devient une devinette.
+ */
+function CarteRelecture({
+  question,
+  rang,
+  actif,
+  notions,
+  onFocus,
+  onGeste,
+  enregistrer,
+}: CarteProps) {
+  const meilleure = question.suggestions[0];
+  const alternative = question.suggestions[1];
+  const verdict = verdictDeLaQuestion(question);
+
+  return (
+    <article
+      ref={enregistrer}
+      className={`${styles.carte} ${actif ? styles.carteActive : ""}`}
+      onMouseDown={onFocus}
+    >
+      <header className={styles.carteHaut}>
+        <span className={styles.rang}>#{rang}</span>
+        <span className={styles.mention}>{question.mention}</span>
+        <span className={styles.themeCell}>{question.themeCode}</span>
+        {question.notionLabel && (
+          <span className={styles.notionPosee}>Taguée : {question.notionLabel}</span>
+        )}
+        {/* ⚠️ Une question déjà relue le DIT : sinon le relecteur qui revient
+            ne sait pas ce qu'il a déjà écarté et refait le même arbitrage. */}
+        {verdict && (
+          <span className={styles.verdict}>{VERDICTS[verdict] ?? "Déjà relue"}</span>
+        )}
+      </header>
+
+      <p className={styles.enonce}>{question.enonce}</p>
+
+      {question.choix.length > 0 && (
+        <ul className={styles.choix}>
+          {question.choix.map((choix, index) => (
+            <li
+              key={`${choix.label}-${index}`}
+              className={`${styles.choixItem} ${choix.correct ? styles.choixCorrect : ""}`}
+            >
+              {/* La bonne réponse ne se distingue jamais par la seule couleur :
+                  glyphe + libellé explicite + graisse. */}
+              <span className={styles.choixMarque} aria-hidden="true">
+                {choix.correct ? "✓" : "·"}
+              </span>
+              <span className={styles.choixLettre}>{LETTRES[index] ?? "?"}</span>
+              <span className={styles.choixLabel}>{choix.label}</span>
+              {choix.correct && <span className={styles.choixTag}>bonne réponse</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {question.explication && (
+        <div className={styles.explication}>
+          <span className={styles.blocTitre}>Explication</span>
+          <p className={styles.explicationTexte}>{question.explication}</p>
+        </div>
+      )}
+
+      <div className={styles.suggestionBloc}>
+        <span className={styles.blocTitre}>Suggestion du modèle</span>
+        {meilleure ? (
+          <>
+            <Suggestion suggestion={meilleure} />
+            {alternative && (
+              <div className={styles.alternative}>
+                <span className={styles.alternativeTitre}>Alternative</span>
+                <Suggestion suggestion={alternative} />
+                <button
+                  type="button"
+                  className={styles.alternativeBouton}
+                  onClick={() =>
+                    onGeste({
+                      questionId: question.questionId,
+                      notionCode: alternative.notionCode,
+                      verdict: null,
+                    })
+                  }
+                >
+                  Retenir celle-ci <kbd className={styles.touche}>A</kbd>
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          // 🛑 Vide est l'état NORMAL : rien ne remplit la table de suggestions
+          // sans décision du propriétaire, parce que la remplir coûte.
+          <p className={styles.sansSuggestion}>
+            Aucune suggestion pour cette question — le pré-tagging ne l'a pas
+            couverte. Choisir la notion à la main.
+          </p>
+        )}
+      </div>
+
+      <div className={styles.actions}>
+        <label className={styles.champ}>
+          <span className={styles.champTitre}>Notions du thème</span>
+          <select
+            className={styles.select}
+            value=""
+            onChange={(event) => {
+              if (!event.target.value) return;
+              onGeste({
+                questionId: question.questionId,
+                notionCode: event.target.value,
+                verdict: null,
+              });
+            }}
+          >
+            <option value="">— corriger avec une autre notion —</option>
+            {notions.map((n) => (
+              <option key={n.code} value={n.code}>
+                {n.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className={styles.boutons}>
+          <button
+            type="button"
+            className={styles.valider}
+            disabled={!meilleure}
+            title={
+              meilleure
+                ? `Retenir « ${meilleure.notionLabel} »`
+                : "Aucune suggestion à valider"
+            }
+            onClick={() =>
+              meilleure &&
+              onGeste({
+                questionId: question.questionId,
+                notionCode: meilleure.notionCode,
+                verdict: null,
+              })
+            }
+          >
+            Valider <kbd className={styles.touche}>V</kbd>
+          </button>
+          <button
+            type="button"
+            className={styles.rejeter}
+            title="Aucune notion du thème ne convient"
+            onClick={() =>
+              onGeste({
+                questionId: question.questionId,
+                notionCode: null,
+                verdict: "REJECTED",
+              })
+            }
+          >
+            Rejeter <kbd className={styles.touche}>R</kbd>
+          </button>
+          <button
+            type="button"
+            className={styles.passer}
+            title="Je ne tranche pas maintenant"
+            onClick={() =>
+              onGeste({
+                questionId: question.questionId,
+                notionCode: null,
+                verdict: "SKIPPED",
+              })
+            }
+          >
+            Passer <kbd className={styles.touche}>P</kbd>
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * La confiance pilote l'attention : elle se lit en un coup d'œil (jauge +
+ * pourcentage + mot). Une confiance faible n'est pas une erreur, c'est
+ * l'endroit où le relecteur doit vraiment lire.
+ */
+function Suggestion({ suggestion }: { suggestion: CivicTaggingSuggestion }) {
+  const pourcent = Math.round(Math.max(0, Math.min(1, suggestion.confidence)) * 100);
+  const niveau = niveauDeConfiance(suggestion.confidence);
+
+  return (
+    <div className={styles.suggestion}>
+      <div className={styles.suggestionTete}>
+        <span className={styles.suggestionNotion}>{suggestion.notionLabel}</span>
+        <span className={styles.suggestionCode}>{suggestion.notionCode}</span>
+        {suggestion.reviewVerdict && (
+          <span className={styles.verdict}>
+            {VERDICTS[suggestion.reviewVerdict] ?? "Déjà relue"}
+          </span>
+        )}
+      </div>
+      <div className={styles.jaugeLigne}>
+        <span className={styles.jaugePiste}>
+          <span
+            className={`${styles.jaugeBarre} ${niveau.classe}`}
+            style={{ width: `${pourcent}%` }}
+          />
+        </span>
+        <span className={styles.jaugeTexte}>
+          {pourcent} % · {niveau.mot}
+        </span>
+      </div>
+      {suggestion.rationale && (
+        <p className={styles.rationale}>{suggestion.rationale}</p>
+      )}
+    </div>
+  );
+}
+
 function Couverture({ notions }: { notions: CivicNotionDto[] }) {
   const mentions = useMemo(() => {
     const set = new Set<string>();
@@ -210,51 +667,57 @@ function Couverture({ notions }: { notions: CivicNotionDto[] }) {
   }, [notions]);
 
   return (
-    <table className={tableStyles.table}>
-      <thead>
-        <tr>
-          <th>Notion</th>
-          <th>Thème</th>
-          <th>Total</th>
-          {mentions.map((m) => (
-            <th key={m}>{m}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {notions.map((notion) => (
-          <tr key={notion.code} className={notion.active ? undefined : styles.fusionnee}>
-            <td>
-              {notion.label}
-              {notion.mergedIntoCode && (
-                <span className={styles.fusionNote}>
-                  {" "}→ fusionnée dans {notion.mergedIntoCode}
-                </span>
-              )}
-            </td>
-            <td className={styles.themeCell}>{notion.themeCode}</td>
-            <td
-              className={
-                notion.questionsTaguees < SEUIL_CANDIDATE_FUSION ? styles.alerte : undefined
-              }
-            >
-              {notion.questionsTaguees}
-            </td>
-            {mentions.map((mention) => {
-              const compte =
-                notion.parMention.find((m) => m.mention === mention)?.questions ?? 0;
-              return (
-                <td
-                  key={mention}
-                  className={compte < SEUIL_PLEINEMENT_UTILISABLE ? styles.attenue : undefined}
-                >
-                  {compte}
-                </td>
-              );
-            })}
+    <div className={tableStyles.tableWrap}>
+      <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+        <thead>
+          <tr>
+            <th>Notion</th>
+            <th>Thème</th>
+            <th>Total</th>
+            {mentions.map((m) => (
+              <th key={m}>{m}</th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {notions.map((notion) => (
+            <tr key={notion.code} className={notion.active ? undefined : styles.fusionnee}>
+              <td>
+                {notion.label}
+                {notion.mergedIntoCode && (
+                  <span className={styles.fusionNote}>
+                    {" "}→ fusionnée dans {notion.mergedIntoCode}
+                  </span>
+                )}
+              </td>
+              <td data-label="Thème" className={styles.themeCell}>
+                {notion.themeCode}
+              </td>
+              <td
+                data-label="Total"
+                className={
+                  notion.questionsTaguees < SEUIL_CANDIDATE_FUSION ? styles.alerte : undefined
+                }
+              >
+                {notion.questionsTaguees}
+              </td>
+              {mentions.map((mention) => {
+                const compte =
+                  notion.parMention.find((m) => m.mention === mention)?.questions ?? 0;
+                return (
+                  <td
+                    key={mention}
+                    data-label={mention}
+                    className={compte < SEUIL_PLEINEMENT_UTILISABLE ? styles.attenue : undefined}
+                  >
+                    {compte}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

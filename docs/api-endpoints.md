@@ -167,11 +167,32 @@ blanc.
   machine n'est pas un tag.
 - `GET /api/admin/civic-notions/questions?theme=&tagged=false&limit=&offset=`
   (**L8**, ADMIN). La file de tagging, ordre déterministe (`created_at, id`) :
-  paginer 1 016 questions ne doit jamais en faire revoir ni en sauter une.
-- `PUT /api/admin/civic-notions/questions/{id}` `{notionCode}` (**L8**, ADMIN).
-  Pose le tag **validé par un humain**. `notionCode: null` efface — se tromper
-  doit rester rattrapable. Une notion **fusionnée** est refusée : la poser
-  recréerait du travail à défaire.
+  paginer ne doit jamais en faire revoir ni en sauter une. Chaque
+  `QuestionTaggingDto` porte l'**énoncé**, l'**explication** (nullable), les
+  **propositions** (`choix[]`, la bonne marquée), le thème, la mention, la notion
+  posée s'il y en a une, et les `suggestions` triées par confiance décroissante —
+  chacune avec sa `rationale` (nullable) et son `reviewVerdict` (nullable tant
+  qu'elle n'est pas relue).
+  🛑 **La file ne propose que des questions de CONNAISSANCE** : les mises en
+  situation relèvent des domaines `sit_*` (`50_` §6.2) et ne se taguent pas par
+  notion. `resteATaguer` compte la même chose — c'est l'avancement qui déclenche
+  la bascule de grain. Une question **déjà taguée** reste visible quel que soit
+  son type, pour qu'une erreur puisse être défaite.
+- `PUT /api/admin/civic-notions/questions/{id}` `{notionCode, verdict}`
+  (**L8** / V054, ADMIN). Pose le tag **validé par un humain**, ou enregistre ce
+  que le relecteur a fait de la proposition de la machine.
+  - `notionCode` + `verdict` nul ou `"TAG"` ⇒ la notion est posée et le serveur
+    **déduit** `VALIDATED` (la mieux notée a été retenue) ou `CORRECTED` (une
+    autre l'a été).
+  - `verdict = "REJECTED"` / `"SKIPPED"` ⇒ **aucune** notion posée, on marque
+    seulement ; la question reste dans la file. Envoyer un `notionCode` avec eux
+    est refusé (400) : deux gestes contraires ne se devinent pas.
+  - `notionCode: null` sans verdict ⇒ **effacement**, comportement d'avant V054.
+    🛑 **Rétrocompatible** : un corps `{notionCode}` seul marche à l'identique.
+  - 🛑 Un client **ne peut pas** annoncer `VALIDATED` ni `CORRECTED` (400) :
+    c'est la métrique de qualité du modèle, et elle se calcule serveur.
+  - Une notion **fusionnée** est refusée : la poser recréerait du travail à
+    défaire.
   🛑 **Aucune de ces routes n'appelle un LLM.** `question_notion_suggestions`
   est créée vide et rien dans le dépôt ne la remplit : « le job propose, un
   humain valide » (`50_` §6.1.3), et lancer le job coûte de l'argent.

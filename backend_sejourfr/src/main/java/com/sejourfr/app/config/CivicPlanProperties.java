@@ -30,19 +30,33 @@ public class CivicPlanProperties {
      * 90 % n'attend pas celui qui est a 10 %. Au lancement de ce lot, 0 question
      * sur 1 016 est taguee — les cinq themes sont donc au grain THEME, ce qui
      * est le mode PREVU par la spec (§3.3 phase 1), pas une panne.
+     *
+     * <p>🛑 <b>Le denominateur ne compte que les questions de CONNAISSANCE</b>
+     * ({@code CivicPlanRepository.taggageParTheme()}). Les mises en situation
+     * relevent des domaines {@code sit_*} (50_ §6.2) et ne recoivent pas de
+     * notion : les compter ici plafonnait trois themes sur cinq sous 80 %,
+     * seuil qu'ils n'auraient donc JAMAIS franchi.
      */
     private double seuilTagging = 0.80;
 
     /**
      * Questions minimales pour qu'une notion soit proposable en priorite
-     * (20_ §3.4 : {@code insufficient_content}).
+     * (50_ §6.1 : en dessous, {@code insufficient_content}).
      *
      * <p>🛑 <b>Compte PAR MENTION.</b> Une notion peut etre pleinement dotee
      * pour un candidat NAT et vide pour un CSP : rendre un verdict global
      * effacerait exactement cette nuance (meme regle qu'au referentiel, 50_
      * §6.1).
+     *
+     * <p>🛑 <b>5, et 5 partout.</b> {@code 50_} §6.1 : « ≥ 5 questions actives
+     * dans la mention » = notion pleinement utilisable ; « 1 a 4 » = visible en
+     * revision libre mais JAMAIS proposable en priorite. La valeur a vecu en
+     * trois sources et deux valeurs (ce POJO a 4, {@code 50_} §6.1 a 5, l'ecran
+     * d'admin colorant sous 5) — arbitrage du proprietaire : une notion a 4
+     * questions est trop fragile pour devenir une unite de parcours adaptatif.
+     * Le {@code 20_} §3.4 d'origine (« < 4 ») est annule par {@code 50_} §6.1.
      */
-    private int questionsMinParNotion = 4;
+    private int questionsMinParNotion = 5;
 
     /**
      * Priorites servies au front (20_ §5.3 : « 3 priorites visibles maximum »).

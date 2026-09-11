@@ -72,6 +72,11 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 // L8 — le referentiel de notions civiques et son tagging.
                 // Il porte le programme civique : jamais ouvert hors ADMIN.
                 Arguments.of(HttpMethod.GET, "/api/admin/civic-notions"),
+                Arguments.of(HttpMethod.GET, "/api/admin/civic-notions/questions"),
+                // La relecture (V054) ECRIT le programme et nomme son auteur :
+                // elle est encore moins ouverte que la lecture.
+                Arguments.of(HttpMethod.PUT,
+                        "/api/admin/civic-notions/questions/" + RANDOM_ID),
                 // L12 — la supervision du cout IA. Elle lit des chiffres de
                 // facturation : elle n'est jamais ouverte a un compte non ADMIN.
                 Arguments.of(HttpMethod.GET, "/api/admin/ai-costs"),

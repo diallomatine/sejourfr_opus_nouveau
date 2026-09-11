@@ -1,7 +1,10 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CivicNotionDto;
+import com.sejourfr.app.dto.QuestionTaggingDto;
 import com.sejourfr.app.entity.CivicNotion;
+import com.sejourfr.app.enums.NotionSuggestionVerdict;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.CivicNotionManager;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +36,9 @@ import java.util.UUID;
  *   <li>🛑 <b>Fusionner ou scinder tout seul.</b> {@code 50_} §6.1.3 :
  *       « Aucune fusion ni scission n'est appliquee automatiquement : le job
  *       propose, un humain valide. »</li>
+ *   <li>🛑 <b>Appliquer une suggestion.</b> Aucun chemin, ici ni ailleurs, ne
+ *       recopie une suggestion vers {@code questions.civic_notion_id} sans un
+ *       geste humain qui nomme la notion retenue.</li>
  *   <li>🛑 <b>Appeler un LLM.</b> Rien ici n'en emet, et la table de
  *       suggestions reste vide tant que le proprietaire n'a pas autorise la
  *       depense.</li>
@@ -64,7 +71,7 @@ public class CivicNotionService {
                     couverture.getOrDefault(notion.getId(), Map.of());
             List<CivicNotionDto.CouvertureMention> mentions = parMention.entrySet().stream()
                     .map(e -> new CivicNotionDto.CouvertureMention(e.getKey(), e.getValue()))
-                    .sorted(java.util.Comparator.comparing(
+                    .sorted(Comparator.comparing(
                             CivicNotionDto.CouvertureMention::mention))
                     .toList();
             out.add(new CivicNotionDto(
@@ -84,11 +91,16 @@ public class CivicNotionService {
     }
 
     /**
-     * La file de tagging : ce qu'il reste a faire, et ce qu'une machine
-     * proposait le cas echeant.
+     * La file de tagging : ce qu'il reste a faire, la question <b>entiere</b>,
+     * et ce qu'une machine proposait le cas echeant.
      *
      * <p>🛑 Les suggestions accompagnent, elles ne decident pas. Aucune n'est
      * pre-selectionnee : un tag valide est toujours un geste humain.
+     *
+     * <p>🛑 <b>La file ne propose que des questions de CONNAISSANCE</b> : les
+     * mises en situation relevent des domaines {@code sit_*} ({@code 50_} §6.2)
+     * et ne recoivent pas de notion. Une question deja taguee reste visible quel
+     * que soit son type, pour qu'une erreur puisse etre defaite.
      *
      * @param theme  code de theme, ou {@code null} pour tous
      * @param tagged {@code false} = la file de travail ; {@code null} = les deux
@@ -98,36 +110,83 @@ public class CivicNotionService {
         List<Object[]> rows = manager.fileDeTagging(theme, tagged, limit, offset);
         List<UUID> ids = rows.stream().map(r -> (UUID) r[0]).toList();
 
-        Map<UUID, List<com.sejourfr.app.dto.QuestionTaggingDto.Suggestion>> suggestions =
-                new LinkedHashMap<>();
+        Map<UUID, List<QuestionTaggingDto.Suggestion>> suggestions = new LinkedHashMap<>();
         for (Object[] row : manager.suggestionsParQuestions(ids)) {
             suggestions.computeIfAbsent((UUID) row[0], k -> new ArrayList<>())
-                    .add(new com.sejourfr.app.dto.QuestionTaggingDto.Suggestion(
+                    .add(new QuestionTaggingDto.Suggestion(
                             String.valueOf(row[1]), String.valueOf(row[2]),
-                            ((Number) row[3]).doubleValue()));
+                            ((Number) row[3]).doubleValue(),
+                            row[4] == null ? null : String.valueOf(row[4]),
+                            row[5] == null ? null : String.valueOf(row[5])));
         }
 
-        List<com.sejourfr.app.dto.QuestionTaggingDto> questions = rows.stream()
-                .map(row -> new com.sejourfr.app.dto.QuestionTaggingDto(
+        Map<UUID, List<QuestionTaggingDto.Choix>> choix = new LinkedHashMap<>();
+        for (Object[] row : manager.choixDesQuestions(ids)) {
+            choix.computeIfAbsent((UUID) row[0], k -> new ArrayList<>())
+                    .add(new QuestionTaggingDto.Choix(
+                            String.valueOf(row[1]), (Boolean) row[2]));
+        }
+
+        List<QuestionTaggingDto> questions = rows.stream()
+                .map(row -> new QuestionTaggingDto(
                         (UUID) row[0],
                         String.valueOf(row[1]),
-                        String.valueOf(row[2]),
+                        row[2] == null ? null : String.valueOf(row[2]),
+                        choix.getOrDefault((UUID) row[0], List.of()),
                         String.valueOf(row[3]),
-                        row[4] == null ? null : String.valueOf(row[4]),
+                        String.valueOf(row[4]),
                         row[5] == null ? null : String.valueOf(row[5]),
+                        row[6] == null ? null : String.valueOf(row[6]),
                         suggestions.getOrDefault((UUID) row[0], List.of())))
                 .toList();
 
         return new FileDeTagging(questions, manager.resteATaguer());
     }
 
-    /** @param resteATaguer questions civiques actives encore sans notion, TOUS themes */
+    /**
+     * @param resteATaguer questions civiques de CONNAISSANCE actives encore sans
+     *                     notion, TOUS themes — jamais les mises en situation,
+     *                     qui ne se taguent pas par notion
+     */
     public record FileDeTagging(
-            List<com.sejourfr.app.dto.QuestionTaggingDto> questions,
+            List<QuestionTaggingDto> questions,
             long resteATaguer) {}
 
     /**
      * Pose ou efface le tag <b>valide</b> d'une question.
+     *
+     * <p>Forme historique, conservee telle quelle : {@code notionCode} pose le
+     * tag, {@code null} l'efface. 🛑 <b>Retrocompatibilite</b> — un client qui
+     * n'envoie qu'un {@code notionCode} doit continuer de marcher exactement
+     * comme avant V054.
+     */
+    @Transactional
+    public NotionSuggestionVerdict taguer(UUID questionId, String notionCode) {
+        return relire(questionId, notionCode, null, null);
+    }
+
+    /**
+     * <b>La relecture d'une question de la file</b> : quatre gestes, quatre
+     * etats distincts (V054).
+     *
+     * <table>
+     *   <tr><th>geste</th><th>{@code civic_notion_id}</th><th>suggestions</th></tr>
+     *   <tr><td>notion retenue = la mieux notee</td><td>posee</td><td>{@code VALIDATED}</td></tr>
+     *   <tr><td>autre notion retenue</td><td>posee</td><td>{@code CORRECTED}</td></tr>
+     *   <tr><td>{@code REJECTED}</td><td>intacte</td><td>{@code REJECTED}</td></tr>
+     *   <tr><td>{@code SKIPPED}</td><td>intacte</td><td>{@code SKIPPED}</td></tr>
+     * </table>
+     *
+     * <p>🛑 <b>SEULS {@code VALIDATED} et {@code CORRECTED} posent une
+     * notion.</b> Rejeter et passer ne touchent jamais la question : rejeter dit
+     * « aucune notion suggeree ne convient », passer dit « je ne tranche pas » —
+     * ni l'un ni l'autre n'est un tag, et la question reste dans la file.
+     *
+     * <p>🛑 <b>Le serveur decide seul de {@code VALIDATED} vs
+     * {@code CORRECTED}</b>, en comparant la notion retenue a la suggestion la
+     * mieux notee. C'est la metrique de qualite du pre-tagging : un client qui
+     * pourrait l'annoncer pourrait la mentir. Un client qui l'envoie quand meme
+     * est refuse, plutot qu'ignore en silence.
      *
      * <p>🛑 <b>{@code notionCode} nul efface</b> : se tromper doit rester
      * rattrapable depuis l'ecran, sans passer par la base. Effacer ne dit pas
@@ -135,23 +194,129 @@ public class CivicNotionService {
      *
      * <p>Une notion <b>desactivee</b> (fusionnee) est refusee : la poser
      * recreerait du travail a defaire au tour suivant.
+     *
+     * @param verdictDemande {@code null} ou {@code "TAG"} pour poser la notion,
+     *                       {@code "REJECTED"} / {@code "SKIPPED"} pour marquer
+     *                       sans poser
+     * @param relecteurId    qui tranche, ou {@code null} pour une relecture
+     *                       faite hors ecran (script, reprise) — on ne lui
+     *                       invente pas un auteur
+     * @return le verdict REELLEMENT inscrit, ou {@code null} quand il n'y avait
+     *         rien a inscrire (effacement, ou aucune suggestion en base)
      */
     @Transactional
-    public void taguer(UUID questionId, String notionCode) {
-        CivicNotion notion = null;
-        if (notionCode != null && !notionCode.isBlank()) {
-            notion = manager.findByCode(notionCode)
-                    .orElseThrow(() -> new NotFoundException("Notion inconnue : " + notionCode));
-            if (!notion.isActive()) {
-                throw new com.sejourfr.app.exception.BusinessException(
-                        "La notion « " + notion.getLabel() + " » a été fusionnée : "
-                                + "choisissez celle qui la reprend.");
-            }
+    public NotionSuggestionVerdict relire(UUID questionId, String notionCode,
+                                          String verdictDemande, UUID relecteurId) {
+        String demande = verdictDemande == null || verdictDemande.isBlank()
+                ? null : verdictDemande.trim().toUpperCase();
+        boolean tagExplicite = NotionSuggestionVerdict.DEMANDE_TAG.equals(demande);
+        NotionSuggestionVerdict marquage =
+                demande == null || tagExplicite ? null : verdictSansTag(demande);
+
+        if (marquage != null) {
+            return marquerSansPoser(questionId, notionCode, marquage, relecteurId);
         }
-        int touchees = manager.poserNotion(questionId, notion);
-        if (touchees == 0) {
+
+        CivicNotion notion = resoudreNotion(notionCode);
+        if (notion == null) {
+            if (tagExplicite) {
+                // « TAG » sans notion n'est pas un effacement : c'est une
+                // demande incomplete, et la traiter comme un effacement
+                // supprimerait un tag que personne n'a demande de retirer.
+                throw new BusinessException(
+                        "Un verdict « TAG » exige la notion retenue.");
+            }
+            effacer(questionId);
+            return null;
+        }
+
+        poser(questionId, notion);
+        // 🛑 Deduit ici, jamais recu : c'est LA mesure du pre-tagging.
+        NotionSuggestionVerdict verdict = manager.meilleureSuggestion(questionId)
+                .map(meilleure -> meilleure.equals(notion.getId())
+                        ? NotionSuggestionVerdict.VALIDATED
+                        : NotionSuggestionVerdict.CORRECTED)
+                .orElse(null);
+        if (verdict == null) {
+            // Aucune campagne n'a tourne sur cette question : il n'y a rien a
+            // qualifier. L'etat NORMAL aujourd'hui, pas une anomalie.
+            log.info("Tagging civique : question={} notion={} (sans suggestion)",
+                    questionId, notionCode);
+            return null;
+        }
+        int marquees = manager.marquerVerdict(questionId, verdict, relecteurId);
+        log.info("Tagging civique : question={} notion={} verdict={} suggestions={}",
+                questionId, notionCode, verdict, marquees);
+        return verdict;
+    }
+
+    /** {@code REJECTED} / {@code SKIPPED} : on marque, on ne pose rien. */
+    private NotionSuggestionVerdict marquerSansPoser(
+            UUID questionId, String notionCode,
+            NotionSuggestionVerdict verdict, UUID relecteurId) {
+
+        if (notionCode != null && !notionCode.isBlank()) {
+            // Refuser plutot qu'ignorer : « rejeter » et « poser cette notion »
+            // sont deux gestes contraires, et deviner lequel l'emporte
+            // produirait une base qui ne dit pas ce que le relecteur a fait.
+            throw new BusinessException(
+                    "Un verdict « " + verdict + " » ne pose aucune notion : "
+                            + "n'envoyez pas de notionCode avec lui.");
+        }
+        if (!manager.existeQuestionCivique(questionId)) {
             throw new NotFoundException("Question introuvable : " + questionId);
         }
-        log.info("Tagging civique : question={} notion={}", questionId, notionCode);
+        int marquees = manager.marquerVerdict(questionId, verdict, relecteurId);
+        log.info("Relecture civique : question={} verdict={} suggestions={}",
+                questionId, verdict, marquees);
+        return verdict;
+    }
+
+    /**
+     * Le verdict qu'un client a le droit de nommer : {@code REJECTED} ou
+     * {@code SKIPPED}, et rien d'autre.
+     *
+     * <p>🛑 {@code VALIDATED} et {@code CORRECTED} sont <b>refuses</b> : ils se
+     * deduisent d'une comparaison serveur, ils ne s'annoncent pas. Les accepter
+     * laisserait un client ecrire lui-meme la note du modele.
+     */
+    private NotionSuggestionVerdict verdictSansTag(String normalise) {
+        NotionSuggestionVerdict verdict;
+        try {
+            verdict = NotionSuggestionVerdict.valueOf(normalise);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Verdict inconnu : " + normalise);
+        }
+        if (verdict.poseLaNotion()) {
+            throw new BusinessException(
+                    "VALIDATED et CORRECTED sont determines par le serveur : "
+                            + "envoyez la notion retenue, ou « TAG ».");
+        }
+        return verdict;
+    }
+
+    private CivicNotion resoudreNotion(String notionCode) {
+        if (notionCode == null || notionCode.isBlank()) return null;
+        CivicNotion notion = manager.findByCode(notionCode)
+                .orElseThrow(() -> new NotFoundException("Notion inconnue : " + notionCode));
+        if (!notion.isActive()) {
+            throw new BusinessException(
+                    "La notion « " + notion.getLabel() + " » a été fusionnée : "
+                            + "choisissez celle qui la reprend.");
+        }
+        return notion;
+    }
+
+    private void poser(UUID questionId, CivicNotion notion) {
+        if (manager.poserNotion(questionId, notion) == 0) {
+            throw new NotFoundException("Question introuvable : " + questionId);
+        }
+    }
+
+    private void effacer(UUID questionId) {
+        if (manager.poserNotion(questionId, null) == 0) {
+            throw new NotFoundException("Question introuvable : " + questionId);
+        }
+        log.info("Tagging civique : question={} notion=null (effacement)", questionId);
     }
 }

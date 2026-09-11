@@ -1703,15 +1703,50 @@ export interface CivicNotionDto {
   suggestions: number;
 }
 
+/**
+ * Une proposition de réponse de la question, telle qu'elle est servie au
+ * relecteur. Le relecteur tague sur le SENS de la question : sans les
+ * propositions ni la bonne réponse, il lui manque les deux tiers du texte que
+ * le modèle, lui, a lu.
+ */
+export interface CivicTaggingChoix {
+  label: string;
+  correct: boolean;
+}
+
+/**
+ * Ce que le serveur a écrit après relecture d'une suggestion.
+ *
+ * 🛑 `VALIDATED` et `CORRECTED` sont **décidés par le serveur** en comparant la
+ * notion retenue à la suggestion la mieux notée : le client ne les envoie
+ * jamais. C'est la métrique de qualité du pré-tagging, elle ne peut pas
+ * dépendre de ce que le client croit avoir fait.
+ */
+export type CivicReviewVerdict = "VALIDATED" | "CORRECTED" | "REJECTED" | "SKIPPED";
+
 export interface CivicTaggingSuggestion {
   notionCode: string;
   notionLabel: string;
+  /** 0 → 1. */
   confidence: number;
+  /** Pourquoi le modèle propose cette notion. `null` = le job ne l'a pas écrit. */
+  rationale: string | null;
+  /**
+   * 🛑 `null` = **pas encore relue**, jamais « rien à en dire ». C'est ce
+   * champ, et lui seul, qui dit au relecteur qui revient ce qu'il a déjà
+   * écarté. Typé `string` parce qu'un verdict inconnu d'un backend plus récent
+   * ne doit pas casser l'écran — cf. `CivicReviewVerdict` pour les valeurs
+   * connues.
+   */
+  reviewVerdict: string | null;
 }
 
 export interface CivicTaggingQuestion {
   questionId: string;
   enonce: string;
+  /** Souvent le seul endroit où la notion est identifiable. `null` = absente. */
+  explication: string | null;
+  choix: CivicTaggingChoix[];
   themeCode: string;
   mention: string;
   /** 🛑 `null` = **pas encore taguée**, jamais « sans notion ». */

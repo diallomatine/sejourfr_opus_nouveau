@@ -1116,16 +1116,23 @@ sejourfr:
   # chaque lecture, donc rien ne se reinterprete retroactivement. Changer un
   # reglage change le plan au prochain appel, sans migration.
   civic-plan:
-    # Part des questions actives d'un theme qui doivent etre TAGUEES pour que le
-    # plan y travaille par notion (20_ §3.3). La bascule est PAR THEME : un
-    # theme tague a 90 % n'attend pas celui qui est a 10 %.
+    # Part des questions de CONNAISSANCE actives d'un theme qui doivent etre
+    # TAGUEES pour que le plan y travaille par notion (20_ §3.3). La bascule est
+    # PAR THEME : un theme tague a 90 % n'attend pas celui qui est a 10 %.
+    # 🛑 Le denominateur EXCLUT les mises en situation : elles relevent des
+    # domaines `sit_*` (50_ §6.2) et ne recoivent pas de notion. Les compter
+    # plafonnait trois themes sur cinq a 77,9 / 77,9 / 79,0 % -- ils n'auraient
+    # JAMAIS franchi ce seuil, meme entierement tagues.
     # 🛑 Au lancement de L10, 0 question sur 1 016 est taguee -- les cinq themes
     # sont donc au grain THEME, ce qui est le mode PREVU par la spec (phase 1).
     seuil-tagging: 0.80
-    # 20_ §3.4 : sous ce compte, la notion est `insufficient_content` et n'est
-    # JAMAIS proposee en priorite. Compte PAR MENTION : une notion peut etre
-    # dotee pour un NAT et vide pour un CSP.
-    questions-min-par-notion: 4
+    # 50_ §6.1 : >= 5 questions dans la mention = notion pleinement utilisable ;
+    # 1 a 4 = visible en revision libre, JAMAIS proposee en priorite. Compte PAR
+    # MENTION : une notion peut etre dotee pour un NAT et vide pour un CSP.
+    # 🛑 5 partout (arbitrage proprietaire) : une notion a 4 questions est trop
+    # fragile pour devenir une unite de parcours adaptatif. Le « < 4 » de 20_
+    # §3.4 est annule par 50_ §6.1.
+    questions-min-par-notion: 5
     # 🛑 Plafonds d'AFFICHAGE, jamais des budgets de calcul. Le moteur classe
     # TOUTES les cibles et le DTO compte le reste (« + 6 autres notions »).
     priorites-visibles: 3

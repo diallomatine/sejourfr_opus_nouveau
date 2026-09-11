@@ -3,6 +3,7 @@ package com.sejourfr.app.service.plancivique;
 import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
+import com.sejourfr.app.config.CivicPlanProperties;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -51,6 +52,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @Autowired private TestData testData;
     @Autowired private EntityManager entityManager;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private CivicPlanProperties props;
 
     /** Ouvre un diagnostic, y répond faux partout, et le clôt. */
     private CivicDiagnosticSession diagnosticTermine(User user) {
@@ -223,21 +225,13 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         User user = testData.user();
         diagnosticTermine(user);
 
-        // On tague TOUTES les questions actives d'un seul thème, sur la
+        // On tague toutes les questions de CONNAISSANCE d'un seul thème, sur la
         // première notion de ce thème. Les autres thèmes ne bougent pas.
         String themeCode = jdbc.queryForObject("""
                 SELECT t.code FROM civic_notions n JOIN themes t ON t.code = n.theme_code
                 WHERE n.is_active = true ORDER BY n.theme_code, n.display_order LIMIT 1
                 """, String.class);
-        UUID notionId = jdbc.queryForObject("""
-                SELECT id FROM civic_notions
-                WHERE theme_code = ? AND is_active = true ORDER BY display_order LIMIT 1
-                """, UUID.class, themeCode);
-        int taguees = jdbc.update("""
-                UPDATE questions SET civic_notion_id = ?
-                WHERE module = 'CIVIQUE' AND is_active = true
-                  AND theme_id = (SELECT id FROM themes WHERE code = ?)
-                """, notionId, themeCode);
+        int taguees = taguerLesConnaissances(themeCode, premiereNotion(themeCode));
         assertThat(taguees).isPositive();
 
         CivicPlanDto plan = service.plan(user.getId());
@@ -247,6 +241,184 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         assertThat(plan.grain().themesParNotion()).isEqualTo(1);
         assertThat(plan.grain().courant()).isEqualTo(CivicPlanGrain.THEME);
         assertThat(plan.grain().taguees()).isEqualTo(taguees);
+    }
+
+    @Test
+    @DisplayName("🛑 LA BASCULE NE COMPTE QUE LES CONNAISSANCE : un thème 100 % tagué "
+            + "bascule même avec ses mises en situation non taguées")
+    void laBasculeNeCompteQueLesConnaissances() {
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        // 🛑 On choisit exprès un thème que l'ANCIENNE règle n'aurait JAMAIS
+        // fait basculer : ses mises en situation pèsent assez pour le maintenir
+        // sous 80 % quand bien même 100 % de ses connaissances seraient taguées.
+        // C'est la situation mesurée sur trois thèmes sur cinq (77,9 / 77,9 /
+        // 79,0 %) : le grain notion leur était inaccessible par construction.
+        String themeCode = jdbc.queryForObject("""
+                SELECT t.code
+                FROM questions q JOIN themes t ON t.id = q.theme_id
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                GROUP BY t.code
+                HAVING COUNT(*) FILTER (WHERE q.question_type = 'CONNAISSANCE')::numeric
+                           / COUNT(*) < 0.80
+                ORDER BY t.code
+                LIMIT 1
+                """, String.class);
+        assertThat(themeCode)
+                .as("le catalogue doit contenir un thème sous 80 % de connaissances")
+                .isNotNull();
+
+        int taguees = taguerLesConnaissances(themeCode, premiereNotion(themeCode));
+
+        // Les mises en situation restent VOLONTAIREMENT non taguées : elles
+        // relèvent des domaines `sit_*` (50_ §6.2), pas des notions.
+        Long misesEnSituationNonTaguees = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions q
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                  AND q.question_type = 'MISE_SITUATION'
+                  AND q.civic_notion_id IS NULL
+                  AND q.theme_id = (SELECT id FROM themes WHERE code = ?)
+                """, Long.class, themeCode);
+        assertThat(misesEnSituationNonTaguees).isPositive();
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // 🛑 LE test de ce lot : le thème bascule quand même. Sous l'ancienne
+        // règle il plafonnait sous 80 % et restait au grain THÈME à jamais.
+        assertThat(plan.grain().themesParNotion()).isEqualTo(1);
+        // 🛑 Et les deux métriques ne se mélangent pas : le dénominateur servi
+        // ignore les mises en situation, sinon l'écran annoncerait un chantier
+        // qui ne se termine jamais.
+        assertThat(plan.grain().taguees()).isEqualTo(taguees);
+        assertThat(plan.grain().total()).isEqualTo(totalConnaissancesCiviques());
+
+        // Et le grain bascule jusqu'au bout : les CINQ thèmes tagués sur leurs
+        // seules connaissances, le plan travaille entièrement par notion — alors
+        // que 173 mises en situation restent volontairement sans notion.
+        for (String autre : jdbc.queryForList(
+                "SELECT DISTINCT theme_code FROM civic_notions WHERE is_active = true",
+                String.class)) {
+            taguerLesConnaissances(autre, premiereNotion(autre));
+        }
+        CivicPlanDto entierementTague = service.plan(user.getId());
+
+        assertThat(entierementTague.grain().courant()).isEqualTo(CivicPlanGrain.NOTION);
+        assertThat(entierementTague.priorites()).isNotEmpty();
+        assertThat(entierementTague.priorites()).allSatisfy(
+                c -> assertThat(c.grain()).isEqualTo(CivicPlanGrain.NOTION));
+        assertThat(misesEnSituationNonTaguees()).isPositive();
+    }
+
+    @Test
+    @DisplayName("🛑 Le seuil de contenu est à 5 : 4 questions dans la mention ne suffisent pas")
+    void seuilDeContenuACinq() {
+        User user = testData.user();
+        diagnosticTermine(user);
+        CivicPlanDto initial = service.plan(user.getId());
+        String mention = initial.mention().name();
+
+        // Un thème au grain NOTION avec DEUX notions actives : tout part sur la
+        // seconde, et on dote la première d'exactement 4 questions de la mention.
+        String themeCode = themeAvecAssezDeQuestions(mention);
+        List<UUID> notions = jdbc.queryForList("""
+                SELECT id FROM civic_notions
+                WHERE theme_code = ? AND is_active = true ORDER BY display_order LIMIT 2
+                """, UUID.class, themeCode);
+        jdbc.update("""
+                UPDATE civic_notions SET is_active = false
+                WHERE theme_code = ? AND id <> ? AND id <> ?
+                """, themeCode, notions.get(0), notions.get(1));
+        taguerLesConnaissances(themeCode, notions.get(1));
+        deplacerVersNotion(themeCode, mention, notions.get(0), 4, 0);
+
+        int proposablesA4 = proposables(service.plan(user.getId()));
+
+        // La 5ᵉ question suffit : la notion devient une unité de parcours.
+        deplacerVersNotion(themeCode, mention, notions.get(0), 1, 4);
+        int proposablesA5 = proposables(service.plan(user.getId()));
+
+        // 🛑 Exactement une cible a changé de statut, et c'est la notion dotée :
+        // à 4 elle est `contenuInsuffisant` donc jamais proposable, à 5 elle
+        // l'est. « Une notion à 4 questions est trop fragile pour devenir une
+        // vraie unité de parcours adaptatif » (arbitrage propriétaire).
+        assertThat(proposablesA5).isEqualTo(proposablesA4 + 1);
+    }
+
+    @Test
+    @DisplayName("Le seuil de contenu servi par la configuration vaut bien 5")
+    void seuilDeContenuConfigure() {
+        assertThat(props.getQuestionsMinParNotion()).isEqualTo(5);
+    }
+
+    /** Tague toutes les questions de CONNAISSANCE actives d'un thème. */
+    private int taguerLesConnaissances(String themeCode, UUID notionId) {
+        return jdbc.update("""
+                UPDATE questions SET civic_notion_id = ?
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'CONNAISSANCE'
+                  AND theme_id = (SELECT id FROM themes WHERE code = ?)
+                """, notionId, themeCode);
+    }
+
+    private UUID premiereNotion(String themeCode) {
+        return jdbc.queryForObject("""
+                SELECT id FROM civic_notions
+                WHERE theme_code = ? AND is_active = true ORDER BY display_order LIMIT 1
+                """, UUID.class, themeCode);
+    }
+
+    private long misesEnSituationNonTaguees() {
+        Long total = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'MISE_SITUATION' AND civic_notion_id IS NULL
+                """, Long.class);
+        return total == null ? 0L : total;
+    }
+
+    private long totalConnaissancesCiviques() {
+        Long total = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'CONNAISSANCE'
+                """, Long.class);
+        return total == null ? 0L : total;
+    }
+
+    private String themeAvecAssezDeQuestions(String mention) {
+        return jdbc.queryForObject("""
+                SELECT t.code
+                FROM questions q JOIN themes t ON t.id = q.theme_id
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                  AND q.question_type = 'CONNAISSANCE'
+                  AND q.difficulty = CAST(? AS varchar)
+                GROUP BY t.code
+                HAVING COUNT(*) >= 6
+                ORDER BY t.code
+                LIMIT 1
+                """, String.class, mention);
+    }
+
+    /** Déplace {@code combien} questions de la mention vers une autre notion. */
+    private void deplacerVersNotion(String themeCode, String mention, UUID notionId,
+                                    int combien, int depuis) {
+        jdbc.update("""
+                UPDATE questions SET civic_notion_id = ?
+                WHERE id IN (
+                    SELECT q.id FROM questions q
+                    WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                      AND q.question_type = 'CONNAISSANCE'
+                      AND q.difficulty = CAST(? AS varchar)
+                      AND q.theme_id = (SELECT id FROM themes WHERE code = ?)
+                    ORDER BY q.id LIMIT ? OFFSET ?
+                )
+                """, notionId, mention, themeCode, combien, depuis);
+    }
+
+    /** Les cibles réellement proposables : servies en priorité + celles comptées. */
+    private int proposables(CivicPlanDto plan) {
+        return plan.priorites().size() + plan.autresPriorites();
     }
 
     @Test

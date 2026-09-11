@@ -1132,15 +1132,90 @@ faible compterait le même signal deux fois, le poids du thème le portant déj�
 
 ### Le grain se MESURE, thème par thème (`20_` §3.3)
 
-Un thème passe au grain **notion** quand ≥ 80 % de ses questions actives sont
-taguées (`sejourfr.civic-plan.seuil-tagging`). 🛑 **Par thème, jamais
-globalement** : un thème tagué à 90 % n'attend pas celui qui est à 10 %. Un
-thème sans question active reste au grain thème — diviser par zéro pour conclure
-« 100 % tagué » basculerait un thème vide.
+Un thème passe au grain **notion** quand ≥ 80 % de ses questions **de
+connaissance** actives sont taguées (`sejourfr.civic-plan.seuil-tagging`).
+🛑 **Par thème, jamais globalement** : un thème tagué à 90 % n'attend pas celui
+qui est à 10 %. Un thème sans question active reste au grain thème — diviser par
+zéro pour conclure « 100 % tagué » basculerait un thème vide.
+
+🛑 **Le dénominateur ne compte QUE les `CONNAISSANCE` — c'est une règle, pas un
+réglage** (arbitrage propriétaire, 2026-09-11). Les connaissances se rattachent à
+des **notions** ; les 173 **mises en situation** relèvent d'un axe pédagogique
+distinct et seront suivies par leurs **domaines de situation** (`50_` §6.2, codes
+`sit_*`). Elles ne reçoivent donc jamais de `civic_notion_id`, et une mise en
+situation non taguée ne doit jamais empêcher l'activation du grain notion.
+**On ne mélange pas les deux métriques.** Les compter a un coût mesuré : trois
+thèmes sur cinq plafonnaient à 77,9 / 77,9 / 79,0 % et **n'auraient JAMAIS
+franchi le seuil**, même avec 100 % de leurs connaissances taguées.
+
+La même règle vaut pour les **deux autres compteurs du chantier de tagging** —
+`resteATaguer` et la file `GET /api/admin/civic-notions/questions` : ils mesurent
+l'avancement qui déclenche la bascule, ils doivent donc compter la même chose.
+⚠️ Une question **déjà taguée** reste visible dans la file quel que soit son
+type : cacher une erreur n'est pas la corriger.
+
+🛑 **En revanche, les compteurs de DOTATION ne filtrent pas** (`questionsParNotion`,
+`questionsParTheme`, `couvertureParNotionEtMention`) : ils doivent rendre
+exactement ce que le tirage de la série ciblée peut jouer, et ce tirage ne connaît
+que `civic_notion_id` / `theme_id`. Filtrer là annoncerait `contenuInsuffisant`
+sur une notion qui remplit pourtant sa série. **Couverture ≠ dotation.**
 
 Le DTO sert `themesParNotion / themesTotal` et l'écran **le dit** : le plan ne se
 présente jamais plus précis qu'il ne l'est. `courant = NOTION` seulement quand
 **tous** les thèmes ont basculé.
+
+### Le seuil de contenu d'une notion : **5**, et 5 partout
+
+`50_` §6.1 : **≥ 5** questions actives dans la mention = notion pleinement
+utilisable, éligible comme priorité ; **1 à 4** = visible en révision libre,
+**jamais** proposée en priorité (`contenuInsuffisant`, malus −10) ; **0** =
+invisible pour cette mention. 🛑 **Compte PAR MENTION.**
+
+⚠️ La valeur a vécu en **trois sources et deux valeurs** — `CivicPlanProperties`
+à 4, `50_` §6.1 à 5, l'écran d'admin colorant sous 5. Tranché par le propriétaire
+le 2026-09-11 : **5 partout**, « une notion avec seulement 4 questions est trop
+fragile pour devenir une vraie unité de parcours adaptatif ». Le « < 4 » de
+`20_` §3.4 est **annulé** par `50_` §6.1 ; ce document-ci fait foi.
+
+### Relire le pré-tagging : quatre verdicts, et le serveur arbitre (V054)
+
+`question_notion_suggestions` porte désormais `prompt_version` (NOT NULL, sans
+défaut), `rationale`, `review_verdict`, `reviewed_by`, `reviewed_at`, `batch_id`.
+
+🛑 **Quatre gestes, quatre états distincts.** Avant V054, « rejeter » et
+« passer » n'écrivaient **rien** — indiscernables en base — et « valider » et
+« corriger » produisaient la **même** écriture : on ne pouvait donc pas mesurer
+si le modèle avait raison, ce qui est tout l'intérêt du pré-tagging.
+
+| geste | `civic_notion_id` | suggestions de la question |
+|---|---|---|
+| notion retenue = la **mieux notée** | posée | `VALIDATED` |
+| **autre** notion retenue | posée | `CORRECTED` |
+| aucune ne convient | intacte | `REJECTED` |
+| passer | intacte | `SKIPPED` |
+
+🛑 **Seuls `VALIDATED` et `CORRECTED` posent un tag.** 🛑 **Le serveur déduit
+`VALIDATED` vs `CORRECTED`** en comparant la notion retenue à la suggestion la
+mieux notée : c'est la métrique de qualité du modèle, et un client qui pourrait
+l'annoncer pourrait la mentir — il est **refusé** s'il l'envoie. Le verdict
+qualifie la relecture de la **question** : il est écrit sur toutes ses
+suggestions, et se mesure en `COUNT(DISTINCT question_id)`.
+
+🛑 **`prompt_version` est NOT NULL sans défaut** : même modèle + prompt différent
+= calibration différente. Deux campagnes incomparables ne doivent jamais se
+mélanger dans le même taux de `VALIDATED`.
+
+🛑 **Aucun chemin d'application automatique** : ni trigger, ni règle, ni contrainte
+ne recopie une suggestion vers `questions.civic_notion_id`. « Le job propose, un
+humain valide » (`50_` §6.1.3). Vérifié par `CivicTaggingVerdictIT`.
+
+**Contrat REST** (figé) : `PUT /api/admin/civic-notions/questions/{id}` avec
+`{notionCode, verdict}`. `verdict` nul ou `"TAG"` + `notionCode` ⇒ le serveur
+pose et déduit ; `"REJECTED"` / `"SKIPPED"` ⇒ on marque seulement, aucun
+`notionCode` accepté ; `notionCode` nul sans verdict ⇒ **effacement**, le
+comportement d'avant V054 (rétrocompatibilité). `GET .../questions` sert
+l'énoncé, l'**explication**, les **propositions** et, par suggestion, sa
+`rationale` et son `reviewVerdict`.
 
 ### Freemium
 

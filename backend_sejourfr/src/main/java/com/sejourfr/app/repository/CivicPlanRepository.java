@@ -54,12 +54,26 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
     List<Object[]> reponsesCiviques(@Param("userId") UUID userId);
 
     /**
-     * L'avancement du tagging, <b>par theme</b> : total actif, et combien sont
-     * tagues.
+     * L'avancement du tagging, <b>par theme</b> : questions de CONNAISSANCE
+     * actives, et combien sont taguees.
      *
      * <p>C'est ce couple qui fait basculer un theme du grain THEME au grain
      * NOTION ({@code 20_} §3.3). 🛑 <b>Par theme, jamais globalement</b> : un
      * theme tague a 90 % n'a pas a attendre celui qui est a 10 %.
+     *
+     * <p>🛑 <b>SEULES LES QUESTIONS DE CONNAISSANCE COMPTENT — c'est une REGLE,
+     * pas un reglage.</b> Les connaissances se rattachent a des <b>notions</b> ;
+     * les 176 <b>mises en situation</b> relevent d'un axe pedagogique distinct
+     * et seront suivies par leurs <b>domaines de situation</b> ({@code 50_}
+     * §6.2, codes {@code sit_*}). Elles ne recoivent donc jamais de
+     * {@code civic_notion_id}, et une mise en situation non taguee ne doit
+     * jamais empecher l'activation du grain notion.
+     *
+     * <p>Les compter melangeait deux metriques qui ne mesurent pas la meme
+     * chose, et le coût etait mesure : trois themes sur cinq plafonnaient a
+     * 77,9 / 77,9 / 79,0 % et <b>n'auraient JAMAIS franchi le seuil de 80 %</b>,
+     * meme avec 100 % des questions de connaissance taguees. Le grain notion
+     * leur etait inaccessible par construction.
      */
     @Query(value = """
             SELECT t.id,
@@ -67,7 +81,9 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
                    COUNT(q.civic_notion_id)
             FROM questions q
                      JOIN themes t ON t.id = q.theme_id
-            WHERE q.module = 'CIVIQUE' AND q.is_active = true
+            WHERE q.module = 'CIVIQUE'
+              AND q.is_active = true
+              AND q.question_type = 'CONNAISSANCE'
             GROUP BY t.id
             """, nativeQuery = true)
     List<Object[]> taggageParTheme();
@@ -78,6 +94,14 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
      * <p>🛑 <b>Par mention</b>, jamais un total global : une notion peut etre
      * pleinement dotee pour un candidat NAT et vide pour un CSP, et c'est
      * exactement ce que {@code 20_} §3.4 appelle {@code insufficient_content}.
+     *
+     * <p>🛑 <b>Ici, PAS de filtre sur {@code question_type}</b> — contrairement
+     * a {@link #taggageParTheme()}, et pour une raison precise : ce compte est
+     * une <b>dotation</b>, pas une couverture de tagging. Il doit rendre
+     * exactement ce que {@link #tirageSerieCiblee} peut tirer, et ce tirage ne
+     * connait que {@code civic_notion_id}. Ecarter un type que le tirage
+     * accepte annoncerait {@code contenuInsuffisant} sur une notion qui remplit
+     * pourtant sa serie.
      */
     @Query(value = """
             SELECT q.civic_notion_id, COUNT(*)
@@ -90,7 +114,13 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             """, nativeQuery = true)
     List<Object[]> questionsParNotion(@Param("mention") String mention);
 
-    /** Meme compte, au grain theme : de quoi savoir si une serie est jouable. */
+    /**
+     * Meme compte, au grain theme : de quoi savoir si une serie est jouable.
+     *
+     * <p>🛑 <b>Meme raison qu'au grain notion : aucun filtre de type.</b> Une
+     * serie ciblee sur un theme tire aussi bien une mise en situation qu'une
+     * connaissance — la dotation doit refleter le tirage, pas la couverture.
+     */
     @Query(value = """
             SELECT q.theme_id, COUNT(*)
             FROM questions q

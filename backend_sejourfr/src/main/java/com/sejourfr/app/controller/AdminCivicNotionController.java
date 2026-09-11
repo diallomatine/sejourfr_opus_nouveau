@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.CivicNotionDto;
+import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.CivicNotionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class AdminCivicNotionController {
 
     private final CivicNotionService service;
+    private final CurrentUser currentUser;
 
     /**
      * Le referentiel, avec la couverture <b>mesuree</b> par notion et par
@@ -66,18 +68,38 @@ public class AdminCivicNotionController {
     }
 
     /**
-     * Pose ou efface le tag <b>valide</b> d'une question.
+     * <b>La relecture d'une question</b> : pose le tag valide, ou marque ce que
+     * le relecteur a fait de la proposition de la machine (V054).
      *
-     * <p>{@code notionCode} nul efface : se tromper doit rester rattrapable
-     * depuis l'ecran. Effacer ne dit pas « cette question n'a pas de notion »,
-     * mais « elle attend a nouveau ».
+     * <ul>
+     *   <li>{@code notionCode} + pas de verdict (ou {@code "TAG"}) : le serveur
+     *       pose la notion et <b>deduit</b> {@code VALIDATED} ou
+     *       {@code CORRECTED} ;</li>
+     *   <li>{@code verdict = "REJECTED"} / {@code "SKIPPED"} : aucune notion
+     *       posee, on marque seulement — la question reste dans la file ;</li>
+     *   <li>{@code notionCode} nul sans verdict : le tag s'efface. Se tromper
+     *       doit rester rattrapable depuis l'ecran ; effacer ne dit pas « cette
+     *       question n'a pas de notion », mais « elle attend a nouveau ».</li>
+     * </ul>
+     *
+     * <p>🛑 <b>Un client ne peut pas annoncer {@code VALIDATED} ni
+     * {@code CORRECTED}</b> : la comparaison a la suggestion la mieux notee est
+     * la metrique de qualite du pre-tagging, et elle se fait cote serveur.
+     *
+     * <p>🛑 <b>Retrocompatible</b> : un corps qui ne porte que
+     * {@code notionCode} se comporte exactement comme avant V054.
      */
     @PutMapping("/questions/{questionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void taguer(@PathVariable UUID questionId, @RequestBody TagRequest body) {
-        service.taguer(questionId, body.notionCode());
+        service.relire(questionId, body.notionCode(), body.verdict(), currentUser.getId());
     }
 
-    /** @param notionCode code de la notion, ou {@code null} pour effacer le tag */
-    public record TagRequest(String notionCode) {}
+    /**
+     * @param notionCode code de la notion retenue, ou {@code null} pour effacer
+     * @param verdict    {@code null} / {@code "TAG"} / {@code "REJECTED"} /
+     *                   {@code "SKIPPED"} — jamais {@code VALIDATED} ni
+     *                   {@code CORRECTED}, que le serveur deduit lui-meme
+     */
+    public record TagRequest(String notionCode, String verdict) {}
 }

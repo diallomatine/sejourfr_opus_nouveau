@@ -1,6 +1,7 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.CivicNotion;
+import com.sejourfr.app.enums.NotionSuggestionVerdict;
 import com.sejourfr.app.repository.CivicNotionRepository;
 import com.sejourfr.app.repository.QuestionNotionSuggestionRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,29 @@ public class CivicNotionManager {
 
     public List<Object[]> suggestionsParQuestions(Collection<UUID> questionIds) {
         return questionIds.isEmpty() ? List.of() : suggestionRepository.parQuestions(questionIds);
+    }
+
+    public List<Object[]> choixDesQuestions(Collection<UUID> questionIds) {
+        return questionIds.isEmpty() ? List.of() : repository.choixDesQuestions(questionIds);
+    }
+
+    /** La notion la mieux notee proposee pour une question, si une campagne a tourne. */
+    public Optional<UUID> meilleureSuggestion(UUID questionId) {
+        return suggestionRepository.meilleureSuggestion(questionId);
+    }
+
+    /**
+     * Inscrit le verdict de relecture sur toutes les suggestions de la question.
+     *
+     * @return le nombre de lignes marquees ; <b>0 est normal</b> tant qu'aucune
+     *         campagne de pre-tagging n'a tourne
+     */
+    public int marquerVerdict(UUID questionId, NotionSuggestionVerdict verdict, UUID relecteurId) {
+        return suggestionRepository.marquerVerdict(questionId, verdict.name(), relecteurId);
+    }
+
+    public boolean existeQuestionCivique(UUID questionId) {
+        return repository.existeQuestionCivique(questionId);
     }
 
     public List<Object[]> fileDeTagging(String theme, Boolean tagged, int limit, int offset) {
