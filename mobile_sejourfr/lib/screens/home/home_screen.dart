@@ -10,10 +10,13 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/preparation_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dashboard_targets.dart';
+import '../../core/widgets/affiner_plan_card.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/list_group.dart';
@@ -189,6 +192,21 @@ class _HomeBody extends ConsumerWidget {
     return ordered.isNotEmpty ? ordered.first : summary.allCategories.first;
   }
 
+  /// « Continuez votre diagnostic complet — 2 / 4 épreuves terminées ».
+  ///
+  /// 🛑 `abonne: false` : sur l'Accueil la carte ne s'affiche que lorsque le
+  /// complet est COMMENCÉ, et ce libellé-là ne dépend pas de l'abonnement.
+  List<Widget>? _affinerDiagnostic(WidgetRef ref) {
+    final prep = ref.watch(preparationProvider).valueOrNull;
+    if (prep == null) return null;
+    final info = affinerPlan(prep.tcf, accueil: true, abonne: false);
+    if (info == null) return null;
+    return <Widget>[
+      AffinerPlanCard(info: info, pad: false),
+      const SizedBox(height: 16),
+    ];
+  }
+
   int? _parcoursAverage(List<DashboardCategoryStat> stats) {
     if (stats.isEmpty) return null;
     final values = stats.map((s) => s.percent ?? 0).toList();
@@ -258,6 +276,14 @@ class _HomeBody extends ConsumerWidget {
             (diagnostic.status != DiagnosticJourneyStatus.notStarted ||
                 !diagnosticDismissed))
           const SizedBox(height: 16),
+        // 🛑 **Secondaire, et seulement quand le diagnostic complet est
+        // COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan, mais
+        // elle ne devient jamais l'action principale de l'Accueil : celle-ci
+        // reste « Débloquer mon plan » pour un compte gratuit et l'action
+        // pédagogique du Plan pour un abonné. À 4 / 4 elle disparaît — c'est
+        // `affinerPlan` qui rend `null`, sur des faits servis, jamais un
+        // compteur reconstruit ici.
+        ...?_affinerDiagnostic(ref),
         if (!diagnosticCompleted)
           _PriorityCard(
             stat: priority,

@@ -31,39 +31,41 @@ String? niveauLine(ModulePreparation m) {
 }
 
 /// **TCF** — deux diagnostics, deux objectifs.
+///
+/// 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
+/// propriétaire, 2026-09-12). Le diagnostic complet n'est plus une porte à
+/// franchir : il affine, et cette invitation-là vit dans [affinerPlan], en
+/// action **secondaire**. Envoyer ici vers `/diagnostic-tcf` remettrait une
+/// étape obligatoire devant un plan déjà utilisable.
 PreparationAction tcfAction(ModulePreparation m) {
-  switch (m.etape) {
-    case PreparationEtape.diagnosticAFaire:
-      return (
-        statut: 'Diagnostic non réalisé',
-        cta: 'Faire mon diagnostic',
-        route: '/diagnostic',
-      );
-    case PreparationEtape.diagnosticEnCours:
-      final fait = m.fait;
-      final total = m.total;
-      return (
-        statut: fait != null && total != null
-            ? 'Diagnostic complet : $fait / $total épreuves'
-            : 'Diagnostic en cours',
-        cta: 'Reprendre',
-        route: fait != null ? '/diagnostic-tcf' : '/diagnostic',
-      );
-    case PreparationEtape.estimationFaite:
-      // 🛑 Le rapide est TERMINÉ, et on le dit — mais il ne suffit pas à bâtir
-      // le Plan : il n'a observé qu'une production écrite.
-      return (
-        statut: 'Première estimation terminée',
-        cta: 'Faire mon diagnostic complet',
-        route: '/diagnostic-tcf',
-      );
-    case PreparationEtape.planPret:
-      return (
-        statut: niveauLine(m) ?? 'Diagnostic terminé',
-        cta: 'Continuer mon plan',
-        route: '/plan',
-      );
+  if (m.planDisponible) {
+    return (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/plan');
   }
+  // Sans estimation close, il n'y a qu'une seule porte : le diagnostic rapide.
+  return m.etape == PreparationEtape.diagnosticEnCours
+      ? (statut: 'Diagnostic en cours', cta: 'Reprendre', route: '/diagnostic')
+      : (
+          statut: 'Diagnostic non réalisé',
+          cta: 'Faire mon diagnostic',
+          route: '/diagnostic',
+        );
+}
+
+/// Ce qu'on sait du candidat quand son Plan existe.
+///
+/// 🛑 **Jamais « 0 / 4 »** : un compteur à zéro se lit comme un échec alors que
+/// le candidat vient de terminer son estimation. Le palier mesuré prime dès
+/// qu'il existe — c'est le complet qui le sert, et `null` veut dire « pas
+/// encore mesuré », jamais A1.
+String _tcfStatut(ModulePreparation m) {
+  final niveau = niveauLine(m);
+  if (niveau != null) return niveau;
+  final fait = m.fait;
+  final total = m.total;
+  if (fait != null && total != null && fait > 0) {
+    return 'Diagnostic complet : $fait / $total épreuves';
+  }
+  return 'Première estimation terminée';
 }
 
 /// **CIVIQUE** — un seul diagnostic.
@@ -122,7 +124,14 @@ typedef PlanIndisponible = ({
 /// pourquoi et ouvre la seule porte qui débloque — jamais un plan vide, jamais
 /// un plan bâti sur une mesure qui n'existe pas.
 PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique}) {
-  if (m.etape == PreparationEtape.planPret) return null;
+  // 🛑 **Le fait servi, jamais l'étape.** Arbitrage du propriétaire du
+  // 2026-09-12 : le diagnostic complet n'est plus un prérequis d'accès au Plan,
+  // seulement un moyen de l'affiner. Dès que le diagnostic rapide est clos, le
+  // serveur sait bâtir un Plan provisoire mais **réel** — ses priorités
+  // viennent d'observations vraies, et aucun domaine non mesuré n'en reçoit.
+  // Lire `etape` ici ferait dire « pas encore prêt » à un écran que le moteur
+  // sert déjà.
+  if (m.planDisponible) return null;
 
   // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
   // Redemander « Faire mon diagnostic » à quelqu'un qui vient d'en répondre la
@@ -135,9 +144,10 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
       texte: _avancement(m) ??
           'Terminez-le pour que votre plan se construise.',
       cta: 'Reprendre mon diagnostic',
-      route: civique
-          ? '/diagnostic-civique'
-          : (m.fait != null ? '/diagnostic-tcf' : '/diagnostic'),
+      // Côté TCF, seul le diagnostic **rapide** inachevé arrive ici : dès
+      // qu'il est clos, `planDisponible` est vrai et la porte ne s'affiche
+      // plus, même pendant le complet.
+      route: civique ? '/diagnostic-civique' : '/diagnostic',
     );
   }
 
@@ -148,16 +158,6 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
           'notions à travailler.',
       cta: 'Faire mon diagnostic civique',
       route: '/diagnostic-civique',
-    );
-  }
-
-  if (m.etape == PreparationEtape.estimationFaite) {
-    return (
-      titre: 'Votre plan TCF n\'est pas encore prêt',
-      texte: 'Votre première estimation a identifié quelques axes, mais nous '
-          'devons aussi évaluer votre oral et vos compréhensions.',
-      cta: 'Faire mon diagnostic TCF complet',
-      route: '/diagnostic-tcf',
     );
   }
 
@@ -191,3 +191,128 @@ String? _avancement(ModulePreparation m) {
 bool moduleCiviqueParDefaut(PreparationDto prep) =>
     prep.tcf.etape == PreparationEtape.diagnosticAFaire &&
     prep.civique.etape != PreparationEtape.diagnosticAFaire;
+
+// ---------------------------------------------------------------------------
+// AFFINER le Plan — le diagnostic complet devient une action SECONDAIRE
+// ---------------------------------------------------------------------------
+
+/// L'invitation au diagnostic complet, sous ses **trois** formes.
+///
+/// 🛑 **Le complet ne bloque jamais le Plan** (arbitrage du propriétaire,
+/// 2026-09-12) : il l'affine. Cette carte se pose donc **après** le contenu
+/// principal, et ne concurrence jamais le CTA d'abonnement d'un compte gratuit.
+///
+/// Trois formes, décidées par des **faits servis**, jamais par un compteur
+/// reconstruit :
+/// - `0 / 4`, jamais commencé → « Affiner votre Plan ». 🛑 **On n'affiche pas
+///   « 0 / 4 »** : un compteur à zéro se lit comme un retard alors que rien n'a
+///   été promis.
+/// - `1 / 4` à `3 / 4` → « Diagnostic complet en cours », avec sa progression,
+///   sa barre, et la prochaine épreuve **si le serveur la sert**.
+/// - `4 / 4` → `null`, plus aucune invitation nulle part.
+typedef AffinerPlan = ({
+  /// Épreuves terminées du diagnostic complet — **servi**.
+  int fait,
+  int total,
+
+  /// `true` dès la première épreuve terminée.
+  bool enCours,
+  String titre,
+  String texte,
+
+  /// « 2 / 4 épreuves terminées ». `null` tant que rien n'est commencé.
+  String? progression,
+
+  /// « Prochaine épreuve : Expression orale ». 🛑 `null` si non servie.
+  String? prochaineEpreuve,
+  String cta,
+  String route,
+});
+
+/// Où le candidat reprend son diagnostic complet.
+///
+/// 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
+/// s'est arrêté » : une épreuve terminée n'y porte plus aucun bouton, et une
+/// épreuve qui démarre le fait après son avertissement (« une fois commencée,
+/// elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
+/// épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
+const String _kDiagnosticCompletRoute = '/diagnostic-tcf';
+
+/// Miroir mot pour mot de `affinerPlan` (`web_sejoufr/lib/preparation.ts`).
+AffinerPlan? affinerPlan(
+  ModulePreparation m, {
+  required bool accueil,
+  required bool abonne,
+}) {
+  // Pas de Plan ⇒ rien à affiner : la porte d'entrée dit déjà quoi faire.
+  if (!m.planDisponible) return null;
+  final fait = m.fait;
+  final total = m.total;
+  // 🛑 Aucun compteur servi ⇒ aucune carte. On ne fabrique pas un « 0 / 4 »
+  // pour remplir un emplacement (le civique n'a qu'un diagnostic, il n'a jamais
+  // rien à affiner).
+  if (fait == null || total == null || total <= 0) return null;
+  // 4 / 4 : plus aucune invitation, plus aucune progression, nulle part.
+  if (fait >= total) return null;
+
+  final enCours = fait > 0;
+  final restant = total - fait;
+  final progression = enCours ? '$fait / $total épreuves terminées' : null;
+  final prochaine = m.prochaineEpreuve == null
+      ? null
+      : 'Prochaine épreuve : ${m.prochaineEpreuve!.displayLabel}';
+
+  if (accueil) {
+    // 🛑 L'Accueil ne montre le complet **que** s'il est commencé : une
+    // invitation de plus sur un écran qui en porte déjà deux deviendrait du
+    // bruit, et elle vit déjà sur le Plan.
+    if (!enCours) return null;
+    return (
+      fait: fait,
+      total: total,
+      enCours: enCours,
+      titre: 'Continuez votre diagnostic complet',
+      texte: 'Il vous reste $restant épreuve${restant > 1 ? 's' : ''} pour '
+          'compléter l\'analyse de vos compétences.',
+      progression: progression,
+      prochaineEpreuve: prochaine,
+      cta: 'Continuer',
+      route: _kDiagnosticCompletRoute,
+    );
+  }
+
+  if (enCours) {
+    return (
+      fait: fait,
+      total: total,
+      enCours: enCours,
+      titre: 'Diagnostic complet en cours',
+      texte: 'Continuez votre diagnostic pour affiner progressivement votre '
+          'Plan.',
+      progression: progression,
+      prochaineEpreuve: prochaine,
+      cta: 'Continuer le diagnostic',
+      route: _kDiagnosticCompletRoute,
+    );
+  }
+
+  // Jamais commencé. Deux formulations : un compte gratuit vient de voir ce qui
+  // a été détecté et doit d'abord débloquer ; un abonné utilise déjà son Plan
+  // et n'a qu'à le préciser.
+  return (
+    fait: fait,
+    total: total,
+    enCours: enCours,
+    titre: abonne ? 'Rendez votre Plan encore plus précis' : 'Affiner votre Plan',
+    texte: abonne
+        ? 'Complétez le diagnostic complet pour analyser les autres compétences '
+            'et affiner vos priorités.'
+        : 'Votre diagnostic rapide nous a permis d\'identifier vos premières '
+            'priorités. Le diagnostic complet analyse vos 4 compétences pour '
+            'rendre votre Plan encore plus précis.',
+    progression: null,
+    prochaineEpreuve: null,
+    cta: 'Faire le diagnostic complet',
+    route: _kDiagnosticCompletRoute,
+  );
+}

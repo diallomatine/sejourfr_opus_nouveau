@@ -136,6 +136,12 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
   action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
   d'épreuve ne dérive jamais d'une liste déjà tronquée.
+- 🛑 **Le diagnostic COMPLET n'ouvre pas le Plan, il l'affine.** Dès que le diagnostic
+  **rapide** est clos, le Plan existe : provisoire mais réel. Le fait à lire est
+  **`prep.planDisponible`**, jamais `etape` — il rend mot pour mot la condition du moteur.
+  Corollaire : un Plan provisoire ne s'appuie **que sur ce qui a été mesuré**, une compétence
+  non observée est *inconnue*, ni faible ni prioritaire. Peu de priorités toutes vraies est le
+  bon résultat. → `docs/regles/plan.md`
 - 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
   sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
   acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne

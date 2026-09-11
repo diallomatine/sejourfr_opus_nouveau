@@ -40,13 +40,31 @@ public enum PreparationEtape {
      * <b>TCF uniquement</b> : la premiere estimation est faite, le diagnostic
      * complet ne l'est pas.
      *
-     * <p>Le Plan ne peut pas encore etre construit — il manque l'oral et les
-     * deux comprehensions. C'est l'etape ou l'ecran dit « Votre plan TCF n'est
-     * pas encore pret » plutot que d'afficher un plan bati sur une seule
-     * production ecrite.
+     * <p>🛑 <b>REVOQUE le 2026-09-12 (arbitrage du proprietaire)</b> — ce
+     * commentaire disait : « Le Plan ne peut pas encore etre construit … c'est
+     * l'etape ou l'ecran dit "Votre plan TCF n'est pas encore pret" ». C'est
+     * <b>faux</b> depuis toujours cote moteur ({@code LearningPlanService.get()}
+     * passe {@code ACTIVE} des que le diagnostic <b>rapide</b> est clos, et
+     * batit ses priorites sur ses observations reelles), et c'est desormais
+     * <b>interdit</b> cote produit : le diagnostic complet n'est plus un
+     * prerequis d'acces au Plan, seulement un moyen de l'affiner.
+     *
+     * <p>A cette etape le Plan est donc <b>disponible et provisoire</b> — bati
+     * uniquement sur ce que le rapide a mesure, sans aucune priorite inventee
+     * sur les competences qu'il n'a pas observees. Le fait a lire est
+     * {@code PreparationDto.ModulePreparation.planDisponible}, jamais cette
+     * valeur d'enum : l'etape dit <b>ou en est le diagnostic</b>, pas si le
+     * Plan existe.
      */
     ESTIMATION_FAITE,
 
-    /** Le diagnostic qui construit le Plan est termine : le Plan est utilisable. */
+    /**
+     * Le diagnostic qui <b>affine</b> le Plan est termine.
+     *
+     * <p>⚠️ Ne veut <b>pas</b> dire « le Plan commence ici » (cf.
+     * {@link #ESTIMATION_FAITE}) : cote TCF il dit que les 4 epreuves sont
+     * mesurees, donc que le Plan n'est plus provisoire et qu'aucune invitation
+     * au diagnostic complet n'a plus lieu d'etre.
+     */
     PLAN_PRET
 }

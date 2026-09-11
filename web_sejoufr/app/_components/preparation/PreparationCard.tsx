@@ -11,10 +11,8 @@
  * 🛑 **Les deux modules avancent indépendamment.** Un candidat ne prépare pas
  * forcément les deux, et l'un ne dit rien de l'autre.
  */
-import {useEffect, useState} from "react";
 import Link from "next/link";
 import {ArrowRight} from "lucide-react";
-import {userContentApi} from "@/lib/api";
 import {
     CIVIQUE_LABEL,
     PREPARATION_TITLE,
@@ -25,24 +23,14 @@ import {
 } from "@/lib/preparation";
 import type {PreparationDto} from "@/lib/types";
 
-export function PreparationCard() {
-    const [prep, setPrep] = useState<PreparationDto | null>(null);
-
-    useEffect(() => {
-        let vivant = true;
-        // Best-effort : un échec laisse simplement la carte absente. L'accueil
-        // ne doit pas afficher une erreur pour un bloc de navigation.
-        userContentApi
-            .preparation()
-            .then((p) => {
-                if (vivant) setPrep(p);
-            })
-            .catch(() => undefined);
-        return () => {
-            vivant = false;
-        };
-    }, []);
-
+/**
+ * 🛑 **L'état est reçu, plus rechargé ici.** L'Accueil le lit une fois et le
+ * partage avec la carte « Continuez votre diagnostic complet » : deux appels à
+ * `preparation()` sur le même écran auraient pu répondre deux états différents,
+ * et donc proposer deux prochaines actions. `null` = pas encore chargé ou échec
+ * best-effort : la carte est simplement absente, jamais une erreur.
+ */
+export function PreparationCard({prep}: {prep: PreparationDto | null}) {
     if (!prep) return null;
 
     return (

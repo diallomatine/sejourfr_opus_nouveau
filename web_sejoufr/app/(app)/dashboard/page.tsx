@@ -17,8 +17,10 @@ import {
     Zap,
 } from "lucide-react";
 import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
+import {AffinerPlanCard} from "@/app/_components/plan/AffinerPlanCard";
 import {PreparationCard} from "@/app/_components/preparation/PreparationCard";
-import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi} from "@/lib/api";
+import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi, userContentApi} from "@/lib/api";
+import {affinerPlan} from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {moduleAverage, successHint} from "@/lib/dashboard";
 import {
@@ -32,6 +34,7 @@ import {
     type DashboardSummaryResponse,
     type DiagnosticResponse,
     type LearningPlanDto,
+    type PreparationDto,
     estimatedTcfLevelScopeLabel,
     isProductionAttempt,
     niveauCecrlShort,
@@ -53,6 +56,7 @@ export default function DashboardPage() {
     const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
     const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
     const [plan, setPlan] = useState<LearningPlanDto | null>(null);
+    const [prep, setPrep] = useState<PreparationDto | null>(null);
     const [diagnosticDismissed, setDiagnosticDismissed] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -60,23 +64,36 @@ export default function DashboardPage() {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [sum, atts, currentDiagnostic, currentPlan] = await Promise.all([
+            const [sum, atts, currentDiagnostic, currentPlan, preparation] = await Promise.all([
                 dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
                 attemptApi.listMine({limit: 10}).catch((): AttemptSummaryResponse[] => []),
                 diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
                 learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
+                // 🛑 Un SEUL appel pour tout l'écran : « Ma préparation » et la
+                // carte « Continuez votre diagnostic complet » lisent le même
+                // état. Deux appels auraient pu proposer deux prochaines actions.
+                userContentApi.preparation().catch((): PreparationDto | null => null),
             ]);
             if (cancelled) return;
             setSummary(sum);
             setAttempts(atts);
             setDiagnostic(currentDiagnostic);
             setPlan(currentPlan);
+            setPrep(preparation);
             setLoading(false);
         })();
         return () => {
             cancelled = true;
         };
     }, [status, user]);
+
+    /* Le diagnostic complet en cours, en action secondaire persistante.
+       🛑 `abonne: false` : sur l'Accueil la carte ne s'affiche que lorsque le
+       complet est COMMENCÉ, et ce libellé-là ne dépend pas de l'abonnement. */
+    const affinerAccueil = useMemo(
+        () => (prep ? affinerPlan(prep.tcf, {surface: "accueil", abonne: false}) : null),
+        [prep],
+    );
 
     // Entraînement (série) non terminé à reprendre. On exclut les examens blancs
     // (MOCK_EXAM) — un examen se passe en une fois, on ne propose pas de le
@@ -156,7 +173,7 @@ export default function DashboardPage() {
                 que les trois écrans proposent la même prochaine action.
                 Placée avant tout indicateur : quand une préparation n'est pas
                 commencée, c'est ça la prochaine action, pas un pourcentage. */}
-            <PreparationCard />
+            <PreparationCard prep={prep} />
 
             {diagnostic && (
                 <DashboardPlanCard
@@ -166,6 +183,15 @@ export default function DashboardPage() {
                     onDismiss={() => setDiagnosticDismissed(true)}
                 />
             )}
+
+            {/* 🛑 **Secondaire, et seulement quand le diagnostic complet est
+                COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan,
+                mais elle ne devient jamais l'action principale de l'Accueil :
+                celle-ci reste « Débloquer mon Plan » pour un compte gratuit et
+                l'action pédagogique du Plan pour un abonné. À 4 / 4 elle
+                disparaît — c'est `affinerPlan` qui rend `null`, sur des faits
+                servis, jamais un compteur reconstruit ici. */}
+            {affinerAccueil && <AffinerPlanCard info={affinerAccueil} surface="accueil" />}
 
             <section className="stat-grid" aria-label="Vos indicateurs">
                 <article className="stat-card">

@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../api/repositories.dart';
 import '../models/preparation_labels.dart';
-import '../models/preparation_models.dart';
+import '../providers/preparation_provider.dart';
 import '../theme/app_theme.dart';
 import 'app_card.dart';
 
@@ -18,35 +17,14 @@ import 'app_card.dart';
 ///
 /// 🛑 **Les deux modules avancent indépendamment.** Un candidat ne prépare pas
 /// forcément les deux, et l'un ne dit rien de l'autre.
-class PreparationCard extends ConsumerStatefulWidget {
+class PreparationCard extends ConsumerWidget {
   const PreparationCard({super.key});
 
   @override
-  ConsumerState<PreparationCard> createState() => _PreparationCardState();
-}
-
-class _PreparationCardState extends ConsumerState<PreparationCard> {
-  PreparationDto? _prep;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final prep = await ref.read(userContentRepositoryProvider).preparation();
-      if (mounted) setState(() => _prep = prep);
-    } catch (_) {
-      // Best-effort : un échec laisse la carte absente. L'accueil ne doit pas
-      // afficher une erreur pour un bloc de navigation.
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final prep = _prep;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Best-effort : chargement ou échec ⇒ la carte est simplement absente.
+    // L'accueil ne doit pas afficher une erreur pour un bloc de navigation.
+    final prep = ref.watch(preparationProvider).valueOrNull;
     if (prep == null) return const SizedBox.shrink();
 
     return Column(

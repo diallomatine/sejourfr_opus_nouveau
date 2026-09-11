@@ -4238,7 +4238,13 @@ export interface CivicDiagnosticResultDto {
 export type PreparationEtape =
     | "DIAGNOSTIC_A_FAIRE"
     | "DIAGNOSTIC_EN_COURS"
-    /** **TCF uniquement** : la première estimation est faite, le complet non. */
+    /**
+     * **TCF uniquement** : la première estimation est faite, le complet non.
+     *
+     * 🛑 Ne veut **pas** dire « pas de plan » : depuis l'arbitrage du
+     * 2026-09-12, le Plan existe dès cette étape. Le fait à lire est
+     * `planDisponible`.
+     */
     | "ESTIMATION_FAITE"
     | "PLAN_PRET";
 
@@ -4269,6 +4275,23 @@ export interface ModulePreparation {
      * est solide », ce qui est une tout autre nouvelle.
      */
     aRenforcer: number | null;
+    /**
+     * 🛑 **Le Plan de ce module est-il constructible maintenant ?** C'est le
+     * seul fait sur lequel un écran ouvre la page Plan.
+     *
+     * Depuis l'arbitrage du 2026-09-12, le diagnostic complet n'est **plus un
+     * prérequis** : dès que le rapide est clos, le Plan existe — provisoire
+     * mais réel, bâti uniquement sur ce que le rapide a mesuré. Ne pas le
+     * déduire de `etape` : le serveur rend ici, mot pour mot, la condition de
+     * son propre moteur.
+     */
+    planDisponible: boolean;
+    /**
+     * **TCF** : la prochaine épreuve du diagnostic **COMPLET**, celle par
+     * laquelle on reprend. 🛑 `null` quand il n'y a rien à reprendre (complet
+     * jamais démarré, ou terminé) — jamais déduite d'un compteur.
+     */
+    prochaineEpreuve: EpreuveType | null;
 }
 
 export interface PreparationDto {

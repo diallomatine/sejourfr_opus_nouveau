@@ -3,6 +3,7 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.PreparationDto;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.PreparationEtape;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticService;
@@ -12,6 +13,8 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -193,5 +196,138 @@ class PreparationServiceIT extends AbstractIntegrationTest {
         // afficher les deux états côte à côte sans que l'un contamine l'autre.
         assertThat(prep.civique().etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_EN_COURS);
         assertThat(prep.tcf().etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_A_FAIRE);
+    }
+
+    // ------------------------------------------------------------------------
+    // 🛑 LE DIAGNOSTIC COMPLET N'EST PLUS UN PREREQUIS D'ACCES AU PLAN
+    // (arbitrage du proprietaire, 2026-09-12)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("🛑 Le rapide clos rend le Plan DISPONIBLE, avant tout diagnostic complet")
+    void leRapideClosRendLePlanDisponible() {
+        User user = testData.user();
+        testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        // L'etape dit ou en est le DIAGNOSTIC…
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.ESTIMATION_FAITE);
+        // …et `planDisponible` dit si le PLAN existe. Les deux ne se deduisent
+        // plus l'un de l'autre : c'est tout l'objet de l'arbitrage.
+        assertThat(tcf.planDisponible()).isTrue();
+        // Le complet n'a jamais demarre : zero sur quatre, denominateur servi.
+        assertThat(tcf.fait()).isZero();
+        assertThat(tcf.total()).isEqualTo(4);
+        // 🛑 Rien a reprendre : les sous-epreuves n'existent pas encore, en
+        // nommer une serait l'inventer.
+        assertThat(tcf.prochaineEpreuve()).isNull();
+    }
+
+    @Test
+    @DisplayName("🛑 Le complet en cours ne FERME jamais le Plan, et dit par quelle epreuve reprendre")
+    void leCompletEnCoursNeFermePasLePlan() {
+        User user = testData.user();
+        testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        var complet = tcfService.ouvrir(user.getId());
+        terminerSousEpreuve(complet.getId(), EpreuveType.TCF_CO);
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_EN_COURS);
+        assertThat(tcf.planDisponible()).isTrue();
+        assertThat(tcf.fait()).isEqualTo(1);
+        assertThat(tcf.total()).isEqualTo(4);
+        // 🛑 On REPREND, on ne recommence pas : la CO est faite, la suivante est
+        // la CE. Un front qui repartirait de la premiere epreuve ferait rejouer
+        // au candidat ce qu'il vient de terminer.
+        assertThat(tcf.prochaineEpreuve()).isEqualTo(EpreuveType.TCF_CE);
+    }
+
+    @Test
+    @DisplayName("🛑 Sans diagnostic rapide, le Plan n'est PAS disponible — meme complet ouvert")
+    void sansRapideLePlanNestPasDisponible() {
+        User user = testData.user();
+        tcfService.ouvrir(user.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        // C'est la condition EXACTE de LearningPlanService.get() : sans session
+        // de diagnostic rapide close, le moteur rend NEEDS_DIAGNOSTIC. Un ecran
+        // qui promettrait un plan ici tomberait sur une page vide.
+        assertThat(tcf.planDisponible()).isFalse();
+        assertThat(tcf.prochaineEpreuve()).isEqualTo(EpreuveType.TCF_CO);
+    }
+
+    @Test
+    @DisplayName("🛑 Le complet clos : plus aucune epreuve a reprendre")
+    void leCompletClosNaPlusDeProchaineEpreuve() {
+        User user = testData.user();
+        testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        var session = tcfService.ouvrir(user.getId());
+        tcfService.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.PLAN_PRET);
+        assertThat(tcf.planDisponible()).isTrue();
+        // C'est ce `null` qui fait disparaitre toute invitation au diagnostic
+        // complet sur le Plan et sur l'Accueil.
+        assertThat(tcf.prochaineEpreuve()).isNull();
+    }
+
+    @Test
+    @DisplayName("Un compte neuf n'a aucun plan, sur aucun des deux modules")
+    void compteNeufNaAucunPlan() {
+        User user = testData.user();
+
+        PreparationDto prep = service.lire(user.getId());
+
+        assertThat(prep.tcf().planDisponible()).isFalse();
+        assertThat(prep.civique().planDisponible()).isFalse();
+        assertThat(prep.tcf().prochaineEpreuve()).isNull();
+    }
+
+    @Test
+    @DisplayName("Le civique clos rend son plan disponible, et n'a jamais rien a affiner")
+    void leCiviqueClosRendSonPlanDisponible() {
+        User user = testData.user();
+        var session = civicService.ouvrir(user.getId());
+        civicService.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation civique = service.lire(user.getId()).civique();
+
+        assertThat(civique.planDisponible()).isTrue();
+        // Le civique n'a qu'UN diagnostic : aucune epreuve a reprendre, jamais.
+        assertThat(civique.prochaineEpreuve()).isNull();
+    }
+
+    /**
+     * Termine une sous-epreuve du diagnostic complet sans la jouer : ce qui est
+     * teste ici, c'est ce que {@code PreparationService} en dit, pas la
+     * passation — qui a ses propres tests et, pour EE/EO, appellerait un LLM.
+     */
+    private void terminerSousEpreuve(java.util.UUID sessionId, EpreuveType epreuve) {
+        entityManager.flush();
+        entityManager.createQuery("""
+                        update Attempt a set a.finishedAt = :now
+                         where a.epreuve = :epreuve
+                           and a.parentAttempt.id = (
+                               select s.parentAttempt.id from TcfDiagnosticSession s
+                                where s.id = :sessionId)""")
+                .setParameter("now", Instant.now())
+                .setParameter("epreuve", epreuve)
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
     }
 }

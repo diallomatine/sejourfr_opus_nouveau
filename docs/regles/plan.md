@@ -978,32 +978,50 @@ interdiction de juger la prononciation depuis une transcription). La bonne réf�
 `WResultat.jsx`.
 
 
-### La porte d'entrée du Plan TCF montre le RAPPORT du diagnostic rapide (2026-09-12)
+### Le diagnostic COMPLET n'est pas un prérequis d'accès au Plan (2026-09-12)
 
-L'écran servi quand le plan n'est pas prêt ne résume plus l'estimation à la main : il **rend
-le rapport du diagnostic rapide en entier**, le composant même que sert `/diagnostic`
-(`DiagnosticReport` ⇄ `DiagnosticResultView`), réutilisé et non recopié.
+🛑 **Le fait à lire est `prep.planDisponible`, jamais `etape`.** Il rend **mot pour mot** la
+condition du moteur (`LearningPlanService.get()` bascule en `ACTIVE` sur
+`findLatestCompleted`, c'est-à-dire le **rapide**). Deux lectures de « le Plan existe-t-il ? »
+auraient fini par se contredire.
 
-🛑 **Le déclencheur est un FAIT servi, pas une étape** : `prep.estimationSessionId != null`.
-Aucun front ne teste `etape`, ne compte `N < 4`, ne déduit rien d'un compteur. La seule
-question posée côté front est « puis-je relire une session de diagnostic rapide ? ».
+**Le moteur n'a jamais eu besoin du complet** — vérifié en base : des comptes sans aucune ligne
+dans `tcf_diagnostic_sessions` portent 16 à 27 `learning_plan_observations`, et
+`LearningPlanProfilProgressifIT` assertait déjà `ACTIVE` après le seul rapide. Le blocage
+vivait uniquement dans le javadoc de `ESTIMATION_FAITE` (« le Plan ne peut pas encore être
+construit »), **faux et révoqué**.
 
-| Situation | Carte en tête (servie) | Rapport | CTA de la porte |
-|---|---|---|---|
-| aucun rapide clos | « Votre plan TCF commence par un diagnostic » | — | « Faire mon diagnostic » → `/diagnostic` |
-| rapide clos, complet pas commencé | « Votre plan TCF n'est pas encore prêt » | oui | « Faire mon diagnostic TCF complet » |
-| rapide clos, complet entamé (0/4→3/4) | « Votre diagnostic TCF est commencé — N sur 4 » | oui | « Reprendre mon diagnostic » |
-| `PLAN_PRET` | — | — | le plan |
+Règle produit : rapide clos → **Plan disponible** · complet partiel → Plan disponible et
+enrichi au fil de l'eau · complet clos → Plan recalculé sur les 4 épreuves. Le complet
+**affine**, il n'ouvre pas.
 
-**Quand le rapport est encastré, c'est l'HÔTE qui porte le geste de fin** — `closingCta:
-false` efface le bouton du rapport, jamais sa section d'information. Une règle unique pour
-tous les états encastrés : sans complet les deux boutons visaient la même destination avec
-deux phrases, et une fois le complet entamé « Faire mon diagnostic complet » est un
-contresens. La phrase affichée reste celle que le serveur a rendue pour l'étape.
+🛑 **Un Plan provisoire ne s'appuie que sur ce qui a été MESURÉ.** Une compétence que le rapide
+n'a pas observée est **inconnue** — ni faible, ni prioritaire (`PlanAcquisitionSelector` exige
+« son domaine a déjà été mesuré »). Peu de priorités, toutes vraies, est le bon résultat ; un
+Plan qui remplit ses quatre domaines en devinant est un échec. Gelé par
+`LearningPlanProfilProgressifIT.leRapideSeulDonneUnPlanSansInventerDePriorite` (rapide écrit
+seul ⇒ priorités **toutes en EE**, EO/CO/CE à `evaluated:false`, `niveau:null`).
 
-Rapport absent, en échec ou en latence : il ne s'affiche pas, la porte retombe sur sa forme
-minimale. Un rapport absent est un état normal ; un rapport reconstitué de mémoire ne l'est
-pas.
+**La carte « Affiner » a trois formes**, servies par `affinerPlan()` (autorité unique,
+`lib/preparation.ts` ⇄ `preparation_labels.dart`, lue par le Plan gratuit, le Plan abonné et
+l'Accueil) :
+
+| Complet | Carte | CTA |
+|---|---|---|
+| jamais commencé | « Affiner votre Plan » — **sans afficher 0/4** | « Faire le diagnostic complet » |
+| 1/4 → 3/4 | « Diagnostic complet en cours » + « N / 4 épreuves terminées » + barre + `prochaineEpreuve` servie | « Continuer le diagnostic » |
+| 4/4 | aucune carte, aucune progression | — |
+
+Elle se place **après** le contenu principal et ne concurrence jamais le CTA d'abonnement :
+pour un non-abonné, « Débloquer mon Plan » reste l'action principale, le complet reste
+secondaire. Le freemium est inchangé — `locked` servi, opposable en 403 ; un Plan provisoire
+se verrouille exactement comme un Plan complet.
+
+**Le rapport du diagnostic rapide quitte la page Plan** : les priorités du Plan sont plus
+riches et plus à jour, et le garder en tête repousserait « Débloquer mon Plan » sous la ligne
+de flottaison. Le mécanisme d'encastrement (`embedded`/`closingCta` ⇄ `leading`/`trailing`)
+reste branché sur le **repli de désaccord** (`planDisponible` vrai mais `state != ACTIVE`) :
+le candidat retrouve son rapport plutôt qu'un écran muet.
 
 ---
 

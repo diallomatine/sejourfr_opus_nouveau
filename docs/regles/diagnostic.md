@@ -356,3 +356,98 @@ Civique : toujours `null` (il n'a qu'un diagnostic), verrouillé par test. Gelé
 `IN_PROGRESS` rend `null`, on n'invente pas un rapport.
 
 Lecteur : la porte d'entrée du Plan TCF → `docs/regles/plan.md`.
+
+---
+
+## 🛑 Le diagnostic complet n'est plus un prérequis d'accès au Plan (2026-09-12)
+
+**Arbitrage du propriétaire.** *« Dès que le diagnostic rapide est terminé, le serveur doit
+constituer un premier Plan à partir des données disponibles dans ce diagnostic rapide. Ce Plan
+est provisoire mais réel et utilisable. […] Le diagnostic complet ne doit plus être un
+prérequis d'accès au Plan, seulement un moyen de le rendre plus précis. »*
+
+### Où était réellement la porte
+
+**Pas dans le moteur.** `LearningPlanService.get()` a toujours basculé en `ACTIVE` sur
+`DiagnosticSessionManager.findLatestCompleted(userId)` — c'est-à-dire sur le diagnostic
+**RAPIDE**. Vérifié en base : les comptes sans aucun `tcf_diagnostic_sessions` portent 8 à 27
+`learning_plan_observations`, toutes issues du rapide, et `LearningPlanProfilProgressifIT`
+assertait déjà `ACTIVE` après le seul rapide.
+
+La porte vivait **uniquement dans l'état servi** (`PreparationService` + les deux fronts, qui
+lisaient `etape == PLAN_PRET`). C'est elle, et elle seule, qui affichait « Votre plan TCF n'est
+pas encore prêt » devant un plan que le serveur savait construire.
+
+### Le fait servi : `planDisponible`
+
+`PreparationDto.ModulePreparation.planDisponible` (`boolean`) rend **mot pour mot** la
+condition du moteur — « une session de diagnostic rapide close existe-t-elle ? ».
+🛑 **Il ne se déduit pas de `etape`** : un écran qui promettrait un plan que le moteur refuse
+de construire est exactement la contradiction que l'état unique existe pour empêcher.
+`ESTIMATION_FAITE` garde son sens (« où en est le diagnostic »), et son commentaire
+« le Plan ne peut pas encore être construit » est **révoqué**.
+
+### Ce que le Plan provisoire n'invente pas
+
+🛑 **Aucune priorité sur une compétence que le rapide n'a pas observée.** Les trois garde-fous
+existaient déjà et sont conservés tels quels :
+
+- `LearningPlanPriorityResolver` ne trie que des **observations réelles** ;
+- `PlanAcquisitionSelector` exige que le **domaine ait déjà été mesuré** — un domaine jamais
+  évalué « se mesure avant de s'apprendre » ;
+- les domaines non mesurés ressortent dans `domainesAEvaluer` avec
+  `PlanDomainPriority.A_EVALUER`, `niveau: null`, `evaluated: false` — *`null` = inconnu, jamais
+  mauvais*, la confusion même de V040/V041/V042.
+
+Un Plan avec **peu** de priorités, toutes vraies, est le bon résultat. Gelé par
+`LearningPlanProfilProgressifIT.leRapideSeulDonneUnPlanSansInventerDePriorite` : rapide écrit
+seul ⇒ `ACTIVE`, priorités **toutes en EE**, et EO/CO/CE à `acquireCount == 0`.
+
+### Le recalcul, et la marque « provisoire »
+
+**Rien à invalider** : le Plan est dérivé à la lecture de bout en bout (moteur de maîtrise,
+cycle, domaines). Chaque épreuve du complet qui se termine écrit ses observations, et la
+lecture suivante en tient compte — sans job ni cache.
+
+Le caractère provisoire est **déjà servi**, aucun champ nouveau : `LearningPlanDto.cycle
+.profileComplete` / `domainsEvaluated` / `domainsExpected`, et `domainesAEvaluer` non vide.
+Un front ne compte jamais des domaines vides pour le deviner.
+
+### Reprendre, pas recommencer : `prochaineEpreuve`
+
+`ModulePreparation.prochaineEpreuve` (`EpreuveType`, nullable) = la première section non
+`TERMINEE`, dans l'ordre serveur (`TcfDiagnosticReadService.EPREUVES`). 🛑 `null` quand il n'y a
+rien à reprendre — complet **jamais démarré** (aucune sous-épreuve n'est tirée, en nommer une
+serait l'inventer) ou **terminé**. Et `fait` / `total` valent `0 / 4` dès que le Plan existe :
+le dénominateur est une donnée serveur, pas une constante front.
+
+Le CTA vise le **hub** `/diagnostic-tcf`, jamais un lancement direct : c'est le hub qui reprend
+où l'on s'est arrêté (une épreuve terminée n'y porte plus de bouton) et qui pose
+l'avertissement « une fois commencée, elle se termine d'une traite ». Un lien profond
+déclencherait un chrono par surprise.
+
+### Le freemium ne bouge pas
+
+`locked` reste servi et opposable en 403. Un Plan provisoire pour un non-abonné est verrouillé
+exactement comme un Plan complet — aucun accès n'a été ouvert dans cette passe.
+
+Gelé par `PreparationServiceIT` : `leRapideClosRendLePlanDisponible`,
+`leCompletEnCoursNeFermePasLePlan`, `sansRapideLePlanNestPasDisponible`,
+`leCompletClosNaPlusDeProchaineEpreuve`.
+
+### Côté fronts — une autorité, trois lecteurs
+
+`affinerPlan()` (web `lib/preparation.ts` ⇄ mobile `core/models/preparation_labels.dart`,
+miroirs mot pour mot) rend l'invitation au complet sous ses **trois** formes, lue par le Plan
+gratuit, le Plan abonné et l'Accueil :
+
+| État servi | Carte |
+|---|---|
+| `0 / 4`, jamais commencé | « Affiner votre Plan » (abonné : « Rendez votre Plan encore plus précis »). 🛑 **« 0 / 4 » n'est pas affiché** |
+| `1 / 4` à `3 / 4` | « Diagnostic complet en cours » + « N / 4 épreuves terminées » + barre + prochaine épreuve **si servie** |
+| `4 / 4` | `null` — plus aucune invitation, nulle part |
+
+Le rendu vit dans un composant unique par front (`AffinerPlanCard`), posé **après** le contenu
+du Plan, bouton `line` (contour) : 🛑 sur un compte gratuit, le seul bouton plein de la page
+reste « Débloquer mon plan ». Sur l'Accueil la carte n'apparaît **que** si le complet est
+commencé, en action secondaire persistante.

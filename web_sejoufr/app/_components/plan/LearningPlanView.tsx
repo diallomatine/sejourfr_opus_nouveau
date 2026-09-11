@@ -60,13 +60,14 @@ import {
   skillTaskCode,
   type PlanPriorityGroup,
 } from "@/lib/plan-domain";
-import {planIndisponibleDepuisEtat} from "@/lib/preparation";
+import {affinerPlan, planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
   canAccessModule,
   PLAN_ACTION_NATURE_LABEL,
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type LearningPlanPriorityDto,
+  type ModulePreparation,
   type PlanCycleDto,
   type PlanDomainAssessmentDto,
   type SkillSection,
@@ -99,6 +100,7 @@ import {
 import {PlanBlur} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
 import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
+import {AffinerPlanCard} from "./AffinerPlanCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
@@ -127,7 +129,7 @@ const SECTION_ICON: Record<SkillSection, LucideIcon> = {
 
 /* ------------------------------------------------------------------ racine */
 
-export function LearningPlanView() {
+export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   const {status: authStatus, user} = useAuth();
   const [plan, setPlan] = useState<LearningPlanDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,11 +193,18 @@ export function LearningPlanView() {
   }
 
   /* 🛑 Pas de plan sans mesure. Les mots viennent de `planIndisponible`, la
-     même autorité que l'Accueil et les Examens. */
+     même autorité que l'Accueil et les Examens.
+
+     ⚠️ Ce repli ne se déclenche plus qu'en **désaccord** entre les deux
+     lectures : `planDisponible` rend la condition exacte du moteur, donc le
+     Plan est normalement `ACTIVE` dès que la porte s'ouvre. `prep` lui est
+     passé pour que, dans ce cas-là, le candidat retrouve au moins le rapport de
+     son diagnostic rapide plutôt qu'un écran qui ne dit rien. */
   if (plan.state !== "ACTIVE") {
     return (
       <PlanGate
         kicker="Votre parcours personnalisé"
+        prep={prep ?? undefined}
         gate={planIndisponibleDepuisEtat(
           plan.state === "DIAGNOSTIC_IN_PROGRESS" ? "DIAGNOSTIC_EN_COURS" : "DIAGNOSTIC_A_FAIRE",
           "TCF",
@@ -204,9 +213,20 @@ export function LearningPlanView() {
     );
   }
 
-  return canAccessModule(user, "TCF")
-    ? <TcfPlanPremium plan={plan} />
-    : <TcfPlanFree plan={plan} />;
+  /* 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage du
+     2026-09-12). La carte se pose donc APRÈS le contenu du Plan — après le
+     paywall d'un compte gratuit, dont le CTA « Débloquer mon plan » reste le
+     seul bouton plein de la page. Elle disparaît d'elle-même à 4 / 4 : c'est
+     `affinerPlan` qui rend `null`, sur des faits servis. */
+  const abonne = canAccessModule(user, "TCF");
+  const affiner = prep ? affinerPlan(prep, {surface: "plan", abonne}) : null;
+
+  return (
+    <>
+      {abonne ? <TcfPlanPremium plan={plan} /> : <TcfPlanFree plan={plan} />}
+      {affiner && <AffinerPlanCard info={affiner} surface="plan" />}
+    </>
+  );
 }
 
 function PlanMessage({title, text, cta, href, alert}: {

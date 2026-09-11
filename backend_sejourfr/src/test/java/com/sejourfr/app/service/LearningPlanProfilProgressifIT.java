@@ -3,23 +3,29 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
+import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.DiagnosticSession;
+import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.PlanDomainPriority;
+import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -29,6 +35,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -184,6 +191,95 @@ class LearningPlanProfilProgressifIT extends AbstractIntegrationTest {
         // L'expression reste ouverte par le diagnostic, qui n'a pas ete passe.
         assertThat(assessment(plan, EpreuveType.TCF_EO).kind())
                 .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+    }
+
+
+    /**
+     * <b>Le diagnostic RAPIDE suffit au Plan</b> — arbitrage du proprietaire du
+     * 2026-09-12 : le diagnostic complet n'est plus un prerequis d'acces, il
+     * n'est qu'un moyen d'affiner.
+     *
+     * <p>🛑 <b>Et la contrainte centrale, gelee ici</b> : un Plan provisoire ne
+     * s'appuie que sur ce qui a ete <b>reellement mesure</b>. Le rapide dans sa
+     * forme actuelle (L3/V050) n'a qu'une production <b>ecrite</b> : l'oral et
+     * les deux comprehensions restent <b>inconnus</b>, donc aucune de leurs
+     * competences ne devient une priorite. Elles ressortent « a evaluer », ce
+     * qui est une tout autre nouvelle que « fragile » — c'est exactement la
+     * confusion qui a produit les faux {@code A1_NON_ATTEINT} de V040/V041/V042.
+     *
+     * <p>Un Plan avec <b>peu</b> de priorites, toutes vraies, est le bon
+     * resultat. Un Plan qui remplirait ses quatre domaines en devinant serait un
+     * echec, meme s'il etait plus joli.
+     */
+    @Test
+    @DisplayName("🛑 Le rapide seul donne un Plan REEL, et n'invente aucune priorite hors de ce qu'il a mesure")
+    void leRapideSeulDonneUnPlanSansInventerDePriorite() {
+        User user = candidat();
+
+        // Le rapide dans sa forme actuelle : UNE production ecrite analysee.
+        // L'etape orale n'est pas jouee — DiagnosticSession.oralTask est
+        // nullable depuis V050, et « pas d'etape orale » n'est pas « oral rate ».
+        DiagnosticSession session =
+                data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        data.diagnosticAnalysis(data.diagnosticSubmission(
+                session.getWrittenAttempt(), session.getWrittenTask(), user), NiveauCecrl.A2);
+        // 🛑 Une competence du REFERENTIEL PUBLIE, pas une competence de test :
+        // le filtre de faisabilite (§8) ecarte toute competence sans sujet
+        // actif, et une fragilite fabriquee sans contenu n'aurait jamais de
+        // carte — le test aurait alors verifie le filtre, pas la regle.
+        Skill mesuree = entityManager.createQuery(
+                        "select s from Skill s where s.section = :section and s.active = true"
+                                + " order by s.displayOrder asc", Skill.class)
+                .setParameter("section", SkillSection.EE)
+                .setMaxResults(1)
+                .getSingleResult();
+        data.learningPlanObservation(user, mesuree, LearningPlanSourceType.DIAGNOSTIC_EE,
+                LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM,
+                null, Instant.now());
+        flush();
+
+        LearningPlanDto plan = planService.get(user.getId());
+
+        // 1. Le Plan EXISTE et il est utilisable : des priorites, et chacune
+        //    porte une action. Jamais une carte sans exercice.
+        assertThat(plan.state()).isEqualTo(LearningPlanState.ACTIVE);
+        List<LearningPlanPriorityDto> priorites = new java.util.ArrayList<>();
+        if (plan.currentPriority() != null) priorites.add(plan.currentPriority());
+        priorites.addAll(plan.nextPriorities());
+        assertThat(priorites).isNotEmpty()
+                .allSatisfy(p -> assertThat(p.recommendedExercise()).isNotNull());
+
+        // 2. 🛑 AUCUNE priorite hors du seul domaine reellement mesure.
+        assertThat(priorites)
+                .extracting(LearningPlanPriorityDto::section)
+                .containsOnly(SkillSection.EE);
+        assertThat(priorites)
+                .extracting(LearningPlanPriorityDto::skillId)
+                .contains(mesuree.getId());
+
+        // 3. Les trois domaines non mesures restent INCONNUS. `null` = inconnu,
+        //    jamais mauvais : pas de niveau invente, pas de fragilite inventee,
+        //    et une action qui MESURE plutot qu'une action qui repare.
+        assertThat(plan.domainesAEvaluer())
+                .extracting(PlanDomainAssessmentDto::epreuve)
+                .containsExactlyInAnyOrder(
+                        EpreuveType.TCF_EO, EpreuveType.TCF_CO, EpreuveType.TCF_CE);
+        for (EpreuveType inconnu
+                : List.of(EpreuveType.TCF_EO, EpreuveType.TCF_CO, EpreuveType.TCF_CE)) {
+            PlanDomainDto domaine = domaine(plan, inconnu);
+            assertThat(domaine.evaluated()).isFalse();
+            assertThat(domaine.niveau()).isNull();
+            assertThat(domaine.priority()).isEqualTo(PlanDomainPriority.A_EVALUER);
+            // 🛑 Zero action fabriquee sur un domaine jamais mesure : on ne lui
+            // apprend pas un palier qu'on n'a pas su situer.
+            assertThat(domaine.acquireCount()).isZero();
+        }
+
+        // 4. Le Plan se dit PROVISOIRE par un fait servi, pas par un front qui
+        //    compterait des domaines vides.
+        assertThat(plan.cycle().profileComplete()).isFalse();
+        assertThat(plan.cycle().domainsEvaluated()).isEqualTo(1);
+        assertThat(plan.cycle().domainsExpected()).isEqualTo(4);
     }
 
     // ------------------------------------------------------------------------

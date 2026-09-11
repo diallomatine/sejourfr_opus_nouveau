@@ -116,7 +116,12 @@ export function PlanModules() {
                         icon={module === "CIVIQUE" ? Landmark : undefined}
                     />
                 ) : module === "TCF" ? (
-                    <LearningPlanView />
+                    /* 🛑 `prep` descend jusqu'ici : la carte « Affiner votre
+                       Plan » se pose APRÈS le contenu du Plan, et elle lit les
+                       faits servis (épreuves terminées, prochaine épreuve).
+                       Un second appel à `preparation()` plus bas aurait pu
+                       répondre autre chose que celui qui a ouvert l'écran. */
+                    <LearningPlanView prep={moduleprep} />
                 ) : (
                     /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
                        L10) : c'est un moteur, plus un écho du diagnostic. */

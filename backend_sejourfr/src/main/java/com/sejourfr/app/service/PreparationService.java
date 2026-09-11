@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PreparationEtape;
 import com.sejourfr.app.enums.TcfDiagnosticSectionState;
@@ -71,10 +72,20 @@ public class PreparationService {
     /**
      * Le TCF : rapide, puis complet, puis plan.
      *
-     * <p>🛑 <b>{@code ESTIMATION_FAITE} n'est PAS « plan pret ».</b> Le
-     * diagnostic rapide n'observe qu'une production ecrite : construire un plan
-     * dessus reviendrait a decider de l'oral et des deux comprehensions sans
-     * les avoir mesures.
+     * <p>🛑 <b>Le diagnostic complet n'est plus un prerequis d'acces au
+     * Plan</b> (arbitrage du proprietaire, 2026-09-12). Des que le diagnostic
+     * <b>rapide</b> est clos, le Plan existe : {@code planDisponible} passe a
+     * vrai, et le complet devient un moyen de l'<b>affiner</b>.
+     *
+     * <p>⚠️ Le commentaire precedent — « construire un plan sur le rapide
+     * reviendrait a decider de l'oral et des deux comprehensions sans les avoir
+     * mesures » — se trompait de cible. Le moteur n'a <b>jamais</b> fait ca :
+     * {@code PlanAcquisitionSelector} n'ouvre un domaine que s'il a « deja ete
+     * mesure », et {@code LearningPlanPriorityResolver} ne travaille que sur
+     * des observations reelles. Un domaine que le rapide n'a pas touche reste
+     * <b>inconnu</b> — il ressort dans {@code domainesAEvaluer} (« A evaluer »),
+     * jamais en fragilite. C'etait donc cette porte-ci, et elle seule, qui
+     * privait le candidat d'un plan vrai.
      */
     private PreparationDto.ModulePreparation tcf(UUID userId, User user) {
         NiveauCecrl cible = tcfDiagnosticService.cible(user).orElse(null);
@@ -90,6 +101,14 @@ public class PreparationService {
         UUID estimation = diagnosticSessionManager.findLatestCompleted(userId)
                 .map(DiagnosticSession::getId)
                 .orElse(null);
+
+        // 🛑 LE PLAN EXISTE DES QUE LE RAPIDE EST CLOS — et cette ligne rend,
+        // mot pour mot, la condition de LearningPlanService.get() (« un
+        // DiagnosticSession COMPLETED existe-t-il ? »). Ne pas la remplacer par
+        // une lecture de `etape` : un ecran qui promettrait un plan que le
+        // moteur refuse de construire est exactement la contradiction que
+        // l'etat unique existe pour empecher.
+        boolean planDisponible = estimation != null;
 
         // --- Le diagnostic COMPLET decide de l'etape des qu'il existe.
         Optional<TcfDiagnosticSession> complet = tcfDiagnosticManager.findLatest(userId);
@@ -108,14 +127,28 @@ public class PreparationService {
                     clos ? tcfReadService.niveauGlobal(sections).orElse(null) : null,
                     cible,
                     null,
-                    estimation);
+                    estimation,
+                    planDisponible,
+                    // Ou l'on reprend : la premiere epreuve non terminee, dans
+                    // l'ordre serveur. 🛑 Rien a reprendre quand le complet est
+                    // clos — et surtout pas la premiere epreuve, qui relancerait
+                    // le diagnostic depuis le debut.
+                    clos ? null : prochaineEpreuve(sections));
         }
 
         // --- Sinon, le diagnostic RAPIDE porte l'etape lui-meme.
         if (estimation != null) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.ESTIMATION_FAITE,
-                    null, null, estimation, null, cible, null, estimation);
+                    // Le complet n'a jamais demarre : ZERO epreuve sur QUATRE.
+                    // C'est un fait, pas un decor — et c'est le serveur qui
+                    // porte le denominateur, jamais le front.
+                    0, TcfDiagnosticReadService.EPREUVES.size(),
+                    estimation, null, cible, null, estimation,
+                    true,
+                    // 🛑 Aucune « prochaine epreuve » : le complet n'a pas encore
+                    // de sous-epreuves tirees, en nommer une serait l'inventer.
+                    null);
         }
 
         // 🛑 La session du diagnostic rapide se retrouve par (code, version) —
@@ -129,10 +162,27 @@ public class PreparationService {
         return enCours
                 .map(session -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_EN_COURS,
-                        null, null, session.getId(), null, cible, null, null))
+                        null, null, session.getId(), null, cible, null, null, false, null))
                 .orElseGet(() -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_A_FAIRE,
-                        null, null, null, null, cible, null, null));
+                        null, null, null, null, cible, null, null, false, null));
+    }
+
+    /**
+     * Par ou « Continuer le diagnostic » reprend : la premiere epreuve non
+     * terminee, dans l'ordre serveur des 4 epreuves.
+     *
+     * <p>🛑 Une section <b>absente du tirage</b> (mode degrade : aucun audio CO,
+     * aucun sujet EO) est {@code A_FAIRE} et reste donc candidate — elle n'a pas
+     * echoue, elle n'a pas ete jouee. {@code null} quand les quatre sont
+     * terminees.
+     */
+    private static EpreuveType prochaineEpreuve(List<TcfDiagnosticReadService.Section> sections) {
+        return sections.stream()
+                .filter(s -> s.etat() != TcfDiagnosticSectionState.TERMINEE)
+                .map(TcfDiagnosticReadService.Section::epreuve)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -146,7 +196,8 @@ public class PreparationService {
         Optional<CivicDiagnosticSession> session = civicDiagnosticManager.findLatest(userId);
         if (session.isEmpty()) {
             return new PreparationDto.ModulePreparation(
-                    PreparationEtape.DIAGNOSTIC_A_FAIRE, null, null, null, null, null, null, null);
+                    PreparationEtape.DIAGNOSTIC_A_FAIRE,
+                    null, null, null, null, null, null, null, false, null);
         }
 
         CivicDiagnosticSession diagnostic = session.get();
@@ -154,15 +205,19 @@ public class PreparationService {
         if (diagnostic.getStatus() != TcfDiagnosticStatus.COMPLETED) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.DIAGNOSTIC_EN_COURS,
-                    vue.repondues(), vue.total(), diagnostic.getId(), null, null, null, null);
+                    vue.repondues(), vue.total(), diagnostic.getId(),
+                    null, null, null, null, false, null);
         }
 
         int aRenforcer = (int) civicViewService.resultat(diagnostic).themes().stream()
                 .filter(t -> t.etat() == CivicThemeState.FAIBLE
                         || t.etat() == CivicThemeState.A_RENFORCER)
                 .count();
+        // Le civique n'a qu'UN diagnostic : son plan existe des qu'il est clos,
+        // et il n'y a jamais rien a « affiner » derriere.
         return new PreparationDto.ModulePreparation(
                 PreparationEtape.PLAN_PRET,
-                vue.repondues(), vue.total(), diagnostic.getId(), null, null, aRenforcer, null);
+                vue.repondues(), vue.total(), diagnostic.getId(),
+                null, null, aRenforcer, null, true, null);
     }
 }

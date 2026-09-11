@@ -34,10 +34,25 @@ import '../plan_milestone_launcher.dart';
 /// TCF** voit son constat entier (objectif, priorités, première étape) et la
 /// porte d'abonnement ; un abonné voit en plus ce qu'il peut lancer.
 class PlanTcfView extends ConsumerWidget {
-  const PlanTcfView({super.key, required this.plan, required this.objective});
+  const PlanTcfView({
+    super.key,
+    required this.plan,
+    required this.objective,
+    this.trailing = const <Widget>[],
+  });
 
   final LearningPlan plan;
   final TargetLevel? objective;
+
+  /// Ce qui se pose **après** le contenu du Plan, dans le MÊME défilement —
+  /// aujourd'hui la carte « Affiner votre Plan ».
+  ///
+  /// 🛑 Un slot, pas un widget imposé : ce que le Plan **est** ne dépend pas de
+  /// ce qui l'accompagne, et deux listes qui recopieraient la même carte
+  /// auraient fini par en montrer deux versions. Même motif que les slots
+  /// `leading`/`trailing` de `DiagnosticResultView`, pour la même raison : cette
+  /// vue **EST** la `ListView`, imbriquer deux scrollables était le risque.
+  final List<Widget> trailing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -87,6 +102,7 @@ class PlanTcfView extends ConsumerWidget {
       if (milestone != null) _milestoneSection(context, ref, milestone),
       if (plan.domainesAEvaluer.isNotEmpty) _assessmentSection(context),
       _links(context),
+      ...trailing,
       const SizedBox(height: 28),
     ];
   }
@@ -112,6 +128,7 @@ class PlanTcfView extends ConsumerWidget {
             checks: kPlanUnlockHeroChecks,
           ),
         ),
+        ...trailing,
         const SizedBox(height: 24),
       ];
 

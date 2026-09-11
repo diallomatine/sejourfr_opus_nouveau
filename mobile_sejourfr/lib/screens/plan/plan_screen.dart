@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
@@ -16,6 +17,7 @@ import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/affiner_plan_card.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/widgets/diagnostic_result.dart';
@@ -156,26 +158,59 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
       data: (value) => switch (value.state) {
         // 🛑 Sans diagnostic, il n'y a pas de plan à habiller : on dit par quoi
         // il commence et on ouvre la seule porte. Aucun contenu n'est inventé.
-        LearningPlanState.needsDiagnostic => const _PlanIndisponible(
+        //
+        // ⚠️ Ce repli ne se déclenche plus qu'en DÉSACCORD entre les deux
+        // lectures : `planDisponible` rend la condition exacte du moteur, donc
+        // le Plan est normalement `active` dès que la porte s'ouvre. `prep` lui
+        // est passé pour que, dans ce cas-là, le candidat retrouve au moins le
+        // rapport de son diagnostic rapide plutôt qu'un écran qui ne dit rien.
+        LearningPlanState.needsDiagnostic => _PlanIndisponible(
             info: (
               titre: kPlanNeedsDiagnosticTitle,
               texte: kPlanNeedsDiagnosticText,
               cta: kPlanNeedsDiagnosticCta,
               route: AppRoutes.diagnostic,
             ),
+            prep: modulePrep,
           ),
-        LearningPlanState.diagnosticInProgress => const _PlanIndisponible(
+        LearningPlanState.diagnosticInProgress => _PlanIndisponible(
             info: (
               titre: kPlanDiagnosticRunningTitle,
               texte: kPlanDiagnosticRunningText,
               cta: kPlanDiagnosticRunningCta,
               route: AppRoutes.diagnostic,
             ),
+            prep: modulePrep,
           ),
-        LearningPlanState.active =>
-          PlanTcfView(plan: value, objective: objective),
+        // 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage
+        // du 2026-09-12). La carte se pose donc APRÈS le contenu du Plan, dans
+        // le même défilement, et disparaît d'elle-même à 4 / 4 : c'est
+        // `affinerPlan` qui rend `null`, sur des faits servis.
+        LearningPlanState.active => PlanTcfView(
+            plan: value,
+            objective: objective,
+            trailing: _affiner(modulePrep),
+          ),
       },
     );
+  }
+
+  /// La carte « Affiner votre Plan », en action **secondaire**.
+  ///
+  /// 🛑 L'abonnement se **lit** (`user.hasTcf`), il ne se devine pas : il ne
+  /// décide ici que d'une formulation, jamais d'un verrou — ceux-là arrivent
+  /// servis, ligne par ligne.
+  List<Widget> _affiner(ModulePreparation? prep) {
+    if (prep == null) return const <Widget>[];
+    final auth = ref.read(authControllerProvider);
+    final info = affinerPlan(
+      prep,
+      accueil: false,
+      abonne: auth is AuthAuthenticated && auth.user.hasTcf,
+    );
+    return info == null
+        ? const <Widget>[]
+        : <Widget>[const SizedBox(height: 6), AffinerPlanCard(info: info)];
   }
 
   @override

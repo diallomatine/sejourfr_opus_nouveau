@@ -13,7 +13,8 @@
  *
  * Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
-import type {ModulePreparation, PreparationDto} from "./types";
+import {PLAN_DOMAIN_SECTION, planDomainLabel, type PlanDomainEpreuve} from "./plan-domain";
+import type {EpreuveType, ModulePreparation, PreparationDto} from "./types";
 
 export const PREPARATION_TITLE = "Ma préparation";
 
@@ -44,37 +45,39 @@ export interface PreparationAction {
    -------------------------------------------------------------------------- */
 
 export function tcfAction(m: ModulePreparation): PreparationAction {
-    switch (m.etape) {
-        case "DIAGNOSTIC_A_FAIRE":
-            return {
-                statut: "Diagnostic non réalisé",
-                cta: "Faire mon diagnostic",
-                href: DIAGNOSTIC_RAPIDE_HREF,
-            };
-        case "DIAGNOSTIC_EN_COURS":
-            return {
-                statut:
-                    m.fait !== null && m.total !== null
-                        ? `Diagnostic complet : ${m.fait} / ${m.total} épreuves`
-                        : "Diagnostic en cours",
-                cta: "Reprendre",
-                href: m.fait !== null ? "/diagnostic-tcf" : DIAGNOSTIC_RAPIDE_HREF,
-            };
-        case "ESTIMATION_FAITE":
-            return {
-                // 🛑 Le rapide est **terminé**, et on le dit — mais il ne suffit
-                // pas à bâtir le Plan : il n'a observé qu'une production écrite.
-                statut: "Première estimation terminée",
-                cta: "Faire mon diagnostic complet",
-                href: "/diagnostic-tcf",
-            };
-        case "PLAN_PRET":
-            return {
-                statut: niveauLine(m) ?? "Diagnostic terminé",
-                cta: "Continuer mon plan",
-                href: "/plan",
-            };
+    // 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
+    // 2026-09-12). Le diagnostic complet n'est plus une porte à franchir : il
+    // affine, et cette invitation-là vit dans `affinerPlan`, en action
+    // **secondaire**. Envoyer ici vers `/diagnostic-tcf` remettrait une étape
+    // obligatoire devant un plan déjà utilisable.
+    if (m.planDisponible) {
+        return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
     }
+    // Sans estimation close, il n'y a qu'une seule porte : le diagnostic rapide.
+    return m.etape === "DIAGNOSTIC_EN_COURS"
+        ? {statut: "Diagnostic en cours", cta: "Reprendre", href: DIAGNOSTIC_RAPIDE_HREF}
+        : {
+              statut: "Diagnostic non réalisé",
+              cta: "Faire mon diagnostic",
+              href: DIAGNOSTIC_RAPIDE_HREF,
+          };
+}
+
+/**
+ * Ce qu'on sait du candidat quand son Plan existe.
+ *
+ * 🛑 **Jamais « 0 / 4 »** : un compteur à zéro se lit comme un échec alors que
+ * le candidat vient de terminer son estimation. Le palier mesuré prime dès
+ * qu'il existe — c'est le complet qui le sert, et `null` veut dire « pas encore
+ * mesuré », jamais A1.
+ */
+function tcfStatut(m: ModulePreparation): string {
+    const niveau = niveauLine(m);
+    if (niveau) return niveau;
+    if (m.fait !== null && m.total !== null && m.fait > 0) {
+        return `Diagnostic complet : ${m.fait} / ${m.total} épreuves`;
+    }
+    return "Première estimation terminée";
 }
 
 /** « B1 → objectif B2 ». `null` si rien n'est mesuré : jamais un palier inventé. */
@@ -156,7 +159,14 @@ export function planIndisponible(
     m: ModulePreparation,
     module: "TCF" | "CIVIQUE",
 ): PlanIndisponible | null {
-    if (m.etape === "PLAN_PRET") return null;
+    // 🛑 **Le fait servi, jamais l'étape.** Arbitrage du propriétaire du
+    // 2026-09-12 : le diagnostic complet n'est plus un prérequis d'accès au
+    // Plan, seulement un moyen de l'affiner. Dès que le diagnostic rapide est
+    // clos, le serveur sait bâtir un Plan provisoire mais **réel** — ses
+    // priorités viennent d'observations vraies, et aucun domaine non mesuré
+    // n'en reçoit. Lire `etape` ici ferait dire « pas encore prêt » à un écran
+    // que le moteur sert déjà.
+    if (m.planDisponible) return null;
 
     if (module === "CIVIQUE") {
         // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
@@ -180,21 +190,14 @@ export function planIndisponible(
     }
 
     if (m.etape === "DIAGNOSTIC_EN_COURS") {
+        // Seul le diagnostic **rapide** inachevé arrive ici : dès qu'il est
+        // clos, `planDisponible` est vrai et la porte ne s'affiche plus, même
+        // pendant le complet.
         return {
             titre: "Votre diagnostic TCF est commencé",
             texte: avancement(m) ?? "Terminez-le pour que votre plan se construise.",
             cta: "Reprendre mon diagnostic",
-            href: m.fait !== null ? "/diagnostic-tcf" : DIAGNOSTIC_RAPIDE_HREF,
-        };
-    }
-
-    if (m.etape === "ESTIMATION_FAITE") {
-        return {
-            titre: "Votre plan TCF n'est pas encore prêt",
-            texte:
-                "Votre première estimation a identifié quelques axes, mais nous devons aussi évaluer votre oral et vos compréhensions.",
-            cta: "Faire mon diagnostic TCF complet",
-            href: "/diagnostic-tcf",
+            href: DIAGNOSTIC_RAPIDE_HREF,
         };
     }
 
@@ -228,8 +231,12 @@ export function planIndisponibleDepuisEtat(
         niveau: null,
         cible: null,
         aRenforcer: null,
+        // Ce repli n'existe que quand `GET /api/me/plan` a répondu autre chose
+        // qu'`ACTIVE` : par construction, le Plan n'est pas disponible.
+        planDisponible: false,
+        prochaineEpreuve: null,
     };
-    // `planIndisponible` ne rend `null` que sur `PLAN_PRET`, exclu par le type.
+    // `planIndisponible` ne rend `null` que si le Plan existe, exclu ici.
     return planIndisponible(m, module)!;
 }
 
@@ -256,4 +263,139 @@ export function moduleParDefaut(prep: PreparationDto): "TCF" | "CIVIQUE" {
         return "CIVIQUE";
     }
     return "TCF";
+}
+
+/* --------------------------------------------------------------------------
+   AFFINER le Plan — le diagnostic complet devient une action SECONDAIRE
+   -------------------------------------------------------------------------- */
+
+/**
+ * L'invitation au diagnostic complet, sous ses **trois** formes.
+ *
+ * 🛑 **Le complet ne bloque jamais le Plan** (arbitrage du propriétaire,
+ * 2026-09-12) : il l'affine. Cette carte se pose donc **après** le contenu
+ * principal, et ne concurrence jamais le CTA d'abonnement d'un compte gratuit.
+ *
+ * Trois formes, décidées par des **faits servis**, jamais par un compteur
+ * reconstruit :
+ * - `0 / 4`, jamais commencé → « Affiner votre Plan ». 🛑 **On n'affiche pas
+ *   « 0 / 4 »** : un compteur à zéro se lit comme un retard alors que rien n'a
+ *   été promis.
+ * - `1 / 4` à `3 / 4` → « Diagnostic complet en cours », avec sa progression,
+ *   sa barre, et la prochaine épreuve **si le serveur la sert**.
+ * - `4 / 4` → `null`, plus aucune invitation nulle part.
+ *
+ * Miroir mot pour mot de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
+ */
+export interface AffinerPlan {
+    /** Épreuves terminées du diagnostic complet — **servi**. */
+    fait: number;
+    total: number;
+    /** `true` dès la première épreuve terminée. */
+    enCours: boolean;
+    titre: string;
+    texte: string;
+    /** « 2 / 4 épreuves terminées ». `null` tant que rien n'est commencé. */
+    progression: string | null;
+    /** « Prochaine épreuve : Expression orale ». 🛑 `null` si non servie. */
+    prochaineEpreuve: string | null;
+    cta: string;
+    href: string;
+}
+
+/**
+ * Où le candidat reprend son diagnostic complet.
+ *
+ * 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
+ * s'est arrêté » : une épreuve terminée n'y porte plus aucun bouton, et une
+ * épreuve qui démarre le fait après son avertissement (« une fois commencée,
+ * elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
+ * épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
+ */
+const DIAGNOSTIC_COMPLET_HREF = "/diagnostic-tcf";
+
+export function affinerPlan(
+    m: ModulePreparation,
+    options: {surface: "plan" | "accueil"; abonne: boolean},
+): AffinerPlan | null {
+    // Pas de Plan ⇒ rien à affiner : la porte d'entrée dit déjà quoi faire.
+    if (!m.planDisponible) return null;
+    // 🛑 Aucun compteur servi ⇒ aucune carte. On ne fabrique pas un « 0 / 4 »
+    // pour remplir un emplacement (le civique n'a qu'un diagnostic, il n'a
+    // jamais rien à affiner).
+    if (m.fait === null || m.total === null || m.total <= 0) return null;
+    // 4 / 4 : plus aucune invitation, plus aucune progression, nulle part.
+    if (m.fait >= m.total) return null;
+
+    const enCours = m.fait > 0;
+    const restant = m.total - m.fait;
+    const progression = enCours
+        ? `${m.fait} / ${m.total} épreuves terminées`
+        : null;
+    const prochaine = m.prochaineEpreuve
+        ? `Prochaine épreuve : ${epreuveDuDiagnostic(m.prochaineEpreuve)}`
+        : null;
+
+    if (options.surface === "accueil") {
+        // 🛑 L'Accueil ne montre le complet **que** s'il est commencé : une
+        // invitation de plus sur un écran qui en porte déjà deux deviendrait du
+        // bruit, et elle vit déjà sur le Plan.
+        if (!enCours) return null;
+        return {
+            fait: m.fait,
+            total: m.total,
+            enCours,
+            titre: "Continuez votre diagnostic complet",
+            texte: `Il vous reste ${restant} épreuve${restant > 1 ? "s" : ""} pour compléter l'analyse de vos compétences.`,
+            progression,
+            prochaineEpreuve: prochaine,
+            cta: "Continuer",
+            href: DIAGNOSTIC_COMPLET_HREF,
+        };
+    }
+
+    if (enCours) {
+        return {
+            fait: m.fait,
+            total: m.total,
+            enCours,
+            titre: "Diagnostic complet en cours",
+            texte: "Continuez votre diagnostic pour affiner progressivement votre Plan.",
+            progression,
+            prochaineEpreuve: prochaine,
+            cta: "Continuer le diagnostic",
+            href: DIAGNOSTIC_COMPLET_HREF,
+        };
+    }
+
+    // Jamais commencé. Deux formulations : un compte gratuit vient de voir ce
+    // qui a été détecté et doit d'abord débloquer ; un abonné utilise déjà son
+    // Plan et n'a qu'à le préciser.
+    return {
+        fait: m.fait,
+        total: m.total,
+        enCours,
+        titre: options.abonne ? "Rendez votre Plan encore plus précis" : "Affiner votre Plan",
+        texte: options.abonne
+            ? "Complétez le diagnostic complet pour analyser les autres compétences et affiner vos priorités."
+            : "Votre diagnostic rapide nous a permis d'identifier vos premières priorités. Le diagnostic complet analyse vos 4 compétences pour rendre votre Plan encore plus précis.",
+        progression: null,
+        prochaineEpreuve: null,
+        cta: "Faire le diagnostic complet",
+        href: DIAGNOSTIC_COMPLET_HREF,
+    };
+}
+
+/**
+ * Le nom d'une épreuve du diagnostic complet.
+ *
+ * 🛑 **Aucune seconde table de libellés** : `planDomainLabel` est déjà
+ * l'autorité, et les quatre épreuves du diagnostic sont exactement les quatre
+ * domaines du Plan. Une épreuve hors de ces quatre (jamais servie ici) ne se
+ * nomme pas plutôt que de se nommer faux.
+ */
+function epreuveDuDiagnostic(epreuve: EpreuveType): string {
+    return epreuve in PLAN_DOMAIN_SECTION
+        ? planDomainLabel(epreuve as PlanDomainEpreuve)
+        : "";
 }
