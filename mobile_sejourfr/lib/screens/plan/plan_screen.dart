@@ -358,9 +358,7 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
     // de carte, plutôt qu'un verdict que personne n'a rendu.
     final niveau = estimation?.written?.levelEstimate;
     final cible = widget.prep?.cible;
-    final observations = estimation == null
-        ? const <DiagnosticObservation>[]
-        : diagnosticObservations(estimation.strengths, estimation.priorities);
+    final observations = diagnosticObservations(estimation);
 
     return ListView(
       children: [

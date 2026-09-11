@@ -47,8 +47,7 @@ class DiagnosticResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     final written = result.written;
     final niveau = written?.levelEstimate;
-    final observations =
-        diagnosticObservations(result.strengths, result.priorities);
+    final observations = diagnosticObservations(result);
 
     return ListView(
       padding: const EdgeInsets.only(top: 14, bottom: 32),

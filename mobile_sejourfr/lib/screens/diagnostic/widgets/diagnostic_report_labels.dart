@@ -57,7 +57,7 @@ const String kDiagnosticObserveAmeliorer = 'À améliorer';
 /// seule chose que le candidat retient d'un rapport qu'il lit une fois.
 const int kDiagnosticObserveMaxAmeliorer = 2;
 
-/// Plafond d'affichage du point fort. Le serveur en sert jusqu'à trois.
+/// Plafond d'affichage du point fort : une ligne, pas une liste.
 const int kDiagnosticObserveMaxPositive = 1;
 
 typedef DiagnosticObservation = ({
@@ -67,33 +67,64 @@ typedef DiagnosticObservation = ({
   String? texte,
 });
 
-/// Les observations, dans l'ordre de la maquette : les positives d'abord.
+/// Une ligne positive, puis deux à améliorer — dans cet ordre.
 ///
-/// 🛑 **Rien n'est dérivé.** [strengths] sont les points forts que le serveur a
-/// rédigés (des phrases nues : elles font le titre, il n'y a pas de second
-/// niveau de texte) ; [priorites] sont les priorités qu'il a **classées**. Le
-/// front choisit dans des listes servies, il ne juge pas — et il n'invente
-/// jamais une ligne pour remplir le bloc.
-List<DiagnosticObservation> diagnosticObservations(
-  List<String> strengths,
-  List<DiagnosticSkillObservation> priorites,
-) =>
-    <DiagnosticObservation>[
-      for (final force in strengths.take(kDiagnosticObserveMaxPositive))
-        (
-          positive: true,
-          kicker: kDiagnosticObservePositive,
-          titre: force,
-          texte: null,
-        ),
-      for (final p in priorites.take(kDiagnosticObserveMaxAmeliorer))
-        (
-          positive: false,
-          kicker: kDiagnosticObserveAmeliorer,
-          titre: p.skillTitle,
-          texte: p.explanation,
-        ),
-    ];
+/// 🛑 **Rien n'est dérivé.** Le point fort est une observation que le SERVEUR a
+/// marquée `SOLID` (`DiagnosticSkillObservation.status`, observée) ; les points
+/// à améliorer sont les priorités qu'il a **classées**. Le front choisit dans
+/// des listes servies, il ne juge pas — aucun nombre n'est ici converti en état
+/// pédagogique.
+///
+/// ⚠️ **`strengths` est un REPLI, pas l'autorité.** Le serveur sert deux formes
+/// du même fait : des observations nommées (titre + explication) et, à côté, des
+/// phrases nues plafonnées à 3 à l'écriture du résumé
+/// (`DiagnosticSessionCoordinator`). La règle du 2026-08-21
+/// (`docs/regles/diagnostic.md`) tranche : les points forts sont les compétences
+/// `SOLID`, et les phrases `strengths` ne s'affichent que lorsqu'il n'y en a
+/// aucune — deux listes disaient la même chose. Ne lire que `strengths`, c'est
+/// perdre une observation servie (et son explication) quand la liste est vide.
+///
+/// 🛑 Ni l'une ni l'autre ⇒ **pas de ligne positive** : on n'invente jamais une
+/// ligne pour remplir le bloc.
+List<DiagnosticObservation> diagnosticObservations(DiagnosticResult? result) {
+  final solides = (result?.written?.skills ?? const <DiagnosticSkillObservation>[])
+      .where((skill) =>
+          skill.observed && skill.status == LearningPlanSkillStatus.solid);
+  final positives = solides.isNotEmpty
+      ? <DiagnosticObservation>[
+          for (final skill in solides.take(kDiagnosticObserveMaxPositive))
+            (
+              positive: true,
+              kicker: kDiagnosticObservePositive,
+              titre: skill.skillTitle,
+              texte: skill.explanation,
+            ),
+        ]
+      : <DiagnosticObservation>[
+          for (final force
+              in (result?.strengths ?? const <String>[])
+                  .take(kDiagnosticObserveMaxPositive))
+            (
+              positive: true,
+              kicker: kDiagnosticObservePositive,
+              titre: force,
+              texte: null,
+            ),
+        ];
+
+  return <DiagnosticObservation>[
+    ...positives,
+    for (final p
+        in (result?.priorities ?? const <DiagnosticSkillObservation>[])
+            .take(kDiagnosticObserveMaxAmeliorer))
+      (
+        positive: false,
+        kicker: kDiagnosticObserveAmeliorer,
+        titre: p.skillTitle,
+        texte: p.explanation,
+      ),
+  ];
+}
 
 /* ------------------------------------------------------- la mise au point */
 

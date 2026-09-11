@@ -46,6 +46,21 @@ import styles from "./diagnostic.module.css";
 const CIVIQUE_DIAGNOSTIC_QUESTIONS = 40;
 const CIVIQUE_DIAGNOSTIC_HREF = "/diagnostic-civique";
 
+/**
+ * Ce que la présentation dit des deux épreuves de COMPRÉHENSION, qui ne sont
+ * pas dans le diagnostic rapide.
+ *
+ * 🛑 **Jamais « un examen blanc »** — c'était le mot employé ici, et
+ * `docs/regles/diagnostic-tcf-4-epreuves.md` l'interdit (`10_SEJOURFR_TCF.md`
+ * §4.1 : « Nommage imposé : *Diagnostic TCF — 4 épreuves*. Interdit d'appeler
+ * cela un examen blanc »). Les deux objets ne se ressemblent même pas : le
+ * diagnostic réduit CO et CE à 15 items pour situer le candidat, l'examen blanc
+ * intégral les joue au format réel. Le nommer correctement est aussi ce qui
+ * rend la promesse tenable : ce qui suit le rapport, c'est le diagnostic
+ * complet.
+ */
+const DIAGNOSTIC_LATER_NOTE = "Dans le diagnostic complet, après votre compte.";
+
 const FOOT_NOTE =
   "Votre diagnostic reste accessible ensuite : vous pouvez compléter les épreuves manquantes quand vous voulez.";
 
@@ -290,7 +305,7 @@ export function DiagnosticIntro({
               <b>Compréhension orale</b>
               <span>parcours complet</span>
             </p>
-            <p className={styles.introNote}>Un examen blanc, après votre compte.</p>
+            <p className={styles.introNote}>{DIAGNOSTIC_LATER_NOTE}</p>
           </div>
         </li>
         <li className={styles.introListLater}>
@@ -302,7 +317,7 @@ export function DiagnosticIntro({
               <b>Compréhension écrite</b>
               <span>parcours complet</span>
             </p>
-            <p className={styles.introNote}>Un examen blanc, après votre compte.</p>
+            <p className={styles.introNote}>{DIAGNOSTIC_LATER_NOTE}</p>
           </div>
         </li>
       </ul>

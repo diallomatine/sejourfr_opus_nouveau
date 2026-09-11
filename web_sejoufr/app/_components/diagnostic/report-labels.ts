@@ -137,4 +137,12 @@ export const DIAGNOSTIC_COMPLET_BENEFITS = [
   "vos priorités pour atteindre votre objectif",
 ];
 export const DIAGNOSTIC_COMPLET_CTA = "Faire mon diagnostic complet";
-export const DIAGNOSTIC_COMPLET_NOTE = "Examen blanc complet dans les conditions du TCF.";
+/**
+ * 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
+ * ⚠️ Et **jamais le mot « examen blanc »** : `docs/regles/diagnostic-tcf-4-epreuves.md`
+ * l'interdit (`10_SEJOURFR_TCF.md` §4.1, « Nommage imposé : *Diagnostic TCF —
+ * 4 épreuves*. Interdit d'appeler cela un examen blanc »). Le diagnostic réduit
+ * la compréhension à 15 items ; l'examen blanc intégral est un autre objet.
+ */
+export const DIAGNOSTIC_COMPLET_NOTE =
+  "4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois";
