@@ -21,13 +21,36 @@ import java.time.Instant;
  *       + 2 × (échéance Leitner franchie)
  *       + 1 × (poids du thème : FAIBLE 2, À_RENFORCER 1, sinon 0)
  *       − 3 × (maîtrisée)
- *       − 10 × (contenu insuffisant)
+ *       − 10 × (dotation CONTENU_INSUFFISANT)
  * </pre>
  *
  * <p>🛑 <b>Le malus de contenu insuffisant est écrasant, et c'est voulu</b> :
  * une notion qui n'a pas de quoi remplir une série ne doit <b>jamais</b> être
- * proposée en priorité ({@code 20_} §3.4). −10 la sort du classement quoi qu'il
+ * proposée en priorité ({@code 50_} §6.1). −10 la sort du classement quoi qu'il
  * arrive, au lieu d'un filtre en amont qui la rendrait invisible aux mesures.
+ *
+ * <p>🛑 <b>{@link CivicDotation#NON_APPLICABLE} ne prend AUCUN malus</b>
+ * (arbitrage 2026-09-11, en même temps que l'enum). Trois raisons, dans cet
+ * ordre :
+ * <ol>
+ *   <li><b>Un score est un rang, pas un verdict sur la notion.</b> −10 dit
+ *       « cette cible est un mauvais choix » ; or une notion absente de la
+ *       mention n'est pas un mauvais choix, elle n'est <b>pas un choix du
+ *       tout</b>. Lui coller le malus du manque, c'est exactement la confusion
+ *       {@code null = inconnu ⇒ mauvais} que le dépôt paie déjà cher
+ *       (V040/V041/V042).</li>
+ *   <li><b>Aucun effet observable.</b> {@code CivicPlanService} écarte tout ce
+ *       qui n'est pas {@link CivicDotation#SERVABLE} des priorités <b>et</b> des
+ *       révisions : la cible est déjà hors du plan, un malus ne l'en sortirait
+ *       pas « plus ».</li>
+ *   <li><b>Le garde-fou qui abaisse, c'est le FILTRE</b>, et il est strictement
+ *       plus sévère qu'un −10. Doubler une exclusion par une pénalité de rang
+ *       ferait croire à deux règles là où il n'y en a qu'une, et la seconde
+ *       mentirait sur le motif.</li>
+ * </ol>
+ * Conséquence assumée et lisible en admin : une notion hors mention garde son
+ * score <b>nu</b>. C'est l'information juste — « rien ici ne la pousse », pas
+ * « elle est mauvaise ».
  *
  * <p>🛑 <b>{@code NON_EVALUE} pèse 0</b>, comme {@code SOLIDE} et pour la raison
  * inverse : un thème que le diagnostic n'a pas touché n'est pas faible, il n'est
@@ -48,7 +71,7 @@ public class CivicPrioriteScorer {
             CivicEtatCible etat,
             CivicThemeState etatDuTheme,
             boolean pointeeParLeDiagnostic,
-            boolean contenuInsuffisant,
+            CivicDotation dotation,
             Instant maintenant) {
 
         int score = 0;
@@ -62,7 +85,7 @@ public class CivicPrioriteScorer {
         if (etat.aRevoir(maintenant)) score += 2;
         score += poidsDuTheme(etatDuTheme);
         if (etat.maitrise() == CivicMaitrise.MAITRISEE) score -= 3;
-        if (contenuInsuffisant) score -= 10;
+        if (dotation == CivicDotation.CONTENU_INSUFFISANT) score -= 10;
 
         return score;
     }

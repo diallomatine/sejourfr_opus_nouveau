@@ -22,8 +22,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>Ce que ce test verrouille :
  * <ul>
- *   <li>les notions du référentiel de travail sont bien seedées, réparties
- *       sur les cinq thèmes ;</li>
+ *   <li>les notions du référentiel <b>validé</b> (V058) sont bien seedées,
+ *       réparties sur les cinq thèmes, et aucune n'a été supprimée — les 14
+ *       fusions sont des désactivations qui gardent leur trace ;</li>
  *   <li>🛑 une question non taguée est <b>en attente</b>, pas hors programme —
  *       et le tag s'efface, parce que se tromper doit rester rattrapable ;</li>
  *   <li>🛑 la couverture est ventilée <b>par mention</b> : c'est la seule
@@ -39,41 +40,69 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Autowired private EntityManager entityManager;
 
     @Test
-    @DisplayName("Les 41 notions du référentiel de travail sont seedées sur les 5 thèmes")
+    @DisplayName("Le référentiel validé sert 46 notions actives sur les 5 thèmes, et garde ses 14 fusions")
     void referentielSeede() {
         var referentiel = service.referentiel();
 
-        // 40 notions de travail (V051) + `hg_fetes_jours_feries`, ouverte par
-        // V055 : le référentiel n'est PAS figé, il s'ajuste à la porte de revue
-        // quand le tagging montre un trou. Ce compte suit donc les migrations.
-        assertThat(referentiel).hasSize(41);
+        // Le référentiel n'est PAS figé : 40 notions de travail (V051),
+        // + `hg_fetes_jours_feries` (V055), puis la relecture question par
+        // question du corpus réel (V058) qui en ajoute 19 et en désactive 14.
+        // 🛑 AUCUNE n'est supprimée — une notion retirée du programme reste une
+        // trace, et `merged_into_id` dit où son contenu est parti. Ce compte
+        // suit donc les migrations.
+        assertThat(referentiel).hasSize(60);
         assertThat(referentiel).extracting(CivicNotionDto::themeCode).containsOnly(
                 "CIV_PRINCIPES", "CIV_INSTITUTIONS", "CIV_DROITS_DEVOIRS",
                 "CIV_HISTOIRE_GEO", "CIV_SOCIETE");
-        // 🛑 Aucune n'est fusionnée au départ : les quatre couples « à
-        // surveiller » de `50_` §6.1.1 restent séparés tant que le tagging n'a
-        // pas parlé.
-        assertThat(referentiel).allSatisfy(n -> {
-            assertThat(n.active()).isTrue();
-            assertThat(n.mergedIntoCode()).isNull();
-        });
+
+        var actives = referentiel.stream().filter(CivicNotionDto::active).toList();
+        assertThat(actives).hasSize(46);
+        assertThat(actives).allSatisfy(n -> assertThat(n.mergedIntoCode()).isNull());
+
+        var fusionnees = referentiel.stream().filter(n -> !n.active()).toList();
+        assertThat(fusionnees).hasSize(14);
+        // 🛑 Treize pointent leur destination ; UNE seule garde `null`, et c'est
+        // voulu : « vs_vie_collective » s'est dissoute sans destination
+        // dominante, et inventer une destination unique serait une trace fausse.
+        assertThat(fusionnees).filteredOn(n -> n.mergedIntoCode() == null)
+                .extracting(CivicNotionDto::code)
+                .containsExactly("vs_vie_collective");
+
         assertThat(referentiel).extracting(CivicNotionDto::code)
-                .contains("pv_laicite", "vs_laicite_quotidien",
-                        "dd_logement", "vs_logement_pratique",
-                        "hg_fetes_jours_feries");
+                .contains("pv_laicite", "hg_fetes_jours_feries",
+                        // les nouvelles de V058…
+                        "hg_napoleon_xixe", "dd_droits_sociaux",
+                        // …et les désactivées, toujours présentes.
+                        "vs_laicite_quotidien", "dd_logement", "vs_logement_pratique");
     }
 
     @Test
     @DisplayName("🛑 Une question non taguée attend : couverture nulle, jamais « sans notion »")
     void questionNonTagueeAttend() {
+        // 🛑 On mesure un DELTA, pas un zéro absolu. La version précédente
+        // exigeait « aucune notion ne compte quoi que ce soit » : elle tenait
+        // seulement tant que le catalogue seedé n'avait AUCUNE question taguée,
+        // et V294 en tague une (« Que peut-on dire de l'accès aux soins en
+        // France ? », rangée sous `dd_droits_sociaux`). L'invariant visé n'a
+        // jamais été « le référentiel est vide » mais « une question non taguée
+        // n'est comptée nulle part » — c'est ce que le delta dit, et il le dira
+        // encore quand le tagging avancera.
+        long avant = couvertureTotale();
+
         Question question = data.question();
         entityManager.flush();
 
         assertThat(notionDe(question.getId())).isNull();
         // Aucune notion ne la compte : elle n'est rattachée nulle part, et ce
         // n'est pas un verdict sur elle.
-        assertThat(service.referentiel())
-                .allSatisfy(n -> assertThat(n.questionsTaguees()).isZero());
+        assertThat(couvertureTotale()).isEqualTo(avant);
+    }
+
+    /** Ce que le référentiel dit couvrir, toutes notions confondues. */
+    private long couvertureTotale() {
+        return service.referentiel().stream()
+                .mapToLong(CivicNotionDto::questionsTaguees)
+                .sum();
     }
 
     @Test
@@ -151,7 +180,7 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
         });
 
         UUID premiere = avant.questions().getFirst().questionId();
-        service.taguer(premiere, "pv_symboles");
+        service.taguer(premiere, "pv_symboles_devise");
         entityManager.clear();
 
         var apres = service.fileDeTagging(null, false, false, 25, 0);
@@ -162,7 +191,7 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
         assertThat(service.fileDeTagging(null, true, false, 25, 0).questions())
                 .anySatisfy(q -> {
                     assertThat(q.questionId()).isEqualTo(premiere);
-                    assertThat(q.notionCode()).isEqualTo("pv_symboles");
+                    assertThat(q.notionCode()).isEqualTo("pv_symboles_devise");
                 });
     }
 

@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.PlanRecentChangesWindow;
+import com.sejourfr.app.service.plancivique.CivicDotation;
 import com.sejourfr.app.service.plancivique.CivicEtapeEtat;
 import com.sejourfr.app.service.plancivique.CivicMaitrise;
 import com.sejourfr.app.service.plancivique.CivicPlanGrain;
@@ -209,9 +210,14 @@ public record CivicPlanDto(
      *                          l'admin et les tests, jamais montre au candidat :
      *                          un score de priorite invite a comparer deux
      *                          nombres qui ne mesurent pas la meme chose
-     * @param contenuInsuffisant  moins de questions que le minimum, POUR SA
-     *                            MENTION. Une telle cible n'est jamais servie en
-     *                            priorite ({@code 20_} §3.4)
+     * @param dotation          ce que le catalogue offre sur cette cible, POUR
+     *                          SA MENTION. 🛑 <b>Trois etats, pas deux</b> :
+     *                          {@code NON_APPLICABLE} (zero question) dit que la
+     *                          notion n'est pas au programme de cette demarche,
+     *                          {@code CONTENU_INSUFFISANT} qu'elle y est mais
+     *                          qu'il manque de la matiere. Seule une cible
+     *                          {@code SERVABLE} est proposee en priorite ou en
+     *                          revision ({@code 50_} §6.1)
      * @param questionsSerie    la taille de la serie ciblee proposee
      * @param dureeEstimeeSec   son ordre de grandeur, <b>derive</b> de la taille
      * @param locked            la serie est-elle reservee ? 🛑 Le constat, lui,
@@ -236,7 +242,7 @@ public record CivicPlanDto(
             Instant prochaineRevue,
             boolean aRevoir,
             int score,
-            boolean contenuInsuffisant,
+            CivicDotation dotation,
             int questionsSerie,
             int dureeEstimeeSec,
             boolean locked

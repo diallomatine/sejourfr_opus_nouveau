@@ -1,0 +1,193 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cewyiainyy8v3pVkNgYdv",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_017XQfFXvQegxVnyQAsu5rpB",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "hg_patrimoine",
+            "confiance": 0.97,
+            "rationale": "Mont-Saint-Michel : site emblématique à connaître, pas à situer."
+          },
+          {
+            "rang": 2,
+            "notion": "hg_patrimoine",
+            "confiance": 0.97,
+            "rationale": "Falaises d'Étretat : site naturel emblématique classé patrimoine."
+          },
+          {
+            "rang": 3,
+            "notion": "hg_art_de_vivre",
+            "confiance": 0.85,
+            "rationale": "Le champagne comme produit/boisson emblématique de la France.",
+            "alternative": "hg_geographie",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 4,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.97,
+            "rationale": "Bizet, compositeur français."
+          },
+          {
+            "rang": 5,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.97,
+            "rationale": "Monet, peintre impressionniste."
+          },
+          {
+            "rang": 6,
+            "notion": "hg_litterature",
+            "confiance": 0.98,
+            "rationale": "Camus, écrivain, prix Nobel de littérature."
+          },
+          {
+            "rang": 7,
+            "notion": "hg_litterature",
+            "confiance": 0.98,
+            "rationale": "Victor Hugo, écrivain des Misérables."
+          },
+          {
+            "rang": 8,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Zola pris comme acteur de l'affaire Dreyfus, pas comme écrivain."
+          },
+          {
+            "rang": 9,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Saint-Exupéry, auteur du Petit Prince."
+          },
+          {
+            "rang": 10,
+            "notion": "hg_art_de_vivre",
+            "confiance": 0.9,
+            "rationale": "Paul Bocuse, figure de la gastronomie française."
+          },
+          {
+            "rang": 11,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.95,
+            "rationale": "Invention du cinématographe par les frères Lumière."
+          },
+          {
+            "rang": 12,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.9,
+            "rationale": "Louis Braille, inventeur/savant français."
+          },
+          {
+            "rang": 13,
+            "notion": "hg_litterature",
+            "confiance": 0.98,
+            "rationale": "Marcel Proust, écrivain."
+          },
+          {
+            "rang": 14,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.96,
+            "rationale": "Trois Glorieuses : régime non républicain du XIXe siècle (Restauration)."
+          },
+          {
+            "rang": 15,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.9,
+            "rationale": "Défaite de Sedan et chute de Napoléon III, chute d'un empire.",
+            "alternative": "hg_republiques",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 16,
+            "notion": "hg_geographie",
+            "confiance": 0.92,
+            "rationale": "Puy de Dôme situé dans une région, question de géographie régionale."
+          },
+          {
+            "rang": 17,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.95,
+            "rationale": "Coco Chanel, couturière, créatrice de mode."
+          },
+          {
+            "rang": 18,
+            "notion": "AUCUNE",
+            "confiance": 0.85,
+            "rationale": "Traités de Westphalie 1648, hors périmètre du référentiel (avant la Révolution, diplomatie internationale)."
+          },
+          {
+            "rang": 19,
+            "notion": "hg_revolution",
+            "confiance": 0.85,
+            "rationale": "Les Bourbons, dynastie régnant sur la France avant la Révolution."
+          },
+          {
+            "rang": 20,
+            "notion": "hg_revolution",
+            "confiance": 0.97,
+            "rationale": "Serment du Jeu de paume, journée révolutionnaire de 1789."
+          },
+          {
+            "rang": 21,
+            "notion": "hg_revolution",
+            "confiance": 0.96,
+            "rationale": "La Terreur, épisode de la Révolution, Robespierre."
+          },
+          {
+            "rang": 22,
+            "notion": "hg_revolution",
+            "confiance": 0.96,
+            "rationale": "Robespierre, acteur de la Révolution."
+          },
+          {
+            "rang": 23,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.97,
+            "rationale": "18 brumaire, prise de pouvoir de Bonaparte, ferme la Révolution."
+          },
+          {
+            "rang": 24,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.98,
+            "rationale": "Waterloo, chute de Napoléon Ier."
+          },
+          {
+            "rang": 25,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.97,
+            "rationale": "La Restauration, régime non républicain du XIXe siècle."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10533,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1551,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

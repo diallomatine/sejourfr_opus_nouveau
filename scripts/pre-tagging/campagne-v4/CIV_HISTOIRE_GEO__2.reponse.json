@@ -1,0 +1,193 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiUraLuzwdscr1pyYB",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01TSQgLjhorBX4jMNYAMMsd5",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "hg_geographie",
+            "confiance": 0.97,
+            "rationale": "Situer la France sur un continent"
+          },
+          {
+            "rang": 2,
+            "notion": "hg_geographie",
+            "confiance": 0.97,
+            "rationale": "DOM insulaire, situer un territoire"
+          },
+          {
+            "rang": 3,
+            "notion": "hg_geographie",
+            "confiance": 0.98,
+            "rationale": "Nombre de régions"
+          },
+          {
+            "rang": 4,
+            "notion": "hg_geographie",
+            "confiance": 0.95,
+            "rationale": "Grande ville et port, situer sur carte"
+          },
+          {
+            "rang": 5,
+            "notion": "hg_geographie",
+            "confiance": 0.97,
+            "rationale": "Mer bordant la France, géographie"
+          },
+          {
+            "rang": 6,
+            "notion": "hg_geographie",
+            "confiance": 0.95,
+            "rationale": "Ville sur la Méditerranée, situer"
+          },
+          {
+            "rang": 7,
+            "notion": "hg_geographie",
+            "confiance": 0.95,
+            "rationale": "Situer la Corse, île géographie"
+          },
+          {
+            "rang": 8,
+            "notion": "hg_geographie",
+            "confiance": 0.97,
+            "rationale": "Chaîne de montagnes, frontière"
+          },
+          {
+            "rang": 9,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Dramaturge français, écrivain"
+          },
+          {
+            "rang": 10,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Poète français"
+          },
+          {
+            "rang": 11,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Romancière française"
+          },
+          {
+            "rang": 12,
+            "notion": "hg_litterature",
+            "confiance": 0.9,
+            "rationale": "Philosophe-romancière, figure du féminisme",
+            "alternative": "hg_conquetes_droits",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 13,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Écrivain, Prix Nobel de littérature"
+          },
+          {
+            "rang": 14,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.97,
+            "rationale": "Peintre français"
+          },
+          {
+            "rang": 15,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.97,
+            "rationale": "Peintre"
+          },
+          {
+            "rang": 16,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.75,
+            "rationale": "Artiste et résistante, entrée au Panthéon",
+            "alternative": "hg_guerres_resistance",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 17,
+            "notion": "hg_arts_sciences",
+            "confiance": 0.97,
+            "rationale": "Chanteuse française"
+          },
+          {
+            "rang": 18,
+            "notion": "hg_patrimoine",
+            "confiance": 0.97,
+            "rationale": "Monument qu'est le Louvre"
+          },
+          {
+            "rang": 19,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Poète, fabuliste"
+          },
+          {
+            "rang": 20,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Écrivain français"
+          },
+          {
+            "rang": 21,
+            "notion": "hg_patrimoine",
+            "confiance": 0.97,
+            "rationale": "Monument tour Eiffel"
+          },
+          {
+            "rang": 22,
+            "notion": "hg_fetes_jours_feries",
+            "confiance": 0.97,
+            "rationale": "Date de Noël"
+          },
+          {
+            "rang": 23,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Fin de la IVe République, naissance de la Ve"
+          },
+          {
+            "rang": 24,
+            "notion": "hg_revolution",
+            "confiance": 0.97,
+            "rationale": "Début de la Révolution française"
+          },
+          {
+            "rang": 25,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.97,
+            "rationale": "Napoléon Ier, empereur"
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9960,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1260,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

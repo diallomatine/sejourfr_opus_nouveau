@@ -1,0 +1,89 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVW26Uj3tbxp7MCRd",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_015Mu16ZTWgdphXMxFtSsTbK",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "hg_patrimoine",
+            "confiance": 0.9,
+            "rationale": "Notre-Dame est un monument emblématique, restauration récente."
+          },
+          {
+            "rang": 2,
+            "notion": "hg_litterature",
+            "confiance": 0.75,
+            "rationale": "Sartre, philosophe-écrivain, prix Nobel de littérature refusé.",
+            "alternative": "hg_arts_sciences",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 3,
+            "notion": "AUCUNE",
+            "confiance": 0.8,
+            "rationale": "L'ENA/INSP est une institution administrative actuelle, hors référentiel histoire-géo (relève d'un thème institutions)."
+          },
+          {
+            "rang": 4,
+            "notion": "hg_geographie",
+            "confiance": 0.9,
+            "rationale": "Nouvelle-Calédonie et référendums = statut de territoire d'outre-mer, explicitement rattaché à géographie par la frontière."
+          },
+          {
+            "rang": 5,
+            "notion": "hg_art_de_vivre",
+            "confiance": 0.95,
+            "rationale": "Tour de France est un grand rendez-vous sportif français."
+          },
+          {
+            "rang": 6,
+            "notion": "AUCUNE",
+            "confiance": 0.8,
+            "rationale": "La COP21 est un sommet international contemporain, hors du référentiel histoire-géo fourni (thème environnement/international)."
+          },
+          {
+            "rang": 7,
+            "notion": "hg_art_de_vivre",
+            "confiance": 0.9,
+            "rationale": "JO 2024 = grand rendez-vous sportif accueilli par la France."
+          },
+          {
+            "rang": 8,
+            "notion": "hg_revolution",
+            "confiance": 0.97,
+            "rationale": "Date de la Révolution française, prise de la Bastille."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 7314,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 597,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

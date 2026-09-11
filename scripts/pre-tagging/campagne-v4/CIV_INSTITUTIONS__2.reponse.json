@@ -1,0 +1,193 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cewyisx8nUoEroL9LWLpE",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01PetkqPeQMxcLkDn63cga5D",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Le tribunal juge et sanctionne l'auteur d'un vol."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Élection des députés vue du côté de l'électeur."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Vote des lois par le Parlement."
+          },
+          {
+            "rang": 4,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Résidence du président à l'Élysée."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_collectivites",
+            "confiance": 0.9,
+            "rationale": "Nombre de départements, échelon territorial."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Le préfet représente l'État, relève de l'administration."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Le maire dirige la commune."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_constitution",
+            "confiance": 0.9,
+            "rationale": "Séparation des pouvoirs, principe constitutionnel."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Rôle du préfet, représentant de l'État."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Rôle du Parlement : voter lois et contrôler gouvernement."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_constitution",
+            "confiance": 0.9,
+            "rationale": "Régime politique de la France, Ve République."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Nombre d'États membres de l'UE."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Identification d'un État non membre de l'UE."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Condition pour voter aux élections européennes."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_ue",
+            "confiance": 0.85,
+            "rationale": "Fréquence des élections européennes."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_ue",
+            "confiance": 0.7,
+            "rationale": "Pays fondateur de l'UE, proche de l'histoire mais reste institutionnel.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 17,
+            "notion": "inst_ue",
+            "confiance": 0.85,
+            "rationale": "L'euro, monnaie de l'UE en France."
+          },
+          {
+            "rang": 18,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Élection des députés européens."
+          },
+          {
+            "rang": 19,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Journée de l'Europe, symbole européen."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Nom de la Constitution actuelle."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Nomination du Premier ministre par le président."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Composition bicamérale du Parlement."
+          },
+          {
+            "rang": 23,
+            "notion": "inst_gouvernement",
+            "confiance": 0.75,
+            "rationale": "Mission du pouvoir exécutif, appliqué par gouvernement/président.",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 24,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Notion générale de démocratie, hors référentiel institutionnel français précis."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Rôle de l'autorité judiciaire."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9136,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1359,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

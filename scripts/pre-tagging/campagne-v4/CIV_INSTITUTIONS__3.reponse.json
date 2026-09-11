@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiXkhavpNTJMbTEngg",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01UMhCgE3ub42DnpJB8xqeo7",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Pouvoir judiciaire exercé par le juge."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Magistrats et autorité judiciaire."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_justice",
+            "confiance": 0.85,
+            "rationale": "Jugement d'un ministre, Cour de justice de la République."
+          },
+          {
+            "rang": 4,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Élections législatives vues du scrutin, élection des députés.",
+            "alternative": "inst_parlement",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 5,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Effectif de l'Assemblée nationale, composition institutionnelle."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Mode d'élection des sénateurs, composition du Sénat."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_collectivites",
+            "confiance": 0.9,
+            "rationale": "Élections municipales et conseil municipal."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Scrutin présidentiel du point de vue de l'électeur."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_elections",
+            "confiance": 0.95,
+            "rationale": "Âge du droit de vote."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Durée du mandat présidentiel, institution présidentielle."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Durée du mandat de député."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Durée du mandat de sénateur."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_constitution",
+            "confiance": 0.75,
+            "rationale": "Identification du pouvoir exécutif dans la séparation des pouvoirs.",
+            "alternative": "inst_gouvernement",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 14,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Conditions requises pour voter."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Qui a le droit de vote."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Définition du suffrage universel, droit de vote."
+          },
+          {
+            "rang": 17,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Pluralisme des partis politiques, encadrement de la vie politique."
+          },
+          {
+            "rang": 18,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Fonction des députés: voter les lois, contrôler le gouvernement."
+          },
+          {
+            "rang": 19,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Théorie de Montesquieu, les trois pouvoirs séparés."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Pouvoir législatif exercé par le Parlement."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_justice",
+            "confiance": 0.9,
+            "rationale": "Tribunal, autorité judiciaire prononçant sanction."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_elections",
+            "confiance": 0.8,
+            "rationale": "Mode d'élection des députés, vu de l'électeur.",
+            "alternative": "inst_parlement",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 23,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Institution qui vote les lois."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "L'Élysée, résidence du président."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_collectivites",
+            "confiance": 0.9,
+            "rationale": "Nombre de départements, échelon territorial."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9425,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1397,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

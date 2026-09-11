@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiafaCkrmmQUwJtzPK",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01RunNkbNzZehNhczzq68mAH",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "IVG relève de la vie privée/corps, catégorie explicitement citée."
+          },
+          {
+            "rang": 2,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Abolition de la peine de mort est un principe pénal fondamental."
+          },
+          {
+            "rang": 3,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.75,
+            "rationale": "Droits ET devoirs de la citoyenneté, plutôt vu côté devoirs/citoyenneté globale.",
+            "alternative": "dd_textes_fondateurs",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 4,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Définition générale de l'infraction, principe abstrait."
+          },
+          {
+            "rang": 5,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Catégorisation des infractions par gravité, principe."
+          },
+          {
+            "rang": 6,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Droit à la santé/soins, droit social reconnu."
+          },
+          {
+            "rang": 7,
+            "notion": "AUCUNE",
+            "confiance": 0.7,
+            "rationale": "Saisine du Défenseur des droits relève plutôt de CIV_SOCIETE ou institutions, hors référentiel."
+          },
+          {
+            "rang": 8,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.7,
+            "rationale": "Charte des droits et devoirs du citoyen citée explicitement dans la frontière."
+          },
+          {
+            "rang": 9,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.95,
+            "rationale": "Droits individuels (liberté, sûreté, propriété) avec limites légales."
+          },
+          {
+            "rang": 10,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.97,
+            "rationale": "Date d'adoption de la DDHC, texte fondateur."
+          },
+          {
+            "rang": 11,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.7,
+            "rationale": "Droit fondamental à la liberté, contenu du droit.",
+            "alternative": "dd_textes_fondateurs",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 12,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.95,
+            "rationale": "Constitution et DDHC comme textes garantissant droits."
+          },
+          {
+            "rang": 13,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.95,
+            "rationale": "Contenu et limites de la liberté d'expression."
+          },
+          {
+            "rang": 14,
+            "notion": "dd_police_justice",
+            "confiance": 0.95,
+            "rationale": "Droit à la défense/procès équitable devant tribunal."
+          },
+          {
+            "rang": 15,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.97,
+            "rationale": "DDHC comme texte fondateur de la Révolution."
+          },
+          {
+            "rang": 16,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.9,
+            "rationale": "Liberté de conscience explicitement citée dans le référentiel."
+          },
+          {
+            "rang": 17,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "IVG relève de la vie privée/corps."
+          },
+          {
+            "rang": 18,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Abolition peine de mort, principe pénal."
+          },
+          {
+            "rang": 19,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.7,
+            "rationale": "Droits liés à la citoyenneté, proche des devoirs du citoyen.",
+            "alternative": "dd_textes_fondateurs",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 20,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Définition générale de l'infraction et ses catégories."
+          },
+          {
+            "rang": 21,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Traite des êtres humains comme interdit absolu/crime grave."
+          },
+          {
+            "rang": 22,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Catégorie d'infraction la plus grave, principe."
+          },
+          {
+            "rang": 23,
+            "notion": "dd_police_justice",
+            "confiance": 0.95,
+            "rationale": "Droit au silence en garde à vue, procédure pénale."
+          },
+          {
+            "rang": 24,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Obligation concrète du quotidien : port de la ceinture."
+          },
+          {
+            "rang": 25,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Conduite en état d'ivresse, interdit concret sanctionné."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10822,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1629,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

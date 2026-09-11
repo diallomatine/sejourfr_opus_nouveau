@@ -234,6 +234,6 @@ class CivicChangementsResolverTest {
                 THEME, "CIV_INSTITUTIONS", "Système institutionnel et politique",
                 CivicThemeState.A_RENFORCER,
                 maitrise, 3, List.of(), 0, 0, 0,
-                null, null, false, 0, false, 10, 240, false);
+                null, null, false, 0, CivicDotation.SERVABLE, 10, 240, false);
     }
 }

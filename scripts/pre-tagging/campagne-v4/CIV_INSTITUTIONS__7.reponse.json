@@ -1,0 +1,197 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVgBk8k5ipzqAC9M4",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01CyACpn3D3tybAx3WDhaNru",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_parlement",
+            "confiance": 0.97,
+            "rationale": "Effectif du Sénat, fait partie du référentiel bicamérisme."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Navette et dernier mot de l'Assemblée, travail parlementaire."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Ordonnance est un acte de l'exécutif."
+          },
+          {
+            "rang": 4,
+            "notion": "inst_constitution",
+            "confiance": 0.93,
+            "rationale": "QPC citée explicitement dans le référentiel Constitution."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Intercommunalités liées à la commune."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_collectivites",
+            "confiance": 0.96,
+            "rationale": "Élection du maire par le conseil municipal."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Rôle du député européen, institution UE."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_ue",
+            "confiance": 0.96,
+            "rationale": "Commission européenne propose les lois."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Indépendance des juges vis-à-vis du pouvoir politique."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_parlement",
+            "confiance": 0.93,
+            "rationale": "Contrôle du gouvernement par le Parlement."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Commissions parlementaires, travail parlementaire."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_parlement",
+            "confiance": 0.94,
+            "rationale": "Immunité parlementaire explicitement citée."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Immunité présidentielle et Haute Cour, limites du président."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_constitution",
+            "confiance": 0.9,
+            "rationale": "Rédaction du texte fondateur de la Ve République."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Durée et limite de mandat du président (quinquennat)."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_elections",
+            "confiance": 0.6,
+            "rationale": "Élection présidentielle au suffrage direct",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 17,
+            "notion": "inst_elections",
+            "confiance": 0.75,
+            "rationale": "Référendum sur le suffrage universel direct, relève des élections/référendum.",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 18,
+            "notion": "inst_gouvernement",
+            "confiance": 0.7,
+            "rationale": "Cohabitation entre président et Premier ministre, relation exécutif.",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.65
+          },
+          {
+            "rang": 19,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Article 16, pouvoir propre du président cité dans référentiel."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Usage historique de l'article 16 par le président."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_parlement",
+            "confiance": 0.75,
+            "rationale": "Révision de 2008 renforçant le Parlement.",
+            "alternative": "inst_constitution",
+            "alternative_confiance": 0.7
+          },
+          {
+            "rang": 22,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Limite de mandats du président, article 6."
+          },
+          {
+            "rang": 23,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Saisine du Conseil constitutionnel, contrôle a priori."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_constitution",
+            "confiance": 0.96,
+            "rationale": "Composition du Conseil constitutionnel."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_constitution",
+            "confiance": 0.96,
+            "rationale": "Durée du mandat des membres du Conseil constitutionnel."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9780,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1446,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

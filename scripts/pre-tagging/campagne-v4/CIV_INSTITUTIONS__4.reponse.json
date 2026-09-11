@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cewyipw4gmoUEMkgsjjwt",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01LqohXDW8yEvrvctNCXh54Z",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Le préfet représente l'État dans le département, relève de l'administration de l'État."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Le maire dirige la commune, une collectivité territoriale."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_constitution",
+            "confiance": 0.85,
+            "rationale": "Question sur la limitation des pouvoirs par la Constitution et la séparation des pouvoirs.",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 4,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Fonction du préfet, représentant de l'État sur le territoire."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_parlement",
+            "confiance": 0.97,
+            "rationale": "Mission du Parlement : voter les lois et contrôler le gouvernement."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_constitution",
+            "confiance": 0.85,
+            "rationale": "Qualification du régime politique de la France, relève de la Constitution/séparation des pouvoirs."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_ue",
+            "confiance": 0.97,
+            "rationale": "Nombre d'États membres de l'UE."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Appartenance à l'Union européenne."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Conditions de vote aux élections européennes, relève des institutions UE.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 10,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Fréquence des élections européennes, institution UE."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_ue",
+            "confiance": 0.85,
+            "rationale": "Pays fondateurs de la CEE, appartient aux traités de l'UE."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "L'euro comme monnaie européenne, vie du citoyen européen."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Élection des députés européens, institution UE."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Journée de l'Europe, symbole européen."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_gouvernement",
+            "confiance": 0.97,
+            "rationale": "Composition du gouvernement : Premier ministre et ministres."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Hôtel Matignon, siège du Premier ministre."
+          },
+          {
+            "rang": 17,
+            "notion": "inst_president",
+            "confiance": 0.97,
+            "rationale": "Élection du président au suffrage universel direct."
+          },
+          {
+            "rang": 18,
+            "notion": "inst_elections",
+            "confiance": 0.75,
+            "rationale": "Nombre de tours du scrutin présidentiel, vu du côté du scrutin.",
+            "alternative": "inst_president",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 19,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Limite des mandats présidentiels."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_president",
+            "confiance": 0.97,
+            "rationale": "Chef des armées, pouvoir propre du président."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Pouvoir de référendum du président."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Représentation de la France à l'étranger, fonction présidentielle."
+          },
+          {
+            "rang": 23,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Rôle du Premier ministre dans la direction du gouvernement."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Conseil des ministres, organe du gouvernement."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Rôle d'un ministre dans le gouvernement."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9580,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1474,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

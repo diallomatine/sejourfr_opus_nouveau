@@ -19,7 +19,16 @@ import styles from "./CivicNotionsPage.module.css";
  * L'ordre de cette liste est donc l'ordre de travail recommandé, pas
  * l'alphabet.
  */
+/**
+ * 🛑 `""` = TOUS LES THÈMES, et ce n'est pas un confort.
+ *
+ * Une campagne de pré-tagging ne suit pas le découpage par thème : le pilote
+ * v4 portait sur « Droits et devoirs » ET « Vivre en société ». Un écran qui
+ * s'ouvre sur un thème fixe montre alors une file vide et laisse croire qu'il
+ * n'y a rien à relire — c'est arrivé, à 46 questions en attente.
+ */
 const THEMES = [
+  { code: "", label: "Tous les thèmes" },
   { code: "CIV_HISTOIRE_GEO", label: "Histoire, géo et culture" },
   { code: "CIV_INSTITUTIONS", label: "Institutions" },
   { code: "CIV_DROITS_DEVOIRS", label: "Droits et devoirs" },
@@ -221,13 +230,28 @@ export function CivicNotionsPage() {
     },
   });
 
-  /** Les notions du thème courant, seules proposables : une question
-   *  d'histoire ne se tague pas sur une notion d'institutions. Une suggestion
-   *  qui pointe ailleurs est inapplicable — et c'est un signal éditorial. */
-  const notionsDuTheme = useMemo(
-    () => (referentiel.data ?? []).filter((n) => n.themeCode === theme && n.active),
-    [referentiel.data, theme],
-  );
+  /**
+   * Les notions proposables, par thème.
+   *
+   * 🛑 **Indexées sur le thème de la QUESTION, pas sur l'onglet.** Une question
+   * d'histoire ne se tague pas sur une notion d'institutions ; mais depuis que
+   * la file peut couvrir tous les thèmes à la fois, l'onglet ne dit plus de
+   * quel thème est la carte qu'on a sous les yeux. Les lier ferait proposer à
+   * une question de société les notions d'un autre thème.
+   *
+   * Les notions FUSIONNÉES sont exclues : on ne corrige pas vers une notion
+   * que le référentiel a retirée.
+   */
+  const notionsParTheme = useMemo(() => {
+    const par = new Map<string, CivicNotionDto[]>();
+    for (const n of referentiel.data ?? []) {
+      if (!n.active) continue;
+      const liste = par.get(n.themeCode);
+      if (liste) liste.push(n);
+      else par.set(n.themeCode, [n]);
+    }
+    return par;
+  }, [referentiel.data]);
 
   const questions = useMemo(
     () => (file.data?.questions ?? []).filter((q) => !traitees.has(q.questionId)),
@@ -251,13 +275,44 @@ export function CivicNotionsPage() {
   // pointe dans une liste qui n'a plus la même longueur.
   const changerMode = (seules: boolean) => {
     setSuggereesSeules(seules);
+    // Relire une campagne, c'est relire CE QUE LE MODÈLE A PROPOSÉ, où qu'il
+    // l'ait proposé. Rester sur un thème qui n'en porte aucune donne une file
+    // vide sans rien expliquer.
+    if (seules) setTheme("");
     setOffset(0);
     setActif(0);
     setTraitees(new Set());
   };
 
+  /**
+   * La question dont la liste de correction est OUVERTE, s'il y en a une.
+   *
+   * 🛑 **Corriger est un geste, pas l'état par défaut de l'écran.** Le
+   * `<select>` des notions vivait en permanence au premier plan de chaque
+   * carte, plus large que les boutons : le relecteur lisait « choisis une
+   * notion » là où le pré-tagging lui promettait « confirme ou corrige ». Il
+   * re-taguait à la main ce que le modèle avait déjà proposé. La liste
+   * n'apparaît donc plus que sur demande — et une seule à la fois, parce que
+   * deux listes ouvertes redonnent un écran de saisie.
+   */
+  const [correction, setCorrection] = useState<string | null>(null);
+
   const mutate = taguer.mutate;
-  const executer = useCallback((geste: Geste) => mutate(geste), [mutate]);
+  const executer = useCallback(
+      (geste: Geste) => {
+        // Le geste tranché referme la liste : la laisser ouverte sur une
+        // question déjà relue invite à trancher deux fois.
+        setCorrection(null);
+        mutate(geste);
+      },
+      [mutate]);
+
+  // Ouvrir la liste au clavier ne sert à rien si le focus reste ailleurs : le
+  // relecteur devrait attraper la souris, ce que le raccourci evitait.
+  useEffect(() => {
+    if (!correction) return;
+    cartes.current.get(correction)?.querySelector<HTMLSelectElement>("select")?.focus();
+  }, [correction]);
 
   /**
    * Raccourcis. Ils ne se déclenchent jamais quand le focus est dans un champ
@@ -315,8 +370,7 @@ export function CivicNotionsPage() {
         });
         event.preventDefault();
       } else if (touche === "c") {
-        const carte = cartes.current.get(questionActive.questionId);
-        carte?.querySelector<HTMLSelectElement>("select")?.focus();
+        setCorrection(questionActive.questionId);
         event.preventDefault();
       } else if (touche === "r") {
         executer({
@@ -489,9 +543,12 @@ export function CivicNotionsPage() {
                 question={question}
                 rang={offset + index + 1}
                 actif={index === indexActif}
-                notions={notionsDuTheme}
+                notions={notionsParTheme.get(question.themeCode) ?? []}
                 onFocus={() => setActif(index)}
                 onGeste={executer}
+                correctionOuverte={correction === question.questionId}
+                onCorriger={() => setCorrection(question.questionId)}
+                onFermerCorrection={() => setCorrection(null)}
                 enregistrer={(element) => {
                   if (element) cartes.current.set(question.questionId, element);
                   else cartes.current.delete(question.questionId);
@@ -520,7 +577,7 @@ function AideClavier() {
     ["↑ / K", "question précédente"],
     ["V · Entrée", "valider la suggestion n°1 — ou confirmer le trou si elle conclut « aucune notion »"],
     ["A", "retenir l'alternative (suggestion n°2), sauf si elle conclut « aucune notion »"],
-    ["C", "ouvrir la liste des notions du thème"],
+    ["C", "corriger — ouvrir la liste des notions du thème"],
     ["R", "rejeter — aucune notion ne convient"],
     ["P", "passer — je ne tranche pas"],
     ["?", "afficher ou masquer cette aide"],
@@ -547,6 +604,9 @@ interface CarteProps {
   notions: CivicNotionDto[];
   onFocus: () => void;
   onGeste: (geste: Geste) => void;
+  correctionOuverte: boolean;
+  onCorriger: () => void;
+  onFermerCorrection: () => void;
   enregistrer: (element: HTMLElement | null) => void;
 }
 
@@ -564,6 +624,9 @@ function CarteRelecture({
   notions,
   onFocus,
   onGeste,
+  correctionOuverte,
+  onCorriger,
+  onFermerCorrection,
   enregistrer,
 }: CarteProps) {
   const meilleure = question.suggestions[0];
@@ -651,7 +714,7 @@ function CarteRelecture({
                       })
                     }
                   >
-                    Retenir celle-ci <kbd className={styles.touche}>A</kbd>
+                    Retenir cette alternative <kbd className={styles.touche}>A</kbd>
                   </button>
                 )}
               </div>
@@ -675,57 +738,47 @@ function CarteRelecture({
       </div>
 
       <div className={styles.actions}>
-        <label className={styles.champ}>
-          <span className={styles.champTitre}>Notions du thème</span>
-          <select
-            className={styles.select}
-            value=""
-            onChange={(event) => {
-              if (!event.target.value) return;
-              onGeste({
-                questionId: question.questionId,
-                notionCode: event.target.value,
-                verdict: null,
-              });
-            }}
-          >
-            {/* Corriger reste ouvert sur une carte « aucune notion » : le
-                relecteur dit alors que le modèle s'est trompé, et le serveur
-                écrit `CORRECTED`. */}
-            <option value="">
-              {confirmeUnTrou
-                ? "— le modèle se trompe : choisir une notion —"
-                : "— corriger avec une autre notion —"}
-            </option>
-            {notions.map((n) => (
-              <option key={n.code} value={n.code}>
-                {n.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
+        {/* 🛑 L'ORDRE DIT LE GESTE ATTENDU. Le bouton principal vient en
+            premier et NOMME ce qu'il valide ; la liste des notions n'apparaît
+            que derrière « Corriger ». Le pré-tagging ne demande pas de taguer,
+            il demande de confirmer ou de corriger — un écran qui met le
+            `<select>` au premier plan demande l'inverse. */}
         <div className={styles.boutons}>
-          {/* ⚠️ Le bouton reste ACTIF sur une carte « aucune notion » : c'est
-              là que se révèlent les trous du référentiel. Mais il ne dit plus
-              « Valider » — ce serait le même clic pour un geste qui n'a rien à
-              voir. */}
           <button
             type="button"
             className={`${styles.valider} ${confirmeUnTrou ? styles.validerTrou : ""}`}
             disabled={!gesteValider}
             title={
               !meilleure
-                ? "Aucune suggestion à valider"
+                ? "Aucune suggestion à valider : choisir la notion à la main"
                 : confirmeUnTrou
                   ? "Confirmer que le modèle a raison : aucune notion du référentiel ne couvre cette question. C'est un trou du référentiel à combler, pas un tag."
                   : `Retenir « ${libelleSuggestion(meilleure)} »`
             }
             onClick={() => gesteValider && onGeste(gesteValider)}
           >
-            {confirmeUnTrou ? "Confirmer le trou" : "Valider"}{" "}
+            {confirmeUnTrou
+              ? "Confirmer : aucune notion correspondante"
+              : "✓ Valider cette suggestion"}{" "}
             <kbd className={styles.touche}>V</kbd>
           </button>
+          {/* Sans suggestion il n'y a rien à corriger : la liste est déjà
+              ouverte plus bas, et un bouton qui la « rouvre » mentirait. */}
+          {meilleure && !correctionOuverte && (
+            <button
+              type="button"
+              className={styles.corriger}
+              title={
+                confirmeUnTrou
+                  ? "Le modèle se trompe : une notion du thème convient"
+                  : "Une autre notion convient mieux"
+              }
+              onClick={onCorriger}
+            >
+              {confirmeUnTrou ? "Attribuer une notion" : "Corriger"}{" "}
+              <kbd className={styles.touche}>C</kbd>
+            </button>
+          )}
           <button
             type="button"
             className={styles.rejeter}
@@ -755,6 +808,48 @@ function CarteRelecture({
             Passer <kbd className={styles.touche}>P</kbd>
           </button>
         </div>
+
+        {(correctionOuverte || !meilleure) && (
+          <div className={styles.correction}>
+            <label className={styles.champ}>
+              <span className={styles.champTitre}>
+                {!meilleure
+                  ? "Notions du thème"
+                  : confirmeUnTrou
+                    ? "Le modèle se trompe : quelle notion convient ?"
+                    : "Corriger : quelle notion convient mieux ?"}
+              </span>
+              <select
+                className={styles.select}
+                value=""
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  onGeste({
+                    questionId: question.questionId,
+                    notionCode: event.target.value,
+                    verdict: null,
+                  });
+                }}
+              >
+                <option value="">— choisir une notion —</option>
+                {notions.map((n) => (
+                  <option key={n.code} value={n.code}>
+                    {n.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {meilleure && (
+              <button
+                type="button"
+                className={styles.annulerCorrection}
+                onClick={onFermerCorrection}
+              >
+                Annuler
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );

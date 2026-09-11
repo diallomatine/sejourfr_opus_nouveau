@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVY1HoqYHnMm1aWgk",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01BqhTjHSBJckSu112ZxRZUk",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Haute Cour juge le président, relève de ses limites institutionnelles."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Limite de la révision constitutionnelle (article 89)."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "CSM gère carrière des magistrats."
+          },
+          {
+            "rang": 4,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Distinction siège/parquet."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Ordre administratif vs judiciaire."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Rôle du procureur."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_constitution",
+            "confiance": 0.85,
+            "rationale": "Loi organique, rang des normes."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_gouvernement",
+            "confiance": 0.9,
+            "rationale": "Décret = acte de l'exécutif."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_gouvernement",
+            "confiance": 0.85,
+            "rationale": "Partage loi/règlement relève du gouvernement selon frontière.",
+            "alternative": "inst_constitution",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 10,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Conseil de l'UE."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Conseil européen."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Règlement vs directive UE."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Procédure de révision constitutionnelle."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Article 89, révision constitutionnelle."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_president",
+            "confiance": 0.75,
+            "rationale": "Promulgation par le président, relevé de la frontière parlement.",
+            "alternative": "inst_parlement",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 16,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Promulgation, pouvoirs du président."
+          },
+          {
+            "rang": 17,
+            "notion": "inst_constitution",
+            "confiance": 0.85,
+            "rationale": "Saisine du Conseil constitutionnel."
+          },
+          {
+            "rang": 18,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Référendum d'initiative partagée, encadrement électoral."
+          },
+          {
+            "rang": 19,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Référendums sous la Ve République."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_constitution",
+            "confiance": 0.9,
+            "rationale": "QPC, contrôle a posteriori du Conseil constitutionnel."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_collectivites",
+            "confiance": 0.9,
+            "rationale": "Autonomie financière des collectivités."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_gouvernement",
+            "confiance": 0.85,
+            "rationale": "Préparation et contrôle du budget par le gouvernement/Cour des comptes.",
+            "alternative": "inst_parlement",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 23,
+            "notion": "inst_gouvernement",
+            "confiance": 0.85,
+            "rationale": "Cour des comptes, contrôle des finances publiques."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Parité liée à l'encadrement électoral."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Financement des campagnes électorales."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10183,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1348,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

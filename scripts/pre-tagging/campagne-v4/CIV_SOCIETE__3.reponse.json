@@ -1,0 +1,191 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVtLP3sQ7oJLJPuhj",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Nd4fKauUcjHdaggKqq8pmv",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Durée du collège, cycle scolaire."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Diplôme de fin de collège, le brevet."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Âge de début de l'instruction obligatoire."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.9,
+            "rationale": "Cantine scolaire fait partie du système scolaire."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Mariage civil, union légale à la mairie."
+          },
+          {
+            "rang": 6,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "PACS, contrat de vie commune."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_sante_soins",
+            "confiance": 0.95,
+            "rationale": "Rôle du pharmacien dans le parcours de soins."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_sante_soins",
+            "confiance": 0.95,
+            "rationale": "Médecin traitant, parcours de soins ordinaire."
+          },
+          {
+            "rang": 9,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Interdiction de vente de tabac aux mineurs, relève plutôt des interdits du quotidien (dd_interdits_quotidien), hors référentiel."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.85,
+            "rationale": "Numéro 119, service d'urgence pour enfance en danger, même si signaler relève d'un devoir, le numéro est un service d'urgence."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.9,
+            "rationale": "École maternelle, cycle scolaire, obligation depuis 2019."
+          },
+          {
+            "rang": 12,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.85,
+            "rationale": "Crèche pour enfants 0-3 ans, mode de garde, mentionné dans famille_etat_civil.",
+            "alternative": "vs_ecole_scolarite",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 13,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.93,
+            "rationale": "Mariage civil célébré à la mairie."
+          },
+          {
+            "rang": 14,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.75,
+            "rationale": "Démarches administratives générales, guichets de l'administration."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.93,
+            "rationale": "Acte de naissance, document d'état civil."
+          },
+          {
+            "rang": 16,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.9,
+            "rationale": "Carte d'identité/passeport comme documents personnels."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.85,
+            "rationale": "Majorité et émancipation, notions familiales/état civil."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.9,
+            "rationale": "Document d'identité pour voyager, entre dans papiers_identite."
+          },
+          {
+            "rang": 19,
+            "notion": "AUCUNE",
+            "confiance": 0.5,
+            "rationale": "Âge légal pour entrer en boîte de nuit, ne relève d'aucune notion du référentiel scolaire/social."
+          },
+          {
+            "rang": 20,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.9,
+            "rationale": "Transports en commun urbains, notion explicitement citée."
+          },
+          {
+            "rang": 21,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Bibliothèque/médiathèque, service culturel hors référentiel."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.95,
+            "rationale": "Permis moto A1, âge minimum, notion explicite."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.9,
+            "rationale": "Équipement obligatoire (casque) pour se déplacer."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.9,
+            "rationale": "Équipement obligatoire du véhicule."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.9,
+            "rationale": "Numéro 39 39, service-public.fr, guichet administratif."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10586,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1578,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

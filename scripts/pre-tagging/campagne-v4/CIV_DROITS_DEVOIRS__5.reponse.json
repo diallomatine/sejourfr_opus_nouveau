@@ -1,0 +1,203 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyitgHszvobkCSSPoB3",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01NL4mmZWQgm3rMCZ4ZyA2Pu",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.95,
+            "rationale": "CPI, juridiction internationale."
+          },
+          {
+            "rang": 2,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Imprescriptibilité des crimes contre l'humanité, principe pénal."
+          },
+          {
+            "rang": 3,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.85,
+            "rationale": "Interdiction absolue de la torture, interdit intangible.",
+            "alternative": "dd_protection_europeenne",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 4,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.75,
+            "rationale": "Droit international humanitaire, cadre international.",
+            "alternative": "dd_infractions_peines",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 5,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.95,
+            "rationale": "Charte des droits fondamentaux de l'UE."
+          },
+          {
+            "rang": 6,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.6,
+            "rationale": "Mariage homosexuel dans l'UE, portée européenne du droit.",
+            "alternative": "dd_vie_privee_famille",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 7,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.85,
+            "rationale": "Noyau dur des droits intangibles, notion de principe pénal.",
+            "alternative": "dd_protection_europeenne",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 8,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Principe de proportionnalité de la peine."
+          },
+          {
+            "rang": 9,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.95,
+            "rationale": "CJUE, institution européenne."
+          },
+          {
+            "rang": 10,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.9,
+            "rationale": "Hiérarchie des normes, bloc de constitutionnalité."
+          },
+          {
+            "rang": 11,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Non bis in idem, principe pénal."
+          },
+          {
+            "rang": 12,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.7,
+            "rationale": "Article 13 CEDH, recours effectif.",
+            "alternative": "dd_police_justice",
+            "alternative_confiance": 0.55
+          },
+          {
+            "rang": 13,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.85,
+            "rationale": "État d'urgence, restriction des libertés."
+          },
+          {
+            "rang": 14,
+            "notion": "dd_police_justice",
+            "confiance": 0.95,
+            "rationale": "Durée de garde à vue, procédure policière."
+          },
+          {
+            "rang": 15,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "Secret médical, sphère intime."
+          },
+          {
+            "rang": 16,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "IVG, corps et choix personnel."
+          },
+          {
+            "rang": 17,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.85,
+            "rationale": "Liberté de la presse et ses limites."
+          },
+          {
+            "rang": 18,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.85,
+            "rationale": "État de droit, principe fondateur."
+          },
+          {
+            "rang": 19,
+            "notion": "dd_police_justice",
+            "confiance": 0.9,
+            "rationale": "Procès équitable, droit procédural opposable."
+          },
+          {
+            "rang": 20,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.95,
+            "rationale": "Saisine de la CEDH après épuisement des recours internes."
+          },
+          {
+            "rang": 21,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.95,
+            "rationale": "Devoirs constitutionnels du citoyen."
+          },
+          {
+            "rang": 22,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.9,
+            "rationale": "Objection de conscience, devoir de défense."
+          },
+          {
+            "rang": 23,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.6,
+            "rationale": "Égalité réelle par politiques sociales.",
+            "alternative": "dd_textes_fondateurs",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 24,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.95,
+            "rationale": "Décision de 1971 sur le bloc de constitutionnalité."
+          },
+          {
+            "rang": 25,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.75,
+            "rationale": "Protection des apatrides, droit d'asile associé.",
+            "alternative": "dd_droits_sociaux",
+            "alternative_confiance": 0.4
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 11381,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1600,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

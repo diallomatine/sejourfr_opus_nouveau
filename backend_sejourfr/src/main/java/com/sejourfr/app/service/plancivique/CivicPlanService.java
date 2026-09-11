@@ -97,8 +97,45 @@ public class CivicPlanService {
     private final QuestionManager questionManager;
     private final CivicPlanProperties props;
 
+    /**
+     * <b>Le calcul complet</b> : TOUTES les cibles, classees, avant toute
+     * troncature d'affichage.
+     *
+     * <p>🛑 <b>Il existe parce que deux lecteurs en ont besoin, et qu'ils n'ont
+     * pas le meme droit de couper</b> : {@link #plan} tronque pour l'ecran,
+     * {@link #compteurs} ne tronque <b>jamais</b>. Faire lire les compteurs dans
+     * le DTO deja tronque, c'etait servir un plafond d'affichage comme budget de
+     * mesure — le defaut qui a prive trois domaines sur quatre de toute action
+     * cote TCF (2026-08-25).
+     *
+     * @param cibles toutes les cibles du plan, dans l'ordre du plan
+     */
+    private record Calcul(
+            boolean disponible,
+            Difficulty mention,
+            CivicDiagnosticResultDto resultat,
+            List<CivicPlanDto.Cible> cibles,
+            Map<UUID, List<CivicReponse>> reponsesParCible,
+            Map<UUID, long[]> taggage,
+            Instant maintenant) {
+
+        static Calcul indisponible(Difficulty mention, Instant maintenant) {
+            return new Calcul(false, mention, null, List.of(), Map.of(), Map.of(), maintenant);
+        }
+    }
+
     @Transactional(readOnly = true)
     public CivicPlanDto plan(UUID userId) {
+        Calcul calcul = calculer(userId);
+        if (!calcul.disponible()) {
+            return new CivicPlanDto(
+                    false, calcul.mention(), null, null, List.of(), 0, List.of(), List.of(),
+                    grain(Map.of()), null, calcul.maintenant());
+        }
+        return mettreEnForme(calcul);
+    }
+
+    private Calcul calculer(UUID userId) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         Difficulty mention = TargetProcedure.mentionCivique(user.getTargetProcedure());
@@ -109,9 +146,7 @@ public class CivicPlanService {
         // porte qui debloque, il n'affiche pas un plan vide.
         Optional<CivicDiagnosticResultDto> diagnostic = dernierDiagnostic(userId);
         if (diagnostic.isEmpty()) {
-            return new CivicPlanDto(
-                    false, mention, null, null, List.of(), 0, List.of(), List.of(),
-                    grain(Map.of()), null, maintenant);
+            return Calcul.indisponible(mention, maintenant);
         }
         CivicDiagnosticResultDto resultat = diagnostic.get();
 
@@ -160,8 +195,24 @@ public class CivicPlanService {
         // rate passe devant ce qui n'a jamais ete touche.
         cibles.sort(ORDRE_DU_PLAN);
 
+        return new Calcul(true, mention, resultat, List.copyOf(cibles),
+                reponsesParCible, taggage, maintenant);
+    }
+
+    /**
+     * Du calcul complet a l'ecran : c'est <b>ici</b>, et nulle part ailleurs,
+     * que les plafonds d'affichage s'appliquent.
+     */
+    private CivicPlanDto mettreEnForme(Calcul calcul) {
+        List<CivicPlanDto.Cible> cibles = calcul.cibles();
+        CivicDiagnosticResultDto resultat = calcul.resultat();
+        Instant maintenant = calcul.maintenant();
+
+        // 🛑 Seul SERVABLE est propose. `NON_APPLICABLE` n'est pas un cran de
+        // plus dans le manque : la notion n'est pas au programme de cette
+        // demarche, elle n'a rien a faire dans un plan.
         List<CivicPlanDto.Cible> proposables = cibles.stream()
-                .filter(c -> !c.contenuInsuffisant())
+                .filter(c -> c.dotation().estServable())
                 .filter(c -> c.maitrise() != CivicMaitrise.MAITRISEE)
                 .toList();
         // 🛑 Plafond d'AFFICHAGE, jamais un budget de calcul : le moteur a
@@ -172,7 +223,7 @@ public class CivicPlanService {
         List<CivicPlanDto.Cible> aRevoir = cibles.stream()
                 .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
                 .filter(CivicPlanDto.Cible::aRevoir)
-                .filter(c -> !c.contenuInsuffisant())
+                .filter(c -> c.dotation().estServable())
                 .sorted(Comparator.comparing(
                         CivicPlanDto.Cible::prochaineRevue,
                         Comparator.nullsLast(Comparator.naturalOrder())))
@@ -189,13 +240,13 @@ public class CivicPlanService {
         // 🛑 `null` est le cas NORMAL : servi seulement si quelque chose a
         // vraiment bouge. Le temps qui passe n'est pas un changement.
         CivicPlanDto.Changements changements = changementsResolver
-                .resoudre(cibles, reponsesParCible, prochaine,
+                .resoudre(cibles, calcul.reponsesParCible(), prochaine,
                         CivicPrioriteScorer.FENETRE_REPETEE, maintenant)
                 .orElse(null);
 
         return new CivicPlanDto(
                 true,
-                mention,
+                calcul.mention(),
                 new CivicPlanDto.Resultat(
                         resultat.bonnes(), resultat.posees(),
                         resultat.seuilReussite(), resultat.formatQuestions(),
@@ -205,7 +256,7 @@ public class CivicPlanService {
                 Math.max(0, proposables.size() - priorites.size()),
                 aRevoir,
                 solides,
-                grain(taggage),
+                grain(calcul.taggage()),
                 changements,
                 maintenant);
     }
@@ -222,6 +273,25 @@ public class CivicPlanService {
      * qui a prive trois domaines sur quatre de toute action cote TCF
      * (2026-08-25).
      *
+     * <p>🛑 <b>« Travaillee » veut dire TRAVAILLEE</b> : au moins une reponse
+     * sur cette cible. Le compteur a d'abord ete derive du DTO
+     * ({@code solides + aRevoir} pour les tenues, {@code priorites +
+     * autresPriorites} pour le reste), ce qui comptait comme travaillee toute
+     * cible <b>proposable</b> — y compris celles que le candidat n'a jamais
+     * vues. Au grain THEME le defaut etait presque invisible (un diagnostic de
+     * 40 questions touche les cinq themes) ; <b>au grain NOTION il devient
+     * faux de plein fouet</b> : le meme diagnostic laisse la plupart des
+     * 46 notions sans une seule reponse, et l'ecran Progres annoncait
+     * « 2 maitrisees sur 30 travaillees » a quelqu'un qui en avait vu huit.
+     * Le compteur se lit donc sur les <b>faits d'historique</b>, jamais sur
+     * l'eligibilite.
+     *
+     * <p>🛑 Et il se lit sur <b>toutes</b> les cibles, jamais sur les listes du
+     * DTO : {@code priorites} est plafonnee a trois et {@code aRevoir} aussi —
+     * compter dessus faisait servir un plafond d'affichage comme budget de
+     * mesure, exactement le defaut qui a prive trois domaines sur quatre de
+     * toute action cote TCF (2026-08-25).
+     *
      * <p>Tout a zero quand aucun diagnostic n'est clos : rien n'a ete mesure.
      *
      * @param travaillees cibles portant au moins une reponse
@@ -234,17 +304,21 @@ public class CivicPlanService {
 
     @Transactional(readOnly = true)
     public Compteurs compteurs(UUID userId) {
-        CivicPlanDto plan = plan(userId);
-        if (!plan.disponible()) return new Compteurs(0, 0, false);
+        Calcul calcul = calculer(userId);
+        if (!calcul.disponible()) return new Compteurs(0, 0, false);
 
-        // Les cibles maitrisees sont servies entieres (`solides` + `aRevoir`) ;
-        // les autres se comptent par `priorites` + `autresPriorites`, qui est
-        // precisement le total non tronque.
-        int maitrisees = plan.solides().size() + plan.aRevoir().size();
-        int proposables = plan.priorites().size() + plan.autresPriorites();
+        int travaillees = (int) calcul.cibles().stream()
+                .filter(c -> c.reponses() > 0)
+                .count();
+        // `maitrisees` est un sous-ensemble par construction : MAITRISEE exige
+        // deux reponses (CivicMaitrise.of), donc les deux compteurs ne peuvent
+        // plus se croiser.
+        int maitrisees = (int) calcul.cibles().stream()
+                .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
+                .count();
         return new Compteurs(
-                maitrisees + proposables, maitrisees,
-                plan.grain().courant() == CivicPlanGrain.NOTION);
+                travaillees, maitrisees,
+                grain(calcul.taggage()).courant() == CivicPlanGrain.NOTION);
     }
 
     // ------------------------------------------------------------------------
@@ -285,10 +359,9 @@ public class CivicPlanService {
         List<UUID> ids = planManager.tirageSerieCiblee(
                 userId, mention, notionId, themeId, props.getQuestionsParSerie());
         if (ids.isEmpty()) {
-            // 🛑 Le plan ne propose jamais une cible sous-dotee (malus de
-            // contenu insuffisant) : arriver ici veut dire que le catalogue a
-            // bouge entre l'affichage et le clic. On le DIT, on ne rend pas une
-            // serie vide.
+            // 🛑 Le plan ne propose jamais une cible qui ne soit pas SERVABLE :
+            // arriver ici veut dire que le catalogue a bouge entre l'affichage
+            // et le clic. On le DIT, on ne rend pas une serie vide.
             throw new BusinessException(
                     "Aucune question disponible sur ce point pour votre démarche.");
         }
@@ -341,7 +414,7 @@ public class CivicPlanService {
             Theme theme,
             CivicThemeState etatDuTheme,
             List<CivicNotion> notions,
-            Map<UUID, Long> dotation,
+            Map<UUID, Long> questionsParNotion,
             Map<UUID, List<CivicReponse>> parNotion,
             Instant maintenant,
             boolean abonne) {
@@ -354,18 +427,21 @@ public class CivicPlanService {
             CivicEtatCible etat = leitnerResolver.resoudre(
                     parNotion.getOrDefault(notion.getId(), List.of()),
                     CivicPrioriteScorer.FENETRE_REPETEE, maintenant);
-            boolean insuffisant =
-                    dotation.getOrDefault(notion.getId(), 0L) < props.getQuestionsMinParNotion();
+            // 🛑 UNE SEULE derivation, chez l'enum : le plan ne recompare pas
+            // un compte a un seuil.
+            CivicDotation dotation = CivicDotation.depuis(
+                    questionsParNotion.getOrDefault(notion.getId(), 0L),
+                    props.getQuestionsMinParNotion());
 
             // 🛑 Au grain notion, le diagnostic n'a rien pointe : il mesure des
             // THEMES. Le signal du diagnostic passe donc par le poids du theme,
             // et pas une seconde fois par un « pointee par le diagnostic » qui
             // le compterait deux fois pour toutes les notions d'un theme faible.
-            int score = scorer.score(etat, etatDuTheme, false, insuffisant, maintenant);
+            int score = scorer.score(etat, etatDuTheme, false, dotation, maintenant);
 
             out.add(cible(notion.getId(), notion.getCode(), notion.getLabel(),
                     CivicPlanGrain.NOTION, theme, etatDuTheme, etat, score,
-                    insuffisant, abonne, maintenant));
+                    dotation, abonne, maintenant));
         }
         return out;
     }
@@ -374,7 +450,7 @@ public class CivicPlanService {
             Theme theme,
             CivicThemeState etatDuTheme,
             boolean pointeParLeDiagnostic,
-            Map<UUID, Long> dotation,
+            Map<UUID, Long> questionsParTheme,
             List<CivicReponse> reponses,
             Instant maintenant,
             boolean abonne) {
@@ -391,20 +467,24 @@ public class CivicPlanService {
         // peut qu'ABAISSER.
         etat = rabattre(etat);
 
-        boolean insuffisant =
-                dotation.getOrDefault(theme.getId(), 0L) < props.getQuestionsParSerie();
+        // 🛑 Le seuil du grain THEME reste `questionsParSerie`, pas
+        // `questionsMinParNotion` : ce qu'on proposerait la, c'est une serie
+        // entiere, et une cible qui ne peut pas la remplir n'est pas servable.
+        CivicDotation dotation = CivicDotation.depuis(
+                questionsParTheme.getOrDefault(theme.getId(), 0L),
+                props.getQuestionsParSerie());
         int score = scorer.score(
-                etat, etatDuTheme, pointeParLeDiagnostic, insuffisant, maintenant);
+                etat, etatDuTheme, pointeParLeDiagnostic, dotation, maintenant);
 
         return cible(theme.getId(), theme.getCode(), theme.getName(),
                 CivicPlanGrain.THEME, theme, etatDuTheme, etat, score,
-                insuffisant, abonne, maintenant);
+                dotation, abonne, maintenant);
     }
 
     private CivicPlanDto.Cible cible(
             UUID id, String code, String label, CivicPlanGrain grain,
             Theme theme, CivicThemeState etatDuTheme, CivicEtatCible etat,
-            int score, boolean insuffisant, boolean abonne, Instant maintenant) {
+            int score, CivicDotation dotation, boolean abonne, Instant maintenant) {
 
         return new CivicPlanDto.Cible(
                 id, code, label, grain,
@@ -416,7 +496,7 @@ public class CivicPlanService {
                 etat.reponses(), etat.correctes(),
                 etat.erreursRecentes(), etat.derniereErreur(), etat.prochaineRevue(),
                 etat.aRevoir(maintenant),
-                score, insuffisant,
+                score, dotation,
                 props.getQuestionsParSerie(),
                 props.getQuestionsParSerie() * props.getSecondesParQuestion(),
                 // 🛑 Le verrou porte sur l'ACTION, jamais sur le constat : les

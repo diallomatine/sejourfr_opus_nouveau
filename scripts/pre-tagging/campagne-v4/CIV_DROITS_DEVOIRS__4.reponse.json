@@ -1,0 +1,199 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVN5nYQkgVRvMciWa",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Sj3YvpdaTVmP2gtU3G55He",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_police_justice",
+            "confiance": 0.95,
+            "rationale": "Aide juridictionnelle, accès à la justice pour les justiciables modestes."
+          },
+          {
+            "rang": 2,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Crime contre l'humanité, imprescriptibilité, esclavage - notion de principe."
+          },
+          {
+            "rang": 3,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.85,
+            "rationale": "Liberté d'expression et ses limites (haine en ligne).",
+            "alternative": "dd_interdits_quotidien",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 4,
+            "notion": "dd_police_justice",
+            "confiance": 0.55,
+            "rationale": "Procédure pénale et conséquence pour étranger condamné.",
+            "alternative": "dd_infractions_peines",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 5,
+            "notion": "dd_police_justice",
+            "confiance": 0.9,
+            "rationale": "Indemnisation des victimes, réparation via CIVI et associations."
+          },
+          {
+            "rang": 6,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.97,
+            "rationale": "Liste des devoirs du citoyen : loi, impôts, solidarité."
+          },
+          {
+            "rang": 7,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.95,
+            "rationale": "JDC est un devoir civique explicitement cité dans la notion."
+          },
+          {
+            "rang": 8,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.9,
+            "rationale": "Droit et devoir environnemental toujours liés dans cette notion."
+          },
+          {
+            "rang": 9,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.85,
+            "rationale": "Principe de précaution lié au devoir environnemental."
+          },
+          {
+            "rang": 10,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.85,
+            "rationale": "Harcèlement moral au travail, protection sociale du salarié."
+          },
+          {
+            "rang": 11,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.85,
+            "rationale": "Harcèlement sexuel listé explicitement comme interdit quotidien."
+          },
+          {
+            "rang": 12,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "Fin de vie citée explicitement dans le périmètre de la notion."
+          },
+          {
+            "rang": 13,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.85,
+            "rationale": "Interdiction absolue des traitements dégradants, principe noyau dur.",
+            "alternative": "dd_protection_europeenne",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 14,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "Droit à l'oubli et RGPD explicitement cités dans la notion."
+          },
+          {
+            "rang": 15,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "RGPD explicitement cité dans la notion."
+          },
+          {
+            "rang": 16,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.85,
+            "rationale": "Viol listé explicitement comme interdit quotidien avec sa sanction."
+          },
+          {
+            "rang": 17,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.8,
+            "rationale": "Propos et actes racistes listés comme interdits quotidiens.",
+            "alternative": "dd_libertes_limites",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 18,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Non-rétroactivité de la loi pénale plus sévère, principe explicitement cité."
+          },
+          {
+            "rang": 19,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "Mariage pour tous explicitement cité dans la notion."
+          },
+          {
+            "rang": 20,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "PACS explicitement cité dans la notion."
+          },
+          {
+            "rang": 21,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.95,
+            "rationale": "Préambule 1946, bloc de constitutionnalité, décision 1971 - explicitement cités."
+          },
+          {
+            "rang": 22,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.6,
+            "rationale": "Principe constitutionnel d'égalité, proche de l'égalité comme principe de texte.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 23,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.97,
+            "rationale": "CEDH explicitement citée comme cœur de la notion."
+          },
+          {
+            "rang": 24,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.95,
+            "rationale": "Siège de la CourEDH, institution européenne de protection des droits."
+          },
+          {
+            "rang": 25,
+            "notion": "dd_protection_europeenne",
+            "confiance": 0.97,
+            "rationale": "Saisine de la CEDH après épuisement des recours internes, cas typique explicitement cité."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 11264,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1731,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

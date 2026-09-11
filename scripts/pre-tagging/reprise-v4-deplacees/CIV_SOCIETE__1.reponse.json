@@ -1,0 +1,51 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cex3G2ubzo17c8SpsNs3T",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01DWGGDcLBaHbTEVbZh3eHdv",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "AUCUNE",
+            "confiance": 0.85,
+            "rationale": "Question sur le rôle des associations dans la vie sociale, relève de la fraternité/société civile, hors référentiel de ce thème (thème CIV_SOCIETE ou dd_droits_sociaux)."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Question directe sur l'âge d'obligation d'instruction, cœur de la notion école et scolarité."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 6443,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 214,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

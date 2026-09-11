@@ -68,6 +68,67 @@ MEILLEURE="
      ORDER BY s.question_id, s.confidence DESC, n.code NULLS LAST
   )"
 
+# ----------------------------------------------------------------------------
+# §0 — CE QU'ON PEUT LIRE AVANT QUE L'HUMAIN AIT RELU.
+# Les sections 1 a 6 mesurent la QUALITE du modele, et elles ont toutes besoin
+# d'un `review_verdict` : sans relecture, elles ne disent rien. Cette
+# section-ci mesure ce que le modele a PRODUIT, ce qui est disponible des la
+# fin d'un lot et suffit a decider si un pilote merite d'etre relu.
+# ----------------------------------------------------------------------------
+echo "=== 0. Ce que le modèle a proposé (lisible sans relecture) ==="
+echo
+echo "    Répartition par notion proposée :"
+"${PSQL[@]}" -c "${MEILLEURE}
+SELECT coalesce(notion_proposee, '(aucune notion pertinente)') AS notion,
+       count(*) AS n,
+       round(avg(confidence), 2) AS confiance_moyenne,
+       round(min(confidence), 2) AS mini
+FROM meilleure GROUP BY 1 ORDER BY n DESC, 1;"
+
+echo
+echo "    Étalement de la confiance — une confiance plate rend le tri humain inutile :"
+"${PSQL[@]}" -c "${MEILLEURE}
+SELECT CASE WHEN confidence >= 0.90 THEN '>= 0,90'
+            WHEN confidence >= 0.70 THEN '0,70-0,89'
+            ELSE '< 0,70' END AS tranche,
+       count(*) AS n,
+       round(100.0*count(*)/NULLIF(sum(count(*)) OVER (),0),1) || ' %' AS part
+FROM meilleure GROUP BY 1 ORDER BY 1 DESC;"
+
+echo
+echo "    Où le modèle HÉSITE : proposition -> alternative, et l'écart de confiance."
+echo "    Ce sont les frontières du référentiel à relire en premier."
+"${PSQL[@]}" -c "
+WITH s_filtre AS (
+  SELECT s.* FROM question_notion_suggestions s
+   WHERE s.prompt_version = '${PROMPT_VERSION}' ${FILTRE_LOT}
+),
+paires AS (
+  SELECT s.question_id,
+         (array_agg(coalesce(n.code,'(aucune)') ORDER BY s.confidence DESC, n.code NULLS LAST))[1] AS retenue,
+         (array_agg(coalesce(n.code,'(aucune)') ORDER BY s.confidence DESC, n.code NULLS LAST))[2] AS alternative,
+         max(s.confidence) - min(s.confidence) AS ecart
+    FROM s_filtre s LEFT JOIN civic_notions n ON n.id = s.notion_id
+   GROUP BY s.question_id HAVING count(*) > 1
+)
+SELECT retenue || '  <->  ' || alternative AS frontiere_disputee,
+       count(*) AS n, round(avg(ecart), 2) AS ecart_moyen
+FROM paires GROUP BY 1 ORDER BY n DESC, 1;"
+
+echo
+echo "    « Aucune notion » proposée, avec ce que le modèle en dit."
+echo "    Depuis V058/V059, une AUCUNE qui pointe vers un AUTRE THÈME est un"
+echo "    défaut de rangement du corpus, pas un trou du référentiel :"
+"${PSQL[@]}" -c "
+SELECT left(q.statement, 70), t.code, left(s.rationale, 110)
+  FROM question_notion_suggestions s
+  JOIN questions q ON q.id = s.question_id
+  JOIN themes t ON t.id = q.theme_id
+ WHERE s.prompt_version = '${PROMPT_VERSION}' ${FILTRE_LOT}
+   AND s.notion_id IS NULL
+ ORDER BY t.code, q.statement;"
+
+echo
 echo "=== 1. Avancement de la relecture ==="
 "${PSQL[@]}" -c "${MEILLEURE}
 SELECT count(*) FILTER (WHERE review_verdict IS NOT NULL) || ' relues sur '

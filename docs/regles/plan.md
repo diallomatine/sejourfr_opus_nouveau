@@ -1116,7 +1116,7 @@ score = 3 × (erreur dans les 7 derniers jours)
       + 2 × (échéance Leitner franchie)
       + 1 × (poids du thème : FAIBLE 2, À_RENFORCER 1, sinon 0)
       − 3 × (maîtrisée)
-      − 10 × (contenu insuffisant)
+      − 10 × (dotation CONTENU_INSUFFISANT)
 ```
 
 🛑 **`NON_EVALUE` pèse 0**, comme `SOLIDE` : un thème que le diagnostic n'a pas
@@ -1124,7 +1124,17 @@ touché n'est pas faible.
 
 🛑 **Le malus de contenu insuffisant est écrasant (−10)**, et c'est voulu : une
 notion qui n'a pas de quoi remplir une série ne doit **jamais** remonter en
-priorité (`20_` §3.4). Un filtre en amont l'aurait rendue invisible aux mesures.
+priorité (`50_` §6.1). Un filtre en amont l'aurait rendue invisible aux mesures.
+
+🛑 **`NON_APPLICABLE` ne prend AUCUN malus** (arbitrage 2026-09-11, posé avec
+l'enum). Un score est un **rang**, pas un verdict sur la notion : −10 dit « ce
+serait un mauvais choix », or une notion absente de la mention n'est pas un
+mauvais choix, elle **n'est pas un choix du tout**. Lui coller le malus du
+manque, c'est la confusion `inconnu ⇒ mauvais` que le dépôt paie déjà cher
+(V040/V041/V042). Aucun effet observable de toute façon : le plan l'écarte par
+un **filtre**, strictement plus sévère qu'un −10 — et c'est lui, le garde-fou
+qui abaisse. Conséquence lisible en admin : une notion hors mention garde son
+score **nu**, ce qui est l'information juste.
 
 🛑 **Au grain notion, « pointé par le diagnostic » vaut toujours `false`** : le
 diagnostic mesure des **thèmes**. Le compter pour chaque notion d'un thème
@@ -1157,19 +1167,48 @@ type : cacher une erreur n'est pas la corriger.
 🛑 **En revanche, les compteurs de DOTATION ne filtrent pas** (`questionsParNotion`,
 `questionsParTheme`, `couvertureParNotionEtMention`) : ils doivent rendre
 exactement ce que le tirage de la série ciblée peut jouer, et ce tirage ne connaît
-que `civic_notion_id` / `theme_id`. Filtrer là annoncerait `contenuInsuffisant`
-sur une notion qui remplit pourtant sa série. **Couverture ≠ dotation.**
+que `civic_notion_id` / `theme_id`. Filtrer là dégraderait la `CivicDotation`
+d'une notion qui remplit pourtant sa série. **Couverture ≠ dotation.**
 
 Le DTO sert `themesParNotion / themesTotal` et l'écran **le dit** : le plan ne se
 présente jamais plus précis qu'il ne l'est. `courant = NOTION` seulement quand
 **tous** les thèmes ont basculé.
 
-### Le seuil de contenu d'une notion : **5**, et 5 partout
+### La dotation d'une cible : **trois** états, pas deux (2026-09-11)
+
+`CivicDotation` (`service/plancivique/`, servi sur `CivicPlanDto.Cible.dotation`,
+mirroré web + mobile) et sa **dérivation unique** `CivicDotation.depuis(questions,
+minimum)` — 🛑 **ni le plan ni le scorer ne recomparent un compte à un seuil.**
+
+| questions de la cible **dans la mention** | état |
+|---|---|
+| **0** | `NON_APPLICABLE` — la notion n'existe pas pour ce candidat |
+| **1 à 4** (sous `questionsMinParNotion`) | `CONTENU_INSUFFISANT` — le sujet existe, il manque de la matière |
+| **≥ 5** | `SERVABLE` |
+
+🛑 **Ce n'est pas un renommage, c'est une règle**, et le corpus l'impose
+(arbitrage du propriétaire, mesuré par V058) : **CSP, CR et NAT ne sont pas trois
+niveaux du même programme, ce sont trois programmes différents.** « Devenir
+français » porte 10 questions en NAT et **zéro** en CSP ; « Les devoirs du
+citoyen » en porte 4 en NAT. Les deux recevaient le même verdict — alors que la
+première n'a **rien à faire** chez un candidat CSP et que la seconde attend **une
+seule question**. Les confondre, c'est perdre le signal éditorial qui dit quoi
+écrire. Même invariant que `NON_EVALUEE` et que le `null = inconnu, jamais
+mauvais` du dépôt : *une absence de programme n'est pas un manque*.
+
+**Le minimum n'est pas le même aux deux grains, et c'est voulu** : une **notion**
+se compare à `questionsMinParNotion` (5, l'unité de parcours), un **thème** à
+`questionsParSerie` (10, de quoi remplir la série qu'on lui proposerait).
+
+**Seul `SERVABLE` est servi** : `proposables` **et** `aRevoir` écartent les deux
+autres états. 🛑 **Aucun front ne dérive cet état** et aucun ne fabrique de
+libellé pour lui — s'il faut un jour *dire* « pas au programme de votre
+démarche », la phrase arrive servie.
 
 `50_` §6.1 : **≥ 5** questions actives dans la mention = notion pleinement
 utilisable, éligible comme priorité ; **1 à 4** = visible en révision libre,
-**jamais** proposée en priorité (`contenuInsuffisant`, malus −10) ; **0** =
-invisible pour cette mention. 🛑 **Compte PAR MENTION.**
+**jamais** proposée en priorité (malus −10) ; **0** = pas son programme.
+🛑 **Compte PAR MENTION.**
 
 ⚠️ La valeur a vécu en **trois sources et deux valeurs** — `CivicPlanProperties`
 à 4, `50_` §6.1 à 5, l'écran d'admin colorant sous 5. Tranché par le propriétaire

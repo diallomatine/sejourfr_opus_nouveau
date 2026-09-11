@@ -1,0 +1,12 @@
+# Ce qui se reconstruit, et ne se versionne donc pas.
+requete_lot_*.json
+*/batch.request.json
+*/resultats.jsonl
+tsv/
+suggestions_lot_*.tsv
+
+# 🛑 Ce qui est VERSIONNÉ, et pourquoi : les `*.questions.json` (composition
+# exacte de chaque lot) et les `*.reponse.json` (ce que le modèle a rendu, et
+# qui a été payé). Le 2026-09-11, trois lignes d'une campagne close ont été
+# écrasées en base ; elles n'ont pu être restaurées à l'identique QUE depuis
+# ces archives. Une mesure qu'on ne peut pas reconstituer n'est pas une mesure.

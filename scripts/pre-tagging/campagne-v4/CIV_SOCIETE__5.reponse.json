@@ -1,0 +1,191 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiRnXhZwESkae8rdgT",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Kqqhgy57GVd7qk52ALPLGv",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.97,
+            "rationale": "Titre de séjour pluriannuel, exactement dans la frontière vs_sejour_asile."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.97,
+            "rationale": "Carte de résident, titre de séjour."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.97,
+            "rationale": "OFII cité explicitement dans la frontière."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.95,
+            "rationale": "CIR mentionné dans la frontière séjour/intégration."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.93,
+            "rationale": "Formations du CIR, accompagnement à l'intégration."
+          },
+          {
+            "rang": 6,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.93,
+            "rationale": "Niveau de français pour CSP, titre de séjour."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.93,
+            "rationale": "Niveau de français pour carte de résident."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_nationalite_francaise",
+            "confiance": 0.95,
+            "rationale": "Niveau de français pour naturalisation, devenir français."
+          },
+          {
+            "rang": 9,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "CAP et bac pro, diplômes scolaires."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.96,
+            "rationale": "Parcoursup cité explicitement dans la frontière."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.9,
+            "rationale": "CPGE, cycle scolaire post-bac."
+          },
+          {
+            "rang": 12,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.85,
+            "rationale": "Alternance mentionnée dans le champ scolaire, mais aussi possible emploi_formation",
+            "alternative": "vs_emploi_formation",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 13,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.96,
+            "rationale": "Prime d'activité, aide sociale CAF."
+          },
+          {
+            "rang": 14,
+            "notion": "AUCUNE",
+            "confiance": 0.5,
+            "rationale": "Surendettement ne correspond à aucune notion du référentiel."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.95,
+            "rationale": "Convention collective, dimension collective de l'entreprise."
+          },
+          {
+            "rang": 16,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.97,
+            "rationale": "GUDA et OFPRA, procédure d'asile."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Émancipation d'un mineur, état civil familial."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.9,
+            "rationale": "Tutelle juridique, mesure de protection familiale."
+          },
+          {
+            "rang": 19,
+            "notion": "vs_emploi_formation",
+            "confiance": 0.95,
+            "rationale": "Service civique cité explicitement dans la frontière."
+          },
+          {
+            "rang": 20,
+            "notion": "AUCUNE",
+            "confiance": 0.5,
+            "rationale": "Caution locative ne relève d'aucune notion du référentiel (logement hors HLM)."
+          },
+          {
+            "rang": 21,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.95,
+            "rationale": "Statut de réfugié vs protection subsidiaire, protection internationale."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.95,
+            "rationale": "Règlement Dublin cité explicitement dans la frontière."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.95,
+            "rationale": "C2S/CMU-C cité explicitement comme relevant de protection_sociale_aides."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.95,
+            "rationale": "AME cité explicitement comme relevant de protection_sociale_aides."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.9,
+            "rationale": "RSA-Jeunes, prestation sociale sous condition."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10808,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1534,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

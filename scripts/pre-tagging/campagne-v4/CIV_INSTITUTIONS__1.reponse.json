@@ -1,0 +1,205 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiYCjoXixApvvetgqR",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Heuw5UjN1NdVsCho6tvAnj",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Nomination du Premier ministre est un pouvoir propre du président."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_parlement",
+            "confiance": 0.97,
+            "rationale": "Composition bicamérale du Parlement."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_constitution",
+            "confiance": 0.85,
+            "rationale": "Définition générale du pouvoir exécutif au niveau séparation des pouvoirs.",
+            "alternative": "inst_gouvernement",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 4,
+            "notion": "inst_elections",
+            "confiance": 0.6,
+            "rationale": "Notion générale de démocratie liée aux élections des dirigeants.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 5,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Rôle de l'autorité judiciaire."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Pouvoir judiciaire du juge."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_justice",
+            "confiance": 0.95,
+            "rationale": "Magistrats et juges exercent l'autorité judiciaire."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_justice",
+            "confiance": 0.8,
+            "rationale": "Responsabilité pénale du ministre, jugement par la Cour de justice de la République.",
+            "alternative": "inst_gouvernement",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 9,
+            "notion": "inst_elections",
+            "confiance": 0.95,
+            "rationale": "Élections législatives vues du côté de l'électeur."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Effectif de l'Assemblée nationale, caractéristique de l'institution."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_parlement",
+            "confiance": 0.85,
+            "rationale": "Mode et rythme d'élection des sénateurs, caractéristique institutionnelle.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 12,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Élections municipales relèvent des collectivités territoriales."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Élection présidentielle vue du côté de l'électeur."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_elections",
+            "confiance": 0.97,
+            "rationale": "Âge du droit de vote."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_president",
+            "confiance": 0.85,
+            "rationale": "Durée du mandat présidentiel, caractéristique de l'institution.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 16,
+            "notion": "inst_parlement",
+            "confiance": 0.85,
+            "rationale": "Durée du mandat des députés.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 17,
+            "notion": "inst_parlement",
+            "confiance": 0.85,
+            "rationale": "Durée du mandat des sénateurs.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 18,
+            "notion": "inst_constitution",
+            "confiance": 0.75,
+            "rationale": "Identification du titulaire du pouvoir exécutif, niveau séparation des pouvoirs.",
+            "alternative": "inst_gouvernement",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 19,
+            "notion": "inst_elections",
+            "confiance": 0.95,
+            "rationale": "Conditions pour voter."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_elections",
+            "confiance": 0.95,
+            "rationale": "Qui peut voter, droit de vote."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_elections",
+            "confiance": 0.95,
+            "rationale": "Définition du suffrage universel, encadrement du vote."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Pluralisme des partis politiques, encadrement de la vie politique."
+          },
+          {
+            "rang": 23,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Rôle des députés dans le travail parlementaire."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_constitution",
+            "confiance": 0.95,
+            "rationale": "Les trois pouvoirs séparés, principe fondateur."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_parlement",
+            "confiance": 0.95,
+            "rationale": "Le Parlement détient le pouvoir législatif."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9358,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1566,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

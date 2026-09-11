@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
@@ -294,6 +296,60 @@ public class GlobalExceptionHandler {
         return java.util.Arrays.stream(constants)
                 .map(Object::toString)
                 .collect(Collectors.joining(", "));
+    }
+
+    /**
+     * Ecriture de la reponse impossible. Deux causes tres differentes.
+     *
+     * <p><b>1. Le client a coupe la connexion.</b> Un onglet ferme, une
+     * navigation, un rechargement a chaud, une requete annulee par le client
+     * HTTP : la socket disparait, Tomcat leve {@code ClientAbortException} et
+     * Spring l'enveloppe dans {@link AsyncRequestNotUsableException}, que
+     * Jackson enveloppe a son tour. 🛑 <b>Ce n'est pas une erreur du serveur</b>
+     * — le traitement metier s'est parfaitement deroule — et ca ne doit pas se
+     * lire comme un 500 dans les logs.
+     *
+     * <p>🛑 <b>Dans ce cas on ne renvoie RIEN</b> ({@code null} plutot qu'une
+     * {@code ResponseEntity}) : il n'y a plus personne au bout du fil, et
+     * ecrire un corps d'erreur sur une socket morte leve une SECONDE exception
+     * par-dessus la premiere. C'est exactement ce que montrait la trace, avec
+     * son « Response not usable after response errors ».
+     *
+     * <p><b>2. Le DTO ne sait pas se serialiser.</b> La meme exception couvre
+     * un vrai defaut de code — un getter qui jette, un cycle d'objets. Celui-la
+     * reste un 500 bruyant : le confondre avec une deconnexion rendrait muet
+     * le jour ou un endpoint cesserait de repondre.
+     *
+     * <p>Le symptome est apparu avec V058, qui a fait passer le referentiel
+     * civique de quelques kilo-octets a 53 Ko : la reponse ne tient plus dans
+     * un seul vidage de tampon, donc une coupure client tombe desormais
+     * PENDANT l'ecriture au lieu d'avant.
+     */
+    @ExceptionHandler(HttpMessageNotWritableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotWritable(
+            HttpMessageNotWritableException e, WebRequest req) {
+        if (clientParti(e)) {
+            log.debug("Client deconnecte pendant l'ecriture de la reponse : {}",
+                    req.getDescription(false));
+            return null;
+        }
+        return build(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Erreur interne du serveur", req, null, e);
+    }
+
+    /**
+     * La chaine de causes contient-elle une deconnexion client ?
+     *
+     * <p>On cherche {@link AsyncRequestNotUsableException}, qui est la classe
+     * <b>Spring</b> : tester {@code ClientAbortException} coupleraient ce
+     * handler a Tomcat, et la meme coupure porte un autre nom sous Jetty ou
+     * Undertow.
+     */
+    private static boolean clientParti(Throwable e) {
+        for (Throwable t = e; t != null && t != t.getCause(); t = t.getCause()) {
+            if (t instanceof AsyncRequestNotUsableException) return true;
+        }
+        return false;
     }
 
     @ExceptionHandler(Exception.class)

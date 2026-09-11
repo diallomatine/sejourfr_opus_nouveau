@@ -100,7 +100,7 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
      * une <b>dotation</b>, pas une couverture de tagging. Il doit rendre
      * exactement ce que {@link #tirageSerieCiblee} peut tirer, et ce tirage ne
      * connait que {@code civic_notion_id}. Ecarter un type que le tirage
-     * accepte annoncerait {@code contenuInsuffisant} sur une notion qui remplit
+     * accepte degraderait la {@code CivicDotation} d'une notion qui remplit
      * pourtant sa serie.
      */
     @Query(value = """

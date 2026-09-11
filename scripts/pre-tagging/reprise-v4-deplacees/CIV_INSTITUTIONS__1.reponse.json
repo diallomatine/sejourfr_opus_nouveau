@@ -1,0 +1,53 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cex3G2iT7aCob2HWkkr4t",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_013efMos3i61VNU4XjXUWzfM",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Symboles européens (drapeau) explicitement dans la frontière inst_ue."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_gouvernement",
+            "confiance": 0.55,
+            "rationale": "Formation des hauts fonctionnaires liés à l'administration de l'État, mais l'ENA n'est pas clairement dans le référentiel.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 5680,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 205,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

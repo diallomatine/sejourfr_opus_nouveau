@@ -41,6 +41,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *       reproduirait « NON FRAGILE ≠ PLUS RIEN À APPRENDRE » ;</li>
  *   <li>🛑 <b>le verrou porte sur la SÉRIE, pas sur le constat</b>, et il est
  *       opposable : le {@code locked} servi et le 403 sont la même règle ;</li>
+ *   <li>🛑 <b>zéro question dans la mention n'est pas « il manque de la
+ *       matière »</b> : c'est {@code NON_APPLICABLE}, la notion n'est pas au
+ *       programme de cette démarche. V058 l'a mesuré sur le corpus réel — CSP,
+ *       CR et NAT sont trois programmes différents ;</li>
  *   <li>la série ciblée remet en tête ce qui a été <b>raté</b> : sans cet ordre,
  *       « travailler ce point » redonnerait les questions déjà réussies.</li>
  * </ul>
@@ -339,8 +343,8 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         int proposablesA5 = proposables(service.plan(user.getId()));
 
         // 🛑 Exactement une cible a changé de statut, et c'est la notion dotée :
-        // à 4 elle est `contenuInsuffisant` donc jamais proposable, à 5 elle
-        // l'est. « Une notion à 4 questions est trop fragile pour devenir une
+        // à 4 sa dotation est `CONTENU_INSUFFISANT` donc jamais proposable, à 5
+        // elle devient `SERVABLE`. « Une notion à 4 questions est trop fragile pour devenir une
         // vraie unité de parcours adaptatif » (arbitrage propriétaire).
         assertThat(proposablesA5).isEqualTo(proposablesA4 + 1);
     }
@@ -422,12 +426,61 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 Une cible sous-dotée n'est jamais servie en priorité")
-    void contenuInsuffisantJamaisPrioritaire() {
+    @DisplayName("🛑 Seule une cible SERVABLE est servie — en priorité comme en révision")
+    void seulLeServableEstServi() {
         User user = testData.user();
         diagnosticTermine(user);
 
-        assertThat(service.plan(user.getId()).priorites())
-                .allSatisfy(c -> assertThat(c.contenuInsuffisant()).isFalse());
+        CivicPlanDto plan = service.plan(user.getId());
+
+        assertThat(plan.priorites())
+                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
+        assertThat(plan.aRevoir())
+                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
+    }
+
+    @Test
+    @DisplayName("🛑 Zéro question dans la mention : la notion n'est pas au programme, et le plan l'ignore")
+    void zeroQuestionDansLaMentionNestPasUnManque() {
+        User user = testData.user();
+        diagnosticTermine(user);
+        CivicPlanDto initial = service.plan(user.getId());
+        String mention = initial.mention().name();
+
+        // Un thème au grain NOTION avec DEUX notions actives : tout part sur la
+        // seconde. La première n'a donc AUCUNE question dans la mention — c'est
+        // le cas réel mesuré par V058 (« Devenir français » : 10 questions en
+        // NAT, zéro en CSP), pas un cas de laboratoire.
+        String themeCode = themeAvecAssezDeQuestions(mention);
+        List<UUID> notions = jdbc.queryForList("""
+                SELECT id FROM civic_notions
+                WHERE theme_code = ? AND is_active = true ORDER BY display_order LIMIT 2
+                """, UUID.class, themeCode);
+        jdbc.update("""
+                UPDATE civic_notions SET is_active = false
+                WHERE theme_code = ? AND id <> ? AND id <> ?
+                """, themeCode, notions.get(0), notions.get(1));
+        taguerLesConnaissances(themeCode, notions.get(1));
+
+        CivicPlanDto aZero = service.plan(user.getId());
+
+        // 🛑 Elle n'apparaît NI dans les priorités, NI dans « à revoir » : elle
+        // n'existe pas pour ce candidat.
+        assertThat(aZero.priorites()).noneMatch(c -> c.id().equals(notions.get(0)));
+        assertThat(aZero.aRevoir()).noneMatch(c -> c.id().equals(notions.get(0)));
+        assertThat(aZero.prochaine()).isNotNull();
+        assertThat(aZero.prochaine().id()).isNotEqualTo(notions.get(0));
+
+        // Une seule question suffit à la faire EXISTER — elle reste hors du plan
+        // (contenu insuffisant), mais ce n'est déjà plus le même verdict.
+        deplacerVersNotion(themeCode, mention, notions.get(0), 1, 0);
+        CivicPlanDto aUn = service.plan(user.getId());
+        assertThat(proposables(aUn)).isEqualTo(proposables(aZero));
+        assertThat(aUn.priorites()).noneMatch(c -> c.id().equals(notions.get(0)));
+
+        // Et à 5, elle devient une unité de parcours.
+        deplacerVersNotion(themeCode, mention, notions.get(0), 4, 1);
+        CivicPlanDto aCinq = service.plan(user.getId());
+        assertThat(proposables(aCinq)).isEqualTo(proposables(aZero) + 1);
     }
 }

@@ -1,0 +1,199 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiSKGwW2ujfebRFBY4",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01844nYgYSG9xbzjV9x5T6xT",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.93,
+            "rationale": "Enregistrement sans accord = atteinte à la vie privée/correspondance."
+          },
+          {
+            "rang": 2,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "Droit à l'image, protection de la vie privée."
+          },
+          {
+            "rang": 3,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Vol concret du quotidien avec sanction."
+          },
+          {
+            "rang": 4,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Violences volontaires, geste concret sanctionné."
+          },
+          {
+            "rang": 5,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Interdiction concrète de fumer dans les lieux publics."
+          },
+          {
+            "rang": 6,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Consommation de cannabis, interdit concret sanctionné."
+          },
+          {
+            "rang": 7,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.95,
+            "rationale": "Vente d'alcool aux mineurs, interdit concret."
+          },
+          {
+            "rang": 8,
+            "notion": "dd_police_justice",
+            "confiance": 0.85,
+            "rationale": "Porter plainte après un cambriolage, réparation.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 9,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "Majorité civile explicitement listée dans cette notion."
+          },
+          {
+            "rang": 10,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.85,
+            "rationale": "Interdiction concrète des violences éducatives, un geste précis.",
+            "alternative": "dd_droits_sociaux",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 11,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.95,
+            "rationale": "Obligation individuelle de payer ses impôts."
+          },
+          {
+            "rang": 12,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.75,
+            "rationale": "Devoir de protéger l'enfant, signalement.",
+            "alternative": "dd_droits_sociaux",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 13,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.75,
+            "rationale": "Devoir de signaler un enfant en danger.",
+            "alternative": "dd_droits_sociaux",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 14,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Droit à la protection maladie universelle."
+          },
+          {
+            "rang": 15,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Instruction obligatoire de 3 à 16 ans."
+          },
+          {
+            "rang": 16,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.9,
+            "rationale": "Gratuité de l'école, droit social explicitement listé."
+          },
+          {
+            "rang": 17,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "SMIC, droit du travail listé explicitement."
+          },
+          {
+            "rang": 18,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.85,
+            "rationale": "Travail dissimulé, cité dans la notion droits sociaux.",
+            "alternative": "dd_interdits_quotidien",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 19,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Durée légale du travail, droit social explicitement listé."
+          },
+          {
+            "rang": 20,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Congés payés, droit social explicitement listé."
+          },
+          {
+            "rang": 21,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.9,
+            "rationale": "Devoir de respecter les décisions de justice."
+          },
+          {
+            "rang": 22,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.9,
+            "rationale": "Devoir de dire la vérité comme témoin."
+          },
+          {
+            "rang": 23,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "Secret professionnel, explicitement listé dans vie privée."
+          },
+          {
+            "rang": 24,
+            "notion": "dd_police_justice",
+            "confiance": 0.95,
+            "rationale": "Encadrement légal du contrôle et de la fouille par la police."
+          },
+          {
+            "rang": 25,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.95,
+            "rationale": "Liberté d'aller et venir, liberté individuelle."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10758,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1612,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

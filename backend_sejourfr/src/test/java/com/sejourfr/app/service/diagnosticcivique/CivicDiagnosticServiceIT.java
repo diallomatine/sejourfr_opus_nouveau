@@ -149,6 +149,56 @@ class CivicDiagnosticServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("🔴 UNE BONNE RÉPONSE COMPTE : le résultat se lit sur answers.is_correct, "
+            + "pas sur la colonne morte attempt_questions.is_correct")
+    void lesBonnesReponsesSontComptees() {
+        User user = testData.user();
+        CivicDiagnosticSession session = service.ouvrir(user.getId());
+        entityManager.flush();
+
+        // Cinq bonnes réponses, écrites comme le runner les écrit : dans
+        // `answers`, et NULLE PART ailleurs. 🛑 `attempt_questions.is_correct`
+        // reste volontairement `NULL` — c'est exactement l'état de la base
+        // réelle (0 ligne renseignée sur 9 441), parce qu'aucun code ne l'écrit.
+        int repondues = jdbc.update("""
+                INSERT INTO answers (id, attempt_question_id, user_id, selected_choice_ids,
+                                     is_correct, answered_at)
+                SELECT gen_random_uuid(), aq.id, a.user_id, '[]'::jsonb, true, now()
+                FROM attempt_questions aq
+                         JOIN attempts a ON a.id = aq.attempt_id
+                         JOIN questions q ON q.id = aq.question_id
+                WHERE aq.attempt_id = ? AND q.question_type = 'CONNAISSANCE'
+                ORDER BY aq.position LIMIT 5
+                """, session.getAttempt().getId());
+        assertThat(repondues).isEqualTo(5);
+        service.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        CivicDiagnosticResultDto resultat =
+                viewService.resultat(service.lire(user.getId(), session.getId()));
+
+        // 🛑 LE test : avant correction, l'agrégat lisait `aq.correct` — jamais
+        // écrite — et rendait 0/40 à TOUT LE MONDE. Mesuré sur la base de
+        // développement : trois diagnostics réels valant 23, 11 et 10 bonnes
+        // réponses affichaient 0. Le plan civique se bâtissait donc sur des
+        // thèmes tous FAIBLE, et le candidat lisait un score qu'il n'avait pas
+        // fait. C'est la confusion « pas de donnée ⇒ le pire verdict » que le
+        // dépôt paie déjà cher (V040/V041/V042).
+        assertThat(resultat.bonnes()).isEqualTo(5);
+        assertThat(resultat.posees()).isEqualTo(40);
+        // Et un thème réellement réussi cesse d'être annoncé faible.
+        assertThat(resultat.themes())
+                .anySatisfy(t -> assertThat(t.bonnes()).isPositive());
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM attempt_questions
+                WHERE attempt_id = ? AND is_correct IS NOT NULL
+                """, Long.class, session.getAttempt().getId()))
+                .as("la colonne legacy reste non écrite : c'est bien l'autre source qui compte")
+                .isZero();
+    }
+
+    @Test
     @DisplayName("🛑 Un attempt terminé clôt la session TOUT SEUL, à la première lecture")
     void clotureParesseuse() {
         User user = testData.user();

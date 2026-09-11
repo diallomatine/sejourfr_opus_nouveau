@@ -54,7 +54,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CivicTaggingVerdictIT extends AbstractIntegrationTest {
 
     private static final String MIEUX_NOTEE = "pv_laicite";
-    private static final String AUTRE = "pv_symboles";
+    /**
+     * ⚠️ {@code pv_symboles} a été renommé {@code pv_symboles_devise} par V058 —
+     * le corpus ne distingue pas la devise des symboles. Un code disparu ne
+     * lève pas ici : {@code suggerer(...)} l'aurait écrit comme une suggestion
+     * « aucune notion », qui remonte en tête de file et fausse le tri testé.
+     */
+    private static final String AUTRE = "pv_symboles_devise";
 
     @Autowired private CivicNotionService service;
     @Autowired private CivicNotionManager manager;
@@ -378,8 +384,11 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
         assertThat(nombreDeSuggestions(question.getId())).isEqualTo(1);
 
         // Sans NULLS NOT DISTINCT, Postgres tient deux NULL pour distincts :
-        // rien n'empêcherait dix lignes « aucune notion » sur la même question,
-        // et un trou du référentiel se compterait dix fois.
+        // rien n'empêcherait dix lignes « aucune notion » sur la même question
+        // DANS LA MÊME CAMPAGNE, et un trou du référentiel s'y compterait dix
+        // fois. ⚠️ Depuis V290 la clé inclut le `batch_id` : deux campagnes
+        // différentes ont le droit de conclure « aucune notion » chacune de son
+        // côté, et c'est le sujet de `SuggestionParCampagneIT`.
         assertThatThrownBy(() -> suggererAucune(question.getId(), 0.42))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -571,7 +580,25 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
                     (question_id, notion_id, confidence, model, prompt_version, rationale, batch_id)
                 VALUES (?, (SELECT id FROM civic_notions WHERE code = ?), ?,
                         'test-model', 'PROMPT_TAG_NOTION_v1', 'Parce que.', ?)
-                """, questionId, notionCode, confidence, UUID.randomUUID());
+                """, questionId, notionCode, confidence, campagneDe(questionId));
+    }
+
+    /**
+     * La campagne d'une question, <b>stable d'un appel a l'autre</b>.
+     *
+     * <p>🛑 Ces aides tiraient un {@code batch_id} ALEATOIRE a chaque ligne.
+     * Une question a deux suggestions se retrouvait donc avec deux campagnes,
+     * ce qu'aucune campagne reelle ne produit : le script de persistance ecrit
+     * tout un lot sous un identifiant unique. L'ecart etait sans effet jusqu'a
+     * V290, ou la campagne courante est devenue la reference du verdict — huit
+     * tests sont alors tombes d'un coup, en accusant le code plutot que leur
+     * propre montage.
+     *
+     * <p>Deterministe a partir de l'identifiant de la question : deux appels
+     * pour la meme question rendent le meme lot, sans etat a porter.
+     */
+    private static UUID campagneDe(UUID questionId) {
+        return UUID.nameUUIDFromBytes(questionId.toString().getBytes());
     }
 
     /**
@@ -588,7 +615,7 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
                 INSERT INTO question_notion_suggestions
                     (question_id, notion_id, confidence, model, prompt_version, rationale, batch_id)
                 VALUES (?, NULL, ?, 'test-model', 'PROMPT_TAG_NOTION_v1', 'Parce que.', ?)
-                """, questionId, confidence, UUID.randomUUID());
+                """, questionId, confidence, campagneDe(questionId));
     }
 
     private int nombreDeSuggestions(UUID questionId) {

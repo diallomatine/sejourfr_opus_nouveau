@@ -1,0 +1,193 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyicuWsAXzqGxpEFiPk",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01HNxEnRwEmYNxdBUu2jnUB7",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.97,
+            "rationale": "Second Empire de Napoléon III, régime non républicain du XIXe."
+          },
+          {
+            "rang": 2,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Naissance de la IIIe République après Sedan, cas explicite de la frontière."
+          },
+          {
+            "rang": 3,
+            "notion": "hg_republiques",
+            "confiance": 0.9,
+            "rationale": "Affaire Dreyfus, crise de la IIIe République."
+          },
+          {
+            "rang": 4,
+            "notion": "hg_napoleon_xixe",
+            "confiance": 0.85,
+            "rationale": "Perte de l'Alsace-Lorraine liée à la défaite de 1870, chute du Second Empire.",
+            "alternative": "hg_republiques",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 5,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.97,
+            "rationale": "Bataille de Verdun, Première Guerre mondiale."
+          },
+          {
+            "rang": 6,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.9,
+            "rationale": "Pétain défenseur de Verdun, contexte guerre 14-18."
+          },
+          {
+            "rang": 7,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.9,
+            "rationale": "Front populaire, réformes sociales majeures."
+          },
+          {
+            "rang": 8,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.97,
+            "rationale": "Congés payés, droit social acquis en 1936."
+          },
+          {
+            "rang": 9,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.97,
+            "rationale": "Appel du 18 juin 1940, fondation de la France libre."
+          },
+          {
+            "rang": 10,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.95,
+            "rationale": "CNR, unification de la Résistance."
+          },
+          {
+            "rang": 11,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.97,
+            "rationale": "Sécurité sociale, droit social acquis."
+          },
+          {
+            "rang": 12,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.9,
+            "rationale": "Décolonisation de l'Afrique sub-saharienne en 1960."
+          },
+          {
+            "rang": 13,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.85,
+            "rationale": "Fondateur de la Sécurité sociale, droit social."
+          },
+          {
+            "rang": 14,
+            "notion": "hg_europe",
+            "confiance": 0.97,
+            "rationale": "Pères fondateurs de la construction européenne."
+          },
+          {
+            "rang": 15,
+            "notion": "hg_europe",
+            "confiance": 0.97,
+            "rationale": "CECA, étape de la construction européenne."
+          },
+          {
+            "rang": 16,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.95,
+            "rationale": "Décolonisation Indochine et Algérie."
+          },
+          {
+            "rang": 17,
+            "notion": "hg_guerres_resistance",
+            "confiance": 0.95,
+            "rationale": "Accords de Genève, fin de la guerre d'Indochine."
+          },
+          {
+            "rang": 18,
+            "notion": "hg_republiques",
+            "confiance": 0.9,
+            "rationale": "Référendum de 1962, institution de la Ve République."
+          },
+          {
+            "rang": 19,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.85,
+            "rationale": "Mai 68, transformation sociale profonde.",
+            "alternative": "hg_republiques",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 20,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.95,
+            "rationale": "Majorité à 18 ans, droit acquis explicitement listé."
+          },
+          {
+            "rang": 21,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Premier président socialiste, fait institutionnel/présidentiel, pas un droit en soi."
+          },
+          {
+            "rang": 22,
+            "notion": "hg_europe",
+            "confiance": 0.95,
+            "rationale": "Traité de Maastricht, construction européenne."
+          },
+          {
+            "rang": 23,
+            "notion": "hg_europe",
+            "confiance": 0.95,
+            "rationale": "Référendum 2005 sur Constitution européenne."
+          },
+          {
+            "rang": 24,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Attentats de 2015 ne correspondent à aucune notion du référentiel (hors périmètre thématique historique)."
+          },
+          {
+            "rang": 25,
+            "notion": "hg_litterature",
+            "confiance": 0.97,
+            "rationale": "Annie Ernaux, prix Nobel de littérature, écrivaine française."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10875,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1535,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}
