@@ -27,9 +27,6 @@ export const PREPARATION_TITLE = "Ma préparation";
  */
 export const DIAGNOSTIC_RAPIDE_HREF = "/diagnostic";
 
-/** Le lien secondaire de la porte d'entrée : consulter ce qui est déjà fait. */
-export const PLAN_GATE_RAPPORT_CTA = "Revoir mon diagnostic rapide";
-
 export const TCF_LABEL = "TCF IRN";
 export const CIVIQUE_LABEL = "Examen civique";
 

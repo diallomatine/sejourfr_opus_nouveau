@@ -16,6 +16,14 @@
  * 🛑 **`null` = inconnu, jamais mauvais.** Une production inexploitable
  * (`NON_EVALUABLE`) n'a pas de niveau : on écrit « — » et on dit ce qui manque.
  * Afficher A1 serait rendre un verdict que personne n'a rendu (V040/V041/V042).
+ *
+ * 🛑 **Deux emplacements, UN SEUL composant.** Il est la page `/diagnostic`
+ * quand la session est close, et il est **encastré** dans la porte d'entrée du
+ * Plan TCF tant que le diagnostic complet manque (`embedded`) — c'est le même
+ * rapport que le candidat doit retrouver, pas un résumé maison qui finirait par
+ * dire autre chose. `embedded` ne retire **que la chrome de page** (le shell et
+ * l'en-tête, que l'écran d'accueil porte déjà) : les quatre blocs, leur ordre et
+ * leur CTA final sont les mêmes des deux côtés.
  */
 
 import type {ReactNode} from "react";
@@ -65,11 +73,19 @@ export function DiagnosticReport({
   diagnostic,
   targetLevel,
   notice,
+  embedded = false,
 }: {
   diagnostic: {result: DiagnosticResultDto | null};
   /** Palier visé, servi par `/api/auth/me`. `null` = démarche non déclarée. */
   targetLevel: string | null;
   notice?: ReactNode;
+  /**
+   * Le rapport est posé **dans** un écran qui porte déjà son shell et son
+   * en-tête (la porte d'entrée du Plan). On retire alors `SejourApp` et `Top` —
+   * deux `.sf-app` imbriqués, ou deux en-têtes sur la même page, seraient
+   * l'erreur qu'une copie du composant aurait produite autrement.
+   */
+  embedded?: boolean;
 }) {
   const result = diagnostic.result;
   const written = result?.written ?? null;
@@ -81,15 +97,8 @@ export function DiagnosticReport({
   const track = levelTrackPosition(niveau, targetLevel);
   const observations = observationLines(result);
 
-  return (
-    <SejourApp>
-      {notice}
-      <Top
-        backTo={DIAGNOSTIC_REPORT_BACK_HREF}
-        kicker={DIAGNOSTIC_REPORT_KICKER}
-        title={DIAGNOSTIC_REPORT_TITLE}
-      />
-
+  const blocs = (
+    <>
       {/* 1 — le niveau. L'élément dominant de l'écran. */}
       <Pad>
         <Card variant="hero">
@@ -160,6 +169,20 @@ export function DiagnosticReport({
           </Stack>
         </Pad>
       </Section>
+    </>
+  );
+
+  if (embedded) return blocs;
+
+  return (
+    <SejourApp>
+      {notice}
+      <Top
+        backTo={DIAGNOSTIC_REPORT_BACK_HREF}
+        kicker={DIAGNOSTIC_REPORT_KICKER}
+        title={DIAGNOSTIC_REPORT_TITLE}
+      />
+      {blocs}
     </SejourApp>
   );
 }

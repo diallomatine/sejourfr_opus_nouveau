@@ -18,7 +18,7 @@ import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../diagnostic/widgets/diagnostic_report_labels.dart';
+import '../diagnostic/widgets/diagnostic_result.dart';
 import 'civic_plan_view.dart';
 import 'learning_plan_provider.dart';
 import 'plan_labels.dart';
@@ -288,11 +288,18 @@ class _PlanError extends StatelessWidget {
 /// le texte, le geste et sa destination viennent tous de [planIndisponible],
 /// l'état unique des deux préparations.
 ///
-/// 🛑 **Trois états, et c'est le SERVEUR qui dit lequel** ([ModulePreparation.etape]) :
-/// `DIAGNOSTIC_A_FAIRE` ouvre le diagnostic rapide, `ESTIMATION_FAITE` rappelle
-/// ce que ce rapide a mesuré puis invite au diagnostic complet, `PLAN_PRET`
-/// n'arrive jamais ici. Aucun front ne déduit cet état d'un compteur ni d'un
-/// score.
+/// 🛑 **Trois états, et c'est le SERVEUR qui dit lequel**
+/// ([ModulePreparation.etape]) : `DIAGNOSTIC_A_FAIRE` ouvre le diagnostic
+/// rapide, `ESTIMATION_FAITE` affiche le **rapport du diagnostic rapide**
+/// (arbitrage du propriétaire), `PLAN_PRET` n'arrive jamais ici. Aucun front ne
+/// déduit cet état d'un compteur ni d'un score.
+///
+/// 🛑 **En `ESTIMATION_FAITE`, le rapport est l'ÉCRAN DE `/diagnostic`,
+/// encastré** ([DiagnosticResultView] avec son `leading`), pas un résumé écrit
+/// ici : deux lectures du même diagnostic auraient fini par en dire deux
+/// choses. Il porte **son propre bouton de fin** vers le diagnostic complet —
+/// c'est pourquoi [PlanIndisponible.cta] n'est pas rendu dans cet état, il
+/// ferait doublon sur la même destination.
 class _PlanIndisponible extends ConsumerStatefulWidget {
   const _PlanIndisponible({required this.info, this.prep});
 
@@ -308,14 +315,14 @@ class _PlanIndisponible extends ConsumerStatefulWidget {
 }
 
 class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
-  /// Ce que le diagnostic RAPIDE a déjà mesuré. `null` = rien à rappeler —
+  /// Le résultat du diagnostic RAPIDE déjà passé. `null` = rien à afficher —
   /// état normal, la porte n'en a jamais dépendu.
-  DiagnosticResult? _estimation;
+  DiagnosticResult? _rapide;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_chargerEstimation());
+    unawaited(_chargerRapide());
   }
 
   @override
@@ -323,45 +330,41 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
     super.didUpdateWidget(old);
     if (old.prep?.sessionId != widget.prep?.sessionId ||
         old.prep?.etape != widget.prep?.etape) {
-      unawaited(_chargerEstimation());
+      unawaited(_chargerRapide());
     }
   }
 
   /// 🛑 On relit **la session que le serveur a désignée** (`prep.sessionId`),
   /// pas « la session courante » : `preparation()` retient la dernière session
   /// close, qui peut appartenir à une version antérieure du diagnostic —
-  /// `current()` répondrait alors « pas commencé » et la porte perdrait
-  /// l'estimation du candidat.
-  Future<void> _chargerEstimation() async {
+  /// `current()` répondrait alors « pas commencé » et la porte perdrait le
+  /// rapport du candidat.
+  ///
+  /// 🛑 **Aucun repli en cas d'échec** : le rapport n'apparaît pas, la porte
+  /// retombe sur sa forme minimale avec son bouton. Un rapport absent est un
+  /// état normal ; un rapport reconstitué de mémoire ne l'est pas.
+  Future<void> _chargerRapide() async {
     final prep = widget.prep;
     final sessionId = prep?.sessionId;
     if (prep?.etape != PreparationEtape.estimationFaite || sessionId == null) {
-      if (mounted && _estimation != null) setState(() => _estimation = null);
+      if (mounted && _rapide != null) setState(() => _rapide = null);
       return;
     }
     try {
       final journey =
           await ref.read(diagnosticRepositoryProvider).detail(sessionId);
       if (!mounted) return;
-      setState(() => _estimation = journey.result);
+      setState(() => _rapide = journey.result);
     } catch (_) {
-      // Le rappel disparaît, la porte reste : elle n'a jamais dépendu de lui.
+      // Le rapport disparaît, la porte reste : elle n'a jamais dépendu de lui.
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final info = widget.info;
-    final estimation = _estimation;
-    // 🛑 `null` = inconnu : une production inexploitable n'a pas de niveau, et
-    // on n'affiche jamais A1 à sa place (V040/V041/V042). Pas de niveau ⇒ pas
-    // de carte, plutôt qu'un verdict que personne n'a rendu.
-    final niveau = estimation?.written?.levelEstimate;
-    final cible = widget.prep?.cible;
-    final observations = diagnosticObservations(estimation);
-
-    return ListView(
-      children: [
+  /// L'en-tête de l'écran et l'explication, posés avant tout le reste.
+  ///
+  /// L'explication vient EN TÊTE : le rapport dit où en est le candidat, il ne
+  /// dit pas pourquoi son plan manque encore.
+  List<Widget> _tete() => [
         const SfTop(kicker: kPlanEmptyKicker, title: kPlanTitle),
         const SizedBox(height: 14),
         Padding(
@@ -372,7 +375,7 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  info.titre,
+                  widget.info.titre,
                   style: AppFonts.display(
                     size: 20,
                     weight: FontWeight.w700,
@@ -380,72 +383,37 @@ class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SfInsight(info.texte),
+                SfInsight(widget.info.texte),
               ],
             ),
           ),
         ),
-        if (niveau != null) ...[
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SfCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SfLabel(kDiagnosticLevelEyebrow),
-                  const SizedBox(height: 8),
-                  SfLevel(niveau.shortName),
-                  // 🛑 L'objectif est servi (`cible`) ou absent : aucun front
-                  // n'écrit « B2 » pour un candidat sans démarche déclarée.
-                  if (cible != null) ...[
-                    const SizedBox(height: 12),
-                    SfGoalLine(
-                      prefix: kDiagnosticGoalPrefix,
-                      goal: cible.wire,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-        if (observations.isNotEmpty)
-          SfSection(
-            child: SfStack(
-              children: [
-                for (final o in observations)
-                  SfObservation(
-                    positive: o.positive,
-                    kicker: o.kicker,
-                    title: o.titre,
-                    text: o.texte,
-                  ),
-              ],
-            ),
-          ),
-        // 🛑 **L'ordre est celui du web, brique pour brique** : on dit
-        // pourquoi, on rappelle ce qui est mesuré, puis on agit. Le geste
-        // principal se pose donc APRÈS le rappel, jamais au-dessus de lui.
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final rapide = _rapide;
+    if (rapide != null) {
+      return DiagnosticResultView(
+        result: rapide,
+        // 🛑 La MÊME source de palier que l'écran `/diagnostic` : l'objectif
+        // vient du compte, jamais d'un second champ qui dériverait.
+        objective: ref.watch(userTargetLevelProvider),
+        leading: _tete(),
+      );
+    }
+
+    return ListView(
+      children: [
+        ..._tete(),
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SfButton(
-            label: info.cta,
-            onPressed: () => context.push(info.route),
+            label: widget.info.cta,
+            onPressed: () => context.push(widget.info.route),
           ),
         ),
-        if (estimation != null) ...[
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SfButton(
-              label: kPlanGateRapportCta,
-              variant: SfButtonVariant.line,
-              onPressed: () => context.push(AppRoutes.diagnostic),
-            ),
-          ),
-        ],
         const SizedBox(height: 28),
       ],
     );

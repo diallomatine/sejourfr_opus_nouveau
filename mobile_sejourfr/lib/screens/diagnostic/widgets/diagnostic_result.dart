@@ -29,14 +29,28 @@ import 'diagnostic_report_labels.dart';
 /// 🛑 **Un niveau non estimé est NOMMÉ, jamais rabattu sur A1.** Une production
 /// inexploitable rend `levelEstimate == null` : la carte hero affiche l'état,
 /// pas un palier de repli.
+///
+/// 🛑 **Deux emplacements, UN SEUL écran.** Il est le résultat de
+/// [DiagnosticScreen], et il est **encastré** dans la porte d'entrée du Plan
+/// TCF tant que le diagnostic complet manque — c'est le même rapport que le
+/// candidat doit retrouver, pas un résumé maison qui finirait par dire autre
+/// chose. Miroir de la prop `embedded` du web : là-bas elle retire la chrome de
+/// page, ici l'écran n'en a jamais eu — il est **la liste défilante**, et
+/// l'appelant lui passe sa tête par [leading] plutôt que d'imbriquer deux
+/// scrollables.
 class DiagnosticResultView extends StatelessWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     this.objective,
+    this.leading = const <Widget>[],
   });
 
   final DiagnosticResult result;
+
+  /// Ce que l'écran hôte pose **au-dessus** du rapport, dans le même défilement
+  /// (son en-tête, son explication). Vide : le rapport est seul à l'écran.
+  final List<Widget> leading;
 
   /// Le palier visé, servi par la démarche déclarée du compte. `null` = pas
   /// encore choisi : la ligne d'objectif n'est pas rendue et le rail s'arrête
@@ -50,8 +64,13 @@ class DiagnosticResultView extends StatelessWidget {
     final observations = diagnosticObservations(result);
 
     return ListView(
-      padding: const EdgeInsets.only(top: 14, bottom: 32),
+      // L'espace de tête appartient au premier bloc : quand l'hôte fournit le
+      // sien, c'est lui qui le porte.
+      padding: leading.isEmpty
+          ? const EdgeInsets.only(top: 14, bottom: 32)
+          : const EdgeInsets.only(bottom: 32),
       children: [
+        ...leading,
         Padding(
           padding: sfGutter,
           child: _HeroCard(
