@@ -110,7 +110,8 @@ class SuggestionThemeSourceIT extends AbstractIntegrationTest {
         // qui jugeait apres coup, decrit une situation desormais impossible.
         jdbc.update("""
                 UPDATE question_notion_suggestions
-                   SET review_verdict = 'SKIPPED', reviewed_at = now()
+                   SET review_verdict = 'SKIPPED', reviewed_at = now(),
+                       review_source = 'OWNER_REVIEW'
                  WHERE question_id = ?
                 """, question.getId());
         assertThat(themeSource(question.getId())).isEqualTo(origine.getCode());

@@ -160,6 +160,16 @@ public interface QuestionNotionSuggestionRepository
      * ressortait faussee, et c'est precisement ce qu'une mesure ne doit jamais
      * subir.
      *
+     * <p>🛑 <b>La provenance vaut toujours {@code OWNER_REVIEW} ici</b>, et
+     * c'est la seule valeur que cet endpoint sache ecrire. Il sert la console
+     * d'administration : derriere lui il y a un humain authentifie, dont le
+     * jugement est LA reference contre laquelle se mesure la precision du
+     * modele. {@code AGENT_REVIEW} ne se pose que par un backfill explicite,
+     * quand on sait apres coup qu'un agent a arbitre sous delegation — c'est
+     * le cas des 157 verdicts de V062. Cette friction est voulue : une
+     * relecture deleguee ne doit jamais pouvoir se faire passer pour celle du
+     * proprietaire par simple appel d'API.
+     *
      * @return le nombre de suggestions marquees — <b>0 est normal</b> quand
      *         aucune campagne de pre-tagging n'a encore tourne
      */
@@ -168,7 +178,8 @@ public interface QuestionNotionSuggestionRepository
             UPDATE question_notion_suggestions s
             SET review_verdict = CAST(:verdict AS varchar),
                 reviewed_by = CAST(:relecteurId AS uuid),
-                reviewed_at = now()
+                reviewed_at = now(),
+                review_source = 'OWNER_REVIEW'
             FROM (
                 SELECT DISTINCT ON (x.question_id) x.question_id, x.batch_id
                   FROM question_notion_suggestions x

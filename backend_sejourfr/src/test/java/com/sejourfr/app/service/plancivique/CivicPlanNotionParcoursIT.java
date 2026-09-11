@@ -324,6 +324,59 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
      * 🛑 L'invariant qui commande tout : une cible non {@code SERVABLE} n'est
      * <b>servie nulle part</b>.
      */
+    @Test
+    @DisplayName("🛑 Les trois invariants de sûreté du grain NOTION : « solides », "
+            + "« Progression détectée » et le grain annoncé par le client")
+    void lesTroisInvariantsDeSurete() {
+        User user = testData.user();
+        testData.userSubscription(user, testData.plan());
+        Fixture fx = monterUnThemeAuGrainNotion(user);
+
+        UUID attempt = service.demarrerSerie(
+                user.getId(), fx.servable(), CivicPlanGrain.NOTION).id();
+        repondre(attempt, id -> true, SERIE_A);
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // ---- 1. `solides` ne liste que du servable, comme `priorites` et
+        // `aRevoir`. Une cible maitrisee puis devenue non servable — le
+        // candidat change de demarche et sa notion n'a plus de question dans
+        // sa nouvelle mention — s'affichait comme un acquis : le plan
+        // annoncait un acquis sur un point qu'il ne sait plus enseigner.
+        assertThat(plan.solides())
+                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
+
+        // ---- 2. « Progression detectee » ne nomme jamais une cible non
+        // servable. Elle peut pourtant en avoir l'historique : c'est
+        // precisement le cas qui laissait lire un progres sur un point
+        // impossible a travailler, et sans carte nulle part ailleurs.
+        List<UUID> nonServables = List.of(fx.insuffisante(), fx.horsProgramme());
+        if (plan.changements() != null) {
+            assertThat(plan.changements().transitions())
+                    .as("aucune transition ne nomme une cible non servable")
+                    .noneMatch(t -> nonServables.contains(t.cibleId()));
+            if (plan.changements().nouvellePriorite() != null) {
+                assertThat(nonServables)
+                        .doesNotContain(plan.changements().nouvellePriorite().id());
+            }
+        }
+
+        // ---- 3. Le grain annonce par le client n'est pas une autorite : le
+        // serveur retrouve la cible dans le plan et en deduit son grain.
+        UUID servableRestante = plan.priorites().getFirst().id();
+        assertThat(service.demarrerSerie(
+                user.getId(), servableRestante, CivicPlanGrain.THEME).id())
+                .as("le serveur corrige un grain faux au lieu de tirer dans le vide")
+                .isNotNull();
+
+        // Et une cible non servable est REFUSEE, quel que soit le grain annonce.
+        assertThatThrownBy(() -> service.demarrerSerie(
+                user.getId(), fx.insuffisante(), CivicPlanGrain.NOTION))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.demarrerSerie(
+                user.getId(), fx.horsProgramme(), CivicPlanGrain.THEME))
+                .isInstanceOf(BusinessException.class);
+    }
+
     private static void seulLeServableEstServi(CivicPlanDto plan, Fixture fx) {
         List<UUID> interdites = List.of(fx.insuffisante(), fx.horsProgramme());
         assertThat(plan.priorites()).noneMatch(c -> interdites.contains(c.id()));

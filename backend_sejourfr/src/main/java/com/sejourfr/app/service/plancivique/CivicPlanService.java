@@ -230,17 +230,31 @@ public class CivicPlanService {
                 .limit(props.getRevisionsVisibles())
                 .toList();
 
+        // 🛑 `solides` se filtre par dotation comme `priorites` et `aRevoir`.
+        // Une cible maitrisee puis devenue non servable — le candidat change de
+        // `targetProcedure`, et la notion n'a plus de question dans sa nouvelle
+        // mention — s'affichait comme un acquis. Le plan annoncait donc un
+        // acquis sur un point qu'il ne sait plus enseigner.
         List<CivicPlanDto.Cible> solides = cibles.stream()
                 .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
                 .filter(c -> !c.aRevoir())
+                .filter(c -> c.dotation().estServable())
                 .toList();
 
         CivicPlanDto.Cible prochaine = priorites.isEmpty() ? null : priorites.getFirst();
 
         // 🛑 `null` est le cas NORMAL : servi seulement si quelque chose a
         // vraiment bouge. Le temps qui passe n'est pas un changement.
+        // 🛑 « Progression detectee » ne parle que de cibles SERVABLES. Une
+        // notion non servable touchee pendant le diagnostic pouvait y etre
+        // nommee alors qu'elle n'a de carte NULLE PART ailleurs dans le plan :
+        // le candidat lisait un progres sur un point qu'il ne peut pas
+        // travailler, et sur lequel il ne peut pas revenir.
+        List<CivicPlanDto.Cible> servables = cibles.stream()
+                .filter(c -> c.dotation().estServable())
+                .toList();
         CivicPlanDto.Changements changements = changementsResolver
-                .resoudre(cibles, calcul.reponsesParCible(), prochaine,
+                .resoudre(servables, calcul.reponsesParCible(), prochaine,
                         CivicPrioriteScorer.FENETRE_REPETEE, maintenant)
                 .orElse(null);
 
@@ -354,8 +368,24 @@ public class CivicPlanService {
         }
         Difficulty mention = TargetProcedure.mentionCivique(user.getTargetProcedure());
 
-        UUID notionId = grain == CivicPlanGrain.NOTION ? cibleId : null;
-        UUID themeId = grain == CivicPlanGrain.THEME ? cibleId : null;
+        // 🛑 LE GRAIN ANNONCE PAR LE CLIENT N'EST PAS UNE AUTORITE. Le serveur
+        // recalcule le plan et va chercher la cible dedans : c'est lui qui sait
+        // a quel grain ce theme est passe, et si la cible est servable. Avant,
+        // un appel direct sur une notion CONTENU_INSUFFISANT ouvrait une serie
+        // de une a quatre questions au lieu de dix, en silence. Le parametre
+        // reste accepte pour ne rien casser cote fronts, mais il est ignore.
+        CivicPlanDto.Cible cible = calculer(userId).cibles().stream()
+                .filter(c -> c.id().equals(cibleId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException(
+                        "Cette cible ne fait pas partie de votre plan."));
+        if (!cible.dotation().estServable()) {
+            throw new BusinessException(
+                    "Aucune question disponible sur ce point pour votre démarche.");
+        }
+
+        UUID notionId = cible.grain() == CivicPlanGrain.NOTION ? cibleId : null;
+        UUID themeId = cible.grain() == CivicPlanGrain.THEME ? cibleId : null;
         List<UUID> ids = planManager.tirageSerieCiblee(
                 userId, mention, notionId, themeId, props.getQuestionsParSerie());
         if (ids.isEmpty()) {
