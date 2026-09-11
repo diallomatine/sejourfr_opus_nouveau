@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +88,7 @@ public class CivicPlanService {
     private final CivicDiagnosticSessionManager sessionManager;
     private final CivicDiagnosticViewService diagnosticViewService;
     private final CivicLeitnerResolver leitnerResolver;
+    private final CivicChangementsResolver changementsResolver;
     private final CivicPrioriteScorer scorer;
     private final SubscriptionService subscriptionService;
     private final AttemptService attemptService;
@@ -109,7 +111,7 @@ public class CivicPlanService {
         if (diagnostic.isEmpty()) {
             return new CivicPlanDto(
                     false, mention, null, null, List.of(), 0, List.of(), List.of(),
-                    grain(Map.of()), maintenant);
+                    grain(Map.of()), null, maintenant);
         }
         CivicDiagnosticResultDto resultat = diagnostic.get();
 
@@ -126,17 +128,30 @@ public class CivicPlanService {
         Map<UUID, List<CivicReponse>> reponsesParNotion = grouperParNotion(reponses);
 
         List<CivicPlanDto.Cible> cibles = new ArrayList<>();
+        // Les reponses de chaque cible, gardees pour le bloc « progression
+        // detectee » : il rejoue l'etat d'il y a une semaine sur exactement les
+        // memes reponses, plutot que de persister un snapshot.
+        Map<UUID, List<CivicReponse>> reponsesParCible = new HashMap<>();
         for (Theme theme : themes) {
             CivicThemeState etatDuTheme = etatDuTheme(resultat, theme.getId());
             boolean pointeParLeDiagnostic = resultat.priorites().stream()
                     .anyMatch(p -> p.themeId().equals(theme.getId()));
 
             if (grainDuTheme(taggage.get(theme.getId())) == CivicPlanGrain.NOTION) {
-                cibles.addAll(ciblesNotions(theme, etatDuTheme, notions,
-                        dotationNotions, reponsesParNotion, maintenant, abonne));
+                List<CivicPlanDto.Cible> duTheme = ciblesNotions(theme, etatDuTheme,
+                        notions, dotationNotions, reponsesParNotion, maintenant, abonne);
+                cibles.addAll(duTheme);
+                for (CivicPlanDto.Cible cible : duTheme) {
+                    reponsesParCible.put(cible.id(),
+                            reponsesParNotion.getOrDefault(cible.id(), List.of()));
+                }
             } else {
-                cibles.add(cibleTheme(theme, etatDuTheme, pointeParLeDiagnostic,
-                        dotationThemes, reponses, maintenant, abonne));
+                CivicPlanDto.Cible cible = cibleTheme(theme, etatDuTheme,
+                        pointeParLeDiagnostic, dotationThemes, reponses, maintenant, abonne);
+                cibles.add(cible);
+                reponsesParCible.put(cible.id(), reponses.stream()
+                        .filter(r -> theme.getId().equals(r.themeId()))
+                        .toList());
             }
         }
 
@@ -169,6 +184,15 @@ public class CivicPlanService {
                 .filter(c -> !c.aRevoir())
                 .toList();
 
+        CivicPlanDto.Cible prochaine = priorites.isEmpty() ? null : priorites.getFirst();
+
+        // 🛑 `null` est le cas NORMAL : servi seulement si quelque chose a
+        // vraiment bouge. Le temps qui passe n'est pas un changement.
+        CivicPlanDto.Changements changements = changementsResolver
+                .resoudre(cibles, reponsesParCible, prochaine,
+                        CivicPrioriteScorer.FENETRE_REPETEE, maintenant)
+                .orElse(null);
+
         return new CivicPlanDto(
                 true,
                 mention,
@@ -176,12 +200,13 @@ public class CivicPlanService {
                         resultat.bonnes(), resultat.posees(),
                         resultat.seuilReussite(), resultat.formatQuestions(),
                         resultat.completedAt()),
-                priorites.isEmpty() ? null : priorites.getFirst(),
+                prochaine,
                 priorites,
                 Math.max(0, proposables.size() - priorites.size()),
                 aRevoir,
                 solides,
                 grain(taggage),
+                changements,
                 maintenant);
     }
 
@@ -402,12 +427,13 @@ public class CivicPlanService {
 
     /** Le rabat de maitrise au grain theme. Il ne peut qu'abaisser. */
     private static CivicEtatCible rabattre(CivicEtatCible etat) {
-        if (etat.maitrise() != CivicMaitrise.MAITRISEE) return etat;
+        CivicMaitrise rabattue = etat.maitrise().rabattueAuGrainTheme();
+        if (rabattue == etat.maitrise()) return etat;
         return new CivicEtatCible(
                 etat.boite(), etat.reponses(), etat.correctes(),
                 etat.consecutivesJustes(), etat.derniereVue(), etat.derniereErreur(),
                 etat.erreursRecentes(), etat.prochaineRevue(),
-                CivicMaitrise.EN_PROGRESSION);
+                rabattue);
     }
 
     // ------------------------------------------------------------------------

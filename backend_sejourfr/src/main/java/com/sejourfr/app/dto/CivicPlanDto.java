@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.PlanRecentChangesWindow;
 import com.sejourfr.app.service.plancivique.CivicEtapeEtat;
 import com.sejourfr.app.service.plancivique.CivicMaitrise;
 import com.sejourfr.app.service.plancivique.CivicPlanGrain;
@@ -51,6 +52,10 @@ import java.util.UUID;
  * @param solides         ce qui est acquis, dit pour ce que ca vaut : le
  *                        candidat n'a pas besoin de tout reviser
  * @param grain           voir {@link Grain}
+ * @param changements     ce qui a bouge depuis peu, ou {@code null} — et
+ *                        {@code null} est le <b>cas normal</b>, exactement
+ *                        comme {@code recentChanges} cote TCF. Voir
+ *                        {@link Changements}
  */
 public record CivicPlanDto(
         boolean disponible,
@@ -62,8 +67,66 @@ public record CivicPlanDto(
         List<Cible> aRevoir,
         List<Cible> solides,
         Grain grain,
+        Changements changements,
         Instant calculeA
 ) {
+
+    /**
+     * <b>Ce qui a bouge depuis peu</b> — le bloc « Progression detectee ».
+     *
+     * <p>🛑 <b>{@code null} est le cas NORMAL.</b> Servi seulement quand une
+     * <b>vraie</b> transition a eu lieu : le temps qui passe n'est pas un
+     * changement, et un bloc qui s'afficherait vide ne dirait rien.
+     *
+     * <p>🛑 <b>Rien n'est persiste</b>, fidele au reste du module : l'etat d'il
+     * y a une semaine se <b>rejoue</b> depuis l'historique des reponses, comme
+     * l'etat courant ({@code CivicChangementsResolver}). Aucune table de
+     * snapshot, donc le tagging reste retroactif.
+     *
+     * @param fenetre          la plus COURTE fenetre qui contienne quelque chose
+     *                         de reel. Partagee avec le TCF : une seule autorite
+     *                         sur les periodes et leurs libelles
+     * @param depuis           le debut de cette fenetre
+     * @param transitions      les cibles dont l'etat a change, de la plus
+     *                         recemment travaillee a la plus ancienne
+     * @param nouvellePriorite la cible que le plan vient de mettre en tete, ou
+     *                         {@code null} si la priorite n&deg;1 n'a pas bouge
+     */
+    public record Changements(
+            PlanRecentChangesWindow fenetre,
+            Instant depuis,
+            List<Transition> transitions,
+            CibleRef nouvellePriorite
+    ) {
+        public Changements {
+            transitions = List.copyOf(transitions);
+        }
+    }
+
+    /**
+     * Une cible dont l'etat a change sur la fenetre.
+     *
+     * @param avant    l'etat au debut de la fenetre, <b>rejoue</b>
+     * @param apres    l'etat courant
+     * @param progres  {@code true} si l'on est monte. 🛑 <b>Derive serveur</b> :
+     *                 un front ne compare jamais deux etats pedagogiques
+     * @param observeeA la derniere reponse qui a fait bouger cette cible
+     */
+    public record Transition(
+            UUID cibleId,
+            String code,
+            String label,
+            CivicPlanGrain grain,
+            CivicMaitrise avant,
+            CivicMaitrise apres,
+            boolean progres,
+            Instant observeeA
+    ) {
+    }
+
+    /** De quoi nommer une cible sans reservir toute sa mesure. */
+    public record CibleRef(UUID id, String code, String label, CivicPlanGrain grain) {
+    }
 
     /**
      * La derniere mesure <b>comparable au seuil</b>.

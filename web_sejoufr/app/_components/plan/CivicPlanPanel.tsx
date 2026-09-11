@@ -22,7 +22,11 @@ import {
   civicRevueLabel,
   civicSerieLabel,
     CIVIC_PATH_LABELS,
+    CIVIC_CHANGES_TITLE,
     CIVIC_PATH_TITLE,
+    civicChangesWindowLabel,
+    civicNextStepLabel,
+    civicTransitionLabel,
     civicPath,
     civicPathCounter,
 } from "@/lib/civic-plan";
@@ -281,6 +285,27 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
                 </div>
               ))}
             </Stack>
+          </Card>
+        </Section>
+      )}
+
+      {/* 🛑 `changements === null` est le cas NORMAL : le bloc DISPARAÎT, il ne
+          s'affiche jamais vide. C'est le seul endroit où le candidat voit son
+          plan bouger — l'user d'un « rien n'a changé » le rendrait invisible. */}
+      {plan.changements && (
+        <Section title={CIVIC_CHANGES_TITLE} flush>
+          <Card variant="ok">
+            <p className={sejourStyles.label}>
+              {civicChangesWindowLabel(plan.changements)}
+            </p>
+            {plan.changements.transitions.map((t) => (
+              <DoneRow key={t.cibleId} label={civicTransitionLabel(t)} />
+            ))}
+            {plan.changements.nouvellePriorite && (
+              <p className={sejourStyles.insight}>
+                {civicNextStepLabel(plan.changements.nouvellePriorite)}
+              </p>
+            )}
           </Card>
         </Section>
       )}

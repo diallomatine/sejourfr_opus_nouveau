@@ -1,4 +1,5 @@
 import 'civic_diagnostic_models.dart';
+import 'diagnostic_models.dart';
 import 'enums.dart';
 
 /// Miroirs de `CivicPlanDto` (L10, `20_` §6).
@@ -232,6 +233,7 @@ class CivicPlan {
     required this.grain,
     this.resultat,
     this.prochaine,
+    this.changements,
   });
 
   /// `false` quand aucun diagnostic n'est terminé : rien à bâtir.
@@ -253,6 +255,11 @@ class CivicPlan {
   final List<CivicPlanCible> solides;
   final CivicPlanGrainDto grain;
 
+  /// Ce qui a bougé depuis peu — le bloc « Progression détectée ».
+  /// 🛑 `null` est le **cas normal** : servi seulement quand une vraie
+  /// transition a eu lieu. Le temps qui passe n'est pas un changement.
+  final CivicPlanChangements? changements;
+
   static List<CivicPlanCible> _cibles(dynamic value) =>
       (value as List<dynamic>? ?? const [])
           .map((e) => CivicPlanCible.fromJson(e as Map<String, dynamic>))
@@ -273,5 +280,93 @@ class CivicPlan {
         solides: _cibles(json['solides']),
         grain: CivicPlanGrainDto.fromJson(
             json['grain'] as Map<String, dynamic>? ?? const {}),
+        changements: json['changements'] == null
+            ? null
+            : CivicPlanChangements.fromJson(
+                json['changements'] as Map<String, dynamic>),
+      );
+}
+
+/// Ce qui a bougé depuis peu dans le plan civique — pendant de
+/// `PlanRecentChanges` côté TCF.
+class CivicPlanChangements {
+  const CivicPlanChangements({
+    required this.fenetre,
+    required this.depuis,
+    required this.transitions,
+    this.nouvellePriorite,
+  });
+
+  /// La plus **courte** fenêtre qui contienne quelque chose de réel. Partagée
+  /// avec le TCF : une seule autorité sur les périodes et leurs libellés.
+  final PlanRecentChangesWindow fenetre;
+  final DateTime? depuis;
+  final List<CivicPlanTransition> transitions;
+
+  /// `null` si la priorité n°1 n'a pas bougé.
+  final CivicPlanCibleRef? nouvellePriorite;
+
+  static CivicPlanChangements fromJson(Map<String, dynamic> json) =>
+      CivicPlanChangements(
+        fenetre: PlanRecentChangesWindow.fromWireNullable(
+                json['fenetre'] as String?) ??
+            PlanRecentChangesWindow.ceMois,
+        depuis: DateTime.tryParse(json['depuis'] as String? ?? ''),
+        transitions: (json['transitions'] as List<dynamic>? ?? const [])
+            .map((e) => CivicPlanTransition.fromJson(e as Map<String, dynamic>))
+            .toList(growable: false),
+        nouvellePriorite: json['nouvellePriorite'] == null
+            ? null
+            : CivicPlanCibleRef.fromJson(
+                json['nouvellePriorite'] as Map<String, dynamic>),
+      );
+}
+
+/// Une cible dont l'état a changé sur la fenêtre.
+class CivicPlanTransition {
+  const CivicPlanTransition({
+    required this.cibleId,
+    required this.code,
+    required this.label,
+    required this.avant,
+    required this.apres,
+    required this.progres,
+    this.observeeA,
+  });
+
+  final String cibleId;
+  final String code;
+  final String label;
+  final CivicMaitrise avant;
+  final CivicMaitrise apres;
+
+  /// 🛑 **Dérivé serveur** : un front ne compare jamais deux états pédagogiques.
+  final bool progres;
+  final DateTime? observeeA;
+
+  static CivicPlanTransition fromJson(Map<String, dynamic> json) =>
+      CivicPlanTransition(
+        cibleId: json['cibleId'] as String? ?? '',
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        avant: CivicMaitrise.fromWire(json['avant'] as String? ?? 'NON_EVALUEE'),
+        apres: CivicMaitrise.fromWire(json['apres'] as String? ?? 'NON_EVALUEE'),
+        progres: json['progres'] as bool? ?? false,
+        observeeA: DateTime.tryParse(json['observeeA'] as String? ?? ''),
+      );
+}
+
+/// De quoi nommer une cible sans reservir toute sa mesure.
+class CivicPlanCibleRef {
+  const CivicPlanCibleRef({required this.id, required this.code, required this.label});
+
+  final String id;
+  final String code;
+  final String label;
+
+  static CivicPlanCibleRef fromJson(Map<String, dynamic> json) => CivicPlanCibleRef(
+        id: json['id'] as String? ?? '',
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
       );
 }

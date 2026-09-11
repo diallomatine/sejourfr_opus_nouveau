@@ -15,7 +15,16 @@
  * 🛑 Ce fichier ne **dérive** aucun état pédagogique : `maitrise` et `aRevoir`
  * arrivent servis. Il ne fait que les mettre en mots.
  */
-import type {CivicPlanCibleDto, CivicPlanDto, CivicPlanGrainDto} from "./types";
+import {
+    CIVIC_MAITRISE_LABEL,
+    PLAN_RECENT_CHANGES_WINDOW_LABEL,
+    type CivicPlanCibleDto,
+    type CivicPlanCibleRefDto,
+    type CivicPlanChangementsDto,
+    type CivicPlanDto,
+    type CivicPlanGrainDto,
+    type CivicPlanTransitionDto,
+} from "./types";
 
 export const CIVIC_PLAN_TITLE = "Mon plan — Examen civique";
 export const CIVIC_PLAN_LEAD = "Votre préparation personnalisée à l'Examen civique.";
@@ -192,4 +201,33 @@ export function civicPathCounter(cible: CivicPlanCibleDto): string {
     const rang = cible.parcours.findIndex((e) => e === "EN_COURS") + 1;
     // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
     return `Étape ${rang > 0 ? rang : total} / ${total}`;
+}
+
+/* ------------------------------------------- « Progression détectée » */
+
+export const CIVIC_CHANGES_TITLE = "Progression détectée";
+
+/**
+ * Ce qu'une transition **servie** raconte : « Le Parlement passe à En
+ * progression ».
+ *
+ * 🛑 Le verdict vient du serveur (`avant`, `apres`, `progres`) : cette fonction
+ * ne compare rien, elle met en mots. Le libellé d'état est celui, gelé, de
+ * `CIVIC_MAITRISE_LABEL` — jamais une chaîne réécrite ici.
+ */
+export function civicTransitionLabel(t: CivicPlanTransitionDto): string {
+    return `${t.label} passe à ${CIVIC_MAITRISE_LABEL[t.apres]}`;
+}
+
+/** « Votre prochaine étape : Le Gouvernement ». */
+export function civicNextStepLabel(ref: CivicPlanCibleRefDto): string {
+    return `Votre prochaine étape : ${ref.label}`;
+}
+
+/**
+ * La période du bloc, **servie** (`fenetre`) et rendue avec le libellé gelé
+ * partagé avec le TCF — une seule autorité sur ces trois périodes.
+ */
+export function civicChangesWindowLabel(c: CivicPlanChangementsDto): string {
+    return PLAN_RECENT_CHANGES_WINDOW_LABEL[c.fenetre];
 }

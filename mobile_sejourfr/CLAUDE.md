@@ -1173,6 +1173,13 @@ dans le kit), `test/plan_screen_test.dart` (il gelait l'anatomie supprimée).
 | TCF : « Votre parcours — Tâche N » quand la priorité n°1 est en CO/CE | Pas de `taches[]` en compréhension, donc aucun compteur servi. |
 | Durée du diagnostic civique (« 15 min ») | Aucune durée n'existe : l'attempt est créé sans `time_limit_seconds`, `DureeEpreuve` ne couvre pas `CIVIQUE`. Remplacé par « Seuil de réussite · 32 / 40 ». |
 
+**✅ « Progression détectée » (2026-09-11)** — `CivicPlanDto.changements`,
+pendant de `recentChanges` côté TCF. 🛑 `null` est le **cas normal** : le bloc
+disparaît, il ne s'affiche jamais vide. Les fronts ne comparent rien — `avant`,
+`apres` et `progres` sont **servis**, ils ne font que mettre en mots
+(`civicTransitionLabel` / `civicNextStepLabel`, miroirs). Règle complète et
+invariants : `docs/regles/plan.md`.
+
 **⚠️ Correctif du 2026-09-11 — le parcours civique EXISTE, et il est SERVI.**
 Il avait d'abord été omis, à tort. Le backend sert désormais
 `CivicPlanDto.Cible.parcours` : **exactement 5 `CivicEtapeEtat`**

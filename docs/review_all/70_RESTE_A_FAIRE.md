@@ -244,9 +244,13 @@ Ce que ça a **retiré** des deux Plans : la séance du jour (« Aujourd'hui »,
 `/plan/progression` et `/statistiques`). Ce que ça a **gardé**, hors maquette et
 faute d'autre porte : le jalon, « Compléter mon profil » et le chemin de palier.
 
-⚠️ **Deux blocs de la maquette restent OMIS faute de données** : l'encart
-« Progression détectée » du plan civique et les sous-compétences d'une priorité
-civique. Aucun n'a été fabriqué — cf. §3.1.
+⚠️ **Un bloc de la maquette reste OMIS faute de données** : les
+sous-compétences d'une priorité civique (pas de sous-arbre servi).
+
+✅ **« Progression détectée » est livré** (2026-09-11) : `CivicPlanDto
+.changements` sert les transitions d'état et la nouvelle priorité, rejouées
+depuis l'historique — aucune table de snapshot, donc le tagging reste
+rétroactif. `null` quand rien n'a bougé, ce qui est le cas normal.
 
 ✅ **Le parcours par notion, lui, est livré** (2026-09-11, après remarque du
 propriétaire) : `CivicPlanDto.Cible.parcours` sert 5 `CivicEtapeEtat`, dérivés

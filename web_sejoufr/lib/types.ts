@@ -3962,6 +3962,40 @@ export interface ProgressDto {
  * 🛑 `NON_EVALUEE` n'est **pas** un mauvais verdict : moins de deux réponses ne
  * conclut rien. C'est l'invariant `null = inconnu` appliqué au civique.
  */
+/**
+ * Ce qui a bougé depuis peu dans le plan civique — le bloc « Progression
+ * détectée », pendant de `PlanRecentChangesDto` côté TCF.
+ *
+ * 🛑 **`null` est le cas NORMAL** : servi seulement quand une vraie transition
+ * a eu lieu. Le temps qui passe n'est pas un changement.
+ */
+export type CivicPlanChangementsDto = {
+    fenetre: PlanRecentChangesWindow;
+    since: string;
+    transitions: CivicPlanTransitionDto[];
+    /** `null` si la priorité n°1 n'a pas bougé. */
+    nouvellePriorite: CivicPlanCibleRefDto | null;
+};
+
+export type CivicPlanTransitionDto = {
+    cibleId: string;
+    code: string;
+    label: string;
+    grain: CivicPlanGrain;
+    avant: CivicMaitrise;
+    apres: CivicMaitrise;
+    /** 🛑 **Dérivé serveur** : un front ne compare jamais deux états. */
+    progres: boolean;
+    observeeA: string;
+};
+
+export type CivicPlanCibleRefDto = {
+    id: string;
+    code: string;
+    label: string;
+    grain: CivicPlanGrain;
+};
+
 /** L'état d'une étape du parcours d'une cible civique. Miroir Java. */
 export type CivicEtapeEtat = "FRANCHIE" | "EN_COURS" | "A_VENIR";
 
@@ -4081,6 +4115,8 @@ export interface CivicPlanDto {
     aRevoir: CivicPlanCibleDto[];
     solides: CivicPlanCibleDto[];
     grain: CivicPlanGrainDto;
+    /** 🛑 `null` = rien n'a bougé, et c'est le cas normal. */
+    changements: CivicPlanChangementsDto | null;
     calculeA: string;
 }
 

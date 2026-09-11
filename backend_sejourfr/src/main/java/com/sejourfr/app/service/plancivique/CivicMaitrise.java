@@ -46,4 +46,23 @@ public enum CivicMaitrise {
         if (boite == 3) return EN_PROGRESSION;
         return derniereCorrecte ? MAITRISEE : EN_PROGRESSION;
     }
+
+    /**
+     * Le rabat au grain THEME. 🛑 <b>Un theme n'est JAMAIS maitrise</b> : une
+     * notion se tient sur quelques questions, un theme en porte deux cents, et
+     * l'annoncer acquis reproduirait « NON FRAGILE ≠ PLUS RIEN A APPRENDRE ».
+     *
+     * <p>🛑 <b>Il ne peut qu'ABAISSER</b>, et il vit ici plutot que dans un
+     * service : la regle vaut pour l'etat courant comme pour l'etat d'il y a une
+     * semaine (bloc « progression detectee »). Deux copies auraient laisse
+     * annoncer une transition vers un palier que le plan lui-meme refuse.
+     */
+    public CivicMaitrise rabattueAuGrainTheme() {
+        return this == MAITRISEE ? EN_PROGRESSION : this;
+    }
+
+    /** Progresse-t-on en allant de {@code this} vers {@code apres} ? */
+    public boolean progresseVers(CivicMaitrise apres) {
+        return apres.ordinal() > this.ordinal();
+    }
 }

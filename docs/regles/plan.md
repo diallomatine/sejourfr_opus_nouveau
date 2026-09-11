@@ -1061,6 +1061,37 @@ boîte. C'est voulu : c'est exactement ce que le candidat doit voir. Un
 `parcours` vide (client servi par un backend antérieur au champ) n'affiche
 **aucune carte**, jamais des étapes fabriquées.
 
+### « Progression détectée » — ce qui a bougé (2026-09-11)
+
+`CivicPlanDto.changements`, pendant de `recentChanges` côté TCF. 🛑 **`null` est
+le cas NORMAL** : servi seulement quand une **vraie** transition a eu lieu.
+
+🛑 **Rien n'est persisté**, fidèle au reste du module : l'état d'il y a une
+semaine se **rejoue** depuis l'historique des réponses, exactement comme l'état
+courant (`CivicChangementsResolver`). Une table de snapshots aurait figé un état
+calculé avec le référentiel du jour et **cassé la rétroactivité du tagging**.
+
+Ce qui fait un changement, et ce qui n'en fait pas :
+
+- 🛑 **Le temps seul n'est pas un changement.** Sans réponse nouvelle dans la
+  fenêtre, une cible est ignorée — sinon une échéance Leitner qui se franchit
+  toute seule s'annoncerait comme une progression.
+- 🛑 **Le rabat au grain THÈME s'applique aux DEUX bouts.** Sans lui on
+  annoncerait « passe à Maîtrisée » sur un thème, palier que le plan lui-même
+  refuse. Une seule autorité : `CivicMaitrise.rabattueAuGrainTheme()`.
+- **Une baisse est une transition comme une autre**, servie avec
+  `progres = false`. Le plan dit ce qui s'est passé, il ne raconte pas que des
+  bonnes nouvelles.
+- La **fenêtre** retenue est la plus courte qui contienne quelque chose, et
+  c'est `PlanRecentChangesWindow`, partagée avec le TCF — une seule autorité sur
+  les trois périodes et leurs libellés.
+- **`nouvellePriorite`** n'est servie que si la cible de rang 1 vient d'être
+  travaillée : une cible en tête depuis trois semaines n'est pas une nouvelle.
+
+🛑 **`progres` est dérivé SERVEUR** : un front ne compare jamais deux états
+pédagogiques. Les fronts ne font que mettre en mots (`civicTransitionLabel` /
+`civicNextStepLabel`, miroirs). `CivicChangementsResolverTest` verrouille le tout.
+
 ### État de maîtrise (`20_` §5.2)
 
 `NON_EVALUEE` (< 2 réponses) · `A_TRAVAILLER` (boîte 1-2) · `EN_PROGRESSION`

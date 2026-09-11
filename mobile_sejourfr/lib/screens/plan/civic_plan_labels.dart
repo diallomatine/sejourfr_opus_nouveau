@@ -305,3 +305,20 @@ String civicPathCounter(CivicPlanCible cible) {
   // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
   return 'Étape ${rang > 0 ? rang : total} / $total';
 }
+
+/* ------------------------------------------- « Progression détectée » */
+
+const String kCivicChangesTitle = 'Progression détectée';
+
+/// Ce qu'une transition **servie** raconte : « Le Parlement passe à En
+/// progression ».
+///
+/// 🛑 Le verdict vient du serveur (`avant`, `apres`, `progres`) : cette
+/// fonction ne compare rien, elle met en mots. Le libellé d'état est celui,
+/// gelé, de [CivicMaitrise.label]. Miroir de `civicTransitionLabel` côté web.
+String civicTransitionLabel(CivicPlanTransition t) =>
+    '${t.label} passe à ${t.apres.label}';
+
+/// « Votre prochaine étape : Le Gouvernement ».
+String civicNextStepLabel(CivicPlanCibleRef ref) =>
+    'Votre prochaine étape : ${ref.label}';

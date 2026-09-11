@@ -172,6 +172,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       ..._prioritiesSection(plan, free: false),
       ..._doneSection(plan),
       ..._reviewSection(plan, maintenant),
+      ..._changesSection(plan),
       const SizedBox(height: 28),
     ];
   }
@@ -350,6 +351,39 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         steps: etapes,
       ),
     );
+  }
+
+  /// « Progression détectée ».
+  ///
+  /// 🛑 `changements == null` est le cas NORMAL : le bloc **disparaît**, il ne
+  /// s'affiche jamais vide. C'est le seul endroit où le candidat voit son plan
+  /// bouger — l'user d'un « rien n'a changé » le rendrait invisible.
+  List<Widget> _changesSection(CivicPlan plan) {
+    final changements = plan.changements;
+    if (changements == null) return const <Widget>[];
+    final nouvelle = changements.nouvellePriorite;
+    return <Widget>[
+      SfSection(
+        flush: true,
+        title: kCivicChangesTitle,
+        child: SfCard(
+          variant: SfCardVariant.ok,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SfLabel(changements.fenetre.label, color: AppColors.greenDark),
+              const SizedBox(height: 4),
+              for (final t in changements.transitions)
+                SfCheckRow(label: civicTransitionLabel(t), large: true),
+              if (nouvelle != null) ...[
+                const SizedBox(height: 8),
+                SfInsight(civicNextStepLabel(nouvelle)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _prioritiesSection(CivicPlan plan, {required bool free}) {
