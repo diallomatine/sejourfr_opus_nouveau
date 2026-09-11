@@ -57,11 +57,23 @@ export const civicNotionsApi = {
 
   /** La file de tagging. `tagged=false` = ce qu'il reste à faire. */
   async file(
-    params: { theme?: string; tagged: boolean; limit: number; offset: number },
+    params: {
+      theme?: string;
+      tagged: boolean;
+      /**
+       * `true` = ne garder que les questions PRÉ-TAGUÉES, confiances les plus
+       * basses en tête. C'est le mode « relire une campagne » : sans lui, les
+       * 50 questions d'un pilote sont noyées dans les 215 de leur thème.
+       */
+      suggerees?: boolean;
+      limit: number;
+      offset: number;
+    },
     signal?: AbortSignal,
   ): Promise<CivicTaggingQueue> {
     const query: Record<string, string> = {
       tagged: String(params.tagged),
+      suggerees: String(params.suggerees ?? false),
       limit: String(params.limit),
       offset: String(params.offset),
     };

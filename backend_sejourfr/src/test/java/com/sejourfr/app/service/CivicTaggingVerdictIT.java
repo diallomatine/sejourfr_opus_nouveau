@@ -598,6 +598,85 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
         return n == null ? 0 : n;
     }
 
+    // ------------------------------------------------------------------
+    // Le mode « relire une campagne » (suggerees = true)
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("🛑 « relire une campagne » ne sert QUE les questions pré-taguées")
+    void fileDeCampagneNeSertQueLesPretaguees() {
+        // 🛑 Le MEME theme : `data.question()` en cree un nouveau a chaque appel,
+        // et la file est filtree par theme — trois questions, trois files.
+        var theme = data.theme();
+        Question suggeree = data.question(theme);
+        Question intacte = data.question(theme);
+        entityManager.flush();
+        suggerer(suggeree.getId(), MIEUX_NOTEE, 0.9);
+
+        List<UUID> ids = campagneDuThemeDe(suggeree.getId()).stream()
+                .map(com.sejourfr.app.dto.QuestionTaggingDto::questionId)
+                .toList();
+
+        assertThat(ids).contains(suggeree.getId());
+        // Sans ce filtre, 50 questions de pilote sont noyees dans les 215 de
+        // leur theme et la file est inutilisable pour relire une campagne.
+        assertThat(ids).doesNotContain(intacte.getId());
+    }
+
+    @Test
+    @DisplayName("🛑 « aucune notion » passe DEVANT, puis les confiances croissantes")
+    void fileDeCampagneTrieParUrgenceDeRelecture() {
+        var theme = data.theme();
+        Question sure = data.question(theme);
+        Question hesitante = data.question(theme);
+        Question sansNotion = data.question(theme);
+        entityManager.flush();
+        suggerer(sure.getId(), MIEUX_NOTEE, 0.97);
+        suggerer(hesitante.getId(), MIEUX_NOTEE, 0.55);
+        suggererAucune(sansNotion.getId(), 0.60);
+
+        List<UUID> ids = campagneDuThemeDe(sure.getId()).stream()
+                .map(com.sejourfr.app.dto.QuestionTaggingDto::questionId)
+                .toList();
+
+        // Un trou du referentiel est le signal le plus precieux d'une campagne.
+        assertThat(ids.indexOf(sansNotion.getId())).isZero();
+        // Puis la moins sure : c'est la que le relecteur apporte quelque chose.
+        assertThat(ids.indexOf(hesitante.getId()))
+                .isLessThan(ids.indexOf(sure.getId()));
+    }
+
+    @Test
+    @DisplayName("🛑 le tri lit la PROPOSITION, pas l'alternative")
+    void fileDeCampagneTrieSurLaMeilleureSuggestion() {
+        var theme = data.theme();
+        Question sureAvecAlternativeBasse = data.question(theme);
+        Question hesitante = data.question(theme);
+        entityManager.flush();
+        // Le modele est sur de lui (0,97) mais garde une alternative faible.
+        suggerer(sureAvecAlternativeBasse.getId(), MIEUX_NOTEE, 0.97);
+        suggerer(sureAvecAlternativeBasse.getId(), AUTRE, 0.20);
+        suggerer(hesitante.getId(), MIEUX_NOTEE, 0.60);
+
+        List<UUID> ids = campagneDuThemeDe(hesitante.getId()).stream()
+                .map(com.sejourfr.app.dto.QuestionTaggingDto::questionId)
+                .toList();
+
+        // Un tri sur le MIN remonterait la question sure en tete a cause de son
+        // alternative a 0,20 — et enterrerait celle qui demande un arbitrage.
+        assertThat(ids.indexOf(hesitante.getId()))
+                .isLessThan(ids.indexOf(sureAvecAlternativeBasse.getId()));
+    }
+
+    /** La file en mode campagne, restreinte au theme de cette question. */
+    private List<com.sejourfr.app.dto.QuestionTaggingDto> campagneDuThemeDe(UUID questionId) {
+        String themeCode = jdbc.queryForObject("""
+                SELECT t.code FROM questions q JOIN themes t ON t.id = q.theme_id
+                WHERE q.id = ?
+                """, String.class, questionId);
+        return service.fileDeTagging(themeCode, false, true, 100, 0).questions();
+    }
+
     private UUID idDeLaNotion(String code) {
         return jdbc.queryForObject(
                 "SELECT id FROM civic_notions WHERE code = ?", UUID.class, code);
@@ -615,7 +694,7 @@ class CivicTaggingVerdictIT extends AbstractIntegrationTest {
                 SELECT t.code FROM questions q JOIN themes t ON t.id = q.theme_id
                 WHERE q.id = ?
                 """, String.class, questionId);
-        return service.fileDeTagging(themeCode, false, 100, 0).questions();
+        return service.fileDeTagging(themeCode, false, false, 100, 0).questions();
     }
 
     private String notionDe(UUID questionId) {

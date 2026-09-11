@@ -89,6 +89,28 @@ public interface CivicNotionRepository extends JpaRepository<CivicNotion, UUID> 
      * situation a recu une notion par erreur, l'ecran doit pouvoir la retrouver
      * pour l'effacer. Cacher une erreur n'est pas la corriger.
      *
+     * <p>⚠️ {@code suggerees = true} ne garde que les questions qui portent une
+     * suggestion de pre-tagging. C'est ce qui rend une CAMPAGNE relisable : au
+     * pilote, 50 questions pre-taguees etaient noyees dans les 215 du theme, a
+     * raison de cinq ou six par page de vingt-cinq — la file etait
+     * inutilisable pour relire une campagne.
+     *
+     * <p>🛑 Le tri met alors les lignes « aucune notion » TOUT DEVANT — elles
+     * designent un trou du referentiel, le signal le plus precieux d'une
+     * campagne — puis les CONFIANCES LES PLUS BASSES. C'est la que le relecteur
+     * apporte le plus : une suggestion a 0,97 se confirme d'un coup d'oeil, une
+     * a 0,55 demande un vrai arbitrage.
+     *
+     * <p>⚠️ Le tri prend le <b>MAX</b> des confiances d'une question, pas le
+     * min : le min prendrait celle de l'ALTERNATIVE, et une question proposee a
+     * 0,97 avec une alternative a 0,30 remonterait en tete alors que le modele
+     * est sur de lui.
+     *
+     * <p>🛑 <b>Aucun commentaire SQL dans le corps de cette requete.</b> Une
+     * apostrophe francaise dans un {@code --} casse le parseur de requetes
+     * natives ({@code IllegalArgumentException} au demarrage du contexte, tous
+     * les tests du repository en erreur). Les explications vivent ici.
+     *
      * <p>Colonnes : {@code id}, {@code statement}, {@code explanation},
      * {@code theme.code}, {@code difficulty}, {@code notion.code},
      * {@code notion.label}.
@@ -105,11 +127,24 @@ public interface CivicNotionRepository extends JpaRepository<CivicNotion, UUID> 
               AND (CAST(:tagged AS boolean) IS NULL
                    OR (CAST(:tagged AS boolean) = true AND q.civic_notion_id IS NOT NULL)
                    OR (CAST(:tagged AS boolean) = false AND q.civic_notion_id IS NULL))
-            ORDER BY q.created_at, q.id
+              AND (CAST(:suggerees AS boolean) IS NOT TRUE
+                   OR EXISTS (SELECT 1 FROM question_notion_suggestions s
+                               WHERE s.question_id = q.id))
+            ORDER BY
+              CASE WHEN CAST(:suggerees AS boolean) IS TRUE
+                    AND EXISTS (SELECT 1 FROM question_notion_suggestions s
+                                 WHERE s.question_id = q.id AND s.notion_id IS NULL)
+                   THEN 0 ELSE 1 END,
+              CASE WHEN CAST(:suggerees AS boolean) IS TRUE THEN (
+                SELECT max(s.confidence)
+                  FROM question_notion_suggestions s WHERE s.question_id = q.id
+              ) END NULLS LAST,
+              q.created_at, q.id
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
     List<Object[]> fileDeTagging(@Param("theme") String theme,
                                  @Param("tagged") Boolean tagged,
+                                 @Param("suggerees") Boolean suggerees,
                                  @Param("limit") int limit,
                                  @Param("offset") int offset);
 

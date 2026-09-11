@@ -118,8 +118,9 @@ public class CivicNotionManager {
         return repository.existeQuestionCivique(questionId);
     }
 
-    public List<Object[]> fileDeTagging(String theme, Boolean tagged, int limit, int offset) {
-        return repository.fileDeTagging(theme, tagged, limit, offset);
+    public List<Object[]> fileDeTagging(
+            String theme, Boolean tagged, Boolean suggerees, int limit, int offset) {
+        return repository.fileDeTagging(theme, tagged, suggerees, limit, offset);
     }
 
     public long resteATaguer() {

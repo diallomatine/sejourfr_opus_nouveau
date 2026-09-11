@@ -170,6 +170,16 @@ export function CivicNotionsPage() {
    * en tête et le relecteur tournerait en rond.
    */
   const [traitees, setTraitees] = useState<ReadonlySet<string>>(new Set());
+
+  /**
+   * 🛑 Le mode « relire une campagne ». Sans lui, les 50 questions d'un pilote
+   * sont noyées dans les 215 non taguées de leur thème — cinq ou six par page
+   * de vingt-cinq — et retrouver une campagne est impossible. Actif, la file ne
+   * garde que les questions PRÉ-TAGUÉES, **confiances les plus basses en
+   * tête** : c'est là que le relecteur apporte quelque chose, une suggestion à
+   * 0,97 se confirme d'un coup d'œil.
+   */
+  const [suggereesSeules, setSuggereesSeules] = useState(true);
   const queryClient = useQueryClient();
   const cartes = useRef(new Map<string, HTMLElement>());
 
@@ -179,9 +189,12 @@ export function CivicNotionsPage() {
   });
 
   const file = useQuery({
-    queryKey: ["civic-tagging", theme, offset],
+    queryKey: ["civic-tagging", theme, offset, suggereesSeules],
     queryFn: ({ signal }) =>
-      civicNotionsApi.file({ theme, tagged: false, limit: PAGE, offset }, signal),
+      civicNotionsApi.file(
+        { theme, tagged: false, suggerees: suggereesSeules, limit: PAGE, offset },
+        signal,
+      ),
   });
 
   const taguer = useMutation({
@@ -232,6 +245,15 @@ export function CivicNotionsPage() {
     setTheme(code);
     setOffset(0);
     setActif(0);
+  };
+
+  // Changer de mode rebat la file : on repart du haut, sinon l'offset courant
+  // pointe dans une liste qui n'a plus la même longueur.
+  const changerMode = (seules: boolean) => {
+    setSuggereesSeules(seules);
+    setOffset(0);
+    setActif(0);
+    setTraitees(new Set());
   };
 
   const mutate = taguer.mutate;
@@ -350,7 +372,9 @@ export function CivicNotionsPage() {
         title="À taguer"
         sub={
           file.data
-            ? `${file.data.resteATaguer} question(s) civique(s) active(s) encore sans notion, tous thèmes confondus.`
+            ? suggereesSeules
+              ? "Les questions PRÉ-TAGUÉES de ce thème, confiances les plus basses en tête — c'est là que la relecture apporte le plus."
+              : `${file.data.resteATaguer} question(s) civique(s) active(s) encore sans notion, tous thèmes confondus.`
             : undefined
         }
         actions={
@@ -364,6 +388,25 @@ export function CivicNotionsPage() {
         }
         noPadding
       >
+        <div className={styles.modeFile} role="group" aria-label="Contenu de la file">
+          <button
+            type="button"
+            className={suggereesSeules ? styles.modeActif : styles.mode}
+            aria-pressed={suggereesSeules}
+            onClick={() => changerMode(true)}
+          >
+            Relire une campagne
+          </button>
+          <button
+            type="button"
+            className={suggereesSeules ? styles.mode : styles.modeActif}
+            aria-pressed={!suggereesSeules}
+            onClick={() => changerMode(false)}
+          >
+            Toutes les questions à taguer
+          </button>
+        </div>
+
         {aideVisible && <AideClavier />}
 
         {erreur && (

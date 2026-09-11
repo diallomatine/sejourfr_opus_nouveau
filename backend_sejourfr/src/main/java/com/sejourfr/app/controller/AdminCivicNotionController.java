@@ -56,15 +56,21 @@ public class AdminCivicNotionController {
      * dotes — {@code CIV_HISTOIRE_GEO} puis {@code CIV_INSTITUTIONS} — pour
      * calibrer la methode avant {@code CIV_PRINCIPES}, plus petit et plus
      * sujet aux recouvrements. Le filtre est la pour ca.
+     *
+     * <p>{@code suggerees=true} ne garde que les questions PRE-TAGUEES, les
+     * plus basses confiances en tete. C'est le mode « relire une campagne » :
+     * sans lui, les 50 questions d'un pilote sont noyees dans les 215 de leur
+     * theme et la file est inutilisable pour les retrouver.
      */
     @GetMapping("/questions")
     public CivicNotionService.FileDeTagging file(
             @RequestParam(required = false) String theme,
             @RequestParam(required = false, defaultValue = "false") Boolean tagged,
+            @RequestParam(required = false, defaultValue = "false") Boolean suggerees,
             @RequestParam(defaultValue = "25") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        return service.fileDeTagging(theme, tagged, Math.min(Math.max(limit, 1), 100),
-                Math.max(offset, 0));
+        return service.fileDeTagging(theme, tagged, suggerees,
+                Math.min(Math.max(limit, 1), 100), Math.max(offset, 0));
     }
 
     /**

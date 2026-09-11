@@ -107,8 +107,9 @@ public class CivicNotionService {
      * @param tagged {@code false} = la file de travail ; {@code null} = les deux
      */
     @Transactional(readOnly = true)
-    public FileDeTagging fileDeTagging(String theme, Boolean tagged, int limit, int offset) {
-        List<Object[]> rows = manager.fileDeTagging(theme, tagged, limit, offset);
+    public FileDeTagging fileDeTagging(
+            String theme, Boolean tagged, Boolean suggerees, int limit, int offset) {
+        List<Object[]> rows = manager.fileDeTagging(theme, tagged, suggerees, limit, offset);
         List<UUID> ids = rows.stream().map(r -> (UUID) r[0]).toList();
 
         Map<UUID, List<QuestionTaggingDto.Suggestion>> suggestions = new LinkedHashMap<>();

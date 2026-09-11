@@ -136,7 +136,7 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("La file de tagging rend ce qu'il reste, et le compte diminue quand on tague")
     void fileDeTagging() {
-        var avant = service.fileDeTagging(null, false, 25, 0);
+        var avant = service.fileDeTagging(null, false, false, 25, 0);
 
         // Le catalogue civique seedé n'est pas tagué : c'est exactement le
         // chantier que cet outil sert à mener.
@@ -154,12 +154,12 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
         service.taguer(premiere, "pv_symboles");
         entityManager.clear();
 
-        var apres = service.fileDeTagging(null, false, 25, 0);
+        var apres = service.fileDeTagging(null, false, false, 25, 0);
         assertThat(apres.resteATaguer()).isEqualTo(avant.resteATaguer() - 1);
         // Taguée, elle sort de la file de travail et entre dans l'autre.
         assertThat(apres.questions())
                 .noneSatisfy(q -> assertThat(q.questionId()).isEqualTo(premiere));
-        assertThat(service.fileDeTagging(null, true, 25, 0).questions())
+        assertThat(service.fileDeTagging(null, true, false, 25, 0).questions())
                 .anySatisfy(q -> {
                     assertThat(q.questionId()).isEqualTo(premiere);
                     assertThat(q.notionCode()).isEqualTo("pv_symboles");
@@ -169,7 +169,7 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Le filtre par thème sert l'ordre de tagging recommandé (§6.1.2)")
     void filtreParTheme() {
-        var file = service.fileDeTagging("CIV_HISTOIRE_GEO", false, 25, 0);
+        var file = service.fileDeTagging("CIV_HISTOIRE_GEO", false, false, 25, 0);
 
         assertThat(file.questions()).isNotEmpty();
         assertThat(file.questions())
