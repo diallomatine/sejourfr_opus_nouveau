@@ -367,23 +367,39 @@ export function Sticky({ children }: { children: ReactNode }) {
 
 /* ------------------------------------------------------- Bascule de module */
 
+/**
+ * **Le choix TCF IRN / Examen civique**, et il n'y en a qu'un.
+ *
+ * 🛑 Arbitrage du propriétaire (2026-09-12) : « **Le menu de gauche, faut le
+ * laisser comme il était.** Le choix entre examen civique et TCF, dans les
+ * écrans **dashboard, plan, entraînement (réviser)**. » Ces trois écrans
+ * rendent donc **cette** brique, au même endroit — sous l'en-tête —, pas trois
+ * variantes. La barre latérale, elle, a retrouvé ses deux entrées de menu.
+ *
+ * `className` est l'échappatoire habituelle du kit (comme `Card`, `Stack`,
+ * `Pad`) : le hub `/entrainement` n'est pas un écran du kit et porte déjà sa
+ * gouttière, il passe `sejourStyles.segFlush`. Ce n'est pas une primitive
+ * nouvelle et ça n'a pas de miroir Dart.
+ */
 export function ModuleToggle({
   current,
   onSelect,
   tcfHref,
   civicHref,
+  className,
 }: {
   current: "tcf" | "civique";
   onSelect?: (module: "tcf" | "civique") => void;
   tcfHref?: string;
   civicHref?: string;
+  className?: string;
 }) {
   const items: Array<{ id: "tcf" | "civique"; label: string; href?: string }> = [
     { id: "tcf", label: "TCF IRN", href: tcfHref },
     { id: "civique", label: "Examen civique", href: civicHref },
   ];
   return (
-    <div className={styles.segWrap}>
+    <div className={cx(styles.segWrap, className)}>
       <div className={styles.seg} role="tablist" aria-label="Parcours">
         {items.map((item) =>
           item.href ? (

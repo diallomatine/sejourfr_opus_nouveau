@@ -21,6 +21,7 @@ import {PreparationCard} from "@/app/_components/preparation/PreparationCard";
 import {
     Card,
     Cta,
+    ModuleToggle,
     NowCard,
     Pad,
     Section,
@@ -29,7 +30,8 @@ import {
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {dashboardApi, diagnosticApi, learningPlanApi, userContentApi} from "@/lib/api";
-import {PREPARATION_TITLE, affinerPlan, objectifLabel} from "@/lib/preparation";
+import {entrainementHref} from "@/lib/module-switch";
+import {PREPARATION_TITLE, affinerPlan, moduleParDefaut, objectifLabel} from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {moduleAverage, successHint} from "@/lib/dashboard";
 import {
@@ -143,8 +145,13 @@ export default function DashboardPage() {
         );
     }
 
-    const trainingHref =
-        user.hasTcf !== false ? "/entrainement?module=TCF" : "/entrainement?module=CIVIQUE";
+    /* 🛑 Deux questions distinctes, deux autorités déjà existantes, aucune
+       nouvelle : « quel hub ouvrir pour s'entraîner tout de suite » se lit sur
+       l'ACCÈS du compte, « quel est son parcours » se lit sur l'état SERVI
+       (`moduleParDefaut`, la même autorité qui ouvre le toggle du Plan). Les
+       confondre ferait dire au marqueur de la bascule autre chose qu'au Plan. */
+    const trainingHref = entrainementHref(user.hasTcf !== false ? "TCF" : "CIVIQUE");
+    const parcours = prep ? moduleParDefaut(prep) : "TCF";
 
     return (
         <SejourApp wide className="home">
@@ -175,6 +182,23 @@ export default function DashboardPage() {
                 <h1>Bonjour {user.firstName ?? "à vous"}</h1>
                 <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
             </header>
+
+            {/* 🛑 **Le choix TCF / Examen civique vit ICI** (arbitrage du
+                propriétaire, 2026-09-12 : « le menu de gauche, faut le laisser
+                comme il était ; le choix entre examen civique et TCF, dans les
+                écrans dashboard, plan, entraînement »). C'est la **brique du
+                kit**, au même endroit que sur le Plan — sous l'en-tête —, pas
+                une seconde implémentation.
+
+                ⚠️ Sur l'Accueil c'est une **navigation**, pas un filtre : cet
+                écran sert les DEUX modules à la fois (« Ma préparation », « Vos
+                parcours », « À renforcer »), et le scoper reviendrait à masquer
+                de la donnée servie. Le côté marqué est le parcours **servi**. */}
+            <ModuleToggle
+                current={parcours === "TCF" ? "tcf" : "civique"}
+                tcfHref={entrainementHref("TCF")}
+                civicHref={entrainementHref("CIVIQUE")}
+            />
 
             <div className={sejourStyles.deskPair}>
                 {diagnostic ? (

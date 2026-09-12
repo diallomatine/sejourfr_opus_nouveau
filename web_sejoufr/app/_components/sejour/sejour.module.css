@@ -13,27 +13,14 @@
    d'un style nouveau l'ajoute ICI, il ne le redéclare pas localement.
    ============================================================================ */
 
+/* ⚠️ **Les tokens `--sf-*` ne vivent plus ici, mais sur `:root`**
+   (`app/globals.css`, 2026-09-12). Ils étaient déclarés sur `.app`, donc une
+   primitive du kit employée hors du scope `.app` perdait ses rayons et ses
+   ombres sans le dire — c'est arrivé à `ModuleToggle`, désormais rendue par le
+   hub `/entrainement`, qui n'est pas un écran du kit. Les valeurs sont
+   inchangées, seule leur portée a bougé : un token est un token, il appartient
+   à la feuille de tokens. */
 .app {
-  --sf-radius-xs: 8px;
-  --sf-radius-sm: 12px;
-  --sf-radius-md: 16px;
-  --sf-radius-lg: 20px;
-  --sf-radius-xl: 24px;
-  --sf-radius-pill: 999px;
-
-  --sf-shadow-border:
-    0 0 0 1px rgba(15, 24, 57, 0.06),
-    0 1px 2px -1px rgba(15, 24, 57, 0.05),
-    0 4px 12px rgba(15, 24, 57, 0.04);
-  --sf-shadow-lift:
-    0 0 0 1px rgba(15, 24, 57, 0.07),
-    0 8px 24px rgba(15, 24, 57, 0.08);
-  --sf-shadow-sticky: 0 -8px 24px rgba(15, 24, 57, 0.06);
-
-  --sf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --sf-quick: 150ms;
-  --sf-fast: 250ms;
-
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
@@ -1179,6 +1166,18 @@
   padding: 12px 16px 4px;
 }
 
+/* La bascule posée dans un écran qui porte DÉJÀ sa gouttière — le hub
+   `/entrainement`, qui n'est pas un écran du kit et dont le `main` est padé à
+   40 px. Sans ça, la bascule s'indenterait de 16 px de plus que le titre juste
+   en dessous.
+
+   🛑 Ce n'est pas une primitive et ça n'a **aucun miroir Dart** : c'est une
+   classe de disposition, comme `deskPair` / `deskGrid`. Spécificité 2 pour que
+   l'emporter sur `.segWrap` ne dépende pas de l'ordre des feuilles. */
+.segWrap.segFlush {
+  padding: 0 0 18px;
+}
+
 .seg {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1799,30 +1798,5 @@
 @media (max-width: 900px) {
   :global(.app-shell--has-drawer) .app {
     padding-top: 64px;
-  }
-}
-
-/* ---------- Une seule bascule TCF / Civique visible à la fois ---------- */
-
-/* 🛑 Arbitrage du propriétaire (2026-09-12) : « une seule bascule TCF /
-   Examen civique visible à la fois, et son action dépend du contexte courant ».
-   La barre latérale de l'espace connecté en porte une (`.app-seg`) ; quand elle
-   est là, celle de l'écran ferait doublon — deux contrôles identiques, côte à
-   côte, pour un seul choix.
-
-   La borne est **901 px**, et ce n'est pas la borne desktop du kit : c'est
-   celle du rail lui-même (`app-shell` passe en `248px 1fr` au-dessus de 900 px,
-   `globals.css` masque `.app-seg` en dessous). La bascule d'écran existe donc
-   EXACTEMENT quand celle du rail n'existe pas, sans fenêtre où les deux se
-   voient ni fenêtre où aucune ne se voit. Même raisonnement que la gouttière du
-   burger ci-dessus, et même garde : hors d'un shell qui porte le rail
-   (`/diagnostic` public sous le `SiteHeader`), l'écran garde sa bascule.
-
-   🛑 Ce n'est pas une règle d'affichage seule : la bascule du rail **mène au
-   Plan** quand on est sur le Plan (`lib/module-switch.ts`). Sans cette
-   contrepartie, masquer celle-ci ferait perdre la porte de l'autre parcours. */
-@media (min-width: 901px) {
-  :global(.app-shell--has-drawer) .segWrap {
-    display: none;
   }
 }

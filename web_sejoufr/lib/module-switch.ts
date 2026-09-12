@@ -1,24 +1,23 @@
 /**
- * **Où mène la bascule TCF / Examen civique depuis ici** — autorité unique.
+ * **Le parcours choisi — sa lecture et ses deux adresses.** Autorité unique.
  *
- * 🛑 Arbitrage du propriétaire (2026-09-12) : « une seule bascule TCF / Examen
- * civique visible à la fois, et **son action dépend du contexte courant** — sur
- * Plan elle change le Plan, sur Réviser / Entraînement elle change l'espace
- * d'entraînement. »
+ * 🛑 Arbitrage du propriétaire (2026-09-12) : « **Le menu de gauche, faut le
+ * laisser comme il était.** Le choix entre examen civique et TCF, dans les
+ * écrans **dashboard, plan, entraînement (réviser)**. » La barre latérale a
+ * donc retrouvé ses deux entrées de menu, et le choix vit **dans l'écran**, sur
+ * ces trois-là, porté par la même brique du kit (`ModuleToggle`).
  *
- * C'est donc une bascule **contextuelle**, et c'est exactement le genre de
- * règle qui se recopie en trois `if` qui divergent : la barre latérale, le
- * marquage de l'onglet actif et le sous-titre de parcours en ont tous besoin.
- * Elle vit ici, une fois, sous forme d'une **liste ordonnée d'espaces** — le
- * premier qui reconnaît la route gagne.
+ * ⚠️ **Ce que ce fichier N'EST PLUS** : il a porté, une passe durant, une
+ * bascule *contextuelle* de barre latérale (`basculeParcours`, une liste
+ * ordonnée d'espaces qui disait « où mène le choix depuis cette route »). Cette
+ * bascule est révoquée, son unique lecteur a disparu, et la fonction avec —
+ * refonte = suppression immédiate de l'ancien. Ne pas la réintroduire : chaque
+ * écran connaît sa propre destination et la nomme lui-même.
  *
- * 🛑 **Aucun second mécanisme de sélection de module.** Le module courant se lit
- * là où il a toujours été transporté : le paramètre `?module=` de l'URL. Cette
- * fonction ne devine jamais le module d'après un état serveur — quand l'URL ne
- * le dit pas, `courant` vaut `null` et **aucun** côté n'est marqué actif, comme
- * le sous-titre de parcours qui affiche la ligne de marque hors d'un parcours.
- * C'est l'écran, seul à connaître le défaut **servi**, qui inscrit sa résolution
- * dans l'URL (cf. `PlanModules`).
+ * 🛑 **Un seul mécanisme de sélection de module, et c'est `?module=`.** Aucune
+ * fonction ici ne devine un module d'après un état serveur : quand l'URL se
+ * tait, `moduleDeLUrl` rend `null` et c'est à l'écran — seul à connaître le
+ * défaut **servi** — de trancher (`moduleParDefaut(prep)`, `lib/preparation.ts`).
  */
 
 export type ParcoursModule = "TCF" | "CIVIQUE";
@@ -44,73 +43,10 @@ export function planHref(module: ParcoursModule): string {
   return `/plan?module=${module}`;
 }
 
-/** L'adresse de l'espace d'entraînement pour un module. */
+/**
+ * L'adresse de l'espace d'entraînement pour un module : les deux entrées de la
+ * barre latérale, la bascule de l'Accueil et celle du hub la partagent.
+ */
 export function entrainementHref(module: ParcoursModule): string {
   return `/entrainement?module=${module}`;
-}
-
-export interface BasculeParcours {
-  /** Où mène le côté `module` de la bascule, depuis la route courante. */
-  href: (module: ParcoursModule) => string;
-  /**
-   * Le parcours courant, **lu** — jamais déduit d'un état serveur. `null`
-   * signifie « cette route n'est dans aucun des deux parcours » : la bascule
-   * s'affiche alors sans côté actif.
-   */
-  courant: ParcoursModule | null;
-}
-
-interface Espace {
-  reconnait: (pathname: string) => boolean;
-  href: (module: ParcoursModule) => string;
-  courant: (
-    pathname: string,
-    params: {get(name: string): string | null} | null | undefined,
-  ) => ParcoursModule | null;
-}
-
-/**
- * 🛑 **Ordonné, et le premier qui reconnaît gagne.** Le dernier reconnaît tout :
- * hors du Plan, la bascule garde sa destination historique — l'espace
- * d'entraînement —, ce qui conserve les deux seules entrées du menu qui y
- * mènent.
- */
-const ESPACES: readonly Espace[] = [
-  {
-    // Le Plan et ses vues secondaires (`/plan/competences`, `/plan/domaine/…`).
-    reconnait: (pathname) => pathname === "/plan" || pathname.startsWith("/plan/"),
-    href: planHref,
-    // Les vues secondaires ne portent pas de `?module=` : `null`, et la bascule
-    // n'y marque aucun côté. On n'invente pas le parcours d'un écran qui ne le
-    // dit pas.
-    courant: (_pathname, params) => moduleDeLUrl(params),
-  },
-  {
-    reconnait: () => true,
-    href: entrainementHref,
-    courant: (pathname, params) => {
-      if (pathname.startsWith("/entrainement/tcf") || pathname.startsWith("/diagnostic-tcf")) {
-        return "TCF";
-      }
-      if (
-        pathname.startsWith("/entrainement/civique") ||
-        pathname.startsWith("/diagnostic-civique")
-      ) {
-        return "CIVIQUE";
-      }
-      // Le hub rend le civique quand l'URL ne dit rien : ce n'est pas une
-      // déduction, c'est ce que la page affiche (`app/entrainement/page.tsx`).
-      if (pathname === "/entrainement") return moduleDeLUrl(params) ?? "CIVIQUE";
-      return null;
-    },
-  },
-];
-
-export function basculeParcours(
-  pathname: string | null,
-  params: {get(name: string): string | null} | null | undefined,
-): BasculeParcours {
-  const path = pathname ?? "/";
-  const espace = ESPACES.find((candidat) => candidat.reconnait(path)) ?? ESPACES[ESPACES.length - 1];
-  return {href: espace.href, courant: espace.courant(path, params)};
 }

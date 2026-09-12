@@ -6,55 +6,42 @@ import { Suspense, useEffect, useState } from "react";
 import {
   Flame,
   LayoutGrid,
+  Lightbulb,
   ListChecks,
   Sparkles,
   Target,
   Trophy,
+  Waves,
 } from "lucide-react";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { basculeParcours } from "@/lib/module-switch";
+import { entrainementHref, moduleDeLUrl } from "@/lib/module-switch";
 import { objectifLabel } from "@/lib/preparation";
 
 /**
- * Barre latérale de l'espace personnel.
+ * Barre latérale de l'espace personnel : logo, **sept entrées à icône** en deux
+ * sections (Parcours / Suivi), note de bas de colonne, badge streak et carte
+ * utilisateur cliquable vers /profil (le logout vit sur la page profil).
  *
- * **La FORME vient de la maquette** (`~/Desktop/grok_ecran`, `.sf-rail` dans
- * `studio.tsx` + `sejour.css`) : logo, sous-titre de parcours, **bascule
- * TCF IRN / Examen civique**, entrées à icônes, note de bas de colonne.
+ * 🛑 **Le menu ne porte AUCUNE bascule de parcours** (arbitrage du propriétaire,
+ * 2026-09-12, verbatim : « Non, le menu de gauche, faut le laisser comme il
+ * était. Le choix entre examen civique et TCF, dans les écrans dashboard, plan,
+ * entraînement (réviser). »). Il **révoque** la bascule que la refonte de la
+ * veille avait posée ici d'après le rail de la maquette : « TCF IRN » et
+ * « Examen civique » sont redevenues deux entrées de menu comme les autres,
+ * dans la section **Parcours**, avec leurs icônes `Waves` / `Lightbulb`.
  *
- * 🛑 **Les ENTRÉES, elles, sont les nôtres — aucune inventée, aucune perdue**
- * (arbitrage du propriétaire : « on garde nos menus, seuls les écrans on
- * copie »). Les sept destinations d'avant sont toutes là :
+ * Sont partis avec elle, faute de lecteur : le sous-titre de parcours
+ * (« Coach TCF IRN », qui n'existait que pour nommer le côté actif de la
+ * bascule), la classe `.app-seg` et sa remise dans le drawer mobile
+ * (`globals.css`). La **note de bas de colonne**, elle, reste : elle ne
+ * dépendait pas de la bascule et dit ce que le Plan fait, sur tous les écrans.
  *
- * | destination | où elle est maintenant |
- * |---|---|
- * | `/dashboard` | entrée à icône « Tableau de bord » |
- * | `/entrainement?module=TCF` | **côté gauche de la bascule** |
- * | `/entrainement?module=CIVIQUE` | **côté droit de la bascule** |
- * | `/examens-blancs` | entrée à icône « Examens blancs » |
- * | `/plan` | entrée à icône « Plan » |
- * | `/historique` | entrée à icône « Résultats » |
- * | `/recommandations` | entrée à icône « Recommandations » |
+ * ⚠️ **« Accueil » (`/`) n'est PAS une entrée de ce menu** — retiré
+ * volontairement avant cette refonte. Ne pas le réintroduire.
  *
- * Les deux parcours passent en bascule parce que la maquette les y met **et**
- * parce que les répéter en entrées de liste aurait mis deux fois la même
- * destination dans la même colonne.
- *
- * 🛑 **La bascule est CONTEXTUELLE depuis le 2026-09-12** (arbitrage du
- * propriétaire) : « une seule bascule TCF / Examen civique visible à la fois, et
- * son action dépend du contexte courant — sur Plan elle change le Plan, sur
- * Réviser / Entraînement elle change l'espace d'entraînement. » Sur le Plan elle
- * mène donc à `/plan?module=…` et l'écran masque la sienne (≥ 901 px, la borne
- * du rail). Partout ailleurs elle garde sa destination historique.
- *
- * 🛑 **La règle vit dans `lib/module-switch.ts`, pas ici** : le marquage de
- * l'onglet actif, le sous-titre de parcours et la destination reposent tous les
- * trois sur la même lecture, et trois `if` recopiés auraient divergé.
- *
- * En pied : la note de la maquette, le badge streak (via GET /api/me/dashboard
- * mémoïsé) et la carte utilisateur cliquable vers /profil (le logout vit sur la
- * page profil).
+ * Le module courant n'est lu ici que pour **marquer l'entrée active** ; le
+ * choix, lui, se fait dans les écrans (`ModuleToggle` du kit).
  */
 export function AppSidebar() {
   return (
@@ -69,20 +56,21 @@ function AppSidebarInner() {
   const searchParams = useSearchParams();
   const { user, status } = useAuth();
 
-  /* 🛑 **Une seule lecture, une seule autorité** : où mène la bascule depuis
-     cette route, et quel parcours y est courant. */
-  const bascule = basculeParcours(pathname, searchParams);
-  const isTcfActive = bascule.courant === "TCF";
-  const isCiviqueActive = bascule.courant === "CIVIQUE";
+  /* Les deux entrées PARCOURS pointent sur la même route : c'est `?module=` qui
+     les départage, et sur les sous-routes c'est le chemin. Sans `?module=`, le
+     hub rend le Civique — ce n'est pas une déduction, c'est ce que la page
+     affiche (`app/entrainement/page.tsx`). */
+  const isOnEntrainement = pathname === "/entrainement";
+  const moduleDemande = moduleDeLUrl(searchParams);
 
-  /* Le sous-titre de parcours de la maquette. 🛑 Hors d'un parcours (tableau
-     de bord, résultats, profil…) il n'y a **pas** de parcours courant : on
-     affiche la ligne de marque, jamais un module choisi par défaut. */
-  const parcoursTag = isTcfActive
-    ? "Coach TCF IRN"
-    : isCiviqueActive
-      ? "Examen civique"
-      : "Examen civique · TCF";
+  const isTcfActive =
+    (isOnEntrainement && moduleDemande === "TCF") ||
+    pathname?.startsWith("/entrainement/tcf") ||
+    pathname?.startsWith("/diagnostic-tcf");
+  const isCiviqueActive =
+    (isOnEntrainement && moduleDemande !== "TCF") ||
+    pathname?.startsWith("/entrainement/civique") ||
+    pathname?.startsWith("/diagnostic-civique");
   // Les erreurs/favoris (/revision) vivent désormais sous Recommandations.
   const isRecoActive =
     pathname === "/recommandations" ||
@@ -127,39 +115,32 @@ function AppSidebarInner() {
     <aside className="app-sidebar">
       <Link href={user ? "/dashboard" : "/"} className="app-brand">
         <span className="app-cocarde" aria-hidden />
-        <span className="app-brand-text">
-          <span className="app-brand-name">
-            Sejour<span className="app-brand-fr">FR</span>
-          </span>
-          <span className="app-brand-tag">{parcoursTag}</span>
+        <span className="app-brand-name">
+          Sejour<span className="app-brand-fr">FR</span>
         </span>
       </Link>
-
-      {/* La bascule de parcours de la maquette. Ce sont EXACTEMENT les deux
-          entrées « TCF IRN » et « Examen civique » d'avant — mêmes libellés ;
-          leur destination, elle, suit le contexte (cf. `basculeParcours`). */}
-      <div className="app-seg" role="tablist" aria-label="Parcours">
-        <Link
-          href={bascule.href("TCF")}
-          role="tab"
-          aria-selected={isTcfActive}
-          className={isTcfActive ? "app-seg-item is-on" : "app-seg-item"}
-        >
-          TCF IRN
-        </Link>
-        <Link
-          href={bascule.href("CIVIQUE")}
-          role="tab"
-          aria-selected={isCiviqueActive}
-          className={isCiviqueActive ? "app-seg-item is-on" : "app-seg-item"}
-        >
-          Examen civique
-        </Link>
-      </div>
 
       <nav className="app-nav" aria-label="Espace personnel">
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
           Tableau de bord
+        </SideLink>
+
+        <span className="app-nav-section">Parcours</span>
+        <SideLink
+          href={entrainementHref("TCF")}
+          pathname={pathname}
+          icon={<Waves size={18} />}
+          activeWhen={() => Boolean(isTcfActive)}
+        >
+          TCF IRN
+        </SideLink>
+        <SideLink
+          href={entrainementHref("CIVIQUE")}
+          pathname={pathname}
+          icon={<Lightbulb size={18} />}
+          activeWhen={() => Boolean(isCiviqueActive)}
+        >
+          Examen civique
         </SideLink>
         <SideLink href="/examens-blancs" pathname={pathname} icon={<Target size={18} />}>
           Examens blancs
@@ -268,55 +249,9 @@ const sidebarStyles = `
   }
   .app-brand {
     display: flex; align-items: center; gap: 11px;
-    padding: 6px 8px 14px;
+    padding: 6px 8px 22px;
+    margin-bottom: 14px;
     text-decoration: none;
-  }
-  .app-brand-text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  /* Le sous-titre de parcours de la maquette (« Coach TCF IRN »). */
-  .app-brand-tag {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-muted);
-    letter-spacing: 0.01em;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* === bascule de parcours (forme de la maquette, destinations à nous) === */
-  .app-seg {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    padding: 4px;
-    margin: 0 2px 14px;
-    background: var(--color-blue-light);
-    border-radius: 14px;
-  }
-  .app-seg-item {
-    min-height: 38px;
-    display: grid;
-    place-items: center;
-    padding: 0 6px;
-    border-radius: 11px;
-    color: var(--color-blue);
-    font-size: 12.5px;
-    font-weight: 700;
-    text-align: center;
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-  }
-  .app-seg-item:hover { background: color-mix(in srgb, #fff 55%, transparent); }
-  .app-seg-item.is-on {
-    background: #fff;
-    color: var(--color-ink);
-    box-shadow: 0 0 0 1px var(--color-line), 0 1px 2px -1px rgba(15, 24, 57, 0.12);
   }
 
   .app-foot-note {
@@ -486,10 +421,8 @@ const sidebarStyles = `
       padding: 0; margin: 0;
       flex-shrink: 0;
     }
-    /* En barre horizontale, la colonne n'existe plus : ni sous-titre, ni
-       bascule, ni note de pied. Le drawer, lui, les remet (globals.css). */
-    .app-brand-tag,
-    .app-seg,
+    /* En barre horizontale, la colonne n'existe plus : pas de note de pied.
+       Le drawer, lui, la remet (globals.css). */
     .app-foot-note { display: none; }
     .app-nav {
       display: flex; flex-direction: row;

@@ -65,6 +65,42 @@
 }
 
 /* ============================================================================
+   Tokens du kit « parcours » (`app/_components/sejour/`)
+
+   Rayons, ombres et courbes des 7 écrans de diagnostic et de plan. Ils vivaient
+   sur `.app`, la racine du kit ; une primitive employée **hors** de ce scope
+   perdait alors silencieusement son rayon ou son ombre — ce qui est arrivé à
+   `ModuleToggle` le jour où le hub `/entrainement`, qui n'est pas un écran du
+   kit, a dû porter la bascule de parcours. Un token appartient à la feuille de
+   tokens : valeurs identiques, portée globale.
+
+   🛑 Ils ne passent PAS par `@theme` : Tailwind y génère des utilities à partir
+   de chaque entrée, et ces variables ne sont pas des couleurs de design system
+   exposées au markup — elles n'ont de sens que pour le kit.
+   ============================================================================ */
+:root {
+  --sf-radius-xs: 8px;
+  --sf-radius-sm: 12px;
+  --sf-radius-md: 16px;
+  --sf-radius-lg: 20px;
+  --sf-radius-xl: 24px;
+  --sf-radius-pill: 999px;
+
+  --sf-shadow-border:
+    0 0 0 1px rgba(15, 24, 57, 0.06),
+    0 1px 2px -1px rgba(15, 24, 57, 0.05),
+    0 4px 12px rgba(15, 24, 57, 0.04);
+  --sf-shadow-lift:
+    0 0 0 1px rgba(15, 24, 57, 0.07),
+    0 8px 24px rgba(15, 24, 57, 0.08);
+  --sf-shadow-sticky: 0 -8px 24px rgba(15, 24, 57, 0.06);
+
+  --sf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --sf-quick: 150ms;
+  --sf-fast: 250ms;
+}
+
+/* ============================================================================
    Base
    ============================================================================ */
 * {
@@ -603,18 +639,13 @@ a {
   -webkit-overflow-scrolling: touch;
 }
 .ms-drawer-inner .app-brand {
-  padding: 6px 8px 14px;
-  margin: 0;
+  border-bottom: 1px solid var(--color-line-2);
+  padding: 6px 8px 22px;
+  margin: 0 0 20px;
   flex-shrink: 0;
 }
-/* Le drawer est la colonne, en tiroir : il retrouve le sous-titre de parcours,
-   la bascule et la note de pied que la barre horizontale masque. */
-.ms-drawer-inner .app-brand-tag { display: block; }
-.ms-drawer-inner .app-seg {
-  display: grid;
-  flex-shrink: 0;
-  margin: 0 2px 16px;
-}
+/* Le drawer est la colonne, en tiroir : il retrouve la note de pied que la
+   barre horizontale masque. */
 .ms-drawer-inner .app-foot-note { display: block; }
 .ms-drawer-inner .app-nav {
   flex-direction: column;

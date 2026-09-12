@@ -159,9 +159,9 @@ lib/
 ├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
 │                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
-├── module-switch.ts              # ★ AUTORITÉ UNIQUE de la bascule TCF/Civique contextuelle :
-│                                 #   où elle mène depuis une route, et quel parcours y est
-│                                 #   courant. Lit `?module=`, ne devine jamais un module.
+├── module-switch.ts              # ★ AUTORITÉ UNIQUE du parcours choisi : la lecture de
+│                                 #   `?module=` (casse tolérée) et les deux adresses,
+│                                 #   planHref / entrainementHref. Ne devine jamais un module.
 ├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
 │                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
 ├── passes.ts                     # passes d'accès (lot 5) : pass mis en avant, prix débité vs
@@ -910,21 +910,20 @@ dans `sejour_kit.dart` « pour la parité » y serait du code mort. En revanche 
 DEUX côtés dans la même passe. **Préférer une media query sur une primitive
 existante à une primitive nouvelle.**
 
-⚠️ **La maquette masque `.sf-mod-toggle` en desktop, et nous aussi depuis le
-2026-09-12.** La passe 1 avait tranché l'inverse, avec un motif qui était vrai à
-l'époque : les deux bascules ne menaient pas au même endroit. Le propriétaire a
-arbitré la cause plutôt que le symptôme — la bascule du rail est devenue
-**contextuelle** (cf. section suivante), donc sur le Plan les deux mènent
-exactement au même endroit, et l'une des deux est de trop.
+⚠️ **La maquette masque `.sf-mod-toggle` en desktop ; nous NON** (arbitrage du
+propriétaire, 2026-09-12, verbatim : « Non, le menu de gauche, faut le laisser
+comme il était. Le choix entre examen civique et TCF, dans les écrans dashboard,
+plan, entraînement (réviser). »).
 
-`:global(.app-shell--has-drawer) .segWrap { display: none }` à partir de
-**901 px**. 🛑 **Ce n'est pas la borne desktop du kit**, c'est celle du **rail**
-(`app-shell` passe en `248px 1fr` au-dessus de 900 px, `globals.css` masque
-`.app-seg` en dessous) : la bascule d'écran existe EXACTEMENT quand celle du rail
-n'existe pas — aucune fenêtre où les deux se voient, aucune où aucune ne se voit.
-Prendre 960 aurait laissé un doublon entre 901 et 960. Et hors d'un shell qui
-porte le rail (`/diagnostic` public sous le `SiteHeader`), l'écran garde la
-sienne.
+Elle le masque parce que **son** rail porte la bascule. Le nôtre ne la porte
+pas — il a ses deux entrées de menu — donc la bascule d'écran est la **seule**,
+et elle reste visible à toutes les largeurs. `.segWrap` perd seulement sa
+gouttière de 16 px au palier desktop.
+
+⚠️ Une passe intermédiaire avait masqué `.segWrap` au-dessus de 901 px, en
+contrepartie d'une bascule contextuelle dans le rail : **les deux sont
+révoquées**, et le code des deux est parti (pas de `@media (min-width: 901px)`
+sur `.segWrap`, pas de `basculeParcours`).
 
 **Ce que la maquette prévoit pour les écrans sans capture desktop** (relu et
 confirmé en passe 2 ; c'est le périmètre de la **passe 3**) :
@@ -958,51 +957,74 @@ desktop, `.sticky` **est déjà** une carte en fin de colonne, avec le seul bout
 pleine largeur de la page. Ajouter un second CTA ne changerait rien à la mise en
 page et écrirait deux fois la même action.
 
-### La barre latérale reprend la FORME du rail de la maquette (2026-09-12)
+### La barre latérale : sept entrées à icône, et AUCUNE bascule (2026-09-12)
 
-`AppSidebar.tsx` : logo + **sous-titre de parcours**, **bascule TCF IRN /
-Examen civique**, entrées à icônes, **note de bas de colonne**, puis le streak
-et la carte utilisateur. C'est la forme de `.sf-rail` (`grok_ecran/studio.tsx`).
+🛑 **Arbitrage du propriétaire**, verbatim : « **Non, le menu de gauche, faut le
+laisser comme il était.** Le choix entre examen civique et TCF, dans les écrans
+**dashboard, plan, entraînement (réviser)**. » Il **révoque** la bascule
+`.app-seg` que la refonte de la veille avait posée dans le rail d'après la
+maquette, et la bascule *contextuelle* qui avait été bâtie dessus.
 
-🛑 **Les entrées, elles, sont les nôtres — aucune inventée, aucune perdue**
-(« on garde nos menus, seuls les écrans on copie »). Les deux entrées
-`/entrainement?module=TCF` et `?module=CIVIQUE` n'ont pas disparu : elles
-**sont** les deux côtés de la bascule, mêmes libellés, mêmes destinations. Les
-répéter en entrées de liste aurait mis deux fois la même destination dans la
-même colonne. Les cinq autres (`/dashboard`, `/examens-blancs`, `/plan`,
-`/historique`, `/recommandations`) restent des entrées à icône.
+`AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **sept entrées
+à icône** en deux sections — `Parcours` (TCF IRN `Waves`, Examen civique
+`Lightbulb`, Examens blancs) et `Suivi` (Plan, Résultats, Recommandations), avec
+`/dashboard` en tête — puis la note de bas de colonne, le streak et la carte
+utilisateur.
 
-Sous 900 px la barre est masquée au profit du drawer : le sous-titre, la
-bascule et la note y sont remis par `globals.css` (`.ms-drawer-inner`), et
-masqués dans la variante horizontale.
+**Ce qui est parti avec la bascule** (refonte = suppression immédiate) :
+`.app-seg` / `.app-seg-item`, le **sous-titre de parcours** (« Coach TCF IRN »,
+qui ne servait qu'à nommer le côté actif) avec `.app-brand-tag` /
+`.app-brand-text`, leur remise dans le drawer mobile (`globals.css`,
+`.ms-drawer-inner`), et `basculeParcours` dans `lib/module-switch.ts`.
 
-#### La bascule de parcours est CONTEXTUELLE (2026-09-12)
+**Ce qui reste, parce que ça vaut par soi-même** : la **note de bas de colonne**
+(« Le plan choisit la prochaine action… »), qui ne dépendait pas de la bascule ;
+`objectifLabel()` comme autorité unique ; et le marquage `is-active` des deux
+entrées de parcours, qui lit `/diagnostic-tcf*` et `/diagnostic-civique*` en plus
+du chemin et de `?module=` — une vraie correction du surlignage, indépendante.
 
-🛑 Arbitrage du propriétaire : « **une seule bascule TCF / Examen civique
-visible à la fois, et son action dépend du contexte courant** — sur Plan elle
-change le Plan, sur Réviser / Entraînement elle change l'espace d'entraînement. »
+⚠️ **« Accueil » (`/`) n'est PAS une entrée de ce menu** : retiré volontairement
+avant cette refonte. Ne pas le réintroduire.
 
-**Autorité unique : `lib/module-switch.ts`.** Une liste **ordonnée** d'espaces,
-le premier qui reconnaît la route gagne, et elle rend deux choses : `href(module)`
-et `courant`. Trois lecteurs en dépendent — la destination des deux liens, le
-marquage de l'onglet actif et le sous-titre de parcours — et ils tenaient chacun
-leur propre suite de `if` avant cette passe.
+#### Le choix TCF / Civique vit dans TROIS écrans
 
-| route | où mène la bascule | `courant` |
+La même brique du kit (`ModuleToggle`, rendue par `.segWrap` / `.seg`), au même
+endroit visuel — en tête de colonne, sous l'en-tête —, sur les trois écrans que
+le propriétaire a nommés. **Pas trois variantes**, et rien d'autre n'en porte.
+
+| écran | ce que fait la bascule | `current` |
 |---|---|---|
-| `/plan`, `/plan/*` | `/plan?module=TCF\|CIVIQUE` | le `?module=` de l'URL, sinon `null` |
-| `/entrainement`, `/entrainement/*`, `/diagnostic-tcf*`, `/diagnostic-civique*` | `/entrainement?module=…` | comme avant (chemin, puis `?module=`, le hub rendant le civique par défaut) |
-| tout le reste (`/dashboard`, `/examens-blancs`, `/historique`, `/recommandations`, `/profil`, `/statistiques`…) | `/entrainement?module=…` — la **destination historique** | `null` : aucun côté actif, sous-titre « Examen civique · TCF » |
+| `/plan` | **change le Plan** : `planHref(module)` = `/plan?module=…`, posée par `TopSlot` | le module affiché, dérivé de l'URL |
+| `/dashboard` | **navigation** vers `entrainementHref(module)` | `moduleParDefaut(prep)`, l'autorité **servie** |
+| `/entrainement` (les deux hubs) | **change l'espace d'entraînement** : `entrainementHref(module)` | le hub rendu (`tcf` / `civique`) |
 
-🛑 **Un seul mécanisme de sélection de module, et c'est `?module=`.** La barre
-latérale ne devine **jamais** le module du Plan : c'est `PlanModules` — seul à
-connaître le défaut **servi** par `moduleParDefaut(prep)` — qui inscrit sa
-résolution dans l'URL (`router.replace`, autres paramètres conservés) dès que
-`preparation()` répond. Faire choisir la barre latérale de son côté aurait créé
-une seconde autorité sur le même fait, et les deux contrôles auraient fini par
-désigner deux modules différents. Corollaire : `PlanModules` n'a plus d'état
-`module`/`choisi` — la bascule d'écran est devenue un **lien**, comme celle du
-rail. `moduleDeLUrl` tolère la casse (`?module=tcf` ouvre le TCF).
+⚠️ **Sur l'Accueil, c'est une navigation, pas un filtre.** La maquette
+(`screens/accueil.tsx`) scope tout l'écran au module choisi ; chez nous l'Accueil
+sert les **deux** modules à la fois (« Ma préparation », « Vos parcours »,
+« À renforcer en priorité »), et le scoper masquerait de la donnée servie — ce
+serait la refonte de l'écran, pas l'ajout d'un contrôle. **À rouvrir si le
+propriétaire veut vraiment un Accueil scopé** : ce serait un chantier (DTO
+dashboard, les trois blocs ci-dessus), pas une passe de mise en page.
+
+⚠️ **Les hubs ne sont PAS des écrans du kit** (`moduleHub.module.css`, `main.wrap`
+padé à 40 px). Deux conséquences, toutes deux minimales : la bascule y prend
+`sejourStyles.segFlush` (`.segWrap.segFlush { padding: 0 0 18px }` — classe de
+disposition, **pas** une primitive, aucun miroir Dart), et les tokens `--sf-*`
+ont quitté `.app` pour **`:root`** (`globals.css`) : déclarés sur la racine du
+kit, ils laissaient une primitive rendue ailleurs perdre silencieusement son
+ombre. Valeurs inchangées, portée élargie.
+
+🛑 **Un seul mécanisme de sélection de module, et c'est `?module=`.** Aucun écran
+ne devine un module d'après un état serveur : `moduleDeLUrl` rend `null` quand
+l'URL se tait, et c'est l'écran qui connaît le défaut **servi** qui tranche —
+`PlanModules` inscrit d'ailleurs sa résolution dans l'URL (`router.replace`,
+autres paramètres conservés) pour qu'elle soit partageable. Corollaire :
+`PlanModules` n'a plus d'état `module`/`choisi`, et les bascules sont des
+**liens**.
+
+⚠️ **`/examens-blancs` et `/revision` gardent leurs propres bascules**, qui sont
+d'autres composants avec un état local (demande du propriétaire). Elles ne sont
+pas concernées par cette règle.
 
 `objectifLabel()` (`lib/preparation.ts`) est l'**autorité unique** de la phrase
 « Objectif : naturalisation » — construite sur `MENTION_LABEL`, la seule table
@@ -1017,12 +1039,13 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 
 1. bandeau « choisissez votre parcours » (si `targetProcedure` est `null`) ;
 2. en-tête « Bonjour X » + pastille de démarche, **et rien d'autre** ;
-3. `deskPair` : **À faire maintenant** (`NowCard`, les 3 états servis du
+3. la **bascule TCF / Examen civique** du kit (cf. section précédente) ;
+4. `deskPair` : **À faire maintenant** (`NowCard`, les 3 états servis du
    diagnostic / de la priorité du Plan) | **Ma préparation** ;
-4. `deskPair` : **Affiner votre Plan** (secondaire, 1/4 → 3/4) | **Votre
+5. `deskPair` : **Affiner votre Plan** (secondaire, 1/4 → 3/4) | **Votre
    progression** (nos 4 indicateurs) ;
-5. **Vos parcours** (les deux cartes de module, en `deskPair`) ;
-6. **À renforcer en priorité**.
+6. **Vos parcours** (les deux cartes de module, en `deskPair`) ;
+7. **À renforcer en priorité**.
 
 🛑 **La maquette n'a décidé que la mise en page.** La hiérarchie arbitrée est
 intacte : « Continuez votre diagnostic complet » reste secondaire et disparaît
@@ -1041,7 +1064,7 @@ latérale desktop. »
 - le CTA d'en-tête est **supprimé**, avec son libellé et sa classe
   `.home-hello-cta` ; l'en-tête n'est plus une rangée à deux pôles mais deux
   lignes. Sa destination (`/entrainement?module=…`) reste portée par la bascule
-  de parcours du rail, qui ne fait que ça ;
+  de parcours juste en dessous, et par les deux entrées du menu ;
 - **aucune rangée de raccourcis n'a jamais été ajoutée** (la passe 1 l'avait déjà
   omise, faute de donnée servie) ;
 - le seul autre bouton plein de l'écran, « Commencer » de l'état **vide** de

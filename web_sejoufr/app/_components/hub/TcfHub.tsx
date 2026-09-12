@@ -21,6 +21,8 @@ import {
 import {CategoryCard, type CategoryCta, ModuleHubHeader, ModuleStatsBand,} from "./ModuleHubParts";
 import moduleStyles from "./moduleHub.module.css";
 import styles from "./hub.module.css";
+import {ModuleToggle, sejourStyles} from "@/app/_components/sejour/SejourKit";
+import {entrainementHref} from "@/lib/module-switch";
 
 const DEMO_BATCH_SIZE = 20;
 
@@ -130,6 +132,21 @@ export function TcfHub({user}: { user: AuthenticatedUser | null }) {
 
     return (
         <main className={moduleStyles.wrap}>
+            {/* 🛑 **Le choix TCF / Examen civique vit dans l'écran** (arbitrage du
+                propriétaire, 2026-09-12) : la barre latérale a retrouvé ses deux
+                entrées de menu, et c'est ici — comme sur l'Accueil et sur le
+                Plan — qu'on change de parcours. Même brique du kit, même place
+                (en tête de colonne), **pas** une troisième variante.
+
+                `segFlush` retire la gouttière de 16 px du kit : ce `main` porte
+                déjà la sienne. */}
+            <ModuleToggle
+                current="tcf"
+                className={sejourStyles.segFlush}
+                tcfHref={entrainementHref("TCF")}
+                civicHref={entrainementHref("CIVIQUE")}
+            />
+
             <ModuleHubHeader
                 eyebrowIcon={<Waves size={18} strokeWidth={2}/>}
                 eyebrow="Test de connaissance du français"
