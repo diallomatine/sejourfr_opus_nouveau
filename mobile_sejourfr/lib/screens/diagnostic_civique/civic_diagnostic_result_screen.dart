@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../plan/learning_plan_provider.dart';
 import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/civic_diagnostic_repository.dart';
@@ -97,6 +98,11 @@ class _CivicDiagnosticResultScreenState
       // rendue telle quelle.
       final r = await repo.result(widget.sessionId);
       if (!mounted) return;
+      // 🛑 La session vient d'être CLÔTURÉE : le plan civique, la préparation
+      // et les progrès changent à cet instant. Sans ce signal, leurs caches
+      // resteraient figés et le Plan continuerait de réclamer un diagnostic
+      // que le candidat vient de terminer.
+      ref.read(learningPlanRevisionProvider.notifier).state++;
       setState(() {
         _resultat = r;
         _invite = null;

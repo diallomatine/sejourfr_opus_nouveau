@@ -1,3 +1,4 @@
+import '../../screens/plan/learning_plan_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/repositories.dart';
@@ -27,6 +28,9 @@ final preparationProvider = FutureProvider.autoDispose<PreparationDto>((ref) asy
   // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
   // l'app affichait les données du précédent.
   ref.watch(compteIdProvider);
+  // 🛑 **Le signal d'avancement**, partagé : sans lui, cette source gardée en
+  // vie resterait figée après un diagnostic ou une production.
+  ref.watch(learningPlanRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await ref.watch(userContentRepositoryProvider).preparation();

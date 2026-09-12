@@ -4,13 +4,23 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 
-/// Signal émis par les activités susceptibles de modifier le Plan : une
-/// production évaluée, un micro-exercice, une mutation du diagnostic.
+/// **Le signal « l'avancement du candidat a changé »** : une production
+/// évaluée, un micro-exercice, une mutation d'un diagnostic (TCF ou civique),
+/// une série ciblée.
 ///
-/// ⚠️ **Depuis que le Plan est gardé en vie** (2026-09-12), incrémenter ce
-/// signal **déclenche bien un appel**, même si aucun écran n'est monté — la
-/// remarque inverse qui vivait ici n'est plus vraie. C'est le prix, et il est
-/// bas : un appel par changement réel, au lieu d'un appel par ouverture
+/// 🛑 **Il ne concerne PAS que le Plan**, malgré son nom — hérité de l'époque
+/// où il était son seul lecteur. Depuis que les sources de l'Accueil et du Plan
+/// sont **gardées en vie** (2026-09-12), c'est lui qui les rafraîchit toutes :
+/// `learningPlanProvider`, `civicPlanProvider`, `preparationProvider`,
+/// `progressProvider` et `diagnosticCourantProvider`. Une source de compte qui
+/// ne l'écouterait pas resterait figée jusqu'au prochain redémarrage.
+///
+/// ⚠️ C'est exactement ce qui s'est produit : au retour du diagnostic rapide,
+/// le Plan réclamait encore « Faire mon diagnostic », parce que sa **porte**
+/// vient de `preparationProvider` — qui, lui, n'écoutait rien.
+///
+/// ⚠️ **Incrémenter déclenche un appel**, même sans écran monté. C'est le prix,
+/// et il est bas : un appel par changement réel, au lieu d'un par ouverture
 /// d'écran.
 final learningPlanRevisionProvider = StateProvider<int>((ref) => 0);
 

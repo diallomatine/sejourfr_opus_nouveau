@@ -1135,7 +1135,13 @@ le titre (`{domaine} · Tâche N` en TCF, le thème en civique), le sous-titre, 
 `civicPlanApi` a donc `getCached()` / `cacheKey` comme `learningPlanApi`, et les
 deux panneaux du Plan (`LearningPlanView`, `CivicPlanPanel`) lisent en cache —
 la bascule y démonte un panneau et monte l'autre, chaque montage rappelait son
-endpoint. 🛑 **Une session qui commence part d'un cache VIDE** (correctif du 2026-09-12) :
+endpoint. 🛑 **`invalidateDiagnosticAndPlan` doit couvrir TOUT ce qui décrit
+l'avancement** (correctif du 2026-09-12) : `afterDiagnosticRead` n'invalidait
+que le Plan à la fin de l'analyse, alors que c'est la **préparation** qui porte
+la PORTE du Plan (« Faire mon diagnostic ») — l'écran réclamait un diagnostic
+que le candidat venait de terminer. Ajoutés aussi :
+`civicDiagnosticApi.result()` (qui **clôture** la session) et `.adopt()`.
+🛑 **Une session qui commence part d'un cache VIDE** (correctif du 2026-09-12) :
 `tokenStorage.set()` appelle `clearDataCache()`, plus seulement `clear()`. Il ne
 couvrait que la déconnexion propre — une **connexion** ou une **inscription**
 dans un onglet qui portait encore le cache d'un autre compte lui servait sa

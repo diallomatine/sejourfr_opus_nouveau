@@ -100,17 +100,24 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
 
   @override
   void didPopNext() {
-    // Une production, une série ou un examen joué au-dessus de cette page peut
-    // avoir changé l'un ou l'autre plan. Le retour est le moment fiable pour
-    // récupérer le calcul final.
+    // Un diagnostic, une production, une série ou un examen joué au-dessus de
+    // cette page peut avoir changé l'un ou l'autre plan. Le retour est le
+    // moment fiable pour récupérer le calcul final.
+    //
+    // 🛑 **La préparation aussi** : c'est elle qui porte la PORTE du Plan
+    // (« Faire mon diagnostic »), et elle est gardée en vie.
     ref.invalidate(learningPlanProvider);
     ref.invalidate(civicPlanProvider);
+    ref.invalidate(preparationProvider);
   }
 
-  /// L'état UNIQUE des deux préparations. 🛑 Le MÊME que celui de l'Accueil et
-  /// des Examens : trois écrans qui déduiraient chacun leur version
-  /// proposeraient trois choses différentes au même candidat.
-  PreparationDto? _prep;
+  /// ⚠️ **Plus de copie locale de la préparation.** Elle vivait dans un
+  /// `setState` alimenté une seule fois par `initState` : l'écran restait donc
+  /// figé sur l'état lu à son premier montage. Au retour d'un diagnostic
+  /// terminé, le Plan continuait de réclamer « Faire mon diagnostic » — il
+  /// fallait tuer l'app pour en sortir. L'écran **observe** désormais
+  /// [preparationProvider], l'état UNIQUE que lisent aussi l'Accueil et les
+  /// Examens.
 
   /// 🛑 **L'onglet ouvert vit dans [parcoursCiviqueProvider]**, partagé avec
   /// l'Accueil : deux états locaux auraient fini par afficher deux parcours
@@ -125,16 +132,15 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     notifier.state ??= civique;
   }
 
+  /// Ne sert plus qu'à **poser l'onglet par défaut** : le contenu, lui, est
+  /// observé dans `build`.
   Future<void> _chargerPreparation() async {
     try {
       // 🛑 **Le provider partagé, pas un appel à soi.** Cet écran lisait le
       // repository directement — un appel de plus à chaque ouverture du Plan,
-      // pour l'état que l'Accueil venait de lire. `preparationProvider` est
-      // gardé en vie pour la session : à chaud il rend immédiatement, à froid
-      // il fait l'unique appel.
+      // pour l'état que l'Accueil venait de lire.
       final prep = await ref.read(preparationProvider.future);
       if (!mounted) return;
-      setState(() => _prep = prep);
       _poserDefaut(moduleCiviqueParDefaut(prep));
     } catch (_) {
       // 🛑 L'échec ne masque pas le plan TCF : il existait avant cet onglet et
@@ -148,7 +154,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     TargetLevel? objective,
     bool civique,
   ) {
-    final prep = _prep;
+    // 🛑 **Observé, jamais copié** : c'est ce qui fait disparaître la porte dès
+    // que le diagnostic est terminé, sans quitter l'écran.
+    final prep = ref.watch(preparationProvider).valueOrNull;
 
     // 🛑 La raison pour laquelle le plan n'est pas prêt vient de l'état UNIQUE,
     // pas d'une déduction locale.

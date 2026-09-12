@@ -17,6 +17,7 @@ import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_plan_labels.dart';
 import 'civic_plan_provider.dart';
+import 'learning_plan_provider.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
 ///
@@ -84,6 +85,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
           .read(civicPlanRepositoryProvider)
           .serie(cible.id, cible.grain);
       if (!mounted) return;
+      // La série déplace la cible dans la boîte Leitner : le plan lu après
+      // elle doit être recalculé.
+      ref.read(learningPlanRevisionProvider.notifier).state++;
       setState(() => _enCours = null);
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {

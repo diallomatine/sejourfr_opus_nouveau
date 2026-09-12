@@ -1466,6 +1466,25 @@ donc aucun paramètre de route n'est inventé.
   laissait l'autre se jeter à la bascule. Et `CivicPlanView` ne charge plus son
   plan en `initState` + `setState` — elle lit `civicPlanProvider`, sinon son
   démontage jetait le plan quoi qu'il arrive.
+  🛑 **La contrepartie du cache, c'est le SIGNAL** (correctif du 2026-09-12,
+  constaté à l'écran : diagnostic rapide terminé, retour au Plan, et le Plan
+  réclamait encore « Faire mon diagnostic »). Deux causes, toutes deux
+  corrigées :
+  **(a)** la porte du Plan vient de `preparationProvider`, qui n'écoutait rien —
+  les **quatre** sources de compte observent désormais
+  `learningPlanRevisionProvider`, le signal « l'avancement a changé » (malgré
+  son nom, hérité de l'époque où le Plan en était le seul lecteur) ;
+  **(b)** `PlanScreen` **copiait** la préparation dans un `setState` alimenté
+  une seule fois par `initState` : l'écran restait figé sur l'état de son
+  premier montage, et il fallait tuer l'app pour en sortir. Il l'**observe**
+  maintenant. 🛑 **Ne jamais recopier une source partagée dans un state
+  d'écran** : le cache peut se rafraîchir, la copie non.
+  **Le signal est émis** par le contrôleur du diagnostic TCF, les sessions
+  EE/EO, les compétences, et — ajoutés dans la même passe — la clôture du
+  **diagnostic civique** et la **série civique**.
+  ⚠️ Le diagnostic l'émet à chaque mutation (démarrage, soumissions, fin de
+  polling), donc quelques rechargements pendant le parcours. C'est le bon
+  compromis : des appels légers contre un écran qui ne ment pas.
   ⚠️ **Changer d'ONGLET ne redemande rien non plus** (2026-09-12, second
   correctif — la première passe ne couvrait que la bascule et laissait un appel
   par ouverture d'écran). Les cinq sources de l'Accueil et du Plan sont

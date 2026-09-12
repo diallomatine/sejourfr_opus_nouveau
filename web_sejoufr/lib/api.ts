@@ -858,8 +858,12 @@ function afterDiagnosticRead(response: DiagnosticResponse): DiagnosticResponse {
         invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
     }
     // À la fin de l'analyse, le Plan vient d'être construit côté serveur.
+    // 🛑 **Et pas seulement le Plan** : c'est la **préparation** qui porte la
+    // PORTE du Plan (« Faire mon diagnostic »), et les progrès qui comptent les
+    // compétences. N'invalider que le plan laissait l'écran réclamer un
+    // diagnostic que le candidat venait de terminer.
     if (response.status === "COMPLETED" || response.status === "FAILED") {
-        invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+        invalidateDiagnosticAndPlan();
     }
     return response;
 }
@@ -1009,6 +1013,9 @@ export const civicDiagnosticApi = {
 
     /** Calcule le résultat et clôture. */
     result(sessionId: string): Promise<CivicDiagnosticResultDto> {
+        // 🛑 C'est cet appel qui **clôture** la session : le plan civique, la
+        // préparation et les progrès changent à cet instant.
+        invalidateDiagnosticAndPlan();
         return apiFetch<CivicDiagnosticResultDto>(
             `/api/civic-diagnostics/${sessionId}/result`,
             {method: "POST", auth: true},
@@ -1030,6 +1037,9 @@ export const civicDiagnosticApi = {
      * pendant l'inscription rend la même session.
      */
     adopt(sessionId: string): Promise<CivicDiagnosticDto> {
+        // Le diagnostic change de porteur : tout ce qui décrit l'avancement du
+        // compte est à relire.
+        invalidateDiagnosticAndPlan();
         return apiFetch<CivicDiagnosticDto>(
             `/api/civic-diagnostics/${sessionId}/adopt`,
             {method: "POST", auth: true},
