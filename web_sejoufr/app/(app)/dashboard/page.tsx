@@ -162,16 +162,18 @@ export default function DashboardPage() {
 
             {/* L'en-tête de la maquette : le prénom, puis la démarche visée en
                 pastille. La démarche est **servie** (`user.targetProcedure`) et
-                son libellé vient de l'autorité unique `objectifLabel`. */}
+                son libellé vient de l'autorité unique `objectifLabel`.
+
+                🛑 **Aucun CTA ici** (arbitrage du propriétaire, 2026-09-12) :
+                « l'en-tête doit rester simple — Bonjour / nom, objectif actuel.
+                L'action principale passe entièrement par la carte À faire
+                maintenant, juste en dessous. Une seule action dominante par
+                écran. » Le bouton « Entraînement du jour » est parti avec son
+                libellé ; sa destination reste atteignable par la bascule de
+                parcours du rail, qui la porte déjà. */}
             <header className="home-hello">
-                <div>
-                    <h1>Bonjour {user.firstName ?? "à vous"}</h1>
-                    <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
-                </div>
-                <Link href={trainingHref} className="home-hello-cta">
-                    <Zap size={16} aria-hidden/>
-                    Entraînement du jour
-                </Link>
+                <h1>Bonjour {user.firstName ?? "à vous"}</h1>
+                <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
             </header>
 
             <div className={sejourStyles.deskPair}>
@@ -296,9 +298,14 @@ export default function DashboardPage() {
                                 <p>
                                     Entraînez-vous pour obtenir des recommandations personnalisées.
                                 </p>
-                                <Link href={trainingHref} className="home-hello-cta">
+                                {/* 🛑 Un **accès**, pas une seconde action dominante : c'est
+                                    exactement quand cette liste est vide — un compte tout
+                                    neuf — que « À faire maintenant » porte son geste le plus
+                                    important. Un second bouton plein l'aurait concurrencé. */}
+                                <Link href={trainingHref} className={sejourStyles.link}>
                                     <Zap size={15} aria-hidden/>
                                     Commencer
+                                    <ChevronRight size={15} aria-hidden/>
                                 </Link>
                             </div>
                         ) : (
@@ -565,12 +572,11 @@ const homeStyles = `
   .home-banner:hover { filter: brightness(0.98); }
   .home-banner strong { color: var(--color-blue); }
   /* ===== en-tête « Bonjour X » ===== */
+  /* Deux lignes, et rien d'autre : le nom, puis la démarche visée en pastille.
+     L'en-tête était une rangée à deux pôles parce qu'elle portait un CTA à
+     droite ; il est parti (une seule action dominante par écran), la rangée
+     avec lui. La pastille passe à la ligne d'elle-même : le titre est un bloc. */
   .home-hello {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    flex-wrap: wrap;
     padding: 14px 16px 2px;
   }
   .home-hello h1 {
@@ -592,20 +598,6 @@ const homeStyles = `
     font-size: 12px;
     font-weight: 750;
   }
-  .home-hello-cta {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--color-blue);
-    color: #fff;
-    border-radius: var(--sf-radius-pill);
-    padding: 11px 20px;
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-  .home-hello-cta:hover { background: var(--color-blue-dark); }
-
   /* ===== actions de la carte « À faire maintenant » ===== */
   .home-now-actions {
     margin-top: 14px;
@@ -762,7 +754,6 @@ const homeStyles = `
       padding-left: 0;
       padding-right: 0;
       padding-top: 10px;
-      align-items: center;
     }
     .home-hello h1 { font-size: 32px; }
     .home-module-row {

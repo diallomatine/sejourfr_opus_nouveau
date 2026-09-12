@@ -159,6 +159,9 @@ lib/
 ├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
 │                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
+├── module-switch.ts              # ★ AUTORITÉ UNIQUE de la bascule TCF/Civique contextuelle :
+│                                 #   où elle mène depuis une route, et quel parcours y est
+│                                 #   courant. Lit `?module=`, ne devine jamais un module.
 ├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
 │                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
 ├── passes.ts                     # passes d'accès (lot 5) : pass mis en avant, prix débité vs
@@ -873,18 +876,31 @@ d'une des trois largeurs de colonne.
 **Comment un écran s'en sert**
 
 - `<SejourApp wide>` → colonne de 1080 px, pour un **tableau de bord** à
-  plusieurs colonnes (l'Accueil ; le Plan quand il sera repris).
+  plusieurs colonnes (l'Accueil, le Plan d'un abonné).
   `<SejourApp sticky>` → 980 px. Sans rien → 720 px (écran de **lecture** :
   les rapports de diagnostic).
 - `<div className={sejourStyles.deskPair}>` autour de **deux** `Section`
-  voisines → côte à côte à partir de 960 px, empilées en dessous. Une seule
-  `Section` dans la paire occupe la colonne de gauche et laisse la droite
-  vide : c'est le comportement de la maquette (`accueil-civ.png`), pas un
-  accident.
+  voisines → côte à côte à partir de 960 px, empilées en dessous.
 - `<Stack className={sejourStyles.deskGrid}>` → 1 → 2 (960) → 3 (1100)
   colonnes. Le pendant de `sf-prio-grid` / `sf-obs-grid`.
 - `<Stack className={sejourStyles.deskGrid2}>` → 1 → 2 (960) colonnes, et on
   s'arrête là. Le pendant de `sf-exam-grid`.
+
+🛑 **Une carte seule sur sa rangée prend TOUTE la rangée** (arbitrage du
+propriétaire, 2026-09-12 — il **révoque** « une seule `Section` dans la paire
+occupe la colonne de gauche et laisse la droite vide », retenu en passe 1
+d'après `accueil-civ.png`). « Éviter de réserver un espace vide uniquement pour
+conserver la grille : l'interface doit s'adapter à l'état utilisateur, pas
+donner l'impression d'un contenu manquant. »
+
+La règle est **dans le kit**, pas dans les écrans — `.deskPair > :only-child`,
+`.deskGrid > :only-child`, `.deskGrid2 > :only-child` ⇒ `grid-column: 1 / -1` —
+donc tout écran qui perd un bloc selon l'état du candidat en profite sans rien
+écrire. Un cran plus loin, `.deskGrid:has(> :nth-child(2):last-child)` redescend
+à **deux** colonnes au-dessus de 1100 px : à trois colonnes, deux cartes
+laisseraient un tiers vide. Ce que ça corrige concrètement : l'Accueil à 4/4
+(« Affiner votre Plan » a disparu, « Votre progression » prend la rangée), le
+Plan sans priorité servie, « Déjà travaillé et validé » encore vide.
 
 🛑 **Une media query n'est pas une primitive, et n'a PAS de miroir Flutter.**
 L'app Flutter est en portrait téléphone : elle n'a pas de desktop, donc un
@@ -894,24 +910,53 @@ dans `sejour_kit.dart` « pour la parité » y serait du code mort. En revanche 
 DEUX côtés dans la même passe. **Préférer une media query sur une primitive
 existante à une primitive nouvelle.**
 
-⚠️ **Ce que la maquette fait et que nous NE faisons PAS** : elle masque
-`.sf-mod-toggle` en desktop, parce que son rail porte la bascule de parcours.
-Chez nous les deux bascules ne mènent pas au même endroit — celle de
-l'`AppSidebar` va sur `/entrainement?module=…`, celle du kit (`TopSlot` du
-Plan) change le module **de l'écran courant**. Masquer la seconde ferait perdre
-la porte de l'autre parcours sur le Plan. `.segWrap` reste donc visible en
-desktop, et perd seulement sa gouttière de 16 px.
+⚠️ **La maquette masque `.sf-mod-toggle` en desktop, et nous aussi depuis le
+2026-09-12.** La passe 1 avait tranché l'inverse, avec un motif qui était vrai à
+l'époque : les deux bascules ne menaient pas au même endroit. Le propriétaire a
+arbitré la cause plutôt que le symptôme — la bascule du rail est devenue
+**contextuelle** (cf. section suivante), donc sur le Plan les deux mènent
+exactement au même endroit, et l'une des deux est de trop.
 
-**Ce que la maquette prévoit pour les écrans sans capture desktop** (utile aux
-passes suivantes) : `diagnostic-rapide.tsx` et `diagnostic-complet.tsx` sont
-des `<App>` **nus** — donc la colonne de **lecture de 720 px**, pas un tableau
-de bord. Ce qui change en desktop, chez eux, c'est seulement l'**intérieur** :
-`sf-obs-grid` (les observations du rapide), `sf-exam-grid` (les quatre
-épreuves) et `sf-prio-grid` (les priorités) passent de 1 à 2 puis 3 colonnes.
+`:global(.app-shell--has-drawer) .segWrap { display: none }` à partir de
+**901 px**. 🛑 **Ce n'est pas la borne desktop du kit**, c'est celle du **rail**
+(`app-shell` passe en `248px 1fr` au-dessus de 900 px, `globals.css` masque
+`.app-seg` en dessous) : la bascule d'écran existe EXACTEMENT quand celle du rail
+n'existe pas — aucune fenêtre où les deux se voient, aucune où aucune ne se voit.
+Prendre 960 aurait laissé un doublon entre 901 et 960. Et hors d'un shell qui
+porte le rail (`/diagnostic` public sous le `SiteHeader`), l'écran garde la
+sienne.
+
+**Ce que la maquette prévoit pour les écrans sans capture desktop** (relu et
+confirmé en passe 2 ; c'est le périmètre de la **passe 3**) :
+`diagnostic-rapide.tsx` et `diagnostic-complet.tsx` sont des `<App>` **nus** —
+donc la colonne de **lecture de 720 px**, pas un tableau de bord, et **aucun
+`sf-desk-pair`**. Ce qui change en desktop, chez eux, c'est seulement
+l'**intérieur**, et seulement trois grilles :
+
+| écran de la maquette | grille | contenu |
+|---|---|---|
+| `diagnostic-rapide.tsx` l. 26 | `sf-obs-grid` | les observations du rapide (1 → 2 → 3) |
+| `diagnostic-rapide.tsx` l. 86 | `sf-exam-grid` | le bloc des épreuves (1 → 2) |
+| `diagnostic-complet.tsx` l. 26 | `sf-exam-grid` | les quatre épreuves (1 → 2) |
+| `diagnostic-complet.tsx` l. 60 | `sf-prio-grid` | les priorités (1 → 2 → 3) |
+| `civique-resultat.tsx` l. 11 / 64 | `sf-desk-pair` **+** `sf-prio-grid` | ⚠️ le résultat **civique**, lui, a bien une paire |
+
+⚠️ Donc la formule « les écrans de diagnostic n'ont que des grilles internes »
+vaut pour les **deux écrans TCF**, pas pour `civique-resultat.tsx` : il ouvre sur
+un `sf-desk-pair` (l. 11) avant sa grille de priorités. À vérifier écran par
+écran en passe 3 plutôt qu'à la règle.
+
 Les écrans `plan-premium`, `civique-plan` et `accueil` sont des `<App tabs>` →
 **1080 px**, avec `sf-desk-pair`. `paywall`, `plan-gratuit` et
-`civique-plan-gratuit` sont des `<App sticky>` → **980 px**, et le paywall
-remplace sa barre collée par un CTA dans le flux (`sf-desk-cta`).
+`civique-plan-gratuit` sont des `<App sticky>` → **980 px**.
+
+**Le CTA en flux du paywall (`sf-desk-cta`) n'a PAS de pendant chez nous, et
+c'est volontaire.** La maquette duplique son CTA dans la colonne d'offre puis
+masque la barre collée (`.sf-main:has(.sf-desk-cta) .sf-sticky{display:none}`).
+Chez nous la passe 1 a transposé l'**effet** au lieu du moyen : au palier
+desktop, `.sticky` **est déjà** une carte en fin de colonne, avec le seul bouton
+pleine largeur de la page. Ajouter un second CTA ne changerait rien à la mise en
+page et écrirait deux fois la même action.
 
 ### La barre latérale reprend la FORME du rail de la maquette (2026-09-12)
 
@@ -931,6 +976,34 @@ Sous 900 px la barre est masquée au profit du drawer : le sous-titre, la
 bascule et la note y sont remis par `globals.css` (`.ms-drawer-inner`), et
 masqués dans la variante horizontale.
 
+#### La bascule de parcours est CONTEXTUELLE (2026-09-12)
+
+🛑 Arbitrage du propriétaire : « **une seule bascule TCF / Examen civique
+visible à la fois, et son action dépend du contexte courant** — sur Plan elle
+change le Plan, sur Réviser / Entraînement elle change l'espace d'entraînement. »
+
+**Autorité unique : `lib/module-switch.ts`.** Une liste **ordonnée** d'espaces,
+le premier qui reconnaît la route gagne, et elle rend deux choses : `href(module)`
+et `courant`. Trois lecteurs en dépendent — la destination des deux liens, le
+marquage de l'onglet actif et le sous-titre de parcours — et ils tenaient chacun
+leur propre suite de `if` avant cette passe.
+
+| route | où mène la bascule | `courant` |
+|---|---|---|
+| `/plan`, `/plan/*` | `/plan?module=TCF\|CIVIQUE` | le `?module=` de l'URL, sinon `null` |
+| `/entrainement`, `/entrainement/*`, `/diagnostic-tcf*`, `/diagnostic-civique*` | `/entrainement?module=…` | comme avant (chemin, puis `?module=`, le hub rendant le civique par défaut) |
+| tout le reste (`/dashboard`, `/examens-blancs`, `/historique`, `/recommandations`, `/profil`, `/statistiques`…) | `/entrainement?module=…` — la **destination historique** | `null` : aucun côté actif, sous-titre « Examen civique · TCF » |
+
+🛑 **Un seul mécanisme de sélection de module, et c'est `?module=`.** La barre
+latérale ne devine **jamais** le module du Plan : c'est `PlanModules` — seul à
+connaître le défaut **servi** par `moduleParDefaut(prep)` — qui inscrit sa
+résolution dans l'URL (`router.replace`, autres paramètres conservés) dès que
+`preparation()` répond. Faire choisir la barre latérale de son côté aurait créé
+une seconde autorité sur le même fait, et les deux contrôles auraient fini par
+désigner deux modules différents. Corollaire : `PlanModules` n'a plus d'état
+`module`/`choisi` — la bascule d'écran est devenue un **lien**, comme celle du
+rail. `moduleDeLUrl` tolère la casse (`?module=tcf` ouvre le TCF).
+
 `objectifLabel()` (`lib/preparation.ts`) est l'**autorité unique** de la phrase
 « Objectif : naturalisation » — construite sur `MENTION_LABEL`, la seule table
 de démarches du web. Elle était écrite en dur dans `AppSidebar` et l'Accueil
@@ -943,7 +1016,7 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 `screenshots/accueil.png` :
 
 1. bandeau « choisissez votre parcours » (si `targetProcedure` est `null`) ;
-2. en-tête « Bonjour X » + pastille de démarche + « Entraînement du jour » ;
+2. en-tête « Bonjour X » + pastille de démarche, **et rien d'autre** ;
 3. `deskPair` : **À faire maintenant** (`NowCard`, les 3 états servis du
    diagnostic / de la priorité du Plan) | **Ma préparation** ;
 4. `deskPair` : **Affiner votre Plan** (secondaire, 1/4 → 3/4) | **Votre
@@ -957,6 +1030,25 @@ intacte : « Continuez votre diagnostic complet » reste secondaire et disparaî
 « Commencer directement » n'apparaît toujours pas sur un exercice `locked`.
 Les blocs de la maquette sans donnée servie chez nous (le trio « compétences
 travaillées / maîtrisée / validations », les raccourcis du bas) sont **omis**.
+
+🛑 **Une seule action dominante par écran** (arbitrage du propriétaire,
+2026-09-12). « Retire le CTA *Entraînement du jour* de l'en-tête. L'en-tête doit
+rester simple : Bonjour / nom, objectif actuel. L'action principale passe
+entièrement par la carte *À faire maintenant*, juste en dessous. Évite aussi
+d'ajouter sur l'Accueil une rangée de raccourcis déjà présente dans la barre
+latérale desktop. »
+
+- le CTA d'en-tête est **supprimé**, avec son libellé et sa classe
+  `.home-hello-cta` ; l'en-tête n'est plus une rangée à deux pôles mais deux
+  lignes. Sa destination (`/entrainement?module=…`) reste portée par la bascule
+  de parcours du rail, qui ne fait que ça ;
+- **aucune rangée de raccourcis n'a jamais été ajoutée** (la passe 1 l'avait déjà
+  omise, faute de donnée servie) ;
+- le seul autre bouton plein de l'écran, « Commencer » de l'état **vide** de
+  « À renforcer en priorité », repasse en **lien**. C'est exactement quand cette
+  liste est vide — un compte tout neuf — que « À faire maintenant » porte son
+  geste le plus important (« Faire mon diagnostic ») : deux pastilles bleues
+  identiques se seraient disputé le premier clic. Un accès reste un accès.
 
 **Deux duplications supprimées avec leur cause** : `AffinerPlanCard` n'a plus
 qu'un rendu (sa variante `surface="accueil"` n'existait que parce que l'Accueil
@@ -987,6 +1079,50 @@ bleue, `CheckList`, sélecteur de durée (`PassCard`) et `Sticky`. 🛑 **Aucun 
 écrit dans le code** — `billingApi.listPlans` + `oneTimePassesOf` /
 `popularPassCodeOf` / `passCheckoutHref` (`lib/passes.ts`). Ne pas reprendre le
 « 14,99 €/mois » du mockup, qui n'a pas de serveur derrière lui.
+
+### Le Plan (`/plan`) au palier desktop (2026-09-12, passe 2)
+
+Références : `screenshots/plan-web.png`, `civ-plan-web.png`, `paywall-web.png`,
+et le **code** `screens/plan-premium.tsx`, `plan-gratuit.tsx`, `civique-plan.tsx`,
+`civique-plan-gratuit.tsx`, `paywall.tsx`.
+
+**La largeur de colonne se décide dans `PlanModules`**, seul endroit qui connaît
+à la fois le module affiché et l'accès du compte (`canAccessModule`, **lu**) :
+
+| état | `SejourApp` | colonne |
+|---|---|---|
+| porte d'entrée (`PlanGate` : pas de diagnostic, complet en cours) | — | 720 px, écran de **lecture** |
+| gratuit / verrouillé (TCF **et** civique) | `sticky` | 980 px |
+| abonné (TCF **et** civique) | `wide` | 1080 px, **tableau de bord** |
+
+**Ce qui passe en colonnes**, et rien d'autre — les mêmes briques, deux classes
+de grille, **aucun composant nouveau** :
+
+- **abonné (TCF)** : `deskPair` « À faire maintenant » | « Votre parcours —
+  Tâche N » · priorités en `deskGrid` (1 → 2 → 3) · `deskPair` « Déjà travaillé
+  et validé » | « Progression détectée » · cartes de « Compléter mon profil » en
+  `deskGrid2` (le pendant de `sf-exam-grid`) · les 3 accès d'« Aller plus loin »
+  en `deskGrid` ;
+- **abonné (civique)** : `deskPair` « À faire maintenant » | « Votre parcours —
+  {notion} » · priorités en `deskGrid` · `deskPair` « Déjà travaillé et validé »
+  | « À revoir bientôt » · « Progression détectée » en pleine largeur ;
+- **gratuit (les deux)** : **aucune paire**, seules les priorités passent en
+  grille, plus les durées de pass du paywall ;
+- **porte d'entrée** : rien — c'est un écran de lecture, et le rapport de
+  diagnostic qu'elle encastre relève de la passe 3.
+
+🛑 **Sur un Plan gratuit, « Débloquer mon plan » reste l'action DOMINANTE, et le
+desktop ne doit rien y ajouter.** Trois choses le tiennent, aucune nouvelle :
+la colonne reste à 980 px (pas 1080) ; aucun `deskPair` n'y met deux blocs côte
+à côte au-dessus du CTA ; et le kit plafonne tout `.btn` hors carte à 420 px
+**sauf** celui de `.sticky`, qui garde la pleine largeur en fin de colonne.
+`AffinerPlanCard` reste en `variant="line"` et « Revoir mon diagnostic rapide »
+reste un lien de bas de page.
+
+🛑 **Les plafonds d'AFFICHAGE n'ont pas bougé d'un cran.** Le desktop montre les
+mêmes 3 groupes de priorités (`planPriorityGroups(...).slice(0, 3)`), les mêmes
+`PLAN_PRIORITY_ROWS_VISIBLE` lignes par groupe, les mêmes 3 cibles civiques :
+la grille les **range**, elle ne demande pas au moteur d'en produire plus.
 
 ### Ce que la maquette demande et que la base ne sert pas
 

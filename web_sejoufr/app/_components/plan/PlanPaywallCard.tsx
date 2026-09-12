@@ -45,6 +45,13 @@ import {
  *
  * 🛑 **Il ne masque rien et ne compte rien.** Le Plan reste lisible — ce sont
  * les **accès** qui sont fermés, ligne par ligne, par le `locked` du serveur.
+ *
+ * 🛑 **Au palier desktop, « Débloquer mon plan » reste l'action DOMINANTE.**
+ * C'est acquis sans rien ajouter : le kit rend `.sticky` à sa carte de fin de
+ * colonne (la maquette fait pareil avec `sf-desk-cta`) et son bouton y est le
+ * **seul** à garder la pleine largeur — tout autre `.btn` hors carte est
+ * plafonné à 420 px. Ne pas y poser un second CTA « dans le flux » : le nôtre y
+ * est déjà, et il serait alors écrit deux fois.
  */
 export const PLAN_PREMIUM_BENEFITS = [
   "Toute votre séance du jour, chaque jour",
@@ -162,7 +169,10 @@ export function PlanPaywall({
         <Section>
           <Pad>
             <p className={sejourStyles.label}>{PASS_LABEL[module]}</p>
-            <Stack>
+            {/* Les durées se rangent en colonnes au palier desktop : empilées
+                sur 980 px, elles repoussaient le CTA de déblocage hors de
+                l'écran — c'est-à-dire l'action que cette section sert. */}
+            <Stack className={sejourStyles.deskGrid}>
               {passes.map((pass) => (
                 <PassCard
                   key={pass.code}

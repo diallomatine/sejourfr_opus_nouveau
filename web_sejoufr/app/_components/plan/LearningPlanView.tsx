@@ -123,6 +123,23 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * pédagogique et ne déduit aucun cadenas d'un rang.
  *
  * 🛑 **Aucun CSS d'écran** : tout passe par `SejourKit`.
+ *
+ * ## Le palier desktop (2026-09-12)
+ *
+ * La mise en page vient de `grok_ecran/screenshots/plan-web.png` et de
+ * `screens/plan-premium.tsx` / `plan-gratuit.tsx`. 🛑 **Aucun composant
+ * nouveau** : ce sont les mêmes briques, dans deux classes de grille du kit
+ * (`deskPair`, `deskGrid`) qui ne déclarent rien sous 960 px.
+ *
+ * - **abonné** (`SejourApp wide`, 1080 px) : en-tête, objectif en pleine
+ *   largeur, puis `deskPair` « À faire maintenant » | « Votre parcours », puis
+ *   les priorités en `deskGrid` (1 → 2 → 3 colonnes), puis `deskPair`
+ *   « Déjà travaillé et validé » | « Progression détectée » ;
+ * - **gratuit** (`SejourApp sticky`, 980 px) : la maquette n'y met **aucune**
+ *   paire — seules les priorités passent en grille. 🛑 C'est voulu : sur cet
+ *   écran, « Débloquer mon plan » doit rester la seule action dominante, et
+ *   mettre deux blocs côte à côte au-dessus d'elle remplirait l'espace de
+ *   choses à faire au lieu de mener au déblocage.
  */
 
 const SECTION_ICON: Record<SkillSection, LucideIcon> = {
@@ -313,24 +330,29 @@ function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
         </p>
       </Pad>
 
-      <ActionMaintenant plan={plan} />
+      {/* La paire de tête de la maquette. 🛑 Si l'un des deux manque — pas de
+          priorité servie, pas de parcours — l'autre prend toute la rangée : la
+          règle est dans le kit (`:only-child`), pas ici. */}
+      <div className={sejourStyles.deskPair}>
+        <ActionMaintenant plan={plan} />
 
-      {tachePath ? (
-        <Section title={tachePath.title} flush>
-          <PathCard
-            currentLabel={tachePath.currentLabel}
-            counterLabel={tachePath.counterLabel}
-            steps={tachePath.steps}
-          />
-        </Section>
-      ) : palierPath ? (
-        <PalierPath path={palierPath} />
-      ) : null}
+        {tachePath ? (
+          <Section title={tachePath.title} flush>
+            <PathCard
+              currentLabel={tachePath.currentLabel}
+              counterLabel={tachePath.counterLabel}
+              steps={tachePath.steps}
+            />
+          </Section>
+        ) : palierPath ? (
+          <PalierPath path={palierPath} />
+        ) : null}
+      </div>
 
       {groups.length > 0 && (
         <Section title={objective ? `Vos priorités pour atteindre ${objective}` : "Vos priorités"}>
           <Pad>
-            <Stack>
+            <Stack className={sejourStyles.deskGrid}>
               {groups.map((group, index) => (
                 <PriorityCard
                   key={group.key}
@@ -348,19 +370,24 @@ function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
         </Section>
       )}
 
-      {completed.length > 0 && (
-        <Section title="Déjà travaillé et validé">
-          <Pad>
-            <Card padding="rows">
-              {completed.map((step) => (
-                <DoneRow key={step.skillId} label={completedLabel(step)} />
-              ))}
-            </Card>
-          </Pad>
-        </Section>
-      )}
+      {/* La seconde paire de la maquette. Les deux blocs disparaissent d'eux-
+          mêmes quand ils n'ont rien à dire (`recentChanges === null` est le cas
+          NORMAL) : le survivant prend la rangée entière. */}
+      <div className={sejourStyles.deskPair}>
+        {completed.length > 0 && (
+          <Section title="Déjà travaillé et validé">
+            <Pad>
+              <Card padding="rows">
+                {completed.map((step) => (
+                  <DoneRow key={step.skillId} label={completedLabel(step)} />
+                ))}
+              </Card>
+            </Pad>
+          </Section>
+        )}
 
-      <ProgressionDetectee plan={plan} />
+        <ProgressionDetectee plan={plan} />
+      </div>
 
       {/* ⚠️ Blocs conservés hors maquette : ils portent une information qu'elle
           ne couvre pas — un examen blanc mérité, un domaine jamais mesuré, et
@@ -405,7 +432,7 @@ function TcfPlanFree({plan}: {plan: LearningPlanDto}) {
       {groups.length > 0 && (
         <Section title="Vos priorités">
           <Pad>
-            <Stack>
+            <Stack className={sejourStyles.deskGrid}>
               {groups.map((group, index) => (
                 <PriorityCard
                   key={group.key}
@@ -830,14 +857,19 @@ function CompleterMonProfil({plan}: {plan: LearningPlanDto}) {
       <Pad>
         <Stack>
           <p className={sejourStyles.tiny}>{PLAN_COMPLETE_PROFILE_TEXT}</p>
-          {plan.domainesAEvaluer.map((assessment) => (
-            <AssessmentCard
-              key={`${assessment.epreuve}-${assessment.kind}`}
-              assessment={assessment}
-              busy={starting === assessment.epreuve}
-              onStart={() => void start(assessment)}
-            />
-          ))}
+          {/* Les cartes d'épreuve passent en deux colonnes au palier desktop —
+              le pendant de `sf-exam-grid` de la maquette. Les deux phrases, qui
+              se lisent en pleine largeur, restent hors de la grille. */}
+          <Stack className={sejourStyles.deskGrid2}>
+            {plan.domainesAEvaluer.map((assessment) => (
+              <AssessmentCard
+                key={`${assessment.epreuve}-${assessment.kind}`}
+                assessment={assessment}
+                busy={starting === assessment.epreuve}
+                onStart={() => void start(assessment)}
+              />
+            ))}
+          </Stack>
           <p className={sejourStyles.tiny}>{PLAN_COMPLETE_PROFILE_NOTE}</p>
           {error && <p className={sejourStyles.tiny} role="alert">{error}</p>}
         </Stack>
@@ -878,7 +910,10 @@ function AssessmentCard({assessment, busy, onStart}: {
 /* ------------------------------------------------------- aller plus loin */
 
 /** Les écrans adossés au Plan ne sont accessibles que d'ici : la barre latérale
- *  ne les porte pas. */
+ *  ne les porte pas.
+ *
+ *  Les trois accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
+ *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
 function AllerPlusLoin() {
   const rows: Array<{href: string; label: string}> = [
     {href: PLAN_SKILLS_HREF, label: PLAN_SKILLS_TITLE},
@@ -889,7 +924,7 @@ function AllerPlusLoin() {
     <Section title="Aller plus loin">
       <Pad>
         <Card padding="rows">
-          <Stack>
+          <Stack className={sejourStyles.deskGrid}>
             {rows.map((row) => (
               <Link key={row.href} className={sejourStyles.link} href={row.href}>
                 {row.label} <ChevronRight size={15} aria-hidden />

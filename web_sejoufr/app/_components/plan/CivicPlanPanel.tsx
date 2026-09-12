@@ -80,6 +80,17 @@ import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from 
  *
  * 🛑 **Le constat est intégralement gratuit.** `locked` porte sur la **série**,
  * jamais sur ce que le candidat a mesuré.
+ *
+ * ## Le palier desktop (2026-09-12)
+ *
+ * Mise en page de `grok_ecran/screenshots/civ-plan-web.png` et de
+ * `screens/civique-plan.tsx` : **abonné** en `deskPair` « À faire maintenant » |
+ * « Votre parcours », priorités en `deskGrid`, puis `deskPair` « Déjà travaillé
+ * et validé » | « À revoir bientôt », « Progression détectée » en pleine
+ * largeur. **Gratuit** : aucune paire — seules les priorités passent en grille,
+ * pour que « Débloquer mon plan » reste la seule action dominante.
+ * 🛑 Aucun composant nouveau, seulement deux classes de grille du kit, inertes
+ * sous 960 px.
  */
 export function CivicPlanPanel() {
   const {user} = useAuth();
@@ -200,41 +211,46 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         </Pad>
       )}
 
-      {plan.prochaine && (
-        <Section title={CIVIC_PLAN_NOW_TITLE}>
-          <Pad>
-            <CivicNowCard
-              cible={plan.prochaine}
-              badge="Priorité n°1"
-              busy={enCours === plan.prochaine.id}
-              onStart={() => onStart(plan.prochaine!)}
-            />
-          </Pad>
-        </Section>
-      )}
+      {/* La paire de tête de `civique-plan.tsx` : l'action du jour et le
+          parcours de la notion. Un seul des deux ⇒ il prend la rangée entière
+          (règle du kit, `:only-child`). */}
+      <div className={sejourStyles.deskPair}>
+        {plan.prochaine && (
+          <Section title={CIVIC_PLAN_NOW_TITLE}>
+            <Pad>
+              <CivicNowCard
+                cible={plan.prochaine}
+                badge="Priorité n°1"
+                busy={enCours === plan.prochaine.id}
+                onStart={() => onStart(plan.prochaine!)}
+              />
+            </Pad>
+          </Section>
+        )}
 
-      {/* Le parcours de la notion en cours — c'est ICI que l'effet Leitner
-          devient visible : ce que le candidat a franchi, où il en est, et ce
-          qu'il reste avant que la notion soit tenue. */}
-      {plan.prochaine && plan.prochaine.parcours.length > 0 && (
-        <Section title={`${CIVIC_PATH_TITLE} — ${plan.prochaine.label}`} flush>
-          <PathCard
-            // Aucune étape en cours = la notion est tenue : on nomme la
-            // dernière plutôt que de laisser l'en-tête vide.
-            currentLabel={
-              civicPath(plan.prochaine).find((e) => e.state === "now")?.label
-              ?? CIVIC_PATH_LABELS[CIVIC_PATH_LABELS.length - 1]
-            }
-            counterLabel={civicPathCounter(plan.prochaine)}
-            steps={civicPath(plan.prochaine)}
-          />
-        </Section>
-      )}
+        {/* Le parcours de la notion en cours — c'est ICI que l'effet Leitner
+            devient visible : ce que le candidat a franchi, où il en est, et ce
+            qu'il reste avant que la notion soit tenue. */}
+        {plan.prochaine && plan.prochaine.parcours.length > 0 && (
+          <Section title={`${CIVIC_PATH_TITLE} — ${plan.prochaine.label}`} flush>
+            <PathCard
+              // Aucune étape en cours = la notion est tenue : on nomme la
+              // dernière plutôt que de laisser l'en-tête vide.
+              currentLabel={
+                civicPath(plan.prochaine).find((e) => e.state === "now")?.label
+                ?? CIVIC_PATH_LABELS[CIVIC_PATH_LABELS.length - 1]
+              }
+              counterLabel={civicPathCounter(plan.prochaine)}
+              steps={civicPath(plan.prochaine)}
+            />
+          </Section>
+        )}
+      </div>
 
       {plan.priorites.length > 0 && (
         <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
           <Pad>
-            <Stack>
+            <Stack className={sejourStyles.deskGrid}>
               {plan.priorites.slice(0, 3).map((cible, index) => (
                 <Prio
                   key={cible.id}
@@ -259,44 +275,47 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         </Section>
       )}
 
-      {plan.solides.length > 0 && (
-        <Section title="Déjà travaillé et validé">
-          <Pad>
-            <Card padding="rows">
-              {plan.solides.map((cible) => (
-                <DoneRow
-                  key={cible.id}
-                  label={`${cible.label} — ${CIVIC_MAITRISE_LABEL[cible.maitrise]}`}
-                />
-              ))}
-            </Card>
-          </Pad>
-        </Section>
-      )}
+      {/* La seconde paire de la maquette : l'acquis et l'entretien. */}
+      <div className={sejourStyles.deskPair}>
+        {plan.solides.length > 0 && (
+          <Section title="Déjà travaillé et validé">
+            <Pad>
+              <Card padding="rows">
+                {plan.solides.map((cible) => (
+                  <DoneRow
+                    key={cible.id}
+                    label={`${cible.label} — ${CIVIC_MAITRISE_LABEL[cible.maitrise]}`}
+                  />
+                ))}
+              </Card>
+            </Pad>
+          </Section>
+        )}
 
-      {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
-          acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
-          montre l'état de maîtrise et l'échéance, tous deux servis. */}
-      {plan.aRevoir.length > 0 && (
-        <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
-          <Card variant="soft">
-            <p className={sejourStyles.label}>Révision courte</p>
-            <Stack>
-              {plan.aRevoir.map((cible) => (
-                <div key={cible.id}>
-                  <b>{cible.label}</b>
-                  <p className={sejourStyles.tiny}>
-                    {CIVIC_MAITRISE_LABEL[cible.maitrise]}
-                    {civicRevueLabel(cible, maintenant)
-                      ? ` · ${civicRevueLabel(cible, maintenant)}`
-                      : ""}
-                  </p>
-                </div>
-              ))}
-            </Stack>
-          </Card>
-        </Section>
-      )}
+        {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
+            acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
+            montre l'état de maîtrise et l'échéance, tous deux servis. */}
+        {plan.aRevoir.length > 0 && (
+          <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
+            <Card variant="soft">
+              <p className={sejourStyles.label}>Révision courte</p>
+              <Stack>
+                {plan.aRevoir.map((cible) => (
+                  <div key={cible.id}>
+                    <b>{cible.label}</b>
+                    <p className={sejourStyles.tiny}>
+                      {CIVIC_MAITRISE_LABEL[cible.maitrise]}
+                      {civicRevueLabel(cible, maintenant)
+                        ? ` · ${civicRevueLabel(cible, maintenant)}`
+                        : ""}
+                    </p>
+                  </div>
+                ))}
+              </Stack>
+            </Card>
+          </Section>
+        )}
+      </div>
 
       {/* 🛑 `changements === null` est le cas NORMAL : le bloc DISPARAÎT, il ne
           s'affiche jamais vide. C'est le seul endroit où le candidat voit son
@@ -368,7 +387,7 @@ function CiviqueGratuit({plan, enCours, onStart, erreur}: PanelProps) {
       {plan.priorites.length > 0 && (
         <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
           <Pad>
-            <Stack>
+            <Stack className={sejourStyles.deskGrid}>
               {plan.priorites.slice(0, 3).map((cible, index) => (
                 <Prio
                   key={cible.id}

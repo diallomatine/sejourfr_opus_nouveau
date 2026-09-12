@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { basculeParcours } from "@/lib/module-switch";
 import { objectifLabel } from "@/lib/preparation";
 
 /**
@@ -40,6 +41,17 @@ import { objectifLabel } from "@/lib/preparation";
  * parce que les répéter en entrées de liste aurait mis deux fois la même
  * destination dans la même colonne.
  *
+ * 🛑 **La bascule est CONTEXTUELLE depuis le 2026-09-12** (arbitrage du
+ * propriétaire) : « une seule bascule TCF / Examen civique visible à la fois, et
+ * son action dépend du contexte courant — sur Plan elle change le Plan, sur
+ * Réviser / Entraînement elle change l'espace d'entraînement. » Sur le Plan elle
+ * mène donc à `/plan?module=…` et l'écran masque la sienne (≥ 901 px, la borne
+ * du rail). Partout ailleurs elle garde sa destination historique.
+ *
+ * 🛑 **La règle vit dans `lib/module-switch.ts`, pas ici** : le marquage de
+ * l'onglet actif, le sous-titre de parcours et la destination reposent tous les
+ * trois sur la même lecture, et trois `if` recopiés auraient divergé.
+ *
  * En pied : la note de la maquette, le badge streak (via GET /api/me/dashboard
  * mémoïsé) et la carte utilisateur cliquable vers /profil (le logout vit sur la
  * page profil).
@@ -57,19 +69,11 @@ function AppSidebarInner() {
   const searchParams = useSearchParams();
   const { user, status } = useAuth();
 
-  // Module courant sur /entrainement : les deux entrées PARCOURS pointent
-  // sur la même route. Sans ?module, le hub rend le Civique.
-  const currentModule = searchParams?.get("module");
-  const isOnEntrainement = pathname === "/entrainement";
-
-  const isTcfActive =
-    (isOnEntrainement && currentModule === "TCF") ||
-    pathname?.startsWith("/entrainement/tcf") ||
-    pathname?.startsWith("/diagnostic-tcf");
-  const isCiviqueActive =
-    (isOnEntrainement && currentModule !== "TCF") ||
-    pathname?.startsWith("/entrainement/civique") ||
-    pathname?.startsWith("/diagnostic-civique");
+  /* 🛑 **Une seule lecture, une seule autorité** : où mène la bascule depuis
+     cette route, et quel parcours y est courant. */
+  const bascule = basculeParcours(pathname, searchParams);
+  const isTcfActive = bascule.courant === "TCF";
+  const isCiviqueActive = bascule.courant === "CIVIQUE";
 
   /* Le sous-titre de parcours de la maquette. 🛑 Hors d'un parcours (tableau
      de bord, résultats, profil…) il n'y a **pas** de parcours courant : on
@@ -132,21 +136,21 @@ function AppSidebarInner() {
       </Link>
 
       {/* La bascule de parcours de la maquette. Ce sont EXACTEMENT les deux
-          entrées « TCF IRN » et « Examen civique » d'avant — mêmes libellés,
-          mêmes destinations —, dans la forme que la maquette leur donne. */}
+          entrées « TCF IRN » et « Examen civique » d'avant — mêmes libellés ;
+          leur destination, elle, suit le contexte (cf. `basculeParcours`). */}
       <div className="app-seg" role="tablist" aria-label="Parcours">
         <Link
-          href="/entrainement?module=TCF"
+          href={bascule.href("TCF")}
           role="tab"
-          aria-selected={Boolean(isTcfActive)}
+          aria-selected={isTcfActive}
           className={isTcfActive ? "app-seg-item is-on" : "app-seg-item"}
         >
           TCF IRN
         </Link>
         <Link
-          href="/entrainement?module=CIVIQUE"
+          href={bascule.href("CIVIQUE")}
           role="tab"
-          aria-selected={Boolean(isCiviqueActive)}
+          aria-selected={isCiviqueActive}
           className={isCiviqueActive ? "app-seg-item is-on" : "app-seg-item"}
         >
           Examen civique

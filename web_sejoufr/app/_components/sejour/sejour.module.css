@@ -1690,11 +1690,34 @@
   .deskGrid2 {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+
+  /* 🛑 **Une carte seule sur sa rangée prend toute la rangée** (arbitrage du
+     propriétaire, 2026-09-12). La règle vit ICI, dans le kit, et vaut pour les
+     trois grilles : un écran qui perd un bloc selon l'état du candidat —
+     « Affiner votre Plan » qui disparaît à 4 / 4, « À faire maintenant » sans
+     priorité servie, « Déjà travaillé » encore vide — ne doit pas laisser une
+     demi-colonne blanche à sa place. Réserver le vide pour garder la grille
+     donne à lire un contenu manquant ; l'interface suit l'état, pas l'inverse.
+
+     Sous 960 px la question ne se pose pas : ce sont des blocs empilés en
+     pleine largeur. */
+  .deskPair > :only-child,
+  .deskGrid > :only-child,
+  .deskGrid2 > :only-child {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 1100px) {
   .deskGrid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Même raison, un cran plus loin : à trois colonnes, **deux** cartes
+     laisseraient un tiers vide. La rangée redescend à deux colonnes plutôt que
+     de garder une place pour une carte qui n'existe pas. */
+  .deskGrid:has(> :nth-child(2):last-child) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -1714,5 +1737,30 @@
 @media (max-width: 900px) {
   :global(.app-shell--has-drawer) .app {
     padding-top: 64px;
+  }
+}
+
+/* ---------- Une seule bascule TCF / Civique visible à la fois ---------- */
+
+/* 🛑 Arbitrage du propriétaire (2026-09-12) : « une seule bascule TCF /
+   Examen civique visible à la fois, et son action dépend du contexte courant ».
+   La barre latérale de l'espace connecté en porte une (`.app-seg`) ; quand elle
+   est là, celle de l'écran ferait doublon — deux contrôles identiques, côte à
+   côte, pour un seul choix.
+
+   La borne est **901 px**, et ce n'est pas la borne desktop du kit : c'est
+   celle du rail lui-même (`app-shell` passe en `248px 1fr` au-dessus de 900 px,
+   `globals.css` masque `.app-seg` en dessous). La bascule d'écran existe donc
+   EXACTEMENT quand celle du rail n'existe pas, sans fenêtre où les deux se
+   voient ni fenêtre où aucune ne se voit. Même raisonnement que la gouttière du
+   burger ci-dessus, et même garde : hors d'un shell qui porte le rail
+   (`/diagnostic` public sous le `SiteHeader`), l'écran garde sa bascule.
+
+   🛑 Ce n'est pas une règle d'affichage seule : la bascule du rail **mène au
+   Plan** quand on est sur le Plan (`lib/module-switch.ts`). Sans cette
+   contrepartie, masquer celle-ci ferait perdre la porte de l'autre parcours. */
+@media (min-width: 901px) {
+  :global(.app-shell--has-drawer) .segWrap {
+    display: none;
   }
 }
