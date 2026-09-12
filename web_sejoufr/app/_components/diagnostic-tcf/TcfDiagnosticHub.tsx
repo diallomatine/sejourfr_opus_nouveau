@@ -630,6 +630,61 @@ function Styles() {
                     padding-top: 64px;
                 }
             }
+
+            /* ================================================================
+               LE PALIER DESKTOP de cet écran (2026-09-12, passe 3)
+
+               🛑 Cet écran n'est PAS un écran du kit — il n'a aucune capture ni
+               aucun pendant dans grok_ecran, et son jumeau Flutter
+               (tcf_diagnostic_screen.dart) est lui aussi hors du kit Sf*.
+               Le porter sur le kit ici, et là seulement, ferait diverger les
+               deux fronts sur le même écran ; c'est un arbitrage à demander, pas
+               à prendre en passant.
+
+               Ce qui se corrige en revanche sans rien décider : il était le
+               DERNIER écran de l'espace connecté à s'afficher comme une page de
+               téléphone (480 px à toutes les largeurs), alors que
+               /statistiques, /historique et /recommandations portent
+               chacun leur propre largeur. Il prend donc les MÊMES bornes que le
+               kit — 620 / 960 — et la même colonne de lecture de 720 px, pour
+               qu'un candidat qui passe du rapport de diagnostic à ce hub ne
+               change pas de gabarit en route.
+
+               Le rendu ≤ 620 px, lui, ne bouge pas : tout est en min-width.
+               ================================================================ */
+            @media (min-width: 620px) {
+                .tcfd {
+                    max-width: 720px;
+                }
+
+                /* Un bouton pleine largeur sur 720 px n'est plus un bouton,
+                   c'est une bannière. Même plafond que .btn dans le kit. */
+                .tcfd > .btn {
+                    max-width: 420px;
+                }
+            }
+
+            @media (min-width: 960px) {
+                .tcfd {
+                    padding-right: 36px;
+                    padding-left: 36px;
+                }
+
+                /* Les quatre épreuves en deux colonnes : le pendant de
+                   sf-exam-grid, qui s'arrête à deux — comme le tableau des
+                   épreuves du résultat, qu'elles préfigurent. */
+                .tcfd-sections {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                }
+
+                /* Même règle que dans le kit : une carte seule sur sa rangée
+                   prend la rangée entière, plutôt que de laisser une demi-
+                   colonne blanche là où une épreuve manque. */
+                .tcfd-sections > .tcfd-card:only-child {
+                    grid-column: 1 / -1;
+                }
+            }
         `}</style>
     );
 }

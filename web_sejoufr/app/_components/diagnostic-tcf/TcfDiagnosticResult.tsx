@@ -225,7 +225,11 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
                 n'est comparé ici. */}
             <Section title={EPREUVES_TITLE}>
                 <Pad>
-                    <Stack>
+                    {/* `sf-exam-grid` de la maquette (`diagnostic-complet.tsx`
+                        l. 26) : les quatre épreuves passent en 2 colonnes à
+                        960 px, et s'arrêtent là — elles n'ont pas de troisième
+                        cran, contrairement aux priorités. */}
+                    <Stack className={styles.deskGrid2}>
                         {r.epreuves.map((e) => {
                             const m = mention(e);
                             return (
@@ -259,21 +263,31 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
                                     ? ` — niveau estimé ${r.progression.previousNiveauGlobal}`
                                     : ""}
                             </p>
-                            {r.progression.epreuves.map((e) => (
-                                <ExamRow
-                                    key={e.epreuve}
-                                    icon={epreuveIcon(e.epreuve)}
-                                    title={epreuveLabel(e.epreuve)}
-                                    level={e.apres ? niveauCecrlShort(e.apres) : undefined}
-                                    /* 🛑 `INCONNUE` n'affiche RIEN d'évolutif :
-                                       « = » se lirait « vous avez tenu votre
-                                       niveau » alors que rien n'a été comparé. */
-                                    status={
-                                        evolutionLabel(e.evolution, e.avant) ?? NIVEAU_NON_EVALUE
-                                    }
-                                    tone={evolutionTone(e.evolution) ?? undefined}
-                                />
-                            ))}
+                            {/* Ce bloc n'existe pas dans la maquette, mais il
+                                pose les MÊMES `ExamRow` que le tableau des
+                                épreuves : il prend la même grille, sinon deux
+                                listes identiques se rangeraient autrement sur
+                                le même écran. La ligne de date, elle, reste en
+                                tête et en pleine largeur — d'où le `Stack`
+                                imbriqué, qui laisse le rendu mobile intact. */}
+                            <Stack className={styles.deskGrid2}>
+                                {r.progression.epreuves.map((e) => (
+                                    <ExamRow
+                                        key={e.epreuve}
+                                        icon={epreuveIcon(e.epreuve)}
+                                        title={epreuveLabel(e.epreuve)}
+                                        level={e.apres ? niveauCecrlShort(e.apres) : undefined}
+                                        /* 🛑 `INCONNUE` n'affiche RIEN d'évolutif :
+                                           « = » se lirait « vous avez tenu votre
+                                           niveau » alors que rien n'a été comparé. */
+                                        status={
+                                            evolutionLabel(e.evolution, e.avant) ??
+                                            NIVEAU_NON_EVALUE
+                                        }
+                                        tone={evolutionTone(e.evolution) ?? undefined}
+                                    />
+                                ))}
+                            </Stack>
                         </Stack>
                     </Pad>
                 </Section>
@@ -283,7 +297,11 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
             {r.priorites.length > 0 && (
                 <Section title={blocageTitle(r.cible)}>
                     <Pad>
-                        <Stack>
+                        {/* `sf-prio-grid` de la maquette (`diagnostic-complet.tsx`
+                            l. 60) : 1 → 2 (960) → 3 (1100) colonnes. Le serveur
+                            plafonne déjà `priorites` à trois — la grille les
+                            RANGE, elle n'en demande pas davantage. */}
+                        <Stack className={styles.deskGrid}>
                             {r.priorites.map((p) => (
                                 <Prio
                                     key={`${p.epreuve}-${p.taskCode ?? "epreuve"}`}

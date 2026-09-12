@@ -178,35 +178,41 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
                 badge={CIVIC_RESULT_BADGE}
             />
 
-            {/* 1 — le résultat. L'élément dominant. */}
-            <Pad>
-                <Card variant="hero">
-                    <p className={s.label}>{CIVIC_RESULT_SCORE_LABEL}</p>
-                    <p className={s.score}>
-                        {r.bonnes} <small>/ {r.posees}</small>
-                    </p>
-                    {/* 🛑 Absente si rien n'a été posé : « on n'a rien mesuré »
-                        ne se dit pas « vous auriez 0 sur 40 ». */}
-                    {perspective && <p className={s.insight}>{perspective}</p>}
-                    <p className={s.threshold}>{thresholdLine(r)}</p>
-                </Card>
-            </Pad>
-
-            {/* 2 — les 5 thèmes, TOUS, y compris les non évalués. */}
-            <Section title={CIVIC_THEMES_TITLE}>
+            {/* ⚠️ La SEULE paire desktop des écrans de diagnostic
+                (`civique-resultat.tsx` l. 11) : le score et les thèmes se
+                posent côte à côte à 960 px. Les deux écrans TCF, eux, n'ont que
+                des grilles internes — vérifié dans le code de la maquette. */}
+            <div className={s.deskPair}>
+                {/* 1 — le résultat. L'élément dominant. */}
                 <Pad>
-                    <Card padding="tight">
-                        {r.themes.map((t) => (
-                            <ThemeLine
-                                key={t.code}
-                                tone={kitTone(t.etat)}
-                                name={t.label}
-                                status={CIVIC_THEME_STATE_LABEL[t.etat]}
-                            />
-                        ))}
+                    <Card variant="hero">
+                        <p className={s.label}>{CIVIC_RESULT_SCORE_LABEL}</p>
+                        <p className={s.score}>
+                            {r.bonnes} <small>/ {r.posees}</small>
+                        </p>
+                        {/* 🛑 Absente si rien n'a été posé : « on n'a rien mesuré »
+                            ne se dit pas « vous auriez 0 sur 40 ». */}
+                        {perspective && <p className={s.insight}>{perspective}</p>}
+                        <p className={s.threshold}>{thresholdLine(r)}</p>
                     </Card>
                 </Pad>
-            </Section>
+
+                {/* 2 — les 5 thèmes, TOUS, y compris les non évalués. */}
+                <Section title={CIVIC_THEMES_TITLE}>
+                    <Pad>
+                        <Card padding="tight">
+                            {r.themes.map((t) => (
+                                <ThemeLine
+                                    key={t.code}
+                                    tone={kitTone(t.etat)}
+                                    name={t.label}
+                                    status={CIVIC_THEME_STATE_LABEL[t.etat]}
+                                />
+                            ))}
+                        </Card>
+                    </Pad>
+                </Section>
+            </div>
 
             {/* 3 — les mises en situation, bloc distinct : c'est une compétence
                 différente, et c'est souvent ce qui fait la différence.
@@ -228,7 +234,11 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
             {prioritesVisibles.length > 0 && (
                 <Section title={CIVIC_PRIORITES_TITLE}>
                     <Pad>
-                        <Stack>
+                        {/* `sf-prio-grid` de la maquette (`civique-resultat.tsx`
+                            l. 64) : 1 → 2 (960) → 3 (1100) colonnes. Le plafond
+                            d'affichage `CIVIC_PRIORITES_VISIBLES` n'a pas bougé
+                            — la grille range ce qui est servi. */}
+                        <Stack className={s.deskGrid}>
                             {prioritesVisibles.map((p, i) => (
                                 <Prio
                                     key={p.code}

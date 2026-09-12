@@ -131,7 +131,10 @@ export function DiagnosticReport({
       {observations.length > 0 && (
         <Section title={DIAGNOSTIC_OBSERVE_TITLE}>
           <Pad>
-            <Stack>
+            {/* `sf-obs-grid` de la maquette (`diagnostic-rapide.tsx` l. 26) :
+                les observations se rangent en 2 colonnes à 960 px, 3 à 1100 px.
+                Sous 960 px la classe ne déclare rien — c'est le `Stack` d'avant. */}
+            <Stack className={styles.deskGrid}>
               {observations.map((line) => (
                 <Observation
                   key={`${line.kicker}-${line.title}`}
@@ -162,9 +165,16 @@ export function DiagnosticReport({
       <Section title={DIAGNOSTIC_COMPLET_TITLE}>
         <Pad>
           <Stack>
-            {DIAGNOSTIC_COMPLET_EPREUVES.map((epreuve) => (
-              <ExamRow key={epreuve.label} icon={epreuve.icon} title={epreuve.label} />
-            ))}
+            {/* `sf-exam-grid` de la maquette (`diagnostic-rapide.tsx` l. 86) :
+                elle n'enveloppe QUE les quatre épreuves — la carte de promesse
+                et le CTA restent en pleine largeur sous elles, comme là-bas.
+                D'où le `Stack` imbriqué : sous 960 px les deux niveaux ont le
+                même écart de 10 px, le rendu mobile est celui d'avant. */}
+            <Stack className={styles.deskGrid2}>
+              {DIAGNOSTIC_COMPLET_EPREUVES.map((epreuve) => (
+                <ExamRow key={epreuve.label} icon={epreuve.icon} title={epreuve.label} />
+              ))}
+            </Stack>
             <Card>
               <p className={styles.label}>{DIAGNOSTIC_COMPLET_PROMISE}</p>
               <CheckList items={DIAGNOSTIC_COMPLET_BENEFITS} />
