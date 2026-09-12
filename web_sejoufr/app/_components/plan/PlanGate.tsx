@@ -34,8 +34,8 @@ import type {DiagnosticResultDto, ModulePreparation} from "@/lib/types";
  * écrit ici : deux lectures du même diagnostic auraient fini par en dire deux
  * choses. Et **la porte garde le geste de fin** (`closingCta={false}`) : sa
  * phrase dépend de l'étape servie, alors que le bouton du rapport dit toujours
- * « Faire mon diagnostic complet » — un contresens une fois le complet entamé,
- * où l'étape sert « Reprendre mon diagnostic ».
+ * « Faire le diagnostic complet » — un contresens une fois le complet entamé,
+ * où l'étape sert « Continuer le diagnostic ».
  */
 export function PlanGate({
   gate,

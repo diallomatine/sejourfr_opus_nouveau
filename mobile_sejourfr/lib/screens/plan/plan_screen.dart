@@ -189,18 +189,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         LearningPlanState.active => PlanTcfView(
             plan: value,
             objective: objective,
-            trailing: _affiner(modulePrep),
+            trailing: _trailing(modulePrep),
           ),
       },
     );
   }
 
-  /// La carte « Affiner votre Plan », en action **secondaire**.
+  /// Ce qui se pose **après** le contenu du Plan : la carte « Affiner votre
+  /// Plan », puis le lien discret vers le rapport du rapide.
   ///
   /// 🛑 L'abonnement se **lit** (`user.hasTcf`), il ne se devine pas : il ne
   /// décide ici que d'une formulation, jamais d'un verrou — ceux-là arrivent
   /// servis, ligne par ligne.
-  List<Widget> _affiner(ModulePreparation? prep) {
+  List<Widget> _trailing(ModulePreparation? prep) {
     if (prep == null) return const <Widget>[];
     final auth = ref.read(authControllerProvider);
     final info = affinerPlan(
@@ -208,9 +209,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
       accueil: false,
       abonne: auth is AuthAuthenticated && auth.user.hasTcf,
     );
-    return info == null
-        ? const <Widget>[]
-        : <Widget>[const SizedBox(height: 6), AffinerPlanCard(info: info)];
+    return <Widget>[
+      if (info != null) ...[const SizedBox(height: 6), AffinerPlanCard(info: info)],
+      // 🛑 Servi ou rien : sans rapide clos, il n'y a aucun rapport à revoir.
+      if (prep.estimationSessionId != null) const RevoirEstimationLink(),
+    ];
   }
 
   @override
@@ -339,9 +342,9 @@ class _PlanError extends StatelessWidget {
 /// ([DiagnosticResultView] et ses slots) — pas un résumé écrit ici : deux
 /// lectures du même diagnostic auraient fini par en dire deux choses. Et **la
 /// porte garde le geste de fin** (`closingCta: false`) : sa phrase dépend de
-/// l'étape servie, alors que le bouton du rapport dit toujours « Faire mon
+/// l'étape servie, alors que le bouton du rapport dit toujours « Faire le
 /// diagnostic complet » — un contresens une fois le complet entamé, où l'étape
-/// sert « Reprendre mon diagnostic ».
+/// sert « Continuer le diagnostic ».
 class _PlanIndisponible extends ConsumerStatefulWidget {
   const _PlanIndisponible({required this.info, this.prep});
 

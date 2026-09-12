@@ -28,6 +28,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
@@ -99,6 +100,7 @@ class LearningPlanServiceTest {
     private SkillAccessService accessService;
     private TcfProfileService profileService;
     private SkillManager skillManager;
+    private TcfDiagnosticSessionManager tcfDiagnosticManager;
     private User user;
     private LearningPlanService service;
     private final UUID userId = UUID.randomUUID();
@@ -146,6 +148,8 @@ class LearningPlanServiceTest {
         when(profileService.levelProfile(userId)).thenReturn(profil(null, null, null, null));
         when(skillManager.findActiveComprehension()).thenReturn(List.of());
         when(skillManager.findActiveExpression()).thenReturn(List.of());
+        tcfDiagnosticManager = mock(TcfDiagnosticSessionManager.class);
+        when(tcfDiagnosticManager.findLatest(userId)).thenReturn(Optional.empty());
         UserManager userManager = mock(UserManager.class);
         user = new User();
         user.setId(userId);
@@ -174,6 +178,12 @@ class LearningPlanServiceTest {
                 // Les competences par epreuve tournent POUR DE VRAI : elles ne
                 // font que ranger ce que le service vient de decider.
                 new PlanDomainSkillResolver(),
+                // La BASE du Plan tourne POUR DE VRAI, sur le meme
+                // `sessionManager` mocke que ces tests pilotent deja : c'est
+                // elle qui decide de la bascule en ACTIVE, et la doubler
+                // reviendrait a tester le mock. Aucun diagnostic COMPLET par
+                // defaut — ces tests decrivent le parcours du rapide.
+                new PlanFoundationResolver(sessionManager, tcfDiagnosticManager),
                 // La seance et le bloc « ce qui a change » tournent POUR DE VRAI :
                 // ce sont des vues de ce que le service vient de decider, les
                 // doubler reviendrait a tester le mock.

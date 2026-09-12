@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.PreparationDto;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.enums.PreparationEtape;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticService;
@@ -33,6 +34,7 @@ class PreparationServiceIT extends AbstractIntegrationTest {
 
     @Autowired private PreparationService service;
     @Autowired private TcfDiagnosticService tcfService;
+    @Autowired private LearningPlanService planService;
     @Autowired private CivicDiagnosticService civicService;
     @Autowired private TestData testData;
     @Autowired private EntityManager entityManager;
@@ -310,6 +312,81 @@ class PreparationServiceIT extends AbstractIntegrationTest {
         assertThat(civique.planDisponible()).isTrue();
         // Le civique n'a qu'UN diagnostic : aucune epreuve a reprendre, jamais.
         assertThat(civique.prochaineEpreuve()).isNull();
+    }
+
+
+    // ------------------------------------------------------------------------
+    // 🛑 LE COMPLET CLOS FONDE UN PLAN A LUI SEUL, LE COMPLET PARTIEL NON
+    // (arbitrage du proprietaire, 2026-09-12)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("🛑 Complet CLOS sans rapide : le Plan est disponible, et le moteur est d'accord")
+    void completClosSansRapideRendLePlanDisponible() {
+        User user = testData.user();
+        var session = tcfService.ouvrir(user.getId());
+        tcfService.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        // On ne cree pas une dependance artificielle pour quelqu'un qui a
+        // termine directement les 4 epreuves : elles nourrissent deja le moteur.
+        assertThat(tcf.planDisponible()).isTrue();
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.PLAN_PRET);
+        // 🛑 ET LE MOTEUR DIT LA MEME CHOSE. C'est tout l'objet de
+        // PlanFoundationResolver : un ecran qui promettrait un plan que le
+        // moteur refuse de construire est la contradiction a empecher.
+        assertThat(planService.get(user.getId()).state())
+                .isEqualTo(LearningPlanState.ACTIVE);
+        // Aucun rapide : rien a relire, et on n'invente pas un rapport.
+        assertThat(tcf.estimationSessionId()).isNull();
+        assertThat(tcf.prochaineEpreuve()).isNull();
+    }
+
+    @Test
+    @DisplayName("🛑 Complet PARTIEL sans rapide : pas de Plan, meme a 3 epreuves sur 4")
+    void completPartielSansRapideNeFondeAucunPlan() {
+        User user = testData.user();
+        var session = tcfService.ouvrir(user.getId());
+        terminerSousEpreuve(session.getId(), EpreuveType.TCF_CO);
+        entityManager.flush();
+        entityManager.clear();
+        // 1 / 4
+        assertThat(service.lire(user.getId()).tcf().planDisponible()).isFalse();
+
+        terminerSousEpreuve(session.getId(), EpreuveType.TCF_CE);
+        terminerSousEpreuve(session.getId(), EpreuveType.TCF_EE);
+        entityManager.flush();
+        entityManager.clear();
+
+        PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
+
+        // 3 / 4 : le Plan attend une mesure CLOSE, il ne se batit pas sur un
+        // diagnostic qu'on est en train de passer.
+        assertThat(tcf.fait()).isEqualTo(3);
+        assertThat(tcf.planDisponible()).isFalse();
+        assertThat(tcf.etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_EN_COURS);
+        assertThat(planService.get(user.getId()).state())
+                .isNotEqualTo(LearningPlanState.ACTIVE);
+        // La porte doit renvoyer vers le COMPLET, pas vers le rapide : `fait`
+        // non nul est le fait sur lequel les fronts le decident.
+        assertThat(tcf.prochaineEpreuve()).isEqualTo(EpreuveType.TCF_EO);
+        assertThat(tcf.estimationSessionId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Le rapide reste le chemin court : il fonde le Plan sans aucun complet")
+    void leRapideResteLeCheminCourt() {
+        User user = testData.user();
+        testData.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.lire(user.getId()).tcf().planDisponible()).isTrue();
+        assertThat(planService.get(user.getId()).state())
+                .isEqualTo(LearningPlanState.ACTIVE);
     }
 
     /**

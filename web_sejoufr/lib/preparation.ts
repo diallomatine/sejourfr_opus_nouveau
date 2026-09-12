@@ -3,7 +3,7 @@
  * le web.
  *
  * 🛑 **Le serveur sert l'ÉTAPE, ce fichier sert la PHRASE.** C'est la même
- * discipline que partout ailleurs : « Faire mon diagnostic complet » est une
+ * discipline que partout ailleurs : « Faire le diagnostic complet » est une
  * formulation, pas une donnée.
  *
  * 🛑 **Trois portes, un seul état.** L'Accueil, le Plan et les Examens
@@ -27,6 +27,44 @@ export const PREPARATION_TITLE = "Ma préparation";
  * en montrer une version qui ne bouge plus.
  */
 export const DIAGNOSTIC_RAPIDE_HREF = "/diagnostic";
+
+/**
+ * Où le candidat commence ou reprend son diagnostic **complet**.
+ *
+ * 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
+ * s'est arrêté » : une épreuve terminée n'y porte plus aucun bouton, et une
+ * épreuve qui démarre le fait après son avertissement (« une fois commencée,
+ * elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
+ * épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
+ */
+export const DIAGNOSTIC_COMPLET_HREF = "/diagnostic-tcf";
+
+/**
+ * 🛑 **LES DEUX SEULS LIBELLÉS du diagnostic complet**, et ils sont décidés par
+ * son avancement — arbitrage du propriétaire, 2026-09-12 :
+ *
+ * | avancement | CTA |
+ * |---|---|
+ * | jamais commencé | « Faire le diagnostic complet » |
+ * | `1/4` · `2/4` · `3/4` | « Continuer le diagnostic » |
+ * | terminé | **aucun CTA de diagnostic** |
+ *
+ * La variante « Faire mon diagnostic complet » est **supprimée** : elle
+ * cohabitait avec « Faire mon diagnostic TCF complet » et « Faire le diagnostic
+ * complet », trois phrases pour un seul geste. Tout le web les lit ici.
+ */
+export const DIAGNOSTIC_COMPLET_CTA_START = "Faire le diagnostic complet";
+export const DIAGNOSTIC_COMPLET_CTA_RESUME = "Continuer le diagnostic";
+
+/**
+ * Le retour vers le rapport du diagnostic **rapide**.
+ *
+ * 🛑 **Un lien, jamais un bouton, jamais une carte**, et posé en bas de page :
+ * le Plan sert à avancer, le rapport sert seulement à revenir comprendre d'où
+ * viennent les premières priorités. Il ne doit concurrencer ni « Débloquer mon
+ * plan » (compte gratuit) ni « À faire maintenant » (abonné).
+ */
+export const PLAN_REVOIR_ESTIMATION = "Revoir mon diagnostic rapide";
 
 export const TCF_LABEL = "TCF IRN";
 export const CIVIQUE_LABEL = "Examen civique";
@@ -53,14 +91,22 @@ export function tcfAction(m: ModulePreparation): PreparationAction {
     if (m.planDisponible) {
         return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
     }
-    // Sans estimation close, il n'y a qu'une seule porte : le diagnostic rapide.
-    return m.etape === "DIAGNOSTIC_EN_COURS"
-        ? {statut: "Diagnostic en cours", cta: "Reprendre", href: DIAGNOSTIC_RAPIDE_HREF}
-        : {
-              statut: "Diagnostic non réalisé",
-              cta: "Faire mon diagnostic",
-              href: DIAGNOSTIC_RAPIDE_HREF,
-          };
+    // Sans base close, deux diagnostics inachevés peuvent rester : le complet
+    // commencé sans rapide (`fait !== null`) et le rapide lui-même.
+    if (m.etape === "DIAGNOSTIC_EN_COURS") {
+        return m.fait !== null
+            ? {
+                  statut: `Diagnostic complet : ${m.fait} / ${m.total} épreuves`,
+                  cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
+                  href: DIAGNOSTIC_COMPLET_HREF,
+              }
+            : {statut: "Diagnostic en cours", cta: "Reprendre", href: DIAGNOSTIC_RAPIDE_HREF};
+    }
+    return {
+        statut: "Diagnostic non réalisé",
+        cta: "Faire mon diagnostic",
+        href: DIAGNOSTIC_RAPIDE_HREF,
+    };
 }
 
 /**
@@ -190,14 +236,18 @@ export function planIndisponible(
     }
 
     if (m.etape === "DIAGNOSTIC_EN_COURS") {
-        // Seul le diagnostic **rapide** inachevé arrive ici : dès qu'il est
-        // clos, `planDisponible` est vrai et la porte ne s'affiche plus, même
-        // pendant le complet.
+        /* Deux diagnostics inachevés peuvent fermer la porte, et ils ne se
+           reprennent pas au même endroit :
+           - le **rapide** (`fait === null`, aucun complet ouvert) ;
+           - le **complet commencé par quelqu'un qui n'a pas fait le rapide**
+             (`fait !== null`) — 🛑 même à 3 / 4, il ne fonde pas de Plan tant
+             qu'il n'est pas clos (arbitrage du 2026-09-12). */
+        const complet = m.fait !== null;
         return {
             titre: "Votre diagnostic TCF est commencé",
             texte: avancement(m) ?? "Terminez-le pour que votre plan se construise.",
-            cta: "Reprendre mon diagnostic",
-            href: DIAGNOSTIC_RAPIDE_HREF,
+            cta: complet ? DIAGNOSTIC_COMPLET_CTA_RESUME : "Reprendre mon diagnostic",
+            href: complet ? DIAGNOSTIC_COMPLET_HREF : DIAGNOSTIC_RAPIDE_HREF,
         };
     }
 
@@ -303,17 +353,6 @@ export interface AffinerPlan {
     href: string;
 }
 
-/**
- * Où le candidat reprend son diagnostic complet.
- *
- * 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
- * s'est arrêté » : une épreuve terminée n'y porte plus aucun bouton, et une
- * épreuve qui démarre le fait après son avertissement (« une fois commencée,
- * elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
- * épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
- */
-const DIAGNOSTIC_COMPLET_HREF = "/diagnostic-tcf";
-
 export function affinerPlan(
     m: ModulePreparation,
     options: {surface: "plan" | "accueil"; abonne: boolean},
@@ -349,7 +388,7 @@ export function affinerPlan(
             texte: `Il vous reste ${restant} épreuve${restant > 1 ? "s" : ""} pour compléter l'analyse de vos compétences.`,
             progression,
             prochaineEpreuve: prochaine,
-            cta: "Continuer",
+            cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
             href: DIAGNOSTIC_COMPLET_HREF,
         };
     }
@@ -363,7 +402,7 @@ export function affinerPlan(
             texte: "Continuez votre diagnostic pour affiner progressivement votre Plan.",
             progression,
             prochaineEpreuve: prochaine,
-            cta: "Continuer le diagnostic",
+            cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
             href: DIAGNOSTIC_COMPLET_HREF,
         };
     }
@@ -381,7 +420,7 @@ export function affinerPlan(
             : "Votre diagnostic rapide nous a permis d'identifier vos premières priorités. Le diagnostic complet analyse vos 4 compétences pour rendre votre Plan encore plus précis.",
         progression: null,
         prochaineEpreuve: null,
-        cta: "Faire le diagnostic complet",
+        cta: DIAGNOSTIC_COMPLET_CTA_START,
         href: DIAGNOSTIC_COMPLET_HREF,
     };
 }

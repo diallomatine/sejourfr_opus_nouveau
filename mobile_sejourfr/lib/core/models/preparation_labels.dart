@@ -3,7 +3,7 @@ import 'preparation_models.dart';
 /// Les phrases de « Ma préparation » — **pures**, déclarées une fois pour tout
 /// le mobile.
 ///
-/// 🛑 **Le serveur sert l'ÉTAPE, ce fichier sert la PHRASE.** « Faire mon
+/// 🛑 **Le serveur sert l'ÉTAPE, ce fichier sert la PHRASE.** « Faire le
 /// diagnostic complet » est une formulation, pas une donnée.
 ///
 /// 🛑 **Trois portes, un seul état.** L'Accueil, le Plan et les Examens
@@ -41,14 +41,23 @@ PreparationAction tcfAction(ModulePreparation m) {
   if (m.planDisponible) {
     return (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/plan');
   }
-  // Sans estimation close, il n'y a qu'une seule porte : le diagnostic rapide.
-  return m.etape == PreparationEtape.diagnosticEnCours
-      ? (statut: 'Diagnostic en cours', cta: 'Reprendre', route: '/diagnostic')
-      : (
-          statut: 'Diagnostic non réalisé',
-          cta: 'Faire mon diagnostic',
-          route: '/diagnostic',
-        );
+  // Sans base close, deux diagnostics inachevés peuvent rester : le complet
+  // commencé sans rapide (`fait != null`) et le rapide lui-même.
+  if (m.etape == PreparationEtape.diagnosticEnCours) {
+    final fait = m.fait;
+    return fait != null
+        ? (
+            statut: 'Diagnostic complet : $fait / ${m.total} épreuves',
+            cta: kDiagnosticCompletCtaResume,
+            route: kDiagnosticCompletRoute,
+          )
+        : (statut: 'Diagnostic en cours', cta: 'Reprendre', route: '/diagnostic');
+  }
+  return (
+    statut: 'Diagnostic non réalisé',
+    cta: 'Faire mon diagnostic',
+    route: '/diagnostic',
+  );
 }
 
 /// Ce qu'on sait du candidat quand son Plan existe.
@@ -143,11 +152,17 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
           : 'Votre diagnostic TCF est commencé',
       texte: _avancement(m) ??
           'Terminez-le pour que votre plan se construise.',
-      cta: 'Reprendre mon diagnostic',
-      // Côté TCF, seul le diagnostic **rapide** inachevé arrive ici : dès
-      // qu'il est clos, `planDisponible` est vrai et la porte ne s'affiche
-      // plus, même pendant le complet.
-      route: civique ? '/diagnostic-civique' : '/diagnostic',
+      // Côté TCF, deux diagnostics inachevés peuvent fermer la porte, et ils
+      // ne se reprennent pas au même endroit : le **rapide** (`fait == null`,
+      // aucun complet ouvert), et le **complet commencé par quelqu'un qui n'a
+      // pas fait le rapide** (`fait != null`) — 🛑 même à 3 / 4, il ne fonde
+      // pas de Plan tant qu'il n'est pas clos (arbitrage du 2026-09-12).
+      cta: !civique && m.fait != null
+          ? kDiagnosticCompletCtaResume
+          : 'Reprendre mon diagnostic',
+      route: civique
+          ? '/diagnostic-civique'
+          : (m.fait != null ? kDiagnosticCompletRoute : '/diagnostic'),
     );
   }
 
@@ -236,7 +251,31 @@ typedef AffinerPlan = ({
 /// épreuve qui démarre le fait après son avertissement (« une fois commencée,
 /// elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
 /// épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
-const String _kDiagnosticCompletRoute = '/diagnostic-tcf';
+const String kDiagnosticCompletRoute = '/diagnostic-tcf';
+
+/// 🛑 **LES DEUX SEULS LIBELLÉS du diagnostic complet**, et ils sont décidés par
+/// son avancement — arbitrage du propriétaire, 2026-09-12 :
+///
+/// | avancement | CTA |
+/// |---|---|
+/// | jamais commencé | « Faire le diagnostic complet » |
+/// | `1/4` · `2/4` · `3/4` | « Continuer le diagnostic » |
+/// | terminé | **aucun CTA de diagnostic** |
+///
+/// La variante « Faire mon diagnostic complet » est **supprimée** : elle
+/// cohabitait avec « Faire mon diagnostic TCF complet » et « Faire le
+/// diagnostic complet », trois phrases pour un seul geste. Tout le mobile les
+/// lit ici. Miroir de `web_sejoufr/lib/preparation.ts`.
+const String kDiagnosticCompletCtaStart = 'Faire le diagnostic complet';
+const String kDiagnosticCompletCtaResume = 'Continuer le diagnostic';
+
+/// Le retour vers le rapport du diagnostic **rapide**.
+///
+/// 🛑 **Un lien, jamais un bouton, jamais une carte**, et posé en bas de page :
+/// le Plan sert à avancer, le rapport sert seulement à revenir comprendre d'où
+/// viennent les premières priorités. Il ne doit concurrencer ni « Débloquer mon
+/// plan » (compte gratuit) ni « À faire maintenant » (abonné).
+const String kPlanRevoirEstimation = 'Revoir mon diagnostic rapide';
 
 /// Miroir mot pour mot de `affinerPlan` (`web_sejoufr/lib/preparation.ts`).
 AffinerPlan? affinerPlan(
@@ -276,8 +315,8 @@ AffinerPlan? affinerPlan(
           'compléter l\'analyse de vos compétences.',
       progression: progression,
       prochaineEpreuve: prochaine,
-      cta: 'Continuer',
-      route: _kDiagnosticCompletRoute,
+      cta: kDiagnosticCompletCtaResume,
+      route: kDiagnosticCompletRoute,
     );
   }
 
@@ -291,8 +330,8 @@ AffinerPlan? affinerPlan(
           'Plan.',
       progression: progression,
       prochaineEpreuve: prochaine,
-      cta: 'Continuer le diagnostic',
-      route: _kDiagnosticCompletRoute,
+      cta: kDiagnosticCompletCtaResume,
+      route: kDiagnosticCompletRoute,
     );
   }
 
@@ -312,7 +351,7 @@ AffinerPlan? affinerPlan(
             'rendre votre Plan encore plus précis.',
     progression: null,
     prochaineEpreuve: null,
-    cta: 'Faire le diagnostic complet',
-    route: _kDiagnosticCompletRoute,
+    cta: kDiagnosticCompletCtaStart,
+    route: kDiagnosticCompletRoute,
   );
 }

@@ -41,9 +41,9 @@ import 'diagnostic_report_labels.dart';
 ///
 /// 🛑 **Un seul geste de fin à l'écran.** L'hôte peut porter le sien
 /// ([closingCta] à `false`) : la porte du Plan le fait, parce que sa phrase
-/// dépend de l'étape servie — « Faire mon diagnostic TCF complet » tant que
-/// rien n'est commencé, « Reprendre mon diagnostic » une fois le complet
-/// entamé, cas où le bouton de fin du rapport serait un contresens. La section
+/// dépend de l'étape servie — « Faire le diagnostic complet » tant que rien
+/// n'est commencé, « Continuer le diagnostic » une fois le complet entamé, cas
+/// où le bouton de fin du rapport serait un contresens. La section
 /// « Découvrez où vous en êtes vraiment au TCF » reste, elle informe ; c'est le
 /// bouton seul qui s'efface.
 class DiagnosticResultView extends StatelessWidget {

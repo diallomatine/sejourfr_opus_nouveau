@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/preparation_labels.dart';
 import '../theme/app_theme.dart';
@@ -72,5 +73,56 @@ class AffinerPlanCard extends StatelessWidget {
     );
 
     return pad ? Padding(padding: sfGutter, child: carte) : carte;
+  }
+}
+
+/// **Revoir mon diagnostic rapide** — le retour vers le rapport d'origine.
+///
+/// 🛑 **Un lien, en bas de page, et rien d'autre** (arbitrage du propriétaire,
+/// 2026-09-12). Pas une carte, pas un bouton plein : il ne doit concurrencer ni
+/// « Débloquer mon plan » pour un compte gratuit, ni « À faire maintenant »
+/// pour un abonné. Le Plan sert à avancer ; le rapport sert seulement à revenir
+/// comprendre d'où viennent les premières priorités.
+///
+/// 🛑 L'appelant ne le pose que si `estimationSessionId` est **servi** : un
+/// candidat venu par le diagnostic complet n'a pas de rapide, donc rien à
+/// revoir, et on n'invente pas un rapport. Aucun écran n'est recréé —
+/// `/diagnostic` sert déjà ce rapport dès que la session est close.
+///
+/// Miroir de `RevoirEstimation` (`web_sejoufr/.../LearningPlanView.tsx`), dont
+/// il reprend la mesure : 13 px, gras, bleu, chevron.
+class RevoirEstimationLink extends StatelessWidget {
+  const RevoirEstimationLink({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: sfGutter.add(const EdgeInsets.only(top: sfSectionGap)),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: InkWell(
+          onTap: () => context.push('/diagnostic'),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  kPlanRevoirEstimation,
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(LucideIcons.chevronRight, size: 15, color: AppColors.blue),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

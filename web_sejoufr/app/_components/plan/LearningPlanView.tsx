@@ -60,7 +60,12 @@ import {
   skillTaskCode,
   type PlanPriorityGroup,
 } from "@/lib/plan-domain";
-import {affinerPlan, planIndisponibleDepuisEtat} from "@/lib/preparation";
+import {
+  affinerPlan,
+  DIAGNOSTIC_RAPIDE_HREF,
+  PLAN_REVOIR_ESTIMATION,
+  planIndisponibleDepuisEtat,
+} from "@/lib/preparation";
 import {
   canAccessModule,
   PLAN_ACTION_NATURE_LABEL,
@@ -225,7 +230,35 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     <>
       {abonne ? <TcfPlanPremium plan={plan} /> : <TcfPlanFree plan={plan} />}
       {affiner && <AffinerPlanCard info={affiner} surface="plan" />}
+      {prep?.estimationSessionId && <RevoirEstimation />}
     </>
+  );
+}
+
+/**
+ * **Revoir mon diagnostic rapide** — le retour vers le rapport d'origine.
+ *
+ * 🛑 **Un lien, en bas de page, et rien d'autre** (arbitrage du propriétaire,
+ * 2026-09-12). Pas une carte, pas un bouton plein : il ne doit concurrencer ni
+ * « Débloquer mon plan » pour un compte gratuit, ni « À faire maintenant » pour
+ * un abonné. Le Plan sert à avancer ; le rapport sert seulement à revenir
+ * comprendre d'où viennent les premières priorités.
+ *
+ * 🛑 Il n'existe que si `estimationSessionId` est **servi** : un candidat venu
+ * par le diagnostic complet n'a pas de rapide, donc rien à revoir, et on
+ * n'invente pas un rapport. Aucun écran n'est recréé — `/diagnostic` sert déjà
+ * ce rapport dès que la session est close.
+ */
+function RevoirEstimation() {
+  return (
+    <Section>
+      <Pad>
+        <Link className={sejourStyles.link} href={DIAGNOSTIC_RAPIDE_HREF}>
+          {PLAN_REVOIR_ESTIMATION}
+          <ChevronRight size={15} aria-hidden />
+        </Link>
+      </Pad>
+    </Section>
   );
 }
 

@@ -16,6 +16,7 @@
  */
 import {BookOpen, Headphones, Mic, PenLine, type LucideIcon} from "lucide-react";
 import type {DiagnosticResultDto} from "@/lib/types";
+import {DIAGNOSTIC_COMPLET_CTA_START} from "@/lib/preparation";
 
 /* ------------------------------------------------------------- l'en-tête */
 
@@ -136,7 +137,13 @@ export const DIAGNOSTIC_COMPLET_BENEFITS = [
   "les tâches qui vous limitent actuellement",
   "vos priorités pour atteindre votre objectif",
 ];
-export const DIAGNOSTIC_COMPLET_CTA = "Faire mon diagnostic complet";
+/**
+ * 🛑 **Réexport, pas une seconde déclaration** (2026-09-12). Le libellé du
+ * diagnostic complet vit dans `lib/preparation.ts`, autorité unique du web :
+ * le Plan, l'Accueil et ce rapport disaient trois phrases différentes pour un
+ * seul geste. La variante « Faire mon diagnostic complet » est supprimée.
+ */
+export const DIAGNOSTIC_COMPLET_CTA = DIAGNOSTIC_COMPLET_CTA_START;
 /**
  * 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
  * ⚠️ Et **jamais le mot « examen blanc »** : `docs/regles/diagnostic-tcf-4-epreuves.md`

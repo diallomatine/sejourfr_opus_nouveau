@@ -118,6 +118,7 @@ public class LearningPlanService {
     private final PlanConfig planConfig;
     private final PlanDomainTargetLevelResolver targetLevelResolver;
     private final PlanDomainSkillResolver domainSkillResolver;
+    private final PlanFoundationResolver foundationResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
     private final UserManager userManager;
@@ -125,8 +126,14 @@ public class LearningPlanService {
     @Transactional(readOnly = true)
     public LearningPlanDto get(UUID userId) {
         User user = userManager.findById(userId).orElse(null);
-        DiagnosticSession completed = sessionManager.findLatestCompleted(userId).orElse(null);
-        if (completed == null) {
+        // 🛑 SUR QUOI LE PLAN SE CONSTRUIT — autorite unique, partagee avec
+        // l'etat servi (PreparationDto.planDisponible). Le rapide clos suffit ;
+        // le COMPLET clos suffit aussi, meme sans rapide (arbitrage du
+        // 2026-09-12), parce que ses 4 epreuves nourrissent deja ce moteur. Un
+        // complet seulement COMMENCE ne fonde rien : le Plan attend une mesure
+        // close, il ne se batit pas sur un diagnostic en cours.
+        PlanFoundationResolver.Foundation foundation = foundationResolver.resolve(userId);
+        if (!foundation.exists()) {
             DiagnosticSession inProgress = currentSession(userId);
             // Le profil et le cycle sont servis MEME SANS DIAGNOSTIC : c'est
             // exactement l'ecran dont a besoin un candidat qui a fait une serie
@@ -482,7 +489,7 @@ public class LearningPlanService {
                 profil.domaines(), profil.referentiel(), latest, mastery, natures,
                 paliersParDomaine, access);
         return new LearningPlanDto(
-                LearningPlanState.ACTIVE, completed.getId(), completed.getCompletedAt(),
+                LearningPlanState.ACTIVE, foundation.sessionId(), foundation.completedAt(),
                 completedSteps,
                 priorities.isEmpty() ? null : priorities.getFirst(),
                 priorities.size() <= 1 ? List.of() : priorities.subList(1, priorities.size()),

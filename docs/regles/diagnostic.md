@@ -451,3 +451,73 @@ Le rendu vit dans un composant unique par front (`AffinerPlanCard`), posé **apr
 du Plan, bouton `line` (contour) : 🛑 sur un compte gratuit, le seul bouton plein de la page
 reste « Débloquer mon plan ». Sur l'Accueil la carte n'apparaît **que** si le complet est
 commencé, en action secondaire persistante.
+
+### Complément du 2026-09-12 — le complet CLOS fonde un Plan à lui seul
+
+**Arbitrage du propriétaire** : *« Ne l'interdis pas. […] complet terminé → Plan disponible
+également, même si le rapide n'a jamais été fait ; complet seulement partiellement commencé sans
+rapide → ne considère pas encore le Plan comme prêt. »*
+
+**Ce que le complet alimentait déjà** — établi par le code et par la base :
+
+- **CO / CE** : les deux sous-épreuves sont des `attempts` ordinaires
+  (`TcfDiagnosticSectionStarter.creerComprehension`) ; leur clôture passe par
+  `AttemptInteractionService`, donc par `ComprehensionObservationService`. Vérifié en base :
+  **6 `TCF_CO` + 3 `TCF_CE`** rattachées à des sous-épreuves de diagnostic complet.
+- **EE / EO** : `creerProduction` crée des attempts **vides** ; les 3 tâches sont soumises par
+  `/api/production-submissions` avec des tâches de production **standard** (non
+  `diagnostic_code`), donc `observeStandardProduction` ne retourne pas tôt et
+  `LearningPlanObservationService` les classe `MOCK_EXAM_EE/EO` (`isMockExam` : le sous-attempt
+  porte un `parentAttempt`).
+
+Le moteur était donc **déjà nourri** par les 4 épreuves ; seule sa **condition d'entrée** en
+`ACTIVE` était trop étroite (elle ne regardait que `DiagnosticSessionManager.findLatestCompleted`,
+c'est-à-dire le rapide).
+
+**`PlanFoundationResolver`, autorité unique extraite.** La règle « sur quelle mesure le Plan se
+construit-il ? » a désormais **un seul endroit**, appelé par ses deux lecteurs :
+`LearningPlanService.get()` (bascule `ACTIVE`) et `PreparationService` (`planDisponible`). 🛑 On ne
+l'écrit pas à deux endroits — c'est la duplication implicite précédente qui a coûté l'arbitrage.
+
+| Situation | Plan |
+|---|---|
+| rapide clos | **disponible** (chemin normal et court) |
+| complet clos, sans rapide | **disponible** |
+| complet `1/4` … `3/4`, sans rapide | 🛑 **pas** disponible — le Plan attend une mesure close |
+| rien de clos | pas disponible |
+
+Quand les deux existent, `LearningPlanDto.diagnosticSessionId` désigne le **rapide** : c'est lui
+qui a ouvert le parcours et c'est son rapport qui se relit. Sans rapide, `estimationSessionId`
+vaut `null` et **aucun écran ne propose de rapport** — rien n'est inventé.
+
+**Coût** : le budget du Plan passe de **21 à 22 requêtes**, une lecture indexée inconditionnelle
+et indépendante des données du candidat. Verrouillé par égalité dans `LearningPlanCycleIT`.
+
+Gelé par `PreparationServiceIT` : `completClosSansRapideRendLePlanDisponible` (qui assert **aussi**
+`LearningPlanState.ACTIVE`, pour que l'écran et le moteur ne puissent pas se contredire),
+`completPartielSansRapideNeFondeAucunPlan` (1/4 puis 3/4), `leRapideResteLeCheminCourt`.
+
+### Complément du 2026-09-12 — les deux seuls libellés du diagnostic complet
+
+| Avancement | CTA |
+|---|---|
+| jamais commencé | **« Faire le diagnostic complet »** |
+| `1/4` · `2/4` · `3/4` | **« Continuer le diagnostic »** |
+| terminé | **aucun CTA de diagnostic** |
+
+🛑 La variante **« Faire mon diagnostic complet » est supprimée**, ainsi que « Faire mon
+diagnostic TCF complet ». Autorité unique par front : `DIAGNOSTIC_COMPLET_CTA_START` /
+`DIAGNOSTIC_COMPLET_CTA_RESUME` dans `web_sejoufr/lib/preparation.ts` ⇄
+`kDiagnosticCompletCtaStart` / `kDiagnosticCompletCtaResume` dans
+`mobile_sejourfr/lib/core/models/preparation_labels.dart`. Les libellés du rapport
+(`report-labels.ts` / `diagnostic_report_labels.dart`) et la landing `ReussirView` les
+**réexportent**, ils ne les redéclarent plus.
+
+### Complément du 2026-09-12 — « Revoir mon diagnostic rapide »
+
+Un **lien** discret, **en bas de page** du Plan, sous la carte « Affiner ». Jamais une carte,
+jamais un bouton plein : il ne doit concurrencer ni « Débloquer mon plan » (compte gratuit) ni
+« À faire maintenant » (abonné). Il n'existe que si `estimationSessionId` est **servi**, et il
+vise `/diagnostic`, qui rend déjà ce rapport — aucun écran n'est recréé.
+Web `RevoirEstimation` (`LearningPlanView.tsx`) ⇄ mobile `RevoirEstimationLink`
+(`core/widgets/affiner_plan_card.dart`), même mesure (13 px, gras, bleu, chevron).

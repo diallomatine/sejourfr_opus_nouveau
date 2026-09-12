@@ -995,6 +995,23 @@ Règle produit : rapide clos → **Plan disponible** · complet partiel → Plan
 enrichi au fil de l'eau · complet clos → Plan recalculé sur les 4 épreuves. Le complet
 **affine**, il n'ouvre pas.
 
+**Sur quelle mesure le Plan se fonde-t-il ?** Une seule autorité, `PlanFoundationResolver`,
+avec deux lecteurs et deux seulement : `LearningPlanService.get()` (bascule `ACTIVE`) et
+`PreparationService` (`planDisponible`). Ce dernier n'imite pas la condition du moteur, il
+l'**appelle**.
+
+| Situation | Plan |
+|---|---|
+| rapide clos | disponible |
+| complet **clos**, sans rapide | disponible (les 4 épreuves sont mesurées) |
+| complet 1/4 → 3/4, **sans rapide** | 🛑 **pas** disponible |
+| rien de clos | pas disponible |
+
+Sans rapide, `estimationSessionId` vaut `null` : ni lien « Revoir mon diagnostic rapide », ni
+rapport encastré. Rien n'est inventé. Coût : budget du Plan 21 → 22 requêtes, une lecture
+indexée inconditionnelle (`LearningPlanCycleIT` gèle l'égalité « 2 compétences observées ou
+20, même coût »).
+
 🛑 **Un Plan provisoire ne s'appuie que sur ce qui a été MESURÉ.** Une compétence que le rapide
 n'a pas observée est **inconnue** — ni faible, ni prioritaire (`PlanAcquisitionSelector` exige
 « son domaine a déjà été mesuré »). Peu de priorités, toutes vraies, est le bon résultat ; un
@@ -1016,6 +1033,17 @@ Elle se place **après** le contenu principal et ne concurrence jamais le CTA d'
 pour un non-abonné, « Débloquer mon Plan » reste l'action principale, le complet reste
 secondaire. Le freemium est inchangé — `locked` servi, opposable en 403 ; un Plan provisoire
 se verrouille exactement comme un Plan complet.
+
+**CTA du diagnostic complet — deux libellés, jamais plus** : « Faire le diagnostic complet »
+(jamais commencé) · « Continuer le diagnostic » (1/4 → 3/4) · **aucun CTA** à 4/4. La variante
+« Faire mon diagnostic complet » est supprimée. Autorité : `DIAGNOSTIC_COMPLET_CTA_START` /
+`_RESUME` ⇄ `kDiagnosticCompletCtaStart` / `…Resume`.
+
+**« Revoir mon diagnostic rapide »** est un **lien**, jamais une carte ni un bouton plein, posé
+tout en bas du Plan sous la carte « Affiner » — donc après le paywall pour un non-abonné et
+après tout le contenu pédagogique pour un abonné. Il ne concurrence ni « Débloquer mon Plan »
+ni « À faire maintenant », seuls boutons pleins de l'écran, et n'apparaît que si
+`estimationSessionId` est servi.
 
 **Le rapport du diagnostic rapide quitte la page Plan** : les priorités du Plan sont plus
 riches et plus à jour, et le garder en tête repousserait « Débloquer mon Plan » sous la ligne

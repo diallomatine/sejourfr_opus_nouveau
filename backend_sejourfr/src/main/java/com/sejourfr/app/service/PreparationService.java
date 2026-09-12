@@ -98,17 +98,9 @@ public class PreparationService {
         // fait « une estimation existe » ne depend pas de l'etape courante.
         // Cout : une lecture indexee de plus, assumee, parce qu'un champ qui
         // ne dit vrai qu'a certaines etapes finit par etre lu aux autres.
-        UUID estimation = diagnosticSessionManager.findLatestCompleted(userId)
-                .map(DiagnosticSession::getId)
+        DiagnosticSession rapide = diagnosticSessionManager.findLatestCompleted(userId)
                 .orElse(null);
-
-        // 🛑 LE PLAN EXISTE DES QUE LE RAPIDE EST CLOS — et cette ligne rend,
-        // mot pour mot, la condition de LearningPlanService.get() (« un
-        // DiagnosticSession COMPLETED existe-t-il ? »). Ne pas la remplacer par
-        // une lecture de `etape` : un ecran qui promettrait un plan que le
-        // moteur refuse de construire est exactement la contradiction que
-        // l'etat unique existe pour empecher.
-        boolean planDisponible = estimation != null;
+        UUID estimation = rapide == null ? null : rapide.getId();
 
         // --- Le diagnostic COMPLET decide de l'etape des qu'il existe.
         Optional<TcfDiagnosticSession> complet = tcfDiagnosticManager.findLatest(userId);
@@ -119,6 +111,11 @@ public class PreparationService {
                     .filter(s -> s.etat() == TcfDiagnosticSectionState.TERMINEE)
                     .count();
             boolean clos = session.getStatus() == TcfDiagnosticStatus.COMPLETED;
+            // 🛑 AUTORITE UNIQUE, et les deux lignes sont deja en main : ce
+            // service ne redecide pas « le Plan existe-t-il ? », il le demande
+            // a celui qui en decide pour le moteur.
+            boolean planDisponible =
+                    PlanFoundationResolver.of(rapide, clos ? session : null).exists();
             return new PreparationDto.ModulePreparation(
                     clos ? PreparationEtape.PLAN_PRET : PreparationEtape.DIAGNOSTIC_EN_COURS,
                     terminees,
@@ -136,8 +133,9 @@ public class PreparationService {
                     clos ? null : prochaineEpreuve(sections));
         }
 
-        // --- Sinon, le diagnostic RAPIDE porte l'etape lui-meme.
-        if (estimation != null) {
+        // --- Sinon, le diagnostic RAPIDE porte l'etape lui-meme. Aucun complet
+        // n'existe, donc la base ne peut etre que lui.
+        if (PlanFoundationResolver.of(rapide, null).exists()) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.ESTIMATION_FAITE,
                     // Le complet n'a jamais demarre : ZERO epreuve sur QUATRE.

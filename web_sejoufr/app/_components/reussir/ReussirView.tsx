@@ -46,6 +46,7 @@ import {
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
 import { type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
+import {DIAGNOSTIC_COMPLET_CTA_START} from "@/lib/preparation";
 
 /**
  * Landing autoportante (`/reussir`) — lien de bio réseaux et pages de campagne.
@@ -1650,7 +1651,7 @@ function DiagnosticCta({
       : variant === "card"
         ? "Commencer gratuitement"
         : variant === "cardAlt"
-          ? "Faire le diagnostic complet"
+          ? DIAGNOSTIC_COMPLET_CTA_START
           : "Faire mon diagnostic gratuit";
   const label = completed ? labelParDefaut : (labelImpose ?? labelParDefaut);
 

@@ -203,10 +203,18 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // AFFICHEES, la ou ils l'etaient pour tout le pool.
         //
         // Ce chiffre tranche la CONTRADICTION #3 du depot (« 20 requetes, +1 ou
-        // 19 ? ») : c'est 21, mesure ici, et cette ligne fait foi.
+        // 19 ? ») : c'etait 21, mesure ici, et cette ligne fait foi.
+        //
+        // 22 depuis le 2026-09-12 : PlanFoundationResolver lit AUSSI la derniere
+        // session du diagnostic COMPLET, parce qu'un complet clos fonde
+        // desormais un Plan a lui seul (arbitrage du proprietaire). Une lecture
+        // indexee de plus, INCONDITIONNELLE et independante des donnees du
+        // candidat — la meme condition que celle posee pour les deux requetes du
+        // filtre de faisabilite. Elle remplace une regle qui vivait en deux
+        // copies implicites, dont le prix etait bien plus eleve.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(21);
+                .isEqualTo(22);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
