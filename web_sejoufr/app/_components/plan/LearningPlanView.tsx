@@ -568,28 +568,46 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
   }
   meta.push({icon: Target, label: PLAN_ACTION_NATURE_LABEL[priority.nature]});
 
+  /* 🛑 **Un compte SANS accès ne voit pas la carte d'un abonné** (correctif du
+     2026-09-12, sur la maquette du propriétaire `~/Desktop/capture_plan_gratuit.png`).
+     « Votre première étape est prête » nomme l'étape et montre les **trois
+     bénéfices verrouillés** — c'est sa raison d'être. Elle héritait de tout ce
+     qu'une carte d'abonné porte (pastille « Priorité n°1 », encart « Compétence
+     actuelle », méta « 5 sujets · ≈ 4 min », explication du correcteur), et les
+     trois cadenas ne s'affichaient **que** sur un verrou servi — donc presque
+     jamais, le serveur ouvrant la priorité n°1 au gratuit.
+
+     🛑 **AUCUN geste ne part d'ici** (arbitrage du propriétaire, 2026-09-12 :
+     « dans le plan, on ne travaille rien si on n'est pas abonné ; on passe par
+     Réviser pour voir ce qu'on peut utiliser gratuitement »). Cela **révoque**,
+     pour cette carte, « l'app lit `locked`, toujours » : le Plan d'un compte
+     sans accès est un **constat**, pas un point de départ.
+     🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un
+     chemin. Ce que le serveur ouvre gratuitement reste accessible par
+     l'entraînement, et c'est lui qui reste l'arbitre (403). */
   return (
     <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
       <Pad>
         <NowCard
           icon={SECTION_ICON[priority.section]}
-          title={productionSectionLabel(priority.section)}
-          subtitle={`${repere} · ${priority.title}`}
+          title={free ? repere : productionSectionLabel(priority.section)}
+          subtitle={free ? priority.title : `${repere} · ${priority.title}`}
           badge={free ? undefined : "Priorité n°1"}
-          objectiveLabel="Compétence actuelle"
-          objective={priority.title}
-          meta={meta}
+          objectiveLabel={free ? undefined : "Compétence actuelle"}
+          objective={free ? undefined : priority.title}
+          meta={free ? [] : meta}
         >
-          {priorityLines(priority).map((line) => (
+          {!free && priorityLines(priority).map((line) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
-          {actionLocked ? (
+          {(free || actionLocked) && (
             <LockList>
               <LockItem icon={Lock} label="Exercice recommandé" />
               <LockItem icon={Lock} label="Correction personnalisée" />
               <LockItem icon={Lock} label="Suivi de cette compétence" />
             </LockList>
-          ) : (
+          )}
+          {!free && !actionLocked && (
             <Cta onClick={startNext} disabled={busy}>
               {busy ? PLAN_STARTING : cta}
             </Cta>

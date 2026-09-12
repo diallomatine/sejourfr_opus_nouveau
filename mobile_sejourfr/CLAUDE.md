@@ -1645,6 +1645,34 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
   candidat voyait deux séances selon l'appareil. Ne pas le réintroduire, et ne pas demander
   au serveur un booléen « fait aujourd'hui » — il n'a pas d'horloge dans cette construction.
 
+🛑 **Un compte SANS accès ne voit pas la carte d'un abonné (2026-09-12).**
+« Votre première étape est prête » a sa **propre** fonction — `_freeStepCard`
+(`plan_tcf_view.dart`), sur la maquette du propriétaire
+(`~/Desktop/capture_plan_gratuit.png`) : pastille de domaine, l'étape nommée
+(« Expression orale — Tâche 3 »), la compétence, puis les **trois bénéfices
+verrouillés** (`kPlanFreeStepLocks`). Rien d'autre.
+
+⚠️ Elle empruntait `_nowCard` avec un drapeau `free`, et héritait donc de tout
+ce qu'une carte d'abonné porte — pastille « Priorité 1 », encart « Compétence
+actuelle », méta « 5 sujets · ≈ 4 min », explication du correcteur — pendant que
+les trois cadenas ne s'affichaient **que** sur un verrou servi, donc presque
+jamais : le serveur **ouvre** la priorité n°1 à un compte gratuit. Le candidat
+sans accès voyait exactement l'écran d'un abonné. Deux mises en page
+différentes, deux fonctions — le drapeau `free` de `_nowCard` est parti avec.
+
+🛑 **AUCUN geste ne part de cette carte** (arbitrage du propriétaire,
+2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ; on
+passe par Réviser pour voir ce qu'on peut utiliser gratuitement »). Le seul
+bouton de l'écran est la barre basse, « Débloquer mon plan ».
+
+⚠️ Cela **révoque**, pour cette carte, « ne pas coder : l'étape 1 est toujours
+ouverte — l'app lit `locked`, toujours ». Le Plan d'un compte sans accès est un
+**constat**, pas un point de départ.
+🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un chemin. Ce
+que le serveur ouvre gratuitement reste accessible par **Réviser**, et c'est lui
+qui reste l'arbitre (403). `_free` ne prend d'ailleurs plus de `WidgetRef` —
+c'est la garantie la plus solide qu'on puisse donner que rien n'y démarre.
+
 ### Parité mobile ⇄ web du Plan (2026-08-21, passe d'alignement)
 
 Le propriétaire a constaté que les deux écrans Plan ne disaient pas la même

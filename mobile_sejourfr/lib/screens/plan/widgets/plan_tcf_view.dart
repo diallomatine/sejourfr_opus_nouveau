@@ -64,7 +64,7 @@ class PlanTcfView extends ConsumerWidget {
     if (!hasTcf) {
       return Column(
         children: [
-          Expanded(child: ListView(children: _free(context, ref))),
+          Expanded(child: ListView(children: _free(context))),
           SfStickyBar(
             child: SfButton(
               label: _unlockCta(objective),
@@ -96,7 +96,7 @@ class PlanTcfView extends ConsumerWidget {
       SfSection(
         title: kPlanNowTitle,
         flush: true,
-        child: _nowCard(context, ref, free: false),
+        child: _nowCard(context, ref),
       ),
       ..._pathSection(),
       ..._prioritiesSection(free: false),
@@ -112,7 +112,11 @@ class PlanTcfView extends ConsumerWidget {
 
   /* -------------------------------------------------------- sans accès ---- */
 
-  List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
+  /// Le Plan d'un compte **sans accès** : un constat, et une seule porte.
+  ///
+  /// 🛑 Il ne prend plus de `WidgetRef` — plus rien ici ne démarre quoi que ce
+  /// soit, et c'est la garantie la plus solide qu'on puisse en donner.
+  List<Widget> _free(BuildContext context) => <Widget>[
         SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
         _goalStrip(context, engineLine: false),
@@ -120,7 +124,7 @@ class PlanTcfView extends ConsumerWidget {
         SfSection(
           title: kPlanFreeFirstStepTitle,
           flush: true,
-          child: _nowCard(context, ref, free: true),
+          child: _freeStepCard(),
         ),
         ..._freePathSection(),
         const SfSection(
@@ -171,10 +175,97 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  /// La carte d'action. [free] choisit la **mise en page** ; ce qui décide du
-  /// bouton ou des cadenas reste le `locked` **servi** sur la priorité et son
-  /// exercice.
-  Widget _nowCard(BuildContext context, WidgetRef ref, {required bool free}) {
+  /// **« Votre première étape est prête »**, la carte d'un compte SANS accès.
+  ///
+  /// Elle suit la maquette du propriétaire (`~/Desktop/capture_plan_gratuit.png`)
+  /// et **ne ressemble pas** à la carte d'un abonné : pastille de domaine,
+  /// l'étape nommée, puis les **trois bénéfices verrouillés**. C'est tout.
+  ///
+  /// ⚠️ Elle empruntait `_nowCard` avec un drapeau `free`, donc elle héritait de
+  /// tout ce qu'une carte d'abonné porte — pastille « Priorité 1 », encart
+  /// « Compétence actuelle », méta « 5 sujets · ≈ 4 min », explication du
+  /// correcteur — et les trois cadenas ne s'affichaient **que** sur un verrou
+  /// servi, donc presque jamais. Le candidat sans accès voyait la carte d'un
+  /// abonné. Deux mises en page différentes, deux fonctions.
+  ///
+  /// 🛑 **AUCUN geste ne part d'ici** (arbitrage du propriétaire, 2026-09-12 :
+  /// « dans le plan, on ne travaille rien si on n'est pas abonné ; on passe par
+  /// Réviser pour voir ce qu'on peut utiliser gratuitement »).
+  ///
+  /// ⚠️ Cela **révoque**, pour cette carte seulement, « ne pas coder : l'étape 1
+  /// est toujours ouverte — l'app lit `locked`, toujours ». Le Plan d'un compte
+  /// sans accès est un **constat**, pas un point de départ : il montre ce qui
+  /// l'attend et la porte d'abonnement, rien d'autre.
+  ///
+  /// 🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un
+  /// chemin. Ce que le serveur ouvre gratuitement reste accessible par
+  /// **Réviser**, et c'est lui qui reste l'arbitre (403).
+  Widget _freeStepCard() {
+    final priority = plan.currentPriority;
+    if (priority == null) {
+      return const SfNoteCard(
+        icon: LucideIcons.circleCheck,
+        title: kPlanNowEmptyTitle,
+        child: SfTiny(kPlanSeanceEmpty),
+      );
+    }
+
+    final epreuve = planEpreuveOfSection(priority.section);
+    final task = SkillTaskCode.fromSkillCode(priority.skillCode);
+
+    return SfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.blue,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Icon(planDomainIcon(epreuve),
+                    size: 24, color: AppColors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      planPriorityGroupTitle(
+                        epreuve: epreuve,
+                        task: task,
+                        context: null,
+                      ),
+                      style: AppFonts.display(
+                          size: 16, weight: FontWeight.w700, height: 1.25),
+                    ),
+                    const SizedBox(height: 3),
+                    SfTiny(priority.title),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 🛑 **Les trois bénéfices, et c'est tout** : c'est ce que
+          // l'abonnement ouvre sur CETTE étape, et c'est la raison d'être de la
+          // carte. Le seul geste de l'écran est la barre basse, « Débloquer mon
+          // plan ».
+          for (final label in kPlanFreeStepLocks) SfLockItem(label: label),
+        ],
+      ),
+    );
+  }
+
+  /// La carte d'action d'un **abonné**. ⚠️ Elle portait un drapeau `free` et
+  /// servait aussi le plan gratuit : ce chemin est parti avec
+  /// [_freeStepCard] — deux mises en page différentes, deux fonctions.
+  Widget _nowCard(BuildContext context, WidgetRef ref) {
     final priority = plan.currentPriority;
     if (priority == null) {
       return const SfNoteCard(
@@ -208,7 +299,7 @@ class PlanTcfView extends ConsumerWidget {
     );
     if (kind != null) meta.add(SfMeta(LucideIcons.target, kind));
 
-    final card = SfNowCard(
+    return SfNowCard(
       icon: planDomainIcon(epreuve),
       title: epreuve == null ? priority.title : planDomainLabel(epreuve),
       subtitle: subtitle.isEmpty ? null : subtitle,
@@ -216,45 +307,22 @@ class PlanTcfView extends ConsumerWidget {
       objectiveLabel: planNowObjectiveLabel(exercise),
       objective: priority.title,
       meta: meta,
-      action: free && blocked
-          ? null
-          : SfButton(
-              label: blocked
-                  ? kPlanNowLockedCta
-                  : exercise?.kind == PlanExerciseKind.reassessment
-                      ? kPlanNowValidateCta
-                      : kPlanNowStartCta,
-              onPressed: exercise == null
-                  ? null
-                  : () => unawaited(openPlanExercise(
-                        context,
-                        ref,
-                        exercise,
-                        masteryBefore: priority.masteryState,
-                      )),
-            ),
+      action: SfButton(
+        label: blocked
+            ? kPlanNowLockedCta
+            : exercise?.kind == PlanExerciseKind.reassessment
+                ? kPlanNowValidateCta
+                : kPlanNowStartCta,
+        onPressed: exercise == null
+            ? null
+            : () => unawaited(openPlanExercise(
+                  context,
+                  ref,
+                  exercise,
+                  masteryBefore: priority.masteryState,
+                )),
+      ),
       caption: lines.isEmpty ? null : lines.join(' '),
-    );
-
-    // 🛑 La liste des cadenas ne s'affiche que sur un verrou **servi**. Un
-    // compte sans accès dont le serveur ouvre quand même la première étape
-    // garde son bouton : on n'invente pas un cadenas à partir d'un statut.
-    if (!free || !blocked) return card;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        card,
-        const SizedBox(height: sfGap),
-        SfCard(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final label in kPlanFreeStepLocks) SfLockItem(label: label),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

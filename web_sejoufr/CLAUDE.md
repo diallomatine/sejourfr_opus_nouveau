@@ -1437,6 +1437,20 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
 - `/statistiques` ouvre sur les 4 domaines (`PlanDomainsSummary`, Plan lu **en
   cache**, échec silencieux).
 
+🛑 **Un compte SANS accès ne voit pas la carte d'un abonné (2026-09-12).**
+« Votre première étape est prête » (`LearningPlanView`, `free`) nomme l'étape et
+montre les **trois bénéfices verrouillés** — c'est sa raison d'être. Elle
+héritait de la pastille « Priorité n°1 », de l'encart « Compétence actuelle »,
+des métas et de l'explication du correcteur, et ses cadenas ne s'affichaient
+**que** sur un verrou servi — donc presque jamais, le serveur ouvrant la
+priorité n°1 au gratuit. Maquette : `~/Desktop/capture_plan_gratuit.png`.
+🛑 **AUCUN geste ne part de cette carte** (arbitrage du propriétaire,
+2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ; on
+passe par Réviser »). Cela **révoque**, pour cette carte, « l'app lit `locked`,
+toujours » : le Plan d'un compte sans accès est un **constat**. Ce n'est pas un
+verrou — on retire un chemin, pas un droit ; l'entraînement garde ce que le
+serveur ouvre, et le 403 reste l'arbitre. Miroir mobile : `_freeStepCard`.
+
 ### Trois natures d'action, pas une (2026-08-21)
 
 Le backend distingue **ce qu'il demande de faire** sur chaque entrée
