@@ -11,6 +11,10 @@
  * 🛑 **Les deux modules avancent indépendamment.** Un candidat ne prépare pas
  * forcément les deux, et l'un ne dit rien de l'autre.
  *
+ * `module` borne la carte au parcours affiché — l'Accueil est scopé depuis le
+ * 2026-09-12. Sans prop, les deux lignes sont rendues : c'est le comportement
+ * d'origine, conservé pour tout écran qui veut la vue d'ensemble.
+ *
  * Elle assemble les primitives du KIT (`Card`, `Stack`, `sejourStyles`) depuis
  * que l'Accueil est un écran du KIT : elle n'a plus de feuille à elle.
  */
@@ -25,6 +29,7 @@ import {
     type PreparationAction,
 } from "@/lib/preparation";
 import type {PreparationDto} from "@/lib/types";
+import type {ParcoursModule} from "@/lib/module-switch";
 
 /**
  * 🛑 **L'état est reçu, plus rechargé ici.** L'Accueil le lit une fois et le
@@ -33,13 +38,18 @@ import type {PreparationDto} from "@/lib/types";
  * et donc proposer deux prochaines actions. `null` = pas encore chargé ou échec
  * best-effort : la carte est simplement absente, jamais une erreur.
  */
-export function PreparationCard({prep}: {prep: PreparationDto | null}) {
+export function PreparationCard({prep, module}: {
+    prep: PreparationDto | null;
+    module?: ParcoursModule;
+}) {
     if (!prep) return null;
 
+    const tcf = module !== "CIVIQUE";
+    const civique = module !== "TCF";
     return (
         <Stack>
-            <ModuleLigne label={TCF_LABEL} action={tcfAction(prep.tcf)} />
-            <ModuleLigne label={CIVIQUE_LABEL} action={civiqueAction(prep.civique)} />
+            {tcf && <ModuleLigne label={TCF_LABEL} action={tcfAction(prep.tcf)} />}
+            {civique && <ModuleLigne label={CIVIQUE_LABEL} action={civiqueAction(prep.civique)} />}
         </Stack>
     );
 }

@@ -89,11 +89,12 @@ app/
 │
 ├── (app)/                        # route group : connecté, layout sidebar+main
 │   ├── layout.tsx                # grid 248px / 1fr, passe en drawer sous 900px
-│   ├── dashboard/page.tsx        # ★ l'ACCUEIL, monté sur le KIT (SejourApp wide) et disposé
-│   │                              #   sur la maquette (screenshots/accueil.png) : « Bonjour X »
-│   │                              #   + démarche, puis deux deskPair — À faire maintenant /
+│   ├── dashboard/page.tsx        # ★ l'ACCUEIL, monté sur le KIT (SejourApp wide), disposé
+│   │                              #   sur la maquette (accueil.png / accueil-civ.png) et
+│   │                              #   SCOPÉ au parcours (?module=) : « Bonjour X » + démarche,
+│   │                              #   bascule, puis deux deskPair — À faire maintenant /
 │   │                              #   Ma préparation, Affiner votre Plan / Votre progression —
-│   │                              #   puis Vos parcours et À renforcer en priorité
+│   │                              #   puis Vos parcours (NON scopé) et À renforcer en priorité
 │   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
 │   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
 │   │                              #   compléter mon profil, chemin vers l'objectif.
@@ -994,17 +995,20 @@ le propriétaire a nommés. **Pas trois variantes**, et rien d'autre n'en porte.
 
 | écran | ce que fait la bascule | `current` |
 |---|---|---|
-| `/plan` | **change le Plan** : `planHref(module)` = `/plan?module=…`, posée par `TopSlot` | le module affiché, dérivé de l'URL |
-| `/dashboard` | **navigation** vers `entrainementHref(module)` | `moduleParDefaut(prep)`, l'autorité **servie** |
+| `/plan` | **change le Plan** : `/plan?module=…`, posée par `TopSlot` | le module affiché, dérivé de l'URL |
+| `/dashboard` | **change ce que l'Accueil affiche** : `/dashboard?module=…` | idem |
 | `/entrainement` (les deux hubs) | **change l'espace d'entraînement** : `entrainementHref(module)` | le hub rendu (`tcf` / `civique`) |
 
-⚠️ **Sur l'Accueil, c'est une navigation, pas un filtre.** La maquette
-(`screens/accueil.tsx`) scope tout l'écran au module choisi ; chez nous l'Accueil
-sert les **deux** modules à la fois (« Ma préparation », « Vos parcours »,
-« À renforcer en priorité »), et le scoper masquerait de la donnée servie — ce
-serait la refonte de l'écran, pas l'ajout d'un contrôle. **À rouvrir si le
-propriétaire veut vraiment un Accueil scopé** : ce serait un chantier (DTO
-dashboard, les trois blocs ci-dessus), pas une passe de mise en page.
+🛑 **Sur l'Accueil c'est bien un SCOPE, pas une navigation** (arbitrage du
+propriétaire, 2026-09-12 : « la bascule avec l'Examen civique doit afficher
+l'accueil de l'Examen civique »). Il **révoque** la navigation vers le hub
+retenue la veille. Détail bloc par bloc : section « L'Accueil » plus bas.
+
+**Les deux hubs restent atteignables** par deux chemins indépendants, tous deux
+vérifiés : les entrées « TCF IRN » / « Examen civique » de la barre latérale
+(visibles à toutes les largeurs — dans le drawer sous 900 px), et les deux
+cartes de « Vos parcours » sur l'Accueil, qui pointent sur
+`/entrainement?module=…` et **ne sont pas scopées**.
 
 ⚠️ **Les hubs ne sont PAS des écrans du kit** (`moduleHub.module.css`, `main.wrap`
 padé à 40 px). Deux conséquences, toutes deux minimales : la bascule y prend
@@ -1039,13 +1043,57 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 
 1. bandeau « choisissez votre parcours » (si `targetProcedure` est `null`) ;
 2. en-tête « Bonjour X » + pastille de démarche, **et rien d'autre** ;
-3. la **bascule TCF / Examen civique** du kit (cf. section précédente) ;
-4. `deskPair` : **À faire maintenant** (`NowCard`, les 3 états servis du
-   diagnostic / de la priorité du Plan) | **Ma préparation** ;
-5. `deskPair` : **Affiner votre Plan** (secondaire, 1/4 → 3/4) | **Votre
-   progression** (nos 4 indicateurs) ;
+3. la **bascule TCF / Examen civique** du kit ;
+4. `deskPair` : **À faire maintenant** | **Ma préparation** ;
+5. `deskPair` : **Affiner votre Plan** (TCF seulement) | **Votre progression** ;
 6. **Vos parcours** (les deux cartes de module, en `deskPair`) ;
 7. **À renforcer en priorité**.
+
+#### L'Accueil est SCOPÉ au parcours choisi (2026-09-12)
+
+🛑 Arbitrage du propriétaire : « **la bascule avec l'Examen civique doit
+afficher l'accueil de l'Examen civique** ». Même mécanique que le Plan —
+`?module=` est le seul transport, le défaut est **servi**
+(`moduleParDefaut(prep)`) et s'inscrit dans l'URL par `router.replace`, et il
+n'existe **aucun `useState` de module**.
+
+| bloc | source TCF | source civique |
+|---|---|---|
+| **À faire maintenant** | `diagnosticApi.current` (3 états) puis `plan.currentPriority` | `planIndisponible(prep.civique)` puis **`civicPlan.prochaine`** |
+| **Ma préparation** | `prep.tcf` | `prep.civique` |
+| **Affiner votre Plan** | `affinerPlan(prep.tcf)` | **absent** — le diagnostic 4 épreuves est un objet TCF, et la maquette civique n'en a pas |
+| **Votre progression** | `moduleAverage(summary.tcf)` · `tcfMockExams` · streak · `estimatedTcfLevel` | `moduleAverage(summary.civique)` · `civiqueMockExams` · streak |
+| **Progression détectée** | `plan.recentChanges` | `civicPlan.changements` |
+| **À renforcer en priorité** | `summary.tcf` | `summary.civique` |
+| **Vos parcours** | 🛑 **non scopé**, les deux cartes | idem |
+
+🛑 **Aucune donnée n'a été fabriquée, aucun endpoint ajouté.** Tout ce que la
+version civique affiche était déjà servi ; le seul appel nouveau est
+`civicPlanApi.get()`, ajouté au lot parallèle de l'Accueil pour que la bascule
+soit instantanée (5 requêtes au lieu de 4, best-effort — son échec laisse
+l'écran entier).
+
+🛑 **Le civique n'a AUCUN niveau estimé servi** : la quatrième tuile de
+« Votre progression » **disparaît** au lieu d'afficher « — ». `null` = inconnu,
+jamais mauvais.
+
+🛑 **Le verrou civique porte sur la SÉRIE, jamais sur le constat** : une cible
+`locked` garde son nom et son état sur l'Accueil comme sur le Plan — c'est la
+règle du module civique, volontairement différente de celle du TCF, où une
+priorité verrouillée n'est pas nommée parce que le Plan la floute. Et la carte
+civique **ne démarre rien** : elle mène au Plan, seul porteur du lanceur de
+série (un second point de départ aurait dupliqué la gestion du 403).
+
+En civique, « Affiner votre Plan » disparaît et « Votre progression » prend
+toute la rangée : c'est la règle `:only-child` du kit qui joue **seule**, aucun
+cas particulier n'est écrit dans l'écran.
+
+⚠️ **Deux écarts assumés avec la maquette civique**, à rouvrir sur demande :
+la pastille d'objectif nomme la **démarche** servie (« Objectif :
+naturalisation », autorité unique `objectifLabel`) là où la maquette nomme le
+module — que la bascule juste en dessous annonce déjà ; et le bloc « Votre
+Plan » (priorité + ses 5 étapes) n'a pas été porté sur l'Accueil — il vit sur le
+Plan, où « À faire maintenant » renvoie.
 
 🛑 **La maquette n'a décidé que la mise en page.** La hiérarchie arbitrée est
 intacte : « Continuez votre diagnostic complet » reste secondaire et disparaît
@@ -1063,8 +1111,8 @@ latérale desktop. »
 
 - le CTA d'en-tête est **supprimé**, avec son libellé et sa classe
   `.home-hello-cta` ; l'en-tête n'est plus une rangée à deux pôles mais deux
-  lignes. Sa destination (`/entrainement?module=…`) reste portée par la bascule
-  de parcours juste en dessous, et par les deux entrées du menu ;
+  lignes. Sa destination (`/entrainement?module=…`) reste portée par les deux
+  entrées du menu et par les cartes de « Vos parcours » ;
 - **aucune rangée de raccourcis n'a jamais été ajoutée** (la passe 1 l'avait déjà
   omise, faute de donnée servie) ;
 - le seul autre bouton plein de l'écran, « Commencer » de l'état **vide** de
