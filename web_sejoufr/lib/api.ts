@@ -162,6 +162,17 @@ export const tokenStorage = {
     },
     set(tokens: TokenResponse) {
         if (typeof window === "undefined") return;
+        /* 🛑 **Une session qui commence part d'un cache vide.** `clear()` ne
+           couvrait que la déconnexion propre : une **connexion** ou une
+           **inscription** dans un onglet qui portait encore le cache d'un autre
+           compte servait sa progression au nouveau (constaté en recette le
+           2026-09-12 côté mobile, même défaut ici).
+
+           ⚠️ Le rafraîchissement de jeton passe aussi par ici, donc le cache se
+           vide une fois par heure environ. C'est le bon compromis : une purge
+           silencieuse coûte quelques requêtes, servir les données d'un autre
+           compte est un incident. */
+        clearDataCache();
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
         // Cookie léger pour permettre au middleware/SSR de connaître l'état.

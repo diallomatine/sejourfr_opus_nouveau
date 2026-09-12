@@ -30,6 +30,33 @@ export const PREPARATION_TITLE = "Ma préparation";
 export const DIAGNOSTIC_RAPIDE_HREF = "/diagnostic";
 
 /**
+ * **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
+ *
+ * 🛑 Demande du propriétaire (2026-09-12) : « Faire mon diagnostic », depuis le
+ * Plan ou l'Accueil, doit **lancer** le diagnostic, pas ouvrir une page qui
+ * redemande de le lancer. Le bouton porte déjà la décision.
+ *
+ * 🛑 **Un marqueur, aucun identifiant.** La présentation reste l'écran normal
+ * de `/diagnostic` — elle garde tout son sens pour qui y arrive sans l'avoir
+ * demandé (lien profond, visiteur, où elle porte aussi le choix TCF / civique).
+ *
+ * Miroir de `kDiagnosticDemarrageDirect`
+ * (`mobile_sejourfr/lib/core/models/preparation_labels.dart`).
+ */
+export const DIAGNOSTIC_START_PARAM = "demarrer";
+
+/** L'adresse qui démarre le diagnostic sans présentation. */
+export const DIAGNOSTIC_RAPIDE_START_HREF =
+    `${DIAGNOSTIC_RAPIDE_HREF}?${DIAGNOSTIC_START_PARAM}=1`;
+
+/** Le marqueur est-il posé ? Lu par l'écran, jamais deviné. */
+export function demarrageDirectDemande(
+    params: {get(name: string): string | null} | null | undefined,
+): boolean {
+    return params?.get(DIAGNOSTIC_START_PARAM) === "1";
+}
+
+/**
  * Où le candidat commence ou reprend son diagnostic **complet**.
  *
  * 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
@@ -101,12 +128,16 @@ export function tcfAction(m: ModulePreparation): PreparationAction {
                   cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
                   href: DIAGNOSTIC_COMPLET_HREF,
               }
-            : {statut: "Diagnostic en cours", cta: "Reprendre", href: DIAGNOSTIC_RAPIDE_HREF};
+            : {
+                statut: "Diagnostic en cours",
+                cta: "Reprendre",
+                href: DIAGNOSTIC_RAPIDE_START_HREF,
+            };
     }
     return {
         statut: "Diagnostic non réalisé",
         cta: "Faire mon diagnostic",
-        href: DIAGNOSTIC_RAPIDE_HREF,
+        href: DIAGNOSTIC_RAPIDE_START_HREF,
     };
 }
 
@@ -248,7 +279,7 @@ export function planIndisponible(
             titre: "Votre diagnostic TCF est commencé",
             texte: avancement(m) ?? "Terminez-le pour que votre plan se construise.",
             cta: complet ? DIAGNOSTIC_COMPLET_CTA_RESUME : "Reprendre mon diagnostic",
-            href: complet ? DIAGNOSTIC_COMPLET_HREF : DIAGNOSTIC_RAPIDE_HREF,
+            href: complet ? DIAGNOSTIC_COMPLET_HREF : DIAGNOSTIC_RAPIDE_START_HREF,
         };
     }
 
@@ -257,7 +288,7 @@ export function planIndisponible(
         texte:
             "Une première estimation écrite, puis les quatre épreuves : c'est ce qui permet de savoir quoi travailler en premier.",
         cta: "Faire mon diagnostic",
-        href: DIAGNOSTIC_RAPIDE_HREF,
+        href: DIAGNOSTIC_RAPIDE_START_HREF,
     };
 }
 

@@ -13,10 +13,25 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/paywall_context.dart';
 
-/// Écran d'onboarding (ou édition depuis le profil) du parcours administratif :
-/// CSP, CR ou NAT. Une fois rempli, l'utilisateur n'a plus à choisir le niveau
-/// à chaque entraînement ou examen blanc.
+/// Onboarding (ou édition depuis le profil) du parcours administratif.
+///
+/// ## Deux questions, deux écrans (2026-09-12)
+///
+/// ⚠️ Les deux vivaient sur **une seule page** : la démarche, puis un encart
+/// rouge, puis la date. Le candidat arrivait sur un formulaire à faire défiler
+/// au moment précis où on lui demande de se décider. Demande du propriétaire :
+/// **une question par écran** — la démarche, puis la date d'examen.
+///
+/// 🛑 **Rien n'est enregistré avant la fin.** Les deux réponses partent
+/// ensemble à l'étape 2 : un candidat qui abandonne en route ne laisse pas une
+/// démarche à demi déclarée.
+///
+/// 🛑 **Route serveur SÉPARÉE pour la date** : loger la date dans la mise à
+/// jour de la procédure l'effacerait à chaque changement de celle-ci. Et son
+/// échec est **best-effort** — il ne fait pas échouer le choix de démarche, qui
+/// est le vrai objet de cet écran.
 class TargetPathScreen extends ConsumerStatefulWidget {
   const TargetPathScreen({super.key});
 
@@ -30,13 +45,13 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
   /// La date d'examen (`10_` §3.2, question 3) — **facultative**, et c'est le
   /// point : « Pas encore » est une réponse, pas un formulaire incomplet.
   ///
-  /// Elle vit ici parce que c'est le seul écran où le candidat déclare sa
-  /// démarche : les deux réponses vont ensemble. Sans elle, le compte à
-  /// rebours et le pass recommandé du paywall (L5) ne s'affichent jamais.
-  ///
-  /// 🛑 **Route serveur SÉPARÉE de la démarche** : loger la date dans la mise
-  /// à jour de la procédure l'effacerait à chaque changement de celle-ci.
+  /// Sans elle, le compte à rebours et le pass recommandé du paywall (L5) ne
+  /// s'affichent jamais.
   DateTime? _examDate;
+
+  /// L'étape affichée : 0 la démarche, 1 la date.
+  int _etape = 0;
+
   bool _saving = false;
   String? _error;
 
@@ -81,128 +96,128 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
     }
   }
 
+  /// Le retour : à l'étape 2 il ramène à la question précédente, jamais hors de
+  /// l'écran — sinon le candidat perdrait le choix qu'il vient de faire.
+  void _retour() {
+    if (_etape > 0) {
+      setState(() => _etape = 0);
+      return;
+    }
+    final from = _fromRoute;
+    if (from != null) context.go(from);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Capture une seule fois la route d'origine passée par le call-site.
     _fromRoute ??= safePostLoginDestination(
       GoRouterState.of(context).uri.queryParameters['from'],
     );
-    final canPop = _fromRoute != null;
+    final peutRevenir = _fromRoute != null || _etape > 0;
 
-    return Scaffold(
-      appBar: canPop
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(LucideIcons.arrowLeft, size: 18),
-                onPressed: () => context.go(_fromRoute!),
-              ),
-            )
-          : null,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          children: [
-            const Eyebrow('§ Onboarding — Parcours'),
-            const SizedBox(height: 8),
-            Text(
-              'Quelle démarche préparez-vous ?',
-              style: AppFonts.display(size: 28, weight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Nous adapterons votre entraînement en fonction de votre objectif. '
-              'Vous pourrez toujours modifier ce choix depuis votre profil.',
-              style: AppFonts.ui(
-                size: 13.5,
-                color: AppColors.muted,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            for (final p in TargetProcedure.values) ...[
-              _PathCard(
-                procedure: p,
-                selected: _selected == p,
-                onTap: () => setState(() => _selected = p),
-              ),
-              const SizedBox(height: 12),
-            ],
-            const SizedBox(height: 4),
-            const _NoCompensationNote(),
-            const SizedBox(height: 20),
-            const Eyebrow('VOTRE DATE D\'EXAMEN (FACULTATIF)'),
-            const SizedBox(height: 8),
-            _ExamDateField(
-              value: _examDate,
-              onPick: (picked) => setState(() => _examDate = picked),
-              onClear: () => setState(() => _examDate = null),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.redLight,
-                  border:
-                      Border.all(color: AppColors.red.withValues(alpha: 0.3)),
-                  borderRadius: BorderRadius.circular(8),
+    return PopScope(
+      // Le geste de retour système suit la flèche : il recule d'une étape.
+      canPop: _etape == 0 && _fromRoute == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _etape > 0) setState(() => _etape = 0);
+      },
+      child: Scaffold(
+        appBar: peutRevenir
+            ? AppBar(
+                leading: IconButton(
+                  icon: const Icon(LucideIcons.arrowLeft, size: 18),
+                  onPressed: _retour,
                 ),
-                child: Text(
-                  _error!,
-                  style: AppFonts.ui(color: AppColors.red, size: 13),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            AppButton(
-              label: 'Continuer',
-              onPressed: _selected == null || _saving ? null : _submit,
-              isLoading: _saving,
-            ),
-          ],
+              )
+            : null,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            children: _etape == 0 ? _etapeDemarche() : _etapeDate(),
+          ),
         ),
       ),
     );
   }
-}
 
-/// Rappel de la règle la plus mal connue du TCF IRN : le niveau exigé se juge
-/// épreuve par épreuve. Placé sous les cartes de parcours, au moment où le
-/// candidat fixe son objectif.
-class _NoCompensationNote extends StatelessWidget {
-  const _NoCompensationNote();
+  /* ------------------------------------------------------ 1. la démarche --- */
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.redLight,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(
-          left: BorderSide(color: AppColors.red, width: 3),
+  List<Widget> _etapeDemarche() => [
+        const Eyebrow('Étape 1 sur 2'),
+        const SizedBox(height: 8),
+        Text(
+          'Quelle démarche préparez-vous ?',
+          style: AppFonts.display(size: 28, weight: FontWeight.w600),
         ),
-      ),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: 'Sans compensation entre les épreuves. ',
-              style: AppFonts.ui(size: 13, weight: FontWeight.w800),
-            ),
-            const TextSpan(
-              text: 'Le niveau exigé doit être atteint dans les 4 épreuves du '
-                  'TCF IRN : compréhension orale, compréhension écrite, '
-                  'expression écrite et expression orale. L\'attestation '
-                  'affiche un niveau par épreuve — il n\'y a pas de moyenne, '
-                  'et l\'épreuve la plus basse décide.',
-            ),
-          ],
-          style: AppFonts.ui(size: 13, color: AppColors.ink, height: 1.5),
+        const SizedBox(height: 8),
+        Text(
+          'Nous adapterons votre entraînement en fonction de votre objectif. '
+          'Vous pourrez toujours modifier ce choix depuis votre profil.',
+          style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.5),
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 24),
+        for (final p in TargetProcedure.values) ...[
+          _PathCard(
+            procedure: p,
+            selected: _selected == p,
+            onTap: () => setState(() => _selected = p),
+          ),
+          const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 12),
+        AppButton(
+          label: 'Continuer',
+          onPressed:
+              _selected == null ? null : () => setState(() => _etape = 1),
+        ),
+      ];
+
+  /* ---------------------------------------------------------- 2. la date --- */
+
+  List<Widget> _etapeDate() => [
+        const Eyebrow('Étape 2 sur 2'),
+        const SizedBox(height: 8),
+        Text(
+          'Quand passez-vous votre examen ?',
+          style: AppFonts.display(size: 28, weight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Si vous connaissez déjà la date, votre plan s\'organise autour '
+          'd\'elle. Sinon, passez cette étape — vous pourrez la renseigner plus '
+          'tard depuis votre profil.',
+          style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.5),
+        ),
+        const SizedBox(height: 24),
+        _ExamDateCard(
+          value: _examDate,
+          onPick: (picked) => setState(() => _examDate = picked),
+          onClear: () => setState(() => _examDate = null),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.redLight,
+              border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+            child: Text(
+              _error!,
+              style: AppFonts.ui(color: AppColors.red, size: 13),
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        AppButton(
+          // 🛑 La date est **facultative** : le bouton reste actif sans elle.
+          // Ce qu'il dit change, pas ce qu'il permet.
+          label: _examDate == null ? 'Je n\'ai pas encore de date' : 'Terminer',
+          onPressed: _saving ? null : _submit,
+          isLoading: _saving,
+        ),
+      ];
 }
 
 class _PathCard extends StatelessWidget {
@@ -236,18 +251,12 @@ class _PathCard extends StatelessWidget {
               children: [
                 Text(
                   procedure.fullLabel,
-                  style: AppFonts.ui(
-                    size: 15,
-                    weight: FontWeight.w700,
-                  ),
+                  style: AppFonts.ui(size: 15, weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Niveau TCF requis : ${procedure.tcfLevel}',
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    color: AppColors.muted,
-                  ),
+                  style: AppFonts.ui(size: 12.5, color: AppColors.muted),
                 ),
               ],
             ),
@@ -270,12 +279,21 @@ class _PathCard extends StatelessWidget {
   }
 }
 
-/// La date d'examen, ou « Pas encore de date ».
+/// La date d'examen — **la carte de l'étape 2**, pas un champ de formulaire.
 ///
 /// 🛑 **Un jour, jamais un instant.** Une convocation porte une date ; la
 /// stocker avec une heure la ferait basculer d'un fuseau à l'autre.
-class _ExamDateField extends StatelessWidget {
-  const _ExamDateField({
+///
+/// 🛑 **Aucun raccourci du type « dans 2 mois ».** Ce serait plus rapide, mais
+/// on enregistrerait une date **inventée** — et elle ressortirait telle quelle
+/// en « Objectif B2 avant le 12 novembre » sur le paywall. Le sélecteur est le
+/// seul chemin, et « pas encore de date » est une vraie réponse.
+///
+/// Le décompte, lui, est **dérivé** de la date réelle par [joursAvantExamen],
+/// l'autorité déjà employée par le paywall : deux calculs auraient fini par
+/// annoncer deux nombres de jours.
+class _ExamDateCard extends StatelessWidget {
+  const _ExamDateCard({
     required this.value,
     required this.onPick,
     required this.onClear,
@@ -285,57 +303,136 @@ class _ExamDateField extends StatelessWidget {
   final ValueChanged<DateTime> onPick;
   final VoidCallback onClear;
 
-  static const _mois = [
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-  ];
+  Future<void> _choisir(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: value ?? now.add(const Duration(days: 60)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 3)),
+      helpText: 'Date de votre examen',
+      confirmText: 'Valider',
+      cancelText: 'Annuler',
+    );
+    if (picked != null) onPick(picked);
+  }
 
   @override
   Widget build(BuildContext context) {
     final d = value;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            d == null
-                ? 'Pas encore de date'
-                : '${d.day} ${_mois[d.month - 1]} ${d.year}',
-            style: AppFonts.ui(
-              size: 15,
-              color: d == null ? AppColors.muted : AppColors.ink,
-            ),
+    final jours = joursAvantExamen(d);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppCard(
+          padding: const EdgeInsets.all(20),
+          color: d == null ? AppColors.white : AppColors.blueSoft,
+          border: Border.all(
+            color: d == null ? AppColors.line : AppColors.blueLight,
+            width: d == null ? 1 : 1.5,
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Si vous la connaissez, votre plan s\'organisera autour d\'elle.',
-            style: AppFonts.ui(size: 12.5, color: AppColors.muted, height: 1.4),
-          ),
-          const SizedBox(height: 10),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextButton(
-                onPressed: () async {
-                  final now = DateTime.now();
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: d ?? now.add(const Duration(days: 60)),
-                    firstDate: now,
-                    lastDate: now.add(const Duration(days: 365 * 3)),
-                  );
-                  if (picked != null) onPick(picked);
-                },
-                child: Text(d == null ? 'Choisir une date' : 'Modifier'),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: d == null ? AppColors.surface2 : AppColors.blue,
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                    child: Icon(
+                      LucideIcons.calendarDays,
+                      size: 24,
+                      color: d == null ? AppColors.muted : AppColors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          d == null ? 'Pas encore de date' : formatJour(d),
+                          style: AppFonts.display(
+                            size: d == null ? 18 : 22,
+                            weight: FontWeight.w700,
+                            color: d == null ? AppColors.muted : AppColors.ink,
+                          ),
+                        ),
+                        if (d != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '${d.year}',
+                            style: AppFonts.ui(
+                                size: 13, color: AppColors.inkSoft),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              if (d != null)
-                TextButton(
-                  onPressed: onClear,
-                  child: const Text('Effacer'),
+              // Le décompte : un fait, pas une pression. Il n'apparaît que
+              // quand une date réelle est posée.
+              if (jours != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(LucideIcons.hourglass,
+                          size: 15, color: AppColors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        jours == 0
+                            ? 'C\'est aujourd\'hui'
+                            : 'Dans $jours jour${jours > 1 ? 's' : ''}',
+                        style: AppFonts.ui(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: AppColors.blueDark,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        AppButton(
+          label: d == null ? 'Choisir la date' : 'Modifier la date',
+          variant: AppButtonVariant.outline,
+          iconRight: LucideIcons.calendarDays,
+          onPressed: () => _choisir(context),
+        ),
+        if (d != null)
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: onClear,
+              child: Text(
+                'Je ne connais pas encore ma date',
+                style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

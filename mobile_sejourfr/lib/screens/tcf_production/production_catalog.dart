@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
@@ -50,6 +51,10 @@ class ProductionCatalog {
 final productionCatalogProvider =
     FutureProvider.autoDispose.family<ProductionCatalog, EpreuveType>(
         (ref, epreuve) async {
+  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
+  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
+  // une reconnexion sans redémarrage montrait la progression du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     final repo = ref.watch(productionRepositoryProvider);

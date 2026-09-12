@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -178,7 +180,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
             ScreenHeader(
               title: kTcfDiagnosticTitle,
               sub: kTcfDiagnosticSubtitle,
-              onBack: () => context.pop(),
+              onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
             ),
             Expanded(child: _body()),
           ],

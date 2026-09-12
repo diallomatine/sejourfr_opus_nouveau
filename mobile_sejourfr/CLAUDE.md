@@ -1175,6 +1175,21 @@ comme Plan. La surbrillance de l'étape en cours reste donc **dans** la carte.
 n'a pas d'équivalent légal en Flutter, et un `OverflowBox` pour 10 px casserait
 la mesure de hauteur en colonne.
 
+🛑 **Une flèche de retour ne fait JAMAIS un `context.pop()` nu (2026-09-12).**
+Sur une pile vide, `pop()` ne fait **rien** : la flèche reste à l'écran et ne
+répond pas, et le candidat est enfermé — sans autre issue que la bottom nav.
+Et la pile est vide plus souvent qu'on ne croit : un écran atteint par
+`context.go` (redirection du router, retour d'un flux qui remplace la page, lien
+profond, démarrage à froid) n'a personne en dessous de lui. Constaté à l'écran
+sur le diagnostic civique.
+
+Le geste vit dans **`retourOuRepli(context, repli:)`**
+(`core/router/retour.dart`) : on dépile si on peut, sinon on rejoint l'écran où
+le candidat aurait atterri en dépilant — d'où le `repli` **par écran**, jamais
+une valeur unique (un diagnostic revient au Plan, un écran de profil au Profil).
+`leaveProductionEpreuve` en est désormais une application : c'était le même
+motif, écrit une fois de plus.
+
 **`SfTopSlot` — ce qui se glisse SOUS l'en-tête (2026-09-12).** Sur le Plan,
 l'ordre est **eyebrow → titre → bascule TCF/Civique** : l'écran s'annonce, puis
 on choisit son parcours. L'en-tête appartient à l'**état affiché** (son eyebrow
@@ -1274,6 +1289,74 @@ quand `posees == formatQuestions`, le score **EST** le résultat.
 « Pourquoi cette séance ? »), *« Mon profil TCF »*, les *bandeaux de tête*
 (`PlanUpdatedBanner`, `PlanFreeBar`) et la carte d'offre bleue (remplacée par
 `SfUnlockHero` + `SfStickyBar`).
+
+### « Faire mon diagnostic » LANCE le diagnostic (2026-09-12)
+
+🛑 Demande du propriétaire : depuis le **Plan TCF** comme depuis l'**Accueil**,
+ce bouton doit lancer le diagnostic rapide, pas ouvrir une page qui redemande de
+le lancer. Il portait déjà la décision ; la présentation était une étape de
+trop, et elle proposait en plus de basculer sur le diagnostic **civique** —
+c'est-à-dire de refaire un choix de parcours qui venait d'être fait.
+
+Deux correctifs, dans la même passe :
+
+- **La carte « Examen civique » de la présentation n'existe plus que pour un
+  VISITEUR** (`isGuest`). Sans compte ni parcours déclaré, `/diagnostic` est sa
+  seule entrée et les deux diagnostics s'y valent. Un compte connecté arrive
+  depuis un parcours choisi — le diagnostic civique garde ses propres portes
+  (`planIndisponible`, Accueil et Plan civiques).
+- **`?demarrer=1` saute la présentation.** Le marqueur est déclaré une fois
+  (`kDiagnosticDemarrageDirect`, `core/models/preparation_labels.dart`, miroir
+  de `DIAGNOSTIC_START_PARAM` côté web) et posé par les **seules portes qui
+  nomment le geste** — `tcfAction` et `planIndisponible`. 🛑 **Un marqueur,
+  aucun identifiant** : `/diagnostic` nu garde sa présentation, qui reste
+  l'écran normal pour un lien profond ou un visiteur.
+  🛑 **Compte connecté uniquement**, et **une fois par montage**
+  (`_demarrageDirectFait`) : `build` est rappelé à chaque tic du contrôleur, et
+  sans ce marqueur la présentation relancerait `startOrResume` en boucle. Aucun
+  risque de double session par ailleurs — `POST /api/diagnostics` est
+  idempotent — et un candidat déjà plus loin que la présentation n'est jamais
+  ramené en arrière.
+
+⚠️ **L'écran de présentation N'EST PAS supprimé** : il annonce le budget temps
+(« ~5 min », les deux exercices, leurs mesures dérivées des sujets servis), une
+décision produit documentée. Il n'est que **sauté** quand le candidat a déjà
+appuyé sur un bouton qui dit ce qu'il va se passer.
+
+### L'onboarding du parcours : deux questions, deux écrans (2026-09-12)
+
+`screens/target_path/target_path_screen.dart` — **étape 1 la démarche**
+(CSP / CR / NAT), **étape 2 la date d'examen**. Les deux vivaient sur une seule
+page à faire défiler, au moment précis où on demande au candidat de se décider.
+Demande du propriétaire.
+
+- 🛑 **Rien n'est enregistré avant la fin** : les deux réponses partent ensemble
+  à l'étape 2, donc un abandon en route ne laisse pas une démarche à demi
+  déclarée. La date garde sa **route serveur séparée** (la loger dans la mise à
+  jour de la procédure l'effacerait à chaque changement de celle-ci) et reste
+  **best-effort** — son échec ne fait pas échouer le choix de démarche.
+- **Le retour recule d'une étape**, flèche comme geste système (`PopScope`) : il
+  ne sort jamais de l'écran depuis l'étape 2, sinon le candidat perdrait le
+  choix qu'il vient de faire.
+- ⚠️ **L'encart rouge « Sans compensation entre les épreuves » est SUPPRIMÉ**
+  des deux fronts (demande du propriétaire). C'était un paragraphe d'alerte
+  rouge entre la question et sa réponse. La règle reste vraie et reste dite là
+  où elle sert — le rail de paliers et le plancher des quatre épreuves sur le
+  Plan et les bilans d'examen.
+- **La carte de date est la pièce de l'étape 2** : pastille calendrier, date en
+  gros, et le **décompte** (« Dans 62 jours ») dérivé par `joursAvantExamen`,
+  l'autorité déjà employée par le paywall — deux calculs auraient fini par
+  annoncer deux nombres de jours.
+  🛑 **Aucun raccourci du type « dans 2 mois »** : ce serait plus rapide, mais on
+  enregistrerait une date **inventée**, qui ressortirait telle quelle en
+  « Objectif B2 avant le 12 novembre » sur le paywall. Le sélecteur est le seul
+  chemin, et « pas encore de date » est une vraie réponse — le bouton final
+  reste actif sans date, seul son libellé change.
+- ⚠️ **Le web garde UNE page** (`app/(app)/parcours/page.tsx`) : la contrainte
+  qui a motivé le découpage est le défilement d'un téléphone, et un écran large
+  montre les deux questions d'un coup. Écart de **forme**, pas de parcours — les
+  deux fronts posent les mêmes questions, dans le même ordre, et enregistrent
+  la même chose. Seul l'encart rouge est retiré des deux.
 
 ### Le paywall n'ouvre sur le plan QUE depuis le plan (2026-09-12)
 
@@ -1395,6 +1478,22 @@ donc aucun paramètre de route n'est inventé.
   points de fraîcheur** — tiré-pour-rafraîchir de l'Accueil et du Plan,
   `PlanScreen.didPopNext` (qui invalide **les deux** plans) et
   `learningPlanRevisionProvider`.
+- 🛑 **Un cache gardé en vie est lié au COMPTE, toujours** (correctif du
+  2026-09-12, constaté en recette : changer de compte sans tuer l'app montrait
+  le plan et la progression du précédent). **`compteIdProvider`**
+  (`core/auth/auth_controller.dart`) rend l'`id` du compte connecté, et **tout
+  provider qui garde une donnée de compte l'observe en première ligne** —
+  Riverpod recrée alors l'état dès que l'identité change. Concernés :
+  `preparationProvider`, `progressProvider`, `learningPlanProvider`,
+  `civicPlanProvider`, `diagnosticCourantProvider`, `parcoursCiviqueProvider`,
+  et les trois caches d'expression qui portent des productions du candidat
+  (`productionCatalogProvider`, `examBilansProvider`, `skillsSectionProvider`).
+  🛑 **L'identité, pas le fait d'être connecté** : un `select` sur
+  `state is AuthAuthenticated` rend un booléen, qui ne bouge pas d'un compte à
+  l'autre — c'était exactement le défaut. ⚠️ L'`id` ne change pas sur un simple
+  rafraîchissement du profil (statut premium, prénom, date d'examen) : rien
+  n'est rechargé pour rien. `taskExamplesProvider` n'est **pas** concerné — les
+  modèles corrigés sont du contenu éditorial, identique pour tous.
 - 🛑 **`diagnosticCourantProvider` (`screens/diagnostic/`) ne remplace PAS
   `diagnosticControllerProvider`.** L'Accueil instanciait le contrôleur juste
   pour lire un statut, et le contrôleur appelle `/api/diagnostics/current` à sa

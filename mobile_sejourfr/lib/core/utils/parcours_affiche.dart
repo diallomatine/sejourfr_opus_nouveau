@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../auth/auth_controller.dart';
+
 /// **Le parcours affiché** — TCF ou Examen civique — partagé par l'Accueil et
 /// le Plan.
 ///
@@ -17,4 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// dernier module *touché* (il alimente l'écran Réviser → erreurs/favoris) et
 /// qu'un lancement d'entraînement écrit au passage. Celui-ci ne décrit qu'un
 /// affichage.
-final parcoursCiviqueProvider = StateProvider<bool?>((ref) => null);
+final parcoursCiviqueProvider = StateProvider<bool?>((ref) {
+  // 🛑 Le parcours choisi appartient au compte : changer de compte le remet à
+  // « pas encore décidé », et le défaut **servi** du nouveau compte s'applique.
+  ref.watch(compteIdProvider);
+  return null;
+});

@@ -220,45 +220,58 @@ export function DiagnosticIntro({
           </button>
         </article>
 
-        <article className={styles.choiceCard}>
-          <div className={styles.choiceHead}>
-            <h2>
-              <span aria-hidden>🏛️</span> Examen civique
-            </h2>
-            {/* 🛑 « Sans compte » des DEUX côtés depuis V053. Le badge sur la
-                seule carte TCF laissait croire que le civique se paie d'une
-                inscription à l'entrée — ce n'est plus vrai. */}
-            <span className={styles.choiceBadge}>Sans compte</span>
-          </div>
-          <p className={styles.choiceMeta}>
-            <span>{CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen</span>
-          </p>
-          <ul className={styles.choiceList}>
-            <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Les thèmes et notions
-              à renforcer avant l&apos;examen
-            </li>
-            <li>
-              <Check size={15} strokeWidth={2.8} aria-hidden /> Un résultat qui se lit
-              directement sur l&apos;échelle de l&apos;épreuve
-            </li>
-          </ul>
-          {/* 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053, arbitrage du
-              propriétaire du 2026-09-10) — même promesse que le TCF, et on la
-              dit avant le clic. ⚠️ Cette carte a annoncé l'inverse (« Ce
-              diagnostic demande un compte ») et envoyait sur
-              `/inscription?next=…` : le motif invoqué — un QCM est rattaché à
-              un attempt, donc à un utilisateur — était faux, l'attempt invité
-              existant déjà pour la démo. Ne pas remettre le détour. */}
-          <p className={styles.choiceNote}>
-            Vous répondez tout de suite&nbsp;; le compte n&apos;arrive qu&apos;au
-            moment de voir votre résultat.
-          </p>
-          <Link className={styles.secondaryButton} href={CIVIQUE_DIAGNOSTIC_HREF}>
-            Commencer le diagnostic civique
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-        </article>
+        {/* 🛑 **La carte « Examen civique » n'existe QUE pour un visiteur**
+            (correctif du 2026-09-12, demande du propriétaire). Un compte
+            connecté a déjà choisi son parcours — il arrive ici depuis le Plan
+            TCF ou l'Accueil TCF, et « Faire mon diagnostic » doit lancer le
+            sien, pas rouvrir un choix qu'il vient de faire. Le diagnostic
+            civique garde ses propres portes (`planIndisponible`, Accueil et
+            Plan civiques).
+
+            ⚠️ Elle reste pour le **visiteur** : sans compte ni parcours
+            déclaré, `/diagnostic` est sa seule entrée, et les deux diagnostics
+            s'y valent. Miroir mobile : `isGuest` dans `diagnostic_intro.dart`. */}
+        {guest && (
+          <article className={styles.choiceCard}>
+            <div className={styles.choiceHead}>
+              <h2>
+                <span aria-hidden>🏛️</span> Examen civique
+              </h2>
+              {/* 🛑 « Sans compte » des DEUX côtés depuis V053. Le badge sur la
+                  seule carte TCF laissait croire que le civique se paie d'une
+                  inscription à l'entrée — ce n'est plus vrai. */}
+              <span className={styles.choiceBadge}>Sans compte</span>
+            </div>
+            <p className={styles.choiceMeta}>
+              <span>{CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen</span>
+            </p>
+            <ul className={styles.choiceList}>
+              <li>
+                <Check size={15} strokeWidth={2.8} aria-hidden /> Les thèmes et notions
+                à renforcer avant l&apos;examen
+              </li>
+              <li>
+                <Check size={15} strokeWidth={2.8} aria-hidden /> Un résultat qui se lit
+                directement sur l&apos;échelle de l&apos;épreuve
+              </li>
+            </ul>
+            {/* 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053, arbitrage du
+                propriétaire du 2026-09-10) — même promesse que le TCF, et on la
+                dit avant le clic. ⚠️ Cette carte a annoncé l'inverse (« Ce
+                diagnostic demande un compte ») et envoyait sur
+                `/inscription?next=…` : le motif invoqué — un QCM est rattaché à
+                un attempt, donc à un utilisateur — était faux, l'attempt invité
+                existant déjà pour la démo. Ne pas remettre le détour. */}
+            <p className={styles.choiceNote}>
+              Vous répondez tout de suite&nbsp;; le compte n&apos;arrive qu&apos;au
+              moment de voir votre résultat.
+            </p>
+            <Link className={styles.secondaryButton} href={CIVIQUE_DIAGNOSTIC_HREF}>
+              Commencer le diagnostic civique
+              <ArrowRight size={17} aria-hidden />
+            </Link>
+          </article>
+        )}
       </div>
 
       <p className={styles.introBandTitle}>Ce que contient le diagnostic TCF</p>

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/civic_diagnostic_repository.dart';
 import '../../core/api/repositories.dart';
@@ -154,7 +155,7 @@ class _CivicDiagnosticResultScreenState
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         SfTop(
-          onBack: () => context.pop(),
+          onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
           kicker: kCivicResultKicker,
           title: kCivicResultTitle,
           badges: const [kCivicResultBadge],
@@ -344,7 +345,7 @@ class _CivicDiagnosticResultScreenState
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         SfTop(
-          onBack: () => context.pop(),
+          onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
           kicker: kCivicDiagnosticGateEyebrow,
           title: kCivicDiagnosticGateTitle,
           badges: const [kCivicDiagnosticGuestBadge],

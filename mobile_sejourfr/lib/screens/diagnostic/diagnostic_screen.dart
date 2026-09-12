@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
@@ -50,6 +51,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   bool _accountRequiredTracked = false;
   bool _writingHydrated = false;
 
+  /// 🛑 **Le démarrage direct n'a lieu qu'UNE fois.** `build` est rappelé à
+  /// chaque tic du contrôleur ; sans ce marqueur, la présentation relancerait
+  /// `startOrResume` en boucle.
+  bool _demarrageDirectFait = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +66,37 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         ref.read(diagnosticControllerProvider.notifier).loadCurrent(),
       );
       unawaited(_recordingController.cancel());
+    });
+  }
+
+  /// **Sauter la présentation quand le geste l'a déjà remplacée.**
+  ///
+  /// 🛑 Demande du propriétaire (2026-09-12) : « Faire mon diagnostic », depuis
+  /// le Plan ou l'Accueil, doit **lancer** le diagnostic, pas ouvrir une page
+  /// qui redemande de le lancer. Le bouton porte déjà la décision ; la
+  /// présentation, elle, garde tout son sens pour qui arrive sur `/diagnostic`
+  /// sans l'avoir demandé (lien profond, visiteur).
+  ///
+  /// Le transport est `?demarrer=1`, posé par les seules portes qui **nomment**
+  /// le geste. 🛑 **Compte connecté uniquement** : en visiteur, la présentation
+  /// porte aussi le choix TCF / civique et les deux diagnostics s'y valent.
+  ///
+  /// ⚠️ Aucun risque de double session : `POST /api/diagnostics` est
+  /// idempotent, et le marqueur borne l'appel à un par montage.
+  void _demarrerDirectSiDemande(DiagnosticFlowState state) {
+    if (_demarrageDirectFait || state.isGuest) return;
+    if (!kDiagnosticDemarrageDirect.lu(GoRouterState.of(context).uri)) return;
+    final journey = state.journey;
+    // Rien à sauter tant que l'état n'est pas lu, ou si le candidat est déjà
+    // plus loin que la présentation : on ne réécrit jamais son avancement.
+    if (journey == null ||
+        journey.nextStep != DiagnosticStep.presentation ||
+        state.isSubmitting) {
+      return;
+    }
+    _demarrageDirectFait = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_startAuthenticated());
     });
   }
 
@@ -259,6 +296,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final recording = ref.watch(recordingControllerProvider);
     final objective = ref.watch(userTargetLevelProvider);
     _hydrateWriting(state);
+    _demarrerDirectSiDemande(state);
     // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
     // `diagnostic_sessions.status`. On ne crée jamais une seconde vérité.
     //

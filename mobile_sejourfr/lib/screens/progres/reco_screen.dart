@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/providers/dashboard_provider.dart';
@@ -34,7 +36,7 @@ class RecoScreen extends ConsumerWidget {
             ScreenHeader(
               title: 'Recommandations',
               sub: "D'après vos résultats",
-              onBack: () => context.pop(),
+              onBack: () => retourOuRepli(context, repli: AppRoutes.progress),
             ),
             Expanded(
               child: dashboard.when(

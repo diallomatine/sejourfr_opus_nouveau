@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/router/retour.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/list_group.dart';
@@ -25,7 +26,7 @@ class MonEntrainementScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'Mon entraînement',
-              onBack: () => context.pop(),
+              onBack: () => retourOuRepli(context, repli: AppRoutes.profile),
             ),
             Expanded(
               child: ListView(

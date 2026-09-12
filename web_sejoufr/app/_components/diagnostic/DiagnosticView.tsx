@@ -42,6 +42,7 @@ import type {
   PublicDiagnosticResponse,
 } from "@/lib/types";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
+import {demarrageDirectDemande} from "@/lib/preparation";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
 import {DiagnosticSteps} from "./DiagnosticSteps";
@@ -698,6 +699,34 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
+  }, [diagnostic]);
+
+  /* 🛑 **Sauter la présentation quand le geste l'a déjà remplacée**
+     (2026-09-12). « Faire mon diagnostic », depuis le Plan ou l'Accueil, doit
+     LANCER le diagnostic : le bouton porte déjà la décision, une page qui
+     redemande de la prendre est une étape de trop. Le transport est
+     `?demarrer=1`, posé par les seules portes qui nomment le geste.
+
+     🛑 **Une fois par montage** (`useRef`) : `start()` est aussi appelé par le
+     bouton, et le composant se rend à chaque tic d'état. Sans le garde, la
+     présentation relancerait l'appel en boucle. Aucun risque de double
+     session par ailleurs : `POST /api/diagnostics` est idempotent. */
+  /* Lu sur `window` et non par `useSearchParams` : ce dernier impose une
+     frontière de Suspense à toute la page, pour un simple drapeau que seul cet
+     effet — donc le client — a besoin de connaître. */
+  const demarrageFait = useRef(false);
+  useEffect(() => {
+    if (demarrageFait.current || typeof window === "undefined") return;
+    const demarrageDemande = demarrageDirectDemande(
+      new URLSearchParams(window.location.search),
+    );
+    if (!demarrageDemande) return;
+    if (diagnostic === null) return;
+    if (diagnostic.status !== "NOT_STARTED" && diagnostic.nextStep !== "PRESENTATION") return;
+    demarrageFait.current = true;
+    void start();
+    // `start` est stable pour ce montage ; le garde borne l'effet à un appel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagnostic]);
 
   async function start() {

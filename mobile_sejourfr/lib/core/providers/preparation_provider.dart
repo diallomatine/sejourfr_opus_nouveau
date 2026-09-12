@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/repositories.dart';
+import '../auth/auth_controller.dart';
 import '../models/preparation_models.dart';
 
 /// **L'état UNIQUE des deux préparations**, lu une seule fois par écran.
@@ -22,6 +23,10 @@ import '../models/preparation_models.dart';
 /// L'échec n'est **pas** mis en cache : la porte d'un diagnostic inachevé doit
 /// pouvoir réapparaître au rafraîchissement suivant.
 final preparationProvider = FutureProvider.autoDispose<PreparationDto>((ref) async {
+  // 🛑 **La donnée est liée au COMPTE** : l'observer recrée le cache dès que
+  // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
+  // l'app affichait les données du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     return await ref.watch(userContentRepositoryProvider).preparation();

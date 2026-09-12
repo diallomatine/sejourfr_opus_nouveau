@@ -29,10 +29,10 @@ import '../plan/learning_plan_provider.dart';
 /// pas un parcours, et l'Accueil n'est pas atteignable sans compte.
 final diagnosticCourantProvider =
     FutureProvider.autoDispose<DiagnosticJourney?>((ref) async {
-  final authentifie = ref.watch(
-    authControllerProvider.select((state) => state is AuthAuthenticated),
-  );
-  if (!authentifie) return null;
+  // 🛑 **L'identité, pas le fait d'être connecté.** Un booléen « authentifié »
+  // ne bouge pas d'un compte à l'autre : il n'aurait rien invalidé.
+  final compte = ref.watch(compteIdProvider);
+  if (compte == null) return null;
   ref.watch(learningPlanRevisionProvider);
   final link = ref.keepAlive();
   try {

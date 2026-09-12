@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_plan_models.dart';
 
 /// Le plan **civique** servi par `GET /api/me/civic-plan`, pour les écrans qui
@@ -22,6 +23,10 @@ import '../../core/models/civic_plan_models.dart';
 ///
 /// L'échec n'est **pas** mis en cache.
 final civicPlanProvider = FutureProvider.autoDispose<CivicPlan>((ref) async {
+  // 🛑 **La donnée est liée au COMPTE** : l'observer recrée le cache dès que
+  // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
+  // l'app affichait les données du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     return await ref.read(civicPlanRepositoryProvider).plan();

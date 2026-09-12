@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/repositories.dart';
+import '../auth/auth_controller.dart';
 import '../models/progress_models.dart';
 
 /// « Ce qui a bougé » — `GET /api/me/progress`, partagé par l'écran **Progrès**
@@ -17,6 +18,10 @@ import '../models/progress_models.dart';
 ///
 /// L'échec n'est **pas** mis en cache.
 final progressProvider = FutureProvider.autoDispose<Progress>((ref) async {
+  // 🛑 **La donnée est liée au COMPTE** : l'observer recrée le cache dès que
+  // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
+  // l'app affichait les données du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     return await ref.read(progressRepositoryProvider).progres();

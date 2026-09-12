@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/auth_controller.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/api/skill_repository.dart';
@@ -43,6 +44,10 @@ class SkillsKey {
 /// pouvoir repartir sur un appel neuf.
 final skillsSectionProvider = FutureProvider.autoDispose
     .family<List<SkillDto>, SkillSection>((ref, section) async {
+  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
+  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
+  // une reconnexion sans redémarrage montrait la progression du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     return await _loadSection(ref.watch(skillRepositoryProvider), section);

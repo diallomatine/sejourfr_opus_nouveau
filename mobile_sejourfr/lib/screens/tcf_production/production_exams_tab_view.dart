@@ -44,6 +44,10 @@ final examBilansProvider =
         (ref, epreuve) async {
   final ids = ref.watch(expressionHubProvider(epreuve).select(_examIdsOf));
   if (ids.isEmpty) return const [];
+  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
+  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
+  // une reconnexion sans redémarrage montrait la progression du précédent.
+  ref.watch(compteIdProvider);
   final link = ref.keepAlive();
   try {
     final repo = ref.watch(productionRepositoryProvider);

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 
 /// Signal émis par les activités susceptibles de modifier le Plan : une
@@ -29,6 +30,10 @@ final learningPlanRevisionProvider = StateProvider<int>((ref) => 0);
 /// L'échec n'est **pas** mis en cache : un « Réessayer » repart sur un appel
 /// neuf.
 final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) async {
+  // 🛑 **La donnée est liée au COMPTE** : l'observer recrée le cache dès que
+  // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
+  // l'app affichait les données du précédent.
+  ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
   final link = ref.keepAlive();
   try {

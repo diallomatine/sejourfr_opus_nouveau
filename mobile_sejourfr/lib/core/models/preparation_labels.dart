@@ -63,12 +63,16 @@ PreparationAction tcfAction(ModulePreparation m) {
             cta: kDiagnosticCompletCtaResume,
             route: kDiagnosticCompletRoute,
           )
-        : (statut: 'Diagnostic en cours', cta: 'Reprendre', route: '/diagnostic');
+        : (
+            statut: 'Diagnostic en cours',
+            cta: 'Reprendre',
+            route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
+          );
   }
   return (
     statut: 'Diagnostic non réalisé',
     cta: 'Faire mon diagnostic',
-    route: '/diagnostic',
+    route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
   );
 }
 
@@ -174,7 +178,9 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
           : 'Reprendre mon diagnostic',
       route: civique
           ? '/diagnostic-civique'
-          : (m.fait != null ? kDiagnosticCompletRoute : '/diagnostic'),
+          : (m.fait != null
+              ? kDiagnosticCompletRoute
+              : kDiagnosticDemarrageDirect.chemin('/diagnostic')),
     );
   }
 
@@ -193,7 +199,7 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
     texte: 'Une première estimation écrite, puis les quatre épreuves : c\'est ce '
         'qui permet de savoir quoi travailler en premier.',
     cta: 'Faire mon diagnostic',
-    route: '/diagnostic',
+    route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
   );
 }
 
@@ -367,3 +373,30 @@ AffinerPlan? affinerPlan(
     route: kDiagnosticCompletRoute,
   );
 }
+
+/// **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
+///
+/// 🛑 Demande du propriétaire (2026-09-12) : « Faire mon diagnostic », depuis le
+/// Plan ou l'Accueil, doit **lancer** le diagnostic, pas ouvrir une page qui
+/// redemande de le lancer. Le bouton porte déjà la décision.
+///
+/// 🛑 **Un marqueur, aucun identifiant** : rien ne voyage dans l'URL que ce
+/// drapeau. La présentation reste l'écran normal de `/diagnostic` — elle garde
+/// tout son sens pour qui y arrive sans l'avoir demandé (lien profond,
+/// visiteur, où elle porte aussi le choix TCF / civique).
+///
+/// Miroir de `DIAGNOSTIC_START_PARAM` (`web_sejoufr/lib/preparation.ts`).
+class DiagnosticDemarrageDirect {
+  const DiagnosticDemarrageDirect._();
+
+  static const parametre = 'demarrer';
+  static const valeur = '1';
+
+  /// Le chemin à ouvrir pour démarrer sans présentation.
+  String chemin(String route) => '$route?$parametre=$valeur';
+
+  /// Le marqueur est-il posé sur cette URL ?
+  bool lu(Uri uri) => uri.queryParameters[parametre] == valeur;
+}
+
+const kDiagnosticDemarrageDirect = DiagnosticDemarrageDirect._();

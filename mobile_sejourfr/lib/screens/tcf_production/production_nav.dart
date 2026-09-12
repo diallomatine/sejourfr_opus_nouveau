@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import 'tcf_production_module.dart';
 
 /// Chemins du parcours de production, construits en **un seul endroit**.
@@ -41,10 +41,5 @@ String productionSessionPath(TcfProductionModule module) =>
 /// « Retour » depuis le **niveau 1** d'une épreuve, qui n'a aucun écran de
 /// production au-dessus de lui : on dépile si on peut (retour à l'écran qui a
 /// ouvert l'épreuve), sinon on rejoint Réviser.
-void leaveProductionEpreuve(BuildContext context) {
-  if (context.canPop()) {
-    context.pop();
-    return;
-  }
-  context.go(AppRoutes.reviser);
-}
+void leaveProductionEpreuve(BuildContext context) =>
+    retourOuRepli(context, repli: AppRoutes.reviser);

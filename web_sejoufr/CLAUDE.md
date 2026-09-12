@@ -1135,7 +1135,14 @@ le titre (`{domaine} · Tâche N` en TCF, le thème en civique), le sous-titre, 
 `civicPlanApi` a donc `getCached()` / `cacheKey` comme `learningPlanApi`, et les
 deux panneaux du Plan (`LearningPlanView`, `CivicPlanPanel`) lisent en cache —
 la bascule y démonte un panneau et monte l'autre, chaque montage rappelait son
-endpoint. 🛑 **Changer d'ÉCRAN ne redemande rien non plus** : `userContentApi.preparation`
+endpoint. 🛑 **Une session qui commence part d'un cache VIDE** (correctif du 2026-09-12) :
+`tokenStorage.set()` appelle `clearDataCache()`, plus seulement `clear()`. Il ne
+couvrait que la déconnexion propre — une **connexion** ou une **inscription**
+dans un onglet qui portait encore le cache d'un autre compte lui servait sa
+progression. ⚠️ Le rafraîchissement de jeton passe aussi par là, donc le cache
+se vide une fois par heure environ : une purge silencieuse coûte quelques
+requêtes, servir les données d'un autre compte est un incident.
+🛑 **Changer d'ÉCRAN ne redemande rien non plus** : `userContentApi.preparation`
 et `progressApi.get` sont eux aussi en cache, donc `/dashboard` ⇄ `/plan` ne
 coûte aucun appel.
 ⚠️ **Révoque** « les écrans `/diagnostic` et `/plan` lisent directement le
@@ -1572,6 +1579,43 @@ perte (les sections faites comptent toujours).
 Le rail de paliers **réutilise `PlanLevelRail`** ; il ne connaît que A2/B1/B2, donc
 `railLevel()` rend `null` hors de cette échelle et on ne dessine rien plutôt que de
 rabattre le candidat sur un palier qui n'est pas le sien.
+
+🛑 **Un bouton de retour ne fait JAMAIS un `router.back()` nu (2026-09-12).**
+Une page ouverte directement — lien partagé, nouvel onglet, retour de
+paiement — n'a pas d'historique : le bouton ne fait alors **rien**, ou sort du
+site. `retourOuRepli` (`lib/retour.ts`, miroir de `retourOuRepli` côté mobile)
+teste l'historique puis retombe sur une adresse **par page**. Il vient de
+`/sessions/[attemptId]`, qui portait déjà la règle en clair ; `/paiement`
+l'écrivait sans garde.
+✅ **Une adresse fixe reste préférable** : les écrans du kit passent `backTo` à
+`Top`, donc un vrai lien — il mène toujours quelque part et se partage. Ce
+helper est pour les pages dont le retour dépend d'où l'on vient.
+
+## « Faire mon diagnostic » LANCE le diagnostic (2026-09-12)
+
+🛑 Demande du propriétaire : depuis le **Plan** comme depuis l'**Accueil**, ce
+bouton doit lancer le diagnostic rapide, pas ouvrir une page qui redemande de le
+lancer.
+
+- **La carte « Examen civique » de `DiagnosticIntro` n'existe plus que pour un
+  VISITEUR** (`guest`) : sans compte ni parcours déclaré, `/diagnostic` est sa
+  seule entrée. Un compte connecté arrive depuis un parcours choisi, et le
+  diagnostic civique garde ses propres portes (`planIndisponible`, Accueil et
+  Plan civiques).
+- **`?demarrer=1` saute la présentation** — `DIAGNOSTIC_START_PARAM` /
+  `DIAGNOSTIC_RAPIDE_START_HREF` / `demarrageDirectDemande`
+  (`lib/preparation.ts`, miroir de `kDiagnosticDemarrageDirect` côté mobile),
+  posés par `tcfAction` et `planIndisponible`. 🛑 `/diagnostic` **nu** garde sa
+  présentation.
+  ⚠️ Le drapeau est lu sur `window.location.search` **dans l'effet**, pas par
+  `useSearchParams` : ce dernier imposerait une frontière de Suspense à toute la
+  page pour un drapeau dont seul le client a besoin. Un `useRef` borne l'appel à
+  **un par montage** — `start()` est aussi appelé par le bouton, et le composant
+  se rend à chaque tic d'état. Aucun risque de double session :
+  `POST /api/diagnostics` est idempotent.
+
+⚠️ **La présentation n'est pas supprimée** : elle annonce le budget temps, et
+reste l'écran normal d'un lien profond ou d'un visiteur.
 
 ## Diagnostic TCF initial + Plan (2026-08-09)
 

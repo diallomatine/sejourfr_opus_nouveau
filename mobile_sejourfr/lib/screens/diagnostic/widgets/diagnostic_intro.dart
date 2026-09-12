@@ -116,27 +116,40 @@ class DiagnosticIntro extends StatelessWidget {
                 ],
                 highlighted: true,
               ),
-              const SizedBox(height: 12),
-              _ExamCard(
-                emoji: '🏛️',
-                title: 'Examen civique',
-                meta: '$_civiqueQuestions questions, le format de l’examen',
-                highlights: const [
-                  'Les thèmes et notions à renforcer avant l’examen',
-                  'Un résultat qui se lit directement sur l’échelle de '
-                      'l’épreuve',
-                ],
-                // 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053) — même promesse
-                // que le TCF, et on la dit avant le tap.
-                note: 'Vous répondez tout de suite ; le compte n’arrive qu’au '
-                    'moment de voir votre résultat.',
-                action: AppButton(
-                  label: 'Commencer le diagnostic civique',
-                  variant: AppButtonVariant.outline,
-                  iconRight: LucideIcons.arrowRight,
-                  onPressed: () => context.push(AppRoutes.civicDiagnostic),
+              // 🛑 **La carte « Examen civique » n'existe QUE pour un visiteur**
+              // (correctif du 2026-09-12, demande du propriétaire). Un compte
+              // connecté a déjà choisi son parcours — il arrive ici depuis le
+              // Plan TCF ou l'Accueil TCF, et « Faire mon diagnostic » doit
+              // lancer le sien, pas rouvrir un choix qu'il vient de faire. Le
+              // diagnostic civique garde ses propres portes, sur l'Accueil
+              // civique et le Plan civique (`planIndisponible`).
+              //
+              // ⚠️ Elle reste pour le **visiteur** : sans compte ni parcours
+              // déclaré, `/diagnostic` est sa seule entrée, et les deux
+              // diagnostics s'y valent.
+              if (isGuest) ...[
+                const SizedBox(height: 12),
+                _ExamCard(
+                  emoji: '🏛️',
+                  title: 'Examen civique',
+                  meta: '$_civiqueQuestions questions, le format de l\u2019examen',
+                  highlights: const [
+                    'Les thèmes et notions à renforcer avant l\u2019examen',
+                    'Un résultat qui se lit directement sur l\u2019échelle de '
+                        'l\u2019épreuve',
+                  ],
+                  // 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053) — même promesse
+                  // que le TCF, et on la dit avant le tap.
+                  note: 'Vous répondez tout de suite ; le compte n\u2019arrive '
+                      'qu\u2019au moment de voir votre résultat.',
+                  action: AppButton(
+                    label: 'Commencer le diagnostic civique',
+                    variant: AppButtonVariant.outline,
+                    iconRight: LucideIcons.arrowRight,
+                    onPressed: () => context.push(AppRoutes.civicDiagnostic),
+                  ),
                 ),
-              ),
+              ],
 
               const SizedBox(height: 24),
               // 🛑 On n'annonce que ce qui existe (L3) : sans étape orale, dire

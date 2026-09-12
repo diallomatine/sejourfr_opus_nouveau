@@ -20,6 +20,7 @@ import {
   userContentApi,
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
+import {retourOuRepli} from "@/lib/retour";
 import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
 import {
   CIVIC_DIAGNOSTIC_PARAM,
@@ -404,15 +405,13 @@ function SessionRunnerInner({ params }: PageProps) {
         ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
         : (lotReturnPath(attempt) ?? "/entrainement");
 
-    // Retour à l'écran précédent (historique navigateur) ; fallback sur
-    // l'écran d'origine dérivé de l'attempt quand la page a été ouverte
-    // directement (nouvel onglet, lien partagé).
+    // Retour à l'écran précédent (historique navigateur) ; repli sur l'écran
+    // d'origine dérivé de l'attempt quand la page a été ouverte directement
+    // (nouvel onglet, lien partagé). 🛑 La règle vit dans `retourOuRepli` —
+    // c'était la première des deux surfaces à l'avoir écrite.
     const goBack = () => {
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-        return;
-      }
-      router.push(
+      retourOuRepli(
+        router,
         isExam
           ? examReturnPath(attempt)
           : (lotReturnPath(attempt) ?? "/entrainement"),

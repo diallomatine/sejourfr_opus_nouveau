@@ -12,6 +12,7 @@ import {
     type PlanPeriodicity
 } from "@/lib/api";
 import {track} from "@/lib/analytics";
+import {retourOuRepli} from "@/lib/retour";
 import {useAuth} from "@/lib/auth-context";
 import {trackPaywallViewed, trackSubscribeClicked} from "@/lib/funnel-events";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
@@ -299,7 +300,7 @@ function PaiementInner() {
     return (
         <main className="pay">
             <header className="pay-hero">
-                <button type="button" className="pay-back" onClick={() => router.back()}>
+                <button type="button" className="pay-back" onClick={() => retourOuRepli(router, "/dashboard")}>
                     <ArrowLeftIcon/> Retour
                 </button>
                 <div className="breadcrumb">

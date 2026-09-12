@@ -269,3 +269,27 @@ final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(ref);
 });
+
+/// **L'identité du compte connecté**, et rien d'autre : son `id`, ou `null`
+/// quand personne ne l'est.
+///
+/// 🛑 **C'est la clé de fraîcheur de tout ce qui est gardé en vie.** Depuis que
+/// les sources de l'Accueil et du Plan survivent à la vie de leur écran
+/// (`ref.keepAlive`), elles survivaient aussi à un **changement de compte** :
+/// se reconnecter avec un autre identifiant, sans tuer l'app, affichait le plan
+/// et la progression du compte précédent. Tout provider qui garde une donnée
+/// **de compte** doit donc l'observer en première ligne — `ref.watch` suffit,
+/// Riverpod recrée l'état dès que l'identité change.
+///
+/// 🛑 **L'identité, pas le fait d'être connecté.** Un `select` sur
+/// `state is AuthAuthenticated` rend un booléen : il ne bouge pas d'un compte à
+/// l'autre, et n'aurait rien invalidé du tout. C'était le défaut exact.
+///
+/// ⚠️ Il ne change PAS sur un simple rafraîchissement du profil (statut
+/// premium, prénom, date d'examen) : l'`id` est stable, donc rien n'est
+/// rechargé pour rien.
+final compteIdProvider = Provider<String?>((ref) {
+  return ref.watch(authControllerProvider.select(
+    (state) => state is AuthAuthenticated ? state.user.id : null,
+  ));
+});

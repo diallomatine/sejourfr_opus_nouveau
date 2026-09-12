@@ -157,6 +157,10 @@ class AppRoutes {
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
 
+  /// `/diagnostic?demarrer=1` — le diagnostic **part tout de suite**, sans
+  /// écran de présentation.
+  static const diagnosticDemarrer = '/diagnostic?demarrer=1';
+
   /// Le diagnostic TCF **4 epreuves** (L4). 🛑 Distinct de [diagnostic], qui
   /// porte le diagnostic INITIAL (une production ecrite + une orale) : deux
   /// objets produit differents, que 10_ §4.1 interdit de confondre.
