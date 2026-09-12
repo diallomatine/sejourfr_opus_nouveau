@@ -13,8 +13,9 @@
  *
  * Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
+import {MENTION_LABEL} from "./civic-diagnostic";
 import {PLAN_DOMAIN_SECTION, planDomainLabel, type PlanDomainEpreuve} from "./plan-domain";
-import type {EpreuveType, ModulePreparation, PreparationDto} from "./types";
+import type {EpreuveType, ModulePreparation, PreparationDto, TargetProcedure} from "./types";
 
 export const PREPARATION_TITLE = "Ma préparation";
 
@@ -437,4 +438,25 @@ function epreuveDuDiagnostic(epreuve: EpreuveType): string {
     return epreuve in PLAN_DOMAIN_SECTION
         ? planDomainLabel(epreuve as PlanDomainEpreuve)
         : "";
+}
+
+/* --------------------------------------------------------------------------
+   La DÉMARCHE visée, dite au candidat
+   -------------------------------------------------------------------------- */
+
+/**
+ * « Objectif : naturalisation ».
+ *
+ * 🛑 **Une seule table de démarches sur le web** : `MENTION_LABEL`
+ * (`lib/civic-diagnostic.ts`). Cette phrase-ci était écrite en dur dans
+ * `AppSidebar`, et l'Accueil allait en poser une deuxième copie sous son
+ * « Bonjour » — deux copies d'un libellé de démarche finissent toujours par
+ * diverger (c'est exactement ce qui est arrivé à la table des paliers).
+ *
+ * `null` / démarche inconnue ⇒ l'invitation à la choisir, jamais une démarche
+ * par défaut : `null = inconnu, jamais mauvais`.
+ */
+export function objectifLabel(procedure: TargetProcedure | null | undefined): string {
+    const mention = procedure ? MENTION_LABEL[procedure] : undefined;
+    return mention ? `Objectif : ${mention.toLowerCase()}` : "Choisir mon parcours";
 }

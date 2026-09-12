@@ -6,24 +6,43 @@ import { Suspense, useEffect, useState } from "react";
 import {
   Flame,
   LayoutGrid,
-  Lightbulb,
   ListChecks,
   Sparkles,
   Target,
   Trophy,
-  Waves,
 } from "lucide-react";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { TargetProcedure } from "@/lib/types";
+import { objectifLabel } from "@/lib/preparation";
 
 /**
- * Sidebar de l'espace personnel (refonte web_refonte). Trois blocs de nav :
- * Tableau de bord seul, puis PARCOURS (TCF IRN / Examen civique) et SUIVI
- * (Plan / Résultats / Recommandations). L'ancienne Progression reste
- * accessible comme vue secondaire depuis Plan. En pied : badge streak
- * (jours de suite, via GET /api/me/dashboard mémoïsé) + carte utilisateur
- * cliquable vers /profil (le logout vit sur la page profil).
+ * Barre latérale de l'espace personnel.
+ *
+ * **La FORME vient de la maquette** (`~/Desktop/grok_ecran`, `.sf-rail` dans
+ * `studio.tsx` + `sejour.css`) : logo, sous-titre de parcours, **bascule
+ * TCF IRN / Examen civique**, entrées à icônes, note de bas de colonne.
+ *
+ * 🛑 **Les ENTRÉES, elles, sont les nôtres — aucune inventée, aucune perdue**
+ * (arbitrage du propriétaire : « on garde nos menus, seuls les écrans on
+ * copie »). Les sept destinations d'avant sont toutes là :
+ *
+ * | destination | où elle est maintenant |
+ * |---|---|
+ * | `/dashboard` | entrée à icône « Tableau de bord » |
+ * | `/entrainement?module=TCF` | **côté gauche de la bascule** |
+ * | `/entrainement?module=CIVIQUE` | **côté droit de la bascule** |
+ * | `/examens-blancs` | entrée à icône « Examens blancs » |
+ * | `/plan` | entrée à icône « Plan » |
+ * | `/historique` | entrée à icône « Résultats » |
+ * | `/recommandations` | entrée à icône « Recommandations » |
+ *
+ * Les deux parcours passent en bascule parce que la maquette les y met **et**
+ * parce que les répéter en entrées de liste aurait mis deux fois la même
+ * destination dans la même colonne.
+ *
+ * En pied : la note de la maquette, le badge streak (via GET /api/me/dashboard
+ * mémoïsé) et la carte utilisateur cliquable vers /profil (le logout vit sur la
+ * page profil).
  */
 export function AppSidebar() {
   return (
@@ -31,19 +50,6 @@ export function AppSidebar() {
       <AppSidebarInner />
     </Suspense>
   );
-}
-
-function objectiveLabel(p: TargetProcedure | null | undefined): string {
-  switch (p) {
-    case "NAT":
-      return "Objectif : naturalisation";
-    case "CR":
-      return "Objectif : carte de résident";
-    case "CSP":
-      return "Objectif : carte de séjour";
-    default:
-      return "Choisir mon parcours";
-  }
 }
 
 function AppSidebarInner() {
@@ -58,10 +64,21 @@ function AppSidebarInner() {
 
   const isTcfActive =
     (isOnEntrainement && currentModule === "TCF") ||
-    pathname?.startsWith("/entrainement/tcf");
+    pathname?.startsWith("/entrainement/tcf") ||
+    pathname?.startsWith("/diagnostic-tcf");
   const isCiviqueActive =
     (isOnEntrainement && currentModule !== "TCF") ||
-    pathname?.startsWith("/entrainement/civique");
+    pathname?.startsWith("/entrainement/civique") ||
+    pathname?.startsWith("/diagnostic-civique");
+
+  /* Le sous-titre de parcours de la maquette. 🛑 Hors d'un parcours (tableau
+     de bord, résultats, profil…) il n'y a **pas** de parcours courant : on
+     affiche la ligne de marque, jamais un module choisi par défaut. */
+  const parcoursTag = isTcfActive
+    ? "Coach TCF IRN"
+    : isCiviqueActive
+      ? "Examen civique"
+      : "Examen civique · TCF";
   // Les erreurs/favoris (/revision) vivent désormais sous Recommandations.
   const isRecoActive =
     pathname === "/recommandations" ||
@@ -106,32 +123,39 @@ function AppSidebarInner() {
     <aside className="app-sidebar">
       <Link href={user ? "/dashboard" : "/"} className="app-brand">
         <span className="app-cocarde" aria-hidden />
-        <span className="app-brand-name">
-          Sejour<span className="app-brand-fr">FR</span>
+        <span className="app-brand-text">
+          <span className="app-brand-name">
+            Sejour<span className="app-brand-fr">FR</span>
+          </span>
+          <span className="app-brand-tag">{parcoursTag}</span>
         </span>
       </Link>
+
+      {/* La bascule de parcours de la maquette. Ce sont EXACTEMENT les deux
+          entrées « TCF IRN » et « Examen civique » d'avant — mêmes libellés,
+          mêmes destinations —, dans la forme que la maquette leur donne. */}
+      <div className="app-seg" role="tablist" aria-label="Parcours">
+        <Link
+          href="/entrainement?module=TCF"
+          role="tab"
+          aria-selected={Boolean(isTcfActive)}
+          className={isTcfActive ? "app-seg-item is-on" : "app-seg-item"}
+        >
+          TCF IRN
+        </Link>
+        <Link
+          href="/entrainement?module=CIVIQUE"
+          role="tab"
+          aria-selected={Boolean(isCiviqueActive)}
+          className={isCiviqueActive ? "app-seg-item is-on" : "app-seg-item"}
+        >
+          Examen civique
+        </Link>
+      </div>
 
       <nav className="app-nav" aria-label="Espace personnel">
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
           Tableau de bord
-        </SideLink>
-
-        <span className="app-nav-section">Parcours</span>
-        <SideLink
-          href="/entrainement?module=TCF"
-          pathname={pathname}
-          icon={<Waves size={18} />}
-          activeWhen={() => Boolean(isTcfActive)}
-        >
-          TCF IRN
-        </SideLink>
-        <SideLink
-          href="/entrainement?module=CIVIQUE"
-          pathname={pathname}
-          icon={<Lightbulb size={18} />}
-          activeWhen={() => Boolean(isCiviqueActive)}
-        >
-          Examen civique
         </SideLink>
         <SideLink href="/examens-blancs" pathname={pathname} icon={<Target size={18} />}>
           Examens blancs
@@ -160,6 +184,12 @@ function AppSidebarInner() {
       </nav>
 
       <div className="app-sidebar-foot">
+        {/* La note de bas de colonne de la maquette : elle dit ce que le Plan
+            fait, sur tous les écrans de l'espace connecté. */}
+        <p className="app-foot-note">
+          Le plan choisit la prochaine action, puis réévalue après chaque séance.
+        </p>
+
         {streak !== null && streak > 0 && (
           <div className="streak-card">
             <span className="streak-flame" aria-hidden>
@@ -180,7 +210,7 @@ function AppSidebarInner() {
             <span className="user-info">
               <span className="user-name">{fullName || "Utilisateur"}</span>
               <span className="user-objective">
-                {objectiveLabel(user.targetProcedure)}
+                {objectifLabel(user.targetProcedure)}
               </span>
             </span>
           </Link>
@@ -234,9 +264,62 @@ const sidebarStyles = `
   }
   .app-brand {
     display: flex; align-items: center; gap: 11px;
-    padding: 6px 8px 22px;
-    margin-bottom: 14px;
+    padding: 6px 8px 14px;
     text-decoration: none;
+  }
+  .app-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  /* Le sous-titre de parcours de la maquette (« Coach TCF IRN »). */
+  .app-brand-tag {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-muted);
+    letter-spacing: 0.01em;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* === bascule de parcours (forme de la maquette, destinations à nous) === */
+  .app-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin: 0 2px 14px;
+    background: var(--color-blue-light);
+    border-radius: 14px;
+  }
+  .app-seg-item {
+    min-height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 0 6px;
+    border-radius: 11px;
+    color: var(--color-blue);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .app-seg-item:hover { background: color-mix(in srgb, #fff 55%, transparent); }
+  .app-seg-item.is-on {
+    background: #fff;
+    color: var(--color-ink);
+    box-shadow: 0 0 0 1px var(--color-line), 0 1px 2px -1px rgba(15, 24, 57, 0.12);
+  }
+
+  .app-foot-note {
+    margin: 0 4px 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-muted);
   }
   .app-cocarde {
     width: 30px; height: 30px;
@@ -399,6 +482,11 @@ const sidebarStyles = `
       padding: 0; margin: 0;
       flex-shrink: 0;
     }
+    /* En barre horizontale, la colonne n'existe plus : ni sous-titre, ni
+       bascule, ni note de pied. Le drawer, lui, les remet (globals.css). */
+    .app-brand-tag,
+    .app-seg,
+    .app-foot-note { display: none; }
     .app-nav {
       display: flex; flex-direction: row;
       flex: 1; gap: 4px;

@@ -229,7 +229,7 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   return (
     <>
       {abonne ? <TcfPlanPremium plan={plan} /> : <TcfPlanFree plan={plan} />}
-      {affiner && <AffinerPlanCard info={affiner} surface="plan" />}
+      {affiner && <AffinerPlanCard info={affiner} />}
       {prep?.estimationSessionId && <RevoirEstimation />}
     </>
   );

@@ -89,11 +89,11 @@ app/
 │
 ├── (app)/                        # route group : connecté, layout sidebar+main
 │   ├── layout.tsx                # grid 248px / 1fr, passe en drawer sous 900px
-│   ├── dashboard/page.tsx        # ★ tableau de bord (refonte web_refonte) : un seul fetch
-│   │                              #   GET /api/me/dashboard → 4 stat cards (maîtrise globale,
-│   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
-│   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
-│   │                              #   bandeaux reprendre/onboarding
+│   ├── dashboard/page.tsx        # ★ l'ACCUEIL, monté sur le KIT (SejourApp wide) et disposé
+│   │                              #   sur la maquette (screenshots/accueil.png) : « Bonjour X »
+│   │                              #   + démarche, puis deux deskPair — À faire maintenant /
+│   │                              #   Ma préparation, Affiner votre Plan / Votre progression —
+│   │                              #   puis Vos parcours et À renforcer en priorité
 │   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
 │   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
 │   │                              #   compléter mon profil, chemin vers l'objectif.
@@ -833,10 +833,136 @@ son confort de lecture, pas un breakpoint de plus. 🛑 Un en-tête **qui porte 
 flèche** garde son alignement à gauche à toutes les largeurs : centrer son texte
 le décalerait de sa flèche. Miroir Flutter : `plain` dans `SfTop`.
 
-**Colonne unique, cadrée à 560 px et centrée.** Ce sont des écrans de lecture,
-pas des tableaux de bord : les élargir casserait la hiérarchie de la maquette.
 La barre latérale de `(app)` joue le rôle de la barre d'onglets du mockup —
 `sf-tabs` n'est **pas** porté sur le web.
+
+⚠️ **La règle « colonne unique cadrée à 560 px, ces écrans ne sont pas des
+tableaux de bord » est RÉVOQUÉE** (propriétaire, 2026-09-12 : « la version web
+s'affiche toujours comme si c'était une page mobile »). Elle est remplacée par
+le palier desktop ci-dessous.
+
+### Le palier desktop du kit (2026-09-12)
+
+**Le mécanisme vient de la maquette, pas d'une invention.** `grok_ecran` n'a
+**qu'une** borne de mise en page, `@media (min-width: 960px)` (plus une borne
+*interne* à 1100 px qui fait seulement passer deux grilles de 2 à 3 colonnes).
+À cette borne : le cadre téléphone disparaît, la barre latérale de 248 px
+apparaît, `.sf-main` prend un plafond **choisi par la nature de l'écran**, les
+blocs perdent leur padding latéral de 16 px (la gouttière déménage sur la
+colonne), et des **classes de disposition inertes sur mobile** deviennent des
+grilles. 🛑 **Le desktop n'y ajoute AUCUN composant.**
+
+Transposition chez nous, dans `sejour.module.css` :
+
+| largeur de fenêtre | ce que fait le kit |
+|---|---|
+| ≤ 620 px | **inchangé** — colonne de 560 px, en-tête centré, barre d'action collée en bas |
+| 620 → 960 px | colonne de **720 px** (la colonne de lecture de la maquette), en-tête à gauche |
+| ≥ 960 px | **palier desktop** : colonne 720 / 980 / 1080 px + gouttière de 36 px, `.pad`/`.top`/`.segWrap` à plat, titre à 28 px, `.btn` plafonné à 420 px hors carte, `.sticky` redevenu une carte dans le flux |
+| ≥ 1100 px | `deskGrid` passe de 2 à 3 colonnes |
+
+**Pourquoi 960 et 1100, les chiffres de la maquette** : notre shell connecté
+(`app/(app)/layout.tsx` et `DualChromeShell`) a **la même barre latérale de
+248 px** qu'elle. À 1280 px, `1280 − 248 − 2 × 36 = 960 px` de contenu, ce que
+`screenshots/accueil.png` mesure exactement. Ce ne sont donc pas des chiffres
+ronds choisis au jugé : ce sont des mesures vérifiées, et la maquette *prouve*
+que ses deux colonnes tiennent à cette largeur. 🛑 **On n'ajoute pas de
+quatrième borne** : un écran qui « en aurait besoin » a en réalité besoin
+d'une des trois largeurs de colonne.
+
+**Comment un écran s'en sert**
+
+- `<SejourApp wide>` → colonne de 1080 px, pour un **tableau de bord** à
+  plusieurs colonnes (l'Accueil ; le Plan quand il sera repris).
+  `<SejourApp sticky>` → 980 px. Sans rien → 720 px (écran de **lecture** :
+  les rapports de diagnostic).
+- `<div className={sejourStyles.deskPair}>` autour de **deux** `Section`
+  voisines → côte à côte à partir de 960 px, empilées en dessous. Une seule
+  `Section` dans la paire occupe la colonne de gauche et laisse la droite
+  vide : c'est le comportement de la maquette (`accueil-civ.png`), pas un
+  accident.
+- `<Stack className={sejourStyles.deskGrid}>` → 1 → 2 (960) → 3 (1100)
+  colonnes. Le pendant de `sf-prio-grid` / `sf-obs-grid`.
+- `<Stack className={sejourStyles.deskGrid2}>` → 1 → 2 (960) colonnes, et on
+  s'arrête là. Le pendant de `sf-exam-grid`.
+
+🛑 **Une media query n'est pas une primitive, et n'a PAS de miroir Flutter.**
+L'app Flutter est en portrait téléphone : elle n'a pas de desktop, donc un
+palier purement desktop n'a rien à porter de son côté — et une classe ajoutée
+dans `sejour_kit.dart` « pour la parité » y serait du code mort. En revanche un
+**motif visuel** nouveau (un composant) reste une primitive et s'ajoute des
+DEUX côtés dans la même passe. **Préférer une media query sur une primitive
+existante à une primitive nouvelle.**
+
+⚠️ **Ce que la maquette fait et que nous NE faisons PAS** : elle masque
+`.sf-mod-toggle` en desktop, parce que son rail porte la bascule de parcours.
+Chez nous les deux bascules ne mènent pas au même endroit — celle de
+l'`AppSidebar` va sur `/entrainement?module=…`, celle du kit (`TopSlot` du
+Plan) change le module **de l'écran courant**. Masquer la seconde ferait perdre
+la porte de l'autre parcours sur le Plan. `.segWrap` reste donc visible en
+desktop, et perd seulement sa gouttière de 16 px.
+
+**Ce que la maquette prévoit pour les écrans sans capture desktop** (utile aux
+passes suivantes) : `diagnostic-rapide.tsx` et `diagnostic-complet.tsx` sont
+des `<App>` **nus** — donc la colonne de **lecture de 720 px**, pas un tableau
+de bord. Ce qui change en desktop, chez eux, c'est seulement l'**intérieur** :
+`sf-obs-grid` (les observations du rapide), `sf-exam-grid` (les quatre
+épreuves) et `sf-prio-grid` (les priorités) passent de 1 à 2 puis 3 colonnes.
+Les écrans `plan-premium`, `civique-plan` et `accueil` sont des `<App tabs>` →
+**1080 px**, avec `sf-desk-pair`. `paywall`, `plan-gratuit` et
+`civique-plan-gratuit` sont des `<App sticky>` → **980 px**, et le paywall
+remplace sa barre collée par un CTA dans le flux (`sf-desk-cta`).
+
+### La barre latérale reprend la FORME du rail de la maquette (2026-09-12)
+
+`AppSidebar.tsx` : logo + **sous-titre de parcours**, **bascule TCF IRN /
+Examen civique**, entrées à icônes, **note de bas de colonne**, puis le streak
+et la carte utilisateur. C'est la forme de `.sf-rail` (`grok_ecran/studio.tsx`).
+
+🛑 **Les entrées, elles, sont les nôtres — aucune inventée, aucune perdue**
+(« on garde nos menus, seuls les écrans on copie »). Les deux entrées
+`/entrainement?module=TCF` et `?module=CIVIQUE` n'ont pas disparu : elles
+**sont** les deux côtés de la bascule, mêmes libellés, mêmes destinations. Les
+répéter en entrées de liste aurait mis deux fois la même destination dans la
+même colonne. Les cinq autres (`/dashboard`, `/examens-blancs`, `/plan`,
+`/historique`, `/recommandations`) restent des entrées à icône.
+
+Sous 900 px la barre est masquée au profit du drawer : le sous-titre, la
+bascule et la note y sont remis par `globals.css` (`.ms-drawer-inner`), et
+masqués dans la variante horizontale.
+
+`objectifLabel()` (`lib/preparation.ts`) est l'**autorité unique** de la phrase
+« Objectif : naturalisation » — construite sur `MENTION_LABEL`, la seule table
+de démarches du web. Elle était écrite en dur dans `AppSidebar` et l'Accueil
+allait en poser une deuxième copie.
+
+### L'Accueil (`/dashboard`) — réorganisé sur la maquette (2026-09-12)
+
+Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
+`.app`, ses variables `--sf-*` et le palier desktop. Sa structure suit
+`screenshots/accueil.png` :
+
+1. bandeau « choisissez votre parcours » (si `targetProcedure` est `null`) ;
+2. en-tête « Bonjour X » + pastille de démarche + « Entraînement du jour » ;
+3. `deskPair` : **À faire maintenant** (`NowCard`, les 3 états servis du
+   diagnostic / de la priorité du Plan) | **Ma préparation** ;
+4. `deskPair` : **Affiner votre Plan** (secondaire, 1/4 → 3/4) | **Votre
+   progression** (nos 4 indicateurs) ;
+5. **Vos parcours** (les deux cartes de module, en `deskPair`) ;
+6. **À renforcer en priorité**.
+
+🛑 **La maquette n'a décidé que la mise en page.** La hiérarchie arbitrée est
+intacte : « Continuez votre diagnostic complet » reste secondaire et disparaît
+à 4/4 ; une priorité **verrouillée** n'est toujours pas nommée et
+« Commencer directement » n'apparaît toujours pas sur un exercice `locked`.
+Les blocs de la maquette sans donnée servie chez nous (le trio « compétences
+travaillées / maîtrisée / validations », les raccourcis du bas) sont **omis**.
+
+**Deux duplications supprimées avec leur cause** : `AffinerPlanCard` n'a plus
+qu'un rendu (sa variante `surface="accueil"` n'existait que parce que l'Accueil
+n'était pas dans le scope `.app`), et `PreparationCard` n'a plus de feuille de
+style à elle. `attemptApi.listMine` a disparu de l'Accueil : son résultat
+n'alimentait plus rien depuis la refonte précédente.
 
 **Ton d'état : quatre valeurs, pas trois.** `ok` / `warn` / `hot` / **`muted`**.
 🛑 `muted` = **non mesuré**, et ce n'est pas un quatrième degré de gravité. Sans

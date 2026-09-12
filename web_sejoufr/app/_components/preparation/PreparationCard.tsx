@@ -10,12 +10,15 @@
  *
  * 🛑 **Les deux modules avancent indépendamment.** Un candidat ne prépare pas
  * forcément les deux, et l'un ne dit rien de l'autre.
+ *
+ * Elle assemble les primitives du KIT (`Card`, `Stack`, `sejourStyles`) depuis
+ * que l'Accueil est un écran du KIT : elle n'a plus de feuille à elle.
  */
 import Link from "next/link";
 import {ArrowRight} from "lucide-react";
+import {Card, Stack, sejourStyles} from "../sejour/SejourKit";
 import {
     CIVIQUE_LABEL,
-    PREPARATION_TITLE,
     TCF_LABEL,
     civiqueAction,
     tcfAction,
@@ -34,84 +37,23 @@ export function PreparationCard({prep}: {prep: PreparationDto | null}) {
     if (!prep) return null;
 
     return (
-        <section className="prep" aria-labelledby="prep-title">
-            <h2 id="prep-title">{PREPARATION_TITLE}</h2>
+        <Stack>
             <ModuleLigne label={TCF_LABEL} action={tcfAction(prep.tcf)} />
             <ModuleLigne label={CIVIQUE_LABEL} action={civiqueAction(prep.civique)} />
-            <Styles />
-        </section>
+        </Stack>
     );
 }
 
 function ModuleLigne({label, action}: {label: string; action: PreparationAction}) {
     return (
-        <div className="prep-module">
-            <p className="prep-module-label">{label}</p>
-            <p className="prep-module-statut">{action.statut}</p>
-            <Link href={action.href} className="prep-cta">
-                {action.cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden />
+        <Card padding="rows">
+            <p className={sejourStyles.label}>{label}</p>
+            <p className={sejourStyles.sub} style={{marginTop: 0}}>
+                {action.statut}
+            </p>
+            <Link href={action.href} className={sejourStyles.link}>
+                {action.cta} <ArrowRight size={16} strokeWidth={2.4} aria-hidden />
             </Link>
-        </div>
-    );
-}
-
-/**
- * 🛑 **`<style>` SANS l'attribut `jsx`, et ce n'est pas un oubli.**
- *
- * styled-jsx scope ses règles aux éléments rendus par **le même** composant :
- * dans un `Styles()` qui ne rend que la balise, aucun élément ne reçoit la
- * classe de scope, et **aucune règle ne s'applique**. C'est ce qui a rendu ces
- * écrans invisiblement nus — le toggle du Plan y compris.
- *
- * Le reste du dépôt utilise `<style>` global : on s'y aligne, et toutes les
- * classes sont préfixées pour qu'il n'y ait aucune collision.
- */
-function Styles() {
-    return (
-        <style>{`
-            .prep {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            .prep h2 {
-                font-family: var(--font-display);
-                font-size: 20px;
-                color: var(--color-ink);
-                margin: 0;
-            }
-            .prep-module {
-                border: 1px solid var(--color-line);
-                border-radius: 16px;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            }
-            .prep-module-label {
-                margin: 0;
-                font-family: var(--font-mono);
-                font-size: 11px;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                color: var(--color-muted-2);
-            }
-            .prep-module-statut {
-                margin: 0;
-                font-size: 15px;
-                color: var(--color-ink);
-            }
-            .prep-cta {
-                margin-top: 8px;
-                align-self: flex-start;
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                font-size: 14px;
-                font-weight: 600;
-                color: var(--color-blue);
-                text-decoration: none;
-            }
-        `}</style>
+        </Card>
     );
 }

@@ -1542,6 +1542,160 @@
   .sticky {
     border-radius: var(--sf-radius-lg) var(--sf-radius-lg) 0 0;
   }
+
+  /* 🛑 **La colonne cesse d'être une colonne de téléphone.** 560 px, c'était la
+     largeur d'un écran mobile étiré ; 720 px est la *colonne de lecture* de la
+     maquette (`.sf-main` d'un écran sans barre d'onglets ni barre collée). Le
+     rendu ≤ 620 px, lui, ne bouge pas d'un pixel. */
+  .app {
+    max-width: 720px;
+  }
+}
+
+/* ============================================================================
+   LE PALIER DESKTOP — la fondation des écrans « web » (2026-09-12)
+   ============================================================================
+
+   ## Ce que fait la maquette (`grok_ecran/src/sejour.css`)
+
+   Elle n'a **qu'une** borne de mise en page, `@media (min-width: 960px)` (plus
+   une borne *interne* à 1100 px qui fait seulement passer deux grilles de 2 à
+   3 colonnes). À cette borne :
+
+   1. le cadre téléphone disparaît et la barre latérale de 248 px apparaît ;
+   2. la colonne de contenu (`.sf-main`) cesse d'être plafonnée à 390 px et
+      prend un plafond **choisi par la NATURE de l'écran** — 1080 px pour un
+      tableau de bord, 980 px pour un écran à barre d'action collée, 720 px
+      pour un écran de lecture — avec une gouttière de 36 px ;
+   3. les blocs perdent leur padding latéral de 16 px (la gouttière a déménagé
+      sur la colonne) ;
+   4. des **classes de disposition** inertes sur mobile (`.sf-desk-pair`,
+      `.sf-prio-grid`, `.sf-obs-grid`, `.sf-exam-grid`) deviennent des grilles.
+
+   🛑 **C'est le point à retenir : le desktop n'ajoute AUCUN composant.** Ce
+   sont des media queries sur les briques qui existent déjà, plus des `div`
+   porteurs d'une classe de grille. C'est exactement ce qu'on transpose ici.
+
+   ## Nos bornes, et pourquoi ce sont les siennes
+
+   - **620 px** — borne déjà présente (confort de lecture). Inchangée.
+   - **960 px** — la borne desktop. On reprend le chiffre de la maquette parce
+     que notre shell connecté a **la même barre latérale de 248 px** qu'elle :
+     à 960 px de fenêtre, la colonne de contenu vaut 712 px des deux côtés, donc
+     la maquette *prouve* que ses deux colonnes tiennent. Ce n'est pas un
+     chiffre rond choisi au hasard, c'est une mesure vérifiée
+     (`screenshots/accueil.png`, 1280 px : 1280 − 248 − 2 × 36 = 960 px de
+     contenu, ce que la capture mesure exactement).
+   - **1100 px** — borne *interne* : `.deskGrid` passe de 2 à 3 colonnes. Idem
+     maquette, et valide pour la même raison.
+
+   🛑 **On n'en ajoute pas d'autres.** Un écran qui « aurait besoin » d'une
+   quatrième borne a en réalité besoin d'une des trois largeurs de colonne.
+
+   ## Comment un écran s'en sert
+
+   - `<SejourApp wide>` → colonne de 1080 px (tableau de bord : l'Accueil, le
+     Plan). `<SejourApp sticky>` → 980 px. Sans rien → 720 px (lecture : les
+     rapports de diagnostic).
+   - `<div className={sejourStyles.deskPair}>` autour de **deux** `Section`
+     voisines → elles se posent côte à côte à partir de 960 px, l'une sous
+     l'autre en dessous. Une seule `Section` dans la paire occupe la colonne de
+     gauche et laisse la droite vide : c'est le comportement de la maquette
+     (cf. `accueil-civ.png`), pas un accident.
+   - `<Stack className={sejourStyles.deskGrid}>` → 1 colonne, puis 2 à 960 px,
+     puis 3 à 1100 px (priorités, observations).
+   - `<Stack className={sejourStyles.deskGrid2}>` → 1 colonne, puis 2 à 960 px,
+     et on s'arrête là (épreuves, cartes larges).
+
+   🛑 **Ces classes ne sont PAS des primitives.** Elles n'ont, et ne doivent
+   avoir, aucun miroir dans `sejour_kit.dart` : l'app Flutter est en portrait
+   téléphone, elle n'a pas de desktop. Un motif *visuel* nouveau, lui, reste
+   une primitive et s'ajoute des DEUX côtés dans la même passe.
+   ============================================================================ */
+
+/* 🛑 Sous 960 px ces trois classes ne déclarent RIEN : `deskPair` reste un
+   `div` de flux ordinaire et `deskGrid`/`deskGrid2` s'emploient sur un `Stack`
+   qui empile déjà. C'est ce qui garantit que le rendu mobile est, au sens
+   strict, le rendu d'avant. */
+
+@media (min-width: 960px) {
+  /* Un écran de LECTURE ne s'élargit pas : ce qu'il gagnerait en largeur, il
+     le perdrait en lisibilité. Il reste à sa colonne de 720 px. */
+  .app {
+    padding-inline: 36px;
+    padding-bottom: 48px;
+  }
+
+  /* La barre d'action n'a plus besoin de réserver la hauteur d'un pouce : elle
+     redevient une carte dans le flux (voir `.sticky` plus bas). */
+  .app.hasSticky {
+    max-width: 980px;
+    padding-bottom: 32px;
+  }
+
+  .app.wide {
+    max-width: 1080px;
+  }
+
+  /* La gouttière a déménagé sur la colonne : les blocs la rendent. */
+  .pad,
+  .top,
+  .segWrap {
+    padding-inline: 0;
+  }
+
+  .sectionH,
+  .footNote {
+    margin-inline: 0;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  /* Un bouton pleine largeur sur 1008 px de colonne n'est plus un bouton,
+     c'est une bannière. Exceptions : ceux qui vivent DANS une carte, dont la
+     largeur est déjà celle de la carte. */
+  .btn {
+    max-width: 420px;
+  }
+
+  .now .btn,
+  .cardHero .btn,
+  .card .btn,
+  .cardOk .btn,
+  .sticky .btn {
+    max-width: none;
+  }
+
+  /* Plus de barre posée sur le bord bas de l'écran : une carte collée en fin
+     de colonne, comme la maquette. */
+  .sticky {
+    border-radius: var(--sf-radius-lg);
+    margin-top: 24px;
+    padding: 14px 16px;
+    background: #fff;
+    backdrop-filter: none;
+    box-shadow: var(--sf-shadow-border);
+  }
+
+  .deskPair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 28px;
+    align-items: start;
+  }
+
+  .deskGrid,
+  .deskGrid2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .deskGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 
 /* ---------- La gouttière du burger de l'espace connecté ---------- */

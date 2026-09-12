@@ -57,18 +57,36 @@ const toneClass: Record<Tone, string> = {
 
 /* ------------------------------------------------------------------ Shell */
 
+/**
+ * Le cadre d'un écran du kit. C'est lui qui décide la **largeur de la colonne**
+ * au palier desktop (≥ 960 px), exactement comme `.sf-main` dans la maquette :
+ *
+ * | prop | ≤ 620 px | 620 → 960 | ≥ 960 px | pour quoi |
+ * |---|---|---|---|---|
+ * | — | 560 px | 720 px | **720 px** | un écran de LECTURE (rapport de diagnostic) |
+ * | `sticky` | 560 px | 720 px | **980 px** | un écran dont l'action est une barre collée (paywall, Plan gratuit) |
+ * | `wide` | 560 px | 720 px | **1080 px** | un TABLEAU DE BORD à plusieurs colonnes (Accueil, Plan abonné) |
+ *
+ * 🛑 Le rendu ≤ 620 px est identique dans les trois cas : le desktop s'ajoute
+ * **au-dessus** de l'existant, il ne le remplace pas.
+ */
 export function SejourApp({
   children,
   sticky,
+  wide,
   className,
 }: {
   children: ReactNode;
   /** Réserve la place de la barre d'action collée en bas. */
   sticky?: boolean;
+  /** Colonne large (1080 px) : l'écran dispose plusieurs colonnes en desktop. */
+  wide?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cx(styles.app, sticky && styles.hasSticky, className)}>
+    <div
+      className={cx(styles.app, sticky && styles.hasSticky, wide && styles.wide, className)}
+    >
       {children}
     </div>
   );

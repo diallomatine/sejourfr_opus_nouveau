@@ -1124,6 +1124,24 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
 - 🛑 **Aucun `BoxDecoration` ni `TextStyle` ad hoc** dans un écran de ce
   périmètre : tout passe par le kit, `AppColors`, `AppFonts`, `AppRadii`.
 
+🛑 **Le palier DESKTOP du kit web n'a PAS de contrepartie ici (2026-09-12).**
+`sejour.module.css` a gagné une borne `@media (min-width: 960px)` : colonne de
+720 / 980 / 1080 px, classes de grille `deskPair` / `deskGrid` / `deskGrid2`,
+`SejourApp wide`. **Rien de tout cela ne se porte en Dart, et c'est la règle,
+pas une dette** : l'app Flutter est en portrait téléphone, elle n'a pas de
+desktop — une classe ajoutée ici « pour la parité » y serait du code mort.
+
+La frontière est simple :
+
+| ce qu'on ajoute côté web | miroir Dart ? |
+|---|---|
+| une **media query** (un palier, une grille qui n'existe qu'au-dessus d'une largeur) | **non** |
+| une **primitive** (un composant, un motif visuel nouveau) | **oui, dans la même passe** |
+
+Et l'ordre de préférence est : **une media query sur une primitive existante
+plutôt qu'une primitive nouvelle.** Le rendu mobile du kit (≤ 620 px côté web)
+n'a pas bougé d'un pixel dans cette passe, et `sejour_kit.dart` non plus.
+
 ⚠️ **La typo n'est pas celle de la maquette, et c'est voulu.** La maquette (et le
 web) sont en Plus Jakarta Sans + Fraunces ; le mobile a migré vers **Bricolage
 Grotesque + Hanken Grotesk**. Les écrans reprennent la **mise en page** de la

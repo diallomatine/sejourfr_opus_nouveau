@@ -8,7 +8,6 @@ import {
     ClipboardCheck,
     Flame,
     GraduationCap,
-    LayoutGrid,
     Lightbulb,
     Sparkles,
     Target,
@@ -19,8 +18,18 @@ import {
 import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
 import {AffinerPlanCard} from "@/app/_components/plan/AffinerPlanCard";
 import {PreparationCard} from "@/app/_components/preparation/PreparationCard";
-import {attemptApi, dashboardApi, diagnosticApi, learningPlanApi, userContentApi} from "@/lib/api";
-import {affinerPlan} from "@/lib/preparation";
+import {
+    Card,
+    Cta,
+    NowCard,
+    Pad,
+    Section,
+    SejourApp,
+    Stack,
+    sejourStyles,
+} from "@/app/_components/sejour/SejourKit";
+import {dashboardApi, diagnosticApi, learningPlanApi, userContentApi} from "@/lib/api";
+import {PREPARATION_TITLE, affinerPlan, objectifLabel} from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {moduleAverage, successHint} from "@/lib/dashboard";
 import {
@@ -29,31 +38,46 @@ import {
     recommendedExerciseHref,
 } from "@/lib/diagnostic";
 import {
-    type AttemptSummaryResponse,
     type DashboardCategoryStat,
     type DashboardSummaryResponse,
     type DiagnosticResponse,
     type LearningPlanDto,
     type PreparationDto,
     estimatedTcfLevelScopeLabel,
-    isProductionAttempt,
     niveauCecrlShort,
 } from "@/lib/types";
 
 /**
- * Tableau de bord (refonte web_refonte) : un seul appel agrégé
+ * **L'Accueil** de l'espace connecté : un seul appel agrégé
  * GET /api/me/dashboard (streak, examens blancs, réussite globale, niveau
- * TCF estimé, catégories par module), historique des attempts, puis les vues
- * légères Diagnostic/Plan qui pilotent la carte d'action prioritaire.
- * Les recommandations complètes vivent sur /recommandations.
+ * TCF estimé, catégories par module), puis les vues légères Diagnostic /
+ * Plan / Préparation qui pilotent la carte d'action prioritaire. Les recommandations complètes vivent sur /recommandations.
+ *
+ * ## La mise en page vient de la maquette (2026-09-12)
+ *
+ * `~/Desktop/grok_ecran` — `screenshots/accueil.png` et `accueil-civ.png`.
+ * L'écran est monté sur le **KIT** (`SejourApp wide` → colonne de 1080 px au
+ * palier desktop) et dispose ses sections par paires avec
+ * `sejourStyles.deskPair` : deux colonnes à partir de 960 px, une seule en
+ * dessous. 🛑 **Le desktop n'ajoute aucun composant** — ce sont les mêmes
+ * briques, dans une grille qui n'existe qu'au-dessus de 960 px.
+ *
+ * ## Ce que la maquette ne décide PAS
+ *
+ * 🛑 Elle est une référence de **mise en page**, jamais une source de données
+ * ni de règles. En particulier, la hiérarchie des actions est **inchangée** :
+ * « À faire maintenant » porte l'action principale servie (le Plan pour un
+ * abonné, la porte du diagnostic sinon), « Ma préparation » dit l'état des deux
+ * modules, et « Continuez votre diagnostic complet » reste **secondaire** et
+ * n'apparaît que de 1/4 à 3/4. Les blocs de la maquette qui n'ont pas de
+ * donnée servie chez nous (le trio « compétences travaillées / maîtrisée /
+ * validations », les raccourcis du bas) sont **omis**, pas fabriqués : nos
+ * indicateurs réels prennent leur place.
  */
-
-
 export default function DashboardPage() {
     const {user, status} = useAuth();
 
     const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-    const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
     const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
     const [plan, setPlan] = useState<LearningPlanDto | null>(null);
     const [prep, setPrep] = useState<PreparationDto | null>(null);
@@ -64,9 +88,8 @@ export default function DashboardPage() {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [sum, atts, currentDiagnostic, currentPlan, preparation] = await Promise.all([
+            const [sum, currentDiagnostic, currentPlan, preparation] = await Promise.all([
                 dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
-                attemptApi.listMine({limit: 10}).catch((): AttemptSummaryResponse[] => []),
                 diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
                 learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
                 // 🛑 Un SEUL appel pour tout l'écran : « Ma préparation » et la
@@ -76,7 +99,6 @@ export default function DashboardPage() {
             ]);
             if (cancelled) return;
             setSummary(sum);
-            setAttempts(atts);
             setDiagnostic(currentDiagnostic);
             setPlan(currentPlan);
             setPrep(preparation);
@@ -93,17 +115,6 @@ export default function DashboardPage() {
     const affinerAccueil = useMemo(
         () => (prep ? affinerPlan(prep.tcf, {surface: "accueil", abonne: false}) : null),
         [prep],
-    );
-
-    // Entraînement (série) non terminé à reprendre. On exclut les examens blancs
-    // (MOCK_EXAM) — un examen se passe en une fois, on ne propose pas de le
-    // reprendre — et les productions EE/EO (flux propre).
-    const inProgressAttempt = useMemo(
-        () =>
-            attempts.find(
-                (a) => !a.finishedAt && a.type !== "MOCK_EXAM" && !isProductionAttempt(a),
-            ) ?? null,
-        [attempts],
     );
 
     // Top 3 des catégories travaillées les plus faibles, tous modules confondus.
@@ -136,183 +147,188 @@ export default function DashboardPage() {
         user.hasTcf !== false ? "/entrainement?module=TCF" : "/entrainement?module=CIVIQUE";
 
     return (
-        <main className="dash">
+        <SejourApp wide className="home">
             {!user.targetProcedure && (
-                <Link href="/parcours?from=/dashboard" className="dash-banner">
-          <span>
-            <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
-            naturalisation) pour personnaliser votre préparation.
-          </span>
-                    <ArrowRight size={16} aria-hidden/>
-                </Link>
+                <Pad>
+                    <Link href="/parcours?from=/dashboard" className="home-banner">
+                        <span>
+                            <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
+                            naturalisation) pour personnaliser votre préparation.
+                        </span>
+                        <ArrowRight size={16} aria-hidden/>
+                    </Link>
+                </Pad>
             )}
 
-            <header className="dash-head">
-                <div className="dash-head-text">
-          <span className="dash-eyebrow">
-            <LayoutGrid size={14} aria-hidden/>
-            Tableau de bord
-          </span>
-                    <h1>
-                        Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
-                    </h1>
-                    <p>
-                        Voici où vous en êtes dans votre préparation. Continuez sur votre
-                        lancée.
-                    </p>
+            {/* L'en-tête de la maquette : le prénom, puis la démarche visée en
+                pastille. La démarche est **servie** (`user.targetProcedure`) et
+                son libellé vient de l'autorité unique `objectifLabel`. */}
+            <header className="home-hello">
+                <div>
+                    <h1>Bonjour {user.firstName ?? "à vous"}</h1>
+                    <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
                 </div>
-                <Link href={trainingHref} className="dash-cta">
+                <Link href={trainingHref} className="home-hello-cta">
                     <Zap size={16} aria-hidden/>
                     Entraînement du jour
                 </Link>
             </header>
 
-            {/* 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
-                diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état
-                UNIQUE servi par `/api/me/preparation` — c'est ce qui garantit
-                que les trois écrans proposent la même prochaine action.
-                Placée avant tout indicateur : quand une préparation n'est pas
-                commencée, c'est ça la prochaine action, pas un pourcentage. */}
-            <PreparationCard prep={prep} />
+            <div className={sejourStyles.deskPair}>
+                {diagnostic ? (
+                    <Section title="À faire maintenant">
+                        <Pad>
+                            <ActionPrincipale
+                                diagnostic={diagnostic}
+                                plan={plan}
+                                dismissed={diagnosticDismissed}
+                                onDismiss={() => setDiagnosticDismissed(true)}
+                            />
+                        </Pad>
+                    </Section>
+                ) : null}
 
-            {diagnostic && (
-                <DashboardPlanCard
-                    diagnostic={diagnostic}
-                    plan={plan}
-                    dismissed={diagnosticDismissed}
-                    onDismiss={() => setDiagnosticDismissed(true)}
-                />
-            )}
+                {/* 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
+                    diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état
+                    UNIQUE servi par `/api/me/preparation` — c'est ce qui garantit
+                    que les trois écrans proposent la même prochaine action. */}
+                <Section title={PREPARATION_TITLE}>
+                    <Pad>
+                        <PreparationCard prep={prep}/>
+                    </Pad>
+                </Section>
+            </div>
 
-            {/* 🛑 **Secondaire, et seulement quand le diagnostic complet est
-                COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan,
-                mais elle ne devient jamais l'action principale de l'Accueil :
-                celle-ci reste « Débloquer mon Plan » pour un compte gratuit et
-                l'action pédagogique du Plan pour un abonné. À 4 / 4 elle
-                disparaît — c'est `affinerPlan` qui rend `null`, sur des faits
-                servis, jamais un compteur reconstruit ici. */}
-            {affinerAccueil && <AffinerPlanCard info={affinerAccueil} surface="accueil" />}
+            <div className={sejourStyles.deskPair}>
+                {/* 🛑 **Secondaire, et seulement quand le diagnostic complet est
+                    COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan,
+                    mais elle ne devient jamais l'action principale de l'Accueil :
+                    celle-ci reste « Débloquer mon Plan » pour un compte gratuit et
+                    l'action pédagogique du Plan pour un abonné. À 4 / 4 elle
+                    disparaît — c'est `affinerPlan` qui rend `null`, sur des faits
+                    servis, jamais un compteur reconstruit ici. */}
+                {affinerAccueil && <AffinerPlanCard info={affinerAccueil}/>}
 
-            <section className="stat-grid" aria-label="Vos indicateurs">
-                <article className="stat-card">
-          <span className="stat-icon stat-icon-blue" aria-hidden>
-            <Target size={20}/>
-          </span>
-                    <div className="stat-body">
-            <span className="stat-value">
-              {summary?.globalSuccessPercent !== null &&
-              summary?.globalSuccessPercent !== undefined
-                  ? `${summary.globalSuccessPercent}%`
-                  : "—"}
-            </span>
-                        <span className="stat-label">Maîtrise globale</span>
-                        <span className="stat-sub">
-              {successHint(summary?.globalSuccessPercent ?? null)}
-            </span>
-                    </div>
-                </article>
+                <Section title="Votre progression">
+                    <Pad>
+                        <Card>
+                            <div className="home-stats">
+                                <StatBloc
+                                    tone="blue"
+                                    icon={<Target size={20}/>}
+                                    value={
+                                        summary?.globalSuccessPercent !== null &&
+                                        summary?.globalSuccessPercent !== undefined
+                                            ? `${summary.globalSuccessPercent}%`
+                                            : "—"
+                                    }
+                                    label="Maîtrise globale"
+                                    hint={successHint(summary?.globalSuccessPercent ?? null)}
+                                />
+                                <StatBloc
+                                    tone="green"
+                                    icon={<Trophy size={20}/>}
+                                    value={`${summary?.mockExamsTotal ?? 0}`}
+                                    label="Examens blancs"
+                                    hint="passés au total"
+                                />
+                                <StatBloc
+                                    tone="red"
+                                    icon={<Flame size={20}/>}
+                                    value={`${summary?.currentStreakDays ?? 0} j`}
+                                    label="Série en cours"
+                                    hint={
+                                        summary && summary.recordStreakDays > 0
+                                            ? `record : ${summary.recordStreakDays} jours`
+                                            : "lancez votre série !"
+                                    }
+                                />
+                                <StatBloc
+                                    tone="blue"
+                                    icon={<GraduationCap size={20}/>}
+                                    value={niveauCecrlShort(summary?.estimatedTcfLevel ?? null)}
+                                    label="Niveau TCF estimé"
+                                    /* Un niveau qui ne porte pas sur les 4 épreuves le
+                                       dit ici, à la place de la mention générique. */
+                                    hint={estimatedTcfLevelScopeLabel(summary) ?? "équivalence CECRL"}
+                                />
+                            </div>
+                        </Card>
+                    </Pad>
+                </Section>
+            </div>
 
-                <article className="stat-card">
-          <span className="stat-icon stat-icon-green" aria-hidden>
-            <Trophy size={20}/>
-          </span>
-                    <div className="stat-body">
-                        <span className="stat-value">{summary?.mockExamsTotal ?? 0}</span>
-                        <span className="stat-label">Examens blancs</span>
-                        <span className="stat-sub">passés au total</span>
-                    </div>
-                </article>
+            <Section title="Vos parcours">
+                <Pad>
+                    {/* `Stack` porte l'écart vertical sur mobile, `deskPair` la
+                        grille à deux colonnes à partir de 960 px. */}
+                    <Stack className={sejourStyles.deskPair}>
+                        <ModuleCard
+                            accent="red"
+                            icon={<Waves size={20}/>}
+                            title="TCF IRN"
+                            href="/entrainement?module=TCF"
+                            categories={summary?.tcf ?? []}
+                        />
+                        <ModuleCard
+                            accent="blue"
+                            icon={<Lightbulb size={20}/>}
+                            title="Examen civique"
+                            href="/entrainement?module=CIVIQUE"
+                            categories={summary?.civique ?? []}
+                        />
+                    </Stack>
+                </Pad>
+            </Section>
 
-                <article className="stat-card">
-          <span className="stat-icon stat-icon-red" aria-hidden>
-            <Flame size={20}/>
-          </span>
-                    <div className="stat-body">
-                        <span className="stat-value">{summary?.currentStreakDays ?? 0} j</span>
-                        <span className="stat-label">Série en cours</span>
-                        <span className="stat-sub">
-              {summary && summary.recordStreakDays > 0
-                  ? `record : ${summary.recordStreakDays} jours`
-                  : "lancez votre série !"}
-            </span>
-                    </div>
-                </article>
+            <Section>
+                <Pad>
+                    <Card>
+                        <div className="home-reinforce-head">
+                            <h2>À renforcer en priorité</h2>
+                            <Link href="/recommandations" className={sejourStyles.link}>
+                                Tout voir <ChevronRight size={15} aria-hidden/>
+                            </Link>
+                        </div>
 
-                <article className="stat-card">
-          <span className="stat-icon stat-icon-blue" aria-hidden>
-            <GraduationCap size={20}/>
-          </span>
-                    <div className="stat-body">
-            <span className="stat-value">
-              {niveauCecrlShort(summary?.estimatedTcfLevel ?? null)}
-            </span>
-                        <span className="stat-label">Niveau TCF estimé</span>
-                        {/* Un niveau qui ne porte pas sur les 4 épreuves le dit
-                            ici, à la place de la mention générique : sans ça,
-                            une seule épreuve passée s'affichait comme un niveau
-                            TCF tout court. */}
-                        <span className="stat-sub">
-              {estimatedTcfLevelScopeLabel(summary) ?? "équivalence CECRL"}
-            </span>
-                    </div>
-                </article>
-            </section>
+                        {weakest.length === 0 ? (
+                            <div className="home-reinforce-empty">
+                                <p>
+                                    Entraînez-vous pour obtenir des recommandations personnalisées.
+                                </p>
+                                <Link href={trainingHref} className="home-hello-cta">
+                                    <Zap size={15} aria-hidden/>
+                                    Commencer
+                                </Link>
+                            </div>
+                        ) : (
+                            <ul className="home-reinforce-list">
+                                {weakest.map((cat) => (
+                                    <ReinforceRow key={cat.code} cat={cat}/>
+                                ))}
+                            </ul>
+                        )}
+                    </Card>
+                </Pad>
+            </Section>
 
-            <section className="modules-grid" aria-label="Progression par parcours">
-                <ModuleCard
-                    accent="red"
-                    icon={<Waves size={20}/>}
-                    title="TCF IRN"
-                    href="/entrainement?module=TCF"
-                    categories={summary?.tcf ?? []}
-                />
-                <ModuleCard
-                    accent="blue"
-                    icon={<Lightbulb size={20}/>}
-                    title="Examen civique"
-                    href="/entrainement?module=CIVIQUE"
-                    categories={summary?.civique ?? []}
-                />
-            </section>
-
-            <section className="reinforce-card" aria-label="À renforcer en priorité">
-                <header className="reinforce-head">
-                    <h2>À renforcer en priorité</h2>
-                    <Link href="/recommandations" className="reinforce-all">
-                        Tout voir <ChevronRight size={15} aria-hidden/>
-                    </Link>
-                </header>
-
-                {weakest.length === 0 ? (
-                    <div className="reinforce-empty">
-                        <p>
-                            Entraînez-vous pour obtenir des recommandations personnalisées.
-                        </p>
-                        <Link href={trainingHref} className="dash-cta dash-cta-sm">
-                            <Zap size={15} aria-hidden/>
-                            Commencer
-                        </Link>
-                    </div>
-                ) : (
-                    <ul className="reinforce-list">
-                        {weakest.map((cat) => (
-                            <ReinforceRow key={cat.code} cat={cat}/>
-                        ))}
-                    </ul>
-                )}
-            </section>
-
-            <style>{dashStyles}</style>
-        </main>
+            <style>{homeStyles}</style>
+        </SejourApp>
     );
 }
 
-function DashboardPlanCard({
-                               diagnostic,
-                               plan,
-                               dismissed,
-                               onDismiss,
-                           }: {
+/**
+ * **L'action principale de l'Accueil**, dans la carte hero du KIT.
+ *
+ * 🛑 Les trois états et leurs phrases sont **inchangés** : ce qui a changé,
+ * c'est la brique qui les porte (`NowCard`), pas ce qu'elles disent.
+ */
+function ActionPrincipale({
+                              diagnostic,
+                              plan,
+                              dismissed,
+                              onDismiss,
+                          }: {
     diagnostic: DiagnosticResponse;
     plan: LearningPlanDto | null;
     dismissed: boolean;
@@ -323,19 +339,20 @@ function DashboardPlanCard({
 
     if (state === "NOT_STARTED") {
         return (
-            <section className="dash-plan-card" aria-labelledby="dash-plan-title">
-                <span className="dash-plan-icon" aria-hidden><ClipboardCheck size={24}/></span>
-                <div className="dash-plan-copy">
-                    <span className="dash-plan-kicker">Votre point de départ</span>
-                    <h2 id="dash-plan-title">Découvrez ce qui vous bloque au TCF</h2>
-                    <p>On analyse votre écrit et votre oral pour construire votre premier plan.</p>
-                    <span className="dash-plan-meta">2 exercices · ≈ 8 à 10 min</span>
+            <NowCard
+                icon={ClipboardCheck}
+                title="Découvrez ce qui vous bloque au TCF"
+                subtitle="2 exercices · ≈ 8 à 10 min"
+                badge="Votre point de départ"
+                objective="On analyse votre écrit et votre oral pour construire votre premier plan."
+            >
+                <div className="home-now-actions">
+                    <Cta href="/diagnostic">Faire mon diagnostic</Cta>
+                    <button type="button" onClick={onDismiss} className="home-now-later">
+                        Plus tard
+                    </button>
                 </div>
-                <div className="dash-plan-actions">
-                    <Link href="/diagnostic" className="dash-cta">Faire mon diagnostic <ArrowRight size={15} aria-hidden/></Link>
-                    <button type="button" onClick={onDismiss}>Plus tard</button>
-                </div>
-            </section>
+            </NowCard>
         );
     }
 
@@ -343,18 +360,23 @@ function DashboardPlanCard({
         const done = diagnosticCompletedExerciseCount(diagnostic);
         const analyzing = diagnostic.status === "ANALYZING" || diagnostic.nextStep === "ANALYSIS";
         return (
-            <section className="dash-plan-card" aria-labelledby="dash-plan-title">
-                <span className="dash-plan-icon" aria-hidden><Sparkles size={24}/></span>
-                <div className="dash-plan-copy">
-                    <span className="dash-plan-kicker">Diagnostic en cours</span>
-                    <h2 id="dash-plan-title">{analyzing ? "Votre analyse est en préparation" : "Reprenez votre diagnostic"}</h2>
-                    <p>{analyzing ? "Vos deux réponses sont enregistrées ; vous pouvez revenir voir le résultat." : "Continuez exactement à l'étape où vous vous êtes arrêté."}</p>
-                    <span className="dash-plan-meta">{done} / 2 terminé{done > 1 ? "s" : ""}</span>
+            <NowCard
+                icon={Sparkles}
+                title={analyzing ? "Votre analyse est en préparation" : "Reprenez votre diagnostic"}
+                subtitle={`${done} / 2 terminé${done > 1 ? "s" : ""}`}
+                badge="Diagnostic en cours"
+                objective={
+                    analyzing
+                        ? "Vos deux réponses sont enregistrées ; vous pouvez revenir voir le résultat."
+                        : "Continuez exactement à l'étape où vous vous êtes arrêté."
+                }
+            >
+                <div className="home-now-actions">
+                    <Cta href="/diagnostic">
+                        {analyzing ? "Voir l'analyse" : "Reprendre mon diagnostic"}
+                    </Cta>
                 </div>
-                <div className="dash-plan-actions">
-                    <Link href="/diagnostic" className="dash-cta">{analyzing ? "Voir l'analyse" : "Reprendre mon diagnostic"}<ArrowRight size={15} aria-hidden/></Link>
-                </div>
-            </section>
+            </NowCard>
         );
     }
 
@@ -362,7 +384,7 @@ function DashboardPlanCard({
     /* 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
        Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
        peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
-       en clair sur le tableau de bord démentirait ce rideau. Miroir du mobile
+       en clair sur l'Accueil démentirait ce rideau. Miroir du mobile
        (`PlanPriorityHomeCard`, `home_screen.dart`), qui retombe déjà sur son
        texte générique. */
     const priority = live && !live.locked ? live : null;
@@ -375,25 +397,51 @@ function DashboardPlanCard({
        porte le cadenas et l'offre. */
     const startable = Boolean(exercise) && !exercise?.locked;
     return (
-        <section className="dash-plan-card dash-plan-card-active" aria-labelledby="dash-plan-title">
-            <span className="dash-plan-icon" aria-hidden><Target size={24}/></span>
-            <div className="dash-plan-copy">
-                <span className="dash-plan-kicker">Votre priorité du jour</span>
-                {/* Le titre de la priorité, et rien d'autre : `explanation` est le
-                    constat d'une production déjà faite — il raconte le passé sur une
-                    carte qui annonce l'action à mener, et il vit déjà dans le Plan.
-                    Miroir du mobile (`_DiagnosticPriorityCard`, home_screen.dart), qui
-                    n'a jamais affiché autre chose que le titre. */}
-                <h2 id="dash-plan-title">{priority?.title ?? "Continuez votre plan personnalisé"}</h2>
-                {exercise && <span className="dash-plan-meta">{exercise.title} · {exercise.estimatedMinutes} min</span>}
-            </div>
-            <div className="dash-plan-actions">
-                <Link href="/plan" className="dash-cta">Continuer mon plan <ArrowRight size={15} aria-hidden/></Link>
+        <NowCard
+            icon={Target}
+            /* Le titre de la priorité, et rien d'autre : `explanation` est le
+               constat d'une production déjà faite — il raconte le passé sur une
+               carte qui annonce l'action à mener, et il vit déjà dans le Plan. */
+            title={priority?.title ?? "Continuez votre plan personnalisé"}
+            subtitle={exercise ? `${exercise.title} · ${exercise.estimatedMinutes} min` : undefined}
+            badge="Votre priorité du jour"
+        >
+            <div className="home-now-actions">
+                <Cta href="/plan">Continuer mon plan</Cta>
                 {startable && exercise && (
-                    <Link href={recommendedExerciseHref(exercise)}>Commencer directement</Link>
+                    <Link href={recommendedExerciseHref(exercise)} className="home-now-later">
+                        Commencer directement
+                    </Link>
                 )}
             </div>
-        </section>
+        </NowCard>
+    );
+}
+
+function StatBloc({
+                      tone,
+                      icon,
+                      value,
+                      label,
+                      hint,
+                  }: {
+    tone: "blue" | "green" | "red";
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    hint: string;
+}) {
+    return (
+        <div className="home-stat">
+            <span className={`home-stat-ico home-stat-ico-${tone}`} aria-hidden>
+                {icon}
+            </span>
+            <span className="home-stat-body">
+                <span className="home-stat-value">{value}</span>
+                <span className="home-stat-label">{label}</span>
+                <span className="home-stat-hint">{hint}</span>
+            </span>
+        </div>
     );
 }
 
@@ -412,49 +460,49 @@ function ModuleCard({
 }) {
     const average = moduleAverage(categories);
     return (
-        <article className={`module-card module-card-${accent}`}>
-            <header className="module-head">
-                <Link href={href} className="module-id">
-          <span className={`module-icon module-icon-${accent}`} aria-hidden>
-            {icon}
-          </span>
-                    <span className="module-titles">
-            <span className="module-title">{title}</span>
-            <span className="module-sub">{categories.length} catégories</span>
-          </span>
+        <Card className="home-module">
+            <header className="home-module-head">
+                <Link href={href} className="home-module-id">
+                    <span className={`home-module-ico home-module-ico-${accent}`} aria-hidden>
+                        {icon}
+                    </span>
+                    <span className="home-module-titles">
+                        <span className="home-module-title">{title}</span>
+                        <span className="home-module-sub">{categories.length} catégories</span>
+                    </span>
                 </Link>
-                <span className={`module-pct module-pct-${accent}`}>
-          {average !== null ? `${average}%` : "—"}
-        </span>
+                <span className={`home-module-pct home-module-pct-${accent}`}>
+                    {average !== null ? `${average}%` : "—"}
+                </span>
             </header>
 
-            <ul className="module-rows">
+            <ul className="home-module-rows">
                 {categories.map((cat) => (
-                    <li key={cat.code} className="module-row">
-                        <span className="module-row-label">{cat.label}</span>
+                    <li key={cat.code} className="home-module-row">
+                        <span className="home-module-row-label">{cat.label}</span>
                         <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"}/>
                     </li>
                 ))}
             </ul>
-        </article>
+        </Card>
     );
 }
 
 function DashSkeleton() {
     return (
-        <div className="dash dash-skeleton" aria-busy>
-            <div className="sk sk-head"/>
-            <div className="sk-grid">
-                <div className="sk sk-card"/>
-                <div className="sk sk-card"/>
-                <div className="sk sk-card"/>
-                <div className="sk sk-card"/>
-            </div>
-            <div className="sk-grid sk-grid-2">
-                <div className="sk sk-module"/>
-                <div className="sk sk-module"/>
-            </div>
-            <style>{dashStyles}</style>
+        <SejourApp wide className="home">
+            <Pad>
+                <div className="sk sk-head"/>
+                <div className="sk-grid sk-grid-2">
+                    <div className="sk sk-card"/>
+                    <div className="sk sk-card"/>
+                </div>
+                <div className="sk-grid sk-grid-2">
+                    <div className="sk sk-module"/>
+                    <div className="sk sk-module"/>
+                </div>
+            </Pad>
+            <style>{homeStyles}</style>
             <style>{`
         .sk {
           background: linear-gradient(90deg, #EDEFF7 25%, #F5F6FB 50%, #EDEFF7 75%);
@@ -468,22 +516,17 @@ function DashSkeleton() {
         .sk-head { height: 92px; margin-bottom: 22px; }
         .sk-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: 1fr;
           gap: 16px;
           margin-bottom: 22px;
         }
-        .sk-grid-2 { grid-template-columns: 1fr 1fr; }
-        .sk-card { height: 110px; }
+        .sk-card { height: 180px; }
         .sk-module { height: 280px; }
-        @media (max-width: 1000px) {
-          .sk-grid { grid-template-columns: 1fr 1fr; }
-          .sk-grid-2 { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 560px) {
-          .sk-grid { grid-template-columns: 1fr; }
+        @media (min-width: 960px) {
+          .sk-grid-2 { grid-template-columns: 1fr 1fr; }
         }
       `}</style>
-        </div>
+        </SejourApp>
     );
 }
 
@@ -497,15 +540,17 @@ const emptyStyle = `
   .dash-empty-link { color: var(--color-blue); font-weight: 700; }
 `;
 
-const dashStyles = `
-  .dash {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 30px 28px 48px;
-  }
-
+/**
+ * 🛑 **Aucune couleur ni font en dur** : tout passe par les tokens `@theme`
+ * (`--color-*`, `--font-*`) et par les variables du KIT (`--sf-*`), disponibles
+ * parce que l'écran est dans le scope `.app`.
+ *
+ * 🛑 **Aucune borne nouvelle** : les seules media queries ici sont celles de la
+ * fondation (960 px), et elles ne font que reprendre ce que le KIT décide déjà.
+ */
+const homeStyles = `
   /* ===== bandeaux ===== */
-  .dash-banner {
+  .home-banner {
     display: flex; align-items: center; justify-content: space-between; gap: 14px;
     background: var(--color-blue-light);
     border: 1px solid color-mix(in srgb, var(--color-blue) 18%, transparent);
@@ -514,253 +559,170 @@ const dashStyles = `
     padding: 13px 18px;
     font-size: 14px;
     text-decoration: none;
-    margin-bottom: 14px;
+    margin-top: 14px;
     transition: filter 0.15s;
   }
-  .dash-banner:hover { filter: brightness(0.98); }
-  .dash-banner strong { color: var(--color-blue); }
-  .dash-banner-resume {
-    background: var(--color-red-light);
-    border-color: color-mix(in srgb, var(--color-red) 18%, transparent);
+  .home-banner:hover { filter: brightness(0.98); }
+  .home-banner strong { color: var(--color-blue); }
+  /* ===== en-tête « Bonjour X » ===== */
+  .home-hello {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 14px 16px 2px;
   }
-  .dash-banner-resume strong { color: var(--color-red); }
-
-  /* ===== header ===== */
-  .dash-head {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 20px;
-    margin: 8px 0 24px;
-  }
-  .dash-head-text { min-width: 0; }
-  .dash-eyebrow {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-blue);
-    margin-bottom: 10px;
-  }
-  .dash-head h1 {
-    margin: 0 0 8px;
-    font-family: var(--font-sans);
-    font-size: clamp(26px, 4vw, 36px);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--color-ink);
-    line-height: 1.1;
-  }
-  .dash-head p {
+  .home-hello h1 {
     margin: 0;
-    font-size: 15px;
-    color: var(--color-muted);
-    line-height: 1.5;
+    font-family: var(--font-sans);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+    color: var(--color-ink);
   }
-  .dash-cta {
+  .home-obj {
+    display: inline-flex;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: var(--sf-radius-pill);
+    background: var(--color-blue-light);
+    color: var(--color-blue-dark);
+    font-size: 12px;
+    font-weight: 750;
+  }
+  .home-hello-cta {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--color-blue);
     color: #fff;
-    border-radius: 999px;
-    padding: 12px 22px;
+    border-radius: var(--sf-radius-pill);
+    padding: 11px 20px;
     font-size: 14px;
     font-weight: 700;
     text-decoration: none;
     flex-shrink: 0;
-    margin-top: 6px;
     transition: background 0.15s;
   }
-  .dash-cta:hover { background: var(--color-blue-dark); }
-  .dash-cta-sm { padding: 9px 16px; font-size: 13px; margin-top: 0; }
+  .home-hello-cta:hover { background: var(--color-blue-dark); }
 
-  /* ===== point d'entrée diagnostic / priorité du Plan ===== */
-  .dash-plan-card {
+  /* ===== actions de la carte « À faire maintenant » ===== */
+  .home-now-actions {
+    margin-top: 14px;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 17px;
-    margin-bottom: 22px;
-    padding: 20px;
-    border: 1px solid color-mix(in srgb, var(--color-blue) 24%, var(--color-line));
-    border-radius: 17px;
-    background: var(--color-blue-soft);
+    gap: 8px;
+    justify-items: start;
   }
-  .dash-plan-card-active {
-    border-color: color-mix(in srgb, var(--color-green) 24%, var(--color-line));
-  }
-  .dash-plan-icon {
-    display: inline-flex;
-    width: 48px; height: 48px;
-    align-items: center; justify-content: center;
-    border-radius: 14px;
-    color: var(--color-blue);
-    background: var(--color-blue-light);
-  }
-  .dash-plan-copy { min-width: 0; }
-  .dash-plan-kicker {
-    color: var(--color-blue);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-  }
-  .dash-plan-copy h2 {
-    margin: 3px 0 2px;
-    color: var(--color-ink);
-    font-size: 18px;
-    line-height: 1.3;
-  }
-  .dash-plan-copy p {
-    margin: 0;
-    color: var(--color-muted);
-    font-size: 13px;
-  }
-  .dash-plan-meta {
-    display: inline-block;
-    margin-top: 6px;
-    color: var(--color-blue);
-    font-size: 12px;
-    font-weight: 800;
-  }
-  .dash-plan-actions {
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .dash-plan-actions .dash-cta { margin: 0; white-space: nowrap; }
-  .dash-plan-actions > button,
-  .dash-plan-actions > a:not(.dash-cta) {
+  .home-now-actions > * { width: 100%; }
+  .home-now-later {
+    justify-self: center;
     border: 0;
-    padding: 3px;
-    color: var(--color-muted);
+    padding: 4px;
     background: transparent;
+    color: var(--color-muted);
     font: inherit;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
+    text-align: center;
+    text-decoration: none;
     cursor: pointer;
+    width: auto;
   }
-  .dash-plan-actions > button:hover,
-  .dash-plan-actions > a:not(.dash-cta):hover { color: var(--color-blue); text-decoration: underline; }
-  .dash-plan-actions > button:focus-visible,
-  .dash-plan-actions > a:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
-    outline-offset: 3px;
-  }
+  .home-now-later:hover { color: var(--color-blue); text-decoration: underline; }
 
-  /* ===== stat cards ===== */
-  .stat-grid {
+  /* ===== indicateurs ===== */
+  /* auto-fit plutôt qu'une borne de plus : la grille se replie d'elle-même
+     à 360 px comme dans une demi-colonne de desktop. */
+  .home-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 22px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px 12px;
   }
-  .stat-card {
-    display: flex; align-items: center; gap: 14px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 20px 18px;
-    min-width: 0;
-  }
-  .stat-icon {
-    width: 44px; height: 44px;
-    border-radius: 12px;
+  .home-stat { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .home-stat-ico {
+    width: 40px; height: 40px;
+    border-radius: var(--sf-radius-sm);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .stat-icon-green { background: color-mix(in srgb, var(--color-green) 12%, #fff); color: var(--color-green); }
-  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
-  .stat-body { display: flex; flex-direction: column; min-width: 0; }
-  .stat-value {
+  .home-stat-ico-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .home-stat-ico-green {
+    background: var(--color-green-light);
+    color: var(--color-green-dark);
+  }
+  .home-stat-ico-red { background: var(--color-red-light); color: var(--color-red); }
+  .home-stat-body { display: flex; flex-direction: column; min-width: 0; }
+  .home-stat-value {
     font-family: var(--font-sans);
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--color-ink);
     line-height: 1.15;
   }
-  .stat-label {
+  .home-stat-label {
     font-size: 13px;
     font-weight: 700;
     color: var(--color-ink-2);
     margin-top: 2px;
   }
-  .stat-sub {
+  .home-stat-hint {
     font-size: 12px;
     color: var(--color-muted);
     margin-top: 1px;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* ===== module cards ===== */
-  .modules-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 22px;
-  }
-  .module-card {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 22px;
-    min-width: 0;
-  }
-  .module-head {
+  /* ===== cartes de parcours ===== */
+  .home-module-head {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
-  .module-id {
+  .home-module-id {
     display: flex; align-items: center; gap: 12px;
     text-decoration: none;
     min-width: 0;
   }
-  .module-icon {
-    width: 44px; height: 44px;
-    border-radius: 12px;
+  .home-module-ico {
+    width: 42px; height: 42px;
+    border-radius: var(--sf-radius-sm);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .module-icon-blue { background: var(--color-blue); color: #fff; }
-  .module-icon-red { background: var(--color-red); color: #fff; }
-  .module-titles { display: flex; flex-direction: column; min-width: 0; }
-  .module-title {
-    font-size: 17px;
+  .home-module-ico-blue { background: var(--color-blue); color: #fff; }
+  .home-module-ico-red { background: var(--color-red); color: #fff; }
+  .home-module-titles { display: flex; flex-direction: column; min-width: 0; }
+  .home-module-title {
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: -0.01em;
     color: var(--color-ink);
   }
-  .module-id:hover .module-title { color: var(--color-blue); }
-  .module-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
-  .module-pct {
+  .home-module-id:hover .home-module-title { color: var(--color-blue); }
+  .home-module-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
+  .home-module-pct {
     font-family: var(--font-sans);
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: -0.02em;
     flex-shrink: 0;
   }
-  .module-pct-blue { color: var(--color-blue); }
-  .module-pct-red { color: var(--color-red); }
-
-  .module-rows {
+  .home-module-pct-blue { color: var(--color-blue); }
+  .home-module-pct-red { color: var(--color-red); }
+  .home-module-rows {
     list-style: none;
     margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: 13px;
+    display: flex; flex-direction: column; gap: 12px;
   }
-  .module-row {
+  .home-module-row {
     display: grid;
-    grid-template-columns: minmax(120px, 190px) 1fr;
-    align-items: center;
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 6px;
     min-width: 0;
   }
-  .module-row-label {
+  .home-module-row-label {
     font-size: 13.5px;
     color: var(--color-ink-2);
     white-space: nowrap;
@@ -769,70 +731,44 @@ const dashStyles = `
   }
 
   /* ===== à renforcer ===== */
-  .reinforce-card {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 22px;
-  }
-  .reinforce-head {
+  .home-reinforce-head {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
-  .reinforce-head h2 {
+  .home-reinforce-head h2 {
     margin: 0;
     font-family: var(--font-sans);
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
     letter-spacing: -0.01em;
     color: var(--color-ink);
   }
-  .reinforce-all {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--color-blue);
-    text-decoration: none;
-  }
-  .reinforce-all:hover { text-decoration: underline; }
-
-  .reinforce-list {
+  .home-reinforce-list {
     list-style: none;
     margin: 0; padding: 0;
     display: flex; flex-direction: column; gap: 10px;
   }
-  .reinforce-empty {
+  .home-reinforce-empty {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px;
     flex-wrap: wrap;
   }
-  .reinforce-empty p { margin: 0; font-size: 14px; color: var(--color-muted); }
+  .home-reinforce-empty p { margin: 0; font-size: 14px; color: var(--color-muted); }
 
-  /* ===== responsive ===== */
-  @media (max-width: 1000px) {
-    .stat-grid { grid-template-columns: 1fr 1fr; }
-    .modules-grid { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 768px) {
-    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
-    .dash { padding: 64px 18px 40px; }
-    .dash-head { flex-direction: column; }
-    .dash-cta { margin-top: 0; }
-    .dash-plan-card { grid-template-columns: auto minmax(0, 1fr); }
-    .dash-plan-actions {
-      grid-column: 1 / -1;
-      align-items: stretch;
-      flex-direction: row;
-      justify-content: flex-end;
+  /* ===== palier desktop (960 px) — la borne du KIT, pas une de plus ===== */
+  @media (min-width: 960px) {
+    .home-hello {
+      padding-left: 0;
+      padding-right: 0;
+      padding-top: 10px;
+      align-items: center;
     }
-  }
-  @media (max-width: 560px) {
-    .stat-grid { grid-template-columns: 1fr; }
-    .module-row { grid-template-columns: 1fr; gap: 6px; }
-    .dash-plan-card { grid-template-columns: 1fr; }
-    .dash-plan-icon { width: 42px; height: 42px; }
-    .dash-plan-actions { grid-column: auto; flex-direction: column; }
-    .dash-plan-actions .dash-cta { width: 100%; justify-content: center; white-space: normal; }
+    .home-hello h1 { font-size: 32px; }
+    .home-module-row {
+      grid-template-columns: minmax(110px, 170px) 1fr;
+      align-items: center;
+      gap: 12px;
+    }
   }
 `;
