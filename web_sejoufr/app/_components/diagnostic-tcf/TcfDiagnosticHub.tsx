@@ -364,7 +364,7 @@ function DiagnosticDejaFait({
 
             <p className="tcfd-fine">{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
 
-            <PaywallSheet
+            <PaywallSheet origin="diagnostic"
                 open={paywallOpen}
                 onClose={onPaywallClose}
                 module="INTEGRAL"

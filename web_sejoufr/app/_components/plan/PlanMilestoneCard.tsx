@@ -71,7 +71,7 @@ export function PlanMilestoneCard({milestone}: {milestone: PlanMilestoneExercise
         </NowCard>
         {error && <p className={sejourStyles.tiny} role="alert">{error}</p>}
       </Pad>
-      <PaywallSheet
+      <PaywallSheet origin="plan"
         ctaLocation="LOCKED_PLAN"
         screen="plan_jalon"
         module="INTEGRAL"

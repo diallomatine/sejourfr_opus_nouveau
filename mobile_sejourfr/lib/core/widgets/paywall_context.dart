@@ -23,6 +23,34 @@ import '../models/enums.dart';
 /// Plafond d'affichage des priorités sur le paywall (`10_` §5).
 const int kPaywallMaxPriorities = 3;
 
+/// **D'où le paywall a été ouvert.**
+///
+/// 🛑 L'en-tête personnalisé — « Votre plan B2 est prêt », les priorités
+/// réelles, les bénéfices du plan — ne s'affiche que depuis les deux écrans qui
+/// viennent de le montrer : le **Plan** et le **diagnostic**. Ailleurs (un
+/// cadenas de série, un slot d'examen, une tâche de production), le candidat
+/// n'a rien vu de tel : lui ouvrir une page qui commence par « votre plan est
+/// prêt » promet un contexte qu'il n'a pas sous les yeux, et repousse l'offre
+/// d'un écran entier. Le paywall commence alors directement à « Débloquez votre
+/// accès ».
+///
+/// ⚠️ Le défaut est [ailleurs] : un appelant qui ne dit rien n'obtient pas
+/// l'en-tête. C'est le bon défaut — une vingtaine d'écrans ouvrent le paywall,
+/// et deux seulement ont le contexte.
+enum PaywallOrigin {
+  /// Le Plan, ou un de ses lanceurs (exercice verrouillé, série civique).
+  plan,
+
+  /// Un écran de diagnostic, où le candidat vient de lire son résultat.
+  diagnostic,
+
+  /// Tout le reste : un cadenas rencontré en chemin.
+  ailleurs;
+
+  /// L'en-tête personnalisé a-t-il un sens ici ?
+  bool get montreLeContexte => this != PaywallOrigin.ailleurs;
+}
+
 class PaywallContext {
   const PaywallContext({
     this.currentLevel,
@@ -182,7 +210,12 @@ String formatJour(DateTime d) {
    Miroir de `web_sejoufr/lib/paywall-context.ts`.
    -------------------------------------------------------------------------- */
 
-typedef PaywallBenefit = ({String title, String text});
+/// Ce que **dit** un bénéfice, pour que l'écran choisisse son pictogramme sans
+/// dépendre de l'ordre de la liste. 🛑 Pur : aucun `IconData` ici, ce fichier
+/// est un miroir du web.
+enum PaywallBenefitKind { focus, understand, progress, adapt }
+
+typedef PaywallBenefit = ({PaywallBenefitKind kind, String title, String text});
 
 /// Le titre du bloc de priorités.
 const String kPaywallPrioritesLabel = 'Vos premières priorités';
@@ -195,20 +228,24 @@ const String kPaywallPrioritesLabel = 'Vos premières priorités';
 /// inventé.
 List<PaywallBenefit> paywallBenefits(PaywallContext ctx) => [
       (
+        kind: PaywallBenefitKind.focus,
         title: 'Travaillez ce qui compte vraiment',
         text: 'Les entraînements sont choisis selon votre diagnostic.',
       ),
       (
+        kind: PaywallBenefitKind.understand,
         title: ctx.currentLevel == null
             ? 'Comprenez ce qui vous bloque'
             : 'Comprenez pourquoi vous restez ${ctx.currentLevel!.wire}',
         text: 'Chaque production est corrigée et expliquée.',
       ),
       (
+        kind: PaywallBenefitKind.progress,
         title: 'Voyez réellement votre progression',
         text: 'Votre niveau et vos priorités évoluent après vos entraînements.',
       ),
       (
+        kind: PaywallBenefitKind.adapt,
         title: 'Un plan qui s\'adapte',
         text: 'Quand une compétence progresse, SejourFR ajuste la suite.',
       ),

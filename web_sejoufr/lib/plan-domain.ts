@@ -35,6 +35,7 @@ import {
     type PlanDomainAssessmentDto,
     type PlanDomainDto,
     type PlanDomainLevelDto,
+    type PlanDomainSkillDto,
     type PlanDomainTaskDto,
     type PlanPathStepDto,
     type PlanRecentChangesDto,
@@ -1357,4 +1358,62 @@ export function planPriorityGroupCta(row: PlanPriorityGroupRow): string {
  */
 export function planPriorityGroupAction(group: PlanPriorityGroup): PlanPriorityGroupRow | null {
     return group.rows.find((row) => row.status !== "SOLIDE") ?? null;
+}
+
+/* -------------------------------------------------- parcours d'une tâche */
+
+/** Une étape d'un parcours, dans la forme que le kit attend. */
+export type PlanPathStep = {label: string; state: "done" | "now" | "todo"};
+
+export interface PlanTachePath {
+    title: string;
+    /** Le rang de la tâche, **servi** : l'Accueil en fait « Expression orale ·
+     *  Tâche 3 », le Plan « Votre parcours — Tâche 3 ». */
+    tacheNumero: number;
+    currentLabel: string;
+    counterLabel: string;
+    steps: PlanPathStep[];
+    /** Les compétences de la tâche, dans l'ordre servi — la matière du rendu
+     *  verrouillé du plan gratuit, que seule la vue sait habiller d'icônes. */
+    skills: PlanDomainSkillDto[];
+}
+
+/**
+ * **Le parcours de la tâche de la priorité courante.**
+ *
+ * 🛑 « Étape X / Y » se lit sur `domaines[].taches[]`
+ * (`observedSkills` / `totalSkills`), il ne s'invente pas. Les états des lignes
+ * viennent de `planRowStatus`, donc des enums servis.
+ *
+ * ⚠️ Sorti de `LearningPlanView` à sa **deuxième** surface : l'Accueil montre le
+ * même parcours dans son bloc « Votre Plan ». Deux dérivations auraient fini par
+ * cocher deux étapes différentes pour le même candidat. Miroir de
+ * `planTaskPath` (`mobile_sejourfr/lib/screens/plan/plan_task_path.dart`).
+ */
+export function parcoursDeLaTache(
+    plan: LearningPlanDto,
+    priority: LearningPlanPriorityDto,
+): PlanTachePath | null {
+    const code = skillTaskCode(priority.skillCode);
+    if (!code) return null;
+    const domain = findDomain(plan, planSectionEpreuve(priority.section));
+    if (!domain) return null;
+    const tache = domain.taches.find((candidate) => candidate.taskCode === code);
+    const skills = (domain.skills ?? []).filter((skill) => skill.taskCode === code);
+    if (!tache || skills.length === 0) return null;
+
+    const state = (skillId: string, solide: boolean): PlanPathStep["state"] =>
+        skillId === priority.skillId ? "now" : solide ? "done" : "todo";
+
+    return {
+        title: `Votre parcours — ${planTaskBadge(tache.tacheNumero)}`,
+        tacheNumero: tache.tacheNumero,
+        currentLabel: priority.title,
+        counterLabel: `Étape ${tache.observedSkills} / ${tache.totalSkills}`,
+        steps: skills.map((skill) => ({
+            label: skill.title,
+            state: state(skill.skillId, planRowStatus(skill) === "SOLIDE"),
+        })),
+        skills,
+    };
 }

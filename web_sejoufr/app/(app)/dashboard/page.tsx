@@ -3,46 +3,26 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {
-    ArrowRight,
-    ChevronRight,
-    ClipboardCheck,
-    Flame,
-    GraduationCap,
-    Landmark,
-    Lightbulb,
-    Sparkles,
-    Target,
-    Trophy,
-    Waves,
-    Zap,
-} from "lucide-react";
-import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
+import {ArrowRight, ClipboardCheck, Landmark, Sparkles, Target} from "lucide-react";
 import {AffinerPlanCard} from "@/app/_components/plan/AffinerPlanCard";
-import {PreparationCard} from "@/app/_components/preparation/PreparationCard";
 import {
     Card,
     Cta,
-    DoneRow,
     ModuleToggle,
     NowCard,
     Pad,
+    PathRow,
     Section,
     SejourApp,
     Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {civicPlanApi, dashboardApi, diagnosticApi, learningPlanApi, userContentApi} from "@/lib/api";
+import {civicPlanApi, diagnosticApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
+import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
+import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
-    CIVIC_CHANGES_TITLE,
-    civicChangesWindowLabel,
-    civicNextStepLabel,
-    civicPlanRaison,
-    civicTransitionLabel,
-} from "@/lib/civic-plan";
-import {entrainementHref, moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
-import {
-    PREPARATION_TITLE,
+    CIVIQUE_LABEL,
+    TCF_LABEL,
     affinerPlan,
     moduleParDefaut,
     objectifLabel,
@@ -50,8 +30,13 @@ import {
     type PlanIndisponible,
 } from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
-import {moduleAverage, successHint} from "@/lib/dashboard";
-import {planTransitionLine} from "@/lib/plan-domain";
+import {
+    parcoursDeLaTache,
+    planDomainLabel,
+    planSectionEpreuve,
+    planTaskBadge,
+    type PlanPathStep,
+} from "@/lib/plan-domain";
 import {
     diagnosticCompletedExerciseCount,
     diagnosticDashboardState,
@@ -59,16 +44,12 @@ import {
 } from "@/lib/diagnostic";
 import {
     CIVIC_MAITRISE_LABEL,
-    PLAN_RECENT_CHANGES_WINDOW_LABEL,
     type CivicPlanCibleDto,
     type CivicPlanDto,
-    type DashboardCategoryStat,
-    type DashboardSummaryResponse,
     type DiagnosticResponse,
     type LearningPlanDto,
     type PreparationDto,
-    estimatedTcfLevelScopeLabel,
-    niveauCecrlShort,
+    type ProgressDto,
 } from "@/lib/types";
 
 /**
@@ -83,9 +64,10 @@ import {
  * (`moduleParDefaut(prep)`) et s'inscrit dans l'URL — **aucun `useState` de
  * module**, aucune seconde mécanique.
  *
- * Ce qui suit le parcours : l'action du jour, « Ma préparation », « Affiner
- * votre Plan » (TCF seulement — le diagnostic 4 épreuves n'a pas de pendant
- * civique), « Votre progression » et « À renforcer en priorité ».
+ * Ce qui suit le parcours : l'action du jour, l'aperçu « Votre Plan »,
+ * « Ma préparation », « Affiner votre Plan » (TCF seulement — le diagnostic
+ * 4 épreuves n'a pas de pendant civique), « Votre progression » et
+ * « À renforcer en priorité ».
  * 🛑 **« Vos parcours » N'EST PAS scopé** : c'est le bloc qui garde la vue
  * d'ensemble des deux modules, et c'est aussi l'un des deux chemins vers les
  * hubs d'entraînement (l'autre étant les deux entrées de la barre latérale).
@@ -124,12 +106,16 @@ import {
  * « compétences travaillées / maîtrisée / validations », les raccourcis du bas)
  * restent **omis**, pas fabriqués.
  *
- * ⚠️ **Deux écarts assumés avec la maquette civique**, à rouvrir si besoin :
- * la pastille d'objectif nomme la **démarche** servie (« Objectif :
+ * ⚠️ **Un écart assumé avec la maquette civique**, à rouvrir si besoin : la
+ * pastille d'objectif nomme la **démarche** servie (« Objectif :
  * naturalisation », autorité `objectifLabel`) et non le module, que la bascule
- * juste en dessous annonce déjà ; et le bloc « Votre Plan » (priorité + ses 5
- * étapes) n'existe pas sur notre Accueil — il vit sur le Plan, où « À faire
- * maintenant » renvoie.
+ * juste en dessous annonce déjà.
+ *
+ * ✅ **« Votre Plan » est revenu le 2026-09-12** (demande du propriétaire :
+ * l'Accueil doit ressembler à la maquette, et « côté backend on a tout ce qu'il
+ * faut »). C'était le second écart, celui qui était noté « à rouvrir si
+ * besoin ». C'est un **aperçu**, pas un second Plan : aucune action n'en part,
+ * il mène au Plan. Même bloc et même ordre sur mobile (`HomeMiniPlan`).
  */
 export default function DashboardPage() {
     // `useSearchParams` impose une frontière de Suspense côté App Router.
@@ -146,7 +132,7 @@ function DashboardRoot() {
     const pathname = usePathname();
     const router = useRouter();
 
-    const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+    const [progres, setProgres] = useState<ProgressDto | null>(null);
     const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
     const [plan, setPlan] = useState<LearningPlanDto | null>(null);
     const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
@@ -169,8 +155,10 @@ function DashboardRoot() {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [sum, currentDiagnostic, currentPlan, preparation, planCivique] = await Promise.all([
-                dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
+            const [progression, currentDiagnostic, currentPlan, preparation, planCivique] = await Promise.all([
+                // 🛑 Les compteurs de compétences viennent d'ICI, servis pour les
+                // deux parcours — l'Accueil ne les recompte pas.
+                progressApi.get().catch((): ProgressDto | null => null),
                 diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
                 learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
                 // 🛑 Un SEUL appel pour tout l'écran : « Ma préparation » et la
@@ -179,10 +167,10 @@ function DashboardRoot() {
                 userContentApi.preparation().catch((): PreparationDto | null => null),
                 // Le pendant civique : l'action du jour, ses priorités et ce qui
                 // a bougé. Best-effort — son échec laisse l'écran entier.
-                civicPlanApi.get().catch((): CivicPlanDto | null => null),
+                civicPlanApi.getCached().catch((): CivicPlanDto | null => null),
             ]);
             if (cancelled) return;
-            setSummary(sum);
+            setProgres(progression);
             setDiagnostic(currentDiagnostic);
             setPlan(currentPlan);
             setPrep(preparation);
@@ -219,16 +207,6 @@ function DashboardRoot() {
         [prep, affiche],
     );
 
-    /* Les 3 catégories travaillées les plus faibles **du parcours affiché**.
-       🛑 `percent === null` = jamais travaillée, donc jamais « la plus faible ». */
-    const weakest = useMemo(() => {
-        if (!summary) return [];
-        return [...(affiche === "TCF" ? summary.tcf : summary.civique)]
-            .filter((c) => c.percent !== null)
-            .sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0))
-            .slice(0, 3);
-    }, [summary, affiche]);
-
     if (status === "loading" || (loading && status === "authenticated")) {
         return <DashSkeleton/>;
     }
@@ -246,7 +224,6 @@ function DashboardRoot() {
         );
     }
 
-    const trainingHref = entrainementHref(affiche);
     const civique = affiche === "CIVIQUE";
 
     /* 🛑 **L'action civique se résout ICI, une fois.** `planIndisponible` est
@@ -326,20 +303,28 @@ function DashboardRoot() {
                     </Section>
                 ) : null}
 
-                {/* 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
-                    diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état
-                    UNIQUE servi par `/api/me/preparation` — c'est ce qui garantit
-                    que les trois écrans proposent la même prochaine action.
-                    Elle suit le parcours affiché : l'autre module est à un clic
-                    de bascule, et le montrer ici contredirait l'écran scopé. */}
-                <Section title={PREPARATION_TITLE}>
-                    <Pad>
-                        <PreparationCard prep={prep} module={affiche}/>
-                    </Pad>
-                </Section>
+                {/* ✅ **« Votre Plan » est revenu le 2026-09-12** (demande du
+                    propriétaire : l'Accueil doit ressembler à la maquette, et
+                    « côté backend on a tout ce qu'il faut »). Il avait été omis
+                    des deux fronts — « il vit sur le Plan » —, et c'était l'un
+                    des deux écarts « à rouvrir si besoin ».
+
+                    🛑 **Un aperçu, pas un second Plan** : aucune action n'en
+                    part, il mène au Plan. */}
+                <VotrePlan
+                    civique={civique}
+                    plan={plan}
+                    cible={cibleCivique}
+                />
             </div>
 
             <div className={sejourStyles.deskPair}>
+                <Section title="Votre progression">
+                    <Pad>
+                        <Progression progres={progres} civique={civique}/>
+                    </Pad>
+                </Section>
+
                 {/* 🛑 **Secondaire, et seulement quand le diagnostic complet est
                     COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan,
                     mais elle ne devient jamais l'action principale de l'Accueil :
@@ -348,75 +333,19 @@ function DashboardRoot() {
                     disparaît — c'est `affinerPlan` qui rend `null`, sur des faits
                     servis, jamais un compteur reconstruit ici. */}
                 {affinerAccueil && <AffinerPlanCard info={affinerAccueil}/>}
-
-                <Section title="Votre progression">
-                    <Pad>
-                        <Progression
-                            summary={summary}
-                            plan={plan}
-                            civicPlan={civicPlan}
-                            civique={civique}
-                        />
-                    </Pad>
-                </Section>
             </div>
 
+            {/* 🛑 **« Vos parcours » n'est PAS scopé** : c'est le bloc qui garde
+                la vue d'ensemble des deux modules pendant que le reste de
+                l'écran suit la bascule. Chaque ligne mène au **Plan** de son
+                module, comme la maquette — les deux hubs d'entraînement restent
+                atteignables par les deux entrées de la barre latérale. */}
             <Section title="Vos parcours">
                 <Pad>
-                    {/* `Stack` porte l'écart vertical sur mobile, `deskPair` la
-                        grille à deux colonnes à partir de 960 px. */}
                     <Stack className={sejourStyles.deskPair}>
-                        <ModuleCard
-                            accent="red"
-                            icon={<Waves size={20}/>}
-                            title="TCF IRN"
-                            href="/entrainement?module=TCF"
-                            categories={summary?.tcf ?? []}
-                        />
-                        <ModuleCard
-                            accent="blue"
-                            icon={<Lightbulb size={20}/>}
-                            title="Examen civique"
-                            href="/entrainement?module=CIVIQUE"
-                            categories={summary?.civique ?? []}
-                        />
+                        <TrackRow title={TCF_LABEL} href={planHref("TCF")}/>
+                        <TrackRow title={CIVIQUE_LABEL} href={planHref("CIVIQUE")}/>
                     </Stack>
-                </Pad>
-            </Section>
-
-            <Section>
-                <Pad>
-                    <Card>
-                        <div className="home-reinforce-head">
-                            <h2>À renforcer en priorité</h2>
-                            <Link href="/recommandations" className={sejourStyles.link}>
-                                Tout voir <ChevronRight size={15} aria-hidden/>
-                            </Link>
-                        </div>
-
-                        {weakest.length === 0 ? (
-                            <div className="home-reinforce-empty">
-                                <p>
-                                    Entraînez-vous pour obtenir des recommandations personnalisées.
-                                </p>
-                                {/* 🛑 Un **accès**, pas une seconde action dominante : c'est
-                                    exactement quand cette liste est vide — un compte tout
-                                    neuf — que « À faire maintenant » porte son geste le plus
-                                    important. Un second bouton plein l'aurait concurrencé. */}
-                                <Link href={trainingHref} className={sejourStyles.link}>
-                                    <Zap size={15} aria-hidden/>
-                                    Commencer
-                                    <ChevronRight size={15} aria-hidden/>
-                                </Link>
-                            </div>
-                        ) : (
-                            <ul className="home-reinforce-list">
-                                {weakest.map((cat) => (
-                                    <ReinforceRow key={cat.code} cat={cat}/>
-                                ))}
-                            </ul>
-                        )}
-                    </Card>
                 </Pad>
             </Section>
 
@@ -585,188 +514,210 @@ function ActionCivique({gate, cible}: {
 }
 
 /**
- * **Votre progression**, du parcours affiché.
+ * **Votre Plan** — la priorité actuelle et son parcours, en aperçu.
  *
- * 🛑 **Rien n'est recalculé ici.** `moduleAverage` est le helper déjà partagé
- * par les hubs et `/examens-blancs`, les compteurs d'examens blancs sont servis
- * par module (`tcfMockExams` / `civiqueMockExams`), et le niveau TCF estimé
- * vient en entier du serveur avec son périmètre.
+ * 🛑 **Rien n'est dérivé ici** : `parcoursDeLaTache` (TCF) et `civicPath`
+ * (civique) sont les autorités **partagées avec l'écran Plan**, et les états
+ * des étapes viennent du serveur.
  *
- * 🛑 **Le module civique n'a AUCUN niveau estimé servi**, et on n'en fabrique
- * pas : la quatrième tuile disparaît au lieu d'afficher « — ». `null` = inconnu,
- * jamais mauvais. La série, elle, est une mesure d'**activité** du compte, pas
- * d'un module : elle reste des deux côtés.
+ * 🛑 **Une priorité TCF verrouillée n'est pas nommée** : le bloc entier
+ * disparaît. Il écrirait en clair, sur l'Accueil, ce que « Mes priorités »
+ * floute un écran plus loin. Le civique, lui, nomme sa cible — son verrou porte
+ * sur la **série**, jamais sur le constat.
+ *
+ * 🛑 **Aucun contenu fabriqué** : sans priorité servie, sans tâche servie ou
+ * sans parcours servi, la section n'existe pas.
  */
-function Progression({summary, plan, civicPlan, civique}: {
-    summary: DashboardSummaryResponse | null;
+function VotrePlan({civique, plan, cible}: {
+    civique: boolean;
     plan: LearningPlanDto | null;
-    civicPlan: CivicPlanDto | null;
+    cible: CivicPlanCibleDto | null;
+}) {
+    if (civique) {
+        if (!cible) return null;
+        const steps = civicPath(cible);
+        if (steps.length === 0) return null;
+        return (
+            <PlanApercu
+                title={cible.themeLabel}
+                subtitle={cible.label === cible.themeLabel ? null : cible.label}
+                counter={civicPathCounter(cible)}
+                steps={steps}
+                href={planHref("CIVIQUE")}
+            />
+        );
+    }
+
+    const priority = plan?.currentPriority ?? null;
+    if (!plan || !priority || priority.locked) return null;
+    const path = parcoursDeLaTache(plan, priority);
+    if (!path) return null;
+    const epreuve = planSectionEpreuve(priority.section);
+    return (
+        <PlanApercu
+            title={`${planDomainLabel(epreuve)} · ${planTaskBadge(path.tacheNumero)}`}
+            subtitle={priority.title}
+            counter={path.counterLabel}
+            steps={path.steps}
+            href={planHref("TCF")}
+        />
+    );
+}
+
+/**
+ * Ce que l'Accueil montre du parcours : **deux étapes**, pas plus (demande du
+ * propriétaire, 2026-09-12 — un parcours d'expression en compte huit).
+ */
+const APERCU_STEPS_MAX = 2;
+
+/**
+ * La fenêtre d'étapes affichée sur l'Accueil.
+ *
+ * 🛑 **Un plafond d'AFFICHAGE, jamais un budget pédagogique** : le parcours
+ * entier est servi, calculé en entier, et se lit sur le Plan — où « Voir mon
+ * Plan » renvoie. On n'en tronque que la vue.
+ *
+ * 🛑 **La fenêtre contient TOUJOURS l'étape en cours** : elle et la suivante,
+ * ou la précédente et elle quand elle ferme le parcours. Montrer « les deux
+ * premières » aurait caché exactement ce que le candidat doit faire maintenant.
+ * Sans étape en cours **servie**, on prend les premières — on n'en devine
+ * aucune. Miroir de `homePlanSteps`
+ * (`mobile_sejourfr/lib/screens/home/widgets/home_blocks.dart`).
+ */
+function apercuSteps(steps: PlanPathStep[]): PlanPathStep[] {
+    if (steps.length <= APERCU_STEPS_MAX) return steps;
+    const maintenant = steps.findIndex((step) => step.state === "now");
+    if (maintenant < 0) return steps.slice(0, APERCU_STEPS_MAX);
+    const debut =
+        maintenant + APERCU_STEPS_MAX <= steps.length
+            ? maintenant
+            : steps.length - APERCU_STEPS_MAX;
+    return steps.slice(debut, debut + APERCU_STEPS_MAX);
+}
+
+function PlanApercu({title, subtitle, counter, steps, href}: {
+    title: string;
+    subtitle: string | null;
+    counter: string;
+    steps: PlanPathStep[];
+    href: string;
+}) {
+    return (
+        <Section title="Votre Plan">
+            <Pad>
+                <Card>
+                    <div className="home-plan-head">
+                        <p className={sejourStyles.label}>Priorité actuelle</p>
+                        <span className={sejourStyles.tiny}>{counter}</span>
+                    </div>
+                    <p className="home-plan-title">{title}</p>
+                    {subtitle && (
+                        <p className={sejourStyles.tiny} style={{margin: "2px 0 10px"}}>
+                            {subtitle}
+                        </p>
+                    )}
+                    {apercuSteps(steps).map((step, index) => (
+                        <PathRow key={`${step.label}-${index}`} label={step.label} state={step.state}/>
+                    ))}
+                    <Link href={href} className={sejourStyles.link} style={{marginTop: 12}}>
+                        Voir mon Plan <ArrowRight size={16} strokeWidth={2.4} aria-hidden/>
+                    </Link>
+                </Card>
+            </Pad>
+        </Section>
+    );
+}
+
+/**
+ * **Votre progression**, du parcours affiché : les deux compteurs de la
+ * maquette, et rien d'autre.
+ *
+ * 🛑 **Ils sont SERVIS** (`GET /api/me/progress`), pour les deux parcours, et
+ * **servis même verrouillés** : c'est le *détail* qui est premium, pas le fait
+ * d'avoir progressé. Rien n'est recompté ici.
+ *
+ * ⚠️ **« Progression détectée » a quitté l'Accueil** (2026-09-12, demande du
+ * propriétaire). Le bloc vit toujours sur le **Plan**, où il a son contexte :
+ * il y annonce une transition d'état de maîtrise mesurée par le moteur, dans
+ * une fenêtre choisie par le serveur. Sur l'Accueil, il arrivait sans le
+ * parcours qui l'explique.
+ *
+ * ⚠️ **La troisième colonne « validations » de la maquette n'est servie par
+ * rien** : elle est **omise**, pas fabriquée.
+ *
+ * 🛑 **Le civique compte des notions OU des thèmes** selon ce que le tagging
+ * permet (`grainNotion`, servi) : son libellé le dit, au lieu d'écrire
+ * « compétences » à tort.
+ */
+function Progression({progres, civique}: {
+    progres: ProgressDto | null;
     civique: boolean;
 }) {
-    const categories = civique ? summary?.civique : summary?.tcf;
-    const maitrise = categories ? moduleAverage(categories) : null;
-    const examens = civique ? summary?.civiqueMockExams : summary?.tcfMockExams;
+    const travaillees = civique
+        ? progres?.civique.travaillees ?? 0
+        : progres?.tcf.competences.travaillees ?? 0;
+    const maitrisees = civique
+        ? progres?.civique.maitrisees ?? 0
+        : progres?.tcf.competences.maitrisees ?? 0;
+    const notion = civique ? progres?.civique.grainNotion ?? false : false;
+
+    // Rien de mesuré : le bloc n'a rien à dire.
+    if (travaillees <= 0) return null;
 
     return (
         <Card>
             <div className="home-stats">
                 <StatBloc
-                    tone="blue"
-                    icon={<Target size={20}/>}
-                    value={maitrise !== null && maitrise !== undefined ? `${maitrise}%` : "—"}
-                    label="Maîtrise"
-                    hint={successHint(maitrise ?? null)}
+                    value={`${travaillees}`}
+                    label={compteurLabel(travaillees, {civique, notion, mastered: false})}
                 />
                 <StatBloc
-                    tone="green"
-                    icon={<Trophy size={20}/>}
-                    value={`${examens ?? 0}`}
-                    label="Examens blancs"
-                    hint="passés au total"
+                    value={`${maitrisees}`}
+                    label={compteurLabel(maitrisees, {civique, notion, mastered: true})}
                 />
-                <StatBloc
-                    tone="red"
-                    icon={<Flame size={20}/>}
-                    value={`${summary?.currentStreakDays ?? 0} j`}
-                    label="Série en cours"
-                    hint={
-                        summary && summary.recordStreakDays > 0
-                            ? `record : ${summary.recordStreakDays} jours`
-                            : "lancez votre série !"
-                    }
-                />
-                {!civique && (
-                    <StatBloc
-                        tone="blue"
-                        icon={<GraduationCap size={20}/>}
-                        value={niveauCecrlShort(summary?.estimatedTcfLevel ?? null)}
-                        label="Niveau TCF estimé"
-                        /* Un niveau qui ne porte pas sur les 4 épreuves le
-                           dit ici, à la place de la mention générique. */
-                        hint={estimatedTcfLevelScopeLabel(summary) ?? "équivalence CECRL"}
-                    />
-                )}
             </div>
-            {civique
-                ? <ChangementsCivique plan={civicPlan}/>
-                : <ChangementsTcf plan={plan}/>}
         </Card>
     );
 }
 
 /**
- * « Progression détectée » — ce que les dernières séances ont changé.
+ * « 3 compétences travaillées » / « 1 thème maîtrisé ».
  *
- * 🛑 **`null` est le cas NORMAL** des deux côtés : rien n'a bougé, le bloc
- * disparaît. Il ne s'affiche jamais vide, et aucun front ne compare deux états —
- * `progres` / `avant` / `apres` sont **servis**, les deux fronts ne font que
- * poser un libellé gelé dessus.
+ * 🛑 Miroir mot pour mot de `homeWorkedLabel` / `homeMasteredLabel`
+ * (`mobile_sejourfr/lib/screens/home/home_labels.dart`).
  */
-function ChangementsTcf({plan}: {plan: LearningPlanDto | null}) {
-    const changes = plan?.recentChanges ?? null;
-    if (!changes || changes.transitions.length === 0) return null;
-    return (
-        <Card variant="ok" className="home-changes">
-            <p className={sejourStyles.label}>
-                {PLAN_RECENT_CHANGES_WINDOW_LABEL[changes.window]}
-            </p>
-            {changes.transitions.map((t) => (
-                <DoneRow key={t.skillId} label={`${t.title} · ${planTransitionLine(t)}`}/>
-            ))}
-        </Card>
-    );
+function compteurLabel(
+    n: number,
+    {civique, notion, mastered}: {civique: boolean; notion: boolean; mastered: boolean},
+): string {
+    const s = n > 1 ? "s" : "";
+    const nom = civique ? (notion ? "notion" : "thème") : "compétence";
+    const verbe = mastered ? "maîtrisé" : "travaillé";
+    const accord = civique && !notion ? verbe : `${verbe}e`;
+    return `${nom}${s} ${accord}${s}`;
 }
 
-function ChangementsCivique({plan}: {plan: CivicPlanDto | null}) {
-    const changes = plan?.changements ?? null;
-    if (!changes) return null;
-    if (changes.transitions.length === 0 && !changes.nouvellePriorite) return null;
-    return (
-        <Card variant="ok" className="home-changes">
-            <p className={sejourStyles.label}>
-                {changes.transitions.length > 0
-                    ? civicChangesWindowLabel(changes)
-                    : CIVIC_CHANGES_TITLE}
-            </p>
-            {changes.transitions.map((t) => (
-                <DoneRow key={t.cibleId} label={civicTransitionLabel(t)}/>
-            ))}
-            {changes.nouvellePriorite && (
-                <p className={sejourStyles.insight}>
-                    {civicNextStepLabel(changes.nouvellePriorite)}
-                </p>
-            )}
-        </Card>
-    );
-}
-
-function StatBloc({
-                      tone,
-                      icon,
-                      value,
-                      label,
-                      hint,
-                  }: {
-    tone: "blue" | "green" | "red";
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    hint: string;
-}) {
+function StatBloc({value, label}: {value: string; label: string}) {
     return (
         <div className="home-stat">
-            <span className={`home-stat-ico home-stat-ico-${tone}`} aria-hidden>
-                {icon}
-            </span>
-            <span className="home-stat-body">
-                <span className="home-stat-value">{value}</span>
-                <span className="home-stat-label">{label}</span>
-                <span className="home-stat-hint">{hint}</span>
-            </span>
+            <span className="home-stat-value">{value}</span>
+            <span className="home-stat-label">{label}</span>
         </div>
     );
 }
 
-function ModuleCard({
-                        accent,
-                        icon,
-                        title,
-                        href,
-                        categories,
-                    }: {
-    accent: "blue" | "red";
-    icon: React.ReactNode;
-    title: string;
-    href: string;
-    categories: DashboardCategoryStat[];
-}) {
-    const average = moduleAverage(categories);
+/**
+ * Une ligne de « Vos parcours » : le module, ce qu'elle ouvre, un chevron.
+ */
+function TrackRow({title, href}: {title: string; href: string}) {
     return (
-        <Card className="home-module">
-            <header className="home-module-head">
-                <Link href={href} className="home-module-id">
-                    <span className={`home-module-ico home-module-ico-${accent}`} aria-hidden>
-                        {icon}
-                    </span>
-                    <span className="home-module-titles">
-                        <span className="home-module-title">{title}</span>
-                        <span className="home-module-sub">{categories.length} catégories</span>
-                    </span>
-                </Link>
-                <span className={`home-module-pct home-module-pct-${accent}`}>
-                    {average !== null ? `${average}%` : "—"}
-                </span>
-            </header>
-
-            <ul className="home-module-rows">
-                {categories.map((cat) => (
-                    <li key={cat.code} className="home-module-row">
-                        <span className="home-module-row-label">{cat.label}</span>
-                        <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"}/>
-                    </li>
-                ))}
-            </ul>
-        </Card>
+        <Link href={href} className="home-track">
+            <span className="home-track-body">
+                <span className="home-track-title">{title}</span>
+                <span className="home-track-sub">Voir mon Plan</span>
+            </span>
+            <ArrowRight size={20} aria-hidden/>
+        </Link>
     );
 }
 
@@ -780,8 +731,8 @@ function DashSkeleton() {
                     <div className="sk sk-card"/>
                 </div>
                 <div className="sk-grid sk-grid-2">
-                    <div className="sk sk-module"/>
-                    <div className="sk sk-module"/>
+                    <div className="sk sk-card"/>
+                    <div className="sk sk-card"/>
                 </div>
             </Pad>
             <style>{homeStyles}</style>
@@ -803,7 +754,6 @@ function DashSkeleton() {
           margin-bottom: 22px;
         }
         .sk-card { height: 180px; }
-        .sk-module { height: 280px; }
         @media (min-width: 960px) {
           .sk-grid-2 { grid-template-columns: 1fr 1fr; }
         }
@@ -897,134 +847,67 @@ const homeStyles = `
   }
   .home-now-later:hover { color: var(--color-blue); text-decoration: underline; }
 
-  /* « Progression détectée », dans la carte d'indicateurs. */
-  .home-changes { margin-top: 16px; }
-
-  /* ===== indicateurs ===== */
-  /* auto-fit plutôt qu'une borne de plus : la grille se replie d'elle-même
-     à 360 px comme dans une demi-colonne de desktop. */
-  .home-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 16px 12px;
+  /* ===== aperçu « Votre Plan » ===== */
+  .home-plan-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 2px;
   }
-  .home-stat { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .home-stat-ico {
-    width: 40px; height: 40px;
-    border-radius: var(--sf-radius-sm);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .home-stat-ico-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .home-stat-ico-green {
-    background: var(--color-green-light);
-    color: var(--color-green-dark);
-  }
-  .home-stat-ico-red { background: var(--color-red-light); color: var(--color-red); }
-  .home-stat-body { display: flex; flex-direction: column; min-width: 0; }
-  .home-stat-value {
-    font-family: var(--font-sans);
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--color-ink);
-    line-height: 1.15;
-  }
-  .home-stat-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-ink-2);
-    margin-top: 2px;
-  }
-  .home-stat-hint {
-    font-size: 12px;
-    color: var(--color-muted);
-    margin-top: 1px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* ===== cartes de parcours ===== */
-  .home-module-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-  .home-module-id {
-    display: flex; align-items: center; gap: 12px;
-    text-decoration: none;
-    min-width: 0;
-  }
-  .home-module-ico {
-    width: 42px; height: 42px;
-    border-radius: var(--sf-radius-sm);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .home-module-ico-blue { background: var(--color-blue); color: #fff; }
-  .home-module-ico-red { background: var(--color-red); color: #fff; }
-  .home-module-titles { display: flex; flex-direction: column; min-width: 0; }
-  .home-module-title {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--color-ink);
-  }
-  .home-module-id:hover .home-module-title { color: var(--color-blue); }
-  .home-module-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
-  .home-module-pct {
-    font-family: var(--font-sans);
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    flex-shrink: 0;
-  }
-  .home-module-pct-blue { color: var(--color-blue); }
-  .home-module-pct-red { color: var(--color-red); }
-  .home-module-rows {
-    list-style: none;
-    margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  .home-module-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    min-width: 0;
-  }
-  .home-module-row-label {
-    font-size: 13.5px;
-    color: var(--color-ink-2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* ===== à renforcer ===== */
-  .home-reinforce-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 14px;
-  }
-  .home-reinforce-head h2 {
-    margin: 0;
+  .home-plan-title {
+    margin: 0 0 2px;
     font-family: var(--font-sans);
     font-size: 17px;
     font-weight: 800;
     letter-spacing: -0.01em;
     color: var(--color-ink);
   }
-  .home-reinforce-list {
-    list-style: none;
-    margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: 10px;
+
+
+  /* ===== indicateurs ===== */
+  /* Les deux compteurs SERVIS de la maquette : un chiffre, un libellé. */
+  .home-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px 12px;
+    margin-bottom: 16px;
   }
-  .home-reinforce-empty {
+  .home-stat { display: flex; flex-direction: column; align-items: center; }
+  .home-stat-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--color-blue);
+    line-height: 1.1;
+  }
+  .home-stat-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-muted);
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* ===== une ligne de « Vos parcours » ===== */
+  .home-track {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px;
-    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: var(--sf-radius-xl, 18px);
+    box-shadow: var(--sf-shadow-card, 0 1px 3px rgba(50, 64, 94, 0.06));
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: box-shadow 0.15s;
   }
-  .home-reinforce-empty p { margin: 0; font-size: 14px; color: var(--color-muted); }
+  .home-track:hover { box-shadow: 0 6px 18px rgba(50, 64, 94, 0.1); }
+  .home-track-body { display: flex; flex-direction: column; min-width: 0; }
+  .home-track-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .home-track-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
 
   /* ===== palier desktop (960 px) — la borne du KIT, pas une de plus ===== */
   @media (min-width: 960px) {
@@ -1034,10 +917,5 @@ const homeStyles = `
       padding-top: 10px;
     }
     .home-hello h1 { font-size: 32px; }
-    .home-module-row {
-      grid-template-columns: minmax(110px, 170px) 1fr;
-      align-items: center;
-      gap: 12px;
-    }
   }
 `;

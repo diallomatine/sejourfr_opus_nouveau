@@ -71,9 +71,10 @@ lib/
     ├── splash/
     ├── auth/                      login, register, forgot
     ├── home/
-    │   └── widgets/               module_switch.dart
+    │   ├── home_labels.dart       Les phrases de l'Accueil (miroirs du web)
+    │   └── widgets/               home_blocks.dart (briques locales de l'écran)
     ├── shell/
-    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Réviser · Examens · Plan · Profil
+    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Plan · Réviser · Examens · Profil
     ├── diagnostic/               Parcours initial EE + EO, reprise serveur et résultat léger
     │   ├── diagnostic_controller.dart  StateNotifier + soumissions standard + polling
     │   ├── diagnostic_screen.dart
@@ -156,6 +157,7 @@ lib/
     │                                    production_text_card, results_section_head,
     │                                    evaluation_notice, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
+    │   └── widgets/               module_switch.dart
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
 
@@ -454,11 +456,21 @@ activé (pas de clé à fournir).
 
 ## Bottom nav et hubs Civique / TCF
 
-**Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets **Accueil · Réviser · Examens ·
-Plan · Profil** (cf. maquette) :
+**Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets
+**Accueil · Plan · Réviser · Examens · Profil** :
 
-- **Accueil** (`screens/home/`) : carte « À travailler en priorité » (catégorie la plus faible),
-  3 stat cards (maîtrise/streak/niveau TCF), « Mes parcours », bloc IA EE/EO, raccourci examens.
+⚠️ **Ordre changé le 2026-09-12** (demande du propriétaire) : le **Plan passe en
+2ᵉ**, juste après l'Accueil — c'est là que l'Accueil renvoie (« Continuer mon
+plan », « Voir mon Plan », les deux lignes de « Vos parcours »), et il était en
+4ᵉ derrière deux onglets de catalogue. 🛑 **L'ordre vit à un seul endroit**,
+`mainShellDestinations` : le surlignage en **dérive** (`indexWhere`), il ne
+recopie plus la liste dans un `switch`.
+⚠️ **Mobile seulement pour l'instant** (demande explicite) : la barre latérale
+du web garde son ordre (`Parcours` puis `Suivi`). Écart de parité **assumé**.
+
+- **Accueil** (`screens/home/`) : ⚠️ **refait le 2026-09-12 sur le KIT et sur la maquette** —
+  cf. § « L'Accueil refait sur la maquette ». La description historique (carte bleue
+  « À travailler en priorité », 3 stat cards, bloc IA, raccourci examens) est **périmée**.
 - **Réviser** (`screens/reviser/`) : fusion des hubs Civique/TCF derrière `SegmentedTabs`
   (provider partagé `reviserParcoursProvider` — l'Accueil le présélectionne avant `goTab`).
   Liste des catégories avec anneau de maîtrise → écrans détail existants.
@@ -1154,6 +1166,15 @@ l'autre. Le kit tranche à **22**, la taille de `.sf-title` côté maquette. Il 
 **dans le scroll**, contrairement à `ScreenHeader` : c'est l'anatomie de `<Top>`,
 et le titre y a la place de tenir sur deux lignes.
 
+🛑 **Aucune marge négative dans le kit (2026-09-12).** `SfPathRow` portait
+`margin: EdgeInsets.symmetric(horizontal: -10)` pour reproduire le débord CSS de
+`.isNext` : `Container` l'**interdit par assertion** (`margin.isNonNegative`), et
+l'écran plantait en debug dès qu'un parcours servait une étape `now` — Accueil
+comme Plan. La surbrillance de l'étape en cours reste donc **dans** la carte.
+⚠️ C'est le seul écart assumé avec la feuille du web sur cette ligne : un débord
+n'a pas d'équivalent légal en Flutter, et un `OverflowBox` pour 10 px casserait
+la mesure de hauteur en colonne.
+
 **`SfTopSlot` — ce qui se glisse SOUS l'en-tête (2026-09-12).** Sur le Plan,
 l'ordre est **eyebrow → titre → bascule TCF/Civique** : l'écran s'annonce, puis
 on choisit son parcours. L'en-tête appartient à l'**état affiché** (son eyebrow
@@ -1164,12 +1185,14 @@ est une navigation, pas un résultat — tout état du Plan rend son `SfTop`, y
 compris le **chargement**, l'**erreur** et le plan civique **indisponible**,
 sinon le candidat perd la porte de l'autre parcours. Miroir web : `TopSlot`.
 
-**En-tête centré quand il n'a pas de flèche (2026-09-12).** `SfTop` centre son
-eyebrow, son titre et ses pastilles dès que `onBack == null` — c'est le cas du
-Plan. 🛑 Un en-tête **qui porte une flèche** (les deux écrans du diagnostic
-civique) garde son alignement à gauche : centrer son texte le décalerait de sa
-flèche. Miroir de `.topPlain` côté web, qui revient à gauche au-dessus de
-620 px — une largeur que l'app, verrouillée en portrait, n'atteint pas.
+🛑 **L'en-tête est TOUJOURS aligné à gauche (2026-09-12).** ⚠️ **Révoque** la
+règle « un en-tête sans flèche de retour se centre », posée le même jour :
+vérifiée à l'écran sur l'Accueil et le Plan, elle donnait un titre centré
+au-dessus d'un contenu entièrement calé à gauche — ça se lisait comme un
+bandeau, pas comme le titre de la page, et ça ne s'alignait ni sur la bascule de
+parcours ni sur les cartes en dessous. `.topPlain` a été **supprimé** côté web
+dans la même passe : les deux fronts s'alignent à gauche à toutes les largeurs,
+comme la maquette.
 ⚠️ La **gouttière du burger** qui accompagne cette règle côté web n'a **aucun
 équivalent ici** : le chrome mobile est une bottom nav, rien ne flotte au-dessus
 de l'en-tête. Ne pas lui inventer de marge haute.
@@ -1251,6 +1274,170 @@ quand `posees == formatQuestions`, le score **EST** le résultat.
 « Pourquoi cette séance ? »), *« Mon profil TCF »*, les *bandeaux de tête*
 (`PlanUpdatedBanner`, `PlanFreeBar`) et la carte d'offre bleue (remplacée par
 `SfUnlockHero` + `SfStickyBar`).
+
+### Le paywall n'ouvre sur le plan QUE depuis le plan (2026-09-12)
+
+🛑 **L'en-tête personnalisé du paywall** — « Votre plan B2 est prêt », le pitch,
+les priorités réelles, les quatre bénéfices — **ne s'affiche que depuis le Plan
+ou un écran de diagnostic**. `PaywallOrigin` (`core/widgets/paywall_context.dart`,
+miroir web) le porte, `showPaywallSheet` / `showTcfLockPaywall` le propagent, et
+le **défaut est `ailleurs`** : une vingtaine d'écrans ouvrent le paywall, deux
+seulement ont le contexte. Ailleurs — un cadenas de série, un slot d'examen, une
+tâche de production — l'écran commence directement à **« Débloquez votre
+accès »**.
+
+**Pourquoi** : depuis un cadenas quelconque, « votre plan est prêt » promet un
+écran que le candidat n'a pas sous les yeux, et repousse l'offre d'une page
+entière. Les deux conditions se cumulent : il faut **de quoi** personnaliser (un
+Plan servi, `isContextualised`) **et** une raison de le faire (l'origine).
+
+**La section est refaite sur la maquette** (`~/Desktop/grok_ecran`,
+`screens/paywall.tsx`, capture `paywall-web-mobile.png`) : pastille d'icône,
+titre et pitch alignés à gauche, puis **deux cartes** — les priorités (pastille
+de rang rouge / ambre / jaune, les teintes de `SfPrio`) et les bénéfices, chacun
+avec son **pictogramme**. ⚠️ Tout était posé à plat, titres et paragraphes
+empilés : ça se lisait comme une page de texte, pas comme une promesse.
+🛑 **Le pictogramme vient du `kind` du bénéfice** (`PaywallBenefitKind`), jamais
+de son rang : deux bénéfices réordonnés ne peuvent pas échanger leurs icônes.
+
+### L'Accueil refait sur la maquette (2026-09-12, `screens/home/`)
+
+L'onglet **Accueil** est passé **sur le KIT** et suit la maquette du
+propriétaire (`~/Desktop/grok_ecran` — `src/components/sejour/screens/accueil.tsx`,
+captures `screenshots/accueil-mobile.png` et `accueil-civ-mobile.png`),
+**bloc pour bloc avec le web** (`/dashboard`).
+
+⚠️ **Révoque la description « carte À travailler en priorité + 3 stat cards +
+Mes parcours + bloc IA + raccourci examens »** de la section *Bottom nav* :
+c'était l'Accueil d'avant. `PlanPriorityHomeCard`, `_PriorityCard`, `_AiCard`,
+`_ParcoursCard` et l'avatar d'en-tête sont **supprimés** (Profil est dans la
+bottom nav). ✅ **Conservé** : `_IndependenceNote` (conformité stores).
+
+⚠️ **Une première passe avait suivi le WEB au lieu de la maquette**, et le
+propriétaire l'a corrigée sur capture le même jour. Ce qui a été **retiré** :
+« Ma préparation », « À renforcer en priorité », les **quatre tuiles**
+d'indicateurs (Maîtrise / Examens blancs / Série / Niveau TCF estimé), les
+**cartes de parcours à barres de catégories** — et « Affiner votre Plan » est
+repassé **après** la progression. Le web a été aligné dans la même passe.
+« Ma préparation » reste la porte du **Plan** et des **Examens** ; sur
+l'Accueil, « À faire maintenant » porte déjà cette porte (les trois états du
+diagnostic TCF, `planIndisponible` côté civique).
+
+**Ordre des sections** : bandeau « Choisissez votre parcours » (démarche
+absente) → `SfTop` « Bonjour X » + pastille d'objectif → **bascule TCF / Examen
+civique** → **À faire maintenant** → **Votre Plan** (aperçu) → **Votre
+progression** → **Affiner votre Plan** (TCF, complet commencé) → **Vos
+parcours**.
+
+🛑 **L'Accueil est SCOPÉ au parcours choisi**, et la bascule **change ce qu'il
+affiche** — elle ne navigue pas. Le parcours vit dans
+**`parcoursCiviqueProvider`** (`core/utils/parcours_affiche.dart`), **partagé
+avec le Plan** : c'est le pendant du `?module=` du web, et la raison est la même
+— deux états locaux auraient fini par afficher deux parcours différents au même
+candidat selon l'écran. Le défaut est **servi** (`moduleCiviqueParDefaut`), posé
+en `??=` pour ne jamais écraser un choix.
+🛑 **« Vos parcours » N'EST PAS scopé** : deux lignes (`HomeTrackRow`) qui
+mènent au **Plan** de leur module — comme la maquette, et parce que la bottom
+nav porte déjà Réviser et Examens. Elles posent le provider avant de naviguer,
+donc aucun paramètre de route n'est inventé.
+
+| bloc | source TCF | source civique |
+|---|---|---|
+| À faire maintenant | `diagnosticControllerProvider` (3 états) puis `plan.currentPriority` | `planIndisponible(prep.civique)` puis `civicPlanProvider.prochaine` |
+| Votre Plan | `planTaskPath(plan)` | `civicPath(cible)` |
+| Votre progression | `progress.tcf.competences` | `progress.civique` |
+| Affiner votre Plan | `affinerPlan(prep.tcf, accueil: true)` | **absent** — le diagnostic 4 épreuves est un objet TCF |
+
+- 🛑 **Les deux compteurs de « Votre progression » sont SERVIS** —
+  `GET /api/me/progress` (`progressProvider`, `core/providers/`), qui publie
+  `travaillees` / `maitrisees` **pour les deux parcours** et **même
+  verrouillés** : c'est le *détail* qui est premium, pas le fait d'avoir
+  progressé. L'Accueil ne recompte rien, et le `dashboardProvider` **n'est plus
+  lu ici**.
+- ⚠️ **« Progression détectée » a quitté l'Accueil** (2026-09-12, demande du
+  propriétaire). Le bloc **reste sur le Plan**, où il a son contexte : il y
+  annonce une transition d'**état de maîtrise** mesurée par le moteur
+  (`PlanRecentChangesResolver` côté serveur), dans la plus courte fenêtre qui
+  contienne quelque chose de réel — 7, 14 ou 30 jours. Sur l'Accueil, il
+  arrivait sans le parcours qui l'explique. « Votre progression » n'y porte donc
+  plus que les deux compteurs.
+- ⚠️ **La troisième colonne « validations » de la maquette n'est servie par
+  rien** (`completedSteps` est **borné** serveur, ce n'est pas un total) : elle
+  est **omise**, pas fabriquée. `SfStatGrid` suit la liste qu'on lui donne.
+- 🛑 **Le civique compte des NOTIONS ou des THÈMES** selon ce que le tagging
+  permet (`grainNotion`, **servi**) : `homeWorkedLabel` / `homeMasteredLabel` le
+  disent, au lieu d'écrire « compétences » à tort comme le mockup.
+- ⚠️ **Les raccourcis du bas** (Réviser · Examens blancs · Mes résultats) sont
+  **omis** : la bottom nav les porte déjà, et le propriétaire a écarté une
+  rangée de raccourcis redondante le 2026-09-12.
+- 🛑 **Une priorité TCF verrouillée n'est jamais nommée** — ni sur la carte
+  d'action, ni dans l'aperçu du Plan (qui disparaît alors en entier). Le
+  civique, lui, nomme sa cible : son verrou porte sur la **série**, jamais sur
+  le constat.
+- 🛑 **Basculer de parcours ne coûte AUCUN appel** (2026-09-12) : ni sur
+  l'Accueil, ni sur le Plan. Ni le plan TCF ni le plan civique ne dépendent de
+  l'onglet ouvert — redemander la même réponse à chaque bascule était du bruit.
+  Le remède est d'**observer les deux parcours en permanence** (`ref.watch` de
+  `learningPlanProvider`, `civicPlanProvider` et `diagnosticControllerProvider`
+  dans le build) : ces providers sont `autoDispose`, donc n'en observer qu'un
+  laissait l'autre se jeter à la bascule. Et `CivicPlanView` ne charge plus son
+  plan en `initState` + `setState` — elle lit `civicPlanProvider`, sinon son
+  démontage jetait le plan quoi qu'il arrive.
+  ⚠️ **Changer d'ONGLET ne redemande rien non plus** (2026-09-12, second
+  correctif — la première passe ne couvrait que la bascule et laissait un appel
+  par ouverture d'écran). Les cinq sources de l'Accueil et du Plan sont
+  **gardées en vie pour la session** par `ref.keepAlive()` :
+  `preparationProvider`, `progressProvider`, `learningPlanProvider`,
+  `civicPlanProvider` et le nouveau `diagnosticCourantProvider`. C'est le patron
+  que le dépôt emploie déjà pour le catalogue d'une épreuve
+  (`production_catalog.dart`), avec sa contrepartie obligatoire : **l'échec
+  n'est jamais caché** (`link.close()` dans le `catch`) et **chaque cache a ses
+  points de fraîcheur** — tiré-pour-rafraîchir de l'Accueil et du Plan,
+  `PlanScreen.didPopNext` (qui invalide **les deux** plans) et
+  `learningPlanRevisionProvider`.
+- 🛑 **`diagnosticCourantProvider` (`screens/diagnostic/`) ne remplace PAS
+  `diagnosticControllerProvider`.** L'Accueil instanciait le contrôleur juste
+  pour lire un statut, et le contrôleur appelle `/api/diagnostics/current` à sa
+  création — un appel à chaque ouverture de l'onglet. Mais le contrôleur porte
+  le **parcours** (brouillons, soumissions, polling) et son `autoDispose` est un
+  invariant écrit (« tout chemin d'abandon emporte le marqueur ») : le garder en
+  vie aurait cassé une garantie bien plus chère que cet appel. D'où une lecture
+  **séparée**, gardée en vie, dont la fraîcheur suit
+  `learningPlanRevisionProvider` — que le contrôleur incrémente à **chaque**
+  mutation du parcours. Les deux lectures ne peuvent donc pas diverger.
+- ⚠️ **`PlanScreen` ne lit plus le repository de préparation en direct** : il
+  passe par `preparationProvider`, comme l'Accueil et les Examens. Sa lecture
+  propre était un appel de plus à chaque ouverture pour l'état que l'Accueil
+  venait de lire ; la raison qui la justifiait (décider l'onglet sans faire
+  clignoter la bascule) tient toujours, le provider répondant immédiatement à
+  chaud.
+- 🛑 **« Votre Plan » ne montre que DEUX étapes** (`kHomePlanStepsMax`,
+  demande du propriétaire — un parcours d'expression en compte huit, et la
+  carte poussait tout le reste de l'écran hors de vue). C'est un **plafond
+  d'AFFICHAGE, jamais un budget** : le parcours entier est servi et calculé, il
+  se lit sur le Plan, où « Voir mon Plan » renvoie. 🛑 **La fenêtre contient
+  toujours l'étape en cours** (`homePlanSteps`) : elle et la suivante, ou la
+  précédente et elle quand elle ferme le parcours — « les deux premières »
+  aurait caché exactement ce qu'il y a à faire maintenant. Miroir web :
+  `apercuSteps`.
+- 🛑 **Chaque bloc apparaît quand SA source est là** et disparaît quand elle n'a
+  rien à dire : pas de squelette global, pas de section au-dessus du vide.
+- **Libellés** : `screens/home/home_labels.dart`, **miroirs mot pour mot du
+  web**. **Briques locales** : `screens/home/widgets/home_blocks.dart`
+  (`HomeBanner`, `HomeMiniPlan`, `HomeTrackRow`, `HomeLink`, `HomeSoftAction`)
+  — le pendant Dart de la feuille `homeStyles` du web, **locale à son écran des
+  deux côtés** : elles ne montent pas dans le kit, qui porte les motifs des
+  7 écrans de diagnostic et de plan.
+- **Autorités extraites à leur 2ᵉ surface** : `planTaskPath` /
+  `planSkillStepState` / `planPathSteps` (`screens/plan/plan_task_path.dart`,
+  sortis de `PlanTcfView` — miroir de `parcoursDeLaTache` côté web),
+  `objectifLabel` (`core/models/preparation_labels.dart`) et
+  `TargetProcedure.mentionLabel` (dont `kMentionLabel` **dérive** désormais).
+  `civicPlanProvider` (`screens/plan/civic_plan_provider.dart`) lit le plan
+  civique pour l'Accueil ; `CivicPlanView` garde sa propre lecture.
+
+⚠️ **`ModuleSwitch` a déménagé** dans `screens/review/widgets/` : l'Accueil ne
+l'utilisait plus, `review_screen` était son seul lecteur.
 
 ### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
 

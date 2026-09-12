@@ -5,16 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/api/repositories.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_plan_labels.dart';
+import 'civic_plan_provider.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
 ///
@@ -44,30 +46,24 @@ class CivicPlanView extends ConsumerStatefulWidget {
 }
 
 class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
-  CivicPlan? _plan;
-  bool _loading = true;
+  /// 🛑 **Seul l'état d'ÉCRAN vit ici.** Le plan, lui, vient de
+  /// [civicPlanProvider] : il vivait en `initState` + `setState`, donc chaque
+  /// bascule de parcours démontait cette vue, jetait le plan et **rappelait
+  /// `/api/me/civic-plan`** — pour une réponse identique. Le provider est
+  /// **maintenu vivant par `PlanScreen`**, qui observe les deux parcours : la
+  /// bascule ne coûte plus aucun appel.
   String? _enCours;
   CivicPassDuree _duree = CivicPassDuree.troisMois;
 
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
+  /// Le tiré-pour-rafraîchir, seul point qui redemande le plan — avec le retour
+  /// d'un entraînement joué au-dessus (`PlanScreen.didPopNext`).
   Future<void> _load() async {
+    ref.invalidate(civicPlanProvider);
     try {
-      final plan = await ref.read(civicPlanRepositoryProvider).plan();
-      if (mounted) {
-        setState(() {
-          _plan = plan;
-          _loading = false;
-        });
-      }
+      await ref.read(civicPlanProvider.future);
     } catch (_) {
       // Best-effort : l'onglet reste sobre. Le constat existe déjà côté
       // diagnostic, on ne remplace pas un plan par une erreur.
-      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -101,7 +97,11 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// et leurs prix du store. La durée choisie ici n'est qu'une préférence
   /// affichée — c'est là-bas qu'on achète.
   Future<void> _ouvrirOffre() =>
-      showPaywallSheet(context, initialTarget: PlanModuleTarget.civique);
+      showPaywallSheet(
+        context,
+        initialTarget: PlanModuleTarget.civique,
+        origin: PaywallOrigin.plan,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +109,10 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     // qui la porte (`SfTopSlot`), donc on le rend dès le premier passage, avant
     // le plan : une roue seule laissait l'écran sans aucune porte vers le TCF
     // tant que `/api/me/civic-plan` n'avait pas répondu.
-    if (_loading) {
+    final async = ref.watch(civicPlanProvider);
+    // 🛑 **Le plan déjà lu reste affiché pendant un rechargement** : sans ça, un
+    // tiré-pour-rafraîchir ramenait la roue par-dessus un écran qu'on avait.
+    if (async.isLoading && !async.hasValue) {
       return ListView(
         children: const [
           SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
@@ -118,7 +121,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         ],
       );
     }
-    final plan = _plan;
+    final plan = async.valueOrNull;
     // Même raison : un plan civique indisponible ne rend pas un écran muet,
     // il garde son en-tête — donc la bascule vers l'autre parcours.
     if (plan == null || !plan.disponible) {

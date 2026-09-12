@@ -83,11 +83,23 @@ function invalidateProductionProgress(): void {
 export const DIAGNOSTIC_CACHE_PREFIX = "diagnostic:";
 export const LEARNING_PLAN_CACHE_PREFIX = "learning-plan:";
 
-/** Diagnostic et Plan sont deux vues d'une même trajectoire. Toute production
- *  pertinente peut faire avancer l'une et réordonner l'autre. */
+export const PREPARATION_CACHE_PREFIX = "preparation:";
+export const PROGRESS_CACHE_PREFIX = "progress:";
+
+/** Diagnostic, Plan, préparation et progrès sont quatre vues d'une même
+ *  trajectoire. Toute production pertinente peut faire avancer l'une et
+ *  réordonner les autres — elles se vident donc **ensemble**.
+ *
+ *  🛑 C'est la contrepartie du cache : depuis que ces quatre lectures sont
+ *  mises en cache (pour que changer d'écran ou de parcours ne redemande pas ce
+ *  qu'on vient de lire), c'est **ici** que se joue leur fraîcheur. Une écriture
+ *  qui oublierait d'appeler ce helper afficherait une progression périmée. */
 function invalidateDiagnosticAndPlan(): void {
     invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
     invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+    invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
+    invalidateCache(PREPARATION_CACHE_PREFIX);
+    invalidateCache(PROGRESS_CACHE_PREFIX);
 }
 
 /** Une production de compétence (ou son analyse) change les compteurs de
@@ -769,7 +781,9 @@ export const userContentApi = {
      * proposer trois choses différentes au même candidat.
      */
     preparation(): Promise<PreparationDto> {
-        return apiFetch<PreparationDto>("/api/me/preparation", {auth: true});
+        return cached(`${PREPARATION_CACHE_PREFIX}current`, () =>
+            apiFetch<PreparationDto>("/api/me/preparation", {auth: true}),
+        );
     },
 
     updateExamDate(examDate: string | null): Promise<void> {
@@ -1025,7 +1039,9 @@ export const progressApi = {
      * *pourquoi* il n'a rien à montrer.
      */
     get(): Promise<ProgressDto> {
-        return apiFetch<ProgressDto>("/api/me/progress", {auth: true});
+        return cached(`${PROGRESS_CACHE_PREFIX}current`, () =>
+            apiFetch<ProgressDto>("/api/me/progress", {auth: true}),
+        );
     },
 };
 
@@ -1036,6 +1052,18 @@ export const progressApi = {
  * appel côté serveur : recalculer, c'est relire. Aucune table de progression
  * n'existe, et c'est ce qui rend le tagging rétroactif.
  */
+export const CIVIC_PLAN_CACHE_PREFIX = "civic-plan:";
+const CIVIC_PLAN_CACHE_KEY = `${CIVIC_PLAN_CACHE_PREFIX}current`;
+
+function fetchCivicPlan(): Promise<CivicPlanDto> {
+    return apiFetch<CivicPlanDto>("/api/me/civic-plan", {auth: true}).then((plan) => {
+        // Toute lecture range son résultat, comme le Plan TCF : deux écrans du
+        // même parcours ne doivent pas payer deux appels pour la même réponse.
+        primeCached(CIVIC_PLAN_CACHE_KEY, plan);
+        return plan;
+    });
+}
+
 export const civicPlanApi = {
     /**
      * Le plan.
@@ -1044,9 +1072,16 @@ export const civicPlanApi = {
      * `disponible: false`. L'écran a besoin de savoir *pourquoi* il n'a rien à
      * montrer pour ouvrir la porte qui débloque.
      */
-    get(): Promise<CivicPlanDto> {
-        return apiFetch<CivicPlanDto>("/api/me/civic-plan", {auth: true});
+    get: fetchCivicPlan,
+
+    /** Le plan civique **déjà lu** s'il l'a été, sinon un appel. C'est ce que
+     *  lisent l'Accueil et le Plan : basculer de parcours ne doit rien
+     *  redemander — la réponse ne dépend pas de l'onglet ouvert. */
+    getCached(): Promise<CivicPlanDto> {
+        return cached(CIVIC_PLAN_CACHE_KEY, fetchCivicPlan);
     },
+
+    cacheKey: CIVIC_PLAN_CACHE_KEY,
 
     /**
      * Ouvre la **série ciblée** d'une cible du plan.
@@ -1057,6 +1092,9 @@ export const civicPlanApi = {
      * `handleStartFailure`, jamais à afficher en erreur technique.
      */
     serie(cibleId: string, grain: CivicPlanGrain): Promise<AttemptResponse> {
+        // 🛑 Une série ciblée fait bouger la boîte Leitner : le plan lu ensuite
+        // doit être recalculé, jamais celui d'avant la série.
+        invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
         return apiFetch<AttemptResponse>(
             `/api/me/civic-plan/cibles/${cibleId}/serie?grain=${grain}`,
             {method: "POST", auth: true},

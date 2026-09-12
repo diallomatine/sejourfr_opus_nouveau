@@ -1,4 +1,5 @@
 import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/enums.dart';
 
 /// Règles d'affichage du diagnostic **civique** — **pures**, déclarées une fois
 /// pour tout le mobile.
@@ -81,10 +82,13 @@ const String kCivicDiagnosticPlanCta = 'Découvrir mon plan';
 const String kCivicDiagnosticEnCoursLabel = 'Votre diagnostic en cours';
 
 /// Les trois démarches, dans l'ordre du livret.
-const Map<String, String> kMentionLabel = {
-  'CSP': 'Carte de séjour pluriannuelle',
-  'CR': 'Carte de résident',
-  'NAT': 'Naturalisation',
+///
+/// 🛑 **Dérivée, jamais recopiée** : l'autorité est
+/// [TargetProcedure.mentionLabel], que la pastille d'objectif de l'Accueil lit
+/// aussi. Deux tables auraient fini par nommer la même démarche de deux façons.
+final Map<String, String> kMentionLabel = {
+  for (final procedure in TargetProcedure.values)
+    procedure.wire: procedure.mentionLabel,
 };
 
 /// Ce que l'écran dit à un compte **dont la démarche est déjà connue**.

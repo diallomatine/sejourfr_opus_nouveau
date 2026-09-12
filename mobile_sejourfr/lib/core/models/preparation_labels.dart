@@ -1,3 +1,4 @@
+import 'enums.dart';
 import 'preparation_models.dart';
 
 /// Les phrases de « Ma préparation » — **pures**, déclarées une fois pour tout
@@ -16,6 +17,17 @@ import 'preparation_models.dart';
 const String kPreparationTitle = 'Ma préparation';
 const String kTcfLabel = 'TCF IRN';
 const String kCiviqueLabel = 'Examen civique';
+
+/// La pastille d'objectif de l'Accueil : **la démarche servie**, jamais le
+/// module — la bascule juste en dessous annonce déjà le parcours.
+///
+/// 🛑 Démarche absente ⇒ « Choisir mon parcours » : on n'en devine aucune.
+/// Miroir mot pour mot de `objectifLabel` (`web_sejoufr/lib/preparation.ts`),
+/// et la table des démarches reste l'autorité unique
+/// [TargetProcedure.mentionLabel].
+String objectifLabel(TargetProcedure? procedure) => procedure == null
+    ? 'Choisir mon parcours'
+    : 'Objectif : ${procedure.mentionLabel.toLowerCase()}';
 
 /// Où mène la prochaine action d'un module.
 typedef PreparationAction = ({String statut, String cta, String route});

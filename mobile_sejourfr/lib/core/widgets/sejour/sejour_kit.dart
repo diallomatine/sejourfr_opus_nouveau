@@ -1083,8 +1083,13 @@ class SfPathRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = state == SfStepState.done;
     final now = state == SfStepState.now;
+    // 🛑 **Aucune marge négative.** `Container` l'interdit par assertion
+    // (`margin.isNonNegative`) : la ligne en cours plantait l'écran en debug dès
+    // qu'un parcours servait une étape `now` — Accueil comme Plan. Le débord de
+    // 10 px du CSS web (`.isNext`, qui sort de la gouttière de sa carte) n'a pas
+    // d'équivalent légal ici ; la surbrillance reste donc **dans** la carte, et
+    // c'est le seul écart avec la feuille du web sur cette ligne.
     return Container(
-      margin: now ? const EdgeInsets.symmetric(horizontal: -10) : EdgeInsets.zero,
       padding: EdgeInsets.symmetric(horizontal: now ? 10 : 0, vertical: 8),
       decoration: now
           ? BoxDecoration(
@@ -1670,14 +1675,16 @@ class SfTop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final below = SfTopSlot.maybeOf(context);
-    // 🛑 **Un en-tête SANS flèche de retour se centre**, et c'est la largeur
-    // d'un téléphone qui le veut : un titre calé à gauche s'y lit mal. Un
-    // en-tête qui PORTE une flèche garde son alignement à gauche — centrer son
-    // texte le décalerait de sa flèche.
+    // 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
+    // 2026-09-12, sur capture de l'Accueil et du Plan). Il **révoque** la règle
+    // « un en-tête sans flèche de retour se centre », posée le même jour : un
+    // titre centré au-dessus d'un contenu entièrement calé à gauche se lisait
+    // comme un bandeau, pas comme le titre de la page — et il ne s'alignait ni
+    // sur la bascule de parcours, ni sur les cartes en dessous.
     //
-    // Miroir de `.topPlain` côté web, qui revient à gauche au-delà de 620 px :
-    // une largeur que l'app, verrouillée en portrait, n'atteint pas.
-    final plain = onBack == null;
+    // C'est aussi ce que fait la maquette, et ce que le web a toujours fait sur
+    // l'Accueil (`.home-hello`). `.topPlain` a été retiré côté web dans la même
+    // passe : les deux fronts s'alignent à gauche à toutes les largeurs.
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
       child: Row(
@@ -1689,13 +1696,12 @@ class SfTop extends StatelessWidget {
           ],
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  plain ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (kicker != null) ...[
                   Text(
                     kicker!,
-                    textAlign: plain ? TextAlign.center : TextAlign.start,
+                    textAlign: TextAlign.start,
                     style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w600,
@@ -1706,7 +1712,7 @@ class SfTop extends StatelessWidget {
                 ],
                 Text(
                   title,
-                  textAlign: plain ? TextAlign.center : TextAlign.start,
+                  textAlign: TextAlign.start,
                   style: AppFonts.display(size: 22, weight: FontWeight.w700, height: 1.15),
                 ),
                 if (badges.isNotEmpty) ...[
@@ -1714,8 +1720,6 @@ class SfTop extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    alignment:
-                        plain ? WrapAlignment.center : WrapAlignment.start,
                     children: [for (final b in badges) SfBadge(b)],
                   ),
                 ],

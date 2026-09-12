@@ -12,6 +12,7 @@ import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
 import '../../core/widgets/paywall_context.dart';
 import '../plan/learning_plan_provider.dart';
 import '../../core/auth/auth_controller.dart';
@@ -23,11 +24,20 @@ import '../../core/auth/auth_controller.dart';
 /// pas par redirection externe. Bouton « Restaurer mes achats » obligatoire
 /// pour passage en review Apple.
 class PaywallScreen extends ConsumerStatefulWidget {
-  const PaywallScreen({super.key, this.initialTarget});
+  const PaywallScreen({
+    super.key,
+    this.initialTarget,
+    this.origin = PaywallOrigin.ailleurs,
+  });
 
   /// Module pré-sélectionné (utilisé quand un paywall pop sur un module TCF
   /// → on focus sur Intégral). Null = on montre les deux cards.
   final PlanModuleTarget? initialTarget;
+
+  /// 🛑 **D'où l'on vient**, et c'est ce qui décide de l'en-tête personnalisé.
+  /// Défaut : [PaywallOrigin.ailleurs] — un appelant qui ne dit rien ouvre le
+  /// paywall directement sur l'offre.
+  final PaywallOrigin origin;
 
   @override
   ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
@@ -176,11 +186,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// L'en-tête contextualisé (`10_` §5) : niveau, objectif, priorités réelles
   /// et échéance.
   ///
+  /// 🛑 **Il ne s'affiche que depuis le Plan ou le diagnostic**
+  /// ([PaywallOrigin]). Ailleurs, le candidat n'a pas ce contexte sous les
+  /// yeux : commencer par « Votre plan B2 est prêt » lui promettrait un écran
+  /// qu'il n'a pas vu, et repousserait l'offre d'une page entière. Le paywall
+  /// ouvre alors directement sur « Débloquez votre accès ».
+  ///
   /// 🛑 **Best-effort, et jamais bloquant.** Le Plan est lu depuis son provider
   /// existant — s'il n'est pas chargé, ou s'il échoue, on ne rend **rien** et
   /// le paywall garde son message générique. Un paywall qui attend une donnée
   /// est un paywall qu'on ne voit pas.
+  ///
+  /// La mise en page vient de la maquette (`~/Desktop/grok_ecran`,
+  /// `screens/paywall.tsx`) : une pastille d'icône, un titre à gauche, puis
+  /// **deux cartes** — les priorités, les bénéfices. ⚠️ Ces blocs étaient posés
+  /// à plat, titres et paragraphes empilés : ça se lisait comme une page de
+  /// texte, pas comme une promesse.
   Widget _buildContexte(BillingState state) {
+    if (!widget.origin.montreLeContexte) return const SizedBox.shrink();
+
     final plan = ref.watch(learningPlanProvider).valueOrNull;
     final user = ref.watch(authControllerProvider);
     final examDate = user is AuthAuthenticated ? user.user.examDate : null;
@@ -198,88 +222,114 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     final pitch = paywallPitch(ctx);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ctx.isContextualised)
+          if (ctx.isContextualised) ...[
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.blueLight,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: const Icon(LucideIcons.target,
+                  size: 26, color: AppColors.blue),
+            ),
+            const SizedBox(height: 14),
             Text(
               paywallTitle(ctx),
-              textAlign: TextAlign.center,
-              style: AppFonts.display(size: 22, weight: FontWeight.w600),
+              style: AppFonts.display(size: 24, weight: FontWeight.w700),
             ),
+          ],
           if (pitch != null) ...[
             const SizedBox(height: 6),
             Text(pitch,
-                textAlign: TextAlign.center,
-                style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
+                style: AppFonts.ui(
+                    size: 13.5, color: AppColors.inkSoft, height: 1.5)),
           ],
           if (echeance != null) ...[
-            const SizedBox(height: 8),
-            Text(echeance,
-                textAlign: TextAlign.center,
-                style: AppFonts.label(size: 12, color: AppColors.redDark)),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.redLight,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: Text(echeance,
+                  style: AppFonts.label(size: 12, color: AppColors.redDark)),
+            ),
           ],
           // Les priorités RÉELLES, dans l'ordre servi. Un paywall qui promet un
           // plan sans montrer ce qu'il contient ne prouve rien.
           if (ctx.priorities.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(kPaywallPrioritesLabel.toUpperCase(),
-                style: AppFonts.label(size: 11, color: AppColors.inkFaint)),
-            const SizedBox(height: 6),
-            for (final p in ctx.priorities)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 6, right: 8),
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: p == ctx.priorities.first
-                            ? AppColors.red
-                            : AppColors.amber,
-                        shape: BoxShape.circle,
+            const SizedBox(height: 16),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(kPaywallPrioritesLabel,
+                      style: AppFonts.ui(
+                          size: 12.5,
+                          weight: FontWeight.w700,
+                          color: AppColors.inkFaint)),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < ctx.priorities.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 6, right: 10),
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              // Le rang se voit : la n°1 en rouge, les
+                              // suivantes en ambre puis en jaune — les mêmes
+                              // teintes que les liserés de `SfPrio` sur le Plan.
+                              color: switch (i) {
+                                0 => AppColors.red,
+                                1 => AppColors.amber,
+                                _ => AppColors.yellow,
+                              },
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(ctx.priorities[i].title,
+                                style: AppFonts.ui(
+                                    size: 14,
+                                    weight: FontWeight.w600,
+                                    height: 1.35)),
+                          ),
+                        ],
                       ),
                     ),
-                    Expanded(
-                      child: Text(p.title,
-                          style: AppFonts.ui(
-                              size: 13, color: AppColors.ink)),
-                    ),
-                  ],
-                ),
+                ],
               ),
+            ),
           ],
           // 🛑 Les bénéfices du PLAN, seulement quand le paywall sait de quoi
           // il parle. Ouvert depuis un cadenas quelconque, il n'a rien de
           // personnel à promettre et ce bloc n'apparaît pas.
           if (ctx.isContextualised) ...[
-            const SizedBox(height: 16),
-            for (final benefit in paywallBenefits(ctx))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(benefit.title,
-                        style: AppFonts.ui(
-                            size: 14.5,
-                            weight: FontWeight.w600,
-                            color: AppColors.ink)),
-                    const SizedBox(height: 3),
-                    Text(benefit.text,
-                        style: AppFonts.ui(
-                            size: 13, color: AppColors.inkSoft, height: 1.5)),
+            const SizedBox(height: 10),
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < paywallBenefits(ctx).length; i++) ...[
+                    if (i > 0) const SizedBox(height: 14),
+                    _Benefit(benefit: paywallBenefits(ctx)[i]),
                   ],
-                ),
+                ],
               ),
+            ),
           ],
           // Le levier propre aux pass : aligner la durée sur l'échéance.
           if (pass != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
@@ -439,6 +489,59 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 // ============================================================================
 // Sub-widgets
 // ============================================================================
+
+/// Un bénéfice du plan : pictogramme, titre, une phrase.
+///
+/// 🛑 **L'icône vient du `kind`**, pas du rang dans la liste : deux bénéfices
+/// réordonnés ne peuvent pas échanger leurs pictogrammes.
+class _Benefit extends StatelessWidget {
+  const _Benefit({required this.benefit});
+
+  final PaywallBenefit benefit;
+
+  IconData get _icon => switch (benefit.kind) {
+        PaywallBenefitKind.focus => LucideIcons.target,
+        PaywallBenefitKind.understand => LucideIcons.sparkles,
+        PaywallBenefitKind.progress => LucideIcons.trendingUp,
+        PaywallBenefitKind.adapt => LucideIcons.refreshCw,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.blueLight,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(_icon, size: 20, color: AppColors.blue),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(benefit.title,
+                  style: AppFonts.ui(
+                      size: 14.5,
+                      weight: FontWeight.w700,
+                      color: AppColors.ink,
+                      height: 1.3)),
+              const SizedBox(height: 2),
+              Text(benefit.text,
+                  style: AppFonts.ui(
+                      size: 13, color: AppColors.inkSoft, height: 1.45)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _PeriodicityToggle extends StatelessWidget {
   const _PeriodicityToggle({required this.value, required this.onChanged});

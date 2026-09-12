@@ -48,6 +48,8 @@ import {
   planPathStepTitle,
   planPathTitle,
   planPriorityGroups,
+  parcoursDeLaTache,
+  type PlanTachePath,
   planRowStatus,
   planRowStatusSummary,
   planSeanceItemDone,
@@ -162,7 +164,7 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     if (authStatus === "loading") return;
     if (!user) return;
     let cancelled = false;
-    learningPlanApi.get().then(
+    learningPlanApi.getCached().then(
       (current) => {
         if (cancelled) return;
         setPlan(current);
@@ -451,7 +453,7 @@ function TcfPlanFree({plan}: {plan: LearningPlanDto}) {
       {tachePath && (
         <Section title="Le parcours de cette tâche" flush>
           <Card padding="rows">
-            {tachePath.locked.map((row, index) => (
+            {lignesVerrouillees(tachePath).map((row, index) => (
               <LockRow
                 key={row.key}
                 n={index + 1}
@@ -602,7 +604,7 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
           <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
         )}
       </Pad>
-      <PaywallSheet
+      <PaywallSheet origin="plan"
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"
@@ -708,50 +710,21 @@ function groupTitle(group: PlanPriorityGroup): string {
 
 /* -------------------------------------------------------------- parcours */
 
-interface TachePath {
-  title: string;
-  currentLabel: string;
-  counterLabel: string;
-  steps: PathStep[];
-  /** La même liste, vue par un compte gratuit : le rang et le cadenas restent
-   *  nets, le titre d'une ligne **verrouillée** passe derrière le rideau. */
-  locked: Array<{key: string; label: string; icon: LucideIcon; blurred: boolean}>;
-}
-
-/**
- * **Le parcours de la tâche de la priorité courante.**
+/** La même liste, vue par un compte gratuit : le rang et le cadenas restent
+ *  nets, le titre d'une ligne **verrouillée** passe derrière le rideau.
  *
- * 🛑 « Étape X / Y » se lit sur `domaines[].taches[]`
- * (`observedSkills` / `totalSkills`), il ne s'invente pas. Les états des lignes
- * viennent de `planRowStatus`, donc des enums servis.
+ * 🛑 La dérivation, elle, vit dans `parcoursDeLaTache` (`lib/plan-domain.ts`),
+ * partagée avec le bloc « Votre Plan » de l'Accueil : deux copies auraient fini
+ * par cocher deux étapes différentes. Ici on n'habille que les icônes, que la
+ * couche pure n'a pas à connaître.
  */
-function parcoursDeLaTache(plan: LearningPlanDto, priority: LearningPlanPriorityDto): TachePath | null {
-  const code = skillTaskCode(priority.skillCode);
-  if (!code) return null;
-  const domain = findDomain(plan, planSectionEpreuve(priority.section));
-  if (!domain) return null;
-  const tache = domain.taches.find((candidate) => candidate.taskCode === code);
-  const skills = (domain.skills ?? []).filter((skill) => skill.taskCode === code);
-  if (!tache || skills.length === 0) return null;
-
-  const state = (skillId: string, solide: boolean): StepState =>
-    skillId === priority.skillId ? "now" : solide ? "done" : "todo";
-
-  return {
-    title: `Votre parcours — ${planTaskBadge(tache.tacheNumero)}`,
-    currentLabel: priority.title,
-    counterLabel: `Étape ${tache.observedSkills} / ${tache.totalSkills}`,
-    steps: skills.map((skill) => ({
-      label: skill.title,
-      state: state(skill.skillId, planRowStatus(skill) === "SOLIDE"),
-    })),
-    locked: skills.map((skill) => ({
-      key: skill.skillId,
-      label: skill.title,
-      icon: skill.locked ? Lock : planRowStatus(skill) === "SOLIDE" ? Check : Circle,
-      blurred: skill.locked,
-    })),
-  };
+function lignesVerrouillees(path: PlanTachePath) {
+  return path.skills.map((skill) => ({
+    key: skill.skillId,
+    label: skill.title,
+    icon: skill.locked ? Lock : planRowStatus(skill) === "SOLIDE" ? Check : Circle,
+    blurred: skill.locked,
+  }));
 }
 
 interface PalierPathData {
@@ -874,7 +847,7 @@ function CompleterMonProfil({plan}: {plan: LearningPlanDto}) {
           {error && <p className={sejourStyles.tiny} role="alert">{error}</p>}
         </Stack>
       </Pad>
-      <PaywallSheet
+      <PaywallSheet origin="plan"
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"

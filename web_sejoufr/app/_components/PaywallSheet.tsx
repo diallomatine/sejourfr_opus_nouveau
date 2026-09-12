@@ -7,9 +7,11 @@ import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
 import { billingApi, learningPlanApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {RefreshCw, Sparkles, Target, TrendingUp, type LucideIcon} from "lucide-react";
 import {
   echeanceLine,
   isContextualised,
+  montreLeContexte,
   passRecommande,
   paywallContext,
   PAYWALL_PRIORITES_LABEL,
@@ -17,7 +19,9 @@ import {
   paywallCta,
   paywallPitch,
   paywallTitle,
+  type PaywallBenefitKind,
   type PaywallContext,
+  type PaywallOrigin,
 } from "@/lib/paywall-context";
 import type { PlanPublicResponse } from "@/lib/types";
 
@@ -40,7 +44,24 @@ interface PaywallSheetProps {
   ctaLocation?: AnalyticsCtaLocation;
   /** Écran précis, quand il apporte plus que l'emplacement. */
   screen?: string;
+  /**
+   * 🛑 **D'où l'on vient**, et c'est ce qui décide de l'en-tête personnalisé
+   * (`PaywallOrigin`). Défaut : `"ailleurs"` — un appelant qui ne dit rien
+   * ouvre l'offre sans en-tête de plan.
+   */
+  origin?: PaywallOrigin;
 }
+
+/**
+ * 🛑 **Le pictogramme vient du `kind`**, pas du rang dans la liste : deux
+ * bénéfices réordonnés ne peuvent pas échanger leurs icônes.
+ */
+const BENEFIT_ICON: Record<PaywallBenefitKind, LucideIcon> = {
+  focus: Target,
+  understand: Sparkles,
+  progress: TrendingUp,
+  adapt: RefreshCw,
+};
 
 /**
  * Modal (bottom sheet sur mobile, dialog centré sur desktop) qui pousse à
@@ -55,6 +76,7 @@ export function PaywallSheet({
   module = "CIVIQUE",
   ctaLocation = "OTHER",
   screen,
+  origin = "ailleurs",
 }: PaywallSheetProps) {
   // Une feuille de paywall ouverte, c'est un écran Premium vu : l'étape de
   // funnel est la même que sur `/paiement`. Idempotente côté serveur, et
@@ -114,7 +136,11 @@ export function PaywallSheet({
 
   if (!open) return null;
 
-  const contextualise = ctx !== null && isContextualised(ctx);
+  /* 🛑 Deux conditions, et les deux comptent : il faut **de quoi** personnaliser
+     (un plan servi) ET **une raison** de le faire (venir du Plan ou du
+     diagnostic). Ailleurs, le candidat n'a pas ce contexte sous les yeux. */
+  const contextualise =
+      ctx !== null && isContextualised(ctx) && montreLeContexte(origin);
   const pitch = contextualise ? paywallPitch(ctx) : null;
   const echeance = ctx ? echeanceLine(ctx) : null;
   const pass = ctx ? passRecommande(ctx, plans) : null;
@@ -183,12 +209,20 @@ export function PaywallSheet({
             contenu qui n'existe pas. */}
         {contextualise ? (
           <div className="pws-benefits">
-            {paywallBenefits(ctx!).map((benefit) => (
-              <div className="pws-benefit" key={benefit.title}>
-                <h3>{benefit.title}</h3>
-                <p>{benefit.text}</p>
-              </div>
-            ))}
+            {paywallBenefits(ctx!).map((benefit) => {
+              const Icone = BENEFIT_ICON[benefit.kind];
+              return (
+                <div className="pws-benefit" key={benefit.title}>
+                  <span className="pws-benefit-ico" aria-hidden>
+                    <Icone size={20} />
+                  </span>
+                  <div>
+                    <h3>{benefit.title}</h3>
+                    <p>{benefit.text}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="pws-features">
@@ -321,6 +355,19 @@ export function PaywallSheet({
         }
         /* Les bénéfices du PLAN : un titre, une phrase. Ils remplacent la liste
            générique quand le paywall sait de quoi il parle. */
+        .pws-benefit {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .pws-benefit-ico {
+          flex-shrink: 0;
+          width: 40px; height: 40px;
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 12px;
+          background: var(--color-blue-light);
+          color: var(--color-blue);
+        }
         .pws-benefits {
           text-align: left;
           display: flex;

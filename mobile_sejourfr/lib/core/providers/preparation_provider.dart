@@ -14,6 +14,19 @@ import '../models/preparation_models.dart';
 /// ⚠️ L'écran Plan garde sa propre lecture (`PlanScreen._chargerPreparation`) :
 /// elle décide de l'onglet ouvert **avant** le premier rendu et ne peut pas
 /// s'exprimer en `AsyncValue` sans faire clignoter la bascule de parcours.
-final preparationProvider = FutureProvider.autoDispose<PreparationDto>(
-  (ref) => ref.watch(userContentRepositoryProvider).preparation(),
-);
+/// 🛑 **Gardé en vie pour la session** (2026-09-12) : trois écrans le lisent
+/// (Accueil, Plan, Examens) et il ne dépend d'aucun onglet — chaque ouverture
+/// rappelait `/api/me/preparation` pour la même réponse. Il se rafraîchit au
+/// tiré-pour-rafraîchir et au retour d'un diagnostic joué au-dessus.
+///
+/// L'échec n'est **pas** mis en cache : la porte d'un diagnostic inachevé doit
+/// pouvoir réapparaître au rafraîchissement suivant.
+final preparationProvider = FutureProvider.autoDispose<PreparationDto>((ref) async {
+  final link = ref.keepAlive();
+  try {
+    return await ref.watch(userContentRepositoryProvider).preparation();
+  } catch (_) {
+    link.close();
+    rethrow;
+  }
+});

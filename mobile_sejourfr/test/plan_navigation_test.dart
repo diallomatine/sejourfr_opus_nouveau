@@ -3,10 +3,15 @@ import 'package:sejourfr_mobile/core/router/app_router.dart';
 import 'package:sejourfr_mobile/screens/shell/main_shell.dart';
 
 void main() {
-  test('le quatrième onglet ouvre Plan et Progrès reste secondaire', () {
+  // ⚠️ Ce test gelait « le QUATRIÈME onglet ouvre Plan ». Le rang n'est pas le
+  // contrat — le propriétaire a réordonné la barre le 2026-09-12 (Plan en 2ᵉ).
+  // Ce qui doit tenir : le Plan a son onglet, il pointe sur le plan serveur, et
+  // l'ancien écran Progrès n'y est pas.
+  test('le Plan a son onglet et Progrès reste secondaire', () {
     expect(mainShellDestinations, hasLength(5));
-    expect(mainShellDestinations[3].label, 'Plan');
-    expect(mainShellDestinations[3].route, AppRoutes.plan);
+    final plan = mainShellDestinations
+        .singleWhere((destination) => destination.label == 'Plan');
+    expect(plan.route, AppRoutes.plan);
     expect(
       mainShellDestinations.map((destination) => destination.route),
       isNot(contains(AppRoutes.progress)),

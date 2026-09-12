@@ -6,6 +6,7 @@ import '../analytics/analytics.dart';
 import '../models/billing_models.dart';
 import '../theme/app_theme.dart';
 import 'app_tag.dart';
+import 'paywall_context.dart';
 import 'paywall_sheet.dart';
 
 /// Le verrou freemium d'un contenu TCF, **rendu partout de la même façon** :
@@ -37,12 +38,14 @@ Future<void> showTcfLockPaywall(
   BuildContext context, {
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
+  PaywallOrigin origin = PaywallOrigin.ailleurs,
 }) =>
     showPaywallSheet(
       context,
       initialTarget: PlanModuleTarget.integral,
       ref: ref,
       ctaLocation: ctaLocation,
+      origin: origin,
     );
 
 /// Pilule « Abonnement » à poser à côté d'un titre ou d'un statut.

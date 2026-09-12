@@ -180,7 +180,7 @@ function ProgressDetail({plan}: {plan: LearningPlanDto}) {
           <p className={styles.asideNote}>{PLAN_PROGRESS_NOTE}</p>
         </div>
 
-        <PaywallSheet
+        <PaywallSheet origin="plan"
           ctaLocation="LOCKED_PLAN"
           screen="plan_progression"
           open={paywallOpen}

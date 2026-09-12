@@ -102,7 +102,7 @@ export function CivicPlanPanel() {
 
   useEffect(() => {
     let vivant = true;
-    civicPlanApi.get().then(
+    civicPlanApi.getCached().then(
       (p) => { if (vivant) setPlan(p); },
       () => { /* best-effort : jamais une erreur technique à la place d'un plan */ },
     );
@@ -165,7 +165,7 @@ export function CivicPlanPanel() {
       {premium
         ? <CiviquePremium plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />
         : <CiviqueGratuit plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />}
-      <PaywallSheet open={paywall} module="CIVIQUE" onClose={() => setPaywall(false)} />
+      <PaywallSheet origin="plan" open={paywall} module="CIVIQUE" onClose={() => setPaywall(false)} />
     </>
   );
 }

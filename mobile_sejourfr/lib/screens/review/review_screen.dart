@@ -13,7 +13,7 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
-import '../home/widgets/module_switch.dart';
+import 'widgets/module_switch.dart';
 
 final _favoritesProvider = FutureProvider.autoDispose<List<QuestionDto>>((ref) {
   final module = ref.watch(selectedModuleProvider);

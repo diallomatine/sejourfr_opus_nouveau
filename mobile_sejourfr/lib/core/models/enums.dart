@@ -122,6 +122,22 @@ enum TargetProcedure {
         TargetProcedure.nat => 'Naturalisation française',
       };
 
+  /// La démarche **telle qu'on la nomme au candidat**, dans l'ordre du livret.
+  ///
+  /// 🛑 **Une seule table pour tout le mobile** : elle sert la pastille
+  /// d'objectif de l'Accueil ([objectifLabel]) comme la phrase du diagnostic
+  /// civique (`kMentionLabel`, qui en dérive). Miroir de `MENTION_LABEL`
+  /// (`web_sejoufr/lib/civic-diagnostic.ts`).
+  ///
+  /// ⚠️ Volontairement **distincte de [fullLabel]**, le libellé du profil :
+  /// « Naturalisation » ici, « Naturalisation française » là. Les deux sont
+  /// gelés en miroir du web, chacun sur sa surface.
+  String get mentionLabel => switch (this) {
+        TargetProcedure.csp => 'Carte de séjour pluriannuelle',
+        TargetProcedure.cr => 'Carte de résident',
+        TargetProcedure.nat => 'Naturalisation',
+      };
+
   /// **Le palier de français que cette démarche exige.**
   ///
   /// Seuils en vigueur au 1ᵉʳ janvier 2026 : CSP → A2, CR → B1, NAT → B2.

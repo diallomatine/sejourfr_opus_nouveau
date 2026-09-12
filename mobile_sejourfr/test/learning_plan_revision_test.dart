@@ -1,44 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sejourfr_mobile/core/api/learning_plan_repository.dart';
 import 'package:sejourfr_mobile/core/api/repositories.dart';
 import 'package:sejourfr_mobile/core/models/diagnostic_models.dart';
 import 'package:sejourfr_mobile/core/models/skill_models.dart';
-import 'package:sejourfr_mobile/screens/home/home_screen.dart';
 import 'package:sejourfr_mobile/screens/plan/learning_plan_provider.dart';
 
+// ⚠️ Ce fichier s'appelait `home_plan_priority_test.dart` : il gelait en plus
+// l'anatomie de `PlanPriorityHomeCard`, la carte de priorité de l'ancien
+// Accueil, supprimée quand l'écran a été refait sur le KIT (la règle qu'elle
+// portait — une priorité verrouillée n'est jamais nommée sur l'Accueil — vit
+// maintenant dans `HomeScreen._actionTcf`). Reste ici le seul contrat qui n'a
+// rien à voir avec un écran : le signal de rechargement du Plan.
+
 void main() {
-  setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
-
-  testWidgets(
-      'l’accueil préfère la priorité vivante du Plan au diagnostic figé',
-      (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          learningPlanRepositoryProvider.overrideWithValue(
-            _FakeLearningPlanRepository(_livePlan),
-          ),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: PlanPriorityHomeCard(
-              journey: _completedDiagnostic,
-              onOpenPlan: () {},
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-        find.text('Priorité mise à jour après entraînement'), findsOneWidget);
-    expect(find.text('Priorité initiale du diagnostic'), findsNothing);
-  });
-
   test('le signal d’activité recharge un Plan actuellement observé', () async {
     final repository = _CountingLearningPlanRepository(_livePlan);
     final container = ProviderContainer(
@@ -61,30 +36,6 @@ void main() {
     expect(repository.calls, 2);
   });
 }
-
-final _completedDiagnostic = DiagnosticJourney(
-  sessionId: 'session-1',
-  diagnosticCode: 'INITIAL_TCF',
-  diagnosticVersion: 1,
-  status: DiagnosticJourneyStatus.completed,
-  nextStep: DiagnosticStep.result,
-  canRetry: false,
-  result: DiagnosticResult(
-    strengths: const [],
-    priorities: [
-      DiagnosticSkillObservation(
-        skillId: 'initial-skill',
-        skillCode: 'EE_INITIAL',
-        skillTitle: 'Priorité initiale du diagnostic',
-        section: SkillSection.ee,
-        observed: true,
-        status: LearningPlanSkillStatus.priority,
-        confidence: ObservationConfidence.medium,
-        priority: true,
-      ),
-    ],
-  ),
-);
 
 final _livePlan = LearningPlan(
   state: LearningPlanState.active,

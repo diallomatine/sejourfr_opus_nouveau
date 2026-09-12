@@ -92,9 +92,9 @@ app/
 │   ├── dashboard/page.tsx        # ★ l'ACCUEIL, monté sur le KIT (SejourApp wide), disposé
 │   │                              #   sur la maquette (accueil.png / accueil-civ.png) et
 │   │                              #   SCOPÉ au parcours (?module=) : « Bonjour X » + démarche,
-│   │                              #   bascule, puis deux deskPair — À faire maintenant /
-│   │                              #   Ma préparation, Affiner votre Plan / Votre progression —
-│   │                              #   puis Vos parcours (NON scopé) et À renforcer en priorité
+│   │                              #   bascule, deskPair À faire maintenant / Votre Plan,
+│   │                              #   deskPair Votre progression / Affiner votre Plan,
+│   │                              #   puis Vos parcours (NON scopé, 2 lignes vers /plan)
 │   ├── plan/page.tsx             # ★ Plan ADAPTATIF : priorité actuelle, séance du jour,
 │   │                              #   mes priorités, ce qui a changé, profil TCF (4 domaines),
 │   │                              #   compléter mon profil, chemin vers l'objectif.
@@ -830,12 +830,12 @@ jamais `/diagnostic-*`.
 porte lui-même sa gouttière de 64 px (`TcfDiagnosticHub`, `.tcfd`), comme
 `/dashboard` ou `/statistiques`. Les écrans du kit l'ont par `.app`.
 
-**En-tête centré sous 620 px (2026-09-12).** `Top` pose `.topPlain` quand il n'a
-**pas** de flèche de retour : eyebrow et titre se centrent sur mobile, et
-reviennent à gauche au-dessus de 620 px — la borne que le kit utilise déjà pour
-son confort de lecture, pas un breakpoint de plus. 🛑 Un en-tête **qui porte une
-flèche** garde son alignement à gauche à toutes les largeurs : centrer son texte
-le décalerait de sa flèche. Miroir Flutter : `plain` dans `SfTop`.
+🛑 **L'en-tête est TOUJOURS aligné à gauche (2026-09-12).** ⚠️ **Révoque**
+`.topPlain`, qui centrait sous 620 px un en-tête sans flèche de retour : vérifié
+à l'écran sur l'Accueil et le Plan, un titre centré au-dessus d'un contenu
+entièrement calé à gauche se lit comme un bandeau, pas comme le titre de la
+page. La classe et sa media query sont **supprimées**, `Top` n'a plus de
+variante. Miroir Flutter : `SfTop`, aligné à gauche dans la même passe.
 
 La barre latérale de `(app)` joue le rôle de la barre d'onglets du mockup —
 `sf-tabs` n'est **pas** porté sur le web.
@@ -1061,10 +1061,27 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 1. bandeau « choisissez votre parcours » (si `targetProcedure` est `null`) ;
 2. en-tête « Bonjour X » + pastille de démarche, **et rien d'autre** ;
 3. la **bascule TCF / Examen civique** du kit ;
-4. `deskPair` : **À faire maintenant** | **Ma préparation** ;
-5. `deskPair` : **Affiner votre Plan** (TCF seulement) | **Votre progression** ;
-6. **Vos parcours** (les deux cartes de module, en `deskPair`) ;
-7. **À renforcer en priorité**.
+4. `deskPair` : **À faire maintenant** | **Votre Plan** (l'aperçu) ;
+5. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
+6. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
+
+⚠️ **Corrigé sur capture le 2026-09-12** : la version précédente ajoutait
+« Ma préparation » et « À renforcer en priorité », affichait **quatre tuiles**
+d'indicateurs (Maîtrise / Examens blancs / Série / Niveau TCF estimé) et des
+cartes de parcours à barres de catégories, et plaçait « Affiner votre Plan »
+**avant** la progression. La maquette fait foi, le mobile a été aligné dans la
+même passe. « Ma préparation » reste la porte du **Plan** et des **Examens** ;
+ici, « À faire maintenant » porte déjà cette porte.
+
+🛑 **Les deux compteurs de « Votre progression » sont SERVIS** —
+`progressApi.get()` (`GET /api/me/progress`) publie `travaillees` /
+`maitrisees` **pour les deux parcours** et **même verrouillés** : c'est le
+*détail* qui est premium, pas le fait d'avoir progressé. `dashboardApi` **n'est
+plus lu par l'Accueil** (4 requêtes au lieu de 5).
+⚠️ **La troisième colonne « validations » de la maquette n'est servie par
+rien** : elle est **omise**, pas fabriquée.
+🛑 **Le civique compte des NOTIONS ou des THÈMES** (`grainNotion`, servi) :
+`compteurLabel` le dit, au lieu d'écrire « compétences » à tort.
 
 #### L'Accueil est SCOPÉ au parcours choisi (2026-09-12)
 
@@ -1079,20 +1096,16 @@ n'existe **aucun `useState` de module**.
 | **À faire maintenant** | `diagnosticApi.current` (3 états) puis `plan.currentPriority` | `planIndisponible(prep.civique)` puis **`civicPlan.prochaine`** |
 | **Ma préparation** | `prep.tcf` | `prep.civique` |
 | **Affiner votre Plan** | `affinerPlan(prep.tcf)` | **absent** — le diagnostic 4 épreuves est un objet TCF, et la maquette civique n'en a pas |
-| **Votre progression** | `moduleAverage(summary.tcf)` · `tcfMockExams` · streak · `estimatedTcfLevel` | `moduleAverage(summary.civique)` · `civiqueMockExams` · streak |
+| **Votre Plan** | `parcoursDeLaTache(plan, currentPriority)` | `civicPath(cible)` |
+| **Votre progression** | `progres.tcf.competences` (servi) | `progres.civique` (servi) |
 | **Progression détectée** | `plan.recentChanges` | `civicPlan.changements` |
-| **À renforcer en priorité** | `summary.tcf` | `summary.civique` |
-| **Vos parcours** | 🛑 **non scopé**, les deux cartes | idem |
+| **Vos parcours** | 🛑 **non scopé**, les deux lignes → le Plan du module | idem |
 
 🛑 **Aucune donnée n'a été fabriquée, aucun endpoint ajouté.** Tout ce que la
 version civique affiche était déjà servi ; le seul appel nouveau est
 `civicPlanApi.get()`, ajouté au lot parallèle de l'Accueil pour que la bascule
 soit instantanée (5 requêtes au lieu de 4, best-effort — son échec laisse
 l'écran entier).
-
-🛑 **Le civique n'a AUCUN niveau estimé servi** : la quatrième tuile de
-« Votre progression » **disparaît** au lieu d'afficher « — ». `null` = inconnu,
-jamais mauvais.
 
 🛑 **Le verrou civique porte sur la SÉRIE, jamais sur le constat** : une cible
 `locked` garde son nom et son état sur l'Accueil comme sur le Plan — c'est la
@@ -1105,12 +1118,48 @@ En civique, « Affiner votre Plan » disparaît et « Votre progression » prend
 toute la rangée : c'est la règle `:only-child` du kit qui joue **seule**, aucun
 cas particulier n'est écrit dans l'écran.
 
-⚠️ **Deux écarts assumés avec la maquette civique**, à rouvrir sur demande :
-la pastille d'objectif nomme la **démarche** servie (« Objectif :
-naturalisation », autorité unique `objectifLabel`) là où la maquette nomme le
-module — que la bascule juste en dessous annonce déjà ; et le bloc « Votre
-Plan » (priorité + ses 5 étapes) n'a pas été porté sur l'Accueil — il vit sur le
-Plan, où « À faire maintenant » renvoie.
+⚠️ **Un écart assumé avec la maquette civique**, à rouvrir sur demande : la
+pastille d'objectif nomme la **démarche** servie (« Objectif : naturalisation »,
+autorité unique `objectifLabel`) là où la maquette nomme le module — que la
+bascule juste en dessous annonce déjà.
+
+✅ **« Votre Plan » est revenu le 2026-09-12** (demande du propriétaire :
+l'Accueil doit ressembler à la maquette, et « côté backend on a tout ce qu'il
+faut »). C'était le second écart, celui noté « à rouvrir si besoin ».
+`VotrePlan` / `PlanApercu` (`dashboard/page.tsx`) rendent « Priorité actuelle »,
+le titre (`{domaine} · Tâche N` en TCF, le thème en civique), le sous-titre, les
+étapes en `PathRow` et le lien « Voir mon Plan ».
+🛑 **Un aperçu, pas un second Plan** : aucune action n'en part.
+🛑 **Basculer de parcours ne coûte AUCUN appel** (2026-09-12), ni ici ni sur
+`/plan` : ni le plan TCF ni le plan civique ne dépendent de l'onglet ouvert.
+`civicPlanApi` a donc `getCached()` / `cacheKey` comme `learningPlanApi`, et les
+deux panneaux du Plan (`LearningPlanView`, `CivicPlanPanel`) lisent en cache —
+la bascule y démonte un panneau et monte l'autre, chaque montage rappelait son
+endpoint. 🛑 **Changer d'ÉCRAN ne redemande rien non plus** : `userContentApi.preparation`
+et `progressApi.get` sont eux aussi en cache, donc `/dashboard` ⇄ `/plan` ne
+coûte aucun appel.
+⚠️ **Révoque** « les écrans `/diagnostic` et `/plan` lisent directement le
+serveur pour ne pas figer une analyse asynchrone » : la fraîcheur ne se joue
+plus à l'arrivée sur l'écran mais aux **écritures**.
+`invalidateDiagnosticAndPlan` (`lib/api.ts`) vide désormais **ensemble**
+diagnostic, plan TCF, plan civique, préparation et progrès — à la fin d'une
+analyse de diagnostic, d'une production, d'une tentative de compétence — et
+`civicPlanApi.serie` vide le plan civique, une série ciblée faisant bouger la
+boîte Leitner. 🛑 **C'est la contrepartie du cache** : une écriture qui
+oublierait ce helper afficherait une progression périmée.
+🛑 **Deux étapes, pas plus** (`APERCU_STEPS_MAX`, demande du propriétaire) —
+plafond d'**affichage**, jamais un budget : le parcours entier est servi et
+calculé, il se lit sur le Plan. `apercuSteps` garde **toujours** l'étape en
+cours dans la fenêtre (elle et la suivante, ou la précédente et elle en fin de
+parcours). Miroir mobile : `homePlanSteps`.
+🛑 **Une priorité TCF verrouillée n'est pas nommée** ⇒ le bloc entier disparaît
+(il écrirait en clair ce que « Mes priorités » floute). Le civique, lui, nomme
+sa cible : son verrou porte sur la **série**, jamais sur le constat.
+🛑 **Rien n'est dérivé ici** : `parcoursDeLaTache` a été **sortie de
+`LearningPlanView` vers `lib/plan-domain.ts`** à sa 2ᵉ surface (la vue n'en garde
+que `lignesVerrouillees`, qui habille les icônes du plan gratuit), et `civicPath`
+/ `civicPathCounter` sont déjà partagées. Miroir mobile : `HomeMiniPlan` +
+`planTaskPath` (`screens/plan/plan_task_path.dart`).
 
 🛑 **La maquette n'a décidé que la mise en page.** La hiérarchie arbitrée est
 intacte : « Continuez votre diagnostic complet » reste secondaire et disparaît

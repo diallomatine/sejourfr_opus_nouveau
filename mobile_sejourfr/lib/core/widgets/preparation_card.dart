@@ -17,8 +17,20 @@ import 'app_card.dart';
 ///
 /// 🛑 **Les deux modules avancent indépendamment.** Un candidat ne prépare pas
 /// forcément les deux, et l'un ne dit rien de l'autre.
+///
+/// [civique] borne la carte au parcours affiché — l'Accueil est scopé depuis le
+/// 2026-09-12, et l'autre module y est à un appui de bascule. Sans valeur, les
+/// deux lignes sont rendues : c'est le comportement d'origine, conservé pour
+/// tout écran qui veut la vue d'ensemble. Miroir de la prop `module` du web.
 class PreparationCard extends ConsumerWidget {
-  const PreparationCard({super.key});
+  const PreparationCard({super.key, this.civique, this.titre = true});
+
+  /// `true` = civique seul, `false` = TCF seul, `null` = les deux.
+  final bool? civique;
+
+  /// `false` quand l'hôte porte déjà le titre de section (l'Accueil, dont les
+  /// sections viennent du kit).
+  final bool titre;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,15 +39,20 @@ class PreparationCard extends ConsumerWidget {
     final prep = ref.watch(preparationProvider).valueOrNull;
     if (prep == null) return const SizedBox.shrink();
 
+    final tcf = civique != true;
+    final civ = civique != false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(kPreparationTitle,
-            style: AppFonts.display(size: 20, color: AppColors.ink)),
-        const SizedBox(height: 10),
-        _ModuleLigne(label: kTcfLabel, action: tcfAction(prep.tcf)),
-        const SizedBox(height: 10),
-        _ModuleLigne(label: kCiviqueLabel, action: civiqueAction(prep.civique)),
+        if (titre) ...[
+          Text(kPreparationTitle,
+              style: AppFonts.display(size: 20, color: AppColors.ink)),
+          const SizedBox(height: 10),
+        ],
+        if (tcf) _ModuleLigne(label: kTcfLabel, action: tcfAction(prep.tcf)),
+        if (tcf && civ) const SizedBox(height: 10),
+        if (civ)
+          _ModuleLigne(label: kCiviqueLabel, action: civiqueAction(prep.civique)),
       ],
     );
   }

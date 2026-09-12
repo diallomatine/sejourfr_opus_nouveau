@@ -13,14 +13,17 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/preparation_models.dart';
+import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/route_observer.dart';
+import '../../core/utils/parcours_affiche.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/affiner_plan_card.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/widgets/diagnostic_result.dart';
+import 'civic_plan_provider.dart';
 import 'civic_plan_view.dart';
 import 'learning_plan_provider.dart';
 import 'plan_labels.dart';
@@ -85,14 +88,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   }
 
   @override
-  void didPopNext() {
-    // Une production, une série ou un examen joué au-dessus de cette page peut
-    // avoir changé le plan. Le retour est le moment fiable pour récupérer le
-    // calcul final.
-    ref.invalidate(learningPlanProvider);
-  }
-
-  @override
   void dispose() {
     appRouteObserver.unsubscribe(this);
     super.dispose();
@@ -103,33 +98,57 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     await ref.read(learningPlanProvider.future);
   }
 
+  @override
+  void didPopNext() {
+    // Une production, une série ou un examen joué au-dessus de cette page peut
+    // avoir changé l'un ou l'autre plan. Le retour est le moment fiable pour
+    // récupérer le calcul final.
+    ref.invalidate(learningPlanProvider);
+    ref.invalidate(civicPlanProvider);
+  }
+
   /// L'état UNIQUE des deux préparations. 🛑 Le MÊME que celui de l'Accueil et
   /// des Examens : trois écrans qui déduiraient chacun leur version
   /// proposeraient trois choses différentes au même candidat.
   PreparationDto? _prep;
 
-  /// L'onglet ouvert. `null` tant que l'état n'est pas connu — on n'ouvre pas
-  /// par défaut sur un module qui n'a rien à dire.
-  bool? _civique;
+  /// 🛑 **L'onglet ouvert vit dans [parcoursCiviqueProvider]**, partagé avec
+  /// l'Accueil : deux états locaux auraient fini par afficher deux parcours
+  /// différents au même candidat selon l'écran où il arrive. `null` tant que
+  /// l'état n'est pas connu — on n'ouvre pas par défaut sur un module qui n'a
+  /// rien à dire.
+  ///
+  /// Le défaut est **servi**, et il ne s'impose qu'une fois : `??=` n'écrase
+  /// jamais un choix déjà fait par le candidat sur l'Accueil.
+  void _poserDefaut(bool civique) {
+    final notifier = ref.read(parcoursCiviqueProvider.notifier);
+    notifier.state ??= civique;
+  }
 
   Future<void> _chargerPreparation() async {
     try {
-      final prep = await ref.read(userContentRepositoryProvider).preparation();
+      // 🛑 **Le provider partagé, pas un appel à soi.** Cet écran lisait le
+      // repository directement — un appel de plus à chaque ouverture du Plan,
+      // pour l'état que l'Accueil venait de lire. `preparationProvider` est
+      // gardé en vie pour la session : à chaud il rend immédiatement, à froid
+      // il fait l'unique appel.
+      final prep = await ref.read(preparationProvider.future);
       if (!mounted) return;
-      setState(() {
-        _prep = prep;
-        _civique ??= moduleCiviqueParDefaut(prep);
-      });
+      setState(() => _prep = prep);
+      _poserDefaut(moduleCiviqueParDefaut(prep));
     } catch (_) {
       // 🛑 L'échec ne masque pas le plan TCF : il existait avant cet onglet et
       // doit rester atteignable.
-      if (mounted) setState(() => _civique ??= false);
+      if (mounted) _poserDefaut(false);
     }
   }
 
-  Widget _onglet(AsyncValue<LearningPlan> plan, TargetLevel? objective) {
+  Widget _onglet(
+    AsyncValue<LearningPlan> plan,
+    TargetLevel? objective,
+    bool civique,
+  ) {
     final prep = _prep;
-    final civique = _civique ?? false;
 
     // 🛑 La raison pour laquelle le plan n'est pas prêt vient de l'état UNIQUE,
     // pas d'une déduction locale.
@@ -219,11 +238,17 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     final plan = ref.watch(learningPlanProvider);
+    // 🛑 **Les DEUX parcours sont observés en permanence** : leurs providers
+    // sont `autoDispose`, donc n'en observer qu'un laissait l'autre se jeter à
+    // la bascule — et revenir dessus rappelait son endpoint pour une réponse
+    // identique. La bascule ne coûte plus aucun appel. Le prix est nul : le
+    // plan civique était de toute façon chargé à l'ouverture de son onglet.
+    ref.watch(civicPlanProvider);
     // L'objectif vient du **cycle** quand le serveur en sert un ; sinon du
     // palier visé du compte. `null` reste `null` : on ne devine jamais un B2.
     final objective = plan.valueOrNull?.cycle?.objectiveLevel ??
         ref.watch(userTargetLevelProvider);
-    final civique = _civique ?? false;
+    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
 
     // 🛑 **Le MÊME toggle que les Examens et Réviser**, et pas une copie :
     // `SegmentedTabs` + `parcoursSegments` portent déjà les deux couleurs du
@@ -238,7 +263,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
       child: SegmentedTabs<bool>(
         tabs: parcoursSegments(tcf: false, civique: true),
         value: civique,
-        onChanged: (v) => setState(() => _civique = v),
+        onChanged: (v) => ref.read(parcoursCiviqueProvider.notifier).state = v,
       ),
     );
 
@@ -249,11 +274,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         child: SfTopSlot(
           below: toggle,
           child: civique
-              ? _onglet(plan, objective)
+              ? _onglet(plan, objective, civique)
               : RefreshIndicator(
                   color: AppColors.blue,
                   onRefresh: _refresh,
-                  child: _onglet(plan, objective),
+                  child: _onglet(plan, objective, civique),
                 ),
         ),
       ),

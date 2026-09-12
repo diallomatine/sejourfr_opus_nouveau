@@ -10,6 +10,7 @@ import '../../core/models/skill_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../plan/plan_series_launcher.dart';
 import 'competences/competences_nav.dart';
@@ -52,7 +53,9 @@ Future<void> openRecommendedExercise(
   // Garde de dernier recours : le serveur décide du verrou, l'app ne le devine
   // pas. Les cartes ouvrent déjà le paywall d'elles-mêmes.
   if (exercise.locked) {
-    await showTcfLockPaywall(context);
+    // Ses deux appelants sont le Plan et le résultat du diagnostic : l'en-tête
+    // personnalisé du paywall y a son contexte.
+    await showTcfLockPaywall(context, origin: PaywallOrigin.plan);
     return;
   }
   // La compréhension n'a ni sujet de production ni petit sujet : elle se

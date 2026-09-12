@@ -14,12 +14,14 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
+import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../plan_actions.dart';
 import '../plan_groups.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
+import '../plan_task_path.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
 /// maintenant, le parcours de la tâche en cours, les priorités, ce qui est
@@ -71,6 +73,7 @@ class PlanTcfView extends ConsumerWidget {
                 context,
                 ref: ref,
                 ctaLocation: AnalyticsCtaLocation.lockedPlan,
+                origin: PaywallOrigin.plan,
               )),
             ),
           ),
@@ -263,7 +266,6 @@ class PlanTcfView extends ConsumerWidget {
   List<Widget> _pathSection() {
     final steps = _taskSteps();
     if (steps == null) return const <Widget>[];
-    final done = _completedIds();
     return <Widget>[
       SfSection(
         title: planPathSectionTitle(steps.task),
@@ -271,10 +273,7 @@ class PlanTcfView extends ConsumerWidget {
         child: SfPathCard(
           currentLabel: plan.currentPriority?.title ?? steps.task.title,
           counterLabel: planPathCounter(steps.dto),
-          steps: [
-            for (final skill in steps.skills)
-              SfPathStep(label: skill.title, state: _skillState(skill, done)),
-          ],
+          steps: planPathSteps(plan, steps),
         ),
       ),
     ];
@@ -285,7 +284,6 @@ class PlanTcfView extends ConsumerWidget {
   List<Widget> _freePathSection() {
     final steps = _taskSteps();
     if (steps == null) return const <Widget>[];
-    final done = _completedIds();
     return <Widget>[
       SfSection(
         title: kPlanFreePathTitle,
@@ -304,7 +302,7 @@ class PlanTcfView extends ConsumerWidget {
                 else
                   SfPathRow(
                     label: steps.skills[i].title,
-                    state: _skillState(steps.skills[i], done),
+                    state: planSkillStepState(plan, steps.skills[i]),
                   ),
             ],
           ),
@@ -462,6 +460,7 @@ class PlanTcfView extends ConsumerWidget {
                         context,
                         ref: ref,
                         ctaLocation: AnalyticsCtaLocation.lockedPlan,
+                        origin: PaywallOrigin.plan,
                       )
                     : startPlanMilestone(context, ref, milestone),
               ),
@@ -555,17 +554,6 @@ class PlanTcfView extends ConsumerWidget {
   Set<String> _completedIds() =>
       plan.completedSteps.map((step) => step.skillId).toSet();
 
-  /// L'état d'une compétence dans un parcours. Il se lit sur des **états
-  /// servis** — l'étape est franchie, ou la compétence est la priorité n°1 —
-  /// jamais sur un compteur classé ici.
-  SfStepState _skillState(PlanDomainSkill skill, Set<String> done) {
-    if (skill.skillId == plan.currentPriority?.skillId) return SfStepState.now;
-    if (done.contains(skill.skillId)) return SfStepState.done;
-    return skill.masteryState == SkillMasteryState.solid
-        ? SfStepState.done
-        : SfStepState.todo;
-  }
-
   SfStepState _rowState(PlanPriorityGroupRow row, Set<String> done) {
     if (row.skillId == plan.currentPriority?.skillId) return SfStepState.now;
     if (done.contains(row.skillId)) return SfStepState.done;
@@ -574,33 +562,12 @@ class PlanTcfView extends ConsumerWidget {
         : SfStepState.todo;
   }
 
-  PlanDomainTask? _taskDto(SkillTaskCode task) {
-    for (final domain in plan.domaines) {
-      for (final candidate in domain.taches) {
-        if (candidate.taskCode == task.wire) return candidate;
-      }
-    }
-    return null;
-  }
+  PlanDomainTask? _taskDto(SkillTaskCode task) => planTaskDto(plan, task);
 
-  /// Le parcours de la tâche en cours : sa tâche servie, son compteur servi et
-  /// ses compétences, **dans l'ordre du référentiel**. `null` dès qu'un des
-  /// trois manque.
-  _TaskSteps? _taskSteps() {
-    final current = plan.currentPriority;
-    if (current == null) return null;
-    final task = SkillTaskCode.fromSkillCode(current.skillCode);
-    if (task == null) return null;
-    final dto = _taskDto(task);
-    if (dto == null) return null;
-    final skills = <PlanDomainSkill>[
-      for (final domain in plan.domaines)
-        for (final skill in domain.skills)
-          if (skill.taskCode == task.wire) skill,
-    ];
-    if (skills.isEmpty) return null;
-    return _TaskSteps(task: task, dto: dto, skills: skills);
-  }
+  /// Le parcours de la tâche en cours. 🛑 **La dérivation vit dans
+  /// [planTaskPath]**, partagée avec le bloc « Votre Plan » de l'Accueil : deux
+  /// copies auraient fini par cocher deux étapes différentes.
+  PlanTaskPath? _taskSteps() => planTaskPath(plan);
 }
 
 /// Le geste de la barre basse : il nomme le palier visé quand il est connu,
@@ -609,14 +576,3 @@ class PlanTcfView extends ConsumerWidget {
 String _unlockCta(TargetLevel? objective) =>
     objective == null ? kUnlockPlanCta : '$kUnlockPlanCta ${objective.wire}';
 
-class _TaskSteps {
-  const _TaskSteps({
-    required this.task,
-    required this.dto,
-    required this.skills,
-  });
-
-  final SkillTaskCode task;
-  final PlanDomainTask dto;
-  final List<PlanDomainSkill> skills;
-}

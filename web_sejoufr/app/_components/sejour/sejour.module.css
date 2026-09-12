@@ -80,22 +80,6 @@
   min-width: 0;
 }
 
-/* L'en-tête SANS flèche de retour se CENTRE sur mobile : la colonne y occupe
-   toute la largeur, et un titre calé à gauche — juste sous le burger flottant
-   du shell connecté — se lisait mal. Au-delà de 620 px, la borne du kit (celle
-   où la colonne se détache de ses bords), on revient à l'alignement à gauche de
-   la maquette.
-
-   🛑 Un en-tête QUI PORTE une flèche garde son alignement à gauche à toutes les
-   largeurs : centrer son texte le décalerait de sa flèche. */
-.topPlain {
-  justify-content: center;
-}
-
-.topPlain .topText {
-  text-align: center;
-}
-
 .kicker {
   margin: 0 0 2px;
   font-size: 12px;
@@ -1511,14 +1495,6 @@
 @media (min-width: 620px) {
   .app {
     padding-top: 8px;
-  }
-
-  .topPlain {
-    justify-content: flex-start;
-  }
-
-  .topPlain .topText {
-    text-align: left;
   }
 
   .title {

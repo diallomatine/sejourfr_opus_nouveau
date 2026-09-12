@@ -8,7 +8,18 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Shell de la refonte 2026 : bottom nav 5 onglets
-/// Accueil · Réviser · Examens · Plan · Profil (cf. `MTabBar` maquette).
+/// **Accueil · Plan · Réviser · Examens · Profil**.
+///
+/// ⚠️ **Ordre changé le 2026-09-12** (demande du propriétaire) : le Plan passe
+/// en 2ᵉ, juste après l'Accueil, parce que c'est là que l'Accueil renvoie —
+/// « Continuer mon plan », « Voir mon Plan » et les deux lignes de « Vos
+/// parcours » y mènent toutes. Il était en 4ᵉ, après deux onglets de
+/// catalogue.
+///
+/// ⚠️ **Mobile seulement pour l'instant** (demande explicite) : la barre
+/// latérale du web garde son ordre — `Parcours` (TCF, civique, examens) puis
+/// `Suivi` (Plan, résultats, recommandations). Écart de parité **assumé**, pas
+/// un oubli.
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
 
@@ -18,14 +29,12 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
 
-    final currentIndex = switch (loc) {
-      AppRoutes.home => 0,
-      AppRoutes.reviser => 1,
-      AppRoutes.examens => 2,
-      AppRoutes.plan => 3,
-      AppRoutes.profile => 4,
-      _ => -1,
-    };
+    // 🛑 **Le rang se lit sur la liste**, il ne se recopie pas : un `switch`
+    // route → index vivait à côté de [mainShellDestinations] et devait être
+    // tenu à jour en même temps qu'elle — réordonner la barre y aurait
+    // surligné le mauvais onglet en silence.
+    final currentIndex =
+        mainShellDestinations.indexWhere((item) => item.route == loc);
 
     return Scaffold(
       body: child,
@@ -95,13 +104,16 @@ typedef MainShellDestination = ({
   String route,
 });
 
-/// Exposé pour garantir par test que l'ancien écran Progrès reste secondaire
-/// et que le quatrième onglet ouvre bien le plan serveur.
+/// Les cinq onglets, **dans l'ordre d'affichage**. C'est la seule autorité de
+/// cet ordre : le surlignage en dérive ([MainShell.build]).
+///
+/// Exposé pour garantir par test que l'ancien écran Progrès reste secondaire et
+/// que le Plan a bien son onglet.
 const mainShellDestinations = <MainShellDestination>[
   (icon: LucideIcons.house, label: 'Accueil', route: AppRoutes.home),
+  (icon: LucideIcons.map, label: 'Plan', route: AppRoutes.plan),
   (icon: LucideIcons.layoutGrid, label: 'Réviser', route: AppRoutes.reviser),
   (icon: LucideIcons.target, label: 'Examens', route: AppRoutes.examens),
-  (icon: LucideIcons.map, label: 'Plan', route: AppRoutes.plan),
   (
     icon: LucideIcons.graduationCap,
     label: 'Profil',

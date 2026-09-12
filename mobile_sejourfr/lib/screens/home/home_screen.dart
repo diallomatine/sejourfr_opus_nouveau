@@ -1,422 +1,501 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
-import '../../core/widgets/preparation_card.dart';
-import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
-import '../../core/models/dashboard_models.dart';
+import '../../core/models/civic_plan_models.dart';
 import '../../core/models/diagnostic_models.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
-import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/preparation_provider.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/dashboard_targets.dart';
+import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/affiner_plan_card.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
-import '../../core/widgets/list_group.dart';
-import '../../core/widgets/progress_ring.dart';
-import '../../core/widgets/screen_header.dart';
-import '../../core/widgets/stat_value_card.dart';
-import '../examens/examens_screen.dart';
+import '../../core/widgets/segmented_tabs.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/diagnostic_controller.dart';
+import '../diagnostic/diagnostic_courant_provider.dart';
+import '../plan/civic_plan_labels.dart';
+import '../plan/civic_plan_provider.dart';
 import '../plan/learning_plan_provider.dart';
-import '../reviser/reviser_screen.dart';
+import '../plan/plan_actions.dart';
+import '../plan/plan_labels.dart';
+import '../plan/plan_task_path.dart';
+import 'home_labels.dart';
+import 'widgets/home_blocks.dart';
 
-/// Accueil de la refonte 2026 (cf. `MHome` maquette) : salutation + avatar,
-/// carte « À travailler en priorité » (catégorie la plus faible), 3 stat
-/// cards (maîtrise / série / niveau TCF), « Mes parcours », bloc IA (EE/EO)
-/// et raccourci examens blancs. Tout vient de `GET /api/me/dashboard`.
-class HomeScreen extends ConsumerWidget {
+/// **L'Accueil**, refait sur la maquette du propriétaire (`~/Desktop/grok_ecran`
+/// — `src/components/sejour/screens/accueil.tsx`, captures
+/// `screenshots/accueil-mobile.png` et `accueil-civ-mobile.png`), assemblé avec
+/// le KIT (`core/widgets/sejour/sejour_kit.dart`).
+///
+/// ## L'ordre vient de la maquette, et de rien d'autre
+///
+/// En-tête → bascule → **À faire maintenant** → **Votre Plan** → **Votre
+/// progression** → **Affiner votre Plan** → **Vos parcours**.
+///
+/// ⚠️ Une première passe avait suivi la structure du **web** plutôt que la
+/// maquette : « Ma préparation » et « À renforcer en priorité » en plus, quatre
+/// tuiles d'indicateurs au lieu des deux compteurs, des cartes de parcours à
+/// barres de catégories, et « Affiner votre Plan » **avant** la progression.
+/// Le propriétaire a tranché sur capture (2026-09-12) : c'est la maquette.
+/// Ces blocs sont **retirés**, pas déplacés.
+/// « Ma préparation » reste la porte du **Plan** et des **Examens** ; sur
+/// l'Accueil, « À faire maintenant » porte déjà cette porte (les trois états du
+/// diagnostic TCF, et `planIndisponible` côté civique).
+///
+/// ## Un écran, deux parcours
+///
+/// 🛑 **La bascule change ce que l'Accueil AFFICHE**, elle ne navigue pas. Le
+/// parcours affiché vit dans [parcoursCiviqueProvider], **partagé avec le
+/// Plan** : c'est le pendant du `?module=` du web, et la raison est la même —
+/// deux mécaniques auraient fini par afficher deux parcours différents sur deux
+/// écrans du même compte. Le défaut est **servi** (`moduleCiviqueParDefaut`).
+///
+/// 🛑 **« Vos parcours » N'EST PAS scopé** : c'est le bloc qui garde la vue
+/// d'ensemble des deux modules.
+///
+/// ## Ce que la maquette ne décide PAS
+///
+/// 🛑 Elle est une référence de **mise en page**, jamais une source de données.
+/// Une seule action dominante — « À faire maintenant » —, un en-tête sans CTA,
+/// une priorité TCF verrouillée qui n'est **pas nommée**, et le diagnostic
+/// complet qui reste secondaire.
+///
+/// ⚠️ **Trois écarts assumés, et leurs raisons** :
+/// - la **troisième colonne « validations »** du trio de progression n'est
+///   **servie par rien** (`GET /api/me/progress` publie `travaillees` et
+///   `maitrisees`, pas un compte de validations) : elle est **omise**, pas
+///   fabriquée. `SfStatGrid` suit la liste qu'on lui donne ;
+/// - les **raccourcis du bas** (Réviser · Examens blancs · Mes résultats) sont
+///   omis : la bottom nav les porte déjà, et le propriétaire a écarté une
+///   rangée de raccourcis redondante le 2026-09-12 ;
+/// - la pastille d'objectif nomme la **démarche** servie ([objectifLabel]) et
+///   non le module, que la bascule juste en dessous annonce déjà.
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authControllerProvider);
-    final user = auth is AuthAuthenticated ? auth.user : null;
-    final dashboard = ref.watch(dashboardProvider);
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
-    final firstName = user?.firstName?.trim();
-    final title = firstName != null && firstName.isNotEmpty
-        ? 'Bonjour $firstName 👋'
-        : 'Bonjour 👋';
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_poserDefaut());
+  }
+
+  /// Le parcours ouvert par défaut est **servi** : celui qui a déjà quelque
+  /// chose à dire. `??=` n'écrase jamais un choix déjà fait par le candidat sur
+  /// le Plan.
+  Future<void> _poserDefaut() async {
+    try {
+      final prep = await ref.read(preparationProvider.future);
+      if (!mounted) return;
+      ref.read(parcoursCiviqueProvider.notifier).state ??=
+          moduleCiviqueParDefaut(prep);
+    } catch (_) {
+      // 🛑 L'échec n'ouvre pas sur un module au hasard : on retombe sur le TCF,
+      // exactement comme le Plan.
+      if (mounted) ref.read(parcoursCiviqueProvider.notifier).state ??= false;
+    }
+  }
+
+  /// 🛑 **Le seul point de fraîcheur de l'Accueil**, avec le signal du Plan :
+  /// ses quatre sources sont gardées en vie pour la session, donc revenir sur
+  /// l'onglet ne redemande plus rien. Ici on vide tout, puis on attend la plus
+  /// lente pour que l'indicateur de rafraîchissement dure le temps du travail.
+  Future<void> _refresh() async {
+    ref.invalidate(preparationProvider);
+    ref.invalidate(progressProvider);
+    ref.invalidate(civicPlanProvider);
+    ref.invalidate(learningPlanProvider);
+    ref.invalidate(diagnosticCourantProvider);
+    await Future.wait<void>([
+      ref.read(progressProvider.future).then((_) {}).catchError((_) {}),
+      ref.read(diagnosticCourantProvider.future).then((_) {}).catchError((_) {}),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
+
+    // 🛑 **Le MÊME toggle que le Plan, les Examens et Réviser**, et pas une
+    // copie : `SegmentedTabs` + `parcoursSegments` portent déjà les deux
+    // couleurs du produit (rouge = TCF, bleu = civique).
+    final toggle = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SegmentedTabs<bool>(
+        tabs: parcoursSegments(tcf: false, civique: true),
+        value: civique,
+        onChanged: (v) => ref.read(parcoursCiviqueProvider.notifier).state = v,
+      ),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: SfTopSlot(
+          below: toggle,
+          child: RefreshIndicator(
+            color: AppColors.blue,
+            onRefresh: _refresh,
+            child: ListView(children: _contenu(context, civique)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _contenu(BuildContext context, bool civique) {
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+
+    // 🛑 **Les DEUX parcours sont observés en permanence**, et c'est ce qui rend
+    // la bascule gratuite. Ces providers sont `autoDispose` : n'observer que le
+    // parcours affiché laissait l'autre se jeter à chaque bascule, et revenir
+    // dessus rappelait son endpoint — pour une réponse identique, puisque ni le
+    // plan TCF ni le plan civique ne dépendent de l'onglet ouvert. Les lire ici
+    // ne coûte rien de plus : ils sont de toute façon chargés dès qu'on ouvre
+    // leur parcours.
+    ref.watch(learningPlanProvider);
+    ref.watch(civicPlanProvider);
+    ref.watch(diagnosticCourantProvider);
+
+    return <Widget>[
+      if (user != null && user.targetProcedure == null)
+        HomeBanner(onTap: () => context.push(AppRoutes.targetPath)),
+      SfTop(
+        title: homeHello(user?.firstName),
+        badges: [objectifLabel(user?.targetProcedure)],
+      ),
+      ..._blocs(context, civique),
+      const SizedBox(height: 24),
+      const _IndependenceNote(),
+      const SizedBox(height: 20),
+    ];
+  }
+
+  /// 🛑 **Chaque bloc apparaît quand SA source est là**, et disparaît quand elle
+  /// n'a rien à dire : pas de squelette global, pas de section au-dessus du
+  /// vide. Miroir du web, dont chaque appel retombe sur `null` en best-effort.
+  List<Widget> _blocs(BuildContext context, bool civique) {
+    final prep = ref.watch(preparationProvider).valueOrNull;
+    final action = civique ? _actionCivique(context) : _actionTcf(context);
+    final apercu = civique ? _apercuCivique(context) : _apercuTcf(context);
+    final progression = _progression(civique);
+
+    // 🛑 **TCF seulement** : le diagnostic 4 épreuves est un objet TCF, il n'a
+    // pas de pendant civique. `abonne: false` — sur l'Accueil la carte ne
+    // s'affiche que lorsque le complet est COMMENCÉ, et ce libellé-là ne dépend
+    // pas de l'abonnement.
+    final affiner = !civique && prep != null
+        ? affinerPlan(prep.tcf, accueil: true, abonne: false)
+        : null;
+
+    return <Widget>[
+      if (action != null)
+        SfSection(title: kHomeNowTitle, flush: true, child: action),
+      if (apercu != null)
+        SfSection(title: kHomePlanTitle, flush: true, child: apercu),
+      if (progression != null)
+        SfSection(title: kHomeProgressTitle, flush: true, child: progression),
+      if (affiner != null)
+        SfSection(flush: true, child: AffinerPlanCard(info: affiner, pad: false)),
+      SfSection(
+        title: kHomeTracksTitle,
+        child: SfStack(
           children: [
-            ScreenHeader(
-              title: title,
-              sub: 'Prêt pour votre entraînement du jour ?',
-              large: true,
-              right: _AvatarButton(
-                initials: _initials(user?.firstName, user?.lastName,
-                    fallback: user?.email),
-                onTap: () => context.go(AppRoutes.profile),
-              ),
+            HomeTrackRow(
+              title: kTcfLabel,
+              onTap: () => _ouvrirPlan(context, civique: false),
             ),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.blue,
-                onRefresh: () async {
-                  ref.invalidate(dashboardProvider);
-                  await Future.wait<void>([
-                    ref.read(dashboardProvider.future).then((_) {}),
-                    ref
-                        .read(diagnosticControllerProvider.notifier)
-                        .loadCurrent(),
-                  ]);
-                },
-                child: dashboard.when(
-                  loading: () => ListView(
-                    children: const [
-                      Padding(
-                        padding: EdgeInsets.only(top: 120),
-                        child: Center(
-                          child:
-                              CircularProgressIndicator(color: AppColors.blue),
-                        ),
-                      ),
-                    ],
-                  ),
-                  error: (e, _) => ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      AppCard(
-                        child: Column(
-                          children: [
-                            Text(
-                              ApiClient.toApiException(e).message,
-                              textAlign: TextAlign.center,
-                              style: AppFonts.ui(
-                                  size: 13.5, color: AppColors.inkSoft),
-                            ),
-                            const SizedBox(height: 12),
-                            AppButton(
-                              label: 'Réessayer',
-                              variant: AppButtonVariant.soft,
-                              height: 44,
-                              fullWidth: false,
-                              onPressed: () =>
-                                  ref.invalidate(dashboardProvider),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  data: (d) => _HomeBody(summary: d),
-                ),
-              ),
+            HomeTrackRow(
+              title: kCiviqueLabel,
+              onTap: () => _ouvrirPlan(context, civique: true),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  String _initials(String? firstName, String? lastName, {String? fallback}) {
-    final f = firstName?.trim();
-    final l = lastName?.trim();
-    if (f != null && f.isNotEmpty) {
-      final second = l != null && l.isNotEmpty ? l[0] : '';
-      return '${f[0]}$second'.toUpperCase();
-    }
-    final email = fallback?.trim();
-    if (email != null && email.isNotEmpty) return email[0].toUpperCase();
-    return '·';
-  }
-}
-
-class _AvatarButton extends StatelessWidget {
-  const _AvatarButton({required this.initials, required this.onTap});
-
-  final String initials;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.blue,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Center(
-            child: Text(
-              initials,
-              style: AppFonts.ui(
-                size: 14,
-                weight: FontWeight.w700,
-                color: AppColors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeBody extends ConsumerWidget {
-  const _HomeBody({required this.summary});
-
-  final DashboardSummary summary;
-
-  /// Catégorie la plus faible à pousser en priorité. Le périmètre dépend de
-  /// l'abonnement : un abonné **Civique seul** ne voit que des thèmes civiques ;
-  /// tous les autres (Intégral, TCF seul, ou compte gratuit) voient une épreuve
-  /// TCF. Sur compte vierge, la première catégorie du périmètre (TCF → CO) pour
-  /// amorcer l'entraînement. `TCF_STRUCTURE` est toujours exclu : thème bonus
-  /// non évalué au TCF IRN, on ne le pousse jamais comme priorité.
-  DashboardCategoryStat _priority({required bool civiqueOnly}) {
-    final pool = civiqueOnly ? summary.civique : summary.tcf;
-    final worked = pool
-        .where((s) => s.percent != null && s.code != 'TCF_STRUCTURE')
-        .toList()
-      ..sort((a, b) => a.percent!.compareTo(b.percent!));
-    if (worked.isNotEmpty) return worked.first;
-    final ordered = (civiqueOnly ? pool : orderedTcfCategories(summary.tcf))
-        .where((s) => s.code != 'TCF_STRUCTURE')
-        .toList();
-    return ordered.isNotEmpty ? ordered.first : summary.allCategories.first;
-  }
-
-  /// « Continuez votre diagnostic complet — 2 / 4 épreuves terminées ».
-  ///
-  /// 🛑 `abonne: false` : sur l'Accueil la carte ne s'affiche que lorsque le
-  /// complet est COMMENCÉ, et ce libellé-là ne dépend pas de l'abonnement.
-  List<Widget>? _affinerDiagnostic(WidgetRef ref) {
-    final prep = ref.watch(preparationProvider).valueOrNull;
-    if (prep == null) return null;
-    final info = affinerPlan(prep.tcf, accueil: true, abonne: false);
-    if (info == null) return null;
-    return <Widget>[
-      AffinerPlanCard(info: info, pad: false),
-      const SizedBox(height: 16),
     ];
   }
 
-  int? _parcoursAverage(List<DashboardCategoryStat> stats) {
-    if (stats.isEmpty) return null;
-    final values = stats.map((s) => s.percent ?? 0).toList();
-    return (values.reduce((a, b) => a + b) / values.length).round();
+  /// « Voir mon Plan » sur une ligne de parcours : le Plan **du module de la
+  /// ligne**. La bascule du Plan lit le même provider que celle d'ici, donc
+  /// choisir la ligne suffit à ouvrir le bon onglet — aucun paramètre de route
+  /// n'est inventé.
+  void _ouvrirPlan(BuildContext context, {required bool civique}) {
+    ref.read(parcoursCiviqueProvider.notifier).state = civique;
+    context.go(AppRoutes.plan);
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authControllerProvider);
-    final user = auth is AuthAuthenticated ? auth.user : null;
-    final civiqueOnly = user != null && user.hasCivique && !user.hasTcf;
-    final priority = _priority(civiqueOnly: civiqueOnly);
-    final global = summary.globalSuccessPercent ?? 0;
-    final level = summary.estimatedTcfLevel;
-    final diagnosticState = ref.watch(diagnosticControllerProvider);
-    final diagnostic = diagnosticState.journey;
-    final diagnosticDismissKey = user?.id ?? 'anonymous';
-    final diagnosticDismissed = ref.watch(
-      diagnosticHomeDismissedProvider(diagnosticDismissKey),
-    );
-    final diagnosticCompleted =
-        diagnostic?.status == DiagnosticJourneyStatus.completed;
+  /* ------------------------------------------- l'action du jour — TCF ----- */
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-      children: [
-        // 🛑 « Ma préparation » est la PREMIÈRE des trois portes vers un
-        // diagnostic inachevé (Accueil, Plan, Examens). Elle lit l'état UNIQUE
-        // servi par `/api/me/preparation` — c'est ce qui garantit que les trois
-        // écrans proposent la même prochaine action.
-        // Placée avant tout indicateur : quand une préparation n'est pas
-        // commencée, c'est ça la prochaine action, pas un pourcentage.
-        const PreparationCard(),
-        const SizedBox(height: 20),
-        if (diagnostic?.status == DiagnosticJourneyStatus.notStarted &&
-            !diagnosticDismissed)
-          _DiagnosticInvitationCard(
-            onStart: () {
-              // Le clic qui ouvre le funnel du diagnostic. La variante n'est
-              // pas encore choisie ici : `UNKNOWN` est la seule valeur vraie.
-              ref.read(analyticsServiceProvider).track(
-                    AnalyticsEvent.diagnosticCtaClicked,
-                    ctaLocation: AnalyticsCtaLocation.hero,
-                    diagnosticType: AnalyticsDiagnosticType.unknown,
-                  );
-              context.push(AppRoutes.diagnostic);
-            },
-            onLater: () => ref
-                .read(
-                  diagnosticHomeDismissedProvider(diagnosticDismissKey)
-                      .notifier,
-                )
-                .state = true,
+  /// 🛑 Les trois états et leurs phrases sont **ceux du web**, mot pour mot.
+  /// Sans diagnostic servi, la section n'existe pas : pas de titre au-dessus du
+  /// vide.
+  Widget? _actionTcf(BuildContext context) {
+    final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
+    if (journey == null) return null;
+
+    final auth = ref.watch(authControllerProvider);
+    final cle = auth is AuthAuthenticated ? auth.user.id : 'anonymous';
+
+    if (journey.status == DiagnosticJourneyStatus.notStarted) {
+      if (ref.watch(diagnosticHomeDismissedProvider(cle))) return null;
+      return SfNowCard(
+        icon: LucideIcons.clipboardCheck,
+        title: kHomeDiagStartTitle,
+        subtitle: kHomeDiagStartSubtitle,
+        badge: kHomeStartBadge,
+        objective: kHomeDiagStartObjective,
+        action: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SfButton(
+              label: kHomeDiagStartCta,
+              onPressed: () {
+                // Le clic qui ouvre le funnel du diagnostic. La variante n'est
+                // pas encore choisie ici : `UNKNOWN` est la seule valeur vraie.
+                ref.read(analyticsServiceProvider).track(
+                      AnalyticsEvent.diagnosticCtaClicked,
+                      ctaLocation: AnalyticsCtaLocation.hero,
+                      diagnosticType: AnalyticsDiagnosticType.unknown,
+                    );
+                context.push(AppRoutes.diagnostic);
+              },
+            ),
+            HomeSoftAction(
+              label: kHomeLaterCta,
+              onTap: () => ref
+                  .read(diagnosticHomeDismissedProvider(cle).notifier)
+                  .state = true,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (journey.status != DiagnosticJourneyStatus.completed) {
+      final fait = journey.completedExerciseCount;
+      final analyse = journey.status == DiagnosticJourneyStatus.analyzing ||
+          journey.nextStep == DiagnosticStep.analysis;
+      return SfNowCard(
+        icon: LucideIcons.sparkles,
+        title: analyse ? kHomeDiagAnalyzingTitle : kHomeDiagResumeTitle,
+        subtitle: homeDiagCount(fait),
+        badge: kHomeDiagBadge,
+        objective:
+            analyse ? kHomeDiagAnalyzingObjective : kHomeDiagResumeObjective,
+        action: SfButton(
+          label: analyse ? kHomeDiagAnalyzingCta : kHomeDiagResumeCta,
+          onPressed: () => context.push(AppRoutes.diagnostic),
+        ),
+      );
+    }
+
+    final live = ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    // 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
+    // Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
+    // peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
+    // en clair sur l'Accueil démentirait ce rideau. Miroir du web.
+    final priorite = live != null && !live.locked ? live : null;
+    final exercice = priorite?.recommendedExercise;
+    // 🛑 **Un raccourci verrouillé n'en est pas un** : « Commencer directement »
+    // enverrait un compte gratuit droit sur un 403. Le Plan, lui, reste ouvert.
+    final lancable = exercice != null && !exercice.locked;
+
+    return SfNowCard(
+      icon: LucideIcons.target,
+      // Le titre de la priorité, et rien d'autre : l'explication du correcteur
+      // est le constat d'une production déjà faite — elle raconte le passé sur
+      // une carte qui annonce l'action à mener, et elle vit déjà dans le Plan.
+      title: priorite?.title ?? kHomePriorityFallback,
+      subtitle: exercice == null
+          ? null
+          : homeExerciseMeta(exercice.title, exercice.estimatedMinutes),
+      badge: kHomePriorityBadge,
+      action: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SfButton(
+            label: kHomePlanCta,
+            onPressed: () => _ouvrirPlan(context, civique: false),
+          ),
+          if (lancable)
+            HomeSoftAction(
+              label: kHomeStartDirectCta,
+              onTap: () => unawaited(openPlanExercise(
+                context,
+                ref,
+                exercice,
+                masteryBefore: priorite?.masteryState,
+              )),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /* --------------------------------------- l'action du jour — CIVIQUE ----- */
+
+  /// 🛑 **Aucune règle nouvelle, aucun libellé nouveau.** Deux autorités déjà en
+  /// place, celles du Plan civique : [planIndisponible] quand le plan n'est pas
+  /// encore constructible, et `CivicPlan.prochaine` — la cible de rang 1,
+  /// **désignée par le serveur** — sinon.
+  ///
+  /// 🛑 **Cette carte ne DÉMARRE rien** : elle mène au Plan civique, qui porte
+  /// le seul lanceur de série. Un second point de départ aurait dupliqué la
+  /// gestion du 403 et du paywall.
+  ///
+  /// 🛑 **Le verrou civique porte sur la SÉRIE, jamais sur le constat** : une
+  /// cible verrouillée garde son nom et son état — c'est la règle du module
+  /// civique, et elle diffère volontairement de celle du TCF.
+  Widget? _actionCivique(BuildContext context) {
+    final prep = ref.watch(preparationProvider).valueOrNull;
+    final porte =
+        prep == null ? null : planIndisponible(prep.civique, civique: true);
+    if (porte != null) {
+      return SfNowCard(
+        icon: LucideIcons.landmark,
+        title: porte.titre,
+        badge: kHomeStartBadge,
+        objective: porte.texte,
+        action: SfButton(
+          label: porte.cta,
+          variant: SfButtonVariant.blue,
+          onPressed: () => context.push(porte.route),
+        ),
+      );
+    }
+
+    final CivicPlanCible? cible =
+        ref.watch(civicPlanProvider).valueOrNull?.prochaine;
+    if (cible == null) return null;
+
+    return SfNowCard(
+      icon: LucideIcons.landmark,
+      title: cible.themeLabel,
+      subtitle: civicPlanRaison(cible),
+      badge: kHomePriorityBadge,
+      objectiveLabel: kHomeCivicObservedLabel,
+      objective: '${cible.maitrise.label} · ${civicSerieLabel(cible)}',
+      action: SfButton(
+        label: kHomeCiviquePlanCta,
+        variant: SfButtonVariant.blue,
+        onPressed: () => _ouvrirPlan(context, civique: true),
+      ),
+    );
+  }
+
+  /* ------------------------------------------------------- votre plan ----- */
+
+  /// L'aperçu du Plan TCF : la priorité actuelle et le parcours de sa tâche.
+  ///
+  /// 🛑 **Une priorité verrouillée n'est pas nommée ici non plus** : le bloc
+  /// entier disparaît. Il nommerait en clair, sur l'écran d'accueil, ce que
+  /// « Mes priorités » floute un écran plus loin.
+  ///
+  /// 🛑 **Rien n'est dérivé ici** : [planTaskPath] est l'autorité partagée avec
+  /// l'écran Plan, et le compteur est **lu** sur la tâche servie.
+  Widget? _apercuTcf(BuildContext context) {
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final priorite = plan?.currentPriority;
+    if (plan == null || priorite == null || priorite.locked) return null;
+    final chemin = planTaskPath(plan);
+    if (chemin == null) return null;
+    final epreuve = planEpreuveOfSection(priorite.section);
+    return HomeMiniPlan(
+      title: epreuve == null
+          ? priorite.title
+          : homePlanTaskTitle(
+              planDomainLabel(epreuve), chemin.task.tacheNumero),
+      subtitle: priorite.title,
+      counter: planPathCounter(chemin.dto),
+      steps: planPathSteps(plan, chemin),
+      onOpen: () => _ouvrirPlan(context, civique: false),
+    );
+  }
+
+  /// L'aperçu du Plan civique : la cible de rang 1 et les cinq étapes de son
+  /// parcours.
+  ///
+  /// 🛑 **Le numéro de boîte ne s'affiche jamais** : ce qu'on montre est une
+  /// **position dans un parcours nommé**, et ses états sont servis
+  /// (`Cible.parcours`). Un parcours vide — client servi par un backend
+  /// antérieur au champ — n'affiche aucune carte.
+  Widget? _apercuCivique(BuildContext context) {
+    final cible = ref.watch(civicPlanProvider).valueOrNull?.prochaine;
+    if (cible == null) return null;
+    final etapes = civicPath(cible);
+    if (etapes.isEmpty) return null;
+    return HomeMiniPlan(
+      title: cible.themeLabel,
+      subtitle: cible.label == cible.themeLabel ? null : cible.label,
+      counter: civicPathCounter(cible),
+      steps: etapes,
+      onOpen: () => _ouvrirPlan(context, civique: true),
+    );
+  }
+
+  /* ------------------------------------------------------ progression ----- */
+
+  /// **Votre progression** — les compteurs de la maquette, puis « Progression
+  /// détectée ».
+  ///
+  /// 🛑 **Les deux compteurs sont SERVIS** (`GET /api/me/progress`), pour les
+  /// deux parcours, et **servis même verrouillés** : c'est le *détail* qui est
+  /// premium, pas le fait d'avoir progressé. Rien n'est recompté ici.
+  ///
+  /// ⚠️ **La troisième colonne « validations » de la maquette n'est servie par
+  /// rien** : elle est **omise**, pas fabriquée. `SfStatGrid` suit la liste
+  /// qu'on lui donne.
+  ///
+  /// 🛑 **Le civique compte des notions OU des thèmes** selon ce que le tagging
+  /// permet (`grainNotion`, servi) : son libellé le dit, au lieu d'écrire
+  /// « compétences » à tort.
+  Widget? _progression(bool civique) {
+    final progres = ref.watch(progressProvider).valueOrNull;
+    if (progres == null) return null;
+
+    final (travaillees, maitrisees, notion) = civique
+        ? (
+            progres.civique.travaillees,
+            progres.civique.maitrisees,
+            progres.civique.grainNotion,
           )
-        else if (diagnosticCompleted)
-          PlanPriorityHomeCard(
-            journey: diagnostic!,
-            onOpenPlan: () => context.go(AppRoutes.plan),
-          )
-        else if (diagnostic != null &&
-            diagnostic.status != DiagnosticJourneyStatus.notStarted)
-          _DiagnosticResumeCard(
-            journey: diagnostic,
-            onResume: () => context.push(AppRoutes.diagnostic),
+        : (
+            progres.tcf.competences.travaillees,
+            progres.tcf.competences.maitrisees,
+            false,
+          );
+
+    // Rien de mesuré : le bloc n'a rien à dire.
+    if (travaillees <= 0) return null;
+
+    return SfCard(
+      child: SfStatGrid(
+        stats: [
+          (
+            value: '$travaillees',
+            label:
+                homeWorkedLabel(travaillees, civique: civique, notion: notion),
           ),
-        if (diagnostic != null &&
-            (diagnostic.status != DiagnosticJourneyStatus.notStarted ||
-                !diagnosticDismissed))
-          const SizedBox(height: 16),
-        // 🛑 **Secondaire, et seulement quand le diagnostic complet est
-        // COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan, mais
-        // elle ne devient jamais l'action principale de l'Accueil : celle-ci
-        // reste « Débloquer mon plan » pour un compte gratuit et l'action
-        // pédagogique du Plan pour un abonné. À 4 / 4 elle disparaît — c'est
-        // `affinerPlan` qui rend `null`, sur des faits servis, jamais un
-        // compteur reconstruit ici.
-        ...?_affinerDiagnostic(ref),
-        if (!diagnosticCompleted)
-          _PriorityCard(
-            stat: priority,
-            onTap: () => context.push(dashboardCategoryRoute(priority)),
+          (
+            value: '$maitrisees',
+            label: homeMasteredLabel(maitrisees,
+                civique: civique, notion: notion),
           ),
-        if (!diagnosticCompleted) const SizedBox(height: 16),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: AppCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ProgressRing(
-                        value: global.toDouble(),
-                        size: 54,
-                        stroke: 6,
-                        color: global < 50 ? AppColors.red : AppColors.blue,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Maîtrise',
-                        style: AppFonts.ui(
-                          size: 12,
-                          weight: FontWeight.w600,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatValueCard(
-                  value: '${summary.currentStreakDays} j',
-                  label: 'Série en cours',
-                  color: AppColors.red,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatValueCard(
-                  value: level?.shortName ?? '—',
-                  label: 'Niveau TCF estimé',
-                  color: AppColors.blue,
-                  // Un niveau qui ne porte pas sur les 4 épreuves le dit ici :
-                  // sans ça, une seule épreuve passée s'affichait comme un
-                  // niveau TCF tout court.
-                  hint: estimatedTcfLevelScopeLabel(summary),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        const SectionTitle(title: 'Mes parcours'),
-        const SizedBox(height: 12),
-        _ParcoursCard(
-          label: 'TCF IRN',
-          icon: LucideIcons.audioLines,
-          color: AppColors.red,
-          average: _parcoursAverage(summary.tcf),
-          count: summary.tcf.length,
-          onTap: () {
-            ref.read(reviserParcoursProvider.notifier).state = AppModule.tcf;
-            context.go(AppRoutes.reviser);
-          },
-        ),
-        const SizedBox(height: 12),
-        _ParcoursCard(
-          label: 'Examen civique',
-          icon: LucideIcons.landmark,
-          color: AppColors.blue,
-          average: _parcoursAverage(summary.civique),
-          count: summary.civique.length,
-          onTap: () {
-            ref.read(reviserParcoursProvider.notifier).state =
-                AppModule.civique;
-            context.go(AppRoutes.reviser);
-          },
-        ),
-        const SizedBox(height: 20),
-        const SectionTitle(title: "Travailler avec l'IA"),
-        const SizedBox(height: 12),
-        const _AiCard(),
-        const SizedBox(height: 16),
-        AppCard(
-          color: AppColors.surface2,
-          onTap: () {
-            ref.read(examensParcoursProvider.notifier).state = AppModule.tcf;
-            context.go(AppRoutes.examens);
-          },
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  border: Border.all(color: AppColors.line),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: const Icon(LucideIcons.target,
-                    size: 23, color: AppColors.blue),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Examens blancs complets',
-                      style: AppFonts.ui(size: 15, weight: FontWeight.w700),
-                    ),
-                    Text(
-                      '20 épreuves par parcours, conditions réelles',
-                      style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(LucideIcons.chevronRight,
-                  size: 18, color: AppColors.inkFaint),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        const _IndependenceNote(),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -460,593 +539,6 @@ class _IndependenceNote extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DiagnosticInvitationCard extends StatelessWidget {
-  const _DiagnosticInvitationCard({
-    required this.onStart,
-    required this.onLater,
-  });
-
-  final VoidCallback onStart;
-  final VoidCallback onLater;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-        color: AppColors.blueSoft,
-        border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(
-                    color: AppColors.blueLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    LucideIcons.sparkles,
-                    size: 21,
-                    color: AppColors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Découvrez vos priorités',
-                        style: AppFonts.display(size: 18),
-                      ),
-                      Text(
-                        'Diagnostic TCF · 8 à 10 min',
-                        style: AppFonts.ui(
-                          size: 12,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Un exercice écrit et un exercice oral pour construire votre plan personnalisé.',
-              style: AppFonts.ui(
-                size: 13,
-                color: AppColors.inkSoft,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 14),
-            AppButton(
-              label: 'Commencer le diagnostic',
-              height: 46,
-              iconRight: LucideIcons.arrowRight,
-              onPressed: onStart,
-            ),
-            Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                onPressed: onLater,
-                child: Text(
-                  'Plus tard',
-                  style: AppFonts.ui(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class _DiagnosticResumeCard extends StatelessWidget {
-  const _DiagnosticResumeCard({
-    required this.journey,
-    required this.onResume,
-  });
-
-  final DiagnosticJourney journey;
-  final VoidCallback onResume;
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = journey.completedExerciseCount;
-    final analysis = journey.nextStep == DiagnosticStep.analysis;
-    final failed = journey.status == DiagnosticJourneyStatus.failed;
-    return AppCard(
-      border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                LucideIcons.clipboardPen,
-                size: 21,
-                color: AppColors.blue,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  failed
-                      ? 'Diagnostic à relancer'
-                      : analysis
-                          ? 'Analyse en cours'
-                          : 'Diagnostic en cours',
-                  style: AppFonts.display(size: 18),
-                ),
-              ),
-              Text(
-                '$completed/2',
-                style: AppFonts.ui(
-                  size: 13,
-                  color: AppColors.blue,
-                  weight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 11),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-            child: LinearProgressIndicator(
-              value: completed / 2,
-              minHeight: 7,
-              backgroundColor: AppColors.surface3,
-              valueColor: const AlwaysStoppedAnimation(AppColors.blue),
-            ),
-          ),
-          const SizedBox(height: 12),
-          AppButton(
-            label: failed
-                ? 'Voir le diagnostic'
-                : analysis
-                    ? 'Voir l’analyse'
-                    : 'Reprendre',
-            height: 44,
-            variant: AppButtonVariant.soft,
-            iconRight: LucideIcons.arrowRight,
-            onPressed: onResume,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class PlanPriorityHomeCard extends ConsumerWidget {
-  const PlanPriorityHomeCard({
-    super.key,
-    required this.journey,
-    required this.onOpenPlan,
-  });
-
-  final DiagnosticJourney journey;
-  final VoidCallback onOpenPlan;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final live = ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
-    // 🛑 Une priorité **verrouillée** n'est jamais nommée ici. Depuis que le
-    // Plan sait aussi désigner une compétence **à acquérir** — que la règle
-    // « la priorité n°1 est ouverte » ne déverrouille pas —, la priorité n°1
-    // peut porter un cadenas ; l'écrire en clair sur l'accueil démentirait le
-    // rideau posé sur la même compétence dans « Mes priorités ».
-    final livePriority = live != null && !live.locked ? live : null;
-    final priorities = journey.result?.priorities ?? const [];
-    final diagnosticPriority = priorities.isEmpty ? null : priorities.first;
-    final title = livePriority?.title ?? diagnosticPriority?.skillTitle;
-    return AppCard(
-      color: AppColors.blueSoft,
-      border: Border.all(color: AppColors.blue.withValues(alpha: 0.16)),
-      onTap: onOpenPlan,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: AppColors.blueLight,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              LucideIcons.zap,
-              size: 22,
-              color: AppColors.blue,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Votre priorité du jour',
-                  style: AppFonts.ui(
-                    size: 11.5,
-                    weight: FontWeight.w800,
-                    color: AppColors.blue,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  title ?? 'Continuer votre plan personnalisé',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.display(size: 17),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Ouvrir mon plan',
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    weight: FontWeight.w700,
-                    color: AppColors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            LucideIcons.chevronRight,
-            size: 19,
-            color: AppColors.blue,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Carte bleue « À travailler en priorité » (cf. maquette) : catégorie la
-/// plus faible, barre blanche + %, pied « Continuer ».
-class _PriorityCard extends StatelessWidget {
-  const _PriorityCard({required this.stat, required this.onTap});
-
-  final DashboardCategoryStat stat;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = stat.percent ?? 0;
-    return AppCard(
-      padding: EdgeInsets.zero,
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.lg - 1),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              color: AppColors.blue,
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.zap,
-                          size: 15,
-                          color: AppColors.white.withValues(alpha: 0.85)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'À TRAVAILLER EN PRIORITÉ',
-                        style: AppFonts.ui(
-                          size: 12.5,
-                          weight: FontWeight.w600,
-                          color: AppColors.white.withValues(alpha: 0.85),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    stat.label,
-                    style: AppFonts.display(size: 20, color: AppColors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 7,
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(
-                            color: AppColors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(AppRadii.pill),
-                          ),
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: percent / 100,
-                            heightFactor: 1,
-                            child: const DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: AppColors.white,
-                                borderRadius: BorderRadius.all(
-                                    Radius.circular(AppRadii.pill)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '$percent %',
-                        style: AppFonts.ui(
-                          size: 13,
-                          weight: FontWeight.w700,
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Continuer',
-                    style: AppFonts.ui(
-                      size: 14,
-                      weight: FontWeight.w600,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                  const Icon(LucideIcons.arrowRight,
-                      size: 18, color: AppColors.blue),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ParcoursCard extends StatelessWidget {
-  const _ParcoursCard({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.average,
-    required this.count,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final int? average;
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final sub = average == null
-        ? '$count catégories'
-        : '$count catégories · $average % de maîtrise';
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Icon(icon, size: 24, color: AppColors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: AppFonts.ui(size: 16, weight: FontWeight.w700)),
-                Text(sub,
-                    style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint)),
-              ],
-            ),
-          ),
-          const Icon(LucideIcons.chevronRight,
-              size: 18, color: AppColors.inkFaint),
-        ],
-      ),
-    );
-  }
-}
-
-/// Bloc « Travailler avec l'IA » : bandeau gradient bleu + deux entrées
-/// Expression écrite / Expression orale côte à côte.
-class _AiCard extends StatelessWidget {
-  const _AiCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.lg - 1),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.blue, AppColors.blueDark],
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                    ),
-                    child: const Icon(LucideIcons.sparkles,
-                        size: 22, color: AppColors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Améliorez votre expression',
-                          style: AppFonts.display(
-                              size: 15.5, color: AppColors.white),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "Correction détaillée par l'IA et niveau estimé en quelques secondes",
-                          style: AppFonts.ui(
-                            size: 12.5,
-                            color: AppColors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IntrinsicHeight(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _AiEntry(
-                      icon: LucideIcons.penLine,
-                      iconBg: AppColors.blueLight,
-                      iconColor: AppColors.blueDark,
-                      title: 'Expression écrite',
-                      action: 'Rédiger',
-                      actionColor: AppColors.blue,
-                      onTap: () => context.push(AppRoutes.tcfEeEntry),
-                    ),
-                  ),
-                  const VerticalDivider(width: 1),
-                  Expanded(
-                    child: _AiEntry(
-                      icon: LucideIcons.mic,
-                      iconBg: AppColors.redLight,
-                      iconColor: AppColors.red,
-                      title: 'Expression orale',
-                      action: 'Enregistrer',
-                      actionColor: AppColors.red,
-                      onTap: () => context.push(AppRoutes.tcfEoEntry),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AiEntry extends StatelessWidget {
-  const _AiEntry({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.title,
-    required this.action,
-    required this.actionColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String title;
-  final String action;
-  final Color actionColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Icon(icon, size: 20, color: iconColor),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      // Deux entrées côte à côte : « Expression écrite » ne
-                      // tient pas sur une ligne sous ~400 pt, on l'enroule
-                      // plutôt que de la tronquer en « Expression éc… ».
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppFonts.ui(size: 14, weight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 1),
-                    Row(
-                      children: [
-                        Text(
-                          action,
-                          style: AppFonts.ui(
-                            size: 11.5,
-                            weight: FontWeight.w600,
-                            color: actionColor,
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Icon(LucideIcons.arrowRight,
-                            size: 12, color: actionColor),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ),

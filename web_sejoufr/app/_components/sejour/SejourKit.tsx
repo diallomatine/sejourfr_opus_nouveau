@@ -144,12 +144,15 @@ export function Top({
   badge?: string;
 }) {
   const slot = useContext(TopSlotContext);
-  /* Sans flèche de retour, l'en-tête se centre sur mobile (cf. `.topPlain`) :
-     l'alignement se décide ici, une fois, pas dans chaque écran. */
-  const plain = !backTo && !onBack;
+  /* 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
+     2026-09-12). Il **révoque** `.topPlain`, qui centrait sous 620 px un
+     en-tête sans flèche de retour : un titre centré au-dessus d'un contenu
+     entièrement calé à gauche se lit comme un bandeau, pas comme le titre de la
+     page — et il ne s'aligne ni sur la bascule de parcours, ni sur les cartes
+     en dessous. Même retrait côté mobile (`SfTop`) dans la même passe. */
   return (
     <>
-      <header className={cx(styles.top, plain && styles.topPlain)}>
+      <header className={styles.top}>
         {backTo ? (
           <Link href={backTo} className={styles.iconBtn} aria-label="Retour">
             <ChevronLeft size={24} strokeWidth={2} aria-hidden />

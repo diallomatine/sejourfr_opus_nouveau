@@ -266,7 +266,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
           )}
         </div>
 
-        <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+        <PaywallSheet origin="plan" ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
       </div>
     </PlanShell>
   );
@@ -369,7 +369,7 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
         <ChevronRight size={16} aria-hidden />
       </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet origin="plan" ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
   );
 }

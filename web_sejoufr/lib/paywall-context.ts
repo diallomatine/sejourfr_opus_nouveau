@@ -30,6 +30,29 @@ import {passDurationLabel} from "./passes";
 /** Plafond d'affichage des priorités sur le paywall (`10_` §5). */
 export const PAYWALL_MAX_PRIORITIES = 3;
 
+/**
+ * **D'où le paywall a été ouvert.**
+ *
+ * 🛑 L'en-tête personnalisé — « Votre plan B2 est prêt », les priorités
+ * réelles, les bénéfices du plan — ne s'affiche que depuis les deux écrans qui
+ * viennent de le montrer : le **Plan** et le **diagnostic**. Ailleurs (un
+ * cadenas de série, un slot d'examen, une tâche de production), le candidat n'a
+ * rien vu de tel : lui ouvrir une offre qui commence par « votre plan est prêt »
+ * promet un contexte qu'il n'a pas sous les yeux, et repousse l'offre d'un écran
+ * entier.
+ *
+ * ⚠️ Le défaut est `"ailleurs"` : un appelant qui ne dit rien n'obtient pas
+ * l'en-tête. C'est le bon défaut — une vingtaine d'écrans ouvrent le paywall,
+ * et deux seulement ont le contexte. Miroir de `PaywallOrigin`
+ * (`mobile_sejourfr/lib/core/widgets/paywall_context.dart`).
+ */
+export type PaywallOrigin = "plan" | "diagnostic" | "ailleurs";
+
+/** L'en-tête personnalisé a-t-il un sens depuis cette origine ? */
+export function montreLeContexte(origin: PaywallOrigin): boolean {
+    return origin !== "ailleurs";
+}
+
 export interface PaywallContext {
     /** Palier mesuré aujourd'hui. `null` = pas encore mesuré. */
     currentLevel: NiveauCecrl | null;
@@ -188,7 +211,14 @@ function formatJour(iso: string): string {
    n'existe pas encore.
    -------------------------------------------------------------------------- */
 
+/**
+ * Ce que **dit** un bénéfice, pour que l'écran choisisse son pictogramme sans
+ * dépendre de l'ordre de la liste. 🛑 Pur : aucun composant d'icône ici.
+ */
+export type PaywallBenefitKind = "focus" | "understand" | "progress" | "adapt";
+
 export interface PaywallBenefit {
+    kind: PaywallBenefitKind;
     title: string;
     text: string;
 }
@@ -206,20 +236,24 @@ export const PAYWALL_PRIORITES_LABEL = "Vos premières priorités";
 export function paywallBenefits(ctx: PaywallContext): PaywallBenefit[] {
     return [
         {
+            kind: "focus",
             title: "Travaillez ce qui compte vraiment",
             text: "Les entraînements sont choisis selon votre diagnostic.",
         },
         {
+            kind: "understand",
             title: ctx.currentLevel
                 ? `Comprenez pourquoi vous restez ${ctx.currentLevel}`
                 : "Comprenez ce qui vous bloque",
             text: "Chaque production est corrigée et expliquée.",
         },
         {
+            kind: "progress",
             title: "Voyez réellement votre progression",
             text: "Votre niveau et vos priorités évoluent après vos entraînements.",
         },
         {
+            kind: "adapt",
             title: "Un plan qui s'adapte",
             text: "Quand une compétence progresse, SejourFR ajuste la suite.",
         },

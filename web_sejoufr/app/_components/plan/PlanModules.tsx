@@ -48,6 +48,21 @@ import {CivicPlanPanel} from "./CivicPlanPanel";
 import {PlanGate} from "./PlanGate";
 
 export function PlanModules() {
+    /* 🛑 **Changer d'écran ou de parcours ne coûte AUCUN appel** (2026-09-12).
+       Les deux panneaux lisent leur plan **en cache** (`getCached`) : la
+       bascule démonte l'un et monte l'autre, et chaque montage rappelait son
+       endpoint — pour une réponse identique, puisque ni le plan TCF ni le plan
+       civique ne dépendent de l'onglet ouvert.
+
+       ⚠️ **Révoque** « `/plan` lit directement le serveur pour ne pas figer une
+       analyse asynchrone » : la fraîcheur ne se joue plus à l'arrivée sur
+       l'écran mais aux **écritures**, dans `invalidateDiagnosticAndPlan`
+       (`lib/api.ts`), qui vide diagnostic, plans, préparation et progrès
+       ensemble — à la fin d'une analyse de diagnostic, d'une production, d'une
+       tentative de compétence et au lancement d'une série civique. Une passe
+       intermédiaire vidait les caches à chaque montage de cet écran : elle
+       rendait la bascule gratuite mais laissait un appel par visite. */
+
     const search = useSearchParams();
     const pathname = usePathname();
     const router = useRouter();
