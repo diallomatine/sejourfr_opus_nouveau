@@ -1413,3 +1413,73 @@ réponses ». 🛑 **On ne le fabrique pas.** Mélanger des séries d'entraînem
 (correction immédiate, questions choisies par le plan) à un examen produirait un
 nombre qui ressemble à un score sans en être un. Le diagnostic, lui, pose le
 format entier : son score **est** le résultat, directement comparable au seuil.
+
+---
+
+## Ce que le Plan sert à l'écran RÉVISER (2026-09-12)
+
+L'écran **Réviser** a été refait sur la maquette du propriétaire
+(`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`). Il ne calcule rien : il
+lit le Plan et le tableau de bord, et met en mots des faits servis
+(`web_sejoufr/lib/reviser.ts` ⇄ `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`,
+miroirs mot pour mot).
+
+🛑 **« Reprendre là où vous vous êtes arrêté » vient du PLAN** — demande du
+propriétaire : « il faut mettre la chose actuellement à travailler maintenant
+dans le plan ». C'est `seance.items[0]` côté TCF, `prochaine` côté civique.
+Réviser ne tient **aucun** historique à lui : le Plan est l'autorité, et les
+deux écrans ne peuvent donc pas désigner deux choses différentes. Les lanceurs
+sont ceux du Plan (`usePlanExercise` / `usePlanAssessment` ⇄
+`startPlanSeanceItem`), jamais un second chemin.
+
+🛑 **Sans diagnostic, aucune carte de reprise** — sur les deux parcours. Le fait
+lu est **`prep.planDisponible`**, jamais `etape`. Une carte qui inventerait un
+point de reprise mentirait.
+
+🛑 **Une action verrouillée n'est pas proposée en reprise.** Le Plan d'un compte
+sans accès est un constat (cf. §« Un compte SANS accès ne voit pas la carte d'un
+abonné ») ; sur Réviser, la carte disparaît et le candidat entre par la liste des
+épreuves — c'est exactement ce que l'arbitrage du 2026-09-12 prévoit (« on passe
+par Réviser pour voir ce qu'on peut utiliser gratuitement »).
+
+### Trois champs servis pour cet écran
+
+| champ | porté par | ce qu'il permet |
+|---|---|---|
+| `seriesDone` / `seriesTotal` | `DashboardSummaryResponse.CategoryStat` | « 2 / 10 séries » |
+| `tacheCourante` | `PlanDomainDto` | « Prochaine étape : Tâche 3 » et le « x / 8 compétences » de la bonne tâche |
+| `themes` | `CivicPlanDto` | la ligne d'un thème civique : « En cours · Le Parlement », « 3 notions maîtrisées », « À travailler » |
+
+- **`seriesDone` / `seriesTotal`** — le compte passe par `LotService`, l'autorité
+  unique du découpage en lots, et **jamais** par un second parcours du pool.
+  🛑 **Tous paliers confondus côté TCF** (A2 + B1 + B2), arbitrage du
+  propriétaire : « on compte toutes les séries, quel que soit le niveau ».
+  Une série est **terminée** quand un attempt fini existe sur ce lot — le
+  compteur dit ce qui a été parcouru, il ne juge pas. `0 / 0` en EE/EO, qui n'ont
+  pas de séries : l'écran y montre des compétences.
+- **`tacheCourante`** (`Short`, expression seulement) — la première tâche dont
+  toutes les compétences ne sont pas encore observées, la dernière quand elles le
+  sont toutes. 🛑 **Servie, pas déduite** : les deux fronts la nommaient chacun de
+  leur côté depuis la compétence prioritaire, et le domaine qui **ne** porte pas
+  la priorité n°1 n'avait alors aucune tâche courante du tout.
+- **`themes`** (`CivicPlanDto.ThemeLigne`, **les cinq, toujours**) — il existe
+  parce qu'aucun front ne peut le calculer : `priorites` et `aRevoir` sont
+  **plafonnées à l'affichage** (trois chacune), et y compter des notions thème par
+  thème aurait servi un plafond d'écran comme un budget de mesure. Ses compteurs
+  portent donc sur **toutes** les cibles du plan, avant troncature. **Vide** quand
+  `disponible` est `false` — rien n'a été mesuré, il n'y a rien à dire.
+  Au plus **un** thème porte `enCours`, et c'est `prochaine` : l'écran Réviser et
+  le Plan ne peuvent pas désigner deux notions différentes.
+
+### La bascule de parcours : mobile oui, web non
+
+🛑 Arbitrage du propriétaire (2026-09-12) : « tu ne remets pas la bascule [sur le
+web], mais quand on arrive sur TCF ou Examen civique, on a la même chose, sauf
+que la bascule n'existe pas, le reste identique ». Sur le web on arrive par la
+barre latérale, qui a déjà fait le choix ; sur mobile, Réviser est un onglet de
+la barre du bas et porte la sienne. Écart de **forme**, pas de parcours.
+
+Côté mobile, le parcours affiché est **`parcoursCiviqueProvider`**, partagé avec
+l'Accueil et le Plan — le pendant du `?module=` du web. `reviserParcoursProvider`
+est **supprimé** : deux mécaniques auraient fini par afficher deux parcours
+différents au même candidat selon l'écran.

@@ -471,9 +471,11 @@ du web garde son ordre (`Parcours` puis `Suivi`). Écart de parité **assumé**.
 - **Accueil** (`screens/home/`) : ⚠️ **refait le 2026-09-12 sur le KIT et sur la maquette** —
   cf. § « L'Accueil refait sur la maquette ». La description historique (carte bleue
   « À travailler en priorité », 3 stat cards, bloc IA, raccourci examens) est **périmée**.
-- **Réviser** (`screens/reviser/`) : fusion des hubs Civique/TCF derrière `SegmentedTabs`
-  (provider partagé `reviserParcoursProvider` — l'Accueil le présélectionne avant `goTab`).
-  Liste des catégories avec anneau de maîtrise → écrans détail existants.
+- **Réviser** (`screens/reviser/`) : ⚠️ **refait le 2026-09-12 sur le KIT et sur la
+  maquette** — cf. § « L'écran Réviser refait sur la maquette ». La description
+  historique (`SegmentedTabs` + `reviserParcoursProvider` + liste d'anneaux de
+  maîtrise) est **périmée** : le provider est supprimé, le parcours affiché vit
+  dans `parcoursCiviqueProvider`, partagé avec l'Accueil et le Plan.
 - **Examens** (`screens/examens/`) : examens blancs complets des 2 parcours derrière un toggle
   (`examensParcoursProvider`). Embarque `TcfFullExamsView` et `CiviqueFullExamsView` (corps
   extraits des écrans pleine page, qui restent pour les push profonds).
@@ -1556,6 +1558,47 @@ donc aucun paramètre de route n'est inventé.
 
 ⚠️ **`ModuleSwitch` a déménagé** dans `screens/review/widgets/` : l'Accueil ne
 l'utilisait plus, `review_screen` était son seul lecteur.
+
+### L'écran Réviser refait sur la maquette (2026-09-12, `screens/reviser/`)
+
+Maquette du propriétaire : `~/Desktop/sejourfr_ecrans/reviser_tcf.png` et
+`reviser_civique.png`. L'onglet est passé **sur le KIT**, bloc pour bloc avec le
+web (`/entrainement?module=`).
+
+**Trois blocs, et rien d'autre** : `SfTop` « Réviser » + sous-titre + bascule de
+parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté »** →
+**« Les 5 épreuves »** / **« Les 5 thèmes »**.
+
+- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : `seance.items[0]`
+  côté TCF, `civicPlan.prochaine` côté civique. Réviser ne tient **aucun**
+  historique à lui. Le lancement passe par `startPlanSeanceItem` /
+  `openPlanExercise` (TCF) et `startCivicSerie` (civique) — **les gestes du
+  Plan**, jamais un second chemin.
+- 🛑 **Sans diagnostic, pas de carte** — sur les deux parcours. On lit
+  **`prep.planDisponible`**, jamais `etape`.
+- 🛑 **Une action verrouillée n'est pas proposée en reprise** : la carte
+  disparaît, la liste reste. C'est le corollaire de « le Plan d'un compte sans
+  accès est un constat » — ce qui est ouvert gratuitement se trouve **par la
+  liste des épreuves**.
+- **Le parcours affiché est `parcoursCiviqueProvider`**, partagé avec l'Accueil et
+  le Plan : `reviserParcoursProvider` est **supprimé**. Les deux plans sont
+  **observés en permanence** dans `build` (ils sont `autoDispose`) — la bascule ne
+  coûte aucun appel, comme sur le Plan.
+- **Libellés purs** : `screens/reviser/reviser_labels.dart`, **miroir mot pour
+  mot** de `web_sejoufr/lib/reviser.ts`. Rien n'y classe un nombre : chaque
+  fonction pose une phrase sur un **fait servi** (`seriesDone` / `seriesTotal`,
+  `taches[]`, `niveau`, `themes[]`).
+- **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `SfRing`
+  (anneau de **couverture**, sans chiffre au centre — à ne pas confondre avec
+  `ProgressRing`) et `SfEpreuveRow` (la ligne d'une épreuve ou d'un thème).
+  Miroirs web : `Ring`, `EpreuveRow`.
+- **Trois champs backend nouveaux** alimentent l'écran — `CategoryStat.seriesDone`
+  / `seriesTotal`, `PlanDomainDto.tacheCourante`, `CivicPlanDto.themes`. Règles,
+  invariants et raisons : `docs/regles/plan.md`, § « Ce que le Plan sert à l'écran
+  RÉVISER ».
+- **`startCivicSerie` / `openCivicOffer`** (`screens/plan/civic_serie_launcher.dart`)
+  sont **extraits à leur 2ᵉ surface** : le Plan civique et Réviser ouvrent la même
+  série sur la même cible. Miroir web : `useCivicSerie`.
 
 ### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
 

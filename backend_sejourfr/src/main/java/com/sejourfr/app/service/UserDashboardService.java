@@ -78,6 +78,7 @@ public class UserDashboardService {
     private final ThemeManager themeManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final TcfProfileService tcfProfileService;
+    private final LotService lotService;
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse summary(UUID userId) {
@@ -241,6 +242,7 @@ public class UserDashboardService {
                 agg = mockExamsByCategory.get(theme.getCode().replaceFirst("^TCF_", ""));
             }
             final int poolSize = (int) questionManager.countActiveByTheme(theme.getId());
+            final LotService.SeriesCount series = seriesCount(userId, module, theme.getCode(), theme.getId());
             out.add(new DashboardSummaryResponse.CategoryStat(
                     theme.getId(),
                     theme.getCode(),
@@ -252,9 +254,35 @@ public class UserDashboardService {
                     agg == null ? null : agg.best,
                     agg == null ? null : agg.last,
                     agg == null ? null : agg.prev,
-                    null));
+                    null,
+                    series.done(),
+                    series.total()));
         }
         return out;
+    }
+
+    /**
+     * Les séries de la catégorie, déléguées à {@link LotService} — l'autorité
+     * unique du découpage en lots.
+     *
+     * <p>Le {@link QuestionType} d'une épreuve TCF se lit sur le <b>code du
+     * thème</b> ({@code TCF_CO} → {@code CO}), exactement comme la ventilation
+     * des examens blancs juste au-dessus. Un code inattendu vaut
+     * {@link LotService.SeriesCount#ZERO} : une épreuve sans lots s'affiche
+     * « 0 série », elle ne fait pas échouer le tableau de bord.
+     */
+    private LotService.SeriesCount seriesCount(
+            UUID userId, Module module, String themeCode, UUID themeId) {
+        if (module == Module.CIVIQUE) {
+            return lotService.seriesCountCivique(userId, themeId);
+        }
+        final QuestionType type;
+        try {
+            type = QuestionType.valueOf(themeCode.replaceFirst("^TCF_", ""));
+        } catch (IllegalArgumentException unknown) {
+            return LotService.SeriesCount.ZERO;
+        }
+        return lotService.seriesCount(userId, type);
     }
 
     /**
@@ -292,8 +320,11 @@ public class UserDashboardService {
                     Math.min(1.0, (double) notes.size() / PRODUCTION_CONFIDENCE_SAMPLE);
             percent = (int) Math.round(avg * 5 * confiance);
         }
+        // 0 / 0 séries : une épreuve de production n'en porte pas, et l'écran
+        // Réviser y montre des compétences à la place. Zéro, pas null : il n'y
+        // a rien d'inconnu ici, il n'y a rien du tout.
         return new DashboardSummaryResponse.CategoryStat(
-                null, code, label, percent, 0, 0, 0, null, null, null, level);
+                null, code, label, percent, 0, 0, 0, null, null, null, level, 0, 0);
     }
 
     // ------------------------------------------------------------------------

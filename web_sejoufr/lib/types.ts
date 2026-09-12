@@ -1520,6 +1520,17 @@ export interface PlanDomainDto {
     /** Expression : tâches 1, 2, 3 dans cet ordre. **Vide** en compréhension. */
     taches: PlanDomainTaskDto[];
     /**
+     * Expression : **la tâche que le Plan construit maintenant** sur ce domaine
+     * (1, 2 ou 3) — la première de `taches` dont toutes les compétences ne sont
+     * pas encore observées, la dernière quand elles le sont toutes. `null` en
+     * compréhension, et `null` face à un backend antérieur au champ.
+     *
+     * 🛑 **Servie, pas déduite.** L'écran Réviser et le parcours du Plan la
+     * nommaient chacun de leur côté, et le domaine qui **ne** porte pas la
+     * priorité n°1 n'avait alors aucune tâche courante du tout.
+     */
+    tacheCourante: number | null;
+    /**
      * **Toutes** les compétences actives du domaine, dans l'ordre du serveur :
      * les 24 des trois tâches en expression, les 3 paliers en compréhension.
      *
@@ -3417,6 +3428,17 @@ export interface DashboardCategoryStat {
     bestMockScore: number | null;
     lastMockScore: number | null;
     prevMockScore: number | null;
+    /**
+     * Les **séries** d'entraînement de la catégorie : combien le candidat en a
+     * terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran
+     * Réviser). Côté TCF, **tous paliers confondus** (A2 + B1 + B2) ; côté
+     * civique, sur le thème. `0 / 0` pour EE/EO, qui n'ont pas de séries —
+     * l'écran y montre des compétences.
+     *
+     * 🛑 **Dérivé serveur** : un front ne recompte jamais des lots.
+     */
+    seriesDone: number;
+    seriesTotal: number;
     /** Dernier niveau CECRL évalué — EE/EO uniquement. */
     level: NiveauCecrl | null;
 }
@@ -4130,10 +4152,50 @@ export interface CivicPlanDto {
     /** Révisions d'entretien. 🛑 **Jamais une priorité rouge** (`20_` §5.2). */
     aRevoir: CivicPlanCibleDto[];
     solides: CivicPlanCibleDto[];
+    /**
+     * **Les cinq thèmes officiels, toujours les cinq**, dans l'ordre
+     * d'affichage du module. **Vide** quand `disponible` est `false` — rien n'a
+     * été mesuré, il n'y a rien à dire — et vide face à un backend antérieur au
+     * champ.
+     */
+    themes: CivicPlanThemeLigneDto[];
     grain: CivicPlanGrainDto;
     /** 🛑 `null` = rien n'a bougé, et c'est le cas normal. */
     changements: CivicPlanChangementsDto | null;
     calculeA: string;
+}
+
+/**
+ * **Un thème, vu de l'écran Réviser** : où en est le candidat sur ce thème.
+ *
+ * 🛑 **Il est servi parce qu'aucun front ne peut le calculer.** `priorites` et
+ * `aRevoir` sont plafonnées à l'affichage (trois chacune) : y compter des
+ * notions thème par thème aurait servi un plafond d'écran comme un budget de
+ * mesure. Les compteurs ci-dessous portent sur **toutes** les cibles du plan.
+ *
+ * 🛑 **Des faits, pas une phrase** : « 3 notions maîtrisées », « En cours · Le
+ * Parlement », « Pas encore travaillé » se composent dans `lib/reviser.ts`,
+ * miroir mot pour mot de `reviser_labels.dart`.
+ */
+export interface CivicPlanThemeLigneDto {
+    themeId: string;
+    /** `CIV_PRINCIPES` … `CIV_SOCIETE`. */
+    code: string;
+    label: string;
+    /** 🛑 `NON_EVALUE` n'est pas « faible » : c'est une absence de mesure. */
+    etat: CivicThemeState;
+    /** À quel grain **ce** thème est travaillé aujourd'hui. */
+    grain: CivicPlanGrain;
+    /** Cibles **servables** du thème. */
+    cibles: number;
+    maitrisees: number;
+    /** Cibles portant au moins une réponse — un fait d'historique. */
+    travaillees: number;
+    /**
+     * La cible que le plan travaille **maintenant** sur ce thème, ou `null`. Au
+     * plus un thème la porte : c'est `prochaine`, lue chez la même autorité.
+     */
+    enCours: CivicPlanCibleRefDto | null;
 }
 
 /**

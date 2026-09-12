@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -206,5 +207,67 @@ class LotServiceTest {
 
         assertThatThrownBy(() -> service.resolveLotSizeCivique(themeId, 5))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    // ---- Compteur de séries (écran Réviser) ----
+
+    /** Un attempt fini sur ce lot — c'est ce qui rend une série « terminée ». */
+    private static Attempt fait() {
+        Attempt a = new Attempt();
+        a.setScore(12);
+        a.setFinishedAt(Instant.now());
+        return a;
+    }
+
+    @Test
+    void seriesCount_sommeLesTroisPaliers_etCompteLesLotsDejaFaits() {
+        // A2 : 3 lots dont 1 fait · B1 : 2 lots dont 2 faits · B2 : 0 lot.
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.A2, QuestionType.CO)).thenReturn(60L);
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.B1, QuestionType.CO)).thenReturn(45L);
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.B2, QuestionType.CO)).thenReturn(0L);
+        when(attemptManager.findLastFinishedByLots(userId, Module.TCF, QuestionType.CO, Difficulty.A2))
+                .thenReturn(Map.of(2, fait()));
+        when(attemptManager.findLastFinishedByLots(userId, Module.TCF, QuestionType.CO, Difficulty.B1))
+                .thenReturn(Map.of(1, fait(), 2, fait()));
+
+        var count = service.seriesCount(userId, QuestionType.CO);
+
+        assertThat(count.total()).isEqualTo(5);
+        assertThat(count.done()).isEqualTo(3);
+    }
+
+    @Test
+    void seriesCount_rienDeTravaille_nAnnonceAucuneSerieFaite() {
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.A2, QuestionType.STRUCTURE)).thenReturn(40L);
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.B1, QuestionType.STRUCTURE)).thenReturn(40L);
+        when(questionManager.countActiveMatching(Module.TCF, null, Difficulty.B2, QuestionType.STRUCTURE)).thenReturn(0L);
+        when(attemptManager.findLastFinishedByLots(any(), any(), any(), any())).thenReturn(Map.of());
+
+        var count = service.seriesCount(userId, QuestionType.STRUCTURE);
+
+        assertThat(count.total()).isEqualTo(4);
+        assertThat(count.done()).isZero();
+    }
+
+    @Test
+    void seriesCountCivique_compteLesLotsDuTheme() {
+        when(questionManager.countActiveMatching(Module.CIVIQUE, themeId, null, null)).thenReturn(60L);
+        when(attemptManager.findLastFinishedByLotsCivique(userId, themeId))
+                .thenReturn(Map.of(1, fait()));
+
+        var count = service.seriesCountCivique(userId, themeId);
+
+        assertThat(count.total()).isEqualTo(3);
+        assertThat(count.done()).isEqualTo(1);
+    }
+
+    @Test
+    void seriesCountCivique_themeSansQuestion_estAZeroSurZero() {
+        when(questionManager.countActiveMatching(Module.CIVIQUE, themeId, null, null)).thenReturn(0L);
+
+        var count = service.seriesCountCivique(userId, themeId);
+
+        assertThat(count.total()).isZero();
+        assertThat(count.done()).isZero();
     }
 }

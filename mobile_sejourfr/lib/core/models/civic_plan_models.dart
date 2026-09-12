@@ -259,6 +259,7 @@ class CivicPlan {
     required this.aRevoir,
     required this.solides,
     required this.grain,
+    this.themes = const <CivicPlanThemeLigne>[],
     this.resultat,
     this.prochaine,
     this.changements,
@@ -281,6 +282,11 @@ class CivicPlan {
   /// Révisions d'entretien. 🛑 **Jamais une priorité rouge** (`20_` §5.2).
   final List<CivicPlanCible> aRevoir;
   final List<CivicPlanCible> solides;
+
+  /// **Les cinq thèmes officiels, toujours les cinq**, dans l'ordre d'affichage
+  /// du module. **Vide** quand [disponible] est `false` — rien n'a été mesuré,
+  /// il n'y a rien à dire — et vide face à un backend antérieur au champ.
+  final List<CivicPlanThemeLigne> themes;
   final CivicPlanGrainDto grain;
 
   /// Ce qui a bougé depuis peu — le bloc « Progression détectée ».
@@ -306,12 +312,80 @@ class CivicPlan {
         autresPriorites: (json['autresPriorites'] as num?)?.toInt() ?? 0,
         aRevoir: _cibles(json['aRevoir']),
         solides: _cibles(json['solides']),
+        themes: (json['themes'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(CivicPlanThemeLigne.fromJson)
+            .toList(growable: false),
         grain: CivicPlanGrainDto.fromJson(
             json['grain'] as Map<String, dynamic>? ?? const {}),
         changements: json['changements'] == null
             ? null
             : CivicPlanChangements.fromJson(
                 json['changements'] as Map<String, dynamic>),
+      );
+}
+
+/// **Un thème, vu de l'écran Réviser** : où en est le candidat sur ce thème.
+/// Miroir de `CivicPlanDto.ThemeLigne`.
+///
+/// 🛑 **Il est servi parce qu'aucun front ne peut le calculer.** `priorites` et
+/// `aRevoir` sont plafonnées à l'affichage (trois chacune) : y compter des
+/// notions thème par thème aurait servi un plafond d'écran comme un budget de
+/// mesure. Les compteurs ci-dessous portent sur **toutes** les cibles du plan.
+///
+/// 🛑 **Des faits, pas une phrase** : « 3 notions maîtrisées », « En cours · Le
+/// Parlement », « Pas encore travaillé » se composent dans `reviser_labels.dart`,
+/// miroir mot pour mot de `lib/reviser.ts`.
+class CivicPlanThemeLigne {
+  const CivicPlanThemeLigne({
+    required this.themeId,
+    required this.code,
+    required this.label,
+    required this.etat,
+    required this.grain,
+    required this.cibles,
+    required this.maitrisees,
+    required this.travaillees,
+    this.enCours,
+  });
+
+  final String themeId;
+
+  /// `CIV_PRINCIPES` … `CIV_SOCIETE`.
+  final String code;
+  final String label;
+
+  /// 🛑 `NON_EVALUE` n'est pas « faible » : c'est une absence de mesure.
+  final CivicThemeState etat;
+
+  /// À quel grain **ce** thème est travaillé aujourd'hui.
+  final CivicPlanGrain grain;
+
+  /// Cibles **servables** du thème.
+  final int cibles;
+  final int maitrisees;
+
+  /// Cibles portant au moins une réponse — un fait d'historique.
+  final int travaillees;
+
+  /// La cible que le plan travaille **maintenant** sur ce thème, ou `null`. Au
+  /// plus un thème la porte : c'est `prochaine`, lue chez la même autorité.
+  final CivicPlanCibleRef? enCours;
+
+  static CivicPlanThemeLigne fromJson(Map<String, dynamic> json) =>
+      CivicPlanThemeLigne(
+        themeId: json['themeId'] as String? ?? '',
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        etat: CivicThemeState.fromWire(
+            json['etat'] as String? ?? 'NON_EVALUE'),
+        grain: CivicPlanGrain.fromWire(json['grain'] as String? ?? 'THEME'),
+        cibles: (json['cibles'] as num? ?? 0).toInt(),
+        maitrisees: (json['maitrisees'] as num? ?? 0).toInt(),
+        travaillees: (json['travaillees'] as num? ?? 0).toInt(),
+        enCours: json['enCours'] is Map<String, dynamic>
+            ? CivicPlanCibleRef.fromJson(json['enCours'] as Map<String, dynamic>)
+            : null,
       );
 }
 

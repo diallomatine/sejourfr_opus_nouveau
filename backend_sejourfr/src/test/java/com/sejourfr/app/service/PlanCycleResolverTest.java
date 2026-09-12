@@ -217,6 +217,50 @@ class PlanCycleResolverTest {
         assertThat(ee.consolidatedLevel()).isNull();
     }
 
+    @Test
+    @DisplayName("La tache courante est SERVIE, y compris sur le domaine qui ne porte pas la priorite")
+    void laTacheCouranteEstServie() {
+        profil(null, null, NiveauCecrl.A2, NiveauCecrl.A2);
+        // EE1 entierement observee, EE2 entamee : la tache en cours est la 2.
+        List<LearningPlanObservation> historique = new ArrayList<>();
+        for (int rang = 1; rang <= 8; rang++) {
+            historique.add(observation(expression("EE1-C" + rang),
+                    LearningPlanSkillStatus.SOLID, LearningPlanSourceType.PRODUCTION_EE,
+                    UUID.randomUUID(), Instant.now()));
+        }
+        historique.add(observation(expression("EE2-C1"), LearningPlanSkillStatus.TO_REINFORCE,
+                LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID(), Instant.now()));
+
+        PlanCycleResolver.Resolution resolution = resolve(nat(), historique, List.of());
+
+        assertThat(domaine(resolution, EpreuveType.TCF_EE).tacheCourante())
+                .isEqualTo((short) 2);
+        // 🛑 L'oral n'a rien montre et ne porte aucune priorite : il a quand
+        // meme une tache courante — la premiere. C'est precisement ce qu'une
+        // deduction faite depuis la competence prioritaire ne savait pas dire.
+        assertThat(domaine(resolution, EpreuveType.TCF_EO).tacheCourante())
+                .isEqualTo((short) 1);
+        // Et un domaine de comprehension n'en a pas : un palier n'est pas une tache.
+        assertThat(domaine(resolution, EpreuveType.TCF_CO).tacheCourante()).isNull();
+    }
+
+    @Test
+    @DisplayName("Toutes les taches observees : la courante reste la derniere, jamais null")
+    void laTacheCouranteQuandToutEstObserve() {
+        profil(null, null, NiveauCecrl.B1, null);
+        List<LearningPlanObservation> historique = new ArrayList<>();
+        for (SkillTaskCode code : SkillTaskCode.of(SkillSection.EE)) {
+            for (int rang = 1; rang <= 8; rang++) {
+                historique.add(observation(expression(code.name() + "-C" + rang),
+                        LearningPlanSkillStatus.SOLID, LearningPlanSourceType.PRODUCTION_EE,
+                        UUID.randomUUID(), Instant.now()));
+            }
+        }
+
+        assertThat(domaine(resolve(nat(), historique, List.of()), EpreuveType.TCF_EE)
+                .tacheCourante()).isEqualTo((short) 3);
+    }
+
     // ------------------------------------------------------------------------
     // Le cycle
     // ------------------------------------------------------------------------

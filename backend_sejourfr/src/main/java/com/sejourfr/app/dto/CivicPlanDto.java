@@ -53,6 +53,12 @@ import java.util.UUID;
  * @param solides         ce qui est acquis, dit pour ce que ca vaut : le
  *                        candidat n'a pas besoin de tout reviser
  * @param grain           voir {@link Grain}
+ * @param themes          <b>les cinq themes officiels, toujours les cinq</b>,
+ *                        dans l'ordre d'affichage du module : de quoi ecrire la
+ *                        ligne d'un theme sur l'ecran Reviser sans rien deduire
+ *                        des listes plafonnees juste au-dessus. Vide quand
+ *                        {@code disponible} est {@code false} — rien n'a ete
+ *                        mesure, il n'y a rien a dire. Voir {@link ThemeLigne}
  * @param changements     ce qui a bouge depuis peu, ou {@code null} — et
  *                        {@code null} est le <b>cas normal</b>, exactement
  *                        comme {@code recentChanges} cote TCF. Voir
@@ -67,6 +73,7 @@ public record CivicPlanDto(
         int autresPriorites,
         List<Cible> aRevoir,
         List<Cible> solides,
+        List<ThemeLigne> themes,
         Grain grain,
         Changements changements,
         Instant calculeA
@@ -127,6 +134,53 @@ public record CivicPlanDto(
 
     /** De quoi nommer une cible sans reservir toute sa mesure. */
     public record CibleRef(UUID id, String code, String label, CivicPlanGrain grain) {
+    }
+
+    /**
+     * <b>Un theme, vu de l'ecran Reviser</b> : ou en est le candidat sur ce
+     * theme, en un coup d'oeil.
+     *
+     * <p>🛑 <b>Il existe parce qu'aucun front ne peut le calculer.</b>
+     * {@code priorites} et {@code aRevoir} sont <b>plafonnees a l'affichage</b>
+     * (trois chacune) : compter des notions dedans, theme par theme, aurait
+     * servi un plafond d'ecran comme un budget de mesure — exactement le defaut
+     * qui a prive trois domaines sur quatre de toute action cote TCF
+     * (2026-08-25). Les compteurs ci-dessous sont donc etablis sur
+     * <b>TOUTES</b> les cibles du plan, avant toute troncature.
+     *
+     * <p>🛑 <b>Des faits, pas une phrase.</b> « 3 notions maitrisees », « En
+     * cours · Le Parlement », « Pas encore travaille » se composent dans les
+     * fronts, en miroir mot pour mot, comme tout le reste de ce DTO.
+     *
+     * @param themeId     le theme
+     * @param code        {@code CIV_PRINCIPES} … {@code CIV_SOCIETE}
+     * @param label       son libelle editorial, tel qu'il vit en base
+     * @param etat        l'etat servi par le dernier diagnostic. 🛑
+     *                    {@code NON_EVALUE} n'est pas « faible » : c'est une
+     *                    absence de mesure
+     * @param grain       a quel grain CE theme est travaille aujourd'hui — le
+     *                    tagging se mesure theme par theme
+     * @param cibles      cibles <b>servables</b> du theme (ses notions, ou le
+     *                    theme lui-meme au grain THEME)
+     * @param maitrisees  celles que le moteur tient pour maitrisees
+     * @param travaillees celles qui portent au moins une reponse. 🛑 Un fait
+     *                    d'historique, jamais « proposable »
+     * @param enCours     la cible que le plan travaille <b>maintenant</b> sur ce
+     *                    theme, ou {@code null}. Au plus un theme la porte :
+     *                    c'est {@code prochaine}, lue chez la meme autorite —
+     *                    l'ecran Reviser et le Plan ne peuvent donc pas designer
+     *                    deux choses differentes
+     */
+    public record ThemeLigne(
+            UUID themeId,
+            String code,
+            String label,
+            CivicThemeState etat,
+            CivicPlanGrain grain,
+            int cibles,
+            int maitrisees,
+            int travaillees,
+            CibleRef enCours) {
     }
 
     /**

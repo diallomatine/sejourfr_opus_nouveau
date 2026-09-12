@@ -131,6 +131,52 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("🛑 Les cinq thèmes de l'écran Réviser sont servis, et leurs compteurs "
+            + "ne sortent PAS des listes plafonnées")
+    void lesCinqLignesDeThemeSontServies() {
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // Les cinq, toujours — un thème sans cible servable reste à l'écran.
+        assertThat(plan.themes()).hasSize(5);
+        assertThat(plan.themes()).extracting(CivicPlanDto.ThemeLigne::code)
+                .containsExactlyInAnyOrder("CIV_PRINCIPES", "CIV_INSTITUTIONS",
+                        "CIV_DROITS_DEVOIRS", "CIV_HISTOIRE_GEO", "CIV_SOCIETE");
+        assertThat(plan.themes()).allSatisfy(ligne -> {
+            assertThat(ligne.label()).isNotBlank();
+            assertThat(ligne.etat()).isNotNull();
+            assertThat(ligne.grain()).isNotNull();
+            assertThat(ligne.maitrisees()).isLessThanOrEqualTo(ligne.cibles());
+            assertThat(ligne.travaillees()).isLessThanOrEqualTo(ligne.cibles());
+        });
+
+        // 🛑 Au plus UN thème porte la cible du moment, et c'est `prochaine` —
+        // l'écran Réviser et le Plan ne peuvent pas désigner deux choses.
+        List<CivicPlanDto.ThemeLigne> enCours = plan.themes().stream()
+                .filter(ligne -> ligne.enCours() != null).toList();
+        assertThat(enCours).hasSize(1);
+        assertThat(enCours.getFirst().enCours().id()).isEqualTo(plan.prochaine().id());
+        assertThat(enCours.getFirst().themeId()).isEqualTo(plan.prochaine().themeId());
+
+        // Le diagnostic a touché les cinq thèmes : ils sont tous travaillés,
+        // alors que `priorites` en montre trois. C'est bien TOUTES les cibles
+        // qui ont été comptées, pas la liste tronquée.
+        assertThat(plan.priorites()).hasSizeLessThanOrEqualTo(3);
+        assertThat(plan.themes()).allSatisfy(
+                ligne -> assertThat(ligne.travaillees()).isEqualTo(ligne.cibles()));
+    }
+
+    @Test
+    @DisplayName("🛑 Sans diagnostic, aucune ligne de thème — rien n'a été mesuré")
+    void sansDiagnosticAucuneLigneDeTheme() {
+        User user = testData.user();
+
+        assertThat(service.plan(user.getId()).themes()).isEmpty();
+    }
+
+    @Test
     @DisplayName("Le résultat servi est celui du diagnostic, directement comparable au seuil")
     void resultatComparableAuSeuil() {
         User user = testData.user();

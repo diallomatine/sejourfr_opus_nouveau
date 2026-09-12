@@ -4,6 +4,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {Landmark, ListChecks, Lock} from "lucide-react";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {useCivicSerie} from "./useCivicSerie";
 import {civicPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -96,9 +97,9 @@ export function CivicPlanPanel() {
   const {user} = useAuth();
   const router = useRouter();
   const [plan, setPlan] = useState<CivicPlanDto | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState<string | null>(null);
-  const [paywall, setPaywall] = useState(false);
+  /* 🛑 Le geste vit dans `useCivicSerie`, partagé avec l'écran Réviser : la
+     même cible ne peut pas s'ouvrir de deux façons selon l'écran. */
+  const {enCours, erreur, paywall, setPaywall, commencer} = useCivicSerie();
 
   useEffect(() => {
     let vivant = true;
@@ -109,34 +110,6 @@ export function CivicPlanPanel() {
     return () => { vivant = false; };
   }, []);
 
-  /**
-   * Ouvre la série ciblée. 🛑 Le **403** est un refus attendu — le verrou du
-   * serveur et le `locked` servi sont la même règle — et il ouvre l'offre,
-   * jamais un message d'erreur technique.
-   */
-  const commencer = useCallback(
-    async (cible: CivicPlanCibleDto) => {
-      if (enCours) return;
-      if (cible.locked) {
-        setPaywall(true);
-        return;
-      }
-      setEnCours(cible.id);
-      setErreur(null);
-      try {
-        const attempt = await civicPlanApi.serie(cible.id, cible.grain);
-        router.push(`/sessions/${attempt.id}`);
-      } catch (e) {
-        handleStartFailure(e, {
-          onPaywall: () => setPaywall(true),
-          onMessage: setErreur,
-          fallbackMessage: "Impossible de démarrer cette série.",
-        });
-        setEnCours(null);
-      }
-    },
-    [enCours, router],
-  );
 
   /* 🛑 **La bascule de parcours ne se fait jamais attendre.** C'est l'en-tête
      qui la porte (`TopSlot`), donc on le rend dès le premier passage, avant le

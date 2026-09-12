@@ -1380,6 +1380,7 @@ class PlanDomain {
     this.blockingLevel,
     this.paliers = const <PlanDomainLevel>[],
     this.taches = const <PlanDomainTask>[],
+    this.tacheCourante,
     this.skills = const <PlanDomainSkill>[],
     this.fragileSkillCount = 0,
     this.solidSkillCount = 0,
@@ -1413,6 +1414,16 @@ class PlanDomain {
 
   /// Expression : tâches 1, 2, 3 dans cet ordre. Vide en compréhension.
   final List<PlanDomainTask> taches;
+
+  /// Expression : **la tâche que le Plan construit maintenant** sur ce domaine
+  /// (1, 2 ou 3) — la première de [taches] dont toutes les compétences ne sont
+  /// pas encore observées, la dernière quand elles le sont toutes. `null` en
+  /// compréhension, et `null` face à un backend antérieur au champ.
+  ///
+  /// 🛑 **Servie, pas déduite.** L'écran Réviser et le parcours du Plan la
+  /// nommaient chacun de leur côté, et le domaine qui **ne** porte pas la
+  /// priorité n°1 n'avait alors aucune tâche courante du tout.
+  final int? tacheCourante;
 
   /// **Toutes** les compétences actives du domaine, dans l'ordre du serveur :
   /// les 24 des trois tâches en expression, les 3 paliers en compréhension.
@@ -1482,6 +1493,7 @@ class PlanDomain {
         taches: _objectList(json['taches'])
             .map(PlanDomainTask.fromJson)
             .toList(growable: false),
+        tacheCourante: (json['tacheCourante'] as num?)?.toInt(),
         // Un backend anterieur au champ ne le sert pas : liste vide et
         // compteurs a zero, jamais une exception.
         skills: _objectList(json['skills'])

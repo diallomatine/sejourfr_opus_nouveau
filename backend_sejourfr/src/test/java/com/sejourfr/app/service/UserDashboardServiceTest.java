@@ -47,6 +47,7 @@ class UserDashboardServiceTest {
     private ThemeManager themeManager;
     private AiEvaluationManager aiEvaluationManager;
     private TcfProfileService tcfProfileService;
+    private LotService lotService;
     private UserDashboardService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -64,8 +65,13 @@ class UserDashboardServiceTest {
         tcfProfileService = mock(TcfProfileService.class);
         when(tcfProfileService.levelProfile(userId))
                 .thenReturn(new TcfLevelProfile(null, null, null, null, null));
+        // Les séries (« 2 / 10 ») sont déléguées à LotService, qui a son propre
+        // test : ici on neutralise, sauf dans le test qui les exerce.
+        lotService = mock(LotService.class);
+        when(lotService.seriesCount(any(), any())).thenReturn(LotService.SeriesCount.ZERO);
+        when(lotService.seriesCountCivique(any(), any())).thenReturn(LotService.SeriesCount.ZERO);
         service = new UserDashboardService(attemptManager, answerManager, questionManager,
-                themeManager, aiEvaluationManager, tcfProfileService);
+                themeManager, aiEvaluationManager, tcfProfileService, lotService);
     }
 
     private static Theme theme(UUID id, Module module, String code) {
@@ -281,5 +287,45 @@ class UserDashboardServiceTest {
                 .thenReturn(List.of());
 
         assertThat(service.summary(userId).mockExamsTotal()).isEqualTo(7);
+    }
+
+    // ------------------------------------------------------------------ séries
+
+    @Test
+    void summary_series_lueSurLotService_parEpreuveTcfEtParThemeCivique() {
+        UUID civTheme = UUID.randomUUID();
+        UUID tcfTheme = UUID.randomUUID();
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(theme(civTheme, Module.CIVIQUE, "CIV_PRINCIPES")));
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.TCF))
+                .thenReturn(List.of(theme(tcfTheme, Module.TCF, "TCF_CO")));
+        when(lotService.seriesCountCivique(userId, civTheme))
+                .thenReturn(new LotService.SeriesCount(1, 4));
+        when(lotService.seriesCount(userId, com.sejourfr.app.enums.QuestionType.CO))
+                .thenReturn(new LotService.SeriesCount(2, 10));
+
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        DashboardSummaryResponse.CategoryStat co = resp.tcf().stream()
+                .filter(c -> c.code().equals("TCF_CO")).findFirst().orElseThrow();
+        assertThat(co.seriesDone()).isEqualTo(2);
+        assertThat(co.seriesTotal()).isEqualTo(10);
+
+        DashboardSummaryResponse.CategoryStat principes = resp.civique().getFirst();
+        assertThat(principes.seriesDone()).isEqualTo(1);
+        assertThat(principes.seriesTotal()).isEqualTo(4);
+    }
+
+    @Test
+    void summary_series_productionsEeEo_nEnPortentAucune() {
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        assertThat(resp.tcf())
+                .filteredOn(c -> c.code().equals("TCF_EE") || c.code().equals("TCF_EO"))
+                .hasSize(2)
+                .allSatisfy(c -> {
+                    assertThat(c.seriesDone()).isZero();
+                    assertThat(c.seriesTotal()).isZero();
+                });
     }
 }

@@ -95,6 +95,14 @@ public record DashboardSummaryResponse(
      *       pas assez d'examens.</li>
      *   <li>{@code level} : dernier niveau CECRL évalué — renseigné uniquement
      *       pour EE/EO.</li>
+     *   <li>{@code seriesDone} / {@code seriesTotal} : les <b>séries</b>
+     *       d'entraînement de la catégorie — combien le candidat en a terminé,
+     *       sur combien elle en porte. C'est le « 2 / 10 séries » de l'écran
+     *       Réviser. Côté TCF, le compte est fait <b>tous paliers confondus</b>
+     *       (A2 + B1 + B2) ; côté civique, sur le thème. {@code 0 / 0} pour
+     *       EE/EO, qui n'ont pas de séries : l'écran y montre des compétences.
+     *       🛑 Dérivé serveur ({@code LotService}) — un front ne recompte
+     *       jamais des lots, il en lit le décompte.</li>
      * </ul>
      */
     public record CategoryStat(
@@ -108,7 +116,9 @@ public record DashboardSummaryResponse(
             Integer bestMockScore,
             Integer lastMockScore,
             Integer prevMockScore,
-            NiveauCecrl level
+            NiveauCecrl level,
+            int seriesDone,
+            int seriesTotal
     ) {
     }
 }

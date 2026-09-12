@@ -198,6 +198,8 @@ class DashboardCategoryStat {
     required this.lastMockScore,
     required this.prevMockScore,
     required this.level,
+    required this.seriesDone,
+    required this.seriesTotal,
   });
 
   final String? themeId;
@@ -214,6 +216,16 @@ class DashboardCategoryStat {
   /// Dernier niveau CECRL évalué — renseigné uniquement pour EE/EO.
   final NiveauCecrl? level;
 
+  /// Les **séries** d'entraînement de la catégorie : combien le candidat en a
+  /// terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran Réviser).
+  /// Côté TCF, **tous paliers confondus** (A2 + B1 + B2) ; côté civique, sur le
+  /// thème. `0 / 0` pour EE/EO, qui n'ont pas de séries — l'écran y montre des
+  /// compétences.
+  ///
+  /// 🛑 **Dérivé serveur** : une app ne recompte jamais des lots.
+  final int seriesDone;
+  final int seriesTotal;
+
   bool get isProduction => code == 'TCF_EE' || code == 'TCF_EO';
 
   factory DashboardCategoryStat.fromJson(Map<String, dynamic> json) =>
@@ -229,6 +241,8 @@ class DashboardCategoryStat {
         lastMockScore: (json['lastMockScore'] as num?)?.toInt(),
         prevMockScore: (json['prevMockScore'] as num?)?.toInt(),
         level: NiveauCecrl.fromWireNullable(json['level'] as String?),
+        seriesDone: (json['seriesDone'] as num? ?? 0).toInt(),
+        seriesTotal: (json['seriesTotal'] as num? ?? 0).toInt(),
       );
 }
 

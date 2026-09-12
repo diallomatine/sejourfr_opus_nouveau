@@ -1,223 +1,345 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
+import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/preparation_models.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/preparation_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dashboard_targets.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
-import '../../core/widgets/progress_ring.dart';
-import '../../core/widgets/screen_header.dart';
+import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/segmented_tabs.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
+import '../plan/civic_plan_provider.dart';
+import '../plan/civic_serie_launcher.dart';
+import '../plan/learning_plan_provider.dart';
+import '../plan/plan_actions.dart';
+import '../plan/plan_labels.dart';
+import 'reviser_labels.dart';
 
-/// Parcours affiché sur l'onglet Réviser. Partagé (non autoDispose) pour que
-/// l'Accueil puisse présélectionner un parcours avant de basculer d'onglet
-/// (cf. « Mes parcours » de la maquette).
-final reviserParcoursProvider =
-    StateProvider<AppModule>((_) => AppModule.tcf);
-
-/// Onglet « Réviser » de la refonte 2026 (cf. `MReviser` maquette) : toggle
-/// TCF (rouge) / Civique (bleu) + liste des modules du parcours avec leur
-/// maîtrise en anneau. Tap module → écran détail existant.
-class ReviserScreen extends ConsumerWidget {
+/// **L'onglet « Réviser »** — la maquette du propriétaire
+/// (`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`), montée sur le KIT.
+///
+/// Trois blocs, et rien d'autre : l'en-tête et sa bascule de parcours, la carte
+/// **« Reprendre là où vous vous êtes arrêté »**, puis la liste des cinq
+/// épreuves (TCF) ou des cinq thèmes (civique).
+///
+/// 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
+/// c'est la première ligne de la séance du jour côté TCF, la cible de rang 1
+/// côté civique. Réviser ne tient aucun historique à lui — le Plan est
+/// l'autorité, et les deux écrans ne peuvent donc pas désigner deux choses
+/// différentes.
+///
+/// 🛑 **Sans diagnostic, pas de carte** — sur les deux parcours. Le plan n'est
+/// pas disponible, il n'y a rien à reprendre, et une carte qui inventerait un
+/// point de reprise mentirait. On lit **`prep.planDisponible`**, jamais
+/// `etape` : c'est lui qui rend mot pour mot la condition du moteur.
+///
+/// 🛑 **Aucune phrase n'est composée ici** : elles vivent dans
+/// `reviser_labels.dart`, miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.
+class ReviserScreen extends ConsumerStatefulWidget {
   const ReviserScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final parcours = ref.watch(reviserParcoursProvider);
+  ConsumerState<ReviserScreen> createState() => _ReviserScreenState();
+}
+
+class _ReviserScreenState extends ConsumerState<ReviserScreen> {
+  /// Le lancement en cours, pour ne pas démarrer deux fois la même reprise.
+  bool _lancement = false;
+
+  Future<void> _refresh() async {
+    ref.invalidate(dashboardProvider);
+    ref.invalidate(preparationProvider);
+    await ref.read(dashboardProvider.future);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 🛑 **Les DEUX parcours sont observés en permanence**, comme sur le Plan :
+    // ces providers sont `autoDispose`, donc n'en observer qu'un laissait
+    // l'autre se jeter à la bascule — et revenir dessus rappelait son endpoint
+    // pour une réponse identique. La bascule ne coûte aucun appel.
     final dashboard = ref.watch(dashboardProvider);
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final civicPlan = ref.watch(civicPlanProvider).valueOrNull;
+    final prep = ref.watch(preparationProvider).valueOrNull;
+
+    // 🛑 **Le parcours affiché est celui de l'Accueil et du Plan**
+    // ([parcoursCiviqueProvider]) : une seule mécanique, comme le `?module=`
+    // du web. Un état local de plus aurait fini par montrer deux parcours
+    // différents au même candidat selon l'écran.
+    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
+    final module = civique ? AppModule.civique : AppModule.tcf;
+
+    final toggle = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            reviserSubtitle(module),
+            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          SegmentedTabs<bool>(
+            tabs: parcoursSegments(tcf: false, civique: true),
+            value: civique,
+            onChanged: (v) =>
+                ref.read(parcoursCiviqueProvider.notifier).state = v,
+          ),
+        ],
+      ),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const ScreenHeader(title: 'Réviser', large: true),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.blue,
-                onRefresh: () async {
-                  ref.invalidate(dashboardProvider);
-                  await ref.read(dashboardProvider.future);
-                },
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                  children: [
-                    SegmentedTabs<AppModule>(
-                      tabs: parcoursSegments(
-                        tcf: AppModule.tcf,
-                        civique: AppModule.civique,
-                      ),
-                      value: parcours,
-                      onChanged: (p) =>
-                          ref.read(reviserParcoursProvider.notifier).state = p,
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Text(
-                        parcours == AppModule.tcf
-                            ? 'Le test linguistique exigé pour la résidence et la naturalisation.'
-                            : 'Les valeurs, institutions et savoirs de la société française.',
-                        style:
-                            AppFonts.ui(size: 13.5, color: AppColors.inkSoft),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ...dashboard.when(
-                      loading: () => const [
-                        Padding(
-                          padding: EdgeInsets.only(top: 60),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                                color: AppColors.blue),
-                          ),
-                        ),
-                      ],
-                      error: (e, _) => [
-                        _ErrorCard(
-                          message: ApiClient.toApiException(e).message,
-                          onRetry: () => ref.invalidate(dashboardProvider),
-                        ),
-                      ],
-                      data: (d) => [
-                        for (final (i, entry) in _entriesFor(parcours, d)
-                            .indexed) ...[
-                          if (i > 0) const SizedBox(height: 12),
-                          _ModuleCard(entry: entry, index: i),
-                        ],
-                      ],
+        child: SfTopSlot(
+          below: toggle,
+          child: RefreshIndicator(
+            color: AppColors.blue,
+            onRefresh: _refresh,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 28),
+              children: [
+                const SfTop(title: kReviserTitle),
+                ...dashboard.when(
+                  loading: () => const [_Loading()],
+                  error: (e, _) => [
+                    _ErrorCard(
+                      message: ApiClient.toApiException(e).message,
+                      onRetry: () => ref.invalidate(dashboardProvider),
                     ),
                   ],
+                  data: (d) => civique
+                      ? _civique(d, civicPlan, prep?.civique)
+                      : _tcf(d, plan, prep?.tcf),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* ------------------------------------------------------------------ TCF */
+
+  List<Widget> _tcf(
+    DashboardSummary dashboard,
+    LearningPlan? plan,
+    ModulePreparation? prep,
+  ) {
+    // 🛑 `planDisponible` est **le fait à lire**. Sans lui, on n'a rien à
+    // reprendre — et on ne l'invente pas.
+    final resume = prep?.planDisponible == true ? reviserResumeTcf(plan) : null;
+    final stats = orderedTcfCategories(dashboard.tcf);
+    return <Widget>[
+      if (resume != null)
+        _ResumeCard(
+          resume: resume,
+          // L'icône du domaine, la même que sur le Plan et sur son hub — le
+          // candidat doit reconnaître ce qu'il reprend.
+          icon: planDomainIcon(sectionEpreuve(resume.section)),
+          variant: SfButtonVariant.primary,
+          onContinue: () => _reprendreTcf(resume),
+        ),
+      SfSection(
+        title: reviserSectionTitle(AppModule.tcf, stats.length),
+        flush: true,
+        child: SfStack(
+          pad: false,
+          children: [
+            for (final stat in stats)
+              _epreuveRow(stat, domainForCode(plan, stat.code)),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _epreuveRow(DashboardCategoryStat stat, PlanDomain? domain) {
+    return SfEpreuveRow(
+      icon: dashboardCategoryIcon(stat.code),
+      title: stat.label,
+      status: epreuveStatus(stat, domain),
+      meta: epreuveMeta(stat, domain),
+      ratio: epreuveRatio(stat, domain),
+      onTap: () => context.push(dashboardCategoryRoute(stat)),
+    );
+  }
+
+  /// Lance ce que le Plan désigne — le **même** geste que le bouton principal
+  /// du Plan (`startPlanSeanceItem` / `openPlanExercise`), jamais un second
+  /// chemin écrit ici.
+  Future<void> _reprendreTcf(ReviserResume resume) async {
+    if (_lancement) return;
+    setState(() => _lancement = true);
+    final item = resume.item;
+    if (item != null) {
+      await startPlanSeanceItem(context, ref, item);
+    } else {
+      final exercise =
+          ref.read(learningPlanProvider).valueOrNull?.currentPriority;
+      final recommended = exercise?.recommendedExercise;
+      if (recommended != null && mounted) {
+        await openPlanExercise(
+          context,
+          ref,
+          recommended,
+          masteryBefore: exercise?.masteryState,
+        );
+      }
+    }
+    if (!mounted) return;
+    setState(() => _lancement = false);
+  }
+
+  /* -------------------------------------------------------------- Civique */
+
+  List<Widget> _civique(
+    DashboardSummary dashboard,
+    CivicPlan? civicPlan,
+    ModulePreparation? prep,
+  ) {
+    final prochaine =
+        prep?.planDisponible == true ? civicPlan?.prochaine : null;
+    final resume = reviserResumeCivique(prochaine);
+    final themes = civicPlan?.themes ?? const <CivicPlanThemeLigne>[];
+    return <Widget>[
+      if (resume != null && prochaine != null)
+        _ResumeCard(
+          resume: resume,
+          icon: dashboardCategoryIcon(prochaine.themeCode),
+          variant: SfButtonVariant.blue,
+          onContinue: () => _reprendreCivique(prochaine),
+        ),
+      SfSection(
+        title: reviserSectionTitle(AppModule.civique, dashboard.civique.length),
+        flush: true,
+        child: SfStack(
+          pad: false,
+          children: [
+            for (final stat in dashboard.civique)
+              SfEpreuveRow(
+                icon: dashboardCategoryIcon(stat.code),
+                title: stat.label,
+                status: themeStatus(themeLigneFor(themes, stat.themeId), stat),
+                onTap: () => context.push(dashboardCategoryRoute(stat)),
               ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Future<void> _reprendreCivique(CivicPlanCible cible) async {
+    if (_lancement) return;
+    setState(() => _lancement = true);
+    await startCivicSerie(context, ref, cible);
+    if (!mounted) return;
+    setState(() => _lancement = false);
+  }
+}
+
+/// **« Reprendre là où vous vous êtes arrêté »** — la carte de tête.
+///
+/// Même anatomie que la carte « À faire maintenant » du Plan : c'est la même
+/// action, vue depuis un autre écran.
+class _ResumeCard extends StatelessWidget {
+  const _ResumeCard({
+    required this.resume,
+    required this.icon,
+    required this.variant,
+    required this.onContinue,
+  });
+
+  final ReviserResume resume;
+
+  /// Le pictogramme de ce qu'on reprend — le domaine côté TCF, le thème côté
+  /// civique. Servi par l'appelant, qui seul sait de quoi il parle.
+  final IconData icon;
+
+  /// Rouge côté TCF, bleu côté civique — la sémantique de parcours du produit.
+  final SfButtonVariant variant;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: SfCard(
+        variant: SfCardVariant.hero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SfLabel(kReviserResumeLabel),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.blue,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Icon(icon, size: 24, color: AppColors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        resume.title,
+                        style: AppFonts.display(
+                          size: 18,
+                          weight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (resume.subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          resume.subtitle!,
+                          style: AppFonts.ui(size: 13, color: AppColors.muted),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SfButton(
+              label: kReviserResumeCta,
+              variant: variant,
+              onPressed: onContinue,
             ),
           ],
         ),
       ),
     );
   }
-
-  List<_ModuleEntry> _entriesFor(AppModule parcours, DashboardSummary d) {
-    final stats = parcours == AppModule.civique
-        ? d.civique
-        : orderedTcfCategories(d.tcf);
-    return [
-      for (final stat in stats)
-        _ModuleEntry(
-          stat: stat,
-          icon: dashboardCategoryIcon(stat.code),
-          route: dashboardCategoryRoute(stat),
-        ),
-    ];
-  }
 }
 
-class _ModuleEntry {
-  const _ModuleEntry({
-    required this.stat,
-    required this.icon,
-    required this.route,
-  });
-
-  final DashboardCategoryStat stat;
-  final IconData icon;
-  final String route;
-}
-
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({required this.entry, required this.index});
-
-  final _ModuleEntry entry;
-  final int index;
+class _Loading extends StatelessWidget {
+  const _Loading();
 
   @override
-  Widget build(BuildContext context) {
-    final stat = entry.stat;
-    final percent = stat.percent;
-    // Rythme bleu-blanc-rouge de la maquette : icônes alternées bleu/rouge.
-    // **Sauf les deux épreuves de production** : expression écrite et orale
-    // forment une paire, et elles sont bleues des deux côtés depuis le
-    // 2026-08-09 (cf. `TcfProductionModule`). Les laisser dans l'alternance
-    // faisait apparaître l'écrit en rouge à l'entrée d'un parcours entièrement
-    // bleu — le seul endroit où la couleur aurait encore trié EE et EO.
-    final isBlue = stat.isProduction || index.isEven;
-    final iconBg = isBlue ? AppColors.blueLight : AppColors.redLight;
-    final iconFg = isBlue ? AppColors.blue : AppColors.red;
-
-    final String sub;
-    if (stat.isProduction) {
-      sub = stat.level != null
-          ? 'Niveau estimé ${stat.level!.displayName}'
-          : 'Pas encore évalué';
-    } else if (percent != null) {
-      sub = '$percent % de réussite';
-    } else {
-      sub = 'Pas encore travaillé';
-    }
-
-    return AppCard(
-      onTap: () => context.push(entry.route),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Icon(entry.icon, size: 22, color: iconFg),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stat.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.ui(
-                    size: 15,
-                    weight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ProgressRing(
-            // L'anneau montre un taux de réussite brut, il ne le juge pas :
-            // un seul accent de marque, jamais une rampe de seuils (§25 bis.3).
-            // Un état pédagogique, quand il existera, viendra servi.
-            value: (percent ?? 0).toDouble(),
-            size: 42,
-            stroke: 5,
-            color: percent == null ? AppColors.inkFaint : AppColors.blue,
-          ),
-          const SizedBox(width: 8),
-          const Icon(
-            LucideIcons.chevronRight,
-            size: 18,
-            color: AppColors.inkFaint,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.only(top: 60),
+        child: Center(child: CircularProgressIndicator(color: AppColors.blue)),
+      );
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -228,23 +350,25 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        children: [
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft),
-          ),
-          const SizedBox(height: 12),
-          AppButton(
-            label: 'Réessayer',
-            variant: AppButtonVariant.soft,
-            height: 44,
-            fullWidth: false,
-            onPressed: onRetry,
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: SfCard(
+        child: Column(
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppFonts.ui(size: 13.5, color: AppColors.muted),
+            ),
+            const SizedBox(height: 12),
+            SfButton(
+              label: 'Réessayer',
+              variant: SfButtonVariant.line,
+              icon: null,
+              onPressed: onRetry,
+            ),
+          ],
+        ),
       ),
     );
   }

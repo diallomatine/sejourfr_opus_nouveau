@@ -1230,6 +1230,53 @@ bleue, `CheckList`, sélecteur de durée (`PassCard`) et `Sticky`. 🛑 **Aucun 
 `popularPassCodeOf` / `passCheckoutHref` (`lib/passes.ts`). Ne pas reprendre le
 « 14,99 €/mois » du mockup, qui n'a pas de serveur derrière lui.
 
+### L'écran Réviser refait sur la maquette (2026-09-12)
+
+Maquette du propriétaire : `~/Desktop/sejourfr_ecrans/reviser_tcf.png` et
+`reviser_civique.png`. `/entrainement?module=` est passé **sur le KIT**
+(`app/_components/reviser/ReviserScreen.tsx` + `reviser.module.css`), bloc pour
+bloc avec le mobile.
+
+**Trois blocs** : `Top` « Réviser » + sous-titre → carte **« Reprendre là où vous
+vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
+(`Stack className={deskGrid2}` : une colonne, deux à partir de 960 px).
+
+- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : `seance.items[0]`
+  côté TCF, `civicPlan.prochaine` côté civique. Le lancement passe par
+  **`usePlanExercise` / `usePlanAssessment`** (TCF) et **`useCivicSerie`**
+  (civique) — les lanceurs du Plan, jamais un second chemin.
+- 🛑 **Sans diagnostic, pas de carte** : on lit **`prep.planDisponible`**, jamais
+  `etape`. Une action **verrouillée** n'est pas proposée en reprise non plus — la
+  carte disparaît, la liste reste.
+- 🛑 **Pas de bascule de parcours ici** (arbitrage du propriétaire, 2026-09-12,
+  reconduit) : on y arrive par la barre latérale, qui a déjà fait le choix. Le
+  mobile garde la sienne, Réviser y étant un onglet de la barre du bas. Écart de
+  **forme**, pas de parcours.
+- **Un visiteur voit le catalogue**, pas un écran vide : les cinq épreuves à zéro
+  (TCF) ou les thèmes publics (civique), chaque ligne disant « Pas encore
+  travaillé ». Le **bandeau de découverte** est conservé de l'ancien hub — c'est
+  la surface de conversion de la page, et `/entrainement` reste ouverte aux
+  visiteurs. Il n'a **aucun pendant mobile** (l'app n'a pas de mode invité).
+- **Libellés purs** : `lib/reviser.ts`, **miroir mot pour mot** de
+  `reviser_labels.dart`. Rien n'y classe un nombre : chaque fonction pose une
+  phrase sur un **fait servi** (`seriesDone` / `seriesTotal`, `taches[]`,
+  `niveau`, `themes[]`).
+- **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `Ring`
+  (anneau de **couverture** — pas une note, pas un état pédagogique) et
+  `EpreuveRow`. Miroirs Flutter : `SfRing`, `SfEpreuveRow`.
+- **Trois champs backend nouveaux** : `DashboardCategoryStat.seriesDone` /
+  `seriesTotal`, `PlanDomainDto.tacheCourante`, `CivicPlanDto.themes`
+  (`CivicPlanThemeLigneDto`). Règles et invariants : `docs/regles/plan.md`,
+  § « Ce que le Plan sert à l'écran RÉVISER ».
+- **`useCivicSerie`** (`app/_components/plan/useCivicSerie.ts`) est **extrait à sa
+  2ᵉ surface** : le Plan civique et Réviser ouvrent la même série sur la même
+  cible. Miroir mobile : `civic_serie_launcher.dart`.
+- **Supprimés** : `hub/TcfHub.tsx`, `hub/CiviqueHub.tsx`, et dans
+  `hub/ModuleHubParts.tsx` tout sauf `ProgressDonut` (lu par `/statistiques` et
+  `DetailParts`) — `ModuleHubHeader`, `ModuleStatsBand`, `CategoryCard`,
+  `CategoryCta`, `CategoryIconTone` et leurs règles CSS. `hub.module.css` ne garde
+  que l'intertitre de section et l'en-tête de page détail.
+
 ### Le Plan (`/plan`) au palier desktop (2026-09-12, passe 2)
 
 Références : `screenshots/plan-web.png`, `civ-plan-web.png`, `paywall-web.png`,

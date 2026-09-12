@@ -6,18 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/auth/auth_controller.dart';
-import '../../core/api/repositories.dart';
-import '../../core/models/billing_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/start_failure.dart';
-import '../../core/widgets/paywall_sheet.dart';
-import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_plan_labels.dart';
+import 'civic_serie_launcher.dart';
 import 'civic_plan_provider.dart';
-import 'learning_plan_provider.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
 ///
@@ -68,44 +63,20 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     }
   }
 
-  /// Ouvre la série ciblée.
-  ///
-  /// 🛑 Le **403** est un refus attendu — le verrou du serveur et le `locked`
-  /// servi sont la même règle — et il ouvre l'offre, jamais un message d'erreur
-  /// technique (`showPaywallOrError`).
+  /// Ouvre la série ciblée. Le geste vit dans [startCivicSerie], partagé avec
+  /// l'écran Réviser : seul le témoin d'attente est local.
   Future<void> _commencer(CivicPlanCible cible) async {
     if (_enCours != null) return;
-    if (cible.locked) {
-      unawaited(_ouvrirOffre());
-      return;
-    }
     setState(() => _enCours = cible.id);
-    try {
-      final attempt = await ref
-          .read(civicPlanRepositoryProvider)
-          .serie(cible.id, cible.grain);
-      if (!mounted) return;
-      // La série déplace la cible dans la boîte Leitner : le plan lu après
-      // elle doit être recalculé.
-      ref.read(learningPlanRevisionProvider.notifier).state++;
-      setState(() => _enCours = null);
-      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _enCours = null);
-      showPaywallOrError(context, e);
-    }
+    await startCivicSerie(context, ref, cible);
+    if (!mounted) return;
+    setState(() => _enCours = null);
   }
 
   /// **La seule porte d'achat** : l'écran d'offre, qui porte les vrais passes
   /// et leurs prix du store. La durée choisie ici n'est qu'une préférence
   /// affichée — c'est là-bas qu'on achète.
-  Future<void> _ouvrirOffre() =>
-      showPaywallSheet(
-        context,
-        initialTarget: PlanModuleTarget.civique,
-        origin: PaywallOrigin.plan,
-      );
+  Future<void> _ouvrirOffre() => openCivicOffer(context);
 
   @override
   Widget build(BuildContext context) {

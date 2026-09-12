@@ -115,12 +115,14 @@ public class CivicPlanService {
             Difficulty mention,
             CivicDiagnosticResultDto resultat,
             List<CivicPlanDto.Cible> cibles,
+            List<Theme> themes,
             Map<UUID, List<CivicReponse>> reponsesParCible,
             Map<UUID, long[]> taggage,
             Instant maintenant) {
 
         static Calcul indisponible(Difficulty mention, Instant maintenant) {
-            return new Calcul(false, mention, null, List.of(), Map.of(), Map.of(), maintenant);
+            return new Calcul(false, mention, null, List.of(), List.of(),
+                    Map.of(), Map.of(), maintenant);
         }
     }
 
@@ -130,7 +132,7 @@ public class CivicPlanService {
         if (!calcul.disponible()) {
             return new CivicPlanDto(
                     false, calcul.mention(), null, null, List.of(), 0, List.of(), List.of(),
-                    grain(Map.of()), null, calcul.maintenant());
+                    List.of(), grain(Map.of()), null, calcul.maintenant());
         }
         return mettreEnForme(calcul);
     }
@@ -195,7 +197,7 @@ public class CivicPlanService {
         // rate passe devant ce qui n'a jamais ete touche.
         cibles.sort(ORDRE_DU_PLAN);
 
-        return new Calcul(true, mention, resultat, List.copyOf(cibles),
+        return new Calcul(true, mention, resultat, List.copyOf(cibles), List.copyOf(themes),
                 reponsesParCible, taggage, maintenant);
     }
 
@@ -270,9 +272,61 @@ public class CivicPlanService {
                 Math.max(0, proposables.size() - priorites.size()),
                 aRevoir,
                 solides,
+                themeLignes(calcul, prochaine),
                 grain(calcul.taggage()),
                 changements,
                 maintenant);
+    }
+
+    /**
+     * <b>Les cinq themes, vus de l'ecran Reviser.</b>
+     *
+     * <p>🛑 Les compteurs se prennent sur {@code calcul.cibles()} — <b>toutes</b>
+     * les cibles classees —, jamais sur {@code priorites} / {@code aRevoir} /
+     * {@code solides}, qui sont plafonnees juste au-dessus. Compter dans une
+     * liste tronquee servirait un plafond d'affichage comme un budget de mesure.
+     *
+     * <p>Les cinq themes sont <b>toujours</b> rendus, dans l'ordre d'affichage
+     * du module : un theme sans aucune cible servable n'est pas absent de
+     * l'ecran, il est a zero.
+     */
+    private List<CivicPlanDto.ThemeLigne> themeLignes(
+            Calcul calcul, CivicPlanDto.Cible prochaine) {
+        Map<UUID, List<CivicPlanDto.Cible>> parTheme = new LinkedHashMap<>();
+        for (CivicPlanDto.Cible cible : calcul.cibles()) {
+            if (!cible.dotation().estServable()) continue;
+            parTheme.computeIfAbsent(cible.themeId(), k -> new ArrayList<>()).add(cible);
+        }
+
+        List<CivicPlanDto.ThemeLigne> lignes = new ArrayList<>();
+        for (Theme theme : calcul.themes()) {
+            List<CivicPlanDto.Cible> cibles = parTheme.getOrDefault(theme.getId(), List.of());
+            int maitrisees = 0;
+            int travaillees = 0;
+            for (CivicPlanDto.Cible cible : cibles) {
+                if (cible.maitrise() == CivicMaitrise.MAITRISEE) maitrisees++;
+                if (cible.reponses() > 0) travaillees++;
+            }
+            // Au plus un theme porte la cible du moment : c'est `prochaine`,
+            // lue chez la meme autorite que le Plan. L'ecran Reviser ne peut
+            // donc pas designer une autre notion que lui.
+            CivicPlanDto.CibleRef enCours =
+                    prochaine != null && theme.getId().equals(prochaine.themeId())
+                            ? new CivicPlanDto.CibleRef(prochaine.id(), prochaine.code(),
+                                    prochaine.label(), prochaine.grain())
+                            : null;
+            lignes.add(new CivicPlanDto.ThemeLigne(
+                    theme.getId(),
+                    theme.getCode(),
+                    theme.getName(),
+                    etatDuTheme(calcul.resultat(), theme.getId()),
+                    grainDuTheme(calcul.taggage().get(theme.getId())),
+                    cibles.size(),
+                    maitrisees,
+                    travaillees,
+                    enCours));
+        }
+        return List.copyOf(lignes);
     }
 
 

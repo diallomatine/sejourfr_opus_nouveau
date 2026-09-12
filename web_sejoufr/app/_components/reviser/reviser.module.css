@@ -1,0 +1,103 @@
+/* Écran « Réviser » — ce que le KIT ne porte pas encore.
+
+   🛑 Trois blocs seulement, et c'est volontaire : la liste des épreuves, son
+   anneau et sa ligne d'état vivent dans le kit (`EpreuveRow`, `Ring`), parce
+   qu'elles ont un miroir Flutter. Ce qui reste ici est **propre à la page web**
+   — le sous-titre sous l'en-tête, la carte de reprise et le bandeau de
+   découverte, qui n'existe pas côté mobile (l'app n'a pas de visiteurs). */
+
+.sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  max-width: 46ch;
+}
+
+/* ---------- Reprendre là où vous vous êtes arrêté ---------- */
+
+.resumeWrap {
+  margin-top: 16px;
+}
+
+.resume {
+  background: linear-gradient(180deg, var(--color-paper-2) 0%, #fff 42%);
+  border-radius: 28px;
+  box-shadow: var(--sf-shadow-lift);
+  padding: 20px 18px 18px;
+}
+
+.resumeHead {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin: 8px 0 14px;
+}
+
+.resumeIco {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--color-blue);
+  color: #fff;
+}
+
+.resumeHead b {
+  display: block;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.resumeHead span span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* ---------- Découverte gratuite ---------- */
+
+.demoWrap {
+  margin-top: 14px;
+}
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--color-blue-light);
+  color: inherit;
+}
+
+.demo:hover {
+  background: var(--color-blue-light);
+}
+
+.demoBody b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.demoBody span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.demoArrow {
+  font-size: 18px;
+  color: var(--color-blue);
+}

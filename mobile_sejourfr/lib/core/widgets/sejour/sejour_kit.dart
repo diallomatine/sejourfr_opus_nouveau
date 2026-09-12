@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -780,6 +782,192 @@ class SfExamRow extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// **Anneau de couverture** — la part parcourue d'un ensemble, entre 0 et 1.
+///
+/// 🛑 **Ce n'est pas une note et ce n'est pas un état pédagogique** : un seul
+/// accent de marque, jamais une rampe de seuils. Un anneau vide veut dire « pas
+/// encore commencé », jamais « mauvais ». Miroir web : `Ring`.
+///
+/// ⚠️ Distinct de `ProgressRing` (`core/widgets/progress_ring.dart`), qui écrit
+/// un pourcentage en son centre : ici il n'y a **aucun chiffre** dans l'anneau,
+/// le compteur vit sur la ligne.
+class SfRing extends StatelessWidget {
+  const SfRing({super.key, required this.ratio, this.size = 40, this.stroke = 4});
+
+  final double ratio;
+  final double size;
+  final double stroke;
+
+  @override
+  Widget build(BuildContext context) {
+    final part = ratio.isNaN || ratio.isInfinite
+        ? 0.0
+        : ratio.clamp(0, 1).toDouble();
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _SfRingPainter(
+          part: part,
+          stroke: stroke,
+          color: part >= 1 ? AppColors.green : AppColors.blue,
+        ),
+      ),
+    );
+  }
+}
+
+class _SfRingPainter extends CustomPainter {
+  _SfRingPainter({required this.part, required this.stroke, required this.color});
+
+  final double part;
+  final double stroke;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide - stroke) / 2;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = AppColors.line,
+    );
+    if (part <= 0) return;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * part,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SfRingPainter old) =>
+      old.part != part || old.color != color || old.stroke != stroke;
+}
+
+/// **Ligne d'une épreuve ou d'un thème** sur l'écran Réviser : pictogramme,
+/// titre, ligne d'état **servie**, compteur, et à droite soit un anneau de
+/// couverture, soit un chevron.
+///
+/// 🛑 [status] et [meta] arrivent **composés** (`reviser_labels.dart` ⇄
+/// `lib/reviser.ts`) : cette brique ne classe rien et ne compte rien.
+///
+/// Miroir web : `EpreuveRow`.
+class SfEpreuveRow extends StatelessWidget {
+  const SfEpreuveRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.status,
+    required this.onTap,
+    this.meta,
+    this.ratio,
+  });
+
+  final IconData icon;
+  final String title;
+  final String status;
+  final String? meta;
+
+  /// Part parcourue (0-1). `null` ⇒ un chevron prend la place de l'anneau.
+  final double? ratio;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = this.ratio;
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            boxShadow: AppShadows.card,
+          ),
+          padding: const EdgeInsets.all(14),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.blueSoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 22, color: AppColors.blue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppFonts.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        status,
+                        style: AppFonts.ui(
+                          size: 12.5,
+                          color: AppColors.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (meta != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            meta!,
+                            style: AppFonts.ui(
+                              size: 12.5,
+                              weight: FontWeight.w700,
+                              color: AppColors.ink2,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (ratio != null)
+                  SfRing(ratio: ratio)
+                else
+                  const Icon(
+                    LucideIcons.arrowRight,
+                    size: 18,
+                    color: AppColors.muted2,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

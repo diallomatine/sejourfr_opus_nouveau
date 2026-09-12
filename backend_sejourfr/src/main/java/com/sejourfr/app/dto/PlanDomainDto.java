@@ -57,6 +57,19 @@ import java.util.List;
  *                          {@code null} quand les trois le sont
  * @param paliers           comprehension : A2, B1, B2 dans cet ordre ; vide en expression
  * @param taches            expression : taches 1, 2, 3 dans cet ordre ; vide en comprehension
+ * @param tacheCourante     expression : <b>la tache que le Plan construit
+ *                          maintenant</b> sur ce domaine (1, 2 ou 3) — la
+ *                          premiere de {@link #taches()} dont toutes les
+ *                          competences n'ont pas encore ete observees, la
+ *                          derniere quand elles le sont toutes.
+ *                          {@code null} en comprehension, et {@code null} tant
+ *                          qu'aucune tache n'est publiee.
+ *                          <p>🛑 <b>Servie, pas deduite.</b> L'ecran Reviser et
+ *                          le parcours du Plan la nommaient chacun de leur cote
+ *                          — l'un depuis la competence prioritaire, l'autre
+ *                          depuis les compteurs —, et le domaine qui <b>ne</b>
+ *                          porte pas la priorite n&deg;1 n'avait alors aucune
+ *                          tache courante du tout.
  * @param skills            <b>toutes</b> les competences actives du domaine, dans
  *                          l'ordre du referentiel (tache puis rang d'affichage en
  *                          expression, A2 &rarr; B1 &rarr; B2 en comprehension).
@@ -106,6 +119,7 @@ public record PlanDomainDto(
         TargetLevel blockingLevel,
         List<PlanDomainLevelDto> paliers,
         List<PlanDomainTaskDto> taches,
+        Short tacheCourante,
         List<PlanDomainSkillDto> skills,
         int fragileSkillCount,
         int solidSkillCount,
@@ -137,8 +151,26 @@ public record PlanDomainDto(
             List<PlanDomainLevelDto> paliers,
             List<PlanDomainTaskDto> taches) {
         return new PlanDomainDto(epreuve, evaluated, niveau, priority,
-                consolidatedLevel, blockingLevel, paliers, taches, List.of(),
+                consolidatedLevel, blockingLevel, paliers, taches,
+                tacheCourante(taches), List.of(),
                 0, 0, 0, null, 0, 0, 0);
+    }
+
+    /**
+     * La tache en cours d'un domaine d'expression : la premiere qui n'est pas
+     * entierement observee, la derniere quand elles le sont toutes.
+     *
+     * <p>Un domaine de comprehension rend {@code null} — sa liste de taches est
+     * vide, et un palier n'est pas une tache.
+     */
+    private static Short tacheCourante(List<PlanDomainTaskDto> taches) {
+        if (taches.isEmpty()) return null;
+        for (PlanDomainTaskDto tache : taches) {
+            if (tache.observedSkills() < tache.totalSkills()) {
+                return (short) tache.tacheNumero();
+            }
+        }
+        return (short) taches.get(taches.size() - 1).tacheNumero();
     }
 
     /**
@@ -156,7 +188,7 @@ public record PlanDomainDto(
             int acquireCount,
             int readyForValidationCount) {
         return new PlanDomainDto(epreuve, evaluated, niveau, priority,
-                consolidatedLevel, blockingLevel, paliers, taches,
+                consolidatedLevel, blockingLevel, paliers, taches, tacheCourante,
                 skills, fragileSkillCount, solidSkillCount, notObservedSkillCount,
                 nextTargetLevel, acquireCount, readyForValidationCount,
                 notObservedSkillCount - acquireCount);

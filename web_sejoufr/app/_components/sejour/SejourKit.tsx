@@ -533,6 +533,104 @@ export function ExamRow({
   );
 }
 
+/**
+ * **Anneau de couverture** — la part parcourue d'un ensemble, entre 0 et 1.
+ *
+ * 🛑 **Ce n'est pas une note et ce n'est pas un état pédagogique** : un seul
+ * accent de marque, jamais une rampe de seuils. Un anneau vide veut dire « pas
+ * encore commencé », jamais « mauvais ». Miroir Flutter : `ProgressRing`.
+ */
+export function Ring({ ratio, label }: { ratio: number; label?: string }) {
+  const part = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  const r = 15;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg
+      className={styles.ring}
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
+      <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-line)" strokeWidth="4" />
+      <circle
+        cx="20"
+        cy="20"
+        r={r}
+        fill="none"
+        stroke={part >= 1 ? "var(--color-green)" : "var(--color-blue)"}
+        strokeWidth="4"
+        strokeDasharray={`${c * part} ${c}`}
+        strokeLinecap="round"
+        transform="rotate(-90 20 20)"
+      />
+    </svg>
+  );
+}
+
+/**
+ * **Ligne d'une épreuve ou d'un thème** sur l'écran Réviser : pictogramme,
+ * titre, ligne d'état **servie**, compteur, et à droite soit un anneau de
+ * couverture, soit un chevron.
+ *
+ * 🛑 Le `status` et le `meta` arrivent **composés** (`lib/reviser.ts` ⇄
+ * `reviser_labels.dart`) : cette brique ne classe rien et ne compte rien.
+ *
+ * Miroir Flutter : `SfEpreuveRow`.
+ */
+export function EpreuveRow({
+  icon: Icon,
+  title,
+  status,
+  meta,
+  ratio,
+  href,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  status: string;
+  meta?: string | null;
+  /** Part parcourue (0-1). Absent ⇒ un chevron prend la place de l'anneau. */
+  ratio?: number | null;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span className={styles.epreuveIco}>
+        <Icon size={22} strokeWidth={1.8} aria-hidden />
+      </span>
+      <span className={styles.epreuveBody}>
+        <b>{title}</b>
+        <span>{status}</span>
+        {meta ? <span className={styles.epreuveMeta}>{meta}</span> : null}
+      </span>
+      {typeof ratio === "number" ? (
+        <Ring ratio={ratio} />
+      ) : (
+        <span className={styles.epreuveEnd} aria-hidden>
+          <ArrowRight size={18} strokeWidth={2} />
+        </span>
+      )}
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={styles.epreuve}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={styles.epreuve} onClick={onClick}>
+      {body}
+    </button>
+  );
+}
+
 /** Ligne de thème civique : pastille d'état + nom + libellé d'état servi. */
 export function ThemeLine({
   tone,

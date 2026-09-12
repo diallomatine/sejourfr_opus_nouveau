@@ -54,6 +54,13 @@ public class LotService {
     /** Taille fixe d'un lot civique, indépendamment du thème. */
     public static final int LOT_SIZE_CIVIQUE = 20;
 
+    /**
+     * Les trois paliers TCF qui portent des lots, du plus bas au plus haut.
+     * {@code CSP/CR/NAT} sont l'axe civique du même enum et n'en ont jamais.
+     */
+    public static final List<Difficulty> PALIERS_TCF =
+            List.of(Difficulty.A2, Difficulty.B1, Difficulty.B2);
+
     private final QuestionManager questionManager;
     private final AttemptManager attemptManager;
 
@@ -179,6 +186,59 @@ public class LotService {
             throw new BusinessException("Lot " + lotNumero + " introuvable (" + lotCount + " lots disponibles).");
         }
         return lotSize;
+    }
+
+    // ------------------------------------------------------------------------
+    // Compteur de séries (« 2 / 10 séries » de l'écran Réviser)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Combien de séries une épreuve (ou un thème) porte, et combien le candidat
+     * en a déjà terminé.
+     *
+     * <p>🛑 <b>Une série est « terminée » quand un attempt fini existe sur ce
+     * lot</b> — c'est {@code lastAttemptedAt} de {@link LotDto}, pas un score
+     * minimal. Le compteur dit ce qui a été <b>parcouru</b>, il ne juge pas :
+     * une série ratée reste une série faite.
+     */
+    public record SeriesCount(int done, int total) {
+
+        public static final SeriesCount ZERO = new SeriesCount(0, 0);
+    }
+
+    /**
+     * Les séries d'une épreuve TCF, <b>tous paliers confondus</b> (arbitrage du
+     * propriétaire, 2026-09-12 : « on compte toutes les séries, quel que soit le
+     * niveau »).
+     *
+     * <p>🛑 Le décompte passe par {@link #list} et par rien d'autre : la règle de
+     * découpage des lots a déjà vécu en double, et un second parcours du pool
+     * finirait par annoncer un dénominateur que l'écran des séries ne montre
+     * pas.
+     */
+    @Transactional(readOnly = true)
+    public SeriesCount seriesCount(UUID userId, QuestionType questionType) {
+        int done = 0;
+        int total = 0;
+        for (Difficulty palier : PALIERS_TCF) {
+            List<LotDto> lots = list(userId, Module.TCF, questionType, palier);
+            total += lots.size();
+            for (LotDto lot : lots) {
+                if (lot.lastAttemptedAt() != null) done++;
+            }
+        }
+        return new SeriesCount(done, total);
+    }
+
+    /** Les séries d'un thème civique. Même contrat que {@link #seriesCount}. */
+    @Transactional(readOnly = true)
+    public SeriesCount seriesCountCivique(UUID userId, UUID themeId) {
+        List<LotDto> lots = listCivique(userId, themeId);
+        int done = 0;
+        for (LotDto lot : lots) {
+            if (lot.lastAttemptedAt() != null) done++;
+        }
+        return new SeriesCount(done, lots.size());
     }
 
     // ------------------------------------------------------------------------
