@@ -138,7 +138,7 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "loading") {
         return (
-            <SejourApp>
+            <SejourApp report>
                 <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} />
                 <Pad>
                     <Card variant="hero">
@@ -154,7 +154,7 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "erreur") {
         return (
-            <SejourApp>
+            <SejourApp report>
                 <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} />
                 <Pad>
                     <Stack>
@@ -186,7 +186,12 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
         epreuveMention(e.epreuve as EpreuveType, e.niveau, r.dejaAuNiveau, r.priorites);
 
     return (
-        <SejourApp>
+        /* 🛑 `report` : 980 px de conteneur, 720 px de texte. Le tableau des
+           épreuves, la progression et les priorités prennent la largeur ; le
+           hero, la rassurance et l'aperçu du plan gardent la colonne de
+           lecture. Les trois états portent la même largeur — un écran ne change
+           pas de gabarit entre son chargement et son contenu. */
+        <SejourApp report>
             <Top backTo={BACK_HREF} kicker={TOP_KICKER} title={TOP_TITLE} badge={TOP_BADGE} />
 
             {/* 1 — le niveau global. L'élément dominant de l'écran. */}

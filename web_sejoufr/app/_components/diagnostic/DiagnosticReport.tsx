@@ -193,7 +193,10 @@ export function DiagnosticReport({
   if (embedded) return blocs;
 
   return (
-    <SejourApp>
+    /* 🛑 `report` : 980 px de conteneur, 720 px de texte. Les deux grilles
+       ci-dessus (observations, épreuves) prennent la largeur, le hero et la
+       note de transition gardent leur colonne de lecture. */
+    <SejourApp report>
       {notice}
       <Top
         backTo={DIAGNOSTIC_REPORT_BACK_HREF}

@@ -74,6 +74,7 @@ export function SejourApp({
   children,
   sticky,
   wide,
+  report,
   className,
 }: {
   children: ReactNode;
@@ -81,11 +82,29 @@ export function SejourApp({
   sticky?: boolean;
   /** Colonne large (1080 px) : l'écran dispose plusieurs colonnes en desktop. */
   wide?: boolean;
+  /**
+   * **Écran de RAPPORT** : conteneur de 980 px, mais texte plafonné à 720 px.
+   *
+   * 🛑 C'est la quatrième *nature* d'écran, pas une quatrième borne (arbitrage
+   * du propriétaire, 2026-09-12) : un rapport a des grilles qui gagnent à
+   * s'étaler — épreuves, priorités, observations — et de la prose qui perd à
+   * s'allonger. Dedans, **tout est du texte par défaut (720 px) et seul ce qui
+   * porte une classe de grille (`deskGrid`, `deskGrid2`, `deskPair`) prend les
+   * 980 px** ; un bloc nouveau n'a donc rien de plus à déclarer que sa grille.
+   * Toute la règle vit dans `sejour.module.css`, bloc « LE PALIER DESKTOP ».
+   */
+  report?: boolean;
   className?: string;
 }) {
   return (
     <div
-      className={cx(styles.app, sticky && styles.hasSticky, wide && styles.wide, className)}
+      className={cx(
+        styles.app,
+        sticky && styles.hasSticky,
+        wide && styles.wide,
+        report && styles.report,
+        className,
+      )}
     >
       {children}
     </div>

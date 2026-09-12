@@ -1567,6 +1567,10 @@
       prend un plafond **choisi par la NATURE de l'écran** — 1080 px pour un
       tableau de bord, 980 px pour un écran à barre d'action collée, 720 px
       pour un écran de lecture — avec une gouttière de 36 px ;
+      ⚠️ le quatrième régime, `report` (980 px de conteneur, 720 px de texte),
+      est le nôtre : la maquette n'a pas d'écran de rapport en desktop. Il ne
+      crée ni borne ni composant, il ne fait que combiner deux plafonds déjà
+      là — cf. son bloc dédié plus bas ;
    3. les blocs perdent leur padding latéral de 16 px (la gouttière a déménagé
       sur la colonne) ;
    4. des **classes de disposition** inertes sur mobile (`.sf-desk-pair`,
@@ -1595,8 +1599,10 @@
    ## Comment un écran s'en sert
 
    - `<SejourApp wide>` → colonne de 1080 px (tableau de bord : l'Accueil, le
-     Plan). `<SejourApp sticky>` → 980 px. Sans rien → 720 px (lecture : les
-     rapports de diagnostic).
+     Plan). `<SejourApp sticky>` → 980 px (écran à barre d'action collée).
+     `<SejourApp report>` → conteneur de 980 px **dont le texte reste à
+     720 px** (les trois rapports de diagnostic ; détail plus bas). Sans rien →
+     720 px, colonne de lecture pleine et entière.
    - `<div className={sejourStyles.deskPair}>` autour de **deux** `Section`
      voisines → elles se posent côte à côte à partir de 960 px, l'une sous
      l'autre en dessous. Une seule `Section` dans la paire occupe la colonne de
@@ -1635,6 +1641,62 @@
 
   .app.wide {
     max-width: 1080px;
+  }
+
+  /* ---------- `report` — conteneur LARGE, colonne de texte ÉTROITE ----------
+
+     🛑 **Une quatrième NATURE d'écran, pas une quatrième borne** (arbitrage du
+     propriétaire, 2026-09-12) : « Ne passe pas simplement tout à 980 px. Garde
+     une colonne de lecture confortable autour de 720 px pour le texte, mais
+     autorise le conteneur du rapport à monter jusqu'à 980 px lorsque le
+     contenu en bénéficie : grilles de compétences, cartes, comparaisons,
+     résultats par épreuve. » Elle règle les deux défauts d'un coup : la colonne
+     minuscule perdue au milieu d'un desktop, et les lignes de texte trop
+     longues. Les trois rapports de diagnostic l'emploient — rapide, complet
+     TCF, civique — plus la porte d'entrée du Plan, qui encastre le rapide.
+
+     **La règle tient en une phrase : dans un `report`, tout est du TEXTE par
+     défaut et plafonné à 720 px ; ce qui porte une classe de GRILLE
+     (`deskGrid`, `deskGrid2`, `deskPair`) s'en affranchit et prend les 980 px.**
+
+     🛑 **Un nouveau bloc n'a donc RIEN de nouveau à marquer**, et c'est le
+     point : il déclare déjà exactement ça au palier desktop. S'il range des
+     cartes, il porte sa grille — donc il est large. S'il raconte quelque chose,
+     il ne porte rien — donc il reste lisible. Pas de classe « pleine largeur »
+     à retenir, pas de liste d'exceptions à tenir à jour.
+
+     Et la règle ne peut pas se retourner contre un écran : un `max-width` est
+     **inerte** partout où le conteneur est déjà plus étroit — dans une colonne
+     de `deskPair`, dans une carte, et à toute largeur de fenêtre < 960 px.
+
+     ⚠️ L'en-tête de page (`.top`) n'est PAS plafonné : c'est une rangée flex
+     dont les enfants sont dimensionnés par leur contenu (flèche, eyebrow,
+     titre, badge), elle commence au bord gauche et se lit pareil à 720 comme à
+     980. Lui poser un plafond n'aurait rien changé qu'une règle de plus. */
+
+  .app.report {
+    max-width: 980px;
+  }
+
+  /* Le texte, par défaut. `.pad` est la gouttière que TOUS les blocs du kit
+     traversent : le plafond se pose là, une fois, au lieu d'être répété sur
+     chaque primitive de paragraphe (`.insight`, `.sub`, `.tiny`, `.threshold`…).
+     `.sectionH` et `.footNote` vivent hors de `.pad`, d'où leurs deux lignes. */
+  .app.report .pad,
+  .app.report .sectionH,
+  .app.report .footNote {
+    max-width: 720px;
+  }
+
+  /* ⚠️ **Le titre suit son contenu, jamais l'inverse.** Un titre de section
+     calé à 720 px au-dessus d'une grille qui en fait 980 se lirait décentré, et
+     un titre de 980 px au-dessus d'un paragraphe de 720 aussi. C'est donc la
+     SECTION qui tranche, en regardant si elle range une grille — et son titre
+     comme son contenu prennent la même largeur. */
+  .app.report .section:has(.deskGrid, .deskGrid2, .deskPair) .sectionH,
+  .app.report .pad:has(.deskGrid, .deskGrid2, .deskPair),
+  .app.report .deskPair {
+    max-width: none;
   }
 
   /* La gouttière a déménagé sur la colonne : les blocs la rendent. */

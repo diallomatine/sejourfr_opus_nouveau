@@ -139,7 +139,7 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "loading") {
         return (
-            <SejourApp>
+            <SejourApp report>
                 <Top kicker={CIVIC_RESULT_KICKER} title={CIVIC_RESULT_TITLE} />
                 <Pad>
                     <p className={s.sub} aria-busy="true">
@@ -152,7 +152,7 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
 
     if (etat.kind === "erreur") {
         return (
-            <SejourApp>
+            <SejourApp report>
                 <Top kicker={CIVIC_RESULT_KICKER} title={CIVIC_RESULT_TITLE} />
                 <Section>
                     <Pad>
@@ -171,7 +171,11 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
     const autres = autresPrioritesLine(r.priorites.length);
 
     return (
-        <SejourApp>
+        /* 🛑 `report` : 980 px de conteneur, 720 px de texte. La paire
+           score | thèmes et la grille de priorités prennent la largeur ; les
+           mises en situation, la rassurance et l'aperçu du plan gardent la
+           colonne de lecture. */
+        <SejourApp report>
             <Top
                 kicker={CIVIC_RESULT_KICKER}
                 title={CIVIC_RESULT_TITLE}

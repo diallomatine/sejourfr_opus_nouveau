@@ -107,12 +107,19 @@ export function PlanModules() {
        module affiché et l'accès du compte. 🛑 L'accès se **lit**
        (`canAccessModule`), il ne se devine pas.
 
-       - porte d'entrée ⇒ ni l'un ni l'autre : un écran de **lecture** (720 px) ;
+       - porte d'entrée ⇒ `report` : conteneur de 980 px, texte à 720 px. Elle
+         encastre le RAPPORT du diagnostic rapide, avec ses deux grilles — elle
+         doit donc lui offrir exactement la largeur que `/diagnostic` lui
+         offre, sinon le même rapport se range de deux façons selon la porte par
+         laquelle le candidat arrive. Sa forme minimale (l'explication et son
+         geste, sans rapport) ne porte aucune grille : tout y reste plafonné à
+         720 px, donc elle se rend comme avant ;
        - compte gratuit ⇒ `sticky`, la barre d'action porte le déblocage (980) ;
        - abonné ⇒ `wide`, le Plan est un **tableau de bord** (1080). */
     const abonne = canAccessModule(user, affiche);
     const sticky = Boolean(!indisponible && !abonne);
     const wide = Boolean(!indisponible && abonne);
+    const report = Boolean(indisponible);
 
     /* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une seconde
        implémentation du même contrôle finirait par diverger.
@@ -135,7 +142,7 @@ export function PlanModules() {
     );
 
     return (
-        <SejourApp sticky={sticky} wide={wide}>
+        <SejourApp sticky={sticky} wide={wide} report={report}>
             <TopSlot node={toggle}>
                 {indisponible ? (
                     <PlanGate
