@@ -921,6 +921,11 @@ pas — il a ses deux entrées de menu — donc la bascule d'écran est la **seu
 et elle reste visible à toutes les largeurs. `.segWrap` perd seulement sa
 gouttière de 16 px au palier desktop.
 
+⚠️ La phrase citée nomme trois écrans ; le propriétaire a **retiré
+`/entrainement`** le même jour (« il faut afficher directement l'écran, vu qu'on
+y accède par le menu »). `.segWrap` n'est donc rendue que sur `/plan` et
+`/dashboard`.
+
 ⚠️ Une passe intermédiaire avait masqué `.segWrap` au-dessus de 901 px, en
 contrepartie d'une bascule contextuelle dans le rail : **les deux sont
 révoquées**, et le code des deux est parti (pas de `@media (min-width: 901px)`
@@ -966,6 +971,10 @@ laisser comme il était.** Le choix entre examen civique et TCF, dans les écran
 `.app-seg` que la refonte de la veille avait posée dans le rail d'après la
 maquette, et la bascule *contextuelle* qui avait été bâtie dessus.
 
+⚠️ **`/entrainement` est ressorti de cette liste le même jour** — cf. « Le choix
+TCF / Civique vit dans DEUX écrans » : on y arrive par le menu, qui a déjà fait
+le choix.
+
 `AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **sept entrées
 à icône** en deux sections — `Parcours` (TCF IRN `Waves`, Examen civique
 `Lightbulb`, Examens blancs) et `Suivi` (Plan, Résultats, Recommandations), avec
@@ -987,36 +996,44 @@ du chemin et de `?module=` — une vraie correction du surlignage, indépendante
 ⚠️ **« Accueil » (`/`) n'est PAS une entrée de ce menu** : retiré volontairement
 avant cette refonte. Ne pas le réintroduire.
 
-#### Le choix TCF / Civique vit dans TROIS écrans
+#### Le choix TCF / Civique vit dans DEUX écrans
 
 La même brique du kit (`ModuleToggle`, rendue par `.segWrap` / `.seg`), au même
-endroit visuel — en tête de colonne, sous l'en-tête —, sur les trois écrans que
-le propriétaire a nommés. **Pas trois variantes**, et rien d'autre n'en porte.
+endroit visuel — sous l'en-tête —, sur les **deux écrans où elle change ce qui
+est affiché**. Pas deux variantes, et rien d'autre n'en porte.
 
 | écran | ce que fait la bascule | `current` |
 |---|---|---|
 | `/plan` | **change le Plan** : `/plan?module=…`, posée par `TopSlot` | le module affiché, dérivé de l'URL |
 | `/dashboard` | **change ce que l'Accueil affiche** : `/dashboard?module=…` | idem |
-| `/entrainement` (les deux hubs) | **change l'espace d'entraînement** : `entrainementHref(module)` | le hub rendu (`tcf` / `civique`) |
 
-🛑 **Sur l'Accueil c'est bien un SCOPE, pas une navigation** (arbitrage du
-propriétaire, 2026-09-12 : « la bascule avec l'Examen civique doit afficher
-l'accueil de l'Examen civique »). Il **révoque** la navigation vers le hub
-retenue la veille. Détail bloc par bloc : section « L'Accueil » plus bas.
+🛑 **Les hubs `/entrainement` n'en portent PAS** (arbitrage du propriétaire,
+2026-09-12 : « retirer le toggle dans les écrans `/entrainement?module=…`, il
+faut afficher directement l'écran, vu qu'on y accède par le menu »). Il
+**révoque** la bascule que la passe précédente y avait posée. Un hub s'atteint
+par une entrée de menu qui a **déjà fait le choix** : y remettre un contrôle
+demanderait de rechoisir ce qu'on vient de choisir. `TcfHub` et `CiviqueHub`
+sont revenus, au caractère près, à leur état d'avant cet ajout.
+
+Sont partis avec elle, faute de lecteur : la classe `.segWrap.segFlush` du kit
+et la prop `className` de `ModuleToggle` (ni le Plan ni l'Accueil ne les
+employaient — ils sont dans le scope `.app` et prennent la gouttière du kit).
+
+⚠️ **Ce qui RESTE, et qui vaut par soi-même** : les tokens `--sf-*` ont quitté
+`.app` pour **`:root`** (`globals.css`). Déclarés sur la racine du kit, ils
+laissaient toute primitive rendue hors de ce scope perdre **silencieusement**
+son rayon ou son ombre. Valeurs inchangées, portée élargie — c'est une
+correction, pas une dépendance de la bascule des hubs.
+
+🛑 **Sur l'Accueil c'est un SCOPE, pas une navigation** (« la bascule avec
+l'Examen civique doit afficher l'accueil de l'Examen civique »). Détail bloc par
+bloc : section « L'Accueil » plus bas.
 
 **Les deux hubs restent atteignables** par deux chemins indépendants, tous deux
 vérifiés : les entrées « TCF IRN » / « Examen civique » de la barre latérale
 (visibles à toutes les largeurs — dans le drawer sous 900 px), et les deux
 cartes de « Vos parcours » sur l'Accueil, qui pointent sur
 `/entrainement?module=…` et **ne sont pas scopées**.
-
-⚠️ **Les hubs ne sont PAS des écrans du kit** (`moduleHub.module.css`, `main.wrap`
-padé à 40 px). Deux conséquences, toutes deux minimales : la bascule y prend
-`sejourStyles.segFlush` (`.segWrap.segFlush { padding: 0 0 18px }` — classe de
-disposition, **pas** une primitive, aucun miroir Dart), et les tokens `--sf-*`
-ont quitté `.app` pour **`:root`** (`globals.css`) : déclarés sur la racine du
-kit, ils laissaient une primitive rendue ailleurs perdre silencieusement son
-ombre. Valeurs inchangées, portée élargie.
 
 🛑 **Un seul mécanisme de sélection de module, et c'est `?module=`.** Aucun écran
 ne devine un module d'après un état serveur : `moduleDeLUrl` rend `null` quand

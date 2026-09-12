@@ -1166,18 +1166,6 @@
   padding: 12px 16px 4px;
 }
 
-/* La bascule posée dans un écran qui porte DÉJÀ sa gouttière — le hub
-   `/entrainement`, qui n'est pas un écran du kit et dont le `main` est padé à
-   40 px. Sans ça, la bascule s'indenterait de 16 px de plus que le titre juste
-   en dessous.
-
-   🛑 Ce n'est pas une primitive et ça n'a **aucun miroir Dart** : c'est une
-   classe de disposition, comme `deskPair` / `deskGrid`. Spécificité 2 pour que
-   l'emporter sur `.segWrap` ne dépende pas de l'ordre des feuilles. */
-.segWrap.segFlush {
-  padding: 0 0 18px;
-}
-
 .seg {
   display: grid;
   grid-template-columns: 1fr 1fr;

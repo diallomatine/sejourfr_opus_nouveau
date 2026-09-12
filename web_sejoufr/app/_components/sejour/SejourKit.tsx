@@ -370,36 +370,32 @@ export function Sticky({ children }: { children: ReactNode }) {
 /**
  * **Le choix TCF IRN / Examen civique**, et il n'y en a qu'un.
  *
- * 🛑 Arbitrage du propriétaire (2026-09-12) : « **Le menu de gauche, faut le
- * laisser comme il était.** Le choix entre examen civique et TCF, dans les
- * écrans **dashboard, plan, entraînement (réviser)**. » Ces trois écrans
- * rendent donc **cette** brique, au même endroit — sous l'en-tête —, pas trois
- * variantes. La barre latérale, elle, a retrouvé ses deux entrées de menu.
+ * 🛑 Arbitrage du propriétaire (2026-09-12) : le menu de gauche garde ses deux
+ * entrées de parcours, et le choix TCF / civique vit dans les **deux écrans où
+ * il change ce qui est affiché** — `/dashboard` et `/plan`. Ils rendent donc
+ * **cette** brique, au même endroit (sous l'en-tête), pas deux variantes.
  *
- * `className` est l'échappatoire habituelle du kit (comme `Card`, `Stack`,
- * `Pad`) : le hub `/entrainement` n'est pas un écran du kit et porte déjà sa
- * gouttière, il passe `sejourStyles.segFlush`. Ce n'est pas une primitive
- * nouvelle et ça n'a pas de miroir Dart.
+ * ⚠️ Les hubs `/entrainement` ne la portent **pas** : on y arrive par le menu,
+ * qui a déjà fait le choix — « il faut afficher directement l'écran ». La prop
+ * `className` et la classe `segFlush` qui les servaient sont parties avec eux.
  */
 export function ModuleToggle({
   current,
   onSelect,
   tcfHref,
   civicHref,
-  className,
 }: {
   current: "tcf" | "civique";
   onSelect?: (module: "tcf" | "civique") => void;
   tcfHref?: string;
   civicHref?: string;
-  className?: string;
 }) {
   const items: Array<{ id: "tcf" | "civique"; label: string; href?: string }> = [
     { id: "tcf", label: "TCF IRN", href: tcfHref },
     { id: "civique", label: "Examen civique", href: civicHref },
   ];
   return (
-    <div className={cx(styles.segWrap, className)}>
+    <div className={styles.segWrap}>
       <div className={styles.seg} role="tablist" aria-label="Parcours">
         {items.map((item) =>
           item.href ? (
