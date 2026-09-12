@@ -809,6 +809,23 @@ gouttière de 64 px que le reste de l'espace connecté (`/dashboard`,
 d'affichage. Un écran du kit servi hors espace connecté (`/diagnostic` public,
 sous le `SiteHeader`) n'a pas de burger, donc pas de gouttière.
 
+🛑 **Un seul burger par écran, et c'est `APP_GROUP_PREFIXES` qui le garantit
+(2026-09-12).** `app/(app)/layout.tsx` monte `MobileSidebarToggle` pour TOUTE
+route du groupe, mais le `SiteHeader` ne s'efface (et ne retire son propre
+bouton de menu) que si la route est **déclarée** dans `APP_GROUP_PREFIXES`
+(`lib/chrome-routes.ts`). Une route ajoutée au dossier `app/(app)/` sans être
+ajoutée à la liste cumule donc les deux chromes et affiche **deux burgers
+empilés** sous 900 px — c'est ce qui est arrivé à `/diagnostic-tcf` et
+`/diagnostic-civique`. La liste est le **miroir du dossier** : un dossier de
+plus dans `app/(app)/`, un préfixe de plus ici, dans la même passe. Le
+`/diagnostic` public, lui, est une route **duale** (`DUAL_CHROME_PREFIXES`) et
+n'est pas concerné — `isDualChromeRoute` teste l'égalité ou `"/diagnostic/"`,
+jamais `/diagnostic-*`.
+
+⚠️ Corollaire : un écran du groupe `(app)` qui **n'est pas** un écran du kit
+porte lui-même sa gouttière de 64 px (`TcfDiagnosticHub`, `.tcfd`), comme
+`/dashboard` ou `/statistiques`. Les écrans du kit l'ont par `.app`.
+
 **En-tête centré sous 620 px (2026-09-12).** `Top` pose `.topPlain` quand il n'a
 **pas** de flèche de retour : eyebrow et titre se centrent sur mobile, et
 reviennent à gauche au-dessus de 620 px — la borne que le kit utilise déjà pour

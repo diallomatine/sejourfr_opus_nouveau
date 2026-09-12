@@ -619,6 +619,17 @@ function Styles() {
                     animation: none;
                 }
             }
+            /* 🛑 Sous 900 px, l'espace connecté range sa barre latérale derrière
+               un burger flottant (.ms-toggle, position: fixed, 44 px posé à
+               12 px du coin haut-gauche, cf. globals.css) : sans gouttière il
+               recouvre le titre de l'écran. Même remède que partout ailleurs
+               dans l'espace connecté — 12 (marge) + 44 (bouton) + 8
+               (respiration) —, à la MÊME borne que sa règle d'affichage. */
+            @media (max-width: 900px) {
+                .tcfd {
+                    padding-top: 64px;
+                }
+            }
         `}</style>
     );
 }

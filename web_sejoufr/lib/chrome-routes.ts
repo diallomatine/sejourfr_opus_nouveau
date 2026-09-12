@@ -8,9 +8,23 @@ export const DUAL_CHROME_PREFIXES = [
 ];
 
 /** Routes du groupe (app) — espace personnel, toujours derrière le login.
- *  Partagé entre SiteHeader (burger unique) et shouldHideGlobalChrome. */
+ *  Partagé entre SiteHeader (burger unique) et shouldHideGlobalChrome.
+ *
+ *  🛑 **Cette liste est le miroir de `app/(app)/` sur le disque, et rien
+ *  d'autre.** Une route posée dans le groupe sans être déclarée ici monte DEUX
+ *  chromes : le shell applicatif (`app/(app)/layout.tsx` → `AppSidebar` +
+ *  `MobileSidebarToggle`) ET le chrome public, dont le `SiteHeader` garde son
+ *  propre bouton de menu — d'où deux burgers empilés sous 900 px. C'est ce qui
+ *  est arrivé à `/diagnostic-tcf` et `/diagnostic-civique`, ajoutés au groupe
+ *  sans passer par ici. Ajouter un dossier dans `app/(app)/` ⇒ ajouter son
+ *  préfixe ici, dans la même passe.
+ *
+ *  ⚠️ Le test est un **préfixe** : `/paiement` couvre `/paiement/succes` et
+ *  `/diagnostic-tcf` couvre `/diagnostic-tcf/{id}/resultat`. */
 export const APP_GROUP_PREFIXES = [
   "/dashboard",
+  "/diagnostic-civique",
+  "/diagnostic-tcf",
   "/historique",
   "/paiement",
   "/parcours",
