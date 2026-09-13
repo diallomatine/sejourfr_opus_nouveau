@@ -36,6 +36,8 @@ class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
     required this.module,
     this.slotNumber,
     this.onStart,
+    this.eyebrow,
+    this.durationLabel,
   });
 
   final TcfQcmModule module;
@@ -50,6 +52,19 @@ class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
   /// 🛑 Il ne court-circuite **aucun** verrou : l'appelant qui le fournit est
   /// responsable de son propre accès, et le serveur reste l'arbitre (403).
   final VoidCallback? onStart;
+
+  /// Sur-titre, à surcharger quand ce n'est **pas** un examen blanc.
+  ///
+  /// 🛑 Le diagnostic TCF le fait, et ce n'est pas cosmétique : `10_` §4.1
+  /// **interdit** d'appeler le diagnostic un examen blanc, même quand il en a
+  /// exactement la forme.
+  final String? eyebrow;
+
+  /// Durée annoncée. Par défaut celle de la **table de référence**, qui vaut
+  /// pour un examen qui n'existe pas encore. Une section de diagnostic est
+  /// **déjà composée** : elle passe la sienne, sinon le sas annoncerait 20 min
+  /// sur une section qui en dure 12.
+  final String? durationLabel;
 
   @override
   ConsumerState<ModuleExamBriefingSheet> createState() =>
@@ -150,7 +165,7 @@ class _ModuleExamBriefingSheetState
                   Row(
                     children: [
                       Text(
-                        'EXAMEN ${mod.title.toUpperCase()}',
+                        widget.eyebrow ?? 'EXAMEN ${mod.title.toUpperCase()}',
                         style: AppFonts.mono(
                           size: 9.5,
                           color: AppColors.muted,
@@ -160,7 +175,8 @@ class _ModuleExamBriefingSheetState
                       ),
                       const Spacer(),
                       _DurationBadge(
-                        label: epreuveDurationLabelFor(mod.epreuve),
+                        label: widget.durationLabel ??
+                            epreuveDurationLabelFor(mod.epreuve),
                       ),
                     ],
                   ),
@@ -211,6 +227,8 @@ void showModuleExamBriefingSheet(
   TcfQcmModule module, {
   int? slotNumber,
   VoidCallback? onStart,
+  String? eyebrow,
+  String? durationLabel,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -220,6 +238,8 @@ void showModuleExamBriefingSheet(
       module: module,
       slotNumber: slotNumber,
       onStart: onStart,
+      eyebrow: eyebrow,
+      durationLabel: durationLabel,
     ),
   );
 }

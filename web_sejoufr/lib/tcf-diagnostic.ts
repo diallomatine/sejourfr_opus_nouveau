@@ -20,6 +20,12 @@ import type {
     TcfReassessmentEligibilityDto,
 } from "./types";
 import {niveauCecrlShort} from "./types";
+import {minutesLabel} from "./exam-durations";
+import {
+    comprehensionExamIntro,
+    productionExamIntro,
+    type ExamIntroCopy,
+} from "./exam-intro";
 
 /** Titre de la page. « Diagnostic TCF », jamais « examen blanc » (`10_` §4.1). */
 export const TCF_DIAGNOSTIC_TITLE = "Diagnostic TCF";
@@ -83,6 +89,22 @@ export function sectionNiveauLabel(niveau: NiveauCecrl): string {
  */
 export const TCF_DIAGNOSTIC_EO_QUIT_MESSAGE =
     "L'enregistrement en cours sera perdu. Les tâches déjà rendues sont conservées, et vous reprendrez à la suivante.";
+
+/**
+ * Le **sas** d'une section : ce qui l'annonce avant qu'elle parte.
+ *
+ * 🛑 Il dit « épreuve », jamais « examen blanc » : `10_` §4.1 interdit
+ * d'appeler le diagnostic un examen blanc, même quand il en a exactement la
+ * forme. Miroirs mot pour mot du mobile.
+ */
+export const TCF_DIAGNOSTIC_SAS_TITLE = "Cette épreuve se passe en conditions réelles";
+/** « DIAGNOSTIC · COMPRÉHENSION ORALE » — miroir de `sasEyebrow` côté mobile. */
+export function sasEyebrow(label: string): string {
+    return `Diagnostic · ${label}`;
+}
+export const TCF_DIAGNOSTIC_SAS_SUBTITLE =
+    "Avant de commencer, voici comment elle se déroule.";
+export const TCF_DIAGNOSTIC_SAS_CTA = "Commencer l'épreuve";
 
 export const TCF_DIAGNOSTIC_ESTIMATION_NOTE =
     "Estimation SejourFR, non officielle.";
@@ -182,6 +204,41 @@ export function sectionHref(
             return `/entrainement/tcf/eo/session/${attemptId}${suffix}`;
         default:
             return `/sessions/${attemptId}${suffix}`;
+    }
+}
+
+/**
+ * **Le sas d'une section** — ce qu'on annonce avant de la lancer.
+ *
+ * 🛑 **La copie est celle de l'examen blanc de l'épreuve**
+ * (`lib/exam-intro.ts`), jamais une seconde : une section du diagnostic **est**
+ * un examen blanc de son épreuve, elle doit donc s'annoncer exactement pareil.
+ *
+ * 🛑 **Les chiffres viennent du DTO SERVI**, pas de la table de référence : la
+ * section est déjà composée, elle sait combien de questions elle pose et
+ * combien de temps elle dure. Lire la table annoncerait 25 questions sur une
+ * section qui en compte 15 (diagnostic ouvert sous une configuration
+ * antérieure) — le `config_version` existe précisément pour que cela arrive.
+ */
+export function sectionIntro(section: TcfDiagnosticSectionDto): ExamIntroCopy {
+    switch (section.epreuve) {
+        case "TCF_EE":
+        case "TCF_EO":
+            return productionExamIntro(
+                section.epreuve,
+                section.epreuve === "TCF_EO" ? "par tâche" : "en conditions réelles",
+                section.epreuve === "TCF_EO"
+                    ? "Chrono"
+                    : section.timeLimitSeconds
+                      ? minutesLabel(section.timeLimitSeconds)
+                      : "—",
+            );
+        default:
+            return comprehensionExamIntro(
+                section.epreuve === "TCF_CO" ? "CO" : "CE",
+                section.totalQuestions != null ? String(section.totalQuestions) : "—",
+                section.timeLimitSeconds ? minutesLabel(section.timeLimitSeconds) : "—",
+            );
     }
 }
 

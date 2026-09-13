@@ -1677,6 +1677,11 @@ Ce qui change **ici** :
   `ProductionExamBriefingSheet`. Une section **déjà commencée** saute le sas —
   son chrono court. ⚠️ `ProductionExamBriefingSheet` **se referme elle-même**
   avant d'appeler `onStart` ; y ajouter un `pop` dépilerait l'écran derrière.
+  - 🛑 **Le sas dit « DIAGNOSTIC », jamais « EXAMEN »** (`sasEyebrow`) : `10_`
+    §4.1 l'interdit, même quand le diagnostic en a exactement la forme.
+  - 🛑 **La durée annoncée vient du DTO servi**, pas de la table de référence :
+    la section est déjà composée. Les deux feuilles ont gagné cette surcharge
+    pour ça. Miroir web : `ExamIntroSheet` + `lib/exam-intro.ts`.
 - 🔴 **Aucune réponse = aucune mesure** : une épreuve close sans une seule
   réponse ne rend ni niveau ni score (elle sortait en « A1 · 100/499 »).
 - ⚠️ **`ProductionTaskDto.conditionsReelles` est SUPPRIMÉ**, avec la règle

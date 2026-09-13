@@ -129,13 +129,25 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
       _lancerSection(section);
       return;
     }
+    // 🛑 La DURÉE vient du DTO servi, jamais de la table de référence : la
+    // section est déjà composée, elle sait combien de temps elle dure. Lire la
+    // table annoncerait 20 min sur une section qui en dure 12 (diagnostic
+    // ouvert sous une configuration antérieure) — `config_version` existe
+    // précisément pour que ce cas arrive.
+    final duree = section.timeLimitSeconds == null
+        ? null
+        : '${(section.timeLimitSeconds! / 60).round()} min';
     switch (section.epreuve) {
       case EpreuveType.tcfCo:
         showModuleExamBriefingSheet(context, TcfQcmModule.co,
-            onStart: () => _lancerSection(section));
+            onStart: () => _lancerSection(section),
+            eyebrow: sasEyebrow(section.epreuve),
+            durationLabel: duree);
       case EpreuveType.tcfCe:
         showModuleExamBriefingSheet(context, TcfQcmModule.ce,
-            onStart: () => _lancerSection(section));
+            onStart: () => _lancerSection(section),
+            eyebrow: sasEyebrow(section.epreuve),
+            durationLabel: duree);
       case EpreuveType.tcfEe:
       case EpreuveType.tcfEo:
         showProductionExamBriefingSheet(
@@ -144,6 +156,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
               ? TcfProductionModule.ee
               : TcfProductionModule.eo,
           starting: false,
+          eyebrow: sasEyebrow(section.epreuve),
           // ⚠️ Pas de `pop` ici : cette feuille-là se referme elle-même avant
           // d'appeler `onStart`. En rajouter un dépilerait l'écran du
           // diagnostic derrière elle.

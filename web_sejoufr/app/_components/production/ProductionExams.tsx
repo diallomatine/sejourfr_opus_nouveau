@@ -28,6 +28,7 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
+import { productionExamIntro } from "@/lib/exam-intro";
 import {
   ExamTrail,
   ParcoursHero,
@@ -94,6 +95,13 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [retakeWarningOpen, setRetakeWarningOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
+  // 🛑 La copie du sas vit dans `lib/exam-intro.ts` depuis le 2026-09-13 : le
+  // diagnostic TCF annonce ses sections avec EXACTEMENT la même.
+  const introCopy = productionExamIntro(
+    config.epreuve,
+    config.examTiming.factLabel,
+    config.examTiming.factValue,
+  );
 
   // Historique de l'épreuve : même entrée de cache que l'écran des sujets — un
   // seul appel sert les deux — et invalidée à chaque soumission (`lib/api.ts`).
@@ -323,21 +331,8 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           eyebrow={`Examen blanc ${pendingSlot} · ${config.label}`}
           title={`${config.label} en conditions réelles`}
           subtitle="Avant de commencer, voici comment se déroule l'examen."
-          facts={[
-            { label: "tâches enchaînées", value: "3" },
-            { label: config.examTiming.factLabel, value: config.examTiming.factValue },
-            { label: "note + niveau CECRL", value: "/20" },
-          ]}
-          tips={[
-            config.mode === "audio"
-              ? "Autorisez le micro : chaque tâche s'enregistre, comme le jour J."
-              : "Vous rédigez directement les 3 productions, un brouillon est sauvegardé.",
-            config.mode === "audio"
-              ? "Lisez la consigne sans pression : le chrono d'une tâche ne part que lorsque vous la lancez."
-              : "Le chrono porte sur les 3 tâches ensemble ; le temps conseillé par tâche n'est qu'un repère.",
-            "Les 3 tâches sont évaluées par l'IA après l'examen.",
-            "Le niveau final est le plancher de vos 3 tâches.",
-          ]}
+          facts={introCopy.facts}
+          tips={introCopy.tips}
           loading={starting}
           error={error}
           onConfirm={start}

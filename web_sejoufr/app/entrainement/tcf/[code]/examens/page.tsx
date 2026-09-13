@@ -24,6 +24,7 @@ import {
   ExamsGrid,
 } from "@/app/_components/hub/DetailParts";
 import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
+import { comprehensionExamIntro } from "@/lib/exam-intro";
 import { examSlotGrid } from "@/lib/exam-slots";
 import { plannedEpreuveLabel } from "@/lib/exam-durations";
 import detail from "@/app/_components/hub/detail.module.css";
@@ -170,27 +171,14 @@ export default function TcfModuleExamsPage() {
     };
   }, [latest]);
 
-  const introFacts: ExamFact[] = config
-    ? [
-        { label: "questions (A2→B2)", value: "25" },
-        { label: "en conditions réelles", value: config.duration },
-        // Barème du relevé TCF. Le /50 annoncé ici était le score pondéré
-        // interne, que le candidat ne voit nulle part ailleurs.
-        { label: "score + niveau CECRL", value: "/499" },
-      ]
-    : [];
-  const introTips =
-    code === "co"
-      ? [
-          "L'audio se lance seul et ne se joue qu'une seule fois, comme le jour J — prévoyez un casque.",
-          "Pas de retour en arrière sur les questions d'écoute.",
-          "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
-        ]
-      : [
-          "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
-          "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
-          "Vous pouvez naviguer librement entre les questions.",
-        ];
+  // 🛑 La copie du sas vit dans `lib/exam-intro.ts` depuis le 2026-09-13 : le
+  // diagnostic TCF annonce ses sections avec EXACTEMENT la même, une section
+  // etant un examen blanc de son épreuve.
+  const intro = config
+    ? comprehensionExamIntro(code === "co" ? "CO" : "CE", "25", config.duration)
+    : null;
+  const introFacts: ExamFact[] = intro?.facts ?? [];
+  const introTips = intro?.tips ?? [];
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!config) {

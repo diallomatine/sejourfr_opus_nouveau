@@ -20,11 +20,18 @@ class ProductionExamBriefingSheet extends StatelessWidget {
     required this.module,
     required this.starting,
     required this.onStart,
+    this.eyebrow,
   });
 
   final TcfProductionModule module;
   final bool starting;
   final VoidCallback onStart;
+
+  /// Sur-titre, à surcharger quand ce n'est **pas** un examen blanc.
+  ///
+  /// 🛑 Le diagnostic TCF le fait : `10_` §4.1 **interdit** de l'appeler un
+  /// examen blanc, même quand il en a exactement la forme.
+  final String? eyebrow;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +72,7 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        'EXAMEN COMPLET ${module.title.toUpperCase()}',
+                        eyebrow ?? 'EXAMEN COMPLET ${module.title.toUpperCase()}',
                         style: AppFonts.mono(
                           size: 9.5,
                           color: AppColors.muted,
@@ -129,6 +136,7 @@ void showProductionExamBriefingSheet(
   required TcfProductionModule module,
   required bool starting,
   required VoidCallback onStart,
+  String? eyebrow,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -138,6 +146,7 @@ void showProductionExamBriefingSheet(
       module: module,
       starting: starting,
       onStart: onStart,
+      eyebrow: eyebrow,
     ),
   );
 }

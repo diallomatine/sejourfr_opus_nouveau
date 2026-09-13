@@ -148,11 +148,30 @@ clique sur commencer sur cette modale, l'épreuve démarre ».
   dont a besoin le diagnostic dont les sous-attempts existent déjà.
 - **Une section déjà commencée ne repasse pas par le sas** : son chrono court,
   lui réannoncer le format lui ferait perdre du temps.
-- ⚠️ **Le web n'a pas d'équivalent**, et ce n'est pas un oubli de cette passe :
-  il n'a **aucun** briefing modal pour un examen blanc de module — ses seuls sas
-  sont la page `/examens-blancs/[slug]` et la feuille de l'examen complet. La
-  divergence est donc **antérieure** et porte sur le lancement d'un examen, pas
-  sur le diagnostic. À arbitrer à part.
+- **Côté web c'est `ExamIntroSheet`**, la feuille que les examens blancs de
+  module, de production et de thème civique utilisent déjà. ⚠️ Une note de cette
+  passe disait que le web n'avait aucun sas : **c'était faux**, il s'appelle
+  « intro » et non « briefing ».
+- 🛑 **La COPIE du sas est extraite dans `lib/exam-intro.ts`**
+  (`comprehensionExamIntro`, `productionExamIntro`) et lue par les **trois**
+  surfaces : examens de module, examens de production, diagnostic. Trois copies
+  écrites à la main auraient fini par décrire trois examens différents.
+- 🛑 **Les chiffres du sas viennent du DTO SERVI**, pas de la table de
+  référence — des deux côtés. Une section est **déjà composée** : elle sait
+  combien de questions elle pose et combien de temps elle dure. Lire la table
+  annoncerait « 25 questions · 20 min » sur une section qui en compte 15 et dure
+  12, ce qui arrive dès qu'un diagnostic a été ouvert sous une `config_version`
+  antérieure. C'est pour cela que les deux feuilles mobiles ont gagné une
+  surcharge de durée.
+- 🛑 **Le sas dit « DIAGNOSTIC », jamais « EXAMEN »** (`sasEyebrow` ⇄
+  `TCF_DIAGNOSTIC_SAS_*`) : `10_` §4.1 interdit d'appeler le diagnostic un
+  examen blanc, **même quand il en a exactement la forme**. C'est la seule
+  raison de la surcharge de sur-titre.
+- ⚠️ **Divergence de FORME assumée, et antérieure** : le sas mobile d'un examen
+  de module est un héros + consignes + conseil, celui du web une grille de faits
+  + « À savoir ». Les deux fronts annoncent la même chose, au même moment, avec
+  le même geste — mais les deux *feuilles d'examen* ne se ressemblent pas, et ce
+  n'est pas ce chantier qui l'a créé. À aligner à part si on y tient.
 
 ## Quitter une épreuve, c'est la terminer
 

@@ -21,6 +21,7 @@
  * second parcours de passation divergerait du premier à la première évolution.
  */
 import Link from "next/link";
+import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
@@ -45,6 +46,11 @@ import {
     progressionLabel,
     resultatDisponible,
     NIVEAU_NON_EVALUE,
+    sasEyebrow,
+    sectionIntro,
+    TCF_DIAGNOSTIC_SAS_CTA,
+    TCF_DIAGNOSTIC_SAS_SUBTITLE,
+    TCF_DIAGNOSTIC_SAS_TITLE,
     sectionCtaLabel,
     sectionNiveauLabel,
     sectionRapportHref,
@@ -82,6 +88,14 @@ export function TcfDiagnosticHub() {
     const [eligibilite, setEligibilite] =
         useState<TcfReassessmentEligibilityDto | null>(null);
     const [paywall, setPaywall] = useState(false);
+    /**
+     * 🛑 **On annonce l'épreuve AVANT de la lancer**, avec le **même sas qu'un
+     * examen blanc de cette épreuve** (demande du propriétaire, 2026-09-13) :
+     * une section du diagnostic est un examen blanc, elle doit en avoir le sas
+     * — format, durée, consignes — et c'est le « Démarrer » de la feuille qui
+     * lance. `ExamIntroSheet` est celui des examens, pas une seconde feuille.
+     */
+    const [sasSection, setSasSection] = useState<TcfDiagnosticSectionDto | null>(null);
 
     const charger = useCallback(async () => {
         try {
@@ -205,7 +219,30 @@ export function TcfDiagnosticHub() {
                         );
                     })}
                 </ul>
-                <p className="tcfd-note">{TCF_DIAGNOSTIC_RESULT_NOTE}</p>
+                {sasSection && (
+                <ExamIntroSheet
+                    open
+                    eyebrow={sasEyebrow(
+                        EPREUVE_PRESENTATION[
+                            sasSection.epreuve as keyof typeof EPREUVE_PRESENTATION
+                        ]?.label ?? "",
+                    )}
+                    title={TCF_DIAGNOSTIC_SAS_TITLE}
+                    subtitle={TCF_DIAGNOSTIC_SAS_SUBTITLE}
+                    facts={sectionIntro(sasSection).facts}
+                    tips={sectionIntro(sasSection).tips}
+                    confirmLabel={TCF_DIAGNOSTIC_SAS_CTA}
+                    loading={action}
+                    onConfirm={() => {
+                        const s = sasSection;
+                        setSasSection(null);
+                        void lancerSection(s, d.sessionId);
+                    }}
+                    onClose={() => setSasSection(null)}
+                />
+            )}
+
+            <p className="tcfd-note">{TCF_DIAGNOSTIC_RESULT_NOTE}</p>
                 <button
                     type="button"
                     className="btn btn-lg"
@@ -260,10 +297,40 @@ export function TcfDiagnosticHub() {
                         key={s.epreuve}
                         section={s}
                         busy={action}
-                        onStart={() => void lancerSection(s, d.sessionId)}
+                        onStart={() =>
+                            // Une section DÉJÀ COMMENCÉE ne repasse pas par le
+                            // sas : son chrono court, lui réannoncer le format
+                            // lui ferait perdre du temps.
+                            s.etat === "EN_COURS"
+                                ? void lancerSection(s, d.sessionId)
+                                : setSasSection(s)
+                        }
                     />
                 ))}
             </ul>
+
+            {sasSection && (
+                <ExamIntroSheet
+                    open
+                    eyebrow={sasEyebrow(
+                        EPREUVE_PRESENTATION[
+                            sasSection.epreuve as keyof typeof EPREUVE_PRESENTATION
+                        ]?.label ?? "",
+                    )}
+                    title={TCF_DIAGNOSTIC_SAS_TITLE}
+                    subtitle={TCF_DIAGNOSTIC_SAS_SUBTITLE}
+                    facts={sectionIntro(sasSection).facts}
+                    tips={sectionIntro(sasSection).tips}
+                    confirmLabel={TCF_DIAGNOSTIC_SAS_CTA}
+                    loading={action}
+                    onConfirm={() => {
+                        const s = sasSection;
+                        setSasSection(null);
+                        void lancerSection(s, d.sessionId);
+                    }}
+                    onClose={() => setSasSection(null)}
+                />
+            )}
 
             <p className="tcfd-note">{TCF_DIAGNOSTIC_RESULT_NOTE}</p>
 

@@ -68,6 +68,15 @@ const String kTcfDiagnosticEoQuitMessage =
     'L\'enregistrement en cours sera perdu. Les tâches déjà rendues sont '
     'conservées, et vous reprendrez à la suivante.';
 
+/// Le **sur-titre du sas** d'une section — « DIAGNOSTIC · COMPRÉHENSION ORALE ».
+///
+/// 🛑 Il dit « diagnostic », jamais « examen » : `10_` §4.1 **interdit**
+/// d'appeler le diagnostic un examen blanc, même quand il en a exactement la
+/// forme. C'est la seule raison pour laquelle les feuilles de briefing ont
+/// gagné une surcharge. Miroir de `TCF_DIAGNOSTIC_SAS_*` côté web.
+String sasEyebrow(EpreuveType epreuve) =>
+    'DIAGNOSTIC · ${epreuvePresentation(epreuve).label.toUpperCase()}';
+
 const String kTcfDiagnosticEstimationNote =
     'Estimation SejourFR, non officielle.';
 
