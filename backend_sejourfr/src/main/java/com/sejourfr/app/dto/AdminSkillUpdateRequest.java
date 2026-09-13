@@ -30,6 +30,16 @@ public record AdminSkillUpdateRequest(
         @Pattern(regexp = "A1|A2|B1|B2", message = "Le palier visé doit valoir A1, A2, B1 ou B2.")
         String targetLevel,
 
+        /**
+         * ⚠️ <b>PATCH a semantique de REMPLACEMENT, et ici un nul EFFACE.</b>
+         * La colonne est nullable (V063), donc un nul y designe un etat
+         * atteignable — a l'inverse des colonnes {@code NOT NULL} ci-dessus, ou
+         * il ne peut vouloir dire que « ne touche pas ». Sans cela, trois points
+         * poses par erreur seraient ineffacables depuis la console. Meme regle
+         * que {@code AdminSkillPromptUpdateRequest.checklist}.
+         */
+        java.util.List<String> learningPoints,
+
         @Min(value = 1, message = "Le rang d'affichage doit être compris entre 1 et 50.")
         @Max(value = 50, message = "Le rang d'affichage doit être compris entre 1 et 50.")
         Integer displayOrder,

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/skill_models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../expression_labels.dart';
+import '../../widgets/production_common.dart';
 import '../../../../core/utils/skill_progress.dart';
 import '../../../../core/widgets/premium_lock.dart';
 import '../../../../core/widgets/pressable_card.dart';
-import '../../../../core/widgets/progress_ring.dart';
-import '../../../../core/widgets/skill_mastery_tag.dart';
 
 /// Ligne d'une compétence, structure de la maquette client : **anneau de
 /// progression** (« 2/5 »), titre, état en clair, chevron.
@@ -15,15 +15,19 @@ import '../../../../core/widgets/skill_mastery_tag.dart';
 /// compétence dans sa tâche n'apprend rien au candidat, alors que « où j'en
 /// suis sur cette compétence » est exactement ce qu'il vient chercher.
 ///
-/// La progression se lit en **sujets traités** (et non validés — §12 de la
-/// spec) : c'est ce que dit l'anneau.
+/// 🛑 **« Acquis » ⇔ `masteryState == SOLID`, et rien d'autre** (arbitrage du
+/// 2026-09-12) : transfert **prouvé sur une production complète**, pas une
+/// série de micro-exercices terminée. La ligne d'état dit les deux —
+/// « Acquis », « Série terminée · 5/5 », « En cours · 2/5 réussis »,
+/// « À découvrir » — parce que les confondre reproduirait le défaut que le
+/// dépôt nomme « NON FRAGILE ≠ PLUS RIEN À APPRENDRE ». Tout vient de
+/// `expression_labels.dart`, miroir de `web_sejoufr/lib/expression.ts`.
 ///
-/// ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** sous le
-/// titre (décision propriétaire) : un compte de sujets dit ce que le candidat a
-/// *fait*, `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se
-/// pose. Sans observation (`masteryState == null`), et seulement là, le libellé
-/// de progression reprend sa place : le serveur n'a rien vu, il n'y a pas
-/// d'état à annoncer.
+/// ⚠️ **Sans palier sur la pastille** : le serveur sait dire « cette compétence
+/// est solide », jamais « tu l'as au A2 mais pas au B2 ».
+///
+/// ⚠️ L'anneau de progression a quitté la carte (maquette `detail_tache.png`) :
+/// il répétait en image ce que la ligne d'état dit en mots.
 ///
 /// Une compétence **verrouillée** (`skill.locked`, calculé serveur) reste
 /// entièrement lisible : titre et état ne bougent pas, l'anneau cède la place
@@ -43,8 +47,7 @@ class CompetenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final complete = skill.isComplete;
-    final tone = complete ? AppColors.green : accent;
+    final badge = competenceBadge(skill);
 
     return PressableCard(
       onTap: onTap,
@@ -52,23 +55,11 @@ class CompetenceCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Verrouillée, la compétence n'a pas d'anneau : il n'aurait rien à
-            // raconter. Le cadenas prend sa place, à la même taille (miroir du
-            // web) — le reste de la carte ne bouge pas d'un pixel.
-            if (skill.locked)
-              const PremiumLockTile(size: 46)
-            else
-              ProgressRing(
-                value: skill.progress * 100,
-                size: 46,
-                stroke: 5,
-                color: tone,
-                label: '${skill.attemptedCount}',
-                sub: '/${skill.promptCount}',
-                textColor: tone,
-                subColor: AppColors.inkFaint,
-              ),
-            const SizedBox(width: 12),
+            // Verrouillée, la compétence garde tout : seul le cadenas s'ajoute.
+            if (skill.locked) ...[
+              const PremiumLockTile(size: 46),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,30 +76,22 @@ class CompetenceCard extends StatelessWidget {
                   // L'état **reste** sur une compétence verrouillée : un
                   // candidat qui y a déjà produit garde ce qu'il a appris de
                   // ses propres productions, le cadenas ne l'efface pas.
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 5,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (skill.locked) const PremiumLockTag(),
-                      if (skill.masteryState != null)
-                        SkillMasteryTag(state: skill.masteryState!)
-                      else
-                        Text(
-                          competenceProgressLabel(skill),
-                          style: AppFonts.ui(
-                            size: 11.5,
-                            weight: FontWeight.w600,
-                            color: AppColors.inkSoft,
-                          ),
-                        ),
-                    ],
+                  Text(
+                    competenceStatus(skill),
+                    style: AppFonts.ui(
+                      size: 12.5,
+                      weight: FontWeight.w600,
+                      color: AppColors.inkSoft,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 10),
-            const CardChevron(),
+            if (skill.locked)
+              const PremiumLockTag()
+            else
+              ExpressionStateBadge(label: badge.label),
           ],
         ),
       ),

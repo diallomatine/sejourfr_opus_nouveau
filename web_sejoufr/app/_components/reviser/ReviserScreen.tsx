@@ -4,9 +4,16 @@
  * **L'écran « Réviser »** — la maquette du propriétaire
  * (`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`), montée sur le KIT.
  *
- * Trois blocs, et rien d'autre : l'en-tête, la carte **« Reprendre là où vous
- * vous êtes arrêté »**, puis la liste des cinq épreuves (TCF) ou des cinq
- * thèmes (civique).
+ * L'en-tête, la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
+ * liste des **quatre épreuves** du TCF IRN — ou des cinq thèmes en civique.
+ *
+ * 🛑 **« Structure de la langue » n'est PAS une cinquième épreuve** (arbitrage
+ * du propriétaire, 2026-09-13). Le TCF IRN en comporte quatre : CO, CE, EE,
+ * EO. Elle est donc sortie de la liste et rangée dans sa propre section,
+ * « Renforcer mon français », avec une note qui le dit — l'équivalent du
+ * bandeau que le mobile posait déjà sur son écran de détail. Le backend
+ * l'excluait déjà de l'examen blanc, du Plan et du diagnostic : seul
+ * l'affichage la présentait comme un pair.
  *
  * 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
  * c'est la première ligne de la séance du jour côté TCF, la cible de rang 1
@@ -36,6 +43,7 @@ import {
   FileText,
   Gavel,
   Globe,
+  Info,
   Landmark,
   LayoutGrid,
   Mic,
@@ -77,6 +85,7 @@ import {
 import {
   Cta,
   EpreuveRow,
+  NoteCard,
   Pad,
   Section,
   SejourApp,
@@ -97,7 +106,12 @@ import {
   reviserSectionTitle,
   reviserSubtitle,
   themeLigneFor,
+  REVISER_RENFORCER_NOTE,
+  REVISER_RENFORCER_NOTE_TITLE,
+  REVISER_RENFORCER_TITLE,
   sectionEpreuve,
+  TCF_CODE_COMPLEMENTAIRE,
+  TCF_EPREUVES_OFFICIELLES,
   themeStatus,
 } from "@/lib/reviser";
 import styles from "./reviser.module.css";
@@ -120,9 +134,13 @@ function iconFor(code: string): LucideIcon {
   return ICONS[code] ?? BookOpen;
 }
 
-/** Ordre canonique des cinq épreuves TCF — le serveur sert les thèmes QCM puis
- *  ajoute EE/EO en synthétique. */
-const TCF_ORDER = ["TCF_CO", "TCF_CE", "TCF_STRUCTURE", "TCF_EE", "TCF_EO"];
+/** Ordre canonique des **quatre** épreuves du TCF IRN — le serveur sert les
+ *  thèmes QCM puis ajoute EE/EO en synthétique.
+ *
+ *  🛑 **Structure de la langue n'y figure pas** : ce n'est pas une épreuve de
+ *  l'examen (cf. `TCF_EPREUVES_OFFICIELLES`). Elle a sa propre section, sous
+ *  les quatre, avec sa note. */
+const TCF_ORDER: readonly string[] = TCF_EPREUVES_OFFICIELLES;
 
 /** Où mène une ligne : l'écran de détail **qui existe déjà**. */
 function hrefFor(stat: DashboardCategoryStat): string {
@@ -216,6 +234,9 @@ function TcfBody({
   const busy = exercise.starting || assessment.starting !== null;
 
   const stats = useMemo(() => orderedTcf(summary), [summary]);
+  /* 🛑 Servie comme les autres, mais rangée à part : ce n'est pas une épreuve
+     du TCF IRN. `orderedTcf` ne la trouve plus dans son ordre canonique. */
+  const complementaire = useMemo(() => statComplementaire(summary), [summary]);
 
   const reprendre = () => {
     if (!item) return;
@@ -275,14 +296,35 @@ function TcfBody({
           </Stack>
         </Pad>
       </Section>
+      <Section title={REVISER_RENFORCER_TITLE}>
+        <Pad>
+          <Stack>
+            <EpreuveRow
+              icon={iconFor(complementaire.code)}
+              title={complementaire.label}
+              status={epreuveStatus(complementaire, null)}
+              meta={epreuveMeta(complementaire, null)}
+              ratio={epreuveRatio(complementaire, null)}
+              href={hrefFor(complementaire)}
+            />
+            <NoteCard
+              variant="soft"
+              icon={Info}
+              title={REVISER_RENFORCER_NOTE_TITLE}
+            >
+              <p className={styles.sub}>{REVISER_RENFORCER_NOTE}</p>
+            </NoteCard>
+          </Stack>
+        </Pad>
+      </Section>
     </>
   );
 }
 
 /**
- * Les cinq épreuves, dans l'ordre canonique.
+ * Les **quatre** épreuves du TCF IRN, dans l'ordre canonique.
  *
- * Un visiteur n'a pas de tableau de bord : on rend le **catalogue** (les cinq
+ * Un visiteur n'a pas de tableau de bord : on rend le **catalogue** (les quatre
  * épreuves, à zéro), plutôt qu'un écran vide. Rien n'y est mesuré, et chaque
  * ligne le dit.
  */
@@ -307,6 +349,34 @@ function orderedTcf(
         seriesDone: 0,
         seriesTotal: 0,
       },
+  );
+}
+
+/**
+ * Structure de la langue, servie comme les autres mais **hors des quatre**.
+ *
+ * Même repli qu'`orderedTcf` : un visiteur la voit à zéro plutôt que pas du
+ * tout — la page reste un catalogue.
+ */
+function statComplementaire(
+  summary: DashboardSummaryResponse | null,
+): DashboardCategoryStat {
+  return (
+    (summary?.tcf ?? []).find((c) => c.code === TCF_CODE_COMPLEMENTAIRE) ?? {
+      themeId: null,
+      code: TCF_CODE_COMPLEMENTAIRE,
+      label: TCF_FALLBACK_LABEL[TCF_CODE_COMPLEMENTAIRE],
+      percent: null,
+      answered: 0,
+      total: 0,
+      mockExams: 0,
+      bestMockScore: null,
+      lastMockScore: null,
+      prevMockScore: null,
+      level: null,
+      seriesDone: 0,
+      seriesTotal: 0,
+    }
   );
 }
 

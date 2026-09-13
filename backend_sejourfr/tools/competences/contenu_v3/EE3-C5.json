@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C5",
+  "rang": 5,
+  "titre": "Faire progresser son propos sans se répéter",
+  "critere": "Apporter une idée nouvelle qui avance — sans quota d'arguments ni retour sur la précédente.",
+  "remplace": "EE3-C5 — Ajouter un deuxième argument distinct (15 sujets désactivés : demandes argumentées en milieu professionnel, bâties sur un quota de deux arguments)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Le parc du bord de l'eau",
+      "context": "Un site de la ville vous écrit : « Vous avez commencé votre avis sur le parc en parlant de son calme. Poursuivez votre réponse. »",
+      "instruction": "Donnez votre avis sur ce parc en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte quelque chose de nouveau sur ce parc : aucune ne redit la précédente autrement.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce parc est un endroit très calme…",
+      "tip": "reformuler n'est pas avancer : passez à autre chose",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce parc est un endroit très calme. On y est vraiment tranquille, loin du bruit. C'est un lieu paisible où l'on se repose. Le silence y est agréable et reposant. Franchement, on s'y sent au calme, ce qui est rare en ville aujourd'hui.",
+          "pedagogicalNote": "Cinq phrases disent la même chose : calme, tranquille, paisible, silencieux. Le propos n'avance pas d'un mot."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce parc est un endroit très calme. Les arbres sont assez vieux pour donner une vraie ombre en juillet. Les allées sont larges, on peut y courir sans gêner les promeneurs. Et comme il longe la rivière, l'air y est plus frais qu'ailleurs en pleine chaleur.",
+          "pedagogicalNote": "Quatre phrases, quatre idées différentes : calme, ombre, allées, fraîcheur. Rien ne se répète."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce parc est un endroit très calme. Ses arbres sont assez vieux pour donner une ombre continue en juillet, ce qui manque aux parcs récents. Les allées, larges, permettent de courir sans slalomer entre les poussettes. Et le long de la rivière, il fait toujours deux ou trois degrés de moins.",
+          "pedagogicalNote": "Chaque idée est non seulement nouvelle mais précisée, et l'avant-dernière se compare aux parcs récents sans revenir en arrière."
+        }
+      ]
+    },
+    {
+      "title": "L'aspirateur sans fil",
+      "context": "Votre frère vous écrit : « Tu as commencé à me dire du bien de ton aspirateur. Continue, je veux comprendre. »",
+      "instruction": "Donnez votre avis sur cet appareil en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cet appareil, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cet aspirateur est très pratique…",
+      "tip": "« pratique », « commode », « facile » sont le même mot",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cet aspirateur est très pratique. Il est vraiment commode à utiliser au quotidien. Son maniement est simple et il ne demande aucun effort. C'est un appareil facile, qui rend service tous les jours sans jamais compliquer les choses. Bref, il est très pratique.",
+          "pedagogicalNote": "Pratique, commode, simple, facile : cinq façons de dire la même chose, et la dernière phrase boucle sur la première."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cet aspirateur est très pratique. Il se décroche en deux secondes pour aspirer la voiture ou les escaliers. La batterie tient vingt-cinq minutes, assez pour tout l'appartement. Le bac se vide au-dessus de la poubelle sans qu'on touche la poussière. Il se range debout dans un placard.",
+          "pedagogicalNote": "Cinq idées distinctes : modularité, autonomie, vidage, rangement. Aucune ne redit la précédente."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cet aspirateur est très pratique. Il se décroche en deux secondes pour la voiture ou les escaliers, là où un traîneau ne monte pas. La batterie tient vingt-cinq minutes, soit tout l'appartement d'une traite. Le bac se vide sans qu'on touche la poussière, ce qui compte quand on est allergique.",
+          "pedagogicalNote": "Chaque idée nouvelle porte en plus la raison de son importance, sans jamais revenir à la précédente."
+        }
+      ]
+    },
+    {
+      "title": "La maîtresse de CE1",
+      "context": "Un parent vous écrit : « Tu as commencé à me parler de la maîtresse de CE1. Continue, je voudrais en savoir plus. »",
+      "instruction": "Donnez votre avis sur cette personne en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cette personne, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette maîtresse est très bien…",
+      "tip": "patiente, calme, douce : trois mots pour une seule idée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette maîtresse est très bien. Elle est patiente avec les enfants. Elle ne s'énerve jamais. Elle reste calme en toute circonstance. Elle est douce dans sa façon de parler. Elle ne hausse jamais le ton. C'est quelqu'un de très posé.",
+          "pedagogicalNote": "Six phrases pour une seule qualité : le calme. Le lecteur n'apprend rien après la deuxième."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette maîtresse est très bien. Elle ne s'énerve jamais, même en fin de journée. Elle envoie chaque vendredi un mot sur ce qui a été travaillé. Elle repère très vite les enfants en difficulté et prévient les parents avant que cela s'installe. Elle fait sortir la classe dehors dès qu'il fait beau.",
+          "pedagogicalNote": "Quatre idées entièrement différentes : tempérament, communication, vigilance, pédagogie."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette maîtresse est très bien. Elle ne s'énerve jamais, même en fin de journée. Chaque vendredi, un mot dans le cahier dit ce qui a été travaillé et ce qui coince. Elle repère les difficultés avant nous, et prévient sans attendre le trimestre. Elle sort la classe dès qu'il fait beau, même quinze minutes.",
+          "pedagogicalNote": "Les quatre idées restent distinctes et chacune gagne une précision qui n'était pas dans la précédente."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du chantier",
+      "context": "Un voisin vous écrit : « Tu as commencé à parler de l'équipe qui a refait ta salle de bains. Continue. »",
+      "instruction": "Donnez votre avis sur cette équipe en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cette équipe, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe a été très sérieuse…",
+      "tip": "sérieux, professionnel, rigoureux : une seule idée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe a été très sérieuse. Ils sont vraiment professionnels. Leur travail est soigné. On sent qu'ils connaissent leur métier. C'est du sérieux du début à la fin. Vraiment, des gens rigoureux comme on aimerait en trouver plus souvent. Du bon travail, vraiment, il n'y a rien à redire là-dessus.",
+          "pedagogicalNote": "Sérieux, professionnels, soignés, rigoureux : la même idée répétée six fois."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe a été très sérieuse. Ils sont arrivés à sept heures chaque matin, sans exception. Ils protégeaient le couloir avec des bâches avant de commencer. Le devis n'a pas bougé d'un euro. Et ils ont emporté tous les gravats le dernier jour, sans qu'on ait à demander.",
+          "pedagogicalNote": "Quatre faits différents : ponctualité, protection, devis, fin de chantier. Aucun ne répète l'autre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe a été très sérieuse. Sept heures chaque matin, sans exception, y compris le lendemain du jour férié. Ils bâchaient le couloir avant de poser le premier outil. Le devis n'a pas bougé d'un euro malgré deux imprévus. Et les gravats sont partis le dernier soir, sans qu'on demande.",
+          "pedagogicalNote": "Chaque idée nouvelle s'accompagne de ce qui la rend remarquable, sans jamais recycler la précédente."
+        }
+      ]
+    },
+    {
+      "title": "Le camping au bord du lac",
+      "context": "Un site de voyage vous écrit : « Vous avez commencé votre avis sur ce camping. Poursuivez, votre retour aidera les visiteurs. »",
+      "instruction": "Donnez votre avis sur ce camping en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur ce lieu, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce camping est une bonne adresse…",
+      "tip": "un avis qui tourne en rond n'aide personne à choisir",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce camping est une bonne adresse. C'est un endroit vraiment agréable. On y passe un bon séjour. L'ensemble est très plaisant. C'est un lieu où l'on se sent bien. Je le recommande, c'est une adresse à retenir pour les vacances.",
+          "pedagogicalNote": "Bonne adresse, agréable, plaisant, on s'y sent bien : rien n'est dit, six fois."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce camping est une bonne adresse. Les emplacements sont séparés par des haies, on n'entend pas les voisins. Les sanitaires sont nettoyés deux fois par jour. L'accès au lac se fait par un sentier de deux minutes. Et le pain est livré chaque matin à l'accueil.",
+          "pedagogicalNote": "Quatre informations différentes, toutes utiles à quelqu'un qui choisit un camping."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce camping est une bonne adresse. Les emplacements sont séparés par de vraies haies, pas des piquets : on n'entend pas les voisins. Les sanitaires sont nettoyés deux fois par jour, même en août. Le lac est à deux minutes par un sentier ombragé. Le pain arrive à l'accueil avant huit heures.",
+          "pedagogicalNote": "Les quatre idées restent distinctes, et chacune anticipe la question que le lecteur allait poser."
+        }
+      ]
+    },
+    {
+      "title": "Le matelas acheté en ligne",
+      "context": "Une amie vous écrit : « Tu as commencé à me parler de ton matelas. Continue, j'hésite à commander le même. »",
+      "instruction": "Donnez votre avis sur cet objet en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cet objet, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce matelas est un bon achat…",
+      "tip": "confortable dit trois fois reste une seule information",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce matelas est un bon achat. Il est vraiment confortable. On y dort très bien. Le confort est au rendez-vous. C'est agréable de s'y allonger. Franchement, question confort, il n'y a rien à redire, on s'y sent très bien. Le confort est excellent, je le redis, c'est un matelas confortable.",
+          "pedagogicalNote": "Confort, confortable, on y dort bien, agréable : une seule idée, six formulations."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce matelas est un bon achat. Il est assez ferme pour qu'on ne s'enfonce pas au milieu. Il ne renvoie pas la chaleur, ce qui compte l'été. On ne sent pas l'autre bouger pendant la nuit. Et après un an, il n'a pas creusé aux endroits d'appui.",
+          "pedagogicalNote": "Quatre critères différents : fermeté, température, indépendance de couchage, tenue dans le temps."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce matelas est un bon achat. Assez ferme pour qu'on ne s'enfonce pas au milieu, même à deux. Il ne renvoie pas la chaleur, ce qui a changé mes nuits de juillet. On ne sent pas l'autre se retourner. Et après un an, aucune cuvette là où on dort — c'est là qu'on juge un matelas.",
+          "pedagogicalNote": "« C'est là qu'on juge un matelas » clôt en désignant le critère décisif, sans répéter les précédents."
+        }
+      ]
+    },
+    {
+      "title": "Le kiné du centre",
+      "context": "Votre voisin vous écrit : « Tu as commencé à me parler de ce kiné. Continue, je dois choisir cette semaine. »",
+      "instruction": "Donnez votre avis sur cette personne en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cette personne, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce kiné est très bon…",
+      "tip": "trois qualités voisines n'en font qu'une seule",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce kiné est très bon. Il est à l'écoute de ses patients. Il fait attention à ce qu'on lui dit. Il prend le temps d'écouter. Il est attentif et disponible. On sent qu'il s'intéresse vraiment à nous et qu'il nous écoute sincèrement.",
+          "pedagogicalNote": "À l'écoute, attentif, il écoute, il s'intéresse : six phrases pour une seule qualité."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce kiné est très bon. Il commence par vous faire marcher avant de toucher quoi que ce soit. Il donne trois exercices maximum à faire chez soi, jamais dix. Il dit clairement combien de séances il prévoit. Et il arrête le traitement quand ça va mieux, sans prolonger.",
+          "pedagogicalNote": "Quatre idées distinctes, dont la dernière est celle qu'on n'attendait pas."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce kiné est très bon. Il vous fait marcher avant de toucher quoi que ce soit. Il donne trois exercices maximum pour la maison, parce qu'au-delà personne ne les fait. Il annonce dès la première séance combien il en prévoit. Et il arrête quand ça va mieux, sans étirer l'ordonnance.",
+          "pedagogicalNote": "Chaque idée nouvelle porte sa justification, et la dernière touche à l'honnêteté — un registre qu'aucune autre n'occupait."
+        }
+      ]
+    },
+    {
+      "title": "Les habitants de l'allée",
+      "context": "Un futur voisin vous écrit : « Tu as commencé à me décrire les gens de l'allée. Continue, ça m'intéresse beaucoup. »",
+      "instruction": "Donnez votre avis sur ce groupe en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur ce groupe, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Les gens de l'allée sont très bien…",
+      "tip": "sympa, gentil, agréable, aimable : un seul mot",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Les gens de l'allée sont très bien. Ils sont sympathiques. Ils sont gentils avec tout le monde. Ce sont des gens agréables. Ils sont aimables quand on les croise. Bref, une allée où les voisins sont vraiment sympas, ça change tout.",
+          "pedagogicalNote": "Sympathiques, gentils, agréables, aimables, sympas : la même idée, cinq fois, et un bouclage final."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Les gens de l'allée sont très bien. On se garde les colis sans que personne l'ait organisé. Il y a un groupe de messages où l'on prévient quand un camion bloque le passage. Les enfants jouent ensemble le mercredi. Et personne n'a jamais fait de remarque sur le bruit d'un déménagement.",
+          "pedagogicalNote": "Quatre faits différents, qui montrent quatre aspects distincts de la vie de l'allée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Les gens de l'allée sont très bien. On se garde les colis sans que personne ne l'ait décidé. Un groupe de messages sert à prévenir quand un camion bloque le passage, et à rien d'autre. Les enfants jouent ensemble le mercredi. Personne n'a jamais râlé pour le bruit d'un déménagement.",
+          "pedagogicalNote": "« Et à rien d'autre » est le genre de précision qui distingue une allée d'une autre : l'idée progresse encore."
+        }
+      ]
+    },
+    {
+      "title": "La halle aux grains",
+      "context": "L'office du tourisme vous écrit : « Vous avez commencé un avis sur la halle aux grains. Poursuivez, nous le publierons. »",
+      "instruction": "Donnez votre avis sur ce lieu en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur ce lieu, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La halle aux grains mérite le détour…",
+      "tip": "beau, magnifique, superbe, splendide : une seule idée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La halle aux grains mérite le détour. C'est un très beau bâtiment. L'architecture est magnifique. C'est vraiment superbe à voir. On reste impressionné devant une telle beauté. Franchement, c'est splendide, il faut absolument aller le voir quand on passe par là.",
+          "pedagogicalNote": "Beau, magnifique, superbe, splendide : cinq synonymes, aucune information."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La halle aux grains mérite le détour. Sa charpente en bois tient sans un seul pilier au centre, sur trente mètres. Les murs de brique gardent la fraîcheur même en août. Elle sert aujourd'hui de salle de concert, et l'acoustique y est réputée. L'entrée est libre en semaine.",
+          "pedagogicalNote": "Quatre idées différentes : structure, thermique, usage actuel, accès."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La halle aux grains mérite le détour. Sa charpente couvre trente mètres sans un seul pilier central, ce qui se voit dès qu'on entre. Les murs de brique gardent la fraîcheur en plein août. Elle sert de salle de concert, et les musiciens viennent pour l'acoustique. Entrée libre en semaine.",
+          "pedagogicalNote": "Chaque idée reste distincte et gagne une preuve — « les musiciens viennent pour » vaut mieux que « réputée »."
+        }
+      ]
+    },
+    {
+      "title": "Le sèche-linge de la buanderie",
+      "context": "La résidence vous écrit : « Vous avez commencé un avis sur le sèche-linge commun. Merci de poursuivre. »",
+      "instruction": "Donnez votre avis sur cet appareil en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cet appareil, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce sèche-linge est décevant…",
+      "tip": "un défaut répété reste un seul défaut",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce sèche-linge est décevant. Il ne sèche pas bien. Le linge sort encore humide. On doit souvent relancer un cycle. Le séchage est insuffisant. Bref, il ne fait pas correctement ce pour quoi il est là, c'est vraiment décevant. Le résultat n'est pas à la hauteur, on est déçus du séchage.",
+          "pedagogicalNote": "Un seul défaut — le séchage insuffisant — reformulé cinq fois, avec un retour à la première phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce sèche-linge est décevant. Le linge sort encore humide au bout du cycle complet. Le filtre se sature en deux utilisations et personne ne le nettoie. Le tambour marque le linge clair. Et le minuteur affiche quarante minutes quand il en reste soixante.",
+          "pedagogicalNote": "Quatre défauts indépendants : séchage, filtre, tambour, affichage."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce sèche-linge est décevant. Le linge sort humide au bout d'un cycle complet, donc chacun en lance deux. Le filtre sature en deux utilisations, et personne ne le nettoie entre les passages. Le tambour laisse des traces grises sur le linge clair. Quant au minuteur, il ment d'un bon quart d'heure.",
+          "pedagogicalNote": "Le premier défaut explique une conséquence collective, puis trois autres défauts sans lien entre eux : rien ne tourne en rond."
+        }
+      ]
+    },
+    {
+      "title": "Le gérant de la supérette",
+      "context": "Un site d'avis vous écrit : « Vous avez commencé un avis sur le gérant de cette supérette. Poursuivez votre réponse. »",
+      "instruction": "Donnez votre avis sur cette personne en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cette personne, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce gérant tient très bien son magasin…",
+      "tip": "chaque phrase doit apprendre quelque chose de neuf",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce gérant tient très bien son magasin. Il s'en occupe vraiment bien. On voit qu'il y consacre du temps. Sa gestion est sérieuse. Il fait tourner son commerce correctement. C'est quelqu'un qui tient bien sa boutique, ça se remarque tout de suite.",
+          "pedagogicalNote": "Six phrases qui disent « il tient bien son magasin » : le propos revient à son point de départ."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce gérant tient très bien son magasin. Il commande à la demande : si on cherche un produit deux fois, il le prend. Il baisse les prix des fruits la veille plutôt que de les jeter. Il connaît les habitudes des personnes âgées et leur met de côté. Il ouvre le dimanche matin.",
+          "pedagogicalNote": "Quatre pratiques différentes, chacune révélant un aspect distinct de sa manière de travailler."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce gérant tient très bien son magasin. Si on demande un produit deux fois, il le commande la semaine suivante. Il solde les fruits la veille plutôt que de les jeter. Il met de côté pour les personnes âgées qui viennent tard. Et il n'a jamais fermé un dimanche matin depuis six ans.",
+          "pedagogicalNote": "Les quatre idées progressent, et la dernière ajoute une durée qui donne du poids à tout ce qui précède."
+        }
+      ]
+    },
+    {
+      "title": "L'atelier théâtre",
+      "context": "La maison de quartier vous écrit : « Vous avez commencé un avis sur le groupe de l'atelier théâtre. Merci de poursuivre. »",
+      "instruction": "Donnez votre avis sur ce groupe en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur ce groupe, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce groupe est très accueillant…",
+      "tip": "accueillant, ouvert, chaleureux : gardez-en un seul",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce groupe est très accueillant. On s'y sent bien reçu. Les gens sont ouverts aux nouveaux. L'ambiance est chaleureuse. On est bien accueilli dès le premier jour. C'est vraiment un groupe où l'on se sent tout de suite le bienvenu.",
+          "pedagogicalNote": "Accueillant, bien reçu, ouvert, chaleureux, bienvenu : une seule idée, six habillages."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce groupe est très accueillant. Chacun peut refuser un rôle sans avoir à se justifier. Les textes sont choisis à la majorité, jamais imposés. Les timides commencent par des scènes courtes. Et personne ne commente le jeu des autres en dehors du temps prévu pour ça.",
+          "pedagogicalNote": "Quatre règles implicites du groupe, toutes différentes, toutes vérifiables."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce groupe est très accueillant. On peut refuser un rôle sans se justifier, et personne ne revient dessus. Les textes se choisissent à la majorité. Les timides commencent par des scènes à deux répliques. Et les remarques sur le jeu ne se font qu'au moment prévu — jamais dans le couloir.",
+          "pedagogicalNote": "« Jamais dans le couloir » précise la quatrième règle d'une manière que les trois autres n'avaient pas occupée."
+        }
+      ]
+    },
+    {
+      "title": "Le sentier du plateau",
+      "context": "Un club de randonnée vous écrit : « Vous avez commencé un avis sur le sentier du plateau. Poursuivez pour nos adhérents. »",
+      "instruction": "Donnez votre avis sur ce sentier en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur ce sentier, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce sentier est exigeant…",
+      "tip": "dur, difficile, éprouvant, costaud : un seul mot suffit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce sentier est exigeant. Il est vraiment difficile. C'est une randonnée éprouvante. Le parcours est costaud. Il ne faut pas le sous-estimer, c'est dur. Vraiment, il vaut mieux être en forme, parce que c'est une marche exigeante. C'est vraiment une marche difficile, il ne faut pas y aller sans être prêt physiquement.",
+          "pedagogicalNote": "Exigeant, difficile, éprouvant, costaud, dur : le mot change, l'information non."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce sentier est exigeant. Les six cents mètres de dénivelé se font en trois kilomètres. Le sol est en pierres roulantes sur la moitié du parcours. Il n'y a aucune source après le premier tiers. En revanche, le plateau du sommet est plat et se marche très facilement.",
+          "pedagogicalNote": "Quatre informations distinctes, dont la dernière nuance sans revenir en arrière."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce sentier est exigeant. Six cents mètres de dénivelé en trois kilomètres seulement, donc ça monte tout le temps. La moitié du parcours est en pierres roulantes, éprouvantes à la descente plus qu'à la montée. Aucune source après le premier tiers. Le plateau, lui, se marche les mains dans les poches.",
+          "pedagogicalNote": "La remarque sur la descente est une idée nouvelle tirée du même fait, et la dernière image referme sans répéter."
+        }
+      ]
+    },
+    {
+      "title": "La cafetière du bureau",
+      "context": "Le comité vous écrit : « Vous avez commencé un avis sur la nouvelle cafetière. Merci de développer votre réponse. »",
+      "instruction": "Donnez votre avis sur cet objet en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cet objet, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cette cafetière est un bon choix…",
+      "tip": "bon, bien, réussi, satisfaisant : la même chose",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette cafetière est un bon choix. C'est un bon achat. Elle est bien. Le choix était le bon. On est satisfaits. Vraiment, c'est une réussite, tout le monde au bureau trouve que c'était un bon choix de l'acheter. Une bonne machine, en somme, et un bon investissement pour le service.",
+          "pedagogicalNote": "Bon choix, bon achat, bien, satisfaits, réussite : rien n'est dit sur la machine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette cafetière est un bon choix. Elle sert quatre tasses en moins d'une minute, donc plus de file d'attente à dix heures. Le bac à marc se vide sans outil. Elle s'éteint seule au bout d'une heure. Et elle accepte le café moulu, pas seulement les capsules.",
+          "pedagogicalNote": "Quatre qualités indépendantes, toutes vérifiables, aucune répétée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette cafetière est un bon choix. Quatre tasses en moins d'une minute : la file de dix heures a disparu. Le bac à marc se vide sans outil ni notice. Elle s'éteint seule au bout d'une heure, ce que l'ancienne ne faisait pas. Et elle prend du moulu, donc on n'est plus liés aux capsules.",
+          "pedagogicalNote": "Chaque idée neuve porte sa conséquence, et la dernière touche à un enjeu que les autres n'abordaient pas."
+        }
+      ]
+    },
+    {
+      "title": "L'entraîneur de l'équipe de jeunes",
+      "context": "Le club vous écrit : « Vous avez commencé un avis sur l'entraîneur des moins de treize ans. Poursuivez, s'il vous plaît. »",
+      "instruction": "Donnez votre avis sur cette personne en faisant avancer votre propos, sans revenir sur ce qui est déjà dit.",
+      "uniqueCriterion": "Chaque phrase apporte une idée nouvelle sur cette personne, sans reformuler la précédente.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Posez votre avis",
+        "Changez d'idée",
+        "Ne redites rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cet entraîneur est excellent…",
+      "tip": "excellent dit de cinq façons reste une seule information",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cet entraîneur est excellent. Il fait un travail remarquable. C'est vraiment quelqu'un de très bien. Son travail est de grande qualité. Il est parfait dans son rôle. On ne pourrait pas trouver mieux, c'est un excellent entraîneur pour ces jeunes.",
+          "pedagogicalNote": "Excellent, remarquable, très bien, de qualité, parfait : six phrases sans un seul fait."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cet entraîneur est excellent. Il fait jouer tout le monde au moins une mi-temps, même quand le match est serré. Il explique les erreurs à l'entraînement suivant, jamais sur le terrain. Il félicite les passes autant que les buts. Et il parle aux parents qui crient trop.",
+          "pedagogicalNote": "Quatre principes distincts, qui décrivent une manière d'entraîner et non des qualités abstraites."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cet entraîneur est excellent. Tout le monde joue au moins une mi-temps, y compris en finale de coupe. Les erreurs se corrigent à l'entraînement suivant, jamais devant les autres au bord du terrain. Il félicite les passes autant que les buts. Et il va voir les parents qui crient, au lieu de laisser faire.",
+          "pedagogicalNote": "« Y compris en finale de coupe » et « au lieu de laisser faire » poussent chaque idée jusqu'à son cas difficile."
+        }
+      ]
+    }
+  ]
+}

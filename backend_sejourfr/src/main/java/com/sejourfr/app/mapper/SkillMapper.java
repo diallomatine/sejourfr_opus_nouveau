@@ -37,6 +37,7 @@ public class SkillMapper {
                 skill.getDescription(),
                 skill.getGeneralCriterion(),
                 skill.getTargetLevel(),
+                skill.getLearningPoints(),
                 skill.getDisplayOrder(),
                 promptCount,
                 attemptedCount,

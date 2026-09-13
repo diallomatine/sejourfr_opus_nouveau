@@ -111,7 +111,9 @@ class DiagnosticSeedIT extends AbstractIntegrationTest {
         assertThat(codesOf(WRITTEN_ID)).containsExactly(
                 "EE1-C1", "EE1-C8", "EE2-C2", "EE2-C3", "EE2-C5", "EE2-C7", "EE3-C1", "EE3-C3");
         assertThat(codesOf(ORAL_ID)).containsExactly(
-                "EO1-C1", "EO1-C3", "EO2-C2", "EO2-C3", "EO2-C4", "EO2-C7", "EO3-C1", "EO3-C3");
+                // EO2-C9 et non EO2-C4 : V319 a retire EO2-C4, fondue dans EO2-C3.
+                // V320 repointe l'allowlist sur la competence qui occupe son rang.
+                "EO1-C1", "EO1-C3", "EO2-C2", "EO2-C3", "EO2-C9", "EO2-C7", "EO3-C1", "EO3-C3");
 
         assertThat(jdbc.queryForObject("""
                 SELECT count(*)

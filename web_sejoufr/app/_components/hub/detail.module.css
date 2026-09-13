@@ -995,3 +995,46 @@
     padding: 9px 14px;
   }
 }
+
+/* ===== bandeau « entraînement complémentaire » =====
+   Pendant web de `QcmNoticeBanner` côté mobile, que le web n'avait pas : un
+   candidat pouvait faire toute une série de Structure de la langue sans jamais
+   lire qu'elle n'est pas au programme du TCF IRN. Bleu (information), jamais
+   ambre ni rouge : ce module n'est ni un piège ni une erreur. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 26px;
+  border: 1px solid var(--color-blue-light);
+  border-radius: 14px;
+  background: var(--color-blue-soft);
+}
+
+.noticeIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.noticeTitle {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  margin: 0 0 4px;
+}
+
+.noticeText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  margin: 0;
+}

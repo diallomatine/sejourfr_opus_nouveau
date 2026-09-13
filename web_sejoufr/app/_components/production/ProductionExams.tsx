@@ -336,7 +336,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
               ? "Lisez la consigne sans pression : le chrono d'une tâche ne part que lorsque vous la lancez."
               : "Le chrono porte sur les 3 tâches ensemble ; le temps conseillé par tâche n'est qu'un repère.",
             "Les 3 tâches sont évaluées par l'IA après l'examen.",
-            "Le niveau final est le plancher de vos 3 tâches (règle TCF IRN).",
+            "Le niveau final est le plancher de vos 3 tâches.",
           ]}
           loading={starting}
           error={error}

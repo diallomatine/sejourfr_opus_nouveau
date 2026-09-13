@@ -682,24 +682,72 @@ class ProductionRubricsValidatorTest {
 
     // ------------------------------------------------------------------- v8
 
-    /** v8 (restitution) doit demarrer, comme toutes les versions precedentes. */
-    @Test
-    void validate_realV8File_noThrow() {
+    /**
+     * 🛑 <b>v8 a v11 ne demarrent plus, et c'est voulu.</b>
+     *
+     * <p>Ces quatre grilles ont ete livrees quand les taches EE 2 et 3 attendaient
+     * <b>60-90 mots</b> ; depuis {@code V724}, la base impose <b>40-90</b>. Elles
+     * ecrivent la fourchette en dur dans leurs consignes : les activer servirait
+     * au correcteur un minimum que le candidat ne peut pas rendre.
+     *
+     * <p>Les fichiers restent INTACTS (une version livree ne se reecrit jamais :
+     * c'est la trace de ce avec quoi les copies ont ete corrigees) — c'est leur
+     * ACTIVATION que le garde-fou de boot refuse.
+     *
+     * <p>⚠️ Ce test REMPLACE {@code validate_realV8File_noThrow}, qui exigeait
+     * l'inverse : le rollback vers ces paires n'est plus un geste sans
+     * consequence.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"v8", "v9", "v10", "v11"})
+    void validate_grillesAuxBornes60_90_refusentDeDemarrer(String version) {
         when(taskManager.findAllActive()).thenReturn(List.of());
         ProductionRubricsValidator v =
-                new ProductionRubricsValidator(realProvider("v8"), taskManager);
+                new ProductionRubricsValidator(realProvider(version), taskManager);
+
+        assertThatThrownBy(v::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Rubriques de notation invalides");
+    }
+
+    /**
+     * Les grilles recentes ne portent aucune fourchette fausse — et <b>v7 non
+     * plus</b> : la sienne vit dans {@code _note}, un commentaire de fichier qui
+     * n'est jamais rendu dans le prompt. Le garde-fou n'examine que ce qui part
+     * reellement au correcteur ({@code commun} et {@code rubrics}).
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"v7", "v12", "v13", "v14", "v15"})
+    void validate_grillesRecentes_demarrent(String version) {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider(version), taskManager);
 
         assertThatCode(v::validate).doesNotThrowAnyException();
     }
 
-    /** ...et v7 doit continuer de demarrer : le rollback est une bascule de paire. */
+    /** Une fourchette CONFORME (40-90) ne declenche rien, ou qu'elle soit ecrite. */
     @Test
-    void validate_realV7File_stillNoThrow() {
-        when(taskManager.findAllActive()).thenReturn(List.of());
-        ProductionRubricsValidator v =
-                new ProductionRubricsValidator(realProvider("v7"), taskManager);
+    void validate_fourchetteConforme_noThrow() {
+        Map<String, Map<String, Object>> all = sixRubriques();
+        all.get("EE_T2").put("consignes_correcteur", "La reponse attendue fait 40-90 mots.");
+        stub(all);
 
-        assertThatCode(v::validate).doesNotThrowAnyException();
+        assertThatCode(validator()::validate).doesNotThrowAnyException();
+    }
+
+    /** Une fourchette fausse est trouvee ou qu'elle vive, y compris dans le bloc commun. */
+    @Test
+    void validate_fourchetteFausseDansLeCommun_throws() {
+        when(rubrics.getCommun()).thenReturn(Map.of(
+                "sections", List.of(Map.of("titre", "Role", "contenu", "Une reponse de 60-90 mots.")),
+                "few_shot", List.of(Map.of("niveau", "A2"))));
+        when(rubrics.all()).thenReturn(sixRubriques());
+        when(rubrics.niveauCecrl()).thenReturn(new ProductionEvaluationProperties.NiveauCecrl());
+        lenient().when(taskManager.findAllActive()).thenReturn(List.of());
+
+        assertThatThrownBy(validator()::validate)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /**

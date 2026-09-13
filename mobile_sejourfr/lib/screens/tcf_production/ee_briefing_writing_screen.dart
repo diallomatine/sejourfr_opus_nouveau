@@ -587,7 +587,10 @@ class _Content extends StatelessWidget {
                 requirements: [
                   if (task.motsMin != null && task.motsMax != null)
                     '${task.motsMin}-${task.motsMax} mots',
-                  task.niveauCible,
+                  // « visé » en toutes lettres : ce palier est celui de la
+                  // variante jouée, pas une caractéristique officielle de la
+                  // tâche au TCF IRN. Miroir web : EeWritingForm.
+                  'Niveau visé ${task.niveauCible}',
                 ],
               ),
               // Repère de rythme, **indicatif et jamais bloquant** : le seul

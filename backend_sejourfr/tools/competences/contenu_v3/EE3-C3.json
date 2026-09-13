@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C3",
+  "rang": 3,
+  "titre": "Développer un argument",
+  "critere": "Expliquer comment ou pourquoi l'argument soutient la position, au lieu de simplement l'énumérer.",
+  "remplace": "EE3-C3 — Développer un argument (15 sujets désactivés)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "La piscine municipale",
+      "context": "Un site d'avis vous écrit : « Vous avez noté la piscine municipale. Développez en quelques lignes ce qui explique votre note. »",
+      "instruction": "Donnez votre avis sur cette piscine et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée : on comprend par quel enchaînement elle soutient votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette piscine est…",
+      "tip": "une raison posée puis abandonnée ne développe rien",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette piscine est très bien. Les vestiaires sont propres. L'eau est à la bonne température. Il y a plusieurs lignes d'eau. Les horaires sont larges. Le personnel est agréable. Le tarif est correct. La cafétéria est pratique aussi. Le parking est gratuit. Les casiers ferment bien. On y va souvent en famille le dimanche.",
+          "pedagogicalNote": "Sept raisons sont posées et aucune n'est expliquée : c'est une liste, pas un argument développé."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette piscine est très bien parce qu'une ligne d'eau est réservée aux nageurs lents. On n'est donc pas doublé toutes les vingt secondes par quelqu'un de plus rapide. Résultat, on peut nager à son rythme sans s'arrêter au bout, ce qui change tout quand on débute.",
+          "pedagogicalNote": "Une seule raison, mais menée jusqu'à son effet : réservation, conséquence, bénéfice pour le nageur."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette piscine est très bien parce qu'une ligne d'eau est réservée aux nageurs lents. On n'y est pas doublé toutes les vingt secondes, donc on ne s'arrête plus au bout pour laisser passer. Or c'est précisément l'arrêt qui coupe la respiration et décourage : en enchaînant les longueurs, on progresse vraiment.",
+          "pedagogicalNote": "L'enchaînement va jusqu'au bout — la cause du découragement est nommée, puis retournée en bénéfice."
+        }
+      ]
+    },
+    {
+      "title": "Le lave-linge partagé",
+      "context": "Votre colocataire vous écrit : « Tu dis que ce lave-linge est un bon choix pour une colocation. Développe un peu. »",
+      "instruction": "Donnez votre avis sur cet appareil et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée : on comprend par quel enchaînement elle soutient votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce lave-linge convient bien parce qu'…",
+      "tip": "expliquez le chemin entre la raison et l'avis",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce lave-linge convient bien à une colocation. Il est grand. Il a un départ différé. Il est silencieux. Il consomme peu. Il a un cycle rapide. Il est facile à utiliser. Le tambour est solide. Il a coûté un prix raisonnable.",
+          "pedagogicalNote": "Huit qualités énumérées, aucune expliquée : rien ne dit pourquoi cela compte en colocation."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce lave-linge convient bien parce qu'il a un départ différé. Chacun peut donc lancer sa machine la nuit, quand personne n'attend la salle de bains. Les lessives ne se bousculent plus le dimanche soir, et on ne trouve plus de linge mouillé oublié dans le tambour.",
+          "pedagogicalNote": "La raison est développée jusqu'à deux effets concrets sur la vie commune."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce lave-linge convient bien parce qu'il a un départ différé. Chacun programme sa machine pour la nuit, si bien que les quatre lessives de la semaine ne se bousculent plus le dimanche soir. Et comme le cycle finit au réveil, personne n'oublie son linge mouillé dans le tambour pendant deux jours.",
+          "pedagogicalNote": "Le « si bien que » et le « comme » enchaînent deux conséquences distinctes de la même raison."
+        }
+      ]
+    },
+    {
+      "title": "La coiffeuse du quartier",
+      "context": "Une voisine vous écrit : « Vous recommandez cette coiffeuse à tout le monde. Expliquez-moi vraiment pourquoi. »",
+      "instruction": "Donnez votre avis sur cette personne et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée : on comprend l'enchaînement entre sa manière de travailler et votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je la recommande parce qu'…",
+      "tip": "une qualité citée n'est pas une qualité démontrée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je la recommande. Elle est douce. Elle est rapide. Elle a le sens du contact. Elle connaît son métier. Elle a de bons produits. Elle est ponctuelle. Elle ne fait jamais attendre. Ses tarifs sont honnêtes. Elle prend sans rendez-vous. Le salon est clair. On ressort toujours content de sa visite.",
+          "pedagogicalNote": "Huit qualités alignées, aucune développée : on ne sait pas ce qui les prouve."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je la recommande parce qu'elle regarde vos cheveux avant de proposer quoi que ce soit. Elle touche, elle demande comment vous les coiffez le matin, combien de temps vous y passez. Elle propose donc une coupe que vous pouvez refaire seule, au lieu d'une coupe qui ne tient qu'en sortant.",
+          "pedagogicalNote": "La raison est développée par étapes, jusqu'au bénéfice qui compte : une coupe tenable à la maison."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je la recommande parce qu'elle regarde vos cheveux avant de proposer quoi que ce soit. Elle les touche, demande combien de temps vous y passez le matin, si vous utilisez un sèche-cheveux. La coupe qu'elle propose tient donc chez vous, pas seulement en sortant du salon — c'est là que la plupart échouent.",
+          "pedagogicalNote": "La dernière proposition situe l'argument par rapport à ce que font les autres, ce qui achève de le développer."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe de nuit de l'hôtel",
+      "context": "Un site d'avis vous écrit : « Vous avez souligné la qualité de l'équipe de nuit. Développez ce qui justifie ce jugement. »",
+      "instruction": "Donnez votre avis sur cette équipe et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée : on comprend comment le comportement du groupe soutient votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe de nuit est…",
+      "tip": "montrez comment leur façon de faire produit le résultat",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe de nuit est excellente. Ils sont souriants. Ils parlent plusieurs langues. Ils sont discrets. Ils connaissent la ville. Ils répondent vite. Ils sont bien organisés. Ils ne dorment jamais à la réception. Ils sont très professionnels. Ils sont polis. Ils connaissent les horaires des trains. On se sent en confiance avec eux.",
+          "pedagogicalNote": "Huit affirmations, aucune développée : le lecteur doit croire sur parole."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe de nuit est excellente parce qu'elle anticipe. Quand notre train a été annulé à minuit, ils avaient déjà noté les horaires de remplacement avant qu'on descende demander. Nous avons donc pu réserver un taxi dans la foulée, au lieu de perdre une heure à chercher.",
+          "pedagogicalNote": "Une raison abstraite — « elle anticipe » — développée par un fait, puis par son effet mesurable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe de nuit est excellente parce qu'elle anticipe. Notre train a été annulé à minuit : quand nous sommes descendus, ils avaient déjà relevé les horaires de remplacement et le numéro d'une compagnie de taxis. Nous avons réservé dans la foulée et dormi trois heures de plus que prévu.",
+          "pedagogicalNote": "L'effet est chiffré en heures de sommeil : la raison est développée jusqu'au bénéfice réel du client."
+        }
+      ]
+    },
+    {
+      "title": "Le parking souterrain",
+      "context": "La ville consulte : « Que pensez-vous du parking souterrain de la place ? Merci de développer votre réponse. »",
+      "instruction": "Donnez votre avis sur ce parking et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet, et porte sur ce parking.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce parking est…",
+      "tip": "un défaut mérite d'être expliqué autant qu'une qualité",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce parking est mal conçu. Les places sont étroites. Les piliers gênent. L'éclairage est faible. La signalisation manque. Les rampes sont raides. L'ascenseur tombe en panne. Le paiement est compliqué. On s'y perd facilement. Les places handicapées sont mal placées. Les caméras ne couvrent pas tout. La sortie piétonne est étroite. On ne s'y sent pas très rassuré.",
+          "pedagogicalNote": "Huit griefs alignés : aucun n'est expliqué, donc aucun ne convainc."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce parking est mal conçu parce que les places bordent directement les piliers. On ne peut ouvrir la portière que d'un côté, et jamais celui du passager. Les familles doivent donc faire descendre les enfants dans l'allée de circulation, là où les voitures tournent.",
+          "pedagogicalNote": "Un seul défaut, développé jusqu'à la situation dangereuse qu'il produit."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce parking est mal conçu parce que les places bordent directement les piliers. La portière ne s'ouvre que d'un côté, jamais celui du passager : les familles font donc descendre les enfants dans l'allée où les voitures tournent. Trente centimètres de plus par place auraient suffi à l'éviter.",
+          "pedagogicalNote": "La dernière phrase montre que le défaut était évitable, ce qui achève de développer l'argument."
+        }
+      ]
+    },
+    {
+      "title": "Le réfrigérateur de la salle de pause",
+      "context": "Le comité vous écrit : « Vous avez commenté le nouveau réfrigérateur de la salle de pause. Développez ce que vous en pensez. »",
+      "instruction": "Donnez votre avis sur cet appareil et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur l'usage quotidien.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce réfrigérateur est…",
+      "tip": "l'effet sur l'usage vaut mieux qu'une caractéristique de plus",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce réfrigérateur est un mauvais choix. Il est trop petit. Il fait du bruit. Il n'a pas de congélateur. Les clayettes sont fragiles. Le joint ferme mal. Il consomme beaucoup. Il est difficile à nettoyer. On ne voit rien au fond.",
+          "pedagogicalNote": "Huit reproches empilés, aucun développé : rien ne montre l'effet sur la vie de l'équipe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce réfrigérateur est un mauvais choix parce qu'il ne fait que cent litres pour quarante personnes. Les gamelles s'empilent dès dix heures et celles du dessous se renversent quand on fouille. Plusieurs collègues ont renoncé à apporter leur repas, ce qui était pourtant le but de l'achat.",
+          "pedagogicalNote": "Le défaut est chiffré, développé jusqu'au comportement qu'il provoque, puis relié à l'intention de départ."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce réfrigérateur est un mauvais choix parce qu'il ne fait que cent litres pour quarante personnes. Dès dix heures les gamelles s'empilent, et celles du dessous se renversent dès qu'on fouille. Quatre collègues ont renoncé à apporter leur repas — exactement ce que l'achat devait encourager.",
+          "pedagogicalNote": "Le retournement final — l'achat produit l'inverse de son but — est le point où l'argument est pleinement développé."
+        }
+      ]
+    },
+    {
+      "title": "Le professeur remplaçant",
+      "context": "L'établissement vous écrit : « Vous avez apprécié le travail du professeur remplaçant. Développez ce qui vous fait dire cela. »",
+      "instruction": "Donnez votre avis sur cette personne et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à un effet observable, sans se limiter aux résultats de votre enfant.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce remplaçant a fait…",
+      "tip": "la note de votre enfant est un effet, pas une explication",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce remplaçant a fait du bon travail. Ma fille a eu quinze au dernier contrôle, alors qu'elle avait dix avant. Elle a aussi eu seize en expression écrite. Elle est passée de la vingtième à la sixième place de la classe.",
+          "pedagogicalNote": "Vous donnez des résultats. Rien n'explique ce que le professeur a fait pour les obtenir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce remplaçant a fait du bon travail parce qu'il corrige devant la classe. Il projette une copie anonyme et montre où le raisonnement se perd, phrase par phrase. Les élèves voient donc leur propre erreur dans celle d'un autre, et ils la reconnaissent la fois suivante.",
+          "pedagogicalNote": "La méthode est décrite, puis expliquée, puis reliée à son effet sur l'apprentissage."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce remplaçant a fait du bon travail parce qu'il corrige devant la classe. Il projette une copie anonyme et montre, phrase par phrase, où le raisonnement se perd. Les élèves reconnaissent leur propre erreur dans celle d'un autre, sans être exposés eux-mêmes — c'est ce qui leur permet de la regarder en face.",
+          "pedagogicalNote": "L'argument est développé jusqu'à la raison psychologique qui le rend efficace : l'anonymat permet de regarder l'erreur."
+        }
+      ]
+    },
+    {
+      "title": "L'association de quartier",
+      "context": "La mairie vous écrit : « Vous avez un avis favorable sur l'association du quartier Nord. Développez ce qui le fonde. »",
+      "instruction": "Donnez votre avis sur ce groupe et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à un effet visible, sans se réduire à une liste d'activités.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette association est…",
+      "tip": "la liste des activités ne dit pas pourquoi elle fonctionne",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette association est très utile. Elle organise la fête de quartier, un vide-grenier, des cours de soutien, un atelier informatique, une collecte de jouets, des sorties pour les anciens et un tournoi de pétanque. Elle tient aussi la buvette du stade.",
+          "pedagogicalNote": "C'est un catalogue d'activités. Rien n'explique pourquoi l'association fonctionne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette association est très utile parce qu'elle confie une responsabilité précise à chaque bénévole. Personne n'est là « pour aider » : untel tient la caisse, untel gère les clés. Les gens reviennent donc l'année suivante, alors que la plupart des associations perdent leurs bénévoles après un an.",
+          "pedagogicalNote": "Une seule raison, développée jusqu'à l'effet qui compte : la fidélité des bénévoles."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette association est très utile parce qu'elle confie une responsabilité précise à chaque bénévole. Personne n'est là « pour aider » : untel tient la caisse, untel garde les clés. On sait donc ce qu'on vient faire, et on se sent attendu — c'est exactement ce qui manque ailleurs, où les volontaires s'épuisent en un an.",
+          "pedagogicalNote": "« On se sent attendu » nomme le ressort humain de l'argument : c'est le développement le plus fort possible."
+        }
+      ]
+    },
+    {
+      "title": "Le jardin partagé de la résidence",
+      "context": "Le bailleur vous écrit : « Vous avez donné un avis sur le jardin partagé. Merci de développer votre réponse. »",
+      "instruction": "Donnez votre avis sur ce jardin et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet, et porte sur ce jardin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce jardin est…",
+      "tip": "montrez ce que sa configuration produit, pas ce qu'il contient",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce jardin est une bonne chose. Il y a douze parcelles. Il y a un composteur. Il y a un point d'eau. Il y a un cabanon à outils. Il y a des tomates, des courgettes et des herbes. Il y a aussi deux bancs.",
+          "pedagogicalNote": "Un inventaire du jardin, sans un mot sur ce qui le rend bon."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce jardin est une bonne chose parce que les parcelles n'ont pas de clôture entre elles. On voit donc ce que fait le voisin, on demande pourquoi ses tomates tiennent mieux. Des gens qui se croisaient depuis dix ans sans se parler échangent maintenant des plants.",
+          "pedagogicalNote": "Une caractéristique du lieu développée jusqu'à son effet social, qui est le vrai sujet."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce jardin est une bonne chose parce que les parcelles n'ont aucune clôture entre elles. On voit ce que fait le voisin, donc on lui demande pourquoi ses tomates tiennent mieux que les nôtres. Des gens qui se croisaient depuis dix ans sans un mot s'échangent des plants — et cela ne se serait pas produit derrière un grillage.",
+          "pedagogicalNote": "La dernière proposition montre que l'effet dépend bien de la caractéristique nommée : l'argument boucle."
+        }
+      ]
+    },
+    {
+      "title": "Le nouvel abri à vélos",
+      "context": "Le syndic vous écrit : « Vous avez commenté le nouvel abri à vélos. Développez votre avis, nous transmettrons au conseil. »",
+      "instruction": "Donnez votre avis sur cet abri et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur l'usage, et porte sur cet abri.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cet abri est…",
+      "tip": "un détail de conception peut suffire, s'il est mené jusqu'au bout",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cet abri est mal fait. Il est trop petit. Il n'est pas couvert partout. Les arceaux sont trop serrés. Le sol est en gravier. La porte ferme mal. Il n'y a pas d'éclairage. Il est loin de l'entrée. Personne ne s'en sert.",
+          "pedagogicalNote": "Neuf griefs, aucun expliqué : le conseil ne saura pas lequel corriger en premier."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cet abri est mal fait parce que les arceaux sont espacés de quarante centimètres. Deux vélos voisins se touchent, et il faut soulever le sien pour le sortir. Les habitants préfèrent donc laisser leur vélo dans le hall, ce que l'abri devait justement éviter.",
+          "pedagogicalNote": "Un défaut chiffré, développé jusqu'au comportement qu'il produit et à l'échec de l'objectif."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cet abri est mal fait parce que les arceaux ne sont espacés que de quarante centimètres. Les guidons se chevauchent et il faut soulever son vélo pour le dégager — impossible avec un vélo chargé. Les habitants les laissent donc dans le hall, exactement ce que l'abri devait supprimer.",
+          "pedagogicalNote": "« Impossible avec un vélo chargé » montre pour qui le défaut est rédhibitoire : le développement est complet."
+        }
+      ]
+    },
+    {
+      "title": "La bibliothécaire du secteur jeunesse",
+      "context": "La médiathèque vous écrit : « Vous avez souligné le travail de la responsable jeunesse. Développez ce qui justifie votre avis. »",
+      "instruction": "Donnez votre avis sur cette personne et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur les enfants, sans se limiter à des qualités générales.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette bibliothécaire est…",
+      "tip": "montrez ce qu'elle fait, puis ce que cela produit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette bibliothécaire est formidable. Elle est patiente. Elle aime les enfants. Elle lit beaucoup. Elle connaît tous les albums. Elle a de la voix. Elle est créative. Elle prépare bien ses animations. Elle sourit toujours. Elle range bien les rayons. Elle décore la salle à chaque saison. Les enfants la reconnaissent dans la rue.",
+          "pedagogicalNote": "Huit qualités affirmées, aucune démontrée : rien n'explique son effet sur les enfants."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette bibliothécaire est formidable parce qu'elle demande à l'enfant ce qu'il a aimé dans son dernier livre avant d'en proposer un autre. Elle ne part pas de l'âge mais du goût. Mon fils, qui refusait de lire, a fini par réclamer la suite d'une série.",
+          "pedagogicalNote": "La méthode est décrite, opposée à la pratique habituelle, puis prouvée par un effet."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette bibliothécaire est formidable parce qu'elle demande à l'enfant ce qu'il a aimé avant de proposer autre chose. Elle part du goût, pas de l'âge — c'est pour cela qu'elle donne parfois un album à un grand sans que cela vexe personne. Mon fils, qui refusait de lire, réclame la suite d'une série.",
+          "pedagogicalNote": "L'exemple de l'album donné à un grand montre la conséquence la moins évidente de la méthode."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de randonnée",
+      "context": "Une connaissance vous écrit : « Tu dis que ce groupe de randonnée est bien organisé. Développe, j'hésite à m'inscrire. »",
+      "instruction": "Donnez votre avis sur ce groupe et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur les marcheurs, et porte sur ce groupe.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce groupe est bien organisé parce qu'…",
+      "tip": "une règle du groupe se juge à ce qu'elle évite",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce groupe est bien organisé. Il y a un chef de file. Il y a un serre-file. Les parcours sont préparés. Les horaires sont respectés. Le covoiturage est prévu. Le niveau est annoncé. Les pauses sont régulières. Il y a une trousse de secours.",
+          "pedagogicalNote": "Huit éléments d'organisation listés, aucun expliqué : on ne sait pas ce qu'ils produisent."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce groupe est bien organisé parce qu'un marcheur ferme toujours la file. Personne ne se retrouve seul derrière, même le plus lent. Les débutants n'ont donc pas à forcer pour rester dans le groupe, et ils ne s'épuisent pas dès la première montée.",
+          "pedagogicalNote": "Une règle, son effet immédiat, puis son effet sur les plus fragiles du groupe."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce groupe est bien organisé parce qu'un marcheur ferme toujours la file. Personne ne reste seul derrière, même le plus lent, qui n'a donc pas à forcer pour rattraper. C'est ce qui évite l'épuisement dès la première montée — et c'est aussi pour cela que les débutants reviennent une deuxième fois.",
+          "pedagogicalNote": "L'argument est mené jusqu'à ce qui intéresse vraiment quelqu'un qui hésite : est-ce qu'on y revient."
+        }
+      ]
+    },
+    {
+      "title": "La gare routière",
+      "context": "Un site de voyage vous écrit : « Vous avez donné une note basse à la gare routière. Développez ce qui l'explique. »",
+      "instruction": "Donnez votre avis sur ce lieu et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur les voyageurs, et porte sur ce lieu.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette gare routière est…",
+      "tip": "un seul défaut bien mené convainc plus que huit cités",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette gare routière est désagréable. Il n'y a pas assez de bancs. Les toilettes sont payantes. Il fait froid. Les quais sont mal indiqués. Le café est cher. Le sol est sale. Les annonces sont incompréhensibles. Il n'y a pas de wifi.",
+          "pedagogicalNote": "Huit reproches alignés : aucun n'est développé, donc aucun ne pèse."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette gare routière est désagréable parce que les quais ne sont annoncés qu'à cinq minutes du départ. Les voyageurs restent donc debout au milieu du hall, valise à la main, à surveiller l'écran. Avec une correspondance serrée, on n'ose même pas s'asseoir.",
+          "pedagogicalNote": "Un défaut, son effet direct, puis son effet sur les voyageurs les plus contraints."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette gare routière est désagréable parce que les quais ne s'affichent que cinq minutes avant le départ. Tout le monde reste debout au centre du hall, valise à la main, les yeux sur l'écran. Ceux qui ont une correspondance n'osent pas s'asseoir, et les bancs restent vides pendant que le hall est bondé.",
+          "pedagogicalNote": "L'image finale — bancs vides et hall bondé — prouve l'argument mieux qu'une affirmation."
+        }
+      ]
+    },
+    {
+      "title": "Le tableau blanc interactif",
+      "context": "L'école vous écrit : « Vous avez commenté le tableau interactif de la classe. Merci de développer votre avis. »",
+      "instruction": "Donnez votre avis sur cet équipement et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à son effet sur les élèves, et porte sur cet objet.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez à l'effet"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce tableau est…",
+      "tip": "l'effet sur les élèves est le bout de l'argument",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce tableau est utile. Il est grand. Il affiche des vidéos. On peut écrire dessus. On peut enregistrer. Il se connecte à internet. Il remplace le vidéoprojecteur. Il est tactile. Les élèves aiment bien s'en servir. Il est fixé au mur. Il a une télécommande. Il a remplacé l'ancien tableau noir de la classe.",
+          "pedagogicalNote": "Neuf fonctions listées : rien n'explique ce que le tableau change pour les élèves."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce tableau est utile parce qu'on peut revenir en arrière sur ce qui a été écrit. Quand un élève décroche, la maîtresse rappelle l'étape précédente sans tout réécrire. Les plus lents ne perdent donc plus le fil au milieu d'une démonstration.",
+          "pedagogicalNote": "Une fonction, son usage réel en classe, puis son effet sur les élèves concernés."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce tableau est utile parce qu'on peut revenir sur ce qui a été effacé. Quand un élève décroche, la maîtresse réaffiche l'étape précédente en deux secondes, sans tout réécrire ni rompre le rythme. Les plus lents rattrapent au lieu d'abandonner — c'est là qu'un cours se perd ou se sauve.",
+          "pedagogicalNote": "« Sans rompre le rythme » ajoute la raison pour laquelle cela fonctionne, ce qui achève le développement."
+        }
+      ]
+    },
+    {
+      "title": "Le voisin qui arrose les plantes",
+      "context": "Une amie vous écrit : « Tu dis que ton voisin est quelqu'un sur qui on peut compter. Développe, je cherche quelqu'un pour cet été. »",
+      "instruction": "Donnez votre avis sur cette personne et développez une raison jusqu'à son effet concret.",
+      "uniqueCriterion": "Votre raison est développée jusqu'à un fait vérifiable, sans se limiter à une impression.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez une raison",
+        "Expliquez comment",
+        "Allez au fait"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison développée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "On peut compter sur lui parce qu'…",
+      "tip": "« il est sérieux » ne prouve rien : montrez comment cela se voit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "On peut compter sur lui. Il est sérieux. Il est honnête. Il est présent. Il est discret. Il est rigoureux. Il n'oublie jamais rien. Il est disponible. Il rend service facilement. Il est ponctuel. Il est poli. Il est là depuis longtemps. Il rend service à plusieurs personnes de l'immeuble, pas seulement à moi.",
+          "pedagogicalNote": "Huit qualités affirmées : rien ne permet à votre amie de vérifier ou de se décider."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "On peut compter sur lui parce qu'il écrit tout. Quand il garde les plantes, il note le jour et la quantité d'eau sur un carnet posé à côté. Au retour, on sait exactement ce qui a été fait, et on voit tout de suite laquelle a eu trop ou pas assez.",
+          "pedagogicalNote": "Une habitude concrète, développée jusqu'à ce qu'elle permet de vérifier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "On peut compter sur lui parce qu'il écrit tout. En gardant mes plantes, il a noté le jour et la quantité d'eau sur un carnet laissé sur la table. Au retour, j'ai su lesquelles avaient trop bu — et surtout, il l'avait écrit lui-même, sans que je le lui demande.",
+          "pedagogicalNote": "« Sans que je le lui demande » est ce qui transforme une habitude en preuve de fiabilité."
+        }
+      ]
+    }
+  ]
+}

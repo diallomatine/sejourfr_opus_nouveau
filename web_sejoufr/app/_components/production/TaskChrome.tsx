@@ -5,9 +5,16 @@ import type {ReactNode} from "react";
 import {productionApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {loadEpreuveTasks, productionTasksKey, tasksOfTache} from "@/lib/production-catalog";
-import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
+import {
+  loadSectionSkills,
+  loadTaskProgress,
+  skillsOfTask,
+  skillsProgressKey,
+  skillsSectionKey,
+} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {productionTaskSubtitle, productionTaskTitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
+import {EXPRESSION_TAB_COMPETENCES, EXPRESSION_TAB_SUJETS, niveauViseBadge} from "@/lib/expression";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionConfig} from "./config";
 import {constraintOf} from "./parcours";
@@ -26,8 +33,16 @@ export function taskToneClass(tacheNumero: number): string {
 }
 
 /**
- * Tête du **détail d'une tâche** : la carte de consigne, puis les deux onglets
- * « Compétences » et « Sujets d'examen ».
+ * Tête du **détail d'une tâche** — maquette `~/Desktop/sejourfr_ecrans/detail_tache.png` :
+ * la carte de consigne, puis les deux onglets « Compétences » et
+ * « Sujets complets ».
+ *
+ * 🛑 **La pastille dit « Niveau visé », et porte le palier de la TÂCHE.**
+ * Elle affichait le palier de la **démarche du candidat**, ce qui n'a rien à
+ * faire sur une tâche ; la maquette, elle, écrit « OBJECTIF B2 » sur la
+ * Tâche 1, qui est une tâche A2 — deux façons différentes de laisser croire
+ * qu'une tâche vaut un niveau. Et `SkillTaskCode.targetLevel` n'est **pas** un
+ * référentiel officiel : c'est notre palier pédagogique, d'où « visé ».
  *
  * Elle remplace l'ancienne tête à trois modes (`ParcoursTop`) : les examens
  * blancs ne sont plus un onglet de la tâche — ils portent sur l'épreuve
@@ -43,14 +58,10 @@ export function TaskChrome({
   config,
   taskNumero,
   tab,
-  level,
 }: {
   config: ProductionConfig;
   taskNumero: number;
   tab: TaskTab;
-  /** Palier visé, rendu dans le bandeau. `null` ⇒ pas de pastille : on ne
-   *  devine jamais la démarche du candidat. */
-  level?: string | null;
 }): ReactNode {
   const {status} = useAuth();
   const ready = status === "authenticated";
@@ -62,6 +73,14 @@ export function TaskChrome({
   const skillsQuery = useCachedData(ready ? skillsSectionKey(section) : null, () =>
     loadSectionSkills(skillApi, section),
   );
+  /* Le palier de la TÂCHE, servi par `SkillTaskProgressDto.targetLevel` — même
+     clé de cache que l'écran des sujets, donc aucun appel de plus. */
+  const progressQuery = useCachedData(ready ? skillsProgressKey(section) : null, () =>
+    loadTaskProgress(skillApi, section),
+  );
+  const niveauVise =
+    progressQuery.data?.find((t) => t.taskCode === skillTaskCodeOf(section, taskNumero))
+      ?.targetLevel ?? null;
 
   const constraint = constraintOf(tasksQuery.data, taskNumero, config.mode === "audio");
   const sujets = tasksOfTache(tasksQuery.data, taskNumero).length;
@@ -89,17 +108,16 @@ export function TaskChrome({
               {productionTaskTitle(config.epreuve, taskNumero)} · {config.label}
             </p>
           </div>
-          {level && (
-            <span className={s.taskBannerLevel}>
-              <span className={s.taskBannerLevelLabel}>NIVEAU VISÉ</span>
-              <strong>{level}</strong>
-            </span>
+          {niveauVise && (
+            <span className={s.taskBannerLevel}>{niveauViseBadge(niveauVise)}</span>
           )}
         </div>
         <div className={s.taskBannerBrief}>
-          <span className={s.taskBannerLabel}>
-            Consigne{constraint ? ` · ${constraint}` : ""}
-          </span>
+          <span className={s.taskBannerLabel}>Consigne</span>
+          {/* La contrainte est la PREMIÈRE chose lue de la consigne (maquette
+              `detail_tache.png`) : c'est elle qui cadre la production. Servie
+              par `production_tasks` — jamais un nombre écrit ici. */}
+          {constraint && <strong className={s.taskBannerRange}>{constraint}</strong>}
           <p className={s.taskBannerText}>
             {productionTaskSubtitle(config.epreuve, taskNumero)}
           </p>
@@ -112,14 +130,16 @@ export function TaskChrome({
           className={`${s.segTab} ${tab === "competences" ? s.segTabOn : ""}`}
           aria-current={tab === "competences" ? "page" : undefined}
         >
-          Compétences{competences > 0 ? ` · ${competences}` : ""}
+          {EXPRESSION_TAB_COMPETENCES}
+          {competences > 0 ? ` · ${competences}` : ""}
         </Link>
         <Link
           href={base}
           className={`${s.segTab} ${tab === "sujets" ? s.segTabOn : ""}`}
           aria-current={tab === "sujets" ? "page" : undefined}
         >
-          Sujets d&apos;examen{sujets > 0 ? ` · ${sujets}` : ""}
+          {EXPRESSION_TAB_SUJETS}
+          {sujets > 0 ? ` · ${sujets}` : ""}
         </Link>
       </nav>
     </>

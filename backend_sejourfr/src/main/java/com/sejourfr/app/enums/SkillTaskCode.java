@@ -6,19 +6,24 @@ import java.util.Locale;
 /**
  * Les 6 taches du TCF IRN sur lesquelles s'accrochent les competences.
  *
- * <p><b>Pourquoi un enum et pas une table.</b> Les 6 taches sont un referentiel
- * OFFICIEL fige par le TCF : ni l'admin ni un seed ne doivent pouvoir en
- * ajouter, en renommer ou en supprimer une. Une table les aurait rendues
+ * <p><b>Pourquoi un enum et pas une table.</b> Le NOMBRE et l'ORDRE des taches
+ * (3 a l'ecrit, 3 a l'oral) sont fixes par le TCF IRN : ni l'admin ni un seed ne
+ * doivent pouvoir en ajouter ni en supprimer une. Une table les aurait rendues
  * editables, avec le risque qu'un libelle derive d'un front a l'autre. Le
  * contenu editorial (competences, sujets, references) vit en base ; le squelette
  * de l'examen vit ici.
  *
- * <p>Le {@code targetLevel} est le palier PRINCIPALEMENT vise par la tache
- * (sections 5 et 6 de la spec). Quand la spec donne une fourchette (EE1 « A1-A2 »,
- * EE2 « A2-B1 », EE3 « B1-B2 »), on retient la borne HAUTE : c'est le palier
- * qu'un candidat cherche a atteindre sur cette tache, pas celui dont il part.
+ * <p>🛑 <b>Le {@code targetLevel} n'est PAS officiel.</b> France Education
+ * international ne rattache aucun palier CECRL a une tache : c'est notre palier
+ * PEDAGOGIQUE interne, le niveau que le candidat cherche a atteindre sur cette
+ * tache. Il vient d'une fourchette de notre spec (EE1 « A1-A2 », EE2 « A2-B1 »,
+ * EE3 « B1-B2 ») dont on retient la borne haute. 🛑 <b>Aucun ecran ne doit le
+ * presenter comme une regle du TCF</b> — les libelles disent « niveau vise ».
  * Il ne se confond pas avec {@code skills.target_level}, qui affine competence
  * par competence a l'interieur d'une meme tache.
+ *
+ * <p>Le {@code title} est notre intitule editorial, pas le libelle officiel de
+ * l'epreuve.
  */
 public enum SkillTaskCode {
     EE1(SkillSection.EE, 1, "Écrire un message court", "A2"),

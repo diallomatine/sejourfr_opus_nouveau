@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C1",
+  "rang": 1,
+  "titre": "Exprimer une position claire",
+  "critere": "Répondre directement à la question posée sur ce lieu, cet objet, cette personne ou ce groupe, et rendre son avis identifiable.",
+  "remplace": "EE3-C1 — Exprimer une position claire (15 sujets désactivés : débats de société et demandes transactionnelles)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Le nouveau square du quartier",
+      "context": "Le journal de quartier interroge ses lecteurs : « Le square Lamartine a rouvert après six mois de travaux. Qu'en pensez-vous ? »",
+      "instruction": "Donnez votre avis sur ce square, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce square est identifiable dès la première phrase, sans qu'il faille le deviner.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur ce square"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce square est…",
+      "tip": "le lecteur doit connaître votre avis avant la deuxième phrase",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le square a rouvert au printemps après six mois de travaux. Il y a maintenant des jeux neufs, un bac à sable et de nouveaux bancs. Les allées ont été refaites en gravier clair. Beaucoup de familles y passent le mercredi et le samedi après-midi.",
+          "pedagogicalNote": "Tout est exact, mais c'est une description : après six phrases, on ignore toujours ce que vous en pensez."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce square est une vraie réussite. Les jeux sont neufs et bien séparés selon les âges, ce qui évite que les petits se fassent bousculer. Les bancs sont assez nombreux pour que les parents s'assoient. Le seul regret, c'est le manque d'ombre en plein été.",
+          "pedagogicalNote": "L'avis tombe dès les trois premiers mots, puis tout ce qui suit le justifie."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce square est une vraie réussite. Les jeux sont neufs et séparés par tranche d'âge, si bien que les petits ne se font plus bousculer comme avant. Les bancs sont assez nombreux pour que les parents s'assoient vraiment. Il manque encore de l'ombre en plein été, mais cela viendra avec les arbres.",
+          "pedagogicalNote": "La position ouvre, chaque phrase la soutient, et la réserve finale ne l'affaiblit jamais."
+        }
+      ]
+    },
+    {
+      "title": "La nouvelle machine de la laverie",
+      "context": "Le gérant de la laverie affiche un cahier : « Nous avons remplacé la grande machine du fond. Dites-nous ce que vous pensez de celle-ci. »",
+      "instruction": "Donnez votre avis sur cette machine, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cette machine est identifiable dès la première phrase, pas seulement à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur la machine"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cette nouvelle machine est…",
+      "tip": "commencez par votre avis, les raisons viennent après",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La nouvelle machine est plus grande que l'ancienne et elle a un écran tactile au lieu des boutons. Le cycle court dure trente minutes et le long une heure. Elle prend les pièces et la carte. Elle est installée au fond, à la place de l'ancienne.",
+          "pedagogicalNote": "C'est une fiche technique. Le gérant demandait ce que vous en pensez, et cela n'apparaît nulle part."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette nouvelle machine est bien meilleure que l'ancienne. Elle lave plus grand, ce qui permet de faire une couette en une fois. Le cycle court de trente minutes est très pratique le soir. L'écran tactile est un peu lent, mais on s'y fait vite.",
+          "pedagogicalNote": "L'avis est posé d'emblée, et les trois arguments qui suivent en découlent."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette nouvelle machine est bien meilleure que l'ancienne. Elle lave assez grand pour une couette en une seule fois, ce qui m'évite deux passages. Le cycle court de trente minutes sauve les soirs pressés. L'écran tactile répond lentement au début, mais il suffit d'appuyer une seconde de plus.",
+          "pedagogicalNote": "La position tient jusqu'au bout, et la réserve est accompagnée de sa solution au lieu d'être laissée en suspens."
+        }
+      ]
+    },
+    {
+      "title": "Le gardien de l'immeuble",
+      "context": "Le conseil syndical écrit aux copropriétaires : « Monsieur Sarr termine sa première année à la loge. Nous recueillons votre avis sur son travail. »",
+      "instruction": "Donnez votre avis sur ce gardien, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cette personne est identifiable dès la première phrase, sans détour.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Monsieur Sarr fait…",
+      "tip": "on doit savoir si vous êtes satisfait avant les exemples",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Monsieur Sarr est arrivé en septembre dernier. Il sort les poubelles le lundi et le jeudi, nettoie le hall deux fois par semaine et relève les compteurs chaque trimestre. Il est présent de sept heures à midi. Il habite dans la loge du rez-de-chaussée avec sa famille.",
+          "pedagogicalNote": "Vous listez ses tâches et ses horaires. Le conseil demandait votre avis sur son travail."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Monsieur Sarr fait un travail remarquable. Le hall n'a jamais été aussi propre, et il ne se contente pas du minimum : il repeint, il répare, il prévient quand une ampoule va lâcher. Il connaît tout le monde par son nom. Je souhaite vraiment qu'il reste.",
+          "pedagogicalNote": "L'avis ouvre la réponse, les faits qui suivent le justifient, et la dernière phrase le confirme."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Monsieur Sarr fait un travail remarquable. Le hall n'a jamais été aussi propre, et il va bien au-delà de ses tâches : il a repeint la cage d'escalier de lui-même et il prévient avant qu'une ampoule ne lâche. Il connaît chaque habitant par son nom, y compris les nouveaux. Je souhaite qu'il reste.",
+          "pedagogicalNote": "Chaque preuve est plus précise, et « y compris les nouveaux » montre l'attention plutôt que de l'affirmer."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe de la médiathèque",
+      "context": "La médiathèque affiche un questionnaire : « Que pensez-vous de l'équipe qui vous accueille ? Votre retour nous aide à nous améliorer. »",
+      "instruction": "Donnez votre avis sur cette équipe, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce groupe est identifiable dès la première phrase, sans qu'on ait à le déduire.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "L'équipe de la médiathèque est…",
+      "tip": "votre avis d'abord, les exemples ensuite",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a quatre personnes à l'accueil, deux le matin et deux l'après-midi. Elles s'occupent des retours, des inscriptions et du rayon jeunesse. Une d'entre elles anime l'heure du conte le mercredi. Elles portent toutes un badge avec leur prénom.",
+          "pedagogicalNote": "Vous décrivez l'équipe et son organisation. La question portait sur ce que vous en pensez."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "L'équipe de la médiathèque est vraiment accueillante. On n'hésite jamais à demander, même une question idiote. Elles prennent le temps de chercher avec vous au lieu de désigner un rayon. L'animatrice du mercredi tient trente enfants sans jamais hausser le ton.",
+          "pedagogicalNote": "L'avis ouvre, et chaque phrase suivante apporte une preuve concrète."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "L'équipe de la médiathèque est vraiment accueillante. On ose y poser des questions idiotes, ce qui n'est pas rien. Au lieu de désigner un rayon du doigt, elles se lèvent et cherchent avec vous. L'animatrice du mercredi tient trente enfants sans jamais hausser le ton — je ne sais pas comment elle fait.",
+          "pedagogicalNote": "« Ce qui n'est pas rien » et la remarque finale montrent une position engagée, sans jamais quitter le groupe décrit."
+        }
+      ]
+    },
+    {
+      "title": "Le banc devant la boulangerie",
+      "context": "La mairie consulte les habitants : « Un banc a été installé devant la boulangerie de la place. Donnez-nous votre avis. »",
+      "instruction": "Donnez votre avis sur ce banc, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cet objet est identifiable dès la première phrase, et porte sur lui.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur ce banc"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce banc est…",
+      "tip": "un banc, pas les bancs : restez sur celui de la place",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le banc a été posé au printemps, contre le mur de la boulangerie. Il est en bois avec des pieds en fonte, assez long pour trois personnes. Il est orienté vers la place. Les gens s'y installent surtout le matin, entre sept et dix heures.",
+          "pedagogicalNote": "C'est une description complète, mais la mairie demandait votre avis, et il n'apparaît pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce banc est une excellente idée. Les personnes âgées qui font la queue peuvent enfin s'asseoir en attendant. Il est bien placé, à l'abri du vent et au soleil le matin. Les jours de marché, il déborde un peu sur le passage, mais cela reste supportable.",
+          "pedagogicalNote": "L'avis est net dès le départ, et la réserve finale ne le remet pas en cause."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce banc est une excellente idée. Les personnes âgées qui font la queue peuvent enfin s'asseoir, et j'y ai vu des voisins se parler qui ne se disaient rien avant. Il est bien placé : à l'abri du vent, au soleil le matin. Les jours de marché il gêne un peu le passage, sans plus.",
+          "pedagogicalNote": "L'observation sur les voisins qui se parlent apporte une raison que personne n'attendait, et la position n'en bouge pas."
+        }
+      ]
+    },
+    {
+      "title": "La nouvelle boulangère",
+      "context": "Un voisin vous écrit : « La boulangerie a changé de main. Vous y allez tous les jours, je crois. Que pensez-vous de la nouvelle boulangère ? »",
+      "instruction": "Donnez votre avis sur cette personne, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cette personne est identifiable dès la première phrase, et ne se confond pas avec un avis sur le pain.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur elle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "La nouvelle boulangère est…",
+      "tip": "il demande la personne, pas les produits",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le pain a changé depuis la reprise : la baguette tradition est meilleure, plus croustillante, et il y a maintenant du pain aux graines. Les croissants sont un peu moins bons qu'avant. Les prix ont légèrement augmenté, de cinq centimes environ.",
+          "pedagogicalNote": "Vous jugez les produits. Votre voisin demandait votre avis sur la boulangère elle-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La nouvelle boulangère est très agréable. Elle retient les habitudes de chacun dès la deuxième visite et prépare la commande avant même qu'on parle. Elle prend le temps de discuter sans jamais faire attendre la file. Elle est un peu brusque au téléphone, mais c'est tout.",
+          "pedagogicalNote": "L'avis porte bien sur la personne, et chaque phrase l'appuie par un comportement observé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La nouvelle boulangère est très agréable. Dès ma deuxième visite, elle savait ce que je prenais et le posait sur le comptoir avant que je parle. Elle discute sans jamais faire attendre la file, ce qui demande un vrai savoir-faire. Au téléphone elle est plus sèche, mais c'est le seul reproche.",
+          "pedagogicalNote": "« Ce qui demande un vrai savoir-faire » transforme une observation en jugement argumenté, sans quitter la personne."
+        }
+      ]
+    },
+    {
+      "title": "La halle du marché",
+      "context": "Un site d'avis vous propose : « Vous connaissez la halle couverte de la place Verte. Laissez votre avis aux futurs visiteurs. »",
+      "instruction": "Donnez votre avis sur cette halle, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce lieu est identifiable dès la première phrase, sans se réduire à un inventaire.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur la halle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette halle vaut…",
+      "tip": "un avis n'est pas une liste de stands",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La halle ouvre le mardi, le jeudi et le samedi de sept heures à treize heures. On y trouve trois maraîchers, deux fromagers, un poissonnier et un boucher. Il y a aussi un stand de fleurs à l'entrée. Le parking est gratuit pendant deux heures.",
+          "pedagogicalNote": "Un inventaire complet, mais aucun avis : le futur visiteur ne sait pas si cela vaut le déplacement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette halle vaut vraiment le détour. Les produits sont frais et les vendeurs connaissent leur métier : on peut demander conseil sans être pris de haut. Les prix sont corrects pour de la qualité. Il y a beaucoup de monde le samedi, mieux vaut venir tôt.",
+          "pedagogicalNote": "L'avis ouvre, puis les raisons le justifient, et le conseil final aide réellement un visiteur."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette halle vaut vraiment le détour. Les produits sont frais et les vendeurs connaissent leur métier : on peut demander comment cuisiner quelque chose sans se faire regarder de travers. Les prix restent corrects pour cette qualité. Le samedi c'est bondé dès dix heures — venez le jeudi si vous pouvez.",
+          "pedagogicalNote": "« Sans se faire regarder de travers » rend concret un jugement sur des personnes, et le conseil final est daté."
+        }
+      ]
+    },
+    {
+      "title": "Le fauteuil hérité",
+      "context": "Votre cousine vous écrit : « Tante Suzanne veut nous donner son vieux fauteuil vert. Tu l'as vu chez elle. Tu en penses quoi ? »",
+      "instruction": "Donnez votre avis sur ce fauteuil, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cet objet est identifiable dès la première phrase, et porte sur lui, pas sur la personne qui le donne.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur le fauteuil"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce fauteuil est…",
+      "tip": "l'avis porte sur le fauteuil, pas sur tante Suzanne",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Tante Suzanne y tient beaucoup, c'était celui de son mari. Elle serait très touchée qu'on le prenne, et un peu blessée si on refusait. Elle nous en parle chaque fois qu'on va la voir. Il faudrait peut-être accepter, ne serait-ce que pour elle.",
+          "pedagogicalNote": "Vous parlez de votre tante et de ses sentiments. La question portait sur le fauteuil."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce fauteuil est un très bon meuble. L'armature en chêne est parfaitement saine et l'assise n'a pas bougé, ce qui est rare pour cet âge. Le velours vert est démodé mais intact. Il suffirait d'une housse pour qu'il tienne encore vingt ans.",
+          "pedagogicalNote": "L'avis est net, et chaque raison porte sur le meuble lui-même."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce fauteuil est un très bon meuble. L'armature en chêne est saine, sans jeu ni grincement, et l'assise n'a pas creusé — rare à cet âge. Le velours vert est démodé, mais il n'a ni accroc ni tache. Une housse suffirait, et il tiendra encore vingt ans.",
+          "pedagogicalNote": "« Sans jeu ni grincement » et « ni accroc ni tache » remplacent les adjectifs par des vérifications, sans jamais changer de sujet."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de bénévoles",
+      "context": "La responsable de l'association vous écrit : « Vous avez travaillé avec l'équipe de bénévoles du samedi. Qu'en pensez-vous ? »",
+      "instruction": "Donnez votre avis sur ce groupe, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce groupe est identifiable dès la première phrase et ne se transforme pas en compte rendu d'activité.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Pas un compte rendu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe du samedi est…",
+      "tip": "on vous demande un avis, pas le récit de la journée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous sommes arrivés à huit heures et nous avons monté les tables avant l'ouverture. Ensuite nous avons servi environ cent vingt repas jusqu'à quatorze heures. Le rangement a duré une heure. Nous avons terminé plus tôt que prévu, vers quinze heures trente.",
+          "pedagogicalNote": "C'est le récit de la journée. La responsable demandait ce que vous pensez de l'équipe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe du samedi est très solide. Personne n'attend qu'on lui dise quoi faire : chacun voit ce qui manque et s'en occupe. Les anciens montrent aux nouveaux sans les reprendre sèchement. Le seul point faible est qu'on manque de monde au rangement.",
+          "pedagogicalNote": "L'avis ouvre, les preuves suivent, et la réserve porte sur le groupe et non sur l'organisation."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe du samedi est très solide. Personne n'attend les consignes : chacun voit ce qui manque et s'en occupe, ce qui fait gagner un temps considérable. Les anciens montrent aux nouveaux sans jamais les reprendre devant les autres. Il manque seulement deux ou trois bras au moment du rangement.",
+          "pedagogicalNote": "« Sans jamais les reprendre devant les autres » est une observation fine sur la manière d'être du groupe."
+        }
+      ]
+    },
+    {
+      "title": "Le vélo en libre-service du coin",
+      "context": "Un site de la ville demande : « Une station de vélos a été installée devant la poste. Que pensez-vous des vélos qui s'y trouvent ? »",
+      "instruction": "Donnez votre avis sur ces vélos, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis porte sur les vélos eux-mêmes et se lit dès la première phrase.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur les vélos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ces vélos sont…",
+      "tip": "l'avis porte sur les vélos, pas sur la circulation en ville",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a douze emplacements devant la poste et la station est rarement vide. L'abonnement coûte trente euros à l'année. On déverrouille avec une application ou avec une carte. La station la plus proche est à quatre cents mètres, devant la gare.",
+          "pedagogicalNote": "Vous décrivez la station et le service. La question portait sur les vélos eux-mêmes."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ces vélos sont plutôt bons. Le cadre est lourd mais très stable, on ne craint rien sur les pavés. Les trois vitesses suffisent pour le quartier. Le panier avant est solide. En revanche, les selles sont souvent dures à régler et deux vélos sur douze ont les freins fatigués.",
+          "pedagogicalNote": "L'avis ouvre, puis chaque qualité et chaque défaut porte sur le vélo lui-même."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ces vélos sont plutôt bons. Le cadre est lourd, mais cette lourdeur les rend stables sur les pavés, ce qui compte ici. Trois vitesses suffisent largement pour le quartier et le panier avant tient un cartable. Les selles se règlent mal, et sur douze vélos j'en ai trouvé deux aux freins fatigués.",
+          "pedagogicalNote": "Le défaut du poids est retourné en qualité, et les chiffres rendent la réserve vérifiable."
+        }
+      ]
+    },
+    {
+      "title": "La salle d'attente refaite",
+      "context": "Votre cabinet médical affiche : « Nous avons réaménagé la salle d'attente. Dites-nous ce que vous en pensez. »",
+      "instruction": "Donnez votre avis sur cette salle, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce lieu est identifiable dès la première phrase et ne dérive pas vers l'organisation des rendez-vous.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur la salle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette salle est…",
+      "tip": "la salle, pas les délais de rendez-vous",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il faudrait surtout revoir les délais : j'ai attendu trois semaines pour un rendez-vous et quarante minutes sur place le jour même. Le système de prise de rendez-vous en ligne ne fonctionne pas toujours. C'est cela le vrai problème, pas la décoration.",
+          "pedagogicalNote": "Vous parlez des délais et du système de rendez-vous. On vous demandait votre avis sur la salle."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette salle est bien plus agréable qu'avant. Les chaises sont espacées, on ne se touche plus les coudes. Le coin enfants avec le tapis occupe vraiment les petits. La lumière est douce au lieu du néon blanc. Il manque juste un porte-manteau.",
+          "pedagogicalNote": "L'avis est net, et chaque raison décrit un élément de la salle."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette salle est bien plus agréable qu'avant. Les chaises sont assez espacées pour qu'on ne se touche plus les coudes, ce qui change tout quand on attend une demi-heure. Le coin tapis occupe réellement les petits. La lumière douce a remplacé le néon blanc. Il manque juste un porte-manteau.",
+          "pedagogicalNote": "« Ce qui change tout quand on attend une demi-heure » relie la qualité à l'usage réel, sans glisser vers les délais."
+        }
+      ]
+    },
+    {
+      "title": "Le professeur de musique",
+      "context": "L'école de musique vous écrit : « Votre fils termine son année avec Monsieur Perez. Nous aimerions votre avis sur son enseignement. »",
+      "instruction": "Donnez votre avis sur ce professeur, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur cette personne est identifiable dès la première phrase et ne se limite pas aux progrès de votre fils.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Monsieur Perez est…",
+      "tip": "les progrès de votre fils sont une preuve, pas le sujet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Mon fils a beaucoup progressé cette année. Il joue maintenant six morceaux de mémoire et il répète presque tous les soirs sans qu'on le lui demande. Il a passé son examen de fin d'année avec une bonne note. Il veut continuer l'an prochain.",
+          "pedagogicalNote": "Vous parlez de votre fils. L'école demandait votre avis sur l'enseignement de Monsieur Perez."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Monsieur Perez est un excellent professeur. Il adapte chaque cours à l'élève au lieu de suivre un programme fixe. Il ne se moque jamais d'une fausse note et il explique pourquoi elle arrive. Mon fils, qui n'osait pas jouer devant nous, joue maintenant au salon.",
+          "pedagogicalNote": "L'avis porte sur le professeur, et les progrès du fils servent de preuve, à leur juste place."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Monsieur Perez est un excellent professeur. Il adapte chaque cours à l'élève plutôt que de dérouler un programme. Devant une fausse note, il ne se moque jamais : il explique d'où elle vient, ce qui évite qu'elle revienne. Mon fils n'osait pas jouer devant nous ; il joue au salon maintenant.",
+          "pedagogicalNote": "« Ce qui évite qu'elle revienne » explique la méthode, et la preuve finale reste subordonnée au jugement sur le professeur."
+        }
+      ]
+    },
+    {
+      "title": "Les voisins du dessus",
+      "context": "Une amie qui visite l'appartement au-dessous du vôtre vous écrit : « Tu connais les gens du troisième ? Ils sont comment, à ton avis ? »",
+      "instruction": "Donnez votre avis sur ces voisins, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce groupe est identifiable dès la première phrase et repose sur ce que vous avez vécu.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Appuyez sur du vécu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Les voisins du troisième sont…",
+      "tip": "un avis se soutient par ce que vous avez vu, pas par ce qu'on dit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce sont une famille avec deux enfants, le père travaille à l'hôpital et la mère est enseignante je crois. Ils sont arrivés il y a trois ans. Ils ont un chien. La grand-mère vient souvent le week-end, elle garde les petits.",
+          "pedagogicalNote": "Vous les décrivez sans jamais donner votre avis, alors que la question le demandait explicitement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Les voisins du troisième sont vraiment agréables. Ils préviennent quand ils reçoivent du monde et ils font attention le soir, même avec deux enfants. Ils m'ont gardé mes clés pendant mes vacances. Leur chien aboie parfois le matin, mais ils le sortent tôt exprès.",
+          "pedagogicalNote": "L'avis est net, et chaque preuve vient d'une expérience réelle."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Les voisins du troisième sont vraiment agréables. Ils préviennent avant de recevoir du monde, ce que personne d'autre ne fait ici, et ils marchent doucement le soir malgré deux enfants. Ils ont gardé mes clés trois semaines sans que j'aie à demander deux fois. Leur chien aboie tôt, mais brièvement.",
+          "pedagogicalNote": "« Ce que personne d'autre ne fait ici » situe le jugement par rapport à l'immeuble, ce qui le rend beaucoup plus fort."
+        }
+      ]
+    },
+    {
+      "title": "La table de la salle commune",
+      "context": "Le conseil de la résidence écrit : « La grande table de la salle commune a été remplacée. Merci de nous donner votre avis sur celle-ci. »",
+      "instruction": "Donnez votre avis sur cette table, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis porte sur cette table et se lit dès la première phrase, sans glisser vers l'usage de la salle.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Restez sur la table"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cette table est…",
+      "tip": "la table, pas les réunions qu'on y tient",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La salle est réservée par mail auprès du gardien, deux jours à l'avance. Elle sert aux assemblées, aux anniversaires et au club de tarot du jeudi. Il faudrait un planning affiché, parce qu'on se retrouve parfois à deux groupes en même temps.",
+          "pedagogicalNote": "Vous parlez de la réservation et des usages. La question portait sur la table elle-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette table est un bon choix. Elle est assez grande pour seize personnes, et surtout elle se plie, ce que l'ancienne ne faisait pas. On peut donc libérer la salle pour les ateliers. Le plateau se raye vite, il faudra prévoir des sets.",
+          "pedagogicalNote": "L'avis ouvre, les raisons portent sur la table, et la réserve reste concrète."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette table est un bon choix. Seize personnes y tiennent sans se serrer, et elle se plie en deux minutes, ce que l'ancienne ne permettait pas : la salle se libère enfin pour les ateliers. Le plateau clair se raye vite, il faudra des sets, mais cela reste un détail.",
+          "pedagogicalNote": "Le pliage est chiffré en temps et sa conséquence est explicitée : l'avis devient démontré plutôt qu'affirmé."
+        }
+      ]
+    },
+    {
+      "title": "Le chemin le long de la rivière",
+      "context": "Un office de tourisme vous écrit : « Vous avez emprunté le chemin de halage entre les deux ponts. Votre avis nous intéresse. »",
+      "instruction": "Donnez votre avis sur ce chemin, en le rendant identifiable dès les premiers mots.",
+      "uniqueCriterion": "Votre avis sur ce lieu est identifiable dès la première phrase et ne se réduit pas au récit de votre promenade.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce que vous pensez",
+        "Placez-le au début",
+        "Pas le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce chemin est…",
+      "tip": "un avis n'est pas le récit de votre après-midi",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous sommes partis du pont Neuf vers quatorze heures avec les enfants. Nous avons marché une heure puis nous nous sommes arrêtés pique-niquer. Au retour il a commencé à pleuvoir et nous avons pressé le pas. Nous étions rentrés avant dix-sept heures.",
+          "pedagogicalNote": "C'est le récit de votre après-midi. L'office demandait votre avis sur le chemin."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce chemin est parfait pour une promenade en famille. Il est plat et large, on peut y marcher à trois de front ou pousser une poussette. Les arbres font de l'ombre presque tout du long. Il n'y a aucun banc entre les deux ponts, ce qui est dommage.",
+          "pedagogicalNote": "L'avis ouvre, et chaque raison décrit une qualité du chemin utile au visiteur."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce chemin est parfait pour une promenade en famille. Plat et large, il permet de marcher à trois de front ou de pousser une poussette sans jamais se mettre en file. Les arbres ombragent presque tout le parcours. Seul manque : pas un seul banc sur les deux kilomètres.",
+          "pedagogicalNote": "« Sans jamais se mettre en file » et la distance chiffrée donnent au lecteur de quoi décider vraiment."
+        }
+      ]
+    }
+  ]
+}

@@ -196,7 +196,12 @@ void main() {
     ));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('VOTRE DÉMARCHE'), findsOneWidget);
+    // ⚠️ Le bloc « VOTRE DÉMARCHE » est MASQUÉ dans `ResultsHero` (`_StakeBlock`
+    // commenté, TODO en place). Tant qu'il l'est, le rappel d'enjeu ne peut pas
+    // déborder — et cette assertion garde sa valeur d'alerte : elle redeviendra
+    // rouge le jour où le bloc reviendra, ce qui est exactement le moment où il
+    // faudra revérifier le 360 px.
+    expect(find.text('VOTRE DÉMARCHE'), findsNothing);
   });
 
   group('ce qui marche / à corriger en priorité', () {
@@ -1292,13 +1297,14 @@ void main() {
         'feedback': <String, dynamic>{},
       };
 
+      // ⚠️ `demarcheRappel` reste juste et testé plus haut, mais `ResultsHero`
+      // ne le RÉAFFICHE PAS : `_StakeBlock` y est commenté (TODO « à masquer
+      // pour l'instant »). Le hero se tait donc dans les deux cas, avec ou sans
+      // démarche connue. Rétablir les deux assertions d'origine le jour où le
+      // bloc revient — c'est ce test qui le signalera.
       await tester
           .pumpWidget(_host(_eval(json), targetLevel: TargetLevel.a2));
-      expect(find.text('VOTRE DÉMARCHE'), findsOneWidget);
-      expect(
-        find.textContaining('la carte de séjour pluriannuelle'),
-        findsOneWidget,
-      );
+      expect(find.text('VOTRE DÉMARCHE'), findsNothing);
 
       await tester.pumpWidget(_host(_eval(json)));
       expect(find.text('VOTRE DÉMARCHE'), findsNothing);

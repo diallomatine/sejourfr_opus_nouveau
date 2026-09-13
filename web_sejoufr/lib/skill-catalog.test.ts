@@ -28,6 +28,7 @@ function skill(taskCode: SkillTaskCode, order: number): SkillDto {
     description: "",
     generalCriterion: "",
     targetLevel: "B1",
+    learningPoints: null,
     displayOrder: order,
     promptCount: 5,
     attemptedCount: 0,

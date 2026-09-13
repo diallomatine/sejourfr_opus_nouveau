@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/models/civic_plan_models.dart';
@@ -141,6 +142,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     // reprendre — et on ne l'invente pas.
     final resume = prep?.planDisponible == true ? reviserResumeTcf(plan) : null;
     final stats = orderedTcfCategories(dashboard.tcf);
+    final complementaire = complementaireCategory(dashboard.tcf);
     return <Widget>[
       if (resume != null)
         _ResumeCard(
@@ -162,6 +164,25 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           ],
         ),
       ),
+      // 🛑 Structure de la langue n'est PAS une cinquième épreuve du TCF IRN :
+      // elle sort de la liste et prend sa propre section, avec la note qui le
+      // dit. Miroir web : ReviserScreen, section « Renforcer mon français ».
+      if (complementaire != null)
+        SfSection(
+          title: kTcfComplementaireSectionTitle,
+          flush: true,
+          child: SfStack(
+            pad: false,
+            children: [
+              _epreuveRow(complementaire, null),
+              const SfNoteCard(
+                icon: LucideIcons.info,
+                title: kTcfComplementaireNoteTitle,
+                child: Text(kTcfComplementaireNoteReviser),
+              ),
+            ],
+          ),
+        ),
     ];
   }
 

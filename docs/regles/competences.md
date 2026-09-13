@@ -15,7 +15,7 @@
 Voie **parallèle** aux productions complètes, pas une réutilisation : le candidat
 travaille **une micro-compétence à la fois** sur un « petit sujet » de quelques
 phrases. Schéma en `V025`, contenu seedé en `V300..V305` (lot 1) puis
-`V312..V317` (lot 2).
+`V312..V317` (lot 2), **taxonomie V3 en `V319` + `V320` + `V878`** (2026-09-13).
 
 ⚠️ **RÈGLE RÉVOQUÉE À MOITIÉ le 2026-08-11 : niveau OUI, note /20 NON.**
 L'ancienne formule « cette voie ne rend ni note /20 ni niveau CECRL » **ne vaut
@@ -40,6 +40,65 @@ admin** (`/api/admin/skills*`, `/api/admin/skill-prompts*`) — détail dans
 `lib/screens/tcf_production/competences/` + `core/models/skill_models.dart` ;
 point d'entrée = 3ᵉ onglet « Compétences » à côté de « Sujets » et « Exemples »,
 qui **pousse** vers le nouvel écran au lieu d'ouvrir un onglet local.
+
+### 🛑 Taxonomie V3 — 48 compétences, 720 sujets (2026-09-13)
+
+**La liste des 48 compétences est une AUTORITÉ UNIQUE : `tools/competences/taxonomie_v3.py`.**
+Titre, critère général, explication, rang : ils y vivent une fois, et le SQL en
+sort. Référence produit : `docs/taxonomie-competences-v3.md`. Ne pas rééditer la
+table à la main dans une migration — c'est le défaut le plus cher du dépôt.
+
+| Verdict | Nombre | Ce que ça veut dire |
+|---|---|---|
+| inchangée | 22 | conforme à la définition officielle de sa tâche |
+| **recentrée** | 19 | juste, mais son énoncé exigeait plus que la tâche |
+| **créée** | 7 | remplace une retirée, code NEUF (`C9`, `C10`, `C11`) |
+| **retirée** | 7 | hors périmètre de la tâche IRN |
+
+**Trois règles dures, tenues par les migrations.**
+
+1. **Aucune suppression.** `user_skill_attempts.skill_prompt_id` est en
+   `ON DELETE CASCADE` : supprimer un sujet effacerait les productions des
+   candidats. Le geste est `is_active = false`, compétence **et** sujets.
+2. **Désactiver ne libère pas le rang.** `uq_skills_task_order` et
+   `uq_skill_prompts_skill_order` ne filtrent pas `is_active` : une retirée est
+   rangée au-delà de 8, un ancien sujet au-delà de 15 (CHECK à 50 depuis `V064`).
+3. **Une compétence créée porte un code neuf**, jamais celui d'une retirée —
+   sinon du contenu neuf hériterait de l'historique d'une autre compétence.
+
+**15 sujets par compétence**, 3 références chacun, **144 points d'apprentissage**
+(3 par compétence, colonne `skills.learning_points`, `V063`) — les trois chiffres
+sont verrouillés par `SkillSeedIT`, `EXPECTED_LEARNING_POINTS` compris.
+
+⚠️ **`diagnostic_task_skills` désigne des compétences hors du catalogue.** Retirer
+une compétence qui y figure route le candidat vers une fiche absente. `V878` l'a
+repointée une fois (`EO2-C4` → `EO2-C9`) et porte le filet ; le test
+`DiagnosticSeedIT` gèle les deux allowlists.
+
+**Chaîne d'outils** (`backend_sejourfr/tools/competences/`) :
+
+| Fichier | Rôle |
+|---|---|
+| `taxonomie_v3.py` | la table des 48 + émission de `V319` |
+| `vue_v3.py` | **assemble la vue V3** : cadre + sujets, 3 sources, une seule lecture |
+| `contenu_v3/*.json` | les 19 lots neufs (15 sujets chacun) |
+| `contenu_v3/_corrections.json` | le cadrage corrigé des 121 sujets conservés |
+| `contenu_v3/_learning_points.json` | les 144 points, relus à la main |
+| `emettre_contenu_v3.py` | émet `V320` depuis la vue |
+| `contenu_v3/_verifier_contenu.py` | contrôle de forme des 19 lots |
+| `contenu_v3/_verifier_corrections.py` | vérifie qu'aucune correction ne réintroduit ce que la V3 a retiré |
+
+🛑 **`contenu/*.json` alimente `V300..V317`, DÉJÀ APPLIQUÉES** : on le **lit**,
+on ne l'écrit jamais. Toute matière neuve ou corrigée vit dans `contenu_v3/`.
+
+🛑 **Aucune compétence orale ne mesure ce que la transcription ne porte pas** :
+débit, pauses, intonation, temps de réflexion, prononciation, spontanéité. La
+spontanéité se reproduit par les **conditions d'entraînement** (aucune
+préparation offerte), jamais par un score.
+
+🛑 **Le palier d'une tâche ou d'une compétence n'est pas officiel** :
+`SkillTaskCode.targetLevel` est notre repère pédagogique. Les écrans disent
+« **Niveau visé** ».
 
 - **DEUX APPELS LLM SÉPARÉS, invariant à ne pas casser.** L'**appel 1** juge et
   **ne connaît jamais le palier visé par le candidat** ; l'**appel 2** (« pour

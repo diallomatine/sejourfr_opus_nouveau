@@ -5,6 +5,8 @@ import com.sejourfr.app.dto.SkillPromptSummaryDto;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.SkillPrompt;
 import com.sejourfr.app.enums.SkillPromptStatus;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.util.ExerciseDuration;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -47,11 +49,28 @@ public class SkillPromptMapper {
                 prompt.getRecommendedMinWords(),
                 prompt.getRecommendedMaxWords(),
                 prompt.getRecommendedDurationSeconds(),
+                estimatedMinutes(prompt),
                 status,
                 attemptCount,
                 lastAttemptAt,
                 lastAttemptId,
                 locked);
+    }
+
+    /**
+     * Le temps qu'un sujet demande, en minutes.
+     *
+     * <p>🛑 <b>{@link ExerciseDuration} et rien d'autre</b> : c'est deja
+     * l'autorite du Plan pour la meme question, et deux formules auraient fini
+     * par annoncer deux temps differents pour le meme exercice. L'epreuve se lit
+     * sur la <b>section du sujet</b> (EO ⇒ temps de parole, EE ⇒ fourchette de
+     * mots), jamais sur la nullite d'une colonne.
+     */
+    private int estimatedMinutes(SkillPrompt prompt) {
+        return prompt.getSection() == SkillSection.EO
+                ? ExerciseDuration.oral(prompt.getRecommendedDurationSeconds())
+                : ExerciseDuration.written(
+                        prompt.getRecommendedMinWords(), prompt.getRecommendedMaxWords());
     }
 
     /**

@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C9",
+  "rang": 3,
+  "titre": "Identifier clairement ce qui est décrit",
+  "critere": "Nommer sans ambiguïté la personne, le groupe, le lieu ou l'objet dont il est question.",
+  "remplace": null,
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Trois cartons dans le garage",
+      "context": "Votre colocataire vous écrit : « Il y a trois cartons dans le garage et tu m'as dit d'en descendre un à la cave. Lequel ? »",
+      "instruction": "Répondez-lui en décrivant le carton concerné, de façon qu'il ne puisse pas se tromper.",
+      "uniqueCriterion": "Votre réponse permet d'identifier un seul carton parmi trois : elle dit lequel avant de le décrire.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites lequel des trois",
+        "Ajoutez un signe sûr",
+        "Écartez les deux autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est celui qui…",
+      "tip": "il y en a trois : ce que vous dites doit n'en désigner qu'un",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le carton avec des affaires dedans, tu verras, il est assez lourd. Descends-le doucement parce qu'il y a des choses fragiles à l'intérieur. Merci beaucoup, tu me sauves la vie sur ce coup-là.",
+          "pedagogicalNote": "« Le carton avec des affaires dedans » convient aux trois. Le colocataire ne sait toujours pas lequel descendre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est celui qui porte une croix au feutre rouge sur le dessus. Il est plus petit que les deux autres et fermé avec de la ficelle, pas du ruban adhésif. Les deux autres restent au garage.",
+          "pedagogicalNote": "La croix rouge, la taille et la ficelle éliminent les deux autres : un seul carton correspond."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est celui qui porte une croix au feutre rouge sur le dessus, le plus petit des trois, fermé avec de la ficelle et non du ruban adhésif. Il est posé contre le mur du fond. Les deux autres, plus grands et scotchés, restent au garage.",
+          "pedagogicalNote": "Chaque trait écarte explicitement les deux autres cartons, et la position finit de lever toute hésitation."
+        }
+      ]
+    },
+    {
+      "title": "Laquelle de mes collègues ?",
+      "context": "Votre mari vous écrit : « Tu m'as dit qu'une de tes collègues viendrait dîner samedi. Je ne sais plus laquelle, tu m'en as présenté quatre à la soirée de Noël. »",
+      "instruction": "Répondez-lui en décrivant la collègue concernée, de façon qu'il la reconnaisse parmi les quatre.",
+      "uniqueCriterion": "Votre réponse désigne une seule collègue parmi quatre : elle donne d'abord ce qui la distingue des autres.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites laquelle",
+        "Donnez un trait unique",
+        "Écartez les autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est celle qui…",
+      "tip": "il en a vu quatre : commencez par ce qui n'appartient qu'à elle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est ma collègue du bureau, celle qui est très sympa et qui parle beaucoup. Tu l'as forcément vue, elle était là toute la soirée. Elle viendra vers vingt heures, je crois qu'elle apporte un dessert.",
+          "pedagogicalNote": "« Sympa » et « parle beaucoup » peuvent décrire les quatre. Aucun trait ne permet de choisir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est celle qui a les cheveux roux très courts et qui portait une veste jaune ce soir-là. Elle s'appelle Nadia. Elle est la plus grande des quatre et elle a un léger accent du Sud.",
+          "pedagogicalNote": "Cheveux roux, veste jaune, prénom, taille, accent : chaque trait réduit le champ jusqu'à une seule personne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est Nadia, celle qui a les cheveux roux coupés très court et qui portait une veste jaune ce soir-là. C'est la plus grande des quatre, et la seule qui ait un accent du Sud. Elle était assise à côté de ton frère.",
+          "pedagogicalNote": "« La seule qui » et la place à table ne laissent aucune ambiguïté : trois marqueurs exclusifs plutôt que trois adjectifs."
+        }
+      ]
+    },
+    {
+      "title": "Quelle salle au deuxième ?",
+      "context": "Un stagiaire vous écrit : « Je dois installer le matériel dans une salle du deuxième étage, mais il y en a cinq et je ne sais pas laquelle. »",
+      "instruction": "Répondez-lui en décrivant la salle concernée, de façon qu'il la trouve seul.",
+      "uniqueCriterion": "Votre réponse identifie une seule salle parmi cinq : elle donne un repère qui n'appartient qu'à elle.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites laquelle",
+        "Donnez un repère sûr",
+        "Situez-la à l'étage"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est la salle…",
+      "tip": "cinq salles au même étage : trouvez ce qui n'existe que dans une",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est une salle de réunion assez grande, avec une table et des chaises. Elle est claire et il y a un tableau. Tu ne peux pas la rater, elle est au deuxième comme je t'ai dit. Bon courage pour l'installation.",
+          "pedagogicalNote": "Table, chaises, tableau : les cinq salles du deuxième ont tout cela. Le stagiaire devra les ouvrir une par une."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est la salle du fond à droite, la seule qui ait deux portes. Elle s'appelle Mistral, le nom est écrit sur une plaque bleue. Elle est plus longue que les autres et donne sur le parking.",
+          "pedagogicalNote": "Position, double porte, nom sur plaque, vue : le repère est unique et vérifiable depuis le couloir."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est la salle Mistral, au fond à droite en sortant de l'ascenseur : la seule du couloir à avoir deux portes. Une plaque bleue porte son nom. Elle est plus longue que les autres et ses fenêtres donnent sur le parking, pas sur la cour.",
+          "pedagogicalNote": "Le point de départ du trajet est donné, et « pas sur la cour » écarte explicitement les autres salles."
+        }
+      ]
+    },
+    {
+      "title": "Quel groupe d'enfants ?",
+      "context": "Une animatrice vous écrit : « On m'a demandé de prendre en charge un des groupes d'enfants au centre. Il y en a trois qui partent en sortie. C'est lequel ? »",
+      "instruction": "Répondez-lui en décrivant le groupe concerné, de façon qu'elle sache où se placer.",
+      "uniqueCriterion": "Votre réponse identifie un seul groupe parmi trois : elle dit ce qui le distingue des deux autres.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites lequel des trois",
+        "Donnez un signe visible",
+        "Écartez les autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est le groupe…",
+      "tip": "trois groupes partent : dites ce qu'on voit du vôtre et pas des autres",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le groupe des enfants qui partent en sortie, ils sont une dizaine avec leurs sacs à dos. Ils attendent dans la cour. Tu les verras, ils sont assez excités, c'est normal un jour de sortie.",
+          "pedagogicalNote": "Les trois groupes partent en sortie, ont des sacs et attendent dans la cour. Rien ne permet de choisir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est le groupe des six-huit ans, celui qui porte les gilets orange. Ils sont douze, c'est le plus nombreux des trois. Deux animateurs les accompagnent déjà et ils attendent près du portail vert.",
+          "pedagogicalNote": "Âge, couleur de gilet, effectif, lieu d'attente : quatre traits qui n'appartiennent qu'à ce groupe."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est le groupe des six-huit ans, le seul en gilets orange. Ils sont douze, donc le plus nombreux des trois, et ils attendent déjà près du portail vert avec deux animateurs. Les deux autres groupes sont en gilets jaunes, côté gymnase.",
+          "pedagogicalNote": "Les deux autres groupes sont nommés et écartés : l'animatrice ne peut plus se tromper de file."
+        }
+      ]
+    },
+    {
+      "title": "Lequel des vélos ?",
+      "context": "Le réparateur vous écrit : « Vous avez déposé deux vélos la semaine dernière. Lequel devons-nous réviser en priorité ? »",
+      "instruction": "Répondez-lui en décrivant le vélo concerné, de façon qu'il n'y ait aucun doute.",
+      "uniqueCriterion": "Votre réponse identifie un seul vélo parmi deux : elle donne ce qui les distingue l'un de l'autre.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites lequel des deux",
+        "Donnez la différence",
+        "Restez sur ce vélo"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est le vélo…",
+      "tip": "deux vélos : une seule différence bien choisie suffit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le vélo qui fait du bruit quand on pédale, celui qui a besoin d'être révisé rapidement parce que je m'en sers tous les jours pour aller travailler. Merci de le regarder en premier si possible.",
+          "pedagogicalNote": "Vous dites pourquoi, jamais lequel. Les deux vélos peuvent faire du bruit et servir tous les jours."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est le vélo bleu, celui qui a un porte-bagages à l'arrière. L'autre est vert et n'en a pas. Le bleu a aussi un panier avant et des pneus plus larges que le vert.",
+          "pedagogicalNote": "La couleur et le porte-bagages suffisent, et l'autre vélo est explicitement écarté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est le vélo bleu, le seul des deux à avoir un porte-bagages à l'arrière et un panier en osier devant. Ses pneus sont larges, ceux du vert sont fins. Le vert peut attendre la semaine prochaine.",
+          "pedagogicalNote": "Chaque trait du bleu est opposé au vert, et la dernière phrase lève le dernier doute possible."
+        }
+      ]
+    },
+    {
+      "title": "Quel appartement visiter ?",
+      "context": "Une amie vous écrit : « L'agence m'a envoyé quatre annonces d'appartements dans ta rue. Tu m'as dit d'en visiter un en particulier. C'était lequel ? »",
+      "instruction": "Répondez-lui en décrivant l'appartement concerné, de façon qu'elle le retrouve dans les annonces.",
+      "uniqueCriterion": "Votre réponse identifie un seul appartement parmi quatre : elle donne des traits qui n'appartiennent qu'à lui.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites lequel",
+        "Donnez deux traits sûrs",
+        "Écartez les autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est celui du numéro…",
+      "tip": "quatre annonces se ressemblent : cherchez ce qui n'est vrai que d'une",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est celui qui est bien situé, avec deux chambres et une cuisine séparée. Il est lumineux et le loyer est raisonnable pour le quartier. Vraiment, visite-le en premier, je pense qu'il te plaira beaucoup.",
+          "pedagogicalNote": "Deux chambres, cuisine séparée, lumineux : ces traits se retrouvent dans plusieurs annonces de la même rue."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est celui qui est au dernier étage, avec une terrasse. Le bâtiment est en brique rouge, au numéro 18. Les trois autres sont dans des immeubles plus récents et n'ont pas d'extérieur.",
+          "pedagogicalNote": "Dernier étage, terrasse, brique rouge, numéro : quatre traits, et les trois autres annonces sont écartées d'un coup."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est celui du 18, le seul en brique rouge de la rue. Il est au dernier étage et c'est le seul des quatre à avoir une terrasse. Les trois autres sont dans des immeubles récents et blancs, sans extérieur.",
+          "pedagogicalNote": "Deux traits exclusifs — « le seul en brique », « le seul à avoir une terrasse » — suffisent, et le contraste avec les trois autres est explicite."
+        }
+      ]
+    },
+    {
+      "title": "Quelle personne à l'accueil ?",
+      "context": "Votre fille vous écrit : « Je suis arrivée à la mairie. Tu m'as dit de demander quelqu'un en particulier au guichet, mais il y a trois personnes derrière le comptoir. »",
+      "instruction": "Répondez-lui en décrivant la personne à qui s'adresser, de façon qu'elle la reconnaisse.",
+      "uniqueCriterion": "Votre réponse désigne une seule personne parmi trois : elle donne un trait visible qui n'appartient qu'à elle.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites laquelle",
+        "Donnez un trait visible",
+        "Écartez les autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est la personne…",
+      "tip": "elle doit choisir tout de suite : donnez ce qui se voit de loin",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est la dame qui s'occupe des dossiers d'état civil, elle est très gentille et elle connaît bien mon cas. Explique-lui que tu viens de ma part, elle comprendra tout de suite de quoi il s'agit.",
+          "pedagogicalNote": "Les trois personnes du comptoir peuvent s'occuper d'état civil et être gentilles. Votre fille devra demander à chacune."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est la personne du guichet de gauche, une dame d'une cinquantaine d'années avec des lunettes rouges. Elle s'appelle Madame Fauré. Elle est la seule des trois à porter un badge bleu.",
+          "pedagogicalNote": "Position, âge, lunettes, nom, badge : chaque élément est visible depuis la file d'attente."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est Madame Fauré, au guichet de gauche : une dame d'une cinquantaine d'années, la seule des trois à porter des lunettes rouges et un badge bleu. Les deux autres sont beaucoup plus jeunes. Tu la verras en entrant.",
+          "pedagogicalNote": "Deux traits exclusifs et un contraste d'âge : l'identification est immédiate, sans avoir à lire un badge de près."
+        }
+      ]
+    },
+    {
+      "title": "Quel dossier sur le bureau ?",
+      "context": "Une collègue vous écrit depuis votre bureau : « Il y a une pile de dossiers sur ta table. Tu voulais que j'en apporte un à la réunion. Je prends lequel ? »",
+      "instruction": "Répondez-lui en décrivant le dossier concerné, de façon qu'elle le prenne du premier coup.",
+      "uniqueCriterion": "Votre réponse identifie un seul dossier dans une pile : elle donne un signe extérieur, pas seulement son contenu.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites lequel",
+        "Donnez un signe visible",
+        "Évitez le contenu seul"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est le dossier…",
+      "tip": "elle ne va pas les ouvrir : dites ce qui se voit de l'extérieur",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le dossier du client de Bordeaux, celui dont on a parlé lundi avec le chiffrage à revoir. Il y a les devis dedans et le courrier de réponse. Tu verras, c'est assez épais, il y a beaucoup de pièces.",
+          "pedagogicalNote": "Pour reconnaître ce dossier, il faudrait ouvrir chacun de la pile. Le contenu ne se voit pas de l'extérieur."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est le dossier à couverture orange, le seul de cette couleur dans la pile. Une étiquette blanche est collée sur la tranche avec le mot « Bordeaux » écrit dessus. Il est assez épais.",
+          "pedagogicalNote": "La couleur et l'étiquette sur la tranche se voient sans ouvrir un seul dossier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est le dossier à couverture orange, le seul de cette couleur dans la pile. Sur la tranche, une étiquette blanche porte le mot « Bordeaux ». C'est aussi le plus épais et il est deuxième en partant du haut.",
+          "pedagogicalNote": "La position dans la pile s'ajoute aux signes visibles : la collègue n'a même pas à chercher la couleur."
+        }
+      ]
+    },
+    {
+      "title": "Quel arrêt de bus ?",
+      "context": "Votre neveu vous écrit : « Je descends bientôt, mais il y a deux arrêts qui portent presque le même nom sur la ligne. Je descends auquel ? »",
+      "instruction": "Répondez-lui en décrivant l'arrêt concerné, de façon qu'il ne descende pas au mauvais.",
+      "uniqueCriterion": "Votre réponse identifie un seul arrêt parmi deux noms voisins : elle donne ce qu'on voit depuis le bus.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites lequel des deux",
+        "Donnez ce qu'il verra",
+        "Écartez l'autre"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Descends au deuxième…",
+      "tip": "deux noms se ressemblent : dites ce qu'on voit par la fenêtre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Descends à l'arrêt Gambetta, c'est celui qui est le plus près de chez moi. Je serai là pour t'attendre de toute façon, donc ne t'inquiète pas trop, tu me verras en descendant du bus.",
+          "pedagogicalNote": "Si les deux arrêts s'appellent presque pareil, le nom seul ne tranche pas — et « près de chez moi » ne l'aide pas dans le bus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Descends au deuxième, « Gambetta-Église », pas à « Gambetta-Mairie ». Tu reconnaîtras l'arrêt à la grande église en pierre juste en face, et il y a une boulangerie à l'angle. L'autre arrêt donne sur un rond-point.",
+          "pedagogicalNote": "Les deux noms sont distingués, et deux repères visuels permettent de vérifier depuis le bus."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Descends au deuxième, « Gambetta-Église », pas à « Gambetta-Mairie ». Dès que tu vois une grande église en pierre sur ta droite et une boulangerie à l'angle, c'est là. L'autre arrêt, avant, donne sur un rond-point et une station-service.",
+          "pedagogicalNote": "L'ordre des arrêts, le côté du bus et le contraste avec l'arrêt précédent rendent l'erreur impossible."
+        }
+      ]
+    },
+    {
+      "title": "Quelle équipe au tournoi ?",
+      "context": "Un ami vous écrit depuis le stade : « Tu m'as dit de venir encourager une équipe en particulier. Il y en a six sur le terrain et je ne sais pas laquelle est la tienne. »",
+      "instruction": "Répondez-lui en décrivant l'équipe concernée, de façon qu'il la repère depuis les gradins.",
+      "uniqueCriterion": "Votre réponse identifie une seule équipe parmi six : elle donne un signe visible de loin.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites laquelle",
+        "Donnez un signe de loin",
+        "Écartez les autres"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est l'équipe…",
+      "tip": "six équipes de loin : la couleur seule risque de se répéter",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est l'équipe en bleu, celle où joue mon fils. Ils sont assez jeunes et ils jouent plutôt bien. Tu devrais les reconnaître sans problème, ils sont très motivés et ils crient beaucoup pendant les matchs.",
+          "pedagogicalNote": "Sur six équipes, plusieurs peuvent porter du bleu et être jeunes et motivées. Le repère n'est pas exclusif."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est l'équipe en maillots bleus à bandes blanches, la seule qui ait des bandes. Ils jouent sur le terrain du fond, à gauche. Leur entraîneur porte une casquette rouge et reste debout tout le match.",
+          "pedagogicalNote": "Les bandes blanches rendent le bleu exclusif, et le terrain et l'entraîneur ajoutent deux repères indépendants."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est la seule équipe en maillots bleus à bandes blanches — les deux autres équipes en bleu sont unies. Ils jouent sur le terrain du fond à gauche, et leur entraîneur, en casquette rouge, reste debout tout le match.",
+          "pedagogicalNote": "Les équipes concurrentes sont nommées et écartées : « les deux autres équipes en bleu sont unies » lève exactement le doute qui restait."
+        }
+      ]
+    },
+    {
+      "title": "Quel arbre dans le jardin ?",
+      "context": "Le jardinier de la copropriété vous écrit : « Vous avez signalé un arbre à tailler dans le jardin commun. Il y en a une douzaine. Lequel exactement ? »",
+      "instruction": "Répondez-lui en décrivant l'arbre concerné, de façon qu'il n'en taille pas un autre.",
+      "uniqueCriterion": "Votre réponse identifie un seul arbre parmi une douzaine : elle combine sa position et son aspect.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Situez-le d'abord",
+        "Ajoutez son aspect",
+        "Écartez les voisins"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est celui qui se trouve…",
+      "tip": "une douzaine d'arbres : la position seule ne suffit pas toujours",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le grand arbre du jardin, celui dont les branches sont devenues vraiment trop longues cette année. Il faudrait le tailler avant l'automne parce qu'il fait beaucoup d'ombre sur les fenêtres du rez-de-chaussée.",
+          "pedagogicalNote": "« Le grand arbre » et « branches trop longues » peuvent désigner la moitié du jardin. Le jardinier ne peut pas choisir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est celui qui se trouve près du portail, à droite en entrant. C'est un tilleul, le seul du jardin, les autres sont des érables. Son tronc est penché vers la rue et une branche touche le lampadaire.",
+          "pedagogicalNote": "L'essence est exclusive, la position la confirme, et la branche sur le lampadaire dit précisément ce qui gêne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est celui qui se trouve près du portail, à droite en entrant : le seul tilleul du jardin, tous les autres sont des érables. Son tronc penche nettement vers la rue et sa plus grosse branche touche le lampadaire. C'est celle-là qui pose problème.",
+          "pedagogicalNote": "L'arbre est identifié par trois voies indépendantes, et la dernière phrase désigne même la branche à couper."
+        }
+      ]
+    },
+    {
+      "title": "Quel enfant récupérer ?",
+      "context": "Une amie qui rend service vous écrit depuis l'école : « Je suis devant la classe, mais ils sortent tous en même temps. Ton fils, il est comment ? Je ne l'ai vu qu'en photo, il y a deux ans. »",
+      "instruction": "Répondez-lui en décrivant votre fils aujourd'hui, de façon qu'elle le reconnaisse dans le groupe.",
+      "uniqueCriterion": "Votre réponse identifie votre fils dans un groupe d'enfants : elle tient compte du fait que la photo a deux ans.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites ce qui a changé",
+        "Donnez un signe du jour",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Repère périmé",
+          "icon": "TIME"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Il a beaucoup changé depuis…",
+      "tip": "sa photo a deux ans : dites d'abord ce qui n'est plus vrai",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il est comme sur la photo que je t'avais envoyée, avec ses cheveux longs et son air un peu timide. Tu le reconnaîtras facilement, il ne sort jamais dans les premiers, il traîne toujours un peu.",
+          "pedagogicalNote": "Vous renvoyez à une photo de deux ans. À cet âge, c'est précisément ce qui ne marche plus : elle cherchera un enfant qui n'existe plus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Il a beaucoup changé depuis : il a coupé ses cheveux très court et il a pris vingt centimètres. Il porte un blouson vert et un cartable bleu. Il est maintenant l'un des plus grands de la classe.",
+          "pedagogicalNote": "Ce qui a changé est dit en premier, puis deux repères du jour permettent l'identification immédiate."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Il a beaucoup changé depuis : cheveux coupés très court, et vingt centimètres de plus — c'est l'un des plus grands de la classe maintenant. Aujourd'hui il porte un blouson vert et un cartable bleu à roulettes. Oublie la photo, elle ne sert plus.",
+          "pedagogicalNote": "La dernière phrase écarte franchement le repère périmé, ce qui est l'essentiel quand une information ancienne peut induire en erreur."
+        }
+      ]
+    },
+    {
+      "title": "Quel local au sous-sol ?",
+      "context": "Un déménageur vous écrit : « Nous sommes au sous-sol. Il y a une rangée de caves numérotées et deux portes sans numéro. La vôtre, c'est laquelle ? »",
+      "instruction": "Répondez-lui en décrivant votre cave, de façon qu'il n'ouvre pas celle d'un voisin.",
+      "uniqueCriterion": "Votre réponse identifie une seule cave : elle tient compte du fait que le numéro peut manquer.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez le numéro",
+        "Prévoyez qu'il manque",
+        "Ajoutez un autre signe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Repère incertain",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est la cave 7, mais…",
+      "tip": "deux portes n'ont pas de numéro : ne misez pas tout sur le chiffre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est la cave numéro 7, vous ne pouvez pas vous tromper, le numéro est marqué sur la porte. Prenez tout ce qu'il y a dedans sauf le vélo rouge, il appartient à mon voisin du dessus.",
+          "pedagogicalNote": "Il vous dit que deux portes n'ont pas de numéro. Miser sur le seul chiffre, c'est risquer qu'il ouvre une cave voisine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est la cave 7, mais si le numéro a disparu, c'est la troisième porte à gauche en descendant l'escalier. Elle est en bois clair et fermée par un cadenas noir. Les autres ont des serrures classiques.",
+          "pedagogicalNote": "La réponse anticipe le numéro manquant et donne deux repères de secours indépendants."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est la cave 7, mais si le numéro a disparu, comptez : c'est la troisième porte à gauche en descendant l'escalier. Elle est en bois clair, plus claire que ses voisines, et fermée par un gros cadenas noir — c'est la seule à en avoir un.",
+          "pedagogicalNote": "Le repère de secours est rendu exclusif (« la seule à en avoir un »), ce qui règle le problème même si deux portes sont sans numéro."
+        }
+      ]
+    },
+    {
+      "title": "Quelle réunion de parents ?",
+      "context": "Votre conjoint vous écrit : « L'école envoie deux convocations le même soir : une pour les parents de CE2 et une pour le conseil d'école. Tu m'as dit d'aller à une des deux. Laquelle, et qui va être là ? »",
+      "instruction": "Répondez-lui en décrivant le groupe qu'il va rejoindre, de façon qu'il aille dans la bonne salle.",
+      "uniqueCriterion": "Votre réponse identifie une seule réunion et décrit le groupe attendu ; elle ne confond pas les deux.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites laquelle des deux",
+        "Décrivez qui sera là",
+        "Écartez l'autre"
+      ],
+      "constraintTags": [
+        {
+          "label": "Un seul possible",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est celle des parents de CE2…",
+      "tip": "deux réunions le même soir : dites laquelle ET qui la compose",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est la réunion de l'école, celle dont je t'avais parlé la semaine dernière. Il y aura des parents et des enseignants, comme d'habitude. Note bien l'heure, ça commence tôt et ils ferment les portes après.",
+          "pedagogicalNote": "« La réunion de l'école » désigne les deux, et « des parents et des enseignants » aussi. Rien ne permet de choisir la salle."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est celle des parents de CE2 : une vingtaine de parents et la maîtresse, dans la classe de Madame Ould. Le conseil d'école, lui, réunit les délégués et le directeur en salle polyvalente. Ne te trompe pas de porte.",
+          "pedagogicalNote": "Les deux réunions sont distinguées par leur composition et leur salle : la confusion devient impossible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est celle des parents de CE2 : une vingtaine de parents, presque tous des mères, et la maîtresse, dans la classe de Madame Ould au premier étage. Le conseil d'école, lui, ne réunit que les quatre délégués et le directeur, en salle polyvalente.",
+          "pedagogicalNote": "La composition de chaque groupe est précise et contrastée — vingt parents contre quatre délégués —, et chaque salle est située."
+        }
+      ]
+    },
+    {
+      "title": "Quelle pièce détachée ?",
+      "context": "Le vendeur vous écrit : « Nous avons reçu votre demande de pièce, mais votre modèle de four existe en trois versions. Décrivez-nous la pièce à remplacer, nous n'avons pas de référence. »",
+      "instruction": "Répondez-lui en décrivant la pièce concernée, sans référence à donner.",
+      "uniqueCriterion": "Votre réponse identifie la pièce par son aspect et sa place dans l'appareil, puisque aucun numéro n'est disponible.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites où elle se trouve",
+        "Décrivez sa forme",
+        "Ne cherchez pas de référence"
+      ],
+      "constraintTags": [
+        {
+          "label": "Sans référence",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "La pièce se trouve…",
+      "tip": "aucun numéro : c'est la forme et la place qui l'identifient",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est la pièce qui est cassée à l'intérieur du four, celle qui empêche la porte de bien tenir. Je n'ai plus la notice mais je peux vous donner le numéro de série de l'appareil si ça peut vous aider à trouver.",
+          "pedagogicalNote": "Ils vous disent qu'ils n'ont pas de référence et que trois versions existent. Renvoyer au numéro de série ne les avance pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La pièce se trouve en bas à gauche de la porte : c'est la charnière. Elle mesure environ dix centimètres, elle est en métal gris avec deux trous de vis. Un petit ressort est fixé dessus.",
+          "pedagogicalNote": "Emplacement, nom, dimension, matière et détail du ressort : la pièce est identifiable sans aucune référence."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La pièce se trouve en bas à gauche de la porte : la charnière. Environ dix centimètres, en métal gris, percée de deux trous de vis alignés, avec un ressort à boudin fixé dessus. Celle de droite est identique mais intacte.",
+          "pedagogicalNote": "Le type de ressort précise la version, et signaler que la pièce symétrique est intacte donne au vendeur un point de comparaison."
+        }
+      ]
+    }
+  ]
+}

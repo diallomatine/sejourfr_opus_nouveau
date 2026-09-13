@@ -42,10 +42,26 @@ export function reviserSubtitle(module: "TCF" | "CIVIQUE"): string {
     return module === "TCF" ? REVISER_SUBTITLE_TCF : REVISER_SUBTITLE_CIVIQUE;
 }
 
-/** « Les 5 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**. */
+/** « Les 4 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**. */
 export function reviserSectionTitle(module: "TCF" | "CIVIQUE", count: number): string {
     return module === "TCF" ? `Les ${count} épreuves` : `Les ${count} thèmes`;
 }
+
+/* ------------------------------------- Structure de la langue, hors examen */
+
+/**
+ * 🛑 **Le TCF IRN comporte QUATRE épreuves.** La liste et les phrases du module
+ * complémentaire vivent dans `lib/tcf-epreuves.ts` — elles servent aussi les
+ * trois écrans `/entrainement/tcf/[code]`, donc elles ne sont pas propres à
+ * Réviser.
+ */
+export {
+    TCF_CODE_COMPLEMENTAIRE,
+    TCF_COMPLEMENTAIRE_NOTE_REVISER as REVISER_RENFORCER_NOTE,
+    TCF_COMPLEMENTAIRE_NOTE_TITLE as REVISER_RENFORCER_NOTE_TITLE,
+    TCF_COMPLEMENTAIRE_SECTION_TITLE as REVISER_RENFORCER_TITLE,
+    TCF_EPREUVES_OFFICIELLES,
+} from "./tcf-epreuves";
 
 /* ------------------------------- Reprendre là où vous vous êtes arrêté ----- */
 

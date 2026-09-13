@@ -13,9 +13,12 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -101,6 +104,26 @@ public class Skill {
      */
     @Column(name = "target_level", nullable = false, length = 4)
     private String targetLevel;
+
+    /**
+     * <b>« Vous allez apprendre a : »</b> — 3 gestes courts a l'infinitif, dans
+     * l'ordre d'apprentissage, affiches sur la fiche de la competence.
+     *
+     * <p>🛑 <b>Donnee EDITORIALE, jamais derivee.</b> Ni de {@link #description}
+     * (un paragraphe), ni de {@link #generalCriterion} (une phrase dont
+     * l'enumeration nomme des DESTINATAIRES, pas des gestes), ni des
+     * {@code checklist} des sujets — qui ont le bon format mais nomment la
+     * voisine du sujet n° 1. Arbitrage du proprietaire, 2026-09-12.
+     *
+     * <p><b>Nullable</b> : la colonne a ete ajoutee (V063) sur 54 lignes deja
+     * seedees, et une competence creee depuis la console peut naitre sans. Les
+     * fronts font alors disparaitre le bloc — jamais une carte vide, jamais une
+     * puce inventee. La completude du contenu <i>publie</i> est verrouillee par
+     * {@code SkillSeedIT}, pas par le DDL.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "learning_points", columnDefinition = "jsonb")
+    private List<String> learningPoints;
 
     /** Rang d'affichage 1..8 dans sa tache : progression pedagogique, pas un detail cosmetique. */
     @Column(name = "display_order", nullable = false)

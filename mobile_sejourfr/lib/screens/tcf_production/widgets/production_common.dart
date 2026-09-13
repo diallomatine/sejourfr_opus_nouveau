@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../expression_labels.dart';
 import '../tcf_production_module.dart';
 
 /// Petites briques partagées par le hub d'épreuve et l'écran d'une tâche,
@@ -190,6 +191,39 @@ class ShowMoreButton extends StatelessWidget {
           style: AppFonts.ui(size: 13, weight: FontWeight.w700, color: accent),
         ),
         label: Icon(LucideIcons.chevronDown, size: 18, color: accent),
+      ),
+    );
+  }
+}
+
+/// Pastille d'état d'une compétence ou d'une tâche : « Acquis », « En cours »,
+/// « À faire ».
+///
+/// 🛑 **Sans palier CECRL** : le serveur sait dire « cette compétence est
+/// solide », jamais « tu l'as au A2 mais pas au B2 »
+/// (cf. `expression_labels.dart`). Les trois teintes sont celles du thème —
+/// aucune couleur nouvelle n'entre par cet écran.
+class ExpressionStateBadge extends StatelessWidget {
+  const ExpressionStateBadge({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (label) {
+      kExpressionAcquis => (AppColors.greenLight, AppColors.green),
+      kExpressionEnCours => (AppColors.blueLight, AppColors.blue),
+      _ => (AppColors.surface2, AppColors.inkFaint),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.ui(size: 12.5, weight: FontWeight.w700, color: fg),
       ),
     );
   }

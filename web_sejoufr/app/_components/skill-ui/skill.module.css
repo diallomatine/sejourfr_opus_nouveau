@@ -4353,14 +4353,30 @@
   text-wrap: pretty;
 }
 
+/* Pastille « Niveau visé B1 » : une seule ligne, le mot « visé » compris —
+   sans lui, le palier se lirait comme une règle officielle du TCF IRN. */
 .taskBannerLevel {
   flex-shrink: 0;
-  display: grid;
-  gap: 1px;
-  justify-items: center;
   padding: 7px 12px;
-  border-radius: 13px;
+  border-radius: 999px;
   background: color-mix(in srgb, #fff 18%, transparent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* La contrainte de production, mise en avant dans la carte de consigne. */
+.taskBannerRange {
+  display: block;
+  margin: 4px 0 6px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 600;
   color: #fff;
 }
 
@@ -4441,4 +4457,244 @@
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--color-muted);
+}
+
+/* ===== en-tête d'épreuve : sur-titre ===== */
+.pageEyebrow {
+  margin: 0 0 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+/* ===== « Recommandé pour vous » (maquette expression_ecran.png) =====
+   La carte est pilotée par le PLAN, jamais par l'ordre du catalogue : elle
+   disparaît entièrement quand le Plan ne désigne rien sur cette épreuve. */
+.reco {
+  display: block;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--color-line);
+  background: white;
+  box-shadow: 0 10px 26px -22px rgb(15 24 57 / 45%);
+  text-decoration: none;
+  color: inherit;
+}
+
+.recoTag {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recoHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.recoIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  background: var(--color-blue);
+  color: white;
+}
+
+.recoTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.recoWhere {
+  display: block;
+  margin-top: 3px;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+.recoCount {
+  margin: 14px 0 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+.recoCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-red);
+  color: white;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.recoCta[data-locked="true"] {
+  background: var(--color-blue);
+}
+
+/* ===== « Les 3 tâches » (maquette expression_ecran.png) ===== */
+.tacheRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-line);
+  background: white;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tacheNum {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tacheNum[data-active="true"] {
+  background: var(--color-blue);
+  color: white;
+}
+
+.tacheBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.tacheTitle {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1.25;
+}
+
+.tacheCount {
+  display: block;
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+/* ===== fiche de compétence : « Vous allez apprendre à : » =====
+   Maquette `detail_competence.png`. 🛑 Le bloc est NULLABLE côté serveur
+   (`skills.learning_points`) : sans lui, la carte retombe sur le critère
+   général, jamais sur une liste vide. */
+.learnTitle {
+  margin: 14px 0 8px;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+.learnList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+
+.learnItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.learnDot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--color-green);
+  color: white;
+}
+
+.learnMeta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 14px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.learnMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ligne « Compétence acquise · 0 restants » + barre, sous la carte de tête. */
+.resteRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 22px 2px 8px;
+}
+
+.resteTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.resteCount {
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+.resteBar {
+  height: 7px;
+  margin: 0 2px;
+  border-radius: 999px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+
+.resteBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-blue);
 }

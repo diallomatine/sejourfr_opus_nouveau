@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C2",
+  "rang": 2,
+  "titre": "Donner un argument pertinent",
+  "critere": "Présenter une raison directement liée à l'opinion annoncée.",
+  "remplace": "EE3-C2 — Donner un argument pertinent (15 sujets désactivés : opinions sur des mesures et des pratiques)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "La cour de l'école",
+      "context": "Un parent d'élève vous écrit : « Tu trouves que la cour de l'école est un bon endroit pour les enfants. Pourquoi exactement ? »",
+      "instruction": "Donnez votre avis sur cette cour et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur la cour elle-même et soutient réellement votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à la cour"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette cour est bien conçue parce que…",
+      "tip": "une raison doit expliquer votre avis, pas l'accompagner",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette cour est un bon endroit pour les enfants. L'école est très bien, avec des enseignants sérieux et une directrice à l'écoute. Les parents sont contents et les résultats sont bons. Mon fils s'y plaît beaucoup depuis la maternelle. Franchement, c'est une école où l'on se sent bien.",
+          "pedagogicalNote": "Tout ce qui suit parle de l'école, pas de la cour : l'avis reste sans raison qui le soutienne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette cour est bien conçue parce qu'elle sépare nettement les espaces. Les grands ont le terrain de foot d'un côté, les petits ont le préau et le bac à sable de l'autre. Du coup les plus jeunes ne se font pas bousculer pendant la récréation.",
+          "pedagogicalNote": "La raison porte sur la cour et explique précisément pourquoi elle convient aux enfants."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette cour est bien conçue parce qu'elle sépare nettement les espaces. Le terrain de foot des grands occupe tout un côté, tandis que le préau et le bac à sable restent hors de la trajectoire des ballons. Les petits n'ont plus besoin de surveiller derrière eux pour jouer tranquilles.",
+          "pedagogicalNote": "La raison est poussée jusqu'à son effet observable : les petits n'ont plus à surveiller derrière eux."
+        }
+      ]
+    },
+    {
+      "title": "Le four de la cuisine partagée",
+      "context": "Une colocataire vous écrit : « Tu dis que le four est le meilleur appareil de la cuisine. Pourquoi lui plutôt qu'un autre ? »",
+      "instruction": "Donnez votre avis sur ce four et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur le four lui-même et soutient l'avis annoncé.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au four"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce four est le meilleur appareil parce qu'…",
+      "tip": "la raison doit venir du four, pas de votre façon de cuisiner",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce four est le meilleur appareil de la cuisine. J'adore cuisiner, surtout le week-end quand j'ai le temps. Je fais souvent des gratins et des tartes pour tout le monde. C'est ma façon de me détendre après une semaine chargée.",
+          "pedagogicalNote": "Vous parlez de votre goût pour la cuisine. Aucune raison ne porte sur le four."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce four est le meilleur appareil parce qu'il chauffe vraiment de manière régulière. Un gratin cuit pareil devant et au fond, ce qui n'arrive jamais avec les autres fours que j'ai eus. On n'a pas besoin de tourner le plat à mi-cuisson.",
+          "pedagogicalNote": "La raison est une propriété du four, et son effet concret est donné."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce four est le meilleur appareil parce qu'il chauffe de manière parfaitement régulière. Un gratin cuit pareil devant et au fond : on ne tourne pas le plat à mi-cuisson, et rien ne brûle sur le bord pendant que le centre reste cru. C'est rare, même sur des fours neufs.",
+          "pedagogicalNote": "Le contre-exemple précis — le bord brûlé, le centre cru — donne toute sa force à la raison avancée."
+        }
+      ]
+    },
+    {
+      "title": "Le pharmacien du coin",
+      "context": "Une voisine vous écrit : « Vous dites toujours du bien du pharmacien de la rue Blanche. Qu'est-ce qui le rend si différent ? »",
+      "instruction": "Donnez votre avis sur ce pharmacien et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur cette personne et sa manière de travailler, pas sur la pharmacie ni sur ses prix.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce pharmacien est remarquable parce qu'…",
+      "tip": "la raison doit venir de lui, pas du magasin",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce pharmacien est remarquable. La pharmacie est ouverte jusqu'à vingt heures et même le dimanche matin, ce qui est très pratique. Elle est grande, bien rangée, et il y a rarement la queue. Le parking juste devant aide beaucoup. Et on trouve toujours une place pour se garer devant.",
+          "pedagogicalNote": "Horaires, taille, parking : toutes ces raisons portent sur la pharmacie, aucune sur le pharmacien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce pharmacien est remarquable parce qu'il prend le temps d'expliquer chaque traitement. Il ne se contente pas de tendre la boîte : il note les horaires de prise sur l'emballage et vérifie que vous avez compris. Ma mère, qui mélangeait ses comprimés, ne se trompe plus.",
+          "pedagogicalNote": "La raison porte sur son comportement, et l'exemple final prouve son effet."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce pharmacien est remarquable parce qu'il prend le temps d'expliquer chaque traitement. Il ne tend pas la boîte : il écrit les horaires de prise directement sur l'emballage, en gros, et fait répéter. Ma mère mélangeait ses comprimés depuis des années ; depuis qu'elle va chez lui, plus une erreur.",
+          "pedagogicalNote": "« En gros » et « fait répéter » précisent le geste, et la preuve est datée par un avant et un après."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du service après-vente",
+      "context": "Un collègue vous écrit : « Tu trouves que l'équipe du service après-vente travaille bien. Qu'est-ce qui te fait dire ça ? »",
+      "instruction": "Donnez votre avis sur cette équipe et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur la façon de travailler de cette équipe, pas sur les produits ni sur l'entreprise.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe travaille bien parce qu'…",
+      "tip": "la raison doit décrire ce que l'équipe fait, pas ce qu'elle vend",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe travaille bien. Nos produits sont solides et tombent rarement en panne, donc il y a peu de réclamations. La garantie est de cinq ans, plus longue que chez nos concurrents. Les clients sont globalement satisfaits de la marque.",
+          "pedagogicalNote": "Vous parlez des produits et de la garantie. Rien n'explique la qualité du travail de l'équipe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe travaille bien parce qu'elle ne laisse jamais un dossier sans réponse. Chaque appel est rappelé dans la journée, même quand la solution n'est pas trouvée : ils préviennent qu'ils cherchent. Les clients n'ont donc pas à relancer trois fois.",
+          "pedagogicalNote": "La raison porte sur une pratique du groupe, et sa conséquence pour le client est nommée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe travaille bien parce qu'elle ne laisse jamais un dossier sans réponse. Chaque appel est rappelé le jour même, y compris quand la solution n'est pas trouvée : ils préviennent qu'ils cherchent encore. Résultat, personne ne relance trois fois, et les dossiers difficiles ne s'enterrent pas.",
+          "pedagogicalNote": "La raison est poussée jusqu'à son effet le plus fort : les dossiers difficiles ne s'enterrent pas."
+        }
+      ]
+    },
+    {
+      "title": "Le marché couvert du samedi",
+      "context": "Une amie vous écrit : « Tu préfères le marché couvert au supermarché. Donne-moi une vraie raison, je n'y vais jamais. »",
+      "instruction": "Donnez votre avis sur ce marché et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur ce marché et soutient votre avis, sans se réduire à une préférence personnelle.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au marché"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce marché vaut mieux parce qu'…",
+      "tip": "« j'aime bien » n'est pas une raison : dites ce qui s'y passe",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce marché vaut mieux. J'aime beaucoup y aller le samedi matin, c'est devenu une habitude et j'y retrouve souvent des connaissances. C'est agréable de sortir tôt quand il fait beau. Je préfère vraiment cette ambiance-là. C'est un moment que je ne raterais pour rien, vraiment. On y passe bien une heure sans s'en rendre compte.",
+          "pedagogicalNote": "Vous exprimez un plaisir personnel. Rien ne dit ce qui, dans ce marché, justifie la préférence."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce marché vaut mieux parce qu'on parle directement à celui qui a produit. Le maraîcher dit quand il a récolté et ce qui se garde. On achète donc la bonne quantité au lieu de jeter la moitié en fin de semaine.",
+          "pedagogicalNote": "La raison porte sur ce qui se passe dans ce marché, et son effet concret est donné."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce marché vaut mieux parce qu'on parle directement à celui qui a produit. Le maraîcher dit quand il a récolté, ce qui se garde une semaine et ce qu'il faut manger dans deux jours. On achète la bonne quantité au lieu d'en jeter la moitié le vendredi soir — c'est là que l'écart se fait.",
+          "pedagogicalNote": "« C'est là que l'écart se fait » désigne exactement ce que la raison démontre, sans partir sur un débat plus large."
+        }
+      ]
+    },
+    {
+      "title": "Le siège auto d'occasion",
+      "context": "Votre sœur vous écrit : « Tu déconseilles ce siège auto d'occasion. Pourquoi ? Il a l'air en très bon état. »",
+      "instruction": "Donnez votre avis sur ce siège et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur ce siège précis et soutient votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au siège"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je déconseille ce siège parce que…",
+      "tip": "une raison visible sur l'objet vaut mieux qu'un principe général",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je déconseille ce siège. L'occasion, c'est toujours risqué pour ce genre d'achat, on ne sait jamais d'où ça vient ni comment ça a été traité. Je préfère acheter neuf quand il s'agit des enfants, quitte à mettre plus cher. C'est un principe auquel je tiens depuis la naissance du premier.",
+          "pedagogicalNote": "Vous énoncez un principe sur l'occasion en général. Rien ne concerne ce siège-là."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je déconseille ce siège parce que la sangle centrale est effilochée près de la boucle. C'est précisément l'endroit qui retient l'enfant en cas de choc. Le reste a beau être impeccable, cette pièce-là ne se remplace pas sur ce modèle.",
+          "pedagogicalNote": "La raison est un défaut observable sur cet objet, et son importance est expliquée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je déconseille ce siège parce que la sangle centrale est effilochée juste au-dessus de la boucle. C'est exactement la pièce qui retient l'enfant en cas de choc, et elle travaille à chaque serrage. La coque a beau être impeccable, cette sangle ne se remplace pas sur ce modèle.",
+          "pedagogicalNote": "« Elle travaille à chaque serrage » explique pourquoi l'usure va s'aggraver : la raison devient démonstration."
+        }
+      ]
+    },
+    {
+      "title": "La classe de votre fille",
+      "context": "Un parent vous écrit : « Tu sembles très content de la classe de ta fille cette année. Qu'est-ce qui fait la différence ? »",
+      "instruction": "Donnez votre avis sur ce groupe d'élèves et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur le groupe d'élèves, et non sur l'enseignante ni sur les programmes.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la aux élèves"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette classe est…",
+      "tip": "on vous demande la classe : la maîtresse n'est pas le groupe",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette classe est vraiment bien. La maîtresse est formidable, très organisée et patiente. Elle envoie un compte rendu chaque vendredi et elle reçoit les parents quand on le demande. Elle a beaucoup d'expérience, plus de vingt ans. Elle connaît très bien les programmes et prépare des sorties chaque trimestre.",
+          "pedagogicalNote": "Toutes les raisons portent sur l'enseignante. La question portait sur la classe, c'est-à-dire le groupe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette classe est particulièrement soudée. Les élèves s'entraident vraiment : quand l'un rate un jour, deux autres lui recopient les leçons sans qu'on demande. Aucun groupe ne s'est formé contre un autre. Ma fille, qui était isolée l'an dernier, a trouvé sa place en un mois.",
+          "pedagogicalNote": "La raison décrit un fonctionnement du groupe, et la preuve concerne bien les élèves."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette classe est particulièrement soudée. Quand un élève manque un jour, deux autres lui recopient les leçons sans qu'on ait rien demandé. Aucun petit groupe ne s'est formé contre un autre, ce qui était le problème l'an dernier. Ma fille y a trouvé sa place en un mois.",
+          "pedagogicalNote": "Le contraste avec l'année précédente montre que la raison porte bien sur ce groupe-ci, et pas sur les enfants en général."
+        }
+      ]
+    },
+    {
+      "title": "L'ancien pont de pierre",
+      "context": "Un journal local demande : « Beaucoup d'habitants tiennent au vieux pont de pierre. Et vous, qu'en pensez-vous, et pour quelle raison ? »",
+      "instruction": "Donnez votre avis sur ce pont et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur ce pont et soutient votre avis, sans devenir un discours sur le patrimoine.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au pont"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce pont mérite…",
+      "tip": "restez sur ce pont : le patrimoine en général n'est pas le sujet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce pont mérite d'être conservé. Le patrimoine ancien fait l'identité d'une ville et une commune qui laisse disparaître ses vieilles pierres perd quelque chose d'irremplaçable. Nos enfants doivent pouvoir voir ce que leurs grands-parents ont connu. Une ville sans mémoire finit par ressembler à toutes les autres, et cela se voit vite.",
+          "pedagogicalNote": "C'est un discours sur le patrimoine, qui vaudrait pour n'importe quel pont. Rien ne concerne celui-ci."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce pont mérite d'être conservé parce qu'il reste le seul passage à pied entre les deux rives du quartier. Sans lui, il faut faire huit cents mètres jusqu'au pont routier, où il n'y a qu'un trottoir étroit. Les enfants de l'école passent par là chaque jour.",
+          "pedagogicalNote": "La raison est propre à ce pont : sa fonction réelle et l'absence d'alternative."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce pont mérite d'être conservé parce qu'il reste le seul passage piéton entre les deux rives du quartier. L'autre est à huit cents mètres et son unique trottoir fait quatre-vingts centimètres, contre des voitures lancées. Une quarantaine d'enfants traversent le vieux pont chaque matin.",
+          "pedagogicalNote": "Les mesures et le nombre d'enfants transforment la raison en démonstration vérifiable."
+        }
+      ]
+    },
+    {
+      "title": "La perceuse prêtée",
+      "context": "Un voisin vous écrit : « Tu m'as dit que ta perceuse n'était pas adaptée à mon projet. Pourquoi, au juste ? »",
+      "instruction": "Donnez votre avis sur cet outil et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur la perceuse elle-même, pas sur votre expérience de bricolage.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à l'outil"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Cette perceuse ne conviendra pas parce qu'…",
+      "tip": "dites ce que l'outil ne peut pas faire, pas ce que vous savez faire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette perceuse ne conviendra pas. J'ai fait pas mal de travaux chez moi et je sais qu'il faut du bon matériel pour ce genre de chantier. Sans l'outil adapté on s'épuise et le résultat n'est jamais propre. Mieux vaut louer.",
+          "pedagogicalNote": "Vous parlez de votre expérience et de principes généraux. Rien ne dit ce qui, dans cette perceuse, pose problème."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette perceuse ne conviendra pas parce qu'elle n'a pas de fonction percussion. Tes murs sont en béton, et sans percussion la mèche tourne sans avancer, même en appuyant fort. Elle est parfaite pour le bois ou le placo, mais pas pour ça.",
+          "pedagogicalNote": "La raison est une caractéristique de l'outil, et son effet sur le projet du voisin est expliqué."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette perceuse ne conviendra pas parce qu'elle n'a pas de percussion. Sur tes murs en béton, la mèche tournera sans avancer, et tu finiras par forcer : c'est comme ça qu'on brûle un moteur. Pour du bois ou du placo elle est très bien, mais pas là.",
+          "pedagogicalNote": "« C'est comme ça qu'on brûle un moteur » prolonge la raison jusqu'à la conséquence, sans changer d'objet."
+        }
+      ]
+    },
+    {
+      "title": "Le kinésithérapeute",
+      "context": "Votre père vous écrit : « Tu me recommandes ce kinésithérapeute plutôt qu'un autre. Explique-moi pourquoi. »",
+      "instruction": "Donnez votre avis sur cette personne et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur cette personne et sa pratique, pas sur le cabinet ni sur les délais.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je te le recommande parce qu'…",
+      "tip": "un cabinet bien situé n'est pas une raison sur le praticien",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je te le recommande. Son cabinet est au rez-de-chaussée, sans marche, avec un parking juste devant. Il y a rarement de l'attente et on obtient un rendez-vous en une semaine. C'est vraiment pratique pour toi. Le cabinet est neuf, bien chauffé, et la salle d'attente est agréable.",
+          "pedagogicalNote": "Accès, attente, délais : toutes ces raisons portent sur le cabinet, aucune sur le praticien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je te le recommande parce qu'il explique chaque exercice avant de le faire. Il montre à quoi sert le mouvement et ce qu'on doit sentir. On comprend donc pourquoi on répète, et on continue à la maison au lieu d'abandonner après trois séances.",
+          "pedagogicalNote": "La raison décrit sa manière de travailler, et son effet sur le patient est nommé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je te le recommande parce qu'il explique chaque exercice avant de le faire : à quoi il sert, ce qu'on doit sentir, et ce qui doit alerter. On comprend pourquoi on répète, donc on continue à la maison — c'est là que la rééducation se joue, pas pendant la demi-heure de séance.",
+          "pedagogicalNote": "La raison est menée jusqu'à ce qui compte vraiment en rééducation, sans jamais quitter le praticien."
+        }
+      ]
+    },
+    {
+      "title": "Le local des associations",
+      "context": "La mairie consulte : « Que pensez-vous du local associatif de la rue Jean-Moulin ? Merci d'appuyer votre avis sur une raison précise. »",
+      "instruction": "Donnez votre avis sur ce local et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur le local et soutient l'avis, sans devenir une demande de moyens.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au local"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce local est…",
+      "tip": "un avis n'est pas une demande de subvention",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce local est insuffisant. Nous demandons depuis deux ans une salle plus grande et un budget pour le matériel. Nos effectifs augmentent chaque année et rien n'est fait. Il faudrait que la commune prenne enfin nos besoins au sérieux. Les autres communes du secteur font beaucoup mieux depuis longtemps.",
+          "pedagogicalNote": "C'est une revendication. La mairie demandait un avis appuyé sur une raison portant sur le local."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce local est mal adapté parce qu'il n'a qu'une seule pièce. Les cours de chant et l'atelier couture ne peuvent donc jamais avoir lieu en même temps. Nous perdons la moitié des créneaux du soir, alors que la demande existe.",
+          "pedagogicalNote": "La raison est une caractéristique du local, et sa conséquence est mesurable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce local est mal adapté parce qu'il n'a qu'une seule pièce, sans cloison possible. Le cours de chant et l'atelier couture ne peuvent jamais se tenir ensemble : sur six créneaux du soir, trois restent inutilisables. La pièce est pourtant assez grande pour accueillir les deux.",
+          "pedagogicalNote": "La dernière phrase montre que le problème vient de la configuration, pas de la taille : la raison est précise."
+        }
+      ]
+    },
+    {
+      "title": "Le portail automatique",
+      "context": "Le syndic vous écrit : « Vous avez émis un avis sur le nouveau portail automatique. Pouvez-vous préciser sur quoi il repose ? »",
+      "instruction": "Donnez votre avis sur ce portail et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur le portail lui-même et non sur l'entreprise qui l'a posé.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au portail"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce portail est…",
+      "tip": "l'entreprise n'est pas le portail : restez sur l'objet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce portail est une déception. L'entreprise a mis trois semaines de plus que prévu, les ouvriers laissaient tout en désordre le soir et personne ne répondait au téléphone. Le devis a augmenté deux fois en cours de chantier. Nous avons dû relancer trois fois avant d'obtenir la facture définitive.",
+          "pedagogicalNote": "Vous jugez l'entreprise et le chantier. La question portait sur le portail."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce portail est une déception parce qu'il met dix-huit secondes à s'ouvrir complètement. En voiture, on attend au milieu de la rue, qui est étroite et passante. L'ancien portail manuel prenait cinq secondes, et personne ne bloquait la circulation. Nous étions plusieurs à préférer l'ancien système.",
+          "pedagogicalNote": "La raison est une caractéristique chiffrée du portail, et sa conséquence est concrète."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce portail est une déception parce qu'il met dix-huit secondes à s'ouvrir complètement. La rue est étroite et passante : on attend au milieu, feux allumés, pendant qu'une file se forme derrière. L'ancien portail manuel prenait cinq secondes, sortie de voiture comprise.",
+          "pedagogicalNote": "« Sortie de voiture comprise » rend la comparaison honnête, et renforce la raison au lieu de l'exagérer."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de discussion des parents",
+      "context": "Une mère vous écrit : « Tu as quitté le groupe de discussion des parents. Tu peux me dire pourquoi ? »",
+      "instruction": "Donnez votre avis sur ce groupe et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur le fonctionnement du groupe, sans viser une personne en particulier.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Visez le groupe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "J'ai quitté ce groupe parce qu'…",
+      "tip": "une raison sur le groupe, pas sur une personne nommée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "J'ai quitté ce groupe à cause de Nathalie, qui écrit trente messages par jour et coupe tout le monde. Elle donne son avis sur tout, même quand personne ne lui demande. Franchement, elle rend les échanges impossibles. Plusieurs parents me l'ont dit aussi, ils n'osent simplement pas le lui écrire.",
+          "pedagogicalNote": "Vous visez une personne. La question portait sur le groupe, et une attaque personnelle ne décrit pas son fonctionnement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai quitté ce groupe parce qu'on n'y trouve plus l'information. Les messages pratiques sur les sorties ou les fournitures sont noyés sous les discussions générales. Je remontais cinquante messages pour retrouver une date, donc j'ai fini par demander directement à l'école.",
+          "pedagogicalNote": "La raison décrit un fonctionnement collectif, et son effet sur vous est concret."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai quitté ce groupe parce qu'on n'y trouve plus l'information. Une date de sortie se perd sous cinquante messages en une soirée, et personne ne récapitule. J'ai passé plus de temps à remonter le fil qu'à écrire un mail à l'école, ce qui règle tout en deux minutes.",
+          "pedagogicalNote": "La comparaison de temps rend la raison mesurable, et rien ne vise personne en particulier."
+        }
+      ]
+    },
+    {
+      "title": "La cantine de l'entreprise",
+      "context": "Le comité vous écrit : « Vous avez donné un avis négatif sur la cantine. Merci de préciser la raison principale. »",
+      "instruction": "Donnez votre avis sur cette cantine et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur la cantine comme lieu, et non sur le prix des repas ni sur la direction.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la au lieu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette cantine est…",
+      "tip": "le lieu, pas la politique tarifaire de l'entreprise",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette cantine est trop chère. Le repas est passé de quatre à cinq euros sans que personne ne soit consulté, alors que les salaires n'ont pas bougé. La direction décide seule et communique après coup. C'est cette méthode que je conteste.",
+          "pedagogicalNote": "Vous contestez une décision tarifaire et une méthode. La question portait sur la cantine elle-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette cantine est mal conçue parce qu'elle n'a qu'une seule file d'entrée. À midi, cent quatre-vingts personnes arrivent en trente minutes et la queue sort dans le couloir. On passe vingt minutes debout sur une pause d'une heure. Le service, lui, est rapide une fois qu'on est passé.",
+          "pedagogicalNote": "La raison est une caractéristique du lieu, et son effet est chiffré."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette cantine est mal conçue parce qu'elle n'a qu'une seule file d'entrée. Cent quatre-vingts personnes s'y présentent en trente minutes : la queue sort dans le couloir et on y passe vingt minutes debout sur une pause d'une heure. La salle, elle, est à moitié vide à treize heures.",
+          "pedagogicalNote": "La salle à moitié vide prouve que le problème vient de l'entrée, pas de la capacité : la raison est démontrée."
+        }
+      ]
+    },
+    {
+      "title": "Le nouvel arrêt de tramway",
+      "context": "Un site de la ville demande : « L'arrêt Jean-Jaurès a été déplacé de cent mètres. Que pensez-vous du nouvel emplacement ? »",
+      "instruction": "Donnez votre avis sur ce nouvel arrêt et appuyez-le sur une raison qui s'y rapporte directement.",
+      "uniqueCriterion": "Votre raison porte sur cet emplacement précis et soutient votre avis.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Ajoutez une raison",
+        "Reliez-la à l'arrêt"
+      ],
+      "constraintTags": [
+        {
+          "label": "Raison liée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce nouvel emplacement est…",
+      "tip": "cet arrêt-ci : cent mètres suffisent à tout changer",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce nouvel emplacement est un mauvais choix. Les transports de cette ville sont mal pensés depuis des années, les lignes ne se croisent pas et les correspondances sont absurdes. On sent qu'aucun de ceux qui décident ne prend le tramway.",
+          "pedagogicalNote": "Vous jugez le réseau entier. La question portait sur cet emplacement précis."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce nouvel emplacement est un mauvais choix parce qu'il se trouve juste après le virage. Le tramway arrive sans qu'on le voie, et l'abri est trop court pour la longueur des rames. Ceux qui montent en queue attendent sous la pluie.",
+          "pedagogicalNote": "Deux raisons propres à ce lieu, avec leur conséquence directe sur les usagers."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce nouvel emplacement est un mauvais choix parce qu'il tombe juste après le virage. On n'aperçoit la rame qu'à vingt mètres, ce qui laisse à peine le temps de se lever. L'abri, lui, ne couvre que la moitié du quai : ceux qui montent en queue attendent sous la pluie.",
+          "pedagogicalNote": "Les vingt mètres et la moitié de quai chiffrent les deux raisons, qui restent toutes deux propres à cet arrêt."
+        }
+      ]
+    }
+  ]
+}

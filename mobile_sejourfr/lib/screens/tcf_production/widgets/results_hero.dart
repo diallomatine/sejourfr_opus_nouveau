@@ -124,9 +124,15 @@ class ProductionResultsHero extends StatelessWidget {
                     const SizedBox(height: 18),
                     _LevelPanel(evaluation: evaluation, niveau: niveau),
                     if (rappel != null) ...[
-                     // const SizedBox(height: 12),
-                      // TODO  à masquer pour l'instant
-                      //_StakeBlock(rappel: rappel),
+                      // TODO(sejourfr): le bloc « VOTRE DÉMARCHE » est
+                      // VOLONTAIREMENT MASQUÉ. `demarcheRappel` reste calculé et
+                      // testé ; seul son rendu est suspendu. En le rétablissant,
+                      // remettre `findsOneWidget` dans les deux tests de
+                      // `test/evaluation_report_test.dart` qui le cherchent, et
+                      // revérifier le hero à 360 px — c'est la ligne la plus
+                      // longue du bloc.
+                      // const SizedBox(height: 12),
+                      // _StakeBlock(rappel: rappel),
                     ],
                   ],
                 ),

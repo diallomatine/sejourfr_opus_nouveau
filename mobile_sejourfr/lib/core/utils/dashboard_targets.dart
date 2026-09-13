@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/dashboard_models.dart';
+import 'tcf_epreuves.dart';
 import '../router/app_router.dart';
 
 /// Icône canonique d'une catégorie du dashboard (`CategoryStat.code`).
@@ -37,15 +38,13 @@ String dashboardCategoryRoute(DashboardCategoryStat stat) => switch (stat.code) 
           .replaceFirst(':themeId', stat.themeId ?? ''),
     };
 
-/// Ordre canonique des 5 épreuves TCF pour l'affichage (le backend renvoie
-/// les thèmes QCM puis ajoute EE/EO en synthétique).
-const tcfCategoryOrder = [
-  'TCF_CO',
-  'TCF_CE',
-  'TCF_STRUCTURE',
-  'TCF_EE',
-  'TCF_EO',
-];
+/// Ordre canonique des **quatre** épreuves du TCF IRN pour l'affichage (le
+/// backend renvoie les thèmes QCM puis ajoute EE/EO en synthétique).
+///
+/// 🛑 **Structure de la langue n'y figure pas** : ce n'est pas une épreuve de
+/// l'examen — cf. `core/utils/tcf_epreuves.dart`, autorité unique. Elle est
+/// rangée à part sur Réviser, dans « Renforcer mon français ».
+const tcfCategoryOrder = kTcfEpreuvesOfficielles;
 
 /// Réordonne les catégories TCF du dashboard selon [tcfCategoryOrder].
 List<DashboardCategoryStat> orderedTcfCategories(
@@ -56,4 +55,13 @@ List<DashboardCategoryStat> orderedTcfCategories(
     for (final code in tcfCategoryOrder)
       if (byCode[code] != null) byCode[code]!,
   ];
+}
+
+/// Structure de la langue, servie comme les autres mais **hors des quatre**.
+/// `null` quand le dashboard ne la porte pas — on n'en fabrique pas une ligne.
+DashboardCategoryStat? complementaireCategory(List<DashboardCategoryStat> tcf) {
+  for (final s in tcf) {
+    if (s.code == kTcfCodeComplementaire) return s;
+  }
+  return null;
 }

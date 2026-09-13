@@ -25,6 +25,20 @@ public record SkillPromptSummaryDto(
         Integer recommendedMaxWords,
         /** EO uniquement : conseil de duree, jamais bloquant. */
         Integer recommendedDurationSeconds,
+        /**
+         * Le temps que ce sujet demande, en minutes — « 5 petits sujets ·
+         * <b>≈ 4 min chacun</b> » sur la fiche d'une competence.
+         *
+         * <p>🛑 <b>Derive serveur par {@code ExerciseDuration}</b>, l'autorite
+         * unique deja employee par le Plan : ecrit = milieu de la fourchette de
+         * mots / 12 mots-minute, oral = temps de parole x 3. Les deux fronts
+         * avaient sinon a recopier cette regle, et une troisieme valeur serait
+         * apparue dans le depot.
+         *
+         * <p>⚠️ C'est le temps d'<b>UN</b> sujet, jamais celui de la serie :
+         * les 5 sujets d'une etape font une quinzaine de minutes, pas cinq.
+         */
+        int estimatedMinutes,
         /** Derive serveur de la derniere tentative — aucun front ne le recalcule. */
         SkillPromptStatus status,
         int attemptCount,

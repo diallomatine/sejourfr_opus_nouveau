@@ -44,7 +44,7 @@ void main() {
       // L'oral n'a plus de chrono d'épreuve (il valait 15 min) : son temps se
       // compte par tâche et ne part qu'au lancement de la tâche.
       expect(TcfProductionModule.eo.epreuveMeta,
-          'TCF IRN · 3 tâches · Chrono par tâche');
+          'TCF IRN · 3 tâches · Chronométré par tâche');
     });
   });
 
@@ -187,6 +187,7 @@ void main() {
           displayOrder: 1,
           status: status,
           attemptCount: status.isTreated ? 2 : 0,
+          estimatedMinutes: 3,
         );
 
     // Le liseré vertical a disparu avec la carte autonome : la liste est
@@ -245,8 +246,15 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Répondre à une invitation'), findsOneWidget);
-      // Libellé GELÉ, miroir mot pour mot du web (`competenceProgressLabel`).
-      expect(find.text('2 réussis · 2 restants'), findsOneWidget);
+      // ⚠️ Le libellé a changé le 2026-09-13 (maquette `detail_tache.png`) :
+      // la carte porte désormais la ligne d'état d'`expression_labels.dart`
+      // et une pastille, à la place du couple anneau + « x réussis · y
+      // restants ». 3 sujets traités sur 5 ⇒ « En cours · 2/5 réussis », et
+      // la pastille dit « En cours » — jamais « Acquis », qui exige
+      // `masteryState == SOLID`.
+      expect(find.text('En cours · 2/5 réussis'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Acquis'), findsNothing);
     });
   });
 

@@ -290,7 +290,9 @@ class LearningPlanDomainSkillsIT extends AbstractIntegrationTest {
         assertThat(skill(plan, "EE2-C1").locked())
                 .as("la premiere competence de chaque tache reste ouverte")
                 .isFalse();
-        assertThat(skill(plan, "EE2-C4").locked()).isTrue();
+        // EE2-C9, rang 4 de la tache depuis la taxonomie V3 (V319) : ni la
+        // premiere competence de sa tache, ni la premiere place du Plan.
+        assertThat(skill(plan, "EE2-C9").locked()).isTrue();
         assertThat(skill(plan, "CO-A2").locked()).isFalse();
         assertThat(skill(plan, "CO-B2").locked()).isTrue();
     }

@@ -2216,6 +2216,16 @@ export interface SkillDto extends SkillLockable {
      *  Distinct de `SkillPromptDto.uniqueCriterion`, qui vise UN petit sujet. */
     generalCriterion: string;
     targetLevel: string;
+    /**
+     * **« Vous allez apprendre à : »** — 3 gestes courts à l'infinitif, dans
+     * l'ordre d'apprentissage.
+     *
+     * 🛑 **Donnée éditoriale** (`skills.learning_points`, V063), **jamais
+     * dérivée** de `description`, de `generalCriterion` ni des `checklist` des
+     * sujets. `null` tant qu'une compétence n'en porte pas : le bloc
+     * **disparaît**, on n'invente pas de puce.
+     */
+    learningPoints: string[] | null;
     displayOrder: number;
     promptCount: number;
     attemptedCount: number;
@@ -2242,6 +2252,18 @@ export interface SkillPromptSummaryDto extends SkillLockable {
     recommendedMaxWords: number | null;
     /** EO — indicatif, jamais bloquant. */
     recommendedDurationSeconds: number | null;
+    /**
+     * Le temps que **CE** sujet demande, en minutes — « 5 petits sujets ·
+     * ≈ 4 min chacun » sur la fiche d'une compétence.
+     *
+     * 🛑 **Dérivé serveur** (`ExerciseDuration`, l'autorité déjà employée par le
+     * Plan) : écrit = milieu de la fourchette de mots / 12 mots-minute, oral =
+     * temps de parole × 3. Les deux fronts auraient sinon recopié cette règle.
+     *
+     * ⚠️ C'est le temps d'**UN** sujet, jamais celui de la série : les 5 sujets
+     * d'une étape font une quinzaine de minutes, pas cinq.
+     */
+    estimatedMinutes: number;
     status: SkillPromptStatus;
     attemptCount: number;
     lastAttemptAt: string | null;

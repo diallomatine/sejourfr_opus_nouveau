@@ -37,9 +37,9 @@ Dernière mise à jour : 2026-07-29 — **39 articles** (9 civique/démarches + 
 |---|---|---|
 | 2026-06-06 | `tcf-irn-comprehension-orale-methode` | CO : 25 Q / 20 min, écoute unique, 4 familles de questions, distracteurs |
 | 2026-06-08 | `tcf-irn-comprehension-ecrite-methode` | CE : 25 Q / 35 min, lecture question-d'abord, découpage du temps |
-| 2026-06-10 | `tcf-irn-expression-ecrite-tache-1` | EE T1 : description 30-60 mots, structure en 3 temps, exemple corrigé |
-| 2026-06-12 | `tcf-irn-expression-ecrite-tache-2` | EE T2 : message 60-120 mots, registre formel/familier, exemple corrigé |
-| 2026-06-14 | `tcf-irn-expression-ecrite-tache-3` | EE T3 : comparer 2 points de vue + position, 120-180 mots, connecteurs |
+| 2026-06-10 | `tcf-irn-expression-ecrite-tache-1` | EE T1 : décrire une personne/un groupe/un lieu/un objet en réaction à un message, 30-60 mots |
+| 2026-06-12 | `tcf-irn-expression-ecrite-tache-2` | EE T2 : raconter / décrire / expliquer une expérience, 40-90 mots, temps du passé |
+| 2026-06-14 | `tcf-irn-expression-ecrite-tache-3` | EE T3 : donner son opinion sur un lieu/objet/personne/groupe, 40-90 mots |
 | 2026-06-16 | `tcf-irn-expression-orale-tache-1` | EO T1 : entretien dirigé, questions types, préparer des « briques » |
 | 2026-06-18 | `tcf-irn-expression-orale-tache-2` | EO T2 : interaction / jeu de rôle, poser des questions, contourner un mot |
 | 2026-06-20 | `tcf-irn-expression-orale-tache-3` | EO T3 : point de vue argumenté, plan universel, gérer les relances |

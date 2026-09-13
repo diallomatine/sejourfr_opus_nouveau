@@ -82,6 +82,10 @@ HORODATAGE = "'2026-08-06 09:00:00+02'"
 # changeraient d'un octet et perdraient leur somme de controle Flyway.
 HORODATAGE_LOT2 = "'2026-08-10 09:00:00+02'"
 
+# Horodatage du lot 3 (« Vous allez apprendre a : »), meme raison : les lots
+# precedents gardent le leur, sinon leurs migrations changeraient d'un octet.
+HORODATAGE_LOT3 = "'2026-09-12 09:00:00+02'"
+
 # Migrations de MISE A JOUR du guidage de l'ecran de saisie (checklist, etiquettes
 # de contrainte, amorce, astuce). Elles sont separees des inserts V300-V305 parce
 # que ceux-ci sont deja APPLIQUES : y toucher invaliderait leur somme de controle
@@ -96,6 +100,24 @@ TACHES_LOT2 = [(code, 312 + i, titre) for i, (code, _, titre) in enumerate(TACHE
 # Nombre de sujets par competence, et frontiere entre les deux lots.
 SUJETS_PAR_COMPETENCE = 15
 DERNIER_SUJET_LOT1 = 5
+
+# --- « Vous allez apprendre a : » (lot 3, V319) --------------------------------
+#
+# Trois gestes courts par competence, affiches sur sa fiche au-dessus du bouton
+# d'action. Donnee EDITORIALE : elle ne se derive NI de `generalCriterion` (dont
+# l'enumeration nomme des destinataires, pas des gestes), NI des `checklist` des
+# sujets (bon format, mais collees a leur contexte : « Saluez votre voisine »).
+#
+# Bornes calquees sur celles de la check-list d'un sujet — meme discipline
+# d'ecriture, remontee d'un cran dans la hierarchie.
+POINTS_PAR_COMPETENCE = 3
+MOTS_MAX_PAR_POINT = 6
+
+# Migration unique pour les 48 competences d'expression. Une seule, et non six :
+# ce sont 48 UPDATE d'une ligne, ils n'ont aucune raison d'etre eclates par
+# tache. Les 6 competences de COMPREHENSION (V318) ne sont pas concernees —
+# elles n'ont ni sujet ni fiche.
+VERSION_LEARNING_POINTS = 319
 
 # Liste fermee des icones d'etiquette. Les deux fronts la mappent sur une icone
 # Lucide ; une valeur hors liste ferait tomber l'affichage sur l'icone par defaut,
@@ -242,6 +264,40 @@ def valider_unicite_editoriale(doc: dict, code_tache: str) -> None:
         _signaler(probleme + "\n  (lot 1 deja publie — non corrigeable)")
 
 
+def valider_points(skill: dict) -> None:
+    """Les points d'apprentissage, quand la competence en porte.
+
+    FACULTATIF tant que le lot 3 n'est pas produit : la colonne
+    `skills.learning_points` est nullable (V063) et les fronts font disparaitre
+    le bloc quand elle est vide. Present, le contenu doit tenir le contrat —
+    sinon on seede une carte qui redevient de la prose.
+    """
+    points = skill.get("learningPoints")
+    if points is None:
+        return
+    assert isinstance(points, list), f"{skill['code']}.learningPoints n'est pas une liste"
+    assert len(points) == POINTS_PAR_COMPETENCE, (
+        f"{skill['code']}: {len(points)} points au lieu de {POINTS_PAR_COMPETENCE}"
+    )
+    vus = set()
+    for point in points:
+        assert isinstance(point, str) and point.strip(), f"{skill['code']}: point vide"
+        mots = len(point.split())
+        assert 1 <= mots <= MOTS_MAX_PAR_POINT, (
+            f"{skill['code']}: « {point} » fait {mots} mots"
+        )
+        # Un geste, pas une phrase : ni point final, ni majuscule de phrase
+        # imposee — c'est le front qui met la puce.
+        assert not point.rstrip().endswith("."), f"{skill['code']}: « {point} » finit par un point"
+        cle = _normaliser(point)
+        assert cle not in vus, f"{skill['code']}: point double « {point} »"
+        vus.add(cle)
+        # 🛑 Recopier la prose de la competence ferait exactement ce que cette
+        # donnee existe pour eviter.
+        assert _normaliser(point) != _normaliser(skill["generalCriterion"]), skill["code"]
+        assert _normaliser(point) != _normaliser(skill["description"]), skill["code"]
+
+
 def valider(doc: dict, code_tache: str) -> None:
     """Refuse un contenu non conforme au contrat plutot que de seeder du faux."""
     assert doc["taskCode"] == code_tache, f"{code_tache}: taskCode={doc['taskCode']}"
@@ -263,6 +319,7 @@ def valider(doc: dict, code_tache: str) -> None:
         # Le critere general et l'explication sont deux textes DISTINCTS (spec §3,
         # niveau 4) : les confondre etait le defaut du contrat gele initial.
         assert skill["generalCriterion"] != skill["description"], skill["code"]
+        valider_points(skill)
 
         prompts = skill["prompts"]
         assert len(prompts) == SUJETS_PAR_COMPETENCE, (
@@ -610,6 +667,77 @@ def rendre_lot2(doc: dict, version: int, titre_tache: str, version_lot1: int) ->
     return "\n".join(out)
 
 
+def rendre_learning_points(docs: list[tuple[str, dict]]) -> str:
+    """Migration du LOT 3 : « Vous allez apprendre a : » pour les 48 competences.
+
+    UPDATE et non INSERT : les 48 lignes existent depuis V300-V305, et la
+    colonne a ete ajoutee apres coup (V063) sur un catalogue deja seede. C'est
+    exactement le montage de V306-V311 pour le guidage des sujets.
+
+    UNE seule migration pour les six taches : ce sont 48 mises a jour d'une
+    ligne, les eclater par tache n'apporterait rien qu'une numerotation de plus.
+    """
+    out: list[str] = []
+    a = out.append
+
+    total = sum(len(doc["skills"]) for _, doc in docs)
+    a("-- ============================================================================")
+    a(f"-- V{VERSION_LEARNING_POINTS} — Competences TCF : « Vous allez apprendre a : »")
+    a("--")
+    a(f"-- Renseigne `skills.learning_points` pour les {total} competences d'EXPRESSION")
+    a(f"-- (EE1..EO3) : {POINTS_PAR_COMPETENCE} gestes courts par competence, affiches sur sa fiche")
+    a("-- au-dessus du bouton d'action.")
+    a("--")
+    a("-- POURQUOI UN UPDATE — les lignes existent depuis V300-V305, et la colonne a ete")
+    a("-- ajoutee apres coup (V063) sur un catalogue deja seede. Reecrire V300-V305 pour")
+    a("-- y glisser la colonne invaliderait leur somme de controle Flyway partout ou elles")
+    a("-- ont ete jouees. Meme montage que V306-V311 pour le guidage des sujets.")
+    a("--")
+    a("-- 🛑 CES POINTS NE SE DERIVENT PAS DE L'EXISTANT. Ni de `general_criterion` (dont")
+    a("-- l'enumeration nomme des DESTINATAIRES : « ami, voisin, collegue »), ni des")
+    a("-- `checklist` des sujets (bon format, mais collees a leur contexte : « Saluez")
+    a("-- votre voisine »). C'est une donnee EDITORIALE, redigee competence par competence.")
+    a("--")
+    a("-- Les 6 competences de COMPREHENSION (V318) ne sont pas concernees : elles n'ont")
+    a("-- ni petit sujet ni fiche de competence.")
+    a("--")
+    a("-- FICHIER GENERE — NE PAS EDITER A LA MAIN.")
+    a("--")
+    a("--   cd backend_sejourfr && python3 tools/competences/generer_seed.py")
+    a("--")
+    a("-- On edite les fiches de contenu tools/competences/contenu/*.json, puis on")
+    a("-- regenere. Une correction faite ici serait ecrasee a la prochaine generation.")
+    a("-- ============================================================================")
+    a("")
+    a("UPDATE skills AS s")
+    a("SET learning_points = v.points::jsonb,")
+    a(f"    updated_at      = {HORODATAGE_LOT3}")
+    a("FROM (VALUES")
+    lignes = []
+    for code_tache, doc in docs:
+        lignes.append(f"  -- {code_tache}")
+        for skill in doc["skills"]:
+            points = json.dumps(skill["learningPoints"], ensure_ascii=False)
+            lignes.append(f"  ({q(skill['code'])}, {q(points)})")
+    # Les commentaires de tache ne sont pas des elements de la liste : on ne
+    # colle une virgule qu'entre deux vraies lignes.
+    rendu = []
+    valeurs = [l for l in lignes if not l.strip().startswith("--")]
+    i = 0
+    for l in lignes:
+        if l.strip().startswith("--"):
+            rendu.append(l)
+        else:
+            i += 1
+            rendu.append(l + ("," if i < len(valeurs) else ""))
+    a("\n".join(rendu))
+    a(") AS v(code, points)")
+    a("WHERE s.code = v.code;")
+    a("")
+
+    return "\n".join(out)
+
+
 def main() -> int:
     CIBLE.mkdir(parents=True, exist_ok=True)
     manquants = [c for c, _, _ in TACHES if not (CONTENU / f"{c}.json").exists()]
@@ -619,9 +747,11 @@ def main() -> int:
 
     tous_codes: set[str] = set()
     total_sujets = 0
+    docs: list[tuple[str, dict]] = []
     for code, version, titre in TACHES:
         doc = json.loads((CONTENU / f"{code}.json").read_text(encoding="utf-8"))
         valider(doc, code)
+        docs.append((code, doc))
 
         for s in doc["skills"]:
             assert s["code"] not in tous_codes, f"code competence double : {s['code']}"
@@ -654,6 +784,30 @@ def main() -> int:
 
     print(f"\nTotal : 48 competences, {total_sujets} sujets, {total_sujets * 3} references")
     assert total_sujets == 720, total_sujets
+
+    # Lot 3 — « Vous allez apprendre a : ». On n'emet la migration que quand les
+    # 48 competences en portent : un seed a moitie rempli afficherait le bloc
+    # sur certaines fiches et pas sur d'autres, sans que rien ne le signale.
+    avec = sum(1 for _, doc in docs
+               for s in doc["skills"] if s.get("learningPoints"))
+    attendu = sum(len(doc["skills"]) for _, doc in docs)
+    nom_lp = f"V{VERSION_LEARNING_POINTS}__tcf_competences_learning_points.sql"
+    if avec == attendu:
+        (CIBLE / nom_lp).write_text(rendre_learning_points(docs), encoding="utf-8")
+        print(f"{nom_lp} — {attendu} competences x {POINTS_PAR_COMPETENCE} points")
+        print("\n⚠️  Penser a porter EXPECTED_LEARNING_POINTS a "
+              f"{attendu} dans SkillSeedIT, dans la MEME passe.")
+    elif avec == 0:
+        print(f"\n{nom_lp} — non emise : aucune competence ne porte encore de"
+              " points d'apprentissage.")
+        print("   Renseigner « learningPoints » dans contenu/*.json"
+              " (voir tools/competences/generer_learning_points.py).")
+    else:
+        print(f"\nContenu INCOMPLET : {avec}/{attendu} competences portent leurs"
+              " points d'apprentissage.", file=sys.stderr)
+        print(f"{nom_lp} n'est PAS emise — un seed a moitie rempli afficherait le"
+              " bloc sur certaines fiches seulement.", file=sys.stderr)
+        return 1
     return 0
 
 

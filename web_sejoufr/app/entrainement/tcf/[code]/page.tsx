@@ -15,7 +15,11 @@ import {
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
-import { DetailShell, LevelChoiceCard } from "@/app/_components/hub/DetailParts";
+import {
+  ComplementaryNotice,
+  DetailShell,
+  LevelChoiceCard,
+} from "@/app/_components/hub/DetailParts";
 import detail from "@/app/_components/hub/detail.module.css";
 
 /** Épreuves TCF QCM exposées sur le web (les productions EO/EE ont leur parcours). */
@@ -181,6 +185,7 @@ export default function TcfQcmDetailPage() {
         eyebrowIcon={config.icon}
         eyebrow={config.title}
         title="Choisissez votre niveau"
+        notice={code === "structure" ? <ComplementaryNotice /> : undefined}
         subtitle="Les questions sont organisées par niveau du Cadre européen (CECRL). Commencez par le niveau qui vous correspond, puis montez progressivement."
         action={
           <Link href={`/entrainement/tcf/${code}/examens`} className={detail.headBtn}>

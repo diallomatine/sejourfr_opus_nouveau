@@ -60,6 +60,7 @@ import s from "./skill.module.css";
 export function SkillShell({
   backHref,
   backLabel,
+  eyebrow,
   title,
   meta,
   level,
@@ -68,6 +69,9 @@ export function SkillShell({
 }: {
   backHref: string;
   backLabel: string;
+  /** Sur-titre au-dessus du nom (« TCF IRN »). Absent ⇒ rien, comportement
+   *  historique des vingt autres écrans montés dans cette coquille. */
+  eyebrow?: string;
   /** Nom de l'épreuve. Renseigné ⇒ en-tête de parcours. */
   title?: string;
   /** Sous-titre d'épreuve (`TCF IRN · 3 tâches · 30 min`). */
@@ -97,6 +101,7 @@ export function SkillShell({
             <ArrowLeft size={18} aria-hidden />
           </Link>
           <div className={s.pageHeadBody}>
+            {eyebrow && <p className={s.pageEyebrow}>{eyebrow}</p>}
             <h1 className={s.pageTitle}>{title}</h1>
             {meta && <p className={s.pageMeta}>{meta}</p>}
           </div>

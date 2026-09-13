@@ -92,6 +92,16 @@ public class AdminSkillService {
     private static final int TAGS_MIN = 1;
     private static final int TAGS_MAX = 3;
 
+    /**
+     * Bornes des points d'apprentissage d'une competence (« Vous allez
+     * apprendre a : »). <b>Exactement 3</b>, de 1 a 6 mots — la meme discipline
+     * d'ecriture que la check-list d'un sujet, remontee d'un cran. Elles vivent
+     * ici et non dans le DDL : la colonne a ete ajoutee nullable (V063) sur un
+     * catalogue deja seede, et une competence sans points reste legale.
+     */
+    private static final int LEARNING_POINTS_COUNT = 3;
+    private static final int LEARNING_POINT_MAX_WORDS = 6;
+
     private final SkillManager skillManager;
     private final SkillPromptManager promptManager;
     private final UserSkillAttemptManager attemptManager;
@@ -164,6 +174,7 @@ public class AdminSkillService {
         skill.setTitle(req.title().trim());
         skill.setDescription(req.description().trim());
         skill.setGeneralCriterion(req.generalCriterion().trim());
+        skill.setLearningPoints(sanitizeLearningPoints(req.learningPoints()));
         skill.setTargetLevel(req.targetLevel());
         skill.setDisplayOrder(req.displayOrder().shortValue());
         skill.setActive(req.active() == null || req.active());
@@ -190,6 +201,9 @@ public class AdminSkillService {
         if (req.description() != null) skill.setDescription(req.description().trim());
         if (req.generalCriterion() != null) skill.setGeneralCriterion(req.generalCriterion().trim());
         if (req.targetLevel() != null) skill.setTargetLevel(req.targetLevel());
+        // ⚠️ Remplacement, et un nul EFFACE : la colonne est nullable, donc le
+        // nul y designe un etat atteignable. Cf. le javadoc de la requete.
+        skill.setLearningPoints(sanitizeLearningPoints(req.learningPoints()));
         if (req.displayOrder() != null) {
             requireFreeSkillOrder(skill.getSection(), skill.getTaskCode(),
                     req.displayOrder(), skill.getId());
@@ -552,6 +566,42 @@ public class AdminSkillService {
         prompt.setConstraintTags(tags);
         prompt.setAnswerStarter(blankToNull(answerStarter));
         prompt.setTip(blankToNull(tip));
+    }
+
+    /**
+     * Les points d'apprentissage sont <b>exactement trois</b>, de 1 a 6 mots.
+     *
+     * <p>Trois, parce que la carte les rend sous le titre et au-dessus de son
+     * bouton : deux n'annoncent pas une competence, quatre repoussent l'action
+     * sous la ligne de flottaison. Six mots, parce que c'est deja la borne
+     * eprouvee des check-lists sur 720 sujets — un point d'apprentissage qui
+     * depasse redevient une phrase, et la carte redevient de la prose.
+     *
+     * <p>{@code null} ou vide est <b>legal</b> et vaut « pas de points » : le
+     * catalogue seede n'en porte pas encore, et les fronts font disparaitre le
+     * bloc.
+     */
+    private List<String> sanitizeLearningPoints(List<String> points) {
+        if (points == null || points.isEmpty()) return null;
+        List<String> cleaned = new ArrayList<>(points.size());
+        for (String point : points) {
+            if (point == null || point.isBlank()) {
+                throw new BusinessException("Un point d'apprentissage ne peut pas être vide.");
+            }
+            String trimmed = point.trim();
+            int words = trimmed.split("\\s+").length;
+            if (words > LEARNING_POINT_MAX_WORDS) {
+                throw new BusinessException("Un point d'apprentissage ne peut pas dépasser "
+                        + LEARNING_POINT_MAX_WORDS + " mots (« " + trimmed + " » en compte "
+                        + words + ").");
+            }
+            cleaned.add(trimmed);
+        }
+        if (cleaned.size() != LEARNING_POINTS_COUNT) {
+            throw new BusinessException("Les points d'apprentissage doivent être exactement "
+                    + LEARNING_POINTS_COUNT + " (" + cleaned.size() + " fourni(s)).");
+        }
+        return cleaned;
     }
 
     /**

@@ -58,6 +58,16 @@ Juste de quoi comprendre une demande. Le détail (sémantique fine, valeurs, pi�
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`.
 - **Epreuve** : `CIVIQUE` / `TCF_CO` / `TCF_CE` / `TCF_STRUCTURE` / `TCF_EO` / `TCF_EE` /
   `TCF_COMPLET` (conteneur d'examen blanc, sous-attempts via `attempts.parent_attempt_id`).
+  🛑 **Le TCF IRN comporte QUATRE épreuves : CO, CE, EE, EO.** `TCF_STRUCTURE` est un
+  module d'**entraînement complémentaire** SejourFR, jamais une cinquième épreuve : le
+  backend l'exclut déjà de l'examen blanc, du Plan et du diagnostic, et les fronts la
+  rangent à part (« Renforcer mon français »). Liste et libellés déclarés **une fois par
+  front** : `web_sejoufr/lib/tcf-epreuves.ts` ⇄ `mobile_sejourfr/lib/core/utils/tcf_epreuves.dart`.
+- 🛑 **`SkillTaskCode.targetLevel` (EE1=A2 … EO3=B2) n'est PAS officiel** : c'est notre
+  palier **pédagogique interne**. France Éducation international ne rattache aucun palier
+  CECRL à une tâche. Aucun écran ne le présente comme une règle du TCF — les libellés
+  disent « **Niveau visé** ». Idem pour « le plancher des 3 tâches », convention maison :
+  la règle TCF IRN du plancher porte sur les **4 épreuves**.
 - **AttemptType** : `TRAINING` (correction immédiate) / `MOCK_EXAM` (examen blanc, chrono, pas
   de correction live) / `REVIEW`.
 - **SkillSection** (compétences) : `EE` / `EO` / `CO` / `CE`. **SkillTaskCode** : les 6 tâches
@@ -314,6 +324,7 @@ on est tenté de modifier un seuil, un contrat, une consigne ou une règle produ
 | `docs/decisions/diagnostic.md` | V040 / V041 / V042 — les productions inexploitables et le rejugement des 6 lignes. |
 | `docs/decisions/paiements.md` | Lots 1 → 5, geste V038 envers les anciens acheteurs, réversibilité. |
 | `docs/decisions/mesure-audience.md` | L'ancien système `page_views`, legacy, conservé comme archive. |
+| `docs/decisions-autonomes-chantier-tcf-irn.md` | Le chantier **taxonomie V3** mené en autonomie (2026-09-13) : D01 à D05, sources, arbitrages et niveaux de confiance. |
 
 ## Documentation de référence (inchangée)
 
@@ -332,6 +343,8 @@ on est tenté de modifier un seuil, un contrat, une consigne ou une règle produ
 - `docs/paiements-iap-setup.md` · `docs/vps-config-iap.md` — setup IAP détaillé
 - `docs/ia/ANALYSE_SPEC_EVALUATION_IA.md` — décisions produit de la refonte de notation
 - `docs/skills/SEJOURFR_SPEC_COMPETENCES_EE_EO.md` — spec fonctionnelle du module Compétences
+- `docs/taxonomie-competences-v3.md` — **la cible des 48 compétences** (ancien → nouveau), validée le 2026-09-13
+- `docs/audit-caracteristiques-tcf-irn.md` · `docs/audit-taxonomie-competences.md` · `docs/audit-structure-de-la-langue.md` · `docs/audit-sujets-ee1.md` · `docs/audit-sujets-ee3.md` — les audits qui l'ont produite
 - `docs/plan/` — briefs et maquettes (Plan adaptatif, Analytics, Mobile/Web Autonome)
 - `docs/diagnostiques/` · `docs/relatime/` — briefs diagnostic et EO temps réel
 - `docs/refonte-entrainement.md` · `docs/roadmap.md` — statuts et roadmap commune

@@ -3,16 +3,15 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/skill_models.dart';
-import '../../core/providers/target_level_provider.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import 'competences/competences_providers.dart';
+import 'expression_labels.dart';
 import 'competences/competences_tab_view.dart';
 import 'production_catalog.dart';
 import 'production_subjects_tab_view.dart';
 import 'tcf_production_module.dart';
-import 'widgets/production_blocks.dart';
 import 'widgets/production_common.dart';
 
 /// Les deux façons de travailler **une** tâche d'expression.
@@ -25,8 +24,8 @@ enum ProductionTaskTab { competences, sujets }
 
 String productionTaskTabLabel(ProductionTaskTab tab, int? count) {
   final base = switch (tab) {
-    ProductionTaskTab.competences => 'Compétences',
-    ProductionTaskTab.sujets => "Sujets d'examen",
+    ProductionTaskTab.competences => kExpressionTabCompetences,
+    ProductionTaskTab.sujets => kExpressionTabSujets,
   };
   return count == null ? base : '$base · $count';
 }
@@ -172,7 +171,15 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
   /// Elle est rendue quel que soit l'état de la liste — sans elle, une erreur
   /// de chargement enfermerait le candidat dans un onglet.
   List<Widget> _top() {
-    final level = ref.watch(userTargetLevelProvider);
+    // 🛑 Le palier de la TÂCHE, lu sur le miroir gelé de l'enum backend —
+    // aucun appel de plus. Il portait le palier de la **démarche du candidat**,
+    // ce qui n'a rien à faire sur une tâche ; et la maquette écrit « OBJECTIF
+    // B2 » sur la Tâche 1, qui est une tâche A2. Les deux laissaient croire
+    // qu'une tâche vaut un niveau. Miroir web : `TaskChrome`.
+    final niveauVise = SkillTaskCode.values
+        .firstWhere((t) => t.section == _section && t.tacheNumero == widget.tache)
+        .targetLevel
+        .wire;
     final skills = ref.watch(skillsListProvider(
       SkillsKey(section: _section, tacheNumero: widget.tache),
     )).valueOrNull;
@@ -184,7 +191,7 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
         module: widget.module,
         tache: widget.tache,
         constraint: _constraintOf(catalog),
-        level: level?.wire,
+        level: niveauVise,
         onBack: () => Navigator.of(context).maybePop(),
       ),
       const SizedBox(height: 12),
@@ -310,7 +317,21 @@ class _TaskBanner extends StatelessWidget {
               ),
               if (level != null) ...[
                 const SizedBox(width: 10),
-                ProductionLevelBadge(level: level!, onDark: true),
+                // Pastille « NIVEAU VISÉ B1 » : le mot « visé » est porté par
+                // le libellé partagé, sans lui le palier se lirait comme une
+                // règle officielle du TCF IRN.
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    niveauViseBadge(level!).toUpperCase(),
+                    style: AppFonts.label(size: 11, color: AppColors.white),
+                  ),
+                ),
               ],
             ],
           ),
@@ -326,9 +347,7 @@ class _TaskBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  constraint == null
-                      ? 'CONSIGNE'
-                      : 'CONSIGNE · ${constraint!.toUpperCase()}',
+                  'CONSIGNE',
                   style: AppFonts.ui(
                     size: 10.5,
                     weight: FontWeight.w800,
@@ -337,6 +356,17 @@ class _TaskBanner extends StatelessWidget {
                     color: AppColors.white.withValues(alpha: 0.72),
                   ),
                 ),
+                // La contrainte est la PREMIÈRE chose lue de la consigne
+                // (maquette `detail_tache.png`) : c'est elle qui cadre la
+                // production. Servie par `production_tasks`.
+                if (constraint != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    constraint!,
+                    style:
+                        AppFonts.display(size: 24, color: AppColors.white),
+                  ),
+                ],
                 const SizedBox(height: 5),
                 Text(
                   meta.intro,

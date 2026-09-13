@@ -1,0 +1,531 @@
+{
+  "modele": "deepseek-v4-flash",
+  "tokensEntree": 60404,
+  "tokensSortie": 2527,
+  "coutReelUsd": 0.0149567,
+  "taches": [
+    {
+      "taskCode": "EE1",
+      "titre": "Écrire un message court",
+      "palier": "A2",
+      "competences": [
+        {
+          "code": "EE1-C2",
+          "titre": "Répondre précisément à la demande du message",
+          "palier": "A2",
+          "learningPoints": [
+            "Repérer ce qui est demandé",
+            "Répondre à cette demande seule",
+            "Écarter ce qui n'est pas demandé"
+          ]
+        },
+        {
+          "code": "EE1-C1",
+          "titre": "Adapter la réponse au destinataire",
+          "palier": "A2",
+          "learningPoints": [
+            "Choisir le tutoiement ou le vouvoiement",
+            "Tenir le même ton partout",
+            "Rester poli sans être guindé"
+          ]
+        },
+        {
+          "code": "EE1-C9",
+          "titre": "Identifier clairement ce qui est décrit",
+          "palier": "A2",
+          "learningPoints": [
+            "Nommer ce dont on parle",
+            "Donner un signe qui distingue",
+            "Écarter les autres possibilités"
+          ]
+        },
+        {
+          "code": "EE1-C10",
+          "titre": "Sélectionner les caractéristiques pertinentes",
+          "palier": "A2",
+          "learningPoints": [
+            "Repérer ce qui intéresse le lecteur",
+            "Retenir les traits utiles",
+            "Laisser de côté le reste"
+          ]
+        },
+        {
+          "code": "EE1-C7",
+          "titre": "Décrire une personne ou un groupe",
+          "palier": "A2",
+          "learningPoints": [
+            "Donner l'aspect et l'âge",
+            "Dire le caractère ou le rôle",
+            "Décrire la composition d'un groupe"
+          ]
+        },
+        {
+          "code": "EE1-C11",
+          "titre": "Décrire un lieu ou un objet",
+          "palier": "A2",
+          "learningPoints": [
+            "Situer le lieu ou l'objet",
+            "Donner la taille et la matière",
+            "Dire l'usage ou l'ambiance"
+          ]
+        },
+        {
+          "code": "EE1-C3",
+          "titre": "Donner des détails concrets et précis",
+          "palier": "A2",
+          "learningPoints": [
+            "Remplacer les mots vagues",
+            "Donner une couleur ou un nombre",
+            "Préciser l'endroit ou le moment"
+          ]
+        },
+        {
+          "code": "EE1-C8",
+          "titre": "Relier les informations dans une description cohérente",
+          "palier": "A2",
+          "learningPoints": [
+            "Choisir un ordre de description",
+            "Relier les phrases entre elles",
+            "Refermer la description naturellement"
+          ]
+        }
+      ]
+    },
+    {
+      "taskCode": "EE2",
+      "titre": "Raconter une expérience",
+      "palier": "B1",
+      "competences": [
+        {
+          "code": "EE2-C1",
+          "titre": "Situer le moment et le lieu",
+          "palier": "B1",
+          "learningPoints": [
+            "Donner un repère de temps",
+            "Nommer le lieu du récit",
+            "Poser ces repères d'emblée"
+          ]
+        },
+        {
+          "code": "EE2-C2",
+          "titre": "Présenter la situation et les personnes",
+          "palier": "B1",
+          "learningPoints": [
+            "Nommer les personnes présentes",
+            "Dire ce que chacun faisait",
+            "Ne pas redire le lieu"
+          ]
+        },
+        {
+          "code": "EE2-C3",
+          "titre": "Utiliser les temps du passé de manière compréhensible",
+          "palier": "B1",
+          "learningPoints": [
+            "Tenir le récit au passé",
+            "Distinguer les actions du contexte",
+            "Garder des temps cohérents"
+          ]
+        },
+        {
+          "code": "EE2-C9",
+          "titre": "Expliquer une action, un choix ou une réaction",
+          "palier": "B1",
+          "learningPoints": [
+            "Donner la raison d'un choix",
+            "Nommer la cause d'un fait",
+            "Rendre une réaction compréhensible"
+          ]
+        },
+        {
+          "code": "EE2-C5",
+          "titre": "Raconter les actions dans l'ordre",
+          "palier": "B1",
+          "learningPoints": [
+            "Poser la première étape",
+            "Enchaîner les étapes suivantes",
+            "Varier les connecteurs de temps"
+          ]
+        },
+        {
+          "code": "EE2-C6",
+          "titre": "Ajouter des détails utiles",
+          "palier": "B1",
+          "learningPoints": [
+            "Préciser une personne ou un lieu",
+            "Ajouter une circonstance concrète",
+            "Rester dans le sujet"
+          ]
+        },
+        {
+          "code": "EE2-C7",
+          "titre": "Exprimer une réaction ou un ressenti",
+          "palier": "B1",
+          "learningPoints": [
+            "Nommer un sentiment précis",
+            "Le relier à la situation vécue",
+            "Éviter les mots passe-partout"
+          ]
+        },
+        {
+          "code": "EE2-C8",
+          "titre": "Terminer par le résultat ou ce que cela a apporté",
+          "palier": "B1",
+          "learningPoints": [
+            "Dire comment cela s'est terminé",
+            "Ou ce que cela a changé",
+            "Refermer sans exagérer la fin"
+          ]
+        }
+      ]
+    },
+    {
+      "taskCode": "EE3",
+      "titre": "Donner son opinion",
+      "palier": "B2",
+      "competences": [
+        {
+          "code": "EE3-C1",
+          "titre": "Exprimer une position claire",
+          "palier": "B1",
+          "learningPoints": [
+            "Répondre à la question posée",
+            "Rendre son avis identifiable",
+            "Rester sur le sujet visé"
+          ]
+        },
+        {
+          "code": "EE3-C2",
+          "titre": "Donner un argument pertinent",
+          "palier": "B1",
+          "learningPoints": [
+            "Donner une raison à son avis",
+            "La rattacher à l'avis annoncé",
+            "Éviter la raison hors sujet"
+          ]
+        },
+        {
+          "code": "EE3-C3",
+          "titre": "Développer un argument",
+          "palier": "B2",
+          "learningPoints": [
+            "Expliquer pourquoi la raison vaut",
+            "Dérouler le lien jusqu'au bout",
+            "Nommer l'effet obtenu"
+          ]
+        },
+        {
+          "code": "EE3-C4",
+          "titre": "Illustrer avec un exemple concret",
+          "palier": "B1",
+          "learningPoints": [
+            "Choisir un cas précis",
+            "Situer un moment et un geste",
+            "Relier l'exemple à l'argument"
+          ]
+        },
+        {
+          "code": "EE3-C5",
+          "titre": "Faire progresser son propos sans se répéter",
+          "palier": "B2",
+          "learningPoints": [
+            "Apporter une idée nouvelle",
+            "Changer de terrain",
+            "Ne pas revenir sur la précédente"
+          ]
+        },
+        {
+          "code": "EE3-C9",
+          "titre": "Adapter son expression au destinataire et au contexte",
+          "palier": "B2",
+          "learningPoints": [
+            "Ajuster le ton à la personne",
+            "Choisir le niveau de politesse",
+            "Doser la franchise sans blesser"
+          ]
+        },
+        {
+          "code": "EE3-C7",
+          "titre": "Nuancer ou reconnaître une limite",
+          "palier": "B2",
+          "learningPoints": [
+            "Reconnaître un point adverse réel",
+            "Marquer la concession clairement",
+            "Garder sa position malgré elle"
+          ]
+        },
+        {
+          "code": "EE3-C8",
+          "titre": "Enchaîner ses idées de façon cohérente",
+          "palier": "B2",
+          "learningPoints": [
+            "Relier les idées entre elles",
+            "Choisir le bon connecteur",
+            "Se passer d'une conclusion formelle"
+          ]
+        }
+      ]
+    },
+    {
+      "taskCode": "EO1",
+      "titre": "Entretien dirigé : parler de soi",
+      "palier": "A2",
+      "competences": [
+        {
+          "code": "EO1-C1",
+          "titre": "Se présenter avec les informations essentielles",
+          "palier": "A2",
+          "learningPoints": [
+            "Donner son nom et sa situation",
+            "Répondre à ce qui est demandé",
+            "Rester court et clair"
+          ]
+        },
+        {
+          "code": "EO1-C2",
+          "titre": "Répondre directement à une question personnelle",
+          "palier": "A2",
+          "learningPoints": [
+            "Répondre par une phrase complète",
+            "Éviter le simple oui ou non",
+            "Rester sur la question posée"
+          ]
+        },
+        {
+          "code": "EO1-C3",
+          "titre": "Développer une réponse avec une précision",
+          "palier": "A2",
+          "learningPoints": [
+            "Ajouter un quand ou un où",
+            "Préciser avec qui ou pourquoi",
+            "Donner une fréquence"
+          ]
+        },
+        {
+          "code": "EO1-C4",
+          "titre": "Parler de son quotidien",
+          "palier": "A2",
+          "learningPoints": [
+            "Décrire ses horaires habituels",
+            "Suivre l'ordre de la journée",
+            "Nommer des gestes concrets"
+          ]
+        },
+        {
+          "code": "EO1-C5",
+          "titre": "Décrire son entourage ou son environnement",
+          "palier": "A2",
+          "learningPoints": [
+            "Présenter sa famille ou ses proches",
+            "Décrire son logement ou son quartier",
+            "Ajouter deux détails concrets"
+          ]
+        },
+        {
+          "code": "EO1-C6",
+          "titre": "Raconter brièvement une expérience passée",
+          "palier": "A2",
+          "learningPoints": [
+            "Situer le moment du récit",
+            "Résumer l'essentiel",
+            "S'arrêter avant le récit développé"
+          ]
+        },
+        {
+          "code": "EO1-C7",
+          "titre": "Parler de ses projets futurs",
+          "palier": "A2",
+          "learningPoints": [
+            "Annoncer une intention",
+            "Situer le projet dans le temps",
+            "Ajouter une précision utile"
+          ]
+        },
+        {
+          "code": "EO1-C8",
+          "titre": "Réagir à une relance et maintenir l'échange",
+          "palier": "A2",
+          "learningPoints": [
+            "Comprendre ce qu'on vous redemande",
+            "Compléter au lieu de répéter",
+            "Relancer l'échange naturellement"
+          ]
+        }
+      ]
+    },
+    {
+      "taskCode": "EO2",
+      "titre": "Jeu de rôle : demander et obtenir des informations",
+      "palier": "B1",
+      "competences": [
+        {
+          "code": "EO2-C1",
+          "titre": "Commencer poliment et expliquer son besoin",
+          "palier": "B1",
+          "learningPoints": [
+            "Saluer son interlocuteur",
+            "Présenter la situation en une phrase",
+            "Annoncer ce que l'on cherche"
+          ]
+        },
+        {
+          "code": "EO2-C2",
+          "titre": "Formuler une question claire",
+          "palier": "B1",
+          "learningPoints": [
+            "Construire une question complète",
+            "La relier à la situation",
+            "Éviter la question trop vague"
+          ]
+        },
+        {
+          "code": "EO2-C3",
+          "titre": "Demander les informations et les conditions",
+          "palier": "B1",
+          "learningPoints": [
+            "Demander prix, horaire ou durée",
+            "Demander documents et inscription",
+            "Demander les règles et services"
+          ]
+        },
+        {
+          "code": "EO2-C9",
+          "titre": "Réagir à une réponse ou une contrainte imprévue",
+          "palier": "B1",
+          "learningPoints": [
+            "Poursuivre après un refus",
+            "Relancer poliment",
+            "Proposer une autre solution"
+          ]
+        },
+        {
+          "code": "EO2-C5",
+          "titre": "Poser une question de suivi",
+          "palier": "B1",
+          "learningPoints": [
+            "Reprendre la réponse obtenue",
+            "En tirer une question nouvelle",
+            "Demander un complément utile"
+          ]
+        },
+        {
+          "code": "EO2-C6",
+          "titre": "Demander une précision ou reformuler",
+          "palier": "B1",
+          "learningPoints": [
+            "Signaler ce qu'on n'a pas compris",
+            "Demander de répéter autrement",
+            "Reformuler pour faire confirmer"
+          ]
+        },
+        {
+          "code": "EO2-C7",
+          "titre": "Explorer plusieurs possibilités",
+          "palier": "B1",
+          "learningPoints": [
+            "Interroger chaque possibilité",
+            "Faire préciser les différences",
+            "Obtenir ce qui n'est pas dit"
+          ]
+        },
+        {
+          "code": "EO2-C8",
+          "titre": "Confirmer les informations et terminer l'échange",
+          "palier": "B1",
+          "learningPoints": [
+            "Récapituler l'essentiel obtenu",
+            "Vérifier un dernier point",
+            "Prendre congé naturellement"
+          ]
+        }
+      ]
+    },
+    {
+      "taskCode": "EO3",
+      "titre": "Exprimer et développer un point de vue",
+      "palier": "B2",
+      "competences": [
+        {
+          "code": "EO3-C1",
+          "titre": "Annoncer une position claire",
+          "palier": "B2",
+          "learningPoints": [
+            "Répondre clairement à la question",
+            "Rendre son opinion identifiable",
+            "Ne pas laisser deviner son avis"
+          ]
+        },
+        {
+          "code": "EO3-C8",
+          "titre": "Tenir un discours continu et organisé",
+          "palier": "B2",
+          "learningPoints": [
+            "Enchaîner sans laisser retomber",
+            "Relier chaque idée à la précédente",
+            "Organiser au lieu d'énumérer"
+          ]
+        },
+        {
+          "code": "EO3-C2",
+          "titre": "Donner un argument pertinent",
+          "palier": "B2",
+          "learningPoints": [
+            "Donner une raison à sa position",
+            "La rattacher à ce qu'on défend",
+            "Éviter la raison hors sujet"
+          ]
+        },
+        {
+          "code": "EO3-C3",
+          "titre": "Développer oralement un argument",
+          "palier": "B2",
+          "learningPoints": [
+            "Expliquer la cause de sa raison",
+            "En donner la conséquence",
+            "Ajouter une précision concrète"
+          ]
+        },
+        {
+          "code": "EO3-C4",
+          "titre": "Donner un exemple concret",
+          "palier": "B2",
+          "learningPoints": [
+            "Annoncer qu'on donne un exemple",
+            "Situer une personne et un moment",
+            "Dire l'effet observé"
+          ]
+        },
+        {
+          "code": "EO3-C5",
+          "titre": "Enchaîner une idée nouvelle",
+          "palier": "B2",
+          "learningPoints": [
+            "Apporter une idée qui avance",
+            "Changer de terrain",
+            "Ne pas compter ses arguments"
+          ]
+        },
+        {
+          "code": "EO3-C9",
+          "titre": "Reformuler pour relancer son propos",
+          "palier": "B2",
+          "learningPoints": [
+            "Redire la même idée autrement",
+            "Préciser au lieu de répéter",
+            "Repartir sans bloquer sur un mot"
+          ]
+        },
+        {
+          "code": "EO3-C7",
+          "titre": "Nuancer ou reconnaître une limite",
+          "palier": "B2",
+          "learningPoints": [
+            "Introduire une réserve",
+            "Reconnaître une exception",
+            "Tenir sa position malgré elle"
+          ]
+        }
+      ]
+    }
+  ],
+  "relecture": "144 points relus et reecrits a la main le 2026-09-13 : accents, infinitifs generalises, et retrait de ce que la V3 avait retire."
+}

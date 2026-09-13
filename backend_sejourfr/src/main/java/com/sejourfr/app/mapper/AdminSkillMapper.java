@@ -40,6 +40,7 @@ public class AdminSkillMapper {
                 skill.getDescription(),
                 skill.getGeneralCriterion(),
                 skill.getTargetLevel(),
+                skill.getLearningPoints(),
                 skill.getDisplayOrder(),
                 skill.isActive(),
                 promptCount,

@@ -1454,6 +1454,16 @@ export interface AdminSkillDto {
    */
   generalCriterion: string;
   targetLevel: SkillTargetLevel;
+  /**
+   * « Vous allez apprendre à : » — **exactement 3 gestes courts à l'infinitif**,
+   * ≤ 6 mots chacun (`AdminSkillService.sanitizeLearningPoints`).
+   *
+   * 🛑 Colonne **nullable** (`skills.learning_points`, `V063`) : `null` est le
+   * cas normal tant que le contenu n'est pas rédigé, et les fiches candidat
+   * retombent alors sur `generalCriterion`. Jamais dérivé de `description` ni
+   * de `generalCriterion` — ce sont trois textes différents.
+   */
+  learningPoints: string[] | null;
   displayOrder: number;
   active: boolean;
   promptCount: number;
@@ -1549,6 +1559,8 @@ export interface AdminSkillCreateRequest {
   description: string;
   generalCriterion: string;
   targetLevel: SkillTargetLevel;
+  /** Facultatif. Fourni, il doit porter **exactement 3** gestes de ≤ 6 mots. */
+  learningPoints?: string[] | null;
   displayOrder: number;
   active: boolean;
 }
@@ -1563,6 +1575,12 @@ export interface AdminSkillUpdateRequest {
   description: string;
   generalCriterion: string;
   targetLevel: SkillTargetLevel;
+  /**
+   * ⚠️ **Un `null` EFFACE** (la colonne est nullable), contrairement aux autres
+   * champs de ce PATCH où l'absence vaut « ne touche pas ». Même contrat que
+   * `AdminSkillPromptUpdateRequest.checklist`.
+   */
+  learningPoints?: string[] | null;
   displayOrder: number;
   active: boolean;
 }

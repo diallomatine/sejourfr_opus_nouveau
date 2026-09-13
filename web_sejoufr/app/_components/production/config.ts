@@ -100,7 +100,7 @@ export const EE_CONFIG: ProductionConfig = {
   inputSegment: PRODUCTION_INPUT_SEGMENT.EE,
   examTiming: { short: "30 min", factLabel: "sur les 3 tâches", factValue: "30 min" },
   examIntro:
-    "Vous rédigez les 3 productions écrites (message, récit, point de vue argumenté). Le chrono de 30 minutes porte sur les 3 tâches ensemble ; un temps conseillé s'affiche sur chacune, à titre indicatif. À la fin, l'IA évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
+    "Vous rédigez les 3 productions écrites (description, récit, opinion). Le chrono de 30 minutes porte sur les 3 tâches ensemble ; un temps conseillé s'affiche sur chacune, à titre indicatif. À la fin, l'IA évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
 };
 
 export const EO_CONFIG: ProductionConfig = {
@@ -118,5 +118,5 @@ export const EO_CONFIG: ProductionConfig = {
     factValue: "chaque tâche",
   },
   examIntro:
-    "Vous enregistrez les 3 tâches orales (entretien dirigé, point de vue, jeu de rôle). Chaque tâche est chronométrée à part : la consigne s'affiche sans décompte, et le temps ne part qu'au moment où vous lancez la tâche. À la fin, l'IA transcrit puis évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
+    "Vous enregistrez les 3 tâches orales (entretien dirigé, jeu de rôle, point de vue). Chaque tâche est chronométrée à part : la consigne s'affiche sans décompte, et le temps ne part qu'au moment où vous lancez la tâche. À la fin, l'IA transcrit puis évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
 };

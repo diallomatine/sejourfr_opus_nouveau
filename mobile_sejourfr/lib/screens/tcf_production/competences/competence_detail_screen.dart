@@ -9,13 +9,13 @@ import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
+import '../expression_labels.dart';
 import '../../../core/utils/format_date.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/progress_dots.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../../core/widgets/skill_mastery_tag.dart';
 import '../../plan/learning_plan_provider.dart';
 import '../../plan/plan_step_labels.dart';
 import '../widgets/exam_filter_chips.dart';
@@ -741,17 +741,22 @@ class _SummaryCard extends StatelessWidget {
                       _StepPill(accent: accent),
                       const SizedBox(height: 6),
                     ],
+                    // 🛑 « Compétence acquise » ⇔ `masteryState == SOLID`,
+                    // c'est-à-dire transfert PROUVÉ sur une production
+                    // complète — jamais une série de petits sujets terminée.
+                    Text(
+                      competenceEyebrow(skill),
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        weight: FontWeight.w600,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       skill.title,
                       style: AppFonts.display(size: 19, height: 1.2),
                     ),
-                    // Ce que le candidat *maîtrise*, pas ce qu'il a *fait* —
-                    // le compteur, lui, est juste en dessous. Rien quand le
-                    // serveur n'a rien observé : on n'invente pas un état.
-                    if (skill.masteryState != null) ...[
-                      const SizedBox(height: 7),
-                      SkillMasteryTag(state: skill.masteryState!),
-                    ],
                   ],
                 ),
               ),
@@ -796,6 +801,60 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             ProgressDots(done: attempted, total: total, color: accent),
           ],
+          // 🛑 **Deux blocs distincts, jamais l'un à la place de l'autre**
+          // (arbitrage du propriétaire, 2026-09-13). `learningPoints` est une
+          // colonne NULLABLE (`V063`) : absente, la section « Vous allez
+          // apprendre à » **disparaît entièrement** — elle ne retombe pas sur
+          // le critère général, qui n'est pas la même chose et garde son
+          // emplacement propre juste en dessous. Le jour où les points sont
+          // injectés, le bloc apparaît tout seul, sans toucher à cet écran.
+          if (skill.learningPoints.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, thickness: 1, color: AppColors.line2),
+            const SizedBox(height: 13),
+            Text(
+              kExpressionLearningPointsTitle,
+              style: AppFonts.ui(size: 13, color: AppColors.inkFaint),
+            ),
+            const SizedBox(height: 9),
+            for (final point in skill.learningPoints) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    margin: const EdgeInsets.only(top: 1),
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      LucideIcons.check,
+                      size: 11,
+                      color: AppColors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      point,
+                      style: AppFonts.ui(
+                        size: 14.5,
+                        weight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 9),
+            ],
+          ],
+          // Le critère travaillé, à sa place, **quoi qu'il arrive** : il dit ce
+          // qui est évalué, là où les points d'apprentissage disent ce qu'on va
+          // apprendre à faire.
           if (skill.generalCriterion.trim().isNotEmpty) ...[
             const SizedBox(height: 14),
             const Divider(height: 1, thickness: 1, color: AppColors.line2),

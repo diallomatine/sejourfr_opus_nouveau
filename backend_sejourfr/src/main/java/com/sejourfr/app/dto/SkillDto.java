@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,17 @@ public record SkillDto(
          */
         String generalCriterion,
         String targetLevel,
+        /**
+         * <b>« Vous allez apprendre a : »</b> — 3 gestes courts a l'infinitif,
+         * dans l'ordre d'apprentissage.
+         *
+         * <p>🛑 <b>Donnee editoriale</b> ({@code skills.learning_points}, V063),
+         * jamais derivee de {@link #description} ni de {@link #generalCriterion}
+         * ni des {@code checklist} des sujets. {@code null} tant qu'une
+         * competence n'en porte pas : les fronts font alors <b>disparaitre le
+         * bloc</b>, ils n'inventent pas de puce.
+         */
+        List<String> learningPoints,
         short displayOrder,
         int promptCount,
         int attemptedCount,

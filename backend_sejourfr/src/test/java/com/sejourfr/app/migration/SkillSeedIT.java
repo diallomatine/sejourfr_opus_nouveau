@@ -52,6 +52,16 @@ class SkillSeedIT extends AbstractIntegrationTest {
     private static final int EXPECTED_PROMPTS = EXPECTED_SKILLS * PROMPTS_PER_SKILL;
     private static final int EXPECTED_REFERENCES = EXPECTED_PROMPTS * REFERENCES_PER_PROMPT;
 
+    /**
+     * Competences portant leurs points d'apprentissage (« Vous allez apprendre
+     * a : »). Les <b>48 competences d'EXPRESSION</b>, depuis V320 — jamais les
+     * 6 de comprehension, qui n'ont ni tache ni petit sujet et pour lesquelles
+     * le bloc n'a pas de sens. C'est ce compteur qui rend un oubli visible :
+     * une competence creee sans points ferait disparaitre le bloc sur sa seule
+     * fiche, ce qu'aucun controle de forme ne verrait.
+     */
+    private static final int EXPECTED_LEARNING_POINTS = EXPECTED_SKILLS;
+
     /** Codes reserves a {@code TestData} : hors perimetre du contenu publie. */
     private static final String NOT_A_FIXTURE = " AND code NOT LIKE 'TST-%'";
 
@@ -104,10 +114,15 @@ class SkillSeedIT extends AbstractIntegrationTest {
 
     @Test
     void everyPromptPublishesItsThreeReferencesOnePerLevel() {
+        // p.is_active : depuis V320, la base porte aussi les sujets SORTIS du
+        // catalogue — ceux des competences retirees et ceux qu'un lot neuf a
+        // remplaces. Ils gardent leurs references, et c'est voulu : une
+        // production de candidat pointe encore dessus. Le contrat porte sur ce
+        // qui est PUBLIE.
         Integer total = jdbc.queryForObject("""
                 SELECT count(*) FROM skill_references r
                 JOIN skill_prompts p ON p.id = r.skill_prompt_id
-                WHERE p.code NOT LIKE 'TST-%'
+                WHERE p.is_active AND p.code NOT LIKE 'TST-%'
                 """, Integer.class);
         assertThat(total).isEqualTo(EXPECTED_REFERENCES);
 
@@ -236,6 +251,56 @@ class SkillSeedIT extends AbstractIntegrationTest {
                 "is_active" + NOT_A_FIXTURE + " AND tip ILIKE 'astuce%'"))
                 .as("astuces qui repetent le prefixe ajoute par les fronts")
                 .isZero();
+    }
+
+    /**
+     * <b>« Vous allez apprendre a : » — la FORME est figee ici, la COMPLETUDE
+     * s'active avec le contenu.</b>
+     *
+     * <p>`skills.learning_points` a ete ajoutee <b>nullable</b> (V063) sur un
+     * catalogue de 54 lignes deja seedees : une competence sans points est donc
+     * legale aujourd'hui, et les fronts font disparaitre le bloc. Ce test
+     * verrouille donc ce qui est verrouillable <b>maintenant</b> — toute
+     * competence qui EN PORTE en porte exactement 3, de 1 a 6 mots, aucun vide.
+     *
+     * <p>Depuis <b>V320</b>, les 48 competences d'expression portent leurs 3
+     * points : l'assertion de completude ci-dessous est devenue le verrou du
+     * seed, exactement comme pour le guidage des sujets. Les 6 competences de
+     * comprehension restent sans points, et c'est voulu.
+     */
+    @Test
+    void learningPointsAreAlwaysThreeShortItemsWhenPresent() {
+        assertThat(jdbc.queryForList("""
+                SELECT s.code FROM skills s
+                WHERE s.learning_points IS NOT NULL AND s.code NOT LIKE 'TST-%'
+                  AND (jsonb_typeof(s.learning_points) <> 'array'
+                       OR jsonb_array_length(s.learning_points) <> 3)
+                """))
+                .as("competences dont les points d'apprentissage ne sont pas exactement 3")
+                .isEmpty();
+
+        assertThat(jdbc.queryForList("""
+                SELECT s.code FROM skills s, jsonb_array_elements_text(s.learning_points) AS point
+                WHERE s.code NOT LIKE 'TST-%'
+                  AND (btrim(point) = ''
+                       OR array_length(regexp_split_to_array(btrim(point), '\\s+'), 1) > 6)
+                """))
+                .as("points d'apprentissage vides ou de plus de 6 mots")
+                .isEmpty();
+
+        // 🛑 Ils ne se derivent pas de la prose de la competence : un point qui
+        // recopierait le critere general serait une phrase, pas un geste.
+        assertThat(jdbc.queryForList("""
+                SELECT s.code FROM skills s, jsonb_array_elements_text(s.learning_points) AS point
+                WHERE s.code NOT LIKE 'TST-%'
+                  AND (btrim(point) = btrim(s.general_criterion) OR btrim(point) = btrim(s.description))
+                """))
+                .as("points d'apprentissage recopies de la prose de la competence")
+                .isEmpty();
+
+        assertThat(count("skills", "learning_points IS NOT NULL" + NOT_A_FIXTURE))
+                .as("competences publiees portant leurs points d'apprentissage")
+                .isEqualTo(EXPECTED_LEARNING_POINTS);
     }
 
     /**

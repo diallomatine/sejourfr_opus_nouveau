@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,12 @@ public record AdminSkillDto(
         /** Critere general de la competence, distinct du critere unique de chaque sujet. */
         String generalCriterion,
         String targetLevel,
+        /**
+         * « Vous allez apprendre a : » — 3 gestes courts. {@code null} tant
+         * qu'une competence n'en porte pas : la colonne a ete ajoutee (V063) sur
+         * un catalogue deja seede.
+         */
+        List<String> learningPoints,
         int displayOrder,
         boolean active,
         long promptCount,

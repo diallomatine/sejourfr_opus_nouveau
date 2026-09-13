@@ -12,6 +12,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/tcf_epreuves.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/fixed_action_bar.dart';
@@ -61,7 +62,7 @@ enum TcfQcmModule {
     routeKey: 'structure',
     questionType: QuestionType.structure,
     themeCode: 'TCF_STRUCTURE',
-    eyebrow: 'Entraînement complémentaire',
+    eyebrow: kTcfComplementaireEyebrow,
     title: 'Structure de la langue',
     headlineNoun: 'questions de grammaire',
     description: 'Conjugaison, accords, prépositions, connecteurs. Module hors TCF IRN '
@@ -70,8 +71,9 @@ enum TcfQcmModule {
     icon: LucideIcons.layoutGrid,
     epreuve: EpreuveType.tcfStructure,
     heroProgressLine: 'grammaire en conditions réelles',
-    notice:
-        'Module non évalué dans le TCF IRN officiel. Cet entraînement reste très utile pour consolider ta grammaire et progresser sur les autres épreuves.',
+    // 🛑 Texte declare une seule fois : core/utils/tcf_epreuves.dart, partage
+    // avec l'ecran Reviser et miroir de web_sejoufr/lib/tcf-epreuves.ts.
+    notice: kTcfComplementaireNote,
   );
 
   const TcfQcmModule({

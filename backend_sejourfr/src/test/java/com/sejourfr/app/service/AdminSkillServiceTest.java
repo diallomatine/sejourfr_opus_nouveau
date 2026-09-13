@@ -26,6 +26,7 @@ import com.sejourfr.app.manager.UserSkillAttemptManager.SkillUsage;
 import com.sejourfr.app.mapper.AdminSkillMapper;
 import com.sejourfr.app.mapper.SkillReferenceMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -94,7 +95,7 @@ class AdminSkillServiceTest {
     void createSkillRejectsSectionThatContradictsTaskCode() {
         AdminSkillCreateRequest req = new AdminSkillCreateRequest(
                 SkillSection.EO, SkillTaskCode.EE1, "EE1-C9", "Titre", "Description",
-                "Critere general", "A2", 9, true);
+                "Critere general", null, "A2", 9, true);
 
         assertThatThrownBy(() -> service.createSkill(req))
                 .isInstanceOf(BusinessException.class)
@@ -127,7 +128,7 @@ class AdminSkillServiceTest {
         when(skillManager.findById(skill.getId())).thenReturn(Optional.of(skill));
 
         AdminSkillDto dto = service.updateSkill(skill.getId(), new AdminSkillUpdateRequest(
-                "Nouveau titre", "Nouvelle description", "Nouveau critere", "B1", 4, false));
+                "Nouveau titre", "Nouvelle description", "Nouveau critere", "B1", null, 4, false));
 
         assertThat(dto.code()).isEqualTo("EE1-C1");
         assertThat(dto.section()).isEqualTo(SkillSection.EE);
@@ -145,7 +146,7 @@ class AdminSkillServiceTest {
         when(skillManager.findById(skill.getId())).thenReturn(Optional.of(skill));
 
         AdminSkillDto dto = service.updateSkill(skill.getId(),
-                new AdminSkillUpdateRequest(null, null, null, null, null, null));
+                new AdminSkillUpdateRequest(null, null, null, null, null, null, null));
 
         // Aucune de ces colonnes n'est nullable : un nul ne peut pas vouloir dire
         // « efface », il vaut « ne touche pas ».
@@ -556,12 +557,88 @@ class AdminSkillServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // Points d'apprentissage (« Vous allez apprendre a : »)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Trois points courts sont acceptes, et nettoyes")
+    void learningPointsAreAcceptedWhenThreeAndShort() {
+        when(skillManager.save(any(Skill.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AdminSkillDto dto = service.createSkill(new AdminSkillCreateRequest(
+                null, SkillTaskCode.EE1, "EE1-C9", "Titre", "Description",
+                "Critere general",
+                List.of("  Choisir tu ou vous ", "Saluer de façon adaptée",
+                        "Rester dans le bon registre"),
+                "A2", 9, null));
+
+        assertThat(dto.learningPoints())
+                .containsExactly("Choisir tu ou vous", "Saluer de façon adaptée",
+                        "Rester dans le bon registre");
+    }
+
+    @Test
+    @DisplayName("🛑 Exactement trois : ni deux, ni quatre")
+    void learningPointsMustBeExactlyThree() {
+        assertThatThrownBy(() -> service.createSkill(new AdminSkillCreateRequest(
+                null, SkillTaskCode.EE1, "EE1-C9", "Titre", "Description", "Critere general",
+                List.of("Choisir tu ou vous", "Saluer"), "A2", 9, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("exactement 3");
+        verify(skillManager, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("🛑 Un point est un GESTE, pas une phrase : 6 mots au plus")
+    void learningPointsAreCappedAtSixWords() {
+        assertThatThrownBy(() -> service.createSkill(new AdminSkillCreateRequest(
+                null, SkillTaskCode.EE1, "EE1-C9", "Titre", "Description", "Critere general",
+                List.of("Choisir tu ou vous",
+                        "Savoir choisir une formule un ton et un niveau de politesse adaptés",
+                        "Rester dans le bon registre"),
+                "A2", 9, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("6 mots");
+        verify(skillManager, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Un point vide est refuse, jamais avale en silence")
+    void learningPointsRejectBlankItems() {
+        assertThatThrownBy(() -> service.createSkill(new AdminSkillCreateRequest(
+                null, SkillTaskCode.EE1, "EE1-C9", "Titre", "Description", "Critere general",
+                List.of("Choisir tu ou vous", "   ", "Rester dans le bon registre"),
+                "A2", 9, null)))
+                .isInstanceOf(BusinessException.class);
+        verify(skillManager, never()).save(any());
+    }
+
+    /**
+     * ⚠️ La colonne etant nullable, un nul y demande l'etat « vide » — comme sur
+     * la check-list d'un sujet. Sans cela, trois points poses par erreur
+     * seraient ineffacables depuis la console.
+     */
+    @Test
+    @DisplayName("🛑 Sur une modification, un nul EFFACE les points")
+    void updateWithNullLearningPointsClearsThem() {
+        Skill skill = skill(SkillTaskCode.EE1, "EE1-C1", (short) 1);
+        skill.setLearningPoints(List.of("Choisir tu ou vous", "Saluer", "Rester poli"));
+        when(skillManager.findById(skill.getId())).thenReturn(Optional.of(skill));
+        when(skillManager.save(any(Skill.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AdminSkillDto dto = service.updateSkill(skill.getId(),
+                new AdminSkillUpdateRequest(null, null, null, null, null, null, null));
+
+        assertThat(dto.learningPoints()).isNull();
+    }
+
+    // ------------------------------------------------------------------------
     // Fabriques locales
     // ------------------------------------------------------------------------
 
     private static AdminSkillCreateRequest createSkillRequest() {
         return new AdminSkillCreateRequest(null, SkillTaskCode.EE1, "EE1-C9", "Titre",
-                "Description", "Adapter le ton au destinataire.", "A2", 9, null);
+                "Description", "Adapter le ton au destinataire.", null, "A2", 9, null);
     }
 
     private static AdminSkillPromptCreateRequest promptRequest(UUID skillId,

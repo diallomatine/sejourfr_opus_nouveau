@@ -1,10 +1,3 @@
-import '../../core/models/civic_plan_models.dart';
-import '../../core/models/dashboard_models.dart';
-import '../../core/models/diagnostic_models.dart';
-import '../../core/models/enums.dart';
-import '../../core/models/skill_models.dart';
-import '../plan/plan_labels.dart';
-
 /// **Les phrases de l'écran Réviser** — TCF et civique.
 ///
 /// 🛑 **Miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.** Un libellé qui
@@ -19,6 +12,29 @@ import '../plan/plan_labels.dart';
 /// 🛑 **L'ordre des cas EST la règle**, et il se lit de haut en bas dans chaque
 /// fonction : ce qui est **mesuré** passe devant ce qui est **compté**, et
 /// « pas encore travaillé » n'est dit qu'en dernier — jamais comme un verdict.
+library;
+
+import '../../core/models/civic_plan_models.dart';
+import '../../core/models/dashboard_models.dart';
+import '../../core/models/diagnostic_models.dart';
+import '../../core/models/enums.dart';
+import '../../core/models/skill_models.dart';
+import '../plan/plan_labels.dart';
+
+/* --------------------------------- Structure de la langue, hors examen ---- */
+
+/// 🛑 **Le TCF IRN comporte QUATRE épreuves.** La liste et les phrases du
+/// module complémentaire vivent dans `core/utils/tcf_epreuves.dart` — elles
+/// servent aussi l'écran de détail du module, donc elles ne sont pas propres à
+/// Réviser. Réexportées ici pour que l'écran n'ait qu'un import.
+export '../../core/utils/tcf_epreuves.dart'
+    show
+        kTcfCodeComplementaire,
+        kTcfComplementaireNote,
+        kTcfComplementaireNoteReviser,
+        kTcfComplementaireNoteTitle,
+        kTcfComplementaireSectionTitle,
+        kTcfEpreuvesOfficielles;
 
 /* ------------------------------------------------------------------ En-tête */
 
@@ -34,7 +50,7 @@ String reviserSubtitle(AppModule module) => module == AppModule.tcf
     ? kReviserSubtitleTcf
     : kReviserSubtitleCivique;
 
-/// « Les 5 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**.
+/// « Les 4 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**.
 String reviserSectionTitle(AppModule module, int count) =>
     module == AppModule.tcf ? 'Les $count épreuves' : 'Les $count thèmes';
 

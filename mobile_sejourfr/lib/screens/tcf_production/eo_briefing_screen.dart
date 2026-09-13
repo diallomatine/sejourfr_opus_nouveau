@@ -666,7 +666,10 @@ class _IdleView extends StatelessWidget {
           contexte: task.contexte,
           requirements: [
             if (task.dureeMaxSec != null) _durationChip(task.dureeMaxSec!),
-            task.niveauCible,
+            // « visé » en toutes lettres : ce palier est celui de la variante
+            // jouée, pas une caractéristique officielle de la tâche au TCF
+            // IRN. Miroir web : EoRecordingForm.
+            'Niveau visé ${task.niveauCible}',
           ],
         ),
       ],

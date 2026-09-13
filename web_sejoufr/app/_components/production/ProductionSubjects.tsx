@@ -43,7 +43,6 @@ import {
   SkillRowCard,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
-import {useParcoursLevel} from "./parcours";
 import {TaskChrome} from "./TaskChrome";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import { type ProductionConfig } from "./config";
@@ -96,7 +95,6 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
 
-  const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
 
   // Catalogue : les 3 tâches en un appel, mémorisé pour la session.
@@ -177,7 +175,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell backHref={config.base} backLabel={config.label}>
-        <TaskChrome config={config} taskNumero={n} tab="sujets" level={level} />
+        <TaskChrome config={config} taskNumero={n} tab="sujets" />
 
         {error && <div className={s.error}>{error}</div>}
 

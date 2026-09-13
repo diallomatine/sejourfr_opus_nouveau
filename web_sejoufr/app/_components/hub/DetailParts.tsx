@@ -8,13 +8,41 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Info,
   Lock,
   Play,
   RotateCw,
 } from "lucide-react";
 import { formatNoteSur20, type LotDto } from "@/lib/types";
+import {
+  TCF_COMPLEMENTAIRE_NOTE,
+  TCF_COMPLEMENTAIRE_NOTE_TITLE,
+} from "@/lib/tcf-epreuves";
 import { ProgressDonut } from "./ModuleHubParts";
 import styles from "./detail.module.css";
+
+/**
+ * Bandeau « ce module n'est pas au programme de l'examen ».
+ *
+ * 🛑 Pendant web de `QcmNoticeBanner` côté mobile, qui existait depuis toujours
+ * là-bas et **nulle part ici** : un candidat web pouvait faire toute une série
+ * de Structure de la langue sans jamais apprendre qu'elle ne fait pas partie
+ * des quatre épreuves du TCF IRN. Texte : `lib/tcf-epreuves.ts`, autorité
+ * unique.
+ */
+export function ComplementaryNotice() {
+  return (
+    <aside className={styles.notice}>
+      <span className={styles.noticeIcon}>
+        <Info size={18} strokeWidth={2} aria-hidden />
+      </span>
+      <div>
+        <p className={styles.noticeTitle}>{TCF_COMPLEMENTAIRE_NOTE_TITLE}</p>
+        <p className={styles.noticeText}>{TCF_COMPLEMENTAIRE_NOTE}</p>
+      </div>
+    </aside>
+  );
+}
 
 /** Donnée minimale d'un examen fini pour la grille (AttemptSummaryResponse
  *  est compatible ; les sessions de production EE/EO construisent la leur). */
@@ -54,6 +82,7 @@ export function DetailShell({
   title,
   subtitle,
   action,
+  notice,
   children,
 }: {
   backHref: string;
@@ -66,6 +95,9 @@ export function DetailShell({
   title: string;
   subtitle: string;
   action?: React.ReactNode;
+  /** Bandeau d'information rendu SOUS l'en-tête (cf. `ComplementaryNotice`).
+   *  Absent : rien, comportement historique. */
+  notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -92,6 +124,7 @@ export function DetailShell({
         </div>
         {action && <div className={styles.headActions}>{action}</div>}
       </header>
+      {notice}
       {children}
     </main>
   );

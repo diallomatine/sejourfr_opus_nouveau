@@ -3,7 +3,16 @@
 import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useRef, useState} from "react";
-import {ArrowRight, Check, Info, Lock, RefreshCw, Sparkles, Zap} from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Info,
+  ListChecks,
+  Lock,
+  RefreshCw,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import {learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
@@ -24,6 +33,12 @@ import {
   planStepSectionText,
   withPlanStep,
 } from "@/lib/plan-step";
+import {
+  competenceEyebrow,
+  EXPRESSION_LEARNING_POINTS_TITLE,
+  restantsLabel,
+  sujetsMeta,
+} from "@/lib/expression";
 import {skillDetailKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
@@ -202,6 +217,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   /* En mode étape, la progression affichée est **celle du serveur**
      (`stepAttemptedCount` / `stepPromptCount`) : on ne la recompte pas depuis la
      liste — seule la largeur de la barre se dérive de ces deux nombres. */
+  const meta = sujetsMeta(prompts);
   const attempted = scoped ? step.stepAttemptedCount : treated.length;
   const total = scoped ? step.stepPromptCount : prompts.length;
   /* Le lien d'appoint de l'intertitre vise le premier sujet **ouvrable** :
@@ -267,9 +283,10 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                     {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
                         fiche complète tout en n'en montrant qu'une partie. */}
                     {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
-                    <span className={s.skillHeadEyebrow}>
-                      {config.label} · Tâche {n}
-                    </span>
+                    {/* 🛑 « Compétence acquise » ⇔ `masteryState === "SOLID"`,
+                        c'est-à-dire transfert PROUVÉ sur une production
+                        complète — jamais une série de petits sujets terminée. */}
+                    <span className={s.skillHeadEyebrow}>{competenceEyebrow(skill)}</span>
                     <h1 className={s.skillHeadTitle}>{skill.title}</h1>
                   </div>
                   {skill.description && (
@@ -288,10 +305,51 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   )}
                 </div>
 
-                <div className={s.critBox}>
-                  <span className={s.critLabel}>Critère travaillé</span>
-                  <p className={s.critText}>{skill.generalCriterion}</p>
-                </div>
+                {/* 🛑 **Deux blocs distincts, jamais l'un à la place de
+                    l'autre** (arbitrage du propriétaire, 2026-09-13).
+                    `learningPoints` est une colonne NULLABLE (`V063`) : absente,
+                    la section « Vous allez apprendre à » **disparaît
+                    entièrement** — elle ne retombe pas sur le critère général,
+                    qui n'est pas la même chose et garde son emplacement propre
+                    juste en dessous. Le jour où les points sont injectés, le
+                    bloc apparaît tout seul, sans toucher à cet écran. */}
+                {skill.learningPoints && skill.learningPoints.length > 0 && (
+                  <>
+                    <p className={s.learnTitle}>{EXPRESSION_LEARNING_POINTS_TITLE}</p>
+                    <ul className={s.learnList}>
+                      {skill.learningPoints.map((point) => (
+                        <li key={point} className={s.learnItem}>
+                          <span className={s.learnDot} aria-hidden>
+                            <Check size={12} strokeWidth={3} />
+                          </span>
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {/* Le critère travaillé, à sa place, **quoi qu'il arrive** : il
+                    dit ce qui est évalué, là où les points d'apprentissage
+                    disent ce qu'on va apprendre à faire. */}
+                {skill.generalCriterion.trim() !== "" && (
+                  <div className={s.critBox}>
+                    <span className={s.critLabel}>Critère travaillé</span>
+                    <p className={s.critText}>{skill.generalCriterion}</p>
+                  </div>
+                )}
+
+                {/* « 5 petits sujets · ≈ 4 min chacun » — la minute vient
+                    d'`estimatedMinutes`, dérivé serveur par `ExerciseDuration`.
+                    🛑 « chacun » : les 5 sujets font un quart d'heure, pas 4 min. */}
+                {meta && (
+                  <p className={s.learnMeta}>
+                    <span>
+                      <ListChecks size={15} strokeWidth={2.2} aria-hidden />
+                      {meta}
+                    </span>
+                  </p>
+                )}
 
                 {/* Les points d'avancement de la maquette remplacent la barre
                     fine : un segment par sujet du périmètre affiché (5 en mode
@@ -323,6 +381,24 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 )}
               </div>
             </section>
+
+            {/* « Compétence acquise · 0 restants » + barre (maquette
+                `detail_competence.png`). Les deux nombres viennent des statuts
+                **servis** des sujets du périmètre affiché. */}
+            {prompts.length > 0 && (
+              <>
+                <div className={s.resteRow}>
+                  <h2 className={s.resteTitle}>{competenceEyebrow(skill)}</h2>
+                  <span className={s.resteCount}>{restantsLabel(prompts)}</span>
+                </div>
+                <div className={s.resteBar}>
+                  <span
+                    className={s.resteBarFill}
+                    style={{width: `${Math.round((100 * attempted) / Math.max(1, total))}%`}}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Étape finie : on ne fabrique **aucun** second parcours de
                 vérification ici — « Vérifier ma progression » vit sur le Plan,

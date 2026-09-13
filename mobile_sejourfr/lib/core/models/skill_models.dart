@@ -75,9 +75,12 @@ enum SkillSection {
 /// `targetLevel`, jamais sur un code de tâche. Ne jamais ajouter de valeur
 /// CO/CE ici.
 ///
-/// Le [targetLevel] est le palier **principalement visé** par la tâche — la
-/// borne haute de la fourchette de la spec. Il ne se confond pas avec le
-/// `targetLevel` d'une compétence, qui affine tâche par tâche.
+/// 🛑 **Le [targetLevel] n'est PAS officiel.** France Éducation international
+/// ne rattache aucun palier CECRL à une tâche du TCF IRN : c'est notre palier
+/// **pédagogique interne**, la borne haute d'une fourchette de notre spec. Tout
+/// écran qui l'affiche dit « **Niveau visé** » (`niveauViseBadge`), jamais
+/// « Palier » ni « Objectif ». Il ne se confond pas avec le `targetLevel` d'une
+/// compétence, qui affine tâche par tâche.
 enum SkillTaskCode {
   ee1(SkillSection.ee, 1, 'Écrire un message court', TargetLevel.a2),
   ee2(SkillSection.ee, 2, 'Raconter une expérience', TargetLevel.b1),
@@ -387,6 +390,7 @@ class SkillDto {
     required this.description,
     required this.generalCriterion,
     required this.targetLevel,
+    required this.learningPoints,
     required this.displayOrder,
     required this.promptCount,
     required this.attemptedCount,
@@ -415,6 +419,15 @@ class SkillDto {
   /// qui est le critère précis d'UN petit sujet.
   final String generalCriterion;
   final String targetLevel;
+
+  /// **« Vous allez apprendre à : »** — 3 gestes courts à l'infinitif, dans
+  /// l'ordre d'apprentissage.
+  ///
+  /// 🛑 **Donnée éditoriale** (`skills.learning_points`, V063), **jamais
+  /// dérivée** de [description], de [generalCriterion] ni des `checklist` des
+  /// sujets. Vide tant qu'une compétence n'en porte pas : le bloc **disparaît**,
+  /// on n'invente pas de puce.
+  final List<String> learningPoints;
   final int displayOrder;
   final int promptCount;
   final int attemptedCount;
@@ -449,6 +462,11 @@ class SkillDto {
         description: json['description'] as String,
         generalCriterion: json['generalCriterion'] as String? ?? '',
         targetLevel: json['targetLevel'] as String,
+        learningPoints: (json['learningPoints'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false),
         displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
         promptCount: (json['promptCount'] as num?)?.toInt() ?? 0,
         attemptedCount: (json['attemptedCount'] as num?)?.toInt() ?? 0,
@@ -471,6 +489,7 @@ class SkillPromptSummary {
     required this.displayOrder,
     required this.status,
     required this.attemptCount,
+    required this.estimatedMinutes,
     this.recommendedMinWords,
     this.recommendedMaxWords,
     this.recommendedDurationSeconds,
@@ -487,6 +506,14 @@ class SkillPromptSummary {
   final int displayOrder;
   final SkillPromptStatus status;
   final int attemptCount;
+
+  /// Le temps que **CE** sujet demande, en minutes — « 5 petits sujets ·
+  /// ≈ 4 min chacun » sur la fiche d'une compétence.
+  ///
+  /// 🛑 **Dérivé serveur** (`ExerciseDuration`, l'autorité déjà employée par le
+  /// Plan). ⚠️ C'est le temps d'**UN** sujet, jamais celui de la série : les 5
+  /// sujets d'une étape font une quinzaine de minutes, pas cinq.
+  final int estimatedMinutes;
   final int? recommendedMinWords;
   final int? recommendedMaxWords;
   final int? recommendedDurationSeconds;
@@ -517,6 +544,7 @@ class SkillPromptSummary {
         displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
         status: SkillPromptStatus.fromWire(json['status'] as String),
         attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
+        estimatedMinutes: (json['estimatedMinutes'] as num?)?.toInt() ?? 0,
         recommendedMinWords: (json['recommendedMinWords'] as num?)?.toInt(),
         recommendedMaxWords: (json['recommendedMaxWords'] as num?)?.toInt(),
         recommendedDurationSeconds:

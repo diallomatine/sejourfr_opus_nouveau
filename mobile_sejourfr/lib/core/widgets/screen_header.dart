@@ -14,6 +14,7 @@ class ScreenHeader extends StatelessWidget {
   const ScreenHeader({
     super.key,
     required this.title,
+    this.eyebrow,
     this.sub,
     this.onBack,
     this.right,
@@ -22,6 +23,10 @@ class ScreenHeader extends StatelessWidget {
   });
 
   final String title;
+
+  /// Sur-titre au-dessus du nom (« TCF IRN »). `null` ⇒ rien : les vingt autres
+  /// appelants gardent leur en-tête à deux lignes.
+  final String? eyebrow;
   final String? sub;
   final VoidCallback? onBack;
   final Widget? right;
@@ -60,6 +65,20 @@ class ScreenHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (eyebrow != null) ...[
+                      Text(
+                        eyebrow!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.label(
+                          size: 11,
+                          color: solid
+                              ? AppColors.white.withValues(alpha: 0.82)
+                              : AppColors.inkFaint,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                    ],
                     Text(
                       // 2 lignes même hors `large` : les titres de thème
                       // civique (« Principes et valeurs de la République »)

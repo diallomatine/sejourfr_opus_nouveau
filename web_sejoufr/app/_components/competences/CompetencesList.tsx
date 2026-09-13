@@ -5,9 +5,9 @@ import {useState} from "react";
 import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {competenceBadge, competenceStatus} from "@/lib/expression";
 import {isPlanStep, PLAN_STEP_BACK_LABEL} from "@/lib/plan-step";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
-import {competenceProgressLabel} from "@/lib/skill-progress";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
   skillSectionOf,
@@ -17,16 +17,13 @@ import {
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {type ProductionConfig} from "@/app/_components/production/config";
-import {useParcoursLevel} from "@/app/_components/production/parcours";
 import {TaskChrome} from "@/app/_components/production/TaskChrome";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
-  RowChevron,
   SectionHead,
+  SkillBadge,
   SkillLockBadge,
-  SkillMasteryPill,
   SkillNotice,
-  SkillRing,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
@@ -71,7 +68,6 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   const taskCode = skillTaskCodeOf(section, n);
   const base = `${config.base}/tache/${n}/competences`;
 
-  const level = useParcoursLevel();
   const ready = status === "authenticated" && valid;
   const [paywallOpen, setPaywallOpen] = useState(false);
 
@@ -101,7 +97,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell backHref={backHref} backLabel={backLabel}>
-        <TaskChrome config={config} taskNumero={n} tab="competences" level={level} />
+        <TaskChrome config={config} taskNumero={n} tab="competences" />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}
@@ -152,14 +148,21 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 }
 
 /**
- * Ligne d'une compétence : **anneau de progression** (« 2/5 »), titre, état,
- * chevron — dans la liste groupée de la maquette.
+ * Ligne d'une compétence : titre, ligne d'état, pastille — la liste de la
+ * maquette `~/Desktop/sejourfr_ecrans/detail_tache.png`.
  *
- * ⚠️ **L'état de maîtrise remplace le compteur de sujets traités** (décision
- * propriétaire) : un compte de sujets dit ce que le candidat a *fait*,
- * `masteryState` dit ce qu'il *maîtrise* — c'est la question qu'il se pose.
- * `masteryState` nul (aucune observation) est le seul cas où le compteur reste
- * pertinent : le serveur n'a encore rien vu, il n'y a pas d'état à annoncer.
+ * 🛑 **« Acquis » ⇔ `masteryState === "SOLID"`, et rien d'autre** (arbitrage du
+ * 2026-09-12) : transfert **prouvé sur une production complète**, pas une série
+ * de micro-exercices terminée. La ligne d'état dit les deux — « Acquis »,
+ * « Série terminée · 5/5 », « En cours · 2/5 réussis », « À découvrir » — parce
+ * que les confondre reproduirait le défaut que le dépôt nomme « NON FRAGILE ≠
+ * PLUS RIEN À APPRENDRE ». Tout vient de `lib/expression.ts`.
+ *
+ * ⚠️ **Sans palier sur la pastille** : le serveur sait dire « cette compétence
+ * est solide », jamais « tu l'as au A2 mais pas au B2 ».
+ *
+ * ⚠️ L'anneau de progression a quitté la ligne (maquette `detail_tache.png`) :
+ * il répétait en image ce que la ligne d'état dit en mots.
  *
  * Le titre et l'état, rien d'autre : la description vit derrière la pastille
  * d'information de l'écran de détail (parité mobile). Six lignes de texte par
@@ -171,32 +174,37 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
  * ce qu'il y a à travailler ; c'est l'inverse de ce qu'on lui vend.
  */
 function SkillRow({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
-  const done = skill.promptCount > 0 && skill.attemptedCount >= skill.promptCount;
+  const badge = competenceBadge(skill);
   const locked = skill.locked;
 
   return (
     <button type="button" className={s.groupRow} onClick={onOpen}>
-      {locked ? (
+      {locked && (
         <span className={`${s.tile} ${s.tileLocked}`} aria-hidden>
           <Lock size={20} />
         </span>
-      ) : (
-        <SkillRing attempted={skill.attemptedCount} total={skill.promptCount} done={done} />
       )}
       <span className={s.groupBody}>
         <span className={s.groupTitle}>{skill.title}</span>
         <span className={s.groupMeta}>
-          {skill.masteryState ? (
-            <SkillMasteryPill state={skill.masteryState} />
-          ) : (
-            <span className={s.metaText}>{competenceProgressLabel(skill)}</span>
-          )}
+          <span className={s.metaText}>{competenceStatus(skill)}</span>
         </span>
       </span>
       <span className={s.groupAside}>
-        {locked && <SkillLockBadge />}
-        <RowChevron />
+        {locked ? (
+          <SkillLockBadge />
+        ) : (
+          <SkillBadge tone={BADGE_TONE[badge.tone]}>{badge.label}</SkillBadge>
+        )}
       </span>
     </button>
   );
 }
+
+/** Les trois tons de `competenceBadge`, rendus avec les tons **existants** de
+ *  `SkillBadge` — aucune teinte nouvelle n'entre par cet écran. */
+const BADGE_TONE = {
+  acquis: "validated",
+  encours: "treated",
+  afaire: "todo",
+} as const;

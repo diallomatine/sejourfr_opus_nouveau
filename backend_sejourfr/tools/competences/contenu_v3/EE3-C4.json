@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C4",
+  "rang": 4,
+  "titre": "Illustrer avec un exemple concret",
+  "critere": "Ajouter un exemple personnel, quotidien ou vraisemblable qui rend l'argument plus clair.",
+  "remplace": "EE3-C4 — Illustrer avec un exemple concret (15 sujets désactivés, y compris « Le café où l'on se retrouve », dont la situation est reprise)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Le café du bas de l'immeuble",
+      "context": "Le conseil de quartier vous écrit : « Le café du 14 rue Basse risque de fermer. Vous le fréquentez : donnez-nous votre avis sur ce commerce. »",
+      "instruction": "Donnez votre avis sur ce café et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise vécue dans ce café, pas une généralité sur les cafés.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur ce café"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce café compte vraiment ici. Un jour…",
+      "tip": "un cas précis vaut mieux qu'une vérité sur les cafés",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce café compte vraiment ici. Un café de quartier est toujours un lieu de rencontre, un endroit où les habitants se retrouvent et où le lien social se fabrique naturellement. Sans ces commerces, les quartiers deviennent des dortoirs et les gens ne se parlent plus du tout.",
+          "pedagogicalNote": "C'est une vérité générale sur les cafés. Rien ne s'est passé, nulle part, et ce café-ci n'apparaît jamais."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce café compte vraiment ici. Un jour de janvier, ma voisine de quatre-vingts ans est tombée devant l'entrée. Le patron est sorti, l'a installée à l'intérieur et a appelé sa fille, dont il avait le numéro. Elle est restée au chaud une heure en attendant.",
+          "pedagogicalNote": "Un fait daté, situé, avec des personnes réelles : l'exemple illustre l'avis au lieu de le répéter."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce café compte vraiment ici. Un matin de janvier, ma voisine de quatre-vingts ans est tombée sur le trottoir devant l'entrée. Le patron est sorti sans son manteau, l'a installée près du radiateur et a appelé sa fille — il avait son numéro dans un carnet derrière le comptoir. Elle a attendu une heure au chaud.",
+          "pedagogicalNote": "Le carnet derrière le comptoir est le détail qui prouve l'argument : ce café connaît ses habitués."
+        }
+      ]
+    },
+    {
+      "title": "Le robot de cuisine",
+      "context": "Votre sœur vous écrit : « Tu dis que ce robot t'a changé la vie. Donne-moi un exemple, je ne vois pas bien. »",
+      "instruction": "Donnez votre avis sur cet appareil et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise avec cet appareil, pas une affirmation sur ses qualités.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur l'appareil"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce robot m'a vraiment changé la vie. Mardi dernier…",
+      "tip": "« il fait gagner du temps » n'est pas un exemple",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce robot m'a vraiment changé la vie. Il fait gagner énormément de temps sur la préparation, il simplifie les recettes compliquées et il évite de salir dix ustensiles. C'est un appareil vraiment utile au quotidien pour une famille qui cuisine régulièrement.",
+          "pedagogicalNote": "Trois affirmations générales sur l'appareil. Aucune scène, aucun jour, aucun plat."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce robot m'a vraiment changé la vie. Mardi dernier, je suis rentrée à dix-neuf heures quinze avec les enfants affamés. J'ai mis les légumes et le riz dedans, lancé le programme, et le repas était prêt à dix-neuf heures cinquante pendant que je faisais les devoirs.",
+          "pedagogicalNote": "Un jour, une heure, une situation : l'exemple montre le bénéfice au lieu de l'annoncer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce robot m'a vraiment changé la vie. Mardi, je suis rentrée à dix-neuf heures quinze avec deux enfants affamés et rien de prêt. J'ai jeté les légumes et le riz dedans, lancé le programme, et je me suis assise aux devoirs. À vingt heures on mangeait — avant, ce soir-là, c'était pâtes.",
+          "pedagogicalNote": "« Avant, ce soir-là, c'était pâtes » ajoute le point de comparaison qui donne sa mesure à l'exemple."
+        }
+      ]
+    },
+    {
+      "title": "Le facteur du secteur",
+      "context": "La poste vous écrit : « Nous recueillons l'avis des habitants sur leur facteur. Merci d'illustrer votre réponse. »",
+      "instruction": "Donnez votre avis sur cette personne et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise avec cette personne, pas une liste de qualités.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Notre facteur est remarquable. La semaine dernière…",
+      "tip": "une anecdote réelle prouve ce que dix adjectifs affirment",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Notre facteur est remarquable. Il est toujours ponctuel, très aimable avec tout le monde et il connaît parfaitement sa tournée. Il fait attention aux colis et il prend le temps de saluer les gens. C'est vraiment un professionnel comme on en voit peu.",
+          "pedagogicalNote": "Quatre qualités affirmées, aucune scène. La poste ne saura pas ce qui les fonde."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Notre facteur est remarquable. La semaine dernière, il a remarqué que le courrier de Madame Roux, au troisième, s'accumulait depuis quatre jours. Il a sonné chez la gardienne pour le signaler. Elle est montée : Madame Roux était tombée et ne pouvait plus se relever.",
+          "pedagogicalNote": "Une situation datée, avec des personnes nommées et une conséquence réelle."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Notre facteur est remarquable. La semaine dernière, il a vu que le courrier de Madame Roux, au troisième, s'accumulait depuis quatre jours alors qu'elle le relève chaque matin. Il a sonné chez la gardienne au lieu de continuer sa tournée. Elle était tombée la veille et ne pouvait plus se relever.",
+          "pedagogicalNote": "« Alors qu'elle le relève chaque matin » explique comment il a su : l'exemple montre l'attention, pas seulement le geste."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe des urgences",
+      "context": "L'hôpital vous écrit : « Vous avez été reçu aux urgences le mois dernier. Donnez-nous votre avis sur l'équipe, en l'illustrant. »",
+      "instruction": "Donnez votre avis sur cette équipe et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est un moment précis vécu avec cette équipe, pas un jugement sur l'hôpital.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un moment",
+        "Restez sur l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe a été remarquable. Vers deux heures du matin…",
+      "tip": "un moment précis, avec une heure et un geste",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe a été remarquable. Le personnel hospitalier fait un travail très difficile dans des conditions compliquées, avec des moyens insuffisants et des horaires épuisants. Il faut vraiment saluer leur engagement, car sans eux le système ne tiendrait pas. On leur demande beaucoup et ils tiennent quand même, ce qui force le respect.",
+          "pedagogicalNote": "Un hommage général au personnel hospitalier. Rien de ce qui s'est passé cette nuit-là n'apparaît."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe a été remarquable. Vers deux heures du matin, une infirmière est revenue me voir alors que je n'avais rien demandé. Elle a remarqué que je grelottais et m'a apporté une couverture chauffée. Elle est repassée deux fois avant que le médecin arrive.",
+          "pedagogicalNote": "Une heure, un geste observé, une répétition : l'exemple montre l'attention de l'équipe."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe a été remarquable. Vers deux heures du matin, une infirmière est revenue alors que je n'avais rien demandé : elle avait vu que je grelottais en passant dans le couloir. Elle m'a apporté une couverture chauffée, puis est repassée deux fois avant l'arrivée du médecin, sans que je sonne.",
+          "pedagogicalNote": "« En passant dans le couloir » et « sans que je sonne » montrent que l'attention était spontanée."
+        }
+      ]
+    },
+    {
+      "title": "La salle de sport du quartier",
+      "context": "Un ami vous écrit : « Tu dis que cette salle est différente des grandes chaînes. Donne-moi un exemple concret. »",
+      "instruction": "Donnez votre avis sur cette salle et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une scène précise dans cette salle, pas une comparaison abstraite.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur la salle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette salle est vraiment différente. Le mois dernier…",
+      "tip": "montrez une scène, pas une comparaison de principes",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette salle est vraiment différente. Les grandes chaînes cherchent le volume et traitent les gens comme des numéros, alors qu'une petite structure privilégie la relation et l'accompagnement. C'est une question de modèle économique, et cela se ressent partout. On le sent dès qu'on pousse la porte, et cela n'a rien à voir avec le prix de l'abonnement.",
+          "pedagogicalNote": "Une analyse des modèles économiques. Aucune scène ne se passe dans cette salle."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette salle est vraiment différente. Le mois dernier, je n'étais pas venue depuis trois semaines à cause d'une grippe. En entrant, le gérant m'a demandé si j'allais mieux et il a baissé les charges de ma première séance sans que je demande quoi que ce soit.",
+          "pedagogicalNote": "Une absence, une reprise, un geste précis : l'exemple porte sur cette salle et sur personne d'autre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette salle est vraiment différente. Le mois dernier, après trois semaines d'absence pour une grippe, le gérant m'a arrêtée à l'entrée pour demander si j'allais mieux. Il a lui-même allégé les charges de ma première séance et m'a dit de revenir le lendemain plutôt que de forcer. Je n'avais rien demandé.",
+          "pedagogicalNote": "Le conseil de revenir le lendemain ajoute une seconde preuve dans la même scène, sans en changer."
+        }
+      ]
+    },
+    {
+      "title": "Le manteau acheté d'occasion",
+      "context": "Une amie vous écrit : « Tu défends ce manteau d'occasion, mais il a cinq ans. Donne-moi un exemple qui le prouve. »",
+      "instruction": "Donnez votre avis sur ce vêtement et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise vécue avec ce vêtement, pas un principe sur la seconde main.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur ce manteau"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce manteau est excellent. En février…",
+      "tip": "un principe sur l'occasion n'illustre pas ce manteau-là",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce manteau est excellent. Les vêtements d'occasion sont souvent de meilleure qualité que le neuf bon marché, parce qu'ils ont été fabriqués à une époque où l'on soignait les finitions. Acheter d'occasion, c'est aussi un geste utile pour la planète.",
+          "pedagogicalNote": "Deux idées générales sur la seconde main. Ce manteau précis n'est jamais mis à l'épreuve."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce manteau est excellent. En février, je suis restée une heure sur le quai de la gare de Lille sous une pluie battante, avec du vent. Je suis rentrée sèche, y compris les épaules. Mon ancien manteau, acheté neuf, prenait l'eau au bout de dix minutes.",
+          "pedagogicalNote": "Une épreuve datée, située, avec un point de comparaison : l'exemple prouve la qualité du vêtement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce manteau est excellent. En février, j'ai attendu une heure sur le quai de la gare de Lille sous une pluie battante et du vent de côté. Je suis rentrée parfaitement sèche, épaules comprises. Mon précédent, acheté neuf soixante euros, prenait l'eau au bout de dix minutes dans les mêmes conditions.",
+          "pedagogicalNote": "« Dans les mêmes conditions » rend la comparaison rigoureuse au lieu d'être une impression."
+        }
+      ]
+    },
+    {
+      "title": "La conseillère de l'agence d'emploi",
+      "context": "L'agence vous écrit : « Vous avez été suivi par Madame Colin. Merci de donner votre avis, en l'illustrant par un fait précis. »",
+      "instruction": "Donnez votre avis sur cette personne et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est un fait précis de votre propre suivi, et non un jugement sur l'accompagnement dans son ensemble.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un fait",
+        "Restez sur elle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Madame Colin m'a beaucoup aidé. Au troisième rendez-vous…",
+      "tip": "l'accompagnement pour tous n'est pas votre accompagnement à vous",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Madame Colin m'a beaucoup aidé. Un bon accompagnement fait toute la différence dans une recherche d'emploi : on se sent moins seul, on garde le rythme et on évite de se décourager. C'est ce qui manque souvent aux personnes qui cherchent longtemps.",
+          "pedagogicalNote": "Un discours sur l'accompagnement en général. Rien de ce que Madame Colin a fait n'apparaît."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame Colin m'a beaucoup aidé. Au troisième rendez-vous, elle a relu mon CV ligne par ligne et a remarqué que je ne mentionnais nulle part mes six ans comme chef d'équipe. Elle m'a fait réécrire cette partie. J'ai eu trois convocations dans le mois qui a suivi.",
+          "pedagogicalNote": "Un rendez-vous précis, une action précise, un résultat mesurable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame Colin m'a beaucoup aidé. Au troisième rendez-vous, elle a relu mon CV ligne par ligne et s'est arrêtée : mes six ans comme chef d'équipe n'y figuraient nulle part, je les trouvais évidents. Elle m'a fait réécrire toute la section. Trois convocations dans le mois qui a suivi.",
+          "pedagogicalNote": "« Je les trouvais évidents » explique pourquoi l'omission existait : l'exemple montre ce qu'elle a vu et que l'on ne voyait pas."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de parole",
+      "context": "L'association vous écrit : « Vous participez au groupe du jeudi. Merci de nous donner votre avis, illustré par un moment vécu. »",
+      "instruction": "Donnez votre avis sur ce groupe et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est un moment précis du groupe, sans nommer les personnes ni raconter leur histoire.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un moment",
+        "Ne nommez personne"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce groupe fonctionne vraiment. Un jeudi…",
+      "tip": "illustrez le fonctionnement du groupe, pas le cas d'une personne",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce groupe fonctionne vraiment. Parler à d'autres personnes qui vivent la même chose fait beaucoup de bien, on se sent compris et on relativise. C'est important de ne pas rester seul avec ses difficultés, tout le monde devrait avoir accès à ce genre d'espace.",
+          "pedagogicalNote": "Des généralités sur les groupes de parole, et même une préconisation universelle. Aucun moment vécu."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce groupe fonctionne vraiment. Un jeudi, quelqu'un a fondu en larmes au milieu d'une phrase. Personne n'a rien dit et personne n'est intervenu. On a attendu. Cinq minutes plus tard, la personne a repris là où elle s'était arrêtée, et la séance a continué.",
+          "pedagogicalNote": "Un moment précis qui montre une règle implicite du groupe, sans identifier personne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce groupe fonctionne vraiment. Un jeudi, quelqu'un a fondu en larmes au milieu d'une phrase. Personne n'a rien dit, personne n'a tendu un mouchoir, personne n'a changé de sujet. On a simplement attendu. Cinq minutes après, la phrase a repris exactement là où elle s'était arrêtée.",
+          "pedagogicalNote": "L'énumération de ce que personne n'a fait rend visible la règle tacite : c'est l'illustration la plus précise possible."
+        }
+      ]
+    },
+    {
+      "title": "Le lavoir restauré",
+      "context": "La commune vous écrit : « Le lavoir du chemin des Prés a été restauré l'an dernier. Donnez-nous votre avis, avec un exemple. »",
+      "instruction": "Donnez votre avis sur ce lieu et illustrez-le par un exemple précis que vous avez vécu ou observé.",
+      "uniqueCriterion": "Votre exemple est une scène précise qui s'est déroulée à cet endroit.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez une scène",
+        "Restez sur le lavoir"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette restauration est réussie. Dimanche dernier…",
+      "tip": "une scène qui s'y est passée, pas une réflexion sur le patrimoine",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette restauration est réussie. Sauver un lavoir, c'est préserver la mémoire d'un village et rappeler comment vivaient les générations précédentes. Ce sont des lieux qui disparaissent partout et qu'il faut absolument défendre avant qu'il ne soit trop tard. Chaque commune devrait se poser la question avant que ses bâtiments anciens ne tombent en ruine.",
+          "pedagogicalNote": "Un plaidoyer sur le patrimoine en général. Le lavoir du chemin des Prés n'apparaît jamais."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette restauration est réussie. Dimanche dernier, j'ai vu trois familles pique-niquer sur les bancs de pierre pendant que les enfants trempaient les pieds dans le bassin. Un monsieur âgé expliquait à sa petite-fille comment sa mère y lavait les draps. L'endroit était vivant.",
+          "pedagogicalNote": "Une scène datée, observée, avec plusieurs plans : le lieu est montré en usage."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette restauration est réussie. Dimanche dernier, trois familles pique-niquaient sur les bancs de pierre pendant que les enfants trempaient les pieds dans le bassin. Un peu à l'écart, un monsieur âgé montrait à sa petite-fille l'endroit exact où sa mère battait les draps. Personne n'était là par hasard.",
+          "pedagogicalNote": "« L'endroit exact » et « personne n'était là par hasard » transforment l'observation en démonstration."
+        }
+      ]
+    },
+    {
+      "title": "Le voisin bricoleur",
+      "context": "Une amie vous écrit : « Tu dis toujours du bien de ton voisin du premier. Donne-moi un exemple, ça m'aiderait à comprendre. »",
+      "instruction": "Donnez votre avis sur cette personne et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est un fait précis, avec un moment et un geste, pas une série de qualités.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un fait",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Mon voisin du premier est quelqu'un de rare. Un soir…",
+      "tip": "un geste daté prouve plus que trois qualités nommées",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Mon voisin du premier est quelqu'un de rare. Il est serviable, généreux de son temps, toujours prêt à donner un coup de main et il ne demande jamais rien en retour. Ce sont des qualités qu'on ne trouve plus beaucoup aujourd'hui.",
+          "pedagogicalNote": "Quatre qualités et une lamentation générale. Aucun fait ne les soutient."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Mon voisin du premier est quelqu'un de rare. Un soir d'hiver, mon chauffe-eau a lâché à vingt-deux heures. Il est monté avec sa caisse à outils, a démonté la résistance et a trouvé la panne. Il est reparti à minuit en refusant que je le paie.",
+          "pedagogicalNote": "Une soirée, une panne, une intervention, un refus : l'exemple prouve tout ce qui était affirmé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Mon voisin du premier est quelqu'un de rare. Un soir d'hiver, mon chauffe-eau a lâché à vingt-deux heures. Il est monté avec sa caisse à outils, a démonté la résistance et trouvé la panne. Il est reparti à minuit, a refusé que je le paie, et n'en a jamais reparlé depuis.",
+          "pedagogicalNote": "« N'en a jamais reparlé » est le détail qui distingue la vraie générosité de celle qu'on se fait rappeler."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe de la crèche",
+      "context": "La crèche vous écrit : « Merci de nous donner votre avis sur l'équipe, en l'illustrant par une situation vécue. »",
+      "instruction": "Donnez votre avis sur cette équipe et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise vécue avec l'équipe, pas un avis sur les crèches.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe est excellente. En septembre…",
+      "tip": "ce qui s'est passé avec votre enfant, pas ce que font les crèches",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe est excellente. Les professionnels de la petite enfance font un métier essentiel et trop peu reconnu. Il faudrait davantage de places et de meilleures conditions de travail, car c'est là que tout se joue pour les premières années d'un enfant.",
+          "pedagogicalNote": "Un propos sur le secteur de la petite enfance. Cette équipe-ci n'est jamais évoquée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe est excellente. En septembre, mon fils hurlait chaque matin à la séparation. Une auxiliaire a proposé qu'il apporte le foulard de sa grand-mère. Elle le lui gardait dans sa poche et le lui rendait au moindre chagrin. En trois semaines, les pleurs avaient cessé.",
+          "pedagogicalNote": "Une difficulté, une initiative, un protocole tenu, un résultat daté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe est excellente. En septembre, mon fils hurlait chaque matin à la séparation. Une auxiliaire a proposé qu'il apporte le foulard de sa grand-mère : elle le gardait dans sa poche et le lui rendait au moindre chagrin, sans qu'il ait à le réclamer. En trois semaines, les pleurs avaient cessé.",
+          "pedagogicalNote": "« Sans qu'il ait à le réclamer » montre que l'équipe a pensé à ce que l'enfant ne pouvait pas demander."
+        }
+      ]
+    },
+    {
+      "title": "La médiathèque le samedi",
+      "context": "Un site d'avis vous écrit : « Vous fréquentez la médiathèque le samedi. Donnez votre avis sur ce lieu, avec un exemple. »",
+      "instruction": "Donnez votre avis sur ce lieu et illustrez-le par un exemple précis que vous avez vécu ou observé.",
+      "uniqueCriterion": "Votre exemple est une scène précise dans cette médiathèque, pas un avis sur la lecture.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez une scène",
+        "Restez sur le lieu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette médiathèque est un lieu précieux. Samedi dernier…",
+      "tip": "une scène, avec des gens et une heure",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette médiathèque est un lieu précieux. La lecture développe l'imagination, enrichit le vocabulaire et permet de mieux comprendre le monde. Dans une époque où les écrans prennent toute la place, il est essentiel de maintenir des lieux consacrés au livre.",
+          "pedagogicalNote": "Un éloge de la lecture. La médiathèque, comme lieu, n'apparaît nulle part."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette médiathèque est un lieu précieux. Samedi dernier vers onze heures, la salle du fond était pleine : quatre lycéens révisaient à une table, deux retraités lisaient le journal, et un père aidait sa fille à choisir des albums. Personne ne gênait personne.",
+          "pedagogicalNote": "Une heure, trois usages simultanés observés : le lieu est montré dans sa fonction réelle."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette médiathèque est un lieu précieux. Samedi dernier vers onze heures, la salle du fond réunissait quatre lycéens qui révisaient, deux retraités devant les journaux et un père accroupi au rayon albums avec sa fille. Aucun des trois groupes ne gênait les autres — c'est plus rare qu'il n'y paraît.",
+          "pedagogicalNote": "« Plus rare qu'il n'y paraît » désigne ce que la scène démontre, sans jamais quitter la scène."
+        }
+      ]
+    },
+    {
+      "title": "Le vélo pliant",
+      "context": "Un collègue vous écrit : « Tu dis que ton vélo pliant a résolu ton problème de trajet. Donne-moi un exemple. »",
+      "instruction": "Donnez votre avis sur cet objet et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une situation précise vécue avec cet objet, pas une réflexion sur les transports.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un cas",
+        "Restez sur le vélo"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce vélo a résolu mon problème. Un lundi…",
+      "tip": "les transports en général ne sont pas votre trajet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce vélo a résolu mon problème. Combiner plusieurs modes de transport est la seule solution réaliste dans les grandes agglomérations, où les trajets domicile-travail sont de plus en plus longs. Le vélo pliant répond bien à ce besoin de flexibilité.",
+          "pedagogicalNote": "Une analyse de la mobilité urbaine. Aucun trajet réel, aucun jour, aucun incident."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce vélo a résolu mon problème. Un lundi, mon train a été supprimé à sept heures dix. Avant, j'aurais attendu quarante minutes le suivant. J'ai déplié le vélo sur le quai, fait les six kilomètres restants et je suis arrivé au bureau avec dix minutes d'avance.",
+          "pedagogicalNote": "Un incident daté, une alternative chiffrée, un résultat : l'objet est mis à l'épreuve."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce vélo a résolu mon problème. Un lundi, mon train a été supprimé à sept heures dix, le suivant annoncé quarante minutes plus tard. J'ai déplié le vélo sur le quai en une minute et fait les six kilomètres restants. Je suis arrivé avec dix minutes d'avance, pendant que les autres attendaient encore.",
+          "pedagogicalNote": "La dernière proposition donne la mesure du bénéfice par comparaison, sans quitter la scène racontée."
+        }
+      ]
+    },
+    {
+      "title": "Le médecin de garde",
+      "context": "La maison médicale vous écrit : « Vous avez consulté un dimanche. Merci de donner votre avis sur le praticien, avec un exemple. »",
+      "instruction": "Donnez votre avis sur cette personne et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est un moment précis de la consultation, pas un avis sur la médecine de garde.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez un moment",
+        "Restez sur lui"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce médecin a été très bon. Pendant la consultation…",
+      "tip": "un geste de la consultation, pas un avis sur le système",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce médecin a été très bon. Les gardes du dimanche sont indispensables, surtout pour les familles avec de jeunes enfants qui ne peuvent pas attendre le lundi. Sans ce dispositif, tout le monde se retrouverait aux urgences pour des motifs bénins.",
+          "pedagogicalNote": "Un propos sur l'utilité des gardes. Le praticien consulté n'apparaît pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce médecin a été très bon. Pendant la consultation, il a demandé à ma fille de sept ans de décrire elle-même sa douleur, au lieu de s'adresser uniquement à moi. Elle a montré un endroit que je n'aurais pas indiqué. Cela a changé son diagnostic.",
+          "pedagogicalNote": "Un geste précis, une conséquence médicale : l'exemple montre la qualité du praticien."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce médecin a été très bon. Pendant la consultation, il s'est accroupi et a demandé à ma fille de sept ans de montrer elle-même où elle avait mal, au lieu de m'interroger. Elle a désigné un endroit que je n'aurais pas indiqué — et c'est ce point-là qui a orienté le diagnostic.",
+          "pedagogicalNote": "L'accroupissement et l'insistance sur l'écart entre les deux indications rendent l'exemple décisif."
+        }
+      ]
+    },
+    {
+      "title": "Le club de lecture",
+      "context": "La bibliothèque vous écrit : « Vous participez au club de lecture. Merci de nous donner votre avis sur le groupe, illustré. »",
+      "instruction": "Donnez votre avis sur ce groupe et illustrez-le par un exemple précis que vous avez vécu.",
+      "uniqueCriterion": "Votre exemple est une séance précise du groupe, pas une réflexion sur les bienfaits de la lecture.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Racontez une séance",
+        "Restez sur le groupe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Exemple vécu",
+          "icon": "EXAMPLE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce club est très vivant. À la séance de mars…",
+      "tip": "une séance précise, avec ce qui s'y est dit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce club est très vivant. Échanger sur un livre permet de le comprendre autrement, de découvrir des lectures qu'on n'aurait jamais ouvertes et de sortir de ses habitudes. C'est toujours enrichissant de confronter son point de vue à celui des autres.",
+          "pedagogicalNote": "Trois généralités sur les clubs de lecture. Aucune séance, aucun livre, aucun échange réel."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce club est très vivant. À la séance de mars, deux membres n'étaient pas du tout d'accord sur la fin du roman. La discussion a duré quarante minutes. Personne n'a haussé le ton et chacun a fini par relire le passage à voix haute pour appuyer sa lecture.",
+          "pedagogicalNote": "Une séance datée, un désaccord, une durée, une manière de le traiter."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce club est très vivant. À la séance de mars, deux membres se sont opposés sur la fin du roman pendant quarante minutes. Personne n'a haussé le ton : chacune a fini par relire son passage à voix haute pour montrer d'où venait sa lecture. Aucune n'a changé d'avis, et c'était très bien ainsi.",
+          "pedagogicalNote": "La dernière phrase montre ce que le groupe valorise, ce qu'aucune généralité n'aurait pu dire."
+        }
+      ]
+    }
+  ]
+}

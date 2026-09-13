@@ -14,6 +14,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Garde-fou de demarrage : le fichier de rubriques etant l'UNIQUE source du
@@ -34,6 +37,9 @@ import java.util.Set;
  *       suit donc ce que le calcul lit reellement, au lieu de figer une liste
  *       qui deviendrait fausse a chaque version. Les renommer ou les supprimer
  *       casserait silencieusement ce calcul.</li>
+ *   <li>🛑 <b>aucune fourchette de mots ecrite dans le fichier ne contredit les
+ *       bornes du TCF IRN</b> (T1 30-60, T2/T3 40-90) — cf.
+ *       {@link #validateBornesDeMots}.</li>
  * </ul>
  * Tout manquement → log ERROR + {@link IllegalStateException} (le contexte Spring
  * ne demarre pas).
@@ -75,6 +81,22 @@ public class ProductionRubricsValidator {
         "bareme_note", "descripteurs", "consignes_correcteur");
 
     private static final double POIDS_TOLERANCE = 0.001;
+
+    /**
+     * Fourchettes de mots ADMISES dans le texte des rubriques, au format
+     * {@code min-max} : celles du TCF IRN a l'ecrit (T1 30-60, T2/T3 40-90),
+     * les memes que {@code chk_prod_task_tcf_irn_ee_word_bounds} en base.
+     */
+    private static final Set<String> BORNES_EE_ADMISES = Set.of("30-60", "40-90");
+
+    /**
+     * Repere « 40-90 mots », « 40 a 90 mots », « entre 40 et 90 mots » dans une
+     * consigne. Volontairement large : on prefere examiner une occurrence de
+     * trop que laisser passer une fourchette fausse.
+     */
+    private static final Pattern FOURCHETTE_DE_MOTS = Pattern.compile(
+        "(\\d{2,3})\\s*(?:-|–|\\u2011|a|à|et)\\s*(\\d{2,3})\\s*mots",
+        Pattern.CASE_INSENSITIVE);
 
     private final ProductionRubricsProvider rubrics;
     private final ProductionTaskManager taskManager;
@@ -127,6 +149,9 @@ public class ProductionRubricsValidator {
                 validateEeTask(task, tache, errors);
             }
         }
+
+        // 3. Aucune fourchette de mots du FICHIER ne contredit les bornes servies.
+        validateBornesDeMots(errors);
 
         if (!errors.isEmpty()) {
             errors.forEach(msg -> log.error("[rubriques] {}", msg));
@@ -198,6 +223,56 @@ public class ProductionRubricsValidator {
                     + " serveur derive de " + obligatoires + " pour cette grille, le supprimer ou le"
                     + " renommer casserait son calcul.");
             }
+        }
+    }
+
+    /**
+     * 🛑 <b>Une grille ne peut pas contredire en silence les bornes servies.</b>
+     *
+     * <p>Les longueurs attendues sont portees par la base
+     * ({@code production_tasks.mots_min/mots_max}, CHECK pose par
+     * {@code V724__tcf_irn_ee_t2_t3_mots_min_40.sql}) ; certaines grilles LIVREES
+     * les ecrivent en dur dans leurs consignes. {@code production-rubrics-v9.json}
+     * porte ainsi « 60-90 mots » pour T2/T3 — la fourchette d'avant V724 — et un
+     * simple {@code EVAL_RUBRICS_VERSION=v9} la remettait dans le prompt du
+     * correcteur sans que rien ne l'annonce.
+     *
+     * <p>On ne REECRIT jamais une grille livree (regle du depot : un retour
+     * arriere est un changement de variable d'environnement, pas une migration) —
+     * {@code v9} reste donc intacte et chargeable pour relire ce avec quoi les
+     * copies ont ete corrigees. C'est son <b>ACTIVATION</b> qu'on refuse : le
+     * contexte ne demarre pas, avec le nom de la version et la fourchette fautive.
+     */
+    private void validateBornesDeMots(List<String> errors) {
+        Set<String> fautives = new TreeSet<>();
+        collecterFourchettes(rubrics.getCommun(), fautives);
+        rubrics.all().values().forEach(rubric -> collecterFourchettes(rubric, fautives));
+        if (!fautives.isEmpty()) {
+            errors.add("Grille incompatible avec les bornes TCF IRN servies : elle ecrit "
+                + fautives + " alors que la base impose " + BORNES_EE_ADMISES
+                + " (T1 30-60, T2/T3 40-90). L'activer servirait au correcteur une"
+                + " longueur que le candidat ne peut pas rendre. Ne PAS modifier le"
+                + " fichier de grille (une version livree ne se reecrit jamais) :"
+                + " choisir une autre EVAL_RUBRICS_VERSION.");
+        }
+    }
+
+    /** Descente recursive : toute chaine du bloc est examinee, ou qu'elle vive. */
+    private static void collecterFourchettes(Object noeud, Set<String> fautives) {
+        switch (noeud) {
+            case null -> { }
+            case CharSequence cs -> {
+                Matcher m = FOURCHETTE_DE_MOTS.matcher(cs);
+                while (m.find()) {
+                    String borne = m.group(1) + "-" + m.group(2);
+                    if (!BORNES_EE_ADMISES.contains(borne)) {
+                        fautives.add(borne);
+                    }
+                }
+            }
+            case Map<?, ?> map -> map.values().forEach(v -> collecterFourchettes(v, fautives));
+            case List<?> list -> list.forEach(v -> collecterFourchettes(v, fautives));
+            default -> { }
         }
     }
 

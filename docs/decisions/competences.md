@@ -333,3 +333,69 @@
   - **Niveau visé = `TargetProcedure.niveauVise(procedure, targetLevel)`**, la
     démarche fait **plancher** ; repli sur `skills.target_level`. Ne jamais
     réécrire cette table.
+
+---
+
+## 2026-09-13 — Taxonomie V3 : 7 retraits, 7 créations, 19 recentrages
+
+**Ce qui a déclenché la passe.** Un audit des caractéristiques officielles du
+TCF IRN dans le code et les contenus, demandé par le propriétaire. Les six
+définitions faisant autorité ont été fournies par lui le 2026-09-13 :
+
+| Tâche | Définition officielle retenue | Format |
+|---|---|---|
+| EE1 | décrire une personne, **un groupe**, un lieu ou un objet, **en réaction à un message** | 30–60 mots |
+| EE2 | récit d'activités quotidiennes / compte rendu d'expérience / récit destiné à quelqu'un | 40–90 mots |
+| EE3 | donner son **opinion** sur un lieu, un objet, une personne ou un groupe | 40–90 mots |
+| EO1 | entretien dirigé, **sans préparation** | 3 min |
+| EO2 | obtenir des informations en interaction, **sans préparation** | 3 min 30 |
+| EO3 | parler spontanément, en continu et de façon convaincante, **sans préparation** | 3 min 30 |
+
+**Les 7 retraits, et leur motif.**
+
+| Retirée | Motif |
+|---|---|
+| `EE1-C4` Demander une information | acte transactionnel, ce n'est pas décrire |
+| `EE1-C5` Inviter, proposer, accepter, refuser | format TCF « tout public », pas IRN |
+| `EE1-C6` S'excuser | ni personne, ni groupe, ni lieu, ni objet |
+| `EE2-C4` Introduire un événement déclencheur | suppose une péripétie ; la tâche couvre aussi le quotidien |
+| `EE3-C6` Comparer, avantages et inconvénients | l'IRN ne demande ni comparaison ni arbitrage |
+| `EO2-C4` Demander les conditions et modalités | fondue dans le rang 3, qui disait déjà « obtenir un renseignement » |
+| `EO3-C6` Comparer à l'oral | décalque de `EE3-C6`, non structurante |
+
+**Les 7 créations.** `EE1-C9` Identifier ce qui est décrit · `EE1-C10`
+Sélectionner les caractéristiques pertinentes · `EE1-C11` Décrire un lieu ou un
+objet · `EE2-C9` Expliquer une action, un choix ou une réaction · `EE3-C9`
+Adapter son expression au destinataire · `EO2-C9` Réagir à une réponse ou une
+contrainte imprévue · `EO3-C9` Reformuler pour relancer son propos.
+
+**Le coût réel du chantier de contenu.** 285 sujets neufs et 121 sujets corrigés
+— soit **406 sujets touchés sur 720**. Les 285 neufs ont été **rédigés à la
+main**, comme les 240 du lot précédent. Seuls les **144 points d'apprentissage**
+sont passés par DeepSeek, en première rédaction : **0,0150 $** réels
+(`deepseek-v4-flash`, 60 404 tokens d'entrée, 2 527 de sortie).
+
+⚠️ **Et la relecture a dû les réécrire intégralement.** La sortie brute portait
+exactement les défauts de la V1 d'août : accents manquants sur une quinzaine de
+compétences (« presentes », « activite », « evenement »), impératifs recopiés des
+check-lists au lieu d'infinitifs généralisés, et **deux points qui
+réintroduisaient ce que la V3 venait de retirer** — « Annoncer son choix
+**d'emblée** » sur `EO3-C1`, dont la V3 a justement supprimé l'exigence
+d'immédiateté, et la recette en quatre temps sur `EO3-C8`. Six compétences sur 48
+avaient par ailleurs été refusées par le contrat de forme (4 points au lieu de 3,
+ou un point de 7 à 10 mots).
+
+**Ce qu'il faut en retenir pour la prochaine fois.** Le générateur est utile
+comme *première rédaction d'un format court et très contraint*, et **seulement à
+cette condition**. Il ne sait pas qu'une règle vient d'être retirée : il
+généralise la matière qu'on lui donne, y compris ses tics. La relecture n'est pas
+une formalité de fin — c'est là que le contenu est réellement écrit.
+
+**Une erreur d'énoncé corrigée au passage.** La description de `EO3-C8` affirmait
+« votre avis, une raison, un exemple, puis une conclusion. **C'est exactement le
+format attendu à la tâche 3 du TCF.** » France Éducation international ne
+prescrit aucun plan de ce type. Remplacée par le critère officiel de la tâche :
+parler de manière continue.
+
+**Journal détaillé des arbitrages autonomes** :
+`docs/decisions-autonomes-chantier-tcf-irn.md` (D01 à D05).

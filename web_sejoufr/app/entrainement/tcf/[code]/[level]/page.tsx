@@ -13,7 +13,12 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
-import { DetailShell, SerieCard, SeriesProgressCard } from "@/app/_components/hub/DetailParts";
+import {
+  ComplementaryNotice,
+  DetailShell,
+  SerieCard,
+  SeriesProgressCard,
+} from "@/app/_components/hub/DetailParts";
 import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -165,6 +170,7 @@ export default function TcfLevelSeriesPage() {
         eyebrowIcon={config.icon}
         eyebrow={`${config.title} · Niveau ${levelKey.toUpperCase()}`}
         title="Séries d'entraînement"
+        notice={code === "structure" ? <ComplementaryNotice /> : undefined}
         subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
         action={
           <Link href={`/entrainement/tcf/${code}/examens`} className={detail.headBtn}>

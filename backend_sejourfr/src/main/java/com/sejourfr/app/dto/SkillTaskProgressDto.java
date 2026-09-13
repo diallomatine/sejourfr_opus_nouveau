@@ -9,8 +9,10 @@ import com.sejourfr.app.enums.SkillTaskCode;
  * une tache vide s'affiche a zero, elle ne disparait pas.
  *
  * <p>{@code title} et {@code targetLevel} viennent de l'enum
- * {@link SkillTaskCode} — les 6 taches sont un referentiel officiel fige, pas du
- * contenu editable.
+ * {@link SkillTaskCode} : le nombre de taches est fixe par le TCF IRN, mais le
+ * titre et le palier sont NOTRE editorial. 🛑 {@code targetLevel} est un palier
+ * pedagogique interne, jamais une regle de France Education international — un
+ * ecran qui l'affiche dit « niveau vise ».
  */
 public record SkillTaskProgressDto(
         SkillTaskCode taskCode,

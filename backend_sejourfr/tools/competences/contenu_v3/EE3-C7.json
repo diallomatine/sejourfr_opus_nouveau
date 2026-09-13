@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C7",
+  "rang": 7,
+  "titre": "Nuancer ou reconnaître une limite",
+  "critere": "Pouvoir concéder une exception ou un avis opposé sans perdre sa position — une possibilité de haut niveau, jamais un passage obligé.",
+  "remplace": "EE3-C7 — Nuancer ou concéder (15 sujets désactivés : opinions sur des services et des dispositifs)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "La bibliothèque du quartier",
+      "context": "Un site d'avis vous écrit : « Vous recommandez cette bibliothèque. Certains lui reprochent ses horaires. Quel est votre avis complet ? »",
+      "instruction": "Donnez votre avis sur cette bibliothèque, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette bibliothèque est un vrai atout…",
+      "tip": "reconnaître un défaut ne veut pas dire changer d'avis",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette bibliothèque est un vrai atout. Les collections sont riches et l'espace de travail est agréable. Cela dit, les horaires sont vraiment impossibles et la fermeture du lundi est absurde. Finalement je comprends ceux qui n'y vont plus, c'est peut-être eux qui ont raison.",
+          "pedagogicalNote": "La concession emporte tout : la position de départ est abandonnée à la dernière phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette bibliothèque est un vrai atout. Les collections sont riches et l'espace de travail reste calme même le samedi. Il est vrai que la fermeture du lundi gêne beaucoup de gens. Cela reste pour moi le meilleur endroit du quartier pour travailler.",
+          "pedagogicalNote": "La limite est reconnue franchement, et la position tient jusqu'à la dernière phrase."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette bibliothèque est un vrai atout. Les collections sont riches et l'espace de travail reste calme même le samedi après-midi. Il est vrai que la fermeture du lundi gêne ceux qui travaillent le week-end — c'est un vrai manque. Elle reste malgré tout le seul endroit du quartier où l'on peut travailler des heures.",
+          "pedagogicalNote": "La concession est prise au sérieux (« c'est un vrai manque ») et la position n'en est que plus solide."
+        }
+      ]
+    },
+    {
+      "title": "Le téléphone reconditionné",
+      "context": "Un ami vous écrit : « Tu défends ton téléphone reconditionné, mais on dit que la batterie tient mal. Ton avis complet ? »",
+      "instruction": "Donnez votre avis sur cet appareil, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce téléphone est un très bon achat…",
+      "tip": "une concession sincère renforce l'avis au lieu de l'affaiblir",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce téléphone est un très bon achat. Il fonctionne parfaitement et l'écran est impeccable. Après, c'est vrai que la batterie est fatiguée, il faut le recharger deux fois par jour, et l'appareil photo est moyen. Bon, honnêtement, mieux vaut peut-être acheter neuf.",
+          "pedagogicalNote": "Deux concessions s'accumulent et la position se retourne : le candidat finit par recommander le contraire."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce téléphone est un très bon achat. Il fonctionne parfaitement, l'écran est impeccable et il m'a coûté trois fois moins cher qu'un neuf. Il est vrai que la batterie tient moins bien en fin de journée. Cela ne m'empêche pas de le recommander.",
+          "pedagogicalNote": "Une seule concession, exacte, encadrée par des arguments : la position reste nette."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce téléphone est un très bon achat. Il fonctionne parfaitement, l'écran est impeccable, et il m'a coûté trois fois moins cher qu'un neuf. La batterie tient effectivement moins bien en fin de journée — j'ai pris un chargeur pour le bureau. Pour cet écart de prix, je referais le même choix.",
+          "pedagogicalNote": "La concession est suivie de ce que le candidat en fait, ce qui montre qu'elle a été réellement pesée."
+        }
+      ]
+    },
+    {
+      "title": "Le coach sportif",
+      "context": "Une amie vous écrit : « Tu es content de ce coach, mais on m'a dit qu'il était très exigeant. Qu'en penses-tu vraiment ? »",
+      "instruction": "Donnez votre avis sur cette personne, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle chez cette personne et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce coach est excellent…",
+      "tip": "on peut reconnaître un défaut sans l'excuser ni s'y rendre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce coach est excellent. Il connaît son métier et les résultats sont là. Bon après c'est vrai qu'il est dur, il ne lâche rien et certains abandonnent au bout de trois séances. Franchement, si tu es débutante, tu devrais peut-être aller voir ailleurs.",
+          "pedagogicalNote": "La concession se transforme en déconseil : la position initiale ne survit pas à la dernière phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce coach est excellent. Il adapte chaque séance et il explique pourquoi on fait chaque mouvement. Il est effectivement exigeant : il ne laisse pas terminer une série à moitié. Cela demande de s'accrocher les premières semaines, mais c'est exactement ce qui m'a fait progresser.",
+          "pedagogicalNote": "La limite est décrite précisément, puis reliée au bénéfice : la position sort renforcée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce coach est excellent. Il adapte chaque séance et explique le pourquoi de chaque mouvement. Il est effectivement exigeant — il ne laisse jamais terminer une série à moitié, et j'ai détesté cela les trois premières semaines. C'est pourtant précisément là que j'ai commencé à progresser.",
+          "pedagogicalNote": "Le candidat reconnaît son propre agacement passé : la concession est sincère et la position n'en bouge pas."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du restaurant associatif",
+      "context": "La mairie vous écrit : « Vous soutenez cette équipe. Des usagers trouvent l'accueil brusque. Quel est votre avis complet ? »",
+      "instruction": "Donnez votre avis sur cette équipe, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle du groupe et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe fait un travail essentiel…",
+      "tip": "reconnaître un reproche n'oblige pas à l'endosser entièrement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe fait un travail essentiel. Ils servent cent repas par jour avec très peu de moyens. Cela dit, c'est vrai que l'accueil est sec et que certains bénévoles parlent mal aux gens. Au fond, je comprends les plaintes, il faudrait peut-être revoir toute l'équipe.",
+          "pedagogicalNote": "La concession va jusqu'à proposer de remplacer l'équipe : la position de départ a disparu."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe fait un travail essentiel. Ils servent cent repas par jour avec très peu de moyens et n'ont jamais refusé personne. Il est vrai que l'accueil peut sembler brusque aux heures de pointe. Cela ne retire rien à ce qu'ils accomplissent chaque midi.",
+          "pedagogicalNote": "La limite est reconnue et située dans son contexte, sans que la position s'affaisse."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe fait un travail essentiel. Cent repas par jour avec très peu de moyens, et personne n'est jamais refusé. Il est vrai que l'accueil paraît brusque entre midi et treize heures — je l'ai trouvé sec la première fois. En connaissant la charge, mon avis n'a pas changé d'un mot.",
+          "pedagogicalNote": "Le candidat reconnaît avoir partagé le reproche, puis explique ce qui l'a fait tenir sa position."
+        }
+      ]
+    },
+    {
+      "title": "Le camping en pleine nature",
+      "context": "Un site de voyage vous écrit : « Vous avez noté ce camping très favorablement, mais plusieurs avis parlent du manque de confort. Développez. »",
+      "instruction": "Donnez votre avis sur ce camping, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce camping est un endroit rare…",
+      "tip": "une limite peut même devenir la raison d'aimer le lieu",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce camping est un endroit rare. La vue est magnifique et le silence total. Après, il faut reconnaître qu'il n'y a ni électricité ni eau chaude, que les sanitaires sont sommaires et qu'il faut vingt minutes de piste. Franchement, pour des vacances en famille, ce n'est pas raisonnable.",
+          "pedagogicalNote": "Trois concessions s'empilent et la conclusion déconseille le lieu : la position initiale est renversée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce camping est un endroit rare. La vue sur la vallée et le silence n'existent nulle part ailleurs dans la région. Il est vrai que les sanitaires sont sommaires et qu'il n'y a pas d'eau chaude. Pour trois nuits, cela ne m'a jamais posé de problème.",
+          "pedagogicalNote": "La concession est nette et la position se maintient, précisée par une durée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce camping est un endroit rare. La vue sur la vallée et le silence n'existent nulle part ailleurs ici. Les sanitaires sont effectivement sommaires et il n'y a pas d'eau chaude — c'est d'ailleurs pour cela qu'on n'y croise jamais plus de dix tentes. Pour trois nuits, c'est un échange que je referai.",
+          "pedagogicalNote": "La limite devient l'explication de la qualité louée : la concession renforce la position au lieu de la fragiliser."
+        }
+      ]
+    },
+    {
+      "title": "Le manteau de pluie",
+      "context": "Votre sœur vous écrit : « Tu adores ce manteau, mais tu m'as dit qu'il était lourd. Alors, tu le recommandes ou pas ? »",
+      "instruction": "Donnez votre avis sur ce vêtement, en reconnaissant sa limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle de l'objet et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je le recommande vraiment…",
+      "tip": "on peut recommander quelque chose sans le trouver parfait",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je le recommande vraiment. Il est parfaitement imperméable et les coutures sont impeccables. Enfin, il est lourd, il prend de la place dans un sac, et il ne respire pas du tout. En fait, maintenant que j'y pense, prends plutôt un modèle plus léger.",
+          "pedagogicalNote": "Le candidat finit par conseiller autre chose : sa position s'est inversée en cinq lignes."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je le recommande vraiment. Il m'a gardée au sec pendant une heure de pluie battante, épaules comprises, et les coutures sont étanches. Il est vrai qu'il est lourd, environ un kilo. Pour les jours où il pleut sérieusement, c'est un poids que j'accepte volontiers.",
+          "pedagogicalNote": "Le défaut est chiffré et assumé, puis remis à sa place : la position ne bouge pas."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je le recommande vraiment. Une heure sous une pluie battante et je suis rentrée sèche, épaules comprises. Il est vrai qu'il pèse près d'un kilo — c'est le prix d'un tissu qui tient vraiment. Les jours de bruine je prends autre chose, mais pour les vraies averses je ne changerais pas.",
+          "pedagogicalNote": "Le candidat délimite précisément le domaine de validité de son avis : c'est la nuance la mieux maîtrisée."
+        }
+      ]
+    },
+    {
+      "title": "Le médecin qui ne prend pas de rendez-vous",
+      "context": "Une voisine vous écrit : « Vous conseillez ce médecin, mais il ne prend pas de rendez-vous. Ce n'est pas un problème ? »",
+      "instruction": "Donnez votre avis sur cette personne, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je le conseille sans hésiter…",
+      "tip": "un inconvénient réel peut avoir une contrepartie réelle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je le conseille sans hésiter. Il est très compétent et prend le temps d'écouter. Après, c'est vrai que sans rendez-vous on attend parfois deux heures, que la salle est bondée et qu'on ne sait jamais quand on passera. À bien y réfléchir, c'est peut-être trop contraignant.",
+          "pedagogicalNote": "Trois concessions puis un revirement : « c'est peut-être trop contraignant » annule la recommandation."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je le conseille sans hésiter. Il prend vraiment le temps et n'expédie jamais une consultation. Il est vrai que l'absence de rendez-vous oblige parfois à attendre longtemps. C'est aussi ce qui permet d'être vu le jour même quand on en a besoin, et cela compte beaucoup.",
+          "pedagogicalNote": "La limite est reconnue et retournée en contrepartie réelle, sans que la position varie."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je le conseille sans hésiter. Il prend le temps et n'expédie jamais personne — c'est d'ailleurs pour cela que la salle est pleine. L'attente peut atteindre deux heures, je ne le cache pas. Mais on est vu le jour même, ce qu'aucun cabinet sur rendez-vous ne propose ici.",
+          "pedagogicalNote": "La cause du défaut est la qualité louée : le candidat le montre explicitement, et sa position devient inattaquable."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de course du dimanche",
+      "context": "Un ami vous écrit : « Tu veux que je rejoigne ce groupe, mais tu dis qu'ils partent tôt. Ça vaut le coup ou pas ? »",
+      "instruction": "Donnez votre avis sur ce groupe, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce groupe vaut vraiment le coup…",
+      "tip": "reconnaître l'inconvénient, puis dire ce qu'il achète",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce groupe vaut vraiment le coup. Ils sont accueillants et personne n'est laissé derrière. Bon, ils partent à sept heures le dimanche, ce qui est très tôt, et il faut être à l'heure sinon ils ne t'attendent pas. Honnêtement, à ta place, je n'irais pas.",
+          "pedagogicalNote": "La conclusion contredit l'ouverture : « à ta place, je n'irais pas » efface toute la position."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce groupe vaut vraiment le coup. Ils sont accueillants et un coureur ferme toujours la file. Il est vrai que le départ à sept heures est difficile le dimanche. C'est aussi ce qui fait qu'on court au frais et qu'on rentre avant que la journée commence.",
+          "pedagogicalNote": "La contrainte est reconnue, puis reliée à ce qu'elle permet : la position tient."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce groupe vaut vraiment le coup. Ils sont accueillants et un coureur ferme toujours la file. Le départ à sept heures est difficile, je ne vais pas prétendre le contraire — les trois premiers dimanches ont été durs. On court au frais et on rentre à neuf heures avec la journée devant soi.",
+          "pedagogicalNote": "L'aveu de la difficulté vécue rend la concession crédible, et le bénéfice final n'en est que plus convaincant."
+        }
+      ]
+    },
+    {
+      "title": "La salle de concert en sous-sol",
+      "context": "Un site d'avis vous écrit : « Vous défendez cette salle, mais son accès est réputé difficile. Donnez votre avis complet. »",
+      "instruction": "Donnez votre avis sur ce lieu, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle du lieu et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette salle est la meilleure de la ville…",
+      "tip": "certaines limites ne se compensent pas : dites-le quand même",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette salle est la meilleure de la ville. L'acoustique est exceptionnelle et on voit la scène de partout. Bon après, l'escalier est raide, il n'y a pas d'ascenseur et c'est inaccessible en fauteuil. Du coup non, en fait, on ne peut pas vraiment la recommander à tout le monde.",
+          "pedagogicalNote": "La concession retourne l'avis : « on ne peut pas vraiment la recommander » annule la première phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette salle est la meilleure de la ville. L'acoustique est exceptionnelle et la scène se voit depuis n'importe quel point. Il est vrai que l'escalier raide la rend inaccessible aux personnes à mobilité réduite, et c'est un vrai défaut que rien ne compense. Pour qui peut y descendre, elle reste sans équivalent.",
+          "pedagogicalNote": "La limite est reconnue sans être minimisée, et la position est explicitement bornée à qui elle s'applique."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette salle est la meilleure de la ville. L'acoustique est exceptionnelle et la scène se voit de partout. L'escalier raide la rend inaccessible en fauteuil : c'est un défaut réel, que l'acoustique ne rachète pas. Pour ceux qui peuvent descendre, elle reste sans équivalent dans la région.",
+          "pedagogicalNote": "« Que l'acoustique ne rachète pas » refuse la fausse compensation : c'est la forme la plus honnête de la concession."
+        }
+      ]
+    },
+    {
+      "title": "Le vélo électrique",
+      "context": "Un collègue vous écrit : « Tu es content de ton vélo électrique, mais il paraît qu'il est très lourd à porter. Ton avis ? »",
+      "instruction": "Donnez votre avis sur cet objet, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce vélo a changé mes trajets…",
+      "tip": "une limite chiffrée pèse moins qu'une limite vague",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce vélo a changé mes trajets. Je fais quinze kilomètres sans transpirer et les côtes ne comptent plus. Mais bon, il pèse une tonne, impossible de le monter chez moi, et si la batterie lâche c'est fini. Réflexion faite, ce n'est pas si pratique que ça.",
+          "pedagogicalNote": "Le revirement final — « pas si pratique que ça » — annule l'argument d'ouverture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce vélo a changé mes trajets. Je fais quinze kilomètres sans transpirer et les côtes ne comptent plus. Il est vrai qu'il pèse vingt-trois kilos, ce qui rend impossible de le monter à l'étage. Un local à vélos au rez-de-chaussée résout le problème, et je ne reviendrais pas en arrière.",
+          "pedagogicalNote": "La limite est chiffrée, sa condition de contournement donnée, et la position réaffirmée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce vélo a changé mes trajets : quinze kilomètres sans transpirer et les côtes ne comptent plus. Il pèse vingt-trois kilos, donc le monter à l'étage est exclu — c'est éliminatoire si on n'a pas de local au rez-de-chaussée. J'en ai un, et je ne reviendrais pour rien au monde en arrière.",
+          "pedagogicalNote": "Le candidat dit franchement pour qui sa recommandation ne vaut pas, sans renoncer à la sienne."
+        }
+      ]
+    },
+    {
+      "title": "La responsable de l'agence",
+      "context": "Un ami vous écrit : « Tu dis du bien de cette responsable, mais on la dit difficile à joindre. Tu maintiens ? »",
+      "instruction": "Donnez votre avis sur cette personne, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je maintiens tout à fait…",
+      "tip": "maintenir ne veut pas dire nier ce qu'on vous oppose",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je maintiens tout à fait. Elle est très compétente et elle connaît parfaitement les dossiers. Ceci dit, c'est vrai qu'elle ne répond jamais au téléphone, qu'elle met une semaine à rappeler et qu'on ne sait jamais où elle est. Au fond, je comprends qu'on s'en plaigne.",
+          "pedagogicalNote": "« Je comprends qu'on s'en plaigne » finit par donner raison au reproche : la position ne tient plus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je maintiens tout à fait. Elle connaît les dossiers dans le détail et n'a jamais laissé passer une échéance. Il est vrai qu'elle répond rarement du premier coup. Elle rappelle toujours dans les deux jours, et quand elle rappelle, tout est déjà réglé.",
+          "pedagogicalNote": "La limite est reconnue, mais précisée d'une façon qui la relativise sans la nier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je maintiens tout à fait. Elle connaît les dossiers dans le détail et n'a jamais laissé passer une échéance. Elle répond rarement du premier coup, c'est exact, et cela peut agacer. Mais quand elle rappelle, deux jours plus tard, le dossier est traité — je préfère cela à dix appels sans résultat.",
+          "pedagogicalNote": "Le candidat reconnaît même l'agacement légitime, puis oppose une comparaison qui soutient sa position."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe de la ressourcerie",
+      "context": "La commune vous écrit : « Vous soutenez cette équipe. Certains trouvent l'organisation brouillonne. Quel est votre avis ? »",
+      "instruction": "Donnez votre avis sur ce groupe, en reconnaissant ce qui lui est reproché sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle du groupe et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe mérite d'être soutenue…",
+      "tip": "un défaut d'organisation n'efface pas un résultat",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe mérite d'être soutenue. Ils récupèrent des tonnes d'objets et les remettent en état. Mais c'est vrai que rien n'est rangé, qu'on ne sait jamais qui fait quoi et que les horaires changent sans prévenir. Franchement, tant que ça ne sera pas structuré, je ne sais pas si ça vaut la peine.",
+          "pedagogicalNote": "La position se dissout : le soutien annoncé devient un doute sur l'intérêt même de l'activité."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe mérite d'être soutenue. Ils ont remis en état six cents objets l'an dernier, tous revendus à petit prix. Il est vrai que l'organisation est approximative et que les horaires varient. Cela n'enlève rien à ce qu'ils sortent de la benne chaque semaine.",
+          "pedagogicalNote": "Un chiffre ancre la position, la concession est franche, et la conclusion revient au résultat."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe mérite d'être soutenue. Six cents objets remis en état l'an dernier, tous revendus à petit prix. L'organisation est effectivement approximative et les horaires varient — c'est le prix d'une équipe entièrement bénévole. Rien de tout cela ne sortirait de la benne sans eux.",
+          "pedagogicalNote": "La limite est expliquée par la nature du groupe, puis dépassée par une conclusion qui ne se discute pas."
+        }
+      ]
+    },
+    {
+      "title": "Le sentier côtier",
+      "context": "Un club vous écrit : « Vous recommandez ce sentier, mais il est exposé au vent et sans ombre. Votre avis complet ? »",
+      "instruction": "Donnez votre avis sur ce sentier, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce sentier est à faire absolument…",
+      "tip": "une limite peut se contourner par le choix du moment",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce sentier est à faire absolument. Les vues sur la mer sont magnifiques du début à la fin. Après, il n'y a pas un arbre, le vent souffle en permanence et en été c'est irrespirable. Tout bien pesé, il vaut mieux aller marcher en forêt.",
+          "pedagogicalNote": "La conclusion envoie ailleurs : l'avis initial ne survit pas à la concession."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce sentier est à faire absolument. Les vues sur la mer sont continues, ce qui est rare sur ce littoral. Il est vrai qu'il n'offre aucune ombre et que le vent y souffle presque toujours. En mai ou en septembre, cela devient au contraire très agréable.",
+          "pedagogicalNote": "La limite est reconnue, puis désamorcée par une condition précise, sans que l'avis change."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce sentier est à faire absolument. Les vues sur la mer sont continues, ce qui est rare sur ce littoral. Il n'y a pas un arbre et le vent souffle presque toujours — en juillet, c'est effectivement à déconseiller. En mai ou en septembre, ce même vent devient la meilleure raison d'y aller.",
+          "pedagogicalNote": "Le candidat concède un cas où il déconseille, puis retourne la limite en qualité : la nuance est complète."
+        }
+      ]
+    },
+    {
+      "title": "La table en bois brut",
+      "context": "Une amie vous écrit : « Tu adores ta table, mais tu m'as dit qu'elle marquait. Je la prends ou pas ? »",
+      "instruction": "Donnez votre avis sur cet objet, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je la reprendrais sans hésiter…",
+      "tip": "dire à qui la limite poserait problème est plus utile que la nier",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je la reprendrais sans hésiter. Le bois est magnifique et elle est très solide. Cela dit, elle marque au moindre verre, il faut la huiler deux fois par an et les traces ne partent jamais complètement. Avec des enfants, honnêtement, je te la déconseille.",
+          "pedagogicalNote": "La dernière phrase déconseille l'achat : la position d'ouverture est abandonnée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je la reprendrais sans hésiter. Le bois est magnifique et le plateau n'a pas bougé en cinq ans. Il est vrai qu'elle marque : un verre humide laisse un rond. Ces traces finissent par former une patine que je trouve plus belle que le neuf.",
+          "pedagogicalNote": "La limite est décrite précisément, puis réinterprétée sans être niée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je la reprendrais sans hésiter. Le bois est magnifique et le plateau n'a pas bougé en cinq ans. Elle marque, c'est vrai : un verre humide laisse un rond, et il reste. Si tu veux une table qui garde l'air neuf, prends autre chose. Si les traces ne te dérangent pas, elle vieillira très bien.",
+          "pedagogicalNote": "Le candidat dit clairement pour qui son avis ne vaut pas, sans renoncer une seconde au sien."
+        }
+      ]
+    },
+    {
+      "title": "Le bénévole de l'atelier vélo",
+      "context": "Un voisin vous écrit : « Tu conseilles d'aller le voir pour réparer un vélo, mais il paraît qu'il ne fait rien à ta place. C'est vrai ? »",
+      "instruction": "Donnez votre avis sur cette personne, en reconnaissant cette limite sans changer de position.",
+      "uniqueCriterion": "Vous reconnaissez une limite réelle et votre position reste la même à la fin.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reconnaissez la limite",
+        "Gardez votre position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Limite reconnue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est vrai, et je le conseille quand même…",
+      "tip": "le reproche peut être exactement la qualité : montrez-le",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est vrai, et je le conseille quand même. Il est très compétent. Mais effectivement il ne touche pas au vélo, il te regarde faire pendant une heure et il faut tout démonter soi-même. Si tu es pressé, va plutôt chez un réparateur, ce sera plus simple.",
+          "pedagogicalNote": "La conclusion redirige vers un réparateur : le conseil initial est retiré."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est vrai, et je le conseille quand même. Il ne prend jamais l'outil à votre place : il explique, montre une fois, puis vous laisse faire. Cela prend deux fois plus de temps qu'une réparation classique. En revanche, on sait refaire seul la fois suivante.",
+          "pedagogicalNote": "La limite est confirmée sans détour, puis reliée au bénéfice qui la justifie."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est vrai, et je le conseille quand même. Il ne prend jamais l'outil à votre place : il explique, montre une fois, puis regarde. Cela prend deux heures là où un réparateur en met vingt minutes. Mais j'ai changé ma chaîne seul le mois dernier — et c'est exactement ce que j'étais venu chercher.",
+          "pedagogicalNote": "La concession est chiffrée et le bénéfice prouvé par un fait : la position devient impossible à contester."
+        }
+      ]
+    }
+  ]
+}

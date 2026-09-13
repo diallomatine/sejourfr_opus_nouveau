@@ -141,8 +141,11 @@ class _PremiumView extends StatelessWidget {
 
   static const _integralFeatures = [
     'Tout le Pass Civique inclus',
-    'Les 5 épreuves du TCF IRN',
-    'Compréhension orale & écrite, structure',
+    // 🛑 Le TCF IRN comporte QUATRE épreuves (CO, CE, EE, EO). « Structure de
+    // la langue » est notre module complémentaire, pas une cinquième épreuve.
+    // Miroir web : app/(app)/profil/abonnement/page.tsx.
+    'Les 4 épreuves du TCF IRN + entraînement complémentaire en grammaire',
+    'Compréhension orale & écrite',
     'Expression écrite & orale + analyse IA',
     'Examens blancs complets des deux parcours',
     'Niveau CECRL estimé & plan de révision',

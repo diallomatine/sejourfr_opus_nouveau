@@ -49,6 +49,15 @@ public record AdminSkillCreateRequest(
         @NotBlank(message = "Le critère général est obligatoire.")
         String generalCriterion,
 
+        /**
+         * « Vous allez apprendre a : » — 3 gestes courts a l'infinitif.
+         * <b>Facultatif</b> : le catalogue seede n'en porte pas encore, et une
+         * competence sans points reste legale (le bloc disparait cote fronts).
+         * Fourni, il est valide par le service : exactement 3 entrees, 1 a 6
+         * mots chacune.
+         */
+        java.util.List<String> learningPoints,
+
         @NotBlank(message = "Le palier visé est obligatoire.")
         @Pattern(regexp = "A1|A2|B1|B2", message = "Le palier visé doit valoir A1, A2, B1 ou B2.")
         String targetLevel,

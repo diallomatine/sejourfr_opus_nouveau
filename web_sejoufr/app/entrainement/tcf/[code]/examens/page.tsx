@@ -17,7 +17,12 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
-import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
+import {
+  ComplementaryNotice,
+  DetailShell,
+  DetailStatCard,
+  ExamsGrid,
+} from "@/app/_components/hub/DetailParts";
 import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
 import { examSlotGrid } from "@/lib/exam-slots";
 import { plannedEpreuveLabel } from "@/lib/exam-durations";
@@ -209,6 +214,7 @@ export default function TcfModuleExamsPage() {
         eyebrowIcon={<Target size={18} strokeWidth={2} />}
         eyebrow={config.title}
         title="Examens blancs"
+        notice={code === "structure" ? <ComplementaryNotice /> : undefined}
         subtitle={`${SLOTS} examens blancs de 25 questions (${config.duration}), dans les conditions de l'épreuve. Choisissez-en un et retrouvez votre dernier score.`}
         action={
           <Link href={`/entrainement/tcf/${code}`} className={detail.headBtn}>

@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C8",
+  "rang": 8,
+  "titre": "Relier les informations dans une description cohérente",
+  "critere": "Enchaîner les phrases dans un ordre lisible et refermer la description naturellement.",
+  "remplace": "EE1-C8 — Relier les informations dans un message complet (15 sujets désactivés)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "La maison de vacances",
+      "context": "Un ami vous écrit : « On hésite à louer cette maison pour cet été. Tu y es allé l'an dernier : elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant la maison, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre que le lecteur peut suivre, et ne saute pas d'un détail à l'autre.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Choisissez un ordre",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "De l'extérieur…",
+      "tip": "du dehors vers le dedans : un ordre vaut mieux qu'aucun",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a un lave-vaisselle. La maison est en pierre. Les chambres sont à l'étage. Le jardin est grand. Le salon a une cheminée. C'est à trois kilomètres du village. La cuisine est petite.",
+          "pedagogicalNote": "Toutes les informations sont justes, mais elles se suivent sans ordre : le lecteur saute de l'intérieur au village et revient."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "De l'extérieur, c'est une maison en pierre avec un grand jardin clos, à trois kilomètres du village. Au rez-de-chaussée, un salon avec cheminée et une petite cuisine équipée. Les trois chambres sont à l'étage. On s'y sent très bien.",
+          "pedagogicalNote": "L'ordre va de l'extérieur au rez-de-chaussée puis à l'étage : le lecteur avance sans revenir en arrière."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "De l'extérieur, c'est une maison en pierre entourée d'un grand jardin clos, à trois kilomètres du village. On entre dans un salon avec cheminée, prolongé par une petite cuisine équipée. L'escalier mène aux trois chambres. Rien n'est luxueux, mais tout fonctionne.",
+          "pedagogicalNote": "« On entre », « prolongé par », « l'escalier mène » : le lecteur est guidé de pièce en pièce, et la fin referme sans lister."
+        }
+      ]
+    },
+    {
+      "title": "Le collègue à accueillir",
+      "context": "Un membre de l'équipe vous écrit : « Tu as rencontré le nouveau hier. Il est comment ? Je voudrais savoir avant de le croiser. »",
+      "instruction": "Répondez-lui en décrivant ce collègue, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre lisible et se referme, au lieu d'accumuler des traits sans lien.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Choisissez un ordre",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est un homme d'une quarantaine d'années…",
+      "tip": "l'aspect d'abord, la manière d'être ensuite : le lecteur suit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il rit beaucoup. Il est grand. Il vient de Lille. Il a une barbe. Il pose beaucoup de questions. Il a quarante ans environ. Il porte des chemises. Il connaît bien le logiciel.",
+          "pedagogicalNote": "Huit phrases courtes sans lien : l'aspect, l'origine et le caractère se mélangent, et rien ne referme."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un homme d'une quarantaine d'années, grand, avec une barbe courte. Il porte des chemises claires. Il vient de Lille et il connaît déjà bien notre logiciel. Il rit facilement et pose beaucoup de questions. Tu l'apprécieras.",
+          "pedagogicalNote": "L'aspect, puis le parcours, puis le caractère : trois groupes cohérents, et une phrase finale qui referme."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un homme d'une quarantaine d'années, grand, la barbe courte, toujours en chemise claire. Il arrive de Lille et connaît déjà notre logiciel, ce qui aide. Côté caractère, il rit facilement et pose beaucoup de questions — plutôt bon signe.",
+          "pedagogicalNote": "« Côté caractère » annonce le changement de groupe, et la remarque finale referme sans ajouter de trait nouveau."
+        }
+      ]
+    },
+    {
+      "title": "Le carnet perdu",
+      "context": "Le personnel de la bibliothèque vous écrit : « Bonjour, plusieurs carnets ont été oubliés cette semaine. Décrivez le vôtre. »",
+      "instruction": "Répondez-leur en décrivant ce carnet, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre lisible — de l'ensemble au détail — et se referme sans énumération sèche.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Allez du grand au petit",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un carnet…",
+      "tip": "l'ensemble d'abord, les détails ensuite : on ne fait pas l'inverse",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a un autocollant rond sur la quatrième page. L'élastique est cassé. C'est un carnet. La couverture est bleue. Il fait la taille d'une main. Les pages sont quadrillées. Mon prénom est écrit dedans.",
+          "pedagogicalNote": "On commence par la quatrième page et on finit par le format : le lecteur ne peut pas construire l'image."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un carnet de la taille d'une main, à couverture bleue rigide. Les pages sont quadrillées. Un élastique de fermeture est cassé. Mon prénom, Awa, est écrit sur la première page. Il est assez usé.",
+          "pedagogicalNote": "Format, couverture, pages, fermeture, marque personnelle : l'ordre va de l'ensemble au détail."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un carnet de la taille d'une main, à couverture bleue rigide et assez usée aux coins. Les pages sont quadrillées et l'élastique de fermeture a cassé. Sur la première page, mon prénom, Awa, est écrit au feutre noir.",
+          "pedagogicalNote": "Chaque phrase reste sur un niveau — l'objet, puis l'intérieur, puis la marque — et la dernière ferme naturellement."
+        }
+      ]
+    },
+    {
+      "title": "L'atelier du quartier",
+      "context": "Une voisine vous écrit : « J'ai vu qu'un atelier partagé a ouvert rue Basse. Tu y es allé, je crois. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant cet atelier, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un parcours que le lecteur peut suivre et se referme sans liste.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Suivez un parcours",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "On entre par…",
+      "tip": "faites-la entrer avec vous : l'ordre vient tout seul",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a des machines à coudre. C'est au rez-de-chaussée. Il y a une grande table au milieu. L'entrée est vitrée. On y trouve aussi des outils. Le fond sert au bois. Les murs sont blancs.",
+          "pedagogicalNote": "Le lecteur passe des machines à l'entrée puis au fond : aucun parcours ne se dessine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "On entre par une porte vitrée au rez-de-chaussée. La première salle est claire, avec une grande table au milieu et des machines à coudre le long du mur. Au fond, un espace est réservé au travail du bois. C'est simple et bien tenu.",
+          "pedagogicalNote": "L'entrée, la première salle, le fond : le lecteur traverse l'atelier dans l'ordre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "On entre par une porte vitrée au rez-de-chaussée. La première salle est très claire : une grande table au milieu, des machines à coudre alignées le long du mur de gauche. Au fond, derrière une cloison, l'espace bois avec ses outils accrochés. Tout est simple et bien rangé.",
+          "pedagogicalNote": "« Derrière une cloison » et « le long du mur de gauche » ancrent chaque élément dans le parcours, sans jamais le rompre."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du club",
+      "context": "Un parent vous écrit : « Ma fille voudrait rejoindre le club. Tu connais l'équipe. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant l'équipe, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description organise les informations sur le groupe et se referme, au lieu de les empiler.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Groupez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "L'équipe compte…",
+      "tip": "combien, qui, comment : trois temps, dans cet ordre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elles s'entendent bien. Il y a quatorze joueuses. Trois ont commencé cette année. L'entraîneuse est patiente. Elles ont entre douze et quatorze ans. Elles se prêtent leurs affaires. Deux viennent de l'autre club.",
+          "pedagogicalNote": "L'ambiance ouvre, l'effectif arrive ensuite, puis les âges : le lecteur ne peut pas se représenter le groupe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "L'équipe compte quatorze joueuses, entre douze et quatorze ans. Trois ont commencé cette année et deux arrivent de l'autre club. L'ambiance est très bonne : elles se prêtent leurs affaires et l'entraîneuse est patiente. Ta fille s'y sentira bien.",
+          "pedagogicalNote": "Effectif et âges, puis composition, puis ambiance : trois temps, et une clôture nette."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "L'équipe compte quatorze joueuses de douze à quatorze ans. Trois ont commencé cette année et deux arrivent de l'autre club, donc les nouvelles ne sont jamais seules. Côté ambiance, elles se prêtent leurs affaires et l'entraîneuse ne hausse jamais la voix.",
+          "pedagogicalNote": "« Donc les nouvelles ne sont jamais seules » relie deux informations au lieu de les juxtaposer : c'est exactement la compétence."
+        }
+      ]
+    },
+    {
+      "title": "Le fauteuil de bureau",
+      "context": "Un collègue vous écrit : « Tu revends ton fauteuil de bureau ? Il est comment ? Je cherche quelque chose de confortable. »",
+      "instruction": "Répondez-lui en décrivant le fauteuil, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre lisible et se referme, sans mélanger l'aspect, les réglages et l'état.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Groupez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un fauteuil…",
+      "tip": "l'aspect, puis les réglages, puis l'état : ne mélangez pas",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "L'accoudoir gauche est un peu bas. Il est noir. On règle la hauteur. Le tissu est propre. Il a cinq roulettes. Le dossier s'incline. Une roulette grince. Il est en maille.",
+          "pedagogicalNote": "Aspect, réglages et défauts alternent à chaque phrase : rien ne se construit."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un fauteuil de bureau noir, en maille respirante, monté sur cinq roulettes. La hauteur se règle et le dossier s'incline. Le tissu est propre. Une roulette grince un peu et l'accoudoir gauche est plus bas que l'autre.",
+          "pedagogicalNote": "Aspect, puis réglages, puis état : trois groupes nets, et le lecteur sait tout dans l'ordre utile."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un fauteuil de bureau noir en maille respirante, monté sur cinq roulettes. Côté réglages, la hauteur et l'inclinaison du dossier fonctionnent bien. L'ensemble est propre, à deux détails près : une roulette grince et l'accoudoir gauche est légèrement plus bas.",
+          "pedagogicalNote": "« Côté réglages » et « à deux détails près » annoncent chaque changement de groupe : la description se suit toute seule."
+        }
+      ]
+    },
+    {
+      "title": "La boutique reprise",
+      "context": "Une amie vous écrit : « On dit que la librairie a rouvert autrement. Tu y es passée ? C'est comment maintenant ? »",
+      "instruction": "Répondez-lui en décrivant la boutique, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre lisible et relie ce qui a changé à ce qui est resté.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Séparez avant et après",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La vitrine n'a pas bougé, mais…",
+      "tip": "ce qui reste, puis ce qui change : le lecteur se repère",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a un coin café maintenant. La vitrine est pareille. Les rayons ont été déplacés. L'enseigne est la même. Les murs sont repeints en vert. Le comptoir n'a pas bougé. Il y a des fauteuils.",
+          "pedagogicalNote": "Ce qui a changé et ce qui est resté s'alternent sans logique : le lecteur ne sait plus ce qu'il reconnaîtra."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La vitrine n'a pas bougé, mais tout l'intérieur a changé. Les murs sont repeints en vert et les rayons ont été déplacés le long des côtés. Au fond, un coin café avec des fauteuils a remplacé la réserve. L'enseigne et le comptoir sont les mêmes.",
+          "pedagogicalNote": "Ce qui reste encadre ce qui change : le lecteur garde ses repères pendant toute la description."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La vitrine n'a pas bougé, mais tout l'intérieur a changé. Les murs sont repeints en vert sombre et les rayons, autrefois au milieu, longent maintenant les côtés. Cela libère le fond, où un coin café a remplacé la réserve. Seul le vieux comptoir est resté.",
+          "pedagogicalNote": "« Cela libère le fond » relie deux changements par une conséquence : la description devient un raisonnement lisible."
+        }
+      ]
+    },
+    {
+      "title": "Le voisin de chambre d'hôpital",
+      "context": "Votre tante vous écrit : « Je passe voir ton oncle demain. Tu m'as dit qu'il partageait la chambre. La personne à côté est comment ? »",
+      "instruction": "Répondez-lui en décrivant cette personne, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description organise l'aspect et la manière d'être, et se referme sans juger la personne.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Groupez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est un monsieur âgé…",
+      "tip": "l'aspect, puis la manière d'être, puis une phrase qui referme",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il dort beaucoup. Il est très âgé. Sa fille vient le soir. Il a des cheveux blancs. Il parle peu. Il est près de la fenêtre. Il écoute la radio. Il est maigre.",
+          "pedagogicalNote": "Aspect, habitudes, visites et position s'entremêlent sur huit phrases sans lien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un monsieur âgé, très maigre, avec des cheveux blancs. Son lit est près de la fenêtre. Il parle peu et dort une grande partie de la journée. Il écoute la radio l'après-midi. Sa fille vient chaque soir.",
+          "pedagogicalNote": "Aspect, place dans la chambre, rythme de la journée, visites : quatre groupes qui se suivent."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un monsieur âgé et très maigre, les cheveux blancs, installé près de la fenêtre. Il parle peu et dort une bonne partie de la journée ; l'après-midi, il écoute la radio à voix basse. Sa fille passe chaque soir, ce qui le réveille toujours.",
+          "pedagogicalNote": "Le point-virgule et « ce qui le réveille toujours » relient les moments de la journée en une progression continue."
+        }
+      ]
+    },
+    {
+      "title": "La machine à café de l'étage",
+      "context": "Un nouveau collègue vous écrit : « On m'a dit de me méfier de la machine à café du deuxième. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant cette machine, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un ordre lisible et relie l'aspect au fonctionnement, au lieu de les séparer.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Allez du visible à l'usage",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est une vieille machine…",
+      "tip": "ce qu'on voit, puis ce qu'elle fait : l'usage vient après l'aspect",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le bouton du milieu ne marche pas. Elle est grise. Il faut appuyer longtemps. Elle est près de l'imprimante. Le gobelet tombe de travers. Elle est haute. Le café est correct.",
+          "pedagogicalNote": "Défauts et aspect s'alternent : on apprend un défaut avant même de savoir de quoi il s'agit."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est une vieille machine grise, assez haute, posée près de l'imprimante. Le bouton du milieu ne répond plus, il faut utiliser celui de droite. Le gobelet tombe souvent de travers. Cela dit, le café est correct.",
+          "pedagogicalNote": "Aspect et emplacement d'abord, fonctionnement ensuite, et une clôture qui nuance."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est une vieille machine grise, assez haute, posée près de l'imprimante. Le bouton du milieu ne répond plus : il faut appuyer longuement sur celui de droite, et tenir le gobelet, qui tombe souvent de travers. Cela dit, le café est meilleur qu'au rez-de-chaussée.",
+          "pedagogicalNote": "Les deux-points font découler le geste du défaut, et la comparaison finale referme sans ajouter de trait isolé."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de marche",
+      "context": "Une connaissance vous écrit : « Tu marches avec un groupe le dimanche, non ? Il est comment ? J'aimerais savoir avant de venir. »",
+      "instruction": "Répondez-lui en décrivant ce groupe, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description relie la composition du groupe à sa manière de fonctionner, au lieu de juxtaposer.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Reliez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous sommes une douzaine…",
+      "tip": "reliez : qui compose le groupe explique comment il marche",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "On s'arrête souvent. Nous sommes douze. Il y a des retraités. On marche quinze kilomètres. Deux personnes ont soixante-quinze ans. Le rythme est lent. Certains viennent avec leur chien. On part le matin.",
+          "pedagogicalNote": "L'effectif, les âges et le rythme sont tous là, mais rien ne montre que l'un explique l'autre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous sommes une douzaine, surtout des retraités, dont deux ont plus de soixante-quinze ans. Le rythme est donc lent et nous nous arrêtons souvent. Nous faisons environ quinze kilomètres. Certains viennent avec leur chien.",
+          "pedagogicalNote": "« Donc » relie la composition au rythme : le lecteur comprend le groupe au lieu de le subir."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous sommes une douzaine, surtout des retraités, dont deux ont plus de soixante-quinze ans : le rythme est lent et nous nous arrêtons toutes les demi-heures. Quinze kilomètres tout de même, en prenant la journée. Deux ou trois viennent avec leur chien.",
+          "pedagogicalNote": "Les deux-points et « tout de même » enchaînent cause, conséquence et nuance sans un mot de liaison superflu."
+        }
+      ]
+    },
+    {
+      "title": "Le rez-de-chaussée à visiter",
+      "context": "Votre sœur vous écrit : « Tu as visité la maison de la rue Pasteur pour moi. Raconte-moi le rez-de-chaussée. »",
+      "instruction": "Répondez-lui en décrivant le rez-de-chaussée, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description suit un parcours continu d'une pièce à l'autre et se referme.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Suivez un parcours",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "En entrant, on tombe sur…",
+      "tip": "avancez pièce par pièce, sans revenir en arrière",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La cuisine donne sur le jardin. L'entrée est petite. Le salon fait vingt-cinq mètres carrés. Il y a des toilettes. Le couloir dessert tout. La cuisine est carrelée. Le salon a deux fenêtres.",
+          "pedagogicalNote": "On commence par la cuisine, on revient à l'entrée, on repart au salon : le parcours est impossible à suivre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "En entrant, on tombe sur une petite entrée avec des toilettes à droite. Un couloir dessert tout le rez-de-chaussée. À gauche, le salon de vingt-cinq mètres carrés, avec deux fenêtres. Au bout, la cuisine carrelée donne sur le jardin.",
+          "pedagogicalNote": "Le lecteur avance avec le visiteur : entrée, couloir, salon, cuisine, jardin."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "En entrant, on tombe sur une petite entrée, toilettes à droite. Le couloir dessert tout : à gauche, le salon de vingt-cinq mètres carrés, éclairé par deux fenêtres. Au bout du couloir, la cuisine carrelée ouvre directement sur le jardin. On fait le tour en une minute.",
+          "pedagogicalNote": "Chaque phrase repart d'où la précédente s'arrêtait, et la dernière referme en donnant l'échelle de l'ensemble."
+        }
+      ]
+    },
+    {
+      "title": "Le violon d'occasion",
+      "context": "Un professeur de musique vous écrit : « Vous vendez un violon, je crois. Décrivez-le-moi, je cherche pour une élève. »",
+      "instruction": "Répondez-lui en décrivant ce violon, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description va de l'instrument à ses accessoires puis à son état, sans mélanger les trois.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Groupez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un violon…",
+      "tip": "l'instrument, puis ce qui l'accompagne, puis l'état",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La housse est usée. C'est un quatre-quarts. L'archet est neuf. Le vernis est brun. Il y a une éraflure. Les cordes datent de l'an dernier. Le chevalet est d'origine. La mentonnière est en bois.",
+          "pedagogicalNote": "Housse, instrument, archet, vernis : chaque phrase change de niveau, et l'état se disperse partout."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un violon quatre-quarts au vernis brun, avec une mentonnière en bois et un chevalet d'origine. Il vient avec un archet neuf et une housse. Les cordes ont été changées l'an dernier. Il y a une éraflure sur la table.",
+          "pedagogicalNote": "Instrument, accessoires, état : trois groupes nets, faciles à suivre pour un professeur."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un violon quatre-quarts au vernis brun, mentonnière en bois et chevalet d'origine. Il vient avec un archet neuf et une housse, usée mais qui ferme bien. Côté état, les cordes datent de l'an dernier et une éraflure marque la table, sans gêner le son.",
+          "pedagogicalNote": "« Côté état » regroupe explicitement les défauts, et « sans gêner le son » referme sur ce qui intéresse un professeur."
+        }
+      ]
+    },
+    {
+      "title": "Les gens du covoiturage",
+      "context": "Un collègue vous écrit : « Tu fais du covoiturage tous les jours. Les gens avec qui tu roules, ils sont comment ? »",
+      "instruction": "Répondez-lui en décrivant ce groupe, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description relie les personnes à la manière dont le trajet se passe, sans simple énumération.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Reliez vos idées",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous sommes quatre…",
+      "tip": "qui ils sont explique comment le trajet se passe : montrez-le",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "On ne parle pas beaucoup. Nous sommes quatre. Karim conduit. Le trajet dure quarante minutes. Deux dorment. Nous partons à six heures quarante. Une écoute la radio. Ils travaillent tous à la zone nord.",
+          "pedagogicalNote": "Effectif, horaire, ambiance et trajet se suivent sans ordre : rien ne relie les personnes à ce qui se passe dans la voiture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous sommes quatre, tous à la zone nord. Karim conduit et nous partons à six heures quarante. Comme il est tôt, on ne parle presque pas : deux dorment et une écoute la radio. Le trajet dure quarante minutes.",
+          "pedagogicalNote": "« Comme il est tôt » relie l'heure au silence : le groupe s'explique au lieu de s'énumérer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous sommes quatre, tous à la zone nord, et c'est Karim qui conduit. Comme on part à six heures quarante, personne ne parle : deux dorment jusqu'à l'autoroute, une écoute la radio très bas. Quarante minutes qui passent vite.",
+          "pedagogicalNote": "« Jusqu'à l'autoroute » situe même le sommeil dans le trajet, et la clôture referme sur la durée sans la répéter platement."
+        }
+      ]
+    },
+    {
+      "title": "Le chantier d'à côté",
+      "context": "Une amie qui veut acheter dans la rue vous écrit : « Il y a un chantier près de chez toi. Il est comment ? Je voudrais savoir ce qui se construit. »",
+      "instruction": "Répondez-lui en décrivant ce chantier, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description organise ce qu'on voit et où cela se trouve, et se referme sans commentaire d'opinion.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Situez d'abord",
+        "Décrivez ensuite",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Le chantier occupe…",
+      "tip": "d'abord où, ensuite quoi : sinon le lecteur cherche",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a une grue. Le terrain est clôturé. C'est au bout de la rue. Ils ont creusé. La palissade est verte. Deux étages sont montés. C'était un parking avant.",
+          "pedagogicalNote": "Le lecteur voit une grue avant de savoir où il se trouve : l'ordre empêche de construire l'image."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le chantier occupe l'ancien parking, au bout de la rue. Le terrain est clôturé par une palissade verte. Ils ont creusé au printemps et deux étages sont déjà montés. Une grue est installée au centre. Cela devrait durer un an.",
+          "pedagogicalNote": "Emplacement, clôture, avancement, équipement, durée : chaque phrase prolonge la précédente."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le chantier occupe l'ancien parking, au bout de la rue, derrière une palissade verte. Ils ont creusé au printemps, et deux étages sont montés depuis, avec une grue installée au centre du terrain. Au rythme actuel, cela devrait durer encore un an.",
+          "pedagogicalNote": "« Depuis » et « au rythme actuel » inscrivent la description dans une durée : le lecteur suit aussi le temps, pas seulement l'espace."
+        }
+      ]
+    },
+    {
+      "title": "L'appareil ancien",
+      "context": "Un brocanteur vous écrit : « Bonjour, vous souhaitez vendre un appareil ancien. Décrivez-le-moi avant que je me déplace. »",
+      "instruction": "Répondez-lui en décrivant cet appareil, en enchaînant vos informations dans un ordre lisible.",
+      "uniqueCriterion": "Votre description va de l'ensemble aux détails puis à l'état, sans revenir en arrière.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Allez du grand au petit",
+        "Tenez cet ordre",
+        "Refermez la description"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ordre suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un appareil photo…",
+      "tip": "un brocanteur suit votre ordre : ne le faites pas revenir en arrière",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le cuir est craquelé. C'est un appareil photo à soufflet. Il y a une inscription en allemand. Il fait vingt centimètres. Le soufflet est intact. L'objectif est rond. La poignée est en métal.",
+          "pedagogicalNote": "L'état ouvre la description, puis la nature, puis la taille : le brocanteur doit tout reconstruire."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un appareil photo à soufflet, d'environ vingt centimètres de long, recouvert de cuir noir. L'objectif est rond et la poignée en métal. Une inscription en allemand figure sur le dessus. Le cuir est craquelé mais le soufflet est intact.",
+          "pedagogicalNote": "Nature, taille, matière, détails, marques, état : l'ordre descend régulièrement du général au particulier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un appareil photo à soufflet d'environ vingt centimètres, recouvert de cuir noir, avec un objectif rond et une poignée métallique. Sur le dessus, une inscription en allemand, encore lisible. Le cuir est craquelé aux angles, mais le soufflet n'a aucun trou.",
+          "pedagogicalNote": "« Encore lisible » et « aucun trou » sont deux précisions d'état placées exactement là où le brocanteur les attend."
+        }
+      ]
+    }
+  ]
+}

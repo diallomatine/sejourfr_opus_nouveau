@@ -158,7 +158,7 @@ class SkillComprehensionIT extends AbstractIntegrationTest {
     void theConsoleCreatesAComprehensionSkillFromItsDomainAlone() {
         AdminSkillDto created = adminSkillService.createSkill(new AdminSkillCreateRequest(
                 SkillSection.CE, null, "TST-CE9", "Titre", "Description",
-                "Critère général", "B2", 40, true));
+                "Critère général", null, "B2", 40, true));
 
         assertThat(created.taskCode()).isNull();
         assertThat(created.section()).isEqualTo(SkillSection.CE);
@@ -166,7 +166,7 @@ class SkillComprehensionIT extends AbstractIntegrationTest {
         // Le rang est verifie DANS le domaine : 40 est libre en CE, 1 ne l'est pas.
         assertThatThrownBy(() -> adminSkillService.createSkill(new AdminSkillCreateRequest(
                 SkillSection.CE, null, "TST-CE8", "Titre", "Description",
-                "Critère général", "B2", 1, true)))
+                "Critère général", null, "B2", 1, true)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("CE-A2");
     }
@@ -175,7 +175,7 @@ class SkillComprehensionIT extends AbstractIntegrationTest {
     void theConsoleRefusesAnExpressionSkillWithoutATask() {
         assertThatThrownBy(() -> adminSkillService.createSkill(new AdminSkillCreateRequest(
                 SkillSection.EE, null, "TST-EE9", "Titre", "Description",
-                "Critère général", "B2", 40, true)))
+                "Critère général", null, "B2", 40, true)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("taskCode");
     }

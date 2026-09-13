@@ -65,7 +65,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
         String needle = "zorglub" + UUID.randomUUID().toString().replace("-", "");
         service.updateSkill(skill.getId(), new AdminSkillUpdateRequest(
                 null, "Une description contenant " + needle + " et rien d'autre.",
-                null, null, null, null));
+                null, null, null, null, null));
 
         // Recherche en majuscules sur un mot present dans la seule description :
         // le filtre est insensible a la casse et ne regarde pas que le titre.
@@ -80,7 +80,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
         Skill visible = testData.skill(SkillTaskCode.EE3);
         Skill hidden = testData.skill(SkillTaskCode.EE3);
         service.updateSkill(hidden.getId(),
-                new AdminSkillUpdateRequest(null, null, null, null, null, false));
+                new AdminSkillUpdateRequest(null, null, null, null, null, null, false));
 
         PageResponse<AdminSkillDto> page =
                 service.list(SkillSection.EE, SkillTaskCode.EE3, true, null, 0, 100);
@@ -113,7 +113,7 @@ class AdminSkillServiceIT extends AbstractIntegrationTest {
         String code = "TST-" + UUID.randomUUID().toString().substring(0, 8);
         AdminSkillDto dto = service.createSkill(new AdminSkillCreateRequest(
                 null, SkillTaskCode.EO1, code, "Titre", "Description",
-                "Le critère général travaillé.", "A2", 42, true));
+                "Le critère général travaillé.", null, "A2", 42, true));
 
         AdminSkillDetailDto reloaded = service.getSkill(dto.id());
         assertThat(reloaded.skill().generalCriterion()).isEqualTo("Le critère général travaillé.");

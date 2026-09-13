@@ -67,6 +67,7 @@ class BackendSpy {
               description: "",
               generalCriterion: "",
               targetLevel: "B1",
+              learningPoints: null,
               displayOrder: order,
               promptCount: 5,
               attemptedCount: 0,

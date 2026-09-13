@@ -409,9 +409,15 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 > parfaitement valide.
 > ⚠️ Les versions de grille **déjà livrées** (v8 à v11, contrat de sortie v5) gardent leurs
 > bornes historiques 60-90 : c'est la trace exacte de ce avec quoi les copies déjà corrigées
-> l'ont été, et on ne réécrit jamais une grille livrée. **Revenir en arrière sur la version des
-> consignes réintroduit donc la contradiction** — c'est écrit dans la configuration, à
-> l'endroit où le retour arrière est décrit.
+> l'ont été, et on ne réécrit jamais une grille livrée.
+>
+> 🛑 **Depuis le 2026-09-13, ces quatre grilles ne peuvent plus être ACTIVÉES.** Un simple
+> `EVAL_RUBRICS_VERSION=v8..v11` remettait « 60-90 mots » dans le prompt du correcteur sans
+> que rien ne l'annonce : `ProductionRubricsValidator.validateBornesDeMots` refuse désormais
+> le démarrage, en nommant la version et la fourchette fautive. **Les fichiers restent
+> intacts** — on refuse leur activation, pas leur existence. Le retour arrière possible
+> s'arrête donc à v12. (v7 porte la même fourchette, mais uniquement dans son champ `_note`,
+> un commentaire de fichier jamais rendu dans le prompt : elle reste activable.)
 >
 > ⚠️ **TCF IRN ≠ TCF Canada — piège classique sur les longueurs.** Les bornes ci-dessus
 > (30-60 / 40-90 / 40-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
@@ -420,6 +426,13 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 > y compris sur des sites de préparation : **ne pas « corriger » nos bornes d'après une
 > recherche web** sans avoir vérifié que la source parle explicitement de l'IRN. Même
 > vigilance pour toute autre donnée chiffrée (nombre de tâches, durées, barème).
+>
+> 🛑 **Et un palier de tâche n'est PAS une règle officielle.** `SkillTaskCode` rattache un
+> palier à chaque tâche (EE1=A2 … EO3=B2) : c'est **notre** palier pédagogique interne, pas
+> une règle de France Éducation international, qui n'en rattache aucun. Les écrans disent donc
+> « Niveau visé », jamais « Niveau ». Même prudence sur le **plancher** : la règle TCF IRN du
+> plancher porte sur les **4 épreuves** ; « le plancher des 3 tâches » d'une épreuve
+> d'expression est une convention SejourFR, et ne s'annonce plus comme officielle.
 >
 > **« Niveau visé »** = le niveau pour lequel la tâche est conçue. **Ce n'est pas un plafond** :
 > l'IA peut noter au-dessus ou en dessous selon ce que le candidat produit réellement. Un
@@ -3262,10 +3275,15 @@ réalité savoir s'adresser à la bonne personne, annoncer clairement de quoi on
 informations précises, formuler une demande poliment… Chacune de ces capacités est appelée ici
 une **compétence**.
 
-Chaque tâche en compte **8**, et chaque compétence est travaillée sur **5 petits sujets** —
-soit **240 petits sujets** en tout. Un petit sujet tient en quelques phrases : un contexte, une
+Chaque tâche en compte **8**, et chaque compétence est travaillée sur **15 petits sujets** —
+soit **720 petits sujets** en tout. Un petit sujet tient en quelques phrases : un contexte, une
 consigne, et surtout **un seul critère**, affiché **avant** que le candidat commence à écrire ou
 à parler. On lui dit donc à l'avance exactement ce qui sera regardé, et rien d'autre ne le sera.
+
+Chaque compétence affiche aussi, avant les sujets, **trois choses qu'on va y apprendre** — trois
+gestes très courts, du genre « Repérer ce qui est demandé », « Nommer un sentiment précis ».
+Elles servent à savoir en un coup d'œil ce que la compétence travaille, sans lire le critère
+complet.
 
 C'est toute la différence avec une tâche complète : au lieu d'être jugé sur tout en même temps,
 il travaille **une chose à la fois**, et il sait laquelle.
@@ -3277,6 +3295,54 @@ verdict — le dire « validé » serait faux, le dire « à renforcer » serait
 décourageant. Écrire, s'auto-évaluer et lire les exemples de référence est **gratuit et sans
 limite** sur tous les sujets ; c'est **l'analyse par l'IA** qui est réservée aux abonnés, avec
 **trois analyses offertes** pour essayer.
+
+### Les 48 compétences ont été revues le 13 septembre 2026
+
+La liste des compétences avait été écrite avant que nous ayons relu, une par une, les
+définitions officielles des six tâches du TCF IRN. En les relisant, sept compétences se sont
+révélées **hors sujet** : elles entraînaient quelque chose que la tâche ne demande pas.
+
+Trois exemples, pour rendre la chose concrète.
+
+- La tâche 1 de l'expression écrite consiste à **décrire** une personne, un groupe, un lieu ou
+  un objet, en réaction à un message reçu. Or trois de ses compétences faisaient travailler
+  tout autre chose : demander une autorisation, inviter quelqu'un, s'excuser. Ce sont des
+  actes utiles, mais ce n'est pas décrire — et ce n'est pas ce que le candidat rencontrera le
+  jour de l'examen.
+- La tâche 3 de l'expression écrite consiste à **donner son opinion** sur un lieu, un objet,
+  une personne ou un groupe. Une de ses compétences demandait de **comparer deux possibilités
+  et de trancher** : c'est le format d'un autre examen, pas de celui-ci.
+- À l'oral, une compétence demandait d'**ajouter un deuxième argument**. Le chiffre venait de
+  nous, pas du TCF : ce qui compte est qu'une idée nouvelle fasse avancer le propos, pas qu'on
+  en compte deux.
+
+Ces sept compétences ont été **remplacées** par sept autres, qui correspondent, elles, à ce que
+la tâche demande vraiment — par exemple « Décrire un lieu ou un objet » à la place de « Demander
+une information », ou « Réagir à une réponse imprévue » à l'oral, quand l'interlocuteur répond
+non et qu'il faut continuer l'échange quand même.
+
+Dix-neuf autres compétences ont été **recentrées** : elles restaient justes, mais leur énoncé
+exigeait plus que la tâche. Une compétence de récit imposait par exemple le passé composé et
+l'imparfait ; ce que le TCF regarde, c'est que le récit **se comprenne** et qu'on distingue ce
+qui se passait de ce qui est arrivé — pas qu'un temps précis soit employé. Une autre imposait
+de **conclure** ; le TCF demande de parler **de façon continue**, pas de terminer par une
+formule.
+
+**Aucun travail de candidat n'a été perdu.** Une compétence retirée n'est jamais supprimée :
+elle sort simplement du catalogue, et les productions déjà rendues dessus restent consultables.
+Il en va de même pour les sujets remplacés.
+
+🛑 **Deux précisions importantes**, parce que ce sont les deux endroits où l'on pourrait nous
+croire plus officiels que nous ne le sommes :
+
+- Le **niveau rattaché à une compétence** (A2, B1, B2) est **notre** repère pédagogique. France
+  Éducation international ne rattache aucun niveau à une tâche ni à une compétence. Les écrans
+  disent donc « Niveau visé ».
+- Les compétences **orales** ne mesurent **rien de ce qu'une transcription ne contient pas** :
+  ni le débit, ni les pauses, ni l'intonation, ni le temps de réflexion, ni la prononciation.
+  Une compétence qui aurait promis de mesurer la « spontanéité » aurait promis l'impossible :
+  la spontanéité se travaille par les **conditions d'entraînement** — aucune préparation n'est
+  offerte avant de parler —, jamais par une note.
 
 ### Pas de note sur 20 — mais un niveau, désormais
 
@@ -3713,7 +3779,7 @@ l'IA — qui montrent la même consigne traitée à trois degrés :
 - une réponse **très réussie**.
 
 Chacune porte une note pédagogique très courte qui explique **pourquoi** elle est à ce niveau.
-Cela fait **720 réponses de référence** pour l'ensemble du module. Elles montrent une cible, pas
+Cela fait **2 160 réponses de référence** pour l'ensemble du module. Elles montrent une cible, pas
 un modèle unique à recopier : l'IA a d'ailleurs l'interdiction de comparer mécaniquement la
 production du candidat aux mots de ces références. Plusieurs formulations différentes peuvent
 être également correctes.
