@@ -50,6 +50,8 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
     @Autowired
     private TcfDiagnosticSectionStarter sectionStarter;
     @Autowired
+    private com.sejourfr.app.manager.AttemptQuestionManager attemptQuestionManager;
+    @Autowired
     private TcfReassessmentService reassessmentService;
     @Autowired
     private ProductionAccessService productionAccessService;
@@ -231,9 +233,14 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
                     assertThat(s.analyseEnCours()).isFalse();
                 });
 
-        // La CE est lancee puis close, sans une seule bonne reponse : son
-        // niveau se lit quand meme, et c'est un plancher REEL, pas une absence.
+        // La CE est lancee, REPONDUE, puis close : elle a mesure quelque chose,
+        // donc elle rend son niveau. (Une section close sans AUCUNE reponse n'a
+        // rien mesure — c'est le test voisin qui le verrouille.)
+        Attempt ce = sub(session, EpreuveType.TCF_CE);
         sectionStarter.lancerSection(session, EpreuveType.TCF_CE);
+        entityManager.flush();
+        attemptQuestionManager.findByAttemptOrderedByPosition(ce.getId())
+                .forEach(testData::answer);
         entityManager.flush();
         sectionStarter.cloreSection(session, EpreuveType.TCF_CE);
         entityManager.flush();
@@ -248,6 +255,45 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
         // Les trois autres n'ont pas bouge.
         assertThat(section(vue, EpreuveType.TCF_CO).niveau()).isNull();
         assertThat(section(vue, EpreuveType.TCF_EE).niveau()).isNull();
+    }
+
+    /**
+     * 🔴 <b>AUCUNE REPONSE = AUCUNE MESURE, jamais un A1.</b>
+     *
+     * <p>Constate a l'ecran le 2026-09-13 : une comprehension orale ouverte
+     * puis quittee <b>sans repondre a une seule question</b> s'affichait
+     * « Niveau A1 · 100 / 499 » — un verdict que personne n'a rendu, sur une
+     * epreuve que personne n'a passee. Exactement la confusion que
+     * V040/V041/V042 ont payee : une absence de donnee devenue le verdict le
+     * plus bas.
+     *
+     * <p>⚠️ A ne pas confondre avec une epreuve <b>partiellement</b> repondue :
+     * la, ne pas repondre EST une reponse, comme au TCF. La frontiere est a
+     * zero.
+     */
+    @Test
+    @DisplayName("🔴 Une épreuve close sans AUCUNE réponse n'a ni niveau ni score")
+    void aucuneReponseNeDonneAucunNiveau() {
+        User user = testData.user();
+        TcfDiagnosticSession session = service.ouvrir(user.getId());
+        entityManager.flush();
+
+        sectionStarter.lancerSection(session, EpreuveType.TCF_CO);
+        entityManager.flush();
+        sectionStarter.cloreSection(session, EpreuveType.TCF_CO);
+        entityManager.flush();
+        entityManager.clear();
+
+        var co = section(
+                viewService.vue(service.lire(user.getId(), session.getId())),
+                EpreuveType.TCF_CO);
+        assertThat(co.etat()).isEqualTo(TcfDiagnosticSectionState.TERMINEE);
+        assertThat(co.niveau())
+                .as("null = non evaluee, jamais le palier le plus bas")
+                .isNull();
+        assertThat(co.scoreCalibre())
+                .as("un plancher affiche seul se lirait comme un resultat")
+                .isNull();
     }
 
     /**

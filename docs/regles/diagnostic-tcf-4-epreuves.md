@@ -119,6 +119,41 @@ section** : le **niveau global** (plancher des quatre), les **priorités** et le
 plan. Ils vivent sur `TcfDiagnosticResultDto` et nulle part ailleurs. Une
 épreuve rend le sien, rien de plus.
 
+🔴 **AUCUNE RÉPONSE = AUCUNE MESURE, jamais un A1** (correctif du 2026-09-13,
+constaté à l'écran). Une compréhension orale ouverte puis quittée **sans
+répondre à une seule question** s'affichait « Niveau A1 · 100 / 499 » — un
+verdict que personne n'a rendu, sur une épreuve que personne n'a passée.
+Exactement la confusion que V040/V041/V042 ont payée.
+
+- `niveauComprehension` rend `empty` quand le nombre de réponses vaut **zéro**,
+  et `scoreCalibre` suit : un plancher d'échelle affiché seul se lit comme un
+  résultat.
+- Le compte de réponses est la **4ᵉ colonne** d'`aggregateByDifficulty` — la
+  même requête, un `SUM` de plus, **aucun coût**.
+- ⚠️ **À ne pas confondre avec une épreuve PARTIELLEMENT répondue** : là, ne pas
+  répondre **est** une réponse, comme au TCF, et le niveau se calcule
+  normalement. La frontière est à **zéro**, pas à un seuil.
+
+## On annonce l'épreuve avant de la lancer
+
+🛑 Demande du propriétaire (2026-09-13) : « quand on clique sur commencer une
+épreuve, on affiche la modale qu'on affiche quand on commence un examen blanc de
+l'épreuve, pour donner des infos avant de commencer ; et quand la personne
+clique sur commencer sur cette modale, l'épreuve démarre ».
+
+- 🛑 **Aucun briefing propre au diagnostic n'est écrit** : on réutilise
+  `ModuleExamBriefingSheet` (CO/CE) et `ProductionExamBriefingSheet` (EE/EO), en
+  leur **déléguant le démarrage**. Le premier a gagné un `onStart` optionnel —
+  sans lui il crée l'attempt lui-même, avec lui il se contente d'annoncer, ce
+  dont a besoin le diagnostic dont les sous-attempts existent déjà.
+- **Une section déjà commencée ne repasse pas par le sas** : son chrono court,
+  lui réannoncer le format lui ferait perdre du temps.
+- ⚠️ **Le web n'a pas d'équivalent**, et ce n'est pas un oubli de cette passe :
+  il n'a **aucun** briefing modal pour un examen blanc de module — ses seuls sas
+  sont la page `/examens-blancs/[slug]` et la feuille de l'examen complet. La
+  divergence est donc **antérieure** et porte sur le lancement d'un examen, pas
+  sur le diagnostic. À arbitrer à part.
+
 ## Quitter une épreuve, c'est la terminer
 
 Même règle qu'un examen blanc (arbitrage du propriétaire, 2026-09-13) : « pour

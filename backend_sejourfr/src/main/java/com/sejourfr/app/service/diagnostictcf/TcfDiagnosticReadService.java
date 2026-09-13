@@ -112,13 +112,14 @@ public class TcfDiagnosticReadService {
                         null, null, null, false));
                 continue;
             }
+            NiveauCecrl niveau = niveauDe(epreuve, sub).orElse(null);
             out.add(new Section(
                     epreuve,
                     sub.getId(),
                     etatDe(sub),
                     sub.getTimeLimitSeconds(),
-                    niveauDe(epreuve, sub).orElse(null),
-                    scoreCalibre(epreuve, sub),
+                    niveau,
+                    scoreCalibre(epreuve, sub, niveau),
                     analyseEnCours(epreuve, sub)));
         }
         return out;
@@ -266,9 +267,14 @@ public class TcfDiagnosticReadService {
      * aux examens blancs : le recalculer ici ferait exister un second
      * « /499 » dans le depot, et les deux finiraient par diverger.
      */
-    private Integer scoreCalibre(EpreuveType epreuve, Attempt sub) {
+    private Integer scoreCalibre(EpreuveType epreuve, Attempt sub, NiveauCecrl niveau) {
         if (epreuve != EpreuveType.TCF_CO && epreuve != EpreuveType.TCF_CE) return null;
         if (sub.getFinishedAt() == null) return null;
+        // 🛑 PAS DE SCORE SANS NIVEAU. Le score calibre se derive du score
+        // pondere, qui vaut 0 sur une epreuve ou rien n'a ete repondu — donc
+        // 100/499, le plancher de l'echelle. Un plancher affiche seul se lit
+        // comme un resultat ; ce n'en est pas un.
+        if (niveau == null) return null;
         return attemptMapper.calibratedScoreOf(sub);
     }
 
@@ -305,12 +311,28 @@ public class TcfDiagnosticReadService {
         }
         Map<Difficulty, Integer> poses = new EnumMap<>(Difficulty.class);
         Map<Difficulty, Integer> bonnes = new EnumMap<>(Difficulty.class);
+        int repondues = 0;
 
         for (Object[] ligne : attemptQuestionManager.aggregateByDifficulty(sub.getId())) {
             Difficulty palier = (Difficulty) ligne[0];
             if (palier == null) continue;
             poses.put(palier, ((Number) ligne[1]).intValue());
             bonnes.put(palier, ligne[2] == null ? 0 : ((Number) ligne[2]).intValue());
+            repondues += ligne[3] == null ? 0 : ((Number) ligne[3]).intValue();
+        }
+        // 🛑 AUCUNE REPONSE = AUCUNE MESURE, jamais un A1.
+        //
+        // C'est exactement la confusion que V040/V041/V042 ont payee : une
+        // absence de donnee devenue le verdict le plus bas. Une epreuve ouverte
+        // puis quittee sans repondre a une seule question sortait ici en
+        // « A1 · 100/499 » — un verdict que personne n'a rendu, sur une epreuve
+        // que personne n'a passee.
+        //
+        // ⚠️ A ne pas confondre avec une epreuve PARTIELLEMENT repondue : la,
+        // ne pas repondre EST une reponse, comme au TCF, et le niveau se
+        // calcule normalement. La frontiere est a zero, pas a un seuil.
+        if (repondues == 0) {
+            return Optional.empty();
         }
         return levelResolver.niveauComprehension(bonnes, poses);
     }

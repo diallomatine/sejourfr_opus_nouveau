@@ -1671,6 +1671,14 @@ Ce qui change **ici** :
   ce qui a été ouvert). 🛑 **Sauf l'EO** : son chrono est par tâche, quitter n'y
   termine que la tâche en cours, et `startInFullExam` + `_reprendreALaTacheSuivante`
   rouvrent l'épreuve **à la tâche suivante**.
+- **« Commencer » ouvre le BRIEFING de l'examen blanc de l'épreuve**, et c'est
+  son bouton qui démarre. 🛑 Aucun briefing propre au diagnostic : on réutilise
+  `ModuleExamBriefingSheet` (qui a gagné un `onStart` optionnel) et
+  `ProductionExamBriefingSheet`. Une section **déjà commencée** saute le sas —
+  son chrono court. ⚠️ `ProductionExamBriefingSheet` **se referme elle-même**
+  avant d'appeler `onStart` ; y ajouter un `pop` dépilerait l'écran derrière.
+- 🔴 **Aucune réponse = aucune mesure** : une épreuve close sans une seule
+  réponse ne rend ni niveau ni score (elle sortait en « A1 · 100/499 »).
 - ⚠️ **`ProductionTaskDto.conditionsReelles` est SUPPRIMÉ**, avec la règle
   « EO1/EO2 du diagnostic hors conditions d'examen » qu'il portait (posée puis
   révoquée le même jour). `kProductionHorsConditionsNote` part avec.

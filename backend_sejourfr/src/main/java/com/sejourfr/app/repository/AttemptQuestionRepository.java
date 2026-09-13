@@ -51,11 +51,19 @@ public interface AttemptQuestionRepository extends JpaRepository<AttemptQuestion
      * <p>⚠️ {@code attempt_questions.is_correct} reste en place, non ecrite et
      * desormais non lue — regle du depot : une colonne legacy cesse d'etre
      * ecrite et mappee, elle ne se supprime pas.
+     *
+     * <p><b>Quatrieme colonne (2026-09-13)</b> : le nombre de questions
+     * <b>REPONDUES</b>, a cote des posees et des reussies. « Posee mais sans
+     * reponse » et « jamais posee » ne sont pas la meme chose, et une epreuve
+     * ou <b>rien</b> n'a ete repondu n'a rien mesure du tout — elle ne doit pas
+     * rendre un A1 (cf. {@code TcfDiagnosticReadService.niveauComprehension}).
+     * Aucun cout : c'est la meme requete, un {@code SUM} de plus.
      */
     @Query("""
             SELECT aq.question.difficulty,
                    COUNT(aq),
-                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END)
             FROM AttemptQuestion aq
                      LEFT JOIN aq.answer a
             WHERE aq.attempt.id = :attemptId

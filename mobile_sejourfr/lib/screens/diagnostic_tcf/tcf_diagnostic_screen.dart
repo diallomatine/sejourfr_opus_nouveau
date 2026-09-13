@@ -18,6 +18,10 @@ import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/screen_header.dart';
+import '../module_detail/production_exam_briefing_sheet.dart';
+import '../module_detail/tcf_module_exam_briefing_screen.dart';
+import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
+import '../tcf_production/tcf_production_module.dart';
 import 'tcf_diagnostic_labels.dart';
 
 /// T06 — l'accueil du diagnostic TCF 4 épreuves (`30_` §5.1).
@@ -103,6 +107,50 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
         _error = ApiClient.toApiException(e).message;
         _busy = false;
       });
+    }
+  }
+
+  /// 🛑 **On annonce l'épreuve AVANT de la lancer**, avec le **même briefing
+  /// qu'un examen blanc de cette épreuve** (demande du propriétaire,
+  /// 2026-09-13) : une section du diagnostic est un examen blanc, elle doit
+  /// donc en avoir le sas — format, durée, consignes — et c'est le
+  /// « Commencer » de la feuille qui démarre.
+  ///
+  /// 🛑 **Aucun briefing propre au diagnostic n'est écrit** : on réutilise
+  /// `ModuleExamBriefingSheet` (CO/CE) et `ProductionExamBriefingSheet`
+  /// (EE/EO), en leur déléguant le démarrage. Un second jeu de feuilles aurait
+  /// divergé du premier à la première retouche.
+  ///
+  /// Une section **déjà commencée** ne repasse pas par le sas : le chrono court
+  /// déjà, lui réannoncer le format lui ferait perdre du temps.
+  void _annoncerPuisLancer(TcfDiagnosticSectionDto section) {
+    if (_busy || section.attemptId == null) return;
+    if (section.etat == TcfDiagnosticSectionState.enCours) {
+      _lancerSection(section);
+      return;
+    }
+    switch (section.epreuve) {
+      case EpreuveType.tcfCo:
+        showModuleExamBriefingSheet(context, TcfQcmModule.co,
+            onStart: () => _lancerSection(section));
+      case EpreuveType.tcfCe:
+        showModuleExamBriefingSheet(context, TcfQcmModule.ce,
+            onStart: () => _lancerSection(section));
+      case EpreuveType.tcfEe:
+      case EpreuveType.tcfEo:
+        showProductionExamBriefingSheet(
+          context,
+          module: section.epreuve == EpreuveType.tcfEe
+              ? TcfProductionModule.ee
+              : TcfProductionModule.eo,
+          starting: false,
+          // ⚠️ Pas de `pop` ici : cette feuille-là se referme elle-même avant
+          // d'appeler `onStart`. En rajouter un dépilerait l'écran du
+          // diagnostic derrière elle.
+          onStart: () => _lancerSection(section),
+        );
+      default:
+        _lancerSection(section);
     }
   }
 
@@ -376,7 +424,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
           _SectionCard(
             section: s,
             busy: _busy,
-            onStart: () => _lancerSection(s),
+            onStart: () => _annoncerPuisLancer(s),
             onRapport: () => _ouvrirRapport(s),
           ),
           const SizedBox(height: 10),

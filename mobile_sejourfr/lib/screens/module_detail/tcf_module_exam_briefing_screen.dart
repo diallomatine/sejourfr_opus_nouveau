@@ -24,11 +24,18 @@ import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
 ///
 /// Au tap "Commencer maintenant" : ferme le sheet, POST /api/attempts,
 /// puis push runner. Réservé premium TCF — 403 → showPaywallSheet.
+///
+/// **Sauf si [onStart] est fourni** : le sheet se contente alors d'annoncer
+/// l'épreuve et de rendre la main. C'est ce dont a besoin le **diagnostic TCF**,
+/// dont les sous-attempts existent déjà — il les lance par son propre chemin
+/// (`/sections/{epreuve}/start`), pas en créant un attempt de plus. Un second
+/// briefing écrit pour lui aurait divergé de celui-ci à la première retouche.
 class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
   const ModuleExamBriefingSheet({
     super.key,
     required this.module,
     this.slotNumber,
+    this.onStart,
   });
 
   final TcfQcmModule module;
@@ -36,6 +43,13 @@ class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
   /// Slot d'examen visé dans la grille (1..10). Propagé au backend pour que
   /// refaire l'examen N préserve la position du slot N. Cf. V110.
   final int? slotNumber;
+
+  /// Démarrage **délégué** à l'appelant. `null` = comportement historique :
+  /// le sheet crée l'attempt et pousse le runner lui-même.
+  ///
+  /// 🛑 Il ne court-circuite **aucun** verrou : l'appelant qui le fournit est
+  /// responsable de son propre accès, et le serveur reste l'arbitre (403).
+  final VoidCallback? onStart;
 
   @override
   ConsumerState<ModuleExamBriefingSheet> createState() =>
@@ -48,6 +62,14 @@ class _ModuleExamBriefingSheetState
 
   Future<void> _start() async {
     if (_starting) return;
+    // Démarrage délégué (diagnostic TCF) : le sous-attempt existe déjà, il n'y
+    // a rien à créer ici. On ferme et on rend la main.
+    final delegue = widget.onStart;
+    if (delegue != null) {
+      Navigator.of(context).pop();
+      delegue();
+      return;
+    }
     final auth = ref.read(authControllerProvider);
     final isPremium =
         auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
@@ -188,6 +210,7 @@ void showModuleExamBriefingSheet(
   BuildContext context,
   TcfQcmModule module, {
   int? slotNumber,
+  VoidCallback? onStart,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -196,6 +219,7 @@ void showModuleExamBriefingSheet(
     builder: (_) => ModuleExamBriefingSheet(
       module: module,
       slotNumber: slotNumber,
+      onStart: onStart,
     ),
   );
 }
