@@ -55,11 +55,13 @@ class CompetenceCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Verrouillée, la compétence garde tout : seul le cadenas s'ajoute.
-            if (skill.locked) ...[
-              const PremiumLockTile(size: 46),
-              const SizedBox(width: 12),
-            ],
+            // 🛑 **Pas de pastille de cadenas dans le corps de la ligne.** Elle
+            // n'était rendue que sur les lignes verrouillées : la liste partait
+            // en dents de scie, avec deux niveaux d'indentation selon l'accès —
+            // et le cadenas y apparaissait DEUX fois, la pastille doublant le
+            // `PremiumLockTag` de droite. La maquette `detail_tache.png` aligne
+            // les huit lignes, titre à gauche, badge à droite. Le verrou reste
+            // dit, une fois, par le badge.
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

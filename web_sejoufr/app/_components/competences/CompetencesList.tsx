@@ -2,7 +2,6 @@
 
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useState} from "react";
-import {Lock} from "lucide-react";
 import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {competenceBadge, competenceStatus} from "@/lib/expression";
@@ -178,12 +177,13 @@ function SkillRow({skill, onOpen}: {skill: SkillDto; onOpen: () => void}) {
   const locked = skill.locked;
 
   return (
+    /* 🛑 **Pas de pastille de cadenas dans le corps de la ligne.** Elle n'était
+       rendue que sur les lignes verrouillées : la liste partait en dents de
+       scie, avec deux niveaux d'indentation selon l'accès — et le cadenas y
+       apparaissait DEUX fois, la pastille doublant le badge « Premium » de
+       droite. La maquette `detail_tache.png` aligne les huit lignes, titre à
+       gauche, badge à droite. Le verrou reste dit, une fois, par le badge. */
     <button type="button" className={s.groupRow} onClick={onOpen}>
-      {locked && (
-        <span className={`${s.tile} ${s.tileLocked}`} aria-hidden>
-          <Lock size={20} />
-        </span>
-      )}
       <span className={s.groupBody}>
         <span className={s.groupTitle}>{skill.title}</span>
         <span className={s.groupMeta}>

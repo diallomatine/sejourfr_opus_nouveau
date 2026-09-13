@@ -90,7 +90,10 @@ String competenceStatus(SkillDto skill) {
 /// `masteryState` **servi**, jamais une règle de classement rejouée ici.
 String acquisesLabel(List<SkillDto> skills) {
   final acquises = skills.where(estAcquise).length;
-  final s = acquises > 1 ? 's' : '';
+  // 🛑 Le pluriel suit le TOTAL, jamais le compteur : « 0/8 compétence
+  // acquise » se lit comme une faute, et c'est bien « sur huit compétences »
+  // que porte le nom. Même règle pour « 0/5 exercices réussis ».
+  final s = skills.length > 1 ? 's' : '';
   return '$acquises/${skills.length} compétence$s acquise$s';
 }
 
@@ -122,11 +125,23 @@ String niveauViseBadge(String targetLevel) => 'Niveau visé $targetLevel';
 const String kExpressionLearningPointsTitle = 'Vous allez apprendre à :';
 const String kExpressionCompetenceAcquise = 'Compétence acquise';
 const String kExpressionCompetenceEnCours = 'Compétence en cours';
+const String kExpressionCompetenceADecouvrir = 'Compétence à découvrir';
 
 /// L'eyebrow de la carte de tête d'une compétence.
-String competenceEyebrow(SkillDto skill) => estAcquise(skill)
-    ? kExpressionCompetenceAcquise
-    : kExpressionCompetenceEnCours;
+///
+/// 🛑 **Trois états, et le troisième n'est pas un détail.** « Compétence en
+/// cours » posé sur une compétence où rien n'a jamais été fait annonçait un
+/// travail entamé qui n'existait pas — le cas est devenu la norme après la
+/// bascule V3, qui a renouvelé les sujets de dix-neuf compétences.
+/// `masteryState` et `attemptedCount` sont tous deux **servis** : on ne classe
+/// rien ici.
+String competenceEyebrow(SkillDto skill) {
+  if (estAcquise(skill)) return kExpressionCompetenceAcquise;
+  if (skill.masteryState == null && skill.attemptedCount == 0) {
+    return kExpressionCompetenceADecouvrir;
+  }
+  return kExpressionCompetenceEnCours;
+}
 
 /// « 5 petits sujets · ≈ 4 min chacun ».
 ///
@@ -201,7 +216,7 @@ String tacheLabel(String taskCode) {
 /// « 2/5 exercices réussis » — les compteurs **servis** par le Plan.
 String? exercicesReussisLabel(int validated, int total) {
   if (total <= 0) return null;
-  final s = validated > 1 ? 's' : '';
+  final s = total > 1 ? 's' : '';
   return '$validated/$total exercice$s réussi$s';
 }
 

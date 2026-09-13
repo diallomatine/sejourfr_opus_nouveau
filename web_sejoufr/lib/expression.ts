@@ -96,7 +96,11 @@ export function competenceStatus(skill: SkillDto): string {
 export function acquisesLabel(skills: readonly SkillDto[]): string {
     const acquises = skills.filter(estAcquise).length;
     const total = skills.length;
-    return `${acquises}/${total} compétence${acquises > 1 ? "s" : ""} acquise${acquises > 1 ? "s" : ""}`;
+    // 🛑 Le pluriel suit le TOTAL, jamais le compteur : « 0/8 compétence
+    // acquise » se lit comme une faute, et c'est bien « sur huit compétences »
+    // que porte le nom. Même règle pour « 0/5 exercices réussis ».
+    const s = total > 1 ? "s" : "";
+    return `${acquises}/${total} compétence${s} acquise${s}`;
 }
 
 /** Le badge d'une tâche. `null` tant que rien n'y a été travaillé. */
@@ -131,10 +135,23 @@ export function niveauViseBadge(targetLevel: string): string {
 export const EXPRESSION_LEARNING_POINTS_TITLE = "Vous allez apprendre à :";
 export const EXPRESSION_COMPETENCE_ACQUISE = "Compétence acquise";
 export const EXPRESSION_COMPETENCE_EN_COURS = "Compétence en cours";
+export const EXPRESSION_COMPETENCE_A_DECOUVRIR = "Compétence à découvrir";
 
-/** L'eyebrow de la carte de tête d'une compétence. */
+/**
+ * L'eyebrow de la carte de tête d'une compétence.
+ *
+ * 🛑 **Trois états, et le troisième n'est pas un détail.** « Compétence en
+ * cours » posé sur une compétence où rien n'a jamais été fait annonçait un
+ * travail entamé qui n'existait pas — le cas est devenu la norme après la
+ * bascule V3, qui a renouvelé les sujets de dix-neuf compétences. `masteryState`
+ * et `attemptedCount` sont tous deux **servis** : on ne classe rien ici.
+ */
 export function competenceEyebrow(skill: SkillDto): string {
-    return estAcquise(skill) ? EXPRESSION_COMPETENCE_ACQUISE : EXPRESSION_COMPETENCE_EN_COURS;
+    if (estAcquise(skill)) return EXPRESSION_COMPETENCE_ACQUISE;
+    if (skill.masteryState === null && skill.attemptedCount === 0) {
+        return EXPRESSION_COMPETENCE_A_DECOUVRIR;
+    }
+    return EXPRESSION_COMPETENCE_EN_COURS;
 }
 
 /**
@@ -203,7 +220,8 @@ export const EXPRESSION_RECOMMENDED_CTA = "Continuer";
 /** « 2/5 exercices réussis » — les compteurs **servis** par le Plan. */
 export function exercicesReussisLabel(validated: number, total: number): string | null {
     if (total <= 0) return null;
-    return `${validated}/${total} exercice${validated > 1 ? "s" : ""} réussi${validated > 1 ? "s" : ""}`;
+    const s = total > 1 ? "s" : "";
+    return `${validated}/${total} exercice${s} réussi${s}`;
 }
 
 /** « Votre progression vers l'objectif B2 ». `null` sans objectif déclaré. */

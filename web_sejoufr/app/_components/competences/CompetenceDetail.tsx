@@ -34,6 +34,7 @@ import {
   withPlanStep,
 } from "@/lib/plan-step";
 import {
+  competenceCta,
   competenceEyebrow,
   EXPRESSION_LEARNING_POINTS_TITLE,
   restantsLabel,
@@ -224,6 +225,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
      « À faire » compte désormais les verrouillés, mais proposer d'en commencer
      un mènerait à l'offre, pas à un exercice. */
   const firstTodo = openTodo.find((p) => !p.locked);
+  /* Série terminée : on propose de RETRAVAILLER le premier sujet ouvrable.
+     Tout verrouillé ⇒ ni l'un ni l'autre, et le CTA bascule sur l'offre. */
+  const reprenable = prompts.find((p) => !p.locked);
   const stepDone = scoped && step.stepCompleted;
   /* Le sujet que l'étape propose de faire : **celui que le serveur a désigné**
      (`recommendedExercise.skillPromptId`), jamais un « premier sujet non
@@ -378,6 +382,42 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                         un état. */}
                     {skill.masteryState && <SkillMasteryPill state={skill.masteryState} />}
                   </div>
+                )}
+
+                {/* 🛑 **Le CTA de la maquette `detail_competence.png`.** Hors
+                    mode étape, l'écran n'en portait aucun : le parcours libre
+                    (Réviser → tâche → compétence) s'arrêtait sur une liste, sans
+                    rien à presser. Le mode étape, lui, garde sa carte
+                    « Prochain sujet recommandé » — c'est le Plan qui y désigne
+                    la cible, et deux appels à l'action se contrediraient.
+
+                    La cible est le premier sujet OUVRABLE ; tout verrouillé ⇒
+                    l'offre, jamais un bouton qui n'ouvre rien. Le libellé vient
+                    de `competenceCta`, qui dit ce qui va se passer (commencer,
+                    continuer, retravailler). */}
+                {!scoped && prompts.length > 0 && (
+                  <button
+                    type="button"
+                    className={`${s.primary} ${s.stepCta} ${s.headCta}`}
+                    onClick={
+                      firstTodo
+                        ? () => router.push(promptHref(firstTodo.id))
+                        : reprenable
+                          ? () => router.push(promptHref(reprenable.id))
+                          : () => setPaywallOpen(true)
+                    }
+                  >
+                    {firstTodo || reprenable ? (
+                      <>
+                        {competenceCta(prompts, {locked: false})}{" "}
+                        <ArrowRight size={16} aria-hidden />
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={16} aria-hidden /> {SKILL_PREMIUM_CTA}
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
             </section>
