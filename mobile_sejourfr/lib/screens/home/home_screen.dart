@@ -254,9 +254,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return SfNowCard(
         icon: LucideIcons.clipboardCheck,
         title: kHomeDiagStartTitle,
-        subtitle: kHomeDiagStartSubtitle,
+        // 🛑 L'effort annoncé est DÉRIVÉ du format servi, jamais écrit : le
+        // diagnostic actif n'a qu'une production écrite, et la carte
+        // promettait « 2 exercices · ≈ 8 à 10 min ».
+        subtitle: homeDiagStartSubtitle(journey.format),
         badge: kHomeStartBadge,
-        objective: kHomeDiagStartObjective,
+        objective: homeDiagStartObjective(journey.format),
         action: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -291,10 +294,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return SfNowCard(
         icon: LucideIcons.sparkles,
         title: analyse ? kHomeDiagAnalyzingTitle : kHomeDiagResumeTitle,
-        subtitle: homeDiagCount(fait),
+        subtitle: homeDiagCount(fait, journey.exerciseCount),
         badge: kHomeDiagBadge,
-        objective:
-            analyse ? kHomeDiagAnalyzingObjective : kHomeDiagResumeObjective,
+        objective: analyse
+            ? homeDiagAnalyzingObjective(journey.format)
+            : kHomeDiagResumeObjective,
         action: SfButton(
           label: analyse ? kHomeDiagAnalyzingCta : kHomeDiagResumeCta,
           onPressed: () => context.push(AppRoutes.diagnostic),

@@ -27,6 +27,15 @@ function response(
     nextStep: status === "NOT_STARTED" ? "PRESENTATION" : "WRITTEN",
     written: written ? exercise("written") : null,
     oral: oral ? exercise("oral") : null,
+    // Le format suit ce que la fixture met en scène : un diagnostic à deux
+    // productions quand l'oral existe, une seule sinon.
+    format: {
+      exerciseCount: oral ? 2 : 1,
+      writtenWordsMin: 100,
+      writtenWordsMax: 120,
+      oralDurationMinSeconds: oral ? 120 : null,
+      oralDurationMaxSeconds: oral ? 150 : null,
+    },
     result: null,
     startedAt: null,
     completedAt: null,

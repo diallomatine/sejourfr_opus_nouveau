@@ -7,6 +7,9 @@
 /// l'appareil.
 library;
 
+import '../../core/models/diagnostic_models.dart';
+import '../diagnostic/diagnostic_intro_labels.dart';
+
 /* ------------------------------------------------------------- en-tête --- */
 
 /// « Bonjour Abdoul ». Sans prénom servi, on ne fabrique pas d'identité.
@@ -40,26 +43,71 @@ String homePlanTaskTitle(String domaine, int tache) =>
 /* --------------------------------------------- l'action du jour — TCF ----- */
 
 const String kHomeDiagStartTitle = 'Découvrez ce qui vous bloque au TCF';
-const String kHomeDiagStartSubtitle = '2 exercices · ≈ 8 à 10 min';
 const String kHomeStartBadge = 'Votre point de départ';
-const String kHomeDiagStartObjective =
-    'On analyse votre écrit et votre oral pour construire votre premier plan.';
 const String kHomeDiagStartCta = 'Faire mon diagnostic';
 const String kHomeLaterCta = 'Plus tard';
+
+/// « 1 exercice · ≈ 5 min » — l'effort annoncé, **dérivé du format servi**.
+///
+/// 🛑 **Rien n'est écrit en dur ici** (correctif du 2026-09-14). La carte
+/// annonçait « 2 exercices · ≈ 8 à 10 min » alors que le diagnostic actif
+/// (`QUICK_TCF`) n'en comporte qu'**un** — une production écrite, sans étape
+/// orale depuis V050. Un candidat qui n'avait jamais rien fait lisait donc une
+/// promesse fausse dès sa première carte.
+///
+/// Les minutes se dérivent des bornes servies par la même règle que l'écran de
+/// présentation (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`), et
+/// « environ » reste un ordre de grandeur : rien ne chronomètre le candidat.
+/// Sans mesure exploitable, on annonce le **compte** et rien d'autre — jamais
+/// un chiffre inventé.
+String homeDiagStartSubtitle(DiagnosticFormat? format) {
+  final n = format?.exerciseCount ?? 1;
+  final exercices = '$n exercice${n > 1 ? 's' : ''}';
+  final minutes = _diagMinutes(format);
+  return minutes == null ? exercices : '$exercices · ≈ $minutes min';
+}
+
+/// « On analyse votre écrit pour construire votre premier plan. » — l'oral
+/// n'est nommé que si ce diagnostic en comporte un.
+String homeDiagStartObjective(DiagnosticFormat? format) {
+  final quoi = (format?.hasOral ?? false) ? 'votre écrit et votre oral' : 'votre écrit';
+  return 'On analyse $quoi pour construire votre premier plan.';
+}
+
+/// Le total d'exercices à rendre, **servi**. Sans lui, l'analyse en cours
+/// annonçait « vos deux réponses » sur un diagnostic qui n'en attend qu'une.
+String homeDiagAnalyzingObjective(DiagnosticFormat? format) =>
+    (format?.hasOral ?? false)
+        ? 'Vos deux réponses sont enregistrées ; vous pouvez revenir voir le '
+            'résultat.'
+        : 'Votre réponse est enregistrée ; vous pouvez revenir voir le '
+            'résultat.';
+
+/// Somme des minutes annoncées, écrit + oral. `null` quand la base ne porte
+/// aucune borne exploitable.
+int? _diagMinutes(DiagnosticFormat? format) {
+  if (format == null) return null;
+  final ecrit = diagnosticWrittenMinutesFor(
+      format.writtenWordsMin, format.writtenWordsMax);
+  final oral = diagnosticOralMinutesFor(
+      format.oralDurationMinSeconds, format.oralDurationMaxSeconds);
+  final total = (ecrit ?? 0) + (oral ?? 0);
+  return total <= 0 ? null : total;
+}
 
 const String kHomeDiagAnalyzingTitle = 'Votre analyse est en préparation';
 const String kHomeDiagResumeTitle = 'Reprenez votre diagnostic';
 const String kHomeDiagBadge = 'Diagnostic en cours';
-const String kHomeDiagAnalyzingObjective =
-    'Vos deux réponses sont enregistrées ; vous pouvez revenir voir le '
-    'résultat.';
 const String kHomeDiagResumeObjective =
     'Continuez exactement à l\'étape où vous vous êtes arrêté.';
 const String kHomeDiagAnalyzingCta = 'Voir l\'analyse';
 const String kHomeDiagResumeCta = 'Reprendre mon diagnostic';
 
-/// « 1 / 2 terminé ». Le compteur est **servi**, jamais recompté ici.
-String homeDiagCount(int done) => '$done / 2 terminé${done > 1 ? 's' : ''}';
+/// « 1 / 2 terminé ». Les **deux** nombres sont servis : le total vient du
+/// format du diagnostic, il n'est plus écrit en dur — un diagnostic à une
+/// seule production affichait « 1 / 2 » alors qu'il était fini.
+String homeDiagCount(int done, int total) =>
+    '$done / $total terminé${done > 1 ? 's' : ''}';
 
 const String kHomePriorityBadge = 'Votre priorité du jour';
 const String kHomePriorityFallback = 'Continuez votre plan personnalisé';

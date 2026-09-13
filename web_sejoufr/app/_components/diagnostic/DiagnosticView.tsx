@@ -819,7 +819,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       <DiagnosticShell>
         <StateCard
           icon={<Sparkles size={26} />}
-          title="Nous enregistrons vos deux réponses"
+          title="Nous enregistrons votre travail"
           text={`${handoff.label} Elles restent sur cet appareil tant que le serveur ne les a pas confirmées.`}
           busy
         />

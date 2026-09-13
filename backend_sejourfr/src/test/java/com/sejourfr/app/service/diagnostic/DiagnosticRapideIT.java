@@ -64,6 +64,45 @@ class DiagnosticRapideIT extends AbstractIntegrationTest {
 
     @MockitoBean private ProductionPipelineAsyncRunner pipelineRunner;
 
+    /**
+     * 🔴 <b>Le FORMAT est servi AVANT que rien ne soit commence.</b>
+     *
+     * <p>Constate a l'ecran le 2026-09-14 : l'accueil annonçait « 2 exercices ·
+     * ≈ 8 a 10 min » a un candidat qui n'avait jamais rien fait, alors que le
+     * diagnostic actif ({@code QUICK_TCF}) n'en comporte qu'<b>UN</b> — une
+     * production ecrite, sans etape orale depuis V050.
+     *
+     * <p>Le contrat rendait l'erreur inevitable : sur un parcours
+     * {@code NOT_STARTED}, {@code written} et {@code oral} valent tous deux
+     * {@code null} (le serveur n'attache ses sujets qu'a l'ouverture), donc
+     * aucun front ne pouvait deriver le compte — et les deux l'ont ecrit a la
+     * main.
+     *
+     * <p>🛑 <b>Les SUJETS, eux, restent nuls</b> : le sujet ecrit est TIRE a
+     * l'ouverture, en annoncer un ici en designerait un autre que celui qui
+     * sera joue.
+     */
+    @Test
+    @DisplayName("🔴 Sans session, le format dit combien d'exercices attendent — sans révéler de sujet")
+    void leFormatEstServiAvantToutParcours() throws Exception {
+        User user = data.user();
+        String token = auth.bearer(user);
+
+        mockMvc.perform(get("/api/diagnostics/current").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("NOT_STARTED")))
+                // Le diagnostic actif est le rapide : UNE production ecrite.
+                .andExpect(jsonPath("$.format.exerciseCount", is(1)))
+                .andExpect(jsonPath("$.format.writtenWordsMin").isNumber())
+                .andExpect(jsonPath("$.format.writtenWordsMax").isNumber())
+                // Pas d'oral : ses mesures sont nulles, jamais des zeros.
+                .andExpect(jsonPath("$.format.oralDurationMinSeconds").doesNotExist())
+                .andExpect(jsonPath("$.format.oralDurationMaxSeconds").doesNotExist())
+                // 🛑 Aucun sujet n'est revele : il n'est pas encore tire.
+                .andExpect(jsonPath("$.written").doesNotExist())
+                .andExpect(jsonPath("$.oral").doesNotExist());
+    }
+
     @Test
     @DisplayName("Le sujet lu sans compte est celui de la session créée après inscription")
     void leSujetLuSansCompteEstCeluiDeLaSession() throws Exception {

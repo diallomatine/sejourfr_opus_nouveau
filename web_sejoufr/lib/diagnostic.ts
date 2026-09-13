@@ -3,6 +3,7 @@ import {productionTaskHref} from "./production-catalog.ts";
 import type {
   DiagnosticCommunicationStatus,
   DiagnosticExerciseDto,
+  DiagnosticFormatDto,
   DiagnosticResponse,
   DiagnosticTaskCompletion,
   LearningPlanSkillStatus,
@@ -107,6 +108,81 @@ export function diagnosticOralMinutes(
   );
   if (seconds == null || seconds <= 0) return null;
   return Math.max(1, Math.round(seconds / 60));
+}
+
+/**
+ * **Combien d'exercices ce diagnostic comporte** — servi, jamais écrit.
+ *
+ * 🛑 Le repli ne vaut que pour un backend antérieur au champ : il compte ce
+ * qu'il voit, ce qui donne `1` sur un parcours non commencé (les sujets n'y
+ * sont pas attachés). C'est encore la bonne réponse pour le diagnostic actif,
+ * et c'est le sens de l'erreur qui ne promet rien de trop.
+ */
+export function diagnosticExerciseCount(d: DiagnosticResponse): number {
+    if (d.format) return d.format.exerciseCount;
+    const vus = (d.written ? 1 : 0) + (d.oral ? 1 : 0);
+    return vus === 0 ? 1 : vus;
+}
+
+/** Ce diagnostic comporte-t-il une étape orale ? */
+export function diagnosticHasOral(format: DiagnosticFormatDto | null): boolean {
+    return (format?.exerciseCount ?? 1) > 1;
+}
+
+/**
+ * « 1 exercice · ≈ 5 min » — l'effort annoncé, **dérivé du format servi**.
+ *
+ * 🛑 **Rien n'est écrit en dur** (correctif du 2026-09-14). La carte annonçait
+ * « 2 exercices · ≈ 8 à 10 min » alors que le diagnostic actif (`QUICK_TCF`)
+ * n'en comporte qu'**un** — une production écrite, sans étape orale depuis
+ * V050. Un candidat qui n'avait jamais rien fait lisait donc une promesse
+ * fausse dès sa première carte.
+ *
+ * Sans mesure exploitable, on annonce le **compte** et rien d'autre.
+ * Miroir mot pour mot de `homeDiagStartSubtitle` côté mobile.
+ */
+export function diagnosticStartSubtitle(format: DiagnosticFormatDto | null): string {
+    const n = format?.exerciseCount ?? 1;
+    const exercices = `${n} exercice${n > 1 ? "s" : ""}`;
+    const minutes = diagnosticFormatMinutes(format);
+    return minutes == null ? exercices : `${exercices} · ≈ ${minutes} min`;
+}
+
+/** « On analyse votre écrit… » — l'oral n'est nommé que s'il existe. */
+export function diagnosticStartObjective(format: DiagnosticFormatDto | null): string {
+    const quoi = diagnosticHasOral(format) ? "votre écrit et votre oral" : "votre écrit";
+    return `On analyse ${quoi} pour construire votre premier plan.`;
+}
+
+/** L'attente d'analyse : « vos deux réponses » seulement s'il y en a deux. */
+export function diagnosticAnalyzingObjective(
+    format: DiagnosticFormatDto | null,
+): string {
+    return diagnosticHasOral(format)
+        ? "Vos deux réponses sont enregistrées ; vous pouvez revenir voir le résultat."
+        : "Votre réponse est enregistrée ; vous pouvez revenir voir le résultat.";
+}
+
+/** « 1 / 2 terminé ». Les **deux** nombres sont servis. */
+export function diagnosticCountLabel(done: number, total: number): string {
+    return `${done} / ${total} terminé${done > 1 ? "s" : ""}`;
+}
+
+/** Somme des minutes annoncées, écrit + oral. `null` sans borne exploitable. */
+function diagnosticFormatMinutes(format: DiagnosticFormatDto | null): number | null {
+    if (!format) return null;
+    // Les deux règles lisent la même forme de mesure : on la leur donne
+    // entière, le format portant les quatre bornes.
+    const mesure: DiagnosticExerciseMeasure = {
+        wordsMin: format.writtenWordsMin,
+        wordsMax: format.writtenWordsMax,
+        durationMinSeconds: format.oralDurationMinSeconds,
+        durationMaxSeconds: format.oralDurationMaxSeconds,
+    };
+    const ecrit = diagnosticWrittenMinutes(mesure);
+    const oral = diagnosticOralMinutes(mesure);
+    const total = (ecrit ?? 0) + (oral ?? 0);
+    return total <= 0 ? null : total;
 }
 
 /**

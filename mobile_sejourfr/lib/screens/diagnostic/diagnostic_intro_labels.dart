@@ -27,17 +27,26 @@ double? _midpoint(int? min, int? max) {
 }
 
 /// Minutes annoncées pour l'écrit, dérivées de la fourchette de mots servie.
-int? diagnosticWrittenMinutes(DiagnosticExerciseView? exercise) {
-  final words = _midpoint(exercise?.wordsMin, exercise?.wordsMax);
+int? diagnosticWrittenMinutes(DiagnosticExerciseView? exercise) =>
+    diagnosticWrittenMinutesFor(exercise?.wordsMin, exercise?.wordsMax);
+
+/// Même règle, sur des **bornes nues** — ce que porte le format du diagnostic,
+/// qui n'a ni sujet ni consigne. Extrait à sa 2ᵉ surface (l'Accueil).
+int? diagnosticWrittenMinutesFor(int? wordsMin, int? wordsMax) {
+  final words = _midpoint(wordsMin, wordsMax);
   if (words == null || words <= 0) return null;
   final minutes = (words / kDiagnosticWritingWordsPerMinute).round();
   return minutes < 1 ? 1 : minutes;
 }
 
 /// Minutes annoncées pour l'oral, dérivées du temps de parole servi.
-int? diagnosticOralMinutes(DiagnosticExerciseView? exercise) {
-  final seconds =
-      _midpoint(exercise?.durationMinSeconds, exercise?.durationMaxSeconds);
+int? diagnosticOralMinutes(DiagnosticExerciseView? exercise) =>
+    diagnosticOralMinutesFor(
+        exercise?.durationMinSeconds, exercise?.durationMaxSeconds);
+
+/// Même règle, sur des **bornes nues**.
+int? diagnosticOralMinutesFor(int? secondsMin, int? secondsMax) {
+  final seconds = _midpoint(secondsMin, secondsMax);
   if (seconds == null || seconds <= 0) return null;
   final minutes = (seconds / 60).round();
   return minutes < 1 ? 1 : minutes;

@@ -38,7 +38,12 @@ import {
     type PlanPathStep,
 } from "@/lib/plan-domain";
 import {
+    diagnosticAnalyzingObjective,
     diagnosticCompletedExerciseCount,
+    diagnosticCountLabel,
+    diagnosticExerciseCount,
+    diagnosticStartObjective,
+    diagnosticStartSubtitle,
     diagnosticDashboardState,
     recommendedExerciseHref,
 } from "@/lib/diagnostic";
@@ -379,9 +384,12 @@ function ActionPrincipale({
             <NowCard
                 icon={ClipboardCheck}
                 title="Découvrez ce qui vous bloque au TCF"
-                subtitle="2 exercices · ≈ 8 à 10 min"
+                /* 🛑 L'effort annoncé est DÉRIVÉ du format servi, jamais écrit :
+                   le diagnostic actif n'a qu'une production écrite, et la carte
+                   promettait « 2 exercices · ≈ 8 à 10 min ». */
+                subtitle={diagnosticStartSubtitle(diagnostic.format)}
                 badge="Votre point de départ"
-                objective="On analyse votre écrit et votre oral pour construire votre premier plan."
+                objective={diagnosticStartObjective(diagnostic.format)}
             >
                 <div className="home-now-actions">
                     <Cta href="/diagnostic">Faire mon diagnostic</Cta>
@@ -400,11 +408,11 @@ function ActionPrincipale({
             <NowCard
                 icon={Sparkles}
                 title={analyzing ? "Votre analyse est en préparation" : "Reprenez votre diagnostic"}
-                subtitle={`${done} / 2 terminé${done > 1 ? "s" : ""}`}
+                subtitle={diagnosticCountLabel(done, diagnosticExerciseCount(diagnostic))}
                 badge="Diagnostic en cours"
                 objective={
                     analyzing
-                        ? "Vos deux réponses sont enregistrées ; vous pouvez revenir voir le résultat."
+                        ? diagnosticAnalyzingObjective(diagnostic.format)
                         : "Continuez exactement à l'étape où vous vous êtes arrêté."
                 }
             >

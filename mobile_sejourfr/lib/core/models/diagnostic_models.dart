@@ -923,6 +923,42 @@ class DiagnosticResult {
       );
 }
 
+/// **Le FORMAT du diagnostic** — combien d'exercices, et de quoi en annoncer
+/// l'effort. **Toujours servi**, y compris avant que rien ne soit commencé.
+///
+/// 🛑 **Ce n'est pas un sujet** : ni identifiant, ni consigne, ni titre. Le
+/// sujet écrit est **tiré** à l'ouverture de la session ; en annoncer un ici
+/// en désignerait un autre que celui qui sera joué.
+class DiagnosticFormat {
+  const DiagnosticFormat({
+    required this.exerciseCount,
+    this.writtenWordsMin,
+    this.writtenWordsMax,
+    this.oralDurationMinSeconds,
+    this.oralDurationMaxSeconds,
+  });
+
+  /// 1 (production écrite seule) ou 2 (avec l'étape orale).
+  final int exerciseCount;
+  final int? writtenWordsMin;
+  final int? writtenWordsMax;
+  final int? oralDurationMinSeconds;
+  final int? oralDurationMaxSeconds;
+
+  bool get hasOral => exerciseCount > 1;
+
+  factory DiagnosticFormat.fromJson(Map<String, dynamic> json) =>
+      DiagnosticFormat(
+        exerciseCount: (json['exerciseCount'] as num?)?.toInt() ?? 1,
+        writtenWordsMin: (json['writtenWordsMin'] as num?)?.toInt(),
+        writtenWordsMax: (json['writtenWordsMax'] as num?)?.toInt(),
+        oralDurationMinSeconds:
+            (json['oralDurationMinSeconds'] as num?)?.toInt(),
+        oralDurationMaxSeconds:
+            (json['oralDurationMaxSeconds'] as num?)?.toInt(),
+      );
+}
+
 class DiagnosticJourney {
   const DiagnosticJourney({
     required this.diagnosticCode,
@@ -933,6 +969,7 @@ class DiagnosticJourney {
     this.sessionId,
     this.written,
     this.oral,
+    this.format,
     this.result,
     this.startedAt,
     this.completedAt,
@@ -946,6 +983,10 @@ class DiagnosticJourney {
   final DiagnosticStep nextStep;
   final DiagnosticExercise? written;
   final DiagnosticExercise? oral;
+
+  /// Le format servi. `null` = backend antérieur au champ : les fronts
+  /// dégradent alors vers ce qu'ils voient (`written` / `oral`).
+  final DiagnosticFormat? format;
   final DiagnosticResult? result;
   final DateTime? startedAt;
   final DateTime? completedAt;
@@ -955,6 +996,16 @@ class DiagnosticJourney {
   int get completedExerciseCount =>
       (written?.submissionId == null ? 0 : 1) +
       (oral?.submissionId == null ? 0 : 1);
+
+  /// **Combien d'exercices ce diagnostic comporte** — servi, jamais écrit.
+  ///
+  /// 🛑 Le repli ne vaut que pour un backend antérieur au champ : il compte ce
+  /// qu'il voit, ce qui donne `1` sur un parcours non commencé (les sujets n'y
+  /// sont pas attachés). C'est encore la bonne réponse pour le diagnostic
+  /// actif, et c'est le sens de l'erreur qui ne promet rien de trop.
+  int get exerciseCount =>
+      format?.exerciseCount ??
+      ((written == null ? 0 : 1) + (oral == null ? 0 : 1)).clamp(1, 2);
 
   factory DiagnosticJourney.fromJson(Map<String, dynamic> json) =>
       DiagnosticJourney(
@@ -967,6 +1018,9 @@ class DiagnosticJourney {
         nextStep: DiagnosticStep.fromWire(
           json['nextStep'] as String? ?? 'PRESENTATION',
         ),
+        format: json['format'] == null
+            ? null
+            : DiagnosticFormat.fromJson(json['format'] as Map<String, dynamic>),
         written: json['written'] == null
             ? null
             : DiagnosticExercise.fromJson(

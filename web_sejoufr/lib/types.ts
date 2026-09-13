@@ -1202,6 +1202,23 @@ export interface DiagnosticResultDto {
     solidSkillCount: number;
 }
 
+/**
+ * **Le FORMAT du diagnostic** — combien d'exercices, et de quoi en annoncer
+ * l'effort. **Toujours servi**, y compris avant que rien ne soit commencé.
+ *
+ * 🛑 **Ce n'est pas un sujet** : ni identifiant, ni consigne, ni titre. Le
+ * sujet écrit est **tiré** à l'ouverture de la session ; en annoncer un ici en
+ * désignerait un autre que celui qui sera joué.
+ */
+export interface DiagnosticFormatDto {
+    /** 1 (production écrite seule) ou 2 (avec l'étape orale). */
+    exerciseCount: number;
+    writtenWordsMin: number | null;
+    writtenWordsMax: number | null;
+    oralDurationMinSeconds: number | null;
+    oralDurationMaxSeconds: number | null;
+}
+
 export interface DiagnosticResponse {
     sessionId: string | null;
     diagnosticCode: string | null;
@@ -1210,6 +1227,14 @@ export interface DiagnosticResponse {
     nextStep: DiagnosticStep;
     written: DiagnosticExerciseDto | null;
     oral: DiagnosticExerciseDto | null;
+    /**
+     * 🛑 **Toujours servi**, y compris sur un parcours `NOT_STARTED` où
+     * `written` et `oral` valent `null` : c'est précisément là que les fronts
+     * en ont besoin, et c'est faute de l'avoir qu'ils annonçaient
+     * « 2 exercices » sur un diagnostic qui n'en a qu'un. `null` = backend
+     * antérieur au champ.
+     */
+    format: DiagnosticFormatDto | null;
     result: DiagnosticResultDto | null;
     startedAt: string | null;
     completedAt: string | null;

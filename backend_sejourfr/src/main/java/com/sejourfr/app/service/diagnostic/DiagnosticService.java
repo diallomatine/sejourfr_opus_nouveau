@@ -2,6 +2,7 @@ package com.sejourfr.app.service.diagnostic;
 
 import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.dto.DiagnosticExerciseDto;
+import com.sejourfr.app.dto.DiagnosticFormatDto;
 import com.sejourfr.app.dto.DiagnosticProductionResultDto;
 import com.sejourfr.app.dto.DiagnosticResponse;
 import com.sejourfr.app.dto.DiagnosticExempleCibleDto;
@@ -139,16 +140,51 @@ public class DiagnosticService {
                 session.hasOral()
                         ? exercise(session.getOralTask(), session.getOralAttempt().getId(), oralSubmission)
                         : null,
+                // Le format de CETTE session : ses propres sujets, jamais ceux
+                // du contenu actif — un diagnostic se relit sous la forme qui
+                // l'a produit.
+                format(session.getWrittenTask(),
+                        session.hasOral() ? session.getOralTask() : null),
                 result, session.getStartedAt(), session.getCompletedAt(), session.getErrorMessage(),
                 session.getStatus() == DiagnosticSessionStatus.FAILED
                         && session.getRetryCount() < properties.getAnalysis().getMaxSessionRetries());
     }
 
+    /**
+     * Aucun parcours ouvert. 🛑 <b>Le FORMAT est servi quand meme</b> : c'est
+     * exactement l'ecran ou les fronts en ont besoin (« combien d'exercices
+     * m'attendent ? »), et c'est faute de l'avoir qu'ils annonçaient « 2
+     * exercices » sur un diagnostic qui n'en a qu'un.
+     *
+     * <p>🛑 <b>Les SUJETS, eux, restent nuls</b> : le sujet ecrit est
+     * <b>tire</b> a l'ouverture de la session, et en annoncer un ici en
+     * designerait un autre que celui qui sera joue. Le format se lit donc sur
+     * {@code writtenTask}, deterministe, et <b>pour ses seules bornes</b>.
+     */
     private DiagnosticResponse notStarted(String code, int version) {
         return new DiagnosticResponse(
                 null, code, version, DiagnosticJourneyStatus.NOT_STARTED,
-                DiagnosticStep.PRESENTATION, null, null, null,
-                null, null, null, false);
+                DiagnosticStep.PRESENTATION, null, null,
+                format(content.writtenTask(code, version),
+                        content.oralTask(code, version).orElse(null)),
+                null, null, null, null, false);
+    }
+
+    /**
+     * Le format d'un diagnostic : combien d'exercices, et leurs mesures.
+     *
+     * <p>🛑 <b>Le compte se lit sur le CONTENU</b> — un sujet oral publie ou
+     * non —, jamais sur un reglage. C'est ce que V050 a rendu possible : « un
+     * diagnostic a une production et un diagnostic a deux productions
+     * coexistent, et c'est le CONTENU qui dit lequel est servi ».
+     */
+    private static DiagnosticFormatDto format(ProductionTask written, ProductionTask oral) {
+        return new DiagnosticFormatDto(
+                oral == null ? 1 : 2,
+                written == null ? null : written.getMotsMin(),
+                written == null ? null : written.getMotsMax(),
+                oral == null ? null : oral.getDureeMinSec(),
+                oral == null ? null : oral.getDureeMaxSec());
     }
 
     private DiagnosticExerciseDto exercise(

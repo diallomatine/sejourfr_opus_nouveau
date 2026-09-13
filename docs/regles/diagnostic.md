@@ -10,6 +10,42 @@
 
 ---
 
+## Le format du diagnostic est SERVI, jamais écrit par un front
+
+🔴 **Correctif du 2026-09-14, constaté à l'écran.** L'Accueil annonçait
+« 2 exercices · ≈ 8 à 10 min » à un candidat qui n'avait **jamais rien fait**,
+alors que le diagnostic actif (`QUICK_TCF`) n'en comporte qu'**un** — une
+production écrite, sans étape orale depuis V050. Même chose sur « 1 / 2 terminé »
+et « Vos deux réponses sont enregistrées ».
+
+**Le contrat rendait l'erreur inévitable** : sur un parcours `NOT_STARTED`,
+`written` et `oral` valent tous deux `null` — le serveur n'attache ses sujets
+qu'à `POST /api/diagnostics` —, donc aucun front ne pouvait dériver le compte,
+et les deux l'ont écrit à la main.
+
+- **`DiagnosticResponse.format`** (`DiagnosticFormatDto`) est **toujours servi**,
+  `NOT_STARTED` compris : `exerciseCount` (1 ou 2) et les bornes de chaque
+  exercice.
+- 🛑 **Ce n'est PAS un sujet** : ni identifiant, ni consigne, ni titre. Le sujet
+  écrit est **tiré** à l'ouverture (`drawWrittenTask`) ; en annoncer un ici en
+  désignerait un autre que celui qui sera joué. Le format se lit donc sur
+  `writtenTask`, déterministe, et **pour ses seules bornes**.
+- 🛑 **Le compte se lit sur le CONTENU** — un sujet oral publié ou non —, jamais
+  sur un réglage. C'est ce que V050 a rendu possible : « un diagnostic à une
+  production et un diagnostic à deux productions coexistent, et c'est le CONTENU
+  qui dit lequel est servi ».
+- Une fois la session ouverte, les mesures sont celles de **ses** sujets à elle :
+  un diagnostic se relit sous la forme qui l'a produit.
+- **Les fronts dérivent tout** : `homeDiagStartSubtitle` / `homeDiagStartObjective`
+  / `homeDiagCount` / `homeDiagAnalyzingObjective` ⇄ `diagnosticStartSubtitle` /
+  `diagnosticStartObjective` / `diagnosticCountLabel` /
+  `diagnosticAnalyzingObjective`. Les minutes passent par la **même règle** que
+  l'écran de présentation (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`),
+  extraite pour accepter des **bornes nues**. Sans mesure exploitable, on annonce
+  le compte et rien d'autre — jamais un chiffre inventé.
+- Verrou : `DiagnosticRapideIT.leFormatEstServiAvantToutParcours`.
+
+
 ## Diagnostic initial TCF et Plan personnalisé
 
 Le diagnostic est un **parcours distinct** des examens blancs et de la notation

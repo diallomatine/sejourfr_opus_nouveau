@@ -15,6 +15,15 @@ public record DiagnosticResponse(
         DiagnosticStep nextStep,
         DiagnosticExerciseDto written,
         DiagnosticExerciseDto oral,
+        /**
+         * Le <b>format</b> du diagnostic — combien d'exercices, et leurs
+         * mesures. 🛑 <b>Toujours servi</b>, y compris sur un parcours
+         * {@code NOT_STARTED} ou {@code written} et {@code oral} valent
+         * {@code null} : c'est precisement la que les fronts en ont besoin, et
+         * c'est faute de l'avoir qu'ils annonçaient « 2 exercices » sur un
+         * diagnostic qui n'en a qu'un. Cf. {@link DiagnosticFormatDto}.
+         */
+        DiagnosticFormatDto format,
         DiagnosticResultDto result,
         Instant startedAt,
         Instant completedAt,
