@@ -27,6 +27,19 @@ import 'plan_labels.dart';
 /// repousserait la priorité n°1 hors de l'écran.
 const int kPlanPriorityGroupVisibleRows = 6;
 
+/// **Ce qu'un encart RÉTRACTÉ laisse voir** (2026-09-13, demande du
+/// propriétaire : « les priorités s'il y en a plus d'une, fais-les comme des
+/// encarts rétractables ; on affiche juste 2 points et le reste à l'ouverture »).
+///
+/// Empilés dépliés, trois encarts de huit compétences font un écran qu'on ne
+/// finit pas de faire défiler — et la priorité n°2 n'existe plus. Deux lignes
+/// suffisent à dire de quoi parle l'encart ; le reste est à un tap.
+///
+/// 🛑 **Plafond d'AFFICHAGE, jamais un filtre** : le résumé de l'en-tête et le
+/// compteur du bouton portent sur **tout** le groupe, et l'ouverture rend
+/// **toutes** les lignes — pas les six de [kPlanPriorityGroupVisibleRows].
+const int kPlanPriorityGroupCollapsedRows = 2;
+
 /// **Une ligne d'encart de priorités.**
 ///
 /// 🛑 **Deux sources, une seule ligne.** Une compétence entre ici parce que le
@@ -110,6 +123,24 @@ class PlanPriorityGroup {
   /// 🛑 **Un vrai nombre**, calculé sur ce que le groupe contient réellement —
   /// jamais une constante. `0` ⇒ aucun lien n'est affiché.
   int get hiddenCount => rows.length - visibleRows.length;
+
+  /// Les lignes visibles **encart fermé**.
+  List<PlanPriorityGroupRow> get collapsedRows =>
+      rows.length <= kPlanPriorityGroupCollapsedRows
+          ? rows
+          : rows.take(kPlanPriorityGroupCollapsedRows).toList(growable: false);
+
+  /// Les lignes que l'**ouverture** révèle — donc **toutes** les autres, pas
+  /// seulement jusqu'au plafond de [visibleRows] : un encart qu'on déplie doit
+  /// montrer ce qu'il cachait, sinon le bouton a menti sur son compte.
+  List<PlanPriorityGroupRow> get foldedRows =>
+      rows.length <= kPlanPriorityGroupCollapsedRows
+          ? const <PlanPriorityGroupRow>[]
+          : rows.skip(kPlanPriorityGroupCollapsedRows).toList(growable: false);
+
+  /// 🛑 **Un vrai nombre**, comme [hiddenCount]. `0` ⇒ l'encart n'est pas
+  /// rétractable : il n'a rien à replier.
+  int get foldedCount => foldedRows.length;
 
   /// La ligne que vise le bouton de bas d'encart : la **première qui appelle
   /// une action**, c'est-à-dire la première qui n'est pas déjà solide.

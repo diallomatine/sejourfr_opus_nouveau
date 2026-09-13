@@ -1048,7 +1048,18 @@ class SfThemeLine extends StatelessWidget {
 }
 
 /// Carte de priorité, avec son liseré de rang (1 rouge, 2 ambre, 3 jaune).
-class SfPrio extends StatelessWidget {
+///
+/// **Rétractable dès qu'on en empile plusieurs.** [details] est le contenu que
+/// l'encart FERMÉ ne montre pas ; [child] reste toujours lisible. Sans
+/// [details], la carte est exactement celle d'avant — c'est le cas d'une
+/// priorité seule, qu'il n'y a aucune raison de replier.
+///
+/// 🛑 **Les deux libellés du bouton sont SERVIS** ([moreLabel] / [lessLabel]) :
+/// le kit ne compose aucune phrase et ne compte rien. Sans eux, pas de bouton —
+/// on n'affiche pas une bascule anonyme.
+///
+/// Miroir de `Prio` dans `web_sejoufr/app/_components/sejour/SejourKit.tsx`.
+class SfPrio extends StatefulWidget {
   const SfPrio({
     super.key,
     required this.rank,
@@ -1056,19 +1067,48 @@ class SfPrio extends StatelessWidget {
     required this.title,
     this.text,
     this.child,
+    this.details,
+    this.moreLabel,
+    this.lessLabel,
+    this.defaultOpen = false,
   });
 
   final int rank;
   final String tag;
   final String title;
   final String? text;
+
+  /// Ce qui reste lisible encart fermé.
   final Widget? child;
 
-  Color get _accent => switch (rank) {
+  /// Ce que l'ouverture révèle. `null` ⇒ carte non rétractable.
+  final Widget? details;
+
+  /// Le libellé du bouton fermé, **servi** (« + 6 autres compétences »).
+  final String? moreLabel;
+
+  /// Le libellé du bouton ouvert, **servi** (« Réduire »).
+  final String? lessLabel;
+
+  final bool defaultOpen;
+
+  @override
+  State<SfPrio> createState() => _SfPrioState();
+}
+
+class _SfPrioState extends State<SfPrio> {
+  late bool _open = widget.defaultOpen;
+
+  Color get _accent => switch (widget.rank) {
         1 => AppColors.red,
         2 => AppColors.amber,
         _ => AppColors.yellow,
       };
+
+  bool get _foldable =>
+      widget.details != null &&
+      widget.moreLabel != null &&
+      widget.lessLabel != null;
 
   @override
   Widget build(BuildContext context) {
@@ -1099,7 +1139,7 @@ class SfPrio extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
                       child: Text(
-                        '$rank',
+                        '${widget.rank}',
                         style: AppFonts.ui(
                           size: 12,
                           weight: FontWeight.w800,
@@ -1112,20 +1152,25 @@ class SfPrio extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(tag.toUpperCase(), style: AppFonts.label(size: 11)),
+                          Text(widget.tag.toUpperCase(), style: AppFonts.label(size: 11)),
                           const SizedBox(height: 3),
                           Text(
-                            title,
+                            widget.title,
                             style: AppFonts.display(size: 14.5, weight: FontWeight.w700, height: 1.25),
                           ),
-                          if (text != null) ...[
+                          if (widget.text != null) ...[
                             const SizedBox(height: 5),
                             Text(
-                              text!,
+                              widget.text!,
                               style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.4),
                             ),
                           ],
-                          if (child != null) child!,
+                          if (widget.child != null) widget.child!,
+                          // Le contenu replié est RETIRÉ de l'arbre, pas juste
+                          // masqué : un lecteur d'écran ne doit pas traverser un
+                          // encart fermé.
+                          if (_foldable && _open) widget.details!,
+                          if (_foldable) _toggle(),
                         ],
                       ),
                     ),
@@ -1134,6 +1179,48 @@ class SfPrio extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _toggle() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Semantics(
+        button: true,
+        expanded: _open,
+        child: InkWell(
+          onTap: () => setState(() => _open = !_open),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  (_open ? widget.lessLabel : widget.moreLabel)!,
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Le chevron PIVOTE, il ne se remplace pas : une seule icône,
+                // donc aucun saut de largeur à l'ouverture.
+                AnimatedRotation(
+                  turns: _open ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: const Icon(
+                    LucideIcons.chevronDown,
+                    size: 15,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

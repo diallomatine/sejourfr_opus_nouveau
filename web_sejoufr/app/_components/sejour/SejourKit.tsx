@@ -18,6 +18,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Check,
+  ChevronDown,
   ChevronLeft,
   Circle,
   CircleDot,
@@ -25,7 +26,7 @@ import {
   AlertCircle,
   type LucideIcon,
 } from "lucide-react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useId, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import styles from "./sejour.module.css";
 
@@ -675,21 +676,43 @@ export function ThemeLine({
   );
 }
 
-/** Carte de priorité, avec son liseré de rang. */
+/**
+ * Carte de priorité, avec son liseré de rang.
+ *
+ * **Rétractable dès qu'on en empile plusieurs.** `details` est le contenu que
+ * l'encart FERMÉ ne montre pas ; `children` reste toujours lisible. Sans
+ * `details`, la carte est exactement celle d'avant — c'est le cas d'une
+ * priorité seule, qu'il n'y a aucune raison de replier.
+ *
+ * 🛑 **Les deux libellés du bouton sont SERVIS** (`moreLabel` / `lessLabel`) :
+ * le kit ne compose aucune phrase et ne compte rien. Sans eux, pas de bouton —
+ * on n'affiche pas une bascule anonyme.
+ */
 export function Prio({
   rank,
   tag,
   title,
   text,
   children,
+  details,
+  moreLabel,
+  lessLabel,
+  defaultOpen = false,
 }: {
   rank: 1 | 2 | 3;
   tag: string;
   title: string;
   text?: string;
   children?: ReactNode;
+  details?: ReactNode;
+  moreLabel?: string;
+  lessLabel?: string;
+  defaultOpen?: boolean;
 }) {
   const rankClass = rank === 1 ? styles.p1 : rank === 2 ? styles.p2 : styles.p3;
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+  const foldable = details != null && moreLabel != null && lessLabel != null;
   return (
     <article className={cx(styles.prio, rankClass)}>
       <div className={styles.prioN}>{rank}</div>
@@ -698,6 +721,31 @@ export function Prio({
         <h3>{title}</h3>
         {text ? <p>{text}</p> : null}
         {children}
+        {foldable ? (
+          <>
+            {/* `hidden` plutôt qu'un démontage : le contenu replié sort de
+                l'arbre d'accessibilité ET du parcours clavier, au lieu de
+                rester atteignable derrière un encart fermé. */}
+            <div id={panelId} hidden={!open}>
+              {details}
+            </div>
+            <button
+              type="button"
+              className={styles.link}
+              aria-expanded={open}
+              aria-controls={panelId}
+              onClick={() => setOpen((was) => !was)}
+            >
+              {open ? lessLabel : moreLabel}
+              <ChevronDown
+                size={15}
+                strokeWidth={2.5}
+                className={cx(styles.chevron, open && styles.chevronUp)}
+                aria-hidden
+              />
+            </button>
+          </>
+        ) : null}
       </div>
     </article>
   );

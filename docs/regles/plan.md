@@ -190,6 +190,104 @@
     `PlanRecommendedExerciseDto`.
   - **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
     un compte gratuit plafonne à 2/5 (cf. § Freemium).
+- **Un encart de priorité est RÉTRACTABLE dès qu'il y en a plus d'un**
+  (2026-09-13, demande du propriétaire). Fermé, il montre **2 compétences** ;
+  l'ouverture rend **toutes** les autres. Une priorité **seule** ne se replie
+  pas — elle est l'écran. Motif : trois encarts de huit compétences empilés
+  dépliés poussent la priorité n°2 hors de vue.
+  - **Le motif vit dans les DEUX kits**, brique pour brique : `Prio` gagne
+    `details` / `moreLabel` / `lessLabel` / `defaultOpen`
+    (`web_sejoufr/app/_components/sejour/SejourKit.tsx`) et `SfPrio` devient
+    `StatefulWidget` avec les mêmes paramètres
+    (`mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`). Sans les deux
+    libellés, **pas de bouton** : le kit ne compose aucune phrase et ne compte
+    rien.
+  - 🛑 **Plafond d'AFFICHAGE, jamais un filtre** : le résumé de l'en-tête et la
+    barre de progression portent sur **tout** le groupe, et le compteur du
+    bouton (`planGroupMoreLabel`) est calculé sur ce qui est **réellement
+    replié** — jamais le `+ N autres` de l'autre plafond
+    (`kPlanPriorityGroupVisibleRows` / `PLAN_PRIORITY_ROWS_VISIBLE` = 6), qui
+    reste la règle de l'encart **non rétractable**.
+  - **Le contenu replié sort de l'arbre d'accessibilité** — `hidden` côté web,
+    sous-arbre non construit côté Flutter. Un contenu qu'un lecteur d'écran
+    traverse derrière un encart fermé est un mensonge d'accessibilité.
+  - **Un compte gratuit n'a rien à replier** : il ne voit aucune ligne de
+    compétence, donc aucun bouton n'apparaît.
+  - Constantes : `kPlanPriorityGroupCollapsedRows` ⇄ `PLAN_PRIORITY_ROWS_COLLAPSED`
+    (2) et `kPlanGroupLessLabel` ⇄ `PLAN_GROUP_LESS_LABEL` (« Réduire »).
+
+- 🛑 **La PRIORITÉ COURANTE est ÉPINGLÉE — une nouvelle observation ne la
+  remplace pas** (règle produit du **2026-09-13**, arbitrée par le propriétaire).
+  L'ordre des priorités se termine par la **récence** (`LearningPlanPriorityResolver
+  .actionable` : statut, puis confiance, puis `observedAt` décroissant). Une
+  production rendue sur une **autre** compétence prenait donc la première place
+  par sa seule fraîcheur, et l'étape commencée disparaissait de l'écran **au
+  milieu de son cycle**. Cas réel signalé : EE3 « Développer un argument »
+  affichée à **0/5**, remplacée par EO1 « Raconter brièvement une expérience
+  passée » dès la première production orale.
+  - **La première place est donc PERSISTÉE** — `plan_pinned_priorities` (V065),
+    **une ligne par candidat** : `user_id` (clé primaire), `skill_id`,
+    `pinned_at`. C'est la **seule** chose que le Plan écrit en dehors de ses
+    observations, et **l'exception assumée** à « un dérivé se relit, il ne se
+    persiste pas ». Motif : « quelle étape ce candidat a-t-il commencée » ne se
+    dérive de **rien** — l'étape sautait à 0/5, donc aucun sujet traité ne
+    permettait de la retrouver après coup. C'est une **désignation prise à un
+    instant**, au même titre qu'une observation.
+  - 🛑 **La FILE d'attente, elle, n'est PAS persistée et ne doit jamais l'être.**
+    `PlanActionRanker.classer` ordonne déjà le pool **entier** par score, **une
+    action par compétence** — donc sans doublon par construction — et sans
+    plafond ; seul l'affichage coupe (`plan-config`, `display.prioritiesMaxActions`
+    = 5). Une nouvelle faiblesse s'y **range à son rang** au lieu d'écraser
+    l'étape en cours. Persister cet ordre créerait une seconde autorité sur ce
+    que le moteur sait recalculer.
+  - **Où vit la règle** : `PlanFocusResolver.epingler(user, pool)`, l'autorité
+    déjà unique sur « quelle compétence occupe la première place ».
+    `LearningPlanService` lui passe le pool **déjà filtré** (fragilités
+    exécutables puis acquisitions) — épingler sur `actionable` brut désignerait
+    une compétence sans contenu publié, donc une carte que le Plan n'affiche pas
+    et un cadenas levé sur du vide.
+  - 🛑 **La LIBÉRATION n'est écrite nulle part ailleurs.** Aucune colonne
+    d'état, aucun `released_at` : la condition de sortie de cycle est déjà celle
+    de `actionable()`, qui écarte une compétence dont le **transfert est prouvé**
+    (`transferProven`) **ou** dont la **vérification a été rendue**
+    (`verificationSubmitted`). La règle entière tient en une phrase : *tant que
+    la compétence épinglée est dans le pool, elle reste première ; dès qu'elle en
+    sort, l'épingle passe à la tête du classement*. Ne jamais réécrire « 5/5 »,
+    « à vérifier » ou `SOLID` dans l'épingle.
+  - **Conséquences voulues** : (1) micro-entraînement à 3/5 et faiblesse observée
+    ailleurs ⇒ la première place **ne bouge pas** ; (2) 5/5 atteint ⇒ la carte
+    passe à `A_VERIFIER`, dont le poids de nature **tombe de 1000 à 800**, et
+    elle reste **quand même** première parce que l'épingle passe **avant** le
+    score ; (3) vérification rendue ⇒ l'épingle est libérée et la meilleure en
+    attente promue, **même si la compétence n'est pas `SOLID`** — elle reviendra
+    selon les règles du moteur, elle ne sera pas interrompue au milieu.
+  - **Le verrou commercial suit l'épingle.** `SkillAccessService` ouvre la
+    compétence de la priorité n°1 via `PlanFocusResolver.currentFocusSkillId`,
+    qui lit **la même** épingle, **en lecture seule**. S'il lisait la tête du
+    classement, un compte gratuit verrait son étape en cours **cadenassée** dès
+    la production suivante — exactement ce que cette ouverture existe pour
+    éviter.
+  - **Deux surfaces NOMMENT la priorité n°1 et doivent nommer l'épinglée** :
+    « ce qui a changé » (`PlanRecentChangesResolver`) et le retour de production
+    (`LearningPlanService.changeAfterProduction`). Elles lisaient
+    `actionable.getFirst()` en direct et auraient annoncé « nouvelle priorité :
+    EO1 » pendant que la carte montrait EE3. Elles passent désormais par
+    `PlanFocusResolver.observationDe` / `premierePlace`.
+  - ⚠️ **`GET /api/me/plan` ÉCRIT donc une ligne**, et le service n'est plus
+    `readOnly`. L'écriture est **idempotente et rare** : la ligne n'est réécrite
+    que lorsque la première place **change** réellement — sinon `pinned_at`
+    daterait la dernière consultation et chaque `GET` serait un `UPDATE`. Verrou :
+    `LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle`.
+  - **Coût** : **+1 requête** (lecture par clé primaire), inconditionnelle et
+    indépendante des données du candidat. Budgets mis à jour : le Plan passe de
+    **22 à 23** requêtes (`LearningPlanCycleIT`), `currentFocusSkillId` de **1 à
+    2** (`LearningPlanPriorityResolverIT`).
+  - **L'épingle est de la donnée de pratique** : `AccountDeletionService` la
+    supprime avec les observations. La cascade base ne joue pas — le compte est
+    **anonymisé**, sa ligne `users` survit.
+  - Verrous : `PlanFocusResolverTest` (la règle, sur des listes) et
+    `LearningPlanStickyPriorityIT` (le cycle complet contre la vraie base).
+
 - **Boucle de réévaluation — l'étape CHANGE DE NATURE, elle ne se dédouble pas.**
   Quand la maîtrise pose `readyForReassessment` (moteur inchangé), la carte « À
   faire maintenant » cesse de proposer un micro-sujet et propose une

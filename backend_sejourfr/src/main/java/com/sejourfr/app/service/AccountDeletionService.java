@@ -8,6 +8,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.manager.PlanPinnedPriorityManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.AnalyticsEventManager;
@@ -53,6 +54,7 @@ public class AccountDeletionService {
     private final AttemptManager attemptManager;
     private final DiagnosticSessionManager diagnosticSessionManager;
     private final LearningPlanObservationManager learningPlanObservationManager;
+    private final PlanPinnedPriorityManager planPinnedPriorityManager;
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
     private final UserFunnelEventManager userFunnelEventManager;
@@ -92,6 +94,10 @@ public class AccountDeletionService {
         // avant les attempts. Les observations du Plan sont elles aussi des
         // données de pratique et ne doivent pas survivre à l'anonymisation.
         learningPlanObservationManager.deleteByUserId(userId);
+        // La premiere place epinglee du Plan est de la donnee de pratique comme
+        // les observations. La cascade base ne joue pas : ce compte est
+        // ANONYMISE, sa ligne `users` survit.
+        planPinnedPriorityManager.release(userId);
         diagnosticSessionManager.deleteByUserId(userId);
         attemptManager.deleteByUserId(userId);
         userQuestionStatusManager.deleteByUserId(userId);

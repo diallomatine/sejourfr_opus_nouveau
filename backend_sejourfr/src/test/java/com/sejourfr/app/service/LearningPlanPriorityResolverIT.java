@@ -231,9 +231,16 @@ class LearningPlanPriorityResolverIT extends AbstractIntegrationTest {
 
         statistics.clear();
         assertThat(focusResolver.currentFocusSkillId(user.getId())).isPresent();
+        // 2 depuis le 2026-09-13 : l'historique, puis L'EPINGLE de la premiere
+        // place — une lecture par cle primaire, et rien de plus. Le verrou
+        // commercial doit ouvrir la MEME etape que celle affichee par le Plan :
+        // s'il lisait la tete du classement, un compte gratuit verrait son
+        // etape en cours cadenassee des la production suivante, exactement ce
+        // que l'ouverture de la priorite n°1 existe pour eviter. Ce qui reste
+        // verrouille ici est l'essentiel : ni cycle de palier, ni referentiel.
         assertThat(statistics.getPrepareStatementCount())
                 .as("une fragilite suffit : ni cycle de palier, ni referentiel charge")
-                .isEqualTo(1);
+                .isEqualTo(2);
     }
 
     private List<String> codes(User user) {

@@ -24,6 +24,9 @@ import {useAuth} from "@/lib/auth-context";
 import {productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
 import {
   isComprehension,
+  planGroupMoreLabel,
+  PLAN_GROUP_LESS_LABEL,
+  PLAN_PRIORITY_ROWS_COLLAPSED,
   PLAN_PRIORITY_ROWS_VISIBLE,
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
@@ -355,6 +358,7 @@ function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactN
                   rank={rankOf(index)}
                   currentSkillId={plan.currentPriority?.skillId ?? null}
                   detailed
+                  foldable={groups.length > 1}
                 />
               ))}
             </Stack>
@@ -667,17 +671,31 @@ function rankOf(index: number): 1 | 2 | 3 {
   return index === 0 ? 1 : index === 1 ? 2 : 3;
 }
 
-function PriorityCard({group, rank, currentSkillId, detailed}: {
+function PriorityCard({group, rank, currentSkillId, detailed, foldable}: {
   group: PlanPriorityGroup;
   rank: 1 | 2 | 3;
   currentSkillId: string | null;
   /** L'abonné déroule les compétences de la tâche ; le plan gratuit s'arrête au
    *  repère et au compte — il ne nomme aucune ligne verrouillée. */
   detailed?: boolean;
+  /** 🛑 Rétractable dès qu'il y a plus d'une priorité à l'écran. Une priorité
+   *  seule n'a aucune raison de se replier : elle EST l'écran. */
+  foldable?: boolean;
 }) {
   const rows = group.rows;
   const solid = rows.filter((row) => row.status === "SOLIDE").length;
   const visible = rows.slice(0, PLAN_PRIORITY_ROWS_VISIBLE);
+  // Un plan gratuit ne nomme aucune ligne : il n'y a rien à replier.
+  const folded = detailed && foldable ? rows.slice(PLAN_PRIORITY_ROWS_COLLAPSED) : [];
+  const shown = folded.length > 0 ? rows.slice(0, PLAN_PRIORITY_ROWS_COLLAPSED) : visible;
+
+  const skillRow = (row: PlanPriorityGroup["rows"][number]) => (
+    <SkillRow
+      key={row.skillId}
+      label={row.title}
+      state={row.skillId === currentSkillId ? "now" : row.status === "SOLIDE" ? "done" : "todo"}
+    />
+  );
 
   return (
     <Prio
@@ -685,6 +703,11 @@ function PriorityCard({group, rank, currentSkillId, detailed}: {
       tag={`Priorité ${rank}`}
       title={groupTitle(group)}
       text={planRowStatusSummary(rows.map((row) => row.status))}
+      // 🛑 Le compteur du bouton porte sur ce qui est RÉELLEMENT replié —
+      // jamais une constante, jamais le « + N autres » d'un autre plafond.
+      moreLabel={folded.length > 0 ? planGroupMoreLabel(folded.length) : undefined}
+      lessLabel={folded.length > 0 ? PLAN_GROUP_LESS_LABEL : undefined}
+      details={folded.length > 0 ? <SkillList>{folded.map(skillRow)}</SkillList> : undefined}
     >
       {rows.length > 0 && (
         <ProgressMini
@@ -692,17 +715,7 @@ function PriorityCard({group, rank, currentSkillId, detailed}: {
           label={`${solid} compétence${solid > 1 ? "s" : ""} solide${solid > 1 ? "s" : ""} sur ${rows.length}`}
         />
       )}
-      {detailed && visible.length > 0 && (
-        <SkillList>
-          {visible.map((row) => (
-            <SkillRow
-              key={row.skillId}
-              label={row.title}
-              state={row.skillId === currentSkillId ? "now" : row.status === "SOLIDE" ? "done" : "todo"}
-            />
-          ))}
-        </SkillList>
-      )}
+      {detailed && shown.length > 0 && <SkillList>{shown.map(skillRow)}</SkillList>}
     </Prio>
   );
 }

@@ -810,6 +810,22 @@
   font-family: var(--font-sans);
 }
 
+/* Le chevron de l'encart rétractable : il pivote, il ne se remplace pas —
+   une seule icône, donc aucun saut de largeur à l'ouverture. */
+.chevron {
+  transition: transform 0.16s ease;
+}
+
+.chevronUp {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
 /* ---------- Aperçu de plan (lignes numérotées) ---------- */
 
 .mini {

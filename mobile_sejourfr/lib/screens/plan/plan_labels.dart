@@ -399,6 +399,13 @@ String planGroupMoreLabel(int count) =>
     '+ $count autre${count > 1 ? 's' : ''} '
     'compétence${count > 1 ? 's' : ''}';
 
+/// « Réduire » — referme un encart de priorité rétractable.
+///
+/// Il ne compte rien, contrairement à [planGroupMoreLabel] : le nombre a déjà
+/// été lu à l'ouverture, et le répéter à la fermeture ferait croire qu'il reste
+/// quelque chose de caché.
+const String kPlanGroupLessLabel = 'Réduire';
+
 /* ------------------------------------------- ma progression (écran) ------- */
 
 /// Le titre de l'écran de progression du Plan.

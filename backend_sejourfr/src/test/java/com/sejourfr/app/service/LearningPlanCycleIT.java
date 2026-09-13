@@ -212,9 +212,19 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // candidat — la meme condition que celle posee pour les deux requetes du
         // filtre de faisabilite. Elle remplace une regle qui vivait en deux
         // copies implicites, dont le prix etait bien plus eleve.
+        //
+        // 23 depuis le 2026-09-13 : la PREMIERE PLACE EST EPINGLEE, et l'epingle
+        // se lit (`plan_pinned_priorities`, cle primaire = l'utilisateur). Une
+        // lecture par cle, INCONDITIONNELLE et independante des donnees du
+        // candidat — la meme condition que pour les trois requetes precedentes.
+        // Elle n'est SUIVIE D'AUCUNE ECRITURE ici : la ligne n'est reecrite que
+        // lorsque la premiere place change reellement, jamais a chaque lecture,
+        // sinon `pinned_at` daterait la derniere consultation et ce GET serait
+        // un UPDATE par appel. C'est ce que verrouille
+        // LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(22);
+                .isEqualTo(23);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);

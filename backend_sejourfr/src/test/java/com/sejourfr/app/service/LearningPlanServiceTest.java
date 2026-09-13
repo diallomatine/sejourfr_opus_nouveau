@@ -9,6 +9,7 @@ import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.entity.PlanPinnedPriority;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
@@ -31,6 +32,7 @@ import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.manager.PlanPinnedPriorityManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
@@ -40,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,6 +107,15 @@ class LearningPlanServiceTest {
     private TcfDiagnosticSessionManager tcfDiagnosticManager;
     private User user;
     private LearningPlanService service;
+    /**
+     * L'epingle de la premiere place, EN MEMOIRE : une map, pas un mock muet.
+     *
+     * <p>La stickiness se joue entre <b>deux</b> lectures du Plan — c'est tout
+     * son objet — et un {@code find()} qui rendrait toujours vide la rendrait
+     * intestable ici. Ces tests ecrivent donc dans la meme map que celle qu'ils
+     * relisent, exactement comme la table.
+     */
+    private final Map<UUID, PlanPinnedPriority> epingles = new HashMap<>();
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
@@ -158,14 +170,37 @@ class LearningPlanServiceTest {
         // l'exige, jamais parce qu'une constante le dit.
         user.setTargetProcedure(TargetProcedure.NAT);
         when(userManager.findById(userId)).thenReturn(Optional.of(user));
+        LearningPlanPriorityResolver priorityResolver =
+                new LearningPlanPriorityResolver(observationManager, masteryResolver);
+        PlanCycleResolver cycleResolver = new PlanCycleResolver(
+                profileService, new ComprehensionLevelResolver(),
+                mock(ProgressionPlanBridge.class), masteryResolver, skillManager);
+        PlanDomainTargetLevelResolver targetLevelResolver =
+                new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class));
+        // L'EPINGLE de la premiere place tourne POUR DE VRAI, sur une map : la
+        // regle « une nouvelle observation ne deplace pas l'etape en cours » est
+        // exactement ce que ces tests doivent pouvoir casser.
+        epingles.clear();
+        PlanPinnedPriorityManager pinManager = mock(PlanPinnedPriorityManager.class);
+        when(pinManager.find(any())).thenAnswer(call ->
+                Optional.ofNullable(epingles.get(call.<UUID>getArgument(0))));
+        when(pinManager.save(any())).thenAnswer(call -> {
+            PlanPinnedPriority pin = call.getArgument(0);
+            epingles.put(pin.getUser().getId(), pin);
+            return pin;
+        });
+        when(pinManager.release(any())).thenAnswer(call ->
+                epingles.remove(call.<UUID>getArgument(0)) == null ? 0 : 1);
+        PlanFocusResolver focusResolver = new PlanFocusResolver(
+                observationManager, priorityResolver, sessionManager, userManager,
+                cycleResolver, acquisitionSelector, contentAvailability,
+                targetLevelResolver, pinManager);
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
-                new LearningPlanPriorityResolver(observationManager, masteryResolver),
+                priorityResolver,
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
                 masteryResolver, accessService,
-                new PlanCycleResolver(profileService, new ComprehensionLevelResolver(),
-                mock(ProgressionPlanBridge.class),
-                        masteryResolver, skillManager),
+                cycleResolver,
                 // « Completer mon profil » tourne POUR DE VRAI : il ne fait que
                 // lire les domaines que le cycle vient de resoudre, le doubler
                 // reviendrait a tester le mock.
@@ -175,7 +210,7 @@ class LearningPlanServiceTest {
                 // sont eux qui decident de l'ordre affiche, les doubler
                 // reviendrait a tester le mock.
                 new PlanActionRanker(PLAN_CONFIG), PLAN_CONFIG,
-                new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class)),
+                targetLevelResolver,
                 // Les competences par epreuve tournent POUR DE VRAI : elles ne
                 // font que ranger ce que le service vient de decider.
                 new PlanDomainSkillResolver(),
@@ -190,6 +225,7 @@ class LearningPlanServiceTest {
                 // doubler reviendrait a tester le mock.
                 new PlanSeanceBuilder(PLAN_CONFIG),
                 new PlanRecentChangesResolver(new SkillMasteryEngine(planProperties)),
+                focusResolver,
                 userManager);
     }
 

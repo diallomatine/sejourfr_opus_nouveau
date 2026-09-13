@@ -121,9 +121,22 @@ public class LearningPlanService {
     private final PlanFoundationResolver foundationResolver;
     private final PlanSeanceBuilder seanceBuilder;
     private final PlanRecentChangesResolver recentChangesResolver;
+    private final PlanFocusResolver focusResolver;
     private final UserManager userManager;
 
-    @Transactional(readOnly = true)
+    /**
+     * 🛑 <b>Cette lecture ECRIT une ligne</b>, et c'est voulu : la premiere place
+     * du Plan est <b>epinglee</b> ({@code plan_pinned_priorities}) pour qu'une
+     * production rendue ailleurs ne deplace pas l'etape en cours. La designation
+     * se prend forcement au moment ou le Plan est construit — c'est la seule
+     * surface qui sait quel pool existe — donc elle s'ecrit ici.
+     *
+     * <p>L'ecriture est <b>idempotente et rare</b> : {@code PlanFocusResolver}
+     * ne reecrit la ligne que lorsque la premiere place <b>change</b>
+     * reellement, jamais a chaque lecture — sinon {@code pinned_at} daterait la
+     * derniere consultation au lieu de la prise de la premiere place.
+     */
+    @Transactional
     public LearningPlanDto get(UUID userId) {
         User user = userManager.findById(userId).orElse(null);
         // 🛑 SUR QUOI LE PLAN SE CONSTRUIT — autorite unique, partagee avec
@@ -279,7 +292,58 @@ public class LearningPlanService {
         // d'acces ferait tourner le cycle de palier une seconde fois dans la
         // meme lecture — et rendrait le cout du Plan dependant du nombre de
         // fragilites du candidat, ce que ses deux tests de cout interdisent.
-        Optional<UUID> focusSkillId = PlanFocusResolver.focus(actionable, acquisitions);
+        // LE POOL EXECUTABLE, resolu AVANT la premiere place : c'est lui qu'on
+        // epingle. Epingler sur `actionable` brut reviendrait a designer une
+        // competence sans contenu publie — une premiere place que le Plan
+        // n'affiche pas, et un cadenas leve sur du vide.
+        //
+        // FILTRE DE FAISABILITE (§8) : une competence sans contenu publie ne
+        // porte aucune action. Il s'applique au POOL, pas a `actionable` qui
+        // vient d'etre passe au cycle — une fragilite reelle reste une
+        // fragilite meme si son catalogue est vide, et elle ne doit pas ouvrir
+        // le gate de palier par disparition.
+        Map<UUID, LearningPlanObservation> fragilitesParSkill = new LinkedHashMap<>();
+        actionable.forEach(item -> fragilitesParSkill.put(item.getSkill().getId(), item));
+        List<Skill> fragilites = actionable.stream()
+                .map(LearningPlanObservation::getSkill).toList();
+        // Le palier d'une fragilite est celui que porte la competence : en
+        // comprehension c'est lui qui dit dans quel stock la serie ciblee va
+        // tirer. Sans lui, TOUTE competence de comprehension serait jugee
+        // inexecutable — et le Plan perdrait des fragilites reelles.
+        Map<UUID, TargetLevel> palierDesFragilites = new LinkedHashMap<>();
+        fragilites.forEach(skill -> {
+            TargetLevel palier = PlanCycleResolver.palier(skill.getTargetLevel());
+            if (palier != null) palierDesFragilites.put(skill.getId(), palier);
+        });
+        List<Skill> fragilesExecutables =
+                disponibilite.filtrer(fragilites, palierDesFragilites);
+        Map<UUID, Skill> acquisitionsParSkill = new LinkedHashMap<>();
+        acquisitions.forEach(skill -> acquisitionsParSkill.put(skill.getId(), skill));
+
+        // 🛑 LA PREMIERE PLACE EST EPINGLEE, ET L'EPINGLE EST PERSISTEE
+        // (2026-09-13). Elle etait jusqu'ici recalculee a chaque lecture par
+        // `focus(actionable, acquisitions)`, donc par un tri dont le dernier
+        // critere est la RECENCE : une production rendue sur une AUTRE
+        // competence prenait la premiere place par sa seule fraicheur, et
+        // l'etape en cours disparaissait de l'ecran au milieu de son cycle.
+        // Cas reel : EE3 « Developper un argument » a 0/5, remplacee par EO1
+        // des la premiere production orale.
+        //
+        // L'etape epinglee est maintenue tant qu'elle est DANS CE POOL, et la
+        // condition de sortie n'est ecrite nulle part ailleurs qu'ici :
+        // `actionable` a deja retire les competences dont le transfert est
+        // prouve ou dont la VERIFICATION A ETE RENDUE. Une etape a 5/5 reste
+        // donc premiere bien que sa nature passe a A_VERIFIER — dont le poids
+        // (800) est inferieur a A_RENFORCER (1000) et la ferait sinon doubler
+        // par n'importe quelle fragilite fraiche.
+        //
+        // La FILE, elle, reste entierement derivee : le classement ci-dessous
+        // rend le pool ENTIER, une action par competence, sans doublon par
+        // construction et sans plafond. Une nouvelle faiblesse s'y range a son
+        // rang au lieu d'ecraser l'etape en cours.
+        List<Skill> pool = new ArrayList<>(fragilesExecutables);
+        pool.addAll(acquisitions);
+        Optional<UUID> focusSkillId = focusResolver.epingler(user, pool).map(Skill::getId);
         SkillAccessService.SkillAccess access = accessService.resolve(
                 userId, focusSkillId.orElse(null));
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
@@ -328,41 +392,17 @@ public class LearningPlanService {
         // LE POOL COMPLET : toutes les fragilites, toutes les acquisitions.
         // Rien n'est tronque ici — c'est exactement ce que le 2026-08-25 a
         // coute : un plafond d'affichage servait de budget de production.
-        //
-        // FILTRE DE FAISABILITE (§8) : une competence sans contenu publie ne
-        // porte aucune action. Il s'applique au POOL, pas a `actionable` qui
-        // vient d'etre passe au cycle — une fragilite reelle reste une
-        // fragilite meme si son catalogue est vide, et elle ne doit pas ouvrir
-        // le gate de palier par disparition.
-        Map<UUID, LearningPlanObservation> fragilitesParSkill = new LinkedHashMap<>();
-        actionable.forEach(item -> fragilitesParSkill.put(item.getSkill().getId(), item));
-        List<Skill> fragilites = actionable.stream()
-                .map(LearningPlanObservation::getSkill).toList();
-        // Le palier d'une fragilite est celui que porte la competence : en
-        // comprehension c'est lui qui dit dans quel stock la serie ciblee va
-        // tirer. Sans lui, TOUTE competence de comprehension serait jugee
-        // inexecutable — et le Plan perdrait des fragilites reelles.
-        Map<UUID, TargetLevel> palierDesFragilites = new LinkedHashMap<>();
-        fragilites.forEach(skill -> {
-            TargetLevel palier = PlanCycleResolver.palier(skill.getTargetLevel());
-            if (palier != null) palierDesFragilites.put(skill.getId(), palier);
-        });
-        List<Skill> fragilesExecutables =
-                disponibilite.filtrer(fragilites, palierDesFragilites);
-        Map<UUID, Skill> acquisitionsParSkill = new LinkedHashMap<>();
-        acquisitions.forEach(skill -> acquisitionsParSkill.put(skill.getId(), skill));
-
-        List<PlanActionRanker.Action> pool = new ArrayList<>();
+        List<PlanActionRanker.Action> actions = new ArrayList<>();
         for (Skill skill : fragilesExecutables) {
             LearningPlanObservation item = fragilitesParSkill.get(skill.getId());
-            pool.add(new PlanActionRanker.Action(
+            actions.add(new PlanActionRanker.Action(
                     skill.getId(), skill.getCode(), skill.getSection(),
                     Boolean.TRUE.equals(readyToVerify.get(skill.getId()))
                             ? PlanActionNature.A_VERIFIER : PlanActionNature.A_RENFORCER,
                     item.getConfidence(), item.getObservedAt()));
         }
         for (Skill skill : acquisitions) {
-            pool.add(new PlanActionRanker.Action(
+            actions.add(new PlanActionRanker.Action(
                     skill.getId(), skill.getCode(), skill.getSection(),
                     PlanActionNature.A_ACQUERIR, null, null));
         }
@@ -374,7 +414,7 @@ public class LearningPlanService {
         // La premiere place est epinglee : c'est celle que le freemium ouvre, et
         // un classement qui la deplacerait cadenasserait l'etape n°1.
         List<PlanActionRanker.Action> composed = actionRanker.classer(
-                pool, domainesParSection, profil.cycle().objectiveLevel(),
+                actions, domainesParSection, profil.cycle().objectiveLevel(),
                 focusSkillId.orElse(null));
 
         // L'AFFICHAGE coupe, et lui seul. Les exercices ne sont resolus que pour
@@ -501,9 +541,15 @@ public class LearningPlanService {
         // charge — aucune requete, aucune regle recopiee. La priorite n°1 lui est
         // passee telle que le resolveur l'a designee : ce bloc ne peut donc pas
         // nommer une autre etape que celle affichee juste au-dessus.
+        //
+        // 🛑 Il recoit la priorite EPINGLEE, plus `actionable.getFirst()`. Les
+        // deux ont diverge le jour ou la premiere place a cesse d'etre
+        // recalculee : ce bloc aurait annonce « nouvelle priorite : EO1 »
+        // pendant que la carte, juste au-dessus, montrait toujours EE3.
         PlanRecentChangesDto changes = recentChangesResolver.resolve(
                 allObservations, mastery,
-                actionable.isEmpty() ? null : actionable.getFirst(), Instant.now())
+                PlanFocusResolver.observationDe(actionable, focusSkillId.orElse(null)),
+                Instant.now())
                 .orElse(null);
         // LES COMPETENCES DE CHAQUE EPREUVE : la meme verite que les cartes
         // ci-dessus, rangee par domaine. La NATURE vient des cartes elles-memes
@@ -565,9 +611,12 @@ public class LearningPlanService {
                         .thenComparing(item -> item.getSkill().getCode()))
                 .orElse(null);
 
-        LearningPlanObservation top = priorityResolver.actionable(all).stream()
-                .findFirst()
-                .orElse(null);
+        // LA MEME PREMIERE PLACE QUE LE PLAN, epingle comprise : ce retour
+        // s'affiche juste avant que le candidat n'ouvre son Plan, et annoncer
+        // une etape qu'il n'y verrait pas serait pire que de ne rien annoncer.
+        // Lecture seule — ce n'est pas ici qu'une premiere place se designe.
+        LearningPlanObservation top = focusResolver.premierePlace(
+                userId, priorityResolver.actionable(all));
         boolean nouvelle = top != null
                 && submissionId.equals(top.getSourceId())
                 && (confirmed == null

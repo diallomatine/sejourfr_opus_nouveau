@@ -1266,6 +1266,25 @@ export function planPriorityGroups(
  *  le groupe garde toutes ses lignes, et le « + N autres » se calcule dessus. */
 export const PLAN_PRIORITY_ROWS_VISIBLE = 6;
 
+/** **Ce qu'un encart RÉTRACTÉ laisse voir** (2026-09-13, demande du
+ *  propriétaire : « les priorités s'il y en a plus d'une, fais-les comme des
+ *  encarts rétractables ; on affiche juste 2 points et le reste à l'ouverture »).
+ *
+ *  Empilés dépliés, trois encarts de huit compétences font un écran qu'on ne
+ *  finit pas de faire défiler — et la priorité n°2 n'existe plus. Deux lignes
+ *  suffisent à dire de quoi parle l'encart ; le reste est à un clic.
+ *
+ *  🛑 **Plafond d'AFFICHAGE, jamais un filtre** : le compteur du bouton porte
+ *  sur ce qui est réellement replié, et l'ouverture rend **toutes** les lignes
+ *  — pas les six de {@link PLAN_PRIORITY_ROWS_VISIBLE}. */
+export const PLAN_PRIORITY_ROWS_COLLAPSED = 2;
+
+/** « Réduire » — referme un encart de priorité rétractable. Il ne compte rien,
+ *  contrairement à {@link planGroupMoreLabel} : le nombre a déjà été lu à
+ *  l'ouverture, et le répéter ferait croire qu'il reste quelque chose de
+ *  caché. */
+export const PLAN_GROUP_LESS_LABEL = "Réduire";
+
 /** « + 3 autres compétences ». 🛑 Le nombre est **vrai**, calculé sur le
  *  contenu réel du groupe ; `0` ⇒ l'appelant n'affiche rien du tout. */
 export function planGroupMoreLabel(count: number): string {

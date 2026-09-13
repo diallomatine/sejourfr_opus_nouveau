@@ -36,6 +36,10 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   achèvements : un `*Resolver` calcule à la lecture. Recalibrer un poids relit alors tout
   l'historique au prochain appel, **sans migration ni job**. Patrons de référence :
   `SkillStatusResolver`, `SituationDansNiveau`, `SkillMasteryResolver`, `PlanCycleResolver`.
+  ⚠️ **Une seule exception, et elle est assumée** : la **première place du Plan**
+  (`plan_pinned_priorities`, V065) est *persistée*, parce qu'une **désignation prise à un
+  instant** ne se dérive de rien — l'étape en cours pouvait être à 0/5. La **file** des
+  priorités suivantes, elle, reste entièrement dérivée. → `docs/regles/plan.md`
 - **Une règle = une autorité, et on l'appelle.** Jamais une copie. À la 2ᵉ occurrence, on
   **extrait** dans `util/` ou un resolver dédié (`TexteNormalise`, `CoutAppelLlm`,
   `FenetreMesure`, `ProductionValidityService`, `EvaluationProductionSegments`). Le défaut le

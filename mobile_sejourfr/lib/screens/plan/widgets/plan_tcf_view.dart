@@ -446,6 +446,11 @@ class PlanTcfView extends ConsumerWidget {
     if (groups.isEmpty) return const <Widget>[];
     final shown = groups.take(3).toList(growable: false);
     final done = _completedIds();
+    // 🛑 RÉTRACTABLES DÈS QU'IL Y EN A PLUS D'UN (2026-09-13, demande du
+    // propriétaire). Une priorité seule n'a aucune raison de se replier : elle
+    // EST l'écran. À partir de deux, trois encarts de huit compétences empilés
+    // dépliés poussent la priorité n°2 hors de vue.
+    final repliables = shown.length > 1;
     return <Widget>[
       SfSection(
         // Un compte sans accès ne lit pas encore un objectif chiffré : son
@@ -454,7 +459,8 @@ class PlanTcfView extends ConsumerWidget {
         child: SfStack(
           children: [
             for (var i = 0; i < shown.length; i++)
-              _priorityCard(shown[i], i + 1, done, free: free),
+              _priorityCard(shown[i], i + 1, done,
+                  free: free, repliable: repliables),
           ],
         ),
       ),
@@ -466,9 +472,14 @@ class PlanTcfView extends ConsumerWidget {
     int rank,
     Set<String> done, {
     required bool free,
+    bool repliable = false,
   }) {
     final dto = group.task == null ? null : _taskDto(group.task!);
     final statuses = planStatusSummary(group.rows.map((row) => row.status));
+    // Un compte sans accès ne voit aucune ligne : il n'y a donc rien à replier,
+    // et le bouton n'apparaît pas.
+    final replie = repliable && !free && group.foldedCount > 0;
+    final visibles = replie ? group.collapsedRows : group.visibleRows;
     return SfPrio(
       rank: rank,
       tag: planPriorityRankTag(rank),
@@ -480,6 +491,19 @@ class PlanTcfView extends ConsumerWidget {
       text: dto != null
           ? planTaskObservedLabel(dto)
           : (statuses.isEmpty ? null : statuses),
+      // 🛑 Le compteur du bouton porte sur ce qui est RÉELLEMENT replié —
+      // jamais une constante, jamais le `hiddenCount` d'un autre plafond.
+      moreLabel: replie ? planGroupMoreLabel(group.foldedCount) : null,
+      lessLabel: replie ? kPlanGroupLessLabel : null,
+      details: replie
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final row in group.foldedRows)
+                  SfSkillRow(label: row.title, state: _rowState(row, done)),
+              ],
+            )
+          : null,
       child: free
           ? null
           : Column(
@@ -490,9 +514,11 @@ class PlanTcfView extends ConsumerWidget {
                     ratio: dto.observedSkills / dto.totalSkills,
                     semanticsLabel: planTaskObservedLabel(dto),
                   ),
-                for (final row in group.visibleRows)
+                for (final row in visibles)
                   SfSkillRow(label: row.title, state: _rowState(row, done)),
-                if (group.hiddenCount > 0) ...[
+                // Encart rétractable : le reste est derrière le bouton, pas
+                // derrière une ligne de texte inerte.
+                if (!replie && group.hiddenCount > 0) ...[
                   const SizedBox(height: 6),
                   SfTiny(planGroupMoreLabel(group.hiddenCount)),
                 ],
