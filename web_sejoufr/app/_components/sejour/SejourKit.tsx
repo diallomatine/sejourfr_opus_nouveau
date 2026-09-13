@@ -16,9 +16,11 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BadgeCheck,
   Check,
   ChevronLeft,
   Circle,
+  CircleDot,
   Minus,
   AlertCircle,
   type LucideIcon,
@@ -45,8 +47,26 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
  */
 export type Tone = "ok" | "warn" | "hot" | "muted";
 
-/** État d'une étape de parcours ou d'une compétence. */
-export type StepState = "done" | "now" | "todo";
+/**
+ * État d'une étape de parcours ou d'une compétence.
+ *
+ * 🛑 **`verify` n'est pas `done`.** Une série de petits sujets terminée n'est
+ * pas une compétence acquise — c'est une preuve qui reste à faire, et elle se
+ * lit au premier coup d'œil (accent ambre, icône de validation) plutôt que
+ * comme une coche de plus. `doing` est la série commencée, distincte de `now`
+ * qui repère la compétence que le Plan travaille **maintenant**.
+ *
+ * ⚠️ Miroir de `SfStepState` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type StepState = "done" | "verify" | "doing" | "now" | "todo";
+
+const STEP_ICON: Record<StepState, LucideIcon> = {
+  done: Check,
+  verify: BadgeCheck,
+  doing: CircleDot,
+  now: ArrowRight,
+  todo: Circle,
+};
 
 const toneClass: Record<Tone, string> = {
   ok: styles.ok,
@@ -695,7 +715,7 @@ export function ProgressMini({ ratio, label }: { ratio: number; label?: string }
 
 /** Sous-ligne d'une priorité : une compétence et son état. */
 export function SkillRow({ label, state }: { label: string; state: StepState }) {
-  const Icon = state === "done" ? Check : state === "now" ? ArrowRight : Circle;
+  const Icon = STEP_ICON[state];
   return (
     <div
       className={cx(
@@ -718,7 +738,12 @@ export function SkillList({ children }: { children: ReactNode }) {
 
 /* ---------------------------------------------------------------- Parcours */
 
-export type PathStep = { label: string; state: StepState };
+/**
+ * Une étape de parcours. `pill` est **servi** par l'appelant (le libellé de
+ * l'état d'étape, « Série terminée · 5/5 »…) : le kit ne compose aucune phrase
+ * et n'en déduit aucune d'un compteur.
+ */
+export type PathStep = { label: string; state: StepState; pill?: string };
 
 /**
  * Parcours d'une tâche / d'une notion : la barre segmentée, le compteur
@@ -747,32 +772,46 @@ export function PathCard({
         {steps.map((s, i) => (
           <i
             key={`${s.label}-${i}`}
-            className={cx(s.state === "done" && styles.on, s.state === "now" && styles.nowSeg)}
+            className={cx(
+              s.state === "done" && styles.on,
+              s.state === "verify" && styles.verifySeg,
+              (s.state === "now" || s.state === "doing") && styles.nowSeg,
+            )}
           />
         ))}
       </div>
       {steps.map((s, i) => (
-        <PathRow key={`${s.label}-${i}`} label={s.label} state={s.state} />
+        <PathRow key={`${s.label}-${i}`} label={s.label} state={s.state} pill={s.pill} />
       ))}
     </Card>
   );
 }
 
-export function PathRow({ label, state }: { label: string; state: StepState }) {
-  const Icon = state === "done" ? Check : state === "now" ? ArrowRight : Circle;
+/**
+ * Une ligne de parcours. 🛑 **Le libellé de la pastille vient de l'appelant**,
+ * jamais d'ici : il porte un état **servi**, pas une phrase du kit. Sans `pill`
+ * la ligne n'en affiche aucune.
+ */
+export function PathRow({ label, state, pill }: {
+  label: string;
+  state: StepState;
+  pill?: string;
+}) {
+  const Icon = STEP_ICON[state];
   return (
     <div
       className={cx(
         styles.step,
         state === "done" && styles.isDone,
-        state === "now" && styles.isNext,
+        state === "verify" && styles.isVerify,
+        (state === "now" || state === "doing") && styles.isNext,
       )}
     >
       <span className={styles.bullet}>
         <Icon size={16} strokeWidth={2} aria-hidden />
       </span>
       {state === "todo" ? <span>{label}</span> : <b>{label}</b>}
-      {state === "now" ? <span className={styles.nowPill}>Maintenant</span> : null}
+      {pill ? <span className={styles.nowPill}>{pill}</span> : null}
     </div>
   );
 }
@@ -819,6 +858,7 @@ export function NowCard({
   meta,
   children,
   caption,
+  variant = "default",
 }: {
   icon: LucideIcon;
   title: string;
@@ -829,9 +869,16 @@ export function NowCard({
   meta?: Array<{ icon: LucideIcon; label: string }>;
   children?: ReactNode;
   caption?: string;
+  /**
+   * 🛑 `"verify"` change **la carte**, pas seulement son bouton. Quand la série
+   * de petits sujets se termine, le nom de la compétence reste le même : sans
+   * accent propre, le candidat lit « rien n'a bougé » alors que l'action a
+   * changé de nature. Miroir de `SfNowCardVariant` côté mobile.
+   */
+  variant?: "default" | "verify";
 }) {
   return (
-    <article className={styles.now}>
+    <article className={cx(styles.now, variant === "verify" && styles.isVerify)}>
       <div className={styles.nowHead}>
         <div className={styles.nowIco}>
           <Icon size={24} strokeWidth={2} aria-hidden />

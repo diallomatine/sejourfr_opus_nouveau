@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState, type ReactNode} from "react";
 import {
   BookOpen,
   Check,
   ChevronRight,
+  BadgeCheck,
   Circle,
   Clock3,
   FilePenLine,
@@ -22,44 +23,33 @@ import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
 import {
-  findDomain,
   isComprehension,
-  masteryStateLabel,
-  PLAN_COMPLETE_PROFILE_NOTE,
-  PLAN_COMPLETE_PROFILE_TEXT,
-  PLAN_COMPLETE_PROFILE_TITLE,
   PLAN_PRIORITY_ROWS_VISIBLE,
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
-  PLAN_REASON_A_ACQUERIR,
-  PLAN_REASON_A_VERIFIER,
-  PLAN_SEANCE_RESTART,
-  PLAN_SEANCE_START,
+  PLAN_NOW_VERIFY_TEXT,
+  PLAN_NOW_VERIFY_TITLE,
   PLAN_SKILLS_HREF,
   PLAN_SKILLS_TITLE,
   PLAN_STARTING,
   planActivePriorities,
-  planAssessmentCta,
-  planAssessmentMeta,
-  planDomainLabel,
+  planExerciseKindLabel,
   planItemMinutes,
+  planNowCta,
+  planNowLines,
   planPathStepNote,
   planPathStepTitle,
   planPathTitle,
   planPriorityGroups,
   parcoursDeLaTache,
   type PlanTachePath,
-  planRowStatus,
   planRowStatusSummary,
   planSeanceItemDone,
   planSeanceItemLocked,
-  planSectionEpreuve,
   planSkillLevel,
   planTaskBadge,
-  planTaskLabel,
   planTransitionLine,
-  skillTaskCode,
   type PlanPriorityGroup,
 } from "@/lib/plan-domain";
 import {
@@ -70,13 +60,11 @@ import {
 } from "@/lib/preparation";
 import {
   canAccessModule,
-  PLAN_ACTION_NATURE_LABEL,
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
-  type LearningPlanPriorityDto,
   type ModulePreparation,
   type PlanCycleDto,
-  type PlanDomainAssessmentDto,
+  type PlanSeanceAssessmentItemDto,
   type SkillSection,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
@@ -85,7 +73,6 @@ import {
   Card,
   Cta,
   DoneRow,
-  ExamRow,
   GoalStrip,
   LockItem,
   LockList,
@@ -102,7 +89,6 @@ import {
   Top,
   sejourStyles,
   type PathStep,
-  type StepState,
 } from "@/app/_components/sejour/SejourKit";
 import {PlanBlur} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
@@ -238,17 +224,24 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   }
 
   /* 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage du
-     2026-09-12). La carte se pose donc APRÈS le contenu du Plan — après le
-     paywall d'un compte gratuit, dont le CTA « Débloquer mon plan » reste le
-     seul bouton plein de la page. Elle disparaît d'elle-même à 4 / 4 : c'est
-     `affinerPlan` qui rend `null`, sur des faits servis. */
+     2026-09-12, tenu). Ce qui change le 2026-09-13 : il devient le SEUL appel
+     à compléter son profil — « Compléter mon profil » et ses cartes d'épreuve
+     ont été supprimés, et leur emplacement revient à cette carte.
+
+     🛑 **Une seule occurrence du CTA par écran.** La carte descend donc DANS
+     la vue (l'emplacement de l'ancien bloc chez l'abonné, après le paywall
+     chez un compte gratuit) au lieu d'être posée une seconde fois ici. Elle
+     disparaît d'elle-même à 4 / 4 : c'est `affinerPlan` qui rend `null`, sur
+     des faits servis. */
   const abonne = canAccessModule(user, "TCF");
   const affiner = prep ? affinerPlan(prep, {surface: "plan", abonne}) : null;
+  const affinerCard = affiner ? <AffinerPlanCard info={affiner} /> : null;
 
   return (
     <>
-      {abonne ? <TcfPlanPremium plan={plan} /> : <TcfPlanFree plan={plan} />}
-      {affiner && <AffinerPlanCard info={affiner} />}
+      {abonne
+        ? <TcfPlanPremium plan={plan} affiner={affinerCard} />
+        : <TcfPlanFree plan={plan} affiner={affinerCard} />}
       {prep?.estimationSessionId && <RevoirEstimation />}
     </>
   );
@@ -308,7 +301,7 @@ function PlanMessage({title, text, cta, href, alert}: {
 
 /* ----------------------------------------------------------------- abonné */
 
-function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
+function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactNode}) {
   const objective = plan.cycle.objectiveLevel;
   const groups = usePriorityGroups(plan);
   const tachePath = useMemo(
@@ -392,11 +385,13 @@ function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
       </div>
 
       {/* ⚠️ Blocs conservés hors maquette : ils portent une information qu'elle
-          ne couvre pas — un examen blanc mérité, un domaine jamais mesuré, et
-          le chemin des paliers quand ce n'est pas lui qui sert de parcours. */}
+          ne couvre pas — un examen blanc mérité et le chemin des paliers quand
+          ce n'est pas lui qui sert de parcours. */}
       {plan.milestone && <PlanMilestoneCard milestone={plan.milestone} />}
 
-      <CompleterMonProfil plan={plan} />
+      {/* 🛑 L'emplacement de l'ancien « Compléter mon profil » : c'est ici que
+          se complète un profil, et il n'y a plus qu'une façon de le faire. */}
+      {affiner}
 
       {tachePath && palierPath && <PalierPath path={palierPath} />}
 
@@ -412,7 +407,7 @@ function TcfPlanPremium({plan}: {plan: LearningPlanDto}) {
 
 /* ---------------------------------------------------------------- gratuit */
 
-function TcfPlanFree({plan}: {plan: LearningPlanDto}) {
+function TcfPlanFree({plan, affiner}: {plan: LearningPlanDto; affiner: ReactNode}) {
   const objective = plan.cycle.objectiveLevel;
   const groups = usePriorityGroups(plan);
   const tachePath = useMemo(
@@ -470,6 +465,11 @@ function TcfPlanFree({plan}: {plan: LearningPlanDto}) {
         benefits={PLAN_PREMIUM_BENEFITS}
         cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
       />
+
+      {/* 🛑 APRÈS le paywall, et c'est délibéré : sur un Plan gratuit, le seul
+          bouton ROUGE de la page reste « Débloquer mon plan ». Le diagnostic
+          complet, lui, porte le bleu plein — visible, jamais concurrent. */}
+      {affiner}
     </>
   );
 }
@@ -514,90 +514,108 @@ function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
  * gratuit, et c'est pour ça qu'un vrai CTA s'y affiche.
  */
 function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean}) {
-  const {start, startItem, starting, error, paywallOpen, closePaywall} = usePlanExercise();
+  const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
   const priority = plan.currentPriority;
 
-  const items = plan.seance.items;
-  const pending = items.filter((item) => !planSeanceItemDone(item));
-  const next = pending[0] ?? items[0] ?? null;
-  const resumed = next !== null && pending.length > 0 && pending.length !== items.length;
-  const replay = next !== null && pending.length === 0;
+  /* 🛑 **Une MESURE passe devant tout le reste.** C'est le seul cas où le
+     bouton ne lance pas l'étape : le candidat a produit sur un domaine et le
+     correcteur n'a rien pu y observer — tout ce qui suivrait travaillerait à
+     l'aveugle. Hors ce cas, le bouton ouvre l'exercice de la priorité, comme
+     sur mobile. */
+  const mesure = plan.seance.items.find(
+    (item): item is PlanSeanceAssessmentItemDto =>
+      !planSeanceItemDone(item) && item.exercise === null,
+  ) ?? null;
 
   if (!priority) return null;
 
   const exercise = priority.recommendedExercise;
-  const actionLocked = next
-    ? planSeanceItemLocked(next)
+  const actionLocked = mesure
+    ? planSeanceItemLocked(mesure)
     : (priority.locked || exercise?.locked === true);
-  const minutes = next ? planItemMinutes(next) : exercise?.estimatedMinutes ?? null;
+  const minutes = mesure ? planItemMinutes(mesure) : exercise?.estimatedMinutes ?? null;
   const level = planSkillLevel(plan, priority.skillId);
   const repere = isComprehension(priority.section)
     ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
-    : planTaskLabel(priority.skillCode) ?? priority.skillCode;
+    : planTaskBadge(skillTaskNumber(priority.skillCode) ?? 1);
 
-  const cta = replay
-    ? PLAN_SEANCE_RESTART
-    : next
-      ? `${resumed ? "Reprendre" : PLAN_SEANCE_START}${minutes === null ? "" : ` · ${minutes} min`}`
-      : exercise
-        ? `${priority.nature === "A_ACQUERIR" ? "Découvrir" : "Commencer"}${minutes === null ? "" : ` · ${minutes} min`}`
-        : "Ouvrir l'épreuve";
+  /* 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
+     compétence ne change pas quand la série se termine : si seuls le bouton et
+     son libellé changeaient, le candidat lirait « rien n'a bougé » alors que
+     l'action a changé de nature. Elle se lit sur la nature **servie**, jamais
+     sur un compteur. */
+  const verifier = priority.nature === "A_VERIFIER" && exercise?.kind === "REASSESSMENT";
+  const tache = skillTaskNumber(priority.skillCode);
 
   const busy = starting || assessments.starting !== null;
   const startNext = () => {
-    if (!next) {
-      if (exercise) void start(exercise);
+    if (mesure) {
+      void assessments.start(mesure.assessment);
       return;
     }
-    if (next.exercise === null) {
-      void assessments.start(next.assessment);
-      return;
-    }
-    void startItem(next);
+    if (exercise) void start(exercise);
   };
 
   const meta: Array<{icon: LucideIcon; label: string}> = [];
   if (minutes !== null) {
     meta.push({
       icon: Clock3,
-      label: priority.stepPromptCount > 0
-        ? `${priority.stepPromptCount} sujets · ≈ ${minutes} min`
+      /* « chacun » : les minutes sont celles d'UN sujet, pas de la série
+         entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour
+         les cinq. */
+      label: !verifier && priority.stepPromptCount > 0
+        ? `${priority.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
         : `≈ ${minutes} min`,
     });
   }
-  meta.push({icon: Target, label: PLAN_ACTION_NATURE_LABEL[priority.nature]});
+  if (exercise) {
+    meta.push({
+      icon: Target,
+      label: planExerciseKindLabel(
+        exercise.kind,
+        exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
+      ),
+    });
+  }
+
+  const lines = planNowLines(priority);
 
   /* 🛑 **Un compte SANS accès ne voit pas la carte d'un abonné** (correctif du
      2026-09-12, sur la maquette du propriétaire `~/Desktop/capture_plan_gratuit.png`).
      « Votre première étape est prête » nomme l'étape et montre les **trois
-     bénéfices verrouillés** — c'est sa raison d'être. Elle héritait de tout ce
-     qu'une carte d'abonné porte (pastille « Priorité n°1 », encart « Compétence
-     actuelle », méta « 5 sujets · ≈ 4 min », explication du correcteur), et les
-     trois cadenas ne s'affichaient **que** sur un verrou servi — donc presque
-     jamais, le serveur ouvrant la priorité n°1 au gratuit.
+     bénéfices verrouillés** — c'est sa raison d'être.
 
      🛑 **AUCUN geste ne part d'ici** (arbitrage du propriétaire, 2026-09-12 :
      « dans le plan, on ne travaille rien si on n'est pas abonné ; on passe par
-     Réviser pour voir ce qu'on peut utiliser gratuitement »). Cela **révoque**,
-     pour cette carte, « l'app lit `locked`, toujours » : le Plan d'un compte
-     sans accès est un **constat**, pas un point de départ.
-     🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un
-     chemin. Ce que le serveur ouvre gratuitement reste accessible par
-     l'entraînement, et c'est lui qui reste l'arbitre (403). */
+     Réviser pour voir ce qu'on peut utiliser gratuitement »). */
   return (
     <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
       <Pad>
         <NowCard
-          icon={SECTION_ICON[priority.section]}
-          title={free ? repere : productionSectionLabel(priority.section)}
-          subtitle={free ? priority.title : `${repere} · ${priority.title}`}
+          icon={verifier ? BadgeCheck : SECTION_ICON[priority.section]}
+          variant={verifier && !free ? "verify" : "default"}
+          /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit
+             en titre avant 5/5 et en sous-titre sur la vérification, dont le
+             titre nomme l'ACTION — jamais aux deux endroits à la fois, et
+             jamais une troisième fois dans l'encart bleu. */
+          title={verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title}
+          subtitle={
+            free
+              ? priority.title
+              : verifier
+                ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
+                : `${productionSectionLabel(priority.section)} · ${repere}`
+          }
           badge={free ? undefined : "Priorité n°1"}
-          objectiveLabel={free ? undefined : "Compétence actuelle"}
-          objective={free ? undefined : priority.title}
+          objectiveLabel={verifier && !free ? "Vérification en situation" : undefined}
+          objective={verifier && !free ? PLAN_NOW_VERIFY_TEXT : undefined}
           meta={free ? [] : meta}
         >
-          {!free && priorityLines(priority).map((line) => (
+          {/* Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en
+              est la série. Concaténées, la seconde se lisait comme la suite de
+              la première phrase. */}
+          {!free && lines.map((line: string) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
           {(free || actionLocked) && (
@@ -609,7 +627,7 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
           )}
           {!free && !actionLocked && (
             <Cta onClick={startNext} disabled={busy}>
-              {busy ? PLAN_STARTING : cta}
+              {busy ? PLAN_STARTING : planNowCta(priority, verifier, mesure !== null)}
             </Cta>
           )}
         </NowCard>
@@ -631,38 +649,6 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
       />
     </Section>
   );
-}
-
-/**
- * Pourquoi cette compétence est en tête — **des faits servis**, pas un
- * jugement. 🛑 La nature passe avant les compteurs : « 0 sujet sur 5 » se
- * lirait comme un retard alors qu'il n'y avait rien à traiter.
- *
- * ⚠️ Miroir mot pour mot du mobile (`planPriorityLines`, `plan_labels.dart`).
- */
-function priorityLines(priority: LearningPlanPriorityDto): string[] {
-  const lines: string[] = [];
-  if (priority.nature === "A_ACQUERIR") {
-    lines.push(PLAN_REASON_A_ACQUERIR);
-  } else if (priority.explanation) {
-    lines.push(priority.explanation);
-  } else if (priority.readyForReassessment) {
-    lines.push(PLAN_REASON_A_VERIFIER);
-  }
-
-  const state = masteryStateLabel(priority.masteryState);
-  if (priority.stepPromptCount > 0) {
-    const s = priority.stepAttemptedCount > 1 ? "s" : "";
-    const done = `${priority.stepAttemptedCount} sujet${s} sur ${priority.stepPromptCount} traité${s} dans cette étape`;
-    lines.push(state ? `${state} · ${done}.` : `${done}.`);
-  } else if (lines.length === 0 || state) {
-    lines.push(
-      state
-        ? `${state} · c'est cette compétence qui fait le plus avancer votre palier.`
-        : "C'est cette compétence qui fait le plus avancer votre palier.",
-    );
-  }
-  return lines;
 }
 
 /* -------------------------------------------------------- vos priorités */
@@ -740,7 +726,9 @@ function lignesVerrouillees(path: PlanTachePath) {
   return path.skills.map((skill) => ({
     key: skill.skillId,
     label: skill.title,
-    icon: skill.locked ? Lock : planRowStatus(skill) === "SOLIDE" ? Check : Circle,
+    /* 🛑 La coche suit l'état d'étape **servi** — jamais un statut reclassé
+       ici : seul `ACQUIS` (donc `SOLID`) en mérite une. */
+    icon: skill.locked ? Lock : skill.stepState === "ACQUIS" ? Check : Circle,
     blurred: skill.locked,
   }));
 }
@@ -833,68 +821,6 @@ function ProgressionDetectee({plan}: {plan: LearningPlanDto}) {
         </Link>
       </Card>
     </Section>
-  );
-}
-
-/* -------------------------------------------------- compléter mon profil */
-
-/** **Vide = profil complet**, l'état visé et non une anomalie : la section
- *  disparaît, sans message de félicitations. */
-function CompleterMonProfil({plan}: {plan: LearningPlanDto}) {
-  const {start, starting, error, paywallOpen, closePaywall} = usePlanAssessment();
-  if (plan.domainesAEvaluer.length === 0) return null;
-  return (
-    <Section title={PLAN_COMPLETE_PROFILE_TITLE}>
-      <Pad>
-        <Stack>
-          <p className={sejourStyles.tiny}>{PLAN_COMPLETE_PROFILE_TEXT}</p>
-          {/* Les cartes d'épreuve passent en deux colonnes au palier desktop —
-              le pendant de `sf-exam-grid` de la maquette. Les deux phrases, qui
-              se lisent en pleine largeur, restent hors de la grille. */}
-          <Stack className={sejourStyles.deskGrid2}>
-            {plan.domainesAEvaluer.map((assessment) => (
-              <AssessmentCard
-                key={`${assessment.epreuve}-${assessment.kind}`}
-                assessment={assessment}
-                busy={starting === assessment.epreuve}
-                onStart={() => void start(assessment)}
-              />
-            ))}
-          </Stack>
-          <p className={sejourStyles.tiny}>{PLAN_COMPLETE_PROFILE_NOTE}</p>
-          {error && <p className={sejourStyles.tiny} role="alert">{error}</p>}
-        </Stack>
-      </Pad>
-      <PaywallSheet origin="plan"
-        ctaLocation="LOCKED_PLAN"
-        screen="plan"
-        module="INTEGRAL"
-        open={paywallOpen}
-        onClose={closePaywall}
-      />
-    </Section>
-  );
-}
-
-function AssessmentCard({assessment, busy, onStart}: {
-  assessment: PlanDomainAssessmentDto;
-  busy: boolean;
-  onStart: () => void;
-}) {
-  const section: SkillSection = assessment.epreuve === "TCF_CO" ? "CO"
-    : assessment.epreuve === "TCF_CE" ? "CE"
-      : assessment.epreuve === "TCF_EO" ? "EO" : "EE";
-  return (
-    <Card padding="rows">
-      <ExamRow
-        icon={SECTION_ICON[section]}
-        title={planDomainLabel(assessment.epreuve)}
-        subtitle={planAssessmentMeta(assessment)}
-      />
-      <Cta variant="line" onClick={onStart} disabled={busy}>
-        {busy ? PLAN_STARTING : planAssessmentCta(assessment)}
-      </Cta>
-    </Card>
   );
 }
 

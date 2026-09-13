@@ -77,9 +77,10 @@ public class TcfDiagnosticSectionStarter {
         sub.setTcfDiagnostic(session);
         sub.setModuleExamQuestionType(type);
         sub.setTotalQuestions(tirees.size());
-        // La duree est celle de l'epreuve reelle ramenee au format reduit : le
-        // diagnostic pose 15 items la ou l'epreuve en compte 25, il serait
-        // malhonnete d'en garder le chrono entier.
+        // La duree est celle de l'epreuve reelle, au prorata des items poses.
+        // Depuis le 2026-09-13 le diagnostic en pose 24 la ou l'epreuve en
+        // compte 25 : le chrono est donc quasiment celui de l'examen blanc.
+        // La regle n'a pas change — c'est le reglage qui a bouge.
         sub.setTimeLimitSeconds(dureeReduite(type, tirees.size()));
         sub.setStartedAt(Instant.now());
         sub = attemptManager.save(sub);

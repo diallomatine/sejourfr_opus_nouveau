@@ -1354,3 +1354,18 @@
   .unusable { padding: 15px; border-radius: 18px; }
   .unusableTitle { font-size: 18px; }
 }
+
+/* Note « cette tâche n'est pas en conditions d'examen » — posée au-dessus de
+   l'enregistreur quand le serveur sert `conditionsReelles: false`.
+   🛑 Bleu, jamais ambre ni rouge : ce n'est ni un avertissement ni une
+   restriction, c'est une permission. */
+.horsConditions {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--color-blue-light);
+  color: var(--color-ink-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}

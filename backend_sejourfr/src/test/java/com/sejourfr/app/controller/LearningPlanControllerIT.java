@@ -91,8 +91,21 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.observedSkills[0].validatedCount").value(1));
     }
 
+    /**
+     * 🛑 <b>Tous les sujets de l'etape traites : le Plan ne les ressert PAS.</b>
+     * La serie ciblee est terminee, l'action change de nature — c'est la sortie
+     * de boucle arbitree le 2026-09-13.
+     *
+     * <p>⚠️ Ce test <b>gelait le comportement inverse</b> : il exigeait que le
+     * Plan redesigne « le sujet a renforcer le plus ancien », c'est-a-dire l'un
+     * des sujets deja traites. La regle des quatre preferences de
+     * {@code RecommendedExerciseSelector} n'a pas bouge d'une ligne et reste
+     * verrouillee chez elle ({@code RecommendedExerciseSelectorTest}) ; ce qui
+     * change, c'est que le Plan ne la consulte plus une fois l'etape finie.
+     */
     @Test
-    void tousLesSujetsTraitesLePlanProposeCeluiARenforcerLePlusAncien() throws Exception {
+    void tousLesSujetsTraitesLePlanDemandeLaVerificationAuLieuDeLesResservir()
+            throws Exception {
         User user = data.user();
         Skill skill = data.skill(SkillTaskCode.EE2);
         SkillPrompt valide = data.skillPrompt(skill);
@@ -109,8 +122,16 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.promptCount").value(2))
                 .andExpect(jsonPath("$.currentPriority.attemptedCount").value(2))
                 .andExpect(jsonPath("$.currentPriority.validatedCount").value(1))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(true))
+                .andExpect(jsonPath("$.currentPriority.nature").value("A_VERIFIER"))
+                .andExpect(jsonPath("$.currentPriority.stepState").value("A_VERIFIER"))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.kind")
+                        .value("REASSESSMENT"))
+                // 🛑 Aucun des sujets deja traites n'est reservi.
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
-                        .value(aRenforcer.getId().toString()));
+                        .doesNotExist())
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.productionTaskId")
+                        .isNotEmpty());
     }
 
     /**
@@ -162,12 +183,58 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
     }
 
     /**
-     * Une etape terminee <b>reste dans le Plan</b> : les priorites ne bougent
-     * qu'a l'arrivee d'une nouvelle observation. Et l'exercice recommande reste
-     * DANS l'etape — jamais le rang 6, pourtant jamais tente.
+     * L'exercice recommande reste <b>DANS l'etape</b> — jamais le rang 6,
+     * pourtant jamais tente. La competence publie sept sujets, l'etape n'en
+     * compte que cinq.
+     *
+     * <p>⚠️ Ce test travaillait sur une etape <b>terminee</b> (5/5) : depuis le
+     * 2026-09-13 ce cas-la ne propose plus de petit sujet du tout, il demande
+     * la verification (test suivant). La borne d'etape se verifie donc sur une
+     * etape <b>en cours</b>, ou elle est la seule chose qui empeche de partir
+     * au rang 6.
      */
     @Test
-    void uneEtapeTermineeResteAffichEeEtSonExerciceResteDansLEtape() throws Exception {
+    void lExerciceRecommandeNeSortJamaisDeLEtape() throws Exception {
+        User user = data.user();
+        data.userSubscription(user, data.plan());
+        Skill skill = data.skill(SkillTaskCode.EO1);
+        List<SkillPrompt> prompts = new ArrayList<>();
+        for (int rang = 1; rang <= 7; rang++) {
+            prompts.add(data.skillPrompt(skill));
+        }
+        for (int index = 0; index < 4; index++) {
+            UserSkillAttempt attempt = data.userSkillAttempt(user, prompts.get(index));
+            if (index == 0) analysed(attempt, SkillCriterionStatus.VALIDATED);
+            if (index == 2) analysed(attempt, SkillCriterionStatus.NOT_VALIDATED);
+        }
+        observation(user, skill);
+        completedSession(user);
+
+        mvc.perform(get("/api/me/plan")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPriority.skillCode").value(skill.getCode()))
+                .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(5))
+                .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(4))
+                .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
+                .andExpect(jsonPath("$.currentPriority.stepState").value("MAINTENANT"))
+                .andExpect(jsonPath("$.currentPriority.promptCount").value(7))
+                // Le 5e sujet de l'etape, pas le 6e de la competence.
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
+                        .value(prompts.get(4).getId().toString()));
+    }
+
+    /**
+     * 🛑 <b>La sequence produit, de bout en bout</b> : 5 petits sujets, puis la
+     * verification. Une etape terminee <b>reste dans le Plan</b> — les priorites
+     * ne bougent qu'a l'arrivee d'une nouvelle observation — mais son action
+     * change de nature, et aucun des cinq sujets n'est reservi.
+     *
+     * <p>« Terminee » n'est pas « tout valide » : un seul critere l'est ici, et
+     * la serie est finie quand meme.
+     */
+    @Test
+    void uneEtapeTermineeResteAffichEeEtDemandeLaVerification() throws Exception {
         User user = data.user();
         data.userSubscription(user, data.plan());
         Skill skill = data.skill(SkillTaskCode.EO1);
@@ -192,9 +259,13 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 // Terminee n'est pas « tout valide ».
                 .andExpect(jsonPath("$.currentPriority.stepValidatedCount").value(1))
                 .andExpect(jsonPath("$.currentPriority.stepCompleted").value(true))
+                .andExpect(jsonPath("$.currentPriority.nature").value("A_VERIFIER"))
+                .andExpect(jsonPath("$.currentPriority.stepState").value("A_VERIFIER"))
                 .andExpect(jsonPath("$.currentPriority.promptCount").value(7))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.kind")
+                        .value("REASSESSMENT"))
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
-                        .value(prompts.get(2).getId().toString()));
+                        .doesNotExist());
     }
 
     /**

@@ -397,6 +397,65 @@ class LearningPlanPriorityResolverTest {
         assertThat(resolver.lastActivityBySkill(List.of())).isEmpty();
     }
 
+    // ------------------------------------------------------------------------
+    // L'etape VERIFIEE sort des priorites — la sortie de boucle
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 <b>Le cas qui fermait la boucle.</b> Cinq petits sujets, puis une
+     * production de verification jugee <b>fragile</b> : le transfert n'est pas
+     * prouve, la competence n'est donc pas une etape franchie — mais elle ne
+     * doit pas rester en tete du Plan, sinon le candidat se voit reservir les
+     * cinq memes sujets, tous deja traites, indefiniment.
+     */
+    @Test
+    void uneEtapeVerifieeSansReussiteSortDesPrioritesSansEtreFranchie() {
+        Skill verifiee = skill("EE1-C1");
+        Skill suivante = skill("EE1-C2");
+        List<LearningPlanObservation> historique = historique(
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.SKILL_TRAINING,
+                        ObservationConfidence.MEDIUM, jours(20)),
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.SKILL_TRAINING,
+                        ObservationConfidence.MEDIUM, jours(15)),
+                // La verification : rendue, pas reussie.
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.PRODUCTION_EE,
+                        ObservationConfidence.HIGH, jours(2)),
+                observation(suivante, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.DIAGNOSTIC_EE,
+                        ObservationConfidence.HIGH, jours(40)));
+        Map<UUID, SkillMasteryEngine.SkillMastery> mastery = maitrise(historique);
+
+        assertThat(mastery.get(verifiee.getId()).transferProven()).isFalse();
+        assertThat(codes(resolver.actionable(historique, mastery)))
+                .containsExactly("EE1-C2");
+        // Ni priorite, ni etape franchie : elle sort du chemin critique, elle
+        // n'est pas declaree acquise.
+        assertThat(codes(resolver.franchies(historique, mastery)))
+                .doesNotContain("EE1-C1");
+    }
+
+    /**
+     * Tant que la verification n'a pas ete rendue, l'etape reste une priorite :
+     * la sortie ne se declenche pas sur les seuls petits sujets.
+     */
+    @Test
+    void sansVerificationRendueLetapeResteUnePriorite() {
+        Skill aVerifier = skill("EE1-C1");
+        List<LearningPlanObservation> historique = historique(
+                observation(aVerifier, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.SKILL_TRAINING,
+                        ObservationConfidence.MEDIUM, jours(20)),
+                observation(aVerifier, LearningPlanSkillStatus.TO_REINFORCE,
+                        LearningPlanSourceType.SKILL_TRAINING,
+                        ObservationConfidence.MEDIUM, jours(15)));
+
+        assertThat(codes(resolver.actionable(historique, maitrise(historique))))
+                .containsExactly("EE1-C1");
+    }
+
     private static List<LearningPlanObservation> historique(LearningPlanObservation... items) {
         List<LearningPlanObservation> observations = new ArrayList<>(List.of(items));
         observations.sort(Comparator.comparing(LearningPlanObservation::getObservedAt).reversed());

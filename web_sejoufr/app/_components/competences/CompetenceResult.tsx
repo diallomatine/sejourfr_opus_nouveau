@@ -15,8 +15,9 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import {ApiException, skillApi} from "@/lib/api";
-import {isPlanStep, withPlanStep} from "@/lib/plan-step";
+import {ApiException, learningPlanApi, skillApi} from "@/lib/api";
+import {useCachedData} from "@/lib/use-cached-data";
+import {isPlanStep, planStepFor, planStepNextPromptId, withPlanStep} from "@/lib/plan-step";
 import {useAuth} from "@/lib/auth-context";
 import {
   referencesOpenByDefault,
@@ -132,6 +133,14 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
      15 sujets. Absent, tout se comporte exactement comme avant. */
   const step = isPlanStep(searchParams);
   const skillHref = withPlanStep(`${base}/${skillId}`, step);
+  /* Le périmètre de l'étape, **servi** : il décide du sujet suivant quand on
+     travaille une étape. Relu sur le cache, donc aucun appel quand on arrive du
+     Plan, et **rien du tout** hors Plan. */
+  const planQuery = useCachedData(
+    step && status === "authenticated" ? learningPlanApi.cacheKey : null,
+    () => learningPlanApi.getCached(),
+  );
+  const scope = step ? planStepFor(planQuery.data, skillId) : null;
 
   const [attempt, setAttempt] = useState<SkillAttemptDto | null>(null);
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -262,7 +271,13 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
     return <ModuleDetailGate next={`${base}/${skillId}/${promptId}/resultat/${attemptId}`} />;
 
   const analysis = attempt?.analysis ?? null;
-  const nextId = prompt?.nextPromptId ?? null;
+  /* 🛑 **Dans une étape, l'enchaînement s'arrête au 5ᵉ sujet.**
+     `SkillPromptDto.nextPromptId` est servi à l'échelle de la COMPÉTENCE (les
+     15) : le suivre au bout de l'étape faisait déborder sur le 6ᵉ sujet. Au
+     dernier sujet de l'étape il n'y a plus de « suivant » — l'écran propose
+     alors de revenir au Plan, qui demande la vérification. Hors étape,
+     `nextPromptId` reste la règle, inchangée. */
+  const nextId = scope ? planStepNextPromptId(scope, promptId) : (prompt?.nextPromptId ?? null);
   const view = skillResultAnalysisView({
     pending: attempt ? isSkillAttemptPending(attempt) : true,
     hasAnalysis: analysis != null,
@@ -458,7 +473,11 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                       type="button"
                       className={`btn btn-ghost ${s.actionWide}`}
                       disabled={!nextId}
-                      title={nextId ? undefined : "Tous les sujets de cette compétence ont été traités."}
+                      title={nextId
+                        ? undefined
+                        : scope
+                          ? "Les sujets de cette étape ont tous été traités."
+                          : "Tous les sujets de cette compétence ont été traités."}
                       onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
                     >
                       Sujet suivant

@@ -5,7 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
-import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
+import {
+  PRODUCTION_HORS_CONDITIONS_NOTE,
+  TCF_DIAGNOSTIC_HUB_HREF,
+  TCF_DIAGNOSTIC_PARAM,
+} from "@/lib/tcf-diagnostic";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
 import {
@@ -537,6 +541,15 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
+  /* 🛑 **« En conditions d'examen ? » est SERVI**, jamais recalculé ici — la
+     règle vit dans `ProductionExamConditions` côté serveur, et le miroir
+     Flutter lit le même champ. `null` (backend antérieur, catalogue) se lit
+     « oui » : on n'ouvre jamais par défaut.
+
+     Aujourd'hui seules EO1 et EO2 **d'un diagnostic** valent `false` ;
+     l'examen blanc, lui, reste un examen. */
+  const conditionsReelles = currentTask?.conditionsReelles !== false;
+
   const submitLabel =
     currentTache < 3
       ? "Valider et continuer"
@@ -638,11 +651,28 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                  examMode
+                  /* Hors conditions d'examen : pas de décompte de tâche, pas
+                     d'envoi au premier arrêt — le candidat se réécoute, refait
+                     s'il veut, puis envoie. La prise reste bornée par la durée
+                     du sujet (`maxDurationSec`), qui protège le coût de
+                     transcription sans jamais presser le candidat. */
+                  examMode={conditionsReelles}
+                  maxDurationSec={conditionsReelles ? null : currentTask.dureeMaxSec}
+                  headerSlot={
+                    conditionsReelles ? undefined : (
+                      <p className={prod.horsConditions}>{PRODUCTION_HORS_CONDITIONS_NOTE}</p>
+                    )
+                  }
                   timeoutSignal={autoSubmitSignal}
                   onTimeout={onEoTimeout}
+                  /* 🛑 Hors conditions d'examen, l'examinateur vocal n'est pas
+                     proposé : le propriétaire a demandé que ces tâches se
+                     passent « en s'enregistrant, transcription comme
+                     d'habitude ». C'est aussi ce qui garde le diagnostic
+                     TOTALEMENT gratuit — le temps réel a son propre quota. */
                   onModeChoice={
                     !rtRefused &&
+                    conditionsReelles &&
                     (currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2)
                       ? askMode
                       : undefined

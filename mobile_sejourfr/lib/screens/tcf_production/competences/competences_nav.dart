@@ -19,12 +19,27 @@ String competenceDetailPath(
   return planStep ? '$path?$kPlanStepParam=$kPlanStepValue' : path;
 }
 
+/// 🛑 **Le marqueur voyage jusqu'au SUJET**, pas seulement jusqu'à la fiche.
+/// Sans lui, le CTA du Plan ouvrait un sujet qui s'annonçait « 1/15 » : le
+/// périmètre de l'étape était perdu à la navigation, et l'enchaînement
+/// débordait sur le 6ᵉ sujet de la compétence.
 String competencePromptPath(
   TcfProductionModule module,
   String skillId,
-  String promptId,
-) =>
-    '/tcf/${module.routeKey}/competences/$skillId/sujet/$promptId';
+  String promptId, {
+  bool planStep = false,
+}) {
+  final path = '/tcf/${module.routeKey}/competences/$skillId/sujet/$promptId';
+  return planStep ? '$path?$kPlanStepParam=$kPlanStepValue' : path;
+}
 
-String competenceResultPath(TcfProductionModule module, String attemptId) =>
-    '/tcf/${module.routeKey}/competences/resultat/$attemptId';
+/// Idem pour le résultat : c'est lui qui propose le sujet suivant, et il doit
+/// savoir qu'il est dans une étape pour ne pas en sortir.
+String competenceResultPath(
+  TcfProductionModule module,
+  String attemptId, {
+  bool planStep = false,
+}) {
+  final path = '/tcf/${module.routeKey}/competences/resultat/$attemptId';
+  return planStep ? '$path?$kPlanStepParam=$kPlanStepValue' : path;
+}

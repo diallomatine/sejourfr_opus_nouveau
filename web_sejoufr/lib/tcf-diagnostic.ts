@@ -39,6 +39,20 @@ export const TCF_DIAGNOSTIC_SECTION_WARNING =
 /** Le micro est annoncé avant l'oral, jamais demandé par surprise. */
 export const TCF_DIAGNOSTIC_MIC_WARNING = "Cette section utilise votre micro.";
 
+/**
+ * **Cette tâche n'est pas en conditions d'examen** — la phrase posée au-dessus
+ * de l'enregistreur quand le serveur sert `conditionsReelles: false`.
+ *
+ * 🛑 **Le front ne décide rien** : il ne fait qu'habiller un fait servi. Le
+ * périmètre (EO1 et EO2 du diagnostic, et rien d'autre) vit côté serveur,
+ * `ProductionExamConditions`.
+ *
+ * Miroir mot pour mot de `kProductionHorsConditionsNote`
+ * (`mobile_sejourfr/lib/screens/diagnostic_tcf/tcf_diagnostic_labels.dart`).
+ */
+export const PRODUCTION_HORS_CONDITIONS_NOTE =
+    "Cette tâche n'est pas chronométrée comme à l'examen : prenez le temps, réécoutez-vous, refaites votre prise si besoin, puis envoyez.";
+
 export const TCF_DIAGNOSTIC_ESTIMATION_NOTE =
     "Estimation SejourFR, non officielle.";
 

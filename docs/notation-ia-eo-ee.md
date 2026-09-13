@@ -2932,6 +2932,27 @@ joué par une IA vocale (technologie Google Gemini Live). Deux choses à bien di
   **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend, sans
   prendre l'initiative.
 
+> 🆕 **13 septembre 2026 — l'examinateur vocal n'est pas proposé pendant le diagnostic
+> complet.**
+>
+> Dans le **diagnostic TCF** (les 4 épreuves), les tâches 1 et 2 de l'oral se passent
+> **en s'enregistrant** : on lit la consigne, on parle, on se réécoute, on refait si on
+> veut, puis on envoie. Pas de chronomètre qui tombe, pas d'envoi automatique au premier
+> arrêt. La suite est exactement la même que d'habitude : transcription, puis correction
+> par la même IA correctrice, avec la même grille.
+>
+> **Deux raisons, et elles vont ensemble.** D'abord, le propriétaire a voulu que ce moment
+> ne soit pas une mise en situation d'examen : le diagnostic sert à **mesurer où l'on en
+> est**, pas à tester le stress. Ensuite, l'expression écrite et orale du diagnostic est
+> **entièrement offerte**, alors que l'examinateur vocal a un nombre de simulations limité
+> qui dépend du pass acheté : l'y proposer aurait consommé quelque chose que le candidat
+> croyait gratuit.
+>
+> **Ce qui ne change pas** : la tâche 3 de l'oral du diagnostic, et **tout l'examen blanc**,
+> gardent les conditions d'examen — chronomètre par tâche, une seule prise, pas de
+> réécoute. L'examinateur vocal y reste proposé comme avant. Et dans tous les cas, une
+> tâche ne se rend **qu'une fois** : se réécouter ne permet pas d'obtenir deux corrections.
+
 ### Le verrou de langue (nouveau : persona v3)
 
 La même IA joue l'examinateur **et** écrit la transcription de l'échange. Elle est multilingue,

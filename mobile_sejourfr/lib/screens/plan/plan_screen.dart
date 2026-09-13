@@ -210,34 +210,47 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
             prep: modulePrep,
           ),
         // 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage
-        // du 2026-09-12). La carte se pose donc APRÈS le contenu du Plan, dans
-        // le même défilement, et disparaît d'elle-même à 4 / 4 : c'est
-        // `affinerPlan` qui rend `null`, sur des faits servis.
+        // du 2026-09-12, tenu). Ce qui change le 2026-09-13 : il devient le
+        // SEUL appel à compléter son profil — « Compléter mon profil » et ses
+        // cartes d'épreuve ont été supprimés, et leur emplacement lui revient.
+        // La carte disparaît d'elle-même à 4 / 4 : c'est `affinerPlan` qui rend
+        // `null`, sur des faits servis.
         LearningPlanState.active => PlanTcfView(
             plan: value,
             objective: objective,
+            affiner: _affiner(modulePrep),
             trailing: _trailing(modulePrep),
           ),
       },
     );
   }
 
-  /// Ce qui se pose **après** le contenu du Plan : la carte « Affiner votre
-  /// Plan », puis le lien discret vers le rapport du rapide.
+  /// **L'invitation au diagnostic complet**, à l'emplacement de l'ancien
+  /// « Compléter mon profil ». Miroir de `LearningPlanView` côté web.
   ///
   /// 🛑 L'abonnement se **lit** (`user.hasTcf`), il ne se devine pas : il ne
   /// décide ici que d'une formulation, jamais d'un verrou — ceux-là arrivent
   /// servis, ligne par ligne.
-  List<Widget> _trailing(ModulePreparation? prep) {
-    if (prep == null) return const <Widget>[];
+  Widget? _affiner(ModulePreparation? prep) {
+    if (prep == null) return null;
     final auth = ref.read(authControllerProvider);
     final info = affinerPlan(
       prep,
       accueil: false,
       abonne: auth is AuthAuthenticated && auth.user.hasTcf,
     );
+    if (info == null) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: sfSectionGap),
+      child: AffinerPlanCard(info: info),
+    );
+  }
+
+  /// Ce qui se pose **après** le contenu du Plan : le lien discret vers le
+  /// rapport du diagnostic rapide.
+  List<Widget> _trailing(ModulePreparation? prep) {
+    if (prep == null) return const <Widget>[];
     return <Widget>[
-      if (info != null) ...[const SizedBox(height: 6), AffinerPlanCard(info: info)],
       // 🛑 Servi ou rien : sans rapide clos, il n'y a aucun rapport à revoir.
       if (prep.estimationSessionId != null) const RevoirEstimationLink(),
     ];

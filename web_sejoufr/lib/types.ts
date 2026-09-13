@@ -507,6 +507,22 @@ export interface ProductionTaskDto {
     dureeMinSec: number | null; // EO uniquement
     motsMin: number | null; // EE
     motsMax: number | null; // EE
+    /**
+     * **Cette tâche se passe-t-elle en conditions d'examen ?** — dérivé
+     * SERVEUR, jamais recalculé par un runner.
+     *
+     * 🛑 `null` = hors session : le catalogue ne le sert pas, la question n'y a
+     * pas de sens. Il n'est renseigné que par
+     * `GET /api/attempts/{id}/production-exam-tasks`.
+     *
+     * La lecture est **« conditions d'examen sauf si le serveur dit
+     * explicitement `false` »** : un backend antérieur au champ garde donc
+     * exactement le comportement d'avant. Le champ est **optionnel** pour la
+     * même raison — les adaptateurs qui fabriquent une tâche hors session
+     * (micro-exercice, aperçu de diagnostic) n'ont rien à en dire. Aujourd'hui, seules EO1 et EO2
+     * **dans un diagnostic** valent `false` (l'examen blanc reste un examen).
+     */
+    conditionsReelles?: boolean | null;
 }
 
 /** Réponse-modèle d'une tâche (onglet « Exemples »). audioUrl = EO seulement. */
@@ -1269,6 +1285,47 @@ export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
 };
 
 /**
+ * **Où en est l'étape** d'une compétence — miroir de `PlanSkillStepState`.
+ *
+ * 🛑 **Servi, jamais dérivé ici.** Les deux fronts le déduisaient chacun de leur
+ * côté — le web cochait sur `masteryState === "SOLID"` sans jamais lire
+ * `completedSteps`, le mobile sur l'un **ou** l'autre — et le même candidat
+ * voyait deux parcours différents selon l'appareil. Un front ne classe pas un
+ * compteur en état pédagogique.
+ *
+ * 🛑 **`SERIE_TERMINEE` n'est pas `ACQUIS`** : cinq petits sujets traités ne
+ * prouvent rien en situation. Seul `SOLID` vaut « acquis ».
+ *
+ * L'ordre de déclaration **est** l'ordre de lecture.
+ */
+export type PlanSkillStepState =
+    /** `masteryState === "SOLID"` : la maîtrise est prouvée en situation. */
+    | "ACQUIS"
+    /** Les 5 petits sujets sont traités, la vérification n'est pas rendue. */
+    | "A_VERIFIER"
+    /** Série finie **et** vérification rendue, sans maîtrise installée : le Plan
+     *  passe à la suite, la compétence pourra revenir. */
+    | "SERIE_TERMINEE"
+    /** La compétence que le Plan met en tête. */
+    | "MAINTENANT"
+    /** La série est commencée, elle n'est pas finie. */
+    | "EN_COURS"
+    /** Rien n'a encore été fait dessus. *Pas un retard : un à-venir.* */
+    | "A_VENIR";
+
+/** Libellés FR des états d'étape (**contrat gelé** par `SkillLabelsTest`,
+ *  recopié à la main ici et dans `plan_step_state.dart`). Le compteur « · 3/5 »
+ *  se compose à côté, dans `planStepStateLabel`. */
+export const PLAN_SKILL_STEP_STATE_LABEL: Record<PlanSkillStepState, string> = {
+    ACQUIS: "Acquis",
+    A_VERIFIER: "Série terminée · À vérifier",
+    SERIE_TERMINEE: "Série terminée",
+    MAINTENANT: "Maintenant",
+    EN_COURS: "En cours",
+    A_VENIR: "À venir",
+};
+
+/**
  * Une priorité du Plan, c'est-à-dire une **étape**.
  *
  * ⚠️ **Deux jeux de compteurs, à ne jamais confondre.** Ceux de
@@ -1344,9 +1401,17 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
     /** État agrégé de la compétence, identique à `SkillDto.masteryState` — à ne
      *  pas confondre avec `status`, verdict de la **dernière** production. */
     masteryState: SkillMasteryState | null;
+    /**
+     * **Où en est l'étape**, servi. C'est lui que la carte affiche — jamais un
+     * état déduit de `stepAttemptedCount / stepPromptCount`, qui restent la
+     * progression chiffrée et rien d'autre.
+     */
+    stepState: PlanSkillStepState;
     /** `true` quand la compétence a assez été travaillée en exercices ciblés
-     *  sans preuve de transfert récente : l'étape devient une **vérification**
-     *  (`recommendedExercise.kind === "REASSESSMENT"`). */
+     *  sans preuve de transfert récente **et** que l'étape est terminée. Il
+     *  **nuance le texte** de la carte ; depuis le 2026-09-13 il ne commande
+     *  plus la bascule vers la vérification — c'est `stepCompleted` qui la
+     *  décide, et `nature === "A_VERIFIER"` qui la dit. */
     readyForReassessment: boolean;
 }
 
@@ -1620,6 +1685,13 @@ export interface PlanDomainSkillDto {
     observedAt: string | null;
     /** Verrou freemium, décidé par le serveur (`SkillAccessService`). */
     locked: boolean;
+    /** **Où en est l'étape** de cette compétence, servi — la ligne de « Votre
+     *  parcours » l'affiche telle quelle. */
+    stepState: PlanSkillStepState;
+    /** Sujets de l'étape (au plus 5 ; **0** en compréhension, qui n'en a aucun). */
+    stepPromptCount: number;
+    /** Sujets de l'étape déjà traités. */
+    stepAttemptedCount: number;
 }
 
 /* ------------------------------------------------------------------- cycle */

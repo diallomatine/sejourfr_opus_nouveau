@@ -150,6 +150,37 @@ class SkillLabelsTest {
                 .isNotEqualTo(PlanActionNature.A_RENFORCER.getLabel());
     }
 
+    /**
+     * <b>Ou en est l'etape</b> — le sixieme vocabulaire, et le seul qui sache
+     * dire « serie terminee, verification pas encore rendue ».
+     *
+     * <p>🛑 L'assertion qui compte vraiment est la derniere : {@code ACQUIS} et
+     * {@code SERIE_TERMINEE} ne portent <b>pas</b> le meme libelle. Cinq petits
+     * sujets traites ne prouvent rien en situation, et un front qui cocherait
+     * une serie finie comme un acquis annoncerait une maitrise que rien n'a
+     * mesuree.
+     */
+    @Test
+    @DisplayName("Etat d'etape : les six libelles et l'ORDRE de lecture sont geles")
+    void etatsDEtape() {
+        assertThat(labels(PlanSkillStepState.class, PlanSkillStepState::getLabel))
+                .containsExactly(
+                        Map.entry("ACQUIS", "Acquis"),
+                        Map.entry("A_VERIFIER", "Série terminée · À vérifier"),
+                        Map.entry("SERIE_TERMINEE", "Série terminée"),
+                        Map.entry("MAINTENANT", "Maintenant"),
+                        Map.entry("EN_COURS", "En cours"),
+                        Map.entry("A_VENIR", "À venir"));
+        // 🛑 Une serie finie n'est JAMAIS un acquis.
+        assertThat(PlanSkillStepState.SERIE_TERMINEE.getLabel())
+                .isNotEqualTo(PlanSkillStepState.ACQUIS.getLabel());
+        // ... et aucun de ces libelles ne nomme un palier CECRL : « Acquis · B1 »
+        // n'existe pas, le palier s'affiche a part.
+        assertThat(labels(PlanSkillStepState.class, PlanSkillStepState::getLabel).values())
+                .allSatisfy(label -> assertThat(label)
+                        .doesNotContain("A2").doesNotContain("B1").doesNotContain("B2"));
+    }
+
     @Test
     @DisplayName("Fenetre de « ce qui a change » : de la plus courte a la plus longue")
     void fenetreDesChangementsRecents() {

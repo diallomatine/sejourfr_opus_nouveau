@@ -33,17 +33,25 @@ public class TcfDiagnosticProperties {
      * avec la configuration qui l'a produit : sans ce numero, un recalibrage
      * reinterpreterait retroactivement des diagnostics deja passes.
      */
-    private int configVersion = 1;
+    private int configVersion = 2;
 
     /**
      * Items tires par palier CECRL, pour CHAQUE epreuve de comprehension —
-     * 5 A2 + 5 B1 + 5 B2 = 15 items en CO comme en CE (10_ §4.1).
+     * 8 A2 + 8 B1 + 8 B2 = <b>24 items</b> en CO comme en CE.
      *
-     * <p>La repartition egale n'est pas cosmetique : le calcul de niveau lit un
-     * <b>taux par palier</b>, et un palier sous-dote rendrait son taux
-     * beaucoup plus sensible a une seule erreur.
+     * <p>⚠️ <b>Passe de 5 a 8 le 2026-09-13</b> (demande du proprietaire : le
+     * diagnostic complet doit etre, de fait, l'equivalent d'un examen blanc
+     * complet). L'epreuve reelle en compte 25 (8/9/8) ; 24 en est le plus
+     * proche volume a repartition egale, et le chrono suit automatiquement au
+     * prorata (cf. {@code TcfDiagnosticSectionStarter.dureeReduite}).
+     *
+     * <p>🛑 <b>La repartition reste EGALE entre paliers</b>, la ou l'examen
+     * module suit 8/9/8, et ce n'est pas cosmetique : le calcul de niveau lit
+     * un <b>taux par palier</b>, et un palier sous-dote rendrait son taux plus
+     * sensible a une seule erreur. Aligner sur 8/9/8 aurait demande un reglage
+     * par palier pour un item de plus.
      */
-    private int itemsPerLevel = 5;
+    private int itemsPerLevel = 8;
 
     /** Seuils de bascule du niveau de comprehension (10_ §4.3). */
     private Seuils seuils = new Seuils();

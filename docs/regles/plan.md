@@ -155,7 +155,7 @@
     diagnostic** : au-delà de 2 priorités, au-delà de 2 points forts, et
     au-delà du 1er entraînement de l'aperçu de séance.
   - **Jamais floutés, pour tout le monde** : la carte de priorité actuelle, le
-    profil TCF et ses 4 domaines, « Compléter mon profil », le chemin vers
+    profil TCF et ses 4 domaines, le chemin vers
     l'objectif, « ce qui a changé », les compétences observées, les étapes
     franchies ; et sur le diagnostic, les niveaux estimés EE/EO, l'objectif, le
     rail, le résumé, l'`exempleCible` et le détail des deux productions.
@@ -519,6 +519,10 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
   manquant. **Vide = profil complet**, l'état visé et non une anomalie. `slotNumber` vaut
   toujours **1** (seul slot offert et rejouable, donc mesurer un domaine ne bute jamais sur le
   paywall).
+  ⚠️ **L'écran Plan ne le liste plus** depuis le 2026-09-13 (cf. § « Compléter son profil
+  n'a plus qu'une porte »). Le champ **reste servi et reste lu** : la fiche d'un domaine,
+  « Ma progression » et la **ligne `A_EVALUER` de la séance** s'en servent toujours, par le
+  même lanceur unique (`usePlanAssessment` ⇄ `openPlanAssessment`).
 - **`seance`** (`PlanSeanceDto`) : ≤ **3** items, **1 compétence = 1 slot**, minutes
   **recalculées**. `PlanExerciseKind` gagne `TARGETED_QCM_SERIES` (+ `questionCount` sur
   `PlanRecommendedExerciseDto`).
@@ -1053,6 +1057,38 @@ le candidat retrouve son rapport plutôt qu'un écran muet.
 
 ---
 
+## Compléter son profil n'a plus qu'une porte (2026-09-13)
+
+🛑 **Arbitrage du propriétaire**, verbatim : « Ici l'écran plan, supprime la partie compléter
+mon profil, en y mettant le bouton faire le diagnostic complet. Bouton plus visible. »
+
+La section **« Compléter mon profil »** de l'écran Plan — celle qui listait les domaines
+jamais mesurés avec un CTA par domaine (« Passer l'examen blanc », « Faire une production ») —
+est **supprimée des deux fronts**, avec son code : `CompleterMonProfil` / `AssessmentCard`
+(`LearningPlanView.tsx`), `_assessmentSection` (`plan_tcf_view.dart`) et les deux libellés
+devenus morts (`PLAN_COMPLETE_PROFILE_TITLE` / `_TEXT` ⇄ `kPlanCompleteProfileTitle` /
+`kPlanCompleteProfileText`). `PLAN_COMPLETE_PROFILE_NOTE` reste : la fiche d'un domaine et
+« Toutes mes compétences » la lisent.
+
+🛑 **Une seule occurrence du CTA par écran.** La carte `AffinerPlanCard` prend l'emplacement
+libéré (chez l'abonné) ou reste après le paywall (compte gratuit), au lieu d'être posée une
+seconde fois en fin de page : deux invitations au même diagnostic sur le même écran, c'était
+exactement le doublon qu'on retire.
+
+**Le bouton devient PLEIN** — `blue` (Bleu France) au lieu de `line` (contour), des deux
+côtés. 🛑 **Jamais `primary`** pour autant : le rouge reste réservé au CTA critique de la
+page, « Débloquer mon plan » sur un compte gratuit. C'est ce qui permet de le rendre
+nettement plus visible sans lui faire concurrencer l'abonnement.
+
+**La carte DIT ce qui se mesure** (`affinerPlan`, autorité unique, miroirs
+`lib/preparation.ts` ⇄ `preparation_labels.dart`) : les 4 épreuves du TCF, et que
+**l'expression écrite et orale y est entièrement offerte** — c'est le fait qui décide le
+candidat, et il est vrai (cf. `docs/regles/diagnostic-tcf-4-epreuves.md`).
+
+**Ce qui ne bouge pas** : le lien « Revoir mon diagnostic rapide », les lignes d'« Aller plus
+loin » / accès secondaires, le jalon, et les **autres** portes de mesure — fiche de domaine,
+« Ma progression », ligne `A_EVALUER` de la séance —, qui gardent le lanceur unique.
+
 ## Plan CIVIQUE — répétition espacée et grain mesuré (L10, 2026-09-10)
 
 🛑 **À ne pas confondre avec le Plan TCF.** Deux plans, deux moteurs, aucun effet
@@ -1483,3 +1519,128 @@ Côté mobile, le parcours affiché est **`parcoursCiviqueProvider`**, partagé 
 l'Accueil et le Plan — le pendant du `?module=` du web. `reviserParcoursProvider`
 est **supprimé** : deux mécaniques auraient fini par afficher deux parcours
 différents au même candidat selon l'écran.
+
+## La série de 5 se TERMINE : 5 micro-sujets → vérification → recalcul (2026-09-13)
+
+🛑 **Arbitrage du propriétaire, verbatim** : *« Après le 5ᵉ petit sujet : la série
+ciblée est terminée ; on ne renvoie surtout pas l'utilisateur dans les mêmes
+5 sujets ; « À faire maintenant » change immédiatement ; la nouvelle action devient
+une production complète de vérification de la compétence dans une vraie tâche. »*
+
+**La boucle qui était fermée.** À 5/5, la bascule vers la vérification exigeait
+**deux** conditions (2026-08-14) : `SkillMastery.readyForReassessment` **et**
+`LearningPlanStep.Progress.completed()`. Or un petit sujet n'écrit jamais `SOLID`
+(`recordSkillAttempt` : critère validé ⇒ `TO_REINFORCE`), donc le signal du moteur
+pouvait rester **faux** avec les 5 sujets traités. L'étape restait alors
+`A_RENFORCER`, et `RecommendedExerciseSelector` reservait au candidat **les cinq
+mêmes sujets**, tous déjà traités, indéfiniment : aucune observation nouvelle,
+donc aucun moyen d'en sortir.
+
+### Ce qui change, et où
+
+- 🛑 **La bascule ne dépend plus que de l'étape terminée.**
+  `LearningPlanService.get` pose `readyToVerify = progress.step().completed()`, et
+  la nature devient `A_VERIFIER` **quel que soit** le résultat des 5 sujets.
+  `readyForReassessment` **reste servi** — il nuance le texte de la carte — et
+  garde sa définition combinée (`moteur && step.completed()`), pour que le DTO ne
+  dise jamais « prêt » sous un anneau à 2/5. Il ne commande simplement plus rien.
+- **`A_VERIFIER` n'est posé que si une vérification est réellement proposable** :
+  la nature de la carte se décide avec `verifications.containsKey(skillId)`.
+  Aucun sujet de production publié sur la tâche reste un **cas normal** (règle de
+  `ReassessmentExerciseSelector`) : l'étape retombe sur son micro-exercice, et
+  elle le **dit** (`A_RENFORCER`) au lieu d'afficher « Faire la vérification »
+  sur un petit sujet.
+- 🆕 **« La vérification a été RENDUE » — un fait, pas un verdict.**
+  `SkillMasteryEngine.verificationSubmitted()`, **autorité unique**, dérivée à la
+  lecture et jamais persistée : il existe au moins un **micro-entraînement**, une
+  production **contextualisée** est venue **après** lui, et elle est encore dans
+  `transfer-proof-days`.
+  - 🛑 **Le verdict n'entre pas dans le calcul.** Une vérification jugée fragile
+    compte autant qu'une réussie : elle a eu lieu, et c'est elle — pas les
+    micro-sujets — qui apporte la preuve dont la maîtrise a besoin. La juger ici
+    rouvrirait la boucle qu'on vient de couper.
+  - 🛑 **La condition « un micro-entraînement d'abord » n'est pas décorative** :
+    sans elle, toute compétence de **compréhension** (dont les observations
+    `TCF_CO`/`TCF_CE` sont `isContextual()`) serait « vérifiée » dès sa première
+    série de QCM et sortirait des priorités.
+  - **La fenêtre n'est pas un détail non plus** : passé `transfer-proof-days`, la
+    compétence redevient une priorité ordinaire. Une vérification ancienne ne peut
+    pas écarter indéfiniment une fragilité réelle.
+- **Une étape vérifiée sort des priorités actionnables**
+  (`LearningPlanPriorityResolver.actionable`, filtre `etapeVerifiee`) **sans
+  devenir une étape franchie** : `franchies` continue de ne lire que
+  `transferProven`. Verifier n'est pas réussir, mais c'est **avancer** — le moteur
+  sert la priorité suivante, et la compétence pourra revenir si elle reste fragile.
+- 🛑 **`transferProven` / `SOLID` sont INCHANGÉS.** Aucun seuil n'a bougé, un petit
+  sujet n'écrit toujours jamais `SOLID`, et **5/5 ≠ SOLID** : c'est la production
+  contextualisée qui apporte la preuve. Seule la voie de **sortie** a changé.
+- **Aucun repli sur le catalogue** : sans fragilité et sans acquisition, la carte
+  « À faire maintenant » est **vide** (`currentPriority == null`) — on ne désigne
+  pas la première compétence du référentiel pour remplir l'écran.
+  `PlanFocusResolver.focus` et `PlanAcquisitionSelector` n'en produisent aucun :
+  le premier répond à « quelle compétence le freemium ouvre » (et rend
+  `Optional.empty()` quand il n'y a rien), le second ne rend que des compétences
+  du palier en construction jamais travaillées, triées — un ordre, pas un repli.
+
+### L'état d'étape est SERVI : `PlanSkillStepState`
+
+🛑 **Aucun front ne classe plus un compteur en état pédagogique.** Les deux le
+faisaient, et **différemment** : le web cochait sur `masteryState === "SOLID"` sans
+jamais lire `completedSteps` (en violation de la règle « l'appartenance à
+`completedSteps` **est** la coche »), le mobile sur l'un **ou** l'autre. Le même
+candidat voyait deux parcours différents selon l'appareil.
+
+Six valeurs, **libellés gelés** par `SkillLabelsTest`, l'ordre de déclaration est
+l'ordre de lecture : `ACQUIS` « Acquis » · `A_VERIFIER` « Série terminée · À
+vérifier » · `SERIE_TERMINEE` « Série terminée » · `MAINTENANT` « Maintenant » ·
+`EN_COURS` « En cours » · `A_VENIR` « À venir ».
+
+- **Autorité unique `PlanStepStateResolver`** : `SOLID` ⇒ `ACQUIS` ; sinon étape
+  terminée ⇒ `SERIE_TERMINEE` (vérification rendue) ou `A_VERIFIER` ; sinon la
+  compétence en tête ⇒ `MAINTENANT` ; sinon commencée ⇒ `EN_COURS` ; sinon
+  `A_VENIR`. Deux lecteurs, une règle : `LearningPlanPriorityDto.stepState` et
+  `PlanDomainSkillDto.stepState`.
+- 🛑 **`SERIE_TERMINEE` n'est PAS `ACQUIS`.** Cinq petits sujets traités ne prouvent
+  rien en situation : seul `SOLID` vaut « acquis », et un front qui cocherait une
+  série finie annoncerait une maîtrise que rien n'a mesurée. Verrouillé par
+  `SkillLabelsTest` (les deux libellés diffèrent) et par `PlanStepStateResolverTest`.
+- 🛑 **Aucun palier CECRL ne s'y accroche** : « Acquis · B1 » n'existe pas. Le palier
+  d'une compétence est notre palier **pédagogique interne** et s'affiche à part,
+  « Niveau visé B1 ». `SkillLabelsTest` interdit `A2`/`B1`/`B2` dans ces libellés.
+- **`PlanDomainSkillDto` porte aussi `stepPromptCount` / `stepAttemptedCount`** : la
+  progression chiffrée est **servie**, les fronts composent « · 2/5 » à côté du
+  libellé (`planStepStateLabel`, miroirs web ⇄ mobile) et ne classent rien.
+- **Coût inchangé** : `SkillProgressCounter.bySkillIds` travaille en **lot** (2
+  requêtes pour 5 compétences comme pour 48), et `LearningPlanService` lui passe
+  désormais le référentiel entier. Les deux tests de coût gardent leur égalité.
+
+### Les fronts — ce qui est mirroré brique pour brique
+
+- **Le KIT gagne deux états d'étape et une pastille servie** :
+  `StepState`/`SfStepState` ajoutent `verify` (ambre, icône `badgeCheck`) et
+  `doing` ; `PathStep`/`SfPathStep` portent un `pill` **composé par l'appelant** à
+  partir du libellé servi — le kit ne compose aucune phrase.
+- **La carte de vérification est une AUTRE carte** : `NowCard`/`SfNowCard` gagnent
+  un `variant: "verify"` (fond et liseré ambre, pastille d'icône ambre). 🛑 Le nom
+  de la compétence ne change pas quand la série se termine ; si seul le bouton
+  changeait de libellé, le candidat lirait « rien n'a bougé » alors que l'action a
+  changé de nature. Titre **« Valider cette compétence »**, sous-titre
+  « <compétence> · Tâche N complète », texte « Mettez maintenant cette compétence en
+  pratique dans une réponse complète. », CTA **« Faire la vérification »**.
+- **Deux lignes, plus une phrase concaténée** (`planNowLines`, miroirs) : le
+  **constat** servi préfixé de l'état **mesuré** (« À renforcer : … » — jamais
+  « À vérifier : <une faiblesse> ») puis « **Progression : 3/5 sujets réalisés** ».
+- **Libellés** : « 5 sujets · ≈ 6 min » ⇒ « **5 petits sujets · ≈ 6 min chacun** »
+  (les minutes sont celles d'**un** sujet) ; « Petit sujet ciblé » ⇒ « **Sujets
+  ciblés** » (une étape n'est pas un sujet). CTA avant 5/5 : « Commencer » à 0/5,
+  « **Continuer** » au-delà, « Découvrir » sur une acquisition.
+- **Le nom de la compétence ne s'écrit plus trois fois** sur le même écran : titre
+  de carte avant 5/5, sous-titre sur la vérification — jamais les deux, et plus
+  dans l'encart bleu.
+- **Navigation : le CTA ouvre DIRECTEMENT le prochain petit sujet non traité**
+  (`recommendedExercise.skillPromptId`, désigné serveur). Le web ouvrait la
+  **liste des 5** (`planSkillHref(..., {planStep:true})`) là où le mobile ouvrait
+  le sujet ; il s'aligne. La liste des 5 reste accessible par « Mes priorités » et
+  par la fiche de compétence. ⚠️ **Une MESURE passe encore devant** sur le web
+  (item `A_EVALUER` de la séance) : c'est le seul cas où le bouton ne lance pas
+  l'étape, et c'est le seul chemin vers `usePlanAssessment` depuis cet écran.

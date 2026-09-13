@@ -3,7 +3,7 @@
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useState} from "react";
 import {Check, Mic, PenLine} from "lucide-react";
-import {ApiException, skillApi} from "@/lib/api";
+import {ApiException, learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   answerStarterOf,
@@ -11,8 +11,9 @@ import {
   SKILL_ANALYSIS_MAX_WORDS,
   tipOf,
 } from "@/lib/skill-guidance";
+import {useCachedData} from "@/lib/use-cached-data";
 import {useSubmissionKey} from "@/lib/idempotency";
-import {isPlanStep, withPlanStep} from "@/lib/plan-step";
+import {isPlanStep, planStepFor, planStepPosition, withPlanStep} from "@/lib/plan-step";
 import {loadSectionSkills} from "@/lib/skill-catalog";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
@@ -135,6 +136,17 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
 
   // pas consommer une seconde des analyses offertes.
 
+  /* 🛑 **Le périmètre de l'étape vient du Plan SERVI**, il n'est pas recalculé
+     ici : `stepPromptIds` dit quels sujets la composent et dans quel ordre.
+     Le Plan est relu sur le cache — **zéro appel** quand on arrive du Plan (il
+     est chaud), un seul sur un rechargement à froid — et **rien du tout** hors
+     Plan, où l'écran garde mot pour mot son comportement. */
+  const planQuery = useCachedData(
+    step && status === "authenticated" ? learningPlanApi.cacheKey : null,
+    () => learningPlanApi.getCached(),
+  );
+  const scope = step ? planStepFor(planQuery.data, skillId) : null;
+
   const submissionKey = useSubmissionKey();
 
   const [submitting, setSubmitting] = useState(false);
@@ -251,7 +263,11 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
         setSubmitting(false);
       }
     },
-    [submitting, analysisAllowed, promptId, oral, router, base, skillId, step, submissionKey],
+    // `setPaywallOpen` est un setter de `useState`, donc stable : il est listé
+    // pour que le compilateur React retrouve exactement les dépendances qu'il
+    // infère, sans quoi il renonce à optimiser tout le composant.
+    [submitting, analysisAllowed, promptId, oral, router, base, skillId, step, submissionKey,
+      setPaywallOpen],
   );
 
   /** Recharge la production précédente dans la zone de saisie (§13.5, EE). */
@@ -274,7 +290,25 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${base}/${skillId}/${promptId}`} />;
 
-  const total = prompt?.skillPromptCount ?? 0;
+  /* « Sujet 1/5 » quand on travaille une ÉTAPE, « Sujet 1/15 » sur la
+     compétence entière. Le rang se lit dans la liste servie ; sans étape (ou
+     sujet hors périmètre), on retombe sur le compteur de compétence. */
+  const position = planStepPosition(scope, promptId);
+  const total = position?.total ?? prompt?.skillPromptCount ?? 0;
+  const rank = position?.rank ?? prompt?.displayOrder ?? 0;
+  /* La barre de progression suit le MÊME périmètre que le repère : dans une
+     étape, « 3 / 5 » (compteurs servis), sinon la compétence entière
+     (« 3 / 15 »). Les deux chiffres côte à côte ne peuvent pas compter deux
+     choses différentes. */
+  const progress = scope
+    ? {
+        attempted: scope.stepAttemptedCount,
+        total: scope.stepPromptCount,
+        percent: scope.stepPromptCount === 0
+          ? 0
+          : Math.round((scope.stepAttemptedCount / scope.stepPromptCount) * 100),
+      }
+    : skillProgress;
   const task = prompt ? toProductionTask(prompt, n) : null;
   const alreadyDone = (prompt?.attemptCount ?? 0) > 0;
 
@@ -355,7 +389,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           <>
             <div className={s.compactLine}>
               <span className={s.compactStep}>
-                Sujet {prompt.displayOrder}
+                Sujet {rank}
                 {total > 0 ? `/${total}` : ""}
               </span>
               <span className={`${s.badge} ${s.levelPill}`}>{prompt.skillTargetLevel}</span>
@@ -371,24 +405,24 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                 d'Ariane disait la même chose sur deux lignes, en plus long. */}
             <div className={s.compactLine}>
               <span className={s.compactStep}>
-                Sujet {prompt.displayOrder}
+                Sujet {rank}
                 {total > 0 ? `/${total}` : ""}
               </span>
               <span className={`${s.badge} ${s.levelPill}`}>{prompt.skillTargetLevel}</span>
             </div>
 
-            {skillProgress && skillProgress.total > 0 && (
+            {progress && progress.total > 0 && (
               <div className={s.inlineProgress}>
                 <div className={s.inlineProgressLabel}>
                   <span>Progression</span>
                   <span>
-                    {skillProgress.attempted}/{skillProgress.total}
+                    {progress.attempted}/{progress.total}
                   </span>
                 </div>
                 <span className={s.rail}>
                   <span
                     className={s.railFill}
-                    style={{width: `${skillProgress.percent}%`}}
+                    style={{width: `${progress.percent}%`}}
                   />
                 </span>
               </div>

@@ -486,6 +486,96 @@ class SkillMasteryEngineTest {
     }
 
     // ------------------------------------------------------------------------
+    // « La verification a-t-elle ete RENDUE ? » — la sortie de boucle
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le cas que la decision du proprietaire vient trancher : cinq petits sujets
+     * puis une production de verification <b>jugee fragile</b>. Elle ne prouve
+     * rien — {@code transferProven} reste faux — mais elle a bien eu lieu, et
+     * c'est ce fait qui laisse le Plan passer a la suite au lieu de reservir les
+     * cinq memes sujets.
+     */
+    @Test
+    @DisplayName("Une verification RATEE compte quand meme comme rendue")
+    void uneVerificationRateeEstQuandMemeRendue() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                microReussi(UUID.randomUUID(), jours(20)),
+                microReussi(UUID.randomUUID(), jours(15)),
+                observation(LearningPlanSourceType.PRODUCTION_EE,
+                        LearningPlanSkillStatus.TO_REINFORCE,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(2))), now);
+
+        assertThat(mastery.verificationSubmitted()).isTrue();
+        assertThat(mastery.transferProven()).isFalse();
+        assertThat(mastery.state()).isNotEqualTo(SkillMasteryState.SOLID);
+    }
+
+    @Test
+    @DisplayName("Tant que la verification n'est pas rendue, elle ne l'est pas")
+    void sansProductionApresLesPetitsSujetsRienNestRendu() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                microReussi(UUID.randomUUID(), jours(20)),
+                microReussi(UUID.randomUUID(), jours(15))), now);
+
+        assertThat(mastery.verificationSubmitted()).isFalse();
+    }
+
+    /**
+     * 🛑 Une production <b>anterieure</b> aux petits sujets n'est pas la
+     * verification de cette serie : c'est ce qui l'a motivee. La confondre
+     * ferait sortir la competence du Plan avant le premier exercice.
+     */
+    @Test
+    @DisplayName("Une production ANTERIEURE aux petits sujets ne verifie rien")
+    void uneProductionAnterieureNeVerifieRien() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.PRODUCTION_EE,
+                        LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(30)),
+                microReussi(UUID.randomUUID(), jours(20)),
+                microReussi(UUID.randomUUID(), jours(15))), now);
+
+        assertThat(mastery.verificationSubmitted()).isFalse();
+    }
+
+    /**
+     * 🛑 La COMPREHENSION n'a aucun petit sujet — ses observations sont toutes
+     * contextualisees ({@code TCF_CO}/{@code TCF_CE}). Sans la condition « il
+     * faut d'abord un micro-entrainement », sa premiere serie de QCM l'aurait
+     * declaree « verifiee » et l'aurait sortie des priorites du Plan.
+     */
+    @Test
+    @DisplayName("Une competence de comprehension n'est jamais « verifiee » par ses QCM")
+    void laComprehensionNestJamaisVerifieeParSesSeries() {
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                observation(LearningPlanSourceType.TCF_CE,
+                        LearningPlanSkillStatus.TO_REINFORCE,
+                        ObservationConfidence.HIGH, UUID.randomUUID(), jours(3))), now);
+
+        assertThat(mastery.verificationSubmitted()).isFalse();
+    }
+
+    /**
+     * Une verification tres ancienne ne peut pas ecarter indefiniment une
+     * fragilite reelle : passe {@code transfer-proof-days}, la competence
+     * redevient une priorite ordinaire.
+     */
+    @Test
+    @DisplayName("Une verification hors de la fenetre de preuve ne compte plus")
+    void uneVerificationTropAncienneNeCompteplus() {
+        int fenetre = properties.getMastery().getTransferProofDays();
+        SkillMasteryEngine.SkillMastery mastery = engine.evaluate(List.of(
+                microReussi(UUID.randomUUID(), jours(fenetre + 30)),
+                observation(LearningPlanSourceType.PRODUCTION_EE,
+                        LearningPlanSkillStatus.TO_REINFORCE,
+                        ObservationConfidence.HIGH, UUID.randomUUID(),
+                        jours(fenetre + 10))), now);
+
+        assertThat(mastery.verificationSubmitted()).isFalse();
+    }
+
+    // ------------------------------------------------------------------------
     // Fabriques
     // ------------------------------------------------------------------------
 

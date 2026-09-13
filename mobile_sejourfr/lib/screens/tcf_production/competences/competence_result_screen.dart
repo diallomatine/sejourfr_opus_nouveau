@@ -22,6 +22,8 @@ import '../../../core/widgets/app_card.dart';
 import '../widgets/action_plan.dart';
 import '../widgets/evaluation_loading_view.dart';
 import 'competence_next_action.dart';
+import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_step_labels.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
 import '../widgets/production_state_views.dart';
@@ -69,10 +71,15 @@ class CompetenceResultScreen extends ConsumerStatefulWidget {
     super.key,
     required this.module,
     required this.attemptId,
+    this.planStep = false,
   });
 
   final TcfProductionModule module;
   final String attemptId;
+
+  /// Ouvert **depuis le Plan** : le sujet suivant reste DANS les 5 de l'étape,
+  /// et les retours ramènent à l'étape plutôt qu'à la fiche des 15.
+  final bool planStep;
 
   @override
   ConsumerState<CompetenceResultScreen> createState() =>
@@ -195,6 +202,20 @@ class _CompetenceResultScreenState
     });
   }
 
+  /// **Le sujet suivant DANS l'étape**, ou `null` au dernier.
+  ///
+  /// 🛑 `SkillPromptDto.nextPromptId` est servi à l'échelle de la COMPÉTENCE
+  /// (les 15) : le suivre au bout de l'étape faisait déborder sur le 6ᵉ sujet.
+  /// Hors étape, il reste la règle — rien ne change.
+  String? _nextInStep(SkillPromptDto? prompt) {
+    if (prompt == null) return null;
+    if (!widget.planStep) return prompt.nextPromptId;
+    return planStepNextPromptId(
+      planStepFor(ref.watch(learningPlanProvider).valueOrNull, prompt.skillId),
+      prompt.id,
+    );
+  }
+
   void _back(String? skillId) {
     if (context.canPop()) {
       context.pop();
@@ -202,7 +223,8 @@ class _CompetenceResultScreenState
     }
     context.go(skillId == null
         ? '/tcf/${widget.module.routeKey}'
-        : competenceDetailPath(widget.module, skillId));
+        : competenceDetailPath(widget.module, skillId,
+            planStep: widget.planStep));
   }
 
   Future<void> _retryAnalysis() async {
@@ -390,7 +412,8 @@ class _CompetenceResultScreenState
                   ? null
                   : () => context.pushReplacement(
                         competencePromptPath(
-                            widget.module, prompt.skillId, prompt.id),
+                            widget.module, prompt.skillId, prompt.id,
+                            planStep: widget.planStep),
                       ),
             ),
           ],
@@ -436,7 +459,8 @@ class _CompetenceResultScreenState
             accent: _accent,
             icon: widget.module.icon,
             onTap: () => context.push(
-              competenceDetailPath(widget.module, prompt.skillId),
+              competenceDetailPath(widget.module, prompt.skillId,
+                  planStep: widget.planStep),
             ),
           ),
         ],
@@ -452,9 +476,16 @@ class _CompetenceResultScreenState
             module: widget.module,
             prompt: prompt,
             status: analysis.status,
+            planStep: widget.planStep,
+            nextInStep: _nextInStep(prompt),
           )
         else
-          _Actions(module: widget.module, prompt: prompt),
+          _Actions(
+            module: widget.module,
+            prompt: prompt,
+            planStep: widget.planStep,
+            nextInStep: _nextInStep(prompt),
+          ),
       ],
     );
   }
@@ -1179,27 +1210,32 @@ class _NextActionCard extends StatelessWidget {
     required this.module,
     required this.prompt,
     required this.status,
+    required this.planStep,
+    required this.nextInStep,
   });
 
   final TcfProductionModule module;
   final SkillPromptDto? prompt;
   final SkillCriterionStatus status;
+  final bool planStep;
+  final String? nextInStep;
 
   @override
   Widget build(BuildContext context) {
-    final next = prompt?.nextPromptId;
+    final next = nextInStep;
     final action = competenceNextAction(status, next != null);
     void rejouer() {
       if (prompt == null) return;
       context.pushReplacement(
-        competencePromptPath(module, prompt!.skillId, prompt!.id),
+        competencePromptPath(module, prompt!.skillId, prompt!.id,
+            planStep: planStep),
       );
     }
 
     void suivant() {
       if (prompt == null || next == null) return;
       context.pushReplacement(
-        competencePromptPath(module, prompt!.skillId, next),
+        competencePromptPath(module, prompt!.skillId, next, planStep: planStep),
       );
     }
 
@@ -1259,14 +1295,21 @@ class _NextActionCard extends StatelessWidget {
 /// jamais l'accès au sujet suivant, il n'y en a simplement plus. Le retour en
 /// arrière reste la flèche de l'en-tête : il n'a pas sa place en bas d'écran.
 class _Actions extends StatelessWidget {
-  const _Actions({required this.module, required this.prompt});
+  const _Actions({
+    required this.module,
+    required this.prompt,
+    required this.planStep,
+    required this.nextInStep,
+  });
 
   final TcfProductionModule module;
   final SkillPromptDto? prompt;
+  final bool planStep;
+  final String? nextInStep;
 
   @override
   Widget build(BuildContext context) {
-    final next = prompt?.nextPromptId;
+    final next = nextInStep;
     return Column(
       children: [
         AppButton(
@@ -1277,7 +1320,8 @@ class _Actions extends StatelessWidget {
           onPressed: (prompt == null || next == null)
               ? null
               : () => context.pushReplacement(
-                    competencePromptPath(module, prompt!.skillId, next),
+                    competencePromptPath(module, prompt!.skillId, next,
+                        planStep: planStep),
                   ),
         ),
         const SizedBox(height: 8),
@@ -1292,7 +1336,8 @@ class _Actions extends StatelessWidget {
           onPressed: prompt == null
               ? null
               : () => context.pushReplacement(
-                    competencePromptPath(module, prompt!.skillId, prompt!.id),
+                    competencePromptPath(module, prompt!.skillId, prompt!.id,
+                        planStep: planStep),
                   ),
         ),
       ],

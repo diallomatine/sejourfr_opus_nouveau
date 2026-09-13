@@ -879,6 +879,31 @@
   padding: 18px 16px 16px;
 }
 
+/* 🛑 LA CARTE DE VÉRIFICATION EST UNE AUTRE CARTE. Le nom de la compétence ne
+   change pas quand la série se termine : si seul le bouton changeait de
+   libellé, le candidat lirait « rien n'a bougé ». D'où un fond, un liseré et
+   une pastille d'icône ambre — l'accent de « preuve à faire », jamais le vert
+   d'un acquis. */
+.now.isVerify {
+  background: linear-gradient(180deg, var(--color-amber-light) 0%, #fff 46%);
+  box-shadow: var(--sf-shadow-lift), inset 0 0 0 1px var(--color-amber-border);
+}
+
+.now.isVerify .nowIco {
+  background: var(--color-amber-dark);
+}
+
+.now.isVerify .nowObj {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--color-amber-border);
+}
+
+.now.isVerify .nowBadge {
+  background: #fff;
+  color: var(--color-amber-dark);
+  box-shadow: inset 0 0 0 1px var(--color-amber-border);
+}
+
 .nowHead {
   display: grid;
   grid-template-columns: 48px 1fr;
@@ -1057,9 +1082,17 @@
   background: var(--color-blue);
 }
 
+/* Série finie, preuve encore à faire : ni la ligne d'arrivée (vert), ni le
+   travail en cours (bleu). */
+.bar i.verifySeg {
+  background: var(--color-amber);
+}
+
 .step {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  /* La 3ᵉ colonne SHRINKE : la pastille peut porter « Série terminée · À
+     vérifier », qui déborderait un téléphone à 360 px en `auto` pur. */
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, auto);
   gap: 10px;
   align-items: center;
   padding: 8px 0;
@@ -1086,6 +1119,31 @@
   font-weight: 750;
 }
 
+/* 🛑 « Série terminée · À vérifier » doit se lire au premier coup d'œil comme
+   un état À PART : ce n'est ni une coche verte (rien n'est acquis) ni une
+   ligne à venir. */
+.step.isVerify {
+  background: var(--color-amber-light);
+  margin: 0 -10px;
+  padding: 8px 10px;
+  border-radius: var(--sf-radius-sm);
+}
+
+.step.isVerify b {
+  font-weight: 750;
+}
+
+.step.isVerify .bullet {
+  background: #fff;
+  color: var(--color-amber-dark);
+  box-shadow: 0 0 0 1px var(--color-amber-border);
+}
+
+.step.isVerify .nowPill {
+  color: var(--color-amber-dark);
+  box-shadow: 0 0 0 1px var(--color-amber-border);
+}
+
 .nowPill {
   display: inline-flex;
   align-items: center;
@@ -1097,7 +1155,13 @@
   background: #fff;
   border-radius: var(--sf-radius-xs);
   padding: 4px 7px;
-  white-space: nowrap;
+  /* La pastille porte un état SERVI (« Série terminée · À vérifier ») : sur un
+     téléphone elle doit se replier sur deux lignes plutôt que d'être tronquée —
+     un état à moitié lu ne dit plus rien. */
+  white-space: normal;
+  text-align: right;
+  text-wrap: balance;
+  min-width: 0;
   box-shadow: 0 0 0 1px rgba(30, 58, 140, 0.12);
 }
 

@@ -1,11 +1,16 @@
 /**
- * **Affiner votre Plan** — l'invitation au diagnostic complet, en action
- * **secondaire**.
+ * **Affiner votre Plan** — l'invitation au diagnostic complet.
  *
  * 🛑 **Le diagnostic complet ne bloque jamais le Plan** (arbitrage du
- * propriétaire, 2026-09-12). Il l'affine. Cette carte se pose donc **après** le
- * contenu principal, et ne concurrence jamais le CTA d'abonnement d'un compte
- * gratuit : bouton `line` (contour), jamais `primary`.
+ * propriétaire, 2026-09-12). Il l'affine — d'où sa place, jamais avant le
+ * contenu du Plan.
+ *
+ * 🛑 **C'est désormais le SEUL appel à compléter son profil** (2026-09-13) :
+ * la section « Compléter mon profil » et ses cartes d'épreuve ont été
+ * supprimées, et cette carte a pris leur emplacement. D'où le bouton **plein**
+ * `blue` (Bleu France) : un contour ne se voyait plus une fois seul en piste.
+ * 🛑 **Jamais `primary`** pour autant — le rouge reste réservé au CTA critique
+ * de la page, « Débloquer mon plan » sur un compte gratuit.
  *
  * 🛑 **Un seul composant, trois lecteurs** — Plan gratuit, Plan abonné,
  * Accueil. Ses phrases vivent dans une **autorité unique**, `affinerPlan()`
@@ -47,9 +52,10 @@ export function AffinerPlanCard({info}: {info: AffinerPlan}) {
                         {info.prochaineEpreuve ? (
                             <p className={sejourStyles.tiny}>{info.prochaineEpreuve}</p>
                         ) : null}
-                        {/* 🛑 `line`, jamais `primary` : sur un Plan gratuit, le
-                            seul bouton plein de la page reste « Débloquer mon Plan ». */}
-                        <Cta href={info.href} variant="line">
+                        {/* 🛑 `blue` (plein), jamais `primary` : sur un Plan
+                            gratuit, le seul bouton ROUGE de la page reste
+                            « Débloquer mon Plan ». */}
+                        <Cta href={info.href} variant="blue">
                             {info.cta}
                         </Cta>
                     </Stack>

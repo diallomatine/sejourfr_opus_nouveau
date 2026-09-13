@@ -20,6 +20,8 @@ import '../../../core/widgets/progress_track.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../audio_recorder_service.dart';
 import '../tcf_production_module.dart';
+import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_step_labels.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
 import '../widgets/production_blocks.dart';
@@ -66,18 +68,23 @@ class CompetencePromptScreen extends ConsumerWidget {
     required this.module,
     required this.skillId,
     required this.promptId,
+    this.planStep = false,
   });
 
   final TcfProductionModule module;
   final String skillId;
   final String promptId;
 
+  /// Ouvert **depuis le Plan** : le repère devient « Sujet 1/5 » et le retour
+  /// ramène à l'étape, pas à la fiche des 15.
+  final bool planStep;
+
   void _back(BuildContext context) {
     if (context.canPop()) {
       context.pop();
       return;
     }
-    context.go(competenceDetailPath(module, skillId));
+    context.go(competenceDetailPath(module, skillId, planStep: planStep));
   }
 
   @override
@@ -114,12 +121,15 @@ class CompetencePromptScreen extends ConsumerWidget {
           data: (prompt) => prompt.locked
               ? _LockedPromptView(
                   prompt: prompt,
+                  skillId: skillId,
+                  planStep: planStep,
                   onBack: () => _back(context),
                 )
               : _PromptView(
                   module: module,
                   skillId: skillId,
                   prompt: prompt,
+                  planStep: planStep,
                   onBack: () => _back(context),
                 ),
         ),
@@ -134,7 +144,15 @@ class CompetencePromptScreen extends ConsumerWidget {
 /// production. Le contenu du sujet fait partie de ce qui s'achète, et laisser
 /// produire ferait perdre la réponse sur le 403 serveur. Miroir du web.
 class _LockedPromptView extends StatelessWidget {
-  const _LockedPromptView({required this.prompt, required this.onBack});
+  const _LockedPromptView({
+    required this.prompt,
+    required this.skillId,
+    required this.planStep,
+    required this.onBack,
+  });
+
+  final String skillId;
+  final bool planStep;
 
   final SkillPromptDto prompt;
   final VoidCallback onBack;
@@ -152,7 +170,11 @@ class _LockedPromptView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              _PromptMetaRow(prompt: prompt),
+              _PromptMetaRow(
+                prompt: prompt,
+                skillId: skillId,
+                planStep: planStep,
+              ),
               const SizedBox(height: 14),
               _LockedAnswerCard(
                 onSubscribe: () => unawaited(showTcfLockPaywall(context)),
@@ -241,12 +263,14 @@ class _PromptView extends ConsumerStatefulWidget {
     required this.module,
     required this.skillId,
     required this.prompt,
+    required this.planStep,
     required this.onBack,
   });
 
   final TcfProductionModule module;
   final String skillId;
   final SkillPromptDto prompt;
+  final bool planStep;
   final VoidCallback onBack;
 
   @override
@@ -416,7 +440,7 @@ class _PromptViewState extends ConsumerState<_PromptView> {
       unawaited(ref.read(recordingControllerProvider.notifier).cancel());
     }
     context.pushReplacement(
-      competenceResultPath(widget.module, attempt.id),
+      competenceResultPath(widget.module, attempt.id, planStep: widget.planStep),
     );
   }
 
@@ -450,12 +474,17 @@ class _PromptViewState extends ConsumerState<_PromptView> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
-              _PromptMetaRow(prompt: prompt),
+              _PromptMetaRow(
+                prompt: widget.prompt,
+                skillId: widget.skillId,
+                planStep: widget.planStep,
+              ),
               const SizedBox(height: 12),
               _SkillProgressBar(
                 skillId: prompt.skillId,
                 total: prompt.skillPromptCount,
                 accent: _accent,
+                planStep: widget.planStep,
               ),
               if (prompt.attemptCount > 0 && prompt.lastAttemptId != null) ...[
                 const SizedBox(height: 12),
@@ -476,7 +505,8 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                     final id = prompt.lastAttemptId!;
                     if (_isEo) {
                       context.push(
-                        competenceResultPath(widget.module, id),
+                        competenceResultPath(widget.module, id,
+                            planStep: widget.planStep),
                       );
                     } else {
                       unawaited(_resumeLastProduction(id));
@@ -734,20 +764,37 @@ class _SkillProgressBar extends ConsumerWidget {
     required this.skillId,
     required this.total,
     required this.accent,
+    required this.planStep,
   });
 
   final String skillId;
   final int total;
   final Color accent;
 
+  /// Ouvert depuis le Plan : la barre suit le **même périmètre** que le repère
+  /// (« 3 / 5 »), jamais la compétence entière. Deux chiffres côte à côte ne
+  /// peuvent pas compter deux choses différentes.
+  final bool planStep;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Compteurs d'étape **servis** — on ne recompte rien.
+    final etape = planStep
+        ? planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId)
+        : null;
+    if (etape != null && etape.stepPromptCount > 0) {
+      return _bar(etape.stepAttemptedCount, etape.stepPromptCount);
+    }
     final detail = ref.watch(skillDetailProvider(skillId)).valueOrNull;
     if (detail == null || detail.prompts.isEmpty) {
       return const SizedBox.shrink();
     }
     final done = detail.prompts.where((p) => p.status.isTreated).length;
     final count = detail.prompts.length;
+    return _bar(done, count);
+  }
+
+  Widget _bar(int done, int count) {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -788,17 +835,34 @@ class _SkillProgressBar extends ConsumerWidget {
 /// deux lignes juste avant la zone de production. Le palier, lui, est exigé sur
 /// l'écran d'un petit sujet (spec §3 niveau 5) et vient du sujet lui-même —
 /// deep link direct compris, aucun appel à la compétence.
-class _PromptMetaRow extends StatelessWidget {
-  const _PromptMetaRow({required this.prompt});
+class _PromptMetaRow extends ConsumerWidget {
+  const _PromptMetaRow({
+    required this.prompt,
+    required this.skillId,
+    required this.planStep,
+  });
 
   final SkillPromptDto prompt;
+  final String skillId;
+
+  /// Ouvert depuis le Plan : le repère compte **dans l'étape** (« 1/5 »), pas
+  /// dans la compétence (« 1/15 »).
+  final bool planStep;
 
   @override
-  Widget build(BuildContext context) {
-    final total = prompt.skillPromptCount;
-    final position = total <= 0
-        ? 'Sujet ${prompt.displayOrder}'
-        : 'Sujet ${prompt.displayOrder}/$total';
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 🛑 Le périmètre est **servi** (`stepPromptIds`) : on ne rejoue pas « les 5
+    // premiers par rang ». Le Plan est déjà chargé — aucun appel de plus — et
+    // un repli silencieux sur le compteur de compétence est le cas normal.
+    final etape = planStep
+        ? planStepPosition(
+            planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId),
+            prompt.id,
+          )
+        : null;
+    final total = etape?.total ?? prompt.skillPromptCount;
+    final rang = etape?.rank ?? prompt.displayOrder;
+    final position = total <= 0 ? 'Sujet $rang' : 'Sujet $rang/$total';
     final level = prompt.skillTargetLevel.trim();
     return Row(
       children: [

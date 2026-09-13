@@ -787,6 +787,16 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `ExamRow`, `ThemeLine`, `Prio`, `ProgressMini`, `SkillRow`, `PathCard`,
   `NowCard`, `MiniPlan`, `LockRow`, `CheckList`, `DoneRow`, `PillMeta`,
   `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`, **`TopSlot`**…).
+🛑 **Cinq états d'étape, pas trois (2026-09-13).** `StepState` / `SfStepState`
+valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` portent
+un `pill` **composé par l'appelant** à partir d'un libellé **servi**
+(`PlanSkillStepState`) — le kit ne compose aucune phrase et n'en déduit aucune
+d'un compteur. `verify` (« Série terminée · À vérifier ») est ambre et **n'est
+pas** `done` : une série de 5 petits sujets finie n'est pas une compétence
+acquise. `NowCard` / `SfNowCard` ont un `variant` `verify` pour la même raison —
+quand la série se termine, le nom de la compétence ne change pas, et sans accent
+propre la carte se lirait « rien n'a bougé ». → `docs/regles/plan.md`
+
 - **Miroir Flutter** : `mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`,
   mêmes briques, mêmes noms (préfixe `Sf`). 🛑 **Un motif ajouté d'un côté
   s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit *est* la garantie de parité de
@@ -1310,6 +1320,56 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
   `DetailParts`) — `ModuleHubHeader`, `ModuleStatsBand`, `CategoryCard`,
   `CategoryCta`, `CategoryIconTone` et leurs règles CSS. `hub.module.css` ne garde
   que l'intertitre de section et l'en-tête de page détail.
+
+### Plan : « Compléter mon profil » est SUPPRIMÉ (2026-09-13)
+
+🛑 **Arbitrage du propriétaire**, verbatim : « Ici l'écran plan, supprime la
+partie compléter mon profil, en y mettant le bouton faire le diagnostic complet.
+Bouton plus visible. » ⚠️ **Cette section prime sur toutes les mentions de
+« Compléter mon profil » plus haut dans ce fichier** : la section n'existe plus
+sur `/plan`.
+
+- **Supprimés** : `CompleterMonProfil` et `AssessmentCard` (`LearningPlanView.tsx`),
+  `PLAN_COMPLETE_PROFILE_TITLE` / `_TEXT` (`lib/plan-domain.ts`) et les imports
+  devenus morts. `PLAN_COMPLETE_PROFILE_NOTE` **reste** (fiche de domaine,
+  « Toutes mes compétences »), et `usePlanAssessment` **reste** : la ligne
+  `A_EVALUER` de la séance, `PlanProgressView` et `PlanDomainView` l'emploient
+  toujours — c'est toujours l'autorité unique de lancement d'une mesure.
+- 🛑 **Une seule occurrence du CTA par écran.** `AffinerPlanCard` descend DANS
+  la vue : à l'emplacement libéré chez l'abonné (après le jalon, avant « Aller
+  plus loin »), après `PlanPaywall` sur un compte gratuit. `LearningPlanView` la
+  passe en prop `affiner` à `TcfPlanPremium` / `TcfPlanFree` au lieu de la
+  rendre une seconde fois en fin de page.
+- **Le bouton est PLEIN** : `Cta variant="blue"` (Bleu France), plus `line`.
+  🛑 **Jamais `primary`** — le rouge reste au CTA critique, « Débloquer mon
+  plan ». Même changement, même passe, côté mobile (`SfButtonVariant.blue`).
+- **La carte DIT ce qui se mesure** : `affinerPlan` (`lib/preparation.ts`,
+  miroir de `preparation_labels.dart`) nomme les 4 épreuves et le fait que
+  l'expression écrite et orale y est **entièrement offerte**.
+- **Inchangés** : « Revoir mon diagnostic rapide », « Aller plus loin », le
+  jalon, le Plan civique (qui n'a jamais eu cette section — `affinerPlan` rend
+  `null` en civique) et la porte d'entrée `PlanGate`.
+
+### `ProductionTaskDto.conditionsReelles` — un dérivé serveur (2026-09-13)
+
+🛑 **« Cette tâche se passe-t-elle en conditions d'examen ? » est SERVI**, plus
+déduit dans le runner. `ProductionSession` forçait `examMode` : il lit désormais
+`currentTask.conditionsReelles !== false` et le passe à `EoRecordingForm`.
+
+- `null` / absent ⇒ **oui** : un backend antérieur au champ, ou une tâche
+  fabriquée hors session (micro-exercice, aperçu), garde exactement le
+  comportement d'avant. On n'ouvre jamais par défaut.
+- Aujourd'hui, seules **EO1 et EO2 d'un diagnostic** valent `false` (serveur :
+  `ProductionExamConditions`). **L'examen blanc ne change pas.**
+- Ce que ça relâche : pas de décompte de tâche, pas d'envoi au premier arrêt,
+  réécoute et reprise autorisées, envoi explicite. La prise reste bornée par
+  `maxDurationSec={task.dureeMaxSec}` — un plafond de capture, pas un chrono.
+- L'**examinateur vocal temps réel** n'est pas proposé sur ces tâches
+  (`onModeChoice` conditionné) : il a son propre quota payant.
+- Phrase servie au candidat : `PRODUCTION_HORS_CONDITIONS_NOTE`
+  (`lib/tcf-diagnostic.ts`), miroir de `kProductionHorsConditionsNote`, rendue
+  en `headerSlot` avec la classe `.horsConditions` (bleue — c'est une
+  permission, pas un avertissement).
 
 ### Le Plan (`/plan`) au palier desktop (2026-09-12, passe 2)
 

@@ -229,7 +229,7 @@ const String kPlanSeanceEmpty =
 /// qu'un libellé deviné.
 String? planExerciseKindLabel(PlanExerciseKind? kind, {int? questionCount}) =>
     switch (kind) {
-      PlanExerciseKind.microTraining => 'Petit sujet ciblé',
+      PlanExerciseKind.microTraining => kPlanMicroTrainingNature,
       PlanExerciseKind.reassessment => 'Vérification en situation',
       PlanExerciseKind.targetedQcmSeries => planSeriesLabel(questionCount),
       // Deux jalons, deux périmètres : une épreuve (3 tâches) n'est pas un TCF
@@ -238,6 +238,12 @@ String? planExerciseKindLabel(PlanExerciseKind? kind, {int? questionCount}) =>
       PlanExerciseKind.fullTcfMockExam => 'Examen blanc TCF complet',
       null => null,
     };
+
+/// Ce qu'est l'entraînement d'une étape. **Au pluriel** : une étape n'est pas un
+/// sujet, c'est une série de cinq — le singulier faisait croire à une action
+/// unique là où le Plan en demande cinq. Miroir mot pour mot du web
+/// (`PLAN_MICRO_TRAINING_NATURE`).
+const String kPlanMicroTrainingNature = 'Sujets ciblés';
 
 /// La ligne qui explique une carte **à acquérir**, là où une fragilité aurait
 /// eu l'explication servie par le correcteur.
@@ -255,44 +261,48 @@ const String kPlanVerificationNote =
     'Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie '
     'tâche, en situation.';
 
-/// **Pourquoi cette compétence est en tête**, en deux lignes de faits servis.
+/// **Les deux lignes de la carte d'action**, distinctes.
 ///
-/// 1. ce que le correcteur a observé (`explanation`), ou — sur une compétence
-///    jamais travaillée — **ce qu'elle est** ;
-/// 2. l'état agrégé et l'avancement de l'**étape** (les 5 sujets).
+/// 1. le **constat** — ce que le correcteur a observé, préfixé de **l'action**
+///    que le Plan demande (« À renforcer : le lien de cause à effet reste peu
+///    développé. »), et sans préfixe sur une vérification ;
+/// 2. la **progression** — « Progression : 3/5 sujets réalisés ».
 ///
-/// 🛑 **La nature passe avant les compteurs** : sur une compétence à acquérir,
-/// « 0 sujet sur 5 traité » se lirait comme un retard alors qu'il n'y avait rien
-/// à traiter.
+/// 🛑 Elles étaient **concaténées** en une seule phrase, où l'état et le
+/// compteur se lisaient comme la suite du constat. Deux faits différents, deux
+/// lignes.
 ///
-/// ⚠️ **Miroir mot pour mot du web** (`priorityLines`, `LearningPlanView.tsx`).
-/// Le mobile n'affichait que la ligne 1, le web que la ligne 2 : la même carte
-/// racontait deux histoires selon l'appareil.
-List<String> planPriorityLines(LearningPlanPriority priority) {
+/// 🛑 La nature passe avant les compteurs : sur une compétence à acquérir,
+/// « 0/5 » se lirait comme un retard alors qu'il n'y avait rien à traiter.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planNowLines`, `lib/plan-domain.ts`).
+List<String> planNowLines(LearningPlanPriority priority) {
   final lines = <String>[];
   if (priority.nature == PlanActionNature.aAcquerir) {
     lines.add(kPlanAcquisitionNote);
   } else if (priority.explanation != null &&
       priority.explanation!.trim().isNotEmpty) {
-    lines.add(priority.explanation!);
+    // 🛑 **Le préfixe nomme l'ACTION de l'étape, pas un état mesuré.** Il
+    // lisait `masteryState`, donc « Priorité : … » juste sous la pastille
+    // « Priorité n°1 » — la répétition même qu'on cherchait à supprimer.
+    //
+    // 🛑 **Rien n'est fabriqué ici** : `nature` est servie et son libellé est
+    // le miroir gelé de l'enum serveur (`SkillLabelsTest`).
+    //
+    // **Pas de préfixe sur une vérification** : la carte porte déjà « Valider
+    // cette compétence » et l'encart « Vérification en situation », et « À
+    // vérifier : <une faiblesse> » ferait dire au constat autre chose que ce
+    // qu'il dit.
+    lines.add(priority.nature == PlanActionNature.aVerifier
+        ? priority.explanation!
+        : '${priority.nature.label} : ${priority.explanation}');
   } else if (priority.readyForReassessment) {
     lines.add(kPlanVerificationNote);
   }
-
-  final state = priority.masteryState?.label;
-  if (priority.stepPromptCount > 0) {
-    final done = priority.stepAttemptedCount;
-    final total = priority.stepPromptCount;
-    final compteur = '$done sujet${done > 1 ? 's' : ''} sur $total '
-        'traité${done > 1 ? 's' : ''} dans cette étape';
-    lines.add(state == null ? '$compteur.' : '$state · $compteur.');
-  } else if (lines.isEmpty || state != null) {
-    lines.add(
-      state == null
-          ? 'C\'est cette compétence qui fait le plus avancer votre palier.'
-          : '$state · c\'est cette compétence qui fait le plus avancer votre '
-              'palier.',
-    );
+  if (priority.nature != PlanActionNature.aAcquerir &&
+      priority.stepPromptCount > 0) {
+    lines.add('Progression : ${priority.stepAttemptedCount}'
+        '/${priority.stepPromptCount} sujets réalisés');
   }
   return lines;
 }
@@ -440,9 +450,18 @@ String planPathTitle(TargetLevel? objective) => objective == null
 
 /// Titre d'une étape du chemin. Le serveur dit **quoi** et **où on en est** ;
 /// la phrase est d'ici.
+/// Le titre de la 1ʳᵉ étape du cycle de palier. Miroir mot pour mot du web
+/// (`PLAN_PATH_MEASURE_TITLE`).
+const String kPlanPathMeasureTitle = 'Mesurer mes 4 épreuves';
+
 String planPathStepTitle(PlanPathStep step, TargetLevel? objective) =>
     switch (step.kind) {
-      PlanPathStepKind.completeProfile => 'Compléter mon profil',
+      // ⚠️ **Ce n'est pas la section supprimée le 2026-09-13.** C'est la 1ʳᵉ
+      // étape du CYCLE DE PALIER : mesurer les quatre épreuves avant de
+      // construire un palier. Elle portait le même nom que la section
+      // disparue, ce qui la faisait lire comme son retour. Le nom dit
+      // maintenant ce que l'étape est ; sa logique n'a pas bougé.
+      PlanPathStepKind.completeProfile => kPlanPathMeasureTitle,
       PlanPathStepKind.buildLevel => step.level == null
           ? 'Construire mon palier'
           : 'Construire mon ${step.level!.wire}',
@@ -512,11 +531,6 @@ String planProfileCoverage(PlanCycle? cycle, int fallbackTotal) {
       'évalué${evaluated > 1 ? 's' : ''}';
 }
 
-const String kPlanCompleteProfileTitle = 'Compléter mon profil';
-const String kPlanCompleteProfileText =
-    'Votre diagnostic portait sur une production écrite et une production '
-    'orale. Les domaines ci-dessous n\'ont encore jamais été mesurés — voici '
-    'par quoi les mesurer.';
 /* ------------------------------------------- toutes mes compétences (page) */
 
 const String kPlanAllSkillsTitle = 'Toutes mes compétences';
@@ -641,23 +655,67 @@ const String kPlanGoalUnknown = '—';
 const String kPlanGoalPick = 'Choisir mon objectif';
 
 const String kPlanNowTitle = 'À faire maintenant';
-const String kPlanNowStartCta = 'Commencer';
-const String kPlanNowValidateCta = 'Commencer la validation';
 const String kPlanNowLockedCta = 'Débloquer cet entraînement';
 
-/// Le libellé de l'encart bleu de la carte d'action. Une **vérification** ne se
-/// présente pas comme un exercice de plus : elle dit ce qu'elle est.
-String planNowObjectiveLabel(PlanRecommendedExercise? exercise) =>
-    exercise?.kind == PlanExerciseKind.reassessment
-        ? 'Vérification en situation'
-        : 'Compétence actuelle';
+/// Le titre de la carte quand la série est terminée. 🛑 Il nomme **l'action**,
+/// pas la compétence : c'est ce qui fait voir au premier coup d'œil que la carte
+/// a changé de nature alors que le nom de la compétence, lui, n'a pas bougé.
+/// Miroir mot pour mot du web (`PLAN_NOW_VERIFY_TITLE`).
+const String kPlanNowVerifyTitle = 'Valider cette compétence';
+const String kPlanNowVerifyText =
+    'Mettez maintenant cette compétence en pratique dans une réponse complète.';
+const String kPlanNowVerifyObjectiveLabel = 'Vérification en situation';
 
-/// Le repère « Tâche 3 · Donner son opinion » sous le domaine. `null` en
-/// compréhension, où il n'y a pas de tâche — le palier prend sa place.
-String planNowSubtitle({SkillTaskCode? task, TargetLevel? level}) {
-  if (task != null) return 'Tâche ${task.tacheNumero} · ${task.title}';
-  return level == null ? '' : 'Niveau ${level.wire}';
+const String kPlanNowStartCta = 'Commencer';
+const String kPlanNowContinueCta = 'Continuer';
+const String kPlanNowDiscoverCta = 'Découvrir';
+const String kPlanNowVerifyCta = 'Faire la vérification';
+
+/// 🛑 **Une MESURE passe devant tout le reste.** Le candidat a produit sur ce
+/// domaine et le correcteur n'a rien pu y observer : tant qu'on ne l'a pas
+/// mesuré, les exercices qui suivent travaillent à l'aveugle. Miroir mot pour
+/// mot du web (`PLAN_NOW_CTA_MEASURE`).
+const String kPlanNowMeasureCta = 'Compléter la mesure';
+
+/// Ce que dit le bouton de la carte d'action.
+///
+/// 🛑 **Rien n'est déduit d'un pourcentage** : la vérification se lit sur la
+/// nature **servie**, et « Commencer » / « Continuer » ne départagent qu'un
+/// compteur servi à zéro ou non — un nombre affiché, pas un état classé ici.
+///
+/// ⚠️ Miroir mot pour mot du web (`planNowCta`).
+String planNowCta(
+  LearningPlanPriority priority, {
+  required bool verifier,
+  required bool mesure,
+}) {
+  if (mesure) return kPlanNowMeasureCta;
+  if (verifier) return kPlanNowVerifyCta;
+  if (priority.nature == PlanActionNature.aAcquerir) return kPlanNowDiscoverCta;
+  return priority.stepAttemptedCount > 0
+      ? kPlanNowContinueCta
+      : kPlanNowStartCta;
 }
+
+/// Le repère « Expression écrite · Tâche 3 » sous le nom de la compétence.
+/// `null` en compréhension, où il n'y a pas de tâche — le palier prend sa place.
+///
+/// 🛑 **Il ne répète plus le titre de la compétence** : celui-ci vit en titre de
+/// carte, et le voir trois fois sur le même écran (titre, sous-titre, encart)
+/// ne disait rien de plus.
+String planNowSubtitle({
+  required String domaine,
+  SkillTaskCode? task,
+  TargetLevel? level,
+}) {
+  if (task != null) return '$domaine · Tâche ${task.tacheNumero}';
+  return level == null ? domaine : '$domaine · Niveau ${level.wire}';
+}
+
+/// Le sous-titre de la carte de **vérification** : la compétence, et la tâche
+/// dont la série vient de se terminer.
+String planNowVerifySubtitle(String title, SkillTaskCode? task) =>
+    task == null ? title : '$title · Tâche ${task.tacheNumero} complète';
 
 const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
 
@@ -665,9 +723,14 @@ const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
 String planPathSectionTitle(SkillTaskCode task) =>
     'Votre parcours — Tâche ${task.tacheNumero}';
 
-/// « Étape 3 / 8 » — **lu** sur `domaines[].taches[]`, jamais compté ici.
+/// « Observées : 2 / 8 » — **lu** sur `domaines[].taches[]`, jamais compté ici.
+///
+/// 🛑 **Ce n'est PAS une position.** Il disait « Étape 2 / 8 » pendant que la
+/// frise colorait le 3ᵉ segment : deux sens différents au même endroit. Le fait
+/// servi est un **compte de compétences observées**, il se nomme donc pour ce
+/// qu'il est ; la frise continue de montrer l'état de chaque compétence.
 String planPathCounter(PlanDomainTask task) =>
-    'Étape ${task.observedSkills} / ${task.totalSkills}';
+    'Observées : ${task.observedSkills} / ${task.totalSkills}';
 
 /// Le titre de la section des priorités. Il nomme l'objectif quand il est
 /// connu, et se tait sinon.

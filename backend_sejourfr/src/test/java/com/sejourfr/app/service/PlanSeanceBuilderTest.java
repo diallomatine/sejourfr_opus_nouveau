@@ -14,6 +14,7 @@ import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.PlanExerciseKind;
+import com.sejourfr.app.enums.PlanSkillStepState;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
@@ -73,7 +74,7 @@ class PlanSeanceBuilderTest {
                         UUID.randomUUID(), UUID.randomUUID(), "EE1-C1", "Tache complete",
                         SkillSection.EE, (short) 1, 12, false),
                 15, 5, 5, 5, 5, 5, true, List.of(),
-                SkillMasteryState.CONSOLIDATING, true, false);
+                SkillMasteryState.CONSOLIDATING, PlanSkillStepState.A_VERIFIER, true, false);
 
         PlanSeanceDto seance =
                 builder.build(null, List.of(prete), skills(List.of(prete)), Map.of(), null);
@@ -105,7 +106,7 @@ class PlanSeanceBuilderTest {
                         skillId, "CO-B1", "Comprendre le sens global", SkillSection.CO,
                         20, 16, false),
                 0, 0, 0, 0, 0, 0, false, List.of(),
-                SkillMasteryState.TO_REINFORCE, false, false);
+                SkillMasteryState.TO_REINFORCE, PlanSkillStepState.A_VENIR, false, false);
         Skill skill = skill("CO-B1", SkillSection.CO);
         skill.setId(skillId);
         skill.setTargetLevel("B1");
@@ -402,7 +403,7 @@ class PlanSeanceBuilderTest {
                 LearningPlanSkillStatus.TO_REINFORCE, "Explication", "Preuve",
                 ObservationConfidence.HIGH, Instant.now(), exercise,
                 15, 2, 1, 5, 2, 1, false, List.of(),
-                SkillMasteryState.TO_REINFORCE, false, false);
+                SkillMasteryState.TO_REINFORCE, PlanSkillStepState.EN_COURS, false, false);
     }
 
     /**
@@ -416,7 +417,7 @@ class PlanSeanceBuilderTest {
                 PlanActionNature.A_ACQUERIR,
                 null, null, null, null, null, exercise,
                 15, 0, 0, 5, 0, 0, false, List.of(),
-                null, false, false);
+                null, PlanSkillStepState.A_VENIR, false, false);
     }
 
     private static PlanRecommendedExerciseDto micro(int minutes) {

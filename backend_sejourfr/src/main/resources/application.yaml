@@ -1143,11 +1143,16 @@ sejourfr:
     secondes-par-question: 36
 
   tcf-diagnostic:
-    config-version: 1
-    # 5 A2 + 5 B1 + 5 B2 = 15 items par epreuve de comprehension. La repartition
-    # egale n'est pas cosmetique : le niveau se lit sur un taux PAR PALIER, et
-    # un palier sous-dote rendrait son taux tres sensible a une seule erreur.
-    items-per-level: 5
+    # 🛑 2 depuis le 2026-09-13 : le diagnostic pose 24 items par epreuve de
+    # comprehension au lieu de 15, donc le SENS d'un niveau change. Un
+    # diagnostic se relit avec la configuration qui l'a produit.
+    config-version: 2
+    # 8 A2 + 8 B1 + 8 B2 = 24 items par epreuve de comprehension — le volume de
+    # l'epreuve reelle (25), le diagnostic complet devant en etre l'equivalent
+    # (demande du proprietaire, 2026-09-13). La repartition reste EGALE entre
+    # paliers : le niveau se lit sur un taux PAR PALIER, et un palier sous-dote
+    # rendrait son taux tres sensible a une seule erreur.
+    items-per-level: 8
     # Seuils de bascule (10_ §4.3). Un palier superieur exige de tenir AUSSI
     # les paliers inferieurs : reussir le B2 en echouant l'A2 ne fait pas un B2.
     seuils:

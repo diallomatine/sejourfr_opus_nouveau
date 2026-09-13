@@ -160,6 +160,13 @@ public class LearningPlanPriorityResolver {
             Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
         return latestObservedBySkill(observations).values().stream()
                 .filter(item -> !transfertProuve(mastery, item))
+                // L'ETAPE VERIFIEE sort aussi, meme sans reussite. Sans cette
+                // ligne, un candidat qui finit ses cinq petits sujets puis rend
+                // sa verification sans atteindre SOLID revenait en tete du Plan
+                // avec... les cinq memes sujets, tous deja traites. La boucle
+                // etait fermee : le moteur ne pouvait plus rien apprendre de
+                // lui. Verifier n'est pas reussir, mais c'est avancer.
+                .filter(item -> !etapeVerifiee(mastery, item))
                 .filter(item -> item.getStatus() == LearningPlanSkillStatus.PRIORITY
                         || item.getStatus() == LearningPlanSkillStatus.TO_REINFORCE)
                 .sorted(Comparator
@@ -223,6 +230,25 @@ public class LearningPlanPriorityResolver {
             LearningPlanObservation observation) {
         SkillMasteryEngine.SkillMastery state = mastery.get(observation.getSkill().getId());
         return state != null && state.transferProven();
+    }
+
+    /**
+     * « La verification de cette etape a-t-elle ete RENDUE ? » — <b>lue</b> chez
+     * {@code SkillMasteryEngine}, jamais recalculee, exactement comme
+     * {@link #transfertProuve}.
+     *
+     * <p>Les deux repondent a deux questions differentes et ne se remplacent
+     * pas : {@code transferProven} dit que la competence est <b>acquise</b> et
+     * fait passer l'etape dans {@link #franchies} ; celle-ci dit seulement que
+     * la preuve a ete <b>tentee</b>. Une etape verifiee sans reussite n'est
+     * donc ni une priorite, ni une etape franchie : elle sort du chemin
+     * critique, et le moteur la reproposera si elle reste fragile.
+     */
+    private static boolean etapeVerifiee(
+            Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
+            LearningPlanObservation observation) {
+        SkillMasteryEngine.SkillMastery state = mastery.get(observation.getSkill().getId());
+        return state != null && state.verificationSubmitted();
     }
 
     /** Le moteur, sur l'historique deja en main : aucune requete de plus. */

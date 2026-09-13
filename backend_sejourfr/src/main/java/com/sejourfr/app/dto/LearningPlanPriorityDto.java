@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanActionNature;
+import com.sejourfr.app.enums.PlanSkillStepState;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 
@@ -101,6 +102,21 @@ public record LearningPlanPriorityDto(
          * {@link #status()}, verdict de la <b>derniere production</b>.
          */
         SkillMasteryState masteryState,
+        /**
+         * <b>Ou en est l'ETAPE</b> — l'etat servi que les fronts affichent, sans
+         * jamais le deriver d'un compteur.
+         *
+         * <p>Il dit ce qu'aucun autre champ ne disait : la serie des cinq petits
+         * sujets est-elle finie, et la verification a-t-elle ete rendue ?
+         * {@code stepAttemptedCount}/{@code stepPromptCount} restent la
+         * progression chiffree (« 3/5 »), lui en est la <b>lecture</b>.
+         *
+         * <p>🛑 <b>{@code SERIE_TERMINEE} n'est pas {@code ACQUIS}</b> :
+         * {@code ACQUIS} ne se pose que sur {@code masteryState == SOLID}. Un
+         * front qui cocherait une serie finie annoncerait une maitrise que rien
+         * n'a prouvee.
+         */
+        PlanSkillStepState stepState,
         /**
          * {@code true} quand le candidat a assez travaille cette competence en
          * exercices cibles, sur des sujets differents, <b>sans preuve de

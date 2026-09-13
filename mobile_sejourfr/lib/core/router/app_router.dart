@@ -774,6 +774,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CompetenceResultScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           attemptId: state.pathParameters['attemptId']!,
+          // Marqueur d'étape : le sujet suivant reste alors DANS les 5.
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
       GoRoute(
@@ -792,6 +794,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           skillId: state.pathParameters['skillId']!,
           promptId: state.pathParameters['promptId']!,
+          // Marqueur d'étape : le repère devient « Sujet 1/5 » et le retour
+          // ramène à l'étape, pas à la fiche des 15.
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
 

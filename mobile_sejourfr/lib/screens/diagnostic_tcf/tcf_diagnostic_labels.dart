@@ -32,6 +32,19 @@ const String kTcfDiagnosticSectionWarning =
 /// Le micro est annoncé avant l'oral, jamais demandé par surprise.
 const String kTcfDiagnosticMicWarning = 'Cette section utilise votre micro.';
 
+/// **Cette tache n'est pas en conditions d'examen** — la phrase posee au-dessus
+/// de l'enregistreur quand le serveur sert `conditionsReelles: false`.
+///
+/// 🛑 **Le front ne decide rien** : il ne fait qu'habiller un fait servi. Le
+/// perimetre (EO1 et EO2 du diagnostic, et rien d'autre) vit cote serveur,
+/// `ProductionExamConditions`.
+///
+/// Miroir mot pour mot de `PRODUCTION_HORS_CONDITIONS_NOTE`
+/// (`web_sejoufr/lib/tcf-diagnostic.ts`).
+const String kProductionHorsConditionsNote =
+    'Cette tâche n\'est pas chronométrée comme à l\'examen : prenez le temps, '
+    'réécoutez-vous, refaites votre prise si besoin, puis envoyez.';
+
 const String kTcfDiagnosticEstimationNote =
     'Estimation SejourFR, non officielle.';
 

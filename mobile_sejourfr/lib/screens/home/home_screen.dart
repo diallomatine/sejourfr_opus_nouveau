@@ -420,7 +420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               planDomainLabel(epreuve), chemin.task.tacheNumero),
       subtitle: priorite.title,
       counter: planPathCounter(chemin.dto),
-      steps: planPathSteps(plan, chemin),
+      steps: planPathSteps(chemin),
       onOpen: () => _ouvrirPlan(context, civique: false),
     );
   }

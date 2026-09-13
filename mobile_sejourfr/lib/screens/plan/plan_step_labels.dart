@@ -108,6 +108,43 @@ PlanStepScope? planStepFor(LearningPlan? plan, String skillId) {
   return null;
 }
 
+/// **Où en est ce sujet DANS l'étape** — « 1 / 5 », jamais « 1 / 15 ».
+///
+/// 🛑 **Aucun périmètre n'est recalculé ici** : le rang est la position du sujet
+/// dans `stepPromptIds`, la liste **ordonnée et servie** par le serveur
+/// (`LearningPlanStep.scope`, rang d'affichage croissant). Un front qui
+/// reprendrait « les 5 premiers sujets actifs » de son côté désignerait tôt ou
+/// tard une autre étape que le Plan.
+///
+/// `null` dès qu'on n'est pas dans une étape, ou que le sujet n'en fait pas
+/// partie : l'écran garde alors son compteur de **compétence** (« 1 / 15 »),
+/// comportement strictement inchangé hors Plan.
+///
+/// ⚠️ Miroir de `planStepPosition` (`web_sejoufr/lib/plan-step.ts`).
+({int rank, int total})? planStepPosition(PlanStepScope? scope, String promptId) {
+  if (scope == null || promptId.isEmpty) return null;
+  final index = scope.stepPromptIds.indexOf(promptId);
+  if (index < 0) return null;
+  return (rank: index + 1, total: scope.stepPromptIds.length);
+}
+
+/// **Le sujet suivant DANS l'étape**, ou `null` au dernier.
+///
+/// 🛑 C'est ce qui empêche l'enchaînement de **déborder sur le 6ᵉ sujet** de la
+/// compétence : `SkillPromptDto.nextPromptId` est servi à l'échelle de la
+/// compétence (les 15), il ne connaît pas l'étape. Au bout des 5, on ne propose
+/// plus de sujet — le Plan reprend la main et demande la vérification.
+///
+/// Là encore, rien n'est recalculé : on lit la liste **servie**, dans son ordre.
+///
+/// ⚠️ Miroir de `planStepNextPromptId` (web).
+String? planStepNextPromptId(PlanStepScope? scope, String promptId) {
+  if (scope == null || promptId.isEmpty) return null;
+  final index = scope.stepPromptIds.indexOf(promptId);
+  if (index < 0 || index + 1 >= scope.stepPromptIds.length) return null;
+  return scope.stepPromptIds[index + 1];
+}
+
 /// **Le sujet que l'écran d'étape propose de faire — désigné par le SERVEUR.**
 ///
 /// 🛑 Aucune règle de choix n'est écrite ici. `RecommendedExerciseSelector`

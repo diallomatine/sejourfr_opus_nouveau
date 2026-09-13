@@ -21,6 +21,7 @@ import '../plan_groups.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
+import '../plan_seance_state.dart';
 import '../plan_task_path.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
@@ -40,14 +41,24 @@ class PlanTcfView extends ConsumerWidget {
     super.key,
     required this.plan,
     required this.objective,
+    this.affiner,
     this.trailing = const <Widget>[],
   });
 
   final LearningPlan plan;
   final TargetLevel? objective;
 
+  /// **L'invitation au diagnostic complet**, posée à l'emplacement de l'ancien
+  /// « Compléter mon profil » (supprimé le 2026-09-13).
+  ///
+  /// 🛑 **Une seule occurrence par écran.** C'est désormais le SEUL appel à
+  /// compléter son profil : les cartes d'épreuve et leurs CTA « Passer l'examen
+  /// blanc » / « Faire une production » ont disparu avec la section. Servi ou
+  /// rien — à 4 / 4 l'autorité `affinerPlan` rend `null` et l'hôte passe `null`.
+  final Widget? affiner;
+
   /// Ce qui se pose **après** le contenu du Plan, dans le MÊME défilement —
-  /// aujourd'hui la carte « Affiner votre Plan ».
+  /// aujourd'hui le lien « Revoir mon diagnostic rapide ».
   ///
   /// 🛑 Un slot, pas un widget imposé : ce que le Plan **est** ne dépend pas de
   /// ce qui l'accompagne, et deux listes qui recopieraient la même carte
@@ -103,7 +114,9 @@ class PlanTcfView extends ConsumerWidget {
       ..._doneSection(),
       ..._changesSection(changes),
       if (milestone != null) _milestoneSection(context, ref, milestone),
-      if (plan.domainesAEvaluer.isNotEmpty) _assessmentSection(context),
+      // 🛑 L'emplacement de l'ancien « Compléter mon profil » : c'est ici que
+      // se complète un profil, et il n'y a plus qu'une façon de le faire.
+      if (affiner != null) affiner!,
       _links(context),
       ...trailing,
       const SizedBox(height: 28),
@@ -135,6 +148,11 @@ class PlanTcfView extends ConsumerWidget {
             checks: kPlanUnlockHeroChecks,
           ),
         ),
+        // 🛑 APRÈS le hero d'abonnement, et c'est délibéré : sur un Plan
+        // gratuit, le seul bouton ROUGE reste « Débloquer mon plan », en barre
+        // basse. Le diagnostic complet porte le bleu plein — visible, jamais
+        // concurrent.
+        if (affiner != null) affiner!,
         ...trailing,
         const SizedBox(height: 24),
       ];
@@ -276,21 +294,46 @@ class PlanTcfView extends ConsumerWidget {
     }
 
     final exercise = priority.recommendedExercise;
+    // 🛑 **Une MESURE passe devant tout le reste.** C'est le seul cas où le
+    // bouton ne lance pas l'étape : le candidat a produit sur ce domaine et le
+    // correcteur n'a rien pu y observer, donc tout ce qui suivrait
+    // travaillerait à l'aveugle. Miroir exact du web (`ActionMaintenant`) —
+    // aucune règle n'est décidée ici, on lit la séance servie et on exécute.
+    final mesure = planSeanceMesure(plan);
     final epreuve = planEpreuveOfSection(priority.section);
     final task = SkillTaskCode.fromSkillCode(priority.skillCode);
     final level = planSkillTargetLevel(plan, priority.skillId);
-    final subtitle = planNowSubtitle(task: task, level: level);
-    final lines = planPriorityLines(priority);
-    final blocked = priority.locked || (exercise?.locked ?? false);
+    final lines = planNowLines(priority);
+    final blocked = mesure != null
+        ? planSeanceItemLocked(mesure)
+        : priority.locked || (exercise?.locked ?? false);
+
+    // 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
+    // compétence ne change pas quand la série se termine : si seuls le bouton
+    // et son libellé changeaient, le candidat lirait « rien n'a bougé » alors
+    // que l'action a changé de nature. Elle se lit sur la nature **servie**,
+    // jamais sur un compteur.
+    final verifier = priority.nature == PlanActionNature.aVerifier &&
+        exercise?.kind == PlanExerciseKind.reassessment;
+
+    final minutes = mesure != null
+        ? mesure.assessment?.estimatedMinutes ?? 0
+        : exercise?.estimatedMinutes ?? 0;
 
     final meta = <SfMeta>[];
-    if (exercise != null && exercise.estimatedMinutes > 0) {
+    if (minutes > 0) {
       meta.add(SfMeta(
         LucideIcons.clock,
-        priority.stepPromptCount > 0 &&
-                exercise.kind == PlanExerciseKind.microTraining
-            ? '${priority.stepPromptCount} sujets · ≈ ${exercise.estimatedMinutes} min'
-            : '≈ ${exercise.estimatedMinutes} min',
+        // « chacun » : les minutes sont celles d'UN sujet, pas de la série
+        // entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes
+        // pour les cinq.
+        mesure == null &&
+                !verifier &&
+                priority.stepPromptCount > 0 &&
+                exercise?.kind == PlanExerciseKind.microTraining
+            ? '${priority.stepPromptCount} petits sujets '
+                '· ≈ $minutes min chacun'
+            : '≈ $minutes min',
       ));
     }
     final kind = planExerciseKindLabel(
@@ -300,29 +343,48 @@ class PlanTcfView extends ConsumerWidget {
     if (kind != null) meta.add(SfMeta(LucideIcons.target, kind));
 
     return SfNowCard(
-      icon: planDomainIcon(epreuve),
-      title: epreuve == null ? priority.title : planDomainLabel(epreuve),
-      subtitle: subtitle.isEmpty ? null : subtitle,
+      variant: verifier ? SfNowCardVariant.verify : SfNowCardVariant.standard,
+      icon: verifier ? LucideIcons.badgeCheck : planDomainIcon(epreuve),
+      // 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
+      // titre avant 5/5 et en sous-titre sur la vérification, dont le titre
+      // nomme l'ACTION — jamais aux deux endroits à la fois, et jamais une
+      // troisième fois dans l'encart bleu.
+      title: verifier ? kPlanNowVerifyTitle : priority.title,
+      subtitle: verifier
+          ? planNowVerifySubtitle(priority.title, task)
+          : planNowSubtitle(
+              domaine: epreuve == null
+                  ? priority.section.label
+                  : planDomainLabel(epreuve),
+              task: task,
+              level: level,
+            ),
       badge: planPriorityRankTag(1),
-      objectiveLabel: planNowObjectiveLabel(exercise),
-      objective: priority.title,
+      objectiveLabel: verifier ? kPlanNowVerifyObjectiveLabel : null,
+      objective: verifier ? kPlanNowVerifyText : null,
       meta: meta,
       action: SfButton(
         label: blocked
             ? kPlanNowLockedCta
-            : exercise?.kind == PlanExerciseKind.reassessment
-                ? kPlanNowValidateCta
-                : kPlanNowStartCta,
-        onPressed: exercise == null
-            ? null
-            : () => unawaited(openPlanExercise(
-                  context,
-                  ref,
-                  exercise,
-                  masteryBefore: priority.masteryState,
-                )),
+            : planNowCta(priority, verifier: verifier, mesure: mesure != null),
+        onPressed: mesure != null
+            // Le lanceur de mesure est une AUTORITÉ EXISTANTE
+            // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne réécrit
+            // aucun aiguillage ici, le mobile lit et exécute.
+            ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
+            : exercise == null
+                ? null
+                : () => unawaited(openPlanExercise(
+                      context,
+                      ref,
+                      exercise,
+                      masteryBefore: priority.masteryState,
+                    )),
       ),
-      caption: lines.isEmpty ? null : lines.join(' '),
+      // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
+      // la série. Concaténées, la seconde se lisait comme la suite de la
+      // première phrase.
+      caption: lines.isEmpty ? null : lines.join('\n'),
     );
   }
 
@@ -341,7 +403,7 @@ class PlanTcfView extends ConsumerWidget {
         child: SfPathCard(
           currentLabel: plan.currentPriority?.title ?? steps.task.title,
           counterLabel: planPathCounter(steps.dto),
-          steps: planPathSteps(plan, steps),
+          steps: planPathSteps(steps),
         ),
       ),
     ];
@@ -370,7 +432,7 @@ class PlanTcfView extends ConsumerWidget {
                 else
                   SfPathRow(
                     label: steps.skills[i].title,
-                    state: planSkillStepState(plan, steps.skills[i]),
+                    state: planSkillStepState(steps.skills[i]),
                   ),
             ],
           ),
@@ -533,39 +595,6 @@ class PlanTcfView extends ConsumerWidget {
                     : startPlanMilestone(context, ref, milestone),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// « Compléter mon profil » — par quoi mesurer les domaines **jamais
-  /// évalués**. Absent de la maquette, conservé : sans lui, un domaine non
-  /// mesuré n'a aucune porte.
-  Widget _assessmentSection(BuildContext context) {
-    return SfSection(
-      title: kPlanCompleteProfileTitle,
-      flush: true,
-      child: SfCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SfTiny(kPlanCompleteProfileText),
-            const SizedBox(height: 10),
-            for (final assessment in plan.domainesAEvaluer) ...[
-              SfExamRow(
-                icon: planDomainIcon(assessment.epreuve),
-                title: planDomainLabel(assessment.epreuve),
-                subtitle: planAssessmentMeta(assessment),
-              ),
-              const SizedBox(height: 8),
-              SfButton(
-                label: planAssessmentCta(assessment),
-                variant: SfButtonVariant.line,
-                onPressed: () => openPlanAssessment(context, assessment),
-              ),
-              const SizedBox(height: 10),
-            ],
           ],
         ),
       ),

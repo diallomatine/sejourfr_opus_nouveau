@@ -111,6 +111,39 @@
   complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
   épreuve déjà terminée est refusé (`enforceQuota`).
 
+### 🛑 L'EE et l'EO du DIAGNOSTIC TCF sont totalement offertes (2026-09-13)
+
+Arbitrage du propriétaire : « la EE et EO sont totalement gratuits » dans le
+diagnostic complet. **Aucun cadenas, aucun décompte.**
+
+C'était déjà vrai pour l'essentiel, et pas par accident : un sous-attempt de
+diagnostic a un **parent**, donc `ProductionAccessService.isExamSession` le
+reconnaît comme une session d'examen et `enforceQuota` **sort avant tout
+décompte**. `countTrainingByUserAndEpreuve` l'exclut de la même façon
+(`parentAttempt IS NULL`), et `countProductionExamSessions` aussi
+(`slotNumber IS NOT NULL`, or un diagnostic n'a jamais de slot).
+
+**Une fuite restait, elle est fermée** :
+`ProductionSubmissionRepository.countByUserAndParentEpreuve` — le compteur du
+freebie « EE/EO offerts une fois dans l'examen complet » — ne portait **pas**
+`tcfDiagnostic IS NULL`. Une production EE ou EO faite dans un diagnostic
+brûlait donc le freebie de l'examen blanc d'un compte gratuit, qui arrivait
+ensuite avec EE/EO pré-terminées. C'est la 7ᵉ requête à porter le discriminant,
+verrouillée par `TcfDiagnosticServiceIT.productionsDuDiagnosticNeConsommentRien`.
+
+🛑 **Aucun garde-fou nouveau n'a été ajouté, et il n'en faut pas.** Le coût LLM
+est déjà borné par ce qui existe : le premier diagnostic est **unique** (porte 1
++ porte 2 — un compte gratuit n'en ouvre jamais un second), la porte 3 impose
+14 jours entre deux passations, une tâche ne se rend **qu'une fois** par session
+(`assertTacheNotAlreadySubmitted`) et la 3ᵉ soumission clôt la section, après
+quoi `assertNotFinished` refuse. Plafond réel : **6 évaluations** par
+diagnostic. → `docs/regles/diagnostic-tcf-4-epreuves.md`
+
+⚠️ **L'examinateur vocal temps réel n'est pas proposé sur EO1/EO2 du
+diagnostic** : il a son propre quota payant, et l'y offrir contredirait
+« totalement gratuit ». Ces deux tâches se passent en enregistrement +
+transcription, comme le propriétaire l'a décrit.
+
 ### Idempotence — un renvoi ne consomme pas un second essai (V046, lot L1)
 
 Ajouté le **2026-09-09**. Le quota était protégé contre l'abus, pas contre le

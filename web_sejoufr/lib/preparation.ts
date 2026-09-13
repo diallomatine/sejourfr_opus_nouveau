@@ -447,9 +447,12 @@ export function affinerPlan(
         total: m.total,
         enCours,
         titre: options.abonne ? "Rendez votre Plan encore plus précis" : "Affiner votre Plan",
+        // 🛑 La carte est devenue le SEUL appel à compléter son profil
+        // (2026-09-13) : elle doit donc DIRE ce qui se mesure, et que
+        // l'expression y est offerte — c'est le fait qui décide le candidat.
         texte: options.abonne
-            ? "Complétez le diagnostic complet pour analyser les autres compétences et affiner vos priorités."
-            : "Votre diagnostic rapide nous a permis d'identifier vos premières priorités. Le diagnostic complet analyse vos 4 compétences pour rendre votre Plan encore plus précis.",
+            ? "Les 4 épreuves du TCF — compréhension orale et écrite, expression écrite et orale. L'expression écrite et orale y est entièrement offerte."
+            : "Votre diagnostic rapide a identifié vos premières priorités. Le diagnostic complet mesure les 4 épreuves du TCF — compréhension orale et écrite, expression écrite et orale — et son expression écrite et orale est entièrement offerte.",
         progression: null,
         prochaineEpreuve: null,
         cta: DIAGNOSTIC_COMPLET_CTA_START,

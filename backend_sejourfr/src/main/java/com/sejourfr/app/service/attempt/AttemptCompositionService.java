@@ -86,7 +86,9 @@ public class AttemptCompositionService {
 
     /**
      * Compose une section de COMPREHENSION du diagnostic TCF : {@code perLevel}
-     * items par palier, soit 5 A2 + 5 B1 + 5 B2 = 15 par defaut (10_ §4.1).
+     * items par palier, soit 8 A2 + 8 B1 + 8 B2 = 24 par defaut — le volume de
+     * l'epreuve reelle (25), le diagnostic complet devant en etre l'equivalent
+     * (demande du proprietaire, 2026-09-13).
      *
      * <p>🛑 <b>Ce n'est pas un examen blanc raccourci.</b> La repartition est
      * EGALE entre paliers, la ou l'examen module suit 8/9/8 : le niveau du

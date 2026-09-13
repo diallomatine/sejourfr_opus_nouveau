@@ -3,6 +3,7 @@ package com.sejourfr.app.service.diagnostictcf;
 import com.sejourfr.app.dto.TcfDiagnosticDto;
 import com.sejourfr.app.dto.TcfReassessmentEligibilityDto;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
@@ -12,6 +13,7 @@ import com.sejourfr.app.enums.TcfDiagnosticSectionState;
 import com.sejourfr.app.enums.TcfReassessmentBlocker;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -47,6 +49,8 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
     private TcfDiagnosticSectionStarter sectionStarter;
     @Autowired
     private TcfReassessmentService reassessmentService;
+    @Autowired
+    private ProductionAccessService productionAccessService;
 
     @Test
     @DisplayName("Ouvrir crée un parent et ses sections, toutes « à faire »")
@@ -215,6 +219,28 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
                 QuestionType.CE, ce.getTotalQuestions());
         assertThat(ce.getTimeLimitSeconds()).isEqualTo(attendu);
         assertThat(ce.getModule()).isEqualTo(Module.TCF);
+    }
+
+    @Test
+    @DisplayName("🛑 L'EE et l'EO du diagnostic sont OFFERTES : elles ne brûlent pas le freebie de l'examen blanc")
+    void productionsDuDiagnosticNeConsommentRien() {
+        User user = testData.user();
+        TcfDiagnosticSession session = service.ouvrir(user.getId());
+        entityManager.flush();
+
+        Attempt ee = attemptManager.findSubAttempts(session.getParentAttempt().getId())
+                .stream().filter(a -> a.getEpreuve() == EpreuveType.TCF_EE).findFirst().orElseThrow();
+        ProductionTask tache = testData.productionTask(EpreuveType.TCF_EE);
+        testData.productionSubmission(ee, tache, user);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Le compte est gratuit : sans le filtre `tcfDiagnostic IS NULL`, cette
+        // soumission aurait consommé l'unique EE/EO offerte de l'examen blanc
+        // complet, et le prochain examen serait arrivé avec EE/EO verrouillées.
+        assertThat(productionAccessService.isFullExamProductionLocked(user.getId()))
+                .as("une production de diagnostic ne verrouille jamais l'examen blanc")
+                .isFalse();
     }
 
     @Test

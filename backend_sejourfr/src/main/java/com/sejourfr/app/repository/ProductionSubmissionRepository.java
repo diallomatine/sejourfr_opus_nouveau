@@ -95,11 +95,19 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
      * comptes gratuits : dès qu'une tâche a réellement été soumise (> 0), les
      * examens complets suivants verrouillent EE/EO. Un examen complet lancé puis
      * abandonné sans rien soumettre ne consomme pas le freebie.
+     *
+     * <p>🛑 <b>{@code tcfDiagnostic IS NULL}, comme partout ailleurs.</b> Un
+     * diagnostic TCF a lui aussi un parent {@code TCF_COMPLET} : sans ce
+     * filtre, ses productions EE/EO brûlaient le freebie de l'examen blanc
+     * d'un compte gratuit, alors que l'EE et l'EO du diagnostic sont
+     * <b>totalement offertes</b> (arbitrage du propriétaire, 2026-09-13). Même
+     * discipline que les six autres requêtes qui portent ce filtre.
      */
     @Query("""
             SELECT COUNT(s) FROM ProductionSubmission s
             WHERE s.user.id = :userId
               AND s.attempt.parentAttempt.epreuve = :parentEpreuve
+              AND s.attempt.tcfDiagnostic IS NULL
             """)
     long countByUserAndParentEpreuve(@Param("userId") UUID userId,
                                      @Param("parentEpreuve") EpreuveType parentEpreuve);

@@ -183,6 +183,7 @@ export function skillTaskNumber(skillCode: string): number | null {
  */
 export function recommendedExerciseHref(
   exercise: PlanSkillExerciseDto | null | undefined,
+  options: {planStep?: boolean} = {},
 ): string {
   if (!exercise) return "/entrainement?module=TCF";
   if (exercise.kind === "TARGETED_QCM_SERIES") {
@@ -200,8 +201,17 @@ export function recommendedExerciseHref(
     return `${base}/tache/${exercise.tacheNumero ?? 1}`;
   }
   const task = skillTaskNumber(exercise.skillCode);
-  if (!task) return `${base}/tache/1/competences`;
-  return `${base}/tache/${task}/competences/${exercise.skillId}/${exercise.skillPromptId}`;
+  /* 🛑 **Le marqueur d'étape voyage jusqu'au SUJET**, pas seulement jusqu'à la
+     fiche. Sans lui, le CTA du Plan ouvrait un sujet qui s'annonçait « 1/15 » :
+     le périmètre de l'étape était perdu à la navigation, et l'enchaînement
+     débordait sur le 6ᵉ sujet de la compétence. Le repli (aucune tâche
+     dérivable du code) le porte aussi — on ne sort pas de l'étape par un
+     chemin de secours. */
+  if (!task) return withPlanStep(`${base}/tache/1/competences`, options.planStep === true);
+  return withPlanStep(
+    `${base}/tache/${task}/competences/${exercise.skillId}/${exercise.skillPromptId}`,
+    options.planStep === true,
+  );
 }
 
 /**

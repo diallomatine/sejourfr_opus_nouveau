@@ -17,14 +17,36 @@ d'appeler cela un examen blanc. » Les deux objets coexistent :
 | | Diagnostic TCF | Examen blanc complet |
 |---|---|---|
 | But | identifier quoi travailler, construire le Plan | se mettre en situation réelle |
-| Compréhension | **réduite** — 15 items (5 A2 / 5 B1 / 5 B2) | format réel, 25 items |
+| Compréhension | 24 items (8 A2 / 8 B1 / 8 B2), CO ≈ 19 min · CE ≈ 34 min | format réel, 25 items (8/9/8), CO 20 min · CE 35 min |
 | Production | **les 3 tâches**, jamais réduites | les 3 tâches |
+| EE / EO | **totalement offertes**, aucun quota consommé | 1 examen offert, puis Premium |
+| EO tâches 1 et 2 | **pas en conditions réelles** | conditions réelles |
 | Accès | 1 offert, puis réévaluation Premium tous les 14 j | slot 1 offert, 2-20 Premium |
 | Grille des 20 slots | **jamais** | oui |
 
 **On ne réduit que la compréhension, jamais la production** (arbitrage A2). Le
 Plan raisonne par tâche : afficher « EO tâche 2 est votre priorité » sans avoir
 évalué EO2 rendrait la personnalisation fictive.
+
+⚠️ **La compréhension n'est plus vraiment « réduite » (2026-09-13).** Demande du
+propriétaire : « le diagnostic complet, c'est pratiquement un examen blanc
+complet ». `items-per-level` passe de **5 à 8** — 24 items au lieu de 15, quand
+l'épreuve réelle en compte 25 —, et `config-version` passe de **1 à 2** parce
+que le sens d'un niveau change. Le chrono suit tout seul : il est **au prorata
+des items posés** (`TcfDiagnosticSectionStarter.dureeReduite`), donc il passe de
+12/21 min à ≈ 19/34 min sans qu'aucun nombre n'ait été écrit.
+
+🛑 **La répartition reste ÉGALE entre paliers** (8/8/8), là où l'examen suit
+8/9/8. Ce n'est pas un oubli : le niveau se lit sur un **taux par palier**, et
+un palier sous-doté rendrait son taux plus sensible à une seule erreur. Un item
+de plus ne valait pas un réglage par palier.
+
+⚠️ **Ce qui n'a PAS été touché, et reste à arbitrer** : le niveau TCF estimé
+**exclut toujours les diagnostics**. Son motif écrit (« un score calibré établi
+sur 25 items, quand une section de diagnostic en compte 15 ») ne tient plus tout
+à fait à 24 items — mais l'exclusion tient aussi par le filtre
+`tcf_diagnostic_id`, qui garde le diagnostic hors des grilles et des
+statistiques. On ne l'ouvre pas en passant.
 
 ## La mécanique est celle de l'examen complet, pas une seconde
 
@@ -38,14 +60,18 @@ parallèle aurait donné deux implémentations du même parcours, qui divergerai
 discipline que `production_tasks.diagnostic_code` : tous les catalogues,
 grilles, historiques, statistiques et quotas gardent `tcf_diagnostic_id IS NULL`.
 Sans ce filtre, un diagnostic occuperait un slot de la grille des 20 examens
-blancs et compterait dans « examens blancs passés ». Six requêtes le portent, et
-`TcfDiagnosticServiceIT` le verrouille.
+blancs et compterait dans « examens blancs passés ». **Sept** requêtes le portent
+depuis le 2026-09-13 (la 7ᵉ est le freebie EE/EO de l'examen complet, cf. la
+boucle de réévaluation plus bas), et `TcfDiagnosticServiceIT` les verrouille.
 
 Deux décisions d'exclusion, écrites parce qu'elles ne se devinent pas :
 
 - **le niveau TCF estimé EXCLUT les diagnostics** — il se lit sur un score
   calibré 100-499 établi sur 25 items, quand une section de diagnostic en compte
-  15 ; les mélanger comparerait deux mesures qui ne mesurent pas la même chose ;
+  24 ; l'exclusion tient d'abord au filtre `tcf_diagnostic_id`, qui garde le
+  diagnostic hors des grilles et des statistiques. ⚠️ Son motif d'origine (« 25
+  items contre 15 ») s'est affaibli le 2026-09-13 — cf. l'encart en tête de
+  fichier, c'est un point à arbitrer, pas à ouvrir en passant ;
 - **la série de jours consécutifs les COMPTE** — passer une section de
   diagnostic est un jour de travail.
 
@@ -144,6 +170,24 @@ Trois portes, et **leur nature compte** :
 | 2 | Accès TCF | **oui** | l'achat. C'est la porte commerciale |
 | 3 | Délai minimal entre deux passations (14 j) | non | le temps, **ou** une priorité du Plan terminée |
 
+🛑 **EE et EO sont TOTALEMENT offertes dans le diagnostic** (arbitrage du
+propriétaire, 2026-09-13) : aucun cadenas, aucun décompte de quota. C'était déjà
+le cas pour l'essentiel — un sous-attempt de diagnostic a un parent, donc
+`ProductionAccessService.enforceQuota` sort avant tout décompte
+(`isExamSession`). **Une fuite restait** et a été fermée :
+`ProductionSubmissionRepository.countByUserAndParentEpreuve` ne portait pas
+`tcfDiagnostic IS NULL`, si bien qu'une production EE/EO de diagnostic brûlait
+le freebie « EE/EO offerts une fois » de l'**examen blanc complet** d'un compte
+gratuit. C'est la 7ᵉ requête à porter le filtre, verrouillée par
+`TcfDiagnosticServiceIT.productionsDuDiagnosticNeConsommentRien`.
+
+🛑 **Ce qui borne le coût LLM, et qui suffit** : le premier diagnostic est
+**unique** (porte 1 + porte 2 : un compte gratuit n'en ouvre jamais un second),
+la porte 3 impose 14 jours entre deux, une tâche ne se rend **qu'une fois** par
+session (`assertTacheNotAlreadySubmitted`) et la 3ᵉ soumission clôt la section
+(`finishSubAttemptIfFullExam`), après quoi `assertNotFinished` refuse. Plafond
+réel : **6 évaluations** par diagnostic. Aucun garde-fou nouveau n'a été ajouté.
+
 🛑 **La porte 3 n'est pas un cadenas.** Payer ne l'ouvre pas, et l'écran ne doit
 jamais y afficher un CTA d'achat. Sans ce délai, une réévaluation à volonté ne
 mesurerait plus une progression — juste le bruit de deux passations rapprochées.
@@ -178,13 +222,47 @@ V040/V041/V042 sous un autre déguisement.
 exactement ce qu'une réévaluation payante promet de mesurer. La façon de le dire
 appartient aux fronts ; le fait appartient au serveur.
 
+## EO tâches 1 et 2 : pas en conditions réelles
+
+🛑 **Arbitrage du propriétaire, 2026-09-13**, verbatim : « la EE et EO sont
+totalement gratuits, mais pas en condition réelle pour EO t1 et t2, la personne
+s'enregistre et transcription comme d'habitude ».
+
+**Le fait est un DÉRIVÉ SERVEUR**, servi sur
+`ProductionTaskDto.conditionsReelles` et calculé par `ProductionExamConditions`
+— une autorité, deux lecteurs. Il vivait implicitement dans les fronts (le web
+forçait `examMode`, le mobile lisait `isExam`) : deux implémentations de la même
+règle, vouées à diverger.
+
+- `null` = **hors session** : le catalogue ne le sert pas, la question n'y a pas
+  de sens. Seul `GET /api/attempts/{id}/production-exam-tasks` le renseigne.
+- La lecture des fronts est **« conditions d'examen sauf si le serveur dit
+  explicitement `false` »** — un client ancien garde exactement son
+  comportement, et une erreur ne peut qu'être conservatrice.
+- Périmètre : **EO1 et EO2, dans un diagnostic**. EO3 garde les conditions
+  d'examen (c'est la tâche la plus proche de l'épreuve réelle, et rien ne
+  demandait de l'ouvrir), toute l'EE aussi, et 🛑 **l'examen blanc ne change
+  pas** — verrouillé par `ProductionExamConditionsTest`.
+
+**Ce qui est relâché, c'est le GESTE, pas le budget** : plus de décompte de
+tâche, plus d'envoi au premier arrêt, réécoute et reprise autorisées, puis envoi
+explicite. La prise reste bornée par `dureeMaxSec` (plafond de capture, qui
+protège le coût de transcription), une tâche reste **soumise une seule fois**, et
+le pipeline Whisper → correcteur est **inchangé** — aucun audio candidat n'est
+conservé.
+
+⚠️ **L'examinateur vocal temps réel n'est pas proposé sur ces deux tâches**
+(hypothèse tenue : le propriétaire décrit « la personne s'enregistre et
+transcription comme d'habitude », et le temps réel a son propre quota payant —
+l'y proposer contredirait « totalement gratuit »).
+
 ## Configuration
 
 `sejourfr.tcf-diagnostic` dans `application.yaml`, miroir exact de
 `config/TcfDiagnosticProperties`.
 
 🛑 **`config-version` s'incrémente dès qu'un réglage change le SENS d'un
-résultat** (items par palier, seuils). Il est recopié sur chaque session : un
+résultat** (items par palier, seuils). Il vaut **2** depuis le 2026-09-13. Il est recopié sur chaque session : un
 diagnostic se relit avec la configuration **qui l'a produit**, sans quoi un
 recalibrage réinterpréterait rétroactivement des diagnostics déjà passés.
 

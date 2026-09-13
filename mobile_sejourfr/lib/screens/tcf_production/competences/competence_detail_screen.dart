@@ -143,7 +143,10 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
       return;
     }
     context.push(
-      competencePromptPath(widget.module, widget.skillId, prompt.id),
+      // 🛑 La fiche ouverte DEPUIS LE PLAN travaille l'étape : ses sujets
+      // gardent le marqueur, sinon le périmètre se perd au premier tap.
+      competencePromptPath(widget.module, widget.skillId, prompt.id,
+          planStep: widget.planStep),
     );
   }
 
@@ -193,7 +196,8 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
           height: 46,
           onPressed: () {
             Navigator.of(context).pop();
-            context.push(competenceResultPath(widget.module, attemptId));
+            context.push(competenceResultPath(widget.module, attemptId,
+                planStep: widget.planStep));
           },
         ),
         AppButton(

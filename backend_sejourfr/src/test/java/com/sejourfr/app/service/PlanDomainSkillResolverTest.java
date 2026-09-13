@@ -39,7 +39,8 @@ class PlanDomainSkillResolverTest {
 
         PlanDomainSkillDto rendu = premiere(resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(skill),
-                Map.of(), Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
+                Map.of(), Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null));
 
         assertThat(rendu.status()).isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED);
         assertThat(rendu.masteryState()).isNull();
@@ -70,7 +71,8 @@ class PlanDomainSkillResolverTest {
                 Map.of(fragile.getId(), observation(fragile, LearningPlanSkillStatus.TO_REINFORCE),
                         priorite.getId(), observation(priorite, LearningPlanSkillStatus.PRIORITY),
                         solide.getId(), observation(solide, LearningPlanSkillStatus.SOLID)),
-                Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+                Map.of(), Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null).getFirst();
 
         assertThat(domaine.fragileSkillCount()).isEqualTo(2);
         assertThat(domaine.solidSkillCount()).isEqualTo(1);
@@ -94,8 +96,10 @@ class PlanDomainSkillResolverTest {
         PlanDomainSkillDto rendu = premiere(resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(skill), Map.of(),
                 Map.of(skill.getId(), new SkillMasteryEngine.SkillMastery(
-                        SkillMasteryState.SOLID, 0, 0, 0, 0, 0, false, false, false, null)),
-                Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED));
+                        SkillMasteryState.SOLID, 0, 0, 0, 0, 0,
+                        false, false, false, false, null)),
+                Map.of(), Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null));
 
         assertThat(rendu.status()).isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED);
         assertThat(rendu.masteryState()).isNull();
@@ -110,7 +114,8 @@ class PlanDomainSkillResolverTest {
         List<PlanDomainSkillDto> skills = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(acquise, muette),
                 Map.of(), Map.of(), Map.of(acquise.getId(), PlanActionNature.A_ACQUERIR),
-                Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
+                Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null).getFirst().skills();
 
         assertThat(skills.getFirst().nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
         assertThat(skills.get(1).nature()).isNull();
@@ -126,7 +131,8 @@ class PlanDomainSkillResolverTest {
         List<PlanDomainSkillDto> skills = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_CO)), List.of(b2, a2, b1),
                 Map.of(), Map.of(), Map.of(),
-                Map.of(), SkillAccessService.SkillAccess.UNLIMITED).getFirst().skills();
+                Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null).getFirst().skills();
 
         assertThat(skills).extracting(PlanDomainSkillDto::skillCode)
                 .containsExactly("CO-A2", "CO-B1", "CO-B2");
@@ -146,7 +152,8 @@ class PlanDomainSkillResolverTest {
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(ouverte, fermee),
                 Map.of(), Map.of(), Map.of(), Map.of(),
                 new SkillAccessService.SkillAccess(
-                        false, Set.of(ouverte.getId()), Set.of())).getFirst().skills();
+                        false, Set.of(ouverte.getId()), Set.of()),
+                Map.of(), null).getFirst().skills();
 
         assertThat(skills.getFirst().locked()).isFalse();
         assertThat(skills.get(1).locked()).isTrue();
@@ -188,7 +195,7 @@ class PlanDomainSkillResolverTest {
                         aVerifier.getId(), PlanActionNature.A_VERIFIER,
                         aAcquerir.getId(), PlanActionNature.A_ACQUERIR),
                 Map.of(SkillSection.EE, TargetLevel.B1),
-                SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+                SkillAccessService.SkillAccess.UNLIMITED, Map.of(), null).getFirst();
 
         assertThat(domaine.acquireCount()).isEqualTo(1);
         assertThat(domaine.readyForValidationCount()).isEqualTo(1);
@@ -215,7 +222,7 @@ class PlanDomainSkillResolverTest {
         PlanDomainDto domaine = resolver.attach(
                 List.of(domaine(EpreuveType.TCF_EE)), List.of(skill),
                 Map.of(), Map.of(), Map.of(), Map.of(),
-                SkillAccessService.SkillAccess.UNLIMITED).getFirst();
+                SkillAccessService.SkillAccess.UNLIMITED, Map.of(), null).getFirst();
 
         assertThat(domaine.nextTargetLevel()).isNull();
         assertThat(domaine.acquireCount()).isZero();

@@ -138,6 +138,7 @@ public class SkillMasteryEngine {
                 readyForReassessment(state, full, config),
                 vigilance,
                 transferProven(state, full, revocatrices, config),
+                verificationSubmitted(full, now, config),
                 retained.getFirst().getObservedAt());
     }
 
@@ -182,6 +183,41 @@ public class SkillMasteryEngine {
             LearningPlanProperties.Mastery config) {
         if (state == SkillMasteryState.SOLID) return true;
         return tally.recentContextualProof && revocatrices < config.getFragilityTolerance();
+    }
+
+    /**
+     * <b>LA</b> definition de « la verification de cette etape a ete rendue »,
+     * et la seule : {@link LearningPlanPriorityResolver} la lit pour laisser la
+     * competence sortir des priorites <b>sans exiger qu'elle ait reussi</b>.
+     *
+     * <p>Trois conditions, toutes des <b>faits</b> :
+     * <ul>
+     *   <li>le candidat a fait au moins un <b>micro-entrainement</b> sur cette
+     *       competence — sans lui il n'y a pas de serie ciblee a verifier, et
+     *       c'est le cas de toute la COMPREHENSION, qui n'a aucun petit sujet :
+     *       sans cette condition, une competence CO/CE aurait ete « verifiee »
+     *       des sa premiere serie de QCM et serait sortie des priorites ;</li>
+     *   <li>une production <b>contextualisee</b> est venue <b>apres</b> lui —
+     *       c'est ce qui distingue « il a rendu sa verification » de « il avait
+     *       deja produit avant de travailler cette competence » ;</li>
+     *   <li>elle est encore dans la fenetre {@code transfer-proof-days}, la
+     *       meme qui borne {@link #transferProven}. Passe ce delai la
+     *       competence redevient une priorite ordinaire : une verification
+     *       ancienne ne peut pas ecarter indefiniment une fragilite reelle.</li>
+     * </ul>
+     *
+     * <p>🛑 <b>Le verdict n'entre pas dans le calcul.</b> Une verification
+     * jugee fragile compte autant qu'une reussie : elle a eu lieu, et c'est
+     * elle — pas les micro-sujets — qui apporte la preuve dont la maitrise a
+     * besoin. Le juger ici reintroduirait exactement la boucle fermee qu'on
+     * vient de couper : 5/5 sans reussite renvoyait dans les memes cinq sujets.
+     */
+    private static boolean verificationSubmitted(
+            Tally tally, Instant now, LearningPlanProperties.Mastery config) {
+        if (tally.dernierCible == null || tally.derniereContextualisee == null) return false;
+        if (!tally.derniereContextualisee.isAfter(tally.dernierCible)) return false;
+        return !tally.derniereContextualisee.isBefore(
+                now.minus(Duration.ofDays(config.getTransferProofDays())));
     }
 
     // ------------------------------------------------------------------------
@@ -256,7 +292,16 @@ public class SkillMasteryEngine {
             tally.valeurPonderee += valeur * poids;
             tally.distinctSubjects.add(sujet(item));
             LearningPlanSourceType source = item.getSourceType();
+            if (source != null && source.isContextual()
+                    && (tally.derniereContextualisee == null
+                            || item.getObservedAt().isAfter(tally.derniereContextualisee))) {
+                tally.derniereContextualisee = item.getObservedAt();
+            }
             if (source != null && source.isTargeted()) {
+                if (tally.dernierCible == null
+                        || item.getObservedAt().isAfter(tally.dernierCible)) {
+                    tally.dernierCible = item.getObservedAt();
+                }
                 tally.targetedPoids += poids;
                 tally.targetedValeurPonderee += valeur * poids;
                 // Filtre PROPRE au signal de reevaluation, volontairement
@@ -373,6 +418,10 @@ public class SkillMasteryEngine {
         private boolean recentContextualProof;
         private final Set<UUID> distinctSubjects = new HashSet<>();
         private final Set<UUID> targetedPositiveSubjects = new HashSet<>();
+        /** Le plus recent micro-entrainement observe, ou {@code null}. */
+        private Instant dernierCible;
+        /** La plus recente production contextualisee observee, ou {@code null}. */
+        private Instant derniereContextualisee;
 
         private double score() {
             return poidsTotal <= 0 ? 0 : valeurPonderee / poidsTotal;
@@ -410,10 +459,23 @@ public class SkillMasteryEngine {
              * n'est expose a aucun front, qui lisent {@code state}.
              */
             boolean transferProven,
+            /**
+             * <b>La verification en situation a ete RENDUE</b> depuis les petits
+             * sujets de l'etape — quel qu'en ait ete le verdict.
+             *
+             * <p>A ne pas confondre avec {@link #transferProven()}, qui dit
+             * qu'elle a <b>reussi</b>. Ici on ne juge rien : on constate qu'une
+             * production contextualisee est venue <b>apres</b> le dernier
+             * micro-entrainement, et dans la fenetre
+             * {@code transfer-proof-days}. C'est ce fait — et lui seul — qui
+             * laisse le Plan passer a la priorite suivante au lieu de renvoyer
+             * le candidat dans les memes cinq sujets.
+             */
+            boolean verificationSubmitted,
             Instant lastObservedAt) {
 
         /** Aucune observation exploitable : le moteur ne conclut rien. */
         public static final SkillMastery NONE =
-                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, false, null);
+                new SkillMastery(null, 0, 0, 0, 0, 0, false, false, false, false, null);
     }
 }

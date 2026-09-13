@@ -23,6 +23,7 @@ import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.PlanExerciseKind;
+import com.sejourfr.app.enums.PlanSkillStepState;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
@@ -1311,6 +1312,257 @@ class LearningPlanServiceTest {
      * differents reussis) sans jamais l'avoir prouve en situation : c'est
      * exactement ce que le moteur appelle « pret a etre verifie ».
      */
+    // ------------------------------------------------------------------------
+    // 5 micro-sujets -> verification -> recalcul : la sequence produit
+    // ------------------------------------------------------------------------
+
+    /**
+     * <b>0/5</b> — la competence est servie, l'action est un petit sujet, et
+     * l'etat d'etape dit « Maintenant ». Rien n'est encore commence, donc rien
+     * n'est encore a verifier.
+     */
+    @Test
+    void aZeroSurCinqLaCarteProposeLePremierPetitSujet() {
+        Skill skill = skill("EE3-C2");
+        stubUneFragilite(skill);
+        stubStep(skill, etape(5, 0, 0));
+        stubExercisesForEverySkill();
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.skillCode()).isEqualTo("EE3-C2");
+        assertThat(priority.nature()).isEqualTo(PlanActionNature.A_RENFORCER);
+        assertThat(priority.stepState()).isEqualTo(PlanSkillStepState.MAINTENANT);
+        assertThat(priority.stepAttemptedCount()).isZero();
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        assertThat(priority.recommendedExercise().skillPromptId()).isNotNull();
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    /**
+     * <b>3/5</b> — meme competence, meme nature, et le CTA ouvre toujours un
+     * petit sujet : le prochain non traite, designe par
+     * {@code RecommendedExerciseSelector} (dont c'est la regle, testee chez
+     * lui). La serie n'est pas finie, la verification n'est pas cherchee.
+     */
+    @Test
+    void aTroisSurCinqLaSerieContinueSurLeProchainSujet() {
+        Skill skill = skill("EE3-C2");
+        stubUneFragilite(skill);
+        stubStep(skill, etape(5, 3, 2));
+        stubExercisesForEverySkill();
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.skillCode()).isEqualTo("EE3-C2");
+        assertThat(priority.nature()).isEqualTo(PlanActionNature.A_RENFORCER);
+        assertThat(priority.stepState()).isEqualTo(PlanSkillStepState.MAINTENANT);
+        assertThat(priority.stepAttemptedCount()).isEqualTo(3);
+        assertThat(priority.stepPromptCount()).isEqualTo(5);
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.MICRO_TRAINING);
+        verify(reassessmentSelector, never()).selectAll(any(), anyCollection());
+    }
+
+    /**
+     * <b>5/5 — LA SORTIE DE BOUCLE.</b> La serie ciblee est terminee : la carte
+     * change d'action, l'exercice devient une production de verification, et
+     * <b>plus aucun des cinq sujets n'est reservi</b>.
+     */
+    @Test
+    void aCinqSurCinqLaSerieEstTermineeEtLaCarteDemandeLaVerification() {
+        Skill skill = skill("EE3-C2");
+        stubUneFragilite(skill);
+        stubStep(skill, etape(5, 5, 3));
+        stubExercisesForEverySkill();
+        UUID sujet = UUID.randomUUID();
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        sujet, skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 12, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.skillCode()).isEqualTo("EE3-C2");
+        assertThat(priority.nature()).isEqualTo(PlanActionNature.A_VERIFIER);
+        assertThat(priority.stepCompleted()).isTrue();
+        assertThat(priority.stepState()).isEqualTo(PlanSkillStepState.A_VERIFIER);
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.REASSESSMENT);
+        assertThat(priority.recommendedExercise().productionTaskId()).isEqualTo(sujet);
+        // 🛑 Aucun renvoi vers les cinq memes sujets.
+        assertThat(priority.recommendedExercise().skillPromptId()).isNull();
+    }
+
+    /**
+     * 🛑 <b>La bascule ne depend PLUS du signal du moteur.</b> Ici une seule
+     * observation ciblee existe : {@code readyForReassessment} est faux
+     * ({@code readiness-targeted-subjects} en demande deux). Avant, l'etape
+     * restait « a renforcer » a 5/5 et le Plan resservait ses cinq sujets deja
+     * traites — la boucle fermee. Elle bascule desormais quand meme.
+     */
+    @Test
+    void aCinqSurCinqSansLeSignalDuMoteurLaBasculeSeFaitQuandMeme() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill skill = skill("EE3-C2");
+        // UNE seule reussite ciblee : le seuil du moteur n'est pas atteint.
+        LearningPlanObservation unique = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                Instant.now().minusSeconds(3600), LearningPlanSourceType.SKILL_TRAINING,
+                UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(unique));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+        stubStep(skill, etape(5, 5, 1));
+        stubExercisesForEverySkill();
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 12, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.readyForReassessment()).isFalse();
+        assertThat(priority.nature()).isEqualTo(PlanActionNature.A_VERIFIER);
+        assertThat(priority.recommendedExercise().kind())
+                .isEqualTo(PlanExerciseKind.REASSESSMENT);
+    }
+
+    /**
+     * 🛑 <b>5/5 n'est pas SOLID</b>, et l'etat servi le dit : la serie est
+     * terminee, la competence n'est pas acquise. C'est la production
+     * contextualisee qui apporte la preuve, pas le nombre d'exercices faits.
+     */
+    @Test
+    void aCinqSurCinqLetatServiNestPasAcquis() {
+        Skill skill = skill("EE3-C2");
+        stubPlanPretAVerifier(skill);
+        when(reassessmentSelector.selectAll(eq(userId), anyCollection())).thenReturn(Map.of(
+                skill.getId(), PlanRecommendedExerciseDto.reassessment(
+                        UUID.randomUUID(), skill.getId(), skill.getCode(), "Donner son opinion",
+                        skill.getSection(), (short) 3, 12, false)));
+
+        var priority = service.get(userId).currentPriority();
+
+        assertThat(priority.masteryState()).isNotEqualTo(SkillMasteryState.SOLID);
+        assertThat(priority.stepState()).isNotEqualTo(PlanSkillStepState.ACQUIS);
+        assertThat(priority.stepState()).isEqualTo(PlanSkillStepState.A_VERIFIER);
+    }
+
+    /**
+     * <b>Verification rendue SANS reussite</b> : l'etape sort des priorites, la
+     * suivante est servie par le moteur, et la competence verifiee n'est
+     * <b>pas</b> declaree acquise — elle s'affiche « Série terminée » dans le
+     * parcours de sa tache.
+     */
+    @Test
+    void uneVerificationRendueSansReussiteLibereLaPrioriteSuivante() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill verifiee = skill("EE1-C1");
+        Skill suivante = skill("EE1-C2");
+        Instant now = Instant.now();
+        List<LearningPlanObservation> historique = List.of(
+                // La verification, rendue et jugee fragile : la plus recente.
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(60), LearningPlanSourceType.PRODUCTION_EE,
+                        UUID.randomUUID()),
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(7200), LearningPlanSourceType.SKILL_TRAINING,
+                        UUID.randomUUID()),
+                observation(verifiee, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(9000), LearningPlanSourceType.SKILL_TRAINING,
+                        UUID.randomUUID()),
+                observation(suivante, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(86400), LearningPlanSourceType.DIAGNOSTIC_EE,
+                        UUID.randomUUID()));
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(historique);
+        when(observationManager.countSince(any(), any())).thenReturn(4L);
+        stubExercisesForEverySkill();
+
+        var plan = service.get(userId);
+
+        assertThat(plan.currentPriority().skillCode()).isEqualTo("EE1-C2");
+        assertThat(plan.nextPriorities()).extracting(LearningPlanPriorityDto::skillCode)
+                .doesNotContain("EE1-C1");
+        // Verifiee n'est pas franchie : rien n'est declare acquis.
+        assertThat(plan.completedSteps()).isEmpty();
+    }
+
+    /**
+     * <b>Verification rendue AVEC reussite</b> : l'etape est <b>franchie</b> et
+     * reste dans le parcours, cochee. C'est la seule voie vers la coche.
+     */
+    @Test
+    void uneVerificationReussieFranchitLetape() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill reussie = skill("EE1-C1");
+        Skill suivante = skill("EE1-C2");
+        Instant now = Instant.now();
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
+                observation(reussie, LearningPlanSkillStatus.SOLID,
+                        now.minusSeconds(60), LearningPlanSourceType.PRODUCTION_EE,
+                        UUID.randomUUID()),
+                observation(reussie, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(7200), LearningPlanSourceType.SKILL_TRAINING,
+                        UUID.randomUUID()),
+                observation(suivante, LearningPlanSkillStatus.TO_REINFORCE,
+                        now.minusSeconds(86400), LearningPlanSourceType.DIAGNOSTIC_EE,
+                        UUID.randomUUID())));
+        when(observationManager.countSince(any(), any())).thenReturn(3L);
+        stubExercisesForEverySkill();
+
+        var plan = service.get(userId);
+
+        assertThat(plan.completedSteps()).singleElement()
+                .satisfies(step -> assertThat(step.skillCode()).isEqualTo("EE1-C1"));
+        assertThat(plan.currentPriority().skillCode()).isEqualTo("EE1-C2");
+    }
+
+    /**
+     * 🛑 <b>Aucun repli sur le catalogue.</b> Sans fragilite et sans acquisition,
+     * la carte « A faire maintenant » est <b>vide</b> — on ne designe pas la
+     * premiere competence du referentiel pour remplir l'ecran. Les fronts ont
+     * leur message pour ce cas.
+     */
+    @Test
+    void sansRienAFaireAucuneCompetenceNEstDesigneeParDefaut() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
+        when(observationManager.countSince(any(), any())).thenReturn(0L);
+        when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
+                .thenReturn(List.of());
+        stubExercisesForEverySkill();
+
+        var plan = service.get(userId);
+
+        assertThat(plan.currentPriority()).isNull();
+        assertThat(plan.nextPriorities()).isEmpty();
+    }
+
+    /** Une seule fragilite ciblee, sans signal de verification : le cas courant. */
+    private void stubUneFragilite(Skill skill) {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        LearningPlanObservation baseline = observation(skill, LearningPlanSkillStatus.TO_REINFORCE,
+                Instant.now().minusSeconds(3600), LearningPlanSourceType.DIAGNOSTIC_EE,
+                UUID.randomUUID());
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(baseline));
+        when(observationManager.countSince(any(), any())).thenReturn(1L);
+    }
+
     private void stubPlanPretAVerifier(Skill skill) {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());

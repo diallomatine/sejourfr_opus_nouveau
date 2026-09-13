@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.PlanActionNature;
+import com.sejourfr.app.enums.PlanSkillStepState;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -91,6 +92,11 @@ public class PlanDomainSkillResolver {
      *                    unique) — recopie tel quel sur le domaine pour que les
      *                    fronts cessent d'en tenir chacun une copie
      * @param access      ce que ce candidat peut travailler
+     * @param progress    la progression d'<b>etape</b> de chaque competence,
+     *                    deja comptee en lot par {@code SkillProgressCounter} —
+     *                    aucune requete de plus. Une competence absente vaut
+     *                    « rien fait », ce qui est exact
+     * @param courante    la competence que le Plan met en tete, ou {@code null}
      */
     public List<PlanDomainDto> attach(
             List<PlanDomainDto> domaines,
@@ -99,7 +105,9 @@ public class PlanDomainSkillResolver {
             Map<UUID, SkillMasteryEngine.SkillMastery> mastery,
             Map<UUID, PlanActionNature> natures,
             Map<SkillSection, TargetLevel> paliers,
-            SkillAccessService.SkillAccess access) {
+            SkillAccessService.SkillAccess access,
+            Map<UUID, SkillProgressCounter.SkillProgress> progress,
+            UUID courante) {
 
         Map<SkillSection, List<Skill>> parSection = parSection(referentiel);
         List<PlanDomainDto> enrichis = new ArrayList<>(domaines.size());
@@ -124,14 +132,29 @@ public class PlanDomainSkillResolver {
                 PlanActionNature nature = natures.get(skill.getId());
                 if (nature == PlanActionNature.A_ACQUERIR) aAcquerir++;
                 if (nature == PlanActionNature.A_VERIFIER) aVerifier++;
+                SkillProgressCounter.SkillProgress counts = progress == null
+                        ? SkillProgressCounter.SkillProgress.EMPTY
+                        : progress.getOrDefault(
+                                skill.getId(), SkillProgressCounter.SkillProgress.EMPTY);
+                SkillMasteryState etat = etat(observation, mastery, skill.getId());
+                // L'ETAT D'ETAPE vient de son unique autorite, jamais d'un
+                // compteur relu ici : les fronts le recopiaient chacun a leur
+                // facon et montraient deux parcours differents.
+                PlanSkillStepState stepState = PlanStepStateResolver.resolve(
+                        etat, counts.step(),
+                        mastery.getOrDefault(skill.getId(),
+                                SkillMasteryEngine.SkillMastery.NONE).verificationSubmitted(),
+                        skill.getId().equals(courante));
                 skills.add(new PlanDomainSkillDto(
                         skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
                         skill.getTaskCode(), tacheNumero(skill.getTaskCode()),
                         PlanCycleResolver.palier(skill.getTargetLevel()),
-                        status, etat(observation, mastery, skill.getId()),
+                        status, etat,
                         nature,
                         observation == null ? null : observation.getObservedAt(),
-                        access.isSkillLocked(skill.getId())));
+                        access.isSkillLocked(skill.getId()),
+                        stepState, counts.step().promptCount(),
+                        counts.step().attemptedCount()));
             }
             enrichis.add(domaine.withSkills(List.copyOf(skills), fragiles, solides, nonObservees,
                     paliers == null ? null

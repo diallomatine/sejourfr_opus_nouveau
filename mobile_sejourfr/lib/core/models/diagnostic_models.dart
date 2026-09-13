@@ -268,6 +268,58 @@ enum PlanActionNature {
   bool get isAssessment => this == PlanActionNature.aEvaluer;
 }
 
+/// **Où en est l'étape** d'une compétence — miroir de `PlanSkillStepState`.
+///
+/// 🛑 **Servi, jamais dérivé ici.** Les deux fronts le déduisaient chacun de
+/// leur côté — le web cochait sur `masteryState == SOLID` sans jamais lire
+/// `completedSteps`, le mobile sur l'un **ou** l'autre — et le même candidat
+/// voyait deux parcours différents selon l'appareil. Un front ne classe pas un
+/// compteur en état pédagogique.
+///
+/// 🛑 **[serieTerminee] n'est pas [acquis]** : cinq petits sujets traités ne
+/// prouvent rien en situation. Seul `SkillMasteryState.solid` vaut « acquis ».
+///
+/// L'ordre de déclaration **est** l'ordre de lecture. Libellés **gelés côté
+/// serveur** (`SkillLabelsTest`), recopiés mot pour mot.
+enum PlanSkillStepState {
+  /// `masteryState == solid` : la maîtrise est prouvée en situation.
+  acquis('ACQUIS', 'Acquis'),
+
+  /// Les 5 petits sujets sont traités, la vérification n'est pas rendue.
+  aVerifier('A_VERIFIER', 'Série terminée · À vérifier'),
+
+  /// Série finie **et** vérification rendue, sans maîtrise installée : le Plan
+  /// passe à la suite, la compétence pourra revenir.
+  serieTerminee('SERIE_TERMINEE', 'Série terminée'),
+
+  /// La compétence que le Plan met en tête.
+  maintenant('MAINTENANT', 'Maintenant'),
+
+  /// La série est commencée, elle n'est pas finie.
+  enCours('EN_COURS', 'En cours'),
+
+  /// Rien n'a encore été fait dessus. *Pas un retard : un à-venir.*
+  aVenir('A_VENIR', 'À venir');
+
+  const PlanSkillStepState(this.wire, this.label);
+
+  final String wire;
+  final String label;
+
+  static PlanSkillStepState? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final state in PlanSkillStepState.values) {
+      if (state.wire == value) return state;
+    }
+    return null;
+  }
+
+  /// Valeur absente ou inconnue ⇒ [aVenir] : rien n'a été constaté, et c'est le
+  /// seul état qui n'affirme rien. *null = inconnu, jamais mauvais.*
+  static PlanSkillStepState fromWire(String? value) =>
+      fromWireNullable(value) ?? PlanSkillStepState.aVenir;
+}
+
 enum ObservationConfidence {
   low('LOW'),
   medium('MEDIUM'),
@@ -959,6 +1011,7 @@ class LearningPlanPriority {
     this.stepCompleted = false,
     this.stepPromptIds = const <String>[],
     this.masteryState,
+    this.stepState = PlanSkillStepState.aVenir,
     this.readyForReassessment = false,
     this.locked = false,
   });
@@ -1033,9 +1086,16 @@ class LearningPlanPriority {
   /// [status], verdict de la **dernière** production.
   final SkillMasteryState? masteryState;
 
+  /// **Où en est l'étape**, servi. C'est lui que la carte affiche — jamais un
+  /// état déduit de `stepAttemptedCount / stepPromptCount`, qui restent la
+  /// progression chiffrée et rien d'autre.
+  final PlanSkillStepState stepState;
+
   /// `true` quand la compétence a assez été travaillée en exercices ciblés,
-  /// sans preuve de transfert récente : l'étape devient une **vérification**
-  /// (`recommendedExercise.kind == PlanExerciseKind.reassessment`).
+  /// sans preuve de transfert récente **et** que l'étape est terminée. Il
+  /// **nuance le texte** de la carte ; depuis le 2026-09-13 il ne commande plus
+  /// la bascule vers la vérification — c'est `stepCompleted` qui la décide, et
+  /// `nature == aVerifier` qui la dit.
   final bool readyForReassessment;
 
   /// Verrou freemium servi par le serveur. L'étape reste **entièrement
@@ -1074,6 +1134,7 @@ class LearningPlanPriority {
             .toList(growable: false),
         masteryState:
             SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
+        stepState: PlanSkillStepState.fromWire(json['stepState'] as String?),
         readyForReassessment: json['readyForReassessment'] as bool? ?? false,
         locked: json['locked'] as bool? ?? false,
       );
@@ -1541,6 +1602,9 @@ class PlanDomainSkill {
     this.masteryState,
     this.nature,
     this.observedAt,
+    this.stepState = PlanSkillStepState.aVenir,
+    this.stepPromptCount = 0,
+    this.stepAttemptedCount = 0,
   });
 
   final String skillId;
@@ -1574,6 +1638,16 @@ class PlanDomainSkill {
   /// Verrou freemium, décidé par le serveur (`SkillAccessService`).
   final bool locked;
 
+  /// **Où en est l'étape** de cette compétence, servi — la ligne de « Votre
+  /// parcours » l'affiche telle quelle.
+  final PlanSkillStepState stepState;
+
+  /// Sujets de l'étape (au plus 5 ; **0** en compréhension, qui n'en a aucun).
+  final int stepPromptCount;
+
+  /// Sujets de l'étape déjà traités.
+  final int stepAttemptedCount;
+
   factory PlanDomainSkill.fromJson(Map<String, dynamic> json) =>
       PlanDomainSkill(
         skillId: json['skillId'] as String? ?? '',
@@ -1592,6 +1666,9 @@ class PlanDomainSkill {
         nature: PlanActionNature.fromWireNullable(json['nature'] as String?),
         observedAt: DateTime.tryParse(json['observedAt'] as String? ?? ''),
         locked: json['locked'] as bool? ?? false,
+        stepState: PlanSkillStepState.fromWire(json['stepState'] as String?),
+        stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
+        stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
       );
 }
 

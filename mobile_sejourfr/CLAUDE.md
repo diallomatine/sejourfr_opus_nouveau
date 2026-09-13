@@ -1131,6 +1131,16 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `SfPillMeta`, `SfChoiceCard`, `SfButton`, `SfStatGrid`, `SfBulletList`,
   `SfThreshold`, `SfHeadline`, `SfStickyBar`, `SfUnlockHero`, `SfSection`,
   `SfStack`, **`SfTopSlot`**.
+🛑 **Cinq états d'étape, pas trois (2026-09-13).** `StepState` / `SfStepState`
+valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` portent
+un `pill` **composé par l'appelant** à partir d'un libellé **servi**
+(`PlanSkillStepState`) — le kit ne compose aucune phrase et n'en déduit aucune
+d'un compteur. `verify` (« Série terminée · À vérifier ») est ambre et **n'est
+pas** `done` : une série de 5 petits sujets finie n'est pas une compétence
+acquise. `NowCard` / `SfNowCard` ont un `variant` `verify` pour la même raison —
+quand la série se termine, le nom de la compétence ne change pas, et sans accent
+propre la carte se lirait « rien n'a bougé ». → `docs/regles/plan.md`
+
 - **Miroir web** : `web_sejoufr/app/_components/sejour/SejourKit.tsx` +
   `sejour.module.css`, mêmes briques, mêmes noms (sans le préfixe `Sf`).
   🛑 **Un motif ajouté d'un côté s'ajoute de l'autre DANS LA MÊME PASSE.** Le kit
@@ -1549,8 +1559,14 @@ donc aucun paramètre de route n'est inventé.
   deux côtés** : elles ne montent pas dans le kit, qui porte les motifs des
   7 écrans de diagnostic et de plan.
 - **Autorités extraites à leur 2ᵉ surface** : `planTaskPath` /
-  `planSkillStepState` / `planPathSteps` (`screens/plan/plan_task_path.dart`,
-  sortis de `PlanTcfView` — miroir de `parcoursDeLaTache` côté web),
+  `planStepKitState` / `planStepStateLabel` / `planPathSteps`
+  (`screens/plan/plan_task_path.dart`, sortis de `PlanTcfView` — miroir de
+  `parcoursDeLaTache` / `planStepKitState` / `planStepStateLabel` côté web).
+  🛑 **Depuis le 2026-09-13 l'état d'une ligne de parcours est SERVI**
+  (`PlanDomainSkill.stepState`) : `planSkillStepState` le **lit**, il ne le
+  dérive plus. Il le dérivait — `completedSteps` **ou** `masteryState == solid`
+  — pendant que le web cochait sur le seul `SOLID` : deux règles, deux parcours
+  différents pour le même candidat. → `docs/regles/plan.md`,
   `objectifLabel` (`core/models/preparation_labels.dart`) et
   `TargetProcedure.mentionLabel` (dont `kMentionLabel` **dérive** désormais).
   `civicPlanProvider` (`screens/plan/civic_plan_provider.dart`) lit le plan
@@ -1610,6 +1626,51 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
 - **`startCivicSerie` / `openCivicOffer`** (`screens/plan/civic_serie_launcher.dart`)
   sont **extraits à leur 2ᵉ surface** : le Plan civique et Réviser ouvrent la même
   série sur la même cible. Miroir web : `useCivicSerie`.
+
+### Plan : « Compléter mon profil » est SUPPRIMÉ (2026-09-13)
+
+🛑 **Arbitrage du propriétaire**, verbatim : « Ici l'écran plan, supprime la
+partie compléter mon profil, en y mettant le bouton faire le diagnostic complet.
+Bouton plus visible. » ⚠️ **Cette section prime sur toutes les mentions de
+« Compléter mon profil » plus haut dans ce fichier**, pour l'écran **Plan**
+seulement — le rapport de diagnostic garde sa carte « Compléter maintenant ».
+
+- **Supprimés** : `_assessmentSection` (`plan_tcf_view.dart`) et les deux
+  libellés devenus morts (`kPlanCompleteProfileTitle` / `kPlanCompleteProfileText`).
+  `openPlanAssessment` **reste** l'autorité unique : `plan_progress_screen`,
+  `plan_domain_screen` et la ligne `A_EVALUER` de la séance l'emploient toujours.
+- 🛑 **Une seule occurrence du CTA par écran.** `PlanTcfView` gagne un slot
+  `affiner` (posé à l'emplacement libéré chez l'abonné, après le hero
+  d'abonnement chez un compte gratuit) ; `trailing` ne porte plus que
+  `RevoirEstimationLink`.
+- **Le bouton est PLEIN** : `SfButtonVariant.blue`, plus `line`. 🛑 **Jamais
+  `primary`** — le rouge reste à la barre basse « Débloquer mon plan ». Miroir
+  web dans la même passe.
+- **La carte DIT ce qui se mesure** : `affinerPlan`
+  (`core/models/preparation_labels.dart`) nomme les 4 épreuves et le fait que
+  l'expression écrite et orale y est **entièrement offerte**.
+
+### `ProductionTaskDto.conditionsReelles` — un dérivé serveur (2026-09-13)
+
+🛑 **« Cette tâche se passe-t-elle en conditions d'examen ? » est SERVI**, plus
+déduit du seul `session.isExam`. Lecture déclarée une fois :
+`ProductionTaskDto.enConditionsReelles` (`null` ⇒ `true`).
+
+- Aujourd'hui, seules **EO1 et EO2 d'un diagnostic** valent `false` (serveur :
+  `ProductionExamConditions`). **L'examen blanc ne change pas.**
+- `eo_briefing_screen` : plus de `_examAutoStop`, `_TimerBig` compte vers le
+  haut, `_MicStartButton` n'annonce aucun décompte, et la fin de capture prend
+  le chemin de `eo_finished_screen` (réécoute, reprise, envoi explicite) — qui
+  sait déjà enchaîner la tâche suivante d'une session d'examen. **Aucun second
+  parcours n'a été créé.**
+- La capture reste bornée par `dureeMaxSec` (le service auto-stoppe) : c'est un
+  plafond de coût de transcription, pas un chrono d'examen.
+- L'**examinateur vocal temps réel** n'est pas proposé sur ces tâches : il a son
+  propre quota payant.
+- Phrase servie au candidat : `kProductionHorsConditionsNote`
+  (`screens/diagnostic_tcf/tcf_diagnostic_labels.dart`), miroir de
+  `PRODUCTION_HORS_CONDITIONS_NOTE`, rendue en tête de `_IdleView` (bleue —
+  c'est une permission, pas un avertissement).
 
 ### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
 

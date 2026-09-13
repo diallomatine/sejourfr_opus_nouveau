@@ -28,7 +28,33 @@ import '../../theme/app_theme.dart';
 enum SfTone { ok, warn, hot, muted }
 
 /// État d'une étape de parcours ou d'une compétence.
-enum SfStepState { done, now, todo }
+/// L'état d'une étape de parcours ou d'une compétence.
+///
+/// 🛑 **[verify] n'est pas [done].** Une série de petits sujets terminée n'est
+/// pas une compétence acquise — c'est une preuve qui reste à faire, et elle se
+/// lit au premier coup d'œil (accent ambre, icône de validation) plutôt que
+/// comme une coche de plus. [doing] est la série commencée, distincte de [now]
+/// qui repère la compétence que le Plan travaille **maintenant**.
+///
+/// ⚠️ Miroir de `StepState` (`web .../app/_components/sejour/SejourKit.tsx`).
+enum SfStepState { done, verify, doing, now, todo }
+
+/// La couleur d'un état d'étape, déclarée **une fois** pour les trois widgets
+/// qui l'affichent.
+Color _sfStepColor(SfStepState state) => switch (state) {
+      SfStepState.done => AppColors.greenDark,
+      SfStepState.verify => AppColors.amberDark,
+      SfStepState.doing || SfStepState.now => AppColors.blueDark,
+      SfStepState.todo => AppColors.muted,
+    };
+
+IconData _sfStepIcon(SfStepState state) => switch (state) {
+      SfStepState.done => LucideIcons.check,
+      SfStepState.verify => LucideIcons.badgeCheck,
+      SfStepState.doing => LucideIcons.circleDot,
+      SfStepState.now => LucideIcons.arrowRight,
+      SfStepState.todo => LucideIcons.circle,
+    };
 
 extension SfToneColors on SfTone {
   /// Couleur du libellé d'état. Chacune est un ton **de texte** : lisible sur
@@ -1150,16 +1176,8 @@ class SfSkillRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (state) {
-      SfStepState.done => AppColors.greenDark,
-      SfStepState.now => AppColors.blueDark,
-      SfStepState.todo => AppColors.muted,
-    };
-    final icon = switch (state) {
-      SfStepState.done => LucideIcons.check,
-      SfStepState.now => LucideIcons.arrowRight,
-      SfStepState.todo => LucideIcons.circle,
-    };
+    final color = _sfStepColor(state);
+    final icon = _sfStepIcon(state);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -1188,10 +1206,15 @@ class SfSkillRow extends StatelessWidget {
 
 /// Une étape d'un parcours de tâche ou de notion.
 class SfPathStep {
-  const SfPathStep({required this.label, required this.state});
+  const SfPathStep({required this.label, required this.state, this.pill});
 
   final String label;
   final SfStepState state;
+
+  /// Le libellé de la pastille, **servi** par l'appelant (« Série terminée ·
+  /// 5/5 »…). Le kit ne compose aucune phrase et n'en déduit aucune d'un
+  /// compteur. `null` ⇒ pas de pastille.
+  final String? pill;
 }
 
 /// Le parcours d'une tâche / d'une notion : barre segmentée, compteur
@@ -1241,7 +1264,10 @@ class SfPathCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: switch (steps[i].state) {
                         SfStepState.done => AppColors.green,
-                        SfStepState.now => AppColors.blue,
+                        // Série finie, preuve encore à faire : ni la ligne
+                        // d'arrivée (vert), ni le travail en cours (bleu).
+                        SfStepState.verify => AppColors.amber,
+                        SfStepState.doing || SfStepState.now => AppColors.blue,
                         SfStepState.todo => AppColors.line,
                       },
                       borderRadius: BorderRadius.circular(99),
@@ -1252,25 +1278,32 @@ class SfPathCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          for (final step in steps) SfPathRow(label: step.label, state: step.state),
+          for (final step in steps)
+            SfPathRow(label: step.label, state: step.state, pill: step.pill),
         ],
       ),
     );
   }
 }
 
-/// Une ligne d'étape. L'étape courante prend un fond bleu clair et la
-/// pastille « Maintenant ».
+/// Une ligne d'étape. L'étape en cours prend un fond bleu clair, la série
+/// terminée à vérifier un fond ambre, et chacune porte sa **pastille servie**.
+///
+/// 🛑 **Le libellé de la pastille vient de l'appelant**, jamais d'ici : il porte
+/// un état **servi**, pas une phrase du kit.
 class SfPathRow extends StatelessWidget {
-  const SfPathRow({super.key, required this.label, required this.state});
+  const SfPathRow({super.key, required this.label, required this.state, this.pill});
 
   final String label;
   final SfStepState state;
+  final String? pill;
 
   @override
   Widget build(BuildContext context) {
     final done = state == SfStepState.done;
-    final now = state == SfStepState.now;
+    final verify = state == SfStepState.verify;
+    final now = state == SfStepState.now || state == SfStepState.doing;
+    final accent = now || verify;
     // 🛑 **Aucune marge négative.** `Container` l'interdit par assertion
     // (`margin.isNonNegative`) : la ligne en cours plantait l'écran en debug dès
     // qu'un parcours servait une étape `now` — Accueil comme Plan. Le débord de
@@ -1278,10 +1311,10 @@ class SfPathRow extends StatelessWidget {
     // d'équivalent légal ici ; la surbrillance reste donc **dans** la carte, et
     // c'est le seul écart avec la feuille du web sur cette ligne.
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: now ? 10 : 0, vertical: 8),
-      decoration: now
+      padding: EdgeInsets.symmetric(horizontal: accent ? 10 : 0, vertical: 8),
+      decoration: accent
           ? BoxDecoration(
-              color: AppColors.blueSoft,
+              color: verify ? AppColors.amberLight : AppColors.blueSoft,
               borderRadius: BorderRadius.circular(AppRadii.md),
             )
           : null,
@@ -1293,23 +1326,24 @@ class SfPathRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: done
                   ? AppColors.greenLight
-                  : now
-                      ? AppColors.blueLight
-                      : AppColors.line,
+                  : verify
+                      ? AppColors.white
+                      : now
+                          ? AppColors.blueLight
+                          : AppColors.line,
               shape: BoxShape.circle,
+              border: verify ? Border.all(color: AppColors.amberBorder) : null,
             ),
             child: Icon(
-              done
-                  ? LucideIcons.check
-                  : now
-                      ? LucideIcons.arrowRight
-                      : LucideIcons.circle,
+              _sfStepIcon(state),
               size: 14,
               color: done
                   ? AppColors.green
-                  : now
-                      ? AppColors.blue
-                      : AppColors.muted,
+                  : verify
+                      ? AppColors.amberDark
+                      : now
+                          ? AppColors.blue
+                          : AppColors.muted,
             ),
           ),
           const SizedBox(width: 10),
@@ -1319,23 +1353,38 @@ class SfPathRow extends StatelessWidget {
               style: AppFonts.ui(
                 size: 14,
                 color: done ? AppColors.muted : AppColors.ink,
-                weight: now ? FontWeight.w700 : (done ? FontWeight.w600 : FontWeight.w500),
+                weight: accent ? FontWeight.w700 : (done ? FontWeight.w600 : FontWeight.w500),
               ),
             ),
           ),
-          if (now)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-                border: Border.all(color: AppColors.blueLight),
-              ),
-              child: Text(
-                'MAINTENANT',
-                style: AppFonts.label(size: 10, color: AppColors.blue),
+          if (pill != null) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  border: Border.all(
+                    color: verify ? AppColors.amberBorder : AppColors.blueLight,
+                  ),
+                ),
+                child: Text(
+                  pill!.toUpperCase(),
+                  // La pastille porte un état SERVI : elle se replie sur deux
+                  // lignes plutot que d'etre tronquee — un etat a moitie lu ne
+                  // dit plus rien. Miroir du `white-space: normal` du web.
+                  maxLines: 2,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.label(
+                    size: 10,
+                    color: verify ? AppColors.amberDark : AppColors.blue,
+                  ),
+                ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -1415,6 +1464,10 @@ class SfMeta {
   final String label;
 }
 
+/// Les deux visages de la carte d'action : l'entraînement de l'étape, et la
+/// **vérification** qui la clôt.
+enum SfNowCardVariant { standard, verify }
+
 /// La carte « À faire maintenant » du Plan : ce que le moteur a choisi, son
 /// objectif de séance, ses métadonnées et son bouton.
 class SfNowCard extends StatelessWidget {
@@ -1430,7 +1483,15 @@ class SfNowCard extends StatelessWidget {
     this.child,
     this.action,
     this.caption,
+    this.variant = SfNowCardVariant.standard,
   });
+
+  /// 🛑 [SfNowCardVariant.verify] change **la carte**, pas seulement son
+  /// bouton : quand la série de petits sujets se termine, le nom de la
+  /// compétence reste le même, et sans accent propre le candidat lit « rien n'a
+  /// bougé » alors que l'action a changé de nature. Miroir du `variant` du
+  /// `NowCard` web.
+  final SfNowCardVariant variant;
 
   final IconData icon;
   final String title;
@@ -1450,16 +1511,21 @@ class SfNowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final verify = variant == SfNowCardVariant.verify;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.surface2, AppColors.white],
-          stops: [0, 0.42],
+          colors: [
+            verify ? AppColors.amberLight : AppColors.surface2,
+            AppColors.white,
+          ],
+          stops: const [0, 0.46],
         ),
         borderRadius: BorderRadius.circular(28),
+        border: verify ? Border.all(color: AppColors.amberBorder) : null,
         boxShadow: AppShadows.md,
       ),
       child: Column(
@@ -1472,7 +1538,7 @@ class SfNowCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.blue,
+                  color: verify ? AppColors.amberDark : AppColors.blue,
                   borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: Icon(icon, size: 24, color: AppColors.white),
@@ -1495,12 +1561,18 @@ class SfNowCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.redLight,
+                          color: verify ? AppColors.white : AppColors.redLight,
                           borderRadius: BorderRadius.circular(AppRadii.sm),
+                          border: verify
+                              ? Border.all(color: AppColors.amberBorder)
+                              : null,
                         ),
                         child: Text(
                           badge!.toUpperCase(),
-                          style: AppFonts.label(size: 10, color: AppColors.redDark),
+                          style: AppFonts.label(
+                            size: 10,
+                            color: verify ? AppColors.amberDark : AppColors.redDark,
+                          ),
                         ),
                       ),
                     ],
@@ -1514,8 +1586,9 @@ class SfNowCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.blueSoft,
+                color: verify ? AppColors.white : AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(14),
+                border: verify ? Border.all(color: AppColors.amberBorder) : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1523,7 +1596,10 @@ class SfNowCard extends StatelessWidget {
                   if (objectiveLabel != null) ...[
                     Text(
                       objectiveLabel!.toUpperCase(),
-                      style: AppFonts.label(size: 11, color: AppColors.blue),
+                      style: AppFonts.label(
+                        size: 11,
+                        color: verify ? AppColors.amberDark : AppColors.blue,
+                      ),
                     ),
                     const SizedBox(height: 4),
                   ],
@@ -1567,12 +1643,17 @@ class SfNowCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.blueSoft,
+                color: verify ? AppColors.white : AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(AppRadii.md),
+                border: verify ? Border.all(color: AppColors.amberBorder) : null,
               ),
               child: Text(
                 caption!,
-                style: AppFonts.ui(size: 12.5, color: AppColors.blueDark, height: 1.45),
+                style: AppFonts.ui(
+                  size: 12.5,
+                  color: verify ? AppColors.inkSoft : AppColors.blueDark,
+                  height: 1.45,
+                ),
               ),
             ),
           ],

@@ -155,7 +155,11 @@ public class LearningPlanService {
                     // lui a deja un domaine mesure, donc un palier a construire.
                     targetLevelResolver.parSection(
                             userId, profil.domaines(), profil.cycle().objectiveLevel()),
-                    accessService.resolve(userId, null));
+                    accessService.resolve(userId, null),
+                    // Aucun diagnostic : aucune etape commencee non plus. La map
+                    // vide vaut « rien fait », ce qui est exact — et ne coute
+                    // pas une requete de comptage.
+                    Map.of(), null);
             return new LearningPlanDto(
                     inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
                             : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
@@ -254,6 +258,13 @@ public class LearningPlanService {
         // seule passe (2 requetes quel que soit le nombre de competences),
         // plutot qu'une requete par carte.
         Set<UUID> skillIds = new LinkedHashSet<>();
+        // 🛑 LE REFERENTIEL ENTIER, et pas seulement les cartes : « Votre
+        // parcours » affiche l'etat d'etape de TOUTES les competences de la
+        // tache, et un front qui ne recoit pas leur progression la devinerait —
+        // c'est exactement ce que les deux fronts faisaient, chacun a sa facon.
+        // Le compteur travaille en LOT : deux requetes pour 5 competences comme
+        // pour 48, le cout du Plan est inchange.
+        profil.referentiel().forEach(skill -> skillIds.add(skill.getId()));
         actionable.forEach(item -> skillIds.add(item.getSkill().getId()));
         acquisitions.forEach(skill -> skillIds.add(skill.getId()));
         franchies.forEach(item -> skillIds.add(item.getSkill().getId()));
@@ -273,15 +284,26 @@ public class LearningPlanService {
                 userId, focusSkillId.orElse(null));
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
-        // BASCULE DE L'ETAPE : quand le moteur juge la competence prete a etre
-        // verifiee ET que l'etape est TERMINEE, la meme carte cesse de proposer
-        // un micro-sujet et propose une vraie tache. L'etape ne se dedouble
-        // jamais. Si la tache n'a aucun sujet publie, la verification est
-        // simplement absente et le micro-exercice reste — rien ne casse.
+        // BASCULE DE L'ETAPE : des que l'etape est TERMINEE — ses cinq sujets
+        // traites — la meme carte cesse de proposer un micro-sujet et propose
+        // une vraie tache. L'etape ne se dedouble jamais. Si la tache n'a aucun
+        // sujet publie, la verification est simplement absente et le
+        // micro-exercice reste — rien ne casse.
         //
-        // La SECONDE condition manquait : le moteur ne voit pas l'etape, et un
-        // candidat ayant valide 2 des 5 sujets se voyait proposer « verifier ma
-        // progression » sous un anneau affichant 2/5.
+        // 🛑 UNE SEULE CONDITION DEPUIS LE 2026-09-13, et c'est LA SORTIE DE
+        // BOUCLE. La bascule exigeait AUSSI readyForReassessment ; or un petit
+        // sujet n'ecrit jamais SOLID, donc a 5/5 ce signal pouvait rester faux,
+        // l'etape restait A_RENFORCER, et RecommendedExerciseSelector servait au
+        // candidat... les cinq memes sujets, tous deja traites. Boucle fermee :
+        // le Plan ne pouvait plus rien apprendre de lui. Arbitrage du
+        // proprietaire : apres le 5e petit sujet, la serie ciblee est TERMINEE,
+        // on ne renvoie jamais dans les memes cinq, et la nouvelle action est
+        // une production de verification. readyForReassessment reste SERVI — il
+        // nuance le texte de la carte — mais il ne commande plus rien.
+        //
+        // 🛑 5/5 n'est toujours PAS SOLID : c'est la production contextualisee
+        // qui apporte la preuve, et le moteur de maitrise n'a pas bouge d'un
+        // octet.
         //
         // Le perimetre de cette condition est l'ETAPE ENTIERE (les 5 sujets
         // editoriaux), pas ce que l'acces du candidat lui ouvre. C'est un
@@ -301,8 +323,7 @@ public class LearningPlanService {
         // le premier terme du score.
         Map<UUID, Boolean> readyToVerify = new LinkedHashMap<>();
         actionable.forEach(item -> readyToVerify.put(item.getSkill().getId(),
-                mastery(mastery, item).readyForReassessment()
-                        && progress(progress, item).step().completed()));
+                progress(progress, item).step().completed()));
 
         // LE POOL COMPLET : toutes les fragilites, toutes les acquisitions.
         // Rien n'est tronque ici — c'est exactement ce que le 2026-08-25 a
@@ -386,12 +407,18 @@ public class LearningPlanService {
             PlanRecommendedExerciseDto exercise = exercises.get(action.skillId());
             LearningPlanObservation fragilite = fragilitesParSkill.get(action.skillId());
             if (fragilite != null) {
-                boolean verifier = action.nature() == PlanActionNature.A_VERIFIER;
+                // 🛑 « A verifier » ET une verification a proposer, sinon la
+                // carte dirait « Faire la verification » en ouvrant un petit
+                // sujet. Aucun sujet de production publie sur la tache est un
+                // cas NORMAL (regle du selecteur) : l'etape retombe alors sur
+                // son micro-exercice, et elle le DIT.
+                boolean verifier = action.nature() == PlanActionNature.A_VERIFIER
+                        && verifications.containsKey(action.skillId());
                 priorities.add(priority(fragilite,
-                        verifier && verifications.containsKey(action.skillId())
-                                ? verifications.get(action.skillId()) : exercise,
+                        verifier ? verifications.get(action.skillId()) : exercise,
                         progress(progress, fragilite), mastery(mastery, fragilite),
-                        verifier, access.isSkillLocked(action.skillId())));
+                        verifier, access.isSkillLocked(action.skillId()),
+                        action.skillId().equals(focusSkillId.orElse(null))));
                 continue;
             }
             // Sans exercice publie, une acquisition n'a rien a proposer et
@@ -401,7 +428,8 @@ public class LearningPlanService {
             priorities.add(acquisition(acquisitionsParSkill.get(action.skillId()), exercise,
                     progress.getOrDefault(action.skillId(),
                             SkillProgressCounter.SkillProgress.EMPTY),
-                    access.isSkillLocked(action.skillId())));
+                    access.isSkillLocked(action.skillId()),
+                    action.skillId().equals(focusSkillId.orElse(null))));
         }
 
         List<LearningPlanSkillDto> observed = observedItems.stream()
@@ -487,7 +515,7 @@ public class LearningPlanService {
         composed.forEach(action -> natures.put(action.skillId(), action.nature()));
         List<PlanDomainDto> domaines = domainSkillResolver.attach(
                 profil.domaines(), profil.referentiel(), latest, mastery, natures,
-                paliersParDomaine, access);
+                paliersParDomaine, access, progress, focusSkillId.orElse(null));
         return new LearningPlanDto(
                 LearningPlanState.ACTIVE, foundation.sessionId(), foundation.completedAt(),
                 completedSteps,
@@ -568,22 +596,6 @@ public class LearningPlanService {
                 observation.getSkill().getTitle(), observation.getSkill().getSection());
     }
 
-    /**
-     * L'exercice de l'etape : la verification en situation quand le signal est
-     * pose ET qu'un sujet est disponible, le micro-exercice sinon.
-     */
-    private static PlanRecommendedExerciseDto nextExercise(
-            LearningPlanObservation observation,
-            Map<UUID, Boolean> readyToVerify,
-            Map<UUID, PlanRecommendedExerciseDto> exercises,
-            Map<UUID, PlanRecommendedExerciseDto> verifications) {
-        UUID skillId = observation.getSkill().getId();
-        if (Boolean.TRUE.equals(readyToVerify.get(skillId)) && verifications.containsKey(skillId)) {
-            return verifications.get(skillId);
-        }
-        return exercises.get(skillId);
-    }
-
     private DiagnosticSession currentSession(UUID userId) {
         String code = diagnosticProperties.getInitialCode();
         Integer version = taskManager.findLatestActiveDiagnosticVersion(code).orElse(null);
@@ -596,8 +608,9 @@ public class LearningPlanService {
             PlanRecommendedExerciseDto exercise,
             SkillProgressCounter.SkillProgress counts,
             SkillMasteryEngine.SkillMastery mastery,
-            boolean readyForReassessment,
-            boolean locked) {
+            boolean verifier,
+            boolean locked,
+            boolean courante) {
         LearningPlanStep.Progress step = counts.step();
         return new LearningPlanPriorityDto(
                 observation.getSkill().getId(), observation.getSkill().getCode(),
@@ -605,14 +618,22 @@ public class LearningPlanService {
                 // Une etape qui bascule en verification le DIT : c'est la meme
                 // carte, au meme endroit, avec une autre action — et c'est cette
                 // nature que les fronts lisent, jamais la nullite d'un champ.
-                readyForReassessment ? PlanActionNature.A_VERIFIER
+                verifier ? PlanActionNature.A_VERIFIER
                         : PlanActionNature.A_RENFORCER,
                 observation.getStatus(), observation.getExplanation(), observation.getEvidence(),
                 observation.getConfidence(), observation.getObservedAt(), exercise,
                 counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
-                mastery.state(), readyForReassessment, locked);
+                mastery.state(),
+                PlanStepStateResolver.resolve(mastery.state(), step,
+                        mastery.verificationSubmitted(), courante),
+                // Le signal du moteur reste SERVI — il nuance le texte de la
+                // carte — mais il ne commande plus la bascule. Sa DEFINITION
+                // ne bouge pas : le moteur ET l'etape terminee, exactement la
+                // combinaison du 2026-08-14, pour que le DTO ne dise jamais
+                // « pret » sous un anneau a 2/5.
+                mastery.readyForReassessment() && step.completed(), locked);
     }
 
     /**
@@ -633,7 +654,8 @@ public class LearningPlanService {
             Skill skill,
             PlanRecommendedExerciseDto exercise,
             SkillProgressCounter.SkillProgress counts,
-            boolean locked) {
+            boolean locked,
+            boolean courante) {
         LearningPlanStep.Progress step = counts.step();
         return new LearningPlanPriorityDto(
                 skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
@@ -642,7 +664,9 @@ public class LearningPlanService {
                 counts.promptCount(), counts.attemptedCount(), counts.validatedCount(),
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
-                null, false, locked);
+                null,
+                PlanStepStateResolver.resolve(null, step, false, courante),
+                false, locked);
     }
 
     /**

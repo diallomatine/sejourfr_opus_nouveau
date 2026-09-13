@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.PlanActionNature;
+import com.sejourfr.app.enums.PlanSkillStepState;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -60,6 +61,16 @@ import java.util.UUID;
  * @param observedAt   date de la derniere observation probante, {@code null} sans
  * @param locked       ce candidat ne peut pas travailler cette competence
  *                     ({@code SkillAccessService}, unique autorite)
+ * @param stepState    <b>ou en est l'etape</b> de cette competence, servi
+ *                     ({@code PlanStepStateResolver}, unique autorite). C'est
+ *                     lui que la ligne de « Votre parcours » affiche —
+ *                     <b>jamais</b> une coche derivee d'un compteur ou de
+ *                     {@code masteryState} par le front, ce que les deux fronts
+ *                     faisaient chacun a leur facon
+ * @param stepPromptCount    sujets de l'etape (au plus 5, moins si la competence
+ *                           en publie moins ; <b>0</b> en comprehension, qui n'a
+ *                           aucun petit sujet)
+ * @param stepAttemptedCount sujets de l'etape deja traites
  */
 public record PlanDomainSkillDto(
         UUID skillId,
@@ -73,5 +84,8 @@ public record PlanDomainSkillDto(
         SkillMasteryState masteryState,
         PlanActionNature nature,
         Instant observedAt,
-        boolean locked
+        boolean locked,
+        PlanSkillStepState stepState,
+        int stepPromptCount,
+        int stepAttemptedCount
 ) {}

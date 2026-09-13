@@ -384,7 +384,7 @@ class PlanMilestoneSelectorTest {
             all.add(observation);
             mastery.put(skill.getId(), new SkillMasteryEngine.SkillMastery(
                     state, 1.0, 3, 2, 1, 2, false, false,
-                    state == SkillMasteryState.SOLID, observation.getObservedAt()));
+                    state == SkillMasteryState.SOLID, false, observation.getObservedAt()));
         }
 
         /** Une production d'examen blanc deja observee sur cette epreuve. */

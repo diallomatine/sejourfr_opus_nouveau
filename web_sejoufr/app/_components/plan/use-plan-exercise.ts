@@ -55,7 +55,9 @@ export function usePlanExercise() {
             // du Plan passent toutes par ce lanceur.
             track("PLAN_EXERCISE_STARTED", {exerciseKind: exercise.kind});
             if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
-                router.push(recommendedExerciseHref(exercise));
+                // 🛑 On vient du PLAN : le sujet s'ouvre à l'échelle de son
+                // ÉTAPE (« 1/5 »), pas de la compétence entière (« 1/15 »).
+                router.push(recommendedExerciseHref(exercise, {planStep: true}));
                 return;
             }
             setStarting(true);

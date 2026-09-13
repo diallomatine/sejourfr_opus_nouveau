@@ -30,6 +30,9 @@ import {
     type NiveauCecrl,
     niveauCecrlLabel,
     PLAN_ACTION_NATURE_LABEL,
+    PLAN_SKILL_STEP_STATE_LABEL,
+    type PlanExerciseKind,
+    type PlanSkillStepState,
     type PlanActionNature,
     type PlanCycleDto,
     type PlanDomainAssessmentDto,
@@ -156,7 +159,13 @@ export const PLAN_CYCLE_STATE_TEXT: Record<PlanCycleDto["state"], string> = {
 /** Titre d'une étape du chemin. Le serveur donne `kind` + `level` ; la
  *  formulation appartient au front. */
 export function planPathStepTitle(step: PlanPathStepDto): string {
-    if (step.kind === "COMPLETE_PROFILE") return "Compléter mon profil";
+    /* ⚠️ **Ce n'est pas la section supprimée le 2026-09-13.** C'est la 1ʳᵉ étape
+       du CYCLE DE PALIER (`cycle.path`) : mesurer les quatre épreuves avant de
+       construire un palier. Elle portait le même nom que la section disparue,
+       ce qui la faisait lire comme son retour. Le nom dit maintenant ce que
+       l'étape est ; sa logique, son statut et son repère (« 0 / 4 domaines »)
+       n'ont pas bougé d'une ligne. */
+    if (step.kind === "COMPLETE_PROFILE") return PLAN_PATH_MEASURE_TITLE;
     if (step.kind === "STABILIZE") return "Tenir mon niveau en conditions d'examen";
     return `Construire mon ${step.level}`;
 }
@@ -173,6 +182,10 @@ export function planPathStepMeta(step: PlanPathStepDto, cycle: PlanCycleDto): st
         : `Palier ${step.level}`;
     return état ? `${base} · ${état}` : base;
 }
+
+/** Le titre de la 1ʳᵉ étape du cycle de palier. Miroir mot pour mot du mobile
+ *  (`kPlanPathMeasureTitle`). */
+export const PLAN_PATH_MEASURE_TITLE = "Mesurer mes 4 épreuves";
 
 export const PLAN_PATH_CURRENT_BADGE = "En cours";
 
@@ -284,9 +297,6 @@ export function planLevelRowMeta(palier: PlanDomainLevelDto): string {
 
 /* ------------------------------------------------------ compléter le profil */
 
-export const PLAN_COMPLETE_PROFILE_TITLE = "Compléter mon profil";
-export const PLAN_COMPLETE_PROFILE_TEXT =
-    "Un domaine se mesure sur un vrai passage, pas sur un entraînement. Votre profil se précise à chaque épreuve passée.";
 /** 🛑 La phrase que la séance ne doit jamais laisser croire l'inverse : une
  *  série ciblée entraîne, elle ne mesure pas. */
 export const PLAN_COMPLETE_PROFILE_NOTE =
@@ -403,23 +413,133 @@ export const PLAN_REASON_A_VERIFIER =
 export const PLAN_REASON_MILESTONE =
     "Un cran au-dessus des étapes : venez prouver ce qui est déjà acquis.";
 
-/** Ce que fait un item, en trois mots — la **nature de l'action**, lue sur
- *  `exercise.kind` et jamais devinée d'un identifiant nul. Sur une **mesure**,
- *  c'est le parcours réel qu'on nomme (diagnostic, production, examen blanc). */
-export function planItemNature(item: PlanSeanceItemDto): string {
-    if (item.exercise === null) return planAssessmentNature(item.assessment);
-    switch (item.exercise.kind) {
+/** Ce qu'est l'entraînement d'une étape. **Au pluriel** : une étape n'est pas
+ *  un sujet, c'est une série de cinq — le singulier faisait croire à une action
+ *  unique là où le Plan en demande cinq. Miroir mot pour mot du mobile
+ *  (`planExerciseKindLabel`). */
+export const PLAN_MICRO_TRAINING_NATURE = "Sujets ciblés";
+
+/**
+ * **Ce qu'est une action du Plan**, en trois mots — déclarée ici parce que deux
+ * surfaces la demandent : une ligne de séance et la carte « À faire
+ * maintenant », qui ne porte aucun `PlanSeanceItemDto`.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planExerciseKindLabel`).
+ */
+export function planExerciseKindLabel(
+    kind: PlanExerciseKind,
+    questionCount: number | null,
+): string {
+    switch (kind) {
         case "MICRO_TRAINING":
-            return "Petit sujet ciblé";
+            return PLAN_MICRO_TRAINING_NATURE;
         case "REASSESSMENT":
             return "Vérification en situation";
         case "TARGETED_QCM_SERIES":
-            return planSeriesLabel(item.exercise.questionCount);
+            return planSeriesLabel(questionCount);
         case "EPREUVE_MOCK_EXAM":
             return "Examen blanc d'épreuve";
         case "FULL_TCF_MOCK_EXAM":
             return "Examen blanc TCF complet";
     }
+}
+
+/* --------------------------------------------- la carte « À faire maintenant » */
+
+/**
+ * Le titre de la carte quand la série est terminée. 🛑 Il nomme **l'action**,
+ * pas la compétence : c'est ce qui fait voir au premier coup d'œil que la carte
+ * a changé de nature alors que le nom de la compétence, lui, n'a pas bougé.
+ */
+export const PLAN_NOW_VERIFY_TITLE = "Valider cette compétence";
+export const PLAN_NOW_VERIFY_TEXT =
+    "Mettez maintenant cette compétence en pratique dans une réponse complète.";
+
+export const PLAN_NOW_CTA_START = "Commencer";
+export const PLAN_NOW_CTA_CONTINUE = "Continuer";
+export const PLAN_NOW_CTA_DISCOVER = "Découvrir";
+export const PLAN_NOW_CTA_VERIFY = "Faire la vérification";
+export const PLAN_NOW_CTA_MEASURE = "Compléter la mesure";
+
+/**
+ * Ce que dit le bouton de la carte d'action.
+ *
+ * 🛑 **Rien n'est déduit d'un pourcentage** : la vérification se lit sur la
+ * nature **servie**, et « Commencer » / « Continuer » ne départagent qu'un
+ * compteur servi à zéro ou non — un nombre affiché, pas un état classé ici.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planNowCta`).
+ */
+export function planNowCta(
+    priority: LearningPlanPriorityDto,
+    verifier: boolean,
+    mesure: boolean,
+): string {
+    if (mesure) return PLAN_NOW_CTA_MEASURE;
+    if (verifier) return PLAN_NOW_CTA_VERIFY;
+    if (priority.nature === "A_ACQUERIR") return PLAN_NOW_CTA_DISCOVER;
+    return priority.stepAttemptedCount > 0 ? PLAN_NOW_CTA_CONTINUE : PLAN_NOW_CTA_START;
+}
+
+/**
+ * Les deux lignes de la carte d'action, **distinctes**.
+ *
+ * 1. le **constat** — ce que le correcteur a observé, préfixé de **l'action**
+ *    que le Plan demande (« À renforcer : le lien de cause à effet reste peu
+ *    développé. »), et sans préfixe sur une vérification ;
+ * 2. la **progression** — « Progression : 3/5 sujets réalisés ».
+ *
+ * 🛑 Elles étaient **concaténées** en une seule phrase, où l'état et le
+ * compteur se lisaient comme la suite du constat. Deux faits différents, deux
+ * lignes.
+ *
+ * 🛑 La nature passe avant les compteurs : sur une compétence à acquérir,
+ * « 0/5 » se lirait comme un retard alors qu'il n'y avait rien à traiter.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planNowLines`).
+ */
+export function planNowLines(priority: LearningPlanPriorityDto): string[] {
+    const lines: string[] = [];
+    if (priority.nature === "A_ACQUERIR") {
+        lines.push(PLAN_REASON_A_ACQUERIR);
+    } else if (priority.explanation) {
+        /* 🛑 **Le préfixe nomme l'ACTION de l'étape, pas un état mesuré.** Il
+           lisait `masteryState`, donc « Priorité : … » juste sous la pastille
+           « Priorité n°1 » — la répétition même qu'on cherchait à supprimer, et
+           un mot qui ne dit rien de ce qu'il y a à faire.
+
+           🛑 **Rien n'est fabriqué ici** : `nature` est servie et son libellé
+           est le miroir gelé de l'enum `PlanActionNature` (`SkillLabelsTest`),
+           comme tous les libellés d'enum du dépôt.
+
+           **Pas de préfixe sur une vérification** : la carte porte déjà
+           « Valider cette compétence » et l'encart « Vérification en
+           situation » ; « À vérifier : <une faiblesse> » serait une troisième
+           redite, et surtout ferait dire au constat autre chose que ce qu'il
+           dit — le constat décrit une fragilité observée, pas l'action. */
+        lines.push(priority.nature === "A_VERIFIER"
+            ? priority.explanation
+            : `${PLAN_ACTION_NATURE_LABEL[priority.nature]} : ${priority.explanation}`);
+    } else if (priority.readyForReassessment) {
+        lines.push(PLAN_REASON_A_VERIFIER);
+    }
+    if (priority.nature !== "A_ACQUERIR" && priority.stepPromptCount > 0) {
+        lines.push(
+            `Progression : ${priority.stepAttemptedCount}/${priority.stepPromptCount} sujets réalisés`,
+        );
+    }
+    return lines;
+}
+
+/** Ce que fait un item, en trois mots — la **nature de l'action**, lue sur
+ *  `exercise.kind` et jamais devinée d'un identifiant nul. Sur une **mesure**,
+ *  c'est le parcours réel qu'on nomme (diagnostic, production, examen blanc). */
+export function planItemNature(item: PlanSeanceItemDto): string {
+    if (item.exercise === null) return planAssessmentNature(item.assessment);
+    return planExerciseKindLabel(
+        item.exercise.kind,
+        item.exercise.kind === "TARGETED_QCM_SERIES" ? item.exercise.questionCount : null,
+    );
 }
 
 /** La ligne meta d'un item : sa nature et sa durée. **Une mesure sans durée**
@@ -1362,8 +1482,13 @@ export function planPriorityGroupAction(group: PlanPriorityGroup): PlanPriorityG
 
 /* -------------------------------------------------- parcours d'une tâche */
 
-/** Une étape d'un parcours, dans la forme que le kit attend. */
-export type PlanPathStep = {label: string; state: "done" | "now" | "todo"};
+/** Une étape d'un parcours, dans la forme que le kit attend — `pill` porte le
+ *  libellé de l'état **servi**, le kit n'en compose aucun. */
+export type PlanPathStep = {
+    label: string;
+    state: "done" | "verify" | "doing" | "now" | "todo";
+    pill?: string;
+};
 
 export interface PlanTachePath {
     title: string;
@@ -1402,18 +1527,76 @@ export function parcoursDeLaTache(
     const skills = (domain.skills ?? []).filter((skill) => skill.taskCode === code);
     if (!tache || skills.length === 0) return null;
 
-    const state = (skillId: string, solide: boolean): PlanPathStep["state"] =>
-        skillId === priority.skillId ? "now" : solide ? "done" : "todo";
-
     return {
         title: `Votre parcours — ${planTaskBadge(tache.tacheNumero)}`,
         tacheNumero: tache.tacheNumero,
         currentLabel: priority.title,
-        counterLabel: `Étape ${tache.observedSkills} / ${tache.totalSkills}`,
+        /* 🛑 **Ce compteur n'est PAS une position.** Il disait « Étape 2 / 8 »
+           pendant que la frise colorait le 3ᵉ segment : deux sens différents au
+           même endroit, illisibles ensemble. Le fait servi
+           (`observedSkills` / `totalSkills`) est un **compte de compétences
+           observées**, il se nomme donc pour ce qu'il est ; la frise, elle,
+           continue de montrer l'état de chaque compétence. Aucun des deux ne
+           prétend plus dire où l'on en est dans une numérotation. */
+        counterLabel: `Observées : ${tache.observedSkills} / ${tache.totalSkills}`,
         steps: skills.map((skill) => ({
             label: skill.title,
-            state: state(skill.skillId, planRowStatus(skill) === "SOLIDE"),
+            state: planStepKitState(skill.stepState),
+            pill: planStepStatePill(skill),
         })),
         skills,
     };
+}
+
+/**
+ * L'**apparence** d'un état d'étape dans le kit. Elle ne décide rien : l'état
+ * arrive servi, cette table dit seulement quelle forme lui donner.
+ *
+ * 🛑 `SERIE_TERMINEE` n'est **pas** `done` : la coche verte dit « acquis », et
+ * une série finie sans preuve en situation ne l'est pas. `A_VERIFIER` a sa
+ * forme propre — c'est le seul état qui appelle une action d'une autre nature.
+ *
+ * ⚠️ Miroir de `planStepKitState` (`mobile .../screens/plan/plan_step_state.dart`).
+ */
+export function planStepKitState(state: PlanSkillStepState): PlanPathStep["state"] {
+    switch (state) {
+        case "ACQUIS": return "done";
+        case "A_VERIFIER": return "verify";
+        case "SERIE_TERMINEE": return "doing";
+        case "MAINTENANT": return "now";
+        case "EN_COURS": return "doing";
+        case "A_VENIR": return "todo";
+    }
+}
+
+/**
+ * Le libellé d'un état d'étape, **avec sa progression réelle** quand elle
+ * éclaire quelque chose : « Série terminée · 5/5 », « En cours · 2/5 ».
+ *
+ * 🛑 Le libellé vient de l'enum servi ; seuls les **nombres** s'y ajoutent, et
+ * ce sont ceux que le serveur a comptés. Aucun état n'est déduit ici.
+ *
+ * 🛑 Aucun palier CECRL ne s'y accroche : « Acquis · B1 » n'existe pas. Le
+ * palier d'une compétence est notre palier **pédagogique interne** et s'affiche
+ * à part, « Niveau visé B1 ».
+ *
+ * ⚠️ Miroir de `planStepStateLabel` (mobile).
+ */
+export function planStepStateLabel(skill: {
+    stepState: PlanSkillStepState;
+    stepPromptCount: number;
+    stepAttemptedCount: number;
+}): string {
+    const label = PLAN_SKILL_STEP_STATE_LABEL[skill.stepState];
+    const compteur = `${skill.stepAttemptedCount}/${skill.stepPromptCount}`;
+    if (skill.stepPromptCount === 0) return label;
+    if (skill.stepState === "SERIE_TERMINEE") return `${label} · ${compteur}`;
+    if (skill.stepState === "EN_COURS") return `${label} · ${compteur}`;
+    return label;
+}
+
+/** La pastille d'une ligne de parcours. `undefined` sur « À venir » : une ligne
+ *  que rien n'a encore touchée n'a rien à annoncer. */
+function planStepStatePill(skill: PlanDomainSkillDto): string | undefined {
+    return skill.stepState === "A_VENIR" ? undefined : planStepStateLabel(skill);
 }
