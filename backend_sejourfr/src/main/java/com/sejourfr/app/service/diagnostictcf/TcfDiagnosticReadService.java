@@ -46,15 +46,45 @@ public class TcfDiagnosticReadService {
     private final ProductionSubmissionManager submissionManager;
     private final ProductionBilanService bilanService;
     private final TcfDiagnosticLevelResolver levelResolver;
+    private final com.sejourfr.app.mapper.AttemptMapper attemptMapper;
 
-    /** Une section telle que l'ecran la voit. Aucun score : 10_ §4.2 l'interdit. */
+    /**
+     * Une section telle que l'ecran la voit — <b>resultat compris</b>.
+     *
+     * <p>⚠️ <b>REVOQUE 10_ §4.2</b> (« aucun resultat partiel entre les
+     * sections, le resultat est le moment de conversion »), arbitrage du
+     * proprietaire du 2026-09-13 : une section du diagnostic <b>est</b> un
+     * examen blanc de son epreuve, donc elle rend son resultat des qu'elle est
+     * close et son rapport se consulte comme celui d'un examen. Le resultat
+     * d'ENSEMBLE — niveau global, priorites, plan — reste sur l'ecran de
+     * resultat : c'est lui, le moment de conversion, pas le score d'une
+     * epreuve isolee.
+     */
     public record Section(
             EpreuveType epreuve,
             UUID attemptId,
             TcfDiagnosticSectionState etat,
             Integer timeLimitSeconds,
             /** Niveau mesure, {@code null} tant que la section n'est pas exploitable. */
-            NiveauCecrl niveau) {
+            NiveauCecrl niveau,
+            /**
+             * Score calibre 100-499 de la section, <b>compréhension seulement</b>.
+             * {@code null} en production et tant que la section n'est pas close :
+             * c'est la meme valeur, lue chez la meme autorite, que celle d'un
+             * examen blanc d'epreuve.
+             */
+            Integer scoreCalibre,
+            /**
+             * {@code true} quand la section est close, des productions ont ete
+             * rendues, et <b>au moins une attend encore sa correction</b>.
+             *
+             * <p>🛑 Il distingue « on attend l'IA » de « rien d'exploitable » —
+             * deux etats qui donnent tous deux {@code niveau == null} et que
+             * l'ecran ne doit pas confondre. Exactement le meme sursis qu'un
+             * examen blanc : les taches partent a la correction des qu'elles
+             * sont rendues, seule la derniere se fait attendre.
+             */
+            boolean analyseEnCours) {
     }
 
     /**
@@ -78,7 +108,8 @@ public class TcfDiagnosticReadService {
             if (sub == null) {
                 // Section absente du tirage (mode degrade 10_ §9 : aucun audio
                 // CO, aucun sujet EO). Elle n'existe pas, elle n'a pas echoue.
-                out.add(new Section(epreuve, null, TcfDiagnosticSectionState.A_FAIRE, null, null));
+                out.add(new Section(epreuve, null, TcfDiagnosticSectionState.A_FAIRE,
+                        null, null, null, false));
                 continue;
             }
             out.add(new Section(
@@ -86,7 +117,9 @@ public class TcfDiagnosticReadService {
                     sub.getId(),
                     etatDe(sub),
                     sub.getTimeLimitSeconds(),
-                    niveauDe(epreuve, sub).orElse(null)));
+                    niveauDe(epreuve, sub).orElse(null),
+                    scoreCalibre(epreuve, sub),
+                    analyseEnCours(epreuve, sub)));
         }
         return out;
     }
@@ -224,6 +257,36 @@ public class TcfDiagnosticReadService {
         return sub.getTimerStartedAt() != null
                 ? TcfDiagnosticSectionState.EN_COURS
                 : TcfDiagnosticSectionState.A_FAIRE;
+    }
+
+    /**
+     * Le score calibre 100-499 d'une section de comprehension close.
+     *
+     * <p>🛑 <b>Lu chez {@code AttemptMapper}</b>, l'autorite qui le sert deja
+     * aux examens blancs : le recalculer ici ferait exister un second
+     * « /499 » dans le depot, et les deux finiraient par diverger.
+     */
+    private Integer scoreCalibre(EpreuveType epreuve, Attempt sub) {
+        if (epreuve != EpreuveType.TCF_CO && epreuve != EpreuveType.TCF_CE) return null;
+        if (sub.getFinishedAt() == null) return null;
+        return attemptMapper.calibratedScoreOf(sub);
+    }
+
+    /**
+     * « Cette epreuve attend-elle encore une correction ? » — production
+     * seulement, et seulement une fois la section close.
+     *
+     * <p>Une tache rendue sans evaluation est une correction <b>en vol</b> :
+     * le pipeline tourne en arriere-plan depuis la soumission. Une tache
+     * jamais rendue n'attend rien, et une section sans aucune soumission non
+     * plus.
+     */
+    private boolean analyseEnCours(EpreuveType epreuve, Attempt sub) {
+        if (epreuve != EpreuveType.TCF_EE && epreuve != EpreuveType.TCF_EO) return false;
+        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(sub.getId());
+        if (submissions.isEmpty()) return false;
+        return bilanService.latestEvalsByTache(submissions).values().stream()
+                .anyMatch(java.util.Objects::isNull);
     }
 
     private Optional<NiveauCecrl> niveauDe(EpreuveType epreuve, Attempt sub) {

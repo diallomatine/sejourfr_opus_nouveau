@@ -15,6 +15,7 @@ abstract interface class TcfDiagnosticGateway {
   Future<TcfDiagnosticDto?> current();
   Future<TcfDiagnosticDto> detail(String sessionId);
   Future<TcfDiagnosticDto> startSection(String sessionId, EpreuveType epreuve);
+  Future<TcfDiagnosticDto> closeSection(String sessionId, EpreuveType epreuve);
   Future<TcfDiagnosticResultDto> result(String sessionId);
   Future<TcfDiagnosticResultDto> readResult(String sessionId);
   Future<TcfReassessmentEligibilityDto> eligibility();
@@ -65,6 +66,20 @@ class TcfDiagnosticRepository implements TcfDiagnosticGateway {
   Future<TcfDiagnosticDto> startSection(String sessionId, EpreuveType epreuve) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/tcf-diagnostics/$sessionId/sections/${epreuve.wire}/start',
+    );
+    return TcfDiagnosticDto.fromJson(res.data!);
+  }
+
+  /// **Quitter une section, c'est la terminer** — la règle de suspension d'un
+  /// examen blanc, appliquée au diagnostic.
+  ///
+  /// 🛑 Une section **jamais commencée** n'est jamais fermée par cet appel, et
+  /// l'**expression orale** ne l'emprunte pas : son chrono est par tâche,
+  /// quitter n'y termine que la tâche en cours. Idempotent.
+  @override
+  Future<TcfDiagnosticDto> closeSection(String sessionId, EpreuveType epreuve) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/tcf-diagnostics/$sessionId/sections/${epreuve.wire}/close',
     );
     return TcfDiagnosticDto.fromJson(res.data!);
   }

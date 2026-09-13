@@ -8,18 +8,11 @@ import org.springframework.stereotype.Component;
 public class ProductionTaskMapper {
 
     /**
-     * Vue catalogue : {@code conditionsReelles} reste {@code null} — hors
-     * session, la question n'a pas de reponse.
+     * ⚠️ <b>Une seule forme depuis le 2026-09-13</b> : la surcharge de session
+     * portait {@code conditionsReelles}, dont la regle est revoquee — toute
+     * tache se joue en conditions d'examen.
      */
     public ProductionTaskDto toDto(ProductionTask task) {
-        return toDto(task, null);
-    }
-
-    /**
-     * Vue de session : le fait « en conditions reelles ? » est derive par
-     * {@code ProductionExamConditions} et servi tel quel aux deux runners.
-     */
-    public ProductionTaskDto toDto(ProductionTask task, Boolean conditionsReelles) {
         return new ProductionTaskDto(
             task.getId(),
             task.getEpreuve(),
@@ -31,8 +24,7 @@ public class ProductionTaskMapper {
             task.getDureeMaxSec(),
             task.getDureeMinSec(),
             task.getMotsMin(),
-            task.getMotsMax(),
-            conditionsReelles
+            task.getMotsMax()
         );
     }
 }

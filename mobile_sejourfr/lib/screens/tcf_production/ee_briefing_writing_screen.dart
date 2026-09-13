@@ -345,9 +345,13 @@ class _EeBriefingWritingScreenState
   }
 
   Future<void> _quitExam(String fallbackRoute) async {
-    final fullExamId =
-        GoRouterState.of(context).uri.queryParameters['fullExamId'];
-    if (!await _confirmQuitExam(isFullExam: fullExamId != null)) return;
+    final params = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = params['fullExamId'];
+    final tcfDiagnosticId = params[kTcfDiagnosticParam];
+    if (!await _confirmQuitExam(
+        isFullExam: fullExamId != null || tcfDiagnosticId != null)) {
+      return;
+    }
     if (!mounted) return;
     // Examen blanc complet : **quitter CLÔTURE l'épreuve**, avec ce qui a été
     // rendu (arbitrage propriétaire du 2026-08-15, qui revient sur le correctif
@@ -362,6 +366,16 @@ class _EeBriefingWritingScreenState
               epreuveWire: EpreuveType.tcfEe.wire,
             );
       } catch (_) {/* hook auto backend fallback */}
+    } else if (tcfDiagnosticId != null) {
+      // 🛑 MÊME RÈGLE QU'UN EXAMEN : l'expression écrite est chronométrée
+      // d'un bloc, donc quitter la CLÔTURE (arbitrage du propriétaire,
+      // 2026-09-13). L'autorité est celle du diagnostic — elle ne ferme que ce
+      // qui a été ouvert, et elle est idempotente.
+      try {
+        await ref
+            .read(tcfDiagnosticRepositoryProvider)
+            .closeSection(tcfDiagnosticId, EpreuveType.tcfEe);
+      } catch (_) {/* le serveur clôt de toute façon à l'échéance */}
     } else {
       await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
     }

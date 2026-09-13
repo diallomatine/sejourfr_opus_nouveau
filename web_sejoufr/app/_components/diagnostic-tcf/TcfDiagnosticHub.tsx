@@ -6,14 +6,21 @@
  * Son travail : rendre 75 minutes acceptables en montrant qu'elles se
  * découpent, et ne rien promettre d'autre.
  *
- * 🛑 **Aucun résultat partiel n'apparaît ici** (`10_` §4.2) : ni score, ni
- * niveau, ni « vous êtes plutôt B1 ». Le DTO ne les porte même pas — le
- * résultat est le moment de conversion, le diluer le détruit.
+ * ⚠️ **Chaque épreuve TERMINÉE rend son résultat ici** depuis le 2026-09-13
+ * (arbitrage du propriétaire), ce qui **révoque** `10_` §4.2 pour cet écran :
+ * une section du diagnostic **est** un examen blanc de son épreuve, elle en a
+ * la composition, la durée et le pipeline — elle en a donc aussi la
+ * restitution, rapport compris.
+ *
+ * 🛑 Ce qui reste le moment de conversion, et n'apparaît **pas** ici : le
+ * niveau **global** (plancher des quatre), les **priorités** et le plan. Une
+ * épreuve rend le sien, rien de plus.
  *
  * 🛑 **Aucun écran de passation n'est créé** : les sections QCM ouvrent le
  * runner de session existant, les productions la session EE/EO existante. Un
  * second parcours de passation divergerait du premier à la première évolution.
  */
+import Link from "next/link";
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
@@ -37,7 +44,12 @@ import {
     joursRestants,
     progressionLabel,
     resultatDisponible,
+    NIVEAU_NON_EVALUE,
     sectionCtaLabel,
+    sectionNiveauLabel,
+    sectionRapportHref,
+    TCF_DIAGNOSTIC_ANALYSE_EN_COURS,
+    TCF_DIAGNOSTIC_RAPPORT_CTA,
     sectionEtatLabel,
     reevaluationPitch,
     reevaluationRegleLine,
@@ -423,6 +435,44 @@ function SectionCard({
                 <span className="tcfd-badge">{sectionEtatLabel(section.etat)}</span>
             </div>
 
+            {terminee && !indisponible && (
+                <>
+                    {/* ⚠️ LE RÉSULTAT DE L'ÉPREUVE, dès qu'elle est close
+                        (arbitrage du propriétaire, 2026-09-13) : une section du
+                        diagnostic est un examen blanc de son épreuve, elle en
+                        rend donc le résultat et le rapport. Ce qui reste à
+                        l'écran de résultat, c'est le niveau GLOBAL et les
+                        priorités.
+
+                        🛑 Trois états, jamais deux : un niveau servi, une
+                        correction encore en vol, ou aucune mesure. Les deux
+                        derniers donnent `niveau === null` et ne se disent pas
+                        pareil — *null = inconnu, jamais mauvais*. */}
+                    {section.niveau !== null ? (
+                        <p className="tcfd-result">
+                            <b>{sectionNiveauLabel(section.niveau)}</b>
+                            {section.scoreCalibre !== null && (
+                                <span>{section.scoreCalibre} / 499</span>
+                            )}
+                        </p>
+                    ) : (
+                        <p className="tcfd-warn">
+                            {section.analyseEnCours
+                                ? TCF_DIAGNOSTIC_ANALYSE_EN_COURS
+                                : NIVEAU_NON_EVALUE}
+                        </p>
+                    )}
+                    {section.attemptId !== null && (
+                        <Link
+                            className="btn btn-ghost"
+                            href={sectionRapportHref(section.epreuve, section.attemptId)}
+                        >
+                            {TCF_DIAGNOSTIC_RAPPORT_CTA}
+                        </Link>
+                    )}
+                </>
+            )}
+
             {!terminee && !indisponible && (
                 <>
                     <p className="tcfd-warn">
@@ -553,6 +603,19 @@ function Styles() {
                 gap: 10px;
                 background: white;
             }
+            .tcfd-result {
+                display: flex;
+                align-items: baseline;
+                gap: 10px;
+                margin: 10px 0 0;
+                font-size: 15px;
+            }
+
+            .tcfd-result span {
+                font-size: 13px;
+                color: var(--color-muted);
+            }
+
             .tcfd-card[data-etat="TERMINEE"] {
                 border-color: color-mix(in srgb, var(--color-green) 40%, white);
                 background: color-mix(in srgb, var(--color-green) 6%, white);

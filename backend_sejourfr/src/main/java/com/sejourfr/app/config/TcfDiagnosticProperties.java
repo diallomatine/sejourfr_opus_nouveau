@@ -28,30 +28,17 @@ public class TcfDiagnosticProperties {
      * Version de configuration recopiee sur chaque session
      * ({@code tcf_diagnostic_sessions.config_version}).
      *
-     * <p>🛑 <b>A incrementer des qu'un reglage ci-dessous change le SENS d'un
-     * resultat</b> (nombre d'items par palier, seuils). Un diagnostic se relit
-     * avec la configuration qui l'a produit : sans ce numero, un recalibrage
+     * <p>🛑 <b>A incrementer des qu'un reglage change le SENS d'un resultat</b>
+     * (composition du tirage, seuils). Un diagnostic se relit avec la
+     * configuration qui l'a produit : sans ce numero, un recalibrage
      * reinterpreterait retroactivement des diagnostics deja passes.
-     */
-    private int configVersion = 2;
-
-    /**
-     * Items tires par palier CECRL, pour CHAQUE epreuve de comprehension —
-     * 8 A2 + 8 B1 + 8 B2 = <b>24 items</b> en CO comme en CE.
      *
-     * <p>⚠️ <b>Passe de 5 a 8 le 2026-09-13</b> (demande du proprietaire : le
-     * diagnostic complet doit etre, de fait, l'equivalent d'un examen blanc
-     * complet). L'epreuve reelle en compte 25 (8/9/8) ; 24 en est le plus
-     * proche volume a repartition egale, et le chrono suit automatiquement au
-     * prorata (cf. {@code TcfDiagnosticSectionStarter.dureeReduite}).
-     *
-     * <p>🛑 <b>La repartition reste EGALE entre paliers</b>, la ou l'examen
-     * module suit 8/9/8, et ce n'est pas cosmetique : le calcul de niveau lit
-     * un <b>taux par palier</b>, et un palier sous-dote rendrait son taux plus
-     * sensible a une seule erreur. Aligner sur 8/9/8 aurait demande un reglage
-     * par palier pour un item de plus.
+     * <p>⚠️ <b>3 depuis le 2026-09-13</b> : chaque epreuve de comprehension du
+     * diagnostic est desormais <b>un examen blanc d'epreuve</b> — 25 items
+     * (8/9/8) et duree pleine, au lieu de 24 items a repartition egale et d'un
+     * chrono au prorata. {@code items-per-level} a disparu avec ce tirage.
      */
-    private int itemsPerLevel = 8;
+    private int configVersion = 3;
 
     /** Seuils de bascule du niveau de comprehension (10_ §4.3). */
     private Seuils seuils = new Seuils();

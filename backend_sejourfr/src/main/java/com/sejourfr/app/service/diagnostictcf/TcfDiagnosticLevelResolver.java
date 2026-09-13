@@ -153,15 +153,6 @@ public class TcfDiagnosticLevelResolver {
         };
     }
 
-    /** Repartition attendue du tirage : {@code itemsPerLevel} par palier. */
-    public Map<Difficulty, Integer> repartitionAttendue() {
-        Map<Difficulty, Integer> attendu = new EnumMap<>(Difficulty.class);
-        for (Difficulty d : List.of(Difficulty.A2, Difficulty.B1, Difficulty.B2)) {
-            attendu.put(d, props.getItemsPerLevel());
-        }
-        return attendu;
-    }
-
     private static double taux(
             Map<Difficulty, Integer> bonnes, Map<Difficulty, Integer> poses, Difficulty palier) {
         int denominateur = poses.getOrDefault(palier, 0);

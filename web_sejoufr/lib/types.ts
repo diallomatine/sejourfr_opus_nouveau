@@ -507,22 +507,6 @@ export interface ProductionTaskDto {
     dureeMinSec: number | null; // EO uniquement
     motsMin: number | null; // EE
     motsMax: number | null; // EE
-    /**
-     * **Cette tâche se passe-t-elle en conditions d'examen ?** — dérivé
-     * SERVEUR, jamais recalculé par un runner.
-     *
-     * 🛑 `null` = hors session : le catalogue ne le sert pas, la question n'y a
-     * pas de sens. Il n'est renseigné que par
-     * `GET /api/attempts/{id}/production-exam-tasks`.
-     *
-     * La lecture est **« conditions d'examen sauf si le serveur dit
-     * explicitement `false` »** : un backend antérieur au champ garde donc
-     * exactement le comportement d'avant. Le champ est **optionnel** pour la
-     * même raison — les adaptateurs qui fabriquent une tâche hors session
-     * (micro-exercice, aperçu de diagnostic) n'ont rien à en dire. Aujourd'hui, seules EO1 et EO2
-     * **dans un diagnostic** valent `false` (l'examen blanc reste un examen).
-     */
-    conditionsReelles?: boolean | null;
 }
 
 /** Réponse-modèle d'une tâche (onglet « Exemples »). audioUrl = EO seulement. */
@@ -721,14 +705,35 @@ export interface TcfDiagnosticSectionDto {
     /** Chrono de la section. `null` en EO, qui se chronomètre par tâche. */
     timeLimitSeconds: number | null;
     totalQuestions: number | null;
+    /**
+     * **Le niveau mesuré sur CETTE épreuve**, servi depuis le 2026-09-13.
+     *
+     * 🛑 **`null` = non évaluée, jamais le palier le plus bas** : section jamais
+     * commencée, rien d'exploitable, ou correction encore en vol
+     * (`analyseEnCours`). L'écran la **nomme**, il n'affiche pas un A1.
+     */
+    niveau: NiveauCecrl | null;
+    /**
+     * Score calibré **100-499**, compréhension close seulement — la même valeur
+     * qu'un examen blanc de module affiche. `null` en production.
+     */
+    scoreCalibre: number | null;
+    /**
+     * Des productions ont été rendues et au moins une attend sa correction.
+     * Distingue « on attend l'IA » de « rien d'exploitable », qui donnent tous
+     * deux `niveau === null`.
+     */
+    analyseEnCours: boolean;
 }
 
 /**
  * L'écran d'accueil du diagnostic.
  *
- * 🛑 **Aucun niveau ici, et ce n'est pas un oubli** : `10_` §4.2 interdit tout
- * résultat partiel entre les sections — « le résultat est le moment de
- * conversion, il ne doit pas être dilué ».
+ * ⚠️ **Chaque section porte son résultat depuis le 2026-09-13** (arbitrage du
+ * propriétaire) : une épreuve du diagnostic **est** un examen blanc de son
+ * épreuve, donc elle rend son niveau dès qu'elle est close et son rapport se
+ * consulte comme celui d'un examen. Ce qui reste réservé à l'écran de résultat :
+ * le niveau **global**, les priorités et le plan.
  */
 export interface TcfDiagnosticDto {
     sessionId: string;

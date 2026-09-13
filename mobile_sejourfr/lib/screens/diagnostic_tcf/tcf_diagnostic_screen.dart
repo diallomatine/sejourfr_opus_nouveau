@@ -152,6 +152,26 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
     }
   }
 
+  /// 🛑 **Le rapport d'une section, c'est CELUI D'UN EXAMEN** — aucun écran
+  /// n'est créé pour le diagnostic. Une section est un examen blanc de son
+  /// épreuve : la compréhension ouvre le rapport question par question, la
+  /// production le bilan de session, exactement comme après un examen blanc.
+  void _ouvrirRapport(TcfDiagnosticSectionDto section) {
+    final id = section.attemptId;
+    if (id == null) return;
+    switch (section.epreuve) {
+      case EpreuveType.tcfCo:
+      case EpreuveType.tcfCe:
+        context.push(AppRoutes.examReport.replaceFirst(':attemptId', id));
+      case EpreuveType.tcfEe:
+        context.push('/tcf/expression-ecrite/sessions/$id');
+      case EpreuveType.tcfEo:
+        context.push('/tcf/expression-orale/sessions/$id');
+      default:
+        break;
+    }
+  }
+
   Future<void> _voirResultat() async {
     final d = _diagnostic;
     if (_busy || d == null) return;
@@ -357,6 +377,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
             section: s,
             busy: _busy,
             onStart: () => _lancerSection(s),
+            onRapport: () => _ouvrirRapport(s),
           ),
           const SizedBox(height: 10),
         ],
@@ -392,11 +413,13 @@ class _SectionCard extends StatelessWidget {
     required this.section,
     required this.busy,
     required this.onStart,
+    required this.onRapport,
   });
 
   final TcfDiagnosticSectionDto section;
   final bool busy;
   final VoidCallback onStart;
+  final VoidCallback onRapport;
 
   @override
   Widget build(BuildContext context) {
@@ -446,7 +469,22 @@ class _SectionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(kNiveauNonEvalue,
                 style: AppFonts.ui(size: 12, color: AppColors.inkFaint)),
-          ] else if (!terminee) ...[
+          ] else if (terminee) ...[
+            // ⚠️ LE RESULTAT DE L'EPREUVE, des qu'elle est close (arbitrage du
+            // proprietaire, 2026-09-13) : une section du diagnostic est un
+            // examen blanc de son epreuve, elle en rend donc le resultat et le
+            // rapport. Ce qui reste a l'ecran de resultat, c'est le niveau
+            // GLOBAL et les priorites.
+            const SizedBox(height: 10),
+            _Resultat(section: section),
+            const SizedBox(height: 10),
+            AppButton(
+              label: kTcfDiagnosticRapportCta,
+              onPressed: onRapport,
+              variant: AppButtonVariant.outline,
+              height: 44,
+            ),
+          ] else ...[
             const SizedBox(height: 10),
             Text(
               section.epreuve == EpreuveType.tcfEo
@@ -479,6 +517,49 @@ class _SectionCard extends StatelessWidget {
             ? '${(section.timeLimitSeconds! / 60).round()} min'
             : '—';
     return '$volume · $duree';
+  }
+}
+
+/// **Ce que cette épreuve a mesuré** — son niveau, et son score en
+/// compréhension.
+///
+/// 🛑 **Trois états, jamais deux** : un niveau servi, une correction encore en
+/// vol (`analyseEnCours`), ou aucune mesure. Les deux derniers donnent
+/// `niveau == null` et ne se disent pas pareil — *null = inconnu, jamais
+/// mauvais*.
+class _Resultat extends StatelessWidget {
+  const _Resultat({required this.section});
+
+  final TcfDiagnosticSectionDto section;
+
+  @override
+  Widget build(BuildContext context) {
+    final niveau = section.niveau;
+    if (niveau == null) {
+      return Text(
+        section.analyseEnCours
+            ? kTcfDiagnosticAnalyseEnCours
+            : kNiveauNonEvalue,
+        style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
+      );
+    }
+    final score = section.scoreCalibre;
+    return Row(
+      children: [
+        Text(
+          sectionNiveauLabel(niveau),
+          style: AppFonts.display(
+              size: 17, weight: FontWeight.w700, color: niveau.color),
+        ),
+        if (score != null) ...[
+          const SizedBox(width: 10),
+          // Le /499 des examens blancs de module : un candidat lit le meme
+          // chiffre ici et sur son bilan d'examen.
+          Text('$score / 499',
+              style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
+        ],
+      ],
+    );
   }
 }
 

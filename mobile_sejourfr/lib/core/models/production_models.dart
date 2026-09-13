@@ -64,7 +64,6 @@ class ProductionTaskDto {
     this.dureeMaxSec,
     this.motsMin,
     this.motsMax,
-    this.conditionsReelles,
   });
 
   final String id;
@@ -97,21 +96,6 @@ class ProductionTaskDto {
   final int? motsMin;
   final int? motsMax;
 
-  /// **Cette tache se passe-t-elle en conditions d'examen ?** — derive
-  /// SERVEUR, jamais recalcule par le runner.
-  ///
-  /// 🛑 `null` = hors session : le catalogue ne le sert pas, la question n'y a
-  /// pas de sens. Il n'est renseigne que par
-  /// `GET /api/attempts/{id}/production-exam-tasks`.
-  ///
-  /// La lecture vit dans [enConditionsReelles] : **conditions d'examen sauf si
-  /// le serveur dit explicitement `false`**. Un backend anterieur au champ
-  /// garde donc exactement le comportement d'avant. Aujourd'hui, seules EO1 et
-  /// EO2 **dans un diagnostic** valent `false` — l'examen blanc reste un examen.
-  final bool? conditionsReelles;
-
-  /// La lecture du champ ci-dessus, declaree UNE fois : `null` ⇒ `true`.
-  bool get enConditionsReelles => conditionsReelles ?? true;
 
   /// Libelle court genere cote front (le backend ne fournit pas ce titre).
   String get displayTitle => productionTaskTitle(epreuve, tacheNumero);
@@ -129,7 +113,6 @@ class ProductionTaskDto {
         dureeMaxSec: (json['dureeMaxSec'] as num?)?.toInt(),
         motsMin: (json['motsMin'] as num?)?.toInt(),
         motsMax: (json['motsMax'] as num?)?.toInt(),
-        conditionsReelles: json['conditionsReelles'] as bool?,
       );
 }
 

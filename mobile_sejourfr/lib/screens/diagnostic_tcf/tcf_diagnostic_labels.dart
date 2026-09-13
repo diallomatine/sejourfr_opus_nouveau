@@ -22,7 +22,8 @@ const String kTcfDiagnosticSubtitle =
 
 /// Le résultat n'arrive qu'à la fin — c'est dit avant, pas découvert après.
 const String kTcfDiagnosticResultNote =
-    'Votre résultat complet s\'affichera une fois les 4 sections terminées.';
+    'Chaque épreuve rend son niveau dès qu\'elle est terminée. '
+    'Votre résultat complet — niveau global et priorités — arrive avec la 4ᵉ.';
 
 /// Une section commencée se termine d'une traite (`10_` §4.2). L'écran le dit
 /// **avant** de lancer, pas après.
@@ -32,18 +33,40 @@ const String kTcfDiagnosticSectionWarning =
 /// Le micro est annoncé avant l'oral, jamais demandé par surprise.
 const String kTcfDiagnosticMicWarning = 'Cette section utilise votre micro.';
 
-/// **Cette tache n'est pas en conditions d'examen** — la phrase posee au-dessus
-/// de l'enregistreur quand le serveur sert `conditionsReelles: false`.
+/// « Voir le rapport » — la porte du rapport d'une épreuve terminée.
 ///
-/// 🛑 **Le front ne decide rien** : il ne fait qu'habiller un fait servi. Le
-/// perimetre (EO1 et EO2 du diagnostic, et rien d'autre) vit cote serveur,
-/// `ProductionExamConditions`.
+/// 🛑 **C'est le rapport d'un EXAMEN**, pas un écran de diagnostic : une
+/// section du diagnostic est un examen blanc de son épreuve, et son rapport est
+/// celui que le candidat connaît déjà (détail question par question en
+/// compréhension, bilan de session en production). Aucun second écran n'est
+/// créé.
+const String kTcfDiagnosticRapportCta = 'Voir le rapport';
+
+/// « Analyse en cours… » — une production rendue dont la correction tourne
+/// encore.
 ///
-/// Miroir mot pour mot de `PRODUCTION_HORS_CONDITIONS_NOTE`
-/// (`web_sejoufr/lib/tcf-diagnostic.ts`).
-const String kProductionHorsConditionsNote =
-    'Cette tâche n\'est pas chronométrée comme à l\'examen : prenez le temps, '
-    'réécoutez-vous, refaites votre prise si besoin, puis envoyez.';
+/// 🛑 À ne **jamais** confondre avec « Non évaluée » : ici une mesure existe et
+/// arrive, là il n'y en a aucune. Les deux donnent pourtant `niveau == null`.
+const String kTcfDiagnosticAnalyseEnCours = 'Analyse en cours…';
+
+/// « Niveau B1 » — le niveau d'UNE épreuve.
+///
+/// 🛑 **Il ne dit jamais le niveau global**, qui est le plancher des quatre et
+/// vit sur l'écran de résultat. Une épreuve rend le sien, rien de plus.
+String sectionNiveauLabel(NiveauCecrl niveau) =>
+    niveau == NiveauCecrl.a1NonAtteint
+        ? niveau.shortName
+        : 'Niveau ${niveau.shortName}';
+
+/// Quitter l'expression orale d'un diagnostic — **la tâche en cours est
+/// perdue, l'épreuve ne l'est pas**.
+///
+/// 🛑 C'est la seule épreuve où quitter ne clôt pas la section : son chrono est
+/// **par tâche**. Le message doit le dire, sinon le candidat croit tout perdre
+/// et ne revient pas.
+const String kTcfDiagnosticEoQuitMessage =
+    'L\'enregistrement en cours sera perdu. Les tâches déjà rendues sont '
+    'conservées, et vous reprendrez à la suivante.';
 
 const String kTcfDiagnosticEstimationNote =
     'Estimation SejourFR, non officielle.';

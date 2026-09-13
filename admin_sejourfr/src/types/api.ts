@@ -968,11 +968,6 @@ export interface ProductionTaskDto {
   dureeMinSec: number | null;
   motsMin: number | null;
   motsMax: number | null;
-  /** Dérivé SERVEUR « cette tâche est-elle en conditions d'examen ? ».
-   *  `null` hors session — la console ne lit que le catalogue, donc toujours
-   *  `null` ici. Renseigné uniquement par
-   *  `GET /api/attempts/{id}/production-exam-tasks`. */
-  conditionsReelles?: boolean | null;
 }
 
 /**

@@ -152,8 +152,13 @@ public class AttemptMapper {
     /**
      * Score calibré 100-499 d'un examen TCF (dérivé du score pondéré).
      * Null ailleurs (le score brut reste pertinent).
+     *
+     * <p><b>Public</b> depuis le 2026-09-13 : les cartes du diagnostic TCF
+     * affichent le score de leur section de compréhension comme un examen
+     * blanc affiche le sien. Le recalculer là-bas aurait fait exister un second
+     * « /499 » dans le dépôt.
      */
-    private Integer calibratedScoreOf(Attempt a) {
+    public Integer calibratedScoreOf(Attempt a) {
         if (!isStratifiedTcfExam(a)
                 || a.getWeightedScore() == null
                 || a.getMaxWeightedScore() == null) {

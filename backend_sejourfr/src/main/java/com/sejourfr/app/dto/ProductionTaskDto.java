@@ -16,13 +16,12 @@ import java.util.UUID;
  * dans la system instruction de l'agent vocal (token ephemere). Ne rien ajouter
  * ici sans un besoin front precis, et jamais les {@code valeur}.
  *
- * <p><b>{@code conditionsReelles} est NULLABLE</b>, et {@code null} veut dire
- * « hors session » : le catalogue ({@code GET /api/production-tasks}) ne le
- * sert pas, la question n'y a pas de sens. Il n'est renseigne que par
- * {@code GET /api/attempts/&#123;id&#125;/production-exam-tasks}, qui connait
- * l'attempt. Cote front, la lecture est « en conditions d'examen sauf si le
- * serveur dit explicitement false » — un client ancien garde donc exactement
- * son comportement.
+ * <p>⚠️ <b>{@code conditionsReelles} a ete SUPPRIME le 2026-09-13</b>, avec la
+ * regle qu'il portait. L'exception « EO1 et EO2 du diagnostic ne sont pas en
+ * conditions d'examen » est <b>revoquee</b> par le proprietaire : une epreuve
+ * du diagnostic se joue comme un examen blanc, EO comprise — chaque tache a son
+ * chrono, une fois commencee on ne l'arrete pas, et l'arreter la termine. Un
+ * champ qui ne peut plus valoir qu'une seule chose n'a pas a voyager.
  *
  * <p><b>{@code titre} peut etre null</b> (colonne V028, contenu anterieur ou
  * sujet cree en console sans titre) : les fronts ont un repli declare une seule
@@ -40,7 +39,6 @@ public record ProductionTaskDto(
         Integer dureeMaxSec,
         Integer dureeMinSec,
         Integer motsMin,
-        Integer motsMax,
-        Boolean conditionsReelles
+        Integer motsMax
 ) {
 }

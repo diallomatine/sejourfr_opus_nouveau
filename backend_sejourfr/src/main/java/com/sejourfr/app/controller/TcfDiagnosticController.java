@@ -102,6 +102,25 @@ public class TcfDiagnosticController {
     }
 
     /**
+     * <b>Quitter une section, c'est la terminer</b> — la regle de suspension
+     * d'un examen blanc, appliquee au diagnostic (arbitrage du proprietaire,
+     * 2026-09-13).
+     *
+     * <p>🛑 Une section <b>jamais commencee</b> n'est jamais fermee par cet
+     * appel, et l'<b>expression orale</b> ne l'emprunte pas : son chrono est
+     * par tache, quitter n'y termine que la tache en cours.
+     *
+     * <p><b>Idempotent</b> : deux appels ne redatent pas la cloture.
+     */
+    @PostMapping("/{id}/sections/{epreuve}/close")
+    public TcfDiagnosticDto cloreSection(
+            @PathVariable UUID id, @PathVariable EpreuveType epreuve) {
+        TcfDiagnosticSession session = service.lire(currentUser.getId(), id);
+        sectionStarter.cloreSection(session, epreuve);
+        return viewService.vue(session);
+    }
+
+    /**
      * Le resultat. Cloture le diagnostic au passage.
      *
      * <p>Il n'exige pas les 4 sections : 10_ §4.2 impose de « calculer sur les

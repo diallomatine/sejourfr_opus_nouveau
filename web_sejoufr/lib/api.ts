@@ -943,6 +943,21 @@ export const tcfDiagnosticApi = {
         );
     },
 
+    /**
+     * **Quitter une section, c'est la terminer** — la règle de suspension d'un
+     * examen blanc, appliquée au diagnostic.
+     *
+     * 🛑 Une section **jamais commencée** n'est jamais fermée par cet appel, et
+     * l'**expression orale** ne l'emprunte pas : son chrono est par tâche,
+     * quitter n'y termine que la tâche en cours. Idempotent.
+     */
+    closeSection(sessionId: string, epreuve: EpreuveType): Promise<TcfDiagnosticDto> {
+        return apiFetch<TcfDiagnosticDto>(
+            `/api/tcf-diagnostics/${sessionId}/sections/${epreuve}/close`,
+            {method: "POST", auth: true},
+        );
+    },
+
     /** Calcule le résultat et clôture. N'exige pas les 4 sections. */
     result(sessionId: string): Promise<TcfDiagnosticResultDto> {
         return apiFetch<TcfDiagnosticResultDto>(

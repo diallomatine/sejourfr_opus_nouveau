@@ -39,10 +39,12 @@ public class TcfDiagnosticViewService {
     private final TcfDiagnosticProgressionResolver progressionResolver;
 
     /**
-     * L'ecran d'accueil : les 4 sections et leur etat.
+     * L'ecran d'accueil : les 4 sections, leur etat <b>et leur resultat</b>.
      *
-     * <p>🛑 <b>Aucun niveau n'y transite</b> : 10_ §4.2 interdit tout resultat
-     * partiel entre les sections.
+     * <p>⚠️ <b>Le niveau y transite depuis le 2026-09-13</b> — cf.
+     * {@link TcfDiagnosticSectionDto}. Ce qui n'y transite toujours pas : le
+     * niveau GLOBAL, les priorites et le plan, qui restent l'affaire de
+     * {@link #resultat}.
      */
     @Transactional(readOnly = true)
     public TcfDiagnosticDto vue(TcfDiagnosticSession session) {
@@ -59,7 +61,10 @@ public class TcfDiagnosticViewService {
                         s.timeLimitSeconds(),
                         s.attemptId() == null ? null
                                 : Optional.ofNullable(parId.get(s.attemptId()))
-                                        .map(Attempt::getTotalQuestions).orElse(null)))
+                                        .map(Attempt::getTotalQuestions).orElse(null),
+                        s.niveau(),
+                        s.scoreCalibre(),
+                        s.analyseEnCours()))
                 .toList();
 
         return new TcfDiagnosticDto(

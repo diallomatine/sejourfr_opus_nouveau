@@ -89,7 +89,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         // REPREND. Le serveur y compose 3 taches au niveau cible du candidat.
         ref
             .read(eoSessionProvider.notifier)
-            .startInFullExam(subAttemptId: subAttemptId);
+            .startInFullExam(subAttemptId: subAttemptId)
+            .then((_) => _reprendreALaTacheSuivante());
       }
       // Sinon : la session (examen module via `startExam`, ou sujet unique via
       // `startSingle`) est déjà démarrée par l'écran appelant ; on la respecte.
@@ -100,6 +101,32 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       // l'ouverture : il l'est sur « Commencer l'enregistrement » (_onStartPressed),
       // une fois le sujet lu — pour tous les contextes (isolé, module, complet).
     });
+  }
+
+  /// 🛑 **On ne repropose jamais une tâche déjà rendue.** L'oral se
+  /// chronomètre par tâche : arrêter une tâche la termine, et rouvrir
+  /// l'épreuve doit ouvrir la **suivante** (arbitrage du propriétaire,
+  /// 2026-09-13). Sans ce saut, on revenait sur la tâche 1 et le serveur la
+  /// refusait — une tâche ne se soumet qu'une fois par session.
+  ///
+  /// Toutes rendues : il n'y a plus rien à faire ici, on ressort.
+  void _reprendreALaTacheSuivante() {
+    if (!mounted || _navigated) return;
+    final session = ref.read(eoSessionProvider).value;
+    if (session == null || !session.isStarted) return;
+    if (!session.submissions.containsKey(widget.taskIndex)) return;
+
+    final suivante = List.generate(session.totalTasks, (i) => i)
+        .where((i) => !session.submissions.containsKey(i))
+        .firstOrNull;
+    _navigated = true;
+    if (suivante == null) {
+      context.go(_fallbackRouteFor(context));
+      return;
+    }
+    context.pushReplacement(
+      withCurrentQuery(context, '/tcf/expression-orale/t/$suivante'),
+    );
   }
 
   @override
@@ -131,11 +158,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     // mais on ne s'y fie pas — ce timer garantit l'auto-soumission « dès que le
     // temps d'enregistrement finit ». Idempotent (one-shot + garde `_navigated`).
     _examAutoStop?.cancel();
-    // 🛑 Hors conditions d'examen (EO1/EO2 d'un diagnostic, fait SERVI), on
-    // n'arme pas le filet d'auto-soumission : le candidat se réécoute et
-    // envoie quand il veut. Le service auto-stoppe quand même à `maxSec` —
-    // c'est le plafond de capture, pas un chrono d'examen.
-    if ((session?.isExam ?? false) && (task?.enConditionsReelles ?? true)) {
+    // ⚠️ Plus aucune exception de « conditions » depuis le 2026-09-13 : le
+    // diagnostic se joue comme un examen, EO comprise — chaque tâche a son
+    // chrono, une fois commencée on ne l'arrête pas, et l'arrêter l'envoie.
+    if (session?.isExam ?? false) {
       _examAutoStop = Timer(Duration(seconds: maxSec), () {
         if (mounted) _forceExamSubmit();
       });
@@ -171,12 +197,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (_navigated || !mounted) return;
     _examAutoStop?.cancel();
     final session = ref.read(eoSessionProvider).value;
-    final task = session?.taskAt(widget.taskIndex);
-    // 🛑 Hors conditions d'examen, une tâche d'examen prend le chemin de
-    // l'entraînement : écran de réécoute, envoi explicite. Il sait déjà
-    // enchaîner la tâche suivante d'une session d'examen (`hasNext`), donc
-    // aucun second parcours n'est créé.
-    if (session != null && session.isExam && (task?.enConditionsReelles ?? true)) {
+    // Examen — diagnostic compris depuis le 2026-09-13 : on soumet au premier
+    // arrêt et on enchaîne. Plus aucune tâche d'examen ne repasse par l'écran
+    // de réécoute.
+    if (session != null && session.isExam) {
       _navigated = true;
       _submitExamAndAdvance();
       return;
@@ -199,14 +223,18 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     final session = ref.read(eoSessionProvider).value;
     final task = session?.taskAt(widget.taskIndex);
     final t = task?.tacheNumero;
-    // 🛑 Hors conditions d'examen, l'examinateur vocal n'est pas proposé : le
-    // propriétaire a demandé que ces tâches se passent « en s'enregistrant,
-    // transcription comme d'habitude ». C'est aussi ce qui garde le diagnostic
-    // TOTALEMENT gratuit — le temps réel a son propre quota.
-    if (session != null &&
-        task != null &&
-        task.enConditionsReelles &&
-        (t == 1 || t == 2)) {
+    // 🛑 **JAMAIS d'examinateur vocal dans le DIAGNOSTIC** (arbitrage du
+    // propriétaire, 2026-09-13) : « en freemium le diagnostic est offert et
+    // l'IA analyse, par contre c'est juste en enregistrement normal, pas avec
+    // l'examinateur en temps réel ». C'est ce qui garde le diagnostic
+    // totalement gratuit — le temps réel a son propre quota payant.
+    //
+    // ⚠️ Le discriminant est le MARQUEUR DE SECTION, plus `conditionsReelles` :
+    // ce champ a été supprimé avec la règle EO1/EO2 qu'il portait, et le
+    // détourner ici aurait fait dépendre le quota d'une règle de chrono.
+    final diagnostic =
+        GoRouterState.of(context).uri.queryParameters[kTcfDiagnosticParam] != null;
+    if (session != null && task != null && !diagnostic && (t == 1 || t == 2)) {
       final handled = await _negotiateRealtime(session, task);
       if (handled) return;
     }
@@ -423,20 +451,29 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   /// Sortie confirmée d'une session d'examen EO. En **examen blanc complet**,
   /// une épreuve commencée ne se reprend jamais : quitter la **clôture**. En
   /// session d'examen module, on finalise l'attempt comme avant.
+  ///
+  /// 🛑 **Le DIAGNOSTIC est la seule exception, et elle tient à l'oral**
+  /// (arbitrage du propriétaire, 2026-09-13) : l'EO se chronomètre **par
+  /// tâche**, donc quitter n'y termine que la tâche en cours — le candidat
+  /// rouvre l'épreuve et **reprend à la suivante**. Clôturer la section ici
+  /// lui ferait perdre les tâches qu'il n'a pas encore rendues.
   Future<void> _quitExam(BuildContext context, String fallbackRoute) async {
-    final fullExamId =
-        GoRouterState.of(context).uri.queryParameters['fullExamId'];
+    final params = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = params['fullExamId'];
+    final diagnostic = params[kTcfDiagnosticParam] != null;
     final isFullExam = fullExamId != null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFullExam ? kEpreuveExitTitle : 'Quitter l\'examen ?',
+          isFullExam || diagnostic ? kEpreuveExitTitle : 'Quitter l\'examen ?',
         ),
         content: Text(
           isFullExam
               ? epreuveExitMessage(EpreuveType.tcfEo, perteEnregistrement: true)
-              : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+              : diagnostic
+                  ? kTcfDiagnosticEoQuitMessage
+                  : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
         ),
         actions: [
           TextButton(
@@ -469,7 +506,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
               epreuveWire: EpreuveType.tcfEo.wire,
             );
       } catch (_) {/* hook auto backend fallback */}
-    } else {
+    } else if (!diagnostic) {
       await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
     }
     ref.read(eoSessionProvider.notifier).reset();
@@ -584,7 +621,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                la règle vit dans `ProductionExamConditions` côté serveur, et le
                miroir web lit le même champ. Absent ⇒ oui : on n'ouvre jamais
                par défaut. */
-            final conditionsReelles = task.enConditionsReelles;
             // Loader plein écran pendant la soumission examen (après stop) OU
             // la négociation temps réel (quota + modal + démarrage de session) :
             // la navigation (tâche suivante / bilan / écran realtime) suit.
@@ -612,11 +648,9 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                             task: task,
                             rec: rec,
                             onStop: _stop,
-                            isExam: session.isExam && conditionsReelles))
+                            isExam: session.isExam))
                   else
-                    Expanded(
-                        child: _IdleView(
-                            task: task, horsConditions: !conditionsReelles)),
+                    Expanded(child: _IdleView(task: task)),
                   if (!isRecording)
                     Container(
                       decoration: const BoxDecoration(
@@ -636,7 +670,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                           // décompte : la durée du sujet reste un repère, pas
                           // une limite qui tombe.
                           countdownSeconds:
-                              conditionsReelles ? task.dureeMaxSec : null,
+                              task.dureeMaxSec,
                           onPressed:
                               _requestingPerm ? null : _onStartPressed,
                         ),
@@ -675,37 +709,19 @@ String _durationLabel(int? sec) {
 /// Phase « idle » : consigne complète + invite à parler. Le gros micro vit dans
 /// le panneau bas (`_MicStartButton`).
 class _IdleView extends StatelessWidget {
-  const _IdleView({required this.task, this.horsConditions = false});
+  const _IdleView({required this.task});
 
   final ProductionTaskDto task;
 
   /// Le serveur a dit que cette tâche n'est pas en conditions d'examen : on le
   /// DIT au candidat, sinon il se presse pour rien. Miroir du `headerSlot` du
   /// web (`ProductionSession` → `EoRecordingForm`).
-  final bool horsConditions;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
       children: [
-        if (horsConditions) ...[
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-            decoration: BoxDecoration(
-              // Bleu, jamais ambre ni rouge : ce n'est pas un avertissement,
-              // c'est une permission.
-              color: AppColors.blueSoft,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              border: Border.all(color: AppColors.blueLight),
-            ),
-            child: Text(
-              kProductionHorsConditionsNote,
-              style: AppFonts.ui(size: 13.5, height: 1.5, color: AppColors.ink2),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         ConsigneCard(
           consigne: task.consigne,
           subTitleHero: task.displayTitle,

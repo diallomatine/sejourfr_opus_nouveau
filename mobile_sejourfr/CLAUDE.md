@@ -1650,27 +1650,35 @@ seulement — le rapport de diagnostic garde sa carte « Compléter maintenant �
   (`core/models/preparation_labels.dart`) nomme les 4 épreuves et le fait que
   l'expression écrite et orale y est **entièrement offerte**.
 
-### `ProductionTaskDto.conditionsReelles` — un dérivé serveur (2026-09-13)
+### Le diagnostic TCF : chaque épreuve EST un examen blanc (2026-09-13)
 
-🛑 **« Cette tâche se passe-t-elle en conditions d'examen ? » est SERVI**, plus
-déduit du seul `session.isExam`. Lecture déclarée une fois :
-`ProductionTaskDto.enConditionsReelles` (`null` ⇒ `true`).
+🛑 **Arbitrage du propriétaire**, verbatim : « le diagnostic complet, chaque
+épreuve se lance comme un examen blanc complet de l'épreuve ; si on finit par
+exemple CO ou CE, on peut tout de suite voir le résultat affiché dessus, et il
+peut consulter le rapport comme un examen ». Règles complètes, invariants et ce
+que cela révoque : `docs/regles/diagnostic-tcf-4-epreuves.md`.
 
-- Aujourd'hui, seules **EO1 et EO2 d'un diagnostic** valent `false` (serveur :
-  `ProductionExamConditions`). **L'examen blanc ne change pas.**
-- `eo_briefing_screen` : plus de `_examAutoStop`, `_TimerBig` compte vers le
-  haut, `_MicStartButton` n'annonce aucun décompte, et la fin de capture prend
-  le chemin de `eo_finished_screen` (réécoute, reprise, envoi explicite) — qui
-  sait déjà enchaîner la tâche suivante d'une session d'examen. **Aucun second
-  parcours n'a été créé.**
-- La capture reste bornée par `dureeMaxSec` (le service auto-stoppe) : c'est un
-  plafond de coût de transcription, pas un chrono d'examen.
-- L'**examinateur vocal temps réel** n'est pas proposé sur ces tâches : il a son
-  propre quota payant.
-- Phrase servie au candidat : `kProductionHorsConditionsNote`
-  (`screens/diagnostic_tcf/tcf_diagnostic_labels.dart`), miroir de
-  `PRODUCTION_HORS_CONDITIONS_NOTE`, rendue en tête de `_IdleView` (bleue —
-  c'est une permission, pas un avertissement).
+Ce qui change **ici** :
+
+- **La carte d'une section terminée rend son résultat** — `niveau`,
+  `scoreCalibre` (le /499 des examens de module) et `analyseEnCours`, tous
+  **servis** sur `TcfDiagnosticSectionDto`. 🛑 `analyseEnCours` distingue « on
+  attend l'IA » de « rien d'exploitable » : les deux donnent `niveau == null` et
+  ne se disent pas pareil.
+- **« Voir le rapport » ouvre le rapport d'un EXAMEN**, aucun écran n'est créé :
+  CO/CE → `AppRoutes.examReport`, EE/EO → `/tcf/expression-{ecrite,orale}/sessions/:id`.
+- **Quitter une section la CLÔTURE** (`closeSection`, idempotente, ne ferme que
+  ce qui a été ouvert). 🛑 **Sauf l'EO** : son chrono est par tâche, quitter n'y
+  termine que la tâche en cours, et `startInFullExam` + `_reprendreALaTacheSuivante`
+  rouvrent l'épreuve **à la tâche suivante**.
+- ⚠️ **`ProductionTaskDto.conditionsReelles` est SUPPRIMÉ**, avec la règle
+  « EO1/EO2 du diagnostic hors conditions d'examen » qu'il portait (posée puis
+  révoquée le même jour). `kProductionHorsConditionsNote` part avec.
+- 🛑 **L'examinateur vocal n'est jamais proposé dans le diagnostic**, et le
+  discriminant est désormais le **marqueur de section** (`kTcfDiagnosticParam`),
+  plus `conditionsReelles` : le quota du temps réel ne doit pas dépendre d'une
+  règle de chrono. « En freemium le diagnostic est offert et l'IA analyse, par
+  contre c'est juste en enregistrement normal. »
 
 ### Refonte du Plan — coach adaptatif (2026-08-21, `screens/plan/`)
 

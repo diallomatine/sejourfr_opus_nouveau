@@ -41,6 +41,9 @@ class TcfDiagnosticSectionDto {
     required this.etat,
     this.timeLimitSeconds,
     this.totalQuestions,
+    this.niveau,
+    this.scoreCalibre,
+    this.analyseEnCours = false,
   });
 
   final EpreuveType epreuve;
@@ -56,6 +59,25 @@ class TcfDiagnosticSectionDto {
 
   final int? totalQuestions;
 
+  /// **Le niveau mesuré sur CETTE épreuve**, servi depuis le 2026-09-13.
+  ///
+  /// 🛑 **`null` = non évaluée, jamais le palier le plus bas** : section jamais
+  /// commencée, rien d'exploitable, ou correction encore en vol
+  /// ([analyseEnCours]). L'écran la **nomme**, il n'affiche pas un A1.
+  final NiveauCecrl? niveau;
+
+  /// Score calibré **100-499**, compréhension close seulement — la même valeur
+  /// qu'un examen blanc de module affiche. `null` en production.
+  final int? scoreCalibre;
+
+  /// Des productions ont été rendues et au moins une attend sa correction.
+  /// Distingue « on attend l'IA » de « rien d'exploitable », qui donnent tous
+  /// deux `niveau == null`.
+  final bool analyseEnCours;
+
+  /// Le résultat de cette épreuve est lisible.
+  bool get resultatLisible => niveau != null;
+
   factory TcfDiagnosticSectionDto.fromJson(Map<String, dynamic> json) =>
       TcfDiagnosticSectionDto(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
@@ -63,14 +85,19 @@ class TcfDiagnosticSectionDto {
         etat: TcfDiagnosticSectionState.fromWire(json['etat'] as String),
         timeLimitSeconds: json['timeLimitSeconds'] as int?,
         totalQuestions: json['totalQuestions'] as int?,
+        niveau: NiveauCecrl.fromWireNullable(json['niveau'] as String?),
+        scoreCalibre: json['scoreCalibre'] as int?,
+        analyseEnCours: json['analyseEnCours'] as bool? ?? false,
       );
 }
 
 /// L'écran d'accueil du diagnostic.
 ///
-/// 🛑 **Aucun niveau ici, et ce n'est pas un oubli** : `10_` §4.2 interdit tout
-/// résultat partiel entre les sections — « le résultat est le moment de
-/// conversion, il ne doit pas être dilué ».
+/// ⚠️ **Chaque section porte son résultat depuis le 2026-09-13** (arbitrage du
+/// propriétaire) : une épreuve du diagnostic **est** un examen blanc de son
+/// épreuve, donc elle rend son niveau dès qu'elle est close et son rapport se
+/// consulte comme celui d'un examen. Ce qui reste réservé à l'écran de
+/// résultat : le niveau **global**, les priorités et le plan.
 class TcfDiagnosticDto {
   const TcfDiagnosticDto({
     required this.sessionId,

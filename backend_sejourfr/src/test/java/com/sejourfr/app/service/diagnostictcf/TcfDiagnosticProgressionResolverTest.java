@@ -30,7 +30,7 @@ class TcfDiagnosticProgressionResolverTest {
 
     private static Section section(EpreuveType epreuve, NiveauCecrl niveau) {
         return new Section(epreuve, UUID.randomUUID(),
-                TcfDiagnosticSectionState.TERMINEE, null, niveau);
+                TcfDiagnosticSectionState.TERMINEE, null, niveau, null, false);
     }
 
     @Test

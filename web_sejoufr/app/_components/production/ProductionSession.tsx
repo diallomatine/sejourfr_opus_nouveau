@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
-import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
+import { ApiException, attemptApi, fullTcfExamApi, productionApi, tcfDiagnosticApi } from "@/lib/api";
 import {
-  PRODUCTION_HORS_CONDITIONS_NOTE,
   TCF_DIAGNOSTIC_HUB_HREF,
+  TCF_DIAGNOSTIC_EO_QUIT_MESSAGE,
   TCF_DIAGNOSTIC_PARAM,
 } from "@/lib/tcf-diagnostic";
 import { useAuth } from "@/lib/auth-context";
@@ -477,14 +477,33 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
    * avec ce qui a déjà été rendu, et ne se reprendra jamais. Les épreuves
    * suivantes, elles, restent intactes — et l'examen n'est ni finalisé ni mené
    * au bilan.
+   *
+   * ⚠️ **Le DIAGNOSTIC suit la même règle depuis le 2026-09-13** (arbitrage du
+   * propriétaire : « pour les épreuves, c'est toute l'épreuve qui est
+   * chronométrée ; l'abandonner, c'est fini, si elle est déjà commencée »).
+   *
+   * 🛑 **Sauf l'expression ORALE**, et c'est la seule exception : son chrono est
+   * **par tâche**, donc quitter n'y termine que la tâche en cours — le candidat
+   * rouvre l'épreuve et **reprend à la suivante**. La clore ici lui ferait
+   * perdre les tâches qu'il n'a pas encore rendues.
    */
   const exitEpreuve = useCallback(async () => {
-    if (!fullExamId) return;
     finishedRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
-    await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
-    router.push(`/examens-blancs/tcf/${fullExamId}`);
-  }, [fullExamId, config.epreuve, router]);
+    if (fullExamId) {
+      await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
+      router.push(`/examens-blancs/tcf/${fullExamId}`);
+      return;
+    }
+    if (tcfDiagnosticId) {
+      if (config.epreuve !== "TCF_EO") {
+        await tcfDiagnosticApi
+          .closeSection(tcfDiagnosticId, config.epreuve)
+          .catch(() => undefined);
+      }
+      router.push(TCF_DIAGNOSTIC_HUB_HREF);
+    }
+  }, [fullExamId, tcfDiagnosticId, config.epreuve, router]);
 
   const onEeTimeout = useCallback(
     async (texte: string, recevable: boolean) => {
@@ -541,14 +560,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
-  /* 🛑 **« En conditions d'examen ? » est SERVI**, jamais recalculé ici — la
-     règle vit dans `ProductionExamConditions` côté serveur, et le miroir
-     Flutter lit le même champ. `null` (backend antérieur, catalogue) se lit
-     « oui » : on n'ouvre jamais par défaut.
-
-     Aujourd'hui seules EO1 et EO2 **d'un diagnostic** valent `false` ;
-     l'examen blanc, lui, reste un examen. */
-  const conditionsReelles = currentTask?.conditionsReelles !== false;
 
   const submitLabel =
     currentTache < 3
@@ -571,7 +582,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         // Épreuve d'examen complet en cours : sortir la clôture, donc on demande
         // avant. En consultation de bilan (`backTo`) il n'y a plus rien à clore.
         onBack={
-          fullExamId && phase !== "bilan" ? () => setExitConfirmOpen(true) : undefined
+          (fullExamId || tcfDiagnosticId) && phase !== "bilan"
+            ? () => setExitConfirmOpen(true)
+            : undefined
         }
         eyebrowIcon={
           config.mode === "audio" ? (
@@ -651,28 +664,28 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                  /* Hors conditions d'examen : pas de décompte de tâche, pas
-                     d'envoi au premier arrêt — le candidat se réécoute, refait
-                     s'il veut, puis envoie. La prise reste bornée par la durée
-                     du sujet (`maxDurationSec`), qui protège le coût de
-                     transcription sans jamais presser le candidat. */
-                  examMode={conditionsReelles}
-                  maxDurationSec={conditionsReelles ? null : currentTask.dureeMaxSec}
-                  headerSlot={
-                    conditionsReelles ? undefined : (
-                      <p className={prod.horsConditions}>{PRODUCTION_HORS_CONDITIONS_NOTE}</p>
-                    )
-                  }
+                  /* ⚠️ Plus aucune exception de « conditions » depuis le
+                     2026-09-13 : le diagnostic se joue comme un examen, EO
+                     comprise — chaque tâche a son chrono, une fois commencée on
+                     ne l'arrête pas, et l'arrêter l'envoie. */
+                  examMode
+                  maxDurationSec={null}
                   timeoutSignal={autoSubmitSignal}
                   onTimeout={onEoTimeout}
-                  /* 🛑 Hors conditions d'examen, l'examinateur vocal n'est pas
-                     proposé : le propriétaire a demandé que ces tâches se
-                     passent « en s'enregistrant, transcription comme
-                     d'habitude ». C'est aussi ce qui garde le diagnostic
-                     TOTALEMENT gratuit — le temps réel a son propre quota. */
+                  /* 🛑 **JAMAIS d'examinateur vocal dans le DIAGNOSTIC**
+                     (arbitrage du propriétaire, 2026-09-13) : « en freemium le
+                     diagnostic est offert et l'IA analyse, par contre c'est
+                     juste en enregistrement normal, pas avec l'examinateur en
+                     temps réel ». C'est ce qui le garde totalement gratuit — le
+                     temps réel a son propre quota payant.
+
+                     ⚠️ Le discriminant est le MARQUEUR DE SECTION, plus
+                     `conditionsReelles` : ce champ a été supprimé avec la règle
+                     EO1/EO2 qu'il portait, et le détourner ici aurait fait
+                     dépendre le quota d'une règle de chrono. */
                   onModeChoice={
                     !rtRefused &&
-                    conditionsReelles &&
+                    !tcfDiagnosticId &&
                     (currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2)
                       ? askMode
                       : undefined
@@ -775,9 +788,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           open={exitConfirmOpen}
           tone="warning"
           title={EPREUVE_EXIT_TITLE}
-          message={epreuveExitMessage(config.epreuve, {
-            perteEnregistrement: config.mode === "audio",
-          })}
+          message={
+            tcfDiagnosticId && config.epreuve === "TCF_EO"
+              ? TCF_DIAGNOSTIC_EO_QUIT_MESSAGE
+              : epreuveExitMessage(config.epreuve, {
+                  perteEnregistrement: config.mode === "audio",
+                })
+          }
           confirmLabel={EPREUVE_EXIT_CONFIRM}
           cancelLabel={EPREUVE_EXIT_CANCEL}
           onConfirm={() => {

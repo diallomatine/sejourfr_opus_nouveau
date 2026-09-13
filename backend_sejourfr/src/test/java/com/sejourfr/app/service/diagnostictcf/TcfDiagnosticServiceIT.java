@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
@@ -14,6 +15,7 @@ import com.sejourfr.app.enums.TcfReassessmentBlocker;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.attempt.AttemptCompositionService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -203,9 +205,108 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
         return sectionStarter.lancerSection(session, EpreuveType.TCF_CE);
     }
 
+    /**
+     * 🛑 <b>Une section CLOSE rend son resultat</b> — arbitrage du proprietaire
+     * du 2026-09-13, qui <b>revoque 10_ §4.2</b> (« aucun resultat detaille
+     * avant la fin »). Une epreuve du diagnostic est un examen blanc de son
+     * epreuve : elle en a la composition, la duree, le pipeline — elle en a
+     * aussi la restitution.
+     *
+     * <p>Ce que ce test verrouille surtout, c'est la <b>frontiere</b> : une
+     * section rend SON niveau, jamais le plancher des quatre ni une priorite.
+     */
     @Test
-    @DisplayName("La section de compréhension tire ses items par palier, chrono réduit à l'avenant")
-    void tirageEtChronoReduits() {
+    @DisplayName("🛑 Une section terminée rend son niveau et son score ; une section à faire ne rend rien")
+    void uneSectionTermineeRendSonResultat() {
+        User user = testData.user();
+        TcfDiagnosticSession session = service.ouvrir(user.getId());
+        entityManager.flush();
+
+        // Rien n'a ete commence : aucune section ne rend de resultat.
+        assertThat(viewService.vue(session).sections())
+                .as("null = non evaluee, jamais le palier le plus bas")
+                .allSatisfy(s -> {
+                    assertThat(s.niveau()).isNull();
+                    assertThat(s.scoreCalibre()).isNull();
+                    assertThat(s.analyseEnCours()).isFalse();
+                });
+
+        // La CE est lancee puis close, sans une seule bonne reponse : son
+        // niveau se lit quand meme, et c'est un plancher REEL, pas une absence.
+        sectionStarter.lancerSection(session, EpreuveType.TCF_CE);
+        entityManager.flush();
+        sectionStarter.cloreSection(session, EpreuveType.TCF_CE);
+        entityManager.flush();
+        entityManager.clear();
+
+        TcfDiagnosticDto vue = viewService.vue(service.lire(user.getId(), session.getId()));
+        assertThat(section(vue, EpreuveType.TCF_CE).etat())
+                .isEqualTo(TcfDiagnosticSectionState.TERMINEE);
+        assertThat(section(vue, EpreuveType.TCF_CE).niveau())
+                .as("une section close rend son niveau")
+                .isNotNull();
+        // Les trois autres n'ont pas bouge.
+        assertThat(section(vue, EpreuveType.TCF_CO).niveau()).isNull();
+        assertThat(section(vue, EpreuveType.TCF_EE).niveau()).isNull();
+    }
+
+    /**
+     * 🛑 <b>Quitter une epreuve COMMENCEE, c'est la terminer</b> ; une epreuve
+     * <b>jamais ouverte</b> attend le candidat aussi longtemps qu'il faut.
+     * C'est mot pour mot la regle de suspension d'un examen blanc, et c'est
+     * l'arbitrage du proprietaire du 2026-09-13.
+     */
+    @Test
+    @DisplayName("🛑 Clore une section : la commencée se termine, celle qui n'a jamais été ouverte survit")
+    void cloreNeFermeQueCeQuiAEteOuvert() {
+        User user = testData.user();
+        TcfDiagnosticSession session = service.ouvrir(user.getId());
+        entityManager.flush();
+
+        // Jamais commencee : la clore ne fait rien.
+        sectionStarter.cloreSection(session, EpreuveType.TCF_CO);
+        entityManager.flush();
+        assertThat(sub(session, EpreuveType.TCF_CO).getFinishedAt())
+                .as("on ne ferme que ce qui a ete ouvert")
+                .isNull();
+
+        // Commencee puis quittee : elle est close, et elle ne se reprend plus.
+        sectionStarter.lancerSection(session, EpreuveType.TCF_EE);
+        entityManager.flush();
+        sectionStarter.cloreSection(session, EpreuveType.TCF_EE);
+        entityManager.flush();
+        java.time.Instant close = sub(session, EpreuveType.TCF_EE).getFinishedAt();
+        assertThat(close).isNotNull();
+
+        // Idempotent : un second appel ne redate pas la cloture.
+        sectionStarter.cloreSection(session, EpreuveType.TCF_EE);
+        entityManager.flush();
+        assertThat(sub(session, EpreuveType.TCF_EE).getFinishedAt()).isEqualTo(close);
+    }
+
+    private com.sejourfr.app.dto.TcfDiagnosticSectionDto section(
+            TcfDiagnosticDto vue, EpreuveType epreuve) {
+        return vue.sections().stream()
+                .filter(s -> s.epreuve() == epreuve)
+                .findFirst().orElseThrow();
+    }
+
+    private Attempt sub(TcfDiagnosticSession session, EpreuveType epreuve) {
+        return attemptManager.findSubAttempts(session.getParentAttempt().getId()).stream()
+                .filter(a -> a.getEpreuve() == epreuve)
+                .findFirst().orElseThrow();
+    }
+
+    /**
+     * ⚠️ <b>REVOQUE « tirage et chrono reduits »</b> (2026-09-13, arbitrage du
+     * proprietaire) : une section de comprehension du diagnostic <b>est</b> un
+     * examen blanc de son epreuve — meme volume, meme duree pleine. Le prorata
+     * qui vivait ici (`dureeReduite`) a ete supprime avec la composition
+     * reduite qu'il accompagnait.
+     */
+    @Test
+    @DisplayName("Une section de compréhension EST un examen blanc d'épreuve : même volume, durée pleine")
+    void laSectionEstUnExamenBlancDEpreuve() {
         User user = testData.user();
         TcfDiagnosticSession session = service.ouvrir(user.getId());
         entityManager.flush();
@@ -213,11 +314,12 @@ class TcfDiagnosticServiceIT extends AbstractIntegrationTest {
         Attempt ce = attemptManager.findSubAttempts(session.getParentAttempt().getId())
                 .stream().filter(a -> a.getEpreuve() == EpreuveType.TCF_CE).findFirst().orElseThrow();
 
-        // Le chrono suit le nombre d'items REELLEMENT poses : jamais celui de
-        // l'epreuve entiere, ce serait malhonnete sur un format reduit.
-        int attendu = TcfDiagnosticSectionStarter.dureeReduite(
-                QuestionType.CE, ce.getTotalQuestions());
-        assertThat(ce.getTimeLimitSeconds()).isEqualTo(attendu);
+        assertThat(ce.getTimeLimitSeconds())
+                .as("la duree officielle de l'epreuve, pas un prorata")
+                .isEqualTo(DureeEpreuve.secondesPourQcm(QuestionType.CE));
+        assertThat(ce.getTotalQuestions())
+                .as("le volume d'un examen blanc de module")
+                .isEqualTo(AttemptCompositionService.MODULE_EXAM_TOTAL);
         assertThat(ce.getModule()).isEqualTo(Module.TCF);
     }
 

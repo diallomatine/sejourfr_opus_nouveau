@@ -19,15 +19,20 @@ import type {
     TcfDiagnosticSectionState,
     TcfReassessmentEligibilityDto,
 } from "./types";
+import {niveauCecrlShort} from "./types";
 
 /** Titre de la page. « Diagnostic TCF », jamais « examen blanc » (`10_` §4.1). */
 export const TCF_DIAGNOSTIC_TITLE = "Diagnostic TCF";
 export const TCF_DIAGNOSTIC_SUBTITLE =
     "4 épreuves, à faire séparément quand vous voulez.";
 
-/** Le résultat n'arrive qu'à la fin — c'est dit avant, pas découvert après. */
+/**
+ * ⚠️ **Le résultat d'une épreuve arrive avec ELLE** (2026-09-13) : une section
+ * du diagnostic est un examen blanc de son épreuve. Ce qui attend la 4ᵉ, c'est
+ * le résultat **d'ensemble** — niveau global et priorités.
+ */
 export const TCF_DIAGNOSTIC_RESULT_NOTE =
-    "Votre résultat complet s'affichera une fois les 4 sections terminées.";
+    "Chaque épreuve rend son niveau dès qu'elle est terminée. Votre résultat complet — niveau global et priorités — arrive avec la 4ᵉ.";
 
 /**
  * Une section commencée se termine d'une traite (`10_` §4.2). L'écran le dit
@@ -40,18 +45,44 @@ export const TCF_DIAGNOSTIC_SECTION_WARNING =
 export const TCF_DIAGNOSTIC_MIC_WARNING = "Cette section utilise votre micro.";
 
 /**
- * **Cette tâche n'est pas en conditions d'examen** — la phrase posée au-dessus
- * de l'enregistreur quand le serveur sert `conditionsReelles: false`.
+ * « Voir le rapport » — la porte du rapport d'une épreuve terminée.
  *
- * 🛑 **Le front ne décide rien** : il ne fait qu'habiller un fait servi. Le
- * périmètre (EO1 et EO2 du diagnostic, et rien d'autre) vit côté serveur,
- * `ProductionExamConditions`.
- *
- * Miroir mot pour mot de `kProductionHorsConditionsNote`
- * (`mobile_sejourfr/lib/screens/diagnostic_tcf/tcf_diagnostic_labels.dart`).
+ * 🛑 **C'est le rapport d'un EXAMEN**, pas un écran de diagnostic : une section
+ * du diagnostic est un examen blanc de son épreuve, et son rapport est celui
+ * que le candidat connaît déjà. Aucun second écran n'est créé.
  */
-export const PRODUCTION_HORS_CONDITIONS_NOTE =
-    "Cette tâche n'est pas chronométrée comme à l'examen : prenez le temps, réécoutez-vous, refaites votre prise si besoin, puis envoyez.";
+export const TCF_DIAGNOSTIC_RAPPORT_CTA = "Voir le rapport";
+
+/**
+ * « Analyse en cours… » — une production rendue dont la correction tourne
+ * encore.
+ *
+ * 🛑 À ne **jamais** confondre avec « Non évaluée » : ici une mesure existe et
+ * arrive, là il n'y en a aucune. Les deux donnent pourtant `niveau === null`.
+ */
+export const TCF_DIAGNOSTIC_ANALYSE_EN_COURS = "Analyse en cours…";
+
+/**
+ * « Niveau B1 » — le niveau d'UNE épreuve.
+ *
+ * 🛑 **Il ne dit jamais le niveau global**, qui est le plancher des quatre et
+ * vit sur l'écran de résultat. Une épreuve rend le sien, rien de plus.
+ */
+export function sectionNiveauLabel(niveau: NiveauCecrl): string {
+    const court = niveauCecrlShort(niveau);
+    return niveau === "A1_NON_ATTEINT" ? court : `Niveau ${court}`;
+}
+
+/**
+ * Quitter l'expression orale d'un diagnostic — **la tâche en cours est perdue,
+ * l'épreuve ne l'est pas**.
+ *
+ * 🛑 C'est la seule épreuve où quitter ne clôt pas la section : son chrono est
+ * **par tâche**. Le message doit le dire, sinon le candidat croit tout perdre
+ * et ne revient pas.
+ */
+export const TCF_DIAGNOSTIC_EO_QUIT_MESSAGE =
+    "L'enregistrement en cours sera perdu. Les tâches déjà rendues sont conservées, et vous reprendrez à la suivante.";
 
 export const TCF_DIAGNOSTIC_ESTIMATION_NOTE =
     "Estimation SejourFR, non officielle.";
@@ -151,6 +182,27 @@ export function sectionHref(
             return `/entrainement/tcf/eo/session/${attemptId}${suffix}`;
         default:
             return `/sessions/${attemptId}${suffix}`;
+    }
+}
+
+/**
+ * **Le rapport d'une section terminée** — celui d'un EXAMEN, pas un écran de
+ * diagnostic.
+ *
+ * 🛑 C'est exactement {@link sectionHref} **sans le marqueur de section** : le
+ * marqueur ne sert qu'au retour pendant la passation (il ramène aux 4 sections
+ * au lieu du bilan individuel). Ici on veut justement le bilan — la
+ * compréhension ouvre son rapport question par question, la production son
+ * bilan de session. Aucun second écran n'est créé.
+ */
+export function sectionRapportHref(epreuve: EpreuveType, attemptId: string): string {
+    switch (epreuve) {
+        case "TCF_EE":
+            return `/entrainement/tcf/ee/session/${attemptId}`;
+        case "TCF_EO":
+            return `/entrainement/tcf/eo/session/${attemptId}`;
+        default:
+            return `/sessions/${attemptId}`;
     }
 }
 

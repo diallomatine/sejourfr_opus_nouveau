@@ -246,11 +246,8 @@ public class ProductionSubmissionService {
     @Transactional(readOnly = true)
     public List<ProductionTaskDto> examTasks(UUID attemptId) {
         Attempt attempt = loadOwnProductionAttempt(attemptId);
-        // 🛑 « En conditions reelles ? » est un DERIVE SERVEUR : les deux
-        // runners l'affichent, aucun ne le recalcule.
         return compositionService.composeFor(attempt).stream()
-                .map(task -> taskMapper.toDto(
-                        task, ProductionExamConditions.conditionsReelles(attempt, task)))
+                .map(taskMapper::toDto)
                 .toList();
     }
 

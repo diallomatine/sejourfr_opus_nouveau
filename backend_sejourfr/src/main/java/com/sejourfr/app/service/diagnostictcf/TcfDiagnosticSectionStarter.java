@@ -1,6 +1,5 @@
 package com.sejourfr.app.service.diagnostictcf;
 
-import com.sejourfr.app.config.TcfDiagnosticProperties;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Question;
@@ -39,7 +38,6 @@ public class TcfDiagnosticSectionStarter {
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final AttemptCompositionService compositionService;
-    private final TcfDiagnosticProperties props;
 
     /**
      * Cree CO, CE, EE et EO sous le parent.
@@ -60,8 +58,21 @@ public class TcfDiagnosticSectionStarter {
     private void creerComprehension(
             User user, TcfDiagnosticSession session, Attempt parent, QuestionType type) {
 
-        List<Question> tirees = compositionService.composeDiagnosticComprehension(
-                type, props.getItemsPerLevel(), false);
+        // 🛑 EXACTEMENT LA COMPOSITION D'UN EXAMEN BLANC D'EPREUVE depuis le
+        // 2026-09-13 (arbitrage du proprietaire : « chaque epreuve du
+        // diagnostic complet se lance comme un examen blanc complet de
+        // l'epreuve ; on peut d'ailleurs y prendre l'examen blanc n°1, meme si
+        // on n'affiche pas "examen 1" »). Les memes 25 items (8 A2 / 9 B1 /
+        // 8 B2), le meme tirage, la meme duree.
+        //
+        // ⚠️ REVOQUE `composeDiagnosticComprehension` POUR CE CHEMIN, et avec
+        // elle ses deux specificites : la repartition egale 8/8/8 et l'absence
+        // de repli hors palier. Le calcul de niveau n'en souffre pas — il lit
+        // un TAUX PAR PALIER et ajuste ses denominateurs sur ce qui a
+        // reellement ete pose (mode degrade 10_ §9), donc un palier a 9 items
+        // se lit aussi bien qu'un palier a 8, et une question ajoutee par le
+        // repli compte dans le palier qu'elle porte.
+        List<Question> tirees = compositionService.composeModuleExam(Module.TCF, type, false);
         if (tirees.isEmpty()) {
             log.warn("Diagnostic {} : aucune question {} disponible, section omise (mode dégradé).",
                     session.getId(), type);
@@ -77,11 +88,10 @@ public class TcfDiagnosticSectionStarter {
         sub.setTcfDiagnostic(session);
         sub.setModuleExamQuestionType(type);
         sub.setTotalQuestions(tirees.size());
-        // La duree est celle de l'epreuve reelle, au prorata des items poses.
-        // Depuis le 2026-09-13 le diagnostic en pose 24 la ou l'epreuve en
-        // compte 25 : le chrono est donc quasiment celui de l'examen blanc.
-        // La regle n'a pas change — c'est le reglage qui a bouge.
-        sub.setTimeLimitSeconds(dureeReduite(type, tirees.size()));
+        // La duree PLEINE de l'epreuve, plus un prorata : la section EST
+        // l'epreuve. `dureeReduite` a ete supprimee avec la composition
+        // reduite qu'elle accompagnait.
+        sub.setTimeLimitSeconds(DureeEpreuve.secondesPourQcm(type));
         sub.setStartedAt(Instant.now());
         sub = attemptManager.save(sub);
 
@@ -92,24 +102,6 @@ public class TcfDiagnosticSectionStarter {
             aq.setPosition(i);
             attemptQuestionManager.save(aq);
         }
-    }
-
-    /**
-     * Duree d'une section reduite : la duree officielle de l'epreuve, au prorata
-     * des items reellement poses.
-     *
-     * <p>🛑 La duree officielle vient de {@code DureeEpreuve} et le denominateur
-     * de {@code AttemptCompositionService.MODULE_EXAM_TOTAL}. Aucun nombre
-     * n'est ecrit ici : raccourcir une epreuve raccourcit automatiquement la
-     * section, et le depot n'a pas d'autre « 25 » qui pourrait diverger.
-     */
-    static int dureeReduite(QuestionType type, int items) {
-        int complete = DureeEpreuve.secondesPourQcm(type);
-        int prorata = Math.round(
-                complete * (float) items / AttemptCompositionService.MODULE_EXAM_TOTAL);
-        // Une section ne descend jamais sous une minute, quelle que soit la
-        // pauvrete du catalogue.
-        return Math.max(60, prorata);
     }
 
     /**
@@ -150,13 +142,40 @@ public class TcfDiagnosticSectionStarter {
      * {@code FullTcfExamService.beginEpreuve} : quitter ne suspend rien, le
      * temps a couru pendant l'absence.
      */
-    public Attempt lancerSection(TcfDiagnosticSession session, EpreuveType epreuve) {
-        Attempt sub = attemptManager.findSubAttempts(session.getParentAttempt().getId()).stream()
-                .filter(a -> a.getEpreuve() == epreuve)
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException(
-                        "Section " + epreuve + " absente de ce diagnostic."));
+    /**
+     * <b>Clot une section COMMENCEE</b> — quitter une epreuve, c'est la
+     * terminer.
+     *
+     * <p>Meme regle qu'un examen blanc (arbitrage du proprietaire,
+     * 2026-09-13) : « pour les epreuves, c'est toute l'epreuve qui est
+     * chronometree ; l'abandonner, c'est fini, si elle est deja commencee ».
+     * Une section jamais ouverte n'est jamais fermee par un geste de sortie :
+     * elle attend le candidat aussi longtemps qu'il faut.
+     *
+     * <p>🛑 <b>L'EXPRESSION ORALE NE PASSE PAS PAR ICI</b>, et c'est la seule
+     * exception : son chrono est <b>par tache</b>, donc quitter n'y termine
+     * que la tache en cours — le candidat rouvre l'epreuve et reprend a la
+     * suivante. Sa cloture reste celle de l'examen : le serveur pose
+     * {@code finishedAt} des la 3e soumission.
+     *
+     * <p><b>Idempotent</b> : rappelee sur une section deja close, elle ne
+     * redate rien.
+     */
+    public Attempt cloreSection(TcfDiagnosticSession session, EpreuveType epreuve) {
+        Attempt sub = section(session, epreuve);
+        // Jamais commencee : elle attend le candidat aussi longtemps qu'il
+        // faut. On ne ferme que ce qui a ete ouvert — c'est exactement la
+        // regle de suspension d'un examen blanc.
+        if (sub.getTimerStartedAt() == null || sub.getFinishedAt() != null) {
+            return sub;
+        }
+        sub.setFinishedAt(Instant.now());
+        sub.setStatus(AttemptStatus.TERMINE);
+        return attemptManager.save(sub);
+    }
 
+    public Attempt lancerSection(TcfDiagnosticSession session, EpreuveType epreuve) {
+        Attempt sub = section(session, epreuve);
         if (sub.getTimerStartedAt() == null && sub.getFinishedAt() == null) {
             Instant now = Instant.now();
             sub.setTimerStartedAt(now);
@@ -164,5 +183,13 @@ public class TcfDiagnosticSectionStarter {
             attemptManager.save(sub);
         }
         return sub;
+    }
+
+    private Attempt section(TcfDiagnosticSession session, EpreuveType epreuve) {
+        return attemptManager.findSubAttempts(session.getParentAttempt().getId()).stream()
+                .filter(a -> a.getEpreuve() == epreuve)
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException(
+                        "Section " + epreuve + " absente de ce diagnostic."));
     }
 }

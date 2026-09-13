@@ -28,18 +28,30 @@ d'appeler cela un examen blanc. » Les deux objets coexistent :
 Plan raisonne par tâche : afficher « EO tâche 2 est votre priorité » sans avoir
 évalué EO2 rendrait la personnalisation fictive.
 
-⚠️ **La compréhension n'est plus vraiment « réduite » (2026-09-13).** Demande du
-propriétaire : « le diagnostic complet, c'est pratiquement un examen blanc
-complet ». `items-per-level` passe de **5 à 8** — 24 items au lieu de 15, quand
-l'épreuve réelle en compte 25 —, et `config-version` passe de **1 à 2** parce
-que le sens d'un niveau change. Le chrono suit tout seul : il est **au prorata
-des items posés** (`TcfDiagnosticSectionStarter.dureeReduite`), donc il passe de
-12/21 min à ≈ 19/34 min sans qu'aucun nombre n'ait été écrit.
+🛑 **UNE SECTION EST UN EXAMEN BLANC DE SON ÉPREUVE (2026-09-13).** Arbitrage du
+propriétaire, verbatim : « le diagnostic complet, chaque épreuve se lance comme
+un examen blanc complet de l'épreuve ; tu peux d'ailleurs y prendre l'examen
+blanc 1, même si on n'affiche pas "examen 1" ». Conséquences, toutes dans la
+même passe :
 
-🛑 **La répartition reste ÉGALE entre paliers** (8/8/8), là où l'examen suit
-8/9/8. Ce n'est pas un oubli : le niveau se lit sur un **taux par palier**, et
-un palier sous-doté rendrait son taux plus sensible à une seule erreur. Un item
-de plus ne valait pas un réglage par palier.
+- **Compréhension : `composeModuleExam`**, plus `composeDiagnosticComprehension`
+  — les mêmes **25 items (8/9/8)** et le **même tirage** qu'un examen de module.
+- **Durée PLEINE** (`DureeEpreuve.secondesPourQcm`), plus de prorata :
+  `TcfDiagnosticSectionStarter.dureeReduite` est **supprimée**.
+- **`items-per-level` a disparu** de `application.yaml` et du POJO, et avec elle
+  `TcfDiagnosticLevelResolver.repartitionAttendue` (qui n'avait aucun appelant).
+- **`config-version` passe à 3** : le sens d'un niveau change encore.
+
+⚠️ **Ce que cela révoque**, et qui ne doit pas être réintroduit « par
+cohérence » : la répartition **égale** 8/8/8 et l'**absence de repli hors
+palier**, les deux spécificités de `composeDiagnosticComprehension`. Le calcul de
+niveau n'en souffre pas — il lit un **taux par palier** et ajuste ses
+dénominateurs sur ce qui a réellement été posé (mode dégradé `10_` §9), donc un
+palier à 9 items se lit aussi bien qu'un palier à 8, et une question ajoutée par
+le repli compte dans le palier qu'elle porte.
+
+⚠️ **Historique** : `items-per-level` était passé de 5 à 8 le matin même
+(24 items, chrono au prorata) — étape intermédiaire, remplacée le jour même.
 
 ⚠️ **Ce qui n'a PAS été touché, et reste à arbitrer** : le niveau TCF estimé
 **exclut toujours les diagnostics**. Son motif écrit (« un score calibré établi
@@ -74,6 +86,85 @@ Deux décisions d'exclusion, écrites parce qu'elles ne se devinent pas :
   fichier, c'est un point à arbitrer, pas à ouvrir en passant ;
 - **la série de jours consécutifs les COMPTE** — passer une section de
   diagnostic est un jour de travail.
+
+## Une section rend SON résultat, et son rapport
+
+🛑 **Arbitrage du propriétaire (2026-09-13)**, verbatim : « si on finit par
+exemple CO ou CE, on peut tout de suite voir le résultat affiché dessus, et il
+peut consulter le rapport comme un examen ».
+
+⚠️ **Cela RÉVOQUE `10_` §4.2** (« aucun résultat détaillé n'est affiché avant la
+fin — le résultat est le moment de conversion, il ne doit pas être dilué »).
+Ne pas le réintroduire au motif qu'il est encore écrit dans la spec : ce qui
+suit fait foi.
+
+- **`TcfDiagnosticSectionDto` porte `niveau`, `scoreCalibre` et
+  `analyseEnCours`.** Le niveau était **déjà calculé** par
+  `TcfDiagnosticReadService` — il était simplement retenu à la frontière du DTO.
+- **`scoreCalibre` est le /499 des examens de module**, lu chez son autorité
+  (`AttemptMapper.calibratedScoreOf`, rendue publique pour l'occasion) : le
+  recalculer aurait fait exister un second « /499 » dans le dépôt. Compréhension
+  **close** seulement ; `null` en production, qui n'a pas de score.
+- 🛑 **`analyseEnCours` distingue « on attend l'IA » de « rien
+  d'exploitable »** — deux états qui donnent tous deux `niveau == null` et que
+  l'écran ne doit pas confondre. *null = inconnu, jamais mauvais.*
+- **Le rapport est CELUI D'UN EXAMEN**, aucun écran n'est créé : compréhension ⇒
+  le rapport question par question (`/exam-report/:attemptId` ⇄ `/sessions/:id`),
+  production ⇒ le bilan de session. Côté web, `sectionRapportHref` est
+  exactement `sectionHref` **sans le marqueur de section** — le marqueur ne sert
+  qu'au retour pendant la passation.
+
+🛑 **CE QUI RESTE LE MOMENT DE CONVERSION, et n'apparaît pas sur une carte de
+section** : le **niveau global** (plancher des quatre), les **priorités** et le
+plan. Ils vivent sur `TcfDiagnosticResultDto` et nulle part ailleurs. Une
+épreuve rend le sien, rien de plus.
+
+## Quitter une épreuve, c'est la terminer
+
+Même règle qu'un examen blanc (arbitrage du propriétaire, 2026-09-13) : « pour
+les épreuves, c'est toute l'épreuve qui est chronométrée ; l'abandonner, c'est
+fini, si elle est déjà commencée ». Une section **jamais ouverte** n'est jamais
+fermée par un geste de sortie — elle attend le candidat aussi longtemps qu'il
+faut.
+
+- **L'autorité est `TcfDiagnosticSectionStarter.cloreSection`**
+  (`POST /api/tcf-diagnostics/{id}/sections/{epreuve}/close`), idempotente, et
+  elle ne ferme que ce qui porte un `timerStartedAt`.
+- 🛑 **L'EXPRESSION ORALE EST LA SEULE EXCEPTION**, et elle tient à son chrono :
+  l'EO se chronomètre **par tâche**, donc quitter n'y termine que la **tâche en
+  cours** — le candidat rouvre l'épreuve et **reprend à la suivante**. La clore
+  lui ferait perdre les tâches qu'il n'a pas encore rendues.
+  - Côté mobile, `EoSessionNotifier.startInFullExam` relit les **tâches déjà
+    rendues** (best-effort, une requête à l'entrée de l'épreuve) et
+    `_reprendreALaTacheSuivante` saute celles qui sont soumises. Sans ce relevé,
+    on revenait toujours sur la tâche 1 et le serveur la refusait — une tâche ne
+    se soumet qu'une fois par session. Côté web, `enterTask(nextTodo)` le faisait
+    déjà.
+  - Le message de sortie le **dit** (`TCF_DIAGNOSTIC_EO_QUIT_MESSAGE` ⇄
+    `kTcfDiagnosticEoQuitMessage`), sinon le candidat croit tout perdre et ne
+    revient pas.
+
+## ⚠️ L'exception EO1/EO2 « hors conditions d'examen » est RÉVOQUÉE
+
+Le 2026-09-13 au matin, `ProductionExamConditions` relâchait les conditions
+d'examen sur **EO1 et EO2 d'un diagnostic** (réécoute, refaire, envoi quand on
+veut). Le propriétaire l'a révoquée le jour même : « comme à l'examen, sauf que
+l'EO, chaque tâche a son propre chrono ; une fois commencée on ne l'arrête pas,
+et si on l'arrête, cette tâche est considérée comme finie ».
+
+**Supprimés** : `ProductionExamConditions`, son test,
+`ProductionTaskDto.conditionsReelles` et ses trois miroirs front, la note
+`PRODUCTION_HORS_CONDITIONS_NOTE` ⇄ `kProductionHorsConditionsNote` et la classe
+CSS `.horsConditions`. Un champ qui ne peut plus valoir qu'une seule chose ne
+voyage pas.
+
+🛑 **Un effet de bord à connaître** : ce champ servait aussi de discriminant
+pour **ne pas proposer l'examinateur vocal** sur les tâches du diagnostic. Le
+discriminant est désormais le **marqueur de section** (`tcfDiagnosticId`), et
+c'est plus juste : le quota du temps réel ne doit pas dépendre d'une règle de
+chrono. Règle confirmée par le propriétaire — « en freemium, le diagnostic est
+offert et l'IA analyse, par contre c'est juste en enregistrement normal, pas
+avec l'examinateur en temps réel ».
 
 ## Aucune table de section, aucune table de résultat
 

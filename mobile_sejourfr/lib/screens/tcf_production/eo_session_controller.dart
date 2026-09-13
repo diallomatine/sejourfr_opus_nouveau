@@ -162,10 +162,38 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
       return EoSessionState(
         attempt: attempt,
         tasks: tasks,
-        submissions: const {},
+        // 🛑 LES TÂCHES DÉJÀ RENDUES sont relues, plus supposées vides.
+        // L'oral se chronomètre PAR TÂCHE : arrêter une tâche la termine, et
+        // rouvrir l'épreuve ne doit reproposer que la SUIVANTE (arbitrage du
+        // propriétaire, 2026-09-13). Sans ce relevé, on revenait toujours sur
+        // la tâche 1 et le serveur la refusait (une tâche ne se soumet qu'une
+        // fois par session).
+        submissions: await _rendues(subAttemptId, tasks),
         isExam: true,
       );
     });
+  }
+
+  /// Les tâches **déjà rendues** de ce sous-attempt, indexées comme
+  /// [EoSessionState.submissions] — par index de tâche dans la session.
+  ///
+  /// Une requête, à l'entrée de l'épreuve seulement. **Best-effort** : son
+  /// échec rend une session vierge plutôt que d'empêcher d'enregistrer — le
+  /// serveur reste l'arbitre (il refuse une tâche déjà soumise).
+  Future<Map<int, ProductionSubmissionDto>> _rendues(
+      String subAttemptId, List<ProductionTaskDto> tasks) async {
+    try {
+      final toutes = await _repo.listMine(limit: 60);
+      final parTache = <int, ProductionSubmissionDto>{};
+      for (final s in toutes) {
+        if (s.attemptId != subAttemptId) continue;
+        final index = tasks.indexWhere((t) => t.id == s.productionTaskId);
+        if (index >= 0) parTache[index] = s;
+      }
+      return parTache;
+    } catch (_) {
+      return const {};
+    }
   }
 
   /// Envoie l'audio enregistre au backend et stocke la submission dans le state.
