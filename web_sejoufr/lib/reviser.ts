@@ -69,6 +69,24 @@ export const REVISER_RESUME_LABEL = "Reprendre là où vous vous êtes arrêté"
 export const REVISER_RESUME_CTA = "Continuer";
 
 /**
+ * **Le sur-titre de la carte de tête quand il n'y a RIEN à reprendre** — parce
+ * que le diagnostic n'a pas encore été fait.
+ *
+ * 🛑 **La carte ne disparaît plus** (demande du propriétaire, 2026-09-13) :
+ * « si le diagnostic n'est pas fait, dans la section Reprendre où vous vous êtes
+ * arrêté, plutôt proposer de faire le diagnostic ». L'écran ouvrait sur sa liste
+ * d'épreuves sans jamais nommer le geste qui débloque tout le reste.
+ *
+ * 🛑 **Aucune phrase de porte n'est écrite ici** : le titre, le texte, le
+ * libellé du bouton et sa destination viennent de `planIndisponible`
+ * (`lib/preparation.ts`), la **même autorité** que l'Accueil et que l'écran
+ * Plan. C'est ce qui garantit que les trois écrans proposent le même geste —
+ * « Faire mon diagnostic » côté TCF, « Faire mon diagnostic civique » côté
+ * civique — et qu'un diagnostic **commencé** s'y reprend au lieu de se refaire.
+ */
+export const REVISER_DEPART_LABEL = "Votre point de départ";
+
+/**
  * Ce que le Plan demande de faire **maintenant**, mis en mots.
  *
  * 🛑 **La source est le Plan, jamais un historique d'écran** : c'est la première

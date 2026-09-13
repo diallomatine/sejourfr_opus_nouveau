@@ -1574,8 +1574,19 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
   historique à lui. Le lancement passe par `startPlanSeanceItem` /
   `openPlanExercise` (TCF) et `startCivicSerie` (civique) — **les gestes du
   Plan**, jamais un second chemin.
-- 🛑 **Sans diagnostic, pas de carte** — sur les deux parcours. On lit
-  **`prep.planDisponible`**, jamais `etape`.
+- 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
+  propriétaire, 2026-09-13). ⚠️ **Révoque « sans diagnostic, pas de carte »** :
+  l'écran ouvrait sur sa liste d'épreuves sans jamais nommer le geste qui débloque
+  le reste. Le fait lu ne change pas — **`prep.planDisponible`**, jamais `etape` —,
+  et **aucune phrase n'est écrite ici** : titre, texte, libellé et destination
+  viennent de `planIndisponible` (`core/models/preparation_labels.dart`), la
+  **même autorité** que l'Accueil et l'écran Plan. C'est elle qui distingue
+  « faire » de « reprendre » sur un diagnostic déjà commencé, et qui sait que le
+  civique a **sa** porte. Sur-titre : `kReviserDepartLabel` (« Votre point de
+  départ »), miroir de `REVISER_DEPART_LABEL`.
+- **`_ResumeCard` porte les DEUX états** (`label` / `title` / `subtitle` / `cta`),
+  `_GateCard` n'en est qu'un habillage : mêmes quatre lignes, seul le contenu
+  change. Ne pas en faire deux widgets.
 - 🛑 **Une action verrouillée n'est pas proposée en reprise** : la carte
   disparaît, la liste reste. C'est le corollaire de « le Plan d'un compte sans
   accès est un constat » — ce qui est ouvert gratuitement se trouve **par la

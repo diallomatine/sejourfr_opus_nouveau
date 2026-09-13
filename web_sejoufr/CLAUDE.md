@@ -1245,9 +1245,33 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
   côté TCF, `civicPlan.prochaine` côté civique. Le lancement passe par
   **`usePlanExercise` / `usePlanAssessment`** (TCF) et **`useCivicSerie`**
   (civique) — les lanceurs du Plan, jamais un second chemin.
-- 🛑 **Sans diagnostic, pas de carte** : on lit **`prep.planDisponible`**, jamais
-  `etape`. Une action **verrouillée** n'est pas proposée en reprise non plus — la
-  carte disparaît, la liste reste.
+- 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
+  propriétaire, 2026-09-13 : « si le diagnostic n'est pas fait, dans la section
+  Reprendre où vous vous êtes arrêté, plutôt proposer de faire le diagnostic »).
+  ⚠️ **Révoque « sans diagnostic, pas de carte »** : l'écran ouvrait sur sa liste
+  d'épreuves sans jamais nommer le geste qui débloque le reste. Le fait lu ne
+  change pas — **`prep.planDisponible`**, jamais `etape` —, et **aucune phrase
+  n'est écrite ici** : titre, texte, libellé et destination viennent de
+  `planIndisponible` (`lib/preparation.ts`), la **même autorité** que l'Accueil et
+  l'écran Plan. C'est elle qui distingue « faire » de « reprendre » sur un
+  diagnostic déjà commencé, et qui sait que le civique a **sa** porte
+  (`/diagnostic-civique`). Un **visiteur** n'en a pas : sans compte, pas de
+  diagnostic à faire — il garde le catalogue et son bandeau de découverte.
+  Sur-titre : `REVISER_DEPART_LABEL` (« Votre point de départ »), miroir de
+  `kReviserDepartLabel`.
+- 🛑 **Une action verrouillée n'est pas proposée en reprise** — la carte disparaît,
+  la liste reste. C'est le corollaire de « le Plan d'un compte sans accès est un
+  constat » : ce qui est ouvert gratuitement se trouve **par la liste**.
+- 🛑 **Colonne LARGE en desktop** (`<SejourApp wide>`, 2026-09-13), et c'est la
+  maquette qui tranche : `grok_ecran/screenshots/reviser-hub.png` mesure **960 px**
+  de contenu à 1280 px de fenêtre — la colonne de 1080 px, exactement. Réviser est
+  un **catalogue**, pas un écran de lecture : sa grille d'épreuves tenait dans
+  720 px, où les titres passaient à la ligne et où le tiers droit restait blanc.
+- 🛑 **La carte de tête est celle du KIT** (`Card variant="hero"`), plus une
+  `<article>` maison : `.resume` ne garde que son dégradé. Le mobile montait déjà
+  la sienne sur `SfCard(hero)`, et la divergence coûtait, au palier desktop, un
+  « Continuer » plafonné à 420 px au milieu d'une carte de 960 — le kit n'ouvre ce
+  plafond que **dans ses propres cartes**.
 - 🛑 **Pas de bascule de parcours ici** (arbitrage du propriétaire, 2026-09-12,
   reconduit) : on y arrive par la barre latérale, qui a déjà fait le choix. Le
   mobile garde la sienne, Réviser y étant un onglet de la barre du bas. Écart de

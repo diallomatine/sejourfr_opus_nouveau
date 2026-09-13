@@ -8,6 +8,7 @@ import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/preparation_models.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/preparation_provider.dart';
@@ -36,10 +37,13 @@ import 'reviser_labels.dart';
 /// l'autorité, et les deux écrans ne peuvent donc pas désigner deux choses
 /// différentes.
 ///
-/// 🛑 **Sans diagnostic, pas de carte** — sur les deux parcours. Le plan n'est
-/// pas disponible, il n'y a rien à reprendre, et une carte qui inventerait un
-/// point de reprise mentirait. On lit **`prep.planDisponible`**, jamais
-/// `etape` : c'est lui qui rend mot pour mot la condition du moteur.
+/// 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
+/// propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
+/// ne disparaît plus : l'écran s'ouvrait sur sa liste d'épreuves sans jamais
+/// nommer le geste qui débloque le reste. Le fait lu reste
+/// **`prep.planDisponible`**, jamais `etape` — c'est lui qui rend mot pour mot
+/// la condition du moteur —, et les phrases de la porte viennent de
+/// [planIndisponible], la même autorité que l'Accueil et l'écran Plan.
 ///
 /// 🛑 **Aucune phrase n'est composée ici** : elles vivent dans
 /// `reviser_labels.dart`, miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.
@@ -139,20 +143,26 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     ModulePreparation? prep,
   ) {
     // 🛑 `planDisponible` est **le fait à lire**. Sans lui, on n'a rien à
-    // reprendre — et on ne l'invente pas.
-    final resume = prep?.planDisponible == true ? reviserResumeTcf(plan) : null;
+    // reprendre — et on ne l'invente pas : la carte de tête devient la porte du
+    // diagnostic, avec les mots de [planIndisponible].
+    final disponible = prep?.planDisponible == true;
+    final resume = disponible ? reviserResumeTcf(plan) : null;
+    final porte = prep == null ? null : planIndisponible(prep, civique: false);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
     return <Widget>[
       if (resume != null)
         _ResumeCard(
-          resume: resume,
+          title: resume.title,
+          subtitle: resume.subtitle,
           // L'icône du domaine, la même que sur le Plan et sur son hub — le
           // candidat doit reconnaître ce qu'il reprend.
           icon: planDomainIcon(sectionEpreuve(resume.section)),
           variant: SfButtonVariant.primary,
           onContinue: () => _reprendreTcf(resume),
-        ),
+        )
+      else if (porte != null)
+        _GateCard(porte: porte, variant: SfButtonVariant.primary),
       SfSection(
         title: reviserSectionTitle(AppModule.tcf, stats.length),
         flush: true,
@@ -230,18 +240,22 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     CivicPlan? civicPlan,
     ModulePreparation? prep,
   ) {
-    final prochaine =
-        prep?.planDisponible == true ? civicPlan?.prochaine : null;
+    final disponible = prep?.planDisponible == true;
+    final prochaine = disponible ? civicPlan?.prochaine : null;
     final resume = reviserResumeCivique(prochaine);
+    final porte = prep == null ? null : planIndisponible(prep, civique: true);
     final themes = civicPlan?.themes ?? const <CivicPlanThemeLigne>[];
     return <Widget>[
       if (resume != null && prochaine != null)
         _ResumeCard(
-          resume: resume,
+          title: resume.title,
+          subtitle: resume.subtitle,
           icon: dashboardCategoryIcon(prochaine.themeCode),
           variant: SfButtonVariant.blue,
           onContinue: () => _reprendreCivique(prochaine),
-        ),
+        )
+      else if (porte != null)
+        _GateCard(porte: porte, variant: SfButtonVariant.blue),
       SfSection(
         title: reviserSectionTitle(AppModule.civique, dashboard.civique.length),
         flush: true,
@@ -270,19 +284,34 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   }
 }
 
-/// **« Reprendre là où vous vous êtes arrêté »** — la carte de tête.
+/// **La carte de tête** — « Reprendre là où vous vous êtes arrêté », ou la porte
+/// du diagnostic quand il n'y a rien à reprendre.
 ///
 /// Même anatomie que la carte « À faire maintenant » du Plan : c'est la même
 /// action, vue depuis un autre écran.
+///
+/// 🛑 **Une seule carte pour les deux états**, pas deux widgets presque
+/// identiques : ce sont les mêmes quatre lignes — sur-titre, pictogramme, titre
+/// et sous-titre, bouton — et seul leur contenu change.
 class _ResumeCard extends StatelessWidget {
   const _ResumeCard({
-    required this.resume,
+    required this.title,
+    required this.subtitle,
     required this.icon,
     required this.variant,
     required this.onContinue,
+    this.label = kReviserResumeLabel,
+    this.cta = kReviserResumeCta,
   });
 
-  final ReviserResume resume;
+  final String title;
+  final String? subtitle;
+
+  /// Le sur-titre : la reprise, ou le point de départ.
+  final String label;
+
+  /// Le bouton. Il dit ce qui va se passer — jamais « Continuer » sur une porte.
+  final String cta;
 
   /// Le pictogramme de ce qu'on reprend — le domaine côté TCF, le thème côté
   /// civique. Servi par l'appelant, qui seul sait de quoi il parle.
@@ -301,7 +330,7 @@ class _ResumeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SfLabel(kReviserResumeLabel),
+            SfLabel(label),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,18 +350,22 @@ class _ResumeCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        resume.title,
+                        title,
                         style: AppFonts.display(
                           size: 18,
                           weight: FontWeight.w700,
                           height: 1.2,
                         ),
                       ),
-                      if (resume.subtitle != null) ...[
+                      if (subtitle != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          resume.subtitle!,
-                          style: AppFonts.ui(size: 13, color: AppColors.muted),
+                          subtitle!,
+                          style: AppFonts.ui(
+                            size: 13,
+                            color: AppColors.muted,
+                            height: 1.45,
+                          ),
                         ),
                       ],
                     ],
@@ -342,13 +375,40 @@ class _ResumeCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             SfButton(
-              label: kReviserResumeCta,
+              label: cta,
               variant: variant,
               onPressed: onContinue,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// **La porte du diagnostic**, à la place de la reprise.
+///
+/// 🛑 **Aucune phrase n'est écrite ici** : [planIndisponible] porte le titre, le
+/// texte, le libellé du bouton et sa destination — la **même autorité** que
+/// l'Accueil et l'écran Plan. C'est elle qui distingue « faire » de
+/// « reprendre » quand un diagnostic est déjà commencé, et qui sait que le
+/// civique a **sa** porte (`/diagnostic-civique`).
+class _GateCard extends StatelessWidget {
+  const _GateCard({required this.porte, required this.variant});
+
+  final PlanIndisponible porte;
+  final SfButtonVariant variant;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ResumeCard(
+      label: kReviserDepartLabel,
+      title: porte.titre,
+      subtitle: porte.texte,
+      cta: porte.cta,
+      icon: LucideIcons.compass,
+      variant: variant,
+      onContinue: () => context.push(porte.route),
     );
   }
 }

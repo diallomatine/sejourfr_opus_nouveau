@@ -21,10 +21,16 @@
  * l'autorité, et les deux écrans ne peuvent donc pas désigner deux choses
  * différentes.
  *
- * 🛑 **Sans diagnostic, pas de carte** — sur les deux parcours. Le plan n'est
- * pas disponible, il n'y a rien à reprendre, et une carte qui inventerait un
- * point de reprise mentirait. On lit **`prep.planDisponible`**, jamais `etape` :
- * c'est lui qui rend mot pour mot la condition du moteur.
+ * 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
+ * propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
+ * ne disparaît plus : l'écran s'ouvrait sur sa liste d'épreuves sans jamais
+ * nommer le geste qui débloque le reste. Le fait lu reste
+ * **`prep.planDisponible`**, jamais `etape` — c'est lui qui rend mot pour mot la
+ * condition du moteur —, et les phrases de la porte viennent de
+ * `planIndisponible`, la même autorité que l'Accueil et l'écran Plan.
+ *
+ * 🛑 **Un VISITEUR n'a pas de porte** : il n'a pas de compte, donc pas de
+ * diagnostic à faire. Il garde le catalogue et son bandeau de découverte.
  *
  * 🛑 **Pas de bascule de parcours ICI** (arbitrage du propriétaire,
  * 2026-09-12) : sur le web on arrive par la barre latérale, qui porte déjà ses
@@ -33,12 +39,20 @@
  *
  * 🛑 **Aucune phrase n'est composée ici** : elles vivent dans `lib/reviser.ts`,
  * miroir mot pour mot de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.
+ *
+ * 🛑 **Colonne LARGE en desktop** (`<SejourApp wide>`), et c'est la maquette qui
+ * tranche : `grok_ecran/screenshots/reviser-hub.png` mesure 960 px de contenu à
+ * 1280 px de fenêtre — la colonne de 1080 px, exactement. Réviser est un
+ * **catalogue**, pas un écran de lecture : sa grille d'épreuves à deux colonnes
+ * tenait dans 720 px, où les titres passaient à la ligne et où le tiers droit de
+ * l'écran restait blanc.
  */
 
 import Link from "next/link";
 import { useMemo } from "react";
 import {
   BookOpen,
+  Compass,
   Ear,
   FileText,
   Gavel,
@@ -74,6 +88,7 @@ import {
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
   type LearningPlanDto,
+  type ModulePreparation,
   type PlanDomainDto,
   type ThemeUserResponse,
 } from "@/lib/types";
@@ -83,6 +98,7 @@ import {
   productionEntryHref,
 } from "@/app/_components/production/config";
 import {
+  Card,
   Cta,
   EpreuveRow,
   NoteCard,
@@ -98,6 +114,7 @@ import {
   epreuveMeta,
   epreuveRatio,
   epreuveStatus,
+  REVISER_DEPART_LABEL,
   REVISER_RESUME_CTA,
   REVISER_RESUME_LABEL,
   REVISER_TITLE,
@@ -114,6 +131,7 @@ import {
   TCF_EPREUVES_OFFICIELLES,
   themeStatus,
 } from "@/lib/reviser";
+import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
 import styles from "./reviser.module.css";
 
 /** Pictogramme d'une catégorie — le même que sur le mobile et sur le Plan. */
@@ -182,7 +200,7 @@ export function ReviserScreen({
   );
 
   return (
-    <SejourApp>
+    <SejourApp wide>
       <Top title={REVISER_TITLE} />
       <Pad>
         <p className={styles.sub}>{reviserSubtitle(module)}</p>
@@ -220,7 +238,8 @@ function TcfBody({
     isGuest ? null : learningPlanApi.cacheKey,
     () => learningPlanApi.getCached(),
   );
-  const prep = usePlanDisponible(isGuest, "TCF");
+  const prep = useModulePreparation(isGuest, "TCF");
+  const disponible = prep?.planDisponible === true;
   /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
      ligne de séance est un exercice **ou** une mesure de domaine, et les
      deux savent déjà où aller. */
@@ -228,8 +247,10 @@ function TcfBody({
   const assessment = usePlanAssessment();
 
   /* 🛑 Sans `planDisponible`, il n'y a rien à reprendre — et on ne l'invente
-     pas. La carte disparaît, la liste reste. */
-  const resume = prep ? reviserResumeTcf(plan.data ?? null) : null;
+     pas. La carte de tête cesse d'être une reprise et devient la **porte du
+     diagnostic**, avec les mots de `planIndisponible`. */
+  const resume = disponible ? reviserResumeTcf(plan.data ?? null) : null;
+  const gate = prep && !disponible ? planIndisponible(prep, "TCF") : null;
   const item = resume?.item ?? null;
   const busy = exercise.starting || assessment.starting !== null;
 
@@ -259,6 +280,8 @@ function TcfBody({
           error={exercise.error ?? assessment.error}
           tone="primary"
         />
+      ) : gate ? (
+        <GateCard gate={gate} tone="primary" />
       ) : null}
       <PaywallSheet
         origin="plan"
@@ -406,12 +429,14 @@ function CiviqueBody({
   const civicPlan = useCachedData(isGuest ? null : civicPlanApi.cacheKey, () =>
     civicPlanApi.getCached(),
   );
-  const prep = usePlanDisponible(isGuest, "CIVIQUE");
+  const prep = useModulePreparation(isGuest, "CIVIQUE");
+  const disponible = prep?.planDisponible === true;
 
-  const prochaine: CivicPlanCibleDto | null = prep
+  const prochaine: CivicPlanCibleDto | null = disponible
     ? (civicPlan.data?.prochaine ?? null)
     : null;
   const resume = reviserResumeCivique(prochaine);
+  const gate = prep && !disponible ? planIndisponible(prep, "CIVIQUE") : null;
 
   const stats = useMemo(() => {
     if (summary) return summary.civique;
@@ -446,6 +471,8 @@ function CiviqueBody({
           error={erreur}
           tone="blue"
         />
+      ) : gate ? (
+        <GateCard gate={gate} tone="blue" />
       ) : null}
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="CIVIQUE" />
       <Section title={reviserSectionTitle("CIVIQUE", stats.length)}>
@@ -479,16 +506,29 @@ function CiviqueBody({
 /* ----------------------------------------------------------- Les briques */
 
 /**
- * **« Reprendre là où vous vous êtes arrêté »** — la carte de tête.
+ * **La carte de tête** — « Reprendre là où vous vous êtes arrêté », ou la porte
+ * du diagnostic quand il n'y a rien à reprendre.
  *
  * Même anatomie que la carte « À faire maintenant » du Plan : c'est la même
  * action, vue depuis un autre écran. Rouge côté TCF, bleu côté civique — la
  * sémantique de parcours du produit.
+ *
+ * 🛑 **Une seule carte pour les deux états**, pas deux composants presque
+ * identiques : ce sont les mêmes quatre lignes — sur-titre, pictogramme, titre
+ * et sous-titre, bouton — et seul leur contenu change.
+ *
+ * 🛑 **C'est le KIT qui porte la carte** (`Card variant="hero"`), plus une
+ * `<article>` maison : `.resume` ne garde que le dégradé. Le mobile monte déjà
+ * son `_ResumeCard` sur `SfCard(variant: hero)` — la divergence coûtait, au
+ * palier desktop, un bouton plafonné à 420 px au milieu d'une carte pleine
+ * largeur (le kit n'ouvre ce plafond que dans ses propres cartes).
  */
 function ResumeCard({
   icon: Icon,
+  label = REVISER_RESUME_LABEL,
   title,
   subtitle,
+  cta = REVISER_RESUME_CTA,
   href,
   onClick,
   busy,
@@ -496,8 +536,10 @@ function ResumeCard({
   tone,
 }: {
   icon: LucideIcon;
+  label?: string;
   title: string;
   subtitle: string | null;
+  cta?: string;
   href?: string;
   onClick?: () => void;
   busy?: boolean;
@@ -506,8 +548,8 @@ function ResumeCard({
 }) {
   return (
     <Pad className={styles.resumeWrap}>
-      <article className={styles.resume}>
-        <p className={sejourStyles.label}>{REVISER_RESUME_LABEL}</p>
+      <Card variant="hero" className={styles.resume}>
+        <p className={sejourStyles.label}>{label}</p>
         <div className={styles.resumeHead}>
           <span className={styles.resumeIco}>
             <Icon size={24} strokeWidth={2} aria-hidden />
@@ -518,15 +560,38 @@ function ResumeCard({
           </span>
         </div>
         <Cta href={href} onClick={onClick} variant={tone} disabled={busy}>
-          {REVISER_RESUME_CTA}
+          {cta}
         </Cta>
         {error ? (
           <p className={sejourStyles.tiny} role="alert">
             {error}
           </p>
         ) : null}
-      </article>
+      </Card>
     </Pad>
+  );
+}
+
+/**
+ * **La porte du diagnostic**, à la place de la reprise.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici** : `planIndisponible` porte le titre, le
+ * texte, le libellé du bouton et sa destination — la **même autorité** que
+ * l'Accueil et l'écran Plan. C'est elle qui distingue « faire » de
+ * « reprendre » quand un diagnostic est déjà commencé, et qui sait que le
+ * civique a **sa** porte (`/diagnostic-civique`).
+ */
+function GateCard({gate, tone}: {gate: PlanIndisponible; tone: "primary" | "blue"}) {
+  return (
+    <ResumeCard
+      icon={Compass}
+      label={REVISER_DEPART_LABEL}
+      title={gate.titre}
+      subtitle={gate.texte}
+      cta={gate.cta}
+      href={gate.href}
+      tone={tone}
+    />
   );
 }
 
@@ -570,17 +635,19 @@ function DemoLink({
 }
 
 /**
- * `planDisponible` du module — **le seul fait** qui autorise une carte de
- * reprise. `false` pour un visiteur, et tant que l'état n'a pas répondu : on
- * n'affiche pas une reprise qu'on devra retirer une seconde plus tard.
+ * L'état servi du module — `planDisponible` en est **le seul fait** qui autorise
+ * une carte de reprise, et le reste décide de la porte qui la remplace.
+ *
+ * `null` pour un visiteur et tant que l'état n'a pas répondu : ni reprise, ni
+ * porte. On n'affiche pas une carte qu'on devra retirer une seconde plus tard,
+ * et on ne propose pas un diagnostic à qui n'a pas de compte.
  */
-function usePlanDisponible(
+function useModulePreparation(
   isGuest: boolean,
   module: "TCF" | "CIVIQUE",
-): boolean {
+): ModulePreparation | null {
   const prep = useCachedData(isGuest ? null : "reviser:preparation", () =>
     userContentApi.preparation(),
   );
-  const m = module === "TCF" ? prep.data?.tcf : prep.data?.civique;
-  return m?.planDisponible === true;
+  return (module === "TCF" ? prep.data?.tcf : prep.data?.civique) ?? null;
 }
