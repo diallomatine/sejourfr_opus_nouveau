@@ -4,6 +4,10 @@
  * 🛑 **Miroir mot pour mot de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.**
  * Un libellé qui bouge, ce sont deux fichiers dans la même passe.
  *
+ * ⚠️ **Une seule exception, et elle est documentée à sa déclaration** :
+ * `reviserTitle` n'existe que sur le web, parce que les deux fronts n'entrent
+ * pas dans cet écran par le même chemin.
+ *
  * 🛑 **Rien n'est classé ici.** Chaque fonction ne fait que poser une phrase sur
  * des **faits servis** — le compteur de séries (`seriesDone` / `seriesTotal`),
  * la couverture d'une tâche (`taches[]`), le niveau d'un domaine, l'état d'un
@@ -27,10 +31,31 @@ import type {
 } from "./types";
 import {niveauCecrlLabel} from "./types";
 import {planDomainLabel, type PlanDomainEpreuve} from "./plan-domain";
+import {CIVIQUE_LABEL, TCF_LABEL} from "./preparation";
 
 /* ------------------------------------------------------------------ En-tête */
 
 export const REVISER_TITLE = "Réviser";
+
+/**
+ * **Le titre de l'écran, côté WEB : le parcours lui-même.**
+ *
+ * 🛑 **Divergence VOULUE avec le mobile** (demande du propriétaire,
+ * 2026-09-13), et c'est la même raison qui fait qu'il n'y a pas de bascule de
+ * parcours ici : sur le web on arrive par **une entrée de la barre latérale**,
+ * « TCF IRN » ou « Examen civique », donc le choix est déjà fait — un titre
+ * « Réviser » ne disait plus dans lequel des deux on venait d'entrer, alors que
+ * les deux écrans se ressemblent. Sur le mobile, Réviser est un **onglet de la
+ * barre du bas** qui porte sa propre bascule : le titre y nomme l'onglet, et
+ * `kReviserTitle` ne bouge pas.
+ *
+ * 🛑 **Les deux noms viennent de `lib/preparation.ts`**, la seule table de noms
+ * de parcours du web — celle que lit déjà « Ma préparation ». Ne pas en écrire
+ * une troisième copie : la barre latérale en tient déjà une en dur.
+ */
+export function reviserTitle(module: "TCF" | "CIVIQUE"): string {
+    return module === "TCF" ? TCF_LABEL : CIVIQUE_LABEL;
+}
 
 export const REVISER_SUBTITLE_TCF =
     "Le test linguistique exigé pour la résidence et la naturalisation.";

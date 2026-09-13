@@ -1237,7 +1237,7 @@ Maquette du propriétaire : `~/Desktop/sejourfr_ecrans/reviser_tcf.png` et
 (`app/_components/reviser/ReviserScreen.tsx` + `reviser.module.css`), bloc pour
 bloc avec le mobile.
 
-**Trois blocs** : `Top` « Réviser » + sous-titre → carte **« Reprendre là où vous
+**Trois blocs** : `Top` (le **parcours**, cf. ci-dessous) + sous-titre → carte **« Reprendre là où vous
 vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
 (`Stack className={deskGrid2}` : une colonne, deux à partir de 960 px).
 
@@ -1276,6 +1276,16 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
   reconduit) : on y arrive par la barre latérale, qui a déjà fait le choix. Le
   mobile garde la sienne, Réviser y étant un onglet de la barre du bas. Écart de
   **forme**, pas de parcours.
+- 🛑 **Le titre nomme le PARCOURS, pas l'écran** (demande du propriétaire,
+  2026-09-13) : « **TCF IRN** » / « **Examen civique** » (`reviserTitle`), plus
+  « Réviser ». Même raison que la ligne au-dessus, et **divergence VOULUE avec le
+  mobile** : ici on entre par une **entrée de la barre latérale** qui a déjà fait
+  le choix, donc un titre générique ne disait plus dans lequel des deux parcours
+  on venait d'arriver — alors que les deux écrans se ressemblent. Sur le mobile,
+  Réviser est un **onglet** porteur de sa propre bascule : le titre y nomme
+  l'onglet, `kReviserTitle` ne bouge pas. Les deux noms viennent de
+  `TCF_LABEL` / `CIVIQUE_LABEL` (`lib/preparation.ts`), la seule table de noms de
+  parcours du web — ne pas en écrire une copie de plus.
 - **Un visiteur voit le catalogue**, pas un écran vide : les cinq épreuves à zéro
   (TCF) ou les thèmes publics (civique), chaque ligne disant « Pas encore
   travaillé ». Le **bandeau de découverte** est conservé de l'ancien hub — c'est

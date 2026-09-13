@@ -117,11 +117,11 @@ import {
   REVISER_DEPART_LABEL,
   REVISER_RESUME_CTA,
   REVISER_RESUME_LABEL,
-  REVISER_TITLE,
   reviserResumeCivique,
   reviserResumeTcf,
   reviserSectionTitle,
   reviserSubtitle,
+  reviserTitle,
   themeLigneFor,
   REVISER_RENFORCER_NOTE,
   REVISER_RENFORCER_NOTE_TITLE,
@@ -201,7 +201,9 @@ export function ReviserScreen({
 
   return (
     <SejourApp wide>
-      <Top title={REVISER_TITLE} />
+      {/* 🛑 Le titre nomme le PARCOURS, pas l'écran (demande du propriétaire,
+          2026-09-13) — divergence voulue avec le mobile, cf. `reviserTitle`. */}
+      <Top title={reviserTitle(module)} />
       <Pad>
         <p className={styles.sub}>{reviserSubtitle(module)}</p>
       </Pad>
