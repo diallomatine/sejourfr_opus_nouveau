@@ -1,7 +1,6 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.enums.PlanSkillStepState;
-import com.sejourfr.app.enums.SkillMasteryState;
 
 /**
  * <b>Ou en est l'etape d'une competence</b>, ecrit <b>une seule fois</b>.
@@ -15,9 +14,22 @@ import com.sejourfr.app.enums.SkillMasteryState;
  * l'appareil.
  *
  * <p><b>Derive a la lecture, jamais persiste</b>, comme tout ce qui l'alimente :
- * l'etat agrege vient de {@link SkillMasteryEngine}, la progression d'etape de
- * {@link SkillProgressCounter}, et « la verification a-t-elle ete rendue ? » de
- * {@code SkillMastery.verificationSubmitted()} — la seule autorite sur ce fait.
+ * tout vient de {@link SkillMasteryEngine.SkillMastery} — « le transfert est-il
+ * prouve ? » ({@code transferProven}) et « la verification a-t-elle ete
+ * rendue ? » ({@code verificationSubmitted}) — et la progression d'etape de
+ * {@link SkillProgressCounter}.
+ *
+ * <h2>🛑 « Acquis » se lit sur transferProven, PAS sur SOLID</h2>
+ * C'est la <b>meme</b> autorite que celle qui range une etape dans
+ * {@code completedSteps} ({@code LearningPlanPriorityResolver.franchies} lit
+ * {@code transferProven}). Elle a vecu en deux exemplaires : une compétence dont
+ * le transfert etait prouve sans atteindre {@code SOLID} — le parcours
+ * <b>normal</b>, 5 petits sujets puis une verification reussie, qui plafonne
+ * autour de 0,68 et n'atteint donc jamais le score {@code SOLID} — s'affichait
+ * <b>cochee</b> dans « Deja travaille et valide » et <b>cercle vide</b> dans
+ * « Votre parcours », pour la meme competence, sur le meme ecran.
+ * {@code SOLID} implique {@code transferProven} : l'un des deux etats disait
+ * donc simplement moins que l'autre.
  *
  * <p>🛑 <b>Aucune regle n'est recopiee ici</b> : cette classe ne fait
  * qu'<b>ordonner</b> des faits deja etablis ailleurs.
@@ -30,25 +42,27 @@ public final class PlanStepStateResolver {
     /**
      * L'etat d'etape, dans l'ordre de lecture de {@link PlanSkillStepState}.
      *
-     * @param masteryState          l'etat agrege, {@code null} sans observation
-     * @param step                  la progression sur les sujets de l'etape
-     * @param verificationSubmitted une production contextualisee est venue apres
-     *                              les petits sujets ({@code SkillMasteryEngine})
-     * @param courante              cette competence est celle que le Plan met en
-     *                              tete
+     * @param mastery  ce que le moteur conclut sur la competence, ou
+     *                 {@code null} / {@link SkillMasteryEngine.SkillMastery#NONE}
+     *                 sans observation exploitable
+     * @param step     la progression sur les sujets de l'etape
+     * @param courante cette competence est celle que le Plan met en tete
      */
     public static PlanSkillStepState resolve(
-            SkillMasteryState masteryState,
+            SkillMasteryEngine.SkillMastery mastery,
             LearningPlanStep.Progress step,
-            boolean verificationSubmitted,
             boolean courante) {
-        // ACQUIS ne se lit QUE sur SOLID. Une serie finie n'est pas un acquis :
-        // cinq petits sujets ne prouvent rien en situation.
-        if (masteryState == SkillMasteryState.SOLID) return PlanSkillStepState.ACQUIS;
+        SkillMasteryEngine.SkillMastery etat =
+                mastery == null ? SkillMasteryEngine.SkillMastery.NONE : mastery;
+        // ACQUIS se lit sur la MEME autorite que `completedSteps` : le transfert
+        // prouve. Une serie finie n'est pas un acquis — cinq petits sujets ne
+        // prouvent rien en situation —, mais une verification REUSSIE, si, meme
+        // quand le score agrege n'atteint pas SOLID.
+        if (etat.transferProven()) return PlanSkillStepState.ACQUIS;
         LearningPlanStep.Progress progress =
                 step == null ? LearningPlanStep.Progress.EMPTY : step;
         if (progress.completed()) {
-            return verificationSubmitted
+            return etat.verificationSubmitted()
                     ? PlanSkillStepState.SERIE_TERMINEE : PlanSkillStepState.A_VERIFIER;
         }
         // « Maintenant » passe devant « En cours » : c'est le reperage de la

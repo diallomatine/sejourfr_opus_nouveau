@@ -22,15 +22,31 @@ import org.junit.jupiter.api.Test;
 class PlanStepStateResolverTest {
 
     @Test
-    @DisplayName("SOLID, et SOLID seul, vaut ACQUIS")
+    @DisplayName("SOLID vaut ACQUIS")
     void solidVautAcquis() {
         assertThat(PlanStepStateResolver.resolve(
-                SkillMasteryState.SOLID, etape(5, 5), false, false))
+                moteur(SkillMasteryState.SOLID, true, false), etape(5, 5), false))
                 .isEqualTo(PlanSkillStepState.ACQUIS);
-        // Meme une serie entierement terminee et verifiee ne l'est pas.
+    }
+
+    /**
+     * 🛑 <b>Le defaut du 2026-09-16.</b> Le parcours normal — cinq petits sujets
+     * puis une verification reussie — prouve le transfert <b>sans</b> atteindre
+     * le score {@code SOLID} : la competence entrait dans {@code completedSteps}
+     * (« Deja travaille et valide », cochee) et ressortait « Serie terminee »
+     * dans « Votre parcours », cercle vide, sur le meme ecran.
+     */
+    @Test
+    @DisplayName("Transfert prouve sans SOLID : ACQUIS, comme dans completedSteps")
+    void leTransfertProuveVautAcquisMemeSansSolid() {
         assertThat(PlanStepStateResolver.resolve(
-                SkillMasteryState.CONSOLIDATING, etape(5, 5), true, false))
-                .isNotEqualTo(PlanSkillStepState.ACQUIS);
+                moteur(SkillMasteryState.CONSOLIDATING, true, true), etape(5, 5), false))
+                .isEqualTo(PlanSkillStepState.ACQUIS);
+        // Et meme quand l'etape n'a pas ete jouee : la preuve vient de la
+        // production complete, pas des petits sujets.
+        assertThat(PlanStepStateResolver.resolve(
+                moteur(SkillMasteryState.CONSOLIDATING, true, false), etape(5, 0), false))
+                .isEqualTo(PlanSkillStepState.ACQUIS);
     }
 
     /**
@@ -41,15 +57,15 @@ class PlanStepStateResolverTest {
     @DisplayName("5/5 sans verification rendue : la serie est terminee, la preuve manque")
     void cinqSurCinqDemandeLaVerification() {
         assertThat(PlanStepStateResolver.resolve(
-                SkillMasteryState.TO_REINFORCE, etape(5, 5), false, true))
+                moteur(SkillMasteryState.TO_REINFORCE, false, false), etape(5, 5), true))
                 .isEqualTo(PlanSkillStepState.A_VERIFIER);
     }
 
     @Test
-    @DisplayName("5/5 avec verification rendue et sans SOLID : serie terminee, le Plan avance")
-    void laVerificationRendueSansSolidTermineLaSerie() {
+    @DisplayName("Verification rendue mais transfert NON prouve : serie terminee, le Plan avance")
+    void laVerificationRendueSansTransfertTermineLaSerie() {
         assertThat(PlanStepStateResolver.resolve(
-                SkillMasteryState.CONSOLIDATING, etape(5, 5), true, false))
+                moteur(SkillMasteryState.CONSOLIDATING, false, true), etape(5, 5), false))
                 .isEqualTo(PlanSkillStepState.SERIE_TERMINEE);
     }
 
@@ -61,18 +77,18 @@ class PlanStepStateResolverTest {
     @Test
     @DisplayName("La competence en tete dit « Maintenant », meme a mi-parcours")
     void laCompetenceEnTeteDitMaintenant() {
-        assertThat(PlanStepStateResolver.resolve(null, etape(5, 2), false, true))
+        assertThat(PlanStepStateResolver.resolve(vierge(), etape(5, 2), true))
                 .isEqualTo(PlanSkillStepState.MAINTENANT);
-        assertThat(PlanStepStateResolver.resolve(null, etape(5, 0), false, true))
+        assertThat(PlanStepStateResolver.resolve(vierge(), etape(5, 0), true))
                 .isEqualTo(PlanSkillStepState.MAINTENANT);
     }
 
     @Test
     @DisplayName("Commencee sans etre en tete : en cours ; jamais touchee : a venir")
     void lesDeuxEtatsRestants() {
-        assertThat(PlanStepStateResolver.resolve(null, etape(5, 2), false, false))
+        assertThat(PlanStepStateResolver.resolve(vierge(), etape(5, 2), false))
                 .isEqualTo(PlanSkillStepState.EN_COURS);
-        assertThat(PlanStepStateResolver.resolve(null, etape(5, 0), false, false))
+        assertThat(PlanStepStateResolver.resolve(vierge(), etape(5, 0), false))
                 .isEqualTo(PlanSkillStepState.A_VENIR);
     }
 
@@ -85,10 +101,22 @@ class PlanStepStateResolverTest {
     @DisplayName("Sans aucun sujet, l'etape ne se termine jamais")
     void sansSujetAucuneSerieNeSeTermine() {
         assertThat(PlanStepStateResolver.resolve(
-                SkillMasteryState.TO_REINFORCE, LearningPlanStep.Progress.EMPTY, false, false))
+                moteur(SkillMasteryState.TO_REINFORCE, false, false),
+                LearningPlanStep.Progress.EMPTY, false))
                 .isEqualTo(PlanSkillStepState.A_VENIR);
-        assertThat(PlanStepStateResolver.resolve(null, null, false, true))
+        assertThat(PlanStepStateResolver.resolve(null, null, true))
                 .isEqualTo(PlanSkillStepState.MAINTENANT);
+    }
+
+    /** Aucune observation exploitable : on ne conclut rien, on n'invente rien. */
+    private static SkillMasteryEngine.SkillMastery vierge() {
+        return SkillMasteryEngine.SkillMastery.NONE;
+    }
+
+    private static SkillMasteryEngine.SkillMastery moteur(
+            SkillMasteryState state, boolean transferProven, boolean verificationSubmitted) {
+        return new SkillMasteryEngine.SkillMastery(
+                state, 0, 0, 0, 0, 0, false, false, transferProven, verificationSubmitted, null);
     }
 
     private static LearningPlanStep.Progress etape(int total, int traites) {

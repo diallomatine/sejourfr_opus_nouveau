@@ -582,6 +582,33 @@ String planAssessmentMeta(PlanDomainAssessment assessment) {
   return minutes == null ? nature : '$nature · ≈ $minutes min';
 }
 
+/// **Le titre d'une mesure.** Elle ne porte aucune compétence : ce qu'on vient
+/// mesurer, c'est une **épreuve entière**, et son nom est donc celui du
+/// domaine.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`PLAN_ASSESSMENT_ITEM_TITLE`,
+/// `lib/plan-domain.ts`) — ces chaînes ne transitent pas par le réseau, chaque
+/// front en tient sa copie.
+String planAssessmentItemTitle(PlanDomainAssessment assessment) =>
+    switch (assessment.epreuve) {
+      EpreuveType.tcfEe => 'Compléter mon évaluation d\'expression écrite',
+      EpreuveType.tcfEo => 'Compléter mon évaluation d\'expression orale',
+      EpreuveType.tcfCo => 'Compléter mon évaluation de compréhension orale',
+      EpreuveType.tcfCe => 'Compléter mon évaluation de compréhension écrite',
+      // Le serveur ne mesure que les quatre domaines ; une épreuve hors de
+      // cette liste se nomme sans qu'on lui invente un intitulé.
+      _ => 'Compléter mon évaluation — ${planDomainLabel(assessment.epreuve)}',
+    };
+
+/// **Pourquoi une mesure passe devant.** Miroir mot pour mot du web
+/// (`PLAN_REASON_A_EVALUER`).
+///
+/// 🛑 Elle ne nomme **aucune faute** : il manque une mesure, pas quelque chose
+/// à réparer.
+const String kPlanReasonAEvaluer =
+    'Une de vos productions n\'a pas pu être analysée : votre séance commence '
+    'par la mesurer, sinon tout ce qui suit avance à l\'aveugle.';
+
 /* ------------------------------------------------------- ce qui a changé    */
 
 const String kPlanChangesDetail = 'Voir le détail';

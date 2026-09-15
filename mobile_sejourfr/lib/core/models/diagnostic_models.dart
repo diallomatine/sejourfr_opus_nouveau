@@ -277,12 +277,20 @@ enum PlanActionNature {
 /// compteur en état pédagogique.
 ///
 /// 🛑 **[serieTerminee] n'est pas [acquis]** : cinq petits sujets traités ne
-/// prouvent rien en situation. Seul `SkillMasteryState.solid` vaut « acquis ».
+/// prouvent rien en situation. Seule une **preuve de transfert** vaut
+/// « acquis ».
+///
+/// 🛑 **[acquis] n'est PAS `masteryState == solid`.** Le serveur le résout sur
+/// `transferProven`, la **même** autorité qui range une étape dans
+/// `completedSteps` — `solid` n'en est qu'un cas particulier. C'est ce qui
+/// garantit qu'une compétence cochée dans « Déjà travaillé et validé » l'est
+/// aussi dans « Votre parcours » : elles disaient le contraire l'une de l'autre
+/// jusqu'au 2026-09-16.
 ///
 /// L'ordre de déclaration **est** l'ordre de lecture. Libellés **gelés côté
 /// serveur** (`SkillLabelsTest`), recopiés mot pour mot.
 enum PlanSkillStepState {
-  /// `masteryState == solid` : la maîtrise est prouvée en situation.
+  /// Le transfert est prouvé : la maîtrise est démontrée en situation.
   acquis('ACQUIS', 'Acquis'),
 
   /// Les 5 petits sujets sont traités, la vérification n'est pas rendue.

@@ -454,9 +454,15 @@ public class SkillMasteryEngine {
             boolean vigilance,
             /**
              * Le transfert de cette competence est <b>prouve</b> : elle sort des
-             * priorites du Plan et son etape est <b>franchie</b>. Signal interne,
-             * lu par {@link LearningPlanPriorityResolver} et par lui seul ; il
-             * n'est expose a aucun front, qui lisent {@code state}.
+             * priorites du Plan et son etape est <b>franchie</b>.
+             *
+             * <p>Deux lecteurs, <b>une</b> regle : {@link LearningPlanPriorityResolver}
+             * (qui en fait {@code completedSteps}) et {@link PlanStepStateResolver}
+             * (qui en fait {@code PlanSkillStepState.ACQUIS}). Il n'est expose
+             * <b>brut</b> a aucun front — ils lisent {@code state} et
+             * {@code stepState} —, mais les deux surfaces qui disent « acquis »
+             * doivent le lire lui, sans quoi la meme competence s'affiche cochee
+             * d'un cote et vide de l'autre.
              */
             boolean transferProven,
             /**

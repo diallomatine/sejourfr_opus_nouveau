@@ -952,6 +952,65 @@ class LearningPlanServiceTest {
     }
 
     /**
+     * 🛑 <b>Une etape franchie est COCHEE dans le parcours, pas seulement dans
+     * « Deja travaille et valide ».</b>
+     *
+     * <p>Defaut constate le 2026-09-16 : trois competences de la tache affichee
+     * portaient la coche verte dans « Deja travaille et valide » et un
+     * <b>cercle vide</b> dans « Votre parcours — Tache 1 », sur le meme ecran.
+     * Deux autorites repondaient a « cette competence est-elle acquise ? » —
+     * {@code transferProven} pour {@code completedSteps},
+     * {@code masteryState == SOLID} pour {@code stepState} — et le parcours
+     * <b>normal</b> les separe : cinq micro-entrainements reussis (ecrits
+     * {@code TO_REINFORCE}, valeur 0,5) puis une verification reussie plafonnent
+     * sous {@code solid-score}, donc {@code CONSOLIDATING}, alors que la preuve
+     * de transfert, elle, est bien la.
+     *
+     * <p>L'invariant verrouille ici est le seul qui vaille : <b>tout ce qui est
+     * dans {@code completedSteps} est {@code ACQUIS} dans {@code domaines[].skills}</b>.
+     */
+    @Test
+    void uneEtapeFranchieEstAcquiseDansLeParcoursMemeSansSolid() {
+        DiagnosticSession completed = new DiagnosticSession();
+        completed.setId(UUID.randomUUID());
+        completed.setCompletedAt(Instant.now());
+        Skill franchie = skill("EE1-C1");
+        Instant now = Instant.now();
+        List<LearningPlanObservation> historique = new ArrayList<>();
+        // Le parcours normal : les 5 petits sujets valides, puis la verification
+        // en situation, reussie. Aucun de ces faits ne suffit a SOLID.
+        for (int rang = 0; rang < 5; rang++) {
+            historique.add(observation(franchie, LearningPlanSkillStatus.TO_REINFORCE,
+                    now.minusSeconds(600L - rang), LearningPlanSourceType.SKILL_TRAINING,
+                    UUID.randomUUID()));
+        }
+        historique.add(observation(franchie, LearningPlanSkillStatus.SOLID, now,
+                LearningPlanSourceType.PRODUCTION_EE, UUID.randomUUID()));
+        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.of(completed));
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(historique);
+        when(observationManager.countSince(any(), any())).thenReturn(6L);
+        when(skillManager.findActiveExpression()).thenReturn(List.of(franchie));
+        stubExercisesForEverySkill();
+
+        var result = service.get(userId);
+
+        // Le moteur n'a PAS conclu SOLID — c'est tout l'interet du cas.
+        assertThat(result.completedSteps()).singleElement().satisfies(step -> {
+            assertThat(step.skillCode()).isEqualTo("EE1-C1");
+            assertThat(step.masteryState()).isNotEqualTo(SkillMasteryState.SOLID);
+        });
+        // ... et la ligne de « Votre parcours » la coche quand meme.
+        assertThat(result.domaines())
+                .filteredOn(domaine -> domaine.epreuve() == EpreuveType.TCF_EE)
+                .singleElement()
+                .satisfies(domaine -> assertThat(domaine.skills())
+                        .filteredOn(competence -> competence.skillId().equals(franchie.getId()))
+                        .singleElement()
+                        .satisfies(competence -> assertThat(competence.stepState())
+                                .isEqualTo(PlanSkillStepState.ACQUIS)));
+    }
+
+    /**
      * Non-regression : sortir des priorites n'est <b>pas</b> devenir {@code SOLID}
      * au sens du moteur. Le jalon continue de voir exactement les memes
      * competences qu'avant — son declencheur d'epreuve compte les competences

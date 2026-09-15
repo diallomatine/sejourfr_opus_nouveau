@@ -300,6 +300,12 @@ class PlanTcfView extends ConsumerWidget {
     // travaillerait à l'aveugle. Miroir exact du web (`ActionMaintenant`) —
     // aucune règle n'est décidée ici, on lit la séance servie et on exécute.
     final mesure = planSeanceMesure(plan);
+    // 🛑 **La carte annonce ce qu'elle LANCE.** Quand une mesure prend le pas,
+    // c'est SON identité qui s'affiche — son domaine, son parcours, sa
+    // pastille. Elle empruntait celle de `priority` : le candidat lisait une
+    // tâche d'expression orale et atterrissait dans l'examen blanc de
+    // compréhension orale de la mesure.
+    final mesureDomaine = mesure?.assessment;
     final epreuve = planEpreuveOfSection(priority.section);
     final task = SkillTaskCode.fromSkillCode(priority.skillCode);
     final level = planSkillTargetLevel(plan, priority.skillId);
@@ -313,7 +319,8 @@ class PlanTcfView extends ConsumerWidget {
     // et son libellé changeaient, le candidat lirait « rien n'a bougé » alors
     // que l'action a changé de nature. Elle se lit sur la nature **servie**,
     // jamais sur un compteur.
-    final verifier = priority.nature == PlanActionNature.aVerifier &&
+    final verifier = mesureDomaine == null &&
+        priority.nature == PlanActionNature.aVerifier &&
         exercise?.kind == PlanExerciseKind.reassessment;
 
     final minutes = mesure != null
@@ -336,30 +343,48 @@ class PlanTcfView extends ConsumerWidget {
             : '≈ $minutes min',
       ));
     }
-    final kind = planExerciseKindLabel(
-      exercise?.kind,
-      questionCount: exercise?.questionCount,
-    );
+    // Sur une mesure, la nature du parcours réellement lancé est portée par le
+    // sous-titre : nommer ici l'exercice de la priorité redirait le contraire.
+    final kind = mesureDomaine != null
+        ? null
+        : planExerciseKindLabel(
+            exercise?.kind,
+            questionCount: exercise?.questionCount,
+          );
     if (kind != null) meta.add(SfMeta(LucideIcons.target, kind));
 
     return SfNowCard(
       variant: verifier ? SfNowCardVariant.verify : SfNowCardVariant.standard,
-      icon: verifier ? LucideIcons.badgeCheck : planDomainIcon(epreuve),
+      icon: mesureDomaine != null
+          ? planDomainIcon(mesureDomaine.epreuve)
+          : verifier
+              ? LucideIcons.badgeCheck
+              : planDomainIcon(epreuve),
       // 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
       // titre avant 5/5 et en sous-titre sur la vérification, dont le titre
       // nomme l'ACTION — jamais aux deux endroits à la fois, et jamais une
       // troisième fois dans l'encart bleu.
-      title: verifier ? kPlanNowVerifyTitle : priority.title,
-      subtitle: verifier
-          ? planNowVerifySubtitle(priority.title, task)
-          : planNowSubtitle(
-              domaine: epreuve == null
-                  ? priority.section.label
-                  : planDomainLabel(epreuve),
-              task: task,
-              level: level,
-            ),
-      badge: planPriorityRankTag(1),
+      title: mesureDomaine != null
+          ? planAssessmentItemTitle(mesureDomaine)
+          : verifier
+              ? kPlanNowVerifyTitle
+              : priority.title,
+      subtitle: mesureDomaine != null
+          ? planAssessmentNature(mesureDomaine)
+          : verifier
+              ? planNowVerifySubtitle(priority.title, task)
+              : planNowSubtitle(
+                  domaine: epreuve == null
+                      ? priority.section.label
+                      : planDomainLabel(epreuve),
+                  task: task,
+                  level: level,
+                ),
+      // 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa **nature**
+      // servie, celle que le serveur a posée sur l'item de séance.
+      badge: mesureDomaine != null
+          ? PlanActionNature.aEvaluer.label
+          : planPriorityRankTag(1),
       objectiveLabel: verifier ? kPlanNowVerifyObjectiveLabel : null,
       objective: verifier ? kPlanNowVerifyText : null,
       meta: meta,
@@ -383,8 +408,14 @@ class PlanTcfView extends ConsumerWidget {
       ),
       // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
       // la série. Concaténées, la seconde se lisait comme la suite de la
-      // première phrase.
-      caption: lines.isEmpty ? null : lines.join('\n'),
+      // première phrase. Sur une mesure, elles parleraient d'une AUTRE
+      // compétence que celle que le bouton va ouvrir : c'est le motif de la
+      // mesure qui se dit.
+      caption: mesureDomaine != null
+          ? kPlanReasonAEvaluer
+          : lines.isEmpty
+              ? null
+              : lines.join('\n'),
     );
   }
 
@@ -445,7 +476,6 @@ class PlanTcfView extends ConsumerWidget {
     final groups = planPriorityGroups(plan);
     if (groups.isEmpty) return const <Widget>[];
     final shown = groups.take(3).toList(growable: false);
-    final done = _completedIds();
     // 🛑 RÉTRACTABLES DÈS QU'IL Y EN A PLUS D'UN (2026-09-13, demande du
     // propriétaire). Une priorité seule n'a aucune raison de se replier : elle
     // EST l'écran. À partir de deux, trois encarts de huit compétences empilés
@@ -459,7 +489,7 @@ class PlanTcfView extends ConsumerWidget {
         child: SfStack(
           children: [
             for (var i = 0; i < shown.length; i++)
-              _priorityCard(shown[i], i + 1, done,
+              _priorityCard(shown[i], i + 1,
                   free: free, repliable: repliables),
           ],
         ),
@@ -469,8 +499,7 @@ class PlanTcfView extends ConsumerWidget {
 
   Widget _priorityCard(
     PlanPriorityGroup group,
-    int rank,
-    Set<String> done, {
+    int rank, {
     required bool free,
     bool repliable = false,
   }) {
@@ -500,7 +529,7 @@ class PlanTcfView extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final row in group.foldedRows)
-                  SfSkillRow(label: row.title, state: _rowState(row, done)),
+                  SfSkillRow(label: row.title, state: _rowState(row)),
               ],
             )
           : null,
@@ -515,7 +544,7 @@ class PlanTcfView extends ConsumerWidget {
                     semanticsLabel: planTaskObservedLabel(dto),
                   ),
                 for (final row in visibles)
-                  SfSkillRow(label: row.title, state: _rowState(row, done)),
+                  SfSkillRow(label: row.title, state: _rowState(row)),
                 // Encart rétractable : le reste est derrière le bouton, pas
                 // derrière une ligne de texte inerte.
                 if (!replie && group.hiddenCount > 0) ...[
@@ -674,12 +703,17 @@ class PlanTcfView extends ConsumerWidget {
 
   /* ------------------------------------------------------------ lecture --- */
 
-  Set<String> _completedIds() =>
-      plan.completedSteps.map((step) => step.skillId).toSet();
-
-  SfStepState _rowState(PlanPriorityGroupRow row, Set<String> done) {
+  /// 🛑 **La coche d'une ligne de priorité se lit sur le STATUT SERVI de la
+  /// ligne, et sur rien d'autre** — miroir strict de `PriorityCard` côté web
+  /// (`LearningPlanView.tsx` : `row.status === "SOLIDE" ? "done" : "todo"`).
+  ///
+  /// Elle croisait aussi `plan.completedSteps` — la liste des **étapes
+  /// franchies**, qui sert la carte « Déjà travaillé et validé » : deux règles
+  /// pour la même coche, donc deux encarts de priorités différents pour le même
+  /// candidat selon le front. Une étape franchie n'est pas un statut de ligne,
+  /// et le serveur publie déjà celui-ci.
+  SfStepState _rowState(PlanPriorityGroupRow row) {
     if (row.skillId == plan.currentPriority?.skillId) return SfStepState.now;
-    if (done.contains(row.skillId)) return SfStepState.done;
     return row.status == PlanRowStatus.solide
         ? SfStepState.done
         : SfStepState.todo;

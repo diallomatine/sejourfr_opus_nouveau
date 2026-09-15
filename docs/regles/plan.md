@@ -1693,15 +1693,27 @@ l'ordre de lecture : `ACQUIS` « Acquis » · `A_VERIFIER` « Série terminée �
 vérifier » · `SERIE_TERMINEE` « Série terminée » · `MAINTENANT` « Maintenant » ·
 `EN_COURS` « En cours » · `A_VENIR` « À venir ».
 
-- **Autorité unique `PlanStepStateResolver`** : `SOLID` ⇒ `ACQUIS` ; sinon étape
-  terminée ⇒ `SERIE_TERMINEE` (vérification rendue) ou `A_VERIFIER` ; sinon la
+- **Autorité unique `PlanStepStateResolver`** : `transferProven` ⇒ `ACQUIS` ; sinon
+  étape terminée ⇒ `SERIE_TERMINEE` (vérification rendue) ou `A_VERIFIER` ; sinon la
   compétence en tête ⇒ `MAINTENANT` ; sinon commencée ⇒ `EN_COURS` ; sinon
   `A_VENIR`. Deux lecteurs, une règle : `LearningPlanPriorityDto.stepState` et
   `PlanDomainSkillDto.stepState`.
+- 🛑 **`ACQUIS` se lit sur `SkillMastery.transferProven`, PAS sur `masteryState ==
+  SOLID`** (correctif du **2026-09-16**). C'est la **même** autorité que celle qui
+  range une étape dans `completedSteps` (`LearningPlanPriorityResolver.franchies`),
+  et `SOLID` n'en est qu'un cas particulier. Les deux avaient divergé, et le
+  parcours **normal** les sépare : cinq micro-entraînements réussis (écrits
+  `TO_REINFORCE`, valeur 0,5) puis une vérification réussie plafonnent autour de
+  0,68, donc sous `solid-score` — la compétence était **cochée** dans « Déjà
+  travaillé et validé » et affichée **cercle vide** dans « Votre parcours — Tâche N »,
+  au même moment, sur le même écran. Invariant verrouillé par
+  `LearningPlanServiceTest.uneEtapeFranchieEstAcquiseDansLeParcoursMemeSansSolid` :
+  **tout ce qui est dans `completedSteps` est `ACQUIS` dans `domaines[].skills`**.
 - 🛑 **`SERIE_TERMINEE` n'est PAS `ACQUIS`.** Cinq petits sujets traités ne prouvent
-  rien en situation : seul `SOLID` vaut « acquis », et un front qui cocherait une
-  série finie annoncerait une maîtrise que rien n'a mesurée. Verrouillé par
-  `SkillLabelsTest` (les deux libellés diffèrent) et par `PlanStepStateResolverTest`.
+  rien en situation : seule une **preuve de transfert** vaut « acquis », et un front
+  qui cocherait une série finie annoncerait une maîtrise que rien n'a mesurée.
+  Verrouillé par `SkillLabelsTest` (les deux libellés diffèrent) et par
+  `PlanStepStateResolverTest`.
 - 🛑 **Aucun palier CECRL ne s'y accroche** : « Acquis · B1 » n'existe pas. Le palier
   d'une compétence est notre palier **pédagogique interne** et s'affiche à part,
   « Niveau visé B1 ». `SkillLabelsTest` interdit `A2`/`B1`/`B2` dans ces libellés.
@@ -1742,3 +1754,36 @@ vérifier » · `SERIE_TERMINEE` « Série terminée » · `MAINTENANT` « Maint
   par la fiche de compétence. ⚠️ **Une MESURE passe encore devant** sur le web
   (item `A_EVALUER` de la séance) : c'est le seul cas où le bouton ne lance pas
   l'étape, et c'est le seul chemin vers `usePlanAssessment` depuis cet écran.
+
+### Quand la mesure passe devant, la carte porte SON identité (2026-09-16)
+
+🛑 **La carte « À faire maintenant » annonce ce que son bouton LANCE.** La
+précédence de la mesure n'est pas en cause — c'est l'**identité empruntée** qui
+l'était : titre, sous-titre, pastille et constat venaient de `currentPriority`
+(« Raconter brièvement une expérience passée — Expression orale · Tâche 1 ·
+Priorité 1 ») pendant que « Compléter la mesure » ouvrait l'examen blanc de
+**compréhension orale** de la séance. Deux objets servis, légitimes tous les
+deux, et une carte qui montrait l'un pour lancer l'autre.
+
+Dès qu'une mesure prend le pas, **tout ce qui identifie la carte vient d'elle**,
+des deux côtés dans la même passe (`_nowCard` ⇄ `ActionMaintenant`) :
+
+| élément | ce qu'il devient |
+|---|---|
+| icône | celle du **domaine mesuré** (`assessment.epreuve`) |
+| titre | `planAssessmentItemTitle` / `PLAN_ASSESSMENT_ITEM_TITLE` — « Compléter mon évaluation de compréhension orale » |
+| sous-titre | `planAssessmentNature` — le parcours réel (« Examen blanc n°1 ») |
+| pastille | la **nature servie** `A_EVALUER` (« À évaluer »), jamais « Priorité 1 » |
+| méta | les minutes de la mesure, **sans** « 5 petits sujets » ni la nature de l'exercice de la priorité |
+| constat | `PLAN_REASON_A_EVALUER` / `kPlanReasonAEvaluer`, jamais `planNowLines(priority)` |
+| variante | **jamais** `verify` : une mesure n'est pas une vérification |
+
+- **Le CTA et le lancement ne bougent pas** : « Compléter la mesure » →
+  `startPlanSeanceItem` / `usePlanAssessment`, l'autorité unique.
+- 🛑 **Le fait lu est `assessment`, jamais l'absence d'exercice.** Côté mobile,
+  un **jalon** n'a pas non plus d'`exercise` (il vit dans `milestone`) :
+  `planSeanceMesure` testait `exercise == null` et pouvait donc rendre un examen
+  blanc de jalon sous le nom d'une mesure. Le web est protégé par son union
+  discriminée (`PlanSeanceAssessmentItemDto`), le mobile par ce test.
+- **Le plan GRATUIT n'est pas concerné** : sa carte ne lance rien, elle
+  constate — elle garde l'étape nommée et ses trois bénéfices verrouillés.

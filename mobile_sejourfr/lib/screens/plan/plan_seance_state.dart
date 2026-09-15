@@ -45,9 +45,14 @@ bool planSeanceItemDone(PlanSeanceItem item, {DateTime? now}) {
 /// ⚠️ **Miroir du web** (`ActionMaintenant`, `LearningPlanView.tsx`) : le
 /// backend peut servir une action que la carte doit savoir exécuter, et aucun
 /// des deux fronts ne doit rester sans chemin pour elle.
+/// 🛑 **Le fait lu est `assessment`, jamais l'absence d'exercice.** Un **jalon**
+/// n'a pas non plus d'`exercise` côté mobile (il vit dans `milestone`) : le
+/// tester par `exercise == null` rendait un examen blanc de jalon sous le nom
+/// d'une mesure. Côté web, l'union discriminée l'interdit par construction —
+/// ici c'est ce test qui en tient lieu.
 PlanSeanceItem? planSeanceMesure(LearningPlan plan) {
   for (final item in plan.seance.items) {
-    if (!planSeanceItemDone(item) && item.exercise == null) return item;
+    if (!planSeanceItemDone(item) && item.assessment != null) return item;
   }
   return null;
 }

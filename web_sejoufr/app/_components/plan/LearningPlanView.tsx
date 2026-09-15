@@ -31,8 +31,12 @@ import {
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
+  PLAN_DOMAIN_SECTION,
   PLAN_NOW_VERIFY_TEXT,
   PLAN_NOW_VERIFY_TITLE,
+  PLAN_REASON_A_EVALUER,
+  planAssessmentItemTitle,
+  planAssessmentNature,
   PLAN_SKILLS_HREF,
   PLAN_SKILLS_TITLE,
   PLAN_STARTING,
@@ -66,6 +70,7 @@ import {
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type ModulePreparation,
+  PLAN_ACTION_NATURE_LABEL,
   type PlanCycleDto,
   type PlanSeanceAssessmentItemDto,
   type SkillSection,
@@ -532,6 +537,14 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
       !planSeanceItemDone(item) && item.exercise === null,
   ) ?? null;
 
+  /* 🛑 **La carte annonce ce qu'elle LANCE.** Quand la mesure prend le pas,
+     c'est SON identité qui s'affiche — son domaine, son parcours, sa pastille.
+     Elle empruntait celle de `priority` : le candidat lisait une tâche
+     d'expression orale et atterrissait dans l'examen blanc de compréhension
+     orale de la mesure. Le plan **gratuit** n'est pas concerné — sa carte ne
+     lance rien, elle constate. */
+  const mesureCard = free ? null : mesure;
+
   if (!priority) return null;
 
   const exercise = priority.recommendedExercise;
@@ -549,7 +562,8 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
      son libellé changeaient, le candidat lirait « rien n'a bougé » alors que
      l'action a changé de nature. Elle se lit sur la nature **servie**, jamais
      sur un compteur. */
-  const verifier = priority.nature === "A_VERIFIER" && exercise?.kind === "REASSESSMENT";
+  const verifier = mesureCard === null
+    && priority.nature === "A_VERIFIER" && exercise?.kind === "REASSESSMENT";
   const tache = skillTaskNumber(priority.skillCode);
 
   const busy = starting || assessments.starting !== null;
@@ -568,12 +582,14 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
       /* « chacun » : les minutes sont celles d'UN sujet, pas de la série
          entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour
          les cinq. */
-      label: !verifier && priority.stepPromptCount > 0
+      label: mesure === null && !verifier && priority.stepPromptCount > 0
         ? `${priority.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
         : `≈ ${minutes} min`,
     });
   }
-  if (exercise) {
+  /* Sur une mesure, la nature du parcours réellement lancé est portée par le
+     sous-titre : nommer ici l'exercice de la priorité dirait le contraire. */
+  if (exercise && mesure === null) {
     meta.push({
       icon: Target,
       label: planExerciseKindLabel(
@@ -597,29 +613,48 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
     <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
       <Pad>
         <NowCard
-          icon={verifier ? BadgeCheck : SECTION_ICON[priority.section]}
+          icon={
+            mesureCard
+              ? SECTION_ICON[PLAN_DOMAIN_SECTION[mesureCard.assessment.epreuve]]
+              : verifier ? BadgeCheck : SECTION_ICON[priority.section]
+          }
           variant={verifier && !free ? "verify" : "default"}
           /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit
              en titre avant 5/5 et en sous-titre sur la vérification, dont le
              titre nomme l'ACTION — jamais aux deux endroits à la fois, et
              jamais une troisième fois dans l'encart bleu. */
-          title={verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title}
-          subtitle={
-            free
-              ? priority.title
-              : verifier
-                ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
-                : `${productionSectionLabel(priority.section)} · ${repere}`
+          title={
+            mesureCard
+              ? planAssessmentItemTitle(mesureCard.assessment)
+              : verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title
           }
-          badge={free ? undefined : "Priorité n°1"}
+          subtitle={
+            mesureCard
+              ? planAssessmentNature(mesureCard.assessment)
+              : free
+                ? priority.title
+                : verifier
+                  ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
+                  : `${productionSectionLabel(priority.section)} · ${repere}`
+          }
+          /* 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa
+             **nature** servie, celle que le serveur a posée sur l'item. */
+          badge={mesureCard
+            ? PLAN_ACTION_NATURE_LABEL.A_EVALUER
+            : free ? undefined : "Priorité n°1"}
           objectiveLabel={verifier && !free ? "Vérification en situation" : undefined}
           objective={verifier && !free ? PLAN_NOW_VERIFY_TEXT : undefined}
           meta={free ? [] : meta}
         >
           {/* Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en
               est la série. Concaténées, la seconde se lisait comme la suite de
-              la première phrase. */}
-          {!free && lines.map((line: string) => (
+              la première phrase. Sur une mesure, elles parleraient d'une AUTRE
+              compétence que celle que le bouton ouvre : c'est le motif de la
+              mesure qui se dit. */}
+          {mesureCard && (
+            <p className={sejourStyles.tiny}>{PLAN_REASON_A_EVALUER}</p>
+          )}
+          {!free && !mesureCard && lines.map((line: string) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
           {(free || actionLocked) && (
@@ -631,7 +666,7 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
           )}
           {!free && !actionLocked && (
             <Cta onClick={startNext} disabled={busy}>
-              {busy ? PLAN_STARTING : planNowCta(priority, verifier, mesure !== null)}
+              {busy ? PLAN_STARTING : planNowCta(priority, verifier, mesureCard !== null)}
             </Cta>
           )}
         </NowCard>

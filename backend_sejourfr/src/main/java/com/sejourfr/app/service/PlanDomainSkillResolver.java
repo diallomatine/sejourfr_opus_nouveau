@@ -136,15 +136,16 @@ public class PlanDomainSkillResolver {
                         ? SkillProgressCounter.SkillProgress.EMPTY
                         : progress.getOrDefault(
                                 skill.getId(), SkillProgressCounter.SkillProgress.EMPTY);
+                SkillMasteryEngine.SkillMastery moteur = mastery.getOrDefault(
+                        skill.getId(), SkillMasteryEngine.SkillMastery.NONE);
                 SkillMasteryState etat = etat(observation, mastery, skill.getId());
                 // L'ETAT D'ETAPE vient de son unique autorite, jamais d'un
                 // compteur relu ici : les fronts le recopiaient chacun a leur
-                // facon et montraient deux parcours differents.
+                // facon et montraient deux parcours differents. Elle lit le
+                // MOTEUR entier — donc le meme `transferProven` qui range
+                // l'etape dans `completedSteps` —, jamais le seul etat agrege.
                 PlanSkillStepState stepState = PlanStepStateResolver.resolve(
-                        etat, counts.step(),
-                        mastery.getOrDefault(skill.getId(),
-                                SkillMasteryEngine.SkillMastery.NONE).verificationSubmitted(),
-                        skill.getId().equals(courante));
+                        moteur, counts.step(), skill.getId().equals(courante));
                 skills.add(new PlanDomainSkillDto(
                         skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
                         skill.getTaskCode(), tacheNumero(skill.getTaskCode()),

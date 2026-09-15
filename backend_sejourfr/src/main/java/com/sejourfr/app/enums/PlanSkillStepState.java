@@ -22,9 +22,16 @@ package com.sejourfr.app.enums;
  *
  * <p>🛑 <b>{@link #SERIE_TERMINEE} n'est pas {@link #ACQUIS}.</b> Cinq petits
  * sujets traites ne prouvent rien en situation — c'est tout le principe du
- * module. Seul {@code SkillMasteryState.SOLID} vaut « acquis », et il reclame
- * une production contextualisee. Ne jamais cocher une serie finie comme un
- * acquis.
+ * module. Seul le <b>transfert prouve</b> vaut « acquis », et il reclame une
+ * production contextualisee. Ne jamais cocher une serie finie comme un acquis.
+ *
+ * <p>🛑 <b>« Acquis » se lit sur {@code SkillMastery.transferProven}</b>, la
+ * <b>meme</b> autorite qui range une etape dans {@code completedSteps} — et non
+ * sur le seul {@code SkillMasteryState.SOLID}, qui en est un cas particulier.
+ * Les deux ont diverge : le parcours normal (5 petits sujets puis une
+ * verification reussie) prouve le transfert sans atteindre le score
+ * {@code SOLID}, et la meme competence s'affichait <b>cochee</b> dans « Deja
+ * travaille et valide » et <b>cercle vide</b> dans « Votre parcours ».
  *
  * <p>🛑 <b>Aucun palier CECRL ne s'y accroche</b> : on n'ecrit jamais
  * « Acquis · B1 ». Le palier d'une competence est notre palier <b>pedagogique
@@ -42,7 +49,12 @@ package com.sejourfr.app.enums;
  */
 public enum PlanSkillStepState {
 
-    /** {@code SkillMasteryState.SOLID} : la maitrise est prouvee en situation. */
+    /**
+     * {@code SkillMastery.transferProven} : la maitrise est prouvee en
+     * situation — soit par l'etat agrege {@code SOLID}, soit par une reussite
+     * contextualisee recente. Exactement ce qui range l'etape dans
+     * {@code completedSteps}.
+     */
     ACQUIS("Acquis"),
 
     /**

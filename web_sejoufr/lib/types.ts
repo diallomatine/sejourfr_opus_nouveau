@@ -1324,12 +1324,19 @@ export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
  * compteur en état pédagogique.
  *
  * 🛑 **`SERIE_TERMINEE` n'est pas `ACQUIS`** : cinq petits sujets traités ne
- * prouvent rien en situation. Seul `SOLID` vaut « acquis ».
+ * prouvent rien en situation. Seule une **preuve de transfert** vaut « acquis ».
+ *
+ * 🛑 **`ACQUIS` n'est PAS `masteryState === "SOLID"`.** Le serveur le résout sur
+ * `transferProven`, la **même** autorité qui range une étape dans
+ * `completedSteps` — `SOLID` n'en est qu'un cas particulier. C'est ce qui
+ * garantit qu'une compétence cochée dans « Déjà travaillé et validé » l'est
+ * aussi dans « Votre parcours » : elles disaient le contraire l'une de l'autre
+ * jusqu'au 2026-09-16.
  *
  * L'ordre de déclaration **est** l'ordre de lecture.
  */
 export type PlanSkillStepState =
-    /** `masteryState === "SOLID"` : la maîtrise est prouvée en situation. */
+    /** Le transfert est prouvé : la maîtrise est démontrée en situation. */
     | "ACQUIS"
     /** Les 5 petits sujets sont traités, la vérification n'est pas rendue. */
     | "A_VERIFIER"

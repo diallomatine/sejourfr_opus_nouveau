@@ -675,8 +675,7 @@ public class LearningPlanService {
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
                 mastery.state(),
-                PlanStepStateResolver.resolve(mastery.state(), step,
-                        mastery.verificationSubmitted(), courante),
+                PlanStepStateResolver.resolve(mastery, step, courante),
                 // Le signal du moteur reste SERVI — il nuance le texte de la
                 // carte — mais il ne commande plus la bascule. Sa DEFINITION
                 // ne bouge pas : le moteur ET l'etape terminee, exactement la
@@ -714,7 +713,8 @@ public class LearningPlanService {
                 step.promptCount(), step.attemptedCount(), step.validatedCount(),
                 step.completed(), step.promptIds(),
                 null,
-                PlanStepStateResolver.resolve(null, step, false, courante),
+                PlanStepStateResolver.resolve(
+                        SkillMasteryEngine.SkillMastery.NONE, step, courante),
                 false, locked);
     }
 
