@@ -53,7 +53,10 @@ import java.util.UUID;
  * dépôt — et l'objectif de {@link TcfDiagnosticService#cible(User)}, seule
  * autorité de la table démarche → palier. Le sens d'une évolution vient de
  * {@link TcfDiagnosticProgressionResolver#evolution}, écrit pour cet écran (L7).
- * Cet écran <b>assemble</b>, il ne mesure pas.
+ * Le statut d'une épreuve <b>face à l'objectif</b> vient de
+ * {@link StatutObjectifResolver} — une comparaison de deux paliers déjà servis,
+ * faite <b>serveur</b> pour qu'aucun front ne classe un niveau CECRL. Cet écran
+ * <b>assemble</b>, il ne mesure pas.
  *
  * <p>🛑 <b>Il ne sert aucun pourcentage de progression vers un palier</b>
  * ({@code 30_} §7, règle explicite) : un palier CECRL n'est pas une barre.
@@ -95,6 +98,7 @@ public class ProgressService {
     private final SkillMasteryResolver masteryResolver;
     private final SubscriptionService subscriptionService;
     private final ActiviteResolver activiteResolver;
+    private final StatutObjectifResolver statutObjectifResolver;
 
     @Transactional(readOnly = true)
     public ProgressDto progres(UUID userId) {
@@ -161,7 +165,11 @@ public class ProgressService {
                     epreuve, actuel, initial,
                     // 🛑 INCONNUE n'est pas STABLE : une epreuve non evaluee
                     // d'un cote n'a ni progresse ni tenu.
-                    TcfDiagnosticProgressionResolver.evolution(initial, actuel)));
+                    TcfDiagnosticProgressionResolver.evolution(initial, actuel),
+                    // 🛑 Le statut vers l'objectif est DERIVE SERVEUR, a partir
+                    // des deux paliers deja servis : aucun front ne compare des
+                    // niveaux CECRL lui-meme.
+                    statutObjectifResolver.resoudre(actuel, objectif)));
         }
 
         return new ProgressDto.Tcf(
