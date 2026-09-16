@@ -1222,13 +1222,14 @@ const homeStyles = `
     line-height: 1.2;
     color: var(--color-ink);
   }
-  /* Deux cartes par rangée dès qu'il y a la place, une seule sur un téléphone.
-     🛑 Pas de colonne fixe : auto-fit + minmax est le repli que le kit emploie
-     déjà pour les compteurs, et il tient de 360 px au desktop sans borne
-     nouvelle. */
+  /* 🛑 **Deux colonnes DÈS 360 px**, comme la maquette du propriétaire et comme
+     le mobile Flutter (HomeSituationGrid) : l'auto-fit à 190 px retombait sur
+     une colonne unique sur un téléphone, c'est-à-dire sur l'empilement pleine
+     largeur qu'on remplace. Le palier desktop du KIT (960) reprend l'auto-fit
+     d'origine — il est validé tel quel, on n'y touche pas. */
   .home-situation-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin: 12px 0;
   }
@@ -1242,13 +1243,21 @@ const homeStyles = `
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px 8px;
   }
   /* Le titre cède, la pastille non : un libellé de thème civique servi peut
      être long, et sans coupure il pousserait la pastille hors de la carte à
-     360 px. Le pendant Flutter l'a par construction (Expanded + Text). */
+     360 px.
+     🛑 **La pastille passe à la ligne plutôt que de casser le titre** : dans une
+     demi-largeur de téléphone, « Compréhension » et « À évaluer » ne tiennent
+     pas côte à côte, et un titre coupé au milieu d'un mot est le pire des deux
+     rendus. Le flex-basis est ce qui décide : tant que le titre ne peut pas
+     poser son mot le plus long à côté de la pastille, le navigateur renvoie
+     celle-ci sur sa propre ligne, où margin-left: auto la garde à droite.
+     Le pendant Flutter prend la même décision dans HomeSituationCard. */
   .home-situation-name {
-    flex: 1 1 auto;
+    flex: 1 1 100px;
     font-size: 14.5px;
     font-weight: 800;
     line-height: 1.25;
@@ -1256,7 +1265,11 @@ const homeStyles = `
     min-width: 0;
     overflow-wrap: anywhere;
   }
+  /* Le chevron d'un lien de carte ne se laisse jamais écraser par un libellé
+     long (« Voir mes résultats ») dans une demi-largeur. */
+  .home-situation-card svg { flex-shrink: 0; }
   .home-situation-badge {
+    margin-left: auto;
     padding: 4px 9px;
     border-radius: var(--sf-radius-pill);
     font-size: 12.5px;
@@ -1342,5 +1355,14 @@ const homeStyles = `
       padding-top: 10px;
     }
     .home-hello h1 { font-size: 32px; }
+    /* 🛑 **Le rendu desktop ne bouge pas** (validé par le propriétaire) : la
+       grille reprend l'auto-fit — la colonne de 1080 px pose les 4 épreuves de
+       front — et l'en-tête d'une carte redevient une rangée unique, la place
+       n'y manquant jamais. */
+    .home-situation-grid {
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .home-situation-head { flex-wrap: nowrap; }
+    .home-situation-name { flex: 1 1 auto; }
   }
 `;

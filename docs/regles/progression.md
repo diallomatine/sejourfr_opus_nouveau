@@ -471,6 +471,15 @@ le bandeau « Objectif actuel · Atteindre B1 partout ». Maquette du
 propriétaire, seule référence (aucune capture validée n'existe dans
 `~/Desktop/sejourfr_ecrans` ni `~/Desktop/grok_ecran` pour cette section).
 
+🛑 **Les cartes d'épreuve se posent en GRILLE À DEUX COLONNES, dès 360 px**
+(maquette du propriétaire, 2026-09-16) — jamais une file de cartes pleine
+largeur. `HomeSituationGrid` (mobile) ⇄ `.home-situation-grid` (web, qui reprend
+son auto-fit au palier desktop de 960 px, où la colonne pose les 4 épreuves de
+front). Sur une demi-largeur de téléphone, la pastille de palier passe **sous**
+le titre plutôt que de le casser au milieu d'un mot. Le bandeau d'objectif, lui,
+reste **pleine largeur sous la grille** : il porte l'objectif de toutes les
+épreuves, pas d'une carte.
+
 🛑 **Elle ne remplace PAS « Votre progression »**, qui garde ses deux compteurs
 de compétences juste en dessous. L'une dit *où en est chaque épreuve*, l'autre
 *combien de compétences ont bougé*. Les fondre aurait fait disparaître un

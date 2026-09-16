@@ -179,6 +179,9 @@ class HomeMiniPlan extends StatelessWidget {
 ///
 /// 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
 /// écrit juste en dessous, pas une progression vers un palier.
+///
+/// 🛑 **Elle vit dans une [HomeSituationGrid]**, donc sur une demi-largeur
+/// d'écran : tout ce qu'elle rend doit tenir dans ~130 px de contenu.
 class HomeSituationCard extends StatelessWidget {
   const HomeSituationCard({
     super.key,
@@ -225,40 +228,7 @@ class HomeSituationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppFonts.ui(
-                    size: 14.5,
-                    weight: FontWeight.w800,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  // Non mesuré : neutre. Le bleu est réservé à un palier réel —
-                  // une pastille de marque sur une absence de mesure se lirait
-                  // comme un résultat.
-                  color: mesure ? AppColors.blueLight : AppColors.surface3,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-                child: Text(
-                  badge,
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    weight: FontWeight.w800,
-                    color: mesure ? AppColors.blue : AppColors.muted,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _SituationHead(title: title, badge: badge, mesure: mesure),
           SfProgressMini(ratio: jauge, tone: tone, semanticsLabel: statut),
           // Sans statut (aucune démarche déclarée), la carte se referme sur la
           // jauge : un blanc de 10 px se lirait comme un mot manquant.
@@ -276,6 +246,111 @@ class HomeSituationCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// L'en-tête d'une carte de situation : le libellé, puis la pastille,
+/// **alignée à droite sous lui**.
+///
+/// 🛑 **La pastille n'est PAS sur la ligne du titre**, et c'est mesuré : sur une
+/// demi-largeur de téléphone la carte n'offre que ~130 px de contenu, où
+/// « Compréhension » (~100 px) et « À évaluer » (~80 px) ne tiennent pas côte à
+/// côte — les y forcer casserait le titre au milieu d'un mot, le pire des deux
+/// rendus. Le web fait de même à ces largeurs : son `.home-situation-head`
+/// laisse le navigateur renvoyer la pastille à la ligne dès que le titre ne peut
+/// plus poser son mot le plus long à côté d'elle.
+///
+/// ⚠️ **Décidé une fois pour toutes, pas mesuré à l'exécution** : un
+/// `LayoutBuilder` ici casserait la grille, qui aligne les hauteurs de deux
+/// cartes par intrinsèques. L'app étant verrouillée en portrait téléphone, la
+/// largeur où la rangée redeviendrait possible n'existe pas.
+class _SituationHead extends StatelessWidget {
+  const _SituationHead({
+    required this.title,
+    required this.badge,
+    required this.mesure,
+  });
+
+  final String title;
+  final String badge;
+  final bool mesure;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: AppFonts.ui(size: 14.5, weight: FontWeight.w800, height: 1.25),
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              // Non mesuré : neutre. Le bleu est réservé à un palier réel — une
+              // pastille de marque sur une absence de mesure se lirait comme un
+              // résultat.
+              color: mesure ? AppColors.blueLight : AppColors.surface3,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              badge,
+              style: AppFonts.ui(
+                size: 12.5,
+                weight: FontWeight.w800,
+                color: mesure ? AppColors.blue : AppColors.muted,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Les cartes de « Où vous en êtes », rangées **deux par rangée**.
+///
+/// 🛑 **Miroir de `.home-situation-grid` côté web**, qui pose les deux mêmes
+/// colonnes sous son palier desktop. C'est la maquette du propriétaire : des
+/// cartes compactes côte à côte, jamais une file de cartes pleine largeur.
+///
+/// 🛑 **Les deux cartes d'une rangée ont la MÊME hauteur** — c'est ce que fait
+/// une grille CSS, et deux cartes décalées se liraient comme un défaut
+/// d'alignement. Un nombre impair laisse la dernière sur une demi-largeur,
+/// jamais étirée : elle changerait de format au milieu de la grille.
+class HomeSituationGrid extends StatelessWidget {
+  const HomeSituationGrid({super.key, required this.children});
+
+  final List<Widget> children;
+
+  static const double _gap = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final rangees = <Widget>[];
+    for (var i = 0; i < children.length; i += 2) {
+      if (rangees.isNotEmpty) rangees.add(const SizedBox(height: _gap));
+      final droite = i + 1 < children.length ? children[i + 1] : null;
+      rangees.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: children[i]),
+              const SizedBox(width: _gap),
+              Expanded(child: droite ?? const SizedBox.shrink()),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rangees,
     );
   }
 }
@@ -386,12 +461,18 @@ class HomeLink extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: AppFonts.ui(
-                size: 13,
-                weight: FontWeight.w700,
-                color: AppColors.blue,
+            // Le libellé cède, la flèche non : dans une demi-largeur de carte
+            // (`HomeSituationGrid`), « Voir mes résultats » dépasse la ligne et
+            // pousserait la flèche hors du cadre. Même garde que le
+            // `flex-shrink: 0` posé sur le chevron côté web.
+            Flexible(
+              child: Text(
+                label,
+                style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.blue,
+                ),
               ),
             ),
             const SizedBox(width: 4),
