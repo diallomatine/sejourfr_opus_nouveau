@@ -10,6 +10,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -68,8 +69,13 @@ class EpreuvesProductionQualifiantesResolverTest {
     }
 
     private void stubNiveau(NiveauCecrl niveau) {
+        stubNiveau(niveau, null);
+    }
+
+    private void stubNiveau(NiveauCecrl niveau, BigDecimal competence) {
         when(bilanService.niveauEpreuve(any(), any(), anyBoolean(), anyBoolean()))
-                .thenReturn(new ProductionBilanService.NiveauEpreuve(niveau, false, Map.of()));
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(
+                        niveau, false, Map.of(), competence));
     }
 
     /**
@@ -152,6 +158,24 @@ class EpreuvesProductionQualifiantesResolverTest {
         stubNiveau(null);
 
         assertThat(resolver.qualifiantes(userId, EpreuveType.TCF_EO, 200)).isEmpty();
+    }
+
+    /**
+     * 🛑 <b>Le SCORE de l'épreuve part avec son palier</b> (2026-09-16). La
+     * lecture d'affichage moyenne les <b>compétences</b> des trois dernières
+     * sessions avant de convertir ; sans ce champ elle devrait moyenner des
+     * labels A2/B1/B2, ce qui n'a aucun sens arithmétique.
+     */
+    @Test
+    void laCompetenceDEpreuveEstServieAvecLeNiveau() {
+        Attempt a = session(Instant.now());
+        stubSessions(EpreuveType.TCF_EE, a);
+        when(submissionManager.findByAttemptIdsGrouped(any())).thenReturn(Map.of());
+        stubNiveau(NiveauCecrl.B1, new BigDecimal("7.5000"));
+
+        assertThat(resolver.qualifiantes(userId, EpreuveType.TCF_EE, 200))
+                .singleElement()
+                .satisfies(q -> assertThat(q.competence()).isEqualByComparingTo("7.5"));
     }
 
     /** L'ordre de la requête est conservé : la plus récente d'abord. */

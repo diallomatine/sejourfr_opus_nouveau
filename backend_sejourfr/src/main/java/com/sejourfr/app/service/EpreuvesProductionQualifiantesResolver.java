@@ -11,6 +11,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,9 +75,12 @@ import java.util.UUID;
  * pendant que la carte d'épreuve de l'Accueil annonçait un palier tiré de
  * <b>n'importe quelle tâche évaluée</b> : elle proposait « Voir mes résultats »
  * à un candidat à qui cette page répondait « aucune évaluation qualifiante ».
- * Les deux lisent maintenant cette liste — un <b>maximum</b> pour l'Accueil
- * ({@code TcfProfileService.levelProfileAccueil}), une <b>chronologie</b> pour
- * la page de résultats.
+ * Les deux lisent maintenant cette liste — la <b>moyenne des 3 dernières</b>
+ * pour l'affichage ({@code NiveauActuelEpreuveResolver.production}, appelé par
+ * {@code TcfProfileService.levelProfileAccueil}), une <b>chronologie</b> pour
+ * la page de résultats. ⚠️ C'était un <b>maximum</b> jusqu'au 2026-09-16 :
+ * le propriétaire l'a révoqué le jour même, un niveau affiché devant pouvoir
+ * redescendre.
  *
  * <p>🛑 <b>Le PLAN ne passe PAS par ici</b>, et c'est l'arbitrage du
  * propriétaire du 2026-09-16 : {@code TcfProfileService.levelProfile} — la
@@ -114,8 +118,15 @@ public class EpreuvesProductionQualifiantesResolver {
      *                n'utilise pas
      * @param mesureA {@code finishedAt}, jamais null ici
      * @param niveau  l'agrégat d'épreuve, jamais null ici
+     * @param competence le <b>nombre</b> dont {@code niveau} est la bande
+     *                (échelle /20 des seuils, cf.
+     *                {@code ProductionBilanService.niveauDepuisCompetence}).
+     *                {@code null} quand le niveau vient du repli sur les
+     *                niveaux persistés : une session peut donc porter un
+     *                palier sans porter de score
      */
-    public record EpreuveQualifiante(Attempt attempt, Instant mesureA, NiveauCecrl niveau) {
+    public record EpreuveQualifiante(
+            Attempt attempt, Instant mesureA, NiveauCecrl niveau, BigDecimal competence) {
     }
 
     /**
@@ -127,7 +138,8 @@ public class EpreuvesProductionQualifiantesResolver {
      * elle ne devient pas basse.
      *
      * @param limit nombre de sessions balayées ; un plafond de lecture, pas un
-     *              budget — l'appelant qui cherche un maximum balaie large
+     *              budget — l'appelant qui cherche un maximum balaie large, et
+     *              celui qui n'en garde que trois n'en dépend pas
      */
     public List<EpreuveQualifiante> qualifiantes(UUID userId, EpreuveType epreuve, int limit) {
         final List<Attempt> sessions = attemptManager.findProductionEpreuvesPassees(userId, epreuve, limit);
@@ -153,13 +165,14 @@ public class EpreuvesProductionQualifiantesResolver {
             // La requête ne rend que des sessions d'examen terminées : les deux
             // drapeaux sont vrais par construction, et les passer explicitement
             // garde l'autorité du niveau au même endroit pour tout le monde.
-            final NiveauCecrl niveau = bilanService.niveauEpreuve(
+            final ProductionBilanService.NiveauEpreuve bilan = bilanService.niveauEpreuve(
                     submissions,
                     bilanService.latestEvalsByTache(submissions,
                             id -> Optional.ofNullable(latestBySubmission.get(id))),
-                    true, true).niveau();
-            if (niveau == null || a.getFinishedAt() == null) continue;
-            out.add(new EpreuveQualifiante(a, a.getFinishedAt(), niveau));
+                    true, true);
+            if (bilan.niveau() == null || a.getFinishedAt() == null) continue;
+            out.add(new EpreuveQualifiante(
+                    a, a.getFinishedAt(), bilan.niveau(), bilan.competence()));
         }
         return out;
     }

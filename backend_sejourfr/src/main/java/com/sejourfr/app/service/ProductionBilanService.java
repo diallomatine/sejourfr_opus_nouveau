@@ -156,12 +156,41 @@ public class ProductionBilanService {
      * @param manquantesAZero l'épreuve a été écourtée : les tâches jamais
      *                        rendues ont compté 0, dans le niveau <b>et</b>
      *                        dans la note
+     * @param competence      🛑 <b>le NOMBRE dont {@code niveau} est la
+     *                        bande</b> : la moyenne pondérée des compétences
+     *                        des 3 tâches, sur l'échelle /20 des seuils
+     *                        ({@link #niveauDepuisCompetence}), déjà ramenée
+     *                        sous le plafond de cohérence T3 quand il a joué.
+     *                        {@code null} quand aucun niveau n'est calculé, ou
+     *                        quand il vient du repli sur les niveaux persistés
+     *                        (aucune compétence exploitable). Publié pour qu'un
+     *                        lecteur puisse <b>moyenner des scores</b> plutôt
+     *                        que des labels A2/B1/B2
      */
     public record NiveauEpreuve(
             NiveauCecrl niveau,
             boolean manquantesAZero,
-            Map<Integer, AiEvaluation> evalsByTache
+            Map<Integer, AiEvaluation> evalsByTache,
+            BigDecimal competence
     ) {
+    }
+
+    /**
+     * Bande CECRL d'une compétence /20 — <b>la table des seuils de la grille
+     * active, appelée, jamais recopiée</b> ({@link #niveauFromCompetence}).
+     *
+     * <p>Réciproque de {@link NiveauEpreuve#competence()} : un lecteur qui
+     * moyenne les compétences de plusieurs épreuves repasse par ici pour
+     * retrouver un palier. Les seuils étant des <b>bornes basses</b>
+     * ({@code >=}), une moyenne qui tombe entre deux bandes reste dans la bande
+     * <b>basse</b> — la convention du dépôt pour les notes de critère.
+     *
+     * @return {@code null} pour une compétence absente — inconnu, jamais
+     *         {@code A1_NON_ATTEINT}
+     */
+    public NiveauCecrl niveauDepuisCompetence(BigDecimal competence) {
+        if (competence == null) return null;
+        return niveauFromCompetence(competence, seuils());
     }
 
     /**
@@ -211,15 +240,29 @@ public class ProductionBilanService {
             }
         }
         if (exam && evalsByTache.size() >= EXPECTED_TASKS_PER_EPREUVE) {
-            return new NiveauEpreuve(bilanEpreuve(evalsByTache), false, evalsByTache);
+            Bilan b = computeBilan(evalsByTache, false);
+            return new NiveauEpreuve(b.niveau(), false, evalsByTache, b.competence());
         }
         if (exam && finished && !inFlight && !anyFailed) {
-            return new NiveauEpreuve(bilanEpreuveTerminee(evalsByTache), true, evalsByTache);
+            Bilan b = computeBilan(evalsByTache, true);
+            return new NiveauEpreuve(b.niveau(), true, evalsByTache, b.competence());
         }
-        return new NiveauEpreuve(null, false, evalsByTache);
+        return new NiveauEpreuve(null, false, evalsByTache, null);
+    }
+
+    /**
+     * Le verdict d'épreuve et <b>le nombre dont il est la bande</b>, rendus
+     * ensemble parce qu'ils sont calculés ensemble : les publier séparément
+     * demanderait de repasser dans la même boucle, donc d'en tenir deux copies.
+     */
+    private record Bilan(NiveauCecrl niveau, BigDecimal competence) {
     }
 
     private NiveauCecrl compute(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        return computeBilan(evalsByTache, manquantesAZero).niveau();
+    }
+
+    private Bilan computeBilan(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
         java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
         if (manquantesAZero) {
             for (int t = 1; t <= EXPECTED_TASKS_PER_EPREUVE; t++) taches.add(t);
@@ -242,13 +285,23 @@ public class ProductionBilanService {
             sumPoids = sumPoids.add(poids);
         }
         NiveauCecrl bilan;
+        BigDecimal competence = null;
         if (sumPoids.signum() == 0) {
             bilan = levelEstimator.capB2(floorFallback);
         } else {
-            BigDecimal competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
+            competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
             bilan = niveauFromCompetence(competence, seuils());
         }
-        return appliquerCoherence(bilan, evalsByTache, manquantesAZero);
+        NiveauCecrl apresCoherence = appliquerCoherence(bilan, evalsByTache, manquantesAZero);
+        // 🛑 Le garde-fou de cohérence abaisse le NIVEAU ; sans cette ligne, la
+        // compétence publiée resterait au-dessus de la bande annoncée, et un
+        // lecteur qui moyenne des compétences perdrait le plafond en route. Le
+        // ramener passe par `sousPlafond`, la même autorité que le plafond de
+        // tâche — jamais une seconde table de bornes.
+        if (apresCoherence != bilan) {
+            competence = sousPlafond(competence, apresCoherence);
+        }
+        return new Bilan(apresCoherence, competence);
     }
 
     /**
