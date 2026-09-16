@@ -27,7 +27,18 @@ public class JourneyLotManager {
         return repository.findByJourneyIdAndStatus(journeyId, JourneyLotStatus.OPEN);
     }
 
+    /**
+     * 🛑 <b>{@code saveAndFlush}, et ce n'est pas une precaution de style.</b>
+     * L'ordre d'execution d'Hibernate range <b>tous les INSERT avant tous les
+     * UPDATE</b> : fermer un lot puis en creer un autre sur la meme epreuve dans
+     * la meme transaction envoyait donc l'INSERT du nouveau <b>avant</b> l'UPDATE
+     * qui ferme l'ancien, et l'index unique partiel de R5 refusait la ligne. Le
+     * flush retablit l'ordre reel des decisions.
+     *
+     * <p>Le cout est nul a l'echelle du parcours : un lot par epreuve et par
+     * evaluation, jamais un par competence.
+     */
     public JourneyLot save(JourneyLot lot) {
-        return repository.save(lot);
+        return repository.saveAndFlush(lot);
     }
 }

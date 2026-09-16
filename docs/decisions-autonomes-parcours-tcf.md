@@ -184,3 +184,83 @@ n'aurait ajoute qu'un fichier.
 (3 unitaires, 16 d'integration). Les 16 ITs verifient que **la base** tient R5, R13, R14, R18, D-7 et
 la forme des trois types d'etape : ce sont des contraintes qu'aucun branchement best-effort ne peut
 contourner.
+---
+
+## Lot 2 — Orchestration (2026-09-17, nuit)
+
+### A13 — `plan_pinned_priorities` n'est PAS supprimee au lot 2 : elle l'est au lot 4
+
+**Decide.** La suppression prevue par la spec §6/§11 est **reportee a la Phase 4**, celle ou les
+fronts basculent reellement sur `journey.current`.
+
+**Pourquoi — deux blocages reels, pas une prudence de principe.**
+1. **Le Plan existant s'en sert encore.** L'epingle (V065) a ete posee le 2026-09-13 pour un defaut
+   mesure : « EE3 a 0/5, remplacee par EO1 des la premiere production orale ». La retirer au lot 2,
+   alors qu'aucun front ne lit encore le parcours, remettrait ce defaut en service pour toute la
+   duree du chantier.
+2. 🛑 **Le Plan fonctionne SANS objectif declare ; le parcours non** (arbitrage D-3). Or
+   `SkillAccessService` ouvre d'office a un compte gratuit la competence de la premiere place
+   (arbitrage du 2026-08-21). Brancher cette exemption sur le parcours priverait de leur priorite
+   n&deg;1 tous les candidats sans demarche declaree — **17 sur 34** sur la base de dev.
+
+**A resoudre en Phase 4** : soit `PlanFocusResolver` devient un lecteur du parcours **avec repli**
+sur sa regle actuelle quand il n'y a pas de parcours (et l'epingle disparait), soit le Plan exige
+lui aussi un objectif. Le second choix est un arbitrage produit : il n'est pas pris ici.
+
+### A14 — Les tests du parcours ne sont pas transactionnels, et font leur menage a la main
+
+**Decide.** `JourneyServiceIT` et `JourneyProgressionIT` portent
+`@Transactional(propagation = NOT_SUPPORTED)` et suppriment leurs candidats en `@AfterEach`.
+
+**Pourquoi.** `JourneyService` ecrit en `REQUIRES_NEW` — c'est ce qui garantit qu'un bug
+d'orchestration ne fasse jamais echouer la correction d'un QCM ni la livraison d'une evaluation
+payante. Une transaction de test l'enveloppant la **suspend**, et la transaction neuve ne voit
+**rien** de ce que le test vient d'ecrire : le service sort silencieusement et **les assertions
+passent pour de mauvaises raisons**. C'est arrive : deux tests sont passes au vert sur un service
+qui n'avait rien fait. C'est l'idiome deja en place dans le depot
+(`ComprehensionObservationIT`, `DiagnosticPostSignupSequenceIT`).
+
+**Corollaire, qui a coute une passe de debug** : ces tests n'ont plus le droit de **creer** ni
+competence ni petit sujet — les lignes survivraient a la classe et feraient echouer, a distance,
+les tests qui comptent le referentiel (`LearningPlanDomainSkillsIT` attend 24 competences EE). Ils
+empruntent donc le **referentiel seede**.
+
+### A15 — `JourneyLotManager.save` fait `saveAndFlush`
+
+**Decide.** Flush a chaque ecriture de lot.
+
+**Pourquoi — un vrai bug, attrape par l'index de R5.** Hibernate range **tous les INSERT avant tous
+les UPDATE** dans sa file d'actions. Fermer un lot puis en creer un autre sur la meme epreuve dans
+la meme transaction envoyait donc l'INSERT du nouveau **avant** l'UPDATE qui ferme l'ancien, et
+`uq_journey_lot_open_par_epreuve` refusait la ligne. Le flush retablit l'ordre reel des decisions.
+Cout nul : un lot par epreuve et par evaluation, jamais un par competence.
+
+### A16 — Cote production, l'evaluation se declenche quand les 3 taches sont evaluees
+
+**Decide.** `DiagnosticProductionAnalysisService.observeStandardProduction` appelle le parcours
+seulement si la session est un **examen** et que **toutes** les taches attendues portent une
+evaluation.
+
+**Pourquoi.** C'est la consequence directe de A11 : une evaluation = une **epreuve**. Declencher
+par soumission ferait que la tache 2 **remplacerait** (R7) le lot que la tache 1 vient de creer.
+
+⚠️ **Limite connue et acceptee** : une epreuve **abandonnee** dont la derniere evaluation atterrit
+avant la cloture de la session n'ouvre pas de lot. L'epreuve reste **mesuree** (son autorite est
+ailleurs), et la prochaine evaluation de cette epreuve reprend la main. La fermer proprement
+demanderait un declencheur a la cloture de session, qui n'existe pas aujourd'hui cote production.
+
+### A17 — Une etape d'expression SANS SUJET PUBLIE ne prend pas la main
+
+**Decide.** `JourneyReadService.elire` ecarte, en plus des etapes verrouillees, les etapes
+d'expression dont la competence ne publie aucun sujet.
+
+**Pourquoi.** `LearningPlanStep.Progress.completed()` refuse — a juste titre — de declarer finie
+une etape vide : « il n'y a rien a y faire, le dire fini serait un contresens ». Une telle etape ne
+peut donc **jamais** se clore, et la laisser prendre la main figerait le parcours sur une carte
+sans action. Le cas est rare : `PlanContentAvailability` ecarte deja du pool les competences sans
+contenu au moment ou l'evaluation les designe.
+
+### Verification du lot 2
+
+`./mvnw -o verify` — **1296 tests, 0 echec, BUILD SUCCESS.** Dont 48 pour le parcours : 16 de
+schema, 9 de construction de lots, 14 d'orchestration, 6 de progression, 3 de configuration.

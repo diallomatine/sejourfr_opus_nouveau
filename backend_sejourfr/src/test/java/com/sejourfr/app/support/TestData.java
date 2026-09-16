@@ -325,6 +325,11 @@ public class TestData {
         return attempt(user());
     }
 
+    /** Reecrit une session modifiee par le test (type, epreuve, cloture). */
+    public Attempt saveAttempt(Attempt attempt) {
+        return attemptManager.save(attempt);
+    }
+
     public AttemptQuestion attemptQuestion(Attempt attempt, Question question) {
         AttemptQuestion aq = new AttemptQuestion();
         aq.setAttempt(attempt);
@@ -959,11 +964,27 @@ public class TestData {
             User user, Skill skill, LearningPlanSourceType source,
             LearningPlanSkillStatus status, ObservationConfidence confidence,
             UUID subjectId, Instant observedAt) {
+        return learningPlanObservation(user, skill, source, status, confidence,
+                subjectId, observedAt, UUID.randomUUID());
+    }
+
+    /**
+     * La meme fabrique, mais la <b>source</b> est choisie par l'appelant.
+     *
+     * <p>Indispensable des lors qu'on teste ce qu'<b>UNE evaluation</b> a
+     * designe : le parcours TCF regroupe ses priorites par
+     * {@code source_id}, donc deux observations d'un meme examen doivent pouvoir
+     * partager le leur — ce qu'un UUID tire au hasard interdit.
+     */
+    public LearningPlanObservation learningPlanObservation(
+            User user, Skill skill, LearningPlanSourceType source,
+            LearningPlanSkillStatus status, ObservationConfidence confidence,
+            UUID subjectId, Instant observedAt, UUID sourceId) {
         LearningPlanObservation o = new LearningPlanObservation();
         o.setUser(user);
         o.setSkill(skill);
         o.setSourceType(source);
-        o.setSourceId(UUID.randomUUID());
+        o.setSourceId(sourceId);
         o.setSubjectId(subjectId);
         boolean observed = status != LearningPlanSkillStatus.NOT_OBSERVED;
         o.setObserved(observed);
