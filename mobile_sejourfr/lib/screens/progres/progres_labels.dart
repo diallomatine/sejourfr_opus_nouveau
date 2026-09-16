@@ -117,9 +117,19 @@ const Map<StatutObjectif, String> kProgresStatutLabel = {
 String? progresStatutLabel(ProgressEpreuve epreuve) {
   final statut = epreuve.status;
   if (statut == null) return null;
-  if (epreuve.niveau == null) return 'À évaluer';
+  if (epreuve.niveau == null) return kNonMesureLabel;
   return kProgresStatutLabel[statut];
 }
+
+/// Le mot d'une chose **jamais mesurée** — épreuve sans palier, thème civique
+/// `NON_EVALUE`.
+///
+/// 🛑 **Un seul endroit** : il vit sur la pastille d'une carte d'accueil, sur
+/// le statut d'une épreuve de Progrès et sur les thèmes civiques. Recopié, il
+/// finirait par diverger d'une surface à l'autre — et c'est le mot qui empêche
+/// une absence de mesure de se lire comme un verdict (V040/V041/V042). Miroir
+/// web : `NON_MESURE_LABEL`.
+const String kNonMesureLabel = 'À évaluer';
 
 /// Le ton du statut. `muted` = non mesuré, ou sans objectif — pas un degré de
 /// gravité de plus.
@@ -213,7 +223,7 @@ String? accueilEpreuveStatut(ProgressEpreuve epreuve) =>
 /// 🛑 [NiveauCecrl.shortName] et jamais un troncage maison : `A1_NON_ATTEINT`
 /// se rend « &lt;A1 », pas « A1 ».
 String accueilEpreuveBadge(ProgressEpreuve epreuve) =>
-    epreuve.niveau?.shortName ?? 'À évaluer';
+    epreuve.niveau?.shortName ?? kNonMesureLabel;
 
 /// Ce que la carte propose de faire.
 ///

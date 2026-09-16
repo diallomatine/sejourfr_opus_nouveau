@@ -489,6 +489,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             HomeSituationCard(
               title: epreuve.epreuve.displayLabel,
               badge: accueilEpreuveBadge(epreuve),
+              mesure: epreuve.niveau != null,
               statut: accueilEpreuveStatut(epreuve),
               jauge: accueilEpreuveJauge(epreuve),
               tone: accueilEpreuveTon(epreuve),
@@ -530,8 +531,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
               // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
               badge: theme.etat == CivicThemeState.nonEvalue
-                  ? 'À évaluer'
+                  ? kNonMesureLabel
                   : theme.etat.label,
+              mesure: theme.etat != CivicThemeState.nonEvalue,
               statut: theme.etat.label,
               jauge: civicThemeJauge(theme.etat),
               tone: civicThemeBarTone(theme.etat),

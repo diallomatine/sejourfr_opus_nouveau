@@ -23,6 +23,7 @@ import {civicPlanApi, diagnosticApi, learningPlanApi, progressApi, userContentAp
 import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
 import {
+    NON_MESURE_LABEL,
     accueilEpreuveBadge,
     accueilEpreuveCta,
     accueilEpreuveJauge,
@@ -694,6 +695,7 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                                 title={planDomainLabel(
                                     e.epreuve as Parameters<typeof planDomainLabel>[0])}
                                 badge={accueilEpreuveBadge(e)}
+                                mesure={e.niveau !== null}
                                 statut={accueilEpreuveStatut(e)}
                                 jauge={accueilEpreuveJauge(e)}
                                 tone={accueilEpreuveTon(e)}
@@ -751,8 +753,9 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                    libellé gelé, on ne classe aucun nombre.
                                    `NON_EVALUE` reste neutre, jamais ambre. */
                                 badge={t.etat === "NON_EVALUE"
-                                    ? "À évaluer"
+                                    ? NON_MESURE_LABEL
                                     : CIVIC_THEME_STATE_LABEL[t.etat]}
+                                mesure={t.etat !== "NON_EVALUE"}
                                 statut={CIVIC_THEME_STATE_LABEL[t.etat]}
                                 jauge={civicBarJauge(t.etat)}
                                 tone={civicBarTone(t.etat)}
@@ -777,19 +780,23 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
  * 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
  * écrit juste en dessous, pas une progression vers un palier.
  */
-function SituationCard({title, badge, statut, jauge, tone, cta, href}: {
+function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href}: {
     title: string;
     badge: string;
+    /* Y a-t-il une mesure derrière la pastille ?
+       🛑 **Passé, jamais deviné du texte de `badge`** : comparer un libellé pour
+       décider d'une couleur ferait dépendre l'apparence d'une chaîne qu'on peut
+       reformuler sans y penser.
+       Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
+       pastille de marque sur une absence de mesure se lirait comme un
+       résultat. */
+    mesure: boolean;
     statut: string | null;
     jauge: number;
     tone: BarTone;
     cta: string;
     href: string;
 }) {
-    /* Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
-       pastille de marque sur une absence de mesure se lirait comme un
-       résultat. */
-    const mesure = badge !== "À évaluer";
     return (
         <div className="home-situation-card">
             <div className="home-situation-head">

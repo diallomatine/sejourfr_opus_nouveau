@@ -184,6 +184,7 @@ class HomeSituationCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.badge,
+    required this.mesure,
     required this.statut,
     required this.jauge,
     required this.tone,
@@ -196,6 +197,13 @@ class HomeSituationCard extends StatelessWidget {
   /// La pastille de droite : un palier servi, ou « À évaluer ».
   final String badge;
 
+  /// Y a-t-il une mesure derrière cette pastille ?
+  ///
+  /// 🛑 **Passé, jamais deviné du texte de [badge]** : comparer un libellé pour
+  /// décider d'une couleur ferait dépendre l'apparence d'une chaîne qu'on peut
+  /// reformuler sans y penser.
+  final bool mesure;
+
   /// L'état en un mot. `null` quand aucune démarche n'est déclarée : sans
   /// objectif, il n'y a rien à situer, et on préfère un blanc à un verdict.
   final String? statut;
@@ -207,7 +215,6 @@ class HomeSituationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mesure = badge != 'À évaluer';
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(

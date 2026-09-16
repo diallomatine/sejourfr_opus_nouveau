@@ -148,9 +148,21 @@ const PROGRES_STATUT_LABEL: Record<StatutObjectif, string> = {
  */
 export function progresStatutLabel(epreuve: ProgressEpreuveDto): string | null {
     if (!epreuve.status) return null;
-    if (!epreuve.niveau) return "À évaluer";
+    if (!epreuve.niveau) return NON_MESURE_LABEL;
     return PROGRES_STATUT_LABEL[epreuve.status];
 }
+
+/**
+ * Le mot d'une chose **jamais mesurée** — épreuve sans palier, thème civique
+ * `NON_EVALUE`.
+ *
+ * 🛑 **Un seul endroit** : il vit sur la pastille d'une carte d'accueil, sur le
+ * statut d'une épreuve de Progrès et sur les thèmes civiques. Recopié, il
+ * finirait par diverger d'une surface à l'autre — et c'est le mot qui empêche
+ * une absence de mesure de se lire comme un verdict (V040/V041/V042). Miroir
+ * mobile : `kNonMesureLabel`.
+ */
+export const NON_MESURE_LABEL = "À évaluer";
 
 /** Le ton du statut. `null` (jamais mesuré, ou sans objectif) reste **neutre**. */
 export function progresStatutTone(
@@ -243,7 +255,7 @@ export function accueilEpreuveStatut(epreuve: ProgressEpreuveDto): string | null
  * « &lt;A1 », pas « A1 ».
  */
 export function accueilEpreuveBadge(epreuve: ProgressEpreuveDto): string {
-    return epreuve.niveau ? niveauCecrlShort(epreuve.niveau) : "À évaluer";
+    return epreuve.niveau ? niveauCecrlShort(epreuve.niveau) : NON_MESURE_LABEL;
 }
 
 /**
