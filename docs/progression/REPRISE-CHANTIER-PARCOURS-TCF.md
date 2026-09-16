@@ -35,38 +35,43 @@
 |---|---|---|
 | **Phase 0** | Audit + spec révisée + journal d'arbitrages | ✅ **fait**, validé par le propriétaire |
 | **Phase 1** | DDL `V066`, entités, enums, repositories, managers, config versionnée | 🔄 **en cours** |
-| **Phase 2** | Orchestration, filtre R1, bootstrap, branchements, suppression de l'ancien, 45 tests | 🔄 **en cours** |
-| **Phase 3** | `GET /api/me/plan/journey`, DTO, miroirs web + mobile | ⬜ à faire |
-| **Phase 4** | 6 cartes « À faire maintenant », timeline dans les 2 kits, suppressions front | ⬜ à faire |
+| **Phase 2** | Orchestration, filtre R1, bootstrap, branchements, 48 tests | ✅ **fait** — suite complète 1296 tests verts |
+| **Phase 3** | `GET /api/me/plan/journey`, DTO, miroirs web + mobile | ✅ **fait** — `tsc` + `flutter analyze` verts |
+| **Phase 4** | 6 cartes « À faire maintenant », timeline dans les 2 kits, suppressions front | 🔄 **en cours** |
 
 ### Détail du lot en cours
 
-**Phase 1 — livrée.** `V066__schema_journey_tcf.sql` (4 tables), 9 enums `Journey*`, 4 entités,
-4 repositories, 3 managers, `TcfJourneyProperties` + `TcfJourneyConfig` / `Loader` / `Provider`,
-`resources/plan/tcf-journey-config-v1.json`, bloc `sejourfr.tcf-journey` dans `application.yaml`.
-Tests : `TcfJourneyConfigLoaderTest` (3) + `JourneySchemaIT` (16). **Verts.**
-⚠️ La spec §6 a été corrigée en cours de route : `journey_assessment_event` porte l'épreuve mesurée
-(décision **A11**, sinon R14 est faux dès que R9 s'applique).
+**Phases 1 à 3 — livrées et commitées** (4 commits sur `feature/refonte-l1-socle`).
+Backend : `./mvnw -o verify` → **1296 tests, 0 échec**. Fronts : `npx tsc --noEmit` et
+`flutter analyze` verts, **aucun test front ajouté**.
 
-**Phase 2 — à écrire**, dans cet ordre :
+**Phase 4 — à faire**, dans cet ordre :
 
-1. `service/journey/JourneyEvaluationFilter` — le filtre R1 (D-6), **une seule** classe, partagée
-   par l'orchestration et le bootstrap (décision A10).
-2. `service/journey/JourneyLotBuilder` — R2 (top N) + R10 bis (écart au niveau cible **lecture
-   Plan** via `TcfProfileService.levelProfile`, puis `TcfDomainProfileDto.ORDRE`).
-3. `service/journey/JourneyReadService` — `locked` par étape (§5 bis), élection de `CURRENT`,
-   statuts de rendu, filtrage §14. 🛑 L'ordre de la promotion est normatif : `SkillAccessService`
-   reçoit la **première étape non clôturée**, verrous ignorés, jamais `CURRENT`.
-4. `service/journey/JourneyService` — `getOrCreate` (R18/D-3), `onAssessmentCompleted` (§7.2),
-   `onTrainingProgress` (§7.3), bootstrap R19.
-5. Branchements : `AttemptInteractionService.doFinish` (après `recordComprehension`),
-   le pipeline de production (⚠️ **par attempt d'épreuve, pas par soumission** — cf. A11),
-   clôture du diagnostic rapide, finalisation de l'examen blanc complet.
-6. Suppressions : `plan_pinned_priorities` + `PlanFocusResolver.epingler` + rebranchement de
-   `SkillAccessService` sur la première étape non clôturée ; `AccountDeletionService` efface le
-   parcours (A07) ; paragraphe de `backend_sejourfr/CLAUDE.md` qui cite V065 comme « seule
-   exception assumée ».
-7. Les 45 tests métier de la spec §18.
+1. **Les 6 cartes « À faire maintenant »** branchées sur `journey.current` :
+   `planNowCard` (`web_sejoufr/lib/plan-domain.ts:639`) ⇄ `planNowCard`
+   (`mobile_sejourfr/lib/screens/plan/plan_now_card.dart:129`) deviennent une **projection**
+   de `current`, plus un décideur. Sites : Plan (`LearningPlanView.tsx:505` ⇄
+   `plan_tcf_view.dart:292`), Accueil (`dashboard/page.tsx:549` ⇄ `home_screen.dart:328`),
+   Réviser (`lib/reviser.ts:135` ⇄ `reviser_labels.dart:118`).
+   🛑 N'en migrer que quelques-uns rouvrirait la contradiction corrigée le 2026-09-16.
+2. **La timeline §12-14** dans **les deux kits** (`SejourKit.tsx` ⇄ `sejour_kit.dart`) :
+   rail, marqueur double-cercle, badge `EXAMEN`, cadenas d'étape. Un motif s'ajoute des deux
+   côtés dans la même passe. ⚠️ Une media query n'est pas une primitive : le palier desktop
+   du kit web n'a pas de miroir Flutter.
+3. **Les suppressions §11**, dans la même passe :
+   - « Votre parcours — Tâche X » : `parcoursDeLaTache` (`LearningPlanView.tsx:288` et `:395`),
+     `plan_task_path.dart`, `plan_task_row.dart` ;
+   - le « chemin vers l'objectif » (D-4) : `PlanCycleDto.path`, `PlanCycleResolver.chemin`
+     (l.235), `PlanPathStepDto`, `PlanPathStepKind`, `PlanPathStepStatus`, `PLAN_PATH_*` et
+     `planPathStep*` (`lib/plan-domain.ts`), `widgets/plan_path_section.dart`, les tests
+     backend `LearningPlanCycleIT` / `PlanCycleResolverTest` (mis à jour, pas contournés).
+     🛑 **`PlanCycleDto` survit** : seul son champ `path` disparaît.
+   - `plan_pinned_priorities` + `PlanFocusResolver.epingler` — ⚠️ **avec les deux blocages de
+     la décision A13** à résoudre d'abord (candidats sans objectif déclaré, première place du
+     Plan existant).
+4. Mise à jour de `docs/regles/plan.md` (R1, R2 et son budget assumé, R8, étape exécutable),
+   du `CLAUDE.md` de chaque front si une convention change, et du `CLAUDE.md` backend (qui
+   cite V065 comme « seule exception assumée » à « un dérivé se relit »).
 
 ## Pièges relevés par l'audit — à ne pas réapprendre
 
