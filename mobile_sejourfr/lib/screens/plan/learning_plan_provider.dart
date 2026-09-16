@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/journey_models.dart';
 
 /// **Le signal « l'avancement du candidat a changé »** : une production
 /// évaluée, un micro-exercice, une mutation d'un diagnostic (TCF ou civique),
@@ -66,6 +67,27 @@ final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) asyn
   final link = ref.keepAlive();
   try {
     return await ref.watch(learningPlanRepositoryProvider).get();
+  } catch (_) {
+    link.close();
+    rethrow;
+  }
+});
+
+/// **Le parcours TCF**, gardé en vie aux mêmes conditions que le Plan.
+///
+/// 🛑 **Mêmes points de fraîcheur, exactement** : sans ça, une évaluation
+/// rechargerait le Plan et laisserait le parcours sur son état d'avant — deux
+/// lectures du même candidat, au même instant, qui se contrediraient à l'écran.
+/// C'est précisément la contradiction que le 2026-09-16 a corrigée sur la carte
+/// « À faire maintenant ».
+///
+/// L'échec n'est **pas** mis en cache.
+final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
+  ref.watch(compteIdProvider);
+  ref.watch(learningPlanRevisionProvider);
+  final link = ref.keepAlive();
+  try {
+    return await ref.watch(learningPlanRepositoryProvider).journey();
   } catch (_) {
     link.close();
     rethrow;

@@ -217,6 +217,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         // `null`, sur des faits servis.
         LearningPlanState.active => PlanTcfView(
             plan: value,
+            // 🛑 Le parcours est **observé**, jamais attendu : son absence ne
+            // doit pas retarder le Plan d'une seconde, et un backend antérieur
+            // à l'endpoint garde un écran entier.
+            journey: ref.watch(journeyProvider).valueOrNull,
             objective: objective,
             affiner: _affiner(modulePrep),
             trailing: _trailing(modulePrep),

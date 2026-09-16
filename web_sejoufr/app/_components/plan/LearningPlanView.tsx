@@ -12,7 +12,7 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import {ApiException, learningPlanApi} from "@/lib/api";
+import {ApiException, journeyApi, learningPlanApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
@@ -34,13 +34,21 @@ import {
   planPathStepTitle,
   planPathTitle,
   planPriorityGroups,
-  parcoursDeLaTache,
   type PlanTachePath,
   planRowStatusSummary,
   planTaskBadge,
   planTransitionLine,
   type PlanPriorityGroup,
 } from "@/lib/plan-domain";
+import {
+  journeyBadge,
+  journeyKind,
+  journeyKitState,
+  journeyMoreLabel,
+  journeyStepSubtitle,
+  journeyStepTitle,
+  journeyTitle,
+} from "@/lib/journey";
 import {
   affinerPlan,
   DIAGNOSTIC_RAPIDE_HREF,
@@ -49,6 +57,7 @@ import {
 } from "@/lib/preparation";
 import {
   canAccessModule,
+  type JourneyDto,
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type ModulePreparation,
@@ -63,10 +72,11 @@ import {
   GoalStrip,
   LockItem,
   LockList,
+  JourneyList,
+  JourneyRow,
   LockRow,
   NowCard,
   Pad,
-  PathCard,
   Prio,
   ProgressMini,
   Section,
@@ -122,6 +132,12 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   const {status: authStatus, user} = useAuth();
   const [plan, setPlan] = useState<LearningPlanDto | null>(null);
+  /* 🛑 Le parcours est chargé **en parallèle** du Plan, jamais après : les deux
+     alimentent le même écran, et les enchaîner ferait clignoter la carte
+     « À faire maintenant » entre deux autorités. Son échec est **silencieux** —
+     un backend antérieur à l'endpoint ne doit pas casser le Plan, qui garde sa
+     règle tant que le parcours n'a rien à dire. */
+  const [journey, setJourney] = useState<JourneyDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const trafficSource = useTrafficSource();
@@ -144,6 +160,10 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     ).finally(() => {
       if (!cancelled) setLoading(false);
     });
+    journeyApi.getCached().then(
+      (current) => { if (!cancelled) setJourney(current); },
+      () => { /* silencieux : le Plan reste lisible sans son parcours */ },
+    );
     return () => { cancelled = true; };
   }, [authStatus, user]);
 
@@ -220,8 +240,8 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   return (
     <>
       {abonne
-        ? <TcfPlanPremium plan={plan} affiner={affinerCard} />
-        : <TcfPlanFree plan={plan} affiner={affinerCard} />}
+        ? <TcfPlanPremium plan={plan} journey={journey} affiner={affinerCard} />
+        : <TcfPlanFree plan={plan} journey={journey} affiner={affinerCard} />}
       {prep?.estimationSessionId && <RevoirEstimation />}
     </>
   );
@@ -281,14 +301,13 @@ function PlanMessage({title, text, cta, href, alert}: {
 
 /* ----------------------------------------------------------------- abonné */
 
-function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactNode}) {
+function TcfPlanPremium({plan, journey, affiner}: {
+  plan: LearningPlanDto;
+  journey: JourneyDto | null;
+  affiner: ReactNode;
+}) {
   const objective = plan.cycle.objectiveLevel;
   const groups = usePriorityGroups(plan);
-  const tachePath = useMemo(
-    () => (plan.currentPriority ? parcoursDeLaTache(plan, plan.currentPriority) : null),
-    [plan],
-  );
-  const palierPath = useMemo(() => parcoursDuPalier(plan.cycle), [plan.cycle]);
   const completed = plan.completedSteps ?? [];
 
   return (
@@ -311,17 +330,11 @@ function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactN
       <div className={sejourStyles.deskPair}>
         <ActionMaintenant plan={plan} />
 
-        {tachePath ? (
-          <Section title={tachePath.title} flush>
-            <PathCard
-              currentLabel={tachePath.currentLabel}
-              counterLabel={tachePath.counterLabel}
-              steps={tachePath.steps}
-            />
-          </Section>
-        ) : palierPath ? (
-          <PalierPath path={palierPath} />
-        ) : null}
+        {/* 🛑 **La timeline du PARCOURS remplace le chemin vers l'objectif**
+            (arbitrage D-4) : le palier reste dans l'en-tête, et l'écran ne
+            montre plus qu'une seule file — celle que les évaluations ont
+            construite. */}
+        <JourneySection journey={journey} />
       </div>
 
       {groups.length > 0 && (
@@ -374,8 +387,6 @@ function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactN
           se complète un profil, et il n'y a plus qu'une façon de le faire. */}
       {affiner}
 
-      {tachePath && palierPath && <PalierPath path={palierPath} />}
-
       <AllerPlusLoin />
 
       <p className={sejourStyles.footNote}>
@@ -388,14 +399,13 @@ function TcfPlanPremium({plan, affiner}: {plan: LearningPlanDto; affiner: ReactN
 
 /* ---------------------------------------------------------------- gratuit */
 
-function TcfPlanFree({plan, affiner}: {plan: LearningPlanDto; affiner: ReactNode}) {
+function TcfPlanFree({plan, journey, affiner}: {
+  plan: LearningPlanDto;
+  journey: JourneyDto | null;
+  affiner: ReactNode;
+}) {
   const objective = plan.cycle.objectiveLevel;
   const groups = usePriorityGroups(plan);
-  const tachePath = useMemo(
-    () => (plan.currentPriority ? parcoursDeLaTache(plan, plan.currentPriority) : null),
-    [plan],
-  );
-
   return (
     <>
       <Top
@@ -426,20 +436,11 @@ function TcfPlanFree({plan, affiner}: {plan: LearningPlanDto; affiner: ReactNode
 
       <ActionMaintenant plan={plan} free />
 
-      {tachePath && (
-        <Section title="Le parcours de cette tâche" flush>
-          <Card padding="rows">
-            {lignesVerrouillees(tachePath).map((row, index) => (
-              <LockRow
-                key={row.key}
-                n={index + 1}
-                icon={row.icon}
-                label={row.blurred ? <PlanBlur>{row.label}</PlanBlur> : row.label}
-              />
-            ))}
-          </Card>
-        </Section>
-      )}
+      {/* 🛑 **Le parcours reste ENTIER, même sans accès** : ses étapes sont
+          affichées à leur place, avec leur cadenas. Le masquer priverait le
+          candidat de l'information la plus utile qu'il possède — c'est la
+          contradiction #1 du dépôt, tranchée le 2026-08-21. */}
+      <JourneySection journey={journey} />
 
       <PlanPaywall
         module="INTEGRAL"
@@ -652,63 +653,45 @@ function groupTitle(group: PlanPriorityGroup): string {
   return group.context ? `${group.label} — ${group.context}` : group.label;
 }
 
-/* -------------------------------------------------------------- parcours */
+/* --------------------------------------------------------- parcours TCF */
 
-/** La même liste, vue par un compte gratuit : le rang et le cadenas restent
- *  nets, le titre d'une ligne **verrouillée** passe derrière le rideau.
+/**
+ * **La file d'étapes**, telle que le serveur l'a construite (spec §12-14).
  *
- * 🛑 La dérivation, elle, vit dans `parcoursDeLaTache` (`lib/plan-domain.ts`),
- * partagée avec le bloc « Votre Plan » de l'Accueil : deux copies auraient fini
- * par cocher deux étapes différentes. Ici on n'habille que les icônes, que la
- * couche pure n'a pas à connaître.
+ * 🛑 **Rien n'est décidé ici** : ni l'ordre (c'est la position, et elle ne se
+ * recalcule pas), ni le statut, ni le verrou, ni ce qui est affiché — le
+ * serveur a déjà coupé selon §14. L'écran ne fait que peindre.
+ *
+ * 🛑 **Une étape verrouillée reste à sa place**, avec son cadenas : le Plan
+ * reste intégralement visible (contradiction #1, tranchée le 2026-08-21).
+ *
+ * `null` est un cas normal — parcours pas encore chargé, ou backend antérieur à
+ * l'endpoint : la section disparaît, elle n'affiche jamais un squelette.
  */
-function lignesVerrouillees(path: PlanTachePath) {
-  return path.skills.map((skill) => ({
-    key: skill.skillId,
-    label: skill.title,
-    /* 🛑 La coche suit l'état d'étape **servi** — jamais un statut reclassé
-       ici : seul `ACQUIS` (donc `SOLID`) en mérite une. */
-    icon: skill.locked ? Lock : skill.stepState === "ACQUIS" ? Check : Circle,
-    blurred: skill.locked,
-  }));
-}
-
-interface PalierPathData {
-  title: string;
-  currentLabel: string;
-  counterLabel: string;
-  steps: PathStep[];
-  note: string | null;
-}
-
-/** Le chemin de palier — **le seul parcours à état explicite** servi par le
- *  serveur (`cycle.path`, `DONE|CURRENT|UPCOMING`). Sa note dit **comment** un
- *  palier se confirme, ce qu'aucun autre bloc de l'écran ne porte. */
-function parcoursDuPalier(cycle: PlanCycleDto): PalierPathData | null {
-  if (cycle.path.length === 0) return null;
-  const index = cycle.path.findIndex((step) => step.status === "CURRENT");
-  const current = index >= 0 ? cycle.path[index] : null;
-  return {
-    title: planPathTitle(cycle),
-    currentLabel: current ? planPathStepTitle(current) : planPathTitle(cycle),
-    counterLabel: `Étape ${Math.max(index, 0) + 1} / ${cycle.path.length}`,
-    steps: cycle.path.map((step): PathStep => ({
-      label: planPathStepTitle(step),
-      state: step.status === "DONE" ? "done" : step.status === "CURRENT" ? "now" : "todo",
-    })),
-    note: current ? planPathStepNote(current, cycle) : null,
-  };
-}
-
-function PalierPath({path}: {path: PalierPathData}) {
+function JourneySection({journey}: {journey: JourneyDto | null}) {
+  if (!journey || journey.steps.length === 0) return null;
+  const more = journeyMoreLabel(journey.hiddenUpcomingCount);
   return (
-    <Section title={path.title} flush>
-      <PathCard
-        currentLabel={path.currentLabel}
-        counterLabel={path.counterLabel}
-        steps={path.steps}
-      />
-      {path.note && <p className={sejourStyles.tiny}>{path.note}</p>}
+    <Section title={journeyTitle(journey.targetLevel)} flush>
+      <Card padding="rows">
+        <JourneyList>
+          {journey.steps.map((step) => (
+            <JourneyRow
+              key={step.id}
+              title={journeyStepTitle(step)}
+              subtitle={journeyStepSubtitle(step)}
+              state={journeyKitState(step)}
+              kind={journeyKind(step)}
+              badge={journeyBadge(step)}
+              locked={step.locked}
+            />
+          ))}
+        </JourneyList>
+      </Card>
+      {/* 🛑 Le compte des étapes repliées est **servi** : le déduire de la
+          longueur de `steps` donnerait un nombre faux dès que le filtrage
+          d'affichage retient une étape verrouillée hors fenêtre. */}
+      {more && <p className={sejourStyles.tiny}>{more}</p>}
     </Section>
   );
 }

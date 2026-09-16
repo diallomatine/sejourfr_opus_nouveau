@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/analytics/analytics.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/models/journey_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/app_router.dart';
@@ -18,6 +19,7 @@ import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../plan_actions.dart';
 import '../plan_groups.dart';
+import '../journey_labels.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
@@ -40,12 +42,19 @@ class PlanTcfView extends ConsumerWidget {
   const PlanTcfView({
     super.key,
     required this.plan,
+    this.journey,
     required this.objective,
     this.affiner,
     this.trailing = const <Widget>[],
   });
 
   final LearningPlan plan;
+
+  /// **Le parcours TCF**, quand il est chargé.
+  ///
+  /// 🛑 `null` est un cas NORMAL — pas encore lu, ou backend antérieur à
+  /// l'endpoint : la timeline disparaît, elle n'affiche jamais un squelette.
+  final Journey? journey;
   final TargetLevel? objective;
 
   /// **L'invitation au diagnostic complet**, posée à l'emplacement de l'ancien
@@ -109,7 +118,7 @@ class PlanTcfView extends ConsumerWidget {
         flush: true,
         child: _nowCard(context, ref),
       ),
-      ..._pathSection(),
+      ..._journeySection(),
       ..._prioritiesSection(free: false),
       ..._doneSection(),
       ..._changesSection(changes),
@@ -139,7 +148,7 @@ class PlanTcfView extends ConsumerWidget {
           flush: true,
           child: _freeStepCard(),
         ),
-        ..._freePathSection(),
+        ..._journeySection(),
         const SfSection(
           flush: true,
           child: SfUnlockHero(
@@ -341,56 +350,51 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  /// « Votre parcours — Tâche 3 ».
+  /// **La file d'étapes**, telle que le serveur l'a construite (spec §12-14).
   ///
-  /// 🛑 **Le compteur est lu, pas compté** : `observedSkills / totalSkills` du
-  /// DTO de la tâche. Sans tâche servie (compréhension, ou code inattendu), le
-  /// bloc **disparaît** — on n'invente pas un parcours.
-  List<Widget> _pathSection() {
-    final steps = _taskSteps();
-    if (steps == null) return const <Widget>[];
+  /// 🛑 **Rien n'est décidé ici** : ni l'ordre (c'est la position, et elle ne se
+  /// recalcule pas), ni le statut, ni le verrou, ni ce qui est affiché — le
+  /// serveur a déjà coupé selon §14. L'écran ne fait que peindre.
+  ///
+  /// 🛑 **Une étape verrouillée reste à sa place**, avec son cadenas : le Plan
+  /// reste intégralement visible, sans accès comme avec (contradiction #1,
+  /// tranchée le 2026-08-21). C'est pourquoi la **même** section sert les deux
+  /// variantes de l'écran — un parcours amputé pour un compte gratuit serait un
+  /// second parcours.
+  List<Widget> _journeySection() {
+    final parcours = journey;
+    if (parcours == null || parcours.steps.isEmpty) return const <Widget>[];
+    final more = journeyMoreLabel(parcours.hiddenUpcomingCount);
     return <Widget>[
       SfSection(
-        title: planPathSectionTitle(steps.task),
-        flush: true,
-        child: SfPathCard(
-          currentLabel: plan.currentPriority?.title ?? steps.task.title,
-          counterLabel: planPathCounter(steps.dto),
-          steps: planPathSteps(steps),
-        ),
-      ),
-    ];
-  }
-
-  /// Le même parcours pour un compte sans accès : chaque étape **servie comme
-  /// verrouillée** porte son cadenas, les autres restent des étapes.
-  List<Widget> _freePathSection() {
-    final steps = _taskSteps();
-    if (steps == null) return const <Widget>[];
-    return <Widget>[
-      SfSection(
-        title: kPlanFreePathTitle,
+        title: journeyTitle(parcours.targetLevel),
         flush: true,
         child: SfCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: SfJourneyList(
             children: [
-              for (var i = 0; i < steps.skills.length; i++)
-                if (steps.skills[i].locked)
-                  SfLockRow(
-                    rank: i + 1,
-                    label: steps.skills[i].title,
-                    last: i == steps.skills.length - 1,
-                  )
-                else
-                  SfPathRow(
-                    label: steps.skills[i].title,
-                    state: planSkillStepState(steps.skills[i]),
-                  ),
+              for (final step in parcours.steps)
+                SfJourneyRow(
+                  title: journeyStepTitle(step),
+                  subtitle: journeyStepSubtitle(step),
+                  state: journeyKitState(step),
+                  kind: journeyKind(step),
+                  badge: journeyBadge(step),
+                  locked: step.locked,
+                ),
             ],
           ),
         ),
       ),
+      // 🛑 Le compte des étapes repliées est **servi** : le déduire de la
+      // longueur de la liste donnerait un nombre faux dès que le filtrage
+      // d'affichage retient une étape verrouillée hors fenêtre.
+      if (more != null) ...[
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(more, style: AppFonts.ui(size: 12, color: AppColors.muted)),
+        ),
+      ],
     ];
   }
 
@@ -643,10 +647,6 @@ class PlanTcfView extends ConsumerWidget {
 
   PlanDomainTask? _taskDto(SkillTaskCode task) => planTaskDto(plan, task);
 
-  /// Le parcours de la tâche en cours. 🛑 **La dérivation vit dans
-  /// [planTaskPath]**, partagée avec le bloc « Votre Plan » de l'Accueil : deux
-  /// copies auraient fini par cocher deux étapes différentes.
-  PlanTaskPath? _taskSteps() => planTaskPath(plan);
 }
 
 /// Le geste de la barre basse : il nomme le palier visé quand il est connu,

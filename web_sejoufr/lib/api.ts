@@ -923,11 +923,34 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
  * @param expandAll toutes les étapes non obsolètes au lieu du sous-ensemble
  *                  d'affichage — ce que demande « Voir les étapes suivantes ».
  */
-export function fetchJourney(expandAll = false): Promise<JourneyDto> {
+function fetchJourney(expandAll = false): Promise<JourneyDto> {
     return apiFetch<JourneyDto>(
         expandAll ? "/api/me/plan/journey?expand=all" : "/api/me/plan/journey",
         {auth: true});
 }
+
+const JOURNEY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey`;
+
+export const journeyApi = {
+    get: fetchJourney,
+
+    /**
+     * 🛑 **Le parcours est mis en cache sous le PRÉFIXE du Plan**, donc
+     * `invalidateDiagnosticAndPlan()` le purge avec lui. C'est ce qui garantit
+     * qu'une production rendue, une série finie ou un examen passé ne laissent
+     * jamais la carte « À faire maintenant » sur une étape périmée — les deux
+     * lectures se rafraîchissent **ensemble**, jamais l'une sans l'autre.
+     */
+    getCached(): Promise<JourneyDto> {
+        return cached(JOURNEY_CACHE_KEY, () => fetchJourney());
+    },
+
+    cacheKey: JOURNEY_CACHE_KEY,
+
+    peekCached(): JourneyDto | undefined {
+        return peekCached<JourneyDto>(JOURNEY_CACHE_KEY);
+    },
+};
 
 /**
  * Le diagnostic TCF **4 épreuves** (L4).
