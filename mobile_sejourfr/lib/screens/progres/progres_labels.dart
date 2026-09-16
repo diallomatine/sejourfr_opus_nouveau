@@ -32,6 +32,15 @@ const String kProgresHistoriqueText =
 
 const String kProgresCiviqueTitle = 'Examen civique';
 
+/// Le détail par thème du civique.
+///
+/// 🛑 Le libellé d'un état vient de `CivicThemeState.label` et son ton de
+/// `civicThemeTone` (`screens/plan/civic_plan_labels.dart`) : ce sont les
+/// **autorités déjà en place** pour cet enum, employées aussi par le Plan et le
+/// rapport de diagnostic. Une seconde table finirait par nommer autrement le
+/// même état.
+const String kProgresCiviqueThemesTitle = 'Par thème';
+
 /// État vide (`30_` §7).
 const String kProgresVideText =
     'Votre progression s\'affichera après votre premier diagnostic.';
@@ -82,6 +91,47 @@ ProgresEvolutionTone progresEvolutionTone(NiveauEvolution evolution) =>
 /// « B2 » ou « Non évaluée ». 🛑 Jamais « A1 » pour une absence de mesure.
 String progresEpreuveNiveau(ProgressEpreuve epreuve) =>
     epreuve.niveau?.displayName ?? 'Non évaluée';
+
+/// Libellés **gelés** du statut d'une épreuve face à l'objectif (spec V2 §2),
+/// miroirs mot pour mot de `PROGRES_STATUT_LABEL` côté web.
+///
+/// 🛑 Le statut est **servi** : ce fichier ne fait que poser un mot dessus.
+/// Aucun front ne compare deux paliers CECRL.
+const Map<StatutObjectif, String> kProgresStatutLabel = {
+  StatutObjectif.targetReached: 'Objectif atteint',
+  StatutObjectif.closeToTarget: 'Proche de l\'objectif',
+  StatutObjectif.toReinforce: 'À renforcer',
+};
+
+/// Le statut d'une épreuve, dit au candidat.
+///
+/// 🛑 **Une épreuve jamais mesurée ne se dit PAS « à renforcer »** : le serveur
+/// la range bien dans `TO_REINFORCE`, mais son `niveau` vaut `null` et c'est ce
+/// qu'il faut lire — « À évaluer ». Fondre les deux cas dans le même mot
+/// rejouerait l'incident V040/V041/V042, où une absence de mesure était devenue
+/// un verdict.
+///
+/// `null` quand aucune démarche n'est déclarée : sans objectif, rien à situer.
+String? progresStatutLabel(ProgressEpreuve epreuve) {
+  final statut = epreuve.status;
+  if (statut == null) return null;
+  if (epreuve.niveau == null) return 'À évaluer';
+  return kProgresStatutLabel[statut];
+}
+
+/// Le ton du statut. `muted` = non mesuré, ou sans objectif — pas un degré de
+/// gravité de plus.
+enum ProgresStatutTone { ok, warn, hot, muted }
+
+ProgresStatutTone progresStatutTone(ProgressEpreuve epreuve) {
+  final statut = epreuve.status;
+  if (statut == null || epreuve.niveau == null) return ProgresStatutTone.muted;
+  return switch (statut) {
+    StatutObjectif.targetReached => ProgresStatutTone.ok,
+    StatutObjectif.closeToTarget => ProgresStatutTone.warn,
+    StatutObjectif.toReinforce => ProgresStatutTone.hot,
+  };
+}
 
 /// « 4 compétences maîtrisées sur 11 travaillées ».
 ///

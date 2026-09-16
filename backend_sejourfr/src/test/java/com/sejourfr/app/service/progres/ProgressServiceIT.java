@@ -3,6 +3,7 @@ package com.sejourfr.app.service.progres;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauEvolution;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
@@ -146,6 +147,44 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         // jamais annoncé maîtrisé (L10).
         assertThat(civique.maitrisees()).isZero();
         assertThat(civique.grainNotion()).isFalse();
+    }
+
+    /**
+     * 🛑 Le détail par thème vient du <b>moteur du plan civique</b>, pas d'un
+     * second calcul de maîtrise : les cinq thèmes sont servis, toujours, avec
+     * leur état brut. Un thème sans état serait pire qu'un thème absent —
+     * l'écran ne saurait pas quoi en dire.
+     */
+    @Test
+    @DisplayName("Le détail civique par thème est servi, les 5 thèmes avec leur état brut")
+    void detailCiviqueParTheme() {
+        User user = testData.user();
+        diagnosticCiviqueTermine(user);
+
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        assertThat(civique.themes()).hasSize(5);
+        assertThat(civique.themes()).allSatisfy(ligne -> {
+            assertThat(ligne.themeId()).isNotNull();
+            assertThat(ligne.code()).isNotBlank();
+            assertThat(ligne.label()).isNotBlank();
+            // 🛑 L'état est SERVI, jamais dérivé d'un nombre côté front.
+            assertThat(ligne.etat()).isNotNull();
+        });
+        // Toutes les réponses sont fausses et les cinq thèmes ont été interrogés
+        // par le diagnostic : aucun n'est SOLIDE, aucun n'est NON_EVALUE.
+        assertThat(civique.themes())
+                .extracting(com.sejourfr.app.dto.CivicPlanDto.ThemeLigne::etat)
+                .doesNotContain(CivicThemeState.SOLIDE, CivicThemeState.NON_EVALUE);
+    }
+
+    /** Sans diagnostic civique clos, on n'invente pas même une liste de thèmes. */
+    @Test
+    @DisplayName("Sans diagnostic civique, le détail par thème est vide")
+    void detailCiviqueVideSansDiagnostic() {
+        User user = testData.user();
+
+        assertThat(service.progres(user.getId()).civique().themes()).isEmpty();
     }
 
     @Test

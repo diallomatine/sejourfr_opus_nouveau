@@ -277,6 +277,106 @@ class TcfProfileServiceTest {
         assertThat(service.levelProfile(userId).globalLevel()).isEqualTo(NiveauCecrl.B1);
     }
 
+    // ------------------------------------------------------------- anti-yoyo (spec V2 §5.3)
+
+    /*
+     * 🛑 LA RÈGLE ANTI-YOYO EST TENUE PAR CONSTRUCTION, ET PLUS FORT QUE LA SPEC.
+     *
+     * La spec V2 §5.3 protège un `estimatedLevel` qui vaudrait « la dernière
+     * évaluation » : elle exige deux évaluations qualifiantes CONSÉCUTIVES pour
+     * bouger. Ici, le niveau d'une épreuve est le MEILLEUR résultat de tout
+     * l'historique — un maximum monotone. Il ne peut donc pas redescendre sur un
+     * mauvais jour, et l'ordre des résultats ne l'influence pas : les deux
+     * défauts que la règle de la spec cherche à éviter n'existent pas.
+     *
+     * Les trois cas obligatoires de la spec §14 sont vérifiés ci-dessous. Le
+     * seul écart est la VITESSE DE MONTÉE (cas B intermédiaire), volontaire et
+     * verrouillé lui aussi : une épreuve réellement réussie compte tout de
+     * suite. Attendre une seconde preuve reviendrait à annoncer A2 à un candidat
+     * qui vient de démontrer B1, c'est-à-dire à faire mentir la mesure dans le
+     * sens du reproche.
+     */
+
+    /**
+     * <b>Cas B de la spec §14 — amélioration réelle.</b> Diagnostic A2 puis deux
+     * épreuves complètes B1 consécutives ⇒ le niveau vaut B1.
+     *
+     * <p>⚠️ Écart assumé avec la spec : chez nous le passage à B1 a lieu dès la
+     * <b>première</b> épreuve complète (cf. le test suivant). La spec ne
+     * l'obtient qu'à la seconde.
+     */
+    @Test
+    void casB_deuxEpreuvesCompletesConsecutivesB1_leNiveauVautB1() {
+        Instant now = Instant.now();
+        // La baseline du diagnostic (A2) n'est lue qu'à défaut de vraie
+        // production : deux productions existent, elle ne concurrence rien.
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2));
+        stubProduction(EpreuveType.TCF_EE, List.of(
+                eval(NiveauCecrl.B1, now),
+                eval(NiveauCecrl.B1, now.minus(2, ChronoUnit.DAYS))));
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * <b>Cas B, l'étape intermédiaire — l'écart VOULU avec la spec.</b> Une
+     * première épreuve complète B1 après un diagnostic A2 fait <b>déjà</b>
+     * passer à B1 : une baseline de diagnostic n'a jamais l'autorité d'une
+     * production réelle, et une preuve réelle n'attend pas sa jumelle.
+     */
+    @Test
+    void casB_uneSeuleEpreuveCompleteB1_suffitDejaAPasserAB1_ecartVouluAvecLaSpec() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2));
+        stubProduction(EpreuveType.TCF_EE, List.of(eval(NiveauCecrl.B1, Instant.now())));
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * <b>Cas C de la spec §14 — la mauvaise journée.</b> Un candidat stable B1
+     * rate un jour et sort un A2 isolé : le niveau <b>reste B1</b>. Ce n'est pas
+     * une règle de séquence ici, c'est le maximum : un résultat atypique ne peut
+     * structurellement pas faire redescendre.
+     */
+    @Test
+    void casC_unSeulResultatAtypiqueBas_neFaitPasRedescendre() {
+        Instant now = Instant.now();
+        stubProduction(EpreuveType.TCF_EO, List.of(
+                eval(NiveauCecrl.A2, now),                              // la mauvaise journée
+                eval(NiveauCecrl.B1, now.minus(3, ChronoUnit.DAYS)),
+                eval(NiveauCecrl.B1, now.minus(8, ChronoUnit.DAYS))));
+
+        assertThat(service.levelProfile(userId).eo()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /** Même cas C, côté QCM : le dernier examen ne fait jamais la loi. */
+    @Test
+    void casC_unExamenQcmRateNeFaitPasRedescendreLEpreuve() {
+        stubQcm(EpreuveType.TCF_CO, List.of(
+                qcm(NiveauCecrl.A2),   // le plus récent
+                qcm(NiveauCecrl.B1),
+                qcm(NiveauCecrl.B1)));
+
+        assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * <b>Cas I de la spec §14 — évaluations non consécutives.</b> B1, puis A2,
+     * puis B1 : le niveau <b>ne change pas</b>, il vaut B1 du début à la fin. La
+     * spec y arrive en refusant une paire non consécutive ; nous y arrivons
+     * parce que le A2 intercalé n'a jamais pu faire descendre quoi que ce soit.
+     */
+    @Test
+    void casI_evaluationsNonConsecutives_leNiveauNeChangePas() {
+        Instant now = Instant.now();
+        stubProduction(EpreuveType.TCF_EE, List.of(
+                eval(NiveauCecrl.B1, now),                              // 3ᵉ
+                eval(NiveauCecrl.A2, now.minus(2, ChronoUnit.DAYS)),    // 2ᵉ
+                eval(NiveauCecrl.B1, now.minus(5, ChronoUnit.DAYS))));  // 1ʳᵉ
+
+        assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
     // ------------------------------------------------------------------ plancher
 
     @Test

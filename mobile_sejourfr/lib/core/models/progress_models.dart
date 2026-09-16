@@ -1,3 +1,4 @@
+import 'civic_plan_models.dart';
 import 'enums.dart';
 
 /// Miroirs de `ProgressDto` (T28, `30_` §7) — « montrer le MOUVEMENT, pas un
@@ -83,6 +84,31 @@ class ProgressEstimation {
       );
 }
 
+/// Où en est une épreuve **face à l'objectif** du candidat — dérivé serveur
+/// (`StatutObjectifResolver`), jamais recalculé ici.
+///
+/// 🛑 [toReinforce] recouvre **deux** situations : « mesuré, et loin » et
+/// « jamais mesuré ». C'est [ProgressEpreuve.niveau] qui les distingue, et il
+/// vaut `null` dans le second cas — les confondre à l'écran rejouerait
+/// l'incident V040/V041/V042.
+enum StatutObjectif {
+  targetReached('TARGET_REACHED'),
+  closeToTarget('CLOSE_TO_TARGET'),
+  toReinforce('TO_REINFORCE');
+
+  const StatutObjectif(this.wire);
+
+  final String wire;
+
+  static StatutObjectif? fromWire(String? value) {
+    if (value == null) return null;
+    for (final statut in StatutObjectif.values) {
+      if (statut.wire == value) return statut;
+    }
+    return null;
+  }
+}
+
 /// Une épreuve, son palier d'aujourd'hui, et ce qui a bougé.
 class ProgressEpreuve {
   const ProgressEpreuve({
@@ -90,6 +116,7 @@ class ProgressEpreuve {
     required this.evolution,
     this.niveau,
     this.niveauInitial,
+    this.status,
   });
 
   final EpreuveType epreuve;
@@ -98,6 +125,9 @@ class ProgressEpreuve {
   final NiveauCecrl? niveau;
   final NiveauCecrl? niveauInitial;
   final NiveauEvolution evolution;
+
+  /// 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer.
+  final StatutObjectif? status;
 
   static ProgressEpreuve fromJson(Map<String, dynamic> json) => ProgressEpreuve(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
@@ -109,6 +139,7 @@ class ProgressEpreuve {
             : NiveauCecrl.fromWire(json['niveauInitial'] as String),
         evolution:
             NiveauEvolution.fromWire(json['evolution'] as String? ?? 'INCONNUE'),
+        status: StatutObjectif.fromWire(json['status'] as String?),
       );
 }
 
@@ -244,6 +275,7 @@ class ProgressCivique {
     required this.travaillees,
     required this.maitrisees,
     required this.grainNotion,
+    this.themes = const <CivicPlanThemeLigne>[],
   });
 
   final bool disponible;
@@ -254,6 +286,13 @@ class ProgressCivique {
   /// L'écran doit pouvoir **nommer** ce qu'il compte : notions ou thèmes.
   final bool grainNotion;
 
+  /// Le détail par thème, **même modèle que le Plan / Réviser** : le serveur
+  /// réexpose ce que son moteur civique produit déjà.
+  ///
+  /// 🛑 L'`etat` est **servi**, et se rend par `CivicThemeState.label` : l'app
+  /// pose un libellé, elle ne classe aucun nombre.
+  final List<CivicPlanThemeLigne> themes;
+
   static ProgressCivique fromJson(Map<String, dynamic> json) => ProgressCivique(
         disponible: json['disponible'] as bool? ?? false,
         historique: (json['historique'] as List<dynamic>? ?? const [])
@@ -262,6 +301,9 @@ class ProgressCivique {
         travaillees: (json['travaillees'] as num?)?.toInt() ?? 0,
         maitrisees: (json['maitrisees'] as num?)?.toInt() ?? 0,
         grainNotion: json['grainNotion'] as bool? ?? false,
+        themes: (json['themes'] as List<dynamic>? ?? const [])
+            .map((e) => CivicPlanThemeLigne.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

@@ -26,9 +26,11 @@ import {useEffect, useState} from "react";
 import Link from "next/link";
 import {ArrowRight, Lock} from "lucide-react";
 import {progressApi} from "@/lib/api";
+import {kitTone} from "@/lib/civic-diagnostic";
 import {EPREUVE_PRESENTATION} from "@/lib/exam-durations";
 import {
     PROGRES_ACTIVITE_TITLE,
+    PROGRES_CIVIQUE_THEMES_TITLE,
     PROGRES_CIVIQUE_TITLE,
     PROGRES_COMPETENCES_LOCKED,
     PROGRES_COMPETENCES_TITLE,
@@ -49,7 +51,10 @@ import {
     progresEvolutionTone,
     progresNiveauLabel,
     progresRegulariteLabel,
+    progresStatutLabel,
+    progresStatutTone,
 } from "@/lib/progres";
+import {CIVIC_THEME_STATE_LABEL} from "@/lib/types";
 import type {ProgressDto} from "@/lib/types";
 
 function jourCourt(iso: string | null): string | null {
@@ -127,12 +132,26 @@ export function ProgresMouvement() {
                                 e.epreuve as keyof typeof EPREUVE_PRESENTATION
                             ];
                             const marqueur = progresEvolutionLabel(e);
+                            const statut = progresStatutLabel(e);
                             return (
                                 <li key={e.epreuve}>
                                     <span aria-hidden>{presentation?.icon}</span>
                                     <span className="pmv-ep-label">
                                         {presentation?.label ?? e.epreuve}
                                     </span>
+                                    {/* 🛑 Le statut est SERVI (`status`), et une
+                                        épreuve jamais mesurée se dit « À
+                                        évaluer » — jamais « À renforcer », qui
+                                        déguiserait une absence de mesure en
+                                        verdict (V040/V041/V042). */}
+                                    {statut && (
+                                        <span
+                                            className="pmv-ep-statut"
+                                            data-tone={progresStatutTone(e)}
+                                        >
+                                            {statut}
+                                        </span>
+                                    )}
                                     <span className="pmv-ep-niveau">
                                         {progresEpreuveNiveau(e)}
                                     </span>
@@ -179,6 +198,26 @@ export function ProgresMouvement() {
                     <p className="pmv-eyebrow">{PROGRES_CIVIQUE_TITLE}</p>
                     {civiqueScore && <p className="pmv-niveau">{civiqueScore}</p>}
                     {civiqueLabel && <p className="pmv-compte">{civiqueLabel}</p>}
+                </div>
+            )}
+
+            {/* Civique — le détail par thème. 🛑 L'état arrive SERVI : on pose
+                un libellé gelé dessus, on ne classe aucun nombre. Et
+                `NON_EVALUE` est neutre, jamais ambre : le serveur n'a pas
+                mesuré ce thème, il ne dit pas qu'il est fragile. */}
+            {civique.themes.length > 0 && (
+                <div className="pmv-bloc">
+                    <p className="pmv-eyebrow">{PROGRES_CIVIQUE_THEMES_TITLE}</p>
+                    <ul className="pmv-themes">
+                        {civique.themes.map((t) => (
+                            <li key={t.themeId}>
+                                <span className="pmv-th-label">{t.label}</span>
+                                <em data-tone={kitTone(t.etat)}>
+                                    {CIVIC_THEME_STATE_LABEL[t.etat]}
+                                </em>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
 
@@ -290,6 +329,7 @@ function Styles() {
                 color: var(--color-muted-2);
             }
             .pmv-epreuves,
+            .pmv-themes,
             .pmv-acquises {
                 list-style: none;
                 margin: 0;
@@ -298,14 +338,47 @@ function Styles() {
                 flex-direction: column;
                 gap: 8px;
             }
-            .pmv-epreuves li {
+            .pmv-epreuves li,
+            .pmv-themes li {
                 display: flex;
                 align-items: center;
+                flex-wrap: wrap;
                 gap: 10px;
                 font-size: 14px;
                 color: var(--color-ink);
             }
-            .pmv-ep-label { flex: 1; min-width: 0; }
+            .pmv-ep-label,
+            .pmv-th-label { flex: 1; min-width: 0; }
+            .pmv-ep-statut {
+                font-size: 12px;
+                line-height: 1.4;
+                padding: 2px 8px;
+                border-radius: 999px;
+                white-space: nowrap;
+                border: 1px solid var(--color-line);
+                color: var(--color-muted);
+            }
+            .pmv-ep-statut[data-tone="ok"] {
+                border-color: color-mix(in srgb, var(--color-green) 35%, transparent);
+                color: var(--color-green);
+            }
+            .pmv-ep-statut[data-tone="warn"] {
+                border-color: color-mix(in srgb, var(--color-amber) 45%, transparent);
+                color: var(--color-amber);
+            }
+            .pmv-ep-statut[data-tone="hot"] {
+                border-color: color-mix(in srgb, var(--color-red) 30%, transparent);
+                color: var(--color-red);
+            }
+            .pmv-themes em {
+                font-style: normal;
+                font-size: 12.5px;
+                white-space: nowrap;
+                color: var(--color-muted-2);
+            }
+            .pmv-themes em[data-tone="ok"] { color: var(--color-green); }
+            .pmv-themes em[data-tone="warn"] { color: var(--color-amber); }
+            .pmv-themes em[data-tone="hot"] { color: var(--color-red); }
             .pmv-ep-niveau {
                 font-family: var(--font-mono);
                 font-size: 12.5px;

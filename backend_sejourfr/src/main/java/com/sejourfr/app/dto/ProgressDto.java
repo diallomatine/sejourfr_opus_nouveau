@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.NiveauEvolution;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.StatutObjectif;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -107,12 +108,21 @@ public record ProgressDto(
      * @param evolution     🛑 {@code INCONNUE} n'est <b>pas</b> {@code STABLE} :
      *                      une épreuve non évaluée d'un côté n'a ni progressé ni
      *                      tenu. Et {@code BAISSE} existe et se sert
+     * @param status        où en est cette épreuve <b>par rapport à
+     *                      l'objectif</b> ({@code StatutObjectifResolver}, spec
+     *                      V2 §2). 🛑 {@code null} quand aucune démarche n'est
+     *                      déclarée — sans palier exigé, il n'y a rien à
+     *                      comparer. 🛑 {@code TO_REINFORCE} couvre aussi
+     *                      l'épreuve <b>jamais mesurée</b> : c'est
+     *                      {@code niveau == null} qui distingue les deux, et un
+     *                      écran doit lire les deux
      */
     public record Epreuve(
             EpreuveType epreuve,
             NiveauCecrl niveau,
             NiveauCecrl niveauInitial,
-            NiveauEvolution evolution
+            NiveauEvolution evolution,
+            StatutObjectif status
     ) {
     }
 
@@ -171,13 +181,22 @@ public record ProgressDto(
      * @param maitrisees   dont l'état servi est « maîtrisée »
      * @param grainNotion  le plan travaille-t-il déjà par notion ? L'écran doit
      *                     pouvoir nommer ce qu'il compte
+     * @param themes       le <b>détail par thème</b>, tel que le moteur du plan
+     *                     le produit déjà ({@code CivicPlanService.themeLignes},
+     *                     même record que l'écran Plan / Réviser). 🛑 L'état est
+     *                     servi en {@code CivicThemeState} <b>brut</b> : les
+     *                     fronts posent le libellé, ils ne le dérivent d'aucun
+     *                     nombre. 🛑 {@code NON_EVALUE} n'est pas
+     *                     {@code FAIBLE} — un thème jamais interrogé n'a pas été
+     *                     raté
      */
     public record Civique(
             boolean disponible,
             List<Score> historique,
             int travaillees,
             int maitrisees,
-            boolean grainNotion
+            boolean grainNotion,
+            List<CivicPlanDto.ThemeLigne> themes
     ) {
     }
 

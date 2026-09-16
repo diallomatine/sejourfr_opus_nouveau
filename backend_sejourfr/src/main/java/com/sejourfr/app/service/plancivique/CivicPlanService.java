@@ -210,13 +210,7 @@ public class CivicPlanService {
         CivicDiagnosticResultDto resultat = calcul.resultat();
         Instant maintenant = calcul.maintenant();
 
-        // 🛑 Seul SERVABLE est propose. `NON_APPLICABLE` n'est pas un cran de
-        // plus dans le manque : la notion n'est pas au programme de cette
-        // demarche, elle n'a rien a faire dans un plan.
-        List<CivicPlanDto.Cible> proposables = cibles.stream()
-                .filter(c -> c.dotation().estServable())
-                .filter(c -> c.maitrise() != CivicMaitrise.MAITRISEE)
-                .toList();
+        List<CivicPlanDto.Cible> proposables = proposables(cibles);
         // 🛑 Plafond d'AFFICHAGE, jamais un budget de calcul : le moteur a
         // classe TOUTES les cibles, l'ecran en montre trois et COMPTE le reste.
         List<CivicPlanDto.Cible> priorites =
@@ -243,7 +237,7 @@ public class CivicPlanService {
                 .filter(c -> c.dotation().estServable())
                 .toList();
 
-        CivicPlanDto.Cible prochaine = priorites.isEmpty() ? null : priorites.getFirst();
+        CivicPlanDto.Cible prochaine = prochaine(proposables);
 
         // 🛑 `null` est le cas NORMAL : servi seulement si quelque chose a
         // vraiment bouge. Le temps qui passe n'est pas un changement.
@@ -276,6 +270,36 @@ public class CivicPlanService {
                 grain(calcul.taggage()),
                 changements,
                 maintenant);
+    }
+
+    /**
+     * Les cibles que le plan peut <b>proposer</b>, dans l'ordre servi.
+     *
+     * <p>🛑 Seul SERVABLE est propose. {@code NON_APPLICABLE} n'est pas un cran
+     * de plus dans le manque : la notion n'est pas au programme de cette
+     * demarche, elle n'a rien a faire dans un plan.
+     *
+     * <p>Extrait a sa 2ᵉ occurrence : {@code mettreEnForme} (l'ecran Plan) et
+     * {@code compteurs} (l'ecran Progres) designent ainsi <b>la meme</b> cible
+     * du moment — deux filtres recopies auraient fini par en designer deux.
+     */
+    private static List<CivicPlanDto.Cible> proposables(List<CivicPlanDto.Cible> cibles) {
+        return cibles.stream()
+                .filter(c -> c.dotation().estServable())
+                .filter(c -> c.maitrise() != CivicMaitrise.MAITRISEE)
+                .toList();
+    }
+
+    /**
+     * La cible que le plan travaille <b>maintenant</b>, ou {@code null}.
+     *
+     * <p>Se lit sur {@code proposables} et non sur {@code priorites} : les deux
+     * ont la meme tete, mais {@code priorites} est <b>plafonnee a
+     * l'affichage</b> — s'appuyer dessus ferait dependre une designation d'un
+     * reglage d'ecran.
+     */
+    private static CivicPlanDto.Cible prochaine(List<CivicPlanDto.Cible> proposables) {
+        return proposables.isEmpty() ? null : proposables.getFirst();
     }
 
     /**
@@ -366,14 +390,24 @@ public class CivicPlanService {
      * @param maitrisees  dont l'etat servi est {@code MAITRISEE}
      * @param grainNotion le plan travaille-t-il deja par notion ? L'ecran doit
      *                    pouvoir <b>nommer</b> ce qu'il compte
+     * @param themes      le <b>detail par theme</b> — exactement les lignes du
+     *                    Plan / de Reviser, {@code CivicThemeState} brut. 🛑
+     *                    Aucun second calcul de maitrise : on <b>reexpose</b>
+     *                    ce que le moteur vient de produire, dans le meme
+     *                    {@code calculer(userId)}, donc sans une requete de
+     *                    plus. Vide quand aucun diagnostic n'est clos
      */
-    public record Compteurs(int travaillees, int maitrisees, boolean grainNotion) {
+    public record Compteurs(
+            int travaillees,
+            int maitrisees,
+            boolean grainNotion,
+            List<CivicPlanDto.ThemeLigne> themes) {
     }
 
     @Transactional(readOnly = true)
     public Compteurs compteurs(UUID userId) {
         Calcul calcul = calculer(userId);
-        if (!calcul.disponible()) return new Compteurs(0, 0, false);
+        if (!calcul.disponible()) return new Compteurs(0, 0, false, List.of());
 
         int travaillees = (int) calcul.cibles().stream()
                 .filter(c -> c.reponses() > 0)
@@ -386,7 +420,11 @@ public class CivicPlanService {
                 .count();
         return new Compteurs(
                 travaillees, maitrisees,
-                grain(calcul.taggage()).courant() == CivicPlanGrain.NOTION);
+                grain(calcul.taggage()).courant() == CivicPlanGrain.NOTION,
+                // La MEME autorite que l'ecran Plan, appelee sur le MEME calcul
+                // — deux lectures du meme candidat ne peuvent donc pas rendre
+                // deux etats differents pour un theme.
+                themeLignes(calcul, prochaine(proposables(calcul.cibles()))));
     }
 
     // ------------------------------------------------------------------------

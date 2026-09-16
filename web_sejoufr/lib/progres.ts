@@ -24,6 +24,7 @@ import type {
     ProgressCompetencesDto,
     ProgressEpreuveDto,
     ProgressTcfDto,
+    StatutObjectif,
 } from "./types";
 
 export const PROGRES_TITLE = "Ce qui a bougé";
@@ -51,6 +52,16 @@ export const PROGRES_HISTORIQUE_TEXT =
     "Vos examens et vos productions restent consultables.";
 
 export const PROGRES_CIVIQUE_TITLE = "Examen civique";
+
+/**
+ * Le détail par thème du civique.
+ *
+ * 🛑 Le libellé d'un état vient de `CIVIC_THEME_STATE_LABEL` et son ton de
+ * `kitTone` (`lib/civic-diagnostic.ts`) : ce sont les **autorités déjà en
+ * place** pour cet enum, employées aussi par le Plan et le rapport de
+ * diagnostic. Une seconde table finirait par nommer autrement le même état.
+ */
+export const PROGRES_CIVIQUE_THEMES_TITLE = "Par thème";
 
 /** État vide (`30_` §7). */
 export const PROGRES_VIDE_TEXT =
@@ -108,6 +119,46 @@ export function progresEvolutionTone(
 /** « B2 » ou « Non évaluée ». 🛑 Jamais « A1 » pour une absence de mesure. */
 export function progresEpreuveNiveau(epreuve: ProgressEpreuveDto): string {
     return epreuve.niveau ? niveauCecrlLabel(epreuve.niveau) : "Non évaluée";
+}
+
+/**
+ * Libellés **gelés** du statut d'une épreuve face à l'objectif (spec V2 §2),
+ * miroirs mot pour mot de `kProgresStatutLabel` côté mobile.
+ *
+ * 🛑 Le statut est **servi** : ce fichier ne fait que poser un mot dessus. Aucun
+ * front ne compare deux paliers CECRL.
+ */
+const PROGRES_STATUT_LABEL: Record<StatutObjectif, string> = {
+    TARGET_REACHED: "Objectif atteint",
+    CLOSE_TO_TARGET: "Proche de l'objectif",
+    TO_REINFORCE: "À renforcer",
+};
+
+/**
+ * Le statut d'une épreuve, dit au candidat.
+ *
+ * 🛑 **Une épreuve jamais mesurée ne se dit PAS « à renforcer »** : le serveur
+ * la range bien dans `TO_REINFORCE`, mais son `niveau` vaut `null` et c'est ce
+ * qu'il faut lire — « À évaluer ». Fondre les deux cas dans le même mot
+ * rejouerait l'incident V040/V041/V042, où une absence de mesure était devenue
+ * un verdict.
+ *
+ * `null` quand aucune démarche n'est déclarée : sans objectif, rien à situer.
+ */
+export function progresStatutLabel(epreuve: ProgressEpreuveDto): string | null {
+    if (!epreuve.status) return null;
+    if (!epreuve.niveau) return "À évaluer";
+    return PROGRES_STATUT_LABEL[epreuve.status];
+}
+
+/** Le ton du statut. `null` (jamais mesuré, ou sans objectif) reste **neutre**. */
+export function progresStatutTone(
+    epreuve: ProgressEpreuveDto,
+): "ok" | "warn" | "hot" | "muted" {
+    if (!epreuve.status || !epreuve.niveau) return "muted";
+    if (epreuve.status === "TARGET_REACHED") return "ok";
+    if (epreuve.status === "CLOSE_TO_TARGET") return "warn";
+    return "hot";
 }
 
 /**

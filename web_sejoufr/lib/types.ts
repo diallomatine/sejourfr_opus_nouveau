@@ -4022,6 +4022,16 @@ export interface ProgressEstimationDto {
     mesureA: string | null;
 }
 
+/**
+ * Où en est une épreuve **face à l'objectif** du candidat — dérivé serveur
+ * (`StatutObjectifResolver`), jamais recalculé ici.
+ *
+ * 🛑 `TO_REINFORCE` recouvre **deux** situations : « mesuré, et loin » et
+ * « jamais mesuré ». C'est `niveau` qui les distingue, et il vaut `null` dans le
+ * second cas — les confondre à l'écran rejouerait V040/V041/V042.
+ */
+export type StatutObjectif = "TARGET_REACHED" | "CLOSE_TO_TARGET" | "TO_REINFORCE";
+
 /** Une épreuve, son palier d'aujourd'hui, et ce qui a bougé. */
 export interface ProgressEpreuveDto {
     epreuve: EpreuveType;
@@ -4029,6 +4039,8 @@ export interface ProgressEpreuveDto {
     niveau: NiveauCecrl | null;
     niveauInitial: NiveauCecrl | null;
     evolution: NiveauEvolution;
+    /** 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer. */
+    status: StatutObjectif | null;
 }
 
 /**
@@ -4090,6 +4102,14 @@ export interface ProgressCiviqueDto {
     maitrisees: number;
     /** L'écran doit pouvoir **nommer** ce qu'il compte : notions ou thèmes. */
     grainNotion: boolean;
+    /**
+     * Le détail par thème, **même record que le Plan / Réviser** : le serveur
+     * réexpose ce que son moteur civique produit déjà.
+     *
+     * 🛑 L'`etat` est **servi**, et se rend par `CIVIC_THEME_STATE_LABEL` : le
+     * front pose un libellé, il ne classe aucun nombre.
+     */
+    themes: CivicPlanThemeLigneDto[];
 }
 
 /**

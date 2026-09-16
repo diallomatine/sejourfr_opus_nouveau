@@ -381,8 +381,10 @@ servent déjà :
 | niveau TCF actuel, par épreuve | `TcfProfileService` — « le SEUL endroit d'où sort ce niveau » |
 | objectif | `TcfDiagnosticService.cible(user)` → `TargetProcedure.niveauVise` |
 | sens d'une évolution | `TcfDiagnosticProgressionResolver.evolution` (L7, écrit pour cet écran) |
+| **statut d'une épreuve face à l'objectif** | `StatutObjectifResolver` (2026-09-16) |
 | compétences tenues | moteur de maîtrise (`SkillMasteryResolver`) |
 | compteurs civiques | moteur du plan civique (L10) |
+| **détail civique par thème** | `CivicPlanService.themeLignes()` (L10, le même que Plan / Réviser) |
 | jours travaillés | `AttemptRepository.findDistinctActivityDates` (celui du streak) |
 
 Aucun niveau, aucun palier, aucun état n'est recalculé ici.
@@ -403,6 +405,30 @@ Aucun niveau, aucun palier, aucun état n'est recalculé ici.
 - 🛑 **Les 4 épreuves sont toujours servies**, évaluées ou non. Une épreuve
   absente de la liste disparaîtrait de l'écran au lieu de se dire « non
   évaluée ».
+- 🛑 **Le statut d'une épreuve face à l'objectif est SERVI** (`Epreuve.status`,
+  **2026-09-16**) : `TARGET_REACHED` / `CLOSE_TO_TARGET` / `TO_REINFORCE`,
+  dérivés par `StatutObjectifResolver` d'`actuel` **vs** `objectif`, deux
+  paliers que le DTO servait déjà. Aucun front ne compare deux niveaux CECRL :
+  la règle vit à un seul endroit, et l'ordre CECRL vient de
+  `TcfDiagnosticLevelResolver.rang`, la même autorité qu'`evolution`.
+  - 🛑 **`null` quand aucune démarche n'est déclarée.** Sans palier exigé il n'y
+    a rien vers quoi renforcer : on ne range personne dans le verdict le plus
+    bas faute d'objectif.
+  - 🛑 **`TO_REINFORCE` recouvre DEUX cas** — « mesuré, et loin » et « jamais
+    mesuré ». Le statut produit les confond (table de la spec V2 §2), **les
+    écrans non** : `niveau` vaut `null` dans le second cas, et les deux fronts
+    affichent alors « **À évaluer** », jamais « À renforcer »
+    (`progresStatutLabel` ⇄ `progresStatutLabel`). C'est l'incident
+    V040/V041/V042 sous un autre déguisement — ne jamais fondre les deux.
+- 🛑 **Le détail civique par thème est SERVI** (`Civique.themes`, **2026-09-16**)
+  et c'est **le même record que le Plan** (`CivicPlanDto.ThemeLigne`) : le
+  serveur réexpose ce que son moteur produit déjà, dans le **même**
+  `CivicPlanService.compteurs(userId)` — aucune requête de plus, aucun second
+  calcul de maîtrise. L'état arrive en `CivicThemeState` **brut** ; les fronts
+  posent le libellé (`CIVIC_THEME_STATE_LABEL` ⇄ `CivicThemeState.label`) et le
+  ton (`kitTone` ⇄ `civicThemeTone`), les autorités déjà en place. 🛑
+  `NON_EVALUE` reste **neutre**, jamais ambre : le serveur n'a pas mesuré ce
+  thème, il ne dit pas qu'il est fragile.
 - 🛑 **« Maîtrisée » se lit sur `SkillMastery.transferProven`, PAS sur
   `state() == SOLID`** (correctif du **2026-09-16**). C'est la **même** autorité
   que « acquis » sur le Plan (`PlanStepStateResolver`, `completedSteps` — voir
