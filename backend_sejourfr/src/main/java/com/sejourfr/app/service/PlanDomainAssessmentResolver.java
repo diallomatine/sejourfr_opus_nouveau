@@ -124,13 +124,25 @@ public class PlanDomainAssessmentResolver {
      * l'infini sans jamais revenir mesurer son oral, alors que c'est exactement
      * ce qui lui manquait.
      *
-     * <p>🛑 <b>C'est la distinction que le brief exige entre les deux sens de
+     * <p>🛑 <b>C'est la distinction que le brief exige entre les trois sens de
      * {@code NOT_OBSERVED}</b> : « la production etait inutilisable » &rarr; il
      * faut <b>reevaluer</b> (c'est ici) ; « ce palier / cette tache n'a pas
      * encore ete aborde » &rarr; il faut <b>acquerir</b>
-     * ({@link PlanAcquisitionSelector}). Le premier sens se lit au grain du
-     * <b>domaine</b> — une production ratee emporte toutes les competences de
-     * son epreuve —, le second au grain de la competence.
+     * ({@link PlanAcquisitionSelector}) ; « l'echantillon est trop mince pour
+     * conclure » &rarr; il n'y a <b>rien a proposer</b>. Le premier sens se lit
+     * au grain du <b>domaine</b> — une production ratee emporte toutes les
+     * competences de son epreuve —, le second au grain de la competence, le
+     * troisieme au grain du palier.
+     *
+     * <p>🛑 <b>EXPRESSION SEULEMENT</b> (2026-09-16). Le filtre
+     * {@code section.isProduction()} n'est pas une optimisation : en
+     * comprehension, {@code NOT_OBSERVED} n'a <b>jamais</b> le sens « la mesure
+     * a rate ». {@code ComprehensionObservationService} l'ecrit quand un palier
+     * porte moins de {@code comprehension.min-questions} reponses — c'est le
+     * <b>troisieme</b> sens, « pas assez de preuve », et une epreuve CO/CE
+     * terminee n'a rien a repasser pour autant. Sans ce filtre, un candidat qui
+     * venait de finir ses 25 items de CE se voyait proposer de refaire la CE
+     * entiere parce qu'un de ses trois paliers manquait de deux reponses.
      *
      * <p>A ne pas confondre avec {@link #resolve} : celui-la liste les domaines
      * <b>jamais mesures</b> et alimente « Completer mon profil », un bloc a part.
@@ -162,7 +174,10 @@ public class PlanDomainAssessmentResolver {
         for (LearningPlanObservation observation : observations) {
             if (observation == null || observation.getSkill() == null) continue;
             SkillSection section = observation.getSkill().getSection();
-            if (section == null) continue;
+            // La comprehension n'entre meme pas dans le comptage : son
+            // NOT_OBSERVED dit « echantillon trop mince », jamais « la mesure
+            // a rate ». Une epreuve CO/CE terminee ne se repasse pas pour ca.
+            if (section == null || !section.isProduction()) continue;
             tentees.add(section);
             if (observation.isObserved()) observees.add(section);
         }
