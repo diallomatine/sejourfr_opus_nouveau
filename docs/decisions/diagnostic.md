@@ -10,6 +10,103 @@
 
 ---
 
+- **LE DIAGNOSTIC COMPTE DÉSORMAIS DANS LE PROFIL TCF — inversion de la décision V049**
+  (2026-09-16). `AttemptRepository.findQcmEpreuvesPassees` portait `AND a.tcfDiagnostic IS
+  NULL` depuis le commit `c675ad5c` (2026-09-10). Le filtre est **retiré**.
+  - **Pourquoi la règle avait raison le 2026-09-10.** Son motif écrit, verbatim : « le niveau
+    estimé se lit sur un score calibré 100-499 **établi sur 25 items**, quand une section de
+    diagnostic en compte **15** ». C'était exact et c'était la bonne décision : les deux
+    mesures ne mesuraient pas la même chose, et `TcfProfileService` prend le **meilleur**
+    résultat par épreuve — une section courte, plus facile à réussir, aurait tiré le profil
+    vers le haut sans preuve comparable derrière. Le filtre était au surplus cohérent avec la
+    discipline générale de `tcf_diagnostic_id` (7 requêtes le portaient).
+  - **Pourquoi elle a cessé d'avoir raison le 2026-09-13.** Le commit `dd06334e` a appliqué
+    l'arbitrage du propriétaire — « chaque épreuve du diagnostic complet se lance comme un
+    examen blanc complet de l'épreuve ». `TcfDiagnosticSectionStarter.creerComprehension`
+    appelle depuis lors le **même `composeModuleExam`** qu'un examen de module :
+    **25 items (8 A2 / 9 B1 / 8 B2), même tirage, même durée pleine**.
+    `composeDiagnosticComprehension` et `dureeReduite` ont été supprimées dans la même passe.
+    La prémisse de V049 — « 15 items contre 25 » — **n'existe plus**. Ce qui restait n'était
+    pas une règle mais son ombre : une CE de diagnostic était, ligne pour ligne, la même
+    mesure qu'une CE passée seule, et elle était la seule que beaucoup de comptes de test
+    avaient.
+  - **Ce qui change.** Une sous-épreuve CE/CO de diagnostic complet compte dans
+    `TcfProfileService.levelProfile` exactement comme une épreuve passée seule ou dans un
+    examen blanc. **Aucun traitement différent selon la provenance de l'attempt** — c'est la
+    règle métier, pas un effet de bord. `bestQcm` retenant un **maximum**, aucun double
+    comptage n'en découle : une même épreuve mesurée deux fois n'est comptée qu'une, à sa
+    meilleure valeur. Verrouillé par `AttemptManagerIT
+    .findQcmEpreuvesPassees_includesTcfDiagnosticSubAttempts`.
+  - 🛑 **La levée est bornée à CETTE requête.** Les six autres porteuses de
+    `tcf_diagnostic_id` — grille des 20 slots, catalogues, historiques, statistiques, quotas,
+    freebie EE/EO — la gardent : leur motif à elles n'a jamais été la comparabilité des
+    scores. `TcfDiagnosticServiceIT` continue de les verrouiller.
+  - **Non touché** : `AND a.civicDiagnostic IS NULL` (un diagnostic civique n'est pas une
+    épreuve TCF) et l'`EXISTS` sur `answers` — une section de diagnostic ouverte puis
+    abandonnée sans une seule réponse reste hors du profil, et c'est verrouillé aussi.
+  - **Autorisation** : le propriétaire a explicitement permis de casser la compatibilité avec
+    les anciens diagnostics de test, cette partie du produit n'ayant jamais été en production.
+    Les 12 sous-attempts de diagnostic locaux datent d'avant le 2026-09-13 (15 items) ; tous
+    portent **zéro réponse**, donc aucun n'entre dans le profil — le changement n'a aucun
+    effet rétroactif sur les données existantes.
+
+- **UNE QUESTION NON RÉPONDUE N'EST PAS UNE RÉPONSE FAUSSE** (2026-09-16). Mesuré en base
+  locale : sur **31** observations `learning_plan_observations` de source `TCF_CO`/`TCF_CE`,
+  **25 provenaient de sessions à zéro réponse** — dont la session CO `713cbf9f` du compte
+  `070f4564` (`wewiwe4789@bowlfuel.com`), 25 questions posées, aucune répondue, qui avait
+  produit trois `PRIORITY` à « 0 / 8 », « 0 / 9 » et « 0 / 8 bonnes réponses ». Des fragilités
+  qui n'ont jamais été observées.
+  - **Cause** : `AttemptInteractionService.recordComprehension` construisait
+    `ReponseComprehension(…, correct = aq.getAnswer() != null && …)`. Une question sans réponse
+    y arrivait **indiscernable** d'une réponse fausse, et `ComprehensionObservationService` la
+    comptait au dénominateur comme au numérateur. Le moteur V4.2 (`ReceptiveEvidenceAdapter
+    .ReponseQcm`) portait déjà un champ `answered` pour ce cas exact ; le producteur du Plan
+    ne l'avait pas.
+  - **Décision** : `ReponseComprehension` porte `answered`, et la ventilation écarte toute
+    question non répondue — **ni numérateur, ni dénominateur, ni `min-questions`**. Une
+    épreuve terminée sans aucune réponse n'écrit donc **aucune** observation : ni `PRIORITY`
+    (fausse fragilité), ni `NOT_OBSERVED` (faux « données insuffisantes »). Pour la mesure de
+    compétence, elle n'a pas eu lieu. **L'attempt, lui, est conservé** : on cesse d'en tirer
+    une mesure, on n'efface pas l'historique du candidat.
+  - ⚠️ **Sans effet sur le résultat d'UN examen**, où une épreuve abandonnée reste comptée
+    `A1_NON_ATTEINT` (`FullTcfExamResponseBuilder`) : c'est le résultat de cet examen-là, pas
+    le profil du candidat dans le temps. Même partage que l'`EXISTS` de
+    `findQcmEpreuvesPassees`, posé pour la même raison.
+  - ⚠️ **Non touché, et volontairement** : `ReceptiveEvidenceAdapter` (moteur V4.2, shadow
+    mode) compte toujours les non répondues comme fausses sur une session close par le chrono
+    — c'est sa doctrine §23.4 écrite (« une session close par le chrono reste qualifiante :
+    c'est un examen, pas un entraînement, et le candidat le savait en le lançant »). Point
+    signalé, pas arbitré ici.
+  - **Nettoyage local** (`sejourfr_db` dev, autorisé par le propriétaire) : les **25** lignes
+    `learning_plan_observations` dont l'attempt source ne porte aucune réponse ont été
+    supprimées — comptes `wewiwe4789@bowlfuel.com` (9), `user@sejourfr.fr` (8),
+    `billodiallo@gmail.com` (5), `billo12@gmail.com` (3). Les **6** lignes restantes
+    (`billodiallo@gmail.com` et `billodiallo2@gmail.com`, deux sessions à 25/25) ont été
+    vérifiées ligne à ligne contre les réponses réelles : elles sont exactes. Aucun attempt
+    supprimé.
+
+- **UNE COMPRÉHENSION « PAS ASSEZ MESURÉE » N'EST PAS UNE MESURE RATÉE** (2026-09-16).
+  `PlanDomainAssessmentResolver.indispensable` — qui sert la carte « à compléter » en tête de
+  séance — traitait tout domaine « tenté mais sans aucune observation probante » comme une
+  **production inutilisable à réévaluer**. Ce sens-là est légitime pour EO/EE (une production
+  rendue dont le correcteur n'a rien pu observer, cf. l'entrée V040 plus bas), mais
+  `ComprehensionObservationService` écrit `NOT_OBSERVED` pour une **troisième** raison :
+  moins de `comprehension.min-questions` (6) réponses sur ce palier.
+  - **Décision** : `indispensable` ne retient que les sections de **production**
+    (`section.isProduction()`). Une épreuve CE/CO terminée dont un palier manque de preuve
+    n'est **jamais** proposée à repasser — `NOT_OBSERVED` dit « pas assez de preuve », pas
+    « échec ».
+  - **Les trois états, qui ne se confondent plus** : (1) épreuve **jamais réalisée** ⇒ la
+    mesurer (`resolve` / `PlanAcquisitionSelector`) ; (2) réalisée mais **données
+    insuffisantes** sur ce palier ⇒ **rien**, ni carte ni invitation ; (3) **fragilité
+    réellement observée** ⇒ une priorité ordinaire. L'enum `LearningPlanSkillStatus` suffit à
+    les porter une fois ces bugs corrigés — `NOT_OBSERVED` + `observed = false` pour (2), et
+    (1) n'a **aucune** ligne d'observation du tout. **Aucun statut nouveau n'a été créé** :
+    en ajouter un aurait dupliqué un sens existant.
+  - **Verrouillé** par `PlanDomainAssessmentResolverTest` (production `NOT_OBSERVED` toujours
+    retenue — non-régression du cas fondateur ; compréhension `NOT_OBSERVED` jamais retenue ;
+    une CO non observée n'éclipse pas l'EO ratée qui, elle, compte).
+
 - **UNE MISE EN FORME NE COÛTE PLUS LE DIAGNOSTIC** (2026-08-25). En prod, sur la submission
   `3136658f-d3f7-46cc-8344-336ee928bd85` (EO, transcription de 1 045 caractères) :
   `Sortie diagnostic invalide submission=… — réparation unique : [summary dépasse 280

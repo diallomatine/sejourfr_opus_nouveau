@@ -552,6 +552,23 @@ Le plancher à **6** n'est pas arbitraire : avec `n` questions le taux ne prend 
 valeurs espacées de `1/n`, et la bande intermédiaire fait 15 points — à `n=5` le pas vaut 20,
 donc l'échantillon le plus mince ne rendrait **que** les deux verdicts les plus tranchés.
 Sous le plancher : `NOT_OBSERVED`, jamais une fausse fragilité.
+
+🛑 **Le plancher se compte en RÉPONSES, jamais en questions posées** (2026-09-16). Une
+question laissée vide est écartée de la ventilation : elle ne compte ni au numérateur, ni au
+dénominateur, ni dans `min-questions`. Conséquence directe et voulue : **une épreuve terminée
+sans aucune réponse n'écrit AUCUNE observation** — ni `PRIORITY` (fausse fragilité), ni
+`NOT_OBSERVED` (faux « données insuffisantes ») ; pour la mesure de compétence, elle n'a pas
+eu lieu. L'attempt, lui, reste en base et dans l'historique du candidat : on cesse d'en tirer
+une mesure, on ne l'efface pas. Même distinction que `ReceptiveEvidenceAdapter.ReponseQcm
+.answered` et que l'`EXISTS` de `AttemptRepository.findQcmEpreuvesPassees`.
+⚠️ Ceci ne change **rien** au résultat d'**un** examen, où une épreuve abandonnée reste
+comptée `A1_NON_ATTEINT` (`FullTcfExamResponseBuilder`) : c'est le résultat de cet examen-là,
+pas le profil du candidat dans le temps.
+Le bug corrigé : `AttemptInteractionService.recordComprehension` produisait
+`correct = aq.getAnswer() != null && …`, donc une question non répondue arrivait au producteur
+indiscernable d'une réponse fausse. Mesuré en base le 2026-09-16 : sur 31 observations CO/CE
+locales, **25 provenaient de sessions à zéro réponse**, dont des `PRIORITY` à « 0 / 8 bonnes
+réponses ».
 - **`subject_id` = `attemptId`**, et `TCF_CO`/`TCF_CE` sont **`isContextual()`** : en
   compréhension le QCM **est** le format réel de l'épreuve, il n'existe pas de version guidée
   à lui opposer. Sans ça aucune compétence CO/CE ne pourrait jamais devenir `SOLID`. Elles ne
@@ -785,13 +802,26 @@ Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale 
   **aucune ligne d'historique** dessus, `NOT_OBSERVED` comprise. Ordre : urgence du domaine
   (celle que `PlanCycleResolver` a **déjà** décidée, jamais recalculée), puis ordre des
   épreuves, tâche, `display_order`.
-- **Les deux sens de `NOT_OBSERVED`, enfin distingués** — c'est ce qui débloque le compte
-  de référence. « La production était **inutilisable** » ⇒ il faut **réévaluer** :
-  `PlanDomainAssessmentResolver.indispensable` (grain du **domaine** — une production ratée
-  emporte toute son épreuve), servi **en tête de séance** en `A_EVALUER`, **zéro requête**.
-  « Ce palier n'a **pas encore été abordé** » ⇒ il faut **acquérir** (grain de la
-  compétence). Sans cette distinction, le Plan proposait de l'écrit à l'infini à un candidat
-  dont c'est l'oral qui manquait.
+- **Les TROIS sens de `NOT_OBSERVED`, distingués** — c'est ce qui débloque le compte
+  de référence. Ces trois états ne se confondent jamais, ni dans le code, ni dans ce qui est
+  servi :
+
+  | # | Ce que ça dit | Ce qu'il faut | Qui décide |
+  |---|---|---|---|
+  | 1 | **L'épreuve n'a jamais été réalisée** (aucune ligne d'historique) | la **mesurer** | `PlanDomainAssessmentResolver.resolve` → « Compléter mon profil », `PlanAcquisitionSelector` au grain de la compétence |
+  | 2 | **Réalisée, mais pas assez de preuve** sur ce palier (moins de `min-questions` **réponses**) | **rien** — ni carte, ni invitation | `ComprehensionObservationService`, qui écrit `NOT_OBSERVED` / `observed = false` |
+  | 3 | **La production était inutilisable** (rendue, rien d'observable) | **réévaluer** | `PlanDomainAssessmentResolver.indispensable`, en tête de séance en `A_EVALUER`, **zéro requête** |
+
+  Le cas 3 se lit au grain du **domaine** (une production ratée emporte toute son épreuve),
+  le cas 1 au grain de la compétence, le cas 2 au grain du **palier**. Sans la distinction
+  1 ⇄ 3, le Plan proposait de l'écrit à l'infini à un candidat dont c'est l'oral qui manquait.
+- 🛑 **`indispensable` ne regarde QUE les sections de production** (`section.isProduction()`,
+  2026-09-16). En compréhension, `NOT_OBSERVED` n'a **jamais** le sens 3 : il ne dit que
+  « échantillon trop mince » (cas 2), et une épreuve CO/CE terminée n'a rien à repasser pour
+  autant. Sans ce filtre, un candidat qui venait de finir ses 25 items de CE se voyait
+  proposer de **refaire la CE entière** parce qu'un de ses trois paliers manquait de deux
+  réponses — et le cas était systématique tant que les questions non répondues alimentaient
+  des observations fantômes (cf. le plancher en réponses, plus haut).
 - 🛑 **`SkillMasteryEngine` n'a pas bougé d'un octet.** Une compétence à acquérir n'est
   **pas une observation** : aucune ligne dans `learning_plan_observations`, donc ni score,
   ni moyenne, ni fragilité. Sa carte a `status`, `explanation`, `evidence`, `confidence`,

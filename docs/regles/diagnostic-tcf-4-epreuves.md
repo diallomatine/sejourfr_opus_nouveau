@@ -17,7 +17,7 @@ d'appeler cela un examen blanc. » Les deux objets coexistent :
 | | Diagnostic TCF | Examen blanc complet |
 |---|---|---|
 | But | identifier quoi travailler, construire le Plan | se mettre en situation réelle |
-| Compréhension | 24 items (8 A2 / 8 B1 / 8 B2), CO ≈ 19 min · CE ≈ 34 min | format réel, 25 items (8/9/8), CO 20 min · CE 35 min |
+| Compréhension | **format réel** depuis le 2026-09-13 : 25 items (8/9/8), CO 20 min · CE 35 min | format réel, 25 items (8/9/8), CO 20 min · CE 35 min |
 | Production | **les 3 tâches**, jamais réduites | les 3 tâches |
 | EE / EO | **totalement offertes**, aucun quota consommé | 1 examen offert, puis Premium |
 | EO tâches 1 et 2 | **pas en conditions réelles** | conditions réelles |
@@ -53,12 +53,26 @@ le repli compte dans le palier qu'elle porte.
 ⚠️ **Historique** : `items-per-level` était passé de 5 à 8 le matin même
 (24 items, chrono au prorata) — étape intermédiaire, remplacée le jour même.
 
-⚠️ **Ce qui n'a PAS été touché, et reste à arbitrer** : le niveau TCF estimé
-**exclut toujours les diagnostics**. Son motif écrit (« un score calibré établi
-sur 25 items, quand une section de diagnostic en compte 15 ») ne tient plus tout
-à fait à 24 items — mais l'exclusion tient aussi par le filtre
-`tcf_diagnostic_id`, qui garde le diagnostic hors des grilles et des
-statistiques. On ne l'ouvre pas en passant.
+🛑 **ARBITRÉ LE 2026-09-16 — le niveau TCF estimé COMPTE désormais les
+sous-épreuves CE/CO du diagnostic.** C'était le point laissé ouvert ci-dessus.
+Le motif de l'exclusion (V049 : « un score calibré établi sur 25 items, quand une
+section de diagnostic en compte 15 ») est **périmé depuis le 2026-09-13** —
+`creerComprehension` appelle le même `composeModuleExam`, donc mêmes 25 items,
+même tirage, même durée. `AND a.tcfDiagnostic IS NULL` est retiré de
+`AttemptRepository.findQcmEpreuvesPassees`.
+
+**La règle, en une phrase** : une CE/CO alimente **exactement le même profil**
+qu'elle ait été passée seule, dans un examen blanc complet ou dans le diagnostic.
+Aucun traitement différent selon la provenance de l'attempt.
+
+Aucun double comptage n'en découle : `TcfProfileService.bestQcm` retient le
+**meilleur** résultat par épreuve, jamais une somme — une même épreuve mesurée
+deux fois n'est comptée qu'une, à sa meilleure valeur.
+
+⚠️ **Le filtre `tcf_diagnostic_id` reste entier PARTOUT AILLEURS** : grilles des
+20 slots, catalogues, historiques, statistiques et quotas continuent de tenir le
+diagnostic à l'écart. La levée est **bornée à cette requête-là**, celle du
+profil. Journal : `docs/decisions/diagnostic.md`.
 
 ## La mécanique est celle de l'examen complet, pas une seconde
 
@@ -78,12 +92,12 @@ boucle de réévaluation plus bas), et `TcfDiagnosticServiceIT` les verrouille.
 
 Deux décisions d'exclusion, écrites parce qu'elles ne se devinent pas :
 
-- **le niveau TCF estimé EXCLUT les diagnostics** — il se lit sur un score
-  calibré 100-499 établi sur 25 items, quand une section de diagnostic en compte
-  24 ; l'exclusion tient d'abord au filtre `tcf_diagnostic_id`, qui garde le
-  diagnostic hors des grilles et des statistiques. ⚠️ Son motif d'origine (« 25
-  items contre 15 ») s'est affaibli le 2026-09-13 — cf. l'encart en tête de
-  fichier, c'est un point à arbitrer, pas à ouvrir en passant ;
+- **le niveau TCF estimé INCLUT les diagnostics depuis le 2026-09-16** —
+  l'exclusion V049 est révoquée, les sections CE/CO étant désormais composées
+  exactement comme un examen de module (cf. l'encart en tête de fichier). Le
+  filtre `tcf_diagnostic_id` reste entier partout ailleurs — c'est la **seule**
+  des sept requêtes à l'avoir perdu, et seulement parce que son motif portait sur
+  la comparabilité des scores, pas sur les grilles ;
 - **la série de jours consécutifs les COMPTE** — passer une section de
   diagnostic est un jour de travail.
 
@@ -260,6 +274,14 @@ elle ne tire pas l'épreuve vers le bas.
 🛑 **`null` = non évaluée, jamais le palier le plus bas.** C'est l'invariant que
 V040/V041/V042 ont payé. L'écran doit **nommer** l'épreuve non évaluée
 (« Compréhension orale : non évaluée »), pas afficher un A1.
+
+🛑 **Une question non répondue n'est pas une réponse fausse** (2026-09-16). En
+compréhension, elle est écartée du taux **et** du dénominateur : une section
+terminée sans aucune réponse n'écrit **aucune** observation de compétence — ni
+fragilité, ni « données insuffisantes ». Une épreuve CE/CO terminée dont un
+palier reste en `NOT_OBSERVED` (échantillon trop mince) n'est **jamais** proposée
+« à compléter » : `PlanDomainAssessmentResolver.indispensable` ne regarde que les
+sections de production. → `docs/regles/plan.md`
 
 ## Les priorités
 
