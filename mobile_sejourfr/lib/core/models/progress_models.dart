@@ -137,7 +137,7 @@ class ProgressEpreuve {
   ///
   /// 🛑 **Même descripteur que « Compléter mon profil » et que la ligne
   /// `A_EVALUER` de la séance**, donc **même lanceur** — `openPlanAssessment`,
-  /// jamais un second. C'est ce qui fait que « Faire un exercice » sur
+  /// jamais un second. C'est ce qui fait que « Évaluer mon niveau » sur
   /// l'Accueil ouvre exactement le parcours que le Plan ouvrirait pour le même
   /// domaine.
   final PlanDomainAssessment? evaluation;

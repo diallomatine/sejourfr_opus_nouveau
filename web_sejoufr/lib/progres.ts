@@ -289,7 +289,7 @@ export function accueilEpreuveBadge(epreuve: ProgressEpreuveDto): string {
  */
 export function accueilEpreuveCta(epreuve: ProgressEpreuveDto): string {
     const etat = accueilEpreuveEtat(epreuve);
-    if (etat === "A_EVALUER") return "Faire un exercice";
+    if (etat === "A_EVALUER") return "Évaluer mon niveau";
     if (etat === "EN_PROGRESSION") return "Continuer";
     return "Voir mes résultats";
 }

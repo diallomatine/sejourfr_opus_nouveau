@@ -248,7 +248,7 @@ String accueilEpreuveBadge(ProgressEpreuve epreuve) =>
 /// qui monte propose de continuer plutôt que de relire.
 String accueilEpreuveCta(ProgressEpreuve epreuve) =>
     switch (accueilEpreuveEtat(epreuve)) {
-      AccueilEpreuveEtat.aEvaluer => 'Faire un exercice',
+      AccueilEpreuveEtat.aEvaluer => 'Évaluer mon niveau',
       AccueilEpreuveEtat.enProgression => 'Continuer',
       _ => 'Voir mes résultats',
     };
