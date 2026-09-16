@@ -171,6 +171,32 @@ CivicCibleTone civicThemeTone(CivicThemeState etat) => switch (etat) {
       CivicThemeState.nonEvalue => CivicCibleTone.muted,
     };
 
+/// Le ton de la **jauge** d'un thème, sur les cartes « Où vous en êtes ».
+///
+/// 🛑 Il **dérive** de [civicThemeTone], il ne reclasse pas l'état : une
+/// seconde table finirait par colorer autrement le même thème d'un écran à
+/// l'autre. Miroir web : `civicBarTone` (`lib/civic-plan.ts`).
+SfBarTone civicThemeBarTone(CivicThemeState etat) =>
+    switch (civicThemeTone(etat)) {
+      CivicCibleTone.ok => SfBarTone.ok,
+      CivicCibleTone.warn => SfBarTone.warn,
+      CivicCibleTone.hot => SfBarTone.hot,
+      CivicCibleTone.muted => SfBarTone.muted,
+    };
+
+/// Le remplissage de la jauge d'un thème.
+///
+/// 🛑 **Ce n'est pas un pourcentage de maîtrise** — le civique se mesure en
+/// points sur 40 et en cibles tenues, jamais en barres, et aucun chiffre n'est
+/// affiché. C'est le codage visuel de l'état **servi**, à quatre positions
+/// fixes. 🛑 `NON_EVALUE` vaut 0 comme « jamais mesuré », pas comme « raté ».
+double civicThemeJauge(CivicThemeState etat) => switch (etat) {
+      CivicThemeState.nonEvalue => 0,
+      CivicThemeState.faible => 0.3,
+      CivicThemeState.aRenforcer => 0.6,
+      CivicThemeState.solide => 1,
+    };
+
 const String kCivicPlanThemesTitle = 'Thèmes à travailler';
 
 /// Le libellé de l'encart bleu de la carte d'action.

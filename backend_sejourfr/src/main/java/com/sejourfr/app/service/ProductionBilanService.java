@@ -125,6 +125,69 @@ public class ProductionBilanService {
         return compute(evalsByTache, true);
     }
 
+    /**
+     * Ce qu'une session de production <b>vaut</b> : son niveau d'épreuve, les
+     * évaluations retenues, et si les tâches manquantes ont compté 0.
+     *
+     * @param niveau          🛑 {@code null} = <b>pas encore de verdict</b> :
+     *                        entraînement libre (le produit n'y calcule aucun
+     *                        palier), évaluation IA encore en vol, ou tâche en
+     *                        échec qu'on peut relancer. Jamais
+     *                        {@code A1_NON_ATTEINT} par défaut
+     * @param manquantesAZero l'épreuve a été écourtée : les tâches jamais
+     *                        rendues ont compté 0, dans le niveau <b>et</b>
+     *                        dans la note
+     */
+    public record NiveauEpreuve(
+            NiveauCecrl niveau,
+            boolean manquantesAZero,
+            Map<Integer, AiEvaluation> evalsByTache
+    ) {
+    }
+
+    /**
+     * Le niveau d'épreuve d'une session de production, <b>une seule fois pour
+     * tout le dépôt</b>.
+     *
+     * <p>Extraite le 2026-09-16 à sa 2ᵉ occurrence : le bilan d'une session
+     * ({@code ProductionSubmissionService.bilan}) et l'historique d'une épreuve
+     * ({@code EpreuveHistoriqueService}) doivent annoncer <b>le même palier</b>
+     * pour la même session. Deux copies de cet enchaînement de conditions
+     * auraient fini par en annoncer deux.
+     *
+     * <p>Les trois règles qu'il porte, inchangées :
+     * <ul>
+     *   <li>🛑 <b>jamais de niveau en entraînement libre</b>
+     *       ({@code exam == false}) — le produit n'y calcule pas de palier, et
+     *       en inventer un ici en ferait un résultat opposable ;</li>
+     *   <li>les 3 tâches évaluées ⇒ moyenne pondérée normale ;</li>
+     *   <li>épreuve <b>terminée</b> et incomplète, sans évaluation en vol ni
+     *       tâche en échec ⇒ les manquantes comptent 0. Une évaluation encore
+     *       en vol ne rend <b>rien</b> : la compter 0 annoncerait un palier
+     *       faux que le prochain appel démentirait.</li>
+     * </ul>
+     */
+    public NiveauEpreuve niveauEpreuve(
+            List<ProductionSubmission> submissions, boolean exam, boolean finished) {
+        boolean inFlight = false;
+        boolean anyFailed = false;
+        for (ProductionSubmission s : submissions) {
+            if (s.getStatut() == SubmissionStatut.FAILED) {
+                anyFailed = true;
+            } else if (s.getStatut() != SubmissionStatut.EVALUATED) {
+                inFlight = true;
+            }
+        }
+        Map<Integer, AiEvaluation> evalsByTache = latestEvalsByTache(submissions);
+        if (exam && evalsByTache.size() >= EXPECTED_TASKS_PER_EPREUVE) {
+            return new NiveauEpreuve(bilanEpreuve(evalsByTache), false, evalsByTache);
+        }
+        if (exam && finished && !inFlight && !anyFailed) {
+            return new NiveauEpreuve(bilanEpreuveTerminee(evalsByTache), true, evalsByTache);
+        }
+        return new NiveauEpreuve(null, false, evalsByTache);
+    }
+
     private NiveauCecrl compute(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
         java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
         if (manquantesAZero) {

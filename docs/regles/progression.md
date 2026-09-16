@@ -459,3 +459,132 @@ Aucun niveau, aucun palier, aucun état n'est recalculé ici.
 
 Routes : `docs/api-endpoints.md`, section « Progrès (T28) ». Journal :
 `docs/review_all/60_DECISIONS_IMPLEMENTATION.md`, section « T28 ».
+
+---
+
+## Écran ACCUEIL — « Où vous en êtes » (2026-09-16)
+
+🛑 **À distinguer de l'écran Progrès**, qui reste inchangé. Une section
+**ajoutée** à l'Accueil, entre « À faire maintenant » et « Votre Plan » : une
+carte compacte par épreuve TCF — palier, jauge, état en un mot, action — puis
+le bandeau « Objectif actuel · Atteindre B1 partout ». Maquette du
+propriétaire, seule référence (aucune capture validée n'existe dans
+`~/Desktop/sejourfr_ecrans` ni `~/Desktop/grok_ecran` pour cette section).
+
+🛑 **Elle ne remplace PAS « Votre progression »**, qui garde ses deux compteurs
+de compétences juste en dessous. L'une dit *où en est chaque épreuve*, l'autre
+*combien de compétences ont bougé*. Les fondre aurait fait disparaître un
+compteur servi pour les deux parcours.
+
+🛑 **Aucun appel de plus.** `GET /api/me/progress` est déjà lu par l'Accueil
+(`progressProvider` ⇄ le lot parallèle du dashboard) et porte déjà les
+4 épreuves : la section ne coûte rien au réseau.
+
+### La dérivation, et pourquoi elle tient en un seul endroit
+
+`accueilEpreuveEtat` (`lib/progres.ts` ⇄ `screens/progres/progres_labels.dart`)
+vit **dans le fichier des libellés de Progrès**, pas à côté : c'est le même
+statut servi, et deux tables auraient fini par le nommer autrement sur deux
+écrans que le candidat voit dans la même minute.
+
+Elle ne lit que **deux faits servis** — `status` (`StatutObjectifResolver`) et
+`evolution` (`TcfDiagnosticProgressionResolver`) — et **aucun nombre**. Ordre :
+
+| # | condition | état | statut | jauge | ton | CTA |
+|---|---|---|---|---|---|---|
+| 1 | `niveau == null` | `A_EVALUER` | Pas encore évaluée | 0 | neutre | Faire un exercice |
+| 2 | `evolution == HAUSSE` | `EN_PROGRESSION` | En progression | 0,55 | bleu | Continuer |
+| 3 | `status == TARGET_REACHED` | `SOLIDE` | Solide · à maintenir | 1 | vert | Voir mes résultats |
+| 4 | `status == CLOSE_TO_TARGET` | `PROCHE` | Proche de l'objectif | 0,75 | ambre | Voir mes résultats |
+| 5 | `status == TO_REINFORCE` | `A_RENFORCER` | À renforcer | 0,35 | rouge | Voir mes résultats |
+| 6 | `status == null` | `SANS_OBJECTIF` | *(rien)* | 0 | neutre | Voir mes résultats |
+
+🛑 **L'ordre 1 puis 2 puis le statut est normatif.** Le cas 1 rejoue
+V040/V041/V042 s'il passe après : le serveur range bien une épreuve jamais
+mesurée dans `TO_REINFORCE`, et l'écrire « à renforcer » transformerait une
+absence de mesure en verdict. Le cas 2 passe avant le statut parce que dire
+« à renforcer » à quelqu'un qui vient de monter d'un palier lui cache la seule
+bonne nouvelle qu'il a.
+
+🛑 **Deux destinations, aucune inventée** : `planDomainHref` / `openPlanDomain`
+— la fiche du domaine, l'autorité du Plan, qui porte les lanceurs — quand il y
+a quelque chose à faire ; la page des résultats quand il y a quelque chose à
+relire. Le choix se lit sur l'**état servi**, jamais sur le texte du bouton.
+
+### La jauge n'est pas un pourcentage — arbitrage
+
+La règle « **aucun pourcentage de progression vers un palier** » (`30_` §7)
+**tient**, et la maquette montre pourtant une barre. Les deux se concilient
+ainsi : la barre est le **codage visuel d'un enum servi**, à cinq positions
+fixes (tableau ci-dessus), et **aucun chiffre n'est rendu** — elle dit
+exactement ce que dit le mot écrit juste en dessous, rien de plus. Ce qui reste
+interdit, et qui n'est fait nulle part : dériver un remplissage d'un rang CECRL
+(`rang(niveau) / rang(objectif)`), afficher un « % vers le B1 », ou mettre un
+pourcentage et un palier dans le même bloc visuel.
+
+Le ton passe par **`ProgressMini` / `SfProgressMini`**, la primitive existante,
+qui gagne un `tone` (`BarTone` ⇄ `SfBarTone`) **dans les deux kits dans la même
+passe** — vert / bleu / ambre / rouge / neutre, la palette des segments de
+parcours, pas une nouvelle.
+
+### La variante CIVIQUE
+
+Même carte, autres données : `ProgressCivique.themes` (`CivicPlanDto.ThemeLigne`,
+le même record que le Plan). 🛑 **Aucune métrique CECRL** (`20_` §12) — l'état
+arrive servi, son libellé vient de `CIVIC_THEME_STATE_LABEL` ⇄
+`CivicThemeState.label` et son ton de `civicBarTone` ⇄ `civicThemeBarTone`, qui
+**dérivent** de `kitTone` ⇄ `civicThemeTone` au lieu de reclasser l'état.
+🛑 `NON_EVALUE` reste **neutre**, badge « À évaluer », jauge 0 — jamais ambre.
+🛑 Le **bandeau d'objectif est omis** côté civique : rien ne sert d'objectif
+civique, et on ne fabrique pas une mesure qui n'existe pas.
+
+### La page « Voir mes résultats »
+
+`/historique/epreuve/{co|ce|ee|eo}` (web) ⇄ `/historiques/epreuve/:domainKey`
+(mobile) — les **évaluations qualifiantes** d'une épreuve, servies par
+`GET /api/me/progress/tcf/{epreuve}/historique`.
+
+🛑 **Ce n'est pas la seconde liste d'historique que le dépôt refuse.**
+`/historique` liste **toutes** les sessions, entraînements compris ;
+`/statistiques` répond à « où j'en suis » et `/plan/progression` à « ce qu'il
+reste ». Aucune des trois ne répond à « **pourquoi ce niveau ?** », et c'est la
+seule question à laquelle celle-ci répond — d'où sa place **sous**
+`/historique`, la surface des résultats, et non dans une quatrième page de
+progression.
+
+🛑 **Cas vide** : « Aucune évaluation qualifiante pour l'instant. » — jamais une
+erreur. Et un **échec de chargement** se dit autrement : on ne range pas une
+panne réseau dans le verdict le plus bas.
+
+#### ⚠️ Arbitrage OUVERT — EE/EO : la page est plus étroite que le profil
+
+🛑 **CO/CE : aucun écart.** Même requête (`findQcmEpreuvesPassees`) et même
+autorité de niveau (`niveauEpreuveQcm`) que `TcfProfileService` : ce que la
+page montre explique exactement le palier servi.
+
+**EE/EO : deux écarts**, et ils viennent d'une prémisse fausse de l'énoncé
+(« exactement la même définition qui alimente déjà `niveau` ») :
+
+| | profil (`bestProduction`) | cette page |
+|---|---|---|
+| unité | le **maximum par TÂCHE** | l'**agrégat par SESSION** (`niveauEpreuve`) |
+| périmètre | **toute** tâche évaluée — `AiEvaluationRepository.findByUserAndEpreuve` ne filtre ni la session d'examen ni l'entraînement libre | **sessions d'examen** + baseline du diagnostic rapide |
+
+🛑 **Conséquence à connaître** : un candidat qui n'a fait que de l'entraînement
+libre en EE/EO a un `niveau` servi — donc une carte d'Accueil qui propose
+« Voir mes résultats » — et cette page lui répond « aucune évaluation
+qualifiante ». Les deux énoncés sont vrais séparément : le palier vient bien de
+quelque part, mais pas d'une épreuve.
+
+Ce qui a été fait en attendant l'arbitrage : **le libellé de la page ne promet
+plus d'expliquer le niveau**, il dit ce que la liste *contient* (« Vos épreuves
+complètes et vos diagnostics… »), donc il reste vrai même vide.
+
+Deux sorties, **toutes deux des décisions produit** :
+
+1. **restreindre le profil EE/EO** aux sessions d'examen — il **baisserait** des
+   niveaux déjà affichés à des candidats, ce que le dépôt n'autorise qu'à un
+   garde-fou explicite ;
+2. **accueillir l'entraînement libre** ici sous une 5ᵉ provenance — ce qui
+   contredirait l'énumération du propriétaire (« pas les petites séries /
+   petits sujets d'entraînement »).

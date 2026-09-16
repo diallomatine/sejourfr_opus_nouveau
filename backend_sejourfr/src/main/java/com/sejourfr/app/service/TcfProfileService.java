@@ -135,10 +135,10 @@ public class TcfProfileService {
     private NiveauCecrl bestQcm(UUID userId, EpreuveType epreuve) {
         NiveauCecrl best = null;
         for (final Attempt a : attemptManager.findQcmEpreuvesPassees(userId, epreuve, SCAN_LIMIT)) {
-            final NiveauCecrl level = a.getCecrlLevel() != null
-                    ? levelEstimator.capB2(a.getCecrlLevel())
-                    : levelEstimator.levelFromWeighted(a.getWeightedScore(), a.getMaxWeightedScore());
-            best = levelEstimator.max(best, level);
+            // 🛑 Le niveau d'UNE épreuve passée se demande à l'estimateur, il ne
+            // se redérive pas ici : c'est la même valeur que l'écran
+            // « Voir mes résultats » affiche pour justifier ce profil.
+            best = levelEstimator.max(best, levelEstimator.niveauEpreuveQcm(a));
         }
         return best;
     }

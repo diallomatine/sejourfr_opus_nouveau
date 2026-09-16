@@ -4126,6 +4126,56 @@ export interface ProgressDto {
 }
 
 // ============================================================================
+// « D'OÙ SORT MON NIVEAU ? » — miroirs de `EpreuveHistoriqueDto`
+// ============================================================================
+
+/**
+ * D'où vient une évaluation qualifiante.
+ *
+ * 🛑 **Les quatre valeurs ne se fondent pas deux à deux** : une sous-épreuve de
+ * diagnostic complet n'est ni le diagnostic rapide, ni un examen blanc, et les
+ * confondre nommerait faux la seule ligne qui explique un palier.
+ */
+export type SourceEvaluation =
+    | "DIAGNOSTIC_RAPIDE"
+    | "DIAGNOSTIC_COMPLET"
+    | "EPREUVE_SEULE"
+    | "EXAMEN_BLANC";
+
+/**
+ * Libellés FR **gelés**, miroirs mot pour mot de `SourceEvaluation.label`
+ * côté Flutter.
+ */
+export const SOURCE_EVALUATION_LABEL: Record<SourceEvaluation, string> = {
+    DIAGNOSTIC_RAPIDE: "Diagnostic rapide",
+    DIAGNOSTIC_COMPLET: "Diagnostic complet",
+    EPREUVE_SEULE: "Épreuve passée seule",
+    EXAMEN_BLANC: "Examen blanc complet",
+};
+
+/** Une évaluation qualifiante : quand, d'où, quel palier. */
+export interface EvaluationQualifianteDto {
+    mesureA: string | null;
+    /** 🛑 Brut : le front pose le libellé, il ne le déduit d'aucun autre champ. */
+    source: SourceEvaluation;
+    /** Jamais `null` — une évaluation sans palier n'est pas servie. */
+    niveau: NiveauCecrl;
+}
+
+/**
+ * L'historique d'une épreuve.
+ *
+ * 🛑 `evaluations` **vide** quand rien n'a été mesuré — jamais une erreur.
+ * 🛑 Ce n'est **pas** la seconde liste d'historique que `ProgressDto` refuse :
+ * c'est le détail d'UNE ligne, demandé quand le candidat ouvre une carte.
+ */
+export interface EpreuveHistoriqueDto {
+    epreuve: EpreuveType;
+    /** De la plus récente à la plus ancienne, plafonnée par le serveur. */
+    evaluations: EvaluationQualifianteDto[];
+}
+
+// ============================================================================
 // PLAN CIVIQUE (L10) — miroirs de `CivicPlanDto`
 // ============================================================================
 

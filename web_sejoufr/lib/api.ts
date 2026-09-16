@@ -8,6 +8,7 @@ import type {
   CivicPlanDto,
   CivicPlanGrain,
   ProgressDto,
+  EpreuveHistoriqueDto,
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
@@ -1077,6 +1078,26 @@ export const progressApi = {
     get(): Promise<ProgressDto> {
         return cached(`${PROGRESS_CACHE_PREFIX}current`, () =>
             apiFetch<ProgressDto>("/api/me/progress", {auth: true}),
+        );
+    },
+
+    /**
+     * « D'où sort mon niveau ? » — les dernières évaluations **qualifiantes**
+     * d'une épreuve.
+     *
+     * 🛑 **Un appel à la demande**, quand le candidat ouvre une carte : il ne
+     * part pas avec l'Accueil, qui garde son lot unique.
+     *
+     * 🛑 **En cache sous le même préfixe que les progrès**, donc vidé par
+     * `invalidateDiagnosticAndPlan` : un examen blanc qui vient d'être corrigé
+     * ne doit pas laisser cet écran expliquer l'ancien palier.
+     *
+     * 🛑 **Jamais 404 pour une épreuve jamais mesurée** : la liste est vide.
+     */
+    historique(epreuve: EpreuveType): Promise<EpreuveHistoriqueDto> {
+        return cached(`${PROGRESS_CACHE_PREFIX}historique:${epreuve}`, () =>
+            apiFetch<EpreuveHistoriqueDto>(
+                `/api/me/progress/tcf/${epreuve}/historique`, {auth: true}),
         );
     },
 };

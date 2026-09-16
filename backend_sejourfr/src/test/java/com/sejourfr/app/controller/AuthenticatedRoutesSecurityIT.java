@@ -86,6 +86,10 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/civic-plan"),
                 // ProgressController (T28) — « montrer le mouvement ».
                 Arguments.of(HttpMethod.GET, "/api/me/progress"),
+                // Le detail d'une ligne : « d'ou sort mon niveau ? ». Il sert
+                // les evaluations qualifiantes d'UN candidat — donc jamais en
+                // anonyme.
+                Arguments.of(HttpMethod.GET, "/api/me/progress/tcf/TCF_CO/historique"),
                 Arguments.of(HttpMethod.POST,
                         "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController

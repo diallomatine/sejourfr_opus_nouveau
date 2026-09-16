@@ -1420,9 +1420,20 @@ diagnostic TCF, `planIndisponible` côté civique).
 
 **Ordre des sections** : bandeau « Choisissez votre parcours » (démarche
 absente) → `SfTop` « Bonjour X » + pastille d'objectif → **bascule TCF / Examen
-civique** → **À faire maintenant** → **Votre Plan** (aperçu) → **Votre
-progression** → **Affiner votre Plan** (TCF, complet commencé) → **Vos
-parcours**.
+civique** → **À faire maintenant** → **Où vous en êtes** → **Votre Plan**
+(aperçu) → **Votre progression** → **Affiner votre Plan** (TCF, complet
+commencé) → **Vos parcours**.
+
+✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
+une carte compacte par épreuve TCF — palier, jauge, état en un mot, action —
+puis le bandeau d'objectif ; en civique, une carte par thème, sans bandeau.
+🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses deux
+compteurs : l'une dit *où en est chaque épreuve*, l'autre *combien de
+compétences ont bougé*. 🛑 **Aucun appel de plus** — `progressProvider` est
+déjà lu, et porte déjà les 4 épreuves. La dérivation (état → libellé, ton,
+jauge, CTA, destination) vit dans `screens/progres/progres_labels.dart`, **avec
+celle de l'écran Progrès** : c'est le même statut servi.
+→ `docs/regles/progression.md`, section « Écran ACCUEIL ».
 
 🛑 **L'Accueil est SCOPÉ au parcours choisi**, et la bascule **change ce qu'il
 affiche** — elle ne navigue pas. Le parcours vit dans

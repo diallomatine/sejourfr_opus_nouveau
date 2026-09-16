@@ -305,10 +305,15 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * dehors privait le profil de la seule mesure que beaucoup de candidats
      * avaient. Journal : {@code docs/decisions/diagnostic.md}.
      *
-     * <p>Aucun double comptage n'en découle : le seul appelant
-     * ({@code TcfProfileService.bestQcm}) retient le <b>meilleur</b> résultat
-     * par épreuve, jamais une somme ni une moyenne — une même épreuve mesurée
-     * deux fois n'est comptée qu'une, à sa meilleure valeur.
+     * <p>Aucun double comptage n'en découle, et c'est une propriété des
+     * <b>appelants</b>, pas de la requête : {@code TcfProfileService.bestQcm}
+     * retient le <b>meilleur</b> résultat par épreuve — jamais une somme ni une
+     * moyenne, donc une même épreuve mesurée deux fois n'est comptée qu'une, à
+     * sa meilleure valeur. ⚠️ <b>Second appelant depuis le 2026-09-16</b> :
+     * {@code EpreuveHistoriqueService.qcm}, qui en garde la <b>chronologie</b>
+     * (les 3 plus récentes) pour expliquer ce niveau au candidat. Il n'agrège
+     * rien non plus. 🛑 Tout appelant futur qui <b>sommerait</b> ces lignes
+     * rouvrirait la question que la révocation de V049 avait fermée.
      */
     @Query("""
             SELECT a FROM Attempt a
@@ -321,6 +326,45 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             ORDER BY a.finishedAt DESC
             """)
     List<Attempt> findQcmEpreuvesPassees(
+            @Param("userId") UUID userId,
+            @Param("epreuve") EpreuveType epreuve,
+            Pageable pageable);
+
+    /**
+     * Épreuves de production TCF (EE/EO) <b>réellement passées</b> : session
+     * d'examen blanc terminée portant <b>au moins une soumission</b>, du plus
+     * récent au plus ancien.
+     *
+     * <p>🛑 <b>Le prédicat est celui de
+     * {@code ProductionAccessService.isExamSession}</b>, écrit ici en JPQL
+     * parce qu'une méthode Java ne se pousse pas dans une requête :
+     * {@code slotNumber} posé au démarrage (épreuve jouée seule) <b>ou</b>
+     * {@code parentAttempt} (sous-épreuve d'un examen complet, diagnostic TCF
+     * complet inclus). Les deux conditions doivent rester synchronisées avec
+     * ce prédicat — {@code EpreuveHistoriqueServiceIT} le vérifie sur les deux
+     * provenances.
+     *
+     * <p>🛑 <b>L'entraînement libre est exclu, et c'est voulu</b> : une tâche
+     * d'entraînement ne porte aucun niveau d'épreuve
+     * ({@code ProductionBilanService} n'agrège que sur une session d'examen —
+     * « jamais de niveau en entraînement libre »). L'y faire entrer inventerait
+     * un palier là où le produit n'en calcule pas.
+     *
+     * <p>🛑 <b>Les productions du diagnostic RAPIDE n'y sont pas</b> : leurs
+     * attempts n'ont ni slot ni parent, et leur verdict vit dans
+     * {@code diagnostic_production_analyses}. Elles sont lues à part, par
+     * {@code DiagnosticProductionAnalysisRepository}.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.epreuve = :epreuve
+              AND a.finishedAt IS NOT NULL
+              AND (a.slotNumber IS NOT NULL OR a.parentAttempt IS NOT NULL)
+              AND EXISTS (SELECT 1 FROM ProductionSubmission s WHERE s.attempt = a)
+            ORDER BY a.finishedAt DESC
+            """)
+    List<Attempt> findProductionEpreuvesPassees(
             @Param("userId") UUID userId,
             @Param("epreuve") EpreuveType epreuve,
             Pageable pageable);
