@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -300,6 +301,68 @@ class AppleSubscriptionServiceTest {
 
         service.handleNotification("payload");
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+    }
+
+    /**
+     * Deux notifications ASSN V2 DISTINCTES (donc non dédupliquées par
+     * {@code notificationUUID}) qui décrivent le même état : la seconde n'a
+     * rien à écrire. Sans cette garde, {@code updated_at} avancerait sur une
+     * ligne inchangée.
+     */
+    @Test
+    void notification_memeEtatRejoue_neSauvegardeQuUneFois() throws Exception {
+        JWSTransactionDecodedPayload tx = txMock("integral_monthly", "orig_7", "tx_7",
+                Type.AUTO_RENEWABLE_SUBSCRIPTION, 30L);
+        when(appleStoreClient.verifyTransaction("stx")).thenReturn(tx);
+        // Les mocks se construisent AVANT le when(...) : stuber dans l'argument
+        // d'un when() lève UnfinishedStubbing (cf. docs/plan-tests-backend.md).
+        ResponseBodyV2DecodedPayload premiere =
+                notifMock("uuid-7a", NotificationTypeV2.DID_RENEW, null, dataMock("stx"));
+        ResponseBodyV2DecodedPayload seconde =
+                notifMock("uuid-7b", NotificationTypeV2.DID_RENEW, null, dataMock("stx"));
+        when(appleStoreClient.verifyNotification("p1")).thenReturn(premiere);
+        when(appleStoreClient.verifyNotification("p2")).thenReturn(seconde);
+        when(processedEventManager.tryMarkProcessed("apple", "uuid-7a")).thenReturn(true);
+        when(processedEventManager.tryMarkProcessed("apple", "uuid-7b")).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.PENDING);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.APPLE, "orig_7")).thenReturn(Optional.of(sub));
+
+        service.handleNotification("p1");
+        service.handleNotification("p2");
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        verify(userSubscriptionManager, times(1)).save(any());
+    }
+
+    /** Une notification qui change vraiment l'état est bien écrite, elle. */
+    @Test
+    void notification_changementReel_sauvegardeANouveau() throws Exception {
+        JWSTransactionDecodedPayload tx = txMock("integral_monthly", "orig_8", "tx_8",
+                Type.AUTO_RENEWABLE_SUBSCRIPTION, 30L);
+        when(appleStoreClient.verifyTransaction("stx")).thenReturn(tx);
+        ResponseBodyV2DecodedPayload premiere =
+                notifMock("uuid-8a", NotificationTypeV2.DID_RENEW, null, dataMock("stx"));
+        ResponseBodyV2DecodedPayload seconde =
+                notifMock("uuid-8b", NotificationTypeV2.DID_RENEW, null, dataMock("stx"));
+        ResponseBodyV2DecodedPayload resiliation =
+                notifMock("uuid-8c", NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS,
+                        Subtype.AUTO_RENEW_DISABLED, dataMock("stx"));
+        when(appleStoreClient.verifyNotification("p1")).thenReturn(premiere);
+        when(appleStoreClient.verifyNotification("p2")).thenReturn(seconde);
+        when(appleStoreClient.verifyNotification("p3")).thenReturn(resiliation);
+        when(processedEventManager.tryMarkProcessed(
+                org.mockito.ArgumentMatchers.eq("apple"), any())).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.PENDING);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.APPLE, "orig_8")).thenReturn(Optional.of(sub));
+
+        service.handleNotification("p1");   // PENDING → ACTIVE : écrit
+        service.handleNotification("p2");   // rien de neuf : pas écrit
+        service.handleNotification("p3");   // résiliation : écrit
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
+        verify(userSubscriptionManager, times(2)).save(any());
     }
 
     @Test
