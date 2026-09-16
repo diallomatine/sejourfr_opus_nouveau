@@ -548,34 +548,30 @@ const String kPlanAllSkillsEmpty =
     'résultat.';
 
 /// **Le parcours réel** qu'ouvre une mesure, nommé tel quel — une *description*,
-/// jamais un geste. Aucun contenu n'est créé : chacune de ces trois natures
-/// existe déjà.
+/// jamais un geste. Aucun contenu n'est créé : les deux natures existent déjà.
 ///
-/// ⚠️ **Miroir mot pour mot du web** (`planAssessmentNature`). Le mobile ne
-/// connaissait qu'une seule chaîne, employée à la fois comme repère de ligne et
-/// comme libellé de bouton : « Rendre une production » se lisait donc dans une
-/// meta, là où le web décrivait « Production complète ».
+/// 🛑 **Les quatre épreuves se mesurent par un examen blanc** (2026-09-16) :
+/// examen de module en CO/CE, examen de production en EE/EO. La phrase ne
+/// dépend donc plus que du slot servi — « Diagnostic » et « Production
+/// complète » ne désignaient aucun examen blanc, et sont supprimées.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planAssessmentNature`).
 String planAssessmentNature(PlanDomainAssessment assessment) =>
-    switch (assessment.kind) {
-      PlanDomainAssessmentKind.diagnostic => 'Diagnostic',
-      PlanDomainAssessmentKind.moduleMockExam => assessment.slotNumber == null
-          ? 'Examen blanc'
-          : 'Examen blanc n°${assessment.slotNumber}',
-      PlanDomainAssessmentKind.production => 'Production complète',
-    };
+    assessment.slotNumber == null
+        ? 'Examen blanc'
+        : 'Examen blanc n°${assessment.slotNumber}';
 
 /// **Le geste** qui mesure ce domaine — le libellé d'un bouton, jamais d'une
 /// meta. Miroir mot pour mot du web (`planAssessmentCta`).
+///
+/// 🛑 **Le même geste sur les quatre épreuves**, parce que c'est la même chose
+/// qui se lance : un examen blanc.
 String planAssessmentCta(PlanDomainAssessment assessment) =>
-    switch (assessment.kind) {
-      PlanDomainAssessmentKind.diagnostic => 'Faire mon diagnostic',
-      PlanDomainAssessmentKind.production => 'Faire une production',
-      PlanDomainAssessmentKind.moduleMockExam => 'Passer l\'examen blanc',
-    };
+    'Passer l\'examen blanc';
 
 /// Le repère factuel d'une ligne de mesure : sa nature et sa durée quand elle en
-/// a une (ni le diagnostic ni une production ne sont chronométrés par épreuve —
-/// on n'écrit alors aucune minute plutôt qu'un chiffre inventé).
+/// a une (l'expression orale se chronomètre tâche par tâche — on n'écrit alors
+/// aucune minute plutôt qu'un chiffre inventé).
 String planAssessmentMeta(PlanDomainAssessment assessment) {
   final minutes = assessment.estimatedMinutes;
   final nature = planAssessmentNature(assessment);

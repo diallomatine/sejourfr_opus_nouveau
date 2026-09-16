@@ -205,7 +205,7 @@ class _DomainBody extends ConsumerWidget {
             AppButton(
               label: planAssessmentCta(assessment),
               icon: LucideIcons.play,
-              onPressed: () => openPlanAssessment(context, assessment),
+              onPressed: () => openPlanAssessment(context, ref, assessment),
             ),
           ],
         ],

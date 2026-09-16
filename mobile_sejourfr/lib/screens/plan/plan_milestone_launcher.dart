@@ -9,10 +9,7 @@ import '../../core/router/app_router.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
-import '../tcf_production/ee_session_controller.dart';
-import '../tcf_production/eo_session_controller.dart';
-import '../tcf_production/production_nav.dart';
-import '../tcf_production/tcf_production_module.dart';
+import '../tcf_production/production_exam_launcher.dart';
 
 /// Démarre le **jalon** du Plan — extrait de `PlanMilestoneCard` quand la
 /// séance a eu besoin de lancer le même examen depuis une ligne de liste.
@@ -27,36 +24,30 @@ Future<void> startPlanMilestone(
   WidgetRef ref,
   PlanMilestone milestone,
 ) async {
+  if (!milestone.isFullExam) {
+    // ⚠️ Le démarrage d'un examen de production vit dans `startProductionExam`,
+    // partagé avec la mesure d'un domaine d'expression et avec la grille
+    // d'examens de l'épreuve : il pose déjà le module actif, ouvre la session
+    // avant de pousser l'écran, et route le 403 vers l'offre.
+    await startProductionExam(
+      context,
+      ref,
+      epreuve: milestone.epreuve,
+      slotNumber: milestone.slotNumber,
+    );
+    return;
+  }
+
   ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
   try {
-    if (milestone.isFullExam) {
-      final exam = await ref
-          .read(fullTcfExamRepositoryProvider)
-          .start(slotNumber: milestone.slotNumber);
-      if (!context.mounted) return;
-      ref.invalidate(fullExamsHistoryProvider);
-      context.go(
-        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
-      );
-      return;
-    }
-
-    final module = milestone.epreuve == EpreuveType.tcfEo
-        ? TcfProductionModule.eo
-        : TcfProductionModule.ee;
-    // Le sujet ne voyage jamais dans l'URL : la session Riverpod doit être
-    // démarrée avant le push, comme dans l'onglet « Examens ».
-    if (module.isEo) {
-      await ref
-          .read(eoSessionProvider.notifier)
-          .startExam(slotNumber: milestone.slotNumber);
-    } else {
-      await ref
-          .read(eeSessionProvider.notifier)
-          .startExam(slotNumber: milestone.slotNumber);
-    }
+    final exam = await ref
+        .read(fullTcfExamRepositoryProvider)
+        .start(slotNumber: milestone.slotNumber);
     if (!context.mounted) return;
-    context.push(productionSessionPath(module));
+    ref.invalidate(fullExamsHistoryProvider);
+    context.go(
+      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+    );
   } catch (error) {
     if (!context.mounted) return;
     showPaywallOrError(context, error);

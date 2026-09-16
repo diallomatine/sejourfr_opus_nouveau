@@ -230,7 +230,10 @@ class _BigLevel extends StatelessWidget {
 
 /// Un des quatre domaines : son niveau estimé, puis son détail — les trois
 /// paliers en compréhension, les trois tâches en expression.
-class _DomainCard extends StatelessWidget {
+/// ⚠️ `ConsumerWidget` pour son seul bouton : mesurer un domaine d'expression
+/// **démarre une session** (examen blanc de production), et `openPlanAssessment`
+/// a donc besoin du `ref`. Rien n'est observé ici.
+class _DomainCard extends ConsumerWidget {
   const _DomainCard({required this.domain, required this.assessment});
 
   final PlanDomain domain;
@@ -240,7 +243,7 @@ class _DomainCard extends StatelessWidget {
   final PlanDomainAssessment? assessment;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final measure = assessment;
     return AppCard(
       padding: const EdgeInsets.fromLTRB(15, 13, 15, 15),
@@ -333,7 +336,7 @@ class _DomainCard extends StatelessWidget {
                       icon: LucideIcons.play,
                       variant: AppButtonVariant.outline,
                       height: 46,
-                      onPressed: () => openPlanAssessment(context, measure),
+                      onPressed: () => openPlanAssessment(context, ref, measure),
                     ),
                   ],
                 ],

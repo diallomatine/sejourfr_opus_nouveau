@@ -11,9 +11,11 @@ import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/premium_lock.dart';
+import '../module_detail/production_exam_briefing_sheet.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
+import '../tcf_production/production_exam_launcher.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
 import 'plan_labels.dart';
@@ -129,7 +131,7 @@ Future<void> startPlanSeanceItem(
   }
   final assessment = item.assessment;
   if (item.nature.isAssessment && assessment != null) {
-    openPlanAssessment(context, assessment);
+    openPlanAssessment(context, ref, assessment);
     return;
   }
   final exercise = item.exercise;
@@ -180,29 +182,40 @@ void openPlanDomain(BuildContext context, EpreuveType epreuve) {
 }
 
 /// **Mesurer un domaine** : la seule traduction de `PlanDomainAssessmentKind`
-/// en écran, pour les trois surfaces qui la demandent — la liste « Compléter
-/// mon profil », la fiche d'un domaine et le bilan du diagnostic.
+/// en écran, pour les cinq surfaces qui la demandent — la carte d'épreuve de
+/// l'Accueil (« Où vous en êtes »), l'écran Progrès, la fiche d'un domaine, la
+/// ligne `A_EVALUER` de la séance et le bilan du diagnostic.
 ///
-/// 🛑 **Aucun parcours n'est créé ici.** Le diagnostic, le briefing d'examen
-/// blanc de module et l'entrée du parcours d'expression existent déjà, sont
-/// verrouillés côté serveur, et c'est vers eux qu'on renvoie. Ce qui est
-/// centralisé, c'est **le choix**, pas le contenu.
+/// 🛑 **Aucun parcours n'est créé ici.** Le briefing d'examen blanc de module et
+/// celui de l'examen blanc de production existent déjà, sont verrouillés côté
+/// serveur, et c'est vers eux qu'on renvoie. Ce qui est centralisé, c'est **le
+/// choix**, pas le contenu.
 ///
-/// Cette fonction a été extraite à la **3ᵉ occurrence** : deux copies vivaient
-/// déjà côté Plan et une troisième s'apprêtait à naître sur le bilan. Trois
-/// copies auraient fini par ouvrir trois écrans différents pour le même
-/// domaine. Ne pas la réinliner.
+/// 🛑 **Les quatre épreuves lancent un EXAMEN BLANC** (arbitrage du
+/// propriétaire, 2026-09-16) : examen de module en CO/CE, examen de production
+/// (les 3 tâches) en EE/EO. L'expression partait auparavant vers l'ancien
+/// diagnostic (1 EE + 1 EO) ou vers l'entraînement libre — **aucun des deux ne
+/// lançait un examen blanc**, et « mesurer ce domaine » ne voulait donc pas dire
+/// la même chose selon l'épreuve.
+///
+/// ⚠️ **Le sas est celui de l'épreuve, dans les deux cas** : CO/CE ouvrent
+/// `ModuleExamBriefingSheet`, EE/EO `ProductionExamBriefingSheet`. Le lancement
+/// réel vit dans `startProductionExam`, **partagé avec le jalon du Plan** — on
+/// ne recopie pas son corps ici.
+///
+/// 🛑 **`slotNumber` est SERVI** : c'est lui qui pilote le démarrage, jamais un
+/// `1` décidé ici (le repli ne couvre qu'un client servi par un backend qui ne
+/// le publierait pas).
 ///
 /// ⚠️ **Ce n'est jamais une série ciblée** : une série est un `TRAINING`, elle
 /// ne rend jamais un domaine « évalué ». Le lanceur de séries reste
 /// `plan_series_launcher.dart`, il répond à une autre question.
 void openPlanAssessment(
   BuildContext context,
+  WidgetRef ref,
   PlanDomainAssessment assessment,
 ) {
   switch (assessment.kind) {
-    case PlanDomainAssessmentKind.diagnostic:
-      context.push(AppRoutes.diagnostic);
     case PlanDomainAssessmentKind.moduleMockExam:
       // `moduleExamQuestionType` est ce que `StartAttemptRequest` attend ; le
       // repli sur CO vaut pour un type absent, jamais pour un type inconnu de
@@ -217,19 +230,20 @@ void openPlanAssessment(
         module,
         slotNumber: assessment.slotNumber,
       );
-    case PlanDomainAssessmentKind.production:
-      // 🛑 **Une production, pas un examen blanc.** `PlanDomainAssessmentKind
-      // .PRODUCTION` désigne « une production EE ou EO du **catalogue
-      // standard** » — le repli d'un domaine d'expression dont le diagnostic
-      // est déjà terminé. On ouvre donc l'épreuve et ses trois tâches, où le
-      // candidat choisit son sujet, exactement comme le web
-      // (`usePlanAssessment` → `config.base`). L'ancien chemin envoyait vers la
-      // **grille des examens blancs**, un parcours plus long, chronométré, et
-      // payant à partir du slot 2.
-      context.push(
-        assessment.epreuve == EpreuveType.tcfEo
-            ? AppRoutes.tcfEoEntry
-            : AppRoutes.tcfEeEntry,
+    case PlanDomainAssessmentKind.productionMockExam:
+      final module = assessment.epreuve == EpreuveType.tcfEo
+          ? TcfProductionModule.eo
+          : TcfProductionModule.ee;
+      showProductionExamBriefingSheet(
+        context,
+        module: module,
+        starting: false,
+        onStart: () => startProductionExam(
+          context,
+          ref,
+          epreuve: assessment.epreuve,
+          slotNumber: assessment.slotNumber ?? 1,
+        ),
       );
   }
 }
