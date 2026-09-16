@@ -38,7 +38,9 @@ import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
+import '../../screens/plan/plan_labels.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
+import '../../screens/progres/epreuve_historique_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -227,6 +229,16 @@ class AppRoutes {
   // Hub "Mes historiques" : regroupe QCM + EE + EO. Atteint depuis le hub
   // "Mon entraînement" du profil.
   static const historiques = '/historiques';
+
+  /// **« D'où sort mon niveau ? »** — les dernières évaluations *qualifiantes*
+  /// d'UNE épreuve TCF. 🛑 À ne pas confondre avec [historiques], qui liste
+  /// **toutes** les sessions : ici on ne montre que ce qui a produit le palier
+  /// affiché sur l'Accueil. Clé de domaine `co|ce|ee|eo`, la même que
+  /// [planDomain] — aucun identifiant ne voyage.
+  static const epreuveHistorique = '/historiques/epreuve/:domainKey';
+
+  static String epreuveHistoriquePath(String domainKey) =>
+      '/historiques/epreuve/$domainKey';
 
   // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
   static const monEntrainement = '/mon-entrainement';
@@ -483,6 +495,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.historiques,
         builder: (_, __) => const MesHistoriquesScreen(),
+      ),
+      // 🛑 **Hors shell**, comme les autres écrans d'historique : elle est
+      // poussée depuis l'Accueil, et la déclarer dans le ShellRoute
+      // provoquerait une collision de clé de page.
+      GoRoute(
+        path: AppRoutes.epreuveHistorique,
+        builder: (_, state) {
+          final epreuve =
+              planDomainFromKey(state.pathParameters['domainKey'] ?? '');
+          // Une clé inconnue ne fabrique pas d'épreuve : on retombe sur le hub
+          // des historiques plutôt que d'inventer un domaine.
+          if (epreuve == null) return const MesHistoriquesScreen();
+          return EpreuveHistoriqueScreen(epreuve: epreuve);
+        },
       ),
       GoRoute(
         path: AppRoutes.monEntrainement,
