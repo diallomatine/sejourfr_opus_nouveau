@@ -4612,3 +4612,144 @@ export interface PreparationDto {
     tcf: ModulePreparation;
     civique: ModulePreparation;
 }
+
+/* ===========================================================================
+ * PARCOURS TCF — la file d'étapes que le Plan suit
+ * GET /api/me/plan/journey
+ *
+ * Miroir manuel des DTO Java (`JourneyDto`, `JourneyStepDto`). Quand un de ces
+ * DTO change, les trois fronts se mettent à jour dans la même passe.
+ *
+ * 🛑 **Le serveur sert des FAITS, la phrase appartient à ce front.**
+ * « Expression écrite · Tâche 1 », « Vérifier mes progrès », « Évaluer mon
+ * niveau », « Déjà maîtrisée » se composent dans `lib/plan-domain.ts`, miroir de
+ * `screens/plan/plan_labels.dart`. Les faire servir ouvrirait une 7ᵉ copie de
+ * libellés dans le dépôt.
+ * ======================================================================== */
+
+/** Nature d'une étape du parcours. */
+export type JourneyStepType =
+    /** Le diagnostic rapide. Proposé **uniquement** quand aucune évaluation
+     *  exploitable n'existe, historique compris. */
+    | "DIAGNOSTIC"
+    /** Travailler une compétence. ⚠️ **Deux grains sous un seul nom** : en
+     *  expression, les petits sujets de l'étape ; en compréhension, des séries
+     *  ciblées de 20 QCM. L'unité est **servie** (`progress.unit`), jamais
+     *  déduite de la nullité de `taskCode`. */
+    | "TRAIN_SKILL"
+    /** Passer une épreuve. L'intention se lit sur `purpose`. */
+    | "SECTION_EXAM";
+
+/** Pourquoi cette épreuve est proposée — la même action, deux raisons. */
+export type JourneyStepPurpose =
+    /** L'épreuve n'a **jamais** été mesurée. */
+    | "INITIAL_ASSESSMENT"
+    /** Le **checkpoint** d'un lot : l'examen qui clôt ses priorités. */
+    | "REASSESS";
+
+/**
+ * Où en est une étape, **tel que l'écran l'affiche**.
+ *
+ * 🛑 **Dérivé serveur à chaque lecture, jamais persisté** : `CURRENT` dépend du
+ * verrou du candidat, donc un abonnement souscrit le change sans aucune écriture
+ * en base. Aucun front ne le recalcule.
+ */
+export type JourneyStepStatus =
+    | "UPCOMING"
+    /** À faire maintenant — **une seule par parcours**. C'est la première étape
+     *  ouverte **et exécutable** : une étape que le candidat ne peut pas mener à
+     *  son terme ne prend jamais la main. */
+    | "CURRENT"
+    /** Close dans son tour. */
+    | "COMPLETED"
+    /** Close **hors de son tour** (entraînement libre, ou en passant devant une
+     *  étape verrouillée). S'affiche cochée : « Déjà maîtrisée » / « Déjà
+     *  travaillée ». */
+    | "SKIPPED"
+    /** Remplacée par une évaluation plus récente. **Jamais servie** — elle ne
+     *  figure pas dans `steps`. */
+    | "OBSOLETE";
+
+/** En quoi se compte l'avancement d'une étape d'entraînement. **Servi.** */
+export type JourneyProgressUnit =
+    /** Les petits sujets de l'étape — expression. */
+    | "PROMPT"
+    /** Les séries ciblées terminées — compréhension. Les compétences CO/CE
+     *  n'ont ni tâche ni petit sujet. */
+    | "SERIES";
+
+/** L'état d'ensemble du parcours. Les fronts le **lisent** pour choisir quelle
+ *  carte montrer ; ils ne le déduisent ni du nombre d'étapes, ni de la nullité
+ *  de `current`. */
+export type JourneyState =
+    /** Aucune démarche déclarée, donc aucun niveau cible — et **aucun parcours
+     *  en base**. L'écran propose « Choisir mon objectif » (`/parcours`). Ce
+     *  n'est pas un parcours vide : c'est l'absence de parcours. */
+    | "NEEDS_OBJECTIVE"
+    | "IN_PROGRESS"
+    /** Des étapes restent ouvertes mais **aucune n'est exécutable** : `current`
+     *  vaut `null` et la carte montre la première étape de `steps`,
+     *  verrouillée, avec son paywall. */
+    | "LOCKED"
+    /** Plus aucune étape ouverte. */
+    | "UP_TO_DATE";
+
+/** Ce que le parcours **suggère** quand il n'a plus d'étape. Une suggestion
+ *  n'est **pas** une étape : hors file, sans position, elle ne se clôt pas. */
+export type JourneySuggestionType = "MOCK_EXAM";
+
+export interface JourneyProgressDto {
+    done: number;
+    /** Vaut ce qui existe : une compétence qui publie moins de sujets a une
+     *  étape plus courte, et on n'invente jamais un dénominateur. */
+    quota: number;
+    unit: JourneyProgressUnit;
+}
+
+export interface JourneyStepDto {
+    id: string;
+    type: JourneyStepType;
+    /** Non `null` pour les seules étapes `SECTION_EXAM`. */
+    purpose: JourneyStepPurpose | null;
+    status: JourneyStepStatus;
+    /** `null` pour une étape `DIAGNOSTIC` seulement. */
+    examType: EpreuveType | null;
+    /** Le domaine de la compétence. `null` hors `TRAIN_SKILL`. */
+    section: SkillSection | null;
+    /** 🛑 **`null` = compétence de COMPRÉHENSION** : CO/CE n'ont ni tâche ni
+     *  petit sujet. Discriminant du sous-titre — **pas** de l'unité de
+     *  progression, qui est servie. */
+    taskCode: SkillTaskCode | null;
+    skillCode: string | null;
+    /** `skills.title` : un **fait éditorial** du référentiel, pas une phrase. */
+    skillTitle: string | null;
+    lotId: string | null;
+    sourceAssessmentId: string | null;
+    position: number;
+    /** `null` hors `TRAIN_SKILL` : un examen ne se compte pas. */
+    progress: JourneyProgressDto | null;
+    /**
+     * **Cette étape ne peut pas être menée à son terme avec l'accès du
+     * candidat.**
+     *
+     * 🛑 Une étape verrouillée reste **affichée à sa place** et ne devient
+     * **jamais** `CURRENT` : le parcours avance au lieu de mourir, et le Plan
+     * reste intégralement visible.
+     */
+    locked: boolean;
+}
+
+export interface JourneyDto {
+    /** `null` quand `state === "NEEDS_OBJECTIVE"`. */
+    targetLevel: TargetLevel | null;
+    state: JourneyState;
+    /** L'étape à faire maintenant. `null` dans trois cas que `state` distingue :
+     *  pas d'objectif, plus rien à faire, ou rien d'exécutable. */
+    current: JourneyStepDto | null;
+    /** Déjà filtrées côté serveur et dans l'ordre de la file. Les étapes
+     *  obsolètes n'y sont jamais. `?expand=all` rend tout le reste. */
+    steps: JourneyStepDto[];
+    hiddenUpcomingCount: number;
+    /** `null` est le cas courant. */
+    suggestion: JourneySuggestionType | null;
+}

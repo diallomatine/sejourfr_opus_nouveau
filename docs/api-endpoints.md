@@ -62,6 +62,21 @@ Cf. `exams-tcf.md`.
 - `GET /api/me/stats?module=...` — toute la réponse est scopée au module,
   `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
   sont exclus de ce compteur et de l'historique `/api/me/attempts`.
+- `GET /api/me/plan/journey[?expand=all]` → `JourneyDto` — **le parcours TCF**, la file
+  d'étapes que le Plan suit. `state` vaut `NEEDS_OBJECTIVE` (aucune démarche déclarée, donc
+  **aucun parcours en base**), `IN_PROGRESS`, `LOCKED` (des étapes restent, aucune n'est
+  exécutable) ou `UP_TO_DATE`. 🛑 **Aucun `targetLevel` en paramètre** : le serveur connaît le
+  niveau visé du candidat, l'accepter d'un client laisserait demander un parcours qui n'est pas
+  le sien. `current` est la première étape ouverte **et exécutable** — une étape qu'un compte
+  gratuit ne peut pas mener à son terme reste **affichée à sa place**, `locked`, mais ne prend
+  jamais la main. `status`, `locked` et l'élection de `current` sont **dérivés à la lecture** :
+  un abonnement souscrit change la réponse sans qu'une ligne bouge en base. `steps` est déjà
+  filtrée pour l'écran ; `?expand=all` rend toutes les étapes non obsolètes. Les étapes
+  `OBSOLETE` ne sont **jamais** servies. `progress.unit` (`PROMPT` / `SERIES`) est **servi** :
+  les compétences de compréhension n'ont ni tâche ni petit sujet, leur grain est la série.
+  Le serveur sert des **faits** (`section`, `taskCode`, `skillCode`, `skillTitle`, `purpose`) —
+  « Expression écrite · Tâche 1 » et « Vérifier mes progrès » se composent dans les fronts.
+  Spec : `docs/progression/spec-plan-tcf-parcours-evaluations-v2.md`.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées

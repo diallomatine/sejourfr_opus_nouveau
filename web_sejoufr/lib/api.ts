@@ -57,6 +57,7 @@ import type {
   ThemeUserResponse,
   TokenResponse,
   UserStatsResponse,
+    JourneyDto,
 } from "./types";
 import {detectTrafficSource} from "./traffic-source";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
@@ -905,6 +906,27 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
         primeCached(LEARNING_PLAN_CACHE_KEY, plan);
         return plan;
     });
+}
+
+/**
+ * **Le parcours TCF** : la file d'étapes, l'étape courante et son verrou.
+ *
+ * 🛑 **Aucun `targetLevel` en paramètre** : le serveur connaît le niveau visé du
+ * candidat, et l'accepter d'un client laisserait demander un parcours qui n'est
+ * pas le sien.
+ *
+ * 🛑 **Pas de cache.** Une seule réponse alimente la carte « À faire
+ * maintenant » et la timeline, sur les trois écrans qui les affichent : servir
+ * deux instantanés différents au même instant rouvrirait exactement la
+ * contradiction corrigée le 2026-09-16.
+ *
+ * @param expandAll toutes les étapes non obsolètes au lieu du sous-ensemble
+ *                  d'affichage — ce que demande « Voir les étapes suivantes ».
+ */
+export function fetchJourney(expandAll = false): Promise<JourneyDto> {
+    return apiFetch<JourneyDto>(
+        expandAll ? "/api/me/plan/journey?expand=all" : "/api/me/plan/journey",
+        {auth: true});
 }
 
 /**

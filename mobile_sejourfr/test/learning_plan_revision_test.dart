@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sejourfr_mobile/core/models/journey_models.dart';
 import 'package:sejourfr_mobile/core/api/learning_plan_repository.dart';
 import 'package:sejourfr_mobile/core/api/repositories.dart';
 import 'package:sejourfr_mobile/core/models/diagnostic_models.dart';
@@ -63,6 +64,12 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
 
   @override
   Future<LearningPlan> get() async => plan;
+
+  /// Le parcours n'entre pas dans ce que ce test verifie (la revision du Plan) :
+  /// un appel serait un faux positif, pas une aide.
+  @override
+  Future<Journey> journey({bool toutesLesEtapes = false}) =>
+      throw UnimplementedError();
 }
 
 class _CountingLearningPlanRepository extends _FakeLearningPlanRepository {
