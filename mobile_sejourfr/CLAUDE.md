@@ -524,6 +524,17 @@ chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc
   **Authentifiées** — contrairement à `/diagnostic`, il n'y a rien à faire ici sans compte.
 - **Modèles** `core/models/tcf_diagnostic_models.dart` · **réseau**
   `core/api/tcf_diagnostic_repository.dart` (`tcfDiagnosticRepositoryProvider`).
+- 🛑 **L'état de l'écran vit dans `tcfDiagnosticCurrentProvider`**
+  (`diagnostic_tcf/tcf_diagnostic_current_provider.dart`, 2026-09-16), pas dans
+  un `setState` alimenté une fois par `initState` : sans provider il n'y avait
+  **aucun point de fraîcheur**, et les deux chemins de retour rendaient un écran
+  périmé. Ses deux points, **tous deux nécessaires** : `didPopNext`
+  (`RouteAware` + `appRouteObserver`) pour le retour par `pop`, et
+  `allerEnRafraichissantLeDiagnostic(context, ref, route)` — le seul `go` vers
+  cet écran — pour les fins de section (`runner_screen`, `eo_briefing_screen`,
+  `ee_briefing_writing_screen`), qui **réutilisent le `State` existant**.
+  ⚠️ **Pas de trou équivalent côté web** : `tcfDiagnosticApi.current()` n'est pas
+  mis en cache et le hub refetch au montage — ne rien y « corriger ».
 - **Libellés purs** dans `tcf_diagnostic_labels.dart`, **miroir mot pour mot** de
   `web_sejoufr/lib/tcf-diagnostic.ts` : un libellé qui bouge, ce sont deux fichiers dans la
   même passe.
@@ -1513,6 +1524,22 @@ donc aucun paramètre de route n'est inventé.
   **Le signal est émis** par le contrôleur du diagnostic TCF, les sessions
   EE/EO, les compétences, et — ajoutés dans la même passe — la clôture du
   **diagnostic civique** et la **série civique**.
+  🛑 **Depuis un écran, on l'émet par `signalerMesureEcrite(ref)`**
+  (`screens/plan/learning_plan_provider.dart`, 2026-09-16), le pendant mobile
+  d'`invalidateDiagnosticAndPlan()` côté web. Ses six sites : la finalisation
+  d'une session QCM (`runner_screen._navigateToResult`, **une seule émission,
+  avant tout aiguillage** — tout le pipeline QCM était muet, d'où un examen
+  blanc de CO qui rendait B1 pendant que « Où vous en êtes » affichait encore
+  « À évaluer »), la clôture du **diagnostic 4 épreuves**
+  (`tcf_diagnostic_screen._voirResultat`), la clôture d'une section EE par
+  abandon, la clôture d'une épreuve EE/EO d'examen complet par abandon, la
+  **suspension** d'un examen complet et sa **finalisation**.
+  ⚠️ **Une émission par MESURE, jamais une par requête** : les chemins qui
+  soumettent une production émettent déjà par leur contrôleur
+  (`onPlanChanged`) — on ne ré-émet pas sur le `markSubDone` qui suit
+  immédiatement une soumission. Le web **purge un cache** là où le mobile
+  **relance cinq lectures vivantes** : c'est ce qui rend la règle non
+  négociable ici.
   ⚠️ Le diagnostic l'émet à chaque mutation (démarrage, soumissions, fin de
   polling), donc quelques rechargements pendant le parcours. C'est le bon
   compromis : des appels légers contre un écran qui ne ment pas.

@@ -24,7 +24,9 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/recording_waveform.dart';
+import '../diagnostic_tcf/tcf_diagnostic_current_provider.dart';
 import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import '../../core/router/app_router.dart';
 
 /// Écran unique EO « consigne + enregistrement » : la consigne s'affiche
@@ -121,7 +123,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         .firstOrNull;
     _navigated = true;
     if (suivante == null) {
-      context.go(_fallbackRouteFor(context));
+      allerEnRafraichissantLeDiagnostic(
+          context, ref, _fallbackRouteFor(context));
       return;
     }
     context.pushReplacement(
@@ -376,7 +379,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         null) {
       ref.read(eoSessionProvider.notifier).reset();
       if (!mounted) return;
-      context.go(AppRoutes.tcfDiagnostic);
+      // 🛑 Pas de `signalerMesureEcrite` ici : `eoSessionProvider` vient de
+      // l'émettre pour la soumission qui précède (`onPlanChanged`). Une seule
+      // émission par mesure écrite.
+      allerEnRafraichissantLeDiagnostic(context, ref, AppRoutes.tcfDiagnostic);
       return;
     }
     if (fullExamId != null) {
@@ -444,7 +450,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(_fallbackRouteFor(context));
+      allerEnRafraichissantLeDiagnostic(
+          context, ref, _fallbackRouteFor(context));
     }
   }
 
@@ -505,6 +512,11 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
               parentAttemptId: fullExamId,
               epreuveWire: EpreuveType.tcfEo.wire,
             );
+        // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
+        // Aucune soumission dans ce geste — c'est la seule émission.
+        // ⚠️ Un garde, jamais un `return` : la sortie doit toujours remettre la
+        // session à zéro et naviguer.
+        if (context.mounted) signalerMesureEcrite(ref);
       } catch (_) {/* hook auto backend fallback */}
     } else if (!diagnostic) {
       await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
@@ -514,7 +526,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (fullExamId != null) {
       ref.invalidate(fullTcfExamProvider(fullExamId));
     }
-    context.go(fallbackRoute);
+    // 🛑 Quitter l'EO d'un diagnostic ne clôt PAS la section (chrono par
+    // tâche) : rien n'est mesuré ici, donc aucun signal — mais l'écran des 4
+    // sections doit relire, la tâche en cours ayant bougé.
+    allerEnRafraichissantLeDiagnostic(context, ref, fallbackRoute);
   }
 
   void _showPermissionDeniedSheet(

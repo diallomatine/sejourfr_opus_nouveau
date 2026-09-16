@@ -22,7 +22,9 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
+import '../diagnostic_tcf/tcf_diagnostic_current_provider.dart';
 import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import '../../core/router/app_router.dart';
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
@@ -188,7 +190,11 @@ class _EeBriefingWritingScreenState
           // au bilan individuel, le candidat doit voir ce qu'il lui reste.
           if (!mounted) return;
           ref.read(eeSessionProvider.notifier).reset();
-          context.go(AppRoutes.tcfDiagnostic);
+          // 🛑 Pas de `signalerMesureEcrite` ici : `eeSessionProvider` vient de
+          // l'émettre pour la soumission qui précède (`onPlanChanged`). Une
+          // seule émission par mesure écrite.
+          allerEnRafraichissantLeDiagnostic(
+              context, ref, AppRoutes.tcfDiagnostic);
           return;
         }
         try {
@@ -365,6 +371,11 @@ class _EeBriefingWritingScreenState
               parentAttemptId: fullExamId,
               epreuveWire: EpreuveType.tcfEe.wire,
             );
+        // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
+        // Aucune soumission dans ce geste — c'est la seule émission.
+        // ⚠️ Un garde, jamais un `return` : la sortie doit toujours remettre la
+        // session à zéro et naviguer.
+        if (mounted) signalerMesureEcrite(ref);
       } catch (_) {/* hook auto backend fallback */}
     } else if (tcfDiagnosticId != null) {
       // 🛑 MÊME RÈGLE QU'UN EXAMEN : l'expression écrite est chronométrée
@@ -375,6 +386,10 @@ class _EeBriefingWritingScreenState
         await ref
             .read(tcfDiagnosticRepositoryProvider)
             .closeSection(tcfDiagnosticId, EpreuveType.tcfEe);
+        // Clôturer une section pose son niveau : l'épreuve est mesurée, donc
+        // le profil TCF, le Plan et les progrès changent. Aucune soumission
+        // n'a eu lieu dans ce geste — c'est la seule émission.
+        if (mounted) signalerMesureEcrite(ref);
       } catch (_) {/* le serveur clôt de toute façon à l'échéance */}
     } else {
       await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
@@ -384,7 +399,7 @@ class _EeBriefingWritingScreenState
     if (fullExamId != null) {
       ref.invalidate(fullTcfExamProvider(fullExamId));
     }
-    context.go(fallbackRoute);
+    allerEnRafraichissantLeDiagnostic(context, ref, fallbackRoute);
   }
 
   Future<void> _saveDraftAndQuit(
