@@ -2699,24 +2699,36 @@ class _SfLevelCardTop extends StatelessWidget {
               ),
             ),
           ),
-        const Spacer(),
-        Container(
-          constraints: const BoxConstraints(minHeight: 34),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            // 🛑 Non mesuré : pastille neutre. Le bleu est réservé à un palier
-            // réel — une pastille de marque sur une absence de mesure se
-            // lirait comme un résultat.
-            color: measured ? AppColors.blueLight : AppColors.surface3,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-          child: Text(
-            level,
-            style: AppFonts.ui(
-              size: measured ? 17 : 12,
-              weight: measured ? FontWeight.w800 : FontWeight.w700,
-              color: measured ? AppColors.blue : AppColors.muted,
+        const SizedBox(width: 8),
+        // 🛑 **La pastille CÈDE avant de déborder** : sur une demi-largeur de
+        // téléphone, « CO » + « À évaluer » tiennent tout juste, et un Row
+        // Flutter ne se replie pas — sans ce Flexible, la carte partirait en
+        // bandes d'overflow. Le web, lui, renvoie la pastille à la ligne
+        // (`flex-wrap`) ; l'effet est le même, aucun texte n'est perdu.
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 34),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                // 🛑 Non mesuré : pastille neutre. Le bleu est réservé à un
+                // palier réel — une pastille de marque sur une absence de
+                // mesure se lirait comme un résultat.
+                color: measured ? AppColors.blueLight : AppColors.surface3,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Text(
+                level,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.ui(
+                  size: measured ? 17 : 12,
+                  weight: measured ? FontWeight.w800 : FontWeight.w700,
+                  color: measured ? AppColors.blue : AppColors.muted,
+                ),
+              ),
             ),
           ),
         ),
