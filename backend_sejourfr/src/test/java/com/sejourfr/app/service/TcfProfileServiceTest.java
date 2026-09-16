@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -37,16 +38,19 @@ import static org.mockito.Mockito.when;
  * verrouillée par {@code AttemptManagerIT}.
  *
  * <p>🛑 <b>Ce fichier couvre {@code levelProfile}</b>, la lecture du <b>PLAN</b>
- * — celle qui voit toute évaluation IA valide, entraînement compris. La lecture
- * d'<b>ACCUEIL</b> ({@code levelProfileAccueil}) a sa propre section en bas ; ce
- * qui les sépare est verrouillé bout en bout par
+ * — celle qui voit toute évaluation IA valide, entraînement compris, et qui
+ * retient le <b>meilleur</b> résultat. La lecture d'<b>AFFICHAGE</b>
+ * ({@code levelProfileAccueil}) a sa propre section en bas : elle ne vérifie
+ * que le <b>câblage</b>, l'arithmétique de la moyenne des 3 derniers examens
+ * vivant dans {@code NiveauActuelEpreuveResolverTest}. Ce qui sépare les deux
+ * lectures est verrouillé bout en bout par
  * {@code ProgressServiceIT.lEntrainementRenseigneLePlanPasLAccueil}.
  */
 class TcfProfileServiceTest {
 
     private AttemptManager attemptManager;
     private AiEvaluationManager aiEvaluationManager;
-    private EpreuvesProductionQualifiantesResolver qualifiantesResolver;
+    private NiveauActuelEpreuveResolver niveauActuelResolver;
     private DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
     private TcfProfileService service;
 
@@ -56,11 +60,11 @@ class TcfProfileServiceTest {
     void setUp() {
         attemptManager = mock(AttemptManager.class);
         aiEvaluationManager = mock(AiEvaluationManager.class);
-        qualifiantesResolver = mock(EpreuvesProductionQualifiantesResolver.class);
+        niveauActuelResolver = mock(NiveauActuelEpreuveResolver.class);
         diagnosticAnalysisManager = mock(DiagnosticProductionAnalysisManager.class);
         when(diagnosticAnalysisManager.findCompletedLevelsByUser(userId)).thenReturn(List.of());
         service = new TcfProfileService(attemptManager, aiEvaluationManager,
-                qualifiantesResolver, diagnosticAnalysisManager,
+                niveauActuelResolver, diagnosticAnalysisManager,
                 new TcfLevelEstimatorService());
     }
 
@@ -291,24 +295,35 @@ class TcfProfileServiceTest {
         assertThat(service.levelProfile(userId).globalLevel()).isEqualTo(NiveauCecrl.B1);
     }
 
-    // ------------------------------------------------------------- anti-yoyo (spec V2 §5.3)
+    // ------------------------------- anti-yoyo (spec V2 §5.3) — LECTURE DU PLAN
 
     /*
-     * 🛑 LA RÈGLE ANTI-YOYO EST TENUE PAR CONSTRUCTION, ET PLUS FORT QUE LA SPEC.
+     * 🛑 CETTE SECTION NE VAUT QUE POUR `levelProfile`, LA LECTURE DU PLAN.
      *
-     * La spec V2 §5.3 protège un `estimatedLevel` qui vaudrait « la dernière
-     * évaluation » : elle exige deux évaluations qualifiantes CONSÉCUTIVES pour
-     * bouger. Ici, le niveau d'une épreuve est le MEILLEUR résultat de tout
-     * l'historique — un maximum monotone. Il ne peut donc pas redescendre sur un
-     * mauvais jour, et l'ordre des résultats ne l'influence pas : les deux
-     * défauts que la règle de la spec cherche à éviter n'existent pas.
+     * ⚠️ RÉVOCATION DU 2026-09-16 : elle valait autrefois pour tout le dépôt.
+     * Le propriétaire a tranché que le niveau AFFICHÉ « doit représenter le
+     * niveau actuel estimé, donc il peut monter comme descendre » — la lecture
+     * d'affichage (`levelProfileAccueil`) moyenne désormais les 3 derniers
+     * examens qualifiants et n'a plus AUCUNE protection anti-yoyo. Les cas B /
+     * C / I ci-dessous sont donc FAUX de l'affichage, et leur contrepartie
+     * (« un mauvais examen récent fait baisser ») est verrouillée dans
+     * `NiveauActuelEpreuveResolverTest` et par
+     * `affichage_peutEtrePlusBasQueLePlan_leMaximumMonotoneEstRevoque`.
      *
-     * Les trois cas obligatoires de la spec §14 sont vérifiés ci-dessous. Le
-     * seul écart est la VITESSE DE MONTÉE (cas B intermédiaire), volontaire et
-     * verrouillé lui aussi : une épreuve réellement réussie compte tout de
-     * suite. Attendre une seconde preuve reviendrait à annoncer A2 à un candidat
-     * qui vient de démontrer B1, c'est-à-dire à faire mentir la mesure dans le
-     * sens du reproche.
+     * Ce qui reste vrai, et qui est l'objet de cette section : le PLAN garde le
+     * MEILLEUR résultat de tout l'historique — un maximum monotone. Un Plan n'a
+     * pas à désapprendre ce qu'un candidat a démontré, et l'ordre des résultats
+     * ne l'influence pas. La spec V2 §5.3 protégeait un `estimatedLevel` qui
+     * vaudrait « la dernière évaluation » en exigeant deux évaluations
+     * qualifiantes CONSÉCUTIVES ; ici les deux défauts qu'elle vise n'existent
+     * pas.
+     *
+     * Les trois cas obligatoires de la spec §14 sont vérifiés ci-dessous, sur la
+     * lecture du Plan. Le seul écart est la VITESSE DE MONTÉE (cas B
+     * intermédiaire), volontaire et verrouillé lui aussi : une épreuve
+     * réellement réussie compte tout de suite. Attendre une seconde preuve
+     * reviendrait à annoncer A2 à un candidat qui vient de démontrer B1,
+     * c'est-à-dire à faire mentir la mesure dans le sens du reproche.
      */
 
     /**
@@ -551,104 +566,152 @@ class TcfProfileServiceTest {
         assertThat(p.ce()).isNull();
     }
 
-    // ------------------------------------------------- la lecture d'ACCUEIL
-    // 🛑 Arbitrage du proprietaire, 2026-09-16 : seule une EPREUVE COMPLETE
-    // peut AFFICHER un niveau global d'EE/EO. Le PLAN, lui, garde la lecture
-    // large — c'est `levelProfile`, teste au-dessus.
+    // ---------------------------------------------- la lecture d'AFFICHAGE
+    // 🛑 Deux arbitrages du proprietaire, tous deux du 2026-09-16 :
+    //   1. seule une EPREUVE COMPLETE peut AFFICHER un niveau d'EE/EO ;
+    //   2. le niveau affiche est la MOYENNE des 3 derniers examens qualifiants,
+    //      donc il peut redescendre — le maximum monotone est REVOQUE ici.
+    // Le PLAN, lui, garde sa lecture large et son maximum : `levelProfile`,
+    // teste au-dessus. Ce que cette section verifie, c'est le CABLAGE — que la
+    // lecture d'affichage passe bien par `NiveauActuelEpreuveResolver` et par
+    // lui seul. L'arithmetique de la moyenne, elle, vit dans
+    // `NiveauActuelEpreuveResolverTest`.
 
-    private void stubQualifiantes(EpreuveType epreuve, NiveauCecrl... niveaux) {
-        List<EpreuvesProductionQualifiantesResolver.EpreuveQualifiante> sessions =
-                java.util.Arrays.stream(niveaux)
-                        .map(n -> new EpreuvesProductionQualifiantesResolver.EpreuveQualifiante(
-                                new Attempt(), Instant.now(), n))
-                        .toList();
-        when(qualifiantesResolver.qualifiantes(eq(userId), eq(epreuve), anyInt()))
-                .thenReturn(sessions);
+    private void stubAffichage(EpreuveType epreuve, NiveauCecrl niveau) {
+        if (epreuve == EpreuveType.TCF_CO || epreuve == EpreuveType.TCF_CE) {
+            when(niveauActuelResolver.qcm(eq(userId), eq(epreuve), anyInt())).thenReturn(niveau);
+        } else {
+            when(niveauActuelResolver.production(eq(userId), eq(epreuve), anyInt()))
+                    .thenReturn(niveau);
+        }
     }
 
     /**
      * 🛑 <b>LE test de la separation.</b> Le meme candidat, les memes donnees :
      * un entrainement EO evalue B1, aucune epreuve complete. Le Plan lit B1,
-     * l'Accueil ne lit rien — et « rien » veut dire <b>null</b>, pas A1.
+     * l'affichage ne lit rien — et « rien » veut dire <b>null</b>, pas A1.
      */
     @Test
-    void accueil_unEntrainementNAfficheAucunNiveau_maisLePlanLeVoit() {
+    void affichage_unEntrainementNAfficheAucunNiveau_maisLePlanLeVoit() {
         stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.B1, Instant.now())));
-        when(qualifiantesResolver.qualifiantes(eq(userId), eq(EpreuveType.TCF_EO), anyInt()))
-                .thenReturn(List.of());
+        stubAffichage(EpreuveType.TCF_EO, null);
 
         assertThat(service.levelProfile(userId).eo())
                 .as("le PLAN voit l'entrainement, c'est une observation")
                 .isEqualTo(NiveauCecrl.B1);
         assertThat(service.levelProfileAccueil(userId).eo())
-                .as("l'ACCUEIL exige une epreuve complete")
+                .as("l'AFFICHAGE exige une epreuve complete")
                 .isNull();
     }
 
-    /** Une epreuve complete, elle, s'affiche — et c'est le MEILLEUR qui fait foi. */
+    /**
+     * 🛑 <b>LE test de la revocation.</b> Le Plan garde son MEILLEUR resultat,
+     * l'affichage sert la moyenne des 3 derniers — et elle est <b>plus
+     * basse</b>. La regle du matin (« le niveau ne redescend jamais ») rendait
+     * ce cas impossible ; il est maintenant exige.
+     */
     @Test
-    void accueil_retientLaMeilleureEpreuveComplete() {
-        stubQualifiantes(EpreuveType.TCF_EE,
-                NiveauCecrl.A2, NiveauCecrl.B1, NiveauCecrl.A1);
+    void affichage_peutEtrePlusBasQueLePlan_leMaximumMonotoneEstRevoque() {
+        Instant now = Instant.now();
+        stubProduction(EpreuveType.TCF_EE, List.of(
+                eval(NiveauCecrl.A2, now),
+                eval(NiveauCecrl.B2, now.minus(30, ChronoUnit.DAYS))));
+        stubAffichage(EpreuveType.TCF_EE, NiveauCecrl.A2);
 
-        assertThat(service.levelProfileAccueil(userId).ee()).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.levelProfile(userId).ee())
+                .as("le PLAN retient le meilleur, il ne desapprend pas")
+                .isEqualTo(NiveauCecrl.B2);
+        assertThat(service.levelProfileAccueil(userId).ee())
+                .as("l'AFFICHAGE dit le niveau ACTUEL, il redescend")
+                .isEqualTo(NiveauCecrl.A2);
     }
 
     /**
      * Le repli baseline reste le meme pour les deux lectures : le diagnostic
-     * rapide n'a pas ete retire de l'Accueil, il n'a jamais ete l'objet de
+     * rapide n'a pas ete retire de l'affichage, il n'a jamais ete l'objet de
      * l'arbitrage.
      */
     @Test
-    void accueil_gardeLeRepliSurLaBaselineDuDiagnostic() {
+    void affichage_gardeLeRepliSurLaBaselineDuDiagnostic() {
         stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2));
+        stubAffichage(EpreuveType.TCF_EE, null);
 
         assertThat(service.levelProfileAccueil(userId).ee()).isEqualTo(NiveauCecrl.A2);
     }
 
     /**
-     * 🛑 Le <b>niveau global</b> de l'Accueil est le plancher des paliers
-     * AFFICHES. Sans ca, l'ecran annoncerait « A2 » a cause d'une EO
-     * d'entrainement qu'il presente deux lignes plus bas comme non evaluee.
+     * 🛑 Le <b>niveau global</b> affiche est le plancher des paliers AFFICHES.
+     * Sans ca, l'ecran annoncerait « A2 » a cause d'une EO d'entrainement qu'il
+     * presente deux lignes plus bas comme non evaluee.
      */
     @Test
-    void accueil_leNiveauGlobalNeTombePasSurUneEpreuveQuIlNAffichePas() {
+    void affichage_leNiveauGlobalNeTombePasSurUneEpreuveQuIlNAffichePas() {
         stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.B1)));
         stubQcm(EpreuveType.TCF_CE, List.of(qcm(NiveauCecrl.B1)));
         stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.A2, Instant.now())));
+        stubAffichage(EpreuveType.TCF_CO, NiveauCecrl.B1);
+        stubAffichage(EpreuveType.TCF_CE, NiveauCecrl.B1);
+        stubAffichage(EpreuveType.TCF_EO, null);
 
         assertThat(service.levelProfile(userId).globalLevel())
                 .as("le PLAN plancher sur l'entrainement EO")
                 .isEqualTo(NiveauCecrl.A2);
         assertThat(service.levelProfileAccueil(userId).globalLevel())
-                .as("l'ACCUEIL ne plancher que sur ce qu'il montre")
+                .as("l'AFFICHAGE ne plancher que sur ce qu'il montre")
                 .isEqualTo(NiveauCecrl.B1);
     }
 
-    /** CO et CE ne sont pas concernees : meme lecture des deux cotes. */
+    /**
+     * 🛑 <b>Le niveau global affiche est le MIN des 4 epreuves</b>, calculees
+     * chacune par la lecture d'affichage — la regle du plancher n'est pas
+     * dupliquee, c'est {@code TcfLevelEstimatorService.floor}.
+     */
     @Test
-    void accueil_neChangeRienACoNiACe() {
-        stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.B2)));
-        stubQcm(EpreuveType.TCF_CE, List.of(qcm(NiveauCecrl.A2)));
+    void affichage_leNiveauGlobalEstLeMinDesQuatreEpreuves() {
+        stubAffichage(EpreuveType.TCF_CO, NiveauCecrl.B2);
+        stubAffichage(EpreuveType.TCF_CE, NiveauCecrl.B1);
+        stubAffichage(EpreuveType.TCF_EE, NiveauCecrl.B2);
+        stubAffichage(EpreuveType.TCF_EO, NiveauCecrl.A2);
 
-        TcfLevelProfile accueil = service.levelProfileAccueil(userId);
+        TcfLevelProfile p = service.levelProfileAccueil(userId);
 
-        assertThat(accueil.co()).isEqualTo(NiveauCecrl.B2);
-        assertThat(accueil.ce()).isEqualTo(NiveauCecrl.A2);
+        assertThat(p.globalLevel()).isEqualTo(NiveauCecrl.A2);
+        assertThat(p.epreuvesCounted()).isEqualTo(4);
+        assertThat(p.partial()).isFalse();
+    }
+
+    /** Aucune epreuve mesuree : tout reste inconnu, rien n'est fabrique. */
+    @Test
+    void affichage_aucunExamenQualifiant_toutResteNull() {
+        TcfLevelProfile p = service.levelProfileAccueil(userId);
+
+        assertThat(p.co()).isNull();
+        assertThat(p.ce()).isNull();
+        assertThat(p.ee()).isNull();
+        assertThat(p.eo()).isNull();
+        assertThat(p.globalLevel()).isNull();
+        assertThat(p.epreuvesCounted()).isZero();
     }
 
     /**
-     * 🛑 L'Accueil ne lit JAMAIS {@code ai_evaluations} pour EE/EO : le passage
-     * par le resolveur est ce qui tient la regle, et une lecture directe la
-     * contournerait sans bruit.
+     * 🛑 <b>CO et CE passent par la MEME lecture d'affichage</b> depuis le
+     * 2026-09-16 : elles se moyennent comme EE et EO. L'affichage ne lit donc
+     * plus du tout la requete du maximum — une lecture directe contournerait la
+     * regle sans bruit.
      */
     @Test
-    void accueil_neLitPasLesEvaluationsDeTaches() {
-        stubQualifiantes(EpreuveType.TCF_EE, NiveauCecrl.B1);
-        stubQualifiantes(EpreuveType.TCF_EO, NiveauCecrl.B1);
+    void affichage_neLitNiLesExamensQcmNiLesEvaluationsDeTaches() {
+        stubAffichage(EpreuveType.TCF_CO, NiveauCecrl.B2);
+        stubAffichage(EpreuveType.TCF_CE, NiveauCecrl.A2);
+        stubAffichage(EpreuveType.TCF_EE, NiveauCecrl.B1);
+        stubAffichage(EpreuveType.TCF_EO, NiveauCecrl.B1);
 
-        service.levelProfileAccueil(userId);
+        TcfLevelProfile affichage = service.levelProfileAccueil(userId);
 
+        assertThat(affichage.co()).isEqualTo(NiveauCecrl.B2);
+        assertThat(affichage.ce()).isEqualTo(NiveauCecrl.A2);
+        verify(attemptManager, never())
+                .findQcmEpreuvesPassees(eq(userId), any(EpreuveType.class), anyInt());
         verify(aiEvaluationManager, never())
                 .findByUserAndEpreuve(userId, EpreuveType.TCF_EE);
         verify(aiEvaluationManager, never())

@@ -2,15 +2,26 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AttemptMode;
+import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ProductionEvaluabilite;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -19,6 +30,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,6 +60,15 @@ class TcfProfileServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private AttemptManager attemptManager;
+
+    @Autowired
+    private ProductionSubmissionManager submissionManager;
+
+    @Autowired
+    private TcfDiagnosticSessionManager tcfSessionManager;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -238,5 +262,230 @@ class TcfProfileServiceIT extends AbstractIntegrationTest {
         assertThat(profile.ee()).isNull();
         assertThat(profile.eo()).isNull();
         assertThat(profile.globalLevel()).isNull();
+    }
+
+    // ================================================================
+    // LECTURE D'AFFICHAGE — la moyenne des 3 derniers examens qualifiants
+    // ================================================================
+    // 🛑 Règle du propriétaire du 2026-09-16, qui RÉVOQUE le maximum monotone
+    // de cette lecture : « le niveau affiché doit représenter le niveau actuel
+    // estimé, donc il peut monter comme descendre ». Ce que ces tests prouvent
+    // et que des mocks ne prouveraient pas : les TROIS provenances d'examen
+    // complet sont réellement reconnues par la requête, et l'entraînement
+    // réellement dehors.
+    //
+    // Grille active en test (v15) : compétence ≥ 10 ⇒ B2, ≥ 6 ⇒ B1, ≥ 2 ⇒ A2.
+    // Sans `scores_criteres`, la compétence d'une tâche vaut sa note /20.
+
+    /** Le conteneur d'un examen blanc TCF complet — il porte les sous-épreuves. */
+    private Attempt conteneurComplet(User user) {
+        final Attempt parent = new Attempt();
+        parent.setUser(user);
+        parent.setType(AttemptType.MOCK_EXAM);
+        parent.setModule(Module.TCF);
+        parent.setEpreuve(EpreuveType.TCF_COMPLET);
+        parent.setMode(AttemptMode.EXAMEN);
+        parent.setStatus(AttemptStatus.TERMINE);
+        parent.setStartedAt(Instant.now().minus(3, ChronoUnit.HOURS));
+        return attemptManager.save(parent);
+    }
+
+    /** Une session de diagnostic TCF complet, accrochée à son conteneur. */
+    private TcfDiagnosticSession sessionDiagnosticComplet(User user, Attempt parent) {
+        final TcfDiagnosticSession session = new TcfDiagnosticSession();
+        session.setUser(user);
+        session.setParentAttempt(parent);
+        session.setConfigVersion(1);
+        session.setStatus(TcfDiagnosticStatus.COMPLETED);
+        session.setStartedAt(Instant.now().minus(3, ChronoUnit.HOURS));
+        session.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+        session.setCompletedAt(Instant.now());
+        return tcfSessionManager.save(session);
+    }
+
+    /**
+     * Une <b>épreuve complète de production</b> terminée, ses 3 tâches notées
+     * {@code note}/20. La provenance se pose par l'appelant : {@code slotNumber}
+     * (épreuve seule), {@code parentAttempt} (examen blanc complet) ou les deux
+     * plus {@code tcfDiagnostic} (diagnostic complet).
+     */
+    private Attempt epreuveNotee(User user, EpreuveType epreuve, String note, Instant fin) {
+        final Attempt a = new Attempt();
+        a.setUser(user);
+        a.setType(AttemptType.TRAINING); // c'est le cas réel : le slot fait l'examen
+        a.setModule(Module.TCF);
+        a.setEpreuve(epreuve);
+        a.setMode(AttemptMode.EXAMEN);
+        a.setStatus(AttemptStatus.TERMINE);
+        a.setStartedAt(fin.minus(30, ChronoUnit.MINUTES));
+        a.setFinishedAt(fin);
+        a.setSlotNumber(1);
+        attemptManager.save(a);
+        troisTachesNotees(a, user, epreuve, note);
+        return a;
+    }
+
+    private void troisTachesNotees(Attempt a, User user, EpreuveType epreuve, String note) {
+        for (short numero = 1; numero <= 3; numero++) {
+            final ProductionSubmission s = data.productionSubmission(
+                    a, data.productionTacheNumero(epreuve, numero), user);
+            s.setStatut(SubmissionStatut.EVALUATED);
+            submissionManager.save(s);
+            final AiEvaluation e = data.aiEvaluation(s);
+            e.setNoteSur20(new BigDecimal(note));
+            e.setNiveauCecrl(null);
+            e.setNiveauCecrlIa(null);
+            e.setFeedbackJson(new java.util.HashMap<>());
+            aiEvaluationManager.save(e);
+        }
+        entityManager.flush();
+    }
+
+    /** Un examen QCM passé, avec une réponse — donc qualifiant. */
+    private void examenQcm(User user, EpreuveType epreuve, int pondere, Instant fin) {
+        final Attempt a = new Attempt();
+        a.setUser(user);
+        a.setType(AttemptType.MOCK_EXAM);
+        a.setModule(Module.TCF);
+        a.setEpreuve(epreuve);
+        a.setMode(AttemptMode.EXAMEN);
+        a.setStatus(AttemptStatus.TERMINE);
+        a.setStartedAt(fin.minus(30, ChronoUnit.MINUTES));
+        a.setFinishedAt(fin);
+        a.setWeightedScore(pondere);
+        a.setMaxWeightedScore(100);
+        attemptManager.save(a);
+        data.answer(data.attemptQuestion(a, data.question()));
+        entityManager.flush();
+    }
+
+    /**
+     * 🛑 <b>Les TROIS provenances comptent à égalité.</b> Trois candidats, la
+     * même note, trois provenances différentes : le même palier affiché. Si
+     * l'une d'elles sortait du prédicat SQL, son candidat retomberait à
+     * « À évaluer ».
+     */
+    @Test
+    void affichage_lesTroisProvenancesQualifiantesComptentAEgalite() {
+        // (1) épreuve seule : le slot suffit.
+        final User seule = data.user();
+        epreuveNotee(seule, EpreuveType.TCF_EE, "12", Instant.now());
+
+        // (2) sous-épreuve d'un examen blanc TCF complet.
+        final User complet = data.user();
+        final Attempt parentComplet = conteneurComplet(complet);
+        final Attempt ee = epreuveNotee(complet, EpreuveType.TCF_EE, "12", Instant.now());
+        ee.setSlotNumber(null);
+        ee.setParentAttempt(parentComplet);
+        attemptManager.save(ee);
+
+        // (3) sous-épreuve du diagnostic TCF complet (4 épreuves).
+        final User diagnostic = data.user();
+        final Attempt parentDiag = conteneurComplet(diagnostic);
+        final TcfDiagnosticSession session = sessionDiagnosticComplet(diagnostic, parentDiag);
+        final Attempt eeDiag = epreuveNotee(diagnostic, EpreuveType.TCF_EE, "12", Instant.now());
+        eeDiag.setSlotNumber(null);
+        eeDiag.setParentAttempt(parentDiag);
+        eeDiag.setTcfDiagnostic(session);
+        attemptManager.save(eeDiag);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.levelProfileAccueil(seule.getId()).ee()).isEqualTo(NiveauCecrl.B2);
+        assertThat(service.levelProfileAccueil(complet.getId()).ee()).isEqualTo(NiveauCecrl.B2);
+        assertThat(service.levelProfileAccueil(diagnostic.getId()).ee()).isEqualTo(NiveauCecrl.B2);
+    }
+
+    /**
+     * 🛑 <b>La moyenne, en base.</b> Trois épreuves complètes notées 12, 6 et 3
+     * : la moyenne vaut 7 ⇒ <b>B1</b>. Ce n'est ni le meilleur (B2), ni le
+     * dernier, ni le pire — c'est exactement ce que « niveau actuel estimé »
+     * veut dire, et c'est ce que l'ancien maximum monotone rendait impossible.
+     */
+    @Test
+    void affichage_moyenneDesTroisDernieres_niLeMeilleurNiLeDernier() {
+        final User user = data.user();
+        final Instant maintenant = Instant.now();
+        epreuveNotee(user, EpreuveType.TCF_EE, "3", maintenant);
+        epreuveNotee(user, EpreuveType.TCF_EE, "6", maintenant.minus(1, ChronoUnit.DAYS));
+        epreuveNotee(user, EpreuveType.TCF_EE, "12", maintenant.minus(2, ChronoUnit.DAYS));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.levelProfileAccueil(user.getId()).ee())
+                .as("(12 + 6 + 3) / 3 = 7 ⇒ B1")
+                .isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * 🛑 <b>Quatre épreuves ⇒ seules les 3 dernières comptent.</b> Un 20/20
+     * d'il y a quatre épreuves ne tient plus le palier : la moyenne des trois
+     * récentes vaut 3 ⇒ A2, celle des quatre vaudrait 7,25 ⇒ B1.
+     */
+    @Test
+    void affichage_quatreEpreuves_seulesLesTroisDernieresComptent() {
+        final User user = data.user();
+        final Instant maintenant = Instant.now();
+        epreuveNotee(user, EpreuveType.TCF_EO, "3", maintenant);
+        epreuveNotee(user, EpreuveType.TCF_EO, "3", maintenant.minus(1, ChronoUnit.DAYS));
+        epreuveNotee(user, EpreuveType.TCF_EO, "3", maintenant.minus(2, ChronoUnit.DAYS));
+        epreuveNotee(user, EpreuveType.TCF_EO, "20", maintenant.minus(30, ChronoUnit.DAYS));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.levelProfileAccueil(user.getId()).eo()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * 🛑 <b>Un entraînement n'entre JAMAIS dans la moyenne</b>, même corrigé par
+     * l'IA — ni slot ni parent, il est hors du prédicat. Le Plan, lui, continue
+     * de le voir : c'est l'arbitrage du propriétaire du 2026-09-16.
+     */
+    @Test
+    void affichage_unEntrainementNEntreJamaisDansLaMoyenne_maisLePlanLeVoit() {
+        final User user = data.user();
+        epreuveNotee(user, EpreuveType.TCF_EE, "3", Instant.now().minus(1, ChronoUnit.DAYS));
+        // L'entraînement : une production TCF évaluée B2, sans slot ni parent.
+        evaluationReelle(user, EpreuveType.TCF_EE, NiveauCecrl.B2);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(service.levelProfileAccueil(user.getId()).ee())
+                .as("l'affichage ne voit que l'épreuve complète, notée 3 ⇒ A2")
+                .isEqualTo(NiveauCecrl.A2);
+        assertThat(service.levelProfile(user.getId()).ee())
+                .as("le PLAN voit l'entraînement, c'est une observation")
+                .isEqualTo(NiveauCecrl.B2);
+    }
+
+    /**
+     * 🛑 <b>Le niveau global affiché est le MIN des 4 épreuves</b>, chacune
+     * valant sa propre moyenne. La CO et la CE se moyennent exactement comme
+     * l'EE et l'EO depuis le 2026-09-16.
+     */
+    @Test
+    void affichage_leNiveauGlobalEstLeMinDesQuatreEpreuves() {
+        final User user = data.user();
+        final Instant maintenant = Instant.now();
+        // CO : 85/100 pondéré ⇒ score calibré 419 ⇒ B2.
+        examenQcm(user, EpreuveType.TCF_CO, 85, maintenant);
+        // CE : deux examens, 85 et 45 ⇒ (419 + 206) / 2 = 312 ⇒ B1.
+        examenQcm(user, EpreuveType.TCF_CE, 85, maintenant);
+        examenQcm(user, EpreuveType.TCF_CE, 45, maintenant.minus(1, ChronoUnit.DAYS));
+        epreuveNotee(user, EpreuveType.TCF_EE, "12", maintenant);
+        epreuveNotee(user, EpreuveType.TCF_EO, "3", maintenant);
+        entityManager.flush();
+        entityManager.clear();
+
+        final TcfLevelProfile profil = service.levelProfileAccueil(user.getId());
+
+        assertThat(profil.co()).isEqualTo(NiveauCecrl.B2);
+        assertThat(profil.ce()).as("la CE se MOYENNE, elle ne retient pas le B2")
+                .isEqualTo(NiveauCecrl.B1);
+        assertThat(profil.ee()).isEqualTo(NiveauCecrl.B2);
+        assertThat(profil.eo()).isEqualTo(NiveauCecrl.A2);
+        assertThat(profil.globalLevel()).as("min des 4").isEqualTo(NiveauCecrl.A2);
+        assertThat(profil.epreuvesCounted()).isEqualTo(4);
+        assertThat(profil.partial()).isFalse();
     }
 }
