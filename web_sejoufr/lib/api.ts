@@ -109,6 +109,17 @@ function invalidateSkillProgress(): void {
     invalidateCache(SKILLS_CACHE_PREFIX);
 }
 
+/** **Après une écriture de MESURE** — session finalisée, section de diagnostic
+ *  close, diagnostic clos, épreuve d'un examen complet fermée.
+ *
+ *  🛑 Purge **après** la réponse, jamais avant : entre l'envoi et le commit
+ *  serveur, une lecture concurrente repeuplerait le cache avec la valeur
+ *  d'avant l'écriture. Même idiome qu'`afterProductionWrite`. */
+function afterMeasureWrite<T>(res: T): T {
+    invalidateDiagnosticAndPlan();
+    return res;
+}
+
 /** Après une écriture de production : l'historique et les bilans sont périmés. */
 function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissionDto {
     invalidateProductionProgress();
@@ -135,7 +146,11 @@ function afterProductionRead(sub: ProductionSubmissionDto): ProductionSubmission
 function afterSkillAttempt(attempt: SkillAttemptDto): SkillAttemptDto {
     if (attempt.statut === "EVALUATED" || attempt.statut === "FAILED" || attempt.statut === "RECORDED") {
         invalidateSkillProgress();
-        invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+        // 🛑 Le Plan n'est pas seul concerné : un micro-sujet analysé bouge
+        // aussi les compteurs de « Votre progression » et la porte de la
+        // préparation. Ne purger que `learning-plan:` laissait `progress:` et
+        // `preparation:` sur la valeur d'avant l'exercice.
+        invalidateDiagnosticAndPlan();
     }
     return attempt;
 }
@@ -953,18 +968,23 @@ export const tcfDiagnosticApi = {
      * quitter n'y termine que la tâche en cours. Idempotent.
      */
     closeSection(sessionId: string, epreuve: EpreuveType): Promise<TcfDiagnosticDto> {
+        // Clôturer une section pose son niveau : l'épreuve est mesurée.
         return apiFetch<TcfDiagnosticDto>(
             `/api/tcf-diagnostics/${sessionId}/sections/${epreuve}/close`,
             {method: "POST", auth: true},
-        );
+        ).then(afterMeasureWrite);
     },
 
     /** Calcule le résultat et clôture. N'exige pas les 4 sections. */
     result(sessionId: string): Promise<TcfDiagnosticResultDto> {
+        // 🛑 **C'est ici que QUATRE niveaux sont posés d'un coup.**
+        // `civicDiagnosticApi.result` purgeait déjà ; son pendant TCF, non —
+        // l'asymétrie laissait l'Accueil sur « À évaluer » après le diagnostic
+        // le plus structurant du parcours.
         return apiFetch<TcfDiagnosticResultDto>(
             `/api/tcf-diagnostics/${sessionId}/result`,
             {method: "POST", auth: true},
-        );
+        ).then(afterMeasureWrite);
     },
 
     /** Relit un résultat sans rien reclôturer. */
@@ -1334,11 +1354,22 @@ export const attemptApi = {
         });
     },
 
+    /**
+     * 🛑 **Finaliser une session est une MESURE ÉCRITE** — examen blanc de
+     * module (CO/CE/Structure), examen civique, sous-épreuve d'un examen
+     * complet, section de diagnostic, lot, série ciblée ou entraînement. Le
+     * serveur vient de poser un score : le diagnostic, le Plan, la préparation
+     * et les progrès sont périmés.
+     *
+     * ⚠️ C'est **tout le pipeline QCM** qui était muet : un examen blanc de
+     * compréhension orale rendait B1 et « Où vous en êtes » continuait
+     * d'afficher « À évaluer » jusqu'au rechargement complet de la page.
+     */
     finish(attemptId: string): Promise<AttemptResponse> {
         return apiFetch<AttemptResponse>(`/api/attempts/${attemptId}/finish`, {
             method: "POST",
             auth: true,
-        });
+        }).then(afterMeasureWrite);
     },
 
     /**
@@ -1764,19 +1795,21 @@ export const fullTcfExamApi = {
 
     /** Finalise l'examen (idempotent ; exige les 4 sous-attempts terminés). */
     finish(id: string): Promise<FullTcfExamResponse> {
+        // Le niveau final de l'examen vient d'être posé.
         return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/finish`, {
             method: "POST",
             auth: true,
-        });
+        }).then(afterMeasureWrite);
     },
 
     /** Marque une sous-épreuve de production (EE/EO) terminée après la T3,
      *  sans attendre l'évaluation IA — débloque l'épreuve suivante au hub. */
     markSubDone(id: string, epreuve: EpreuveType): Promise<FullTcfExamResponse> {
+        // Clôturer une épreuve fige son niveau sur ce qui a été rendu.
         return apiFetch<FullTcfExamResponse>(
             `/api/full-tcf-exams/${id}/sub-done?epreuve=${epreuve}`,
             {method: "POST", auth: true},
-        );
+        ).then(afterMeasureWrite);
     },
 };
 

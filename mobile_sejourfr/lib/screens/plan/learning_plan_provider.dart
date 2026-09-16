@@ -24,6 +24,24 @@ import '../../core/models/diagnostic_models.dart';
 /// d'écran.
 final learningPlanRevisionProvider = StateProvider<int>((ref) => 0);
 
+/// **Émettre le signal depuis un écran** : une mesure vient d'être écrite côté
+/// serveur — examen blanc QCM terminé, section de diagnostic close, diagnostic
+/// clos, épreuve d'un examen complet fermée.
+///
+/// 🛑 **Une émission par MESURE, jamais une par requête.** Le signal recharge
+/// cinq sources gardées en vie ; l'émettre deux fois pour un même geste les
+/// rechargerait deux fois pour rien. Les parcours de production émettent déjà
+/// par leur contrôleur (`onPlanChanged` sur `ee/eoSessionProvider`,
+/// `skillSubmissionProvider`, `diagnosticControllerProvider`) : ne pas
+/// ré-émettre sur la clôture qui suit immédiatement une soumission.
+///
+/// C'est le pendant mobile d'`invalidateDiagnosticAndPlan()`
+/// (`web_sejoufr/lib/api.ts`) — à ceci près que le web **purge** un cache là où
+/// le mobile **relance** les lectures vivantes, d'où la règle ci-dessus.
+void signalerMesureEcrite(WidgetRef ref) {
+  ref.read(learningPlanRevisionProvider.notifier).state++;
+}
+
 /// Le Plan TCF, **gardé en vie pour la session**.
 ///
 /// 🛑 Il était `autoDispose` sans garde : quitter l'onglet Plan ou l'Accueil le

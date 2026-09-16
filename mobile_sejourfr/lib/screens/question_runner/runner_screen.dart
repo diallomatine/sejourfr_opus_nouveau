@@ -20,6 +20,7 @@ import '../civique/civique_full_exams_screen.dart' show civiqueGlobalExamsProvid
 import '../module_detail/civique_hub_data.dart' show civiqueThemeExamsHistoryProvider;
 import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'mock_exam_exit_labels.dart';
@@ -29,6 +30,7 @@ import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
 import '../diagnostic_civique/civic_diagnostic_labels.dart';
+import '../diagnostic_tcf/tcf_diagnostic_current_provider.dart';
 import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
 
 class RunnerScreen extends ConsumerStatefulWidget {
@@ -764,6 +766,23 @@ class _BottomBar extends ConsumerWidget {
 }
 
 void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
+  // 🛑 **Une session finalisée est une MESURE ÉCRITE**, quelle que soit sa
+  // nature : examen blanc de module (CO/CE/Structure), examen civique,
+  // sous-épreuve d'un examen complet, section de diagnostic, lot, série ciblée
+  // ou entraînement. Le serveur vient de poser un score, donc « Où vous en
+  // êtes », le Plan, la préparation et les progrès sont périmés.
+  //
+  // ⚠️ **C'est le trou qui produisait le bug signalé** : un examen blanc de
+  // compréhension orale rendait B1 et la carte « Où vous en êtes » continuait
+  // d'afficher « À évaluer » jusqu'à ce que l'app soit tuée et rouverte — tout
+  // le pipeline QCM était muet.
+  //
+  // 🛑 **Émis UNE seule fois, avant tout aiguillage** : les branches qui suivent
+  // rendent la main par `return`, le poser dans l'une d'elles laisserait les
+  // autres muettes. Aucun autre point de ce parcours n'émet le signal — les
+  // invalidations d'historiques plus bas portent sur d'autres providers.
+  signalerMesureEcrite(ref);
+
   // Contexte examen blanc complet TCF (CO ou CE en sous-attempt) — le runner
   // doit revenir au hub de progression pour que l'utilisateur enchaîne la
   // prochaine épreuve, jamais au dialog d'examen standard.
@@ -786,7 +805,10 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   // compréhension orale sur un bilan de série, sans savoir qu'il lui reste
   // trois sections à passer.
   if (goState.uri.queryParameters[kTcfDiagnosticParam] != null) {
-    context.go(AppRoutes.tcfDiagnostic);
+    // 🛑 `context.go` **réutilise le `State` existant** de l'écran des 4
+    // sections : sans rafraîchissement, le candidat revient sur une section
+    // encore annoncée « Non commencée » alors qu'il vient de la terminer.
+    allerEnRafraichissantLeDiagnostic(context, ref, AppRoutes.tcfDiagnostic);
     return;
   }
 

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
+import '../../core/router/route_observer.dart';
 import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -21,7 +22,9 @@ import '../../core/widgets/screen_header.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import '../tcf_production/tcf_production_module.dart';
+import 'tcf_diagnostic_current_provider.dart';
 import 'tcf_diagnostic_labels.dart';
 
 /// T06 — l'accueil du diagnostic TCF 4 épreuves (`30_` §5.1).
@@ -42,69 +45,53 @@ class TcfDiagnosticScreen extends ConsumerStatefulWidget {
   ConsumerState<TcfDiagnosticScreen> createState() => _TcfDiagnosticScreenState();
 }
 
-class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
-  TcfDiagnosticDto? _diagnostic;
-
-  /// L'éligibilité **servie** (L7).
-  ///
-  /// 🛑 Elle n'est jamais déduite du diagnostic : le serveur connaît aussi la
-  /// dérogation du Plan, que cet écran ne voit pas. `null` = pas encore
-  /// chargée, ou l'appel a échoué — l'écran dégrade alors vers ce qu'il sait,
-  /// il n'invente aucun droit.
-  TcfReassessmentEligibilityDto? _eligibilite;
-  bool _loading = true;
+class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
+    with RouteAware {
   bool _busy = false;
-  String? _error;
+
+  /// L'erreur d'une **action** (ouvrir, lancer, clôturer). L'erreur de
+  /// *chargement*, elle, est portée par le provider — deux natures, deux
+  /// endroits, pour qu'un échec d'action n'efface pas les sections à l'écran.
+  String? _actionError;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) appRouteObserver.subscribe(this, route);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final repo = ref.read(tcfDiagnosticRepositoryProvider);
-      // L'éligibilité est **best-effort** : son échec ne doit pas priver le
-      // candidat de son diagnostic.
-      final resultats = await Future.wait<Object?>([
-        repo.current(),
-        repo.eligibility().then<Object?>((e) => e).catchError((_) => null),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _diagnostic = resultats[0] as TcfDiagnosticDto?;
-        _eligibilite = resultats[1] as TcfReassessmentEligibilityDto?;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = ApiClient.toApiException(e).message;
-        _loading = false;
-      });
-    }
+  @override
+  void dispose() {
+    appRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// 🛑 **Retour d'une section poussée au-dessus** : elle a pu être commencée,
+  /// terminée ou close, et rien de tout cela n'est visible d'ici. On relit.
+  /// L'invalidation posée avant les `context.go` de fin de section ne couvre
+  /// pas ce chemin-là : un `pop` ne repasse par aucune de ces fonctions.
+  @override
+  void didPopNext() {
+    ref.invalidate(tcfDiagnosticCurrentProvider);
   }
 
   /// Ouvrir est idempotent côté serveur : un double appui ne coûte rien.
   Future<void> _ouvrir() async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _actionError = null;
+    });
     try {
-      final ouvert = await ref.read(tcfDiagnosticRepositoryProvider).open();
+      await ref.read(tcfDiagnosticRepositoryProvider).open();
       if (!mounted) return;
-      setState(() {
-        _diagnostic = ouvert;
-        _busy = false;
-      });
+      ref.invalidate(tcfDiagnosticCurrentProvider);
+      setState(() => _busy = false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiClient.toApiException(e).message;
+        _actionError = ApiClient.toApiException(e).message;
         _busy = false;
       });
     }
@@ -123,10 +110,11 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
   ///
   /// Une section **déjà commencée** ne repasse pas par le sas : le chrono court
   /// déjà, lui réannoncer le format lui ferait perdre du temps.
-  void _annoncerPuisLancer(TcfDiagnosticSectionDto section) {
+  void _annoncerPuisLancer(
+      TcfDiagnosticDto diagnostic, TcfDiagnosticSectionDto section) {
     if (_busy || section.attemptId == null) return;
     if (section.etat == TcfDiagnosticSectionState.enCours) {
-      _lancerSection(section);
+      _lancerSection(diagnostic, section);
       return;
     }
     // 🛑 La DURÉE vient du DTO servi, jamais de la table de référence : la
@@ -140,12 +128,12 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
     switch (section.epreuve) {
       case EpreuveType.tcfCo:
         showModuleExamBriefingSheet(context, TcfQcmModule.co,
-            onStart: () => _lancerSection(section),
+            onStart: () => _lancerSection(diagnostic, section),
             eyebrow: sasEyebrow(section.epreuve),
             durationLabel: duree);
       case EpreuveType.tcfCe:
         showModuleExamBriefingSheet(context, TcfQcmModule.ce,
-            onStart: () => _lancerSection(section),
+            onStart: () => _lancerSection(diagnostic, section),
             eyebrow: sasEyebrow(section.epreuve),
             durationLabel: duree);
       case EpreuveType.tcfEe:
@@ -160,31 +148,34 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
           // ⚠️ Pas de `pop` ici : cette feuille-là se referme elle-même avant
           // d'appeler `onStart`. En rajouter un dépilerait l'écran du
           // diagnostic derrière elle.
-          onStart: () => _lancerSection(section),
+          onStart: () => _lancerSection(diagnostic, section),
         );
       default:
-        _lancerSection(section);
+        _lancerSection(diagnostic, section);
     }
   }
 
   /// Poser l'ancre du chrono **avant** d'ouvrir l'écran de passation : sans cet
   /// appel la section n'a aucune échéance. Idempotent — reprendre ne rend pas
   /// de temps au candidat.
-  Future<void> _lancerSection(TcfDiagnosticSectionDto section) async {
-    final d = _diagnostic;
-    if (_busy || d == null || section.attemptId == null) return;
-    setState(() => _busy = true);
+  Future<void> _lancerSection(
+      TcfDiagnosticDto d, TcfDiagnosticSectionDto section) async {
+    if (_busy || section.attemptId == null) return;
+    setState(() {
+      _busy = true;
+      _actionError = null;
+    });
     try {
       await ref
           .read(tcfDiagnosticRepositoryProvider)
           .startSection(d.sessionId, section.epreuve);
       if (!mounted) return;
       setState(() => _busy = false);
-      _ouvrirPassation(section);
+      _ouvrirPassation(d, section);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiClient.toApiException(e).message;
+        _actionError = ApiClient.toApiException(e).message;
         _busy = false;
       });
     }
@@ -192,9 +183,10 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
 
   /// 🛑 Aucun écran de passation propre au diagnostic : on rejoint les parcours
   /// existants. Un second runner divergerait du premier.
-  void _ouvrirPassation(TcfDiagnosticSectionDto section) {
+  void _ouvrirPassation(
+      TcfDiagnosticDto diagnostic, TcfDiagnosticSectionDto section) {
     final id = section.attemptId!;
-    final sessionId = _diagnostic!.sessionId;
+    final sessionId = diagnostic.sessionId;
     // Le parametre ne sert qu'au RETOUR : il ramene aux 4 sections au lieu du
     // bilan individuel. Il ne change ni la passation, ni la notation.
     final marqueur = '$kTcfDiagnosticParam=$sessionId';
@@ -233,19 +225,27 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
     }
   }
 
-  Future<void> _voirResultat() async {
-    final d = _diagnostic;
-    if (_busy || d == null) return;
-    setState(() => _busy = true);
+  Future<void> _voirResultat(TcfDiagnosticDto d) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _actionError = null;
+    });
     try {
       await ref.read(tcfDiagnosticRepositoryProvider).result(d.sessionId);
       if (!mounted) return;
+      // 🛑 **C'est ici que QUATRE niveaux sont posés d'un coup** : clôturer le
+      // diagnostic change le profil TCF, le Plan, la préparation et les
+      // progrès. `civicDiagnosticApi.result` émettait déjà ce signal ; son
+      // pendant TCF ne le faisait pas, et l'Accueil gardait « À évaluer ».
+      signalerMesureEcrite(ref);
+      ref.invalidate(tcfDiagnosticCurrentProvider);
       setState(() => _busy = false);
       context.push('/diagnostic-tcf/${d.sessionId}/resultat');
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = ApiClient.toApiException(e).message;
+        _actionError = ApiClient.toApiException(e).message;
         _busy = false;
       });
     }
@@ -271,18 +271,38 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
   }
 
   Widget _body() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return _ErreurView(message: _error!, onRetry: _load);
-    }
-    final d = _diagnostic;
-    if (d == null) return _amorce();
-    // T11 (`30_` §5.6) — un diagnostic CLOS n'affiche pas quatre sections
-    // « Terminée » : il affiche ce qu'il a mesuré, et la porte de réévaluation.
-    if (d.status == TcfDiagnosticStatus.completed) return _dejaFait(d);
-    return _sections(d);
+    // `skipLoadingOnReload` : au retour d'une section, on relit — mais l'écran
+    // garde ses cartes au lieu de clignoter en spinner plein écran.
+    return ref.watch(tcfDiagnosticCurrentProvider).when(
+          skipLoadingOnReload: true,
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErreurView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () => ref.invalidate(tcfDiagnosticCurrentProvider),
+          ),
+          data: (etat) {
+            final d = etat.diagnostic;
+            if (d == null) return _amorce();
+            // T11 (`30_` §5.6) — un diagnostic CLOS n'affiche pas quatre
+            // sections « Terminée » : il affiche ce qu'il a mesuré, et la porte
+            // de réévaluation.
+            if (d.status == TcfDiagnosticStatus.completed) {
+              return _dejaFait(d, etat.eligibilite);
+            }
+            return _sections(d);
+          },
+        );
+  }
+
+  /// L'échec d'une **action** se dit sur place, sans effacer l'écran.
+  Widget _actionErrorLine() {
+    final message = _actionError;
+    if (message == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(message,
+          style: AppFonts.ui(size: 13, color: AppColors.red)),
+    );
   }
 
   /// T11 — « Votre diagnostic initial a déjà été réalisé ».
@@ -294,14 +314,14 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
   /// 🛑 **Rien n'est décidé ici.** Sans éligibilité servie (appel en échec), on
   /// n'affiche que le constat — on ne fabrique pas un bouton dont on ignore
   /// s'il sera accepté.
-  Widget _dejaFait(TcfDiagnosticDto d) {
-    final e = _eligibilite;
+  Widget _dejaFait(TcfDiagnosticDto d, TcfReassessmentEligibilityDto? e) {
     final derniere = e == null ? null : derniereMesureLine(e);
     final parLePlan = e == null ? null : declencheParLePlanLine(e);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        _actionErrorLine(),
         Text(kTcfDiagnosticDejaFaitTitle,
             style: AppFonts.display(size: 22, color: AppColors.ink)),
         if (derniere != null) ...[
@@ -373,6 +393,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        _actionErrorLine(),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,6 +440,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        _actionErrorLine(),
         Text(progressionLabel(d),
             style: AppFonts.label(size: 12, color: AppColors.inkFaint)),
         const SizedBox(height: 12),
@@ -437,7 +459,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
           _SectionCard(
             section: s,
             busy: _busy,
-            onStart: () => _annoncerPuisLancer(s),
+            onStart: () => _annoncerPuisLancer(d, s),
             onRapport: () => _ouvrirRapport(s),
           ),
           const SizedBox(height: 10),
@@ -451,7 +473,7 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen> {
         if (resultatDisponible(d) || d.repriseEcoulee)
           AppButton(
             label: kTcfDiagnosticResultCta,
-            onPressed: _busy ? null : _voirResultat,
+            onPressed: _busy ? null : () => _voirResultat(d),
             isLoading: _busy,
           )
         else if (jours > 0)

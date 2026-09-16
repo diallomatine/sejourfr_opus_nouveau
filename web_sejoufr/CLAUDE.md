@@ -1191,6 +1191,15 @@ analyse de diagnostic, d'une production, d'une tentative de compétence — et
 `civicPlanApi.serie` vide le plan civique, une série ciblée faisant bouger la
 boîte Leitner. 🛑 **C'est la contrepartie du cache** : une écriture qui
 oublierait ce helper afficherait une progression périmée.
+🛑 **Toute écriture de MESURE passe par `afterMeasureWrite`** (2026-09-16,
+`lib/api.ts`) : `attemptApi.finish` (donc **tout** le pipeline QCM — examen de
+module, examen civique, sous-épreuve d'examen complet, section de diagnostic,
+lot, série), `tcfDiagnosticApi.result` / `.closeSection`, `fullTcfExamApi.finish`
+/ `.markSubDone`, plus `afterSkillAttempt` (qui ne vidait que `learning-plan:`).
+Ces six-là étaient **muets** : un examen blanc de compréhension orale rendait B1
+et « Où vous en êtes » affichait encore « À évaluer ». Le helper purge **après**
+la réponse, jamais avant — une lecture concurrente repeuplerait le cache avec la
+valeur d'avant l'écriture. Miroir mobile : `signalerMesureEcrite`.
 🛑 **Deux étapes, pas plus** (`APERCU_STEPS_MAX`, demande du propriétaire) —
 plafond d'**affichage**, jamais un budget : le parcours entier est servi et
 calculé, il se lit sur le Plan. `apercuSteps` garde **toujours** l'étape en
