@@ -16,8 +16,8 @@
  *   à battre et sans rien à perdre. Un compteur qu'on peut casser transforme
  *   une mesure en dette.
  */
-import type {BarTone} from "@/app/_components/sejour/SejourKit";
-import {niveauCecrlLabel, niveauCecrlShort} from "./types";
+import type {BarTone, LadderStep} from "@/app/_components/sejour/SejourKit";
+import {cecrlIndex, niveauCecrlLabel, niveauCecrlShort} from "./types";
 import type {
     NiveauCecrl,
     NiveauEvolution,
@@ -29,6 +29,7 @@ import type {
     StatutObjectif,
     TcfDomainProfileDto,
 } from "./types";
+import type {CivicPlanThemeLigneDto} from "./types";
 
 export const PROGRES_TITLE = "Ce qui a bougé";
 export const PROGRES_LEAD =
@@ -359,7 +360,14 @@ export function accueilEpreuveOuvreLExercice(epreuve: ProgressEpreuveDto): boole
     return etat === "A_EVALUER" || etat === "EN_PROGRESSION";
 }
 
-/** Le ton de la jauge et du statut. */
+/**
+ * Le ton du statut — la pastille colorée devant l'état, sur la ligne d'épreuve.
+ *
+ * ⚠️ Il ne teinte plus de jauge depuis le 2026-09-16 : `accueilEpreuveJauge`
+ * est **supprimée**, l'échelle CECRL ayant pris la place du rail. Une jauge à
+ * cinq positions fixes disait la même chose que le mot juste à côté ; l'échelle,
+ * elle, situe un palier servi.
+ */
 export function accueilEpreuveTon(epreuve: ProgressEpreuveDto): BarTone {
     switch (accueilEpreuveEtat(epreuve)) {
         case "A_EVALUER":
@@ -376,29 +384,73 @@ export function accueilEpreuveTon(epreuve: ProgressEpreuveDto): BarTone {
     }
 }
 
+/* ---------------------------------------------------------------------------
+ * L'ÉCHELLE CECRL d'une ligne d'épreuve (maquette du propriétaire, 2026-09-16)
+ * ------------------------------------------------------------------------- */
+
 /**
- * Le remplissage de la jauge.
+ * Les **quatre crans** de l'échelle : A1 · A2 · B1 · B2.
  *
- * 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — la règle
- * qui l'interdit (`30_` §7) tient toujours, et aucun chiffre n'est affiché.
- * C'est le **codage visuel d'un état servi**, à cinq positions fixes : la barre
- * dit la même chose que le mot juste en dessous, elle ne mesure rien de plus.
- * Un palier CECRL n'est toujours pas une barre.
+ * 🛑 **L'échelle s'arrête à B2**, comme partout ailleurs dans le produit : le
+ * profil TCF IRN ne délivre jamais au-delà, et l'échelle du bilan n'affiche
+ * déjà que A1 → B2. ⚠️ La maquette du propriétaire en montrait **six**, C1 et
+ * C2 compris, grisés et hors d'atteinte — il a **tranché pour la règle** le
+ * 2026-09-16, en cours de passe : deux paliers que la notation ne rend jamais
+ * n'ont rien à faire sur l'échelle d'un candidat.
+ *
+ * 🛑 **Ce n'est pas une seconde autorité** : la position d'un palier se lit par
+ * `cecrlIndex` (`lib/types.ts`), la même que le rail des bilans — d'où le
+ * rabattement de C1/C2 sur B2 pour relire un historique sans mentir.
  */
-export function accueilEpreuveJauge(epreuve: ProgressEpreuveDto): number {
-    switch (accueilEpreuveEtat(epreuve)) {
-        case "A_EVALUER":
-        case "SANS_OBJECTIF":
-            return 0;
-        case "A_RENFORCER":
-            return 0.35;
-        case "EN_PROGRESSION":
-            return 0.55;
-        case "PROCHE":
-            return 0.75;
-        case "SOLIDE":
-            return 1;
-    }
+export const ACCUEIL_ECHELLE_CECRL: readonly NiveauCecrl[] = ["A1", "A2", "B1", "B2"];
+
+/**
+ * Les quatre crans d'une épreuve, **composés** pour le kit.
+ *
+ * 🛑 **Rien n'est classé ici** : on pose deux paliers **servis** — celui de
+ * l'épreuve et l'objectif de la démarche — sur une échelle fixe, par
+ * `cecrlIndex`. Aucun nombre n'entre, aucune note n'est convertie.
+ *
+ * 🛑 **`A1_NON_ATTEINT` n'allume AUCUN cran** (`cecrlIndex` rend -1) : le
+ * candidat n'a atteint aucun des quatre paliers, et allumer A1 lui annoncerait
+ * celui qu'il n'a justement pas. La pastille dit « &lt;A1 » et l'échelle reste
+ * vide — on ne ment jamais vers le haut. ⚠️ Ce **n'est pas** le rendu d'une
+ * épreuve non mesurée : la ligne garde son fond blanc, son repère plein et ses
+ * crans pleins mais éteints, là où une épreuve à évaluer passe en contour.
+ *
+ * Miroir mobile : `accueilEchelons`.
+ */
+export function accueilEchelons(
+    epreuve: ProgressEpreuveDto,
+    objectif: NiveauCecrl | null,
+): LadderStep[] {
+    const atteint = epreuve.niveau ? cecrlIndex(epreuve.niveau) : -1;
+    const vise = objectif ? cecrlIndex(objectif) : -1;
+    return ACCUEIL_ECHELLE_CECRL.map((niveau, rang) => ({
+        label: niveauCecrlShort(niveau),
+        state: rang <= atteint ? "done" : rang === vise ? "target" : "empty",
+        current: rang === atteint,
+        goal: rang === vise,
+    }));
+}
+
+/**
+ * Ce que l'échelle dit à un lecteur d'écran — elle est rendue en `role="img"`,
+ * ses libellés sont décoratifs.
+ *
+ * 🛑 **« &lt;A1 » se DIT**, il ne se lit pas : « Niveau inférieur à A1 ».
+ */
+export function accueilEchelleLabel(
+    epreuve: ProgressEpreuveDto,
+    objectif: NiveauCecrl | null,
+): string {
+    const niveau = epreuve.niveau;
+    const debut = !niveau
+        ? "Non évaluée"
+        : niveau === "A1_NON_ATTEINT"
+            ? "Niveau inférieur à A1"
+            : `Niveau ${niveauCecrlShort(niveau)}`;
+    return objectif ? `${debut}, objectif ${niveauCecrlShort(objectif)}` : debut;
 }
 
 /**
@@ -415,20 +467,57 @@ export function accueilObjectifLabel(objectif: NiveauCecrl | null): string | nul
 }
 
 /**
- * Le compteur du bandeau d'objectif — « 3 / 4 évaluées ».
+ * Le compteur du bandeau d'objectif — « 3 / 4 » et ses pastilles.
  *
  * 🛑 **On compte des mesures, on n'en classe aucune** : le seul fait lu est la
  * présence d'un `niveau` servi. Le total est la liste servie elle-même, jamais
  * un « 4 » écrit en dur — c'est le serveur qui décide combien d'épreuves il
- * publie.
+ * publie, et c'est lui qui pose le nombre de pastilles.
  *
- * Miroir mobile : `accueilEvalueesLabel`.
+ * ⚠️ **Remplace `accueilEvalueesLabel`** (2026-09-16) : la maquette v2 rend le
+ * compte, les pastilles et le mot séparément — une chaîne « 3 / 4 évaluées »
+ * ne se découpe pas.
+ *
+ * Miroir mobile : `accueilEvaluees`.
  */
-export function accueilEvalueesLabel(epreuves: ProgressEpreuveDto[]): string | null {
+export function accueilEvaluees(
+    epreuves: ProgressEpreuveDto[],
+): {faites: number; total: number} | null {
     if (epreuves.length === 0) return null;
-    const mesurees = epreuves.filter((e) => e.niveau !== null).length;
-    return `${mesurees} / ${epreuves.length} évaluées`;
+    return {
+        faites: epreuves.filter((e) => e.niveau !== null).length,
+        total: epreuves.length,
+    };
 }
+
+/** Le mot sous le compteur du bandeau. Miroir mobile : `kAccueilEvalueesCaption`. */
+export const ACCUEIL_EVALUEES_CAPTION = "évaluées";
+
+/**
+ * Le compteur du bandeau **civique** — les thèmes réellement mesurés.
+ *
+ * 🛑 **Même geste qu'en TCF, sur la seule donnée que le civique sert** : on
+ * compte les thèmes dont l'`etat` n'est pas `NON_EVALUE`, et le total est la
+ * liste servie. Aucun « 5 » n'est écrit ici, et rien n'est classé — `etat`
+ * arrive du moteur civique.
+ *
+ * Miroir mobile : `accueilEvaluesCivique`.
+ */
+export function accueilEvaluesCivique(
+    themes: CivicPlanThemeLigneDto[],
+): {faites: number; total: number} | null {
+    if (themes.length === 0) return null;
+    return {
+        faites: themes.filter((t) => t.etat !== "NON_EVALUE").length,
+        total: themes.length,
+    };
+}
+
+/**
+ * Le mot sous le compteur civique — on compte des **thèmes**, au masculin.
+ * Miroir mobile : `kAccueilEvaluesCaptionCivique`.
+ */
+export const ACCUEIL_EVALUES_CAPTION_CIVIQUE = "évalués";
 
 /**
  * « 4 compétences maîtrisées sur 11 travaillées ».

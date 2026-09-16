@@ -1,3 +1,5 @@
+import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
@@ -307,7 +309,12 @@ bool accueilEpreuveOuvreLExercice(ProgressEpreuve epreuve) {
       etat == AccueilEpreuveEtat.enProgression;
 }
 
-/// Le ton de la jauge et du statut.
+/// Le ton du statut — la pastille colorée devant l'état, sur la ligne d'épreuve.
+///
+/// ⚠️ Il ne teinte plus de jauge depuis le 2026-09-16 : `accueilEpreuveJauge`
+/// est **supprimée**, l'échelle CECRL ayant pris la place du rail. Une jauge à
+/// cinq positions fixes disait la même chose que le mot juste à côté ;
+/// l'échelle, elle, situe un palier servi.
 SfBarTone accueilEpreuveTon(ProgressEpreuve epreuve) =>
     switch (accueilEpreuveEtat(epreuve)) {
       AccueilEpreuveEtat.aEvaluer ||
@@ -319,21 +326,91 @@ SfBarTone accueilEpreuveTon(ProgressEpreuve epreuve) =>
       AccueilEpreuveEtat.aRenforcer => SfBarTone.hot,
     };
 
-/// Le remplissage de la jauge.
+/* ------ L'ÉCHELLE CECRL d'une ligne d'épreuve (maquette v2, 2026-09-16) ---- */
+
+/// Les **quatre crans** de l'échelle : A1 · A2 · B1 · B2.
 ///
-/// 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — la règle
-/// qui l'interdit (`30_` §7) tient toujours, et aucun chiffre n'est affiché.
-/// C'est le **codage visuel d'un état servi**, à cinq positions fixes : la
-/// barre dit la même chose que le mot juste en dessous, elle ne mesure rien de
-/// plus. Un palier CECRL n'est toujours pas une barre.
-double accueilEpreuveJauge(ProgressEpreuve epreuve) =>
-    switch (accueilEpreuveEtat(epreuve)) {
-      AccueilEpreuveEtat.aEvaluer || AccueilEpreuveEtat.sansObjectif => 0,
-      AccueilEpreuveEtat.aRenforcer => 0.35,
-      AccueilEpreuveEtat.enProgression => 0.55,
-      AccueilEpreuveEtat.proche => 0.75,
-      AccueilEpreuveEtat.solide => 1,
-    };
+/// 🛑 **L'échelle s'arrête à B2**, comme partout ailleurs dans le produit : le
+/// profil TCF IRN ne délivre jamais au-delà, et `CecrlScale` n'affiche déjà que
+/// A1 → B2. ⚠️ La maquette du propriétaire en montrait **six**, C1 et C2
+/// compris, grisés et hors d'atteinte — il a **tranché pour la règle** le
+/// 2026-09-16, en cours de passe : deux paliers que la notation ne rend jamais
+/// n'ont rien à faire sur l'échelle d'un candidat.
+///
+/// 🛑 **Ce n'est pas une seconde autorité** : la position d'un palier se lit
+/// par [NiveauCecrl.scaleIndex], la même que le rail des bilans — d'où le
+/// rabattement de C1/C2 sur B2 pour relire un historique sans mentir.
+///
+/// Miroir web : `ACCUEIL_ECHELLE_CECRL`.
+const List<NiveauCecrl> kAccueilEchelleCecrl = [
+  NiveauCecrl.a1,
+  NiveauCecrl.a2,
+  NiveauCecrl.b1,
+  NiveauCecrl.b2,
+];
+
+/// Les quatre crans d'une épreuve, **composés** pour le kit.
+///
+/// 🛑 **Rien n'est classé ici** : on pose deux paliers **servis** — celui de
+/// l'épreuve et l'objectif de la démarche — sur une échelle fixe. Aucun nombre
+/// n'entre, aucune note n'est convertie.
+///
+/// 🛑 **`a1NonAtteint` n'allume AUCUN cran** : le candidat n'a atteint aucun
+/// des quatre paliers, et allumer A1 lui annoncerait celui qu'il n'a justement
+/// pas. La pastille dit « &lt;A1 » et l'échelle reste vide — on ne ment jamais
+/// vers le haut. ⚠️ Ce **n'est pas** le rendu d'une épreuve non mesurée : la
+/// ligne garde son fond blanc, son repère plein et ses crans pleins mais
+/// éteints, là où une épreuve à évaluer passe en contour.
+///
+/// Miroir web : `accueilEchelons`.
+/// Le rang d'un palier **servi** sur l'échelle de l'Accueil.
+///
+/// C'est [NiveauCecrl.scaleIndex] — la même table que le rail des bilans — plus
+/// la seule garde qui manque ici : `a1NonAtteint` y vaut **0**, parce que cette
+/// barre-là n'a que quatre libellés et confond « A1 » avec « A1 non atteint ».
+/// Sur une échelle qui **remplit** les crans, cette confusion allumerait A1.
+/// Miroir exact de `cecrlIndex` côté web, qui rend -1 pour ce cas.
+int _accueilRangCecrl(NiveauCecrl? niveau) =>
+    niveau == null || niveau == NiveauCecrl.a1NonAtteint
+        ? -1
+        : niveau.scaleIndex;
+
+List<SfLadderStep> accueilEchelons(
+  ProgressEpreuve epreuve,
+  NiveauCecrl? objectif,
+) {
+  final atteint = _accueilRangCecrl(epreuve.niveau);
+  final vise = _accueilRangCecrl(objectif);
+  return [
+    for (var rang = 0; rang < kAccueilEchelleCecrl.length; rang++)
+      SfLadderStep(
+        label: kAccueilEchelleCecrl[rang].shortName,
+        state: rang <= atteint
+            ? SfLadderState.done
+            : rang == vise
+                ? SfLadderState.target
+                : SfLadderState.empty,
+        current: rang == atteint,
+        goal: rang == vise,
+      ),
+  ];
+}
+
+/// Ce que l'échelle dit à un lecteur d'écran — elle est rendue en image, ses
+/// libellés sont décoratifs.
+///
+/// 🛑 **« &lt;A1 » se DIT**, il ne se lit pas : « Niveau inférieur à A1 ».
+///
+/// Miroir web : `accueilEchelleLabel`.
+String accueilEchelleLabel(ProgressEpreuve epreuve, NiveauCecrl? objectif) {
+  final niveau = epreuve.niveau;
+  final debut = niveau == null
+      ? 'Non évaluée'
+      : niveau == NiveauCecrl.a1NonAtteint
+          ? 'Niveau inférieur à A1'
+          : 'Niveau ${niveau.shortName}';
+  return objectif == null ? debut : '$debut, objectif ${objectif.shortName}';
+}
 
 /// La droite de la ligne de repères d'une carte d'épreuve — « Objectif B2 ».
 ///
@@ -345,19 +422,51 @@ double accueilEpreuveJauge(ProgressEpreuve epreuve) =>
 String? accueilObjectifLabel(NiveauCecrl? objectif) =>
     objectif == null ? null : 'Objectif ${objectif.shortName}';
 
-/// Le compteur du bandeau d'objectif — « 3 / 4 évaluées ».
+/// Le compteur du bandeau d'objectif — « 3 / 4 » et ses pastilles.
 ///
 /// 🛑 **On compte des mesures, on n'en classe aucune** : le seul fait lu est la
 /// présence d'un `niveau` servi. Le total est la liste servie elle-même, jamais
 /// un « 4 » écrit en dur — c'est le serveur qui décide combien d'épreuves il
-/// publie.
+/// publie, et c'est lui qui pose le nombre de pastilles.
 ///
-/// Miroir web : `accueilEvalueesLabel`.
-String? accueilEvalueesLabel(List<ProgressEpreuve> epreuves) {
+/// ⚠️ **Remplace `accueilEvalueesLabel`** (2026-09-16) : la maquette v2 rend le
+/// compte, les pastilles et le mot séparément — une chaîne « 3 / 4 évaluées »
+/// ne se découpe pas.
+///
+/// Miroir web : `accueilEvaluees`.
+({int faites, int total})? accueilEvaluees(List<ProgressEpreuve> epreuves) {
   if (epreuves.isEmpty) return null;
-  final mesurees = epreuves.where((e) => e.niveau != null).length;
-  return '$mesurees / ${epreuves.length} évaluées';
+  return (
+    faites: epreuves.where((e) => e.niveau != null).length,
+    total: epreuves.length,
+  );
 }
+
+/// Le mot sous le compteur du bandeau. Miroir web : `ACCUEIL_EVALUEES_CAPTION`.
+const String kAccueilEvalueesCaption = 'évaluées';
+
+/// Le compteur du bandeau **civique** — les thèmes réellement mesurés.
+///
+/// 🛑 **Même geste qu'en TCF, sur la seule donnée que le civique sert** : on
+/// compte les thèmes dont l'`etat` n'est pas `NON_EVALUE`, et le total est la
+/// liste servie. Aucun « 5 » n'est écrit ici, et rien n'est classé — `etat`
+/// arrive du moteur civique.
+///
+/// Miroir web : `accueilEvaluesCivique`.
+({int faites, int total})? accueilEvaluesCivique(
+  List<CivicPlanThemeLigne> themes,
+) {
+  if (themes.isEmpty) return null;
+  return (
+    faites:
+        themes.where((t) => t.etat != CivicThemeState.nonEvalue).length,
+    total: themes.length,
+  );
+}
+
+/// Le mot sous le compteur civique — on compte des **thèmes**, au masculin.
+/// Miroir web : `ACCUEIL_EVALUES_CAPTION_CIVIQUE`.
+const String kAccueilEvaluesCaptionCivique = 'évalués';
 
 /// « 4 compétences maîtrisées sur 11 travaillées ».
 ///
