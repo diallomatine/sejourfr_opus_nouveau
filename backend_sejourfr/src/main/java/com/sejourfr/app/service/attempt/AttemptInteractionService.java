@@ -453,7 +453,9 @@ public class AttemptInteractionService {
      *
      * <p>Les reponses sont extraites <b>ici</b>, en valeurs simples : la
      * frontiere de transaction est traversee par des donnees, jamais par des
-     * entites detachees.
+     * entites detachees. 🛑 {@code answered} y est porte <b>separement</b> de
+     * {@code correct} : une question laissee vide n'est pas une reponse fausse,
+     * et le producteur l'ecarte entierement de la mesure de competence.
      *
      * <p>Appele depuis {@code doFinish} <b>apres</b> le point d'idempotence (une
      * session deja terminee est rendue telle quelle sans repasser ici), donc une
@@ -470,6 +472,7 @@ public class AttemptInteractionService {
                     .map(aq -> new ReponseComprehension(
                             aq.getQuestion().getQuestionType(),
                             aq.getQuestion().getDifficulty(),
+                            aq.getAnswer() != null,
                             aq.getAnswer() != null
                                     && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
                     .toList();

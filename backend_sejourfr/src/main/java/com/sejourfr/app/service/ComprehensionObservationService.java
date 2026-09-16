@@ -66,11 +66,32 @@ import java.util.UUID;
  * varie, c'est la <b>taille de l'echantillon</b>, et c'est la confiance qui la
  * porte.
  *
+ * <h2>Seules les questions REPONDUES comptent</h2>
+ * 🛑 Une question laissee vide n'est <b>pas</b> une reponse fausse : elle est
+ * ecartee de la ventilation, donc du numerateur, du denominateur et du plancher
+ * de fiabilite. Une session terminee sans aucune reponse ne produit
+ * <b>aucune</b> observation — ni {@code PRIORITY} (fausse fragilite), ni
+ * {@code NOT_OBSERVED} (faux « donnees insuffisantes ») : pour la mesure de
+ * competence, elle n'a pas eu lieu. Meme distinction que
+ * {@code ReceptiveEvidenceAdapter.ReponseQcm.answered} et que l'{@code EXISTS}
+ * de {@code AttemptRepository.findQcmEpreuvesPassees}.
+ *
+ * <p>⚠️ Ceci ne change rien au <b>resultat de l'examen</b> lui-meme, ou une
+ * epreuve abandonnee reste comptee {@code A1_NON_ATTEINT}
+ * ({@code FullTcfExamResponseBuilder}) : c'est le resultat de cet examen-la,
+ * pas le profil du candidat dans le temps.
+ *
  * <h2>Plancher de fiabilite</h2>
- * Sous {@code comprehension.min-questions} questions d'un niveau, l'observation
- * est ecrite {@code NOT_OBSERVED} : deux questions B2 dans un examen ne disent
- * rien, et le depot tient que <b>« non observe » = inconnu, jamais mauvais</b>.
- * Le moteur de maitrise les ignore ; elles restent en base comme trace.
+ * Sous {@code comprehension.min-questions} <b>reponses</b> d'un niveau,
+ * l'observation est ecrite {@code NOT_OBSERVED} : deux questions B2 dans un
+ * examen ne disent rien, et le depot tient que <b>« non observe » = inconnu,
+ * jamais mauvais</b>. Le moteur de maitrise les ignore ; elles restent en base
+ * comme trace.
+ *
+ * <p>🛑 Ce {@code NOT_OBSERVED}-la dit <b>« pas assez de preuve »</b>, jamais
+ * « la mesure a rate » : il ne declenche aucune invitation a repasser
+ * l'epreuve. {@code PlanDomainAssessmentResolver.indispensable} ne regarde que
+ * les sections de production pour cette raison exacte.
  *
  * <h2>Idempotence</h2>
  * La cle est {@code (user, competence, source, attempt)} — l'attempt est
@@ -104,9 +125,16 @@ public class ComprehensionObservationService {
      * <p><b>Valeurs, pas entites</b> : l'appelant les extrait dans SA
      * transaction, ou tout est deja charge, et rien de detache ne traverse la
      * frontiere {@code REQUIRES_NEW}.
+     *
+     * @param answered la question a-t-elle recu une reponse. 🛑 <b>Une question
+     *                 laissee vide n'est pas une reponse fausse</b> : elle ne
+     *                 compte ni au numerateur, ni au denominateur, ni dans le
+     *                 plancher {@code min-questions}. Meme distinction que
+     *                 {@code ReceptiveEvidenceAdapter.ReponseQcm.answered}.
      */
     public record ReponseComprehension(
-            QuestionType questionType, Difficulty difficulty, boolean correct) {}
+            QuestionType questionType, Difficulty difficulty,
+            boolean answered, boolean correct) {}
 
     /**
      * Enregistre ce qu'une session QCM terminee apprend sur la comprehension.
@@ -165,6 +193,11 @@ public class ComprehensionObservationService {
     private static Map<Cle, Compte> ventile(List<ReponseComprehension> reponses) {
         Map<Cle, Compte> parNiveau = new LinkedHashMap<>();
         for (ReponseComprehension reponse : reponses) {
+            // 🛑 Une question JAMAIS REPONDUE n'apprend rien. Elle ne rejoint
+            // aucun palier : ni bonne, ni mauvaise, ni comptee. Une session
+            // entierement vide ne produit donc AUCUNE observation — ni fausse
+            // fragilite, ni faux « donnees insuffisantes ».
+            if (!reponse.answered()) continue;
             SkillSection domaine = domaine(reponse.questionType());
             if (domaine == null) continue;
             String niveau = niveau(reponse.difficulty());

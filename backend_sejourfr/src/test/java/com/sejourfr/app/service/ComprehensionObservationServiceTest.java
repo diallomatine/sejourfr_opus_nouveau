@@ -99,7 +99,7 @@ class ComprehensionObservationServiceTest {
         List<ReponseComprehension> reponses = new ArrayList<>();
         reponses.addAll(co(Difficulty.B1, 5, 5));
         for (int i = 0; i < 5; i++) {
-            reponses.add(new ReponseComprehension(QuestionType.CO_IMAGE, Difficulty.B1, true));
+            reponses.add(new ReponseComprehension(QuestionType.CO_IMAGE, Difficulty.B1, true, true));
         }
 
         service.record(USER_ID, ATTEMPT_ID, QUAND, reponses);
@@ -116,7 +116,7 @@ class ComprehensionObservationServiceTest {
     void structureEstHorsPerimetre() {
         List<ReponseComprehension> reponses = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
-            reponses.add(new ReponseComprehension(QuestionType.STRUCTURE, Difficulty.B1, true));
+            reponses.add(new ReponseComprehension(QuestionType.STRUCTURE, Difficulty.B1, true, true));
         }
 
         int ecrites = service.record(USER_ID, ATTEMPT_ID, QUAND, reponses);
@@ -129,7 +129,7 @@ class ComprehensionObservationServiceTest {
     void lesDifficultesCiviquesNeSontJamaisUnPalierCecrl() {
         List<ReponseComprehension> reponses = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
-            reponses.add(new ReponseComprehension(QuestionType.CONNAISSANCE, Difficulty.CSP, true));
+            reponses.add(new ReponseComprehension(QuestionType.CONNAISSANCE, Difficulty.CSP, true, true));
         }
 
         assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isZero();
@@ -181,6 +181,56 @@ class ComprehensionObservationServiceTest {
         // 4/6 = 66,7 % : la bande intermediaire est atteignable des 6 questions,
         // ce qui est precisement la raison de ce plancher.
         assertThat(observation.getStatus()).isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
+    }
+
+    // ------------------------------------------------------- questions non repondues
+
+    @Test
+    void uneSessionSansAucuneReponseNEcritRienDuTout() {
+        // Le cas mesure en base (session CO terminee, 25 questions posees, zero
+        // reponse) : il produisait 3 observations, dont une PRIORITY a 0/8 —
+        // une fragilite qui n'a jamais ete observee. « Aucune preuve » n'est
+        // pas « mauvaise preuve » : cette session n'a rien a apprendre au Plan.
+        List<ReponseComprehension> reponses = new ArrayList<>();
+        reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.A2, 8));
+        reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.B1, 9));
+        reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.B2, 8));
+
+        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isZero();
+        verify(observationManager, never()).save(any());
+    }
+
+    @Test
+    void seulesLesQuestionsRepondueEntrentDansLeDenominateur() {
+        // 3 repondues sur 5, toutes justes. Si les 2 questions laissees vides
+        // comptaient fausses, le taux serait 3/5 = 60 % => PRIORITY. Elles ne
+        // comptent pas du tout : 3/3, et 3 reste sous le plancher de 6.
+        properties.getComprehension().setMinQuestions(6);
+        List<ReponseComprehension> reponses = new ArrayList<>(ce(Difficulty.B1, 3, 3));
+        reponses.addAll(nonRepondues(QuestionType.CE, Difficulty.B1, 2));
+
+        service.record(USER_ID, ATTEMPT_ID, QUAND, reponses);
+
+        LearningPlanObservation observation = ecrites().get("CE-B1");
+        assertThat(observation.getStatus()).isEqualTo(LearningPlanSkillStatus.NOT_OBSERVED);
+        assertThat(observation.isObserved()).isFalse();
+    }
+
+    @Test
+    void lePlancherSeDecideSurLesReponsesPasSurLesQuestionsPosees() {
+        // 6 repondues (5 justes) + 6 laissees vides. Compter les questions
+        // POSEES donnerait 12 et un taux de 5/12 = 41 % => PRIORITY ; compter
+        // les REPONSES donne 6 (le plancher exact) et 5/6 = 83 % => SOLID.
+        properties.getComprehension().setMinQuestions(6);
+        List<ReponseComprehension> reponses = new ArrayList<>(co(Difficulty.B2, 6, 5));
+        reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.B2, 6));
+
+        service.record(USER_ID, ATTEMPT_ID, QUAND, reponses);
+
+        LearningPlanObservation observation = ecrites().get("CO-B2");
+        assertThat(observation.isObserved()).isTrue();
+        assertThat(observation.getStatus()).isEqualTo(LearningPlanSkillStatus.SOLID);
+        assertThat(observation.getEvidence()).isEqualTo("5 / 6 bonnes réponses");
     }
 
     // ------------------------------------------------------------------ confiance
@@ -259,11 +309,21 @@ class ComprehensionObservationServiceTest {
         return reponses(QuestionType.CE, difficulty, total, correctes);
     }
 
+    /** Des questions POSEES et laissees vides : ni bonnes, ni mauvaises, ni comptees. */
+    private static List<ReponseComprehension> nonRepondues(
+            QuestionType type, Difficulty difficulty, int total) {
+        List<ReponseComprehension> liste = new ArrayList<>();
+        for (int i = 0; i < total; i++) {
+            liste.add(new ReponseComprehension(type, difficulty, false, false));
+        }
+        return liste;
+    }
+
     private static List<ReponseComprehension> reponses(
             QuestionType type, Difficulty difficulty, int total, int correctes) {
         List<ReponseComprehension> liste = new ArrayList<>();
         for (int i = 0; i < total; i++) {
-            liste.add(new ReponseComprehension(type, difficulty, i < correctes));
+            liste.add(new ReponseComprehension(type, difficulty, true, i < correctes));
         }
         return liste;
     }
