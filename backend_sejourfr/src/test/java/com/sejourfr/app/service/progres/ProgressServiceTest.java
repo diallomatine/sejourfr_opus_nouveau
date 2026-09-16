@@ -464,9 +464,10 @@ class ProgressServiceTest {
 
     private static TcfDiagnosticReadService.Section section(
             EpreuveType epreuve, NiveauCecrl niveau) {
+        UUID attemptId = UUID.randomUUID();
         return new TcfDiagnosticReadService.Section(
-                epreuve, UUID.randomUUID(), TcfDiagnosticSectionState.TERMINEE,
-                null, niveau, null, false);
+                epreuve, attemptId, TcfDiagnosticSectionState.TERMINEE,
+                null, niveau, null, false, niveau == null ? null : attemptId);
     }
 
     private void diagnosticCiviqueClos() {

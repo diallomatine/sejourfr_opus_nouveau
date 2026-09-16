@@ -115,6 +115,41 @@ public class NiveauActuelEpreuveResolver {
     private final ProductionBilanService bilanService;
 
     /**
+     * Le niveau actuel d'une épreuve, <b>et l'examen qui l'explique</b>.
+     *
+     * <h2>À quoi sert {@code attemptId}</h2>
+     * <p>🛑 <b>Il ne modifie pas la règle</b> : le niveau reste la moyenne des
+     * {@value #EXAMENS_RETENUS} derniers examens qualifiants. {@code attemptId}
+     * désigne le <b>plus récent</b> d'entre eux — c'est-à-dire l'examen dont le
+     * rapport existe déjà et que le candidat peut ouvrir.
+     *
+     * <p>Il a été ajouté le <b>2026-09-16</b> pour le diagnostic 4 épreuves :
+     * une section dont l'épreuve est mesurée <b>ailleurs</b> est une section
+     * FAITE, et son « Voir le rapport » doit pointer sur quelque chose qui
+     * existe — pas sur un sous-attempt vide.
+     * Cf. {@code TcfDiagnosticReadService.sectionsMesurees}.
+     *
+     * <p>⚠️ <b>Une moyenne n'a pas de rapport</b> : sur trois examens retenus,
+     * {@code attemptId} n'en nomme qu'un. C'est assumé — le candidat entre dans
+     * son historique par le plus récent, et « Voir mes résultats »
+     * ({@code EpreuveHistoriqueService}) reste l'écran qui les montre tous.
+     *
+     * @param niveau    {@code null} = <b>aucun examen qualifiant</b>, donc
+     *                  épreuve non mesurée. Jamais un plancher fabriqué.
+     * @param attemptId {@code null} exactement quand {@code niveau} l'est
+     */
+    public record Mesure(NiveauCecrl niveau, UUID attemptId) {
+
+        /** Aucun examen qualifiant : l'épreuve n'est pas mesurée. */
+        public static final Mesure AUCUNE = new Mesure(null, null);
+
+        /** L'épreuve est-elle mesurée ? La seule question, et sa seule réponse. */
+        public boolean mesuree() {
+            return niveau != null;
+        }
+    }
+
+    /**
      * Niveau actuel estimé d'une épreuve de <b>compréhension</b> (CO / CE) :
      * moyenne des scores calibrés des {@value #EXAMENS_RETENUS} derniers
      * examens qualifiants, puis bande.
@@ -134,6 +169,14 @@ public class NiveauActuelEpreuveResolver {
      *                  la fenêtre de calcul
      */
     public NiveauCecrl qcm(UUID userId, EpreuveType epreuve, int scanLimit) {
+        return mesureQcm(userId, epreuve, scanLimit).niveau();
+    }
+
+    /**
+     * Le même calcul que {@link #qcm}, mais qui rend <b>aussi</b> l'examen
+     * qualifiant le plus récent — cf. {@link Mesure}.
+     */
+    public Mesure mesureQcm(UUID userId, EpreuveType epreuve, int scanLimit) {
         final List<Attempt> retenus = new ArrayList<>(EXAMENS_RETENUS);
         // La requête rend déjà les sessions du plus récent au plus ancien : la
         // chronologie n'est pas réinventée ici, elle est consommée.
@@ -144,7 +187,8 @@ public class NiveauActuelEpreuveResolver {
             retenus.add(a);
             if (retenus.size() == EXAMENS_RETENUS) break;
         }
-        if (retenus.isEmpty()) return null;
+        if (retenus.isEmpty()) return Mesure.AUCUNE;
+        final UUID source = retenus.getFirst().getId();
 
         final List<BigDecimal> scores = new ArrayList<>(retenus.size());
         boolean auMoinsUneBonneReponse = false;
@@ -159,11 +203,11 @@ public class NiveauActuelEpreuveResolver {
         if (scores.isEmpty()) {
             // Aucun score moyennable : le palier du plus récent des examens
             // retenus fait foi — « 1 examen → le niveau de cet examen ».
-            return levelEstimator.niveauEpreuveQcm(retenus.getFirst());
+            return new Mesure(levelEstimator.niveauEpreuveQcm(retenus.getFirst()), source);
         }
         final int moyenne = moyenne(scores).setScale(0, RoundingMode.FLOOR).intValueExact();
-        return levelEstimator.plancherA1SiUneBonneReponse(
-                levelEstimator.niveauDepuisScoreCalibre(moyenne), auMoinsUneBonneReponse);
+        return new Mesure(levelEstimator.plancherA1SiUneBonneReponse(
+                levelEstimator.niveauDepuisScoreCalibre(moyenne), auMoinsUneBonneReponse), source);
     }
 
     /**
@@ -179,22 +223,31 @@ public class NiveauActuelEpreuveResolver {
      *                  la fenêtre de calcul
      */
     public NiveauCecrl production(UUID userId, EpreuveType epreuve, int scanLimit) {
+        return mesureProduction(userId, epreuve, scanLimit).niveau();
+    }
+
+    /**
+     * Le même calcul que {@link #production}, mais qui rend <b>aussi</b>
+     * l'examen complet le plus récent — cf. {@link Mesure}.
+     */
+    public Mesure mesureProduction(UUID userId, EpreuveType epreuve, int scanLimit) {
         // Le resolver rend déjà ses sessions de la plus récente à la plus
         // ancienne, et toutes portent un niveau non nul.
         final List<EpreuvesProductionQualifiantesResolver.EpreuveQualifiante> retenues =
                 qualifiantesResolver.qualifiantes(userId, epreuve, scanLimit)
                         .stream().limit(EXAMENS_RETENUS).toList();
-        if (retenues.isEmpty()) return null;
+        if (retenues.isEmpty()) return Mesure.AUCUNE;
+        final UUID source = retenues.getFirst().attempt().getId();
 
         final List<BigDecimal> competences = new ArrayList<>(retenues.size());
         for (final EpreuvesProductionQualifiantesResolver.EpreuveQualifiante q : retenues) {
             if (q.competence() != null) competences.add(q.competence());
         }
         if (competences.isEmpty()) {
-            return levelEstimator.capB2(retenues.getFirst().niveau());
+            return new Mesure(levelEstimator.capB2(retenues.getFirst().niveau()), source);
         }
-        return levelEstimator.capB2(
-                bilanService.niveauDepuisCompetence(moyenne(competences)));
+        return new Mesure(levelEstimator.capB2(
+                bilanService.niveauDepuisCompetence(moyenne(competences))), source);
     }
 
     /** Moyenne arithmétique non pondérée, à l'échelle 4 comme les compétences. */

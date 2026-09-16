@@ -12,6 +12,7 @@ import com.sejourfr.app.enums.TcfDiagnosticSectionState;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.ProductionBilanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,11 +42,20 @@ public class TcfDiagnosticReadService {
     public static final List<EpreuveType> EPREUVES = List.of(
             EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE, EpreuveType.TCF_EO);
 
+    /**
+     * Sessions balayees pour savoir si une epreuve est mesuree ailleurs.
+     * <b>Plafond de lecture</b>, jamais la fenetre de calcul — celle-ci vit
+     * dans {@code NiveauActuelEpreuveResolver.EXAMENS_RETENUS}. Meme valeur que
+     * {@code TcfProfileService}, pour que les deux ecrans voient la meme chose.
+     */
+    private static final int SCAN_LIMIT = 200;
+
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final ProductionSubmissionManager submissionManager;
     private final ProductionBilanService bilanService;
     private final TcfDiagnosticLevelResolver levelResolver;
+    private final NiveauActuelEpreuveResolver niveauActuelResolver;
     private final com.sejourfr.app.mapper.AttemptMapper attemptMapper;
 
     /**
@@ -84,11 +94,33 @@ public class TcfDiagnosticReadService {
              * examen blanc : les taches partent a la correction des qu'elles
              * sont rendues, seule la derniere se fait attendre.
              */
-            boolean analyseEnCours) {
+            boolean analyseEnCours,
+            /**
+             * L'attempt dont le <b>rapport</b> explique {@link #niveau}.
+             *
+             * <p>Egal a {@link #attemptId} quand c'est la section elle-meme qui
+             * a mesure l'epreuve. Quand l'epreuve est mesuree <b>ailleurs</b>
+             * (examen blanc isole, examen TCF complet), c'est l'examen
+             * qualifiant le plus recent — cf. {@link #sectionsMesurees}.
+             *
+             * <p>🛑 {@code null} exactement quand rien n'est mesure : « Voir le
+             * rapport » ne doit jamais pointer sur un rapport vide.
+             */
+            UUID rapportAttemptId) {
     }
 
     /**
-     * Les 4 sections d'un diagnostic.
+     * <b>Ce que CETTE session a mesure</b>, et rien d'autre.
+     *
+     * <p>🛑 <b>Lecture HISTORIQUE, a ne pas confondre avec
+     * {@link #sectionsMesurees}</b> (2026-09-16). Elle est la source de tout ce
+     * qui date un diagnostic : la comparaison de deux diagnostics
+     * ({@code TcfDiagnosticProgressionResolver}), le palier INITIAL et la
+     * courbe de l'ecran Progres ({@code ProgressService.tcf}), le
+     * « votre niveau estime etait B1 » de la reevaluation
+     * ({@code TcfReassessmentService}) et le cache {@code final_cecrl_level}
+     * pose a la cloture. Les enrichir avec le niveau d'aujourd'hui rendrait
+     * toute evolution STABLE — c'est-a-dire mensongere.
      *
      * <p>🛑 <b>Le niveau n'est PAS servi aux ecrans de passation</b> : 10_ §4.2
      * interdit tout resultat partiel entre les sections — « le resultat est le
@@ -109,7 +141,7 @@ public class TcfDiagnosticReadService {
                 // Section absente du tirage (mode degrade 10_ §9 : aucun audio
                 // CO, aucun sujet EO). Elle n'existe pas, elle n'a pas echoue.
                 out.add(new Section(epreuve, null, TcfDiagnosticSectionState.A_FAIRE,
-                        null, null, null, false));
+                        null, null, null, false, null));
                 continue;
             }
             NiveauCecrl niveau = niveauDe(epreuve, sub).orElse(null);
@@ -120,9 +152,103 @@ public class TcfDiagnosticReadService {
                     sub.getTimeLimitSeconds(),
                     niveau,
                     scoreCalibre(epreuve, sub, niveau),
-                    analyseEnCours(epreuve, sub)));
+                    analyseEnCours(epreuve, sub),
+                    // Le rapport d'une section n'existe que si elle a mesure
+                    // quelque chose : un examen a zero reponse n'en a aucun.
+                    niveau == null ? null : sub.getId()));
         }
         return out;
+    }
+
+    /**
+     * <b>Les 4 epreuves telles que le PRODUIT les connait</b> — la lecture des
+     * ecrans.
+     *
+     * <h2>La regle, tranchee par le proprietaire le 2026-09-16</h2>
+     * <p>Verbatim : « <i>un diagnostic complet, chaque epreuve est un examen
+     * blanc de l'epreuve. Donc si un examen blanc est fait ailleurs, directement
+     * on considere que le diagnostic de cette epreuve est fait, et les priorites
+     * a travailler identifiees. Donc ce n'est pas normal qu'on dise qu'une
+     * epreuve est "mesuree ailleurs" : si c'est mesure, c'est okay, sur le
+     * diagnostic.</i> »
+     *
+     * <p>🛑 <b>Il n'existe donc qu'UNE notion de « cette epreuve est
+     * mesuree »</b>, et ce n'est pas une nouvelle : c'est celle du niveau actuel
+     * ({@link NiveauActuelEpreuveResolver}), la meme que l'Accueil, le Profil et
+     * « Voir mes resultats ». {@code niveau == null} ⇒ non mesuree,
+     * {@code niveau != null} ⇒ mesuree. Rien d'autre n'est demande.
+     *
+     * <h2>L'enrichissement ne fait que COMBLER, jamais remplacer</h2>
+     * <p>Une section que la session a reellement mesuree garde <b>exactement</b>
+     * son resultat — son niveau, son score calibre, son rapport. C'est la regle
+     * « une section rend SON resultat » et elle ne bouge pas. Seule une section
+     * qui n'a <b>rien</b> mesure interroge le produit :
+     * <ul>
+     *   <li>epreuve mesuree ailleurs ⇒ la section devient {@code TERMINEE},
+     *       porte le niveau du produit et pointe son rapport sur l'examen
+     *       qualifiant ;</li>
+     *   <li>epreuve mesuree nulle part ⇒ <b>rien n'est invente</b> : elle reste
+     *       honnetement non mesuree, et le candidat peut la passer.</li>
+     * </ul>
+     *
+     * <p>🛑 <b>Pas de score calibre sur une section comblee</b> : le niveau
+     * servi est une <b>moyenne</b> de plusieurs examens, il n'a pas de « /499 ».
+     * En afficher un serait celui d'un seul des trois.
+     *
+     * <p>🛑 <b>Aucun vocabulaire « mesuree ailleurs » ne sort d'ici</b>, et
+     * c'est un refus explicite du proprietaire : le DTO ne porte aucun drapeau
+     * de provenance, une section mesuree se lit comme <b>faite</b>.
+     *
+     * <p>⚠️ <b>Une correction en vol l'emporte</b> : tant qu'une production de
+     * cette session attend l'IA ({@code analyseEnCours}), on l'attend. Sa mesure
+     * arrive, et c'est celle de la session.
+     *
+     * <p><b>Cout</b> : une session sans trou ne coute rien de plus. Un trou
+     * coute une requete (CO/CE) ou trois (EE/EO), et seulement pour l'epreuve
+     * concernee.
+     */
+    @Transactional(readOnly = true)
+    public List<Section> sectionsMesurees(TcfDiagnosticSession session) {
+        List<Section> propres = sections(session);
+        if (session.getUser() == null) {
+            return propres;
+        }
+        UUID userId = session.getUser().getId();
+
+        List<Section> out = new ArrayList<>(propres.size());
+        for (Section s : propres) {
+            if (s.niveau() != null || s.analyseEnCours()) {
+                out.add(s);
+                continue;
+            }
+            NiveauActuelEpreuveResolver.Mesure mesure = mesureProduit(userId, s.epreuve());
+            if (!mesure.mesuree()) {
+                out.add(s);
+                continue;
+            }
+            out.add(new Section(
+                    s.epreuve(),
+                    s.attemptId(),
+                    TcfDiagnosticSectionState.TERMINEE,
+                    s.timeLimitSeconds(),
+                    mesure.niveau(),
+                    null,
+                    false,
+                    mesure.attemptId()));
+        }
+        return out;
+    }
+
+    /**
+     * « Cette epreuve est-elle mesuree, et a quel niveau ? » — <b>l'autorite
+     * existante</b>, jamais une seconde definition.
+     */
+    private NiveauActuelEpreuveResolver.Mesure mesureProduit(UUID userId, EpreuveType epreuve) {
+        return switch (epreuve) {
+            case TCF_CO, TCF_CE -> niveauActuelResolver.mesureQcm(userId, epreuve, SCAN_LIMIT);
+            case TCF_EE, TCF_EO -> niveauActuelResolver.mesureProduction(userId, epreuve, SCAN_LIMIT);
+            default -> NiveauActuelEpreuveResolver.Mesure.AUCUNE;
+        };
     }
 
     /**
@@ -150,14 +276,21 @@ public class TcfDiagnosticReadService {
      *
      * <p>En comprehension, la « tache » n'existe pas : la priorite porte sur
      * l'epreuve entiere ({@code taskCode} nul), comme 10_ §4.4 le prevoit.
+     *
+     * <p>🛑 <b>Les taches se lisent sur l'attempt qui a MESURE l'epreuve</b>
+     * ({@code section.rapportAttemptId}), pas sur le sous-attempt de la session
+     * (2026-09-16). C'est ce qui donne ses priorites a une EE/EO mesuree par un
+     * examen blanc isole : sans cela, l'epreuve etait declaree faite et rendait
+     * son niveau, mais ne proposait aucune tache a travailler — exactement la
+     * moitie de ce que le proprietaire demande (« <i>et les priorites a
+     * travailler identifiees</i> »). Sur une section jouee dans la session, les
+     * deux identifiants sont le meme : rien ne change.
      */
     @Transactional(readOnly = true)
     public List<TcfDiagnosticPriorityResolver.TacheMesuree> tachesMesurees(
             TcfDiagnosticSession session, List<Section> sections) {
 
         List<TcfDiagnosticPriorityResolver.TacheMesuree> out = new ArrayList<>();
-        List<Attempt> sousEpreuves =
-                attemptManager.findSubAttempts(session.getParentAttempt().getId());
 
         for (Section section : sections) {
             switch (section.epreuve()) {
@@ -171,11 +304,8 @@ public class TcfDiagnosticReadService {
                     }
                 }
                 case TCF_EE, TCF_EO -> {
-                    Attempt sub = sousEpreuves.stream()
-                            .filter(a -> a.getEpreuve() == section.epreuve())
-                            .findFirst().orElse(null);
-                    if (sub == null) continue;
-                    out.addAll(tachesDeProduction(sub, section));
+                    if (section.rapportAttemptId() == null) continue;
+                    out.addAll(tachesDeProduction(section.rapportAttemptId(), section));
                 }
                 default -> { }
             }
@@ -185,9 +315,9 @@ public class TcfDiagnosticReadService {
 
     /** Une entree par tache REELLEMENT evaluee de l'epreuve productive. */
     private List<TcfDiagnosticPriorityResolver.TacheMesuree> tachesDeProduction(
-            Attempt sub, Section section) {
+            UUID attemptId, Section section) {
 
-        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(sub.getId());
+        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
         Map<Integer, AiEvaluation> parTache = bilanService.latestEvalsByTache(submissions);
         String prefixe = section.epreuve() == EpreuveType.TCF_EE ? "EE" : "EO";
 

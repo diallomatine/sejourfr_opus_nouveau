@@ -45,10 +45,15 @@ public class TcfDiagnosticViewService {
      * {@link TcfDiagnosticSectionDto}. Ce qui n'y transite toujours pas : le
      * niveau GLOBAL, les priorites et le plan, qui restent l'affaire de
      * {@link #resultat}.
+     *
+     * <p>🛑 <b>{@code sectionsMesurees}, pas {@code sections}</b> (2026-09-16) :
+     * une epreuve deja mesuree par un examen blanc isole ou par un examen TCF
+     * complet est une section <b>faite</b>. Le candidat ne doit pas se voir
+     * redemander une epreuve que le produit sait mesuree.
      */
     @Transactional(readOnly = true)
     public TcfDiagnosticDto vue(TcfDiagnosticSession session) {
-        List<Section> sections = readService.sections(session);
+        List<Section> sections = readService.sectionsMesurees(session);
         Map<java.util.UUID, Attempt> parId =
                 attemptManager.findSubAttempts(session.getParentAttempt().getId()).stream()
                         .collect(Collectors.toMap(Attempt::getId, Function.identity(), (a, b) -> a));
@@ -64,7 +69,8 @@ public class TcfDiagnosticViewService {
                                         .map(Attempt::getTotalQuestions).orElse(null),
                         s.niveau(),
                         s.scoreCalibre(),
-                        s.analyseEnCours()))
+                        s.analyseEnCours(),
+                        s.rapportAttemptId()))
                 .toList();
 
         return new TcfDiagnosticDto(
@@ -83,10 +89,19 @@ public class TcfDiagnosticViewService {
      * <p>🛑 Une epreuve <b>non evaluee</b> figure dans {@code epreuves} avec un
      * niveau nul, et n'entre ni dans le plancher global ni dans « deja au
      * niveau ». Elle doit etre nommee a l'ecran, pas escamotee.
+     *
+     * <p>🛑 <b>{@code sectionsMesurees}</b> (2026-09-16) : une epreuve mesuree
+     * ailleurs rend son niveau <b>et ses priorites</b>, comme si elle avait ete
+     * jouee ici. C'est ce qui permet a un diagnostic de se clore et de rendre
+     * son resultat quand les 4 epreuves sont mesurees, meme si certaines ne
+     * l'ont pas ete dans la session.
+     *
+     * <p>⚠️ <b>La progression, elle, compare des sections PROPRES</b> — cf.
+     * {@link #progression}.
      */
     @Transactional(readOnly = true)
     public TcfDiagnosticResultDto resultat(TcfDiagnosticSession session, NiveauCecrl cible) {
-        List<Section> sections = readService.sections(session);
+        List<Section> sections = readService.sectionsMesurees(session);
 
         List<TcfDiagnosticResultDto.EpreuveNiveau> epreuves = sections.stream()
                 .map(s -> new TcfDiagnosticResultDto.EpreuveNiveau(s.epreuve(), s.niveau()))
@@ -114,7 +129,7 @@ public class TcfDiagnosticViewService {
                 priorites,
                 dejaAuNiveau,
                 session.getCompletedAt(),
-                progression(session, sections),
+                progression(session),
                 tachesSousLaCible(session, sections, cible));
     }
 
@@ -154,9 +169,17 @@ public class TcfDiagnosticViewService {
      * relues d'un cache : c'est ce qui permet a un recalibrage de se refleter
      * des deux cotes de la comparaison au lieu d'opposer une mesure ancienne a
      * une mesure neuve.
+     *
+     * <p>🛑 <b>Les DEUX cotes sont des sections PROPRES</b>
+     * ({@code readService.sections}), jamais {@code sectionsMesurees}
+     * (2026-09-16). Comparer deux jeux enrichis reviendrait a comparer le niveau
+     * d'aujourd'hui a lui-meme : toute epreuve non jouee dans l'un ou l'autre
+     * diagnostic sortirait {@code STABLE} — « vous avez tenu votre niveau »,
+     * alors que ces deux diagnostics-la n'ont rien mesure. C'est l'incident
+     * V040/V041/V042 sous un autre deguisement, et c'est pour ca que cette
+     * methode recalcule le cote « apres » au lieu de recevoir celui du resultat.
      */
-    private TcfDiagnosticProgressionDto progression(
-            TcfDiagnosticSession session, List<Section> apres) {
+    private TcfDiagnosticProgressionDto progression(TcfDiagnosticSession session) {
         if (session.getUser() == null) {
             return null;
         }
@@ -166,7 +189,7 @@ public class TcfDiagnosticViewService {
                         precedent.getId(),
                         precedent.getCompletedAt(),
                         readService.sections(precedent),
-                        apres))
+                        readService.sections(session)))
                 .orElse(null);
     }
 }

@@ -106,7 +106,12 @@ public class PreparationService {
         Optional<TcfDiagnosticSession> complet = tcfDiagnosticManager.findLatest(userId);
         if (complet.isPresent()) {
             TcfDiagnosticSession session = complet.get();
-            List<TcfDiagnosticReadService.Section> sections = tcfReadService.sections(session);
+            // 🛑 `sectionsMesurees`, pas `sections` (2026-09-16) : une epreuve
+            // deja mesuree ailleurs compte dans « N sur 4 » et n'est jamais
+            // proposee en « prochaine epreuve ». Le produit ne redemande pas une
+            // epreuve qu'il sait mesuree.
+            List<TcfDiagnosticReadService.Section> sections =
+                    tcfReadService.sectionsMesurees(session);
             int terminees = (int) sections.stream()
                     .filter(s -> s.etat() == TcfDiagnosticSectionState.TERMINEE)
                     .count();
