@@ -83,9 +83,29 @@ class AttemptInteractionServiceComprehensionTest {
         // Le tri du perimetre (STRUCTURE, difficultes civiques...) appartient au
         // producteur : l'appelant lui transmet la session entiere.
         assertThat(captor.getValue()).containsExactly(
-                new ReponseComprehension(QuestionType.CO, Difficulty.A2, true),
-                new ReponseComprehension(QuestionType.CO_IMAGE, Difficulty.A2, false),
-                new ReponseComprehension(QuestionType.STRUCTURE, Difficulty.B1, true));
+                new ReponseComprehension(QuestionType.CO, Difficulty.A2, true, true),
+                new ReponseComprehension(QuestionType.CO_IMAGE, Difficulty.A2, true, false),
+                new ReponseComprehension(QuestionType.STRUCTURE, Difficulty.B1, true, true));
+    }
+
+    @Test
+    @DisplayName("Une question laissee vide part `answered=false`, jamais `correct=false` seul")
+    void uneQuestionNonRepondueNEstPasUneReponseFausse() {
+        Attempt attempt = session(Module.TCF);
+        questions(attempt,
+                reponse(QuestionType.CE, Difficulty.B1, true),
+                sansReponse(QuestionType.CE, Difficulty.B1));
+
+        service.finish(attempt.getUser().getId(), attempt.getId());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ReponseComprehension>> captor = ArgumentCaptor.forClass(List.class);
+        verify(observationService).record(any(), any(), any(), captor.capture());
+        // La distinction est portee jusqu'au producteur : c'est LUI qui ecarte
+        // la seconde, mais il faut d'abord qu'il puisse la reconnaitre.
+        assertThat(captor.getValue()).containsExactly(
+                new ReponseComprehension(QuestionType.CE, Difficulty.B1, true, true),
+                new ReponseComprehension(QuestionType.CE, Difficulty.B1, false, false));
     }
 
     @Test
@@ -149,6 +169,18 @@ class AttemptInteractionServiceComprehensionTest {
         liste.forEach(aq -> aq.setAttempt(attempt));
         when(attemptQuestionManager.findByAttemptOrderedByPosition(attempt.getId()))
                 .thenReturn(liste);
+    }
+
+    /** Une question POSEE et laissee vide : aucune ligne `answers` derriere. */
+    private static AttemptQuestion sansReponse(QuestionType type, Difficulty difficulty) {
+        Question question = new Question();
+        question.setId(UUID.randomUUID());
+        question.setQuestionType(type);
+        question.setDifficulty(difficulty);
+        AttemptQuestion aq = new AttemptQuestion();
+        aq.setId(UUID.randomUUID());
+        aq.setQuestion(question);
+        return aq;
     }
 
     private static AttemptQuestion reponse(

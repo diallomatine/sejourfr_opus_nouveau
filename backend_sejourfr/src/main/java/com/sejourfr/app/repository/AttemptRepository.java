@@ -293,12 +293,22 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * standalone, les sous-attempts d'un examen blanc complet et les anciens
      * diagnostics où cette colonne est nulle.
      *
-     * <p>🛑 <b>Les sous-épreuves d'un diagnostic TCF sont exclues</b> (V049).
-     * Ce n'est pas de la pudeur : le niveau estimé se lit sur un score calibré
-     * 100-499 établi sur 25 items, quand une section de diagnostic en compte
-     * 15. Les mélanger comparerait deux mesures qui ne mesurent pas la même
-     * chose. Le diagnostic a son propre calcul de niveau et son propre écran —
-     * cf. {@code TcfDiagnosticLevelResolver}.
+     * <p>🛑 <b>Les sous-épreuves d'un diagnostic TCF comptent</b> (2026-09-16,
+     * <b>révoque l'exclusion V049</b>). L'exclusion se justifiait par une
+     * différence de composition : le score calibré 100-499 s'établit sur 25
+     * items, quand une section de diagnostic en comptait 15. Cette différence
+     * <b>n'existe plus depuis le 2026-09-13</b> — {@code
+     * TcfDiagnosticSectionStarter.creerComprehension} appelle le même {@code
+     * composeModuleExam} que l'examen de module : mêmes 25 items (8 A2 / 9 B1 /
+     * 8 B2), même tirage, même durée. Une CE passée dans le diagnostic complet
+     * est, ligne pour ligne, la même mesure qu'une CE passée seule ; la garder
+     * dehors privait le profil de la seule mesure que beaucoup de candidats
+     * avaient. Journal : {@code docs/decisions/diagnostic.md}.
+     *
+     * <p>Aucun double comptage n'en découle : le seul appelant
+     * ({@code TcfProfileService.bestQcm}) retient le <b>meilleur</b> résultat
+     * par épreuve, jamais une somme ni une moyenne — une même épreuve mesurée
+     * deux fois n'est comptée qu'une, à sa meilleure valeur.
      */
     @Query("""
             SELECT a FROM Attempt a
@@ -306,7 +316,6 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
               AND a.epreuve = :epreuve
               AND a.finishedAt IS NOT NULL
-              AND a.tcfDiagnostic IS NULL
               AND a.civicDiagnostic IS NULL
               AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
             ORDER BY a.finishedAt DESC

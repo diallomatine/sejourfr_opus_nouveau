@@ -3,17 +3,23 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
+import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.PlanDomainPriority;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.SkillSection;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -148,7 +154,91 @@ class PlanDomainAssessmentResolverTest {
         assertThat(resolver.resolve(null, true)).isEmpty();
     }
 
+    // ------------------------------------------------- la mesure indispensable
+
+    @Test
+    @DisplayName("Une production entierement NOT_OBSERVED reste une reevaluation indispensable")
+    void uneProductionRateeEstTOUJOURSRetenue() {
+        // Le cas fondateur : l'oral a bien ete rendu, le correcteur n'a RIEN pu
+        // y observer. Sans cette carte, le Plan proposait de l'ecrit a l'infini
+        // a un candidat dont c'est l'oral qui manquait. Non-regression.
+        Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
+                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
+                List.of(observation(SkillSection.EO, false)),
+                true);
+
+        assertThat(mesure).isPresent();
+        assertThat(mesure.get().epreuve()).isEqualTo(EpreuveType.TCF_EO);
+        assertThat(mesure.get().kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+    }
+
+    @Test
+    @DisplayName("Une production avec au moins une competence observee n'a rien a remesurer")
+    void uneProductionPartiellementObserveeNEstPasRetenue() {
+        Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
+                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
+                List.of(observation(SkillSection.EO, false), observation(SkillSection.EO, true)),
+                true);
+
+        assertThat(mesure).isEmpty();
+    }
+
+    /**
+     * 🛑 Le correctif du 2026-09-16. En comprehension, {@code NOT_OBSERVED} dit
+     * « echantillon trop mince pour conclure » (sous
+     * {@code comprehension.min-questions}), <b>jamais</b> « la mesure a rate ».
+     * Un candidat qui venait de finir ses 25 items de CE se voyait proposer de
+     * refaire la CE entiere parce qu'un de ses trois paliers manquait de deux
+     * reponses.
+     */
+    @Test
+    @DisplayName("Une comprehension aux paliers NOT_OBSERVED n'est JAMAIS « a completer »")
+    void uneComprehensionSansAssezDePreuveNEstPasRetenue() {
+        Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
+                domaines(Set.of(EpreuveType.TCF_CE, EpreuveType.TCF_EE, EpreuveType.TCF_EO)),
+                List.of(observation(SkillSection.CO, false),
+                        observation(SkillSection.CO, false),
+                        observation(SkillSection.CO, false)),
+                true);
+
+        assertThat(mesure).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Une comprehension non observee n'eclipse pas la production ratee qui, elle, compte")
+    void laComprehensionNeMasquePasUneProductionRatee() {
+        // La CO passe AVANT l'EO dans l'ordre des epreuves : si elle entrait
+        // dans le calcul, elle raflerait l'unique place de la seance.
+        Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
+                domaines(Set.of(EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
+                List.of(observation(SkillSection.CO, false), observation(SkillSection.EO, false)),
+                true);
+
+        assertThat(mesure).isPresent();
+        assertThat(mesure.get().epreuve()).isEqualTo(EpreuveType.TCF_EO);
+    }
+
+    @Test
+    @DisplayName("Aucun historique : rien n'a echoue, donc rien n'est indispensable")
+    void sansObservationRienNEstIndispensable() {
+        assertThat(resolver.indispensable(domaines(Set.of()), List.of(), true)).isEmpty();
+        assertThat(resolver.indispensable(domaines(Set.of()), null, true)).isEmpty();
+    }
+
     // ------------------------------------------------------------------ fixtures
+
+    private static LearningPlanObservation observation(SkillSection section, boolean observee) {
+        Skill skill = new Skill();
+        skill.setId(UUID.randomUUID());
+        skill.setSection(section);
+        LearningPlanObservation observation = new LearningPlanObservation();
+        observation.setSkill(skill);
+        observation.setObserved(observee);
+        observation.setStatus(observee
+                ? LearningPlanSkillStatus.TO_REINFORCE : LearningPlanSkillStatus.NOT_OBSERVED);
+        return observation;
+    }
+
 
     /** Les quatre domaines du profil, ceux de {@code mesures} portant un niveau. */
     private static List<PlanDomainDto> domaines(Set<EpreuveType> mesures) {

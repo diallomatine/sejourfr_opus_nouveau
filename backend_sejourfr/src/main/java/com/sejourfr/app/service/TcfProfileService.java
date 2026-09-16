@@ -31,7 +31,14 @@ import java.util.UUID;
  *   <li><b>CO / CE</b> : examen blanc fini sans <b>aucune réponse</b>
  *       enregistrée. Le filtre vit dans la requête
  *       {@code AttemptRepository.findQcmEpreuvesPassees} ({@code EXISTS} sur
- *       {@code answers}) : un tel attempt n'est jamais chargé ici.</li>
+ *       {@code answers}) : un tel attempt n'est jamais chargé ici.
+ *       <p>🛑 <b>La provenance de l'épreuve n'entre pas dans le calcul</b>
+ *       (2026-09-16) : une CO/CE passée seule, dans un examen blanc complet ou
+ *       comme sous-épreuve du <b>diagnostic complet</b> alimente exactement le
+ *       même profil — depuis le 2026-09-13 ce sont les mêmes 25 items, le même
+ *       tirage et la même durée. L'exclusion des diagnostics (V049) est
+ *       révoquée ; {@link #bestQcm} retenant un <b>maximum</b>, rien n'est
+ *       compté deux fois.</li>
  *   <li><b>EE / EO</b> : épreuve sans <b>aucune soumission évaluée</b> ni
  *       analyse de diagnostic ⇒ aucun niveau ⇒ épreuve à null. Une production
  *       rendue mais <b>inexploitable</b> (vide, quasi vide, langue non

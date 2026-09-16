@@ -103,9 +103,13 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
         User user = utilisateur();
         // Slot 1 d'un examen d'epreuve : offert a tout compte inscrit.
         AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CO));
-        // On repond JUSTE a tout le A2 et faux au reste : le score total ment,
-        // la verite par niveau est celle que le Plan doit retenir.
+        // On repond JUSTE a tout le A2 et FAUX au reste : le score total ment,
+        // la verite par niveau est celle que le Plan doit retenir. 🛑 On repond
+        // vraiment faux — laisser les questions vides ne les rate pas, ca ne
+        // les mesure pas (correctif du 2026-09-16).
         repondreJuste(user, started.id(), Difficulty.A2);
+        repondreFaux(user, started.id(), Difficulty.B1);
+        repondreFaux(user, started.id(), Difficulty.B2);
 
         attemptService.finish(user.getId(), started.id());
 
@@ -129,6 +133,7 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
     void laProductionEstIdempotenteSurLaSession() {
         User user = utilisateur();
         AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CE));
+        repondreATout(user, started.id(), true);
         attemptService.finish(user.getId(), started.id());
         int apresPremiere = observationsDe(user).size();
         assertThat(apresPremiere).isPositive();
@@ -164,6 +169,8 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
 
         AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CO));
         repondreJuste(user, started.id(), Difficulty.A2);
+        repondreFaux(user, started.id(), Difficulty.B1);
+        repondreFaux(user, started.id(), Difficulty.B2);
         attemptService.finish(user.getId(), started.id());
 
         LearningPlanDto plan = planService.get(user.getId());
@@ -183,6 +190,48 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
         // les paliers rates deviennent des priorites du Plan.
         assertThat(plan.currentPriority()).isNotNull();
         assertThat(plan.currentPriority().skillCode()).startsWith("CO-");
+    }
+
+    /**
+     * 🛑 <b>Le cas mesure en base le 2026-09-16</b> (session CO {@code 713cbf9f},
+     * 25 questions posees, zero reponse) : trois observations avaient ete
+     * ecrites, dont deux {@code PRIORITY} a 0/8 et 0/9 — des fragilites qui
+     * n'ont jamais ete observees, et une invitation a repasser l'epreuve
+     * derriere. Une session sans la moindre reponse n'apprend RIEN : ni
+     * fragilite, ni « donnees insuffisantes ».
+     *
+     * <p>L'attempt lui-meme reste en base, terminé et consultable : on ne
+     * supprime pas l'historique du candidat, on cesse d'en tirer une mesure.
+     */
+    @Test
+    @DisplayName("Une epreuve terminee sans AUCUNE reponse n'ecrit aucune observation")
+    void uneEpreuveSansAucuneReponseNEcritRien() {
+        User user = utilisateur();
+        AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CO));
+
+        attemptService.finish(user.getId(), started.id());
+
+        assertThat(observationsDe(user)).isEmpty();
+    }
+
+    /**
+     * Le pendant du cas precedent : ce qui a ete repondu compte, ce qui a ete
+     * laisse vide ne compte pas — ni pour le taux, ni pour le plancher. Les 8
+     * questions A2 d'une epreuve depassent {@code min-questions} (6) a elles
+     * seules, les paliers laisses vides n'existent pas.
+     */
+    @Test
+    @DisplayName("Une epreuve partiellement repondue n'observe QUE les paliers repondus")
+    void uneEpreuvePartiellementRepondueNObserveQueCeQuiAEteRepondu() {
+        User user = utilisateur();
+        AttemptResponse started = attemptService.start(user.getId(), examenEpreuve(QuestionType.CE));
+        repondreJuste(user, started.id(), Difficulty.A2);
+
+        attemptService.finish(user.getId(), started.id());
+
+        Map<String, LearningPlanObservation> observations = observationsDe(user);
+        assertThat(observations).containsOnlyKeys("CE-A2");
+        assertThat(observations.get("CE-A2").getStatus()).isEqualTo(LearningPlanSkillStatus.SOLID);
     }
 
     // ------------------------------------------------------------------ serie ciblee
@@ -307,7 +356,8 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
      */
     private record QuestionJouee(
             UUID attemptQuestionId, UUID questionId, QuestionType type,
-            Difficulty difficulty, UUID bonneReponse, boolean correcte) {}
+            Difficulty difficulty, UUID bonneReponse, UUID mauvaiseReponse,
+            boolean repondue, boolean correcte) {}
 
     private List<QuestionJouee> questionsDe(UUID attemptId) {
         return new TransactionTemplate(txManager).execute(status ->
@@ -320,22 +370,48 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
                                 aq.getQuestion().getChoices().stream()
                                         .filter(Choice::isCorrect).map(Choice::getId)
                                         .findFirst().orElseThrow(),
+                                aq.getQuestion().getChoices().stream()
+                                        .filter(choix -> !choix.isCorrect()).map(Choice::getId)
+                                        .findFirst().orElseThrow(),
+                                aq.getAnswer() != null,
                                 aq.getAnswer() != null
                                         && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
                         .toList());
     }
 
     private void repondreJuste(User user, UUID attemptId, Difficulty niveau) {
+        repondre(user, attemptId, niveau, true);
+    }
+
+    /**
+     * Repondre FAUX n'est pas la meme chose que ne pas repondre — c'est tout
+     * l'objet du correctif du 2026-09-16. Un test qui laissait les questions
+     * vides en croyant les rater ne mesurait rien du tout.
+     */
+    private void repondreFaux(User user, UUID attemptId, Difficulty niveau) {
+        repondre(user, attemptId, niveau, false);
+    }
+
+    private void repondre(User user, UUID attemptId, Difficulty niveau, boolean juste) {
         for (QuestionJouee question : questionsDe(attemptId)) {
             if (question.difficulty() != niveau) continue;
             attemptService.submitAnswer(user.getId(), attemptId, new SubmitAnswerRequest(
-                    question.attemptQuestionId(), List.of(question.bonneReponse())));
+                    question.attemptQuestionId(),
+                    List.of(juste ? question.bonneReponse() : question.mauvaiseReponse())));
+        }
+    }
+
+    /** Toutes les questions de la session, quel que soit leur palier. */
+    private void repondreATout(User user, UUID attemptId, boolean juste) {
+        for (Difficulty niveau : List.of(Difficulty.A2, Difficulty.B1, Difficulty.B2)) {
+            repondre(user, attemptId, niveau, juste);
         }
     }
 
     private static List<ReponseComprehension> reponsesDe(List<QuestionJouee> questions) {
         return questions.stream()
-                .map(q -> new ReponseComprehension(q.type(), q.difficulty(), q.correcte()))
+                .map(q -> new ReponseComprehension(
+                        q.type(), q.difficulty(), q.repondue(), q.correcte()))
                 .toList();
     }
 
