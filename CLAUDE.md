@@ -322,6 +322,7 @@ on est tenté de modifier un seuil, un contrat, une consigne ou une règle produ
 | `docs/decisions/notation-ia.md` | Journal des grilles v4 → v15 et de leurs tool-schemas, avec les chiffres de banc. |
 | `docs/decisions/competences.md` | Journal des contrats du module Compétences v2 → v6 et de leurs campagnes. |
 | `docs/decisions/diagnostic.md` | V040 / V041 / V042 — les productions inexploitables et le rejugement des 6 lignes. |
+| `docs/decisions/plan-parcours-tcf.md` | Le **parcours TCF en file persistée** : les 9 arbitrages du 2026-09-17 (D-1 → D-9), ce qui est persisté et ce qui reste dérivé. |
 | `docs/decisions/paiements.md` | Lots 1 → 5, geste V038 envers les anciens acheteurs, réversibilité. |
 | `docs/decisions/mesure-audience.md` | L'ancien système `page_views`, legacy, conservé comme archive. |
 | `docs/decisions-autonomes-chantier-tcf-irn.md` | Le chantier **taxonomie V3** mené en autonomie (2026-09-13) : D01 à D05, sources, arbitrages et niveaux de confiance. |
