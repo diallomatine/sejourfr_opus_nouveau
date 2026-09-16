@@ -101,6 +101,82 @@ Deux décisions d'exclusion, écrites parce qu'elles ne se devinent pas :
 - **la série de jours consécutifs les COMPTE** — passer une section de
   diagnostic est un jour de travail.
 
+## 🛑 Une épreuve MESURÉE est une section FAITE (2026-09-16)
+
+Arbitrage du propriétaire, verbatim : « *un diagnostic complet, chaque épreuve
+**est** un examen blanc de l'épreuve. Donc si un examen blanc est fait ailleurs,
+directement on considère que **le diagnostic de cette épreuve est fait**, et les
+priorités à travailler identifiées. Donc ce n'est pas normal qu'on dise qu'une
+épreuve est « mesurée ailleurs » : si c'est mesuré, c'est okay, sur le
+diagnostic.* »
+
+**Il n'existe donc qu'UNE notion de « cette épreuve est mesurée »**, et elle
+existait déjà : c'est le **niveau actuel** d'une épreuve
+(`NiveauActuelEpreuveResolver`, moyenne des ≤3 derniers examens qualifiants —
+`docs/regles/progression.md`). `null` ⇒ non mesurée, non-`null` ⇒ mesurée.
+Aucune seconde définition n'a été écrite ; le resolver a seulement gagné un
+`Mesure(niveau, attemptId)` où `attemptId` nomme le **plus récent** des examens
+retenus, celui dont le rapport existe.
+
+### DEUX lectures, et il faut les garder séparées
+
+| lecture | ce qu'elle dit | qui l'appelle |
+|---|---|---|
+| `TcfDiagnosticReadService.sections` | **ce que CETTE session a mesuré** | la comparaison de deux diagnostics, `niveauInitial` + la courbe de Progrès, « votre niveau estimé était B1 » de la réévaluation, le cache `final_cecrl_level` |
+| `TcfDiagnosticReadService.sectionsMesurees` | **ce que le PRODUIT sait des 4 épreuves** | l'écran Diagnostic, son résultat, `PreparationService` (« N sur 4 », « prochaine épreuve ») |
+
+🛑 **Ne jamais enrichir la première.** Comparer deux jeux enrichis reviendrait à
+comparer le niveau d'aujourd'hui à lui-même : toute épreuve non jouée dans l'un
+ou l'autre diagnostic sortirait `STABLE` — « vous avez tenu votre niveau » sur
+une épreuve que personne n'a mesurée ce jour-là. C'est V040/V041/V042 sous un
+autre déguisement. `resultat` sert donc des sections **enrichies** et passe des
+sections **propres** à `progression`.
+
+### L'enrichissement COMBLE, il ne remplace jamais
+
+Une section que la session a réellement mesurée garde **exactement** son
+résultat — niveau, score calibré, rapport. La règle « une section rend SON
+résultat » ne bouge pas. Seule une section qui n'a **rien** mesuré interroge le
+produit, et une correction encore en vol (`analyseEnCours`) l'emporte : sa
+mesure arrive, et c'est celle de la session.
+
+**Ce que devient une section comblée** :
+
+- `etat` = **`TERMINEE`** ⇒ plus de « Commencer », le compteur « N sur 4 » la
+  compte, `resultatDisponible` passe de lui-même ;
+- `niveau` = celui du **produit**, donc **la même valeur que l'Accueil et le
+  Profil** ;
+- `scoreCalibre` = **`null`** — une moyenne de trois examens n'a pas de
+  « /499 », en afficher un serait celui d'un seul d'entre eux ;
+- **`rapportAttemptId`** (champ neuf de `TcfDiagnosticSectionDto`) pointe
+  l'examen qualifiant : « Voir le rapport » mène à un rapport qui **existe**.
+  ⚠️ Corollaire voulu : une section close **sans aucune réponse** et mesurée
+  nulle part n'a plus de bouton « Voir le rapport » du tout — son rapport était
+  vide.
+
+🛑 **Aucun vocabulaire « mesurée ailleurs » à l'écran**, refus explicite du
+propriétaire : le DTO ne porte **aucun drapeau de provenance**. Une épreuve
+mesurée se lit comme **faite**, point.
+
+🛑 **Une épreuve mesurée NULLE PART reste non mesurée.** On ne comble jamais un
+trou par un plancher — `null = inconnu, jamais mauvais`.
+
+### Et les priorités
+
+`tachesMesurees` lit les productions de l'attempt **qui a mesuré**
+(`rapportAttemptId`), plus du sous-attempt de la session. Sans cela une EE
+mesurée par un examen blanc rendait son niveau mais **aucune tâche** à
+travailler — la moitié de ce que l'arbitrage demande.
+
+Côté **Plan**, les deux chemins alimentaient déjà les observations à égalité :
+`ComprehensionObservationService` est appelé sur **toute** session QCM TCF
+terminée (examen de module, série ciblée, section de diagnostic), et
+`LearningPlanObservationService.recordProduction` sur **toute** évaluation de
+production — il ne distingue que le **poids** (`MOCK_EXAM_EE/EO` contre
+`PRODUCTION_EE/EO`). Rien à corriger de ce côté.
+
+**Tests** : `TcfDiagnosticEpreuveMesureeIT`.
+
 ## Une section rend SON résultat, et son rapport
 
 🛑 **Arbitrage du propriétaire (2026-09-13)**, verbatim : « si on finit par

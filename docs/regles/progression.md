@@ -648,7 +648,7 @@ Deux faits différents, et depuis le 2026-09-16 **deux écrans différents** :
 
 | | ce que c'est | où le candidat le lit |
 |---|---|---|
-| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs` |
+| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs`, **écran Diagnostic TCF** |
 | **meilleur niveau atteint** | le plus haut palier jamais obtenu | « Voir mes résultats » (`EpreuveHistoriqueService`), qui liste les 3 dernières mesures avec leur date et leur provenance |
 
 Ne jamais présenter l'un comme l'autre : un candidat dont la moyenne redescend
@@ -658,6 +658,30 @@ garde son meilleur jour lisible, mais ce n'est plus son niveau.
 désapprendre ce qu'un candidat a démontré, et l'anti-yoyo de la spec V2 §5.3 y
 tient toujours par construction. La section « anti-yoyo » de
 `TcfProfileServiceTest` ne vaut donc **que pour la lecture du Plan**.
+
+### 🛑 « Mesurée » n'a qu'une définition, et c'est celle-ci (2026-09-16)
+
+`NiveauActuelEpreuveResolver` **est** la réponse à « cette épreuve est-elle
+mesurée ? » : `null` ⇒ non, non-`null` ⇒ oui. Il n'en existe pas d'autre, et il
+ne faut pas en écrire une seconde.
+
+C'est ce qui a permis de fermer le dernier écran qui s'en écartait :
+**l'écran Diagnostic TCF 4 épreuves**, qui ne lisait que les sous-attempts de sa
+propre session et annonçait « Terminée · Non évaluée » sur une CO qu'un examen
+blanc isolé avait pourtant mesurée. Il lit désormais la même autorité, par
+`TcfDiagnosticReadService.sectionsMesurees` — une épreuve mesurée y est une
+section **faite**, avec le niveau du produit.
+→ `docs/regles/diagnostic-tcf-4-epreuves.md`, § « Une épreuve MESURÉE est une
+section FAITE ».
+
+⚠️ **Le resolver rend aussi l'attempt source** (`Mesure(niveau, attemptId)`,
+le plus récent des examens retenus) : c'est la destination d'un « Voir le
+rapport ». Ça ne change **rien** au niveau servi.
+
+⚠️ **Ce que la lecture HISTORIQUE d'un diagnostic ne doit pas faire** :
+`TcfDiagnosticReadService.sections` reste ce que **cette session-là** a mesuré.
+C'est elle qui porte `niveauInitial` et la courbe de l'écran Progrès. L'enrichir
+rendrait toute `evolution` `STABLE`.
 
 **Tests** : `NiveauActuelEpreuveResolverTest` (1 / 2 / 4 examens, la baisse sur
 un mauvais examen récent, la bande basse, le plancher A1, le repli sans score),

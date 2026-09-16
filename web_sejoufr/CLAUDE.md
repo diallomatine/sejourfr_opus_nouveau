@@ -1764,6 +1764,22 @@ section n'a aucune échéance. L'appel est idempotent — reprendre ne rend pas 
 §4.2 interdit tout résultat partiel entre les sections — « le résultat est le moment de
 conversion, il ne doit pas être dilué ». Ne pas « enrichir » ce DTO.
 
+🛑 **Une épreuve MESURÉE est une section FAITE (2026-09-16).** Arbitrage du
+propriétaire : si un examen blanc de l'épreuve a été passé ailleurs, le
+diagnostic de cette épreuve **est fait**. Le serveur sert donc la section
+`TERMINEE`, avec le niveau du produit (le **même** que l'Accueil et le Profil) et
+un **`rapportAttemptId`** neuf sur `TcfDiagnosticSectionDto`.
+- 🛑 **« Voir le rapport » lit `rapportAttemptId`, jamais `attemptId`** : sur une
+  épreuve mesurée par un examen blanc, c'est cet examen-là qui porte le rapport —
+  le sous-attempt du diagnostic est vide. `null` ⇒ **aucun lien**, on n'ouvre
+  jamais un rapport vide (⚠️ change le cas « section close à zéro réponse »).
+- 🛑 **Aucun vocabulaire « mesurée ailleurs »** (refus explicite du propriétaire) :
+  le DTO ne porte aucun drapeau de provenance, une section mesurée se lit
+  **faite**.
+- `sectionIndisponible` et `resultatDisponible` (`lib/tcf-diagnostic.ts`)
+  acceptent donc une section sans `attemptId` mais avec un `rapportAttemptId`.
+- Miroir mobile dans la même passe. → `docs/regles/diagnostic-tcf-4-epreuves.md`
+
 🛑 **Aucun `locked` sur le résultat** : le paywall porte sur le plan, pas sur le constat.
 Et une épreuve **non évaluée** (`niveau: null`) est **nommée** à l'écran, jamais rendue en
 « A1 » — c'est l'invariant que V040/V041/V042 ont payé.

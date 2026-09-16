@@ -10,6 +10,99 @@
 
 ---
 
+- 🛑 **UNE ÉPREUVE MESURÉE EST UNE SECTION FAITE — il n'existe qu'UNE notion de
+  « mesurée »** (2026-09-16, **quatrième** décision du propriétaire de la
+  journée). Elle ne révoque rien de ce qui suit : elle branche l'écran
+  Diagnostic sur l'autorité que les trois décisions précédentes ont construite.
+  - **L'énoncé, verbatim.**
+    > Normalement, la règle : un diagnostic complet, chaque épreuve **est** un
+    > examen blanc de l'épreuve. Donc si un examen blanc est fait ailleurs,
+    > directement on considère que **le diagnostic de cette épreuve est fait**,
+    > et les priorités à travailler identifiées. Donc ce n'est pas normal qu'on
+    > dise qu'une épreuve est « mesurée ailleurs » : si c'est mesuré, c'est
+    > okay, sur le diagnostic. **Vérifie vraiment bien que toutes ces règles
+    > sont bien appliquées partout et que c'est rigoureux.**
+  - **Le défaut, constaté sur un compte réel.** Le candidat passe un examen
+    blanc de compréhension orale depuis l'Accueil (25 questions, 25 réponses,
+    B1) ; l'écran Diagnostic continuait d'annoncer sa propre section CO
+    « Terminée · **Non évaluée** » (15 questions, 0 réponse). Les deux
+    affirmations étaient vraies séparément, et c'est précisément ce que le
+    propriétaire refuse. Cause : `TcfDiagnosticReadService.sections` ne lisait
+    que les **sous-attempts de la session** (`findSubAttempts`), et un examen
+    blanc isolé a `parent_attempt_id IS NULL` — il ne pouvait donc jamais y
+    apparaître.
+  - **Aucune autorité nouvelle n'a été créée**, et c'était la contrainte
+    principale. « Cette épreuve est-elle mesurée ? » **est déjà** la question à
+    laquelle répond le niveau actuel : `NiveauActuelEpreuveResolver`
+    (`findQcmEpreuvesPassees` pour CO/CE, `EpreuvesProductionQualifiantesResolver`
+    pour EE/EO). `null` ⇒ non mesurée, non-`null` ⇒ mesurée. Le resolver a
+    seulement gagné un **`Mesure(niveau, attemptId)`** : le niveau est inchangé,
+    `attemptId` nomme le **plus récent** des examens retenus — celui dont le
+    rapport existe.
+  - 🛑 **DEUX lectures, et il fallait les séparer** — c'est l'arbitrage
+    technique de la passe, et le révoquer casserait `evolution` :
+    - **`sections(session)` — ce que CETTE session a mesuré.** Inchangée.
+      C'est elle que lisent la comparaison de deux diagnostics
+      (`TcfDiagnosticProgressionResolver`), le palier **initial** et la courbe
+      de l'écran Progrès (`ProgressService.tcf`), le « votre niveau estimé
+      était B1 » de la réévaluation (`TcfReassessmentService`) et le cache
+      `final_cecrl_level` posé à la clôture.
+    - **`sectionsMesurees(session)` — ce que le PRODUIT sait.** Nouvelle, lue
+      par l'écran Diagnostic (`vue`), son résultat (`resultat`) et la
+      préparation (`PreparationService`, donc « N sur 4 » et « prochaine
+      épreuve »).
+    - **Pourquoi** : enrichir les deux côtés d'une comparaison reviendrait à
+      comparer le niveau d'aujourd'hui à lui-même. Toute épreuve non jouée dans
+      l'un ou l'autre diagnostic sortirait `STABLE` — « vous avez tenu votre
+      niveau » alors que ces deux diagnostics-là n'ont rien mesuré. C'est
+      V040/V041/V042 sous un autre déguisement. `resultat` passe donc des
+      sections **enrichies** au résultat et des sections **propres** à la
+      progression.
+  - **L'enrichissement COMBLE, il ne remplace jamais.** Une section que la
+    session a réellement mesurée garde **exactement** son résultat — niveau,
+    score calibré, rapport. Seule une section qui n'a **rien** mesuré interroge
+    le produit. Corollaire : la règle « une section rend SON résultat »
+    (2026-09-13) est intacte, et un diagnostic ne se met pas à afficher une
+    moyenne à la place de ce qu'il a lui-même mesuré.
+  - **Ce que devient une section comblée** : `etat = TERMINEE`, `niveau` = celui
+    du produit (donc **la même valeur que l'Accueil et le Profil**),
+    `scoreCalibre = null` (une moyenne de trois examens n'a pas de « /499 »),
+    `analyseEnCours = false`, et un **`rapportAttemptId`** neuf sur
+    `TcfDiagnosticSectionDto` qui pointe l'examen qualifiant. Le CTA
+    « Commencer » disparaît avec l'état, « Voir le rapport » mène à un rapport
+    qui existe. ⚠️ Effet de bord **voulu** : une section close **sans aucune
+    réponse** et mesurée nulle part n'a plus de bouton « Voir le rapport » du
+    tout — son rapport était vide.
+  - 🛑 **Aucun vocabulaire « mesurée ailleurs » n'est sorti**, refus explicite du
+    propriétaire : le DTO ne porte **aucun drapeau de provenance**, une section
+    mesurée se lit comme **faite**, point.
+  - **« Et les priorités à travailler identifiées »**, la moitié qu'on aurait pu
+    oublier : `tachesMesurees` lit désormais les productions de l'attempt **qui
+    a mesuré** (`rapportAttemptId`), plus du sous-attempt de la session. Sans
+    cela, une EE mesurée par un examen blanc rendait son niveau mais **aucune
+    tâche** à travailler. En compréhension, les deux chemins alimentaient déjà
+    le Plan à égalité (`ComprehensionObservationService` est appelé sur **toute**
+    session QCM TCF terminée) ; en expression aussi
+    (`LearningPlanObservationService.recordProduction`, qui distingue seulement
+    le **poids** `MOCK_EXAM_EE/EO` de `PRODUCTION_EE/EO`).
+  - **La clôture n'a eu besoin d'aucune levée de garde** : `cloturer` n'a jamais
+    exigé les 4 sections (10_ §4.2 impose déjà de calculer sur ce qui existe).
+    Les 4 épreuves mesurées ⇒ 4 sections `TERMINEE` ⇒ `resultatDisponible` passe
+    de lui-même, des deux côtés.
+  - **Tests** : `TcfDiagnosticEpreuveMesureeIT` (examen blanc isolé, examen TCF
+    complet + ses priorités, mesurée nulle part, lecture historique non
+    enrichie, les 4 mesurées ⇒ clôture et résultat).
+  - ⚠️ **Contradiction restante, signalée et NON corrigée** : l'écran **Réviser**
+    et la **fiche de domaine du Plan** affichent « Niveau estimé : X » à partir
+    de `PlanDomainDto.niveau`, qui vient de `TcfProfileService.levelProfile` —
+    le **maximum** de toutes les observations, **entraînement compris**. Un
+    candidat dont la seule trace EO est un entraînement y lit donc « Niveau
+    estimé : A2 » pendant que l'Accueil, le Profil, Progrès et maintenant le
+    Diagnostic disent « À évaluer ». La lecture du Plan est un arbitrage explicite
+    du propriétaire du même jour et n'est pas en cause ; ce qui l'est, c'est la
+    **phrase** « Niveau estimé » posée dessus par un écran de catalogue. Décision
+    produit à prendre, pas à prendre en passant.
+
 - 🛑 **LE MAXIMUM MONOTONE DE LA LECTURE D'AFFICHAGE EST RÉVOQUÉ — le niveau
   affiché est la MOYENNE DES 3 DERNIERS EXAMENS QUALIFIANTS** (2026-09-16,
   **troisième** décision du propriétaire de la journée, celle **qui fait foi**).
