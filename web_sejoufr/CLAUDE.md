@@ -1339,7 +1339,21 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
 - **Libellés purs** : `lib/reviser.ts`, **miroir mot pour mot** de
   `reviser_labels.dart`. Rien n'y classe un nombre : chaque fonction pose une
   phrase sur un **fait servi** (`seriesDone` / `seriesTotal`, `taches[]`,
-  `niveau`, `themes[]`).
+  `tcfDomainProfile`, `themes[]`).
+- 🛑 **« Niveau estimé : X » lit l'AUTORITÉ D'AFFICHAGE** (2026-09-16), la même
+  que l'Accueil et le Profil : `summary.tcfDomainProfile`, publication de
+  `TcfProfileService.levelProfileAccueil` (moyenne des ≤ 3 derniers examens
+  qualifiants), via `niveauActuelEpreuve(profil, code)`. ⚠️ **Révoque
+  `domain?.niveau ?? stat.level`** : le premier est la lecture du **Plan** (le
+  maximum, entraînements EE/EO compris), le second une **troisième** autorité (le
+  dernier niveau de n'importe quelle soumission). Un candidat dont la seule trace
+  EO était un entraînement de 3 min lisait ici un palier que quatre autres écrans
+  déclaraient « à évaluer ». 🛑 **Aucun appel de plus** — `dashboardApi` est déjà
+  lu par l'écran. `DashboardCategoryStat.level` **reste au DTO** (lu par
+  `/statistiques` et `ReinforceRow`), il n'est simplement plus lu ici. Épreuve non
+  mesurée ⇒ on retombe sur ce qui se **compte**, puis sur `REVISER_NOT_STARTED` —
+  jamais un palier inventé. → `docs/regles/progression.md`,
+  `docs/decisions/diagnostic.md`.
 - **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `Ring`
   (anneau de **couverture** — pas une note, pas un état pédagogique) et
   `EpreuveRow`. Miroirs Flutter : `SfRing`, `SfEpreuveRow`.

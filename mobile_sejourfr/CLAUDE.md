@@ -1679,7 +1679,21 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
 - **Libellés purs** : `screens/reviser/reviser_labels.dart`, **miroir mot pour
   mot** de `web_sejoufr/lib/reviser.ts`. Rien n'y classe un nombre : chaque
   fonction pose une phrase sur un **fait servi** (`seriesDone` / `seriesTotal`,
-  `taches[]`, `niveau`, `themes[]`).
+  `taches[]`, `tcfDomainProfile`, `themes[]`).
+- 🛑 **« Niveau estimé : X » lit l'AUTORITÉ D'AFFICHAGE** (2026-09-16), la même
+  que l'Accueil et le Profil : `DashboardSummary.tcfDomainProfile`, publication
+  de `TcfProfileService.levelProfileAccueil` (moyenne des ≤ 3 derniers examens
+  qualifiants), via `niveauActuelEpreuve(profil, code)`. ⚠️ **Révoque
+  `domain?.niveau ?? stat.level`** : le premier est la lecture du **Plan** (le
+  maximum, entraînements EE/EO compris), le second une **troisième** autorité (le
+  dernier niveau de n'importe quelle soumission). Un candidat dont la seule trace
+  EO était un entraînement de 3 min lisait ici un palier que quatre autres écrans
+  déclaraient « à évaluer ». 🛑 **Aucun appel de plus** — `dashboardProvider` est
+  déjà observé par l'écran. `DashboardCategoryStat.level` **reste au modèle** (lu
+  par `progres_screen` et `reco_screen`), il n'est simplement plus lu ici.
+  Épreuve non mesurée ⇒ on retombe sur ce qui se **compte**, puis sur
+  `kReviserNotStarted` — jamais un palier inventé.
+  → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
 - **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `SfRing`
   (anneau de **couverture**, sans chiffre au centre — à ne pas confondre avec
   `ProgressRing`) et `SfEpreuveRow` (la ligne d'une épreuve ou d'un thème).

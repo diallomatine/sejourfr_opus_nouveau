@@ -10,9 +10,10 @@
  *
  * 🛑 **Rien n'est classé ici.** Chaque fonction ne fait que poser une phrase sur
  * des **faits servis** — le compteur de séries (`seriesDone` / `seriesTotal`),
- * la couverture d'une tâche (`taches[]`), le niveau d'un domaine, l'état d'un
- * thème, la cible en cours. Aucune ne dérive un état pédagogique ni un niveau
- * CECRL d'un pourcentage.
+ * la couverture d'une tâche (`taches[]`), le **niveau actuel d'une épreuve**
+ * (`tcfDomainProfile`, l'autorité d'affichage), l'état d'un thème, la cible en
+ * cours. Aucune ne dérive un état pédagogique ni un niveau CECRL d'un
+ * pourcentage.
  *
  * 🛑 **L'ordre des cas EST la règle**, et il se lit de haut en bas dans chaque
  * fonction : ce qui est **mesuré** passe devant ce qui est **compté**, et
@@ -24,9 +25,11 @@ import type {
     CivicPlanThemeLigneDto,
     DashboardCategoryStat,
     LearningPlanDto,
+    NiveauCecrl,
     PlanDomainDto,
     PlanDomainTaskDto,
     SkillSection,
+    TcfDomainProfileDto,
 } from "./types";
 import {niveauCecrlLabel} from "./types";
 import {planNowCard, type PlanDomainEpreuve, type PlanNowVue} from "./plan-domain";
@@ -219,6 +222,35 @@ export function currentTache(domain: PlanDomainDto | null): PlanDomainTaskDto | 
     return domain.taches.find((t) => t.tacheNumero === domain.tacheCourante) ?? null;
 }
 
+/**
+ * **Le niveau ACTUEL d'une épreuve, tel qu'il est AFFICHÉ partout ailleurs.**
+ *
+ * 🛑 **L'autorité d'affichage, et elle seule** : `tcfDomainProfile` publie le
+ * niveau de `TcfProfileService.levelProfileAccueil` — la **moyenne des ≤ 3
+ * derniers examens qualifiants** —, exactement ce que disent l'Accueil, le
+ * Profil, l'écran Progrès et l'écran Diagnostic. Réviser lisait
+ * `PlanDomainDto.niveau` (la lecture du **Plan** : le maximum de toutes les
+ * sources, **entraînements EE/EO compris**) puis retombait sur
+ * `DashboardCategoryStat.level` (le dernier niveau de n'importe quelle
+ * soumission) : un candidat dont la seule trace EO était un entraînement de
+ * trois minutes y lisait un palier pendant que quatre autres écrans disaient
+ * « à évaluer ». → `docs/decisions/diagnostic.md`, 2026-09-16.
+ *
+ * 🛑 **`null` = pas mesuré, jamais un plancher** : la ligne retombe alors sur ce
+ * qu'elle sait **compter** (séries, compétences), et à défaut sur
+ * `REVISER_NOT_STARTED`.
+ *
+ * Le code de catégorie **est** la valeur de `epreuve` pour les quatre épreuves :
+ * aucune table de correspondance n'est écrite ici. `TCF_STRUCTURE` et les thèmes
+ * civiques n'y figurent pas — ils rendent `null`, ce qui est exact.
+ */
+export function niveauActuelEpreuve(
+    profil: TcfDomainProfileDto | null,
+    code: string,
+): NiveauCecrl | null {
+    return profil?.domaines.find((d) => d.epreuve === code)?.niveau ?? null;
+}
+
 /** « 2/10 séries » · « 3/8 compétences ». `null` quand il n'y a rien à compter. */
 export function epreuveMeta(stat: DashboardCategoryStat, domain: PlanDomainDto | null): string | null {
     if (isProductionCode(stat.code)) {
@@ -236,8 +268,19 @@ export function epreuveMeta(stat: DashboardCategoryStat, domain: PlanDomainDto |
  * Ordre des cas, et c'est la règle : une **production** annonce l'étape que le
  * Plan construit, sinon ce qui est acquis, sinon son niveau ; une épreuve de
  * **compréhension** annonce son niveau mesuré, sinon ses séries faites.
+ *
+ * 🛑 **Le niveau vient de `niveauActuelEpreuve`, l'autorité d'AFFICHAGE** — jamais de
+ * `PlanDomainDto.niveau` (la lecture du Plan, qui voit les entraînements) ni de
+ * `DashboardCategoryStat.level` (une troisième autorité, encore plus large).
+ * `domain` ne sert plus qu'à ce que Réviser **compte** : la tâche courante et
+ * les compétences acquises.
  */
-export function epreuveStatus(stat: DashboardCategoryStat, domain: PlanDomainDto | null): string {
+export function epreuveStatus(
+    stat: DashboardCategoryStat,
+    domain: PlanDomainDto | null,
+    profil: TcfDomainProfileDto | null,
+): string {
+    const niveau = niveauActuelEpreuve(profil, stat.code);
     if (isProductionCode(stat.code)) {
         const tache = currentTache(domain);
         if (tache && tache.observedSkills < tache.totalSkills) {
@@ -247,12 +290,11 @@ export function epreuveStatus(stat: DashboardCategoryStat, domain: PlanDomainDto
         if (acquises > 0) {
             return `${acquises} compétence${acquises > 1 ? "s" : ""} acquise${acquises > 1 ? "s" : ""}`;
         }
-        const niveau = domain?.niveau ?? stat.level;
         if (niveau) return `Niveau estimé : ${niveauCecrlLabel(niveau)}`;
         return REVISER_NOT_STARTED;
     }
-    if (domain?.evaluated && domain.niveau) {
-        return `Niveau estimé : ${niveauCecrlLabel(domain.niveau)}`;
+    if (niveau) {
+        return `Niveau estimé : ${niveauCecrlLabel(niveau)}`;
     }
     if (stat.seriesDone > 0) {
         return `${stat.seriesDone} série${stat.seriesDone > 1 ? "s" : ""} terminée${stat.seriesDone > 1 ? "s" : ""}`;
