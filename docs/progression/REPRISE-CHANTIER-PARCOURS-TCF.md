@@ -42,11 +42,13 @@
 ### Détail du lot en cours
 
 **Phases 1 à 3 — livrées.** Backend `./mvnw -o verify` → **1296 tests, 0 échec**.
-**Phase 4a et 4b — livrées** : les primitives de timeline sont dans **les deux kits**
+**Phases 4a, 4b et 4c — livrées** : les primitives de timeline sont dans **les deux kits**
 (`JourneyRow`/`JourneyList` ⇄ `SfJourneyRow`/`SfJourneyList`), les phrases dans
 `web_sejoufr/lib/journey.ts` ⇄ `mobile_sejourfr/lib/screens/plan/journey_labels.dart`, et
 **l'écran Plan des deux fronts affiche la file** — abonné comme compte gratuit. Le parcours de
-tâche et le chemin de palier en ont disparu. `npm run build` et `flutter analyze` verts.
+tâche et le chemin de palier en ont disparu, et les **trois états** du parcours s'affichent :
+« Choisir mon objectif » (D-3), « Votre parcours est à jour » + sa suggestion hors file, et la
+note du cas `LOCKED`. `npm run build` et `flutter analyze` verts.
 
 **Ce qui reste, dans cet ordre :**
 
@@ -63,11 +65,9 @@ tâche et le chemin de palier en ont disparu. `npm run build` et `flutter analyz
    `reviser_labels.dart`). **N'en migrer que quelques-uns rouvrirait la contradiction corrigée
    le 2026-09-16.** Accueil et Réviser devront donc lire le parcours eux aussi
    (`journeyApi.getCached()` ⇄ `journeyProvider`, déjà en place).
-2. **Les états `NEEDS_OBJECTIVE` / `LOCKED` / `UP_TO_DATE`** à l'écran : les libellés existent
-   déjà des deux côtés (`JOURNEY_NEEDS_OBJECTIVE_*`, `JOURNEY_UP_TO_DATE_*`,
-   `JOURNEY_LOCKED_CAPTION`, `JOURNEY_SUGGESTION_MOCK_EXAM` et leurs jumeaux Dart) mais
-   **aucun écran ne les rend encore**. « Choisir mon objectif » ouvre `/parcours` (web) /
-   `target_path_screen` (mobile).
+2. ✅ **Fait (4c)** — les trois états `NEEDS_OBJECTIVE` / `UP_TO_DATE` / `LOCKED` s'affichent
+   sur le Plan des deux fronts. ⚠️ Ils ne s'affichent **que sur le Plan** : l'Accueil et
+   Réviser les verront quand le point 1 sera fait.
 3. **Les suppressions §11 encore à faire** — le bloc « Votre parcours — Tâche X » a disparu du
    **Plan**, mais ses dérivations vivent toujours et servent l'**Accueil** :
    `parcoursDeLaTache` / `planTaskPath`, `plan_task_path.dart`, `plan_task_row.dart`. Les
