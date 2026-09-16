@@ -1,11 +1,13 @@
 package com.sejourfr.app.service.progres;
 
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauEvolution;
+import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -16,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -89,6 +92,13 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         assertThat(progres.activite().fenetreJours()).isEqualTo(28);
     }
 
+    /**
+     * 🛑 <b>2026-09-16 — les 4 épreuves ne dépendent plus du diagnostic.</b>
+     * Elles étaient servies <b>vides</b> tant qu'aucun diagnostic 4 épreuves
+     * n'était clos, ce qui masquait la section « Où vous en êtes » de l'Accueil
+     * en entier — y compris chez un candidat dont la CO était déjà mesurée par
+     * un examen de module. Le palier vient du profil TCF, pas du diagnostic.
+     */
     @Test
     @DisplayName("🛑 Les 4 épreuves TCF sont toujours servies, et INCONNUE n'est pas STABLE")
     void quatreEpreuvesToujoursServies() {
@@ -96,19 +106,39 @@ class ProgressServiceIT extends AbstractIntegrationTest {
 
         ProgressDto.Tcf tcf = service.progres(user.getId()).tcf();
 
-        assertThat(tcf.epreuves()).isEmpty();  // aucun diagnostic clos
-
-        // Et quand un diagnostic existe, les 4 sont là — c'est le contrat de
-        // l'écran, vérifié plus bas sur le civique faute de diagnostic TCF
-        // jouable en test sans catalogue TCF complet.
-        assertThat(EpreuveType.values()).contains(
-                EpreuveType.TCF_CO, EpreuveType.TCF_CE,
-                EpreuveType.TCF_EE, EpreuveType.TCF_EO);
-        // Le résolveur d'évolution, lui, est déjà verrouillé par L7 : on redit
-        // seulement ici la règle qui compte pour cet écran.
-        assertThat(com.sejourfr.app.service.diagnostictcf
-                .TcfDiagnosticProgressionResolver.evolution(null, null))
-                .isEqualTo(NiveauEvolution.INCONNUE);
+        // Aucun diagnostic clos, et pourtant les 4 cartes existent.
+        assertThat(tcf.disponible()).isFalse();
+        assertThat(tcf.epreuves())
+                .extracting(ProgressDto.Epreuve::epreuve)
+                .containsExactly(
+                        EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+                        EpreuveType.TCF_EE, EpreuveType.TCF_EO);
+        // 🛑 Rien n'a été mesuré : `null` = inconnu, jamais A1. Et pas de
+        // palier INITIAL faute de diagnostic, donc INCONNUE, jamais STABLE.
+        assertThat(tcf.epreuves()).allSatisfy(e -> {
+            assertThat(e.niveau()).isNull();
+            assertThat(e.niveauInitial()).isNull();
+            assertThat(e.evolution()).isEqualTo(NiveauEvolution.INCONNUE);
+            // 🛑 Et chacune porte DE QUOI se faire mesurer : c'est ce que le
+            // CTA « Faire un exercice » de l'Accueil lance, par le lanceur du
+            // Plan. Aucune carte ne reste sans issue.
+            assertThat(e.evaluation()).isNotNull();
+            assertThat(e.evaluation().epreuve()).isEqualTo(e.epreuve());
+        });
+        // CO/CE → examen blanc de module sur le slot OFFERT ; EE/EO → le
+        // diagnostic, qui n'a pas encore été passé.
+        Map<EpreuveType, PlanDomainAssessmentDto> mesures = tcf.epreuves().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        ProgressDto.Epreuve::epreuve, ProgressDto.Epreuve::evaluation));
+        assertThat(mesures.get(EpreuveType.TCF_CO).kind())
+                .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
+        assertThat(mesures.get(EpreuveType.TCF_CO).slotNumber()).isEqualTo(1);
+        assertThat(mesures.get(EpreuveType.TCF_CE).kind())
+                .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
+        assertThat(mesures.get(EpreuveType.TCF_EE).kind())
+                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+        assertThat(mesures.get(EpreuveType.TCF_EO).kind())
+                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
     }
 
     @Test
