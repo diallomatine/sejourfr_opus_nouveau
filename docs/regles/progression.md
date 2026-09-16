@@ -524,6 +524,41 @@ que l'Accueil**, au même instant. Avant, le Profil servait le maximum du Plan
 pendant que l'Accueil servait autre chose. **Aucun DTO n'a changé de forme**, et
 `TcfDomainProfileDto` publiait déjà les 4 paliers d'épreuve à côté du global.
 
+✅ **RÉVISER a rejoint la liste le 2026-09-16** (troisième passe), et c'était la
+**dernière contradiction de niveau connue** du dépôt. L'écran écrivait
+« Niveau estimé : X » sur `domain?.niveau ?? stat.level`, c'est-à-dire **deux
+autres autorités** : la lecture du **Plan** (`PlanDomainDto.niveau` — le maximum,
+entraînements EE/EO compris) puis, en repli, `DashboardCategoryStat.level` — le
+dernier niveau CECRL de n'importe quelle soumission, **une troisième autorité,
+encore plus large, et qui n'avait aucune raison d'exister ici**. Un candidat dont
+la seule trace EO était un entraînement de trois minutes y lisait un palier
+pendant que l'Accueil, le Profil, l'écran Progrès et l'écran Diagnostic disaient
+tous « à évaluer ».
+- Il lit désormais **`tcfDomainProfile`**, par
+  `niveauActuelEpreuve(profil, code)` (`web_sejoufr/lib/reviser.ts` ⇄
+  `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`). Le **code de
+  catégorie est la valeur de `epreuve`** : aucune table de correspondance n'est
+  écrite côté front.
+- 🛑 **Aucun appel de plus** : les deux Réviser chargeaient déjà
+  `GET /api/me/dashboard` — ils y lisent `CategoryStat` pour les séries. Le
+  profil par domaine voyageait dans la même réponse, inutilisé.
+- 🛑 **Le repli `stat.level` est SUPPRIMÉ de cette phrase.** Le champ **reste au
+  DTO** : il a d'autres lecteurs (`/statistiques` et `ReinforceRow` côté web,
+  `progres_screen` et `reco_screen` côté mobile).
+- **Épreuve non mesurée ⇒ aucun palier inventé** : la ligne retombe sur ce que
+  Réviser sait **compter** (séries terminées, compétences observées), et à
+  défaut sur son propre « **Pas encore travaillé** » — le vocabulaire du
+  catalogue, pas le « À évaluer » d'un constat. `null` = inconnu, jamais un
+  plancher.
+- **La dérivation n'est PAS partagée avec l'Accueil** (`accueilEpreuveEtat`),
+  et c'est voulu : celle-ci rend un **état pédagogique servi** (statut +
+  evolution → ton, jauge, CTA), Réviser rend une **ligne de catalogue** (étape en
+  cours, compétences acquises, séries faites). Seule la **source du niveau** leur
+  est commune, et c'est elle qu'on a unifiée.
+- ⚠️ **La fiche de domaine du Plan (`/plan/domaine/[x]`) n'est PAS concernée** :
+  elle affiche la lecture du Plan parce qu'elle *est* le Plan. → journal :
+  `docs/decisions/diagnostic.md`.
+
 Le niveau global d'une épreuve de production ne bouge que sur un **examen
 complet de l'épreuve**. **Trois provenances, et seulement trois** :
 
@@ -648,7 +683,7 @@ Deux faits différents, et depuis le 2026-09-16 **deux écrans différents** :
 
 | | ce que c'est | où le candidat le lit |
 |---|---|---|
-| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs`, **écran Diagnostic TCF** |
+| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs`, **écran Diagnostic TCF**, **Réviser** |
 | **meilleur niveau atteint** | le plus haut palier jamais obtenu | « Voir mes résultats » (`EpreuveHistoriqueService`), qui liste les 3 dernières mesures avec leur date et leur provenance |
 
 Ne jamais présenter l'un comme l'autre : un candidat dont la moyenne redescend

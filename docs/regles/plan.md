@@ -1620,6 +1620,16 @@ lit le Plan et le tableau de bord, et met en mots des faits servis
 (`web_sejoufr/lib/reviser.ts` ⇄ `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`,
 miroirs mot pour mot).
 
+🛑 **Le Plan lui sert ce qui se COMPTE, jamais le NIVEAU** (2026-09-16). Réviser
+lit `PlanDomainDto` pour la **tâche courante** et les **compétences acquises** —
+et **plus du tout** pour « Niveau estimé : X », qui vient désormais de
+`DashboardSummaryResponse.tcfDomainProfile`, l'**autorité d'affichage**
+(`levelProfileAccueil`), la même que l'Accueil et le Profil. La lecture du Plan
+(`levelProfile` : le maximum, entraînements EE/EO compris) reste ce qu'elle est
+et sert le Plan ; elle ne doit simplement pas être **présentée comme un palier**
+par un écran de catalogue. → `docs/regles/progression.md`,
+`docs/decisions/diagnostic.md`.
+
 🛑 **« Reprendre là où vous vous êtes arrêté » vient du PLAN** — demande du
 propriétaire : « il faut mettre la chose actuellement à travailler maintenant
 dans le plan ». C'est `seance.items[0]` côté TCF, `prochaine` côté civique.

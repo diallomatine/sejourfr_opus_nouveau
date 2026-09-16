@@ -102,6 +102,46 @@
     du propriétaire du même jour et n'est pas en cause ; ce qui l'est, c'est la
     **phrase** « Niveau estimé » posée dessus par un écran de catalogue. Décision
     produit à prendre, pas à prendre en passant.
+    - ✅ **TRANCHÉE ET FERMÉE le 2026-09-16, cinquième décision du propriétaire :
+      « aligne Réviser ».** L'écran lit désormais l'**autorité d'affichage**,
+      la même que l'Accueil et le Profil — `tcfDomainProfile`, publication de
+      `TcfProfileService.levelProfileAccueil` — par `niveauActuelEpreuve(profil,
+      code)` (`web_sejoufr/lib/reviser.ts` ⇄
+      `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`, miroirs).
+      Un candidat ne peut plus lire deux paliers pour la même épreuve sur deux
+      écrans qu'il ouvre dans la même minute.
+    - 🛑 **Aucun appel de plus, et c'est ce qui a décidé de la source.** Les deux
+      Réviser chargeaient **déjà** `GET /api/me/dashboard` — ils y lisent
+      `CategoryStat` pour « 2 / 10 séries ». `tcfDomainProfile` voyageait dans la
+      même réponse, inutilisé. `GET /api/me/progress` porte la même valeur
+      (`ProgressDto.Tcf.epreuves[].niveau`) mais **n'est chargé par aucun des deux
+      Réviser** : le brancher aurait coûté une requête par ouverture d'onglet,
+      pour la valeur qui était déjà là.
+    - 🛑 **Le repli `DashboardCategoryStat.level` est SUPPRIMÉ de cette phrase** —
+      c'était une **troisième** autorité (le dernier niveau CECRL de n'importe
+      quelle soumission EE/EO), encore plus large que celle du Plan, et elle
+      n'avait aucune raison d'être lue ici. **Le champ reste au DTO** : quatre
+      lecteurs subsistent (`/statistiques` et `ReinforceRow` côté web,
+      `progres_screen` et `reco_screen` côté mobile). ⚠️ **Ces quatre-là écrivent
+      eux aussi « Niveau estimé X » sur `stat.level`** : c'est un reste de la même
+      famille, hors du périmètre arbitré ce jour — à rouvrir, pas à corriger en
+      passant.
+    - **Épreuve non mesurée ⇒ aucun palier inventé** : la ligne retombe sur ce
+      que Réviser sait **compter** (séries terminées, compétences observées), et
+      à défaut sur son propre « **Pas encore travaillé** » — son vocabulaire de
+      catalogue, pas le « À évaluer » d'un constat. `null` = inconnu, jamais un
+      plancher.
+    - **Le reste de la ligne n'a pas bougé** : tâche courante, compétences
+      acquises, séries faites, anneau de couverture. `PlanDomainDto` reste lu
+      pour ce qui se **compte** — la mesure, elle, ne vient plus de lui.
+    - ⚠️ **La fiche de domaine du Plan reste sur la lecture du Plan**, et c'est
+      voulu : elle *est* le Plan. La contradiction ne portait que sur la phrase
+      d'un écran de **catalogue**.
+    - **Aucun test front ajouté** (règle du dépôt) : `npx tsc --noEmit`,
+      `npm run build`, `npm test` (270 verts), `flutter analyze` (0 issue),
+      `flutter test` (296 verts) et
+      `node scripts/verifier-contrat-front-progression.mjs`. **Backend non
+      touché** — le DTO servait déjà tout ce qu'il fallait.
 
 - 🛑 **LE MAXIMUM MONOTONE DE LA LECTURE D'AFFICHAGE EST RÉVOQUÉ — le niveau
   affiché est la MOYENNE DES 3 DERNIERS EXAMENS QUALIFIANTS** (2026-09-16,
