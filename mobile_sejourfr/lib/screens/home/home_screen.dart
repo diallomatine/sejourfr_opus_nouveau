@@ -467,10 +467,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget? _situationTcf(BuildContext context, Progress progres) {
     final epreuves = progres.tcf.epreuves;
-    // 🛑 Les 4 épreuves sont **toujours** servies dès qu'il y a quelque chose à
-    // dire. Une liste vide veut dire « aucun diagnostic clos » : le bloc se
-    // tait plutôt que d'afficher quatre cartes « À évaluer » qui répéteraient
-    // l'action du jour juste au-dessus.
+    // Les 4 épreuves sont **toujours** servies : depuis le 2026-09-16 elles ne
+    // dépendent plus du diagnostic 4 épreuves. Une liste vide ne devrait donc
+    // plus arriver — mais un client servi par un backend antérieur au
+    // correctif la verrait, et le bloc se tait plutôt que d'afficher un titre
+    // au-dessus du vide.
     if (epreuves.isEmpty) return null;
 
     final objectif = progres.tcf.objectif;
@@ -549,11 +550,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// Ce qu'ouvre la carte d'une épreuve.
   ///
-  /// 🛑 **Deux destinations, et aucune inventée** : la fiche du domaine —
-  /// l'autorité du Plan, qui porte les lanceurs — quand il y a quelque chose à
-  /// faire, la page des résultats quand il y a quelque chose à relire. Le choix
-  /// se lit sur l'état servi, jamais sur un texte de bouton.
+  /// 🛑 **Trois issues, aucune inventée** :
+  /// 1. épreuve **jamais mesurée** dont le serveur dit par quoi la mesurer ⇒ on
+  ///    **lance** cette mesure par [openPlanAssessment], l'autorité unique déjà
+  ///    en place — la même que « Compléter mon profil », la fiche d'un domaine
+  ///    et la ligne `A_EVALUER` de la séance. Aucun second chemin n'est écrit
+  ///    ici, et aucune étape intermédiaire ne s'intercale ;
+  /// 2. quelque chose à faire mais rien à lancer (épreuve en progression ;
+  ///    descripteur absent, cas d'un client servi par un backend antérieur) ⇒
+  ///    la fiche du domaine, le comportement historique ;
+  /// 3. rien à faire ⇒ la page des résultats.
+  ///
+  /// Le choix se lit sur l'état **servi**, jamais sur un texte de bouton.
   void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
+    final mesure = epreuve.niveau == null ? epreuve.evaluation : null;
+    if (mesure != null) {
+      openPlanAssessment(context, mesure);
+      return;
+    }
     if (accueilEpreuveOuvreLExercice(epreuve)) {
       openPlanDomain(context, epreuve.epreuve);
       return;

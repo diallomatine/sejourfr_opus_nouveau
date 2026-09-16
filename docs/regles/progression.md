@@ -480,6 +480,41 @@ compteur servi pour les deux parcours.
 (`progressProvider` ⇄ le lot parallèle du dashboard) et porte déjà les
 4 épreuves : la section ne coûte rien au réseau.
 
+### 🛑 La section s'affiche TOUJOURS (correctif du 2026-09-16)
+
+⚠️ **Révoque « une liste vide veut dire aucun diagnostic clos, le bloc se
+tait ».** `ProgressService.tcf()` coupait toute la réponse TCF sous
+`clos.isEmpty()` — aucune session `TcfDiagnosticSession` en `COMPLETED`, donc
+`epreuves = []`, donc **section entière masquée**. Chez un candidat dont la CO
+et la CE étaient déjà mesurées par un examen blanc de module, l'Accueil ne
+montrait rien de ce qu'il avait pourtant mesuré.
+
+La cause était un raccourci, pas une règle : **le palier d'une épreuve ne vient
+pas du diagnostic**, il vient de `TcfProfileService.levelProfile()` — « le
+meilleur résultat, toutes sources confondues », l'unique autorité du dépôt sur
+ce niveau. Une section de diagnostic close isolément y entre déjà (correctif de
+`AttemptRepository.findQcmEpreuvesPassees`), un examen de module aussi.
+
+Ce qui dépend encore du diagnostic 4 épreuves, et **seulement cela** :
+
+| ce qui est servi | dépend du diagnostic 4 épreuves ? |
+|---|---|
+| `tcf.disponible` | **oui** — c'est son sens : « un diagnostic 4 épreuves est clos » |
+| `tcf.historique` (la courbe) | **oui** — une courbe se trace sur des diagnostics clos |
+| `epreuve.niveauInitial` (le palier au **premier** diagnostic) | **oui** — sans premier diagnostic, `null`, donc `evolution == INCONNUE` |
+| `tcf.epreuves` (les 4 cartes) | **non** |
+| `epreuve.niveau` | **non** — profil TCF |
+| `tcf.niveauActuel` | **non** — `profil.globalLevel()` |
+
+🛑 **`disponible` garde exactement son sens** et sa valeur : il commande le
+palier global et la frise de l'**écran Progrès**, plus la liste des épreuves.
+Ne pas le rebrancher sur « y a-t-il quelque chose à montrer ». Corollaire côté
+front : l'état vide de Progrès se lit par `progresEcranVide` ⇄
+`progresEcranVide` (`lib/progres.ts` ⇄ `screens/progres/progres_labels.dart`),
+qui ajoute « et aucune épreuve mesurée » — sans quoi l'écran annonçait
+« votre progression s'affichera après votre premier diagnostic » juste au-dessus
+de la progression déjà mesurée.
+
 ### La dérivation, et pourquoi elle tient en un seul endroit
 
 `accueilEpreuveEtat` (`lib/progres.ts` ⇄ `screens/progres/progres_labels.dart`)
@@ -506,10 +541,54 @@ absence de mesure en verdict. Le cas 2 passe avant le statut parce que dire
 « à renforcer » à quelqu'un qui vient de monter d'un palier lui cache la seule
 bonne nouvelle qu'il a.
 
-🛑 **Deux destinations, aucune inventée** : `planDomainHref` / `openPlanDomain`
-— la fiche du domaine, l'autorité du Plan, qui porte les lanceurs — quand il y
-a quelque chose à faire ; la page des résultats quand il y a quelque chose à
-relire. Le choix se lit sur l'**état servi**, jamais sur le texte du bouton.
+### 🛑 « Faire un exercice » LANCE la mesure (2026-09-16)
+
+⚠️ **Révoque « deux destinations : la fiche du domaine, ou la page des
+résultats ».** Sur une épreuve jamais évaluée, la carte renvoyait vers la fiche
+du domaine — **une étape intermédiaire** : le candidat devait y retrouver, puis
+appuyer, le bouton qui lance réellement la mesure. Arbitrage du propriétaire :
+un clic sur la carte **lance directement l'évaluation de cette épreuve**.
+
+🛑 **Aucun mécanisme nouveau, aucune 5ᵉ porte.** Le descripteur est celui qui
+existe déjà — `PlanDomainAssessmentResolver.pour(epreuve, diagnosticTermine)`,
+la table des trois natures qui sert déjà « Compléter mon profil », la fiche d'un
+domaine et la ligne `A_EVALUER` de la séance :
+
+| épreuve | ce qui est lancé |
+|---|---|
+| `TCF_CO` / `TCF_CE` | `MODULE_MOCK_EXAM` — examen blanc de module, **slot 1**, le slot offert à tout compte |
+| `TCF_EE` / `TCF_EO`, diagnostic **non** terminé | `DIAGNOSTIC` |
+| `TCF_EE` / `TCF_EO`, diagnostic terminé | `PRODUCTION` — le catalogue standard (le diagnostic ne se rejoue pas) |
+
+🛑 **Ce qui a été explicitement ÉCARTÉ** : lancer `/api/tcf-diagnostics` ciblé
+sur une seule section. Ce serait une 5ᵉ porte vers un mécanisme qui n'est routé
+nulle part ailleurs depuis l'Accueil ou le Plan, et elle entrerait en conflit
+avec la réévaluation payante espacée (`TcfReassessmentService`) une fois le
+diagnostic `COMPLETED`.
+
+**Contrat servi** : `ProgressDto.Epreuve.evaluation`, un `PlanDomainAssessmentDto`
+— renseigné **quand et seulement quand** `niveau == null`, `null` dès qu'un
+palier existe (rien à mesurer, on ne propose pas de refaire une mesure qui
+existe). `diagnosticTermine` vient de **`PlanFoundationResolver`**, la même
+autorité que le Plan et que `PreparationDto.planDisponible` : la carte de
+l'Accueil et la carte du Plan ne peuvent donc pas désigner deux parcours
+différents pour le même domaine.
+
+🛑 **Le lanceur est celui du Plan, jamais un second** : `usePlanAssessment`
+(web) ⇄ `openPlanAssessment` (mobile). Les fronts passent le descripteur reçu et
+n'écrivent aucune route de démarrage. Un `evaluation` absent (client servi par
+un backend antérieur) **replie sur le comportement d'avant**, la fiche du
+domaine.
+
+**Les trois issues d'une carte**, dans l'ordre où elles se décident :
+
+| # | condition | ce qui se passe |
+|---|---|---|
+| 1 | `niveau == null` **et** `evaluation != null` | la mesure est **lancée** (`usePlanAssessment` / `openPlanAssessment`) |
+| 2 | il y a quelque chose à faire, rien à lancer (`EN_PROGRESSION`, ou descripteur absent) | la **fiche du domaine** (`planDomainHref` / `openPlanDomain`) |
+| 3 | rien à faire | la page **« Voir mes résultats »** |
+
+Le choix se lit sur l'**état servi**, jamais sur le texte du bouton.
 
 ### La jauge n'est pas un pourcentage — arbitrage
 

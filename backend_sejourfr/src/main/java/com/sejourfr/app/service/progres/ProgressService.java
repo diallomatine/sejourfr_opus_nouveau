@@ -18,6 +18,8 @@ import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.PlanDomainAssessmentResolver;
+import com.sejourfr.app.service.PlanFoundationResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.SubscriptionService;
@@ -68,6 +70,13 @@ import java.util.UUID;
  * <p>🛑 <b>Il ne re-liste pas l'historique</b> (bloc 5). Les écrans d'historique
  * existants le portent déjà ; le redupliquer créerait une seconde vérité.
  *
+ * <p>🛑 <b>Il n'invente aucun parcours de mesure.</b> « Par quoi mesurer une
+ * épreuve jamais évaluée » vient de {@link PlanDomainAssessmentResolver#pour},
+ * la même autorité que « Compléter mon profil » et que la ligne
+ * {@code A_EVALUER} de la séance ; et « le diagnostic est-il terminé ? » de
+ * {@link PlanFoundationResolver}, la même que le Plan. Cet écran <b>assemble</b>,
+ * il ne décide pas.
+ *
  * <p>🛑 <b>Aucun appel LLM</b> : tout est relu.
  */
 @Service
@@ -100,6 +109,8 @@ public class ProgressService {
     private final SubscriptionService subscriptionService;
     private final ActiviteResolver activiteResolver;
     private final StatutObjectifResolver statutObjectifResolver;
+    private final PlanFoundationResolver foundationResolver;
+    private final PlanDomainAssessmentResolver assessmentResolver;
 
     @Transactional(readOnly = true)
     public ProgressDto progres(UUID userId) {
@@ -130,14 +141,13 @@ public class ProgressService {
                                 Comparator.nullsLast(Comparator.naturalOrder())))
                         .toList();
 
-        if (clos.isEmpty()) {
-            // 🛑 Aucun diagnostic clos : on ne fabrique ni palier ni courbe.
-            // L'ecran ouvre la seule porte qui debloque.
-            return new ProgressDto.Tcf(
-                    false, null, objectif, List.of(), List.of(),
-                    competences(user.getId()));
-        }
-
+        // 🛑 LA COURBE depend du diagnostic 4 epreuves, LES EPREUVES NON
+        // (2026-09-16). Aucun diagnostic clos : il n'y a ni courbe ni palier
+        // INITIAL a servir — mais les 4 epreuves existent quand meme, avec ce
+        // qui a ete mesure par ailleurs (un examen blanc de module, une
+        // section de diagnostic close isolement). Le verrou `clos.isEmpty()`
+        // masquait la section « Ou vous en etes » de l'ACCUEIL en entier chez
+        // un candidat qui avait pourtant deja une CO et une CE mesurees.
         List<ProgressDto.Estimation> historique = new ArrayList<>();
         Map<EpreuveType, NiveauCecrl> auPremier = new LinkedHashMap<>();
         for (int i = 0; i < clos.size(); i++) {
@@ -158,6 +168,12 @@ public class ProgressService {
         // diagnostic : c'est le meilleur resultat toutes sources confondues, et
         // c'est la seule autorite du depot sur ce niveau.
         TcfLevelProfile profil = tcfProfileService.levelProfile(user.getId());
+        // 🛑 « Le diagnostic est-il termine ? » a DEJA son autorite, partagee
+        // avec le Plan et avec `PreparationDto.planDisponible` : on l'appelle,
+        // on ne la recopie pas. C'est elle que `LearningPlanService` passe a ce
+        // meme resolveur, donc la carte de l'Accueil et la carte du Plan ne
+        // peuvent pas designer deux parcours differents pour le meme domaine.
+        boolean diagnosticTermine = foundationResolver.resolve(user.getId()).exists();
         List<ProgressDto.Epreuve> epreuves = new ArrayList<>(EPREUVES.size());
         for (EpreuveType epreuve : EPREUVES) {
             NiveauCecrl actuel = actuel(profil, epreuve);
@@ -170,11 +186,19 @@ public class ProgressService {
                     // 🛑 Le statut vers l'objectif est DERIVE SERVEUR, a partir
                     // des deux paliers deja servis : aucun front ne compare des
                     // niveaux CECRL lui-meme.
-                    statutObjectifResolver.resoudre(actuel, objectif)));
+                    statutObjectifResolver.resoudre(actuel, objectif),
+                    // 🛑 Rien a lancer sur une epreuve DEJA mesuree : on ne
+                    // propose pas de refaire une mesure qui existe.
+                    actuel == null
+                            ? assessmentResolver.pour(epreuve, diagnosticTermine)
+                            : null));
         }
 
         return new ProgressDto.Tcf(
-                true, profil.globalLevel(), objectif, historique, epreuves,
+                // 🛑 Fidele a son sens : « un diagnostic 4 epreuves est clos ».
+                // Il commande la courbe et le palier global de l'ecran Progres,
+                // plus la liste des epreuves.
+                !clos.isEmpty(), profil.globalLevel(), objectif, historique, epreuves,
                 competences(user.getId()));
     }
 

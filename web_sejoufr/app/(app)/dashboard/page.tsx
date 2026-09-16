@@ -674,11 +674,18 @@ function OuVousEnEtes({progres, civique}: {
 }
 
 function SituationTcf({progres}: {progres: ProgressDto}) {
+    /* 🛑 **Le lanceur du Plan, jamais un second** : une épreuve jamais mesurée
+       porte le descripteur `evaluation` servi, et c'est `usePlanAssessment` —
+       celui de « Compléter mon profil » et de la ligne `A_EVALUER` de la
+       séance — qui l'ouvre. Écrire ici un second chemin de démarrage l'aurait
+       fait diverger de celui-là. */
+    const assessments = usePlanAssessment();
     const epreuves = progres.tcf.epreuves;
-    /* 🛑 Les 4 épreuves sont **toujours** servies dès qu'il y a quelque chose à
-       dire. Une liste vide veut dire « aucun diagnostic clos » : le bloc se tait
-       plutôt que d'afficher quatre cartes « À évaluer » qui répéteraient
-       l'action du jour juste au-dessus. */
+    /* Les 4 épreuves sont **toujours** servies : depuis le 2026-09-16 elles ne
+       dépendent plus du diagnostic 4 épreuves. Une liste vide ne devrait donc
+       plus arriver — mais un client servi par un backend antérieur au
+       correctif la verrait, et le bloc se tait plutôt que d'afficher un titre
+       au-dessus du vide. */
     if (epreuves.length === 0) return null;
     const objectif = progres.tcf.objectif;
 
@@ -689,31 +696,43 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                     <p className="home-situation-title">{SITUATION_CARD_TITLE}</p>
                     <p className={sejourStyles.tiny}>{SITUATION_CARD_LEAD}</p>
                     <div className="home-situation-grid">
-                        {epreuves.map((e) => (
-                            <SituationCard
-                                key={e.epreuve}
-                                title={planDomainLabel(
-                                    e.epreuve as Parameters<typeof planDomainLabel>[0])}
-                                badge={accueilEpreuveBadge(e)}
-                                mesure={Boolean(e.niveau)}
-                                statut={accueilEpreuveStatut(e)}
-                                jauge={accueilEpreuveJauge(e)}
-                                tone={accueilEpreuveTon(e)}
-                                cta={accueilEpreuveCta(e)}
-                                /* 🛑 **Deux destinations, et aucune inventée** :
-                                   la fiche du domaine — l'autorité du Plan, qui
-                                   porte les lanceurs — quand il y a quelque
-                                   chose à faire, la page des résultats quand il
-                                   y a quelque chose à relire. Le choix se lit
-                                   sur l'état servi, jamais sur un texte de
-                                   bouton. */
-                                href={accueilEpreuveOuvreLExercice(e)
-                                    ? planDomainHref(
-                                        e.epreuve as Parameters<typeof planDomainHref>[0])
-                                    : `/historique/epreuve/${planDomainSlug(
-                                        e.epreuve as Parameters<typeof planDomainSlug>[0])}`}
-                            />
-                        ))}
+                        {epreuves.map((e) => {
+                            /* 🛑 **Trois issues, aucune inventée.**
+                               1. Épreuve jamais mesurée dont le serveur dit par
+                                  quoi la mesurer ⇒ on **lance** cette mesure,
+                                  sans étape intermédiaire.
+                               2. Quelque chose à faire, mais rien à lancer
+                                  (épreuve en progression ; ou descripteur
+                                  absent — client ancien) ⇒ la fiche du domaine,
+                                  le comportement historique.
+                               3. Rien à faire ⇒ la page des résultats.
+                               Le choix se lit sur l'état servi, jamais sur un
+                               texte de bouton. */
+                            const mesure = e.niveau === null ? e.evaluation : null;
+                            const href = accueilEpreuveOuvreLExercice(e)
+                                ? planDomainHref(
+                                    e.epreuve as Parameters<typeof planDomainHref>[0])
+                                : `/historique/epreuve/${planDomainSlug(
+                                    e.epreuve as Parameters<typeof planDomainSlug>[0])}`;
+                            return (
+                                <SituationCard
+                                    key={e.epreuve}
+                                    title={planDomainLabel(
+                                        e.epreuve as Parameters<typeof planDomainLabel>[0])}
+                                    badge={accueilEpreuveBadge(e)}
+                                    mesure={Boolean(e.niveau)}
+                                    statut={accueilEpreuveStatut(e)}
+                                    jauge={accueilEpreuveJauge(e)}
+                                    tone={accueilEpreuveTon(e)}
+                                    cta={accueilEpreuveCta(e)}
+                                    busy={assessments.starting === e.epreuve}
+                                    href={mesure ? null : href}
+                                    onStart={mesure
+                                        ? () => void assessments.start(mesure)
+                                        : undefined}
+                                />
+                            );
+                        })}
                     </div>
                     {/* 🛑 Sans démarche déclarée, pas de bandeau : on ne devine
                         pas l'objectif d'un candidat qui n'en a pas donné. */}
@@ -723,8 +742,19 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                             <b>{situationGoalText(niveauCecrlShort(objectif))}</b>
                         </div>
                     )}
+                    {assessments.error && (
+                        <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
+                    )}
                 </Card>
             </Pad>
+            <PaywallSheet
+                origin="plan"
+                ctaLocation="LOCKED_PLAN"
+                screen="dashboard"
+                module="INTEGRAL"
+                open={assessments.paywallOpen}
+                onClose={assessments.closePaywall}
+            />
         </Section>
     );
 }
@@ -780,7 +810,7 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
  * 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
  * écrit juste en dessous, pas une progression vers un palier.
  */
-function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href}: {
+function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href, onStart, busy}: {
     title: string;
     badge: string;
     /* Y a-t-il une mesure derrière la pastille ?
@@ -797,7 +827,14 @@ function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href}: {
     jauge: number;
     tone: BarTone;
     cta: string;
-    href: string;
+    /* Où mène la carte. `null` quand elle **lance** au lieu de naviguer :
+       l'action est alors `onStart`, et les deux ne coexistent jamais. */
+    href: string | null;
+    /* 🛑 **Le lancement vient de l'appelant**, qui tient le lanceur du Plan.
+       Cette carte ne connaît ni `PlanDomainAssessmentDto`, ni route de
+       démarrage : elle n'est qu'un rendu. */
+    onStart?: () => void;
+    busy?: boolean;
 }) {
     return (
         <div className="home-situation-card">
@@ -807,9 +844,20 @@ function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href}: {
             </div>
             <ProgressMini ratio={jauge} tone={tone} label={statut ?? undefined}/>
             {statut && <p className="home-situation-statut">{statut}</p>}
-            <Link href={href} className={sejourStyles.link}>
-                {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
-            </Link>
+            {href ? (
+                <Link href={href} className={sejourStyles.link}>
+                    {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
+                </Link>
+            ) : (
+                <button
+                    type="button"
+                    className={sejourStyles.link}
+                    disabled={busy}
+                    onClick={onStart}
+                >
+                    {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
+                </button>
+            )}
         </div>
     );
 }

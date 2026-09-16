@@ -80,7 +80,11 @@ class _ProgresMouvementState extends ConsumerState<ProgresMouvement> {
             style: AppFonts.ui(size: 13, color: AppColors.inkFaint, height: 1.45)),
         const SizedBox(height: 12),
 
-        if (!tcf.disponible && !civique.disponible) ...[
+        // 🛑 L'écran n'est vide que s'il n'a VRAIMENT rien : depuis le
+        // 2026-09-16 une épreuve mesurée hors diagnostic remplit déjà le bloc
+        // « Par épreuve », et annoncer « après votre premier diagnostic » juste
+        // au-dessus se contredirait.
+        if (progresEcranVide(tcf, civique)) ...[
           Text(kProgresVideText,
               style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft)),
           const SizedBox(height: 12),

@@ -2,6 +2,7 @@ package com.sejourfr.app.service.progres;
 
 import com.sejourfr.app.dto.CivicDiagnosticResultDto;
 import com.sejourfr.app.dto.CivicPlanDto;
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
@@ -14,6 +15,8 @@ import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.PlanDomainAssessmentKind;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.StatutObjectif;
@@ -24,6 +27,8 @@ import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.PlanDomainAssessmentResolver;
+import com.sejourfr.app.service.PlanFoundationResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.SubscriptionService;
@@ -81,6 +86,7 @@ class ProgressServiceTest {
     private CivicDiagnosticSessionManager civicSessionManager;
     private CivicDiagnosticViewService civicViewService;
     private CivicPlanService civicPlanService;
+    private PlanFoundationResolver foundationResolver;
     private ProgressService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -99,6 +105,7 @@ class ProgressServiceTest {
         civicSessionManager = mock(CivicDiagnosticSessionManager.class);
         civicViewService = mock(CivicDiagnosticViewService.class);
         civicPlanService = mock(CivicPlanService.class);
+        foundationResolver = mock(PlanFoundationResolver.class);
 
         service = new ProgressService(
                 userManager,
@@ -116,11 +123,21 @@ class ProgressServiceTest {
                 mock(ActiviteResolver.class),
                 // 🛑 Le VRAI resolveur : c'est lui l'autorite du statut, et le
                 // mocker ne verrouillerait que le fait de l'appeler.
-                new StatutObjectifResolver());
+                new StatutObjectifResolver(),
+                foundationResolver,
+                // 🛑 Le VRAI resolveur, la encore : ce test verrouille QUEL
+                // parcours est designe, pas le fait d'appeler quelqu'un.
+                new PlanDomainAssessmentResolver());
 
         user = new User();
         user.setId(userId);
         when(userManager.findById(userId)).thenReturn(Optional.of(user));
+        // Le profil TCF est lu a CHAQUE lecture depuis le 2026-09-16, y compris
+        // sans diagnostic clos : les 4 epreuves ne dependent plus de lui.
+        when(tcfProfileService.levelProfile(userId)).thenReturn(
+                new TcfLevelProfile(null, null, null, null, null));
+        when(foundationResolver.resolve(userId))
+                .thenReturn(PlanFoundationResolver.Foundation.AUCUNE);
         // Abonne : le DETAIL est servi, donc le test voit aussi QUELLES
         // competences sont tenues, pas seulement combien.
         when(subscriptionService.hasTcf(userId)).thenReturn(true);
@@ -251,6 +268,109 @@ class ProgressServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // « Ou vous en etes » — la section n'attend plus le diagnostic 4 epreuves
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 Le défaut du 2026-09-16 : un candidat dont la CO et la CE étaient
+     * mesurées par des examens de module ne voyait <b>aucune</b> carte
+     * d'épreuve sur l'Accueil, parce que la réponse entière était coupée faute
+     * de diagnostic 4 épreuves clos. Le palier, lui, existait déjà — il vient
+     * du profil TCF, pas du diagnostic.
+     */
+    @Test
+    @DisplayName("🛑 Les 4 epreuves sont servies MEME sans diagnostic 4 epreuves clos")
+    void lesEpreuvesNeDependentPlusDuDiagnostic() {
+        // Aucun diagnostic TCF clos, mais une CO et une CE deja mesurees.
+        when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
+        when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                NiveauCecrl.B1, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
+
+        ProgressDto.Tcf tcf = service.progres(userId).tcf();
+
+        // 🛑 Le booleen garde son sens : aucun diagnostic 4 epreuves n'est clos,
+        // donc pas de courbe. Ce n'est plus lui qui commande la liste.
+        assertThat(tcf.disponible()).isFalse();
+        assertThat(tcf.historique()).isEmpty();
+        assertThat(tcf.epreuves()).hasSize(4);
+        assertThat(tcf.niveauActuel()).isEqualTo(NiveauCecrl.A2);
+
+        Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(tcf);
+        assertThat(parEpreuve.get(EpreuveType.TCF_CO).niveau()).isEqualTo(NiveauCecrl.B1);
+        assertThat(parEpreuve.get(EpreuveType.TCF_CE).niveau()).isEqualTo(NiveauCecrl.A2);
+        assertThat(parEpreuve.get(EpreuveType.TCF_EE).niveau()).isNull();
+        // 🛑 Aucun diagnostic clos : pas de palier INITIAL, donc pas d'evolution
+        // fabriquee. INCONNUE, jamais STABLE.
+        assertThat(tcf.epreuves()).allSatisfy(e ->
+                assertThat(e.niveauInitial()).isNull());
+    }
+
+    /**
+     * 🛑 Le vrai travail de la passe : la carte d'une épreuve jamais mesurée
+     * porte <b>de quoi la lancer</b>, et c'est le descripteur du Plan — pas un
+     * second mécanisme. CO/CE partent sur l'examen blanc de module (slot
+     * offert), EE/EO sur le <b>diagnostic</b> tant qu'il n'est pas terminé.
+     */
+    @Test
+    @DisplayName("Epreuve jamais evaluee : le descripteur de mesure du Plan est servi")
+    void uneEpreuveJamaisEvalueePorteSaMesure() {
+        when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
+        when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
+        when(tcfProfileService.levelProfile(userId)).thenReturn(
+                new TcfLevelProfile(null, null, null, null, null));
+
+        Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
+
+        PlanDomainAssessmentDto co = parEpreuve.get(EpreuveType.TCF_CO).evaluation();
+        assertThat(co).isNotNull();
+        assertThat(co.kind()).isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
+        assertThat(co.epreuve()).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(co.moduleExamQuestionType()).isEqualTo(QuestionType.CO);
+        // 🛑 Le slot OFFERT : mesurer un domaine ne doit jamais buter sur le
+        // paywall.
+        assertThat(co.slotNumber()).isEqualTo(1);
+        assertThat(co.estimatedMinutes()).isPositive();
+
+        assertThat(parEpreuve.get(EpreuveType.TCF_CE).evaluation().moduleExamQuestionType())
+                .isEqualTo(QuestionType.CE);
+
+        // Aucun diagnostic termine : l'expression repart sur le diagnostic.
+        assertThat(parEpreuve.get(EpreuveType.TCF_EE).evaluation().kind())
+                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+        assertThat(parEpreuve.get(EpreuveType.TCF_EO).evaluation().kind())
+                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+    }
+
+    /**
+     * Le diagnostic est terminé — il ne se rejoue pas : une épreuve
+     * d'expression encore vide retombe sur une <b>production</b> du catalogue
+     * standard. C'est exactement la règle de {@code PlanDomainAssessmentResolver},
+     * appelée et non recopiée.
+     */
+    @Test
+    @DisplayName("Diagnostic termine : EE/EO jamais evaluees repartent sur une production")
+    void diagnosticTermineRenvoieVersUneProduction() {
+        diagnosticClos(NiveauCecrl.A2, NiveauCecrl.A2, null, null);
+        when(foundationResolver.resolve(userId)).thenReturn(
+                PlanFoundationResolver.of(null, session(TcfDiagnosticStatus.COMPLETED)));
+        when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
+        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+                NiveauCecrl.A2, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
+
+        Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
+
+        assertThat(parEpreuve.get(EpreuveType.TCF_EE).evaluation().kind())
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+        assertThat(parEpreuve.get(EpreuveType.TCF_EO).evaluation().kind())
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+        // 🛑 Et rien a lancer sur ce qui est deja mesure : on ne propose pas de
+        // refaire une mesure qui existe.
+        assertThat(parEpreuve.get(EpreuveType.TCF_CO).evaluation()).isNull();
+        assertThat(parEpreuve.get(EpreuveType.TCF_CE).evaluation()).isNull();
+    }
+
+    // ------------------------------------------------------------------------
     // Le DETAIL civique par theme (audit §D)
     // ------------------------------------------------------------------------
 
@@ -298,13 +418,23 @@ class ProgressServiceTest {
 
     // ------------------------------------------------------------------------
 
+    private static Map<EpreuveType, ProgressDto.Epreuve> parEpreuve(ProgressDto.Tcf tcf) {
+        return tcf.epreuves().stream().collect(java.util.stream.Collectors.toMap(
+                ProgressDto.Epreuve::epreuve, e -> e));
+    }
+
+    private static TcfDiagnosticSession session(TcfDiagnosticStatus status) {
+        TcfDiagnosticSession session = new TcfDiagnosticSession();
+        session.setId(UUID.randomUUID());
+        session.setStatus(status);
+        session.setCompletedAt(Instant.now().minus(3, ChronoUnit.DAYS));
+        return session;
+    }
+
     /** Un diagnostic TCF clos, dont les 4 sections portent les niveaux donnés. */
     private void diagnosticClos(
             NiveauCecrl co, NiveauCecrl ce, NiveauCecrl ee, NiveauCecrl eo) {
-        TcfDiagnosticSession session = new TcfDiagnosticSession();
-        session.setId(UUID.randomUUID());
-        session.setStatus(TcfDiagnosticStatus.COMPLETED);
-        session.setCompletedAt(Instant.now().minus(3, ChronoUnit.DAYS));
+        TcfDiagnosticSession session = session(TcfDiagnosticStatus.COMPLETED);
         when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of(session));
         when(tcfReadService.sections(session)).thenReturn(List.of(
                 section(EpreuveType.TCF_CO, co),

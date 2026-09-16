@@ -69,9 +69,14 @@ public record ProgressDto(
     /**
      * Le mouvement côté <b>TCF</b>.
      *
-     * @param disponible    {@code false} tant qu'aucun diagnostic n'est clos —
-     *                      l'écran ouvre alors la seule porte qui débloque, il
-     *                      n'affiche pas des blocs vides
+     * @param disponible    {@code false} tant qu'aucun <b>diagnostic TCF
+     *                      4 épreuves</b> n'est clos. 🛑 Il dit exactement cela,
+     *                      et rien d'autre : il commande la <b>courbe</b> et le
+     *                      <b>palier global</b> de l'écran Progrès, pas la liste
+     *                      des épreuves. {@link #epreuves()} en est
+     *                      <b>indépendant</b> depuis le 2026-09-16 — une CO
+     *                      mesurée par un examen de module existe sans qu'aucun
+     *                      diagnostic ait jamais été clos
      * @param niveauActuel  le niveau TCF <b>estimé</b>, plancher des épreuves
      *                      réellement passées. 🛑 {@code null} = inconnu, jamais
      *                      « &lt; A1 »
@@ -116,13 +121,26 @@ public record ProgressDto(
      *                      l'épreuve <b>jamais mesurée</b> : c'est
      *                      {@code niveau == null} qui distingue les deux, et un
      *                      écran doit lire les deux
+     * @param evaluation    <b>par quoi mesurer cette épreuve</b>, quand elle ne
+     *                      l'a <b>jamais</b> été ({@code niveau == null}).
+     *                      {@code null} dès qu'un palier existe : il n'y a plus
+     *                      rien à lancer, et proposer une mesure qui existe
+     *                      déjà serait faux.
+     *                      <p>🛑 <b>Même descripteur que « Compléter mon
+     *                      profil » et que la ligne {@code A_EVALUER} de la
+     *                      séance</b> — {@code PlanDomainAssessmentResolver} en
+     *                      reste l'unique autorité, et les fronts le lancent
+     *                      par le lanceur qu'ils ont déjà. Aucun mécanisme
+     *                      nouveau, aucune 5ᵉ porte : c'est un point d'appel de
+     *                      plus, pas une règle de plus.
      */
     public record Epreuve(
             EpreuveType epreuve,
             NiveauCecrl niveau,
             NiveauCecrl niveauInitial,
             NiveauEvolution evolution,
-            StatutObjectif status
+            StatutObjectif status,
+            PlanDomainAssessmentDto evaluation
     ) {
     }
 

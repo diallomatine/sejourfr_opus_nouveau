@@ -214,8 +214,15 @@ public class PlanDomainAssessmentResolver {
      * <p>{@code null} pour une epreuve hors des quatre du profil TCF IRN
      * ({@code TCF_STRUCTURE}, {@code TCF_COMPLET}, {@code CIVIQUE}) : elles ne
      * font pas partie du profil, on n'invente pas une mesure pour elles.
+     *
+     * <p><b>Publique depuis le 2026-09-16</b>, pour la carte d'epreuve de
+     * l'ACCUEIL (« Ou vous en etes ») : une epreuve jamais mesuree y propose
+     * « Faire un exercice », et ce bouton doit lancer <b>la meme</b> mesure que
+     * « Completer mon profil » et que la ligne {@code A_EVALUER} de la seance.
+     * Un troisieme appelant, pas une troisieme regle : la table des trois
+     * natures reste ici, et elle est la seule.
      */
-    private static PlanDomainAssessmentDto pour(EpreuveType epreuve, boolean diagnosticTermine) {
+    public PlanDomainAssessmentDto pour(EpreuveType epreuve, boolean diagnosticTermine) {
         if (epreuve == null) return null;
         return switch (epreuve) {
             case TCF_CO -> PlanDomainAssessmentDto.moduleMockExam(

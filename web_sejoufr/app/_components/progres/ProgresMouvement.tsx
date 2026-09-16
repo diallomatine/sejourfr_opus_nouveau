@@ -46,6 +46,7 @@ import {
     progresCiviqueLabel,
     progresCiviqueScore,
     progresCompetencesLabel,
+    progresEcranVide,
     progresEpreuveNiveau,
     progresEvolutionLabel,
     progresEvolutionTone,
@@ -97,7 +98,11 @@ export function ProgresMouvement() {
                 <p>{PROGRES_LEAD}</p>
             </header>
 
-            {!tcf.disponible && !civique.disponible ? (
+            {/* 🛑 L'écran n'est vide que s'il n'a VRAIMENT rien : depuis le
+                2026-09-16 une épreuve mesurée hors diagnostic remplit déjà le
+                bloc « Par épreuve », et annoncer « après votre premier
+                diagnostic » juste au-dessus se contredirait. */}
+            {progresEcranVide(tcf, civique) ? (
                 <p className="pmv-vide">{PROGRES_VIDE_TEXT}</p>
             ) : null}
 
