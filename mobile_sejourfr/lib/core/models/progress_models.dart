@@ -1,4 +1,5 @@
 import 'civic_plan_models.dart';
+import 'diagnostic_models.dart';
 import 'enums.dart';
 
 /// Miroirs de `ProgressDto` (T28, `30_` §7) — « montrer le MOUVEMENT, pas un
@@ -117,6 +118,7 @@ class ProgressEpreuve {
     this.niveau,
     this.niveauInitial,
     this.status,
+    this.evaluation,
   });
 
   final EpreuveType epreuve;
@@ -129,6 +131,17 @@ class ProgressEpreuve {
   /// 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer.
   final StatutObjectif? status;
 
+  /// **Par quoi mesurer cette épreuve**, quand elle ne l'a **jamais** été
+  /// ([niveau] `null`). `null` dès qu'un palier existe : il n'y a plus rien à
+  /// lancer.
+  ///
+  /// 🛑 **Même descripteur que « Compléter mon profil » et que la ligne
+  /// `A_EVALUER` de la séance**, donc **même lanceur** — `openPlanAssessment`,
+  /// jamais un second. C'est ce qui fait que « Faire un exercice » sur
+  /// l'Accueil ouvre exactement le parcours que le Plan ouvrirait pour le même
+  /// domaine.
+  final PlanDomainAssessment? evaluation;
+
   static ProgressEpreuve fromJson(Map<String, dynamic> json) => ProgressEpreuve(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         niveau: json['niveau'] == null
@@ -140,6 +153,10 @@ class ProgressEpreuve {
         evolution:
             NiveauEvolution.fromWire(json['evolution'] as String? ?? 'INCONNUE'),
         status: StatutObjectif.fromWire(json['status'] as String?),
+        evaluation: json['evaluation'] == null
+            ? null
+            : PlanDomainAssessment.fromJson(
+                json['evaluation'] as Map<String, dynamic>),
       );
 }
 
@@ -208,7 +225,9 @@ class ProgressTcf {
     this.objectif,
   });
 
-  /// `false` tant qu'aucun diagnostic n'est clos : rien à tracer.
+  /// `false` tant qu'aucun **diagnostic TCF 4 épreuves** n'est clos : rien à
+  /// tracer. 🛑 Il commande la **courbe** et le **palier global**, pas la liste
+  /// des épreuves.
   final bool disponible;
   final NiveauCecrl? niveauActuel;
   final NiveauCecrl? objectif;
@@ -217,6 +236,10 @@ class ProgressTcf {
   final List<ProgressEstimation> historique;
 
   /// Les 4 épreuves, **toutes**, évaluées ou non.
+  ///
+  /// 🛑 **Indépendantes de [disponible] depuis le 2026-09-16** : une CO mesurée
+  /// par un examen de module existe sans qu'aucun diagnostic 4 épreuves ait
+  /// jamais été clos. La liste n'est donc jamais vide.
   final List<ProgressEpreuve> epreuves;
   final ProgressCompetences competences;
 

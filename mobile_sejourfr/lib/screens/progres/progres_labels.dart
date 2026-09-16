@@ -47,6 +47,22 @@ const String kProgresCiviqueThemesTitle = 'Par thème';
 const String kProgresVideText =
     'Votre progression s\'affichera après votre premier diagnostic.';
 
+/// L'écran a-t-il **vraiment** l'écran vide ?
+///
+/// 🛑 **Ce n'est plus `!tcf.disponible && !civique.disponible`** (2026-09-16) :
+/// depuis que les 4 épreuves sont servies indépendamment du diagnostic
+/// 4 épreuves, un candidat dont la CO est mesurée par un examen de module a de
+/// quoi remplir le bloc « Par épreuve ». Garder l'ancienne condition aurait
+/// affiché « votre progression s'affichera après votre premier diagnostic »
+/// juste au-dessus de sa progression.
+///
+/// 🛑 **Rien n'est classé ici** : on lit trois faits servis — deux booléens et
+/// la présence d'un palier. Miroir de `progresEcranVide` côté web.
+bool progresEcranVide(ProgressTcf tcf, ProgressCivique civique) =>
+    !tcf.disponible &&
+    !civique.disponible &&
+    tcf.epreuves.every((e) => e.niveau == null);
+
 /// Le niveau et son objectif. 🛑 **Aucun pourcentage** : on nomme deux paliers,
 /// on ne trace pas une barre entre eux.
 String? progresNiveauLabel(ProgressTcf tcf) {

@@ -4041,6 +4041,18 @@ export interface ProgressEpreuveDto {
     evolution: NiveauEvolution;
     /** 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer. */
     status: StatutObjectif | null;
+    /**
+     * **Par quoi mesurer cette épreuve**, quand elle ne l'a **jamais** été
+     * (`niveau === null`). `null` dès qu'un palier existe : il n'y a plus rien
+     * à lancer.
+     *
+     * 🛑 **Même descripteur que « Compléter mon profil » et que la ligne
+     * `A_EVALUER` de la séance**, donc **même lanceur côté front** —
+     * `usePlanAssessment`, jamais un second. C'est ce qui fait que « Faire un
+     * exercice » sur l'Accueil ouvre exactement le parcours que le Plan
+     * ouvrirait pour le même domaine.
+     */
+    evaluation: PlanDomainAssessmentDto | null;
 }
 
 /**
@@ -4073,13 +4085,23 @@ export interface ProgressCompetencesDto {
 }
 
 export interface ProgressTcfDto {
-    /** `false` tant qu'aucun diagnostic n'est clos : rien à tracer. */
+    /**
+     * `false` tant qu'aucun **diagnostic TCF 4 épreuves** n'est clos : rien à
+     * tracer. 🛑 Il commande la **courbe** et le **palier global**, pas la
+     * liste des épreuves.
+     */
     disponible: boolean;
     niveauActuel: NiveauCecrl | null;
     objectif: NiveauCecrl | null;
     /** Du plus ancien au plus récent. 🛑 Une courbe demande **deux** points. */
     historique: ProgressEstimationDto[];
-    /** Les 4 épreuves, **toutes**, évaluées ou non. */
+    /**
+     * Les 4 épreuves, **toutes**, évaluées ou non.
+     *
+     * 🛑 **Indépendantes de `disponible` depuis le 2026-09-16** : une CO
+     * mesurée par un examen de module existe sans qu'aucun diagnostic
+     * 4 épreuves ait jamais été clos. La liste n'est donc jamais vide.
+     */
     epreuves: ProgressEpreuveDto[];
     competences: ProgressCompetencesDto;
 }
