@@ -3,16 +3,11 @@
 import Link from "next/link";
 import {useEffect, useMemo, useState, type ReactNode} from "react";
 import {
-  BookOpen,
   Check,
   ChevronRight,
-  BadgeCheck,
   Circle,
   Clock3,
-  FilePenLine,
-  Headphones,
   Lock,
-  Mic,
   RefreshCw,
   Target,
   type LucideIcon,
@@ -23,7 +18,6 @@ import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
 import {
-  isComprehension,
   planGroupMoreLabel,
   PLAN_GROUP_LESS_LABEL,
   PLAN_PRIORITY_ROWS_COLLAPSED,
@@ -31,20 +25,11 @@ import {
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
-  PLAN_DOMAIN_SECTION,
-  PLAN_NOW_VERIFY_TEXT,
-  PLAN_NOW_VERIFY_TITLE,
-  PLAN_REASON_A_EVALUER,
-  planAssessmentItemTitle,
-  planAssessmentNature,
   PLAN_SKILLS_HREF,
   PLAN_SKILLS_TITLE,
   PLAN_STARTING,
   planActivePriorities,
-  planExerciseKindLabel,
-  planItemMinutes,
-  planNowCta,
-  planNowLines,
+  planNowCard,
   planPathStepNote,
   planPathStepTitle,
   planPathTitle,
@@ -52,9 +37,6 @@ import {
   parcoursDeLaTache,
   type PlanTachePath,
   planRowStatusSummary,
-  planSeanceItemDone,
-  planSeanceItemLocked,
-  planSkillLevel,
   planTaskBadge,
   planTransitionLine,
   type PlanPriorityGroup,
@@ -70,10 +52,7 @@ import {
   type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type ModulePreparation,
-  PLAN_ACTION_NATURE_LABEL,
   type PlanCycleDto,
-  type PlanSeanceAssessmentItemDto,
-  type SkillSection,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
@@ -98,7 +77,7 @@ import {
   sejourStyles,
   type PathStep,
 } from "@/app/_components/sejour/SejourKit";
-import {PlanBlur} from "./PlanBits";
+import {PlanBlur, planNowIcon} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
 import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
 import {AffinerPlanCard} from "./AffinerPlanCard";
@@ -137,13 +116,6 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  *   mettre deux blocs côte à côte au-dessus d'elle remplirait l'espace de
  *   choses à faire au lieu de mener au déblocage.
  */
-
-const SECTION_ICON: Record<SkillSection, LucideIcon> = {
-  CO: Headphones,
-  CE: BookOpen,
-  EO: Mic,
-  EE: FilePenLine,
-};
 
 /* ------------------------------------------------------------------ racine */
 
@@ -525,46 +497,16 @@ function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
 function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean}) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
-  const priority = plan.currentPriority;
 
-  /* 🛑 **Une MESURE passe devant tout le reste.** C'est le seul cas où le
-     bouton ne lance pas l'étape : le candidat a produit sur un domaine et le
-     correcteur n'a rien pu y observer — tout ce qui suivrait travaillerait à
-     l'aveugle. Hors ce cas, le bouton ouvre l'exercice de la priorité, comme
-     sur mobile. */
-  const mesure = plan.seance.items.find(
-    (item): item is PlanSeanceAssessmentItemDto =>
-      !planSeanceItemDone(item) && item.exercise === null,
-  ) ?? null;
+  /* 🛑 **L'identité de la carte est décidée par `planNowCard`, pas ici** — la
+     même autorité que l'Accueil (`ActionPrincipale`) et que les deux cartes du
+     mobile. C'est elle qui applique « une MESURE passe devant tout le reste »,
+     et qui garantit que les deux écrans annoncent la même action. */
+  const vue = planNowCard(plan, {free});
+  if (!vue) return null;
 
-  /* 🛑 **La carte annonce ce qu'elle LANCE.** Quand la mesure prend le pas,
-     c'est SON identité qui s'affiche — son domaine, son parcours, sa pastille.
-     Elle empruntait celle de `priority` : le candidat lisait une tâche
-     d'expression orale et atterrissait dans l'examen blanc de compréhension
-     orale de la mesure. Le plan **gratuit** n'est pas concerné — sa carte ne
-     lance rien, elle constate. */
-  const mesureCard = free ? null : mesure;
-
-  if (!priority) return null;
-
-  const exercise = priority.recommendedExercise;
-  const actionLocked = mesure
-    ? planSeanceItemLocked(mesure)
-    : (priority.locked || exercise?.locked === true);
-  const minutes = mesure ? planItemMinutes(mesure) : exercise?.estimatedMinutes ?? null;
-  const level = planSkillLevel(plan, priority.skillId);
-  const repere = isComprehension(priority.section)
-    ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
-    : planTaskBadge(skillTaskNumber(priority.skillCode) ?? 1);
-
-  /* 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
-     compétence ne change pas quand la série se termine : si seuls le bouton et
-     son libellé changeaient, le candidat lirait « rien n'a bougé » alors que
-     l'action a changé de nature. Elle se lit sur la nature **servie**, jamais
-     sur un compteur. */
-  const verifier = mesureCard === null
-    && priority.nature === "A_VERIFIER" && exercise?.kind === "REASSESSMENT";
-  const tache = skillTaskNumber(priority.skillCode);
+  const {mesure, exercise, lines} = vue;
+  const actionLocked = vue.locked;
 
   const busy = starting || assessments.starting !== null;
   const startNext = () => {
@@ -576,30 +518,8 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
   };
 
   const meta: Array<{icon: LucideIcon; label: string}> = [];
-  if (minutes !== null) {
-    meta.push({
-      icon: Clock3,
-      /* « chacun » : les minutes sont celles d'UN sujet, pas de la série
-         entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour
-         les cinq. */
-      label: mesure === null && !verifier && priority.stepPromptCount > 0
-        ? `${priority.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
-        : `≈ ${minutes} min`,
-    });
-  }
-  /* Sur une mesure, la nature du parcours réellement lancé est portée par le
-     sous-titre : nommer ici l'exercice de la priorité dirait le contraire. */
-  if (exercise && mesure === null) {
-    meta.push({
-      icon: Target,
-      label: planExerciseKindLabel(
-        exercise.kind,
-        exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
-      ),
-    });
-  }
-
-  const lines = planNowLines(priority);
+  if (vue.minutesLabel) meta.push({icon: Clock3, label: vue.minutesLabel});
+  if (vue.kindLabel) meta.push({icon: Target, label: vue.kindLabel});
 
   /* 🛑 **Un compte SANS accès ne voit pas la carte d'un abonné** (correctif du
      2026-09-12, sur la maquette du propriétaire `~/Desktop/capture_plan_gratuit.png`).
@@ -613,48 +533,20 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
     <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
       <Pad>
         <NowCard
-          icon={
-            mesureCard
-              ? SECTION_ICON[PLAN_DOMAIN_SECTION[mesureCard.assessment.epreuve]]
-              : verifier ? BadgeCheck : SECTION_ICON[priority.section]
-          }
-          variant={verifier && !free ? "verify" : "default"}
-          /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit
-             en titre avant 5/5 et en sous-titre sur la vérification, dont le
-             titre nomme l'ACTION — jamais aux deux endroits à la fois, et
-             jamais une troisième fois dans l'encart bleu. */
-          title={
-            mesureCard
-              ? planAssessmentItemTitle(mesureCard.assessment)
-              : verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title
-          }
-          subtitle={
-            mesureCard
-              ? planAssessmentNature(mesureCard.assessment)
-              : free
-                ? priority.title
-                : verifier
-                  ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
-                  : `${productionSectionLabel(priority.section)} · ${repere}`
-          }
-          /* 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa
-             **nature** servie, celle que le serveur a posée sur l'item. */
-          badge={mesureCard
-            ? PLAN_ACTION_NATURE_LABEL.A_EVALUER
-            : free ? undefined : "Priorité n°1"}
-          objectiveLabel={verifier && !free ? "Vérification en situation" : undefined}
-          objective={verifier && !free ? PLAN_NOW_VERIFY_TEXT : undefined}
-          meta={free ? [] : meta}
+          icon={planNowIcon(vue)}
+          variant={vue.nature === "VERIFICATION" && !free ? "verify" : "default"}
+          title={vue.title}
+          subtitle={vue.subtitle}
+          badge={vue.badge ?? undefined}
+          objectiveLabel={vue.objectiveLabel ?? undefined}
+          objective={vue.objective ?? undefined}
+          meta={meta}
         >
           {/* Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en
               est la série. Concaténées, la seconde se lisait comme la suite de
-              la première phrase. Sur une mesure, elles parleraient d'une AUTRE
-              compétence que celle que le bouton ouvre : c'est le motif de la
-              mesure qui se dit. */}
-          {mesureCard && (
-            <p className={sejourStyles.tiny}>{PLAN_REASON_A_EVALUER}</p>
-          )}
-          {!free && !mesureCard && lines.map((line: string) => (
+              la première phrase. Sur une mesure, c'est le motif de la mesure
+              qui se dit — jamais le constat d'une AUTRE compétence. */}
+          {lines.map((line: string) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
           {(free || actionLocked) && (
@@ -666,7 +558,7 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
           )}
           {!free && !actionLocked && (
             <Cta onClick={startNext} disabled={busy}>
-              {busy ? PLAN_STARTING : planNowCta(priority, verifier, mesureCard !== null)}
+              {busy ? PLAN_STARTING : vue.cta}
             </Cta>
           )}
         </NowCard>

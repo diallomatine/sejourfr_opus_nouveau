@@ -25,6 +25,7 @@ import '../plan/civic_plan_provider.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
 import '../plan/plan_labels.dart';
+import '../plan/plan_now_card.dart';
 import '../plan/plan_task_path.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
@@ -306,27 +307,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    final live = ref.watch(learningPlanProvider).valueOrNull?.currentPriority;
+    // 🛑 **L'Accueil et le Plan annoncent la MÊME action**, et c'est
+    // [planNowCard] qui la décide — pour les deux écrans, des deux côtés. Sans
+    // elle, l'Accueil ne lisait que `currentPriority` : il annonçait une tâche
+    // d'expression orale pendant que le Plan, au même instant, demandait de
+    // compléter une mesure de compréhension écrite.
+    final plan = ref.watch(learningPlanProvider).valueOrNull;
+    final carte = plan == null ? null : planNowCard(plan);
+
     // 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
     // Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
     // peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
     // en clair sur l'Accueil démentirait ce rideau. Miroir du web.
-    final priorite = live != null && !live.locked ? live : null;
-    final exercice = priorite?.recommendedExercise;
+    //
+    // ⚠️ **Une MESURE n'est pas une priorité** : elle ne se floute nulle part,
+    // donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
+    // aucun verrou dessus — mais s'il en posait un, `locked` le dirait et on
+    // retomberait sur la carte générique.
+    final nommable = carte != null &&
+        (carte.estMesure ? !carte.locked : !carte.priority.locked);
+
+    final mesure = carte?.mesure;
+    final exercice = carte?.exercise;
     // 🛑 **Un raccourci verrouillé n'en est pas un** : « Commencer directement »
     // enverrait un compte gratuit droit sur un 403. Le Plan, lui, reste ouvert.
-    final lancable = exercice != null && !exercice.locked;
+    final lancable = nommable &&
+        (mesure != null
+            ? !carte.locked
+            : exercice != null && !exercice.locked);
 
     return SfNowCard(
-      icon: LucideIcons.target,
-      // Le titre de la priorité, et rien d'autre : l'explication du correcteur
-      // est le constat d'une production déjà faite — elle raconte le passé sur
-      // une carte qui annonce l'action à mener, et elle vit déjà dans le Plan.
-      title: priorite?.title ?? kHomePriorityFallback,
-      subtitle: exercice == null
-          ? null
-          : homeExerciseMeta(exercice.title, exercice.estimatedMinutes),
-      badge: kHomePriorityBadge,
+      // Quand la série se termine, la carte change de nature : sans son accent
+      // propre, elle se lirait « rien n'a bougé » — ici comme sur le Plan.
+      variant: nommable && carte.estVerification
+          ? SfNowCardVariant.verify
+          : SfNowCardVariant.standard,
+      icon: nommable ? carte.icon : LucideIcons.target,
+      // Le titre de l'action, et rien d'autre : l'explication du correcteur est
+      // le constat d'une production déjà faite — elle raconte le passé sur une
+      // carte qui annonce l'action à mener, et elle vit déjà dans le Plan.
+      title: nommable ? carte.title : kHomePriorityFallback,
+      subtitle: nommable ? carte.subtitle : null,
+      // 🛑 Une mesure n'est pas « votre priorité du jour » : sa pastille dit sa
+      // nature servie, exactement comme sur le Plan.
+      badge: nommable ? carte.badge : kHomePriorityBadge,
       action: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -336,13 +360,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           if (lancable)
             HomeSoftAction(
-              label: kHomeStartDirectCta,
-              onTap: () => unawaited(openPlanExercise(
-                context,
-                ref,
-                exercice,
-                masteryBefore: priorite?.masteryState,
-              )),
+              // Le raccourci **nomme ce qu'il lance** : « Compléter la mesure »
+              // quand c'est une mesure, sinon le libellé générique de l'Accueil.
+              label: carte.estMesure ? carte.cta : kHomeStartDirectCta,
+              onTap: () => unawaited(
+                mesure != null
+                    // Les deux lanceurs du Plan, jamais un second chemin.
+                    ? startPlanSeanceItem(context, ref, mesure)
+                    : openPlanExercise(
+                        context,
+                        ref,
+                        exercice!,
+                        masteryBefore: carte.priority.masteryState,
+                      ),
+              ),
             ),
         ],
       ),

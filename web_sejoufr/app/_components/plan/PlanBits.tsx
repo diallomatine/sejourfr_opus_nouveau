@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+    BadgeCheck,
     BookOpen,
     Check,
     FilePenLine,
@@ -11,6 +12,7 @@ import {
     Mic,
     ShieldCheck,
     Wrench,
+    type LucideIcon,
 } from "lucide-react";
 import type {ReactNode} from "react";
 import {
@@ -20,6 +22,7 @@ import {
     type PlanCycleDto,
     type PlanDomainPriority,
     type PlanDomainTaskDto,
+    type SkillSection,
     type TargetLevel,
 } from "@/lib/types";
 import {
@@ -27,6 +30,7 @@ import {
     PLAN_DOMAIN_SECTION,
     PLAN_PATH_CURRENT_BADGE,
     type PlanDomainEpreuve,
+    type PlanNowVue,
     planDomainLabel,
     planPathStepMeta,
     planPathStepNote,
@@ -53,6 +57,28 @@ const DOMAIN_ICONS: Record<PlanDomainEpreuve, ReactNode> = {
     TCF_EO: <Mic size={19} strokeWidth={1.9} />,
     TCF_EE: <FilePenLine size={19} strokeWidth={1.9} />,
 };
+
+/**
+ * L'icône d'un domaine, **en composant** — ce que le kit (`NowCard`) attend.
+ *
+ * 🛑 Déclarée ici, et plus dans `LearningPlanView` : la carte « À faire
+ * maintenant » existe sur **deux** écrans (le Plan et l'Accueil), et une
+ * seconde table aurait fini par leur donner deux icônes pour la même action.
+ * `lib/plan-domain.ts` reste sans React, d'où la traduction ici et pas là-bas.
+ */
+export const PLAN_SECTION_ICON: Record<SkillSection, LucideIcon> = {
+    CO: Headphones,
+    CE: BookOpen,
+    EO: Mic,
+    EE: FilePenLine,
+};
+
+/** L'icône de la carte « À faire maintenant » : le domaine réellement lancé —
+ *  celui de la **mesure** quand elle passe devant — ou la marque de
+ *  vérification quand la série vient de se terminer. */
+export function planNowIcon(vue: PlanNowVue): LucideIcon {
+    return vue.nature === "VERIFICATION" ? BadgeCheck : PLAN_SECTION_ICON[vue.section];
+}
 
 /**
  * Le carré coloré d'un domaine. `active` le remplit — réservé au domaine dont

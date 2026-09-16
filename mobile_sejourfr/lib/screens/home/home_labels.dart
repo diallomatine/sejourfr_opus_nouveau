@@ -115,9 +115,10 @@ const String kHomePlanCta = 'Continuer mon plan';
 const String kHomeCiviquePlanCta = 'Continuer mon Plan civique';
 const String kHomeStartDirectCta = 'Commencer directement';
 
-/// « Argumenter · 12 min ». `null` sans exercice désigné : on n'annonce ni
-/// titre ni durée qu'on n'a pas.
-String homeExerciseMeta(String title, int minutes) => '$title · $minutes min';
+// ⚠️ `homeExerciseMeta` (« Argumenter · 12 min ») est **supprimé** le
+// 2026-09-16 : le sous-titre de la carte d'action vient désormais de
+// `planNowCard`, la même autorité que le Plan — l'Accueil ne compose plus de
+// repère à lui.
 
 /* ----------------------------------------- l'action du jour — CIVIQUE ----- */
 

@@ -42,7 +42,9 @@ import {
     type PlanDomainTaskDto,
     type PlanPathStepDto,
     type PlanRecentChangesDto,
+    type PlanSeanceAssessmentItemDto,
     type PlanSeanceItemDto,
+    type PlanSkillExerciseDto,
     type PlanMasteryTransitionDto,
     SKILL_MASTERY_STATE_LABEL,
     SKILL_SECTION_LABEL,
@@ -529,6 +531,208 @@ export function planNowLines(priority: LearningPlanPriorityDto): string[] {
         );
     }
     return lines;
+}
+
+/** La pastille de la carte d'action, hors mesure. ⚠️ Le mobile écrit
+ *  « Priorité 1 » (`planPriorityRankTag(1)`) : divergence de forme antérieure,
+ *  laissée telle quelle — chaque front garde sa copie. */
+export const PLAN_NOW_PRIORITY_BADGE = "Priorité n°1";
+/** L'intitulé de l'encart d'une carte de vérification. */
+export const PLAN_NOW_VERIFY_OBJECTIVE_LABEL = "Vérification en situation";
+
+/**
+ * **La mesure de domaine qui ouvre la séance**, s'il y en a une.
+ *
+ * 🛑 Un item `A_EVALUER` ne porte **aucun exercice** : c'est une mesure, et
+ * c'est le seul cas où le bouton principal du Plan ne lance pas l'étape. Le
+ * candidat a produit sur ce domaine et le correcteur n'a rien pu y observer —
+ * tout ce qui suivrait travaillerait à l'aveugle.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planSeanceMesure`, `plan_seance_state.dart`),
+ * où le fait lu est `assessment` : ici l'union discriminée l'interdit par
+ * construction.
+ */
+export function planSeanceMesure(plan: LearningPlanDto): PlanSeanceAssessmentItemDto | null {
+    return plan.seance.items.find(
+        (item): item is PlanSeanceAssessmentItemDto =>
+            !planSeanceItemDone(item) && item.exercise === null,
+    ) ?? null;
+}
+
+/** Ce que la carte « À faire maintenant » **annonce**. */
+export type PlanNowNature =
+    /** Une **mesure de domaine** : le correcteur n'a rien pu observer, et tout
+     *  ce qui suivrait travaillerait à l'aveugle. */
+    | "MESURE"
+    /** L'étape est terminée : le Plan demande une **vérification en situation**. */
+    | "VERIFICATION"
+    /** Le cas courant : l'étape de la priorité n°1. */
+    | "ETAPE";
+
+/** L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance. */
+export interface PlanNowVue {
+    nature: PlanNowNature;
+    /**
+     * **La mesure que le bouton LANCE**, `null` sinon. Elle reste servie même
+     * sur un plan gratuit, où la carte ne la nomme pas : c'est elle qui décide
+     * du verrou comme du démarrage (`usePlanAssessment`).
+     */
+    mesure: PlanSeanceAssessmentItemDto | null;
+    priority: LearningPlanPriorityDto;
+    /** L'exercice de la priorité — celui que la carte lance **hors mesure**. */
+    exercise: PlanSkillExerciseDto | null;
+    /**
+     * 🛑 **Le domaine réellement lancé**, c'est-à-dire l'icône de la carte. Elle
+     * empruntait celle de la priorité : le candidat lisait une tâche
+     * d'expression orale et atterrissait dans l'examen blanc de compréhension
+     * orale de la mesure.
+     */
+    section: SkillSection;
+    /** Le repère de la priorité (« Tâche 2 », « Palier B1 »). */
+    repere: string;
+    title: string;
+    subtitle: string;
+    /** `null` sur un plan gratuit : sa carte constate, elle ne classe pas. */
+    badge: string | null;
+    objectiveLabel: string | null;
+    objective: string | null;
+    /** « ≈ 4 min » ou « 5 petits sujets · ≈ 4 min chacun ». `null` quand aucune
+     *  durée n'est servie — jamais un chiffre inventé. */
+    minutesLabel: string | null;
+    /** La nature de l'exercice lancé. `null` sur une mesure : le sous-titre
+     *  porte déjà le parcours réel. */
+    kindLabel: string | null;
+    /** Le constat, ligne par ligne — jamais concaténé. */
+    lines: string[];
+    cta: string;
+    /** Le verrou **lu**, jamais déduit d'un rang. */
+    locked: boolean;
+}
+
+/**
+ * **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
+ * n'a désigné aucune priorité (l'écran affiche alors son état vide).
+ *
+ * 🛑 **Une seule autorité pour les QUATRE sites d'appel** — le Plan et
+ * l'Accueil, web et mobile. La règle « une MESURE passe devant tout le reste »
+ * vivait dans `ActionMaintenant` et `_nowCard` ; les deux cartes d'Accueil
+ * (`ActionPrincipale`, `_actionTcf`) ne l'avaient **jamais** reçue et lisaient
+ * `currentPriority` seule. Sur les mêmes données, l'Accueil annonçait
+ * « Raconter brièvement une expérience passée · VOTRE PRIORITÉ DU JOUR »
+ * pendant que le Plan annonçait « Compléter mon évaluation de compréhension
+ * écrite · À ÉVALUER » : deux « à faire maintenant » contradictoires pour le
+ * même candidat, au même instant.
+ *
+ * 🛑 **Rien n'est décidé ici** : la précédence de la mesure, la nature de
+ * l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
+ * fait que choisir *laquelle* des deux identités la carte porte.
+ *
+ * ⚠️ `free` n'a **pas** de pendant Dart : le plan gratuit y est une carte à
+ * part (`_freeStepCard`), là où le web rend les deux avec le même `NowCard`.
+ * Sur un plan gratuit la carte **constate** — elle ne nomme pas la mesure, ne
+ * porte ni pastille, ni méta, ni constat, et ne lance rien.
+ */
+export function planNowCard(
+    plan: LearningPlanDto,
+    {free = false}: {free?: boolean} = {},
+): PlanNowVue | null {
+    const priority = plan.currentPriority;
+    if (!priority) return null;
+
+    const exercise = priority.recommendedExercise;
+    const mesure = planSeanceMesure(plan);
+    /* 🛑 Le verrou se lit sur ce que la carte LANCE — la mesure réelle, même
+       quand un plan gratuit ne la nomme pas. */
+    const locked = mesure
+        ? planSeanceItemLocked(mesure)
+        : (priority.locked || exercise?.locked === true);
+
+    const level = planSkillLevel(plan, priority.skillId);
+    const tache = skillTaskNumber(priority.skillCode);
+    const repere = isComprehension(priority.section)
+        ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
+        : planTaskBadge(tache ?? 1);
+
+    /* 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
+       compétence ne change pas quand la série se termine : si seuls le bouton
+       et son libellé changeaient, le candidat lirait « rien n'a bougé » alors
+       que l'action a changé de nature. Elle se lit sur la nature **servie**,
+       jamais sur un compteur. */
+    const mesureCard = free ? null : mesure;
+    const verifier = mesureCard === null
+        && priority.nature === "A_VERIFIER"
+        && exercise?.kind === "REASSESSMENT";
+
+    const minutes = mesureCard ? planItemMinutes(mesureCard) : exercise?.estimatedMinutes ?? null;
+    /* « chacun » : les minutes sont celles d'UN sujet, pas de la série entière —
+       sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour les cinq.
+       ⚠️ La nature est testée avec les compteurs (miroir du mobile) : une série
+       ciblée de compréhension porte elle aussi un `stepPromptCount`, et sans ce
+       test elle annonçait « 5 petits sujets » qu'elle ne contient pas. */
+    const minutesLabel = free || minutes === null
+        ? null
+        : mesureCard === null
+            && !verifier
+            && priority.stepPromptCount > 0
+            && exercise?.kind === "MICRO_TRAINING"
+            ? `${priority.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
+            : `≈ ${minutes} min`;
+
+    if (mesureCard) {
+        return {
+            nature: "MESURE",
+            mesure,
+            priority,
+            exercise,
+            section: PLAN_DOMAIN_SECTION[mesureCard.assessment.epreuve],
+            repere,
+            title: planAssessmentItemTitle(mesureCard.assessment),
+            subtitle: planAssessmentNature(mesureCard.assessment),
+            /* 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa
+               **nature** servie, celle que le serveur a posée sur l'item. */
+            badge: PLAN_ACTION_NATURE_LABEL.A_EVALUER,
+            objectiveLabel: null,
+            objective: null,
+            minutesLabel,
+            kindLabel: null,
+            /* Sur une mesure, le constat de la priorité parlerait d'une AUTRE
+               compétence que celle que le bouton ouvre. */
+            lines: [PLAN_REASON_A_EVALUER],
+            cta: planNowCta(priority, false, true),
+            locked,
+        };
+    }
+
+    return {
+        nature: verifier ? "VERIFICATION" : "ETAPE",
+        mesure,
+        priority,
+        exercise,
+        section: priority.section,
+        repere,
+        /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
+           titre avant 5/5 et en sous-titre sur la vérification, dont le titre
+           nomme l'ACTION. */
+        title: verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title,
+        subtitle: free
+            ? priority.title
+            : verifier
+                ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
+                : `${productionSectionLabel(priority.section)} · ${repere}`,
+        badge: free ? null : PLAN_NOW_PRIORITY_BADGE,
+        objectiveLabel: verifier && !free ? PLAN_NOW_VERIFY_OBJECTIVE_LABEL : null,
+        objective: verifier && !free ? PLAN_NOW_VERIFY_TEXT : null,
+        minutesLabel,
+        kindLabel: free || !exercise
+            ? null
+            : planExerciseKindLabel(
+                exercise.kind,
+                exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
+            ),
+        lines: free ? [] : planNowLines(priority),
+        cta: planNowCta(priority, verifier, false),
+        locked,
+    };
 }
 
 /** Ce que fait un item, en trois mots — la **nature de l'action**, lue sur

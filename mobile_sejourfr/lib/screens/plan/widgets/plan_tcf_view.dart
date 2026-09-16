@@ -21,7 +21,7 @@ import '../plan_groups.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
-import '../plan_seance_state.dart';
+import '../plan_now_card.dart';
 import '../plan_task_path.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
@@ -283,9 +283,14 @@ class PlanTcfView extends ConsumerWidget {
   /// La carte d'action d'un **abonné**. ⚠️ Elle portait un drapeau `free` et
   /// servait aussi le plan gratuit : ce chemin est parti avec
   /// [_freeStepCard] — deux mises en page différentes, deux fonctions.
+  ///
+  /// 🛑 **Son contenu est décidé par [planNowCard], pas ici** — la même autorité
+  /// que l'Accueil (`_actionTcf`) et que les deux cartes du web. L'écran
+  /// assemble le kit, il ne choisit ni l'identité de la carte ni ce qu'elle
+  /// lance.
   Widget _nowCard(BuildContext context, WidgetRef ref) {
-    final priority = plan.currentPriority;
-    if (priority == null) {
+    final carte = planNowCard(plan);
+    if (carte == null) {
       return const SfNoteCard(
         icon: LucideIcons.circleCheck,
         title: kPlanNowEmptyTitle,
@@ -293,105 +298,28 @@ class PlanTcfView extends ConsumerWidget {
       );
     }
 
-    final exercise = priority.recommendedExercise;
-    // 🛑 **Une MESURE passe devant tout le reste.** C'est le seul cas où le
-    // bouton ne lance pas l'étape : le candidat a produit sur ce domaine et le
-    // correcteur n'a rien pu y observer, donc tout ce qui suivrait
-    // travaillerait à l'aveugle. Miroir exact du web (`ActionMaintenant`) —
-    // aucune règle n'est décidée ici, on lit la séance servie et on exécute.
-    final mesure = planSeanceMesure(plan);
-    // 🛑 **La carte annonce ce qu'elle LANCE.** Quand une mesure prend le pas,
-    // c'est SON identité qui s'affiche — son domaine, son parcours, sa
-    // pastille. Elle empruntait celle de `priority` : le candidat lisait une
-    // tâche d'expression orale et atterrissait dans l'examen blanc de
-    // compréhension orale de la mesure.
-    final mesureDomaine = mesure?.assessment;
-    final epreuve = planEpreuveOfSection(priority.section);
-    final task = SkillTaskCode.fromSkillCode(priority.skillCode);
-    final level = planSkillTargetLevel(plan, priority.skillId);
-    final lines = planNowLines(priority);
-    final blocked = mesure != null
-        ? planSeanceItemLocked(mesure)
-        : priority.locked || (exercise?.locked ?? false);
+    final mesure = carte.mesure;
+    final exercise = carte.exercise;
 
-    // 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
-    // compétence ne change pas quand la série se termine : si seuls le bouton
-    // et son libellé changeaient, le candidat lirait « rien n'a bougé » alors
-    // que l'action a changé de nature. Elle se lit sur la nature **servie**,
-    // jamais sur un compteur.
-    final verifier = mesureDomaine == null &&
-        priority.nature == PlanActionNature.aVerifier &&
-        exercise?.kind == PlanExerciseKind.reassessment;
-
-    final minutes = mesure != null
-        ? mesure.assessment?.estimatedMinutes ?? 0
-        : exercise?.estimatedMinutes ?? 0;
-
-    final meta = <SfMeta>[];
-    if (minutes > 0) {
-      meta.add(SfMeta(
-        LucideIcons.clock,
-        // « chacun » : les minutes sont celles d'UN sujet, pas de la série
-        // entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes
-        // pour les cinq.
-        mesure == null &&
-                !verifier &&
-                priority.stepPromptCount > 0 &&
-                exercise?.kind == PlanExerciseKind.microTraining
-            ? '${priority.stepPromptCount} petits sujets '
-                '· ≈ $minutes min chacun'
-            : '≈ $minutes min',
-      ));
-    }
-    // Sur une mesure, la nature du parcours réellement lancé est portée par le
-    // sous-titre : nommer ici l'exercice de la priorité redirait le contraire.
-    final kind = mesureDomaine != null
-        ? null
-        : planExerciseKindLabel(
-            exercise?.kind,
-            questionCount: exercise?.questionCount,
-          );
-    if (kind != null) meta.add(SfMeta(LucideIcons.target, kind));
+    final meta = <SfMeta>[
+      if (carte.minutesLabel != null)
+        SfMeta(LucideIcons.clock, carte.minutesLabel!),
+      if (carte.kindLabel != null) SfMeta(LucideIcons.target, carte.kindLabel!),
+    ];
 
     return SfNowCard(
-      variant: verifier ? SfNowCardVariant.verify : SfNowCardVariant.standard,
-      icon: mesureDomaine != null
-          ? planDomainIcon(mesureDomaine.epreuve)
-          : verifier
-              ? LucideIcons.badgeCheck
-              : planDomainIcon(epreuve),
-      // 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
-      // titre avant 5/5 et en sous-titre sur la vérification, dont le titre
-      // nomme l'ACTION — jamais aux deux endroits à la fois, et jamais une
-      // troisième fois dans l'encart bleu.
-      title: mesureDomaine != null
-          ? planAssessmentItemTitle(mesureDomaine)
-          : verifier
-              ? kPlanNowVerifyTitle
-              : priority.title,
-      subtitle: mesureDomaine != null
-          ? planAssessmentNature(mesureDomaine)
-          : verifier
-              ? planNowVerifySubtitle(priority.title, task)
-              : planNowSubtitle(
-                  domaine: epreuve == null
-                      ? priority.section.label
-                      : planDomainLabel(epreuve),
-                  task: task,
-                  level: level,
-                ),
-      // 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa **nature**
-      // servie, celle que le serveur a posée sur l'item de séance.
-      badge: mesureDomaine != null
-          ? PlanActionNature.aEvaluer.label
-          : planPriorityRankTag(1),
-      objectiveLabel: verifier ? kPlanNowVerifyObjectiveLabel : null,
-      objective: verifier ? kPlanNowVerifyText : null,
+      variant: carte.estVerification
+          ? SfNowCardVariant.verify
+          : SfNowCardVariant.standard,
+      icon: carte.icon,
+      title: carte.title,
+      subtitle: carte.subtitle,
+      badge: carte.badge,
+      objectiveLabel: carte.objectiveLabel,
+      objective: carte.objective,
       meta: meta,
       action: SfButton(
-        label: blocked
-            ? kPlanNowLockedCta
-            : planNowCta(priority, verifier: verifier, mesure: mesure != null),
+        label: carte.locked ? kPlanNowLockedCta : carte.cta,
         onPressed: mesure != null
             // Le lanceur de mesure est une AUTORITÉ EXISTANTE
             // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne réécrit
@@ -403,19 +331,13 @@ class PlanTcfView extends ConsumerWidget {
                       context,
                       ref,
                       exercise,
-                      masteryBefore: priority.masteryState,
+                      masteryBefore: carte.priority.masteryState,
                     )),
       ),
       // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
       // la série. Concaténées, la seconde se lisait comme la suite de la
-      // première phrase. Sur une mesure, elles parleraient d'une AUTRE
-      // compétence que celle que le bouton va ouvrir : c'est le motif de la
-      // mesure qui se dit.
-      caption: mesureDomaine != null
-          ? kPlanReasonAEvaluer
-          : lines.isEmpty
-              ? null
-              : lines.join('\n'),
+      // première phrase.
+      caption: carte.lines.isEmpty ? null : carte.lines.join('\n'),
     );
   }
 

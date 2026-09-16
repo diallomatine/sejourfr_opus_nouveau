@@ -33,10 +33,14 @@ import {useAuth} from "@/lib/auth-context";
 import {
     parcoursDeLaTache,
     planDomainLabel,
+    planNowCard,
     planSectionEpreuve,
     planTaskBadge,
     type PlanPathStep,
 } from "@/lib/plan-domain";
+import {planNowIcon} from "@/app/_components/plan/PlanBits";
+import {usePlanAssessment, usePlanExercise} from "@/app/_components/plan/use-plan-exercise";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
     diagnosticAnalyzingObjective,
     diagnosticCompletedExerciseCount,
@@ -45,7 +49,6 @@ import {
     diagnosticStartObjective,
     diagnosticStartSubtitle,
     diagnosticDashboardState,
-    recommendedExerciseHref,
 } from "@/lib/diagnostic";
 import {
     CIVIC_MAITRISE_LABEL,
@@ -425,41 +428,104 @@ function ActionPrincipale({
         );
     }
 
-    const live = plan?.currentPriority ?? null;
+    return <ActionPlanDuJour plan={plan}/>;
+}
+
+/**
+ * **L'action du jour**, une fois le diagnostic terminé.
+ *
+ * 🛑 **Elle annonce exactement ce qu'annonce le Plan** : `planNowCard` est
+ * l'autorité unique des quatre cartes « À faire maintenant » du produit (Plan
+ * et Accueil, web et mobile). Sans elle, cet écran ne lisait que
+ * `currentPriority` : il annonçait « Raconter brièvement une expérience passée ·
+ * VOTRE PRIORITÉ DU JOUR » pendant que le Plan, au même instant, demandait de
+ * « Compléter mon évaluation de compréhension écrite · À ÉVALUER ».
+ *
+ * 🛑 **Cet écran n'a AUCUNE notion de plan gratuit** — contrairement au Plan,
+ * qui rend une carte à part pour un compte sans accès. Ici le seul fait lu est
+ * le `locked` **servi**, comme avant : rien à masquer de plus.
+ */
+function ActionPlanDuJour({plan}: {plan: LearningPlanDto | null}) {
+    const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
+    const assessments = usePlanAssessment();
+
+    const vue = plan ? planNowCard(plan) : null;
     /* 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
        Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
        peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
        en clair sur l'Accueil démentirait ce rideau. Miroir du mobile
-       (`PlanPriorityHomeCard`, `home_screen.dart`), qui retombe déjà sur son
-       texte générique. */
-    const priority = live && !live.locked ? live : null;
-    const exercise = priority?.recommendedExercise ?? null;
+       (`_actionTcf`, `home_screen.dart`), qui retombe sur son texte générique.
+
+       ⚠️ **Une MESURE n'est pas une priorité** : elle n'est floutée nulle part,
+       donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
+       aucun verrou dessus — s'il en posait un, `locked` le dirait. */
+    const carte = vue && (vue.nature === "MESURE" ? !vue.locked : !vue.priority.locked)
+        ? vue
+        : null;
+    const mesure = carte?.mesure ?? null;
+    const exercise = carte?.exercise ?? null;
     /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
        être une compétence **à acquérir** — désignée avec son `locked`, le
        serveur ayant vérifié qu'elle n'est pas ouverte par sa place n°1 —, et
        « Commencer directement » enverrait alors un compte gratuit droit sur un
        403. Le Plan, lui, reste ouvert : on garde « Continuer mon plan », qui
        porte le cadenas et l'offre. */
-    const startable = Boolean(exercise) && !exercise?.locked;
+    const startable = carte !== null
+        && (mesure !== null ? !carte.locked : Boolean(exercise) && !exercise?.locked);
+    const busy = starting || assessments.starting !== null;
+
     return (
-        <NowCard
-            icon={Target}
-            /* Le titre de la priorité, et rien d'autre : `explanation` est le
-               constat d'une production déjà faite — il raconte le passé sur une
-               carte qui annonce l'action à mener, et il vit déjà dans le Plan. */
-            title={priority?.title ?? "Continuez votre plan personnalisé"}
-            subtitle={exercise ? `${exercise.title} · ${exercise.estimatedMinutes} min` : undefined}
-            badge="Votre priorité du jour"
-        >
-            <div className="home-now-actions">
-                <Cta href="/plan">Continuer mon plan</Cta>
-                {startable && exercise && (
-                    <Link href={recommendedExerciseHref(exercise)} className="home-now-later">
-                        Commencer directement
-                    </Link>
-                )}
-            </div>
-        </NowCard>
+        <>
+            <NowCard
+                icon={carte ? planNowIcon(carte) : Target}
+                variant={carte?.nature === "VERIFICATION" ? "verify" : "default"}
+                /* Le titre de l'action, et rien d'autre : `explanation` est le
+                   constat d'une production déjà faite — il raconte le passé sur
+                   une carte qui annonce l'action à mener, et il vit déjà dans
+                   le Plan. */
+                title={carte?.title ?? "Continuez votre plan personnalisé"}
+                subtitle={carte?.subtitle}
+                /* 🛑 Une mesure n'est pas « votre priorité du jour » : sa
+                   pastille dit sa nature servie, comme sur le Plan. */
+                badge={carte?.badge ?? "Votre priorité du jour"}
+            >
+                <div className="home-now-actions">
+                    <Cta href="/plan">Continuer mon plan</Cta>
+                    {/* 🛑 **Les lanceurs du Plan, jamais un second chemin** :
+                        une mesure part chez `usePlanAssessment`, un exercice
+                        chez `usePlanExercise` — exactement comme le bouton du
+                        Plan. Le raccourci **nomme ce qu'il lance** quand c'est
+                        une mesure ; sinon il garde le libellé de l'Accueil. */}
+                    {startable && carte && (
+                        <button
+                            type="button"
+                            className="home-now-later"
+                            disabled={busy}
+                            onClick={() => {
+                                if (mesure) {
+                                    void assessments.start(mesure.assessment);
+                                    return;
+                                }
+                                if (exercise) void start(exercise);
+                            }}
+                        >
+                            {mesure ? carte.cta : "Commencer directement"}
+                        </button>
+                    )}
+                </div>
+            </NowCard>
+            {(error ?? assessments.error) && (
+                <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
+            )}
+            <PaywallSheet
+                origin="plan"
+                ctaLocation="LOCKED_PLAN"
+                screen="dashboard"
+                module="INTEGRAL"
+                open={paywallOpen || assessments.paywallOpen}
+                onClose={() => { closePaywall(); assessments.closePaywall(); }}
+            />
+        </>
     );
 }
 

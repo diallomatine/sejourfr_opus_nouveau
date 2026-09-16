@@ -1765,8 +1765,7 @@ Priorité 1 ») pendant que « Compléter la mesure » ouvrait l'examen blanc de
 **compréhension orale** de la séance. Deux objets servis, légitimes tous les
 deux, et une carte qui montrait l'un pour lancer l'autre.
 
-Dès qu'une mesure prend le pas, **tout ce qui identifie la carte vient d'elle**,
-des deux côtés dans la même passe (`_nowCard` ⇄ `ActionMaintenant`) :
+Dès qu'une mesure prend le pas, **tout ce qui identifie la carte vient d'elle** :
 
 | élément | ce qu'il devient |
 |---|---|
@@ -1787,3 +1786,59 @@ des deux côtés dans la même passe (`_nowCard` ⇄ `ActionMaintenant`) :
   discriminée (`PlanSeanceAssessmentItemDto`), le mobile par ce test.
 - **Le plan GRATUIT n'est pas concerné** : sa carte ne lance rien, elle
   constate — elle garde l'étape nommée et ses trois bénéfices verrouillés.
+
+#### La règle vaut pour les QUATRE cartes, par une fonction partagée (2026-09-16)
+
+⚠️ **Elle n'avait été posée que sur les deux cartes du PLAN.** Les deux cartes
+de l'**Accueil** (`_actionTcf`, `home_screen.dart` ⇄ `ActionPrincipale`,
+`dashboard/page.tsx`) ne lisaient que `plan.currentPriority` et n'avaient jamais
+entendu parler de la séance. Constaté par le propriétaire, sur les mêmes
+données : l'Accueil annonçait « Raconter brièvement une expérience passée ·
+VOTRE PRIORITÉ DU JOUR · Continuer mon plan » pendant que le Plan, au même
+instant, annonçait « Compléter mon évaluation de compréhension écrite · À
+ÉVALUER · Compléter la mesure ». Deux « à faire maintenant » contradictoires
+pour le même candidat.
+
+Le kit garantissait déjà la parité **visuelle** des quatre cartes
+(`SfNowCard` ⇄ `NowCard`) ; ce qui manquait, c'est la parité de la **sélection
+du contenu**, dupliquée indépendamment au lieu d'être extraite.
+
+🛑 **Une seule autorité, quatre sites d'appel** :
+
+| | fonction partagée | sites d'appel |
+|---|---|---|
+| mobile | `planNowCard` — `screens/plan/plan_now_card.dart` | `_nowCard` (Plan) · `_actionTcf` (Accueil) |
+| web | `planNowCard` — `lib/plan-domain.ts` | `ActionMaintenant` (Plan) · `ActionPlanDuJour` (Accueil) |
+
+Elle rend l'**identité complète** de la carte — nature (`MESURE` /
+`VERIFICATION` / `ETAPE`), icône, titre, sous-titre, pastille, méta, constat,
+libellé du bouton, verrou — **plus ce qu'elle lance** (`mesure`, `exercise`).
+Les écrans assemblent le kit ; ils ne choisissent plus rien.
+
+- 🛑 **Rien n'y est décidé** : la précédence de la mesure, la nature de
+  l'action, les minutes et le verrou sont tous **servis**. La fonction choisit
+  *laquelle* des deux identités la carte porte, et le dit une seule fois.
+- **Le CTA suit la carte** : le raccourci de l'Accueil dit « Compléter la
+  mesure » quand c'est une mesure, et il part par **les lanceurs du Plan**
+  (`startPlanSeanceItem` / `usePlanAssessment` · `openPlanExercise` /
+  `usePlanExercise`), jamais par un second chemin.
+- 🛑 **L'Accueil n'a AUCUNE notion de plan gratuit**, et il n'en a pas besoin :
+  il ne teste jamais `canAccessModule`, il lit le `locked` **servi**. Le
+  masquage `free` reste donc là où il a un sens — sur le Plan, qui rend une
+  carte à part pour un compte sans accès (`_freeStepCard` côté mobile, le
+  drapeau `free` de `planNowCard` côté web, où les deux cartes partagent le même
+  `NowCard`). C'est la seule asymétrie de signature entre les deux fronts, et
+  elle est de forme, pas de règle.
+- ⚠️ **Une MESURE n'est pas une priorité.** La règle « une priorité verrouillée
+  n'est jamais nommée sur l'Accueil » (elle est floutée sur le Plan) ne s'y
+  applique pas : une mesure ne se floute nulle part et se nomme donc des deux
+  côtés. Le serveur ne pose d'ailleurs aucun verrou dessus — s'il en posait un,
+  `locked` le dirait et l'Accueil retomberait sur sa carte générique.
+- 🔴 **Parité réparée en passant** : le web annonçait « N petits sujets ·
+  ≈ X min chacun » dès que `stepPromptCount > 0`, y compris sur une **série
+  ciblée de compréhension**, qui ne contient aucun petit sujet. Il teste
+  désormais aussi `kind === "MICRO_TRAINING"`, comme le mobile le faisait déjà.
+- **Supprimé dans la foulée** : `SECTION_ICON` (local à `LearningPlanView`,
+  remplacé par `PLAN_SECTION_ICON` / `planNowIcon` dans `PlanBits.tsx`, que les
+  deux écrans lisent) et `homeExerciseMeta` (`home_labels.dart`), dont le
+  sous-titre vient maintenant de la fonction partagée.
