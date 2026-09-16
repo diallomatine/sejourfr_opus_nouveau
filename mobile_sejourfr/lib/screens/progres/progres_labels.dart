@@ -291,6 +291,30 @@ double accueilEpreuveJauge(ProgressEpreuve epreuve) =>
       AccueilEpreuveEtat.solide => 1,
     };
 
+/// La droite de la ligne de repères d'une carte d'épreuve — « Objectif B2 ».
+///
+/// 🛑 **Le palier est SERVI** (`ProgressTcf.objectif`, dérivé de la démarche
+/// côté serveur) : aucun écran ne le devine. `null` quand aucune démarche n'est
+/// déclarée — la carte n'affiche alors que le palier atteint.
+///
+/// Miroir web : `accueilObjectifLabel`.
+String? accueilObjectifLabel(NiveauCecrl? objectif) =>
+    objectif == null ? null : 'Objectif ${objectif.shortName}';
+
+/// Le compteur du bandeau d'objectif — « 3 / 4 évaluées ».
+///
+/// 🛑 **On compte des mesures, on n'en classe aucune** : le seul fait lu est la
+/// présence d'un `niveau` servi. Le total est la liste servie elle-même, jamais
+/// un « 4 » écrit en dur — c'est le serveur qui décide combien d'épreuves il
+/// publie.
+///
+/// Miroir web : `accueilEvalueesLabel`.
+String? accueilEvalueesLabel(List<ProgressEpreuve> epreuves) {
+  if (epreuves.isEmpty) return null;
+  final mesurees = epreuves.where((e) => e.niveau != null).length;
+  return '$mesurees / ${epreuves.length} évaluées';
+}
+
 /// « 4 compétences maîtrisées sur 11 travaillées ».
 ///
 /// `null` quand rien n'a jamais été observé : « 0 sur 0 » ne dit rien.

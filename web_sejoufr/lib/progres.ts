@@ -19,6 +19,7 @@
 import type {BarTone} from "@/app/_components/sejour/SejourKit";
 import {niveauCecrlLabel, niveauCecrlShort} from "./types";
 import type {
+    NiveauCecrl,
     NiveauEvolution,
     ProgressActiviteDto,
     ProgressCiviqueDto,
@@ -345,6 +346,35 @@ export function accueilEpreuveJauge(epreuve: ProgressEpreuveDto): number {
         case "SOLIDE":
             return 1;
     }
+}
+
+/**
+ * La droite de la ligne de repères d'une carte d'épreuve — « Objectif B2 ».
+ *
+ * 🛑 **Le palier est SERVI** (`ProgressTcfDto.objectif`, dérivé de la démarche
+ * côté serveur) : aucun écran ne le devine. `null` quand aucune démarche n'est
+ * déclarée — la carte n'affiche alors que le palier atteint.
+ *
+ * Miroir mobile : `accueilObjectifLabel`.
+ */
+export function accueilObjectifLabel(objectif: NiveauCecrl | null): string | null {
+    return objectif ? `Objectif ${niveauCecrlShort(objectif)}` : null;
+}
+
+/**
+ * Le compteur du bandeau d'objectif — « 3 / 4 évaluées ».
+ *
+ * 🛑 **On compte des mesures, on n'en classe aucune** : le seul fait lu est la
+ * présence d'un `niveau` servi. Le total est la liste servie elle-même, jamais
+ * un « 4 » écrit en dur — c'est le serveur qui décide combien d'épreuves il
+ * publie.
+ *
+ * Miroir mobile : `accueilEvalueesLabel`.
+ */
+export function accueilEvalueesLabel(epreuves: ProgressEpreuveDto[]): string | null {
+    if (epreuves.length === 0) return null;
+    const mesurees = epreuves.filter((e) => e.niveau !== null).length;
+    return `${mesurees} / ${epreuves.length} évaluées`;
 }
 
 /**

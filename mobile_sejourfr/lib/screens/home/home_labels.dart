@@ -36,7 +36,17 @@ const String kHomeNowTitle = 'À faire maintenant';
 const String kHomeSituationTitle = 'Où vous en êtes';
 const String kHomeSituationCardTitle = 'Votre niveau par épreuve';
 const String kHomeSituationCardLead =
-    'Mis à jour après vos entraînements et diagnostics.';
+    'Une vue simple de votre niveau actuel et de ce qu\'il reste à atteindre.';
+
+/// La note de pied de carte (maquette du propriétaire, 2026-09-16).
+///
+/// 🛑 **Elle dit ce qui fait bouger le palier**, et c'est la même règle que la
+/// page de résultats : un entraînement libre ou un petit sujet n'y entre pas.
+/// Sans elle, un candidat qui vient d'enchaîner des séries lit un niveau
+/// inchangé et croit à une panne.
+const String kHomeSituationNote =
+    'Le niveau affiché évolue uniquement avec vos diagnostics et vos '
+    'épreuves complètes.';
 
 /// Le pendant civique : le civique se mesure en thèmes, jamais en paliers.
 const String kHomeSituationCivicCardTitle = 'Votre niveau par thème';
