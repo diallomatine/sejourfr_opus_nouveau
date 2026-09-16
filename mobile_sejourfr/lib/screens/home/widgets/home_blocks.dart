@@ -219,7 +219,7 @@ class HomeSituationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
@@ -233,7 +233,7 @@ class HomeSituationCard extends StatelessWidget {
           // Sans statut (aucune démarche déclarée), la carte se referme sur la
           // jauge : un blanc de 10 px se lirait comme un mot manquant.
           if (statut != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               statut!,
               style: AppFonts.ui(size: 13, weight: FontWeight.w800),
@@ -285,7 +285,7 @@ class _SituationHead extends StatelessWidget {
           title,
           style: AppFonts.ui(size: 14.5, weight: FontWeight.w800, height: 1.25),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Align(
           alignment: Alignment.centerRight,
           child: Container(
@@ -327,7 +327,7 @@ class HomeSituationGrid extends StatelessWidget {
 
   final List<Widget> children;
 
-  static const double _gap = 10;
+  static const double _gap = 8;
 
   @override
   Widget build(BuildContext context) {

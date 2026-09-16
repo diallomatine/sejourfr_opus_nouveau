@@ -1230,13 +1230,13 @@ const homeStyles = `
   .home-situation-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
     margin: 12px 0;
   }
   .home-situation-card {
     border: 1px solid var(--color-line);
     border-radius: var(--sf-radius-md);
-    padding: 12px 14px 10px;
+    padding: 10px 12px 8px;
     min-width: 0;
   }
   .home-situation-head {
@@ -1244,7 +1244,7 @@ const homeStyles = `
     align-items: flex-start;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 6px 8px;
+    gap: 4px 8px;
   }
   /* Le titre cède, la pastille non : un libellé de thème civique servi peut
      être long, et sans coupure il pousserait la pastille hors de la carte à
@@ -1283,7 +1283,7 @@ const homeStyles = `
     color: var(--color-blue);
   }
   .home-situation-statut {
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     font-size: 13px;
     font-weight: 800;
     color: var(--color-ink);
