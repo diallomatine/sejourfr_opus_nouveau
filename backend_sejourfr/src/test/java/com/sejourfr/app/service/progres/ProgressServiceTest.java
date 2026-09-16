@@ -1,11 +1,16 @@
 package com.sejourfr.app.service.progres;
 
+import com.sejourfr.app.dto.CivicDiagnosticResultDto;
+import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
+import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.CivicThemeState;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
@@ -26,6 +31,7 @@ import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticViewService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticReadService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticService;
+import com.sejourfr.app.service.plancivique.CivicPlanGrain;
 import com.sejourfr.app.service.plancivique.CivicPlanService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,9 +45,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -242,6 +251,52 @@ class ProgressServiceTest {
     }
 
     // ------------------------------------------------------------------------
+    // Le DETAIL civique par theme (audit §D)
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 Le détail par thème est <b>réexposé</b>, pas recalculé : il sort du même
+     * {@code CivicPlanService.compteurs(userId)} que les compteurs, donc du même
+     * passage du moteur — et il arrive en {@code CivicThemeState} brut, les
+     * fronts posant le libellé.
+     */
+    @Test
+    @DisplayName("Le detail civique par theme est reexpose tel quel, etat brut compris")
+    void leDetailCiviqueParThemeEstReexpose() {
+        diagnosticCiviqueClos();
+        when(civicPlanService.compteurs(userId)).thenReturn(new CivicPlanService.Compteurs(
+                12, 3, false,
+                List.of(
+                        themeLigne("CIV_PRINCIPES", "Principes", CivicThemeState.SOLIDE),
+                        themeLigne("CIV_SOCIETE", "Société", CivicThemeState.FAIBLE),
+                        themeLigne("CIV_HISTOIRE", "Histoire", CivicThemeState.NON_EVALUE))));
+
+        ProgressDto.Civique civique = service.progres(userId).civique();
+
+        assertThat(civique.themes())
+                .extracting(CivicPlanDto.ThemeLigne::code, CivicPlanDto.ThemeLigne::etat)
+                .containsExactly(
+                        tuple("CIV_PRINCIPES", CivicThemeState.SOLIDE),
+                        // 🛑 FAIBLE (mesuré bas) et NON_EVALUE (jamais posé) ne
+                        // se confondent pas : c'est la doctrine du module, et
+                        // l'incident V040/V041/V042 sous un autre déguisement.
+                        tuple("CIV_SOCIETE", CivicThemeState.FAIBLE),
+                        tuple("CIV_HISTOIRE", CivicThemeState.NON_EVALUE));
+        // 🛑 Le moteur civique n'est relu QU'UNE fois pour la même requête.
+        verify(civicPlanService, times(1)).compteurs(userId);
+    }
+
+    /** Aucun diagnostic civique clos : rien n'est inventé, pas même une liste. */
+    @Test
+    @DisplayName("Sans diagnostic civique clos, le detail par theme est vide")
+    void sansDiagnosticCiviqueAucunTheme() {
+        ProgressDto.Civique civique = service.progres(userId).civique();
+
+        assertThat(civique.disponible()).isFalse();
+        assertThat(civique.themes()).isEmpty();
+    }
+
+    // ------------------------------------------------------------------------
 
     /** Un diagnostic TCF clos, dont les 4 sections portent les niveaux donnés. */
     private void diagnosticClos(
@@ -263,6 +318,24 @@ class ProgressServiceTest {
         return new TcfDiagnosticReadService.Section(
                 epreuve, UUID.randomUUID(), TcfDiagnosticSectionState.TERMINEE,
                 null, niveau, null, false);
+    }
+
+    private void diagnosticCiviqueClos() {
+        CivicDiagnosticSession session = new CivicDiagnosticSession();
+        session.setId(UUID.randomUUID());
+        session.setStatus(TcfDiagnosticStatus.COMPLETED);
+        session.setCompletedAt(Instant.now().minus(1, ChronoUnit.DAYS));
+        when(civicSessionManager.findAllByUser(userId)).thenReturn(List.of(session));
+        when(civicViewService.resultat(session)).thenReturn(new CivicDiagnosticResultDto(
+                session.getId(), Difficulty.NAT, 28, 40, null, 32, 40,
+                List.of(), null, List.of(), session.getCompletedAt()));
+    }
+
+    private static CivicPlanDto.ThemeLigne themeLigne(
+            String code, String label, CivicThemeState etat) {
+        return new CivicPlanDto.ThemeLigne(
+                UUID.randomUUID(), code, label, etat,
+                CivicPlanGrain.THEME, 5, 1, 3, null);
     }
 
     private static Skill competence(String code, String titre, SkillSection section) {

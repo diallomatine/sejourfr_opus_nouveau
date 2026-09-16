@@ -55,8 +55,9 @@ import java.util.UUID;
  * {@link TcfDiagnosticProgressionResolver#evolution}, écrit pour cet écran (L7).
  * Le statut d'une épreuve <b>face à l'objectif</b> vient de
  * {@link StatutObjectifResolver} — une comparaison de deux paliers déjà servis,
- * faite <b>serveur</b> pour qu'aucun front ne classe un niveau CECRL. Cet écran
- * <b>assemble</b>, il ne mesure pas.
+ * faite <b>serveur</b> pour qu'aucun front ne classe un niveau CECRL. Le détail
+ * civique par thème vient du moteur du plan civique (L10), qui le produit déjà
+ * pour l'écran Réviser. Cet écran <b>assemble</b>, il ne mesure pas.
  *
  * <p>🛑 <b>Il ne sert aucun pourcentage de progression vers un palier</b>
  * ({@code 30_} §7, règle explicite) : un palier CECRL n'est pas une barre.
@@ -270,7 +271,7 @@ public class ProgressService {
                         .toList();
 
         if (clos.isEmpty()) {
-            return new ProgressDto.Civique(false, List.of(), 0, 0, false);
+            return new ProgressDto.Civique(false, List.of(), 0, 0, false, List.of());
         }
 
         List<ProgressDto.Score> historique = clos.stream()
@@ -283,11 +284,14 @@ public class ProgressService {
         // 🛑 Les compteurs viennent du moteur du plan (L10), sur TOUTES les
         // cibles : les recompter ici en ferait une seconde verite, et compter
         // sur les priorites servies afficherait « 3 » quel que soit le reel.
+        // Le DETAIL par theme sort du MEME appel : le moteur civique se relit
+        // en entier a chaque lecture, et le rappeler une seconde fois pour la
+        // meme requete HTTP doublerait son cout sans rien changer au resultat.
         CivicPlanService.Compteurs compteurs = civicPlanService.compteurs(userId);
 
         return new ProgressDto.Civique(
                 true, historique,
                 compteurs.travaillees(), compteurs.maitrisees(),
-                compteurs.grainNotion());
+                compteurs.grainNotion(), compteurs.themes());
     }
 }
