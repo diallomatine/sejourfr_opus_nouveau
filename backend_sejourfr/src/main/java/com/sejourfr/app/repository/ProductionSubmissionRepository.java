@@ -26,10 +26,10 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
      *
      * <p>🛑 <b>C'est le coût du profil TCF qui en dépend.</b>
      * {@code EpreuvesProductionQualifiantesResolver} évalue toutes les épreuves
-     * complètes d'un candidat à chaque lecture d'Accueil ou de Plan : une
-     * requête par session, plus un lazy-load de tâche par soumission, faisait un
-     * N+1 qui grandissait avec l'historique (mesuré à +14 requêtes sur le budget
-     * du Plan). Le {@code JOIN FETCH} est ce qui rend le coût <b>constant</b>.
+     * complètes d'un candidat à chaque lecture d'Accueil et de « Voir mes
+     * résultats » : une requête par session, plus un lazy-load de tâche par
+     * soumission, faisait un N+1 qui grandissait avec l'historique (mesuré à +14
+     * requêtes). Le {@code JOIN FETCH} est ce qui rend le coût <b>constant</b>.
      */
     @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask "
         + "WHERE s.attempt.id IN :attemptIds ORDER BY s.submittedAt ASC")

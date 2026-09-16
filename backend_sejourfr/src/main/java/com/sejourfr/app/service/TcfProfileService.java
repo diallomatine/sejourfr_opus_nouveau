@@ -19,6 +19,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 /**
  * Niveau TCF d'un candidat <b>dans le temps</b> (à ne pas confondre avec le
@@ -82,6 +83,27 @@ import java.util.UUID;
  * <p>Toute la math CECRL (plancher, meilleur, plafond B2, niveau dérivé d'un
  * score pondéré) est déléguée à {@link TcfLevelEstimatorService} — ce service
  * ne fait que sélectionner les résultats opposables.
+ *
+ * <h2>🛑 DEUX lectures, et elles ne servent pas le même écran</h2>
+ * <p>Arbitrage du propriétaire, <b>2026-09-16</b>, après une première passe dont
+ * le périmètre était trop large. Les deux méthodes publiques assemblent le
+ * <b>même</b> profil — mêmes CO/CE, même baseline de diagnostic, même plancher —
+ * et ne diffèrent que sur <b>ce qui renseigne EE et EO</b> :
+ * <ul>
+ *   <li>{@link #levelProfile} — <b>toute évaluation IA valide</b>, entraînement
+ *       compris. C'est la lecture du <b>Plan</b> ({@code PlanCycleResolver},
+ *       priorités, compétences) et du tableau de bord : un entraînement EE/EO
+ *       est une observation, et le Plan doit continuer de la voir.</li>
+ *   <li>{@link #levelProfileAccueil} — <b>uniquement les épreuves complètes</b>
+ *       ({@link EpreuvesProductionQualifiantesResolver}). C'est la lecture de
+ *       l'<b>Accueil</b>, et de lui seul : un entraînement de trois minutes ne
+ *       doit pas s'afficher comme « niveau d'expression orale » à un candidat
+ *       qui n'a jamais passé d'épreuve d'EO.</li>
+ * </ul>
+ *
+ * <p><b>Les deux peuvent donc diverger, et c'est voulu</b> : l'Accueil dit
+ * « à évaluer » pendant que le Plan travaille déjà le domaine. Ce qui serait un
+ * défaut, c'est qu'un écran <b>recalcule</b> l'un des deux — ils s'appellent.
  */
 @Service
 @RequiredArgsConstructor
@@ -96,20 +118,69 @@ public class TcfProfileService {
 
     private final AttemptManager attemptManager;
     private final AiEvaluationManager aiEvaluationManager;
+    private final EpreuvesProductionQualifiantesResolver qualifiantesResolver;
     private final DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
     private final TcfLevelEstimatorService levelEstimator;
 
     /**
      * Meilleur niveau par épreuve + niveau global (plancher des épreuves
      * renseignées). Tout à null si le candidat n'a jamais rien rendu en TCF.
+     *
+     * <p>EE/EO : <b>toute évaluation IA valide</b>, entraînement compris. C'est
+     * la lecture du Plan et du tableau de bord — cf. l'en-tête de classe,
+     * « DEUX lectures ». L'Accueil, lui, appelle {@link #levelProfileAccueil}.
      */
     @Transactional(readOnly = true)
     public TcfLevelProfile levelProfile(UUID userId) {
+        return profil(userId, this::bestProduction);
+    }
+
+    /**
+     * Le même profil, mais <b>EE et EO ne sont renseignées que par une épreuve
+     * complète réellement passée</b> — diagnostic complet, examen blanc isolé,
+     * ou sous-épreuve d'un examen blanc TCF complet.
+     *
+     * <p>🛑 <b>Réservé à l'Accueil</b> ({@code ProgressService.tcf}), règle du
+     * propriétaire du <b>2026-09-16</b> : un entraînement EE/EO, même corrigé par
+     * l'IA et même situé sur un palier, ne <b>définit</b> pas le niveau global
+     * d'une épreuve. Un compte de test dont la seule trace EO était un
+     * entraînement de trois minutes noté A2 affichait « expression orale : A2 »
+     * sans avoir jamais passé d'épreuve d'EO ; il affiche maintenant
+     * « à évaluer ».
+     *
+     * <p>⚠️ <b>Ce n'est PAS la lecture du Plan.</b> Le premier jet de cette règle
+     * avait modifié {@link #levelProfile} lui-même : le Plan, les priorités et
+     * les compétences perdaient alors les observations d'entraînement, ce que le
+     * propriétaire a explicitement refusé. L'entraînement reste utile au Plan ;
+     * seul l'affichage d'un niveau global exige une épreuve.
+     *
+     * <p>Le <b>niveau global</b> rendu ici est donc, lui aussi, le plancher des
+     * quatre paliers <b>affichés</b> : sans ça, l'écran annoncerait un niveau
+     * global tiré d'une EO qu'il présente deux lignes plus bas comme non évaluée.
+     *
+     * <p>La liste des sessions qui qualifient n'est pas décidée ici : c'est
+     * {@link EpreuvesProductionQualifiantesResolver}, la même autorité que la
+     * page « Voir mes résultats » ({@code EpreuveHistoriqueService}). Les deux
+     * écrans parlent donc des mêmes mesures — un maximum ici, une chronologie
+     * là-bas.
+     */
+    @Transactional(readOnly = true)
+    public TcfLevelProfile levelProfileAccueil(UUID userId) {
+        return profil(userId, this::bestEpreuveComplete);
+    }
+
+    /**
+     * L'assemblage commun aux deux lectures. 🛑 Il n'existe qu'une fois : CO/CE,
+     * le repli baseline et le plancher sont la même règle pour l'Accueil et pour
+     * le Plan — seule la source d'EE/EO change, et c'est le paramètre.
+     */
+    private TcfLevelProfile profil(
+            UUID userId, BiFunction<UUID, EpreuveType, NiveauCecrl> production) {
         final NiveauCecrl co = bestQcm(userId, EpreuveType.TCF_CO);
         final NiveauCecrl ce = bestQcm(userId, EpreuveType.TCF_CE);
 
-        NiveauCecrl ee = bestProduction(userId, EpreuveType.TCF_EE);
-        NiveauCecrl eo = bestProduction(userId, EpreuveType.TCF_EO);
+        NiveauCecrl ee = production.apply(userId, EpreuveType.TCF_EE);
+        NiveauCecrl eo = production.apply(userId, EpreuveType.TCF_EO);
 
         // Repli baseline : une seule requête, et seulement si au moins un des
         // deux domaines de production est vide — un candidat qui travaille
@@ -144,10 +215,16 @@ public class TcfProfileService {
     }
 
     /**
-     * Meilleur niveau d'une épreuve de production (EE/EO) : le plus haut niveau
-     * obtenu sur une tâche évaluée. L'unité retenue est la <b>tâche</b>, parce
-     * que c'est l'unité que le candidat travaille (une session d'entraînement
-     * EE/EO = une tâche).
+     * <b>Lecture du PLAN</b> — meilleur niveau d'une épreuve de production
+     * (EE/EO) : le plus haut niveau obtenu sur une tâche évaluée. L'unité
+     * retenue est la <b>tâche</b>, parce que c'est l'unité que le candidat
+     * travaille (une session d'entraînement EE/EO = une tâche).
+     *
+     * <p>🛑 <b>L'entraînement compte ici, et c'est voulu</b> (arbitrage du
+     * 2026-09-16) : une production d'entraînement corrigée par l'IA est une
+     * observation, et le Plan doit la voir. Ce qu'elle ne fait plus, c'est
+     * <b>afficher</b> un niveau global sur l'Accueil — cf.
+     * {@link #bestEpreuveComplete}.
      *
      * <p>Une soumission ré-évaluée porte plusieurs {@code ai_evaluations} :
      * seule la plus récente fait foi, sinon un verdict périmé pourrait
@@ -172,6 +249,31 @@ public class TcfProfileService {
             // evaluation sans niveau situable.
             if (e.getNiveauCecrl() == null) continue;
             best = levelEstimator.max(best, levelEstimator.capB2(e.getNiveauCecrl()));
+        }
+        return best;
+    }
+
+    /**
+     * <b>Lecture de l'ACCUEIL</b> — meilleur niveau d'<b>épreuve complète</b>
+     * jamais obtenu sur EE ou EO.
+     *
+     * <p>🛑 <b>L'unité est l'ÉPREUVE, jamais la tâche</b>, et la liste des
+     * sessions qui y donnent droit n'est pas décidée ici : c'est
+     * {@link EpreuvesProductionQualifiantesResolver}, la même autorité que la
+     * page « Voir mes résultats ». Ce qu'elle exclut, et c'est le but :
+     * l'entraînement libre, examinateur vocal temps réel compris. Sans épreuve
+     * complète, l'épreuve reste <b>à évaluer</b> sur l'Accueil — le Plan, lui,
+     * continue de lire {@link #bestProduction}.
+     *
+     * <p><b>Toujours un maximum monotone</b> : une mauvaise journée ne fait pas
+     * redescendre, et l'ordre des sessions n'influence rien. C'est ce qui tient
+     * l'anti-yoyo sans règle de séquence.
+     */
+    private NiveauCecrl bestEpreuveComplete(UUID userId, EpreuveType epreuve) {
+        NiveauCecrl best = null;
+        for (final EpreuvesProductionQualifiantesResolver.EpreuveQualifiante q
+                : qualifiantesResolver.qualifiantes(userId, epreuve, SCAN_LIMIT)) {
+            best = levelEstimator.max(best, levelEstimator.capB2(q.niveau()));
         }
         return best;
     }

@@ -24,9 +24,9 @@ public interface AiEvaluationRepository extends JpaRepository<AiEvaluation, UUID
      * submission.
      *
      * <p>🛑 Existe pour le <b>cout</b> du profil TCF, qui evalue toutes les
-     * epreuves completes d'un candidat a chaque lecture d'Accueil ou de Plan.
-     * Une requete par soumission y faisait un N+1 qui grandissait avec
-     * l'historique.
+     * epreuves completes d'un candidat a chaque lecture d'Accueil et de « Voir
+     * mes resultats ». Une requete par soumission y faisait un N+1 qui
+     * grandissait avec l'historique.
      *
      * <p>⚠️ {@code evaluatedAt ASC NULLS FIRST} : une date absente ne doit
      * jamais l'emporter sur une date connue — c'est la meme regle que

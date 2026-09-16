@@ -68,23 +68,30 @@ import java.util.UUID;
  * rend {@code null} et n'est pas servie : <b>{@code null} = inconnu, jamais
  * mauvais</b>.
  *
- * <h2>Pourquoi ce resolver existe</h2>
+ * <h2>Qui lit ce resolver, et qui ne le lit PAS</h2>
  * <p>Extrait le 2026-09-16 à sa 2ᵉ occurrence. {@code EpreuveHistoriqueService}
  * listait déjà ces sessions <b>en chronologie</b> (« d'où sort mon niveau ? »)
- * pendant que {@code TcfProfileService.bestProduction} prenait, lui, le meilleur
- * niveau <b>par TÂCHE, toutes évaluations confondues</b> : l'écran d'Accueil
- * annonçait donc un palier que la page « Voir mes résultats » ne savait expliquer
- * par aucune épreuve. Les deux lisent désormais la même liste ; ils n'en font
- * qu'un usage différent — un maximum ici, une chronologie là-bas.
+ * pendant que la carte d'épreuve de l'Accueil annonçait un palier tiré de
+ * <b>n'importe quelle tâche évaluée</b> : elle proposait « Voir mes résultats »
+ * à un candidat à qui cette page répondait « aucune évaluation qualifiante ».
+ * Les deux lisent maintenant cette liste — un <b>maximum</b> pour l'Accueil
+ * ({@code TcfProfileService.levelProfileAccueil}), une <b>chronologie</b> pour
+ * la page de résultats.
+ *
+ * <p>🛑 <b>Le PLAN ne passe PAS par ici</b>, et c'est l'arbitrage du
+ * propriétaire du 2026-09-16 : {@code TcfProfileService.levelProfile} — la
+ * lecture de {@code PlanCycleResolver}, des priorités et des compétences —
+ * continue de voir les entraînements EE/EO évalués, parce qu'un entraînement
+ * est une observation. Un premier jet avait restreint le Plan lui aussi ; le
+ * périmètre a été ramené à l'affichage.
  *
  * <h2>Le coût est CONSTANT, et c'est une contrainte, pas un détail</h2>
  * <p>🛑 <b>3 requêtes par épreuve</b>, que le candidat ait passé une session ou
  * dix : les sessions, puis leurs soumissions (tâche jointe), puis leurs
  * évaluations — chacune en <b>un lot</b>. Ce resolver tourne à chaque lecture
- * d'Accueil et de Plan ; la version naïve (une requête par session, une par
- * soumission, plus un lazy-load de tâche par soumission) coûtait <b>+14
- * requêtes</b> sur le budget du Plan et grandissait avec l'historique.
- * Verrouillé par {@code LearningPlanCycleIT.leCoutDuPlanNeGrandiPasAvecLHistorique}.
+ * d'Accueil et de « Voir mes résultats » ; la version naïve (une requête par
+ * session, une par soumission, plus un lazy-load de tâche par soumission)
+ * coûtait <b>+14 requêtes</b> et grandissait avec l'historique.
  *
  * <p>⚠️ <b>Les appelants doivent être transactionnels</b> : le bilan traverse
  * {@code submission → production_task}, joint ici mais lazy ailleurs.

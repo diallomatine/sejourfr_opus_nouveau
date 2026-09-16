@@ -52,7 +52,11 @@ import java.util.UUID;
  *
  * <p>🛑 <b>Il ne calcule aucun niveau.</b> Le niveau TCF actuel vient de
  * {@link TcfProfileService} — « le SEUL endroit d'où sort ce niveau », règle du
- * dépôt — et l'objectif de {@link TcfDiagnosticService#cible(User)}, seule
+ * dépôt — dans sa lecture d'<b>Accueil</b>
+ * ({@link TcfProfileService#levelProfileAccueil}, 2026-09-16 : EE et EO n'y sont
+ * renseignées que par une <b>épreuve complète</b> réellement passée, là où le
+ * Plan continue de voir aussi les entraînements évalués) — et l'objectif de
+ * {@link TcfDiagnosticService#cible(User)}, seule
  * autorité de la table démarche → palier. Le sens d'une évolution vient de
  * {@link TcfDiagnosticProgressionResolver#evolution}, écrit pour cet écran (L7).
  * Le statut d'une épreuve <b>face à l'objectif</b> vient de
@@ -167,7 +171,16 @@ public class ProgressService {
         // 🛑 Le niveau ACTUEL d'une epreuve vient du profil TCF, pas du dernier
         // diagnostic : c'est le meilleur resultat toutes sources confondues, et
         // c'est la seule autorite du depot sur ce niveau.
-        TcfLevelProfile profil = tcfProfileService.levelProfile(user.getId());
+        //
+        // 🛑 `levelProfileAccueil`, PAS `levelProfile` (2026-09-16, arbitrage du
+        // proprietaire). C'est la meme autorite, dans sa lecture d'ACCUEIL : EE
+        // et EO n'y sont renseignees que par une EPREUVE COMPLETE reellement
+        // passee. Un entrainement EE/EO evalue par l'IA reste une observation
+        // pleine et entiere pour le PLAN (`levelProfile`, priorites,
+        // competences) — il ne doit simplement pas s'afficher ici comme
+        // « niveau d'expression orale » chez quelqu'un qui n'a jamais passe
+        // d'epreuve d'EO. Les deux ecrans peuvent donc diverger, et c'est voulu.
+        TcfLevelProfile profil = tcfProfileService.levelProfileAccueil(user.getId());
         // 🛑 « Le diagnostic est-il termine ? » a DEJA son autorite, partagee
         // avec le Plan et avec `PreparationDto.planDisponible` : on l'appelle,
         // on ne la recopie pas. C'est elle que `LearningPlanService` passe a ce
@@ -177,6 +190,13 @@ public class ProgressService {
         List<ProgressDto.Epreuve> epreuves = new ArrayList<>(EPREUVES.size());
         for (EpreuveType epreuve : EPREUVES) {
             NiveauCecrl actuel = actuel(profil, epreuve);
+            // 🛑 `initial` n'a RIEN a recalculer (2026-09-16) : il vient des
+            // sections du premier diagnostic 4 epreuves clos, et une section
+            // EE/EO de diagnostic complet est justement l'une des trois
+            // provenances QUALIFIANTES. Le palier initial et le palier actuel se
+            // lisent donc deja sur la meme famille de mesures, et l'evolution
+            // servie reste coherente : `actuel` etant un MAXIMUM sur ces memes
+            // sessions, il ne peut pas passer sous `initial`.
             NiveauCecrl initial = auPremier.get(epreuve);
             epreuves.add(new ProgressDto.Epreuve(
                     epreuve, actuel, initial,

@@ -31,16 +31,21 @@ import java.util.UUID;
  * {@code TcfLevelEstimatorService.niveauEpreuveQcm}. Ce qui est servi ici
  * explique donc exactement le palier servi là-bas.
  *
- * <h2>🛑 EE/EO : mêmes sessions, même autorité de niveau — arbitrage clos</h2>
+ * <h2>🛑 EE/EO : mêmes sessions que l'ACCUEIL — arbitrage clos</h2>
  * <p>Le propriétaire a tranché le <b>2026-09-16</b> : seul un <b>examen complet
- * de l'épreuve</b> définit le niveau global d'EE/EO. La contradiction décrite
- * ici auparavant — cette page ne montrait que les épreuves complètes pendant que
- * {@code TcfProfileService.bestProduction} servait un palier tiré de
- * <b>n'importe quelle tâche évaluée</b>, entraînement libre compris — est donc
- * fermée par le haut : le profil s'est restreint, pas cette page qui se serait
- * élargie. Les deux lisent maintenant
- * {@link EpreuvesProductionQualifiantesResolver}, à un usage près (un maximum
- * là-bas, une chronologie ici).
+ * de l'épreuve</b> peut <b>afficher</b> un niveau global d'EE/EO sur l'Accueil.
+ * La contradiction décrite ici auparavant — cette page ne montrait que les
+ * épreuves complètes pendant que la carte d'Accueil servait un palier tiré de
+ * <b>n'importe quelle tâche évaluée</b>, entraînement libre compris, si bien
+ * qu'elle proposait « Voir mes résultats » à un candidat à qui cette page
+ * répondait « aucune évaluation qualifiante » — est donc fermée : les deux
+ * écrans lisent {@link EpreuvesProductionQualifiantesResolver}, à un usage près
+ * (un maximum pour l'Accueil, une chronologie ici).
+ *
+ * <p>⚠️ <b>Le PLAN, lui, n'est pas concerné</b> : {@code TcfProfileService.levelProfile}
+ * — sa lecture — voit toujours les entraînements EE/EO évalués, parce qu'un
+ * entraînement est une observation utile aux priorités et aux compétences. C'est
+ * {@code TcfProfileService.levelProfileAccueil} qui se restreint, et lui seul.
  * → {@code docs/regles/progression.md}, section « Écran ACCUEIL ».
  *
  * <table>
