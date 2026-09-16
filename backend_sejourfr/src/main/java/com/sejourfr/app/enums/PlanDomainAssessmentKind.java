@@ -8,27 +8,22 @@ package com.sejourfr.app.enums;
  * ({@code PlanRecommendedExerciseDto}) ou celle de {@code PlanChangeDto}.
  *
  * <p>🛑 <b>Aucune de ces natures ne cree de contenu.</b> Chacune designe un
- * parcours <b>deja existant</b> — le diagnostic, un examen blanc de module, une
- * production EE/EO — conformement au brief §5 et §84 : ni banque de questions
+ * parcours <b>deja existant</b> — un examen blanc de module, un examen blanc de
+ * production — conformement au brief §5 et §84 : ni banque de questions
  * dupliquee, ni composant QCM duplique, ni logique d'{@code Attempt} dupliquee.
  * Un domaine ne s'evalue jamais par un moteur qui lui serait propre.
+ *
+ * <p>🛑 <b>Mesurer un domaine, c'est passer un EXAMEN BLANC — les quatre
+ * epreuves, sans exception</b> (arbitrage du proprietaire, 2026-09-16). Les
+ * deux natures qui vivaient ici pour l'expression — {@code DIAGNOSTIC}
+ * (l'ancien diagnostic 1 EE + 1 EO) et {@code PRODUCTION} (les 3 taches en
+ * entrainement libre) — sont <b>supprimees</b> : ni l'une ni l'autre ne
+ * lancait un examen blanc, donc « Evaluer mon niveau » ne voulait pas dire la
+ * meme chose en CO/CE et en EE/EO. Le niveau qu'un ancien diagnostic a deja
+ * produit continue de s'afficher ({@code TcfProfileService} le lit en repli) :
+ * c'est l'<b>affichage</b> qui garde ce repli, pas l'<b>action</b>.
  */
 public enum PlanDomainAssessmentKind {
-
-    /**
-     * Le <b>diagnostic</b> ({@code POST /api/diagnostics}) : une production
-     * ecrite puis une production orale.
-     *
-     * <p>Il mesure <b>les deux domaines d'expression a la fois</b> — c'est
-     * pourquoi il peut etre designe sur {@code TCF_EE} <b>et</b> sur
-     * {@code TCF_EO} dans la meme reponse. Ce n'est pas un doublon : ce sont
-     * deux domaines qui pointent vers la meme porte.
-     *
-     * <p>Jamais designe quand le candidat a deja une session de diagnostic
-     * terminee : elle est unique par {@code (user, code, version)} et ne se
-     * rejoue pas. Le domaine retombe alors sur {@link #PRODUCTION}.
-     */
-    DIAGNOSTIC,
 
     /**
      * Un <b>examen blanc de module</b> QCM sur l'epreuve du domaine
@@ -42,14 +37,17 @@ public enum PlanDomainAssessmentKind {
     MODULE_MOCK_EXAM,
 
     /**
-     * Une <b>production</b> EE ou EO du catalogue standard.
+     * Un <b>examen blanc de production</b> sur l'epreuve du domaine : les
+     * <b>3 taches</b> d'expression enchainees, telles que les sert deja
+     * {@code POST /api/attempts/production} ({@code exam=true},
+     * {@code slotNumber}) — exactement le parcours du jalon du Plan
+     * ({@code PlanExerciseKind.EPREUVE_MOCK_EXAM}).
      *
-     * <p>Repli du domaine d'expression dont le diagnostic est <b>deja
-     * termine</b> alors que ce domaine n'a toujours pas de niveau : analyse en
-     * echec, session ancienne d'une version qui ne portait qu'un cote, ou
-     * production jamais rendue. On ne rejoue pas le diagnostic pour ca — on
-     * demande une vraie production, qui vaut de toute facon davantage que la
-     * baseline ({@code TcfProfileService} ne lit le diagnostic qu'en repli).
+     * <p>{@code moduleExamQuestionType} n'a aucun sens ici (une production ne
+     * se compose pas d'un type de question) et reste {@code null}.
+     * {@code estimatedMinutes} suit {@code DureeEpreuve} : <b>30 min</b> a
+     * l'ecrit, <b>{@code null} a l'oral</b>, qui se chronometre tache par tache
+     * et n'a pas de duree d'epreuve opposable.
      */
-    PRODUCTION
+    PRODUCTION_MOCK_EXAM
 }

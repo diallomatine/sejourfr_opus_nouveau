@@ -100,7 +100,7 @@ class LearningPlanProfilProgressifIT extends AbstractIntegrationTest {
                 .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
                         EpreuveType.TCF_EO, EpreuveType.TCF_EE);
         assertThat(assessment(vierge, EpreuveType.TCF_EE).kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
         assertThat(assessment(vierge, EpreuveType.TCF_CO).kind())
                 .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
         // Aucun examen de palier tant que le profil est incomplet (brief §77).
@@ -188,9 +188,10 @@ class LearningPlanProfilProgressifIT extends AbstractIntegrationTest {
         assertThat(plan.domainesAEvaluer())
                 .extracting(PlanDomainAssessmentDto::epreuve)
                 .containsExactly(EpreuveType.TCF_CE, EpreuveType.TCF_EO, EpreuveType.TCF_EE);
-        // L'expression reste ouverte par le diagnostic, qui n'a pas ete passe.
+        // 🛑 L'expression se mesure par son EXAMEN BLANC, diagnostic passe ou
+        // non (arbitrage du proprietaire, 2026-09-16).
         assertThat(assessment(plan, EpreuveType.TCF_EO).kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
     }
 
 

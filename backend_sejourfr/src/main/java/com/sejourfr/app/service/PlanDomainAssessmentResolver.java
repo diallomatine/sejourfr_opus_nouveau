@@ -32,11 +32,10 @@ import java.util.Set;
  * l'evaluer, je lance quoi ? »</b>.
  *
  * <h2>🛑 Aucun moteur n'est cree</h2>
- * Les trois natures de {@code PlanDomainAssessmentKind} designent des parcours
- * <b>deja livres</b> : le diagnostic, l'examen blanc de module CO/CE, la
+ * Les deux natures de {@code PlanDomainAssessmentKind} designent des parcours
+ * <b>deja livres</b> : l'examen blanc de module CO/CE, l'examen blanc de
  * production EE/EO. Aucune banque de questions, aucun composant QCM, aucune
- * logique d'{@code Attempt} n'est duplique (brief §5, §84), et le diagnostic
- * n'est jamais un {@code TCF_COMPLET}.
+ * logique d'{@code Attempt} n'est duplique (brief §5, §84).
  *
  * <h2>Il n'y a pas de « variante » de diagnostic a persister</h2>
  * « Rapide » (EE + EO) et « complet » (EE + EO + CO + CE) ne different que par
@@ -89,20 +88,13 @@ public class PlanDomainAssessmentResolver {
      *
      * @param domaines             les quatre domaines, tels que
      *                             {@link PlanCycleResolver} les a resolus.
-     * @param diagnosticTermine    ce candidat a une session de diagnostic
-     *                             {@code COMPLETED}. Elle est unique par
-     *                             {@code (user, code, version)} : une fois
-     *                             terminee, elle ne se rejoue pas, et un domaine
-     *                             d'expression encore vide retombe sur une
-     *                             production.
      */
-    public List<PlanDomainAssessmentDto> resolve(
-            List<PlanDomainDto> domaines, boolean diagnosticTermine) {
+    public List<PlanDomainAssessmentDto> resolve(List<PlanDomainDto> domaines) {
         if (domaines == null || domaines.isEmpty()) return List.of();
         List<PlanDomainAssessmentDto> restants = new ArrayList<>();
         for (PlanDomainDto domaine : domaines) {
             if (domaine == null || domaine.evaluated()) continue;
-            PlanDomainAssessmentDto assessment = pour(domaine.epreuve(), diagnosticTermine);
+            PlanDomainAssessmentDto assessment = pour(domaine.epreuve());
             if (assessment != null) restants.add(assessment);
         }
         // L'ordre des epreuves du TCF, pas celui des pastilles : les quatre
@@ -159,13 +151,10 @@ public class PlanDomainAssessmentResolver {
      * @param domaines          les quatre domaines, tels que
      *                          {@link PlanCycleResolver} les a resolus.
      * @param observations      tout l'historique du candidat, deja charge.
-     * @param diagnosticTermine ce candidat a une session de diagnostic
-     *                          {@code COMPLETED} — elle ne se rejoue pas.
      */
     public Optional<PlanDomainAssessmentDto> indispensable(
             List<PlanDomainDto> domaines,
-            List<LearningPlanObservation> observations,
-            boolean diagnosticTermine) {
+            List<LearningPlanObservation> observations) {
         if (domaines == null || domaines.isEmpty()) return Optional.empty();
         if (observations == null || observations.isEmpty()) return Optional.empty();
 
@@ -192,7 +181,7 @@ public class PlanDomainAssessmentResolver {
                 })
                 .sorted(Comparator.comparingInt(
                         item -> TcfDomainProfileDto.ORDRE.indexOf(item.epreuve())))
-                .map(domaine -> pour(domaine.epreuve(), diagnosticTermine))
+                .map(domaine -> pour(domaine.epreuve()))
                 .filter(Objects::nonNull)
                 .findFirst();
     }
@@ -217,21 +206,31 @@ public class PlanDomainAssessmentResolver {
      *
      * <p><b>Publique depuis le 2026-09-16</b>, pour la carte d'epreuve de
      * l'ACCUEIL (« Ou vous en etes ») : une epreuve jamais mesuree y propose
-     * « Faire un exercice », et ce bouton doit lancer <b>la meme</b> mesure que
-     * « Completer mon profil » et que la ligne {@code A_EVALUER} de la seance.
-     * Un troisieme appelant, pas une troisieme regle : la table des trois
-     * natures reste ici, et elle est la seule.
+     * « Evaluer mon niveau », et ce bouton doit lancer <b>la meme</b> mesure que
+     * « Completer mon profil », que la fiche d'un domaine, que l'ecran Progres,
+     * que Reviser et que la ligne {@code A_EVALUER} de la seance. Cinq
+     * appelants, pas cinq regles : la table des natures reste ici, et elle est
+     * la seule.
+     *
+     * <p>🛑 <b>Les quatre epreuves se mesurent par un EXAMEN BLANC</b>
+     * (arbitrage du proprietaire, 2026-09-16) : examen de module en CO/CE,
+     * examen de production (les 3 taches) en EE/EO, toujours au
+     * {@link #SLOT_OFFERT}. Cette methode prenait un {@code diagnosticTermine}
+     * qui n'aiguillait que l'expression — vers l'ancien diagnostic 1 EE + 1 EO
+     * s'il restait a faire, vers l'entrainement libre sinon. <b>Aucun des deux
+     * ne lancait un examen blanc</b>, et « mesurer ce domaine » ne voulait donc
+     * pas dire la meme chose selon l'epreuve. Le parametre a ete retire de
+     * cette signature et de ses appelants : plus personne ne le lisait.
      */
-    public PlanDomainAssessmentDto pour(EpreuveType epreuve, boolean diagnosticTermine) {
+    public PlanDomainAssessmentDto pour(EpreuveType epreuve) {
         if (epreuve == null) return null;
         return switch (epreuve) {
             case TCF_CO -> PlanDomainAssessmentDto.moduleMockExam(
                     epreuve, QuestionType.CO, SLOT_OFFERT, minutes(epreuve));
             case TCF_CE -> PlanDomainAssessmentDto.moduleMockExam(
                     epreuve, QuestionType.CE, SLOT_OFFERT, minutes(epreuve));
-            case TCF_EE, TCF_EO -> diagnosticTermine
-                    ? PlanDomainAssessmentDto.production(epreuve)
-                    : PlanDomainAssessmentDto.diagnostic(epreuve);
+            case TCF_EE, TCF_EO -> PlanDomainAssessmentDto.productionMockExam(
+                    epreuve, SLOT_OFFERT, minutesOuNull(epreuve));
             default -> null;
         };
     }
@@ -241,7 +240,18 @@ public class PlanDomainAssessmentResolver {
      * depot sur les durees d'examen. Aucune constante de duree ici.
      */
     private static int minutes(EpreuveType epreuve) {
+        Integer secondes = minutesOuNull(epreuve);
+        return secondes == null ? 0 : secondes;
+    }
+
+    /**
+     * La duree de l'epreuve <b>quand elle en a une</b>. {@code null} a
+     * l'expression orale, qui se chronometre tache par tache et n'a pas de
+     * duree d'epreuve opposable ({@link DureeEpreuve} le dit) : on n'annonce
+     * alors aucune minute plutot qu'un « 0 min » qui serait faux.
+     */
+    private static Integer minutesOuNull(EpreuveType epreuve) {
         Integer secondes = DureeEpreuve.secondes(epreuve);
-        return secondes == null ? 0 : secondes / 60;
+        return secondes == null ? null : secondes / 60;
     }
 }
