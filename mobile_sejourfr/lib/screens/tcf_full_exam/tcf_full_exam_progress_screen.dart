@@ -13,6 +13,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import 'full_exam_exit_labels.dart';
 import 'full_tcf_exam_provider.dart';
 
@@ -233,6 +234,11 @@ class _TcfFullExamProgressScreenState
       }
     }
     if (!mounted) return;
+    // 🛑 **Clôturer une épreuve est une mesure écrite** : CO/CE rendent leur
+    // score sans passer par le runner (donc sans son signal), et une EE/EO
+    // fige son niveau sur ce qui a été rendu. Une seule émission pour la
+    // suspension entière, quel que soit le nombre d'épreuves closes.
+    signalerMesureEcrite(ref);
     ref.invalidate(fullTcfExamProvider(exam.id));
     _close(context);
   }

@@ -11,6 +11,7 @@ import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import 'full_tcf_exam_provider.dart';
 
 /// Bilan final d'un examen blanc TCF complet : niveau CECRL plancher (règle
@@ -84,6 +85,12 @@ class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen>
     _finishCalled = true;
     try {
       final exam = await ref.read(fullTcfExamRepositoryProvider).finish(widget.parentAttemptId);
+      // 🛑 Finaliser l'examen pose son niveau final : ce que « Où vous en
+      // êtes », le Plan et les progrès disent du candidat vient de changer.
+      // ⚠️ Émis ici et **pas dans le polling** : `_bootstrap` est le seul
+      // passage garanti une fois (`_finishCalled`), une émission par tic
+      // rechargerait cinq sources toutes les 3 secondes.
+      if (mounted) signalerMesureEcrite(ref);
       if (exam.status == FullTcfExamStatus.completed) {
         return;
       }
