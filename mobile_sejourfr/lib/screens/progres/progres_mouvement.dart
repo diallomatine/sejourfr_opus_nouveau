@@ -6,11 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/models/civic_plan_models.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/premium_lock.dart';
+import '../plan/civic_plan_labels.dart';
 import 'progres_labels.dart';
 
 /// **Progrès** (T28, `30_` §7) — « montrer le MOUVEMENT, pas un tableau de
@@ -191,6 +193,22 @@ class _ProgresMouvementState extends ConsumerState<ProgresMouvement> {
           const SizedBox(height: 10),
         ],
 
+        // Civique — le detail par theme. 🛑 L'etat arrive SERVI : on pose un
+        // libelle gele dessus, on ne classe aucun nombre. Et `nonEvalue` est
+        // neutre, jamais ambre : le serveur n'a pas mesure ce theme, il ne dit
+        // pas qu'il est fragile.
+        if (civique.themes.isNotEmpty) ...[
+          _Bloc(
+            eyebrow: kProgresCiviqueThemesTitle,
+            child: Column(
+              children: [
+                for (final theme in civique.themes) _ThemeRow(theme: theme),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
         // 4 — l'activité. 🛑 Ni flamme, ni record, ni objectif.
         _Bloc(
           eyebrow: kProgresActiviteTitle,
@@ -318,9 +336,17 @@ class _EpreuveRow extends StatelessWidget {
         ProgresEvolutionTone.flat => AppColors.inkFaint,
       };
 
+  static Color _statutTone(ProgresStatutTone tone) => switch (tone) {
+        ProgresStatutTone.ok => AppColors.green,
+        ProgresStatutTone.warn => AppColors.amberDark,
+        ProgresStatutTone.hot => AppColors.red,
+        ProgresStatutTone.muted => AppColors.inkFaint,
+      };
+
   @override
   Widget build(BuildContext context) {
     final marqueur = progresEvolutionLabel(epreuve);
+    final statut = progresStatutLabel(epreuve);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -329,6 +355,16 @@ class _EpreuveRow extends StatelessWidget {
             child: Text(epreuve.epreuve.displayLabel,
                 style: AppFonts.ui(size: 14, color: AppColors.ink)),
           ),
+          // 🛑 Le statut est SERVI (`status`), et une épreuve jamais mesurée se
+          // dit « À évaluer » — jamais « À renforcer », qui déguiserait une
+          // absence de mesure en verdict (V040/V041/V042).
+          if (statut != null) ...[
+            Text(statut,
+                style: AppFonts.ui(
+                    size: 12,
+                    color: _statutTone(progresStatutTone(epreuve)))),
+            const SizedBox(width: 10),
+          ],
           Text(progresEpreuveNiveau(epreuve),
               style: AppFonts.label(size: 12, color: AppColors.inkSoft)),
           // 🛑 `inconnue` ne rend RIEN — surtout pas « = » : une épreuve non
@@ -340,6 +376,41 @@ class _EpreuveRow extends StatelessWidget {
                     size: 12.5,
                     color: _tone(progresEvolutionTone(epreuve.evolution)))),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Une ligne de thème civique : son nom, son état **servi**.
+class _ThemeRow extends StatelessWidget {
+  const _ThemeRow({required this.theme});
+
+  final CivicPlanThemeLigne theme;
+
+  /// 🛑 Le ton vient de `civicThemeTone`, l'autorité déjà employée par le Plan
+  /// et le rapport de diagnostic — jamais une seconde table.
+  static Color _tone(CivicCibleTone tone) => switch (tone) {
+        CivicCibleTone.ok => AppColors.green,
+        CivicCibleTone.warn => AppColors.amberDark,
+        CivicCibleTone.hot => AppColors.red,
+        CivicCibleTone.muted => AppColors.inkFaint,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(theme.label,
+                style: AppFonts.ui(size: 14, color: AppColors.ink)),
+          ),
+          const SizedBox(width: 10),
+          Text(theme.etat.label,
+              style: AppFonts.ui(
+                  size: 12.5, color: _tone(civicThemeTone(theme.etat)))),
         ],
       ),
     );
