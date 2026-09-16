@@ -57,6 +57,14 @@ const String kHomeSituationCivicCardLead =
 /// civique porte le seul lanceur de série.
 const String kHomeSituationCivicCta = 'Travailler ce thème';
 
+/// L'intitulé de la bande de tête civique.
+///
+/// 🛑 **Ce n'est PAS « Objectif actuel »** : le civique n'a aucun objectif servi
+/// comparable au palier CECRL du TCF. Ce que le serveur sert, c'est le
+/// **dernier résultat** et le seuil de son format — la bande le dit, et rien
+/// d'autre. Miroir web : `SITUATION_CIVIC_RESULT_LABEL`.
+const String kHomeSituationCivicResultLabel = 'Votre dernier résultat';
+
 const String kHomeGoalLabel = 'Objectif actuel';
 
 /// « Atteindre B1 partout ». Le palier est **servi** (`ProgressTcf.objectif`,

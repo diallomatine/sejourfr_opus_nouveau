@@ -170,8 +170,8 @@ class HomeMiniPlan extends StatelessWidget {
 /* ------------------------------------------------- où vous en êtes ------- */
 
 /// 🛑 **« Où vous en êtes » est passé dans le KIT le 2026-09-16** (maquette du
-/// propriétaire), avec son miroir web dans la même passe : `SfLevelCard`,
-/// `SfLevelGrid`, `SfGoalRibbon` et `SfMicroNote` remplacent
+/// propriétaire), avec son miroir web dans la même passe : `SfLevelLadder`,
+/// `SfLevelRow`, `SfLevelList`, `SfGoalBanner` et `SfMicroNote` remplacent
 /// `HomeSituationCard`, `HomeSituationGrid` et `HomeGoalBanner`, **supprimées**
 /// avec leurs appelants. C'est ce qui garantit que les deux fronts montrent la
 /// même carte, brique pour brique.
