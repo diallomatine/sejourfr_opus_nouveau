@@ -29,6 +29,30 @@ const String kHomeParcoursBannerText =
 /* ----------------------------------------------------- sections de page --- */
 
 const String kHomeNowTitle = 'À faire maintenant';
+
+/* ------------------------------------------------- « Où vous en êtes » ---- */
+
+/// La section des cartes d'épreuve, entre l'action du jour et l'aperçu du Plan.
+const String kHomeSituationTitle = 'Où vous en êtes';
+const String kHomeSituationCardTitle = 'Votre niveau par épreuve';
+const String kHomeSituationCardLead =
+    'Mis à jour après vos entraînements et diagnostics.';
+
+/// Le pendant civique : le civique se mesure en thèmes, jamais en paliers.
+const String kHomeSituationCivicCardTitle = 'Votre niveau par thème';
+const String kHomeSituationCivicCardLead =
+    'Mis à jour après vos séries et votre diagnostic.';
+
+/// Ce que propose une carte de thème civique. 🛑 Elle ne démarre rien : le Plan
+/// civique porte le seul lanceur de série.
+const String kHomeSituationCivicCta = 'Travailler ce thème';
+
+const String kHomeGoalLabel = 'Objectif actuel';
+
+/// « Atteindre B1 partout ». Le palier est **servi** (`ProgressTcf.objectif`,
+/// dérivé de la démarche) — aucun écran ne le devine.
+String homeGoalText(String niveau) => 'Atteindre $niveau partout';
+
 const String kHomePlanTitle = 'Votre Plan';
 const String kHomePlanCurrentLabel = 'Priorité actuelle';
 const String kHomePlanLink = 'Voir mon Plan';

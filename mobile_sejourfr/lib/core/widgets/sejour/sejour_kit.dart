@@ -1227,12 +1227,40 @@ class _SfPrioState extends State<SfPrio> {
   }
 }
 
+/// Le ton du remplissage d'une jauge.
+///
+/// 🛑 Il se **passe**, il ne se dérive d'aucun nombre : l'appelant le tient
+/// d'un état servi. Même palette que les segments de parcours — vert = tenu,
+/// bleu = en cours, ambre = à vérifier, rouge = prioritaire, neutre = non
+/// mesuré. Miroir web : `BarTone` (`SejourKit.tsx`).
+enum SfBarTone { ok, now, warn, hot, muted }
+
+Color _sfBarColor(SfBarTone tone) => switch (tone) {
+      SfBarTone.ok => AppColors.green,
+      SfBarTone.now => AppColors.blue,
+      SfBarTone.warn => AppColors.amberDark,
+      SfBarTone.hot => AppColors.red,
+      SfBarTone.muted => AppColors.muted2,
+    };
+
 /// Barre fine de progression d'une priorité (compétences validées).
+///
+/// 🛑 **Aucun chiffre n'est rendu** : c'est une part parcourue, jamais une
+/// note ni un pourcentage annoncé au candidat.
 class SfProgressMini extends StatelessWidget {
-  const SfProgressMini({super.key, required this.ratio, this.semanticsLabel});
+  const SfProgressMini({
+    super.key,
+    required this.ratio,
+    this.semanticsLabel,
+    this.tone = SfBarTone.now,
+  });
 
   final double ratio;
   final String? semanticsLabel;
+
+  /// Défaut [SfBarTone.now] : c'est le bleu que la brique rendait avant, donc
+  /// aucun appelant existant ne change d'aspect.
+  final SfBarTone tone;
 
   @override
   Widget build(BuildContext context) {
@@ -1246,7 +1274,7 @@ class SfProgressMini extends StatelessWidget {
             value: ratio.clamp(0.0, 1.0),
             minHeight: 6,
             backgroundColor: AppColors.line,
-            valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+            valueColor: AlwaysStoppedAnimation(_sfBarColor(tone)),
           ),
         ),
       ),

@@ -751,11 +751,43 @@ export function Prio({
   );
 }
 
-/** Barre de progression fine d'une priorité (compétences validées). */
-export function ProgressMini({ ratio, label }: { ratio: number; label?: string }) {
+/**
+ * Le ton du remplissage d'une jauge.
+ *
+ * 🛑 Il se **passe**, il ne se dérive d'aucun nombre : l'appelant le tient d'un
+ * état servi. Même palette que les segments de parcours — vert = tenu, bleu =
+ * en cours, ambre = à vérifier, rouge = prioritaire, neutre = non mesuré.
+ * Miroir Flutter : `SfBarTone` (`sejour_kit.dart`).
+ */
+export type BarTone = Tone | "now";
+
+const barToneClass: Record<BarTone, string> = {
+  ok: styles.barOk,
+  now: styles.barNow,
+  warn: styles.barWarn,
+  hot: styles.barHot,
+  muted: styles.barMuted,
+};
+
+/**
+ * Barre de progression fine d'une priorité (compétences validées).
+ *
+ * 🛑 **Aucun chiffre n'est rendu** : c'est une part parcourue, jamais une note
+ * ni un pourcentage annoncé au candidat. Le `%` ne sert qu'à poser la largeur.
+ */
+export function ProgressMini({
+  ratio,
+  label,
+  tone = "now",
+}: {
+  ratio: number;
+  label?: string;
+  /** Défaut `now` : c'est le bleu que la brique rendait avant. */
+  tone?: BarTone;
+}) {
   const pct = Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
   return (
-    <div className={styles.progressMini} aria-label={label}>
+    <div className={cx(styles.progressMini, barToneClass[tone])} aria-label={label}>
       <span style={{ width: `${pct}%` }} />
     </div>
   );

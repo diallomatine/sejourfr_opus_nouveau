@@ -1277,6 +1277,15 @@
   border-radius: 99px;
 }
 
+/* Le ton du remplissage — la palette des segments de parcours, pas une
+   nouvelle. 🛑 Le ton vient d'un état SERVI, jamais d'un seuil sur un nombre.
+   Miroir Flutter : `_sfBarColor` (`sejour_kit.dart`). */
+.barOk span { background: var(--color-green); }
+.barNow span { background: var(--color-blue); }
+.barWarn span { background: var(--color-amber-dark); }
+.barHot span { background: var(--color-red); }
+.barMuted span { background: var(--color-muted-2); }
+
 .skillMini {
   margin-top: 10px;
   display: grid;

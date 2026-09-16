@@ -7,9 +7,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/preparation_labels.dart';
+import '../../core/models/progress_models.dart';
 import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
@@ -27,6 +29,7 @@ import '../plan/plan_actions.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
 import '../plan/plan_task_path.dart';
+import '../progres/progres_labels.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
 
@@ -37,8 +40,14 @@ import 'widgets/home_blocks.dart';
 ///
 /// ## L'ordre vient de la maquette, et de rien d'autre
 ///
-/// En-tête → bascule → **À faire maintenant** → **Votre Plan** → **Votre
-/// progression** → **Affiner votre Plan** → **Vos parcours**.
+/// En-tête → bascule → **À faire maintenant** → **Où vous en êtes** → **Votre
+/// Plan** → **Votre progression** → **Affiner votre Plan** → **Vos parcours**.
+///
+/// ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
+/// une carte compacte par épreuve — palier, jauge, état en un mot, action —
+/// puis l'objectif. 🛑 **Elle ne remplace pas « Votre progression »**, qui
+/// garde ses deux compteurs de compétences : l'une dit *où en est chaque
+/// épreuve*, l'autre *combien de compétences ont bougé*.
 ///
 /// ⚠️ Une première passe avait suivi la structure du **web** plutôt que la
 /// maquette : « Ma préparation » et « À renforcer en priorité » en plus, quatre
@@ -191,6 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<Widget> _blocs(BuildContext context, bool civique) {
     final prep = ref.watch(preparationProvider).valueOrNull;
     final action = civique ? _actionCivique(context) : _actionTcf(context);
+    final situation = _ouVousEnEtes(context, civique);
     final apercu = civique ? _apercuCivique(context) : _apercuTcf(context);
     final progression = _progression(civique);
 
@@ -205,6 +215,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return <Widget>[
       if (action != null)
         SfSection(title: kHomeNowTitle, flush: true, child: action),
+      if (situation != null)
+        SfSection(title: kHomeSituationTitle, flush: true, child: situation),
       if (apercu != null)
         SfSection(title: kHomePlanTitle, flush: true, child: apercu),
       if (progression != null)
@@ -429,6 +441,123 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onPressed: () => _ouvrirPlan(context, civique: true),
       ),
     );
+  }
+
+  /* --------------------------------------------------- où vous en êtes ---- */
+
+  /// **Où vous en êtes** — une carte compacte par épreuve, puis l'objectif.
+  ///
+  /// 🛑 **Aucun appel de plus** : `progressProvider` est déjà lu par « Votre
+  /// progression », et le même `ProgressDto` porte déjà les 4 épreuves. Cette
+  /// section ne coûte rien au réseau.
+  ///
+  /// 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, jauge et CTA
+  /// viennent tous de `accueilEpreuve*` (`screens/progres/progres_labels.dart`),
+  /// l'autorité **partagée avec l'écran Progrès**, qui ne lit que deux faits
+  /// servis : `status` et `evolution`. Aucun palier n'est comparé à un autre —
+  /// cette comparaison vit côté serveur, dans `StatutObjectifResolver`.
+  ///
+  /// 🛑 **La section n'existe pas tant que rien n'est servi** : pas de titre
+  /// au-dessus du vide, comme tous les blocs de cet écran.
+  Widget? _ouVousEnEtes(BuildContext context, bool civique) {
+    final progres = ref.watch(progressProvider).valueOrNull;
+    if (progres == null) return null;
+    return civique ? _situationCivique(context, progres) : _situationTcf(context, progres);
+  }
+
+  Widget? _situationTcf(BuildContext context, Progress progres) {
+    final epreuves = progres.tcf.epreuves;
+    // 🛑 Les 4 épreuves sont **toujours** servies dès qu'il y a quelque chose à
+    // dire. Une liste vide veut dire « aucun diagnostic clos » : le bloc se
+    // tait plutôt que d'afficher quatre cartes « À évaluer » qui répéteraient
+    // l'action du jour juste au-dessus.
+    if (epreuves.isEmpty) return null;
+
+    final objectif = progres.tcf.objectif;
+    return SfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            kHomeSituationCardTitle,
+            style: AppFonts.display(size: 19, weight: FontWeight.w700, height: 1.2),
+          ),
+          const SizedBox(height: 4),
+          const SfTiny(kHomeSituationCardLead),
+          const SizedBox(height: 12),
+          for (final epreuve in epreuves) ...[
+            HomeSituationCard(
+              title: epreuve.epreuve.displayLabel,
+              badge: accueilEpreuveBadge(epreuve),
+              statut: accueilEpreuveStatut(epreuve),
+              jauge: accueilEpreuveJauge(epreuve),
+              tone: accueilEpreuveTon(epreuve),
+              cta: accueilEpreuveCta(epreuve),
+              onTap: () => _ouvrirEpreuve(context, epreuve),
+            ),
+            const SizedBox(height: 10),
+          ],
+          // 🛑 Sans démarche déclarée, pas de bandeau : on ne devine pas
+          // l'objectif d'un candidat qui n'en a pas donné.
+          if (objectif != null)
+            HomeGoalBanner(text: homeGoalText(objectif.shortName)),
+        ],
+      ),
+    );
+  }
+
+  /// Le pendant civique. 🛑 **Aucune métrique CECRL de ce côté** : le civique
+  /// se dit en thèmes et en états servis, jamais en paliers ni en pourcentages.
+  /// Et comme rien ne sert d'objectif civique, le bandeau est **omis**, pas
+  /// fabriqué.
+  Widget? _situationCivique(BuildContext context, Progress progres) {
+    final themes = progres.civique.themes;
+    if (themes.isEmpty) return null;
+    return SfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            kHomeSituationCivicCardTitle,
+            style: AppFonts.display(size: 19, weight: FontWeight.w700, height: 1.2),
+          ),
+          const SizedBox(height: 4),
+          const SfTiny(kHomeSituationCivicCardLead),
+          const SizedBox(height: 12),
+          for (final theme in themes) ...[
+            HomeSituationCard(
+              title: theme.label,
+              // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
+              // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
+              badge: theme.etat == CivicThemeState.nonEvalue
+                  ? 'À évaluer'
+                  : theme.etat.label,
+              statut: theme.etat.label,
+              jauge: civicThemeJauge(theme.etat),
+              tone: civicThemeBarTone(theme.etat),
+              cta: kHomeSituationCivicCta,
+              onTap: () => _ouvrirPlan(context, civique: true),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Ce qu'ouvre la carte d'une épreuve.
+  ///
+  /// 🛑 **Deux destinations, et aucune inventée** : la fiche du domaine —
+  /// l'autorité du Plan, qui porte les lanceurs — quand il y a quelque chose à
+  /// faire, la page des résultats quand il y a quelque chose à relire. Le choix
+  /// se lit sur l'état servi, jamais sur un texte de bouton.
+  void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
+    if (accueilEpreuveOuvreLExercice(epreuve)) {
+      openPlanDomain(context, epreuve.epreuve);
+      return;
+    }
+    context.push(
+        AppRoutes.epreuveHistoriquePath(planDomainKey(epreuve.epreuve)));
   }
 
   /* ------------------------------------------------------- votre plan ----- */

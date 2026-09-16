@@ -10,7 +10,7 @@
  * 🛑 Ce fichier ne **dérive** aucun état pédagogique : `etat` et `projection40`
  * arrivent servis. Il ne fait que les mettre en mots.
  */
-import type {Tone} from "@/app/_components/sejour/SejourKit";
+import type {BarTone, Tone} from "@/app/_components/sejour/SejourKit";
 import type {CivicDiagnosticResultDto, CivicThemeState, TargetProcedure} from "./types";
 
 /**
@@ -54,6 +54,38 @@ export function kitTone(etat: CivicThemeState): Tone {
             return "warn";
         case "NON_EVALUE":
             return "muted";
+    }
+}
+
+/**
+ * Le ton de la **jauge** d'un thème, sur les cartes « Où vous en êtes ».
+ *
+ * 🛑 Il **dérive** de {@link kitTone}, il ne reclasse pas l'état : une seconde
+ * table finirait par colorer autrement le même thème d'un écran à l'autre.
+ * Miroir Flutter : `civicThemeBarTone`.
+ */
+export function civicBarTone(etat: CivicThemeState): BarTone {
+    return kitTone(etat);
+}
+
+/**
+ * Le remplissage de la jauge d'un thème.
+ *
+ * 🛑 **Ce n'est pas un pourcentage de maîtrise** — le civique se mesure en
+ * points sur 40 et en cibles tenues, jamais en barres, et aucun chiffre n'est
+ * affiché. C'est le codage visuel de l'état **servi**, à quatre positions
+ * fixes. 🛑 `NON_EVALUE` vaut 0 comme « jamais mesuré », pas comme « raté ».
+ */
+export function civicBarJauge(etat: CivicThemeState): number {
+    switch (etat) {
+        case "NON_EVALUE":
+            return 0;
+        case "FAIBLE":
+            return 0.3;
+        case "A_RENFORCER":
+            return 0.6;
+        case "SOLIDE":
+            return 1;
     }
 }
 

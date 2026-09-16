@@ -167,6 +167,143 @@ class HomeMiniPlan extends StatelessWidget {
   }
 }
 
+/* ------------------------------------------------- où vous en êtes ------- */
+
+/// Une carte compacte de « Où vous en êtes » : le libellé, la pastille, la
+/// jauge, l'état en un mot, et ce qu'on peut faire.
+///
+/// 🛑 **Cette brique ne classe rien.** Tout ce qu'elle rend lui arrive
+/// **composé** par `accueilEpreuve*` (`screens/progres/progres_labels.dart`),
+/// la même autorité que l'écran Progrès. Elle ne voit ni niveau, ni statut, ni
+/// pourcentage — seulement des mots et un ton déjà décidés.
+///
+/// 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
+/// écrit juste en dessous, pas une progression vers un palier.
+class HomeSituationCard extends StatelessWidget {
+  const HomeSituationCard({
+    super.key,
+    required this.title,
+    required this.badge,
+    required this.statut,
+    required this.jauge,
+    required this.tone,
+    required this.cta,
+    required this.onTap,
+  });
+
+  final String title;
+
+  /// La pastille de droite : un palier servi, ou « À évaluer ».
+  final String badge;
+
+  /// L'état en un mot. `null` quand aucune démarche n'est déclarée : sans
+  /// objectif, il n'y a rien à situer, et on préfère un blanc à un verdict.
+  final String? statut;
+
+  final double jauge;
+  final SfBarTone tone;
+  final String cta;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final mesure = badge != 'À évaluer';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 14.5,
+                    weight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  // Non mesuré : neutre. Le bleu est réservé à un palier réel —
+                  // une pastille de marque sur une absence de mesure se lirait
+                  // comme un résultat.
+                  color: mesure ? AppColors.blueLight : AppColors.surface3,
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: Text(
+                  badge,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w800,
+                    color: mesure ? AppColors.blue : AppColors.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SfProgressMini(ratio: jauge, tone: tone, semanticsLabel: statut),
+          const SizedBox(height: 8),
+          if (statut != null)
+            Text(
+              statut!,
+              style: AppFonts.ui(size: 13, weight: FontWeight.w800),
+            ),
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: HomeLink(label: cta, onTap: onTap),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le bandeau « Objectif actuel — Atteindre B1 partout », sous les cartes.
+///
+/// 🛑 Le palier est **servi** (`ProgressTcf.objectif`) : sans lui, ce bandeau
+/// n'existe pas. On ne devine pas l'objectif d'un candidat qui n'a déclaré
+/// aucune démarche.
+class HomeGoalBanner extends StatelessWidget {
+  const HomeGoalBanner({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              kHomeGoalLabel,
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(text, style: AppFonts.ui(size: 13.5, weight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
 /* ----------------------------------------------------------- parcours ---- */
 
 /// Une ligne de « Vos parcours » : le module, ce qu'elle ouvre, un chevron.

@@ -16,7 +16,8 @@
  *   à battre et sans rien à perdre. Un compteur qu'on peut casser transforme
  *   une mesure en dette.
  */
-import {niveauCecrlLabel} from "./types";
+import type {BarTone} from "@/app/_components/sejour/SejourKit";
+import {niveauCecrlLabel, niveauCecrlShort} from "./types";
 import type {
     NiveauEvolution,
     ProgressActiviteDto,
@@ -159,6 +160,157 @@ export function progresStatutTone(
     if (epreuve.status === "TARGET_REACHED") return "ok";
     if (epreuve.status === "CLOSE_TO_TARGET") return "warn";
     return "hot";
+}
+
+/* ---------------------------------------------------------------------------
+ * « Où vous en êtes » — la carte compacte d'une épreuve sur l'ACCUEIL
+ * ------------------------------------------------------------------------- */
+
+/**
+ * 🛑 **Une seule dérivation pour les deux écrans.** Progrès dit « où vous en
+ * êtes face à l'objectif » ; l'Accueil dit la même chose **plus ce qu'il faut
+ * faire**. Deux tables auraient fini par nommer différemment le même statut
+ * servi, sur deux écrans que le candidat voit dans la même minute — c'est le
+ * défaut le plus cher du dépôt.
+ *
+ * 🛑 **Rien n'est classé ici.** Les deux seuls faits lus sont **servis** :
+ * `status` (dérivé par `StatutObjectifResolver`) et `evolution` (dérivé par
+ * `TcfDiagnosticProgressionResolver`). Aucun nombre n'entre, aucun palier n'est
+ * comparé à un autre.
+ *
+ * 🛑 **Miroir mot pour mot de `AccueilEpreuveEtat` côté mobile**
+ * (`screens/progres/progres_labels.dart`).
+ */
+export type AccueilEpreuveEtat =
+    /**
+     * Jamais mesurée. 🛑 Elle ne se dit **jamais** « à renforcer » : le serveur
+     * la range bien dans `TO_REINFORCE`, mais son niveau vaut `null` et c'est
+     * ce qu'il faut lire (V040/V041/V042).
+     */
+    | "A_EVALUER"
+    /**
+     * Mesurée, et le palier a **monté** depuis la première mesure. 🛑 Ce cas
+     * passe **avant** le statut : dire « à renforcer » à quelqu'un qui vient de
+     * progresser lui cache la seule bonne nouvelle qu'il a.
+     */
+    | "EN_PROGRESSION"
+    /** Au niveau visé, ou au-dessus. */
+    | "SOLIDE"
+    /** Un cran sous l'objectif. */
+    | "PROCHE"
+    /** Mesurée, et loin de l'objectif. */
+    | "A_RENFORCER"
+    /** Mesurée, mais aucune démarche déclarée : rien vers quoi situer. */
+    | "SANS_OBJECTIF";
+
+/** L'état d'une épreuve **sur l'Accueil**, dans l'ordre où il se décide. */
+export function accueilEpreuveEtat(epreuve: ProgressEpreuveDto): AccueilEpreuveEtat {
+    if (!epreuve.niveau) return "A_EVALUER";
+    if (epreuve.evolution === "HAUSSE") return "EN_PROGRESSION";
+    if (!epreuve.status) return "SANS_OBJECTIF";
+    if (epreuve.status === "TARGET_REACHED") return "SOLIDE";
+    if (epreuve.status === "CLOSE_TO_TARGET") return "PROCHE";
+    return "A_RENFORCER";
+}
+
+/**
+ * La phrase courte de la carte. `null` = rien à dire, pas « rien à faire ».
+ *
+ * 🛑 `PROCHE` et `A_RENFORCER` reprennent **les libellés gelés** de
+ * `PROGRES_STATUT_LABEL` : même statut servi, même mot, d'un écran à l'autre.
+ */
+export function accueilEpreuveStatut(epreuve: ProgressEpreuveDto): string | null {
+    switch (accueilEpreuveEtat(epreuve)) {
+        case "A_EVALUER":
+            return "Pas encore évaluée";
+        case "EN_PROGRESSION":
+            return "En progression";
+        case "SOLIDE":
+            return "Solide · à maintenir";
+        case "PROCHE":
+            return PROGRES_STATUT_LABEL.CLOSE_TO_TARGET;
+        case "A_RENFORCER":
+            return PROGRES_STATUT_LABEL.TO_REINFORCE;
+        case "SANS_OBJECTIF":
+            return null;
+    }
+}
+
+/**
+ * La pastille de niveau. « À évaluer » quand rien n'a été mesuré.
+ *
+ * 🛑 `niveauCecrlShort` et jamais un troncage maison : `A1_NON_ATTEINT` se rend
+ * « &lt;A1 », pas « A1 ».
+ */
+export function accueilEpreuveBadge(epreuve: ProgressEpreuveDto): string {
+    return epreuve.niveau ? niveauCecrlShort(epreuve.niveau) : "À évaluer";
+}
+
+/**
+ * Ce que la carte propose de faire.
+ *
+ * 🛑 **Dérivé de l'état, jamais un texte fixe** : une épreuve jamais mesurée ne
+ * propose pas de « voir » des résultats qui n'existent pas, et une épreuve qui
+ * monte propose de continuer plutôt que de relire.
+ */
+export function accueilEpreuveCta(epreuve: ProgressEpreuveDto): string {
+    const etat = accueilEpreuveEtat(epreuve);
+    if (etat === "A_EVALUER") return "Faire un exercice";
+    if (etat === "EN_PROGRESSION") return "Continuer";
+    return "Voir mes résultats";
+}
+
+/**
+ * La carte mène-t-elle à un **exercice** plutôt qu'aux résultats ?
+ *
+ * 🛑 Le chemin d'un exercice est celui du Plan, jamais un second : c'est la
+ * fiche du domaine qui porte les lanceurs.
+ */
+export function accueilEpreuveOuvreLExercice(epreuve: ProgressEpreuveDto): boolean {
+    const etat = accueilEpreuveEtat(epreuve);
+    return etat === "A_EVALUER" || etat === "EN_PROGRESSION";
+}
+
+/** Le ton de la jauge et du statut. */
+export function accueilEpreuveTon(epreuve: ProgressEpreuveDto): BarTone {
+    switch (accueilEpreuveEtat(epreuve)) {
+        case "A_EVALUER":
+        case "SANS_OBJECTIF":
+            return "muted";
+        case "EN_PROGRESSION":
+            return "now";
+        case "SOLIDE":
+            return "ok";
+        case "PROCHE":
+            return "warn";
+        case "A_RENFORCER":
+            return "hot";
+    }
+}
+
+/**
+ * Le remplissage de la jauge.
+ *
+ * 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — la règle
+ * qui l'interdit (`30_` §7) tient toujours, et aucun chiffre n'est affiché.
+ * C'est le **codage visuel d'un état servi**, à cinq positions fixes : la barre
+ * dit la même chose que le mot juste en dessous, elle ne mesure rien de plus.
+ * Un palier CECRL n'est toujours pas une barre.
+ */
+export function accueilEpreuveJauge(epreuve: ProgressEpreuveDto): number {
+    switch (accueilEpreuveEtat(epreuve)) {
+        case "A_EVALUER":
+        case "SANS_OBJECTIF":
+            return 0;
+        case "A_RENFORCER":
+            return 0.35;
+        case "EN_PROGRESSION":
+            return 0.55;
+        case "PROCHE":
+            return 0.75;
+        case "SOLIDE":
+            return 1;
+    }
 }
 
 /**

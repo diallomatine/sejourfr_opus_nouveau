@@ -1,4 +1,6 @@
+import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 
 /// Les **mots** de l'écran Progrès (T28, `30_` §7) — **purs**, déclarés une
 /// fois pour tout le mobile.
@@ -132,6 +134,136 @@ ProgresStatutTone progresStatutTone(ProgressEpreuve epreuve) {
     StatutObjectif.toReinforce => ProgresStatutTone.hot,
   };
 }
+
+/// ---------------------------------------------------------------------------
+/// « Où vous en êtes » — la carte compacte d'une épreuve sur l'ACCUEIL
+/// ---------------------------------------------------------------------------
+///
+/// 🛑 **Une seule dérivation pour les deux écrans.** Progrès dit « où vous en
+/// êtes face à l'objectif » ; l'Accueil dit la même chose **plus ce qu'il faut
+/// faire**. Deux tables auraient fini par nommer différemment le même statut
+/// servi, sur deux écrans que le candidat voit dans la même minute — c'est le
+/// défaut le plus cher du dépôt.
+///
+/// 🛑 **Rien n'est classé ici.** Les deux seuls faits lus sont **servis** :
+/// `status` ([StatutObjectif], dérivé par `StatutObjectifResolver`) et
+/// `evolution` ([NiveauEvolution], dérivé par
+/// `TcfDiagnosticProgressionResolver`). Aucun nombre n'entre, aucun palier
+/// n'est comparé à un autre.
+///
+/// 🛑 **Miroir mot pour mot de `accueilEpreuveEtat` côté web**
+/// (`web_sejoufr/lib/progres.ts`).
+enum AccueilEpreuveEtat {
+  /// Jamais mesurée. 🛑 Elle ne se dit **jamais** « à renforcer » : le serveur
+  /// la range bien dans `TO_REINFORCE`, mais son niveau vaut `null` et c'est ce
+  /// qu'il faut lire (V040/V041/V042).
+  aEvaluer,
+
+  /// Mesurée, et le palier a **monté** depuis la première mesure. 🛑 Ce cas
+  /// passe **avant** le statut : dire « à renforcer » à quelqu'un qui vient de
+  /// progresser lui cache la seule bonne nouvelle qu'il a.
+  enProgression,
+
+  /// Au niveau visé, ou au-dessus.
+  solide,
+
+  /// Un cran sous l'objectif.
+  proche,
+
+  /// Mesurée, et loin de l'objectif.
+  aRenforcer,
+
+  /// Mesurée, mais aucune démarche déclarée : rien vers quoi situer.
+  sansObjectif,
+}
+
+/// L'état d'une épreuve **sur l'Accueil**, dans l'ordre où il se décide.
+AccueilEpreuveEtat accueilEpreuveEtat(ProgressEpreuve epreuve) {
+  if (epreuve.niveau == null) return AccueilEpreuveEtat.aEvaluer;
+  if (epreuve.evolution == NiveauEvolution.hausse) {
+    return AccueilEpreuveEtat.enProgression;
+  }
+  return switch (epreuve.status) {
+    null => AccueilEpreuveEtat.sansObjectif,
+    StatutObjectif.targetReached => AccueilEpreuveEtat.solide,
+    StatutObjectif.closeToTarget => AccueilEpreuveEtat.proche,
+    StatutObjectif.toReinforce => AccueilEpreuveEtat.aRenforcer,
+  };
+}
+
+/// La phrase courte de la carte. `null` = rien à dire, pas « rien à faire ».
+///
+/// 🛑 [AccueilEpreuveEtat.proche] et [AccueilEpreuveEtat.aRenforcer] reprennent
+/// **les libellés gelés** de [kProgresStatutLabel] : même statut servi, même
+/// mot, d'un écran à l'autre.
+String? accueilEpreuveStatut(ProgressEpreuve epreuve) =>
+    switch (accueilEpreuveEtat(epreuve)) {
+      AccueilEpreuveEtat.aEvaluer => 'Pas encore évaluée',
+      AccueilEpreuveEtat.enProgression => 'En progression',
+      AccueilEpreuveEtat.solide => 'Solide · à maintenir',
+      AccueilEpreuveEtat.proche =>
+        kProgresStatutLabel[StatutObjectif.closeToTarget],
+      AccueilEpreuveEtat.aRenforcer =>
+        kProgresStatutLabel[StatutObjectif.toReinforce],
+      AccueilEpreuveEtat.sansObjectif => null,
+    };
+
+/// La pastille de niveau. « À évaluer » quand rien n'a été mesuré.
+///
+/// 🛑 [NiveauCecrl.shortName] et jamais un troncage maison : `A1_NON_ATTEINT`
+/// se rend « &lt;A1 », pas « A1 ».
+String accueilEpreuveBadge(ProgressEpreuve epreuve) =>
+    epreuve.niveau?.shortName ?? 'À évaluer';
+
+/// Ce que la carte propose de faire.
+///
+/// 🛑 **Dérivé de l'état, jamais un texte fixe** : une épreuve jamais mesurée
+/// ne propose pas de « voir » des résultats qui n'existent pas, et une épreuve
+/// qui monte propose de continuer plutôt que de relire.
+String accueilEpreuveCta(ProgressEpreuve epreuve) =>
+    switch (accueilEpreuveEtat(epreuve)) {
+      AccueilEpreuveEtat.aEvaluer => 'Faire un exercice',
+      AccueilEpreuveEtat.enProgression => 'Continuer',
+      _ => 'Voir mes résultats',
+    };
+
+/// La carte mène-t-elle à un **exercice** plutôt qu'aux résultats ?
+///
+/// 🛑 Le chemin d'un exercice est celui du Plan, jamais un second : c'est la
+/// fiche du domaine qui porte les lanceurs.
+bool accueilEpreuveOuvreLExercice(ProgressEpreuve epreuve) {
+  final etat = accueilEpreuveEtat(epreuve);
+  return etat == AccueilEpreuveEtat.aEvaluer ||
+      etat == AccueilEpreuveEtat.enProgression;
+}
+
+/// Le ton de la jauge et du statut.
+SfBarTone accueilEpreuveTon(ProgressEpreuve epreuve) =>
+    switch (accueilEpreuveEtat(epreuve)) {
+      AccueilEpreuveEtat.aEvaluer ||
+      AccueilEpreuveEtat.sansObjectif =>
+        SfBarTone.muted,
+      AccueilEpreuveEtat.enProgression => SfBarTone.now,
+      AccueilEpreuveEtat.solide => SfBarTone.ok,
+      AccueilEpreuveEtat.proche => SfBarTone.warn,
+      AccueilEpreuveEtat.aRenforcer => SfBarTone.hot,
+    };
+
+/// Le remplissage de la jauge.
+///
+/// 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — la règle
+/// qui l'interdit (`30_` §7) tient toujours, et aucun chiffre n'est affiché.
+/// C'est le **codage visuel d'un état servi**, à cinq positions fixes : la
+/// barre dit la même chose que le mot juste en dessous, elle ne mesure rien de
+/// plus. Un palier CECRL n'est toujours pas une barre.
+double accueilEpreuveJauge(ProgressEpreuve epreuve) =>
+    switch (accueilEpreuveEtat(epreuve)) {
+      AccueilEpreuveEtat.aEvaluer || AccueilEpreuveEtat.sansObjectif => 0,
+      AccueilEpreuveEtat.aRenforcer => 0.35,
+      AccueilEpreuveEtat.enProgression => 0.55,
+      AccueilEpreuveEtat.proche => 0.75,
+      AccueilEpreuveEtat.solide => 1,
+    };
 
 /// « 4 compétences maîtrisées sur 11 travaillées ».
 ///

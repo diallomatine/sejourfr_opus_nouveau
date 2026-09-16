@@ -12,13 +12,24 @@ import {
     NowCard,
     Pad,
     PathRow,
+    ProgressMini,
     Section,
     SejourApp,
     Stack,
     sejourStyles,
+    type BarTone,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
+import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
+import {
+    accueilEpreuveBadge,
+    accueilEpreuveCta,
+    accueilEpreuveJauge,
+    accueilEpreuveOuvreLExercice,
+    accueilEpreuveStatut,
+    accueilEpreuveTon,
+} from "@/lib/progres";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
     CIVIQUE_LABEL,
@@ -32,7 +43,9 @@ import {
 import {useAuth} from "@/lib/auth-context";
 import {
     parcoursDeLaTache,
+    planDomainHref,
     planDomainLabel,
+    planDomainSlug,
     planNowCard,
     planSectionEpreuve,
     planTaskBadge,
@@ -52,6 +65,8 @@ import {
 } from "@/lib/diagnostic";
 import {
     CIVIC_MAITRISE_LABEL,
+    CIVIC_THEME_STATE_LABEL,
+    niveauCecrlShort,
     type CivicPlanCibleDto,
     type CivicPlanDto,
     type DiagnosticResponse,
@@ -125,6 +140,34 @@ import {
  * besoin ». C'est un **aperçu**, pas un second Plan : aucune action n'en part,
  * il mène au Plan. Même bloc et même ordre sur mobile (`HomeMiniPlan`).
  */
+/* --------------------------------------------- « Où vous en êtes » ------- */
+
+/**
+ * 🛑 **Miroirs mot pour mot de `home_labels.dart`** : un libellé qui bouge, ce
+ * sont deux fichiers dans la même passe.
+ */
+const SITUATION_TITLE = "Où vous en êtes";
+const SITUATION_CARD_TITLE = "Votre niveau par épreuve";
+const SITUATION_CARD_LEAD = "Mis à jour après vos entraînements et diagnostics.";
+
+/** Le pendant civique : le civique se mesure en thèmes, jamais en paliers. */
+const SITUATION_CIVIC_CARD_TITLE = "Votre niveau par thème";
+const SITUATION_CIVIC_CARD_LEAD =
+    "Mis à jour après vos séries et votre diagnostic.";
+
+/** 🛑 Elle ne démarre rien : le Plan civique porte le seul lanceur de série. */
+const SITUATION_CIVIC_CTA = "Travailler ce thème";
+
+const SITUATION_GOAL_LABEL = "Objectif actuel";
+
+/**
+ * « Atteindre B1 partout ». Le palier est **servi** (`ProgressTcfDto.objectif`,
+ * dérivé de la démarche) — aucun écran ne le devine.
+ */
+function situationGoalText(niveau: string): string {
+    return `Atteindre ${niveau} partout`;
+}
+
 export default function DashboardPage() {
     // `useSearchParams` impose une frontière de Suspense côté App Router.
     return (
@@ -325,6 +368,24 @@ function DashboardRoot() {
                     cible={cibleCivique}
                 />
             </div>
+
+            {/* ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du
+                propriétaire) : une carte compacte par épreuve — palier, jauge,
+                état en un mot, action —, puis l'objectif.
+
+                🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses
+                deux compteurs de compétences juste en dessous : l'une dit *où
+                en est chaque épreuve*, l'autre *combien de compétences ont
+                bougé*.
+
+                🛑 **Aucun appel de plus** : `progres` est déjà dans l'état de
+                l'écran, et le même `ProgressDto` porte déjà les 4 épreuves.
+
+                ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le
+                `deskPair` au-dessus : quatre cartes dans une demi-colonne de
+                1080 px se replieraient en une file illisible, et la maquette la
+                montre pleine largeur. */}
+            <OuVousEnEtes progres={progres} civique={civique}/>
 
             <div className={sejourStyles.deskPair}>
                 <Section title="Votre progression">
@@ -584,6 +645,163 @@ function ActionCivique({gate, cible}: {
                 <Cta href={planHref("CIVIQUE")} variant="blue">Continuer mon plan</Cta>
             </div>
         </NowCard>
+    );
+}
+
+/**
+ * **Où vous en êtes** — une carte compacte par épreuve, puis l'objectif.
+ *
+ * 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, jauge et CTA viennent
+ * tous de `accueilEpreuve*` (`lib/progres.ts`), l'autorité **partagée avec
+ * l'écran Progrès**, qui ne lit que deux faits servis : `status` et
+ * `evolution`. Aucun palier n'est comparé à un autre — cette comparaison vit
+ * côté serveur, dans `StatutObjectifResolver`.
+ *
+ * 🛑 **La section n'existe pas tant que rien n'est servi** : pas de titre
+ * au-dessus du vide, comme tous les blocs de cet écran.
+ *
+ * 🛑 **Miroir de `_ouVousEnEtes` côté mobile**, bloc pour bloc.
+ */
+function OuVousEnEtes({progres, civique}: {
+    progres: ProgressDto | null;
+    civique: boolean;
+}) {
+    if (!progres) return null;
+    return civique
+        ? <SituationCivique progres={progres}/>
+        : <SituationTcf progres={progres}/>;
+}
+
+function SituationTcf({progres}: {progres: ProgressDto}) {
+    const epreuves = progres.tcf.epreuves;
+    /* 🛑 Les 4 épreuves sont **toujours** servies dès qu'il y a quelque chose à
+       dire. Une liste vide veut dire « aucun diagnostic clos » : le bloc se tait
+       plutôt que d'afficher quatre cartes « À évaluer » qui répéteraient
+       l'action du jour juste au-dessus. */
+    if (epreuves.length === 0) return null;
+    const objectif = progres.tcf.objectif;
+
+    return (
+        <Section title={SITUATION_TITLE}>
+            <Pad>
+                <Card>
+                    <p className="home-situation-title">{SITUATION_CARD_TITLE}</p>
+                    <p className={sejourStyles.tiny}>{SITUATION_CARD_LEAD}</p>
+                    <div className="home-situation-grid">
+                        {epreuves.map((e) => (
+                            <SituationCard
+                                key={e.epreuve}
+                                title={planDomainLabel(
+                                    e.epreuve as Parameters<typeof planDomainLabel>[0])}
+                                badge={accueilEpreuveBadge(e)}
+                                statut={accueilEpreuveStatut(e)}
+                                jauge={accueilEpreuveJauge(e)}
+                                tone={accueilEpreuveTon(e)}
+                                cta={accueilEpreuveCta(e)}
+                                /* 🛑 **Deux destinations, et aucune inventée** :
+                                   la fiche du domaine — l'autorité du Plan, qui
+                                   porte les lanceurs — quand il y a quelque
+                                   chose à faire, la page des résultats quand il
+                                   y a quelque chose à relire. Le choix se lit
+                                   sur l'état servi, jamais sur un texte de
+                                   bouton. */
+                                href={accueilEpreuveOuvreLExercice(e)
+                                    ? planDomainHref(
+                                        e.epreuve as Parameters<typeof planDomainHref>[0])
+                                    : `/historique/epreuve/${planDomainSlug(
+                                        e.epreuve as Parameters<typeof planDomainSlug>[0])}`}
+                            />
+                        ))}
+                    </div>
+                    {/* 🛑 Sans démarche déclarée, pas de bandeau : on ne devine
+                        pas l'objectif d'un candidat qui n'en a pas donné. */}
+                    {objectif && (
+                        <div className="home-goal">
+                            <span>{SITUATION_GOAL_LABEL}</span>
+                            <b>{situationGoalText(niveauCecrlShort(objectif))}</b>
+                        </div>
+                    )}
+                </Card>
+            </Pad>
+        </Section>
+    );
+}
+
+/**
+ * Le pendant civique. 🛑 **Aucune métrique CECRL de ce côté** : le civique se
+ * dit en thèmes et en états servis, jamais en paliers ni en pourcentages. Et
+ * comme rien ne sert d'objectif civique, le bandeau est **omis**, pas fabriqué.
+ */
+function SituationCivique({progres}: {progres: ProgressDto}) {
+    const themes = progres.civique.themes;
+    if (themes.length === 0) return null;
+
+    return (
+        <Section title={SITUATION_TITLE}>
+            <Pad>
+                <Card>
+                    <p className="home-situation-title">{SITUATION_CIVIC_CARD_TITLE}</p>
+                    <p className={sejourStyles.tiny}>{SITUATION_CIVIC_CARD_LEAD}</p>
+                    <div className="home-situation-grid">
+                        {themes.map((t) => (
+                            <SituationCard
+                                key={t.themeId}
+                                title={t.label}
+                                /* 🛑 L'état arrive **servi** : on pose son
+                                   libellé gelé, on ne classe aucun nombre.
+                                   `NON_EVALUE` reste neutre, jamais ambre. */
+                                badge={t.etat === "NON_EVALUE"
+                                    ? "À évaluer"
+                                    : CIVIC_THEME_STATE_LABEL[t.etat]}
+                                statut={CIVIC_THEME_STATE_LABEL[t.etat]}
+                                jauge={civicBarJauge(t.etat)}
+                                tone={civicBarTone(t.etat)}
+                                cta={SITUATION_CIVIC_CTA}
+                                href={planHref("CIVIQUE")}
+                            />
+                        ))}
+                    </div>
+                </Card>
+            </Pad>
+        </Section>
+    );
+}
+
+/**
+ * Une carte compacte : le libellé, la pastille, la jauge, l'état en un mot, et
+ * ce qu'on peut faire.
+ *
+ * 🛑 **Cette brique ne classe rien** : tout lui arrive **composé**. Elle ne
+ * voit ni niveau, ni statut, ni pourcentage.
+ *
+ * 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
+ * écrit juste en dessous, pas une progression vers un palier.
+ */
+function SituationCard({title, badge, statut, jauge, tone, cta, href}: {
+    title: string;
+    badge: string;
+    statut: string | null;
+    jauge: number;
+    tone: BarTone;
+    cta: string;
+    href: string;
+}) {
+    /* Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
+       pastille de marque sur une absence de mesure se lirait comme un
+       résultat. */
+    const mesure = badge !== "À évaluer";
+    return (
+        <div className="home-situation-card">
+            <div className="home-situation-head">
+                <span className="home-situation-name">{title}</span>
+                <span className="home-situation-badge" data-mesure={mesure}>{badge}</span>
+            </div>
+            <ProgressMini ratio={jauge} tone={tone} label={statut ?? undefined}/>
+            {statut && <p className="home-situation-statut">{statut}</p>}
+            <Link href={href} className={sejourStyles.link}>
+                {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
+            </Link>
+        </div>
     );
 }
 
@@ -936,6 +1154,77 @@ const homeStyles = `
     color: var(--color-ink);
   }
 
+
+  /* ===== « Où vous en êtes » ===== */
+  .home-situation-title {
+    margin: 0 0 4px;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--color-ink);
+  }
+  /* Deux cartes par rangée dès qu'il y a la place, une seule sur un téléphone.
+     🛑 Pas de colonne fixe : auto-fit + minmax est le repli que le kit emploie
+     déjà pour les compteurs, et il tient de 360 px au desktop sans borne
+     nouvelle. */
+  .home-situation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .home-situation-card {
+    border: 1px solid var(--color-line);
+    border-radius: var(--sf-radius-md);
+    padding: 12px 14px 10px;
+    min-width: 0;
+  }
+  .home-situation-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .home-situation-name {
+    font-size: 14.5px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--color-ink);
+    min-width: 0;
+  }
+  .home-situation-badge {
+    padding: 4px 9px;
+    border-radius: var(--sf-radius-pill);
+    font-size: 12.5px;
+    font-weight: 800;
+    white-space: nowrap;
+    background: var(--color-paper-2);
+    color: var(--color-muted);
+  }
+  .home-situation-badge[data-mesure="true"] {
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+  }
+  .home-situation-statut {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--color-ink);
+  }
+  /* Le bandeau d'objectif, sous les cartes. */
+  .home-goal {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--sf-radius-md);
+    background: var(--color-paper-2);
+  }
+  .home-goal span { font-size: 13px; color: var(--color-muted); }
+  .home-goal b { font-size: 13.5px; font-weight: 800; color: var(--color-ink); }
 
   /* ===== indicateurs ===== */
   /* Les deux compteurs SERVIS de la maquette : un chiffre, un libellé. */
