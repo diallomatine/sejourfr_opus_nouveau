@@ -8,16 +8,18 @@ import {AffinerPlanCard} from "@/app/_components/plan/AffinerPlanCard";
 import {
     Card,
     Cta,
+    GoalRibbon,
+    LevelCard,
+    LevelGrid,
+    MicroNote,
     ModuleToggle,
     NowCard,
     Pad,
     PathRow,
-    ProgressMini,
     Section,
     SejourApp,
     Stack,
     sejourStyles,
-    type BarTone,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
 import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
@@ -30,6 +32,9 @@ import {
     accueilEpreuveOuvreLExercice,
     accueilEpreuveStatut,
     accueilEpreuveTon,
+    accueilEvalueesLabel,
+    accueilObjectifLabel,
+    progresEpreuveNiveau,
 } from "@/lib/progres";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
@@ -46,6 +51,7 @@ import {
     parcoursDeLaTache,
     planDomainHref,
     planDomainLabel,
+    planDomainShort,
     planDomainSlug,
     planNowCard,
     planSectionEpreuve,
@@ -149,7 +155,20 @@ import {
  */
 const SITUATION_TITLE = "Où vous en êtes";
 const SITUATION_CARD_TITLE = "Votre niveau par épreuve";
-const SITUATION_CARD_LEAD = "Mis à jour après vos entraînements et diagnostics.";
+const SITUATION_CARD_LEAD =
+    "Une vue simple de votre niveau actuel et de ce qu'il reste à atteindre.";
+
+/**
+ * La note de pied de carte (maquette).
+ *
+ * 🛑 **Elle dit ce qui fait bouger le palier**, et c'est la même règle que la
+ * page de résultats : un entraînement libre ou un petit sujet n'y entre pas.
+ * Sans elle, un candidat qui vient d'enchaîner des séries lit un niveau
+ * inchangé et croit à une panne.
+ */
+const SITUATION_NOTE =
+    "Le niveau affiché évolue uniquement avec vos diagnostics et vos "
+    + "épreuves complètes.";
 
 /** Le pendant civique : le civique se mesure en thèmes, jamais en paliers. */
 const SITUATION_CIVIC_CARD_TITLE = "Votre niveau par thème";
@@ -692,10 +711,24 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
     return (
         <Section title={SITUATION_TITLE}>
             <Pad>
-                <Card>
+                {/* 🛑 **La cocarde est décorative** : elle marque la carte de
+                    tête de la maquette, elle ne code aucun état. */}
+                <Card rule="flag">
                     <p className="home-situation-title">{SITUATION_CARD_TITLE}</p>
-                    <p className={sejourStyles.tiny}>{SITUATION_CARD_LEAD}</p>
-                    <div className="home-situation-grid">
+                    <p className="home-situation-copy">{SITUATION_CARD_LEAD}</p>
+                    {/* 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) :
+                        il annonce vers quoi on va avant de montrer où on en
+                        est. Sans démarche déclarée, pas de bandeau — on ne
+                        devine pas l'objectif d'un candidat qui n'en a pas
+                        donné, et le compteur part avec lui. */}
+                    {objectif && (
+                        <GoalRibbon
+                            label={SITUATION_GOAL_LABEL}
+                            value={situationGoalText(niveauCecrlShort(objectif))}
+                            count={accueilEvalueesLabel(epreuves)}
+                        />
+                    )}
+                    <LevelGrid>
                         {epreuves.map((e) => {
                             /* 🛑 **Trois issues, aucune inventée.**
                                1. Épreuve jamais mesurée dont le serveur dit par
@@ -714,34 +747,31 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                                     e.epreuve as Parameters<typeof planDomainHref>[0])
                                 : `/historique/epreuve/${planDomainSlug(
                                     e.epreuve as Parameters<typeof planDomainSlug>[0])}`;
+                            const domaine = e.epreuve as Parameters<
+                                typeof planDomainLabel>[0];
                             return (
-                                <SituationCard
+                                <LevelCard
                                     key={e.epreuve}
-                                    title={planDomainLabel(
-                                        e.epreuve as Parameters<typeof planDomainLabel>[0])}
-                                    badge={accueilEpreuveBadge(e)}
-                                    mesure={Boolean(e.niveau)}
-                                    statut={accueilEpreuveStatut(e)}
-                                    jauge={accueilEpreuveJauge(e)}
+                                    mark={planDomainShort(domaine)}
+                                    title={planDomainLabel(domaine)}
+                                    level={accueilEpreuveBadge(e)}
+                                    measured={Boolean(e.niveau)}
+                                    from={progresEpreuveNiveau(e)}
+                                    to={accueilObjectifLabel(objectif)}
+                                    status={accueilEpreuveStatut(e)}
+                                    ratio={accueilEpreuveJauge(e)}
                                     tone={accueilEpreuveTon(e)}
                                     cta={accueilEpreuveCta(e)}
                                     busy={assessments.starting === e.epreuve}
                                     href={mesure ? null : href}
-                                    onStart={mesure
+                                    onClick={mesure
                                         ? () => void assessments.start(mesure)
                                         : undefined}
                                 />
                             );
                         })}
-                    </div>
-                    {/* 🛑 Sans démarche déclarée, pas de bandeau : on ne devine
-                        pas l'objectif d'un candidat qui n'en a pas donné. */}
-                    {objectif && (
-                        <div className="home-goal">
-                            <span>{SITUATION_GOAL_LABEL}</span>
-                            <b>{situationGoalText(niveauCecrlShort(objectif))}</b>
-                        </div>
-                    )}
+                    </LevelGrid>
+                    <MicroNote>{SITUATION_NOTE}</MicroNote>
                     {assessments.error && (
                         <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
                     )}
@@ -773,92 +803,41 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
             <Pad>
                 <Card>
                     <p className="home-situation-title">{SITUATION_CIVIC_CARD_TITLE}</p>
-                    <p className={sejourStyles.tiny}>{SITUATION_CIVIC_CARD_LEAD}</p>
-                    <div className="home-situation-grid">
+                    <p className="home-situation-copy">{SITUATION_CIVIC_CARD_LEAD}</p>
+                    <LevelGrid>
                         {themes.map((t) => (
-                            <SituationCard
+                            <LevelCard
                                 key={t.themeId}
+                                /* 🛑 **Pas de repère court en civique** : la
+                                   maquette n'en donne qu'aux quatre épreuves
+                                   (CO/CE/EE/EO), et un thème n'a aucun code de
+                                   deux lettres servi. On omet, on n'invente
+                                   pas. */
+                                mark={null}
                                 title={t.label}
                                 /* 🛑 L'état arrive **servi** : on pose son
                                    libellé gelé, on ne classe aucun nombre.
                                    `NON_EVALUE` reste neutre, jamais ambre. */
-                                badge={t.etat === "NON_EVALUE"
+                                level={t.etat === "NON_EVALUE"
                                     ? NON_MESURE_LABEL
                                     : CIVIC_THEME_STATE_LABEL[t.etat]}
-                                mesure={t.etat !== "NON_EVALUE"}
-                                statut={CIVIC_THEME_STATE_LABEL[t.etat]}
-                                jauge={civicBarJauge(t.etat)}
+                                measured={t.etat !== "NON_EVALUE"}
+                                /* 🛑 **Aucune ligne de repères en civique** :
+                                   il n'a ni palier CECRL ni objectif servi, et
+                                   la fabriquer serait inventer une donnée. */
+                                from={null}
+                                to={null}
+                                status={CIVIC_THEME_STATE_LABEL[t.etat]}
+                                ratio={civicBarJauge(t.etat)}
                                 tone={civicBarTone(t.etat)}
                                 cta={SITUATION_CIVIC_CTA}
                                 href={planHref("CIVIQUE")}
                             />
                         ))}
-                    </div>
+                    </LevelGrid>
                 </Card>
             </Pad>
         </Section>
-    );
-}
-
-/**
- * Une carte compacte : le libellé, la pastille, la jauge, l'état en un mot, et
- * ce qu'on peut faire.
- *
- * 🛑 **Cette brique ne classe rien** : tout lui arrive **composé**. Elle ne
- * voit ni niveau, ni statut, ni pourcentage.
- *
- * 🛑 **La jauge n'affiche aucun chiffre** : c'est le codage visuel de l'état
- * écrit juste en dessous, pas une progression vers un palier.
- */
-function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href, onStart, busy}: {
-    title: string;
-    badge: string;
-    /* Y a-t-il une mesure derrière la pastille ?
-       🛑 **Passé, jamais deviné du texte de `badge`** : comparer un libellé pour
-       décider d'une couleur ferait dépendre l'apparence d'une chaîne qu'on peut
-       reformuler sans y penser.
-       🛑 **Les appelants le calculent par VÉRACITÉ** (`Boolean(e.niveau)`), la
-       même condition que `accueilEpreuveBadge` : un `niveau` absent plutôt que
-       `null` aurait sinon donné « À évaluer » dans le bleu des paliers mesurés,
-       c'est-à-dire une absence de mesure rendue comme un résultat.
-       Non mesuré : pastille neutre. Le bleu est réservé à un palier réel. */
-    mesure: boolean;
-    statut: string | null;
-    jauge: number;
-    tone: BarTone;
-    cta: string;
-    /* Où mène la carte. `null` quand elle **lance** au lieu de naviguer :
-       l'action est alors `onStart`, et les deux ne coexistent jamais. */
-    href: string | null;
-    /* 🛑 **Le lancement vient de l'appelant**, qui tient le lanceur du Plan.
-       Cette carte ne connaît ni `PlanDomainAssessmentDto`, ni route de
-       démarrage : elle n'est qu'un rendu. */
-    onStart?: () => void;
-    busy?: boolean;
-}) {
-    return (
-        <div className="home-situation-card">
-            <div className="home-situation-head">
-                <span className="home-situation-name">{title}</span>
-                <span className="home-situation-badge" data-mesure={mesure}>{badge}</span>
-            </div>
-            <ProgressMini ratio={jauge} tone={tone} label={statut ?? undefined}/>
-            {statut && <p className="home-situation-statut">{statut}</p>}
-            {href ? (
-                <Link href={href} className={sejourStyles.link}>
-                    {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
-                </Link>
-            ) : (
-                <button
-                    type="button"
-                    className={sejourStyles.link}
-                    disabled={busy}
-                    onClick={onStart}
-                >
-                    {cta} <ArrowRight size={15} strokeWidth={2.4} aria-hidden/>
-                </button>
-            )}
-        </div>
     );
 }
 
@@ -1213,93 +1192,29 @@ const homeStyles = `
 
 
   /* ===== « Où vous en êtes » ===== */
+  /* 🛑 Seule l'EN-TÊTE de la carte vit ici. Tout le reste de la section — la
+     grille, les cartes d'épreuve, le bandeau d'objectif et la note de pied —
+     est passé dans le KIT (LevelGrid, LevelCard, GoalRibbon, MicroNote) le
+     2026-09-16, avec son miroir Flutter dans la même passe : c'est ce qui
+     garantit que les deux fronts montrent la même carte. Les classes
+     .home-situation-grid / -card / -head / -name / -badge / -statut et
+     .home-goal sont SUPPRIMÉES avec leurs appelants. */
   .home-situation-title {
-    margin: 0 0 4px;
+    margin: 0 0 6px;
     font-family: var(--font-display);
-    font-size: 19px;
+    font-size: 23px;
     font-weight: 640;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
     color: var(--color-ink);
   }
-  /* 🛑 **Deux colonnes DÈS 360 px**, comme la maquette du propriétaire et comme
-     le mobile Flutter (HomeSituationGrid) : l'auto-fit à 190 px retombait sur
-     une colonne unique sur un téléphone, c'est-à-dire sur l'empilement pleine
-     largeur qu'on remplace. Le palier desktop du KIT (960) reprend l'auto-fit
-     d'origine — il est validé tel quel, on n'y touche pas. */
-  .home-situation-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 12px 0;
-  }
-  .home-situation-card {
-    border: 1px solid var(--color-line);
-    border-radius: var(--sf-radius-md);
-    padding: 10px 12px 8px;
-    min-width: 0;
-  }
-  .home-situation-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 4px 8px;
-  }
-  /* Le titre cède, la pastille non : un libellé de thème civique servi peut
-     être long, et sans coupure il pousserait la pastille hors de la carte à
-     360 px.
-     🛑 **La pastille passe à la ligne plutôt que de casser le titre** : dans une
-     demi-largeur de téléphone, « Compréhension » et « À évaluer » ne tiennent
-     pas côte à côte, et un titre coupé au milieu d'un mot est le pire des deux
-     rendus. Le flex-basis est ce qui décide : tant que le titre ne peut pas
-     poser son mot le plus long à côté de la pastille, le navigateur renvoie
-     celle-ci sur sa propre ligne, où margin-left: auto la garde à droite.
-     Le pendant Flutter prend la même décision dans HomeSituationCard. */
-  .home-situation-name {
-    flex: 1 1 100px;
-    font-size: 14.5px;
-    font-weight: 800;
-    line-height: 1.25;
-    color: var(--color-ink);
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  /* Le chevron d'un lien de carte ne se laisse jamais écraser par un libellé
-     long (« Voir mes résultats ») dans une demi-largeur. */
-  .home-situation-card svg { flex-shrink: 0; }
-  .home-situation-badge {
-    margin-left: auto;
-    padding: 4px 9px;
-    border-radius: var(--sf-radius-pill);
-    font-size: 12.5px;
-    font-weight: 800;
-    white-space: nowrap;
-    background: var(--color-paper-2);
+  .home-situation-copy {
+    margin: 0 0 14px;
+    max-width: 320px;
+    font-size: 13.5px;
+    line-height: 1.45;
     color: var(--color-muted);
   }
-  .home-situation-badge[data-mesure="true"] {
-    background: var(--color-blue-light);
-    color: var(--color-blue);
-  }
-  .home-situation-statut {
-    margin: 6px 0 0;
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--color-ink);
-  }
-  /* Le bandeau d'objectif, sous les cartes. */
-  .home-goal {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: var(--sf-radius-md);
-    background: var(--color-paper-2);
-  }
-  .home-goal span { font-size: 13px; color: var(--color-muted); }
-  .home-goal b { font-size: 13.5px; font-weight: 800; color: var(--color-ink); }
 
   /* ===== indicateurs ===== */
   /* Les deux compteurs SERVIS de la maquette : un chiffre, un libellé. */
@@ -1355,14 +1270,6 @@ const homeStyles = `
       padding-top: 10px;
     }
     .home-hello h1 { font-size: 32px; }
-    /* 🛑 **Le rendu desktop ne bouge pas** (validé par le propriétaire) : la
-       grille reprend l'auto-fit — la colonne de 1080 px pose les 4 épreuves de
-       front — et l'en-tête d'une carte redevient une rangée unique, la place
-       n'y manquant jamais. */
-    .home-situation-grid {
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    }
-    .home-situation-head { flex-wrap: nowrap; }
-    .home-situation-name { flex: 1 1 auto; }
+    .home-situation-title { font-size: 26px; }
   }
 `;
