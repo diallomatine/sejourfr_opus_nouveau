@@ -26,14 +26,37 @@ import java.util.UUID;
  * <b>« D'où sort mon niveau ? »</b> — les dernières évaluations
  * <b>qualifiantes</b> d'une épreuve TCF.
  *
- * <h2>Ce service n'invente aucune mesure, et n'en retient aucune de plus</h2>
- * <p>🛑 Il lit <b>exactement</b> ce que {@code TcfProfileService} lit pour poser
- * {@code ProgressDto.Epreuve.niveau} — mêmes requêtes, mêmes autorités de
- * niveau. C'est le point : un écran qui prétend expliquer un palier doit
- * montrer les mesures qui l'ont produit, pas des mesures voisines.
+ * <h2>Ce service n'invente aucune mesure</h2>
+ * <p>🛑 <b>CO/CE : mêmes lignes, même autorité de niveau</b> que
+ * {@code TcfProfileService} — la même requête
+ * ({@code findQcmEpreuvesPassees}) et le même
+ * {@code TcfLevelEstimatorService.niveauEpreuveQcm}. Ce qui est servi ici
+ * explique donc exactement le palier servi là-bas.
+ *
+ * <h2>⚠️ EE/EO : plus étroit que le profil, et c'est un arbitrage ouvert</h2>
+ * <p>Le propriétaire a tranché que cette page montre les <b>épreuves
+ * complètes</b> (seules, en examen blanc) et le diagnostic rapide. Or
+ * {@code TcfProfileService.bestProduction} alimente {@code niveau} à partir de
+ * <b>toute</b> tâche évaluée — {@code AiEvaluationRepository.findByUserAndEpreuve}
+ * ne filtre ni sur la session d'examen ni sur l'entraînement libre — et il
+ * retient un maximum <b>par TÂCHE</b>, là où ce service lit un agrégat
+ * <b>par SESSION</b> ({@code ProductionBilanService.niveauEpreuve}).
+ *
+ * <p>🛑 <b>Conséquence à connaître</b> : un candidat qui n'a fait que de
+ * l'entraînement libre en EE/EO a un {@code niveau} servi, donc une carte
+ * d'Accueil qui propose « Voir mes résultats », et cette page lui répond
+ * « aucune évaluation qualifiante ». Les deux sont vrais séparément — le palier
+ * vient bien de quelque part, mais pas d'une épreuve.
+ *
+ * <p>Deux sorties possibles, et <b>aucune ne se prend ici</b> : soit le profil
+ * EE/EO se restreint lui aussi aux sessions d'examen (il <b>baisserait</b> des
+ * niveaux déjà affichés à des candidats), soit cette page accueille
+ * l'entraînement libre sous une 5ᵉ provenance (elle contredirait l'énoncé du
+ * propriétaire). Les deux sont des décisions produit.
+ * → {@code docs/regles/progression.md}, section « Écran ACCUEIL ».
  *
  * <table>
- *   <caption>Les mêmes sources, vues en chronologie plutôt qu'en maximum</caption>
+ *   <caption>Les sources, vues en chronologie plutôt qu'en maximum</caption>
  *   <tr><th>épreuve</th><th>lignes</th><th>niveau</th><th>date</th></tr>
  *   <tr>
  *     <td>CO / CE</td>

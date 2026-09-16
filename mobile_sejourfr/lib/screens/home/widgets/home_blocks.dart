@@ -260,13 +260,16 @@ class HomeSituationCard extends StatelessWidget {
             ],
           ),
           SfProgressMini(ratio: jauge, tone: tone, semanticsLabel: statut),
-          const SizedBox(height: 8),
-          if (statut != null)
+          // Sans statut (aucune démarche déclarée), la carte se referme sur la
+          // jauge : un blanc de 10 px se lirait comme un mot manquant.
+          if (statut != null) ...[
+            const SizedBox(height: 8),
             Text(
               statut!,
               style: AppFonts.ui(size: 13, weight: FontWeight.w800),
             ),
-          const SizedBox(height: 2),
+            const SizedBox(height: 2),
+          ],
           Align(
             alignment: Alignment.centerLeft,
             child: HomeLink(label: cta, onTap: onTap),
@@ -292,7 +295,9 @@ class HomeGoalBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface2,
+        // Le MÊME gris que la pastille non mesurée, et que les deux surfaces
+        // du web (`--color-paper-2`) : trois gris pour deux surfaces se voient.
+        color: AppColors.surface3,
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Row(

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/epreuve_historique_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../home/widgets/home_blocks.dart';
 
 /// Les dernières évaluations qualifiantes d'une épreuve.
 ///
@@ -27,12 +30,23 @@ const String kHistoriqueVideAide =
     'ici dès qu\'ils auront été corrigés.';
 
 /// Ce que la liste contient, dit au candidat plutôt que deviné par lui.
+///
+/// ⚠️ **Formulée pour rester vraie même quand la liste est vide.** « Les
+/// évaluations qui déterminent votre niveau » était faux en EE/EO : le profil y
+/// compte aussi l'entraînement libre, que cette page ne montre pas (arbitrage
+/// ouvert, cf. `EpreuveHistoriqueService`). On dit donc ce que la liste
+/// **contient**, pas ce qu'elle prétend expliquer.
 const String kHistoriqueLead =
-    'Les évaluations qui déterminent votre niveau sur cette épreuve — '
-    'vos entraînements ciblés n\'en font pas partie.';
+    'Vos épreuves complètes et vos diagnostics sur cette épreuve. '
+    'Vos entraînements libres et vos petits sujets n\'y figurent pas.';
 
 const String kHistoriqueErreur =
     'Vos résultats n\'ont pas pu être chargés. Réessayez dans un instant.';
+
+/// Le lien vers le hub des historiques. 🛑 **Miroir du web**, où la même carte
+/// porte la même sortie : cet écran ne montre qu'UNE épreuve, et il faut
+/// pouvoir rejoindre le reste sans repasser par l'Accueil.
+const String kHistoriqueTousLabel = 'Tous mes résultats';
 
 /// **« D'où sort mon niveau ? »** — l'écran ouvert depuis une carte d'épreuve
 /// de l'Accueil.
@@ -96,6 +110,14 @@ class EpreuveHistoriqueScreen extends ConsumerWidget {
                                   _Ligne(evaluation: e),
                               ],
                             ),
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: HomeLink(
+                        label: kHistoriqueTousLabel,
+                        onTap: () => context.push(AppRoutes.historiques),
+                      ),
                     ),
                   ],
                 ),

@@ -13,9 +13,16 @@ import type {EpreuveHistoriqueDto} from "@/lib/types";
 
 /** Ce que la liste contient, dit au candidat plutôt que deviné par lui. */
 export const HISTORIQUE_TITLE = "Vos résultats";
+/**
+ * ⚠️ **Formulée pour rester vraie même quand la liste est vide.** « Les
+ * évaluations qui déterminent votre niveau » était faux en EE/EO : le profil y
+ * compte aussi l'entraînement libre, que cette page ne montre pas (arbitrage
+ * ouvert, cf. `EpreuveHistoriqueService`). On dit donc ce que la liste
+ * **contient**, pas ce qu'elle prétend expliquer.
+ */
 export const HISTORIQUE_LEAD =
-    "Les évaluations qui déterminent votre niveau sur cette épreuve — "
-    + "vos entraînements ciblés n'en font pas partie.";
+    "Vos épreuves complètes et vos diagnostics sur cette épreuve. "
+    + "Vos entraînements libres et vos petits sujets n'y figurent pas.";
 
 /** 🛑 Une absence de mesure n'est pas une erreur, et se dit comme telle. */
 export const HISTORIQUE_VIDE = "Aucune évaluation qualifiante pour l'instant.";
@@ -54,7 +61,15 @@ export function EpreuveHistoriqueView() {
     const [chargement, setChargement] = useState(true);
 
     useEffect(() => {
-        if (status !== "authenticated" || !epreuve) return;
+        // 🛑 **Sortir en laissant `chargement` à `true` fige la carte sur
+        // « Chargement… » pour toujours** : une session non authentifiée ou en
+        // erreur n'a rien à charger, et l'écran doit le dire. Le pendant mobile
+        // n'a pas ce trou — un `FutureProvider` se résout toujours.
+        if (status === "loading") return;
+        if (status !== "authenticated" || !epreuve) {
+            setChargement(false);
+            return;
+        }
         let vivant = true;
         setChargement(true);
         progressApi
@@ -79,7 +94,10 @@ export function EpreuveHistoriqueView() {
     if (!epreuve) {
         return (
             <SejourApp>
-                <Top title={HISTORIQUE_TITLE} backTo="/historique" />
+                {/* Même retour que le cas nominal : on arrive de l'Accueil dans
+                    les deux cas, et deux destinations pour la même flèche se
+                    lisent comme un bug. */}
+                <Top title={HISTORIQUE_TITLE} backTo="/dashboard" />
                 <Pad>
                     <Card>
                         <p className={sejourStyles.tiny}>{HISTORIQUE_VIDE}</p>

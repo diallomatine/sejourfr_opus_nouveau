@@ -427,12 +427,18 @@ aucun palier, aucun état n'est recalculé.
   **tous** les écrans et deviendrait une seconde vérité. Ici la liste est le
   **détail d'UNE ligne**, demandée quand le candidat ouvre une carte de
   l'Accueil — l'Accueil, lui, garde son appel unique.
-  🛑 **« Qualifiante » n'est pas une définition nouvelle** : c'est celle qui
-  alimente déjà `ProgressDto.Epreuve.niveau`. CO/CE passent par la **même
-  requête** que `TcfProfileService` (`findQcmEpreuvesPassees` — examen fini
-  portant au moins une réponse, quelle que soit sa provenance) ; EE/EO par une
-  **session d'examen de production terminée** (verdict de
-  `ProductionBilanService`) plus la **baseline du diagnostic rapide**.
+  🛑 **CO/CE : la définition n'est pas nouvelle** — même requête que
+  `TcfProfileService` (`findQcmEpreuvesPassees` : examen fini portant au moins
+  une réponse, quelle que soit sa provenance) et même autorité de niveau
+  (`niveauEpreuveQcm`). Ce qui est servi ici explique exactement le palier servi
+  par `/api/me/progress`.
+  ⚠️ **EE/EO : plus étroit que le profil, arbitrage OUVERT.** Ici, une **session
+  d'examen de production terminée** (verdict de `ProductionBilanService`) plus la
+  **baseline du diagnostic rapide** ; le profil, lui, retient un maximum **par
+  tâche** sur **toute** tâche évaluée, entraînement libre compris. Un candidat
+  qui n'a fait que de l'entraînement libre a donc un `niveau` servi et une liste
+  **vide**. Détail, conséquences et les deux sorties possibles :
+  `docs/regles/progression.md`, section « Arbitrage OUVERT ».
   🛑 **Ce qui n'y entre pas** : les **petits sujets de compétence**
   (`user_skill_attempts`, aucun palier CECRL) et l'**entraînement libre** de
   production (« jamais de niveau en entraînement libre »). Les montrer

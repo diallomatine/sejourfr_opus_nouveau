@@ -695,7 +695,7 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                                 title={planDomainLabel(
                                     e.epreuve as Parameters<typeof planDomainLabel>[0])}
                                 badge={accueilEpreuveBadge(e)}
-                                mesure={e.niveau !== null}
+                                mesure={Boolean(e.niveau)}
                                 statut={accueilEpreuveStatut(e)}
                                 jauge={accueilEpreuveJauge(e)}
                                 tone={accueilEpreuveTon(e)}
@@ -787,9 +787,11 @@ function SituationCard({title, badge, mesure, statut, jauge, tone, cta, href}: {
        🛑 **Passé, jamais deviné du texte de `badge`** : comparer un libellé pour
        décider d'une couleur ferait dépendre l'apparence d'une chaîne qu'on peut
        reformuler sans y penser.
-       Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
-       pastille de marque sur une absence de mesure se lirait comme un
-       résultat. */
+       🛑 **Les appelants le calculent par VÉRACITÉ** (`Boolean(e.niveau)`), la
+       même condition que `accueilEpreuveBadge` : un `niveau` absent plutôt que
+       `null` aurait sinon donné « À évaluer » dans le bleu des paliers mesurés,
+       c'est-à-dire une absence de mesure rendue comme un résultat.
+       Non mesuré : pastille neutre. Le bleu est réservé à un palier réel. */
     mesure: boolean;
     statut: string | null;
     jauge: number;
@@ -1194,12 +1196,17 @@ const homeStyles = `
     justify-content: space-between;
     gap: 8px;
   }
+  /* Le titre cède, la pastille non : un libellé de thème civique servi peut
+     être long, et sans coupure il pousserait la pastille hors de la carte à
+     360 px. Le pendant Flutter l'a par construction (Expanded + Text). */
   .home-situation-name {
+    flex: 1 1 auto;
     font-size: 14.5px;
     font-weight: 800;
     line-height: 1.25;
     color: var(--color-ink);
     min-width: 0;
+    overflow-wrap: anywhere;
   }
   .home-situation-badge {
     padding: 4px 9px;

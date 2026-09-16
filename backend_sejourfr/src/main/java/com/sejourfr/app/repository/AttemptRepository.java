@@ -305,10 +305,15 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * dehors privait le profil de la seule mesure que beaucoup de candidats
      * avaient. Journal : {@code docs/decisions/diagnostic.md}.
      *
-     * <p>Aucun double comptage n'en découle : le seul appelant
-     * ({@code TcfProfileService.bestQcm}) retient le <b>meilleur</b> résultat
-     * par épreuve, jamais une somme ni une moyenne — une même épreuve mesurée
-     * deux fois n'est comptée qu'une, à sa meilleure valeur.
+     * <p>Aucun double comptage n'en découle, et c'est une propriété des
+     * <b>appelants</b>, pas de la requête : {@code TcfProfileService.bestQcm}
+     * retient le <b>meilleur</b> résultat par épreuve — jamais une somme ni une
+     * moyenne, donc une même épreuve mesurée deux fois n'est comptée qu'une, à
+     * sa meilleure valeur. ⚠️ <b>Second appelant depuis le 2026-09-16</b> :
+     * {@code EpreuveHistoriqueService.qcm}, qui en garde la <b>chronologie</b>
+     * (les 3 plus récentes) pour expliquer ce niveau au candidat. Il n'agrège
+     * rien non plus. 🛑 Tout appelant futur qui <b>sommerait</b> ces lignes
+     * rouvrirait la question que la révocation de V049 avait fermée.
      */
     @Query("""
             SELECT a FROM Attempt a

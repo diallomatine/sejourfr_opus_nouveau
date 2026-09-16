@@ -555,3 +555,36 @@ progression.
 🛑 **Cas vide** : « Aucune évaluation qualifiante pour l'instant. » — jamais une
 erreur. Et un **échec de chargement** se dit autrement : on ne range pas une
 panne réseau dans le verdict le plus bas.
+
+#### ⚠️ Arbitrage OUVERT — EE/EO : la page est plus étroite que le profil
+
+🛑 **CO/CE : aucun écart.** Même requête (`findQcmEpreuvesPassees`) et même
+autorité de niveau (`niveauEpreuveQcm`) que `TcfProfileService` : ce que la
+page montre explique exactement le palier servi.
+
+**EE/EO : deux écarts**, et ils viennent d'une prémisse fausse de l'énoncé
+(« exactement la même définition qui alimente déjà `niveau` ») :
+
+| | profil (`bestProduction`) | cette page |
+|---|---|---|
+| unité | le **maximum par TÂCHE** | l'**agrégat par SESSION** (`niveauEpreuve`) |
+| périmètre | **toute** tâche évaluée — `AiEvaluationRepository.findByUserAndEpreuve` ne filtre ni la session d'examen ni l'entraînement libre | **sessions d'examen** + baseline du diagnostic rapide |
+
+🛑 **Conséquence à connaître** : un candidat qui n'a fait que de l'entraînement
+libre en EE/EO a un `niveau` servi — donc une carte d'Accueil qui propose
+« Voir mes résultats » — et cette page lui répond « aucune évaluation
+qualifiante ». Les deux énoncés sont vrais séparément : le palier vient bien de
+quelque part, mais pas d'une épreuve.
+
+Ce qui a été fait en attendant l'arbitrage : **le libellé de la page ne promet
+plus d'expliquer le niveau**, il dit ce que la liste *contient* (« Vos épreuves
+complètes et vos diagnostics… »), donc il reste vrai même vide.
+
+Deux sorties, **toutes deux des décisions produit** :
+
+1. **restreindre le profil EE/EO** aux sessions d'examen — il **baisserait** des
+   niveaux déjà affichés à des candidats, ce que le dépôt n'autorise qu'à un
+   garde-fou explicite ;
+2. **accueillir l'entraînement libre** ici sous une 5ᵉ provenance — ce qui
+   contredirait l'énumération du propriétaire (« pas les petites séries /
+   petits sujets d'entraînement »).
