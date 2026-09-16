@@ -415,10 +415,14 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
         data.answer(question);
     }
 
+    /**
+     * 🛑 Une EPREUVE COMPLETE de production, pas une tache d'entrainement
+     * (2026-09-16) : depuis que seul un examen complet definit le niveau global
+     * d'EE/EO, une production isolee ne renseignerait plus le domaine du tout.
+     * La fixture vit dans TestData, appelee aussi par TcfProfileServiceIT.
+     */
     private void productionEvaluee(User user, EpreuveType epreuve, NiveauCecrl niveau) {
-        ProductionSubmission submission = data.productionSubmission(
-                data.attempt(user), data.productionTask(epreuve), user);
-        data.aiEvaluation(submission).setNiveauCecrl(niveau);
+        data.epreuveProductionPassee(user, epreuve, niveau);
     }
 
     private void observation(

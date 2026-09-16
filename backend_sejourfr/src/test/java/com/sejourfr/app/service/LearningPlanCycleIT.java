@@ -222,9 +222,22 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // sinon `pinned_at` daterait la derniere consultation et ce GET serait
         // un UPDATE par appel. C'est ce que verrouille
         // LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle.
+        //
+        // 27 depuis le 2026-09-16 : le niveau d'EE et d'EO ne se lit plus sur
+        // `ai_evaluations` (UNE requete par epreuve, mais qui comptait
+        // n'importe quelle tache d'entrainement), il se lit sur les EPREUVES
+        // COMPLETES passees — cf. EpreuvesProductionQualifiantesResolver. Trois
+        // requetes par epreuve au lieu d'une : les sessions, puis leurs
+        // soumissions (tache jointe), puis leurs evaluations, chacune EN UN
+        // LOT. +4 au total, et surtout +4 QUOI QU'IL ARRIVE : la version naive
+        // (une requete par session, une par soumission, un lazy-load de tache
+        // par soumission) coutait +14 ici et grandissait avec l'historique. Le
+        // budget augmente donc sous la meme condition que les trois fois
+        // precedentes — un cout INDEPENDANT du volume de donnees du candidat,
+        // ce que l'egalite ci-dessous verifie.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(23);
+                .isEqualTo(27);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
@@ -281,10 +294,14 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
     }
 
     /** Une production corrigee : c'est elle qui donne son niveau a EE ou EO. */
+    /**
+     * 🛑 Une EPREUVE COMPLETE de production, pas une tache d'entrainement
+     * (2026-09-16) : depuis que seul un examen complet definit le niveau global
+     * d'EE/EO, une production isolee ne renseignerait plus le domaine du tout.
+     * La fixture vit dans TestData, appelee aussi par TcfProfileServiceIT.
+     */
     private void productionEvaluee(User user, EpreuveType epreuve, NiveauCecrl niveau) {
-        ProductionSubmission submission = data.productionSubmission(
-                data.attempt(user), data.productionTask(epreuve), user);
-        data.aiEvaluation(submission).setNiveauCecrl(niveau);
+        data.epreuveProductionPassee(user, epreuve, niveau);
     }
 
     private void observation(
