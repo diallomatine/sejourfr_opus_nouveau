@@ -445,14 +445,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /* --------------------------------------------------- où vous en êtes ---- */
 
-  /// **Où vous en êtes** — une carte compacte par épreuve, puis l'objectif.
+  /// **Où vous en êtes** — le bandeau d'objectif, puis **une ligne par
+  /// épreuve** dans une seule carte, chacune portant son **échelle CECRL**.
+  ///
+  /// ⚠️ **Refait le 2026-09-16 sur la maquette v2 du propriétaire**
+  /// (`ou_en_vous_v2.html`), qui **révoque** la grille à deux colonnes de cartes
+  /// compactes livrée le matin même : ce n'est pas un habillage, c'est la
+  /// structure qui change.
   ///
   /// 🛑 **Aucun appel de plus** : `progressProvider` est déjà lu par « Votre
   /// progression », et le même `ProgressDto` porte déjà les 4 épreuves. Cette
   /// section ne coûte rien au réseau.
   ///
-  /// 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, jauge et CTA
-  /// viennent tous de `accueilEpreuve*` (`screens/progres/progres_labels.dart`),
+  /// 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, échelle et CTA
+  /// viennent tous de `accueilEpreuve*` / `accueilEchelons`
+  /// (`screens/progres/progres_labels.dart`),
   /// l'autorité **partagée avec l'écran Progrès**, qui ne lit que deux faits
   /// servis : `status` et `evolution`. Aucun palier n'est comparé à un autre —
   /// cette comparaison vit côté serveur, dans `StatutObjectifResolver`.
@@ -475,113 +482,156 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (epreuves.isEmpty) return null;
 
     final objectif = progres.tcf.objectif;
+    final compte = accueilEvaluees(epreuves);
     return SfCard(
-      // 🛑 **La cocarde est décorative** : elle marque la carte de tête de la
-      // maquette, elle ne code aucun état.
+      // 🛑 **Le liseré tricolore est décoratif** : il marque la carte de tête de
+      // la maquette, il ne code aucun état.
       rule: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            kHomeSituationCardTitle,
-            style: AppFonts.display(size: 23, weight: FontWeight.w700, height: 1.1),
+          const SfPanelHead(
+            lead: true,
+            title: kHomeSituationCardTitle,
+            sub: kHomeSituationCardLead,
           ),
-          const SizedBox(height: 6),
-          Text(
-            kHomeSituationCardLead,
-            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.45),
-          ),
-          // 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) : il annonce
-          // vers quoi on va avant de montrer où on en est. Sans démarche
+          // 🛑 **Le bandeau passe AU-DESSUS de la liste** (maquette) : il
+          // annonce vers quoi on va avant de montrer où on en est. Sans démarche
           // déclarée, pas de bandeau — on ne devine pas l'objectif d'un candidat
           // qui n'en a pas donné, et le compteur part avec lui.
           if (objectif != null) ...[
             const SizedBox(height: 14),
-            SfGoalRibbon(
+            SfGoalBanner(
               label: kHomeGoalLabel,
               value: homeGoalText(objectif.shortName),
-              count: accueilEvalueesLabel(epreuves),
+              count: compte?.faites,
+              total: compte?.total,
+              caption: kAccueilEvalueesCaption,
             ),
           ],
           const SizedBox(height: 14),
-          SfLevelGrid(
+          SfLevelList(
             children: [
               for (final epreuve in epreuves)
-                SfLevelCard(
+                SfLevelRow(
                   mark: planDomainSection(epreuve.epreuve)?.wire,
                   title: epreuve.epreuve.displayLabel,
+                  status: accueilEpreuveStatut(epreuve),
+                  tone: accueilEpreuveTon(epreuve),
                   level: accueilEpreuveBadge(epreuve),
                   measured: epreuve.niveau != null,
-                  from: progresEpreuveNiveau(epreuve),
-                  to: accueilObjectifLabel(objectif),
-                  status: accueilEpreuveStatut(epreuve),
-                  ratio: accueilEpreuveJauge(epreuve),
-                  tone: accueilEpreuveTon(epreuve),
+                  scale: SfLevelLadder(
+                    steps: accueilEchelons(epreuve, objectif),
+                    label: accueilEchelleLabel(epreuve, objectif),
+                    dim: epreuve.niveau == null,
+                  ),
                   cta: accueilEpreuveCta(epreuve),
+                  // Le bouton plein est réservé à l'action qui MANQUE : mesurer
+                  // une épreuve jamais évaluée. Relire un résultat reste un lien.
+                  ctaPrimary: epreuve.niveau == null,
+                  goal: accueilObjectifLabel(objectif),
                   onTap: () => _ouvrirEpreuve(context, epreuve),
                 ),
             ],
           ),
           const SizedBox(height: 14),
+          // ⚠️ **Hors maquette, et conservée volontairement** : elle dit ce qui
+          // fait bouger le palier (diagnostics et épreuves complètes, pas les
+          // séries). Sans elle, un candidat qui vient d'enchaîner des
+          // entraînements lit un niveau inchangé et croit à une panne.
           const SfMicroNote(kHomeSituationNote),
         ],
       ),
     );
   }
 
-  /// Le pendant civique. 🛑 **Aucune métrique CECRL de ce côté** : le civique
-  /// se dit en thèmes et en états servis, jamais en paliers ni en pourcentages.
-  /// Et comme rien ne sert d'objectif civique, le bandeau est **omis**, pas
-  /// fabriqué.
+  /// Le pendant civique — **la même anatomie** (arbitrage du propriétaire,
+  /// 2026-09-16) : carte à liseré tricolore, en-tête, bande de tête, puis une
+  /// ligne par thème avec sa pastille, son statut à pastille colorée et sa
+  /// ligne de pied.
+  ///
+  /// 🛑 **Adapté, jamais transposé.** Le civique n'a **ni palier CECRL ni
+  /// objectif CECRL servi** : pas d'échelle à crans, pas d'« Atteindre B2
+  /// partout », pas de pastille de niveau. La bande de tête dit ce qui EST
+  /// servi — le dernier résultat et son seuil (`progresCiviqueScore`,
+  /// l'autorité déjà en place) — et le compteur porte sur les **thèmes** de la
+  /// liste servie.
   Widget? _situationCivique(BuildContext context, Progress progres) {
     final themes = progres.civique.themes;
     if (themes.isEmpty) return null;
+    // 🛑 Rien n'est fabriqué : sans examen civique passé, le serveur ne sert ni
+    // score ni seuil, et la bande disparaît — exactement comme le bandeau TCF
+    // sans démarche déclarée.
+    final dernier = progresCiviqueScore(progres.civique);
+    final compte = accueilEvaluesCivique(themes);
     return SfCard(
+      rule: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            kHomeSituationCivicCardTitle,
-            style: AppFonts.display(size: 23, weight: FontWeight.w700, height: 1.1),
+          const SfPanelHead(
+            lead: true,
+            title: kHomeSituationCivicCardTitle,
+            sub: kHomeSituationCivicCardLead,
           ),
-          const SizedBox(height: 6),
-          Text(
-            kHomeSituationCivicCardLead,
-            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.45),
-          ),
+          if (dernier != null) ...[
+            const SizedBox(height: 14),
+            SfGoalBanner(
+              label: kHomeSituationCivicResultLabel,
+              value: dernier,
+              count: compte?.faites,
+              total: compte?.total,
+              caption: kAccueilEvaluesCaptionCivique,
+            ),
+          ],
           const SizedBox(height: 14),
-          // Même grille qu'en TCF : un thème civique se dit en un libellé, un
-          // état et une jauge — exactement ce qu'une carte compacte porte.
-          SfLevelGrid(
+          SfLevelList(
             children: [
-              for (final theme in themes)
-                SfLevelCard(
-                  // 🛑 **Pas de repère court en civique** : la maquette n'en
-                  // donne qu'aux quatre épreuves (CO/CE/EE/EO), et un thème n'a
-                  // aucun code de deux lettres servi. On omet, on n'invente pas.
-                  mark: null,
-                  title: theme.label,
-                  // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
-                  // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
-                  level: theme.etat == CivicThemeState.nonEvalue
-                      ? kNonMesureLabel
-                      : theme.etat.label,
-                  measured: theme.etat != CivicThemeState.nonEvalue,
-                  // 🛑 **Aucune ligne de repères en civique** : il n'a ni palier
-                  // CECRL ni objectif servi, et la fabriquer serait inventer une
-                  // donnée.
-                  from: null,
-                  to: null,
-                  status: theme.etat.label,
-                  ratio: civicThemeJauge(theme.etat),
-                  tone: civicThemeBarTone(theme.etat),
-                  cta: kHomeSituationCivicCta,
-                  onTap: () => _ouvrirPlan(context, civique: true),
-                ),
+              for (var rang = 0; rang < themes.length; rang++)
+                _ligneThemeCivique(context, themes[rang], rang),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  /// Une ligne de thème civique.
+  ///
+  /// 🛑 **Le repère est le RANG SERVI**, pas un code abrégé : un thème n'a aucun
+  /// code de deux lettres servi (`CIV_PRINCIPES` n'en est pas un), et en
+  /// inventer un serait fabriquer un libellé. Le produit numérote déjà les cinq
+  /// thèmes du livret citoyen — on montre leur position dans la liste que le
+  /// serveur ordonne, rien de plus.
+  Widget _ligneThemeCivique(
+    BuildContext context,
+    CivicPlanThemeLigne theme,
+    int rang,
+  ) {
+    return SfLevelRow(
+      mark: '${rang + 1}',
+      title: theme.label,
+      // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne classe
+      // aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
+      status: theme.etat == CivicThemeState.nonEvalue
+          ? kNonMesureLabel
+          : theme.etat.label,
+      tone: civicThemeBarTone(theme.etat),
+      // 🛑 **Aucun palier CECRL en civique** : le civique se mesure en thèmes,
+      // jamais en paliers. La pastille de droite disparaît.
+      level: null,
+      measured: theme.etat != CivicThemeState.nonEvalue,
+      // 🛑 **Pas d'échelle CECRL non plus** — mais la jauge d'état, elle, est
+      // servie : `civicThemeBarTone` et `civicThemeJauge` restent les autorités
+      // déjà en place pour cet enum.
+      scale: SfProgressMini(
+        ratio: civicThemeJauge(theme.etat),
+        tone: civicThemeBarTone(theme.etat),
+        semanticsLabel: theme.etat.label,
+      ),
+      cta: kHomeSituationCivicCta,
+      goal: null,
+      onTap: () => _ouvrirPlan(context, civique: true),
     );
   }
 
