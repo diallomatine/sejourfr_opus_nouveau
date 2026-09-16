@@ -2,6 +2,7 @@ package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ExamTemplate;
+import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
@@ -11,6 +12,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,9 @@ class AttemptManagerIT extends AbstractIntegrationTest {
 
     @Autowired
     private TestData testData;
+
+    @Autowired
+    private TcfDiagnosticSessionManager diagnosticSessionManager;
 
     @Test
     void saveAndFindById() {
@@ -382,6 +387,45 @@ class AttemptManagerIT extends AbstractIntegrationTest {
                 .extracting(Attempt::getId).containsExactly(ce.getId());
     }
 
+    /**
+     * 🛑 <b>Revocation de l'exclusion V049</b> (2026-09-16). Une sous-epreuve
+     * CE/CO de diagnostic complet compte comme n'importe quelle epreuve passee :
+     * depuis le 2026-09-13 elle est composee exactement comme un examen de
+     * module (25 items, 8/9/8, meme tirage, meme duree), donc son resultat est
+     * comparable. Le garder dehors privait le profil de la seule mesure de
+     * comprehension que beaucoup de candidats avaient.
+     */
+    @Test
+    void findQcmEpreuvesPassees_includesTcfDiagnosticSubAttempts() {
+        User user = testData.user();
+        Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
+
+        Attempt seule = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.A2);
+        testData.answer(testData.attemptQuestion(seule, testData.question()));
+
+        Attempt sousEpreuve = diagnosticSubAttempt(user, EpreuveType.TCF_CE,
+                t0.plus(1, ChronoUnit.HOURS), NiveauCecrl.B2);
+        testData.answer(testData.attemptQuestion(sousEpreuve, testData.question()));
+
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CE, 50))
+                .extracting(Attempt::getId)
+                .containsExactly(sousEpreuve.getId(), seule.getId());
+    }
+
+    /**
+     * La regle du « zero reponse » ne change pas pour autant : une section de
+     * diagnostic ouverte puis abandonnee reste hors du profil.
+     */
+    @Test
+    void findQcmEpreuvesPassees_excludesTcfDiagnosticSubAttemptWithoutAnyAnswer() {
+        User user = testData.user();
+        Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
+
+        diagnosticSubAttempt(user, EpreuveType.TCF_CO, t0, NiveauCecrl.A1_NON_ATTEINT);
+
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50)).isEmpty();
+    }
+
     @Test
     void findQcmEpreuvesPassees_ordersMostRecentFirst() {
         User user = testData.user();
@@ -406,6 +450,35 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         a.setFinishedAt(finishedAt);
         a.setCecrlLevel(level);
         return save(a);
+    }
+
+    /**
+     * Une section CO/CE de diagnostic complet : un {@code MOCK_EXAM} rattache a
+     * une {@code TcfDiagnosticSession}, exactement ce que produit
+     * {@code TcfDiagnosticSectionStarter.creerComprehension}.
+     */
+    private Attempt diagnosticSubAttempt(
+            User user, EpreuveType epreuve, Instant finishedAt, NiveauCecrl level) {
+        Attempt parent = base(user);
+        parent.setType(AttemptType.MOCK_EXAM);
+        parent.setEpreuve(EpreuveType.TCF_COMPLET);
+        parent = save(parent);
+
+        TcfDiagnosticSession session = new TcfDiagnosticSession();
+        session.setUser(user);
+        session.setParentAttempt(parent);
+        session.setConfigVersion(1);
+        session.setStatus(TcfDiagnosticStatus.COMPLETED);
+        session.setStartedAt(Instant.now().minus(4, ChronoUnit.HOURS));
+        session.setExpiresAt(Instant.now().plus(1, ChronoUnit.DAYS));
+        // chk_tcf_diagnostic_completed : un diagnostic COMPLETED porte sa date.
+        session.setCompletedAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        session = diagnosticSessionManager.save(session);
+
+        Attempt sub = mockExam(user, epreuve, finishedAt, level);
+        sub.setParentAttempt(parent);
+        sub.setTcfDiagnostic(session);
+        return save(sub);
     }
 
     private Attempt base(User user) {
