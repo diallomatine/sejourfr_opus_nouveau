@@ -27,11 +27,13 @@ import { PlanDomainsSummary } from "@/app/_components/plan/PlanDomainsSummary";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { categoryBadge, categoryHref, moduleAverage, successHint } from "@/lib/dashboard";
+import { niveauActuelEpreuve, suiviNiveauLabel } from "@/lib/progres";
 import {
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
   estimatedTcfLevelScopeLabel,
   niveauCecrlLabel,
+  type TcfDomainProfileDto,
 } from "@/lib/types";
 
 /** Tonalité d'une catégorie (mêmes couleurs que les cards des hubs). */
@@ -176,12 +178,14 @@ export default function StatistiquesPage() {
         title="TCF IRN"
         categories={summary?.tcf ?? []}
         examOutOf={25}
+        profil={summary?.tcfDomainProfile ?? null}
       />
       <ModuleProgressSection
         icon={<Lightbulb size={18} strokeWidth={2} />}
         title="Examen civique"
         categories={summary?.civique ?? []}
         examOutOf={20}
+        profil={summary?.tcfDomainProfile ?? null}
       />
 
       <style>{styles}</style>
@@ -226,11 +230,19 @@ function ModuleProgressSection({
   title,
   categories,
   examOutOf,
+  profil,
 }: {
   icon: React.ReactNode;
   title: string;
   categories: DashboardCategoryStat[];
   examOutOf: number;
+  /**
+   * L'autorité d'affichage du niveau d'une épreuve, servie par le **même**
+   * appel que les catégories (`GET /api/me/dashboard`) — aucun appel de plus.
+   * Il est passé aux **deux** sections, et c'est sans effet sur la civique :
+   * aucune de ses catégories n'y figure, donc aucune ligne n'y gagne de palier.
+   */
+  profil: TcfDomainProfileDto | null;
 }) {
   return (
     <section className="prog-module">
@@ -242,27 +254,42 @@ function ModuleProgressSection({
       </header>
       <ul className="prog-rows">
         {categories.map((cat) => (
-          <CategoryRow key={cat.code} cat={cat} examOutOf={examOutOf} />
+          <CategoryRow key={cat.code} cat={cat} examOutOf={examOutOf} profil={profil} />
         ))}
       </ul>
     </section>
   );
 }
 
+/**
+ * Une ligne de catégorie.
+ *
+ * 🛑 **Le niveau vient de l'AUTORITÉ D'AFFICHAGE** (`tcfDomainProfile`, par
+ * `niveauActuelEpreuve`), la même que l'Accueil, le Profil, le Diagnostic et
+ * Réviser — jamais de `DashboardCategoryStat.level`, qui voyait le dernier
+ * niveau de **n'importe quelle** soumission, entraînements compris.
+ * → `docs/decisions/diagnostic.md`, 2026-09-16.
+ *
+ * 🛑 **Seules les 4 épreuves TCF ont un palier.** Un thème civique et
+ * `TCF_STRUCTURE` rendent `null` : la ligne retombe alors sur ce qu'elle sait
+ * **compter** (examens passés, record, tendance, maîtrise), jamais sur un
+ * palier fabriqué.
+ */
 function CategoryRow({
   cat,
   examOutOf,
+  profil,
 }: {
   cat: DashboardCategoryStat;
   examOutOf: number;
+  profil: TcfDomainProfileDto | null;
 }) {
   const isProduction = cat.code === "TCF_EE" || cat.code === "TCF_EO";
   const stat = categoryBadge(cat.percent);
+  const niveau = niveauActuelEpreuve(profil, cat.code);
 
   const sub = isProduction
-    ? cat.level
-      ? `Niveau estimé ${niveauCecrlLabel(cat.level)}`
-      : "Évaluation IA · pas encore évaluée"
+    ? suiviNiveauLabel(niveau)
     : cat.mockExams > 0
       ? `${cat.mockExams} examen${cat.mockExams > 1 ? "s" : ""}${
           cat.bestMockScore != null ? ` · record ${cat.bestMockScore}/${examOutOf}` : ""
@@ -293,7 +320,10 @@ function CategoryRow({
           <span className="prog-row-sub">{sub}</span>
         </span>
         <span className="prog-row-bar">
-          <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"} />
+          <CategoryBarLine
+            percent={cat.percent}
+            fallback={niveau ? niveauCecrlLabel(niveau) : "—"}
+          />
         </span>
         <span className={`prog-trend prog-trend-${trend ?? "none"}`} aria-hidden>
           {trend === "up" ? (

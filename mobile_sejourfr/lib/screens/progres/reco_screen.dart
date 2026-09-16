@@ -15,6 +15,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
+import 'progres_labels.dart';
 
 /// Écran « Recommandations » (cf. `MReco` maquette) : la catégorie la plus
 /// faible en hero bleu « Priorité n°1 » + les pistes suivantes en liste
@@ -141,10 +142,17 @@ class _RecoBody extends StatelessWidget {
                 iconBg: AppColors.surface2,
                 iconColor: AppColors.inkSoft,
                 title: stat.label,
+                // 🛑 Le niveau vient de l'AUTORITÉ D'AFFICHAGE
+                // (`tcfDomainProfile`), la même que l'Accueil, le Profil, le
+                // Diagnostic et Réviser — jamais de `stat.level`, qui voyait
+                // le dernier niveau de n'importe quelle soumission,
+                // entraînements compris. Une catégorie sans palier servi
+                // (thème civique, `TCF_STRUCTURE`) retombe sur ce qu'elle sait
+                // compter. → `docs/decisions/diagnostic.md`, 2026-09-16.
                 sub: stat.isProduction
-                    ? (stat.level != null
-                        ? 'Niveau estimé ${stat.level!.displayName}'
-                        : 'Pas encore évalué')
+                    ? suiviNiveauLabel(
+                        niveauActuelEpreuve(summary.tcfDomainProfile, stat.code),
+                      )
                     : '${stat.percent ?? 0} % de réussite',
                 onTap: () => context.push(dashboardCategoryRoute(stat)),
               ),
