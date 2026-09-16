@@ -1072,8 +1072,21 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 2. en-tête « Bonjour X » + pastille de démarche, **et rien d'autre** ;
 3. la **bascule TCF / Examen civique** du kit ;
 4. `deskPair` : **À faire maintenant** | **Votre Plan** (l'aperçu) ;
-5. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
-6. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
+5. **Où vous en êtes** (pleine largeur) ;
+6. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
+7. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
+
+✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
+une carte compacte par épreuve TCF — palier, jauge, état en un mot, action —
+puis le bandeau d'objectif ; en civique, une carte par thème, sans bandeau.
+🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses deux
+compteurs. 🛑 **Aucun appel de plus** — `progres` est déjà dans l'état de
+l'écran. ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le
+`deskPair` : quatre cartes dans une demi-colonne de 1080 px se replieraient en
+une file illisible. La dérivation (état → libellé, ton, jauge, CTA,
+destination) vit dans `lib/progres.ts`, **avec celle de l'écran Progrès** :
+c'est le même statut servi. → `docs/regles/progression.md`, section
+« Écran ACCUEIL ».
 
 ⚠️ **Corrigé sur capture le 2026-09-12** : la version précédente ajoutait
 « Ma préparation » et « À renforcer en priorité », affichait **quatre tuiles**

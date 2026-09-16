@@ -418,6 +418,39 @@ aucun palier, aucun état n'est recalculé.
   travail ne se répartissent pas — une séance civique et une production TCF sont
   le même effort du même jour.
 
+- `GET /api/me/progress/tcf/{epreuve}/historique` → `EpreuveHistoriqueDto`
+  (**2026-09-16**). « **D'où sort mon niveau ?** » — les **3 dernières
+  évaluations qualifiantes** d'une épreuve TCF : `mesureA`, `source`, `niveau`.
+  `{epreuve}` vaut `TCF_CO` / `TCF_CE` / `TCF_EE` / `TCF_EO`.
+  🛑 **Un endpoint à part, et c'est la raison d'être de la règle voisine.**
+  `ProgressDto` refuse une liste d'historique parce qu'elle y serait servie à
+  **tous** les écrans et deviendrait une seconde vérité. Ici la liste est le
+  **détail d'UNE ligne**, demandée quand le candidat ouvre une carte de
+  l'Accueil — l'Accueil, lui, garde son appel unique.
+  🛑 **« Qualifiante » n'est pas une définition nouvelle** : c'est celle qui
+  alimente déjà `ProgressDto.Epreuve.niveau`. CO/CE passent par la **même
+  requête** que `TcfProfileService` (`findQcmEpreuvesPassees` — examen fini
+  portant au moins une réponse, quelle que soit sa provenance) ; EE/EO par une
+  **session d'examen de production terminée** (verdict de
+  `ProductionBilanService`) plus la **baseline du diagnostic rapide**.
+  🛑 **Ce qui n'y entre pas** : les **petits sujets de compétence**
+  (`user_skill_attempts`, aucun palier CECRL) et l'**entraînement libre** de
+  production (« jamais de niveau en entraînement libre »). Les montrer
+  laisserait croire qu'un micro-entraînement mesure une épreuve.
+  🛑 **`source` est servie BRUTE et en quatre valeurs** — `DIAGNOSTIC_RAPIDE`,
+  `DIAGNOSTIC_COMPLET`, `EPREUVE_SEULE`, `EXAMEN_BLANC` — et elles ne se fondent
+  pas deux à deux : une sous-épreuve de diagnostic complet n'est ni l'un ni
+  l'autre, et porte **aussi** un `parentAttempt`, donc l'ordre des tests compte.
+  Les fronts posent le libellé (`SOURCE_EVALUATION_LABEL` ⇄
+  `SourceEvaluation.label`).
+  🛑 **Jamais 404 pour une épreuve jamais mesurée** : `evaluations` est **vide**.
+  Une absence de mesure n'est pas une erreur. En revanche une épreuve **hors des
+  quatre** (`TCF_STRUCTURE`, `CIVIQUE`) est bien un 400 : là, c'est le client qui
+  se trompe.
+  🛑 **Trois lignes servies, plafond d'AFFICHAGE** : le serveur balaie plus large
+  puis trie, sinon une baseline ancienne évincerait une épreuve d'hier par le
+  seul hasard de l'ordre de lecture.
+
 ## Plan civique (L10)
 
 Le pendant civique du Plan TCF. 🛑 **Deux plans, deux moteurs, aucun effet
