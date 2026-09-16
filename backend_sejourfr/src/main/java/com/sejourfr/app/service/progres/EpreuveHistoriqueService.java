@@ -40,12 +40,19 @@ import java.util.UUID;
  * qu'elle proposait « Voir mes résultats » à un candidat à qui cette page
  * répondait « aucune évaluation qualifiante » — est donc fermée : les deux
  * écrans lisent {@link EpreuvesProductionQualifiantesResolver}, à un usage près
- * (un maximum pour l'Accueil, une chronologie ici).
+ * (la <b>moyenne des 3 dernières</b> pour l'affichage, une chronologie ici).
+ *
+ * <p>🛑 <b>C'est ici que vit le MEILLEUR niveau atteint</b>, depuis que
+ * l'affichage sert le niveau <b>actuel</b> (2026-09-16) : cette page est la
+ * seule qui montre tous les paliers obtenus, et le candidat y retrouve son
+ * meilleur jour même quand la moyenne des trois derniers examens l'a fait
+ * redescendre. Les deux ne se confondent plus.
  *
  * <p>⚠️ <b>Le PLAN, lui, n'est pas concerné</b> : {@code TcfProfileService.levelProfile}
  * — sa lecture — voit toujours les entraînements EE/EO évalués, parce qu'un
- * entraînement est une observation utile aux priorités et aux compétences. C'est
- * {@code TcfProfileService.levelProfileAccueil} qui se restreint, et lui seul.
+ * entraînement est une observation utile aux priorités et aux compétences, et
+ * garde son <b>maximum</b>. C'est {@code TcfProfileService.levelProfileAccueil}
+ * qui se restreint et qui moyenne, et lui seul.
  * → {@code docs/regles/progression.md}, section « Écran ACCUEIL ».
  *
  * <table>

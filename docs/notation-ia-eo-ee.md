@@ -2764,7 +2764,13 @@ Effet mesuré sur les trois comptes concernés : deux d'entre eux voient leur **
 redevenir « à mesurer »** au lieu d'être au plancher, ce qui **remonte leur niveau global**
 (de « A1 non atteint » à A2) ; le troisième ne bouge pas, parce que ses autres productions
 écrites portaient déjà un niveau plus élevé et que c'est le **meilleur** résultat d'une épreuve
-qui fait foi.
+qui faisait foi *à cette date*.
+
+> ⚠️ **Cette dernière phrase n'est plus vraie du niveau affiché depuis le 16 septembre 2026** :
+> votre accueil et votre profil montrent désormais la **moyenne de vos 3 derniers examens**,
+> pas votre meilleur résultat. Voir « Votre niveau affiché est la moyenne de vos 3 derniers
+> examens » plus bas. La mesure ci-dessus reste le compte-rendu exact de ce qui s'est passé le
+> 21 août 2026.
 
 ### Le même trou existait sur les productions **normales**, il est bouché aussi
 
@@ -2869,6 +2875,51 @@ rien de comparable à un examen n'a établi.
 son estimation continue de renseigner votre niveau tant que vous n'avez passé aucune épreuve
 complète. C'est un repère de départ, il n'a jamais eu la valeur d'une épreuve — et dès qu'une
 épreuve complète existe, c'est elle qui parle.
+
+### 🛑 Votre niveau affiché est la moyenne de vos **3 derniers** examens (16 septembre 2026)
+
+**Le niveau que vous lisez sur votre accueil et sur votre profil est votre niveau
+*aujourd'hui*. Il peut monter, et il peut descendre.**
+
+C'est une décision du propriétaire, prise le jour même où la règle précédente — « votre niveau
+ne redescend jamais » — avait été écrite. Elle est **remplacée**, et il faut le dire
+franchement : jusque-là, nous affichions votre **meilleur** résultat, pour toujours. Un
+candidat qui avait démontré un B1 en juin et qui n'y arrivait plus en septembre continuait de
+lire « B1 ». C'était flatteur, et c'était faux — à trois semaines de l'examen, c'est même
+exactement l'information qu'il ne fallait pas lui donner.
+
+**Comment le niveau d'une épreuve est calculé :**
+
+- **1 examen** passé sur cette épreuve → le niveau de cet examen ;
+- **2 examens** → la moyenne des 2 ;
+- **3 examens ou plus** → la moyenne des **3 derniers uniquement**. Un examen plus ancien ne
+  compte plus : il ne décrit plus votre niveau d'aujourd'hui.
+
+**Ce qui compte comme « examen » ici**, pour les quatre épreuves : l'épreuve passée dans le
+**diagnostic**, un **examen blanc de cette épreuve seule**, ou cette épreuve à l'intérieur d'un
+**examen blanc TCF complet**. Les **entraînements ne comptent pas** — c'est la règle de la
+section précédente, elle est inchangée.
+
+**Nous faisons la moyenne des *notes*, pas des *niveaux*.** « La moyenne d'un A2 et d'un B2 »
+ne veut rien dire : un niveau est une **tranche**, pas une graduation. Nous moyennons donc les
+résultats chiffrés de vos examens — le score sur 499 en compréhension, la note d'épreuve en
+expression — et nous convertissons **ensuite** le résultat en niveau, avec la même table que
+partout ailleurs. Quand la moyenne tombe **entre deux tranches**, nous retenons la tranche du
+**bas** : c'est la règle constante ici, on n'accorde pas un palier qui n'est pas atteint.
+
+**Votre niveau global reste le plus bas de vos 4 épreuves** — c'est la règle du TCF IRN, et
+elle ne bouge pas. Simplement, chaque épreuve vaut maintenant sa moyenne avant d'entrer dans ce
+calcul.
+
+**Et si vous n'avez passé aucun examen sur une épreuve ?** Elle reste « **À évaluer** ». Une
+absence de mesure n'est jamais un mauvais résultat — c'est la règle qui tient tout ce document.
+
+> 🛑 **Votre meilleur niveau atteint n'est pas perdu.** Il reste lisible sur la page
+> « **Voir mes résultats** » de chaque épreuve, qui liste vos dernières mesures avec leur date
+> et d'où elles viennent. Ce que nous avons séparé, ce sont **deux questions différentes** :
+> *« où en suis-je aujourd'hui ? »* (votre accueil, votre profil) et *« qu'ai-je déjà réussi à
+> faire ? »* (vos résultats). Les confondre revenait à répondre à la seconde en croyant
+> répondre à la première.
 
 ---
 

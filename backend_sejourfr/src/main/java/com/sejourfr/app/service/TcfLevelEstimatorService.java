@@ -142,6 +142,30 @@ public class TcfLevelEstimatorService {
         return NiveauCecrl.A1;
     }
 
+    /**
+     * Bande CECRL d'un score calibré 100-499, plafonnée B2 — <b>la même table
+     * que {@link #estimateQcm}</b>, publiée pour les lecteurs qui disposent
+     * déjà d'un score et pas d'un attempt.
+     *
+     * <p>🛑 <b>Aucune table n'est recopiée</b> : c'est {@link #levelByScore},
+     * exactement. Le lecteur historique est
+     * {@code NiveauActuelEpreuveResolver}, qui moyenne les scores calibrés des
+     * trois derniers examens qualifiants avant de convertir — moyenner des
+     * <b>labels</b> A2/B1/B2 n'aurait aucun sens arithmétique.
+     *
+     * <p>⚠️ Le <b>plancher produit</b> {@link #plancherA1SiUneBonneReponse}
+     * n'est PAS appliqué ici : il demande de savoir s'il y a eu au moins une
+     * bonne réponse, ce qu'un score moyenné ne dit plus. L'appelant qui a cette
+     * information l'applique lui-même, par-dessus.
+     *
+     * @return {@code null} pour un score absent — inconnu, jamais
+     *         {@code A1_NON_ATTEINT}
+     */
+    public NiveauCecrl niveauDepuisScoreCalibre(Integer score) {
+        if (score == null) return null;
+        return capB2(levelByScore(score));
+    }
+
     private static NiveauCecrl levelByScore(int score) {
         return score >= 400 ? NiveauCecrl.B2
              : score >= 300 ? NiveauCecrl.B1

@@ -30,6 +30,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -59,11 +61,18 @@ class UserDashboardServiceTest {
         questionManager = mock(QuestionManager.class);
         themeManager = mock(ThemeManager.class);
         aiEvaluationManager = mock(AiEvaluationManager.class);
-        // Le niveau TCF estimé est dérivé par TcfProfileService (plancher des 4
-        // épreuves, meilleur résultat de chacune) : ici on n'exerce que le
-        // branchement, la règle elle-même vit dans TcfProfileServiceTest.
+        // Le niveau TCF estimé est dérivé par TcfProfileService : ici on n'exerce
+        // que le branchement, la règle elle-même vit dans TcfProfileServiceTest.
+        //
+        // 🛑 `levelProfileAccueil`, PAS `levelProfile` (2026-09-16) : c'est la
+        // LECTURE D'AFFICHAGE — plancher des 4 épreuves, chacune valant la
+        // MOYENNE de ses 3 derniers examens qualifiants. Le dashboard sert
+        // `estimatedTcfLevel`, donc le Profil, /statistiques, le hub TCF et
+        // /examens-blancs : tous doivent annoncer le même palier que l'Accueil.
+        // La lecture du PLAN (`levelProfile`, son maximum) ne s'affiche nulle
+        // part — et le test `summary_neLitJamaisLaLectureDuPlan` le verrouille.
         tcfProfileService = mock(TcfProfileService.class);
-        when(tcfProfileService.levelProfile(userId))
+        when(tcfProfileService.levelProfileAccueil(userId))
                 .thenReturn(new TcfLevelProfile(null, null, null, null, null));
         // Les séries (« 2 / 10 ») sont déléguées à LotService, qui a son propre
         // test : ici on neutralise, sauf dans le test qui les exerce.
@@ -188,9 +197,26 @@ class UserDashboardServiceTest {
 
     // ------------------------------------------------------------------ niveau TCF estimé
 
+    /**
+     * 🛑 <b>Le dashboard ne lit JAMAIS la lecture du Plan</b> (2026-09-16).
+     * {@code estimatedTcfLevel} est le seul endroit d'où sort ce niveau pour les
+     * fronts : le Profil, {@code /statistiques}, le hub TCF et
+     * {@code /examens-blancs} en dépendent tous. S'il repassait sur
+     * {@code levelProfile}, ces écrans annonceraient le <b>maximum</b> du Plan
+     * pendant que l'Accueil annonce la <b>moyenne</b> des 3 derniers examens —
+     * deux paliers différents, le même jour, dans la même application.
+     */
+    @Test
+    void summary_neLitJamaisLaLectureDuPlan() {
+        service.summary(userId);
+
+        verify(tcfProfileService).levelProfileAccueil(userId);
+        verify(tcfProfileService, never()).levelProfile(userId);
+    }
+
     @Test
     void summary_estimatedTcfLevel_vientDuPlancherDesEpreuves() {
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B2, NiveauCecrl.B2, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
         DashboardSummaryResponse resp = service.summary(userId);
@@ -205,7 +231,7 @@ class UserDashboardServiceTest {
     void summary_estimatedTcfLevel_uneSeuleEpreuve_estPartiel() {
         // Le cas vécu : un candidat qui n'a fait que l'expression écrite lisait
         // « Niveau TCF estimé : B1 » sans que rien ne dise sur quoi il portait.
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 null, null, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
         DashboardSummaryResponse resp = service.summary(userId);
@@ -217,7 +243,7 @@ class UserDashboardServiceTest {
 
     @Test
     void summary_estimatedTcfLevel_quatreEpreuves_nEstPasPartiel() {
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B2, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.A2, NiveauCecrl.A2));
 
         DashboardSummaryResponse resp = service.summary(userId);
@@ -235,7 +261,7 @@ class UserDashboardServiceTest {
      */
     @Test
     void summary_profilParDomaine_publieLesQuatreDomainesDansUnOrdreFige() {
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B2, null, NiveauCecrl.B1, NiveauCecrl.A2, NiveauCecrl.A2));
 
         TcfDomainProfileDto profil = service.summary(userId).tcfDomainProfile();
@@ -254,7 +280,7 @@ class UserDashboardServiceTest {
     /** Un domaine jamais passé est PRÉSENT, non évalué, sans niveau — jamais A1 non atteint. */
     @Test
     void summary_profilParDomaine_domaineJamaisPasse_estPresentSansNiveau() {
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 null, null, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
         TcfDomainProfileDto profil = service.summary(userId).tcfDomainProfile();

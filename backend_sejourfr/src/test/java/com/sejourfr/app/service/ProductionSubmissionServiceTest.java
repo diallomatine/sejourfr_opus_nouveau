@@ -351,7 +351,7 @@ class ProductionSubmissionServiceTest {
         // en entraînement libre elle ne rend aucun palier, et c'est elle que
         // l'écran « Voir mes résultats » interroge aussi.
         when(bilanService.niveauEpreuve(List.of(), false, false))
-                .thenReturn(new ProductionBilanService.NiveauEpreuve(null, false, Map.of()));
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(null, false, Map.of(), null));
         when(bilanService.moyenneNotes(any())).thenReturn(null);
 
         ProductionBilanResponse resp = service.bilan(attemptId);
@@ -378,7 +378,7 @@ class ProductionSubmissionServiceTest {
                 1, new AiEvaluation(), 2, new AiEvaluation(), 3, new AiEvaluation());
         CorrespondanceTcfDto correspondance = new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9);
         when(bilanService.niveauEpreuve(List.of(), true, false))
-                .thenReturn(new ProductionBilanService.NiveauEpreuve(NiveauCecrl.B1, false, evals));
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(NiveauCecrl.B1, false, evals, null));
         when(bilanService.moyenneNotes(any())).thenReturn(null);
         when(bilanService.correspondanceTcf(NiveauCecrl.B1)).thenReturn(correspondance);
 

@@ -2554,9 +2554,12 @@ Chantier découpé en vagues :
 ### Niveau TCF estimé (source unique backend, arbitré 2026-08-08)
 
 `DashboardSummaryResponse.estimatedTcfLevel` est le **seul** endroit d'où sort ce niveau,
-et il est **dérivé serveur** (`TcfProfileService`) : plancher des 4 épreuves, chacune
-retenant son **meilleur** résultat, une épreuve abandonnée sans rien rendre (0 réponse /
-0 soumission) étant **exclue** — détail dans le `CLAUDE.md` racine. `null` = inconnu
+et il est **dérivé serveur** (`TcfProfileService.levelProfileAccueil`) : plancher des
+4 épreuves, chacune valant la **moyenne de ses 3 derniers examens qualifiants**
+(🛑 **2026-09-16** — le « meilleur résultat » est **révoqué** : le niveau affiché est le
+niveau **actuel**, il peut redescendre ; les entraînements EE/EO n'y entrent jamais), une
+épreuve abandonnée sans rien rendre (0 réponse / 0 soumission) étant **exclue** — règle
+complète : `docs/regles/progression.md`, section « Écran ACCUEIL ». `null` = inconnu
 (afficher « — »), **jamais** « < A1 ». Cinq surfaces l'affichent : `/dashboard`, `/profil`,
 `/statistiques`, `TcfHub`, `/examens-blancs` — **aucune ne le recalcule** et toutes disent
 « estimé » (parité mot pour mot avec le mobile : accueil « Niveau TCF estimé », profil
