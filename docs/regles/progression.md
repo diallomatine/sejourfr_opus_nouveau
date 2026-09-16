@@ -504,14 +504,25 @@ production d'entraînement corrigée est une observation pleine et entière, ell
 n'est simplement pas une **mesure d'épreuve**. Concrètement, deux lectures de la
 même autorité :
 
-| lecture | qui l'appelle | EE/EO viennent de |
-|---|---|---|
-| `TcfProfileService.levelProfile` | `PlanCycleResolver`, priorités, compétences, `UserDashboardService` | **toute** évaluation IA valide, entraînement compris |
-| `TcfProfileService.levelProfileAccueil` | **`ProgressService.tcf()` et lui seul** | **uniquement** les épreuves complètes |
+| lecture | qui l'appelle | ce que vaut une épreuve | EE/EO viennent de |
+|---|---|---|---|
+| `TcfProfileService.levelProfile` | `PlanCycleResolver`, priorités, compétences | le **MEILLEUR** résultat de tout l'historique | **toute** évaluation IA valide, entraînement compris |
+| `TcfProfileService.levelProfileAccueil` | `ProgressService.tcf()` **et** `UserDashboardService` | la **MOYENNE des 3 derniers examens qualifiants** | **uniquement** les épreuves complètes |
 
-Les deux peuvent donc **diverger**, et c'est voulu : l'Accueil dit « à évaluer »
-pendant que le Plan travaille déjà le domaine. Ce qui serait un défaut, c'est
-qu'un écran **recalcule** l'une des deux — ils l'appellent.
+Les deux peuvent donc **diverger**, et c'est voulu : l'affichage dit « à
+évaluer », ou annonce un palier en baisse, pendant que le Plan travaille déjà le
+domaine sur son meilleur niveau connu. Ce qui serait un défaut, c'est qu'un
+écran **recalcule** l'une des deux — ils l'appellent.
+
+🛑 **Toutes les surfaces d'affichage lisent la MÊME lecture** (2026-09-16,
+seconde passe). `UserDashboardService` est passé de `levelProfile` à
+`levelProfileAccueil` : `DashboardSummaryResponse.estimatedTcfLevel` étant le
+seul endroit d'où sort ce niveau pour les fronts, les **cinq** surfaces web
+(`/dashboard`, `/profil`, `/statistiques`, `TcfHub`, `/examens-blancs`) et les
+deux surfaces mobiles (Accueil, Profil) annoncent maintenant **le même palier
+que l'Accueil**, au même instant. Avant, le Profil servait le maximum du Plan
+pendant que l'Accueil servait autre chose. **Aucun DTO n'a changé de forme**, et
+`TcfDomainProfileDto` publiait déjà les 4 paliers d'épreuve à côté du global.
 
 Le niveau global d'une épreuve de production ne bouge que sur un **examen
 complet de l'épreuve**. **Trois provenances, et seulement trois** :
@@ -547,12 +558,14 @@ soit le nombre de tâches soumises.
 annoncerait un niveau global tiré d'une EO qu'il présente deux lignes plus bas
 comme non évaluée.
 
-**`niveauInitial`, `evolution` et `status` ne changent pas** : `niveauInitial`
-vient des sections du premier diagnostic 4 épreuves clos, et une section EE/EO de
-diagnostic complet est justement l'une des trois provenances qualifiantes — les
-deux paliers se lisent déjà sur la même famille de mesures. `actuel` étant un
-**maximum** sur ces sessions, il ne peut pas passer sous `initial`, et `status`
-en dérive.
+**`niveauInitial`, `evolution` et `status` ne changent pas de source** :
+`niveauInitial` vient des sections du premier diagnostic 4 épreuves clos, et une
+section EE/EO de diagnostic complet est justement l'une des trois provenances
+qualifiantes — les deux paliers se lisent sur la même famille de mesures.
+⚠️ **Ce qui a changé le 2026-09-16 : `actuel` PEUT désormais passer sous
+`initial`**, la moyenne ayant remplacé le maximum. `evolution` rend alors
+`BAISSE`, et c'est le comportement voulu — un candidat qui a régressé doit le
+lire. `status` en dérive sans rien à changer.
 
 **Ce qui a motivé la règle** : un compte dont la seule trace EO était un
 entraînement de trois minutes, noté A2, affichait « expression orale : A2 » sans
@@ -562,6 +575,96 @@ avoir jamais passé d'épreuve d'EO. → `docs/decisions/diagnostic.md`.
 des trois provenances n'existe, `diagnostic_production_analyses` renseigne encore
 le domaine. Une baseline n'est jamais **concurrente** d'une preuve réelle, elle
 n'est qu'un **repli** — cette règle-là n'a pas bougé.
+
+### 🛑 Le niveau AFFICHÉ = la MOYENNE des 3 derniers examens qualifiants (2026-09-16)
+
+⚠️ **Cette règle RÉVOQUE le « maximum monotone » et la protection « le niveau ne
+redescend jamais »** de la lecture d'affichage, posées le matin même. Décision du
+propriétaire, verbatim :
+
+> Je confirme : **moyenne des 3 derniers examens qualifiants**. Le niveau affiché
+> doit représenter le **niveau actuel estimé**, donc il peut monter comme
+> descendre. 1 examen qualifiant → niveau de cet examen ; 2 examens → moyenne des
+> 2 ; 3 examens ou plus → moyenne des **3 derniers uniquement**. […] Si on dispose
+> d'un **score numérique interne**, moyenne d'abord les **scores** puis transforme
+> le résultat en niveau CECRL. Évite de faire une moyenne directe des labels
+> A2/B1/B2. On retire donc la règle du **maximum monotone** et la protection « le
+> niveau ne redescend jamais ». Le meilleur niveau atteint peut rester visible
+> plus tard dans l'historique, mais il ne doit pas être confondu avec le niveau
+> actuel affiché.
+
+**Où vit le calcul** : `NiveauActuelEpreuveResolver`, une seule fois pour les
+4 épreuves. `TcfProfileService.levelProfileAccueil` l'appelle ; **personne
+d'autre**.
+
+**Ce qui compte comme examen qualifiant** — aucune définition nouvelle, les deux
+qui existent sont appelées, et ce sont celles de « Voir mes résultats » :
+
+| épreuve | source | ce qui est exclu |
+|---|---|---|
+| CO / CE | `AttemptRepository.findQcmEpreuvesPassees` | les sessions **sans aucune réponse** |
+| EE / EO | `EpreuvesProductionQualifiantesResolver` | **l'entraînement libre**, examinateur vocal compris |
+
+Les trois provenances (diagnostic complet · examen blanc isolé · examen blanc TCF
+complet) comptent **à égalité** : aucun traitement selon la provenance.
+
+**On moyenne des SCORES, jamais des labels.** Un niveau CECRL est une *bande* :
+« la moyenne d'un A2 et d'un B2 » n'a pas de sens arithmétique, et la calculer
+sur les ordinaux d'un enum ferait dépendre le résultat de l'ordre de déclaration.
+
+| épreuve | score moyenné | table de conversion (existante, **jamais recopiée**) |
+|---|---|---|
+| CO / CE | le **score calibré 100-499** (`TcfLevelEstimatorService.calibratedScore`) | `TcfLevelEstimatorService.niveauDepuisScoreCalibre` — ≥400 B2, ≥300 B1, ≥200 A2, ≥101 A1 |
+| EE / EO | la **compétence /20 de l'épreuve** (`ProductionBilanService.NiveauEpreuve.competence`, l'agrégat pondéré des 3 tâches) | `ProductionBilanService.niveauDepuisCompetence` — les seuils de la grille active |
+
+La moyenne est arithmétique et **non pondérée** : les trois examens retenus
+mesurent la même épreuve dans les mêmes conditions.
+
+🛑 **Règle de bande : une moyenne qui tombe ENTRE deux bandes reste dans la bande
+BASSE.** C'est la convention déjà en vigueur pour les notes de critère, et elle
+est gratuite ici : les deux tables sont des **bornes basses** (`>=`). Côté QCM la
+moyenne est ramenée à l'entier **inférieur** avant conversion, ce qui est la même
+décision — 399,5 reste B1, 400,0 devient B2.
+
+**Ce qui survit à la moyenne** : le **plancher produit** « au moins une bonne
+réponse ⇒ au moins A1 » (réappliqué par son autorité, non recodé), le **plafond
+B2**, et le **garde-fou de cohérence T3** (il abaissait déjà le niveau d'une
+session ; la compétence publiée est ramenée sous la bande plafonnée par
+`sousPlafond`, sinon le plafond se perdrait dans la moyenne).
+
+**Aucun examen qualifiant ⇒ `null`** (« À évaluer »), jamais un plancher
+fabriqué. Une session qui porte un palier mais **aucun score moyennable** (repli
+sur les niveaux persistés, attempt legacy sans score pondéré) ne casse rien : si
+aucune des sessions retenues n'a de score, le palier de la **plus récente** fait
+foi — « 1 examen → le niveau de cet examen ».
+
+**Le niveau global affiché reste le MIN des 4 épreuves**, chacune valant sa
+propre moyenne — `TcfLevelEstimatorService.floor`, la règle du plancher n'étant
+pas dupliquée.
+
+### 🛑 Niveau ACTUEL affiché ≠ MEILLEUR niveau atteint
+
+Deux faits différents, et depuis le 2026-09-16 **deux écrans différents** :
+
+| | ce que c'est | où le candidat le lit |
+|---|---|---|
+| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs` |
+| **meilleur niveau atteint** | le plus haut palier jamais obtenu | « Voir mes résultats » (`EpreuveHistoriqueService`), qui liste les 3 dernières mesures avec leur date et leur provenance |
+
+Ne jamais présenter l'un comme l'autre : un candidat dont la moyenne redescend
+garde son meilleur jour lisible, mais ce n'est plus son niveau.
+
+⚠️ **Le PLAN, lui, garde le maximum** (`levelProfile`) : un Plan n'a pas à
+désapprendre ce qu'un candidat a démontré, et l'anti-yoyo de la spec V2 §5.3 y
+tient toujours par construction. La section « anti-yoyo » de
+`TcfProfileServiceTest` ne vaut donc **que pour la lecture du Plan**.
+
+**Tests** : `NiveauActuelEpreuveResolverTest` (1 / 2 / 4 examens, la baisse sur
+un mauvais examen récent, la bande basse, le plancher A1, le repli sans score),
+`TcfProfileServiceTest` section « lecture d'AFFICHAGE » (le câblage, le min des
+4, l'affichage plus bas que le Plan), `TcfProfileServiceIT` (les 3 provenances à
+égalité, la moyenne en base, la fenêtre de 3, l'entraînement dehors, le min des
+4 sur les 4 vraies épreuves).
 
 ### 🛑 La section s'affiche TOUJOURS (correctif du 2026-09-16)
 
@@ -764,10 +867,14 @@ complets, pas la lecture du Plan. → journal : `docs/decisions/diagnostic.md`.
 🛑 **EE/EO : plus d'écart avec l'Accueil.** Les deux lisent
 `EpreuvesProductionQualifiantesResolver.qualifiantes(...)` — même liste de
 sessions, même niveau par session (`ProductionBilanService.niveauEpreuve`,
-l'agrégat des 3 tâches). Le seul écart restant est l'**usage** : l'Accueil en
-prend le **maximum** (`TcfProfileService.levelProfileAccueil`), la page en garde
-la **chronologie**. Un candidat ne peut donc plus voir un palier d'Accueil que
-cette page ne sait pas expliquer.
+l'agrégat des 3 tâches). Le seul écart restant est l'**usage** : l'affichage en
+prend la **moyenne des 3 dernières** (`NiveauActuelEpreuveResolver`, appelé par
+`TcfProfileService.levelProfileAccueil`), la page en garde la **chronologie**.
+Un candidat ne peut donc plus voir un palier d'Accueil que cette page ne sait
+pas expliquer — et c'est ici, et ici seulement, qu'il retrouve son **meilleur
+niveau atteint**, que le palier affiché ne prétend plus être.
+⚠️ C'était un **maximum** jusqu'au 2026-09-16 ; le propriétaire l'a révoqué le
+jour même.
 
 ⚠️ **Le PLAN, lui, reste plus large, et c'est voulu** :
 `TcfProfileService.levelProfile` voit toujours les entraînements EE/EO évalués.
