@@ -2766,3 +2766,154 @@
     transition: none;
   }
 }
+
+/* ======================================================================
+   PARCOURS TCF — la file d'étapes (spec §12-13)
+
+   🛑 Une étape VERROUILLÉE garde exactement sa place et sa taille : on ajoute
+   un cadenas, on ne déplace ni ne masque rien. C'est la contradiction #1 du
+   dépôt, tranchée le 2026-08-21 — « le Plan reste intégralement visible ».
+   ====================================================================== */
+
+.journey {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Le rail : un trait continu derrière les marqueurs. Il s'arrête avant la
+   première et après la dernière pastille (les 14 px), sinon il dépasse en
+   haut et en bas de la liste. */
+.journey::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--color-line);
+  border-radius: 2px;
+}
+
+.jRow {
+  position: relative;
+  display: grid;
+  /* La colonne du badge SHRINKE : « Déjà maîtrisée » déborderait un téléphone
+     à 360 px en `auto` pur. */
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px 9px 0;
+  border-radius: var(--sf-radius-sm);
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.jRowButton {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+}
+
+.jBullet {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-muted);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+/* Le CHECKPOINT se repère de loin : double cercle, jamais un rond plein. Ce
+   n'est pas une tâche de plus, c'est ce qui clôt un lot. */
+.jBullet.jExam {
+  color: var(--color-blue);
+  box-shadow: 0 0 0 1px var(--color-blue), inset 0 0 0 3px #fff;
+  background: var(--color-blue-soft);
+}
+
+.jText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.jText b {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.jText span {
+  font-size: 14px;
+}
+
+.jText small {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.jDone {
+  color: var(--color-muted);
+}
+
+.jDone .jBullet {
+  color: var(--color-green);
+  background: var(--color-green-light);
+  box-shadow: 0 0 0 1px var(--color-green-border);
+}
+
+.jDone .jText b {
+  font-weight: 600;
+}
+
+.jCurrent {
+  background: var(--color-blue-soft);
+}
+
+.jCurrent .jBullet {
+  color: #fff;
+  background: var(--color-blue);
+  box-shadow: none;
+}
+
+.jCurrent .jText b {
+  font-weight: 800;
+}
+
+.jLock {
+  color: var(--color-muted);
+}
+
+.jBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  background: #fff;
+  border-radius: var(--sf-radius-xs);
+  padding: 4px 7px;
+  box-shadow: 0 0 0 1px var(--color-line);
+  /* Un état à moitié lu ne dit plus rien : on replie plutôt que de tronquer. */
+  white-space: normal;
+  text-align: right;
+  text-wrap: balance;
+  min-width: 0;
+}
+
+.jDone .jBadge {
+  color: var(--color-green);
+  box-shadow: 0 0 0 1px var(--color-green-border);
+}

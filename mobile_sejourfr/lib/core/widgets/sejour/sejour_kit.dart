@@ -3757,3 +3757,214 @@ class SfInfoNote extends StatelessWidget {
     );
   }
 }
+
+// =============================================================================
+// PARCOURS TCF — la file d'etapes (spec §12-13)
+// =============================================================================
+
+/// L'etat d'une etape du **parcours TCF**, tel que le serveur le sert
+/// (`JourneyStepDto.status`).
+///
+/// 🛑 **Rien n'est deduit ici** : ni d'un compteur, ni d'une position dans la
+/// liste. [skipped] — « Deja maitrisee » / « Deja travaillee » — est une nuance
+/// de rendu de [done] que le **serveur** derive de l'ordre de cloture, et
+/// [current] depend du verrou du candidat. Un front qui les recalculerait
+/// finirait par designer une autre etape que le serveur.
+///
+/// ⚠️ **Distinct de [SfStepState]**, qui decrit une etape de *tache* (les
+/// 5 petits sujets d'une competence). Deux objets, deux vocabulaires : les
+/// confondre ferait cocher en vert une serie finie qui n'a rien prouve.
+///
+/// ⚠️ Miroir de `JourneyState` (`web .../sejour/SejourKit.tsx`).
+enum SfJourneyState { done, skipped, current, upcoming }
+
+/// La nature d'une etape, pour son marqueur.
+///
+/// 🛑 Un **examen** porte un double cercle et non un rond plein : c'est un
+/// *checkpoint*, pas une tache de plus — le candidat doit le reperer de loin
+/// dans la file.
+enum SfJourneyKind { step, exam }
+
+/// Une ligne du parcours.
+class SfJourneyRow extends StatelessWidget {
+  const SfJourneyRow({
+    super.key,
+    required this.title,
+    required this.state,
+    this.subtitle,
+    this.kind = SfJourneyKind.step,
+    this.badge,
+    this.locked = false,
+    this.onTap,
+  });
+
+  final String title;
+  final String? subtitle;
+  final SfJourneyState state;
+  final SfJourneyKind kind;
+
+  /// **Servi par l'appelant** — « MAINTENANT », « EXAMEN », « Deja maitrisee ».
+  /// Le kit ne compose aucune phrase.
+  final String? badge;
+
+  /// L'etape ne peut pas etre menee a son terme avec l'acces du candidat.
+  /// 🛑 **Elle reste a sa place** : on ajoute un cadenas, on ne deplace ni ne
+  /// masque rien (R16).
+  final bool locked;
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = state == SfJourneyState.done || state == SfJourneyState.skipped;
+    final current = state == SfJourneyState.current;
+    final exam = kind == SfJourneyKind.exam && !done;
+    final ligne = Container(
+      padding: const EdgeInsets.fromLTRB(0, 9, 10, 9),
+      decoration: current
+          ? BoxDecoration(
+              color: AppColors.blueSoft,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            )
+          : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: done
+                  ? AppColors.greenLight
+                  : current
+                      ? AppColors.blue
+                      : exam
+                          ? AppColors.blueSoft
+                          : AppColors.white,
+              shape: BoxShape.circle,
+              border: current
+                  ? null
+                  : Border.all(
+                      color: done
+                          ? AppColors.greenBorder
+                          : exam
+                              ? AppColors.blue
+                              : AppColors.line,
+                      width: exam ? 1.5 : 1,
+                    ),
+            ),
+            child: Icon(
+              done
+                  ? LucideIcons.check
+                  : exam
+                      ? LucideIcons.target
+                      : current
+                          ? LucideIcons.arrowRight
+                          : LucideIcons.circle,
+              size: 15,
+              color: done
+                  ? AppColors.green
+                  : current
+                      ? AppColors.white
+                      : exam
+                          ? AppColors.blue
+                          : AppColors.muted,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 14,
+                    color: done ? AppColors.muted : AppColors.ink,
+                    weight: current
+                        ? FontWeight.w800
+                        : done
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: AppFonts.ui(size: 12, color: AppColors.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (locked) ...[
+            const SizedBox(width: 8),
+            const Icon(LucideIcons.lock, size: 14, color: AppColors.muted),
+          ],
+          if (badge != null) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  border: Border.all(
+                    color: done ? AppColors.greenBorder : AppColors.line,
+                  ),
+                ),
+                child: Text(
+                  badge!.toUpperCase(),
+                  textAlign: TextAlign.right,
+                  style: AppFonts.label(
+                    size: 10,
+                    color: done ? AppColors.green : AppColors.blue,
+                  ).copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (onTap == null) return ligne;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: ligne,
+    );
+  }
+}
+
+/// La file d'etapes, avec son **rail vertical**.
+///
+/// 🛑 **L'ordre est celui du serveur**, jamais retrie : la position d'une etape
+/// *est* la decision d'ordonnancement que le parcours a prise, et elle ne se
+/// recalcule pas.
+class SfJourneyList extends StatelessWidget {
+  const SfJourneyList({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Stack(
+      children: [
+        // Le rail s'arrete AVANT la premiere pastille et APRES la derniere,
+        // sinon il deborde en haut et en bas de la liste.
+        Positioned(
+          left: 13,
+          top: 23,
+          bottom: 23,
+          child: Container(width: 2, color: AppColors.line),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
+      ],
+    );
+  }
+}

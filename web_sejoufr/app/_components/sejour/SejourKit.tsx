@@ -23,7 +23,9 @@ import {
   Circle,
   CircleDot,
   Info,
+  Lock,
   Minus,
+  Target,
   AlertCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -939,6 +941,102 @@ export function LockItem({ label, icon: Icon }: { label: string; icon: LucideIco
 
 export function LockList({ children }: { children: ReactNode }) {
   return <div className={styles.lockList}>{children}</div>;
+}
+
+/* ---------------------------------------------- Parcours TCF (la timeline) */
+
+/**
+ * L'état d'une étape du **parcours TCF**, tel que le serveur le sert
+ * (`JourneyStepDto.status`).
+ *
+ * 🛑 **Rien n'est déduit ici** : ni d'un compteur, ni d'une position dans la
+ * liste. `skipped` — « Déjà maîtrisée » / « Déjà travaillée » — est une nuance
+ * de rendu de `completed` que le **serveur** dérive de l'ordre de clôture, et
+ * `current` dépend du verrou du candidat. Un front qui les recalculerait
+ * finirait par désigner une autre étape que le serveur.
+ *
+ * ⚠️ **Distinct de {@link StepState}**, qui décrit une étape de *tâche* (les
+ * 5 petits sujets d'une compétence). Deux objets, deux vocabulaires : les
+ * confondre ferait cocher en vert une série finie qui n'a rien prouvé.
+ *
+ * ⚠️ Miroir de `SfJourneyState` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type JourneyState = "done" | "skipped" | "current" | "upcoming";
+
+/**
+ * La nature d'une étape, pour son marqueur.
+ *
+ * 🛑 Un **examen** porte un double cercle et non un rond plein : c'est un
+ * *checkpoint*, pas une tâche de plus — le candidat doit le repérer de loin
+ * dans la file.
+ */
+export type JourneyKind = "step" | "exam";
+
+/**
+ * Une ligne du parcours.
+ *
+ * @param badge  **servi par l'appelant** — « MAINTENANT », « EXAMEN », « Déjà
+ *               maîtrisée ». Le kit ne compose aucune phrase.
+ * @param locked l'étape ne peut pas être menée à son terme avec l'accès du
+ *               candidat. 🛑 **Elle reste à sa place** : on ajoute un cadenas,
+ *               on ne déplace ni ne masque rien (R16).
+ */
+export function JourneyRow({
+  title,
+  subtitle,
+  state,
+  kind = "step",
+  badge,
+  locked,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  state: JourneyState;
+  kind?: JourneyKind;
+  badge?: string;
+  locked?: boolean;
+  onClick?: () => void;
+}) {
+  const done = state === "done" || state === "skipped";
+  const Icon = done ? Check : kind === "exam" ? Target : state === "current" ? ArrowRight : Circle;
+  const body = (
+    <>
+      <span className={cx(styles.jBullet, kind === "exam" && !done && styles.jExam)}>
+        <Icon size={15} strokeWidth={2.2} aria-hidden />
+      </span>
+      <span className={styles.jText}>
+        {state === "upcoming" ? <span>{title}</span> : <b>{title}</b>}
+        {subtitle ? <small>{subtitle}</small> : null}
+      </span>
+      {locked ? <Lock size={14} strokeWidth={2} aria-hidden className={styles.jLock} /> : null}
+      {badge ? <span className={styles.jBadge}>{badge}</span> : null}
+    </>
+  );
+  const className = cx(
+    styles.jRow,
+    done && styles.jDone,
+    state === "current" && styles.jCurrent,
+    locked && styles.jLocked,
+  );
+  return onClick ? (
+    <button type="button" className={cx(className, styles.jRowButton)} onClick={onClick}>
+      {body}
+    </button>
+  ) : (
+    <div className={className}>{body}</div>
+  );
+}
+
+/**
+ * La file d'étapes, avec son rail vertical.
+ *
+ * 🛑 **L'ordre est celui du serveur**, jamais retrié : la position d'une étape
+ * *est* la décision d'ordonnancement que le parcours a prise, et elle ne se
+ * recalcule pas.
+ */
+export function JourneyList({ children }: { children: ReactNode }) {
+  return <div className={styles.journey}>{children}</div>;
 }
 
 /* ------------------------------------------------- « À faire maintenant » */
