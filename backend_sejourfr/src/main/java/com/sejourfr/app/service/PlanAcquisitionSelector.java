@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -199,15 +200,9 @@ public class PlanAcquisitionSelector {
         return code == null ? -1 : code.ordinal();
     }
 
+    /** 🛑 Traduction <b>lue</b> chez {@link TcfDomaine}, jamais recopiee. */
     private static SkillSection section(EpreuveType epreuve) {
-        if (epreuve == null) return null;
-        return switch (epreuve) {
-            case TCF_CO -> SkillSection.CO;
-            case TCF_CE -> SkillSection.CE;
-            case TCF_EO -> SkillSection.EO;
-            case TCF_EE -> SkillSection.EE;
-            default -> null;
-        };
+        return TcfDomaine.section(epreuve);
     }
 
     private static EpreuveType epreuve(SkillSection section) {

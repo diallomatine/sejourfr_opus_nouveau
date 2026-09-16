@@ -8,6 +8,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.PlanPinnedPriorityManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.manager.UserManager;
@@ -55,6 +56,7 @@ public class AccountDeletionService {
     private final DiagnosticSessionManager diagnosticSessionManager;
     private final LearningPlanObservationManager learningPlanObservationManager;
     private final PlanPinnedPriorityManager planPinnedPriorityManager;
+    private final JourneyManager journeyManager;
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
     private final UserFunnelEventManager userFunnelEventManager;
@@ -98,6 +100,13 @@ public class AccountDeletionService {
         // les observations. La cascade base ne joue pas : ce compte est
         // ANONYMISE, sa ligne `users` survit.
         planPinnedPriorityManager.release(userId);
+        // Le PARCOURS TCF est de la donnee de pratique, comme tout ce qui
+        // precede : ses lots, ses etapes et son journal d'evaluations partent
+        // en cascade avec lui. 🛑 La cascade base ne joue pas toute seule — ce
+        // compte est ANONYMISE, sa ligne `users` survit — et un parcours
+        // survivant serait de surcroit un parcours sans objectif, ce que
+        // l'arbitrage D-3 interdit.
+        journeyManager.deleteByUserId(userId);
         diagnosticSessionManager.deleteByUserId(userId);
         attemptManager.deleteByUserId(userId);
         userQuestionStatusManager.deleteByUserId(userId);

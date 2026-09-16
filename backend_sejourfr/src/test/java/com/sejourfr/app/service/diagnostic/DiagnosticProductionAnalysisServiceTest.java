@@ -18,6 +18,8 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.ProductionBilanService;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ProductionValidityService;
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +60,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
                 new ProductionValidityService(new ProductionEvaluationProperties()),
-                new DiagnosticStatusDistributionMetrics());
+                new DiagnosticStatusDistributionMetrics(),
+                mock(ProductionBilanService.class), mock(JourneyService.class));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -108,7 +111,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
                 new ProductionValidityService(new ProductionEvaluationProperties()),
-                new DiagnosticStatusDistributionMetrics());
+                new DiagnosticStatusDistributionMetrics(),
+                mock(ProductionBilanService.class), mock(JourneyService.class));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -170,7 +174,8 @@ class DiagnosticProductionAnalysisServiceTest {
                 reconciler, validator, analyses, rubrics, observations,
                 new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
                 new ProductionValidityService(new ProductionEvaluationProperties()),
-                new DiagnosticStatusDistributionMetrics());
+                new DiagnosticStatusDistributionMetrics(),
+                mock(ProductionBilanService.class), mock(JourneyService.class));
 
         ProductionTask task = new ProductionTask();
         task.setId(UUID.randomUUID());
@@ -324,7 +329,8 @@ class DiagnosticProductionAnalysisServiceTest {
                     analyses, rubrics, observations,
                     new DiagnosticOralArtifactFilter(new EvaluationPurgeMetrics()),
                     new ProductionValidityService(new ProductionEvaluationProperties()),
-                new DiagnosticStatusDistributionMetrics());
+                new DiagnosticStatusDistributionMetrics(),
+                mock(ProductionBilanService.class), mock(JourneyService.class));
 
             ProductionTask task = new ProductionTask();
             task.setId(UUID.randomUUID());

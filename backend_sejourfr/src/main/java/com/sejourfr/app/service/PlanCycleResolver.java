@@ -21,6 +21,7 @@ import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.util.TcfDomaine;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.SkillManager;
 import lombok.RequiredArgsConstructor;
@@ -498,15 +499,13 @@ public class PlanCycleResolver {
         return observation.getSkill() == null ? null : observation.getSkill().getSection();
     }
 
-    /** Le domaine d'une competence, dit dans le vocabulaire des epreuves. */
+    /**
+     * Le domaine d'une competence, dit dans le vocabulaire des epreuves.
+     * 🛑 <b>Lu chez son autorite</b> depuis le 2026-09-17 ({@link TcfDomaine}) :
+     * la traduction vivait ici en deux copies privees, une par sens.
+     */
     private static EpreuveType epreuve(SkillSection section) {
-        if (section == null) return null;
-        return switch (section) {
-            case CO -> EpreuveType.TCF_CO;
-            case CE -> EpreuveType.TCF_CE;
-            case EO -> EpreuveType.TCF_EO;
-            case EE -> EpreuveType.TCF_EE;
-        };
+        return TcfDomaine.epreuve(section);
     }
 
     /**
@@ -517,12 +516,7 @@ public class PlanCycleResolver {
      * correspondance aurait fini par en ranger une du mauvais cote.
      */
     static SkillSection section(EpreuveType epreuve) {
-        return switch (epreuve) {
-            case TCF_CO -> SkillSection.CO;
-            case TCF_CE -> SkillSection.CE;
-            case TCF_EO -> SkillSection.EO;
-            default -> SkillSection.EE;
-        };
+        return TcfDomaine.section(epreuve);
     }
 
     /** Le palier CECRL correspondant, pour comparer sur une seule echelle. */

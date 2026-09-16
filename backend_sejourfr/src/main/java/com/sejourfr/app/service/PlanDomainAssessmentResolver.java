@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.util.TcfDomaine;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -186,15 +187,13 @@ public class PlanDomainAssessmentResolver {
                 .findFirst();
     }
 
-    /** Le domaine d'une epreuve du profil, dans le vocabulaire des competences. */
+    /**
+     * Le domaine d'une epreuve du profil, dans le vocabulaire des competences.
+     * 🛑 <b>Lu chez son autorite</b> depuis le 2026-09-17 ({@link TcfDomaine}) :
+     * cette table vivait en QUATRE copies privees dans les services du Plan.
+     */
     private static SkillSection section(EpreuveType epreuve) {
-        return switch (epreuve) {
-            case TCF_CO -> SkillSection.CO;
-            case TCF_CE -> SkillSection.CE;
-            case TCF_EO -> SkillSection.EO;
-            case TCF_EE -> SkillSection.EE;
-            default -> null;
-        };
+        return TcfDomaine.section(epreuve);
     }
 
     /**

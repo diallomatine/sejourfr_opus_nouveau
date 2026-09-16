@@ -368,4 +368,23 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             @Param("userId") UUID userId,
             @Param("epreuve") EpreuveType epreuve,
             Pageable pageable);
+
+    /**
+     * Parmi ces sessions, lesquelles sont des <b>examens blancs</b> ?
+     *
+     * <p>C'est la question du filtre R1 du parcours TCF (D-6) : en comprehension,
+     * une observation porte l'identifiant de sa session mais <b>pas</b> son type,
+     * et le parcours doit distinguer un examen — qui peut creer des etapes —
+     * d'une serie ciblee, qui ne peut que les faire avancer.
+     *
+     * <p><b>Une requete pour tout un historique</b>, jamais une par observation :
+     * un candidat assidu en aligne des centaines, et {@code findById} par ligne
+     * serait un N+1 pur a chaque lecture du parcours.
+     */
+    @Query("""
+            SELECT a.id FROM Attempt a
+            WHERE a.id IN :ids
+              AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
+            """)
+    List<UUID> findMockExamIdsAmong(@Param("ids") Collection<UUID> ids);
 }

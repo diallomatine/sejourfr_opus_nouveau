@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.exception.TranscriptionException;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class SkillAnalysisAsyncRunner {
     private final CompetenceNiveauViseService niveauViseService;
     private final SkillAnalysisFailureRecorder failureRecorder;
     private final LearningPlanObservationService learningPlanObservationService;
+    private final JourneyService journeyService;
 
     /**
      * <p><b>Aucune transcription ici</b> : depuis que l'audio n'est plus stocke,
@@ -91,6 +93,7 @@ public class SkillAnalysisAsyncRunner {
             // retry payant d'une analyse qui a réussi.
             try {
                 learningPlanObservationService.recordSkillAttempt(attemptId);
+                porterAuParcours(attemptId);
             } catch (Exception observationError) {
                 log.warn("Observation Plan ignorée pour la tentative {} : {}",
                         attemptId, observationError.getMessage());
@@ -104,5 +107,28 @@ public class SkillAnalysisAsyncRunner {
             failureRecorder.markFailed(attemptId, e.getMessage());
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Ce qu'un <b>petit sujet</b> apprend au parcours TCF (spec §7.3).
+     *
+     * <p>🛑 <b>Il ne cree JAMAIS d'etape</b> (R1, arbitrage D-6) : il fait
+     * avancer, et peut clore, une etape que le parcours porte deja. Une
+     * faiblesse qu'un micro-exercice revele n'entre pas dans le Plan ; elle y
+     * entrera si une <b>evaluation</b> la detecte.
+     *
+     * <p>Appele <b>apres</b> l'ecriture de l'observation, comme en
+     * comprehension : c'est elle qui fait progresser le moteur de maitrise, et
+     * le parcours lit un etat, il ne le devance pas.
+     */
+    private void porterAuParcours(UUID attemptId) {
+        UserSkillAttempt attempt = attemptManager.findByIdWithPrompt(attemptId).orElse(null);
+        if (attempt == null || attempt.getUser() == null
+                || attempt.getSkillPrompt() == null) {
+            return;
+        }
+        journeyService.onTrainingProgress(
+                attempt.getUser().getId(),
+                java.util.List.of(attempt.getSkillPrompt().getSkill().getId()));
     }
 }

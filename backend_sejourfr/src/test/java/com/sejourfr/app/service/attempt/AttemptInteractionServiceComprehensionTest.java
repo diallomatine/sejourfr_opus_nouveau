@@ -17,6 +17,7 @@ import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
 import com.sejourfr.app.service.ComprehensionObservationService;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -60,7 +61,8 @@ class AttemptInteractionServiceComprehensionTest {
         service = new AttemptInteractionService(
                 attemptManager, attemptQuestionManager, mock(AnswerManager.class),
                 mock(AttemptScoringService.class), mock(ReceptiveEvidenceAdapter.class),
-                mock(AttemptMapper.class), new QuestionMapper(), observationService);
+                mock(AttemptMapper.class), new QuestionMapper(), observationService,
+                mock(JourneyService.class));
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
     }

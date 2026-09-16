@@ -15,9 +15,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -197,5 +199,14 @@ public class AttemptManager {
      */
     public List<Attempt> findProductionEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
         return repository.findProductionEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Parmi ces sessions, lesquelles sont des <b>examens blancs</b> ? Une
+     * requete, quel que soit le nombre d'identifiants (filtre R1 du parcours).
+     */
+    public Set<UUID> findMockExamIdsAmong(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Set.of();
+        return new LinkedHashSet<>(repository.findMockExamIdsAmong(ids));
     }
 }

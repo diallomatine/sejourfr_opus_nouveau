@@ -42,14 +42,6 @@ public class TcfDiagnosticReadService {
     public static final List<EpreuveType> EPREUVES = List.of(
             EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE, EpreuveType.TCF_EO);
 
-    /**
-     * Sessions balayees pour savoir si une epreuve est mesuree ailleurs.
-     * <b>Plafond de lecture</b>, jamais la fenetre de calcul — celle-ci vit
-     * dans {@code NiveauActuelEpreuveResolver.EXAMENS_RETENUS}. Meme valeur que
-     * {@code TcfProfileService}, pour que les deux ecrans voient la meme chose.
-     */
-    private static final int SCAN_LIMIT = 200;
-
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final ProductionSubmissionManager submissionManager;
@@ -242,13 +234,14 @@ public class TcfDiagnosticReadService {
     /**
      * « Cette epreuve est-elle mesuree, et a quel niveau ? » — <b>l'autorite
      * existante</b>, jamais une seconde definition.
+     *
+     * <p>🛑 Le {@code switch} qui vivait ici a ete <b>pousse chez l'autorite</b>
+     * le 2026-09-17 ({@code NiveauActuelEpreuveResolver.mesure}) : le parcours
+     * TCF posait la meme question et en aurait fait une seconde copie, plafond
+     * de lecture compris.
      */
     private NiveauActuelEpreuveResolver.Mesure mesureProduit(UUID userId, EpreuveType epreuve) {
-        return switch (epreuve) {
-            case TCF_CO, TCF_CE -> niveauActuelResolver.mesureQcm(userId, epreuve, SCAN_LIMIT);
-            case TCF_EE, TCF_EO -> niveauActuelResolver.mesureProduction(userId, epreuve, SCAN_LIMIT);
-            default -> NiveauActuelEpreuveResolver.Mesure.AUCUNE;
-        };
+        return niveauActuelResolver.mesure(userId, epreuve);
     }
 
     /**

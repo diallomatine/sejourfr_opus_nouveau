@@ -1,5 +1,12 @@
 package com.sejourfr.app.service.diagnostic;
 
+import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.enums.JourneyAssessmentKind;
+import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.ProductionBilanService;
+import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticTaskSkill;
 import com.sejourfr.app.entity.ProductionSubmission;
@@ -31,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,6 +68,8 @@ public class DiagnosticProductionAnalysisService {
     private final DiagnosticOralArtifactFilter oralArtifactFilter;
     private final ProductionValidityService validityService;
     private final DiagnosticStatusDistributionMetrics statusMetrics;
+    private final ProductionBilanService bilanService;
+    private final JourneyService journeyService;
 
     public DiagnosticProductionAnalysis analyseDiagnostic(UUID submissionId) {
         DiagnosticProductionAnalysis existing = analysisManager.findBySubmissionId(submissionId).orElse(null);
@@ -117,6 +127,66 @@ public class DiagnosticProductionAnalysisService {
         if (submission.getProductionTask().isDiagnostic()) return;
         AnalysisRun run = analyse(submission, false);
         observationService.recordProduction(submission, run.allowedSkills(), run.normalized(), false);
+        porterAuParcours(submission);
+    }
+
+    /**
+     * Ce qu'une production apprend au <b>parcours TCF</b> (spec §7.2).
+     *
+     * <p>🛑 <b>L'unite d'evaluation est l'EPREUVE, pas la soumission</b>
+     * (correction A11 de l'audit). Les 3 taches d'une epreuve produisent 3
+     * {@code production_submissions} ; traiter chacune comme une evaluation
+     * ferait que la tache 2 <b>remplacerait</b> (R7) le lot que la tache 1 vient
+     * de creer, puis la tache 3 celui de la tache 2. Le parcours recoit donc
+     * l'{@code attempt.id} de l'epreuve, et une seule fois.
+     *
+     * <p><b>Quand</b> : des que <b>toutes</b> les taches attendues de l'epreuve
+     * portent une evaluation. L'idempotence du parcours (R14) fait le reste — si
+     * une correction tardive rejoue le calcul, elle retombe sur l'evenement deja
+     * enregistre.
+     *
+     * <p>🛑 <b>Seul un EXAMEN entre</b> (R1, arbitrage D-6) : une production
+     * d'entrainement libre ne cree jamais d'etape. Le predicat est celui de
+     * {@code ProductionAccessService.isExamSession} — {@code slot_number} pose au
+     * demarrage, ou {@code parent_attempt_id} pour une sous-epreuve d'examen
+     * complet — jamais une seconde definition.
+     *
+     * <p><b>Best-effort</b> : l'echec est avale ici. La livraison de son
+     * evaluation au candidat ne depend pas de ce que le parcours en fait.
+     *
+     * <p>⚠️ <b>Limite connue et acceptee</b> : une epreuve <b>abandonnee</b>
+     * dont la derniere evaluation atterrit avant la cloture de la session
+     * n'ouvre pas de lot. L'epreuve reste <b>mesuree</b> (son autorite est
+     * ailleurs), et la prochaine evaluation de cette epreuve reprendra la main.
+     */
+    private void porterAuParcours(ProductionSubmission submission) {
+        Attempt attempt = submission.getAttempt();
+        if (attempt == null || submission.getUser() == null) return;
+        if (!ProductionAccessService.isExamSession(attempt)) return;
+        EpreuveType epreuve = submission.getProductionTask().getEpreuve();
+        try {
+            Map<Integer, AiEvaluation> parTache = bilanService.latestEvalsByTache(
+                    submissionManager.findByAttemptId(attempt.getId()));
+            if (parTache.size() < ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) return;
+            Instant fin = attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now();
+            journeyService.onAssessmentCompleted(
+                    submission.getUser().getId(),
+                    new JourneyEvaluation(attempt.getId(), natureDeLEvaluation(attempt),
+                            epreuve, fin));
+        } catch (RuntimeException echec) {
+            log.warn("Parcours TCF non mis a jour pour l'epreuve {} de la session {} : {}",
+                    epreuve, attempt.getId(), echec.toString());
+        }
+    }
+
+    /**
+     * D'ou vient cette epreuve : une sous-epreuve d'examen blanc complet (ou de
+     * diagnostic complet) porte un parent, une epreuve jouee seule porte un slot.
+     */
+    private static JourneyAssessmentKind natureDeLEvaluation(Attempt attempt) {
+        if (attempt.getTcfDiagnostic() != null) return JourneyAssessmentKind.FULL_DIAGNOSTIC;
+        if (attempt.getParentAttempt() != null) return JourneyAssessmentKind.MOCK_EXAM;
+        return JourneyAssessmentKind.SECTION_EXAM;
     }
 
     private AnalysisRun analyse(ProductionSubmission submission, boolean initialDiagnostic) {

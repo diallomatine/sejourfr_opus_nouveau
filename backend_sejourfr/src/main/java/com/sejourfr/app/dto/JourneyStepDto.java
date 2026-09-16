@@ -1,0 +1,86 @@
+package com.sejourfr.app.dto;
+
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyProgressUnit;
+import com.sejourfr.app.enums.JourneyStepPurpose;
+import com.sejourfr.app.enums.JourneyStepStatus;
+import com.sejourfr.app.enums.JourneyStepType;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SkillTaskCode;
+
+import java.util.UUID;
+
+/**
+ * Une etape du parcours, telle que les fronts la lisent.
+ *
+ * <h2>🛑 Le serveur sert des FAITS, la phrase appartient aux fronts</h2>
+ * <p>C'est la doctrine de tout l'existant — {@code PlanPathStepKind},
+ * {@code PlanDomainAssessmentKind}, {@code PlanChangeDto},
+ * {@code PreparationEtape} le disent chacun explicitement. Sont donc servis
+ * {@link #type()}, {@link #purpose()}, {@link #examType()}, {@link #section()},
+ * {@link #taskCode()}, {@link #skillCode()}, {@link #skillTitle()},
+ * {@link #progress()}, {@link #locked()} et {@link #position()}.
+ *
+ * <p>Sont <b>composes par les fronts</b>, dans leurs libelles miroirs
+ * ({@code lib/plan-domain.ts} ⇄ {@code screens/plan/plan_labels.dart}) :
+ * « Expression écrite · Tâche 1 », « Vérifier mes progrès », « Évaluer mon
+ * niveau », « Déjà maîtrisée ». Les servir ouvrirait une 7<sup>e</sup> copie de
+ * libelles dans le depot.
+ *
+ * <p>{@link #skillTitle()} est la seule chaine servie, et ce n'est pas une
+ * phrase : c'est {@code skills.title}, un <b>fait editorial</b> du referentiel,
+ * que les deux fronts affichent deja tel quel partout ailleurs.
+ */
+public record JourneyStepDto(
+        UUID id,
+        JourneyStepType type,
+        /** Non {@code null} pour les seules etapes {@code SECTION_EXAM}. */
+        JourneyStepPurpose purpose,
+        /**
+         * 🛑 <b>Derive a la lecture, jamais persiste</b> (arbitrage D-7) : il
+         * depend du verrou du candidat, donc un abonnement souscrit le change
+         * sans aucune ecriture en base.
+         */
+        JourneyStepStatus status,
+        /** {@code null} pour une etape {@code DIAGNOSTIC} seulement. */
+        EpreuveType examType,
+        /** Le domaine de la competence. {@code null} hors {@code TRAIN_SKILL}. */
+        SkillSection section,
+        /**
+         * La tache officielle de la competence. 🛑 <b>{@code null} = competence
+         * de COMPREHENSION</b> : CO/CE n'ont ni tache ni petit sujet. C'est le
+         * discriminant que les fronts lisent pour composer deux sous-titres
+         * differents — mais <b>pas</b> pour deviner l'unite de progression,
+         * qui est servie ({@link JourneyProgressDto#unit()}).
+         */
+        SkillTaskCode taskCode,
+        String skillCode,
+        String skillTitle,
+        UUID lotId,
+        UUID sourceAssessmentId,
+        long position,
+        /** {@code null} hors {@code TRAIN_SKILL} : un examen ne se compte pas. */
+        JourneyProgressDto progress,
+        /**
+         * <b>Cette etape ne peut pas etre menee a son terme avec l'acces du
+         * candidat</b> (R16, §5 bis).
+         *
+         * <p>🛑 Une etape verrouillee reste <b>affichee a sa place</b> et ne
+         * devient <b>jamais</b> {@code CURRENT} : c'est ce qui empeche un compte
+         * gratuit de voir son parcours se figer definitivement sur une etape
+         * qu'il ne peut pas finir (arbitrage D-1), sans pour autant la lui
+         * cacher (contradiction #1 du depot, tranchee le 2026-08-21 : « le Plan
+         * reste integralement visible »).
+         */
+        boolean locked
+) {
+
+    /**
+     * L'avancement d'une etape d'entrainement.
+     *
+     * @param unit 🛑 <b>Servie</b>, jamais deduite de la nullite de
+     *             {@code taskCode} : la deduire reviendrait a recopier une regle
+     *             du referentiel dans deux fronts.
+     */
+    public record JourneyProgressDto(int done, int quota, JourneyProgressUnit unit) {}
+}

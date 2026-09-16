@@ -109,6 +109,22 @@ public class NiveauActuelEpreuveResolver {
      */
     public static final int EXAMENS_RETENUS = 3;
 
+    /**
+     * Sessions balayees en base pour repondre sur une epreuve.
+     *
+     * <p>🛑 <b>Un plafond de LECTURE, jamais la fenetre de calcul</b> — celle-ci
+     * est {@link #EXAMENS_RETENUS}. La requete filtre deja les epreuves non
+     * passees, ce qui borne le volume reel.
+     *
+     * <p><b>Extrait ici le 2026-09-17</b>, ou il vivait en deux copies privees
+     * ({@code TcfProfileService.SCAN_LIMIT},
+     * {@code TcfDiagnosticReadService.SCAN_LIMIT}) avec un commentaire disant de
+     * part et d'autre « meme valeur que l'autre, pour que les deux ecrans voient
+     * la meme chose ». Le parcours TCF en aurait fait une troisieme : a la
+     * deuxieme occurrence, on extrait.
+     */
+    public static final int SCAN_LIMIT = 200;
+
     private final AttemptManager attemptManager;
     private final EpreuvesProductionQualifiantesResolver qualifiantesResolver;
     private final TcfLevelEstimatorService levelEstimator;
@@ -230,6 +246,31 @@ public class NiveauActuelEpreuveResolver {
      * Le même calcul que {@link #production}, mais qui rend <b>aussi</b>
      * l'examen complet le plus récent — cf. {@link Mesure}.
      */
+    /**
+     * <b>« Cette epreuve est-elle mesuree, et a quel niveau ? »</b> — la question
+     * posee telle quelle, sans que l'appelant ait a savoir si l'epreuve se
+     * mesure par un QCM ou par des productions.
+     *
+     * <p>🛑 <b>Il n'existe qu'UNE notion de « mesuree »</b> dans le depot
+     * (arbitrage du proprietaire, 2026-09-16) : un examen qualifiant existe, donc
+     * {@code Mesure.mesuree()}. Cette methode est le point d'entree de cette
+     * notion, et le plafond de lecture ({@link #SCAN_LIMIT}) y est applique une
+     * fois pour toutes — un appelant qui choisirait le sien ferait dire a deux
+     * ecrans deux choses differentes du meme candidat.
+     *
+     * <p>🛑 {@code CIVIQUE}, {@code TCF_STRUCTURE} et {@code TCF_COMPLET} ne sont
+     * pas des epreuves du TCF IRN : ils rendent {@link Mesure#AUCUNE} plutot
+     * qu'une exception, parce que « non mesuree » est la reponse juste — aucune
+     * de ces trois valeurs ne peut porter un niveau d'epreuve.
+     */
+    public Mesure mesure(UUID userId, EpreuveType epreuve) {
+        return switch (epreuve) {
+            case TCF_CO, TCF_CE -> mesureQcm(userId, epreuve, SCAN_LIMIT);
+            case TCF_EE, TCF_EO -> mesureProduction(userId, epreuve, SCAN_LIMIT);
+            case CIVIQUE, TCF_STRUCTURE, TCF_COMPLET -> Mesure.AUCUNE;
+        };
+    }
+
     public Mesure mesureProduction(UUID userId, EpreuveType epreuve, int scanLimit) {
         // Le resolver rend déjà ses sessions de la plus récente à la plus
         // ancienne, et toutes portent un niveau non nul.

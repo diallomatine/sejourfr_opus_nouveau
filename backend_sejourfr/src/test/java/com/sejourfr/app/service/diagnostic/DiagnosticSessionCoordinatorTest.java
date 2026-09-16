@@ -15,6 +15,7 @@ import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.journey.JourneyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +52,8 @@ class DiagnosticSessionCoordinatorTest {
         metrics = new DiagnosticReconciliationMetrics();
         coordinator = new DiagnosticSessionCoordinator(
                 submissionManager, analysisManager, sessionManager, attemptManager,
-                taskSkillManager, metrics);
+                taskSkillManager, metrics,
+                mock(JourneyService.class));
     }
 
     @Test

@@ -142,10 +142,11 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
         attemptService.finish(user.getId(), started.id());
         // 2) Et meme une production forcee — rejeu de job, double envoi mobile —
         //    n'ecrit rien de plus : la cle est (user, competence, source, attempt).
-        int ecrites = observationService.record(
-                user.getId(), started.id(), Instant.now(), reponsesDe(questionsDe(started.id())));
-
-        assertThat(ecrites).isZero();
+        // La session CONCERNE toujours ses competences — le rejeu n'efface pas
+        // ce qu'elle a enseigne — mais elle n'ecrit aucune ligne de plus.
+        assertThat(observationService.record(
+                user.getId(), started.id(), Instant.now(), reponsesDe(questionsDe(started.id()))))
+                .isNotEmpty();
         assertThat(observationsDe(user)).hasSize(apresPremiere);
     }
 

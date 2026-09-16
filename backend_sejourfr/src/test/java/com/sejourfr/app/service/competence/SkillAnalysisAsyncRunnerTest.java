@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.SkillAttemptStatut;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.competence.niveauvise.CompetenceNiveauViseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,8 @@ class SkillAnalysisAsyncRunnerTest {
         failureRecorder = mock(SkillAnalysisFailureRecorder.class);
         observations = mock(LearningPlanObservationService.class);
         runner = new SkillAnalysisAsyncRunner(
-                attempts, analysis, niveauVise, failureRecorder, observations);
+                attempts, analysis, niveauVise, failureRecorder, observations,
+                mock(JourneyService.class));
     }
 
     /** Tentative ECRITE : rien a transcrire, le runner part du texte. */

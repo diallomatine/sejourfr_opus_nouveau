@@ -118,15 +118,12 @@ import java.util.function.BiFunction;
 public class TcfProfileService {
 
     /**
-     * Attempts balayés par épreuve. La lecture du Plan cherche un maximum sur
-     * tout l'historique utile ; la lecture d'affichage n'en retient que les
-     * trois derniers mais balaie large pour ne pas dépendre d'une troncature
-     * de requête. 🛑 <b>Un plafond de LECTURE, jamais une fenêtre de calcul</b>
-     * — celle-ci vit dans {@code NiveauActuelEpreuveResolver.EXAMENS_RETENUS}.
-     * La requête filtre déjà les épreuves non passées, ce qui borne le volume
-     * réel.
+     * Attempts balayés par épreuve. 🛑 <b>Lu chez son autorité</b> depuis le
+     * 2026-09-17 : cette constante vivait ici en copie privée, avec sa jumelle
+     * dans {@code TcfDiagnosticReadService}, et le parcours TCF en aurait fait
+     * une troisième.
      */
-    private static final int SCAN_LIMIT = 200;
+    private static final int SCAN_LIMIT = NiveauActuelEpreuveResolver.SCAN_LIMIT;
 
     private final AttemptManager attemptManager;
     private final AiEvaluationManager aiEvaluationManager;

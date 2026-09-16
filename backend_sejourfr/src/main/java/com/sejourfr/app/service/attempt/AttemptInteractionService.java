@@ -27,6 +27,9 @@ import com.sejourfr.app.progression.domain.EvidenceEntryPoint;
 import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter.ReponseQcm;
+import com.sejourfr.app.enums.JourneyAssessmentKind;
+import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import jakarta.persistence.EntityNotFoundException;
@@ -66,6 +69,7 @@ public class AttemptInteractionService {
     private final AttemptMapper mapper;
     private final QuestionMapper questionMapper;
     private final ComprehensionObservationService comprehensionObservationService;
+    private final JourneyService journeyService;
 
     // ------------------------------------------------------------------------
     // Lecture
@@ -476,12 +480,70 @@ public class AttemptInteractionService {
                             aq.getAnswer() != null
                                     && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
                     .toList();
-            comprehensionObservationService.record(
+            Set<UUID> competences = comprehensionObservationService.record(
                     attempt.getUser().getId(), attempt.getId(), attempt.getFinishedAt(), reponses);
+            porterAuParcours(attempt, competences);
         } catch (RuntimeException echec) {
             log.warn("Observations CO/CE non enregistrees pour la session {} : {}",
                     attempt.getId(), echec.toString());
         }
+    }
+
+    /**
+     * Ce que cette session apprend au <b>parcours TCF</b> (spec §7.2 / §7.3).
+     *
+     * <p>🛑 <b>Le branchement est ICI, apres l'ecriture des observations</b>, et
+     * pas plus haut : en comprehension, la competence travaillee est
+     * <b>derivee du contenu des questions</b> par
+     * {@code ComprehensionObservationService} — {@code doFinish} ne la connait
+     * pas. Le parcours avance donc sur ce qui a <b>reellement</b> ete observe.
+     *
+     * <p>🛑 <b>R1 (arbitrage D-6) passe par le TYPE de la session</b>, et c'est
+     * tout ce qui distingue les deux appels :
+     * <ul>
+     *   <li>{@code MOCK_EXAM} ⇒ une <b>evaluation</b> : elle peut clore un lot et
+     *       en creer un nouveau (R7) ;</li>
+     *   <li>{@code TRAINING} / {@code REVIEW} ⇒ un <b>entrainement</b> : il fait
+     *       avancer ou clot une etape existante, il n'en cree <b>jamais</b>.</li>
+     * </ul>
+     * Le producteur d'observations, lui, ne fait pas cette difference — « en
+     * comprehension, une bonne reponse est une bonne reponse » (2026-08-21), et
+     * ca ne change pas.
+     *
+     * <p><b>Best-effort</b>, comme tout ce qui entoure la correction : le
+     * parcours ecrit dans sa propre transaction et son echec est avale ici. La
+     * correction du QCM et la reponse HTTP n'en dependent pas.
+     */
+    private void porterAuParcours(Attempt attempt, Set<UUID> competences) {
+        UUID userId = attempt.getUser().getId();
+        try {
+            if (attempt.getType() == AttemptType.MOCK_EXAM) {
+                journeyService.onAssessmentCompleted(userId, new JourneyEvaluation(
+                        attempt.getId(), natureDeLEvaluation(attempt), attempt.getEpreuve(),
+                        attempt.getFinishedAt()));
+            } else if (!competences.isEmpty()) {
+                journeyService.onTrainingProgress(userId, competences);
+            }
+        } catch (RuntimeException echec) {
+            log.warn("Parcours TCF non mis a jour pour la session {} : {}",
+                    attempt.getId(), echec.toString());
+        }
+    }
+
+    /**
+     * D'ou vient cet examen — l'information que {@code source_assessment_id} ne
+     * porte pas a lui seul.
+     *
+     * <p>Une section de <b>diagnostic complet</b> et une sous-epreuve d'<b>examen
+     * blanc complet</b> sont l'une et l'autre des attempts a part entiere, avec
+     * leur propre identifiant : c'est ce qui permet a une evaluation de ne mesurer
+     * qu'<b>une</b> epreuve, et donc au journal du parcours de porter sa
+     * chronologie par epreuve (R14).
+     */
+    private static JourneyAssessmentKind natureDeLEvaluation(Attempt attempt) {
+        if (attempt.getTcfDiagnostic() != null) return JourneyAssessmentKind.FULL_DIAGNOSTIC;
+        if (attempt.getParentAttempt() != null) return JourneyAssessmentKind.MOCK_EXAM;
+        return JourneyAssessmentKind.SECTION_EXAM;
     }
 
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {

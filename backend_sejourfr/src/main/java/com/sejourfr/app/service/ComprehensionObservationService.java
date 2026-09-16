@@ -22,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -145,41 +147,53 @@ public class ComprehensionObservationService {
      *                   {@code source_id} <b>et</b> de {@code subject_id}.
      * @param observedAt fin de la session.
      * @param reponses   toutes les reponses de la session, tous types confondus.
-     * @return nombre d'observations effectivement ecrites (0 est un cas normal :
-     *         session civique, session STRUCTURE, ou session deja observee).
+     * @return les <b>competences que cette session concerne</b>, vide dans les
+     *         cas normaux (session civique, session STRUCTURE, session sans
+     *         aucune reponse).
+     *
+     *         <p>🛑 <b>Les competences deja observees en font partie</b>, alors
+     *         qu'aucune ligne n'est reecrite pour elles : le rejeu d'une session
+     *         ne doit pas faire <b>disparaitre</b> ce qu'elle a enseigne. Cette
+     *         distinction compte depuis que le parcours TCF s'en sert (§7.3) —
+     *         une etape d'entrainement avance sur les competences que la session
+     *         a travaillees, pas sur le nombre de lignes qu'elle a insere.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public int record(
+    public Set<UUID> record(
             UUID userId,
             UUID attemptId,
             Instant observedAt,
             List<ReponseComprehension> reponses) {
         if (userId == null || attemptId == null || reponses == null || reponses.isEmpty()) {
-            return 0;
+            return Set.of();
         }
         Map<Cle, Compte> parNiveau = ventile(reponses);
         // Zero requete supplementaire sur une session sans comprehension :
         // civique, STRUCTURE seule, ou production.
-        if (parNiveau.isEmpty()) return 0;
+        if (parNiveau.isEmpty()) return Set.of();
 
         Map<Cle, Skill> competences = competencesParCle();
         if (competences.isEmpty()) {
             log.warn("Aucune competence de comprehension active : observations CO/CE ignorees.");
-            return 0;
+            return Set.of();
         }
         Optional<User> user = userManager.findById(userId);
-        if (user.isEmpty()) return 0;
+        if (user.isEmpty()) return Set.of();
 
         Instant quand = observedAt == null ? Instant.now() : observedAt;
+        Set<UUID> concernees = new LinkedHashSet<>();
         int ecrites = 0;
         for (Map.Entry<Cle, Compte> entree : parNiveau.entrySet()) {
             Skill skill = competences.get(entree.getKey());
             if (skill == null) continue;
+            concernees.add(skill.getId());
             if (ecrire(user.get(), skill, entree.getKey(), entree.getValue(), attemptId, quand)) {
                 ecrites++;
             }
         }
-        return ecrites;
+        log.debug("Session {} : {} observation(s) de comprehension ecrite(s) sur {} competence(s).",
+                attemptId, ecrites, concernees.size());
+        return concernees;
     }
 
     // ------------------------------------------------------------------------

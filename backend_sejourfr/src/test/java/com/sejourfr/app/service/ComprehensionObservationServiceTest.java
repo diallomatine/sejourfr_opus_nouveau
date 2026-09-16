@@ -119,9 +119,9 @@ class ComprehensionObservationServiceTest {
             reponses.add(new ReponseComprehension(QuestionType.STRUCTURE, Difficulty.B1, true, true));
         }
 
-        int ecrites = service.record(USER_ID, ATTEMPT_ID, QUAND, reponses);
-
-        assertThat(ecrites).isZero();
+        // STRUCTURE n'a aucune competence au referentiel : la session ne
+        // concerne AUCUNE competence, et n'ecrit donc rien.
+        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isEmpty();
         verify(observationManager, never()).save(any());
     }
 
@@ -132,7 +132,7 @@ class ComprehensionObservationServiceTest {
             reponses.add(new ReponseComprehension(QuestionType.CONNAISSANCE, Difficulty.CSP, true, true));
         }
 
-        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isZero();
+        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isEmpty();
     }
 
     // ------------------------------------------------------------------ seuils
@@ -196,7 +196,7 @@ class ComprehensionObservationServiceTest {
         reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.B1, 9));
         reponses.addAll(nonRepondues(QuestionType.CO, Difficulty.B2, 8));
 
-        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isZero();
+        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, reponses)).isEmpty();
         verify(observationManager, never()).save(any());
     }
 
@@ -255,7 +255,12 @@ class ComprehensionObservationServiceTest {
         when(observationManager.findBySource(any(), any(), any(), any()))
                 .thenReturn(Optional.of(new LearningPlanObservation()));
 
-        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, ce(Difficulty.B1, 20, 20))).isZero();
+        // 🛑 La session CONCERNE toujours la competence — le rejeu ne doit pas
+        // faire disparaitre ce qu'elle a enseigne (c'est ce dont le parcours TCF
+        // se sert, §7.3) — mais elle n'ECRIT rien : la cle est
+        // (user, competence, source, attempt).
+        assertThat(service.record(USER_ID, ATTEMPT_ID, QUAND, ce(Difficulty.B1, 20, 20)))
+                .isNotEmpty();
         verify(observationManager, never()).save(any());
     }
 
@@ -275,7 +280,7 @@ class ComprehensionObservationServiceTest {
 
     @Test
     void uneSessionInviteeNAlimenteRien() {
-        assertThat(service.record(null, ATTEMPT_ID, QUAND, ce(Difficulty.B1, 20, 20))).isZero();
+        assertThat(service.record(null, ATTEMPT_ID, QUAND, ce(Difficulty.B1, 20, 20))).isEmpty();
         verify(observationManager, never()).save(any());
     }
 

@@ -12,9 +12,12 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ import java.util.UUID;
 /** Assemble de façon déterministe les deux sorties structurées, sans troisième appel LLM. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DiagnosticSessionCoordinator {
 
     private final ProductionSubmissionManager submissionManager;
@@ -37,6 +41,7 @@ public class DiagnosticSessionCoordinator {
     private final AttemptManager attemptManager;
     private final DiagnosticTaskSkillManager taskSkillManager;
     private final DiagnosticReconciliationMetrics metrics;
+    private final JourneyService journeyService;
 
     /**
      * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
@@ -149,6 +154,34 @@ public class DiagnosticSessionCoordinator {
 
         finishAttempt(session.getWrittenAttempt());
         if (session.hasOral()) finishAttempt(session.getOralAttempt());
+        porterAuParcours(session);
+    }
+
+    /**
+     * Ce que le <b>diagnostic rapide</b> apprend au parcours TCF (spec R11).
+     *
+     * <p>🛑 <b>Il produit des priorites mais ne MESURE aucune epreuve</b> : c'est
+     * ce qui le distingue de tout le reste dans la spec. Il ne remplace donc
+     * jamais un lot ouvert — il n'en cree que pour les epreuves qui n'en ont pas
+     * — et il ne clot aucune etape « Evaluer mon niveau ».
+     *
+     * <p>Appele <b>apres</b> l'ecriture des observations et la cloture de la
+     * session : le parcours lit ce que le correcteur a reellement designe.
+     *
+     * <p><b>Best-effort</b> : l'echec est avale. Le resultat du diagnostic est ce
+     * que le candidat attend ; le parcours se rattrape a la lecture suivante.
+     */
+    private void porterAuParcours(DiagnosticSession session) {
+        if (session.getUser() == null) return;
+        try {
+            journeyService.onAssessmentCompleted(
+                    session.getUser().getId(),
+                    JourneyEvaluation.diagnosticRapide(
+                            session.getId(), session.getCompletedAt()));
+        } catch (RuntimeException echec) {
+            log.warn("Parcours TCF non mis a jour pour le diagnostic {} : {}",
+                    session.getId(), echec.toString());
+        }
     }
 
     private ProductionSubmission onlySubmission(UUID attemptId) {
