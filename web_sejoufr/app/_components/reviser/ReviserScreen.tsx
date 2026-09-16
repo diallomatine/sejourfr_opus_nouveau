@@ -257,6 +257,14 @@ function TcfBody({
   const carte = resume?.carte ?? null;
   const busy = exercise.starting || assessment.starting !== null;
 
+  /* 🛑 **L'autorité d'AFFICHAGE du niveau**, servie par le tableau de bord déjà
+     chargé — donc **aucun appel de plus**. C'est la même valeur que l'Accueil,
+     le Profil, l'écran Progrès et l'écran Diagnostic
+     (`TcfProfileService.levelProfileAccueil`). Réviser lisait le niveau du Plan
+     puis `stat.level` : trois autorités pour une phrase.
+     → `docs/regles/progression.md`. */
+  const profil = summary?.tcfDomainProfile ?? null;
+
   const stats = useMemo(() => orderedTcf(summary), [summary]);
   /* 🛑 Servie comme les autres, mais rangée à part : ce n'est pas une épreuve
      du TCF IRN. `orderedTcf` ne la trouve plus dans son ordre canonique. */
@@ -317,7 +325,7 @@ function TcfBody({
                   key={stat.code}
                   icon={iconFor(stat.code)}
                   title={stat.label}
-                  status={epreuveStatus(stat, domain)}
+                  status={epreuveStatus(stat, domain, profil)}
                   meta={epreuveMeta(stat, domain)}
                   ratio={epreuveRatio(stat, domain)}
                   href={hrefFor(stat)}
@@ -333,7 +341,7 @@ function TcfBody({
             <EpreuveRow
               icon={iconFor(complementaire.code)}
               title={complementaire.label}
-              status={epreuveStatus(complementaire, null)}
+              status={epreuveStatus(complementaire, null, profil)}
               meta={epreuveMeta(complementaire, null)}
               ratio={epreuveRatio(complementaire, null)}
               href={hrefFor(complementaire)}

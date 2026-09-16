@@ -152,6 +152,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     final porte = prep == null ? null : planIndisponible(prep, civique: false);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
+    final profil = dashboard.tcfDomainProfile;
     return <Widget>[
       if (resume?.carte != null)
         _ResumeCard(
@@ -173,7 +174,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           pad: false,
           children: [
             for (final stat in stats)
-              _epreuveRow(stat, domainForCode(plan, stat.code)),
+              _epreuveRow(stat, domainForCode(plan, stat.code), profil),
           ],
         ),
       ),
@@ -187,7 +188,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           child: SfStack(
             pad: false,
             children: [
-              _epreuveRow(complementaire, null),
+              _epreuveRow(complementaire, null, profil),
               const SfNoteCard(
                 icon: LucideIcons.info,
                 title: kTcfComplementaireNoteTitle,
@@ -199,11 +200,21 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     ];
   }
 
-  Widget _epreuveRow(DashboardCategoryStat stat, PlanDomain? domain) {
+  /// 🛑 [profil] est **l'autorité d'AFFICHAGE du niveau**, servie par le
+  /// tableau de bord déjà chargé — donc **aucun appel de plus**. C'est la même
+  /// valeur que l'Accueil, le Profil, l'écran Progrès et l'écran Diagnostic
+  /// (`TcfProfileService.levelProfileAccueil`). Réviser lisait le niveau du
+  /// Plan puis `stat.level` : trois autorités pour une phrase.
+  /// → `docs/regles/progression.md`.
+  Widget _epreuveRow(
+    DashboardCategoryStat stat,
+    PlanDomain? domain,
+    TcfDomainProfile? profil,
+  ) {
     return SfEpreuveRow(
       icon: dashboardCategoryIcon(stat.code),
       title: stat.label,
-      status: epreuveStatus(stat, domain),
+      status: epreuveStatus(stat, domain, profil),
       meta: epreuveMeta(stat, domain),
       ratio: epreuveRatio(stat, domain),
       onTap: () => context.push(dashboardCategoryRoute(stat)),
