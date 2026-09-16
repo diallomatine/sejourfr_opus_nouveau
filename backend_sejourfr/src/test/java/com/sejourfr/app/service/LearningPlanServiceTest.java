@@ -1202,15 +1202,16 @@ class LearningPlanServiceTest {
                 .extracting(PlanDomainAssessmentDto::epreuve)
                 .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
                         EpreuveType.TCF_EO, EpreuveType.TCF_EE);
-        // Aucun diagnostic termine : l'expression passe par lui, la comprehension
-        // par un examen blanc DEJA EXISTANT — aucun moteur n'est cree.
+        // Les QUATRE epreuves passent par un examen blanc DEJA EXISTANT :
+        // examen de module en comprehension, examen de production (3 taches) en
+        // expression — aucun moteur n'est cree.
         assertThat(result.domainesAEvaluer())
                 .extracting(PlanDomainAssessmentDto::kind)
                 .containsExactly(
                         PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
                         PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
-                        PlanDomainAssessmentKind.DIAGNOSTIC,
-                        PlanDomainAssessmentKind.DIAGNOSTIC);
+                        PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM,
+                        PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
     }
 
     /**

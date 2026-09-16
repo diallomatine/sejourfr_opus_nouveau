@@ -28,7 +28,6 @@ import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
-import com.sejourfr.app.service.PlanFoundationResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.SubscriptionService;
@@ -87,7 +86,6 @@ class ProgressServiceTest {
     private CivicDiagnosticSessionManager civicSessionManager;
     private CivicDiagnosticViewService civicViewService;
     private CivicPlanService civicPlanService;
-    private PlanFoundationResolver foundationResolver;
     private ProgressService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -106,7 +104,6 @@ class ProgressServiceTest {
         civicSessionManager = mock(CivicDiagnosticSessionManager.class);
         civicViewService = mock(CivicDiagnosticViewService.class);
         civicPlanService = mock(CivicPlanService.class);
-        foundationResolver = mock(PlanFoundationResolver.class);
 
         service = new ProgressService(
                 userManager,
@@ -125,7 +122,6 @@ class ProgressServiceTest {
                 // 🛑 Le VRAI resolveur : c'est lui l'autorite du statut, et le
                 // mocker ne verrouillerait que le fait de l'appeler.
                 new StatutObjectifResolver(),
-                foundationResolver,
                 // 🛑 Le VRAI resolveur, la encore : ce test verrouille QUEL
                 // parcours est designe, pas le fait d'appeler quelqu'un.
                 new PlanDomainAssessmentResolver());
@@ -142,8 +138,6 @@ class ProgressServiceTest {
         // pas la meme chose que le Plan.
         when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
                 new TcfLevelProfile(null, null, null, null, null));
-        when(foundationResolver.resolve(userId))
-                .thenReturn(PlanFoundationResolver.Foundation.AUCUNE);
         // Abonne : le DETAIL est servi, donc le test voit aussi QUELLES
         // competences sont tenues, pas seulement combien.
         when(subscriptionService.hasTcf(userId)).thenReturn(true);
@@ -333,8 +327,8 @@ class ProgressServiceTest {
     /**
      * 🛑 Le vrai travail de la passe : la carte d'une épreuve jamais mesurée
      * porte <b>de quoi la lancer</b>, et c'est le descripteur du Plan — pas un
-     * second mécanisme. CO/CE partent sur l'examen blanc de module (slot
-     * offert), EE/EO sur le <b>diagnostic</b> tant qu'il n'est pas terminé.
+     * second mécanisme. CO/CE partent sur l'examen blanc de module, EE/EO sur
+     * l'examen blanc de production, tous sur le <b>slot offert</b>.
      */
     @Test
     @DisplayName("Epreuve jamais evaluee : le descripteur de mesure du Plan est servi")
@@ -359,25 +353,26 @@ class ProgressServiceTest {
         assertThat(parEpreuve.get(EpreuveType.TCF_CE).evaluation().moduleExamQuestionType())
                 .isEqualTo(QuestionType.CE);
 
-        // Aucun diagnostic termine : l'expression repart sur le diagnostic.
+        // 🛑 L'expression aussi : un examen blanc de production, slot offert.
         assertThat(parEpreuve.get(EpreuveType.TCF_EE).evaluation().kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(parEpreuve.get(EpreuveType.TCF_EE).evaluation().slotNumber()).isEqualTo(1);
         assertThat(parEpreuve.get(EpreuveType.TCF_EO).evaluation().kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(parEpreuve.get(EpreuveType.TCF_EO).evaluation().slotNumber()).isEqualTo(1);
     }
 
     /**
-     * Le diagnostic est terminé — il ne se rejoue pas : une épreuve
-     * d'expression encore vide retombe sur une <b>production</b> du catalogue
-     * standard. C'est exactement la règle de {@code PlanDomainAssessmentResolver},
+     * 🛑 Un diagnostic terminé ne change <b>rien</b> à la mesure proposée
+     * (arbitrage du propriétaire, 2026-09-16) : une épreuve d'expression encore
+     * vide repart sur son <b>examen blanc</b>, jamais sur l'entraînement libre.
+     * C'est exactement la règle de {@code PlanDomainAssessmentResolver},
      * appelée et non recopiée.
      */
     @Test
-    @DisplayName("Diagnostic termine : EE/EO jamais evaluees repartent sur une production")
-    void diagnosticTermineRenvoieVersUneProduction() {
+    @DisplayName("Diagnostic termine : EE/EO jamais evaluees repartent sur l'examen blanc")
+    void diagnosticTermineRenvoieVersLExamenBlanc() {
         diagnosticClos(NiveauCecrl.A2, NiveauCecrl.A2, null, null);
-        when(foundationResolver.resolve(userId)).thenReturn(
-                PlanFoundationResolver.of(null, session(TcfDiagnosticStatus.COMPLETED)));
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
         when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.A2, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
@@ -385,9 +380,9 @@ class ProgressServiceTest {
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
 
         assertThat(parEpreuve.get(EpreuveType.TCF_EE).evaluation().kind())
-                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
         assertThat(parEpreuve.get(EpreuveType.TCF_EO).evaluation().kind())
-                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
         // 🛑 Et rien a lancer sur ce qui est deja mesure : on ne propose pas de
         // refaire une mesure qui existe.
         assertThat(parEpreuve.get(EpreuveType.TCF_CO).evaluation()).isNull();

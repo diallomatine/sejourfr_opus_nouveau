@@ -1458,16 +1458,22 @@ enum PlanPathStepStatus {
 
 /// Le parcours **déjà existant** par lequel se mesure un domaine jamais évalué.
 /// Miroir de `PlanDomainAssessmentKind`.
+///
+/// 🛑 **Mesurer un domaine, c'est passer un EXAMEN BLANC — les quatre épreuves,
+/// sans exception** (arbitrage du propriétaire, 2026-09-16). Les natures
+/// `DIAGNOSTIC` (l'ancien diagnostic 1 EE + 1 EO) et `PRODUCTION`
+/// (l'entraînement libre sur les 3 tâches) sont **supprimées** des deux côtés :
+/// aucune des deux ne lançait un examen blanc.
 enum PlanDomainAssessmentKind {
-  /// Le diagnostic initial (EE + EO). Ni slot, ni durée.
-  diagnostic('DIAGNOSTIC'),
-
   /// Un examen blanc de module QCM : `moduleExamQuestionType` + `slotNumber`
   /// + `estimatedMinutes` sont alors renseignés.
   moduleMockExam('MODULE_MOCK_EXAM'),
 
-  /// Une production EE/EO. Ni slot, ni durée d'épreuve.
-  production('PRODUCTION');
+  /// Un examen blanc de **production** EE/EO — les 3 tâches enchaînées, le même
+  /// parcours que le jalon du Plan. `slotNumber` est posé ;
+  /// `moduleExamQuestionType` n'a pas de sens ici, et `estimatedMinutes` est
+  /// **nul à l'oral**, qui se chronomètre tâche par tâche.
+  productionMockExam('PRODUCTION_MOCK_EXAM');
 
   const PlanDomainAssessmentKind(this.wire);
 
@@ -1924,24 +1930,28 @@ class PlanDomainAssessment {
 
   /// Ce que `StartAttemptRequest` attend pour composer l'examen d'épreuve :
   /// `CO` ou `CE`, jamais `CO_IMAGE`. Renseigné sur
-  /// [PlanDomainAssessmentKind.moduleMockExam] seulement.
+  /// [PlanDomainAssessmentKind.moduleMockExam] seulement — une production ne se
+  /// compose d'aucun type de question.
   final QuestionType? moduleExamQuestionType;
 
-  /// Slot de la grille d'examens blancs à démarrer — examen de module
-  /// seulement.
+  /// Slot de la grille d'examens blancs à démarrer. Posé sur les deux natures :
+  /// 🛑 **c'est lui qui pilote le lancement**, jamais un `1` écrit côté front.
   final int? slotNumber;
 
-  /// Durée de l'épreuve, **lue serveur** chez `DureeEpreuve`. `null` quand la
-  /// durée n'est pas une donnée d'examen (diagnostic, production).
+  /// Durée de l'épreuve, **lue serveur** chez `DureeEpreuve`. `null` quand
+  /// l'épreuve n'a pas de chrono opposable — l'expression orale se chronomètre
+  /// tâche par tâche.
   final int? estimatedMinutes;
 
   factory PlanDomainAssessment.fromJson(Map<String, dynamic> json) =>
       PlanDomainAssessment(
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        // Une nature inconnue retombe sur l'examen blanc de module : c'est ce
+        // que les quatre épreuves valent désormais, au type de question près.
         kind: PlanDomainAssessmentKind.fromWireNullable(
               json['kind'] as String?,
             ) ??
-            PlanDomainAssessmentKind.diagnostic,
+            PlanDomainAssessmentKind.moduleMockExam,
         moduleExamQuestionType: _questionType(json['moduleExamQuestionType']),
         slotNumber: (json['slotNumber'] as num?)?.toInt(),
         estimatedMinutes: (json['estimatedMinutes'] as num?)?.toInt(),

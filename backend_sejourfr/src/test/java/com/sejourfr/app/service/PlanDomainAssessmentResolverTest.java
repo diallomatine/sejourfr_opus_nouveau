@@ -39,26 +39,29 @@ class PlanDomainAssessmentResolverTest {
     @Test
     @DisplayName("0 sur 4 : les quatre domaines sont a mesurer, et l'ecran n'est jamais vide")
     void aucunDomaineMesure() {
-        List<PlanDomainAssessmentDto> restants = resolver.resolve(domaines(Set.of()), false);
+        List<PlanDomainAssessmentDto> restants = resolver.resolve(domaines(Set.of()));
 
         assertThat(restants).extracting(PlanDomainAssessmentDto::epreuve)
                 .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
                         EpreuveType.TCF_EO, EpreuveType.TCF_EE);
-        // La comprehension passe par un examen blanc DEJA EXISTANT, l'expression
-        // par le diagnostic : aucun moteur n'est cree pour l'occasion.
+        // Les QUATRE epreuves passent par un examen blanc DEJA EXISTANT : examen
+        // de module en comprehension, examen de production (3 taches) en
+        // expression. Aucun moteur n'est cree pour l'occasion.
         assertThat(restants).extracting(PlanDomainAssessmentDto::kind)
                 .containsExactly(
                         PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
                         PlanDomainAssessmentKind.MODULE_MOCK_EXAM,
-                        PlanDomainAssessmentKind.DIAGNOSTIC,
-                        PlanDomainAssessmentKind.DIAGNOSTIC);
+                        PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM,
+                        PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(restants).allSatisfy(item ->
+                assertThat(item.slotNumber()).isEqualTo(1));
     }
 
     @Test
     @DisplayName("1 sur 4 : un premier domaine mesure ne sort du reste a faire que lui")
     void unSeulDomaineMesure() {
         List<PlanDomainAssessmentDto> restants =
-                resolver.resolve(domaines(Set.of(EpreuveType.TCF_CO)), false);
+                resolver.resolve(domaines(Set.of(EpreuveType.TCF_CO)));
 
         assertThat(restants).hasSize(3)
                 .extracting(PlanDomainAssessmentDto::epreuve)
@@ -69,7 +72,7 @@ class PlanDomainAssessmentResolverTest {
     @DisplayName("2 sur 4 apres un diagnostic rapide : il reste la comprehension, en examen blanc")
     void apresUnDiagnosticRapideIlResteLaComprehension() {
         List<PlanDomainAssessmentDto> restants = resolver.resolve(
-                domaines(Set.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO)), true);
+                domaines(Set.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO)));
 
         assertThat(restants).extracting(PlanDomainAssessmentDto::epreuve)
                 .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_CE);
@@ -89,8 +92,7 @@ class PlanDomainAssessmentResolverTest {
     @DisplayName("3 sur 4 : un seul domaine reste, et il est nomme")
     void troisDomainesMesures() {
         List<PlanDomainAssessmentDto> restants = resolver.resolve(
-                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_EE, EpreuveType.TCF_EO)),
-                true);
+                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_EE, EpreuveType.TCF_EO)));
 
         assertThat(restants).hasSize(1);
         assertThat(restants.getFirst().epreuve()).isEqualTo(EpreuveType.TCF_CE);
@@ -102,38 +104,77 @@ class PlanDomainAssessmentResolverTest {
     @DisplayName("4 sur 4 : plus rien a mesurer — vide est l'etat vise, pas une anomalie")
     void profilComplet() {
         assertThat(resolver.resolve(domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
-                EpreuveType.TCF_EE, EpreuveType.TCF_EO)), true)).isEmpty();
+                EpreuveType.TCF_EE, EpreuveType.TCF_EO)))).isEmpty();
     }
 
     // ------------------------------------------------------------------ nuances
 
+    /**
+     * 🛑 L'arbitrage du proprietaire du 2026-09-16 : « Evaluer mon niveau » lance
+     * un examen blanc sur les QUATRE epreuves. L'expression ne retombe plus ni
+     * sur l'ancien diagnostic (1 EE + 1 EO), ni sur l'entrainement libre — aucun
+     * des deux ne lancait un examen blanc.
+     */
     @Test
-    @DisplayName("Le diagnostic est designe sur les DEUX domaines d'expression : une porte, deux domaines")
-    void leDiagnosticCouvreLesDeuxDomainesDExpression() {
-        List<PlanDomainAssessmentDto> restants = resolver.resolve(
-                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE)), false);
+    @DisplayName("L'expression ecrite se mesure par un examen blanc de production, slot offert")
+    void lExpressionEcriteSeMesureParUnExamenBlanc() {
+        PlanDomainAssessmentDto mesure = resolver.pour(EpreuveType.TCF_EE);
 
-        assertThat(restants).extracting(PlanDomainAssessmentDto::kind)
-                .containsExactly(PlanDomainAssessmentKind.DIAGNOSTIC,
-                        PlanDomainAssessmentKind.DIAGNOSTIC);
-        assertThat(restants).extracting(PlanDomainAssessmentDto::epreuve)
-                .containsExactly(EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        assertThat(mesure.kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(mesure.slotNumber()).isEqualTo(1);
+        // Une production ne se compose d'aucun type de question.
+        assertThat(mesure.moduleExamQuestionType()).isNull();
+        // Duree lue chez DureeEpreuve, jamais ecrite en dur : 30 min a l'ecrit.
+        assertThat(mesure.estimatedMinutes()).isEqualTo(30);
     }
 
     @Test
-    @DisplayName("Diagnostic deja termine et expression toujours vide : une production, pas un rejeu")
-    void unDiagnosticTermineNeSeRejouePas() {
+    @DisplayName("L'expression orale aussi — et sans minutes : elle se chronometre par tache")
+    void lExpressionOraleSeMesureParUnExamenBlancSansDuree() {
+        PlanDomainAssessmentDto mesure = resolver.pour(EpreuveType.TCF_EO);
+
+        assertThat(mesure.kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(mesure.slotNumber()).isEqualTo(1);
+        assertThat(mesure.moduleExamQuestionType()).isNull();
+        // 🛑 Pas de « 0 min » : l'EO n'a aucune duree d'epreuve opposable.
+        assertThat(mesure.estimatedMinutes()).isNull();
+    }
+
+    @Test
+    @DisplayName("La comprehension est INCHANGEE : examen de module CO/CE, slot offert")
+    void laComprehensionEstInchangee() {
+        assertThat(resolver.pour(EpreuveType.TCF_CO))
+                .isEqualTo(PlanDomainAssessmentDto.moduleMockExam(
+                        EpreuveType.TCF_CO, QuestionType.CO, 1, 20));
+        assertThat(resolver.pour(EpreuveType.TCF_CE))
+                .isEqualTo(PlanDomainAssessmentDto.moduleMockExam(
+                        EpreuveType.TCF_CE, QuestionType.CE, 1, 35));
+    }
+
+    @Test
+    @DisplayName("Une epreuve hors des quatre du profil ne se mesure par rien")
+    void horsProfilRienNEstDesigne() {
+        assertThat(resolver.pour(null)).isNull();
+        assertThat(resolver.pour(EpreuveType.TCF_STRUCTURE)).isNull();
+        assertThat(resolver.pour(EpreuveType.TCF_COMPLET)).isNull();
+        assertThat(resolver.pour(EpreuveType.CIVIQUE)).isNull();
+    }
+
+    @Test
+    @DisplayName("Un diagnostic deja termine ne change RIEN : c'est toujours l'examen blanc")
+    void unDiagnosticTermineNeChangeRienALaMesure() {
+        // La branche `diagnosticTermine` a disparu de `pour()` : les deux
+        // domaines d'expression rendent la meme chose, quel que soit le passe du
+        // candidat. Le niveau qu'un ancien diagnostic a produit continue de
+        // s'afficher (TcfProfileService) — c'est l'AFFICHAGE, pas l'ACTION.
         List<PlanDomainAssessmentDto> restants = resolver.resolve(
-                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
-                true);
+                domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)));
 
         assertThat(restants).hasSize(1);
         assertThat(restants.getFirst().epreuve()).isEqualTo(EpreuveType.TCF_EO);
-        assertThat(restants.getFirst().kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
-        // Une production n'est ni chronometree par epreuve ni tiree d'une grille.
-        assertThat(restants.getFirst().slotNumber()).isNull();
-        assertThat(restants.getFirst().estimatedMinutes()).isNull();
-        assertThat(restants.getFirst().moduleExamQuestionType()).isNull();
+        assertThat(restants.getFirst().kind())
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(restants.getFirst().slotNumber()).isEqualTo(1);
     }
 
     @Test
@@ -142,7 +183,7 @@ class PlanDomainAssessmentResolverTest {
         List<PlanDomainDto> desordre = new ArrayList<>(domaines(Set.of()));
         desordre.sort((a, b) -> b.epreuve().compareTo(a.epreuve()));
 
-        assertThat(resolver.resolve(desordre, false))
+        assertThat(resolver.resolve(desordre))
                 .extracting(PlanDomainAssessmentDto::epreuve)
                 .containsExactlyElementsOf(TcfDomainProfileDto.ORDRE);
     }
@@ -150,8 +191,8 @@ class PlanDomainAssessmentResolverTest {
     @Test
     @DisplayName("Aucun domaine recu : rien a proposer, et surtout aucune exception")
     void listeVide() {
-        assertThat(resolver.resolve(List.of(), false)).isEmpty();
-        assertThat(resolver.resolve(null, true)).isEmpty();
+        assertThat(resolver.resolve(List.of())).isEmpty();
+        assertThat(resolver.resolve(null)).isEmpty();
     }
 
     // ------------------------------------------------- la mesure indispensable
@@ -164,12 +205,15 @@ class PlanDomainAssessmentResolverTest {
         // a un candidat dont c'est l'oral qui manquait. Non-regression.
         Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
                 domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
-                List.of(observation(SkillSection.EO, false)),
-                true);
+                List.of(observation(SkillSection.EO, false)));
 
         assertThat(mesure).isPresent();
         assertThat(mesure.get().epreuve()).isEqualTo(EpreuveType.TCF_EO);
-        assertThat(mesure.get().kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+        // 🛑 Remesurer, c'est repasser l'EPREUVE : un examen blanc, pas une
+        // production libre — la meme mesure que « Completer mon profil ».
+        assertThat(mesure.get().kind())
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(mesure.get().slotNumber()).isEqualTo(1);
     }
 
     @Test
@@ -177,8 +221,7 @@ class PlanDomainAssessmentResolverTest {
     void uneProductionPartiellementObserveeNEstPasRetenue() {
         Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
                 domaines(Set.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
-                List.of(observation(SkillSection.EO, false), observation(SkillSection.EO, true)),
-                true);
+                List.of(observation(SkillSection.EO, false), observation(SkillSection.EO, true)));
 
         assertThat(mesure).isEmpty();
     }
@@ -198,8 +241,7 @@ class PlanDomainAssessmentResolverTest {
                 domaines(Set.of(EpreuveType.TCF_CE, EpreuveType.TCF_EE, EpreuveType.TCF_EO)),
                 List.of(observation(SkillSection.CO, false),
                         observation(SkillSection.CO, false),
-                        observation(SkillSection.CO, false)),
-                true);
+                        observation(SkillSection.CO, false)));
 
         assertThat(mesure).isEmpty();
     }
@@ -211,8 +253,7 @@ class PlanDomainAssessmentResolverTest {
         // dans le calcul, elle raflerait l'unique place de la seance.
         Optional<PlanDomainAssessmentDto> mesure = resolver.indispensable(
                 domaines(Set.of(EpreuveType.TCF_CE, EpreuveType.TCF_EE)),
-                List.of(observation(SkillSection.CO, false), observation(SkillSection.EO, false)),
-                true);
+                List.of(observation(SkillSection.CO, false), observation(SkillSection.EO, false)));
 
         assertThat(mesure).isPresent();
         assertThat(mesure.get().epreuve()).isEqualTo(EpreuveType.TCF_EO);
@@ -221,8 +262,8 @@ class PlanDomainAssessmentResolverTest {
     @Test
     @DisplayName("Aucun historique : rien n'a echoue, donc rien n'est indispensable")
     void sansObservationRienNEstIndispensable() {
-        assertThat(resolver.indispensable(domaines(Set.of()), List.of(), true)).isEmpty();
-        assertThat(resolver.indispensable(domaines(Set.of()), null, true)).isEmpty();
+        assertThat(resolver.indispensable(domaines(Set.of()), List.of())).isEmpty();
+        assertThat(resolver.indispensable(domaines(Set.of()), null)).isEmpty();
     }
 
     // ------------------------------------------------------------------ fixtures

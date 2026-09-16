@@ -202,7 +202,8 @@ class PlanSeanceBuilderTest {
                 priorite("EE1-C1", SkillSection.EE, micro(4)),
                 priorite("EE2-C3", SkillSection.EE, micro(5)),
                 priorite("EE3-C2", SkillSection.EE, micro(6)));
-        PlanDomainAssessmentDto mesure = PlanDomainAssessmentDto.production(EpreuveType.TCF_EO);
+        PlanDomainAssessmentDto mesure =
+                PlanDomainAssessmentDto.productionMockExam(EpreuveType.TCF_EO, 1, null);
 
         PlanSeanceDto seance = builder.build(mesure, priorites, skills(priorites), Map.of(), null);
 
@@ -210,7 +211,8 @@ class PlanSeanceBuilderTest {
         assertThat(seance.items().getFirst()).satisfies(item -> {
             assertThat(item.nature()).isEqualTo(PlanActionNature.A_EVALUER);
             assertThat(item.assessment().epreuve()).isEqualTo(EpreuveType.TCF_EO);
-            assertThat(item.assessment().kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION);
+            assertThat(item.assessment().kind())
+                    .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
             assertThat(item.exercise())
                     .as("une mesure n'est pas un entrainement : les deux champs s'excluent")
                     .isNull();
@@ -235,7 +237,7 @@ class PlanSeanceBuilderTest {
         Map<UUID, Skill> skills = skills(List.of(priorite));
 
         PlanSeanceDto sansDuree = builder.build(
-                PlanDomainAssessmentDto.production(EpreuveType.TCF_EO),
+                PlanDomainAssessmentDto.productionMockExam(EpreuveType.TCF_EO, 1, null),
                 List.of(priorite), skills, Map.of(), null);
         PlanSeanceDto avecDuree = builder.build(
                 PlanDomainAssessmentDto.moduleMockExam(

@@ -129,8 +129,8 @@ class ProgressServiceIT extends AbstractIntegrationTest {
             assertThat(e.evaluation()).isNotNull();
             assertThat(e.evaluation().epreuve()).isEqualTo(e.epreuve());
         });
-        // CO/CE → examen blanc de module sur le slot OFFERT ; EE/EO → le
-        // diagnostic, qui n'a pas encore été passé.
+        // Les quatre épreuves → un examen blanc, sur le slot OFFERT : examen de
+        // module en CO/CE, examen de production (3 tâches) en EE/EO.
         Map<EpreuveType, PlanDomainAssessmentDto> mesures = tcf.epreuves().stream()
                 .collect(java.util.stream.Collectors.toMap(
                         ProgressDto.Epreuve::epreuve, ProgressDto.Epreuve::evaluation));
@@ -140,9 +140,11 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         assertThat(mesures.get(EpreuveType.TCF_CE).kind())
                 .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
         assertThat(mesures.get(EpreuveType.TCF_EE).kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(mesures.get(EpreuveType.TCF_EE).slotNumber()).isEqualTo(1);
         assertThat(mesures.get(EpreuveType.TCF_EO).kind())
-                .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        assertThat(mesures.get(EpreuveType.TCF_EO).slotNumber()).isEqualTo(1);
     }
 
     /**

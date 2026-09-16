@@ -15,6 +15,34 @@ import type {
 import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
 
 /**
+ * **Démarrer un examen blanc de production** (les 3 tâches EE ou EO enchaînées)
+ * et rendre l'adresse de sa session.
+ *
+ * ⚠️ **Rien n'est décidé ici** : l'épreuve et le slot viennent de l'appelant,
+ * qui les tient d'un descripteur **servi** — `PlanMilestoneExerciseDto` pour le
+ * jalon, `PlanDomainAssessmentDto` pour une mesure de domaine. On n'apporte que
+ * le chemin de démarrage, celui de `ProductionExams`, réutilisé tel quel :
+ * aucune route n'est créée, aucun appel n'est réinventé.
+ *
+ * Extrait à la **2ᵉ occurrence** (2026-09-16), quand « Évaluer mon niveau » a
+ * cessé d'ouvrir l'ancien diagnostic pour lancer le même examen que le jalon.
+ * Deux copies auraient fini par ouvrir deux sessions différentes.
+ */
+async function startProductionMockExam(
+    epreuve: "TCF_EE" | "TCF_EO",
+    slotNumber: number,
+): Promise<string> {
+    const config = epreuve === "TCF_EO" ? EO_CONFIG : EE_CONFIG;
+    const attempt = await productionApi.startAttempt({
+        module: "TCF",
+        epreuve: config.epreuve,
+        exam: true,
+        slotNumber,
+    });
+    return `${config.base}/session/${attempt.id}`;
+}
+
+/**
  * **Le seul endroit du web qui lance une action du Plan.**
  *
  * Les cinq natures ne mènent pas au même écran, et aucune ne crée de contenu :
@@ -78,14 +106,10 @@ export function usePlanExercise() {
                         break;
                     }
                     case "EPREUVE_MOCK_EXAM": {
-                        const config = exercise.epreuve === "TCF_EO" ? EO_CONFIG : EE_CONFIG;
-                        const attempt = await productionApi.startAttempt({
-                            module: "TCF",
-                            epreuve: config.epreuve,
-                            exam: true,
-                            slotNumber: exercise.slotNumber,
-                        });
-                        router.push(`${config.base}/session/${attempt.id}`);
+                        router.push(await startProductionMockExam(
+                            exercise.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
+                            exercise.slotNumber,
+                        ));
                         break;
                     }
                     default:
@@ -178,14 +202,25 @@ export function usePlanExercise() {
 }
 
 /**
- * Démarre l'un des parcours de **mesure** d'un domaine. Trois natures, trois
- * parcours existants — et là encore, aucun contenu créé.
+ * Démarre le parcours de **mesure** d'un domaine. Deux natures, deux parcours
+ * existants — et là encore, aucun contenu créé.
  *
- * **Deux appelants, un seul lanceur** : « Compléter mon profil » (un domaine
- * *jamais* mesuré) et la ligne `A_EVALUER` de la **séance** (un domaine
- * travaillé dont la production n'a rien pu montrer). Les deux ouvrent le même
- * genre de parcours et portent le même DTO ; en écrire un second aurait fini
- * par les faire diverger.
+ * **Cinq appelants, un seul lanceur** : la carte d'épreuve de l'Accueil
+ * (« Où vous en êtes »), l'écran Progrès, la fiche d'un domaine, la ligne
+ * `A_EVALUER` de la **séance** et Réviser. Tous ouvrent le même genre de
+ * parcours et portent le même DTO ; en écrire un second aurait fini par les
+ * faire diverger.
+ *
+ * 🛑 **Les quatre épreuves lancent un EXAMEN BLANC** (arbitrage du
+ * propriétaire, 2026-09-16) : examen de module en CO/CE, examen de production
+ * (les 3 tâches) en EE/EO — le même que le jalon du Plan, par la **même**
+ * fonction (`startProductionMockExam`). L'expression partait auparavant vers
+ * `/diagnostic` ou vers la liste des 3 tâches en entraînement libre : aucun des
+ * deux ne lançait un examen blanc.
+ *
+ * 🛑 **`slotNumber` est SERVI** : c'est lui qui pilote le démarrage, jamais un
+ * `1` décidé ici (le repli ne couvre qu'un client servi par un backend qui ne
+ * le publierait pas).
  */
 export function usePlanAssessment() {
     const router = useRouter();
@@ -196,17 +231,15 @@ export function usePlanAssessment() {
     const start = useCallback(
         async (assessment: PlanDomainAssessmentDto) => {
             setError(null);
-            if (assessment.kind === "DIAGNOSTIC") {
-                router.push("/diagnostic");
-                return;
-            }
-            if (assessment.kind === "PRODUCTION") {
-                const config = assessment.epreuve === "TCF_EO" ? EO_CONFIG : EE_CONFIG;
-                router.push(config.base);
-                return;
-            }
             setStarting(assessment.epreuve);
             try {
+                if (assessment.kind === "PRODUCTION_MOCK_EXAM") {
+                    router.push(await startProductionMockExam(
+                        assessment.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
+                        assessment.slotNumber ?? 1,
+                    ));
+                    return;
+                }
                 const attempt = await attemptApi.start({
                     type: "MOCK_EXAM",
                     module: "TCF",

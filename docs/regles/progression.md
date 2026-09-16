@@ -633,15 +633,33 @@ appuyer, le bouton qui lance réellement la mesure. Arbitrage du propriétaire :
 un clic sur la carte **lance directement l'évaluation de cette épreuve**.
 
 🛑 **Aucun mécanisme nouveau, aucune 5ᵉ porte.** Le descripteur est celui qui
-existe déjà — `PlanDomainAssessmentResolver.pour(epreuve, diagnosticTermine)`,
-la table des trois natures qui sert déjà « Compléter mon profil », la fiche d'un
-domaine et la ligne `A_EVALUER` de la séance :
+existe déjà — `PlanDomainAssessmentResolver.pour(epreuve)`, la table des natures
+qui sert déjà « Compléter mon profil », la fiche d'un domaine, l'écran Progrès,
+Réviser et la ligne `A_EVALUER` de la séance :
 
 | épreuve | ce qui est lancé |
 |---|---|
 | `TCF_CO` / `TCF_CE` | `MODULE_MOCK_EXAM` — examen blanc de module, **slot 1**, le slot offert à tout compte |
-| `TCF_EE` / `TCF_EO`, diagnostic **non** terminé | `DIAGNOSTIC` |
-| `TCF_EE` / `TCF_EO`, diagnostic terminé | `PRODUCTION` — le catalogue standard (le diagnostic ne se rejoue pas) |
+| `TCF_EE` / `TCF_EO` | `PRODUCTION_MOCK_EXAM` — examen blanc de production (les 3 tâches), **slot 1** |
+
+🛑 **Mesurer une épreuve, c'est passer un EXAMEN BLANC — les quatre, sans
+exception** (arbitrage du propriétaire, **2026-09-16**). ⚠️ **Révoque les deux
+lignes d'expression qui vivaient ici** : `DIAGNOSTIC` (l'ancien diagnostic
+1 EE + 1 EO) tant qu'il n'était pas terminé, `PRODUCTION` (les 3 tâches en
+entraînement libre) ensuite. **Aucun des deux ne lançait un examen blanc** :
+« Évaluer mon niveau » ne voulait donc pas dire la même chose en CO/CE et en
+EE/EO, et le candidat retombait sur un parcours d'entraînement là où la carte
+promettait une mesure. Les deux natures sont **supprimées** de
+`PlanDomainAssessmentKind`, avec leurs factories et leurs cas front.
+
+⚠️ **C'est l'ACTION qui change, pas l'AFFICHAGE.** Le niveau qu'un ancien
+diagnostic a déjà produit continue de s'afficher — `TcfProfileService` le lit en
+repli, et ce repli n'a pas bougé.
+
+🛑 **Le paramètre `diagnosticTermine` a disparu de `pour()`, de `resolve()` et
+d'`indispensable()`**, et de tous leurs appelants : il n'aiguillait que
+l'expression. `ProgressService` ne lit donc plus `PlanFoundationResolver` — une
+requête de moins par lecture de `/api/me/progress`.
 
 🛑 **Ce qui a été explicitement ÉCARTÉ** : lancer `/api/tcf-diagnostics` ciblé
 sur une seule section. Ce serait une 5ᵉ porte vers un mécanisme qui n'est routé
@@ -652,16 +670,31 @@ diagnostic `COMPLETED`.
 **Contrat servi** : `ProgressDto.Epreuve.evaluation`, un `PlanDomainAssessmentDto`
 — renseigné **quand et seulement quand** `niveau == null`, `null` dès qu'un
 palier existe (rien à mesurer, on ne propose pas de refaire une mesure qui
-existe). `diagnosticTermine` vient de **`PlanFoundationResolver`**, la même
-autorité que le Plan et que `PreparationDto.planDisponible` : la carte de
-l'Accueil et la carte du Plan ne peuvent donc pas désigner deux parcours
-différents pour le même domaine.
+existe). `slotNumber` vaut **1** sur les quatre épreuves (le slot offert et
+rejouable : mesurer un domaine ne bute jamais sur le paywall), et c'est **lui**
+qui pilote le lancement — aucun front n'écrit `1` en dur.
+`estimatedMinutes` suit `DureeEpreuve` : 20 (CO), 35 (CE), 30 (EE) et **`null`
+en EO**, qui se chronomètre tâche par tâche — on n'annonce alors aucune minute.
 
 🛑 **Le lanceur est celui du Plan, jamais un second** : `usePlanAssessment`
 (web) ⇄ `openPlanAssessment` (mobile). Les fronts passent le descripteur reçu et
 n'écrivent aucune route de démarrage. Un `evaluation` absent (client servi par
 un backend antérieur) **replie sur le comportement d'avant**, la fiche du
 domaine.
+
+**Et le démarrage d'un examen de production est le MÊME que celui du jalon du
+Plan** (`PlanExerciseKind.EPREUVE_MOCK_EXAM`), extrait pour ne pas être recopié :
+`startProductionMockExam` (`use-plan-exercise.ts`) ⇄ `startProductionExam`
+(`screens/tcf_production/production_exam_launcher.dart`, qui sert aussi la
+grille d'examens de l'épreuve). Un 403 y ouvre l'offre, jamais une erreur
+technique.
+
+⚠️ **Le sas suit l'épreuve, et il suit le front.** Sur mobile, les quatre
+épreuves ouvrent leur briefing avant de démarrer — `ModuleExamBriefingSheet` en
+CO/CE, `ProductionExamBriefingSheet` en EE/EO. Sur le web, les quatre démarrent
+**directement**, comme le faisait déjà CO/CE depuis ce point d'entrée. L'écart
+est **de forme et antérieur** à cette passe ; ce qui compte est qu'à l'intérieur
+d'un front les quatre épreuves se comportent pareil.
 
 **Les trois issues d'une carte**, dans l'ordre où elles se décident :
 

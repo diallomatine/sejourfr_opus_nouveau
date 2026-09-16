@@ -1809,21 +1809,24 @@ export interface PlanCycleDto {
 /* ----------------------------------------------------- compléter le profil */
 
 /** Par quoi un domaine encore **non mesuré** se fait mesurer. 🛑 Aucune de ces
- *  natures ne crée de contenu : chacune désigne un parcours **déjà existant**. */
+ *  natures ne crée de contenu : chacune désigne un parcours **déjà existant**.
+ *
+ *  🛑 **Mesurer un domaine, c'est passer un EXAMEN BLANC — les quatre épreuves,
+ *  sans exception** (arbitrage du propriétaire, 2026-09-16). `"DIAGNOSTIC"`
+ *  (l'ancien diagnostic 1 EE + 1 EO) et `"PRODUCTION"` (l'entraînement libre sur
+ *  les 3 tâches) sont **supprimés** : aucun des deux ne lançait un examen blanc,
+ *  donc « Évaluer mon niveau » ne voulait pas dire la même chose en CO/CE et en
+ *  EE/EO. */
 export type PlanDomainAssessmentKind =
-    /** Le diagnostic (`POST /api/diagnostics`) : une production écrite puis une
-     *  orale. Il mesure **les deux domaines d'expression à la fois** — il peut
-     *  donc être désigné sur `TCF_EE` **et** sur `TCF_EO` dans la même réponse.
-     *  Ce n'est pas un doublon : deux domaines pointent vers la même porte. */
-    | "DIAGNOSTIC"
     /** Un examen blanc de module QCM sur l'épreuve du domaine
      *  (`POST /api/attempts`, `type: "MOCK_EXAM"`, `moduleExamQuestionType`).
      *  Correction 100 % déterministe — aucune IA n'y touche. */
     | "MODULE_MOCK_EXAM"
-    /** Une production EE ou EO du catalogue standard. Repli du domaine
-     *  d'expression dont le diagnostic est **déjà terminé** sans que le domaine
-     *  ait un niveau — on ne rejoue jamais le diagnostic. */
-    | "PRODUCTION";
+    /** Un examen blanc de **production** EE ou EO : les 3 tâches enchaînées,
+     *  telles que les sert déjà `POST /api/attempts/production`
+     *  (`exam: true`, `slotNumber`) — exactement le parcours du jalon du Plan
+     *  (`EPREUVE_MOCK_EXAM`). */
+    | "PRODUCTION_MOCK_EXAM";
 
 /**
  * Ce qu'il faut lancer pour mesurer un domaine **jamais** évalué : l'épreuve,
@@ -1835,21 +1838,24 @@ export type PlanDomainAssessmentKind =
  * Ce qui est renseigné selon `kind` :
  * | `kind` | renseigné | `null` |
  * |---|---|---|
- * | `DIAGNOSTIC` | `epreuve` | les trois autres |
  * | `MODULE_MOCK_EXAM` | tout | — |
- * | `PRODUCTION` | `epreuve` | les trois autres |
+ * | `PRODUCTION_MOCK_EXAM` | `epreuve`, `slotNumber`, et `estimatedMinutes` **à l'écrit seulement** | `moduleExamQuestionType` ; `estimatedMinutes` à l'oral |
  */
 export interface PlanDomainAssessmentDto {
     epreuve: Extract<EpreuveType, "TCF_CO" | "TCF_CE" | "TCF_EO" | "TCF_EE">;
     kind: PlanDomainAssessmentKind;
     /** Ce que `StartAttemptRequest` attend pour composer l'examen d'épreuve :
-     *  `CO` ou `CE`, **jamais `CO_IMAGE`** (un filtre `CO` l'inclut déjà). */
+     *  `CO` ou `CE`, **jamais `CO_IMAGE`** (un filtre `CO` l'inclut déjà).
+     *  `null` sur un examen de production, qui ne se compose d'aucun type de
+     *  question. */
     moduleExamQuestionType: QuestionType | null;
-    /** Slot de la grille d'examens blancs à démarrer. */
+    /** Slot de la grille d'examens blancs à démarrer. Servi sur les deux
+     *  natures : 🛑 **c'est lui qui pilote le lancement**, jamais un `1` décidé
+     *  côté front. */
     slotNumber: number | null;
     /** Durée de l'épreuve, lue chez le serveur et **jamais écrite en dur**.
-     *  `null` quand la durée n'est pas une donnée d'examen (le diagnostic et une
-     *  production ne sont pas chronométrés par épreuve). */
+     *  `null` quand l'épreuve n'a pas de chrono opposable — l'expression orale
+     *  se chronomètre tâche par tâche. */
     estimatedMinutes: number | null;
 }
 

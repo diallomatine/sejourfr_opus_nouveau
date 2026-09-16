@@ -23,20 +23,19 @@ import com.sejourfr.app.enums.QuestionType;
  * <table>
  *   <caption>Champs par {@link #kind()}</caption>
  *   <tr><th>{@code kind}</th><th>renseigne</th><th>{@code null}</th></tr>
- *   <tr><td>{@code DIAGNOSTIC}</td><td>{@link #epreuve()}</td>
- *       <td>{@code moduleExamQuestionType}, {@code slotNumber},
- *           {@code estimatedMinutes}</td></tr>
  *   <tr><td>{@code MODULE_MOCK_EXAM}</td>
  *       <td>{@link #epreuve()}, {@link #moduleExamQuestionType()},
  *           {@link #slotNumber()}, {@link #estimatedMinutes()}</td>
  *       <td>&mdash;</td></tr>
- *   <tr><td>{@code PRODUCTION}</td><td>{@link #epreuve()}</td>
- *       <td>{@code moduleExamQuestionType}, {@code slotNumber},
- *           {@code estimatedMinutes}</td></tr>
+ *   <tr><td>{@code PRODUCTION_MOCK_EXAM}</td>
+ *       <td>{@link #epreuve()}, {@link #slotNumber()}, et
+ *           {@link #estimatedMinutes()} <b>a l'ecrit seulement</b></td>
+ *       <td>{@code moduleExamQuestionType} ; {@code estimatedMinutes} a
+ *           l'oral</td></tr>
  * </table>
- * Les trois formes se construisent par {@link #diagnostic}, {@link #moduleMockExam}
- * et {@link #production}, jamais par le constructeur canonique : c'est ce qui
- * interdit qu'un parametre hors sujet s'y glisse.
+ * Les deux formes se construisent par {@link #moduleMockExam} et
+ * {@link #productionMockExam}, jamais par le constructeur canonique : c'est ce
+ * qui interdit qu'un parametre hors sujet s'y glisse.
  *
  * @param epreuve               le domaine mesure — {@code TCF_CO}, {@code TCF_CE},
  *                              {@code TCF_EO} ou {@code TCF_EE}
@@ -44,13 +43,14 @@ import com.sejourfr.app.enums.QuestionType;
  * @param moduleExamQuestionType ce que {@code StartAttemptRequest} attend pour
  *                              composer l'examen d'epreuve ; {@code CO} ou
  *                              {@code CE}, jamais {@code CO_IMAGE} (un filtre
- *                              {@code CO} l'inclut deja partout dans le depot)
+ *                              {@code CO} l'inclut deja partout dans le depot).
+ *                              {@code null} sur un examen de production, qui ne
+ *                              se compose d'aucun type de question
  * @param slotNumber            slot de la grille d'examens blancs a demarrer
  * @param estimatedMinutes      duree de l'epreuve, lue chez {@code DureeEpreuve}
- *                              et jamais ecrite en dur ; {@code null} quand la
- *                              duree n'est pas une donnee d'examen (le
- *                              diagnostic et une production ne sont pas
- *                              chronometres par epreuve)
+ *                              et jamais ecrite en dur ; {@code null} quand
+ *                              l'epreuve n'a pas de chrono opposable
+ *                              (l'expression orale se chronometre par tache)
  */
 public record PlanDomainAssessmentDto(
         EpreuveType epreuve,
@@ -59,18 +59,6 @@ public record PlanDomainAssessmentDto(
         Integer slotNumber,
         Integer estimatedMinutes
 ) {
-
-    /**
-     * Le diagnostic, qui mesure l'ecrit <b>et</b> l'oral en une session.
-     *
-     * @param epreuve {@code TCF_EE} ou {@code TCF_EO} — le domaine que
-     *                <b>cette</b> ligne represente, meme si la session en couvre
-     *                deux.
-     */
-    public static PlanDomainAssessmentDto diagnostic(EpreuveType epreuve) {
-        return new PlanDomainAssessmentDto(
-                epreuve, PlanDomainAssessmentKind.DIAGNOSTIC, null, null, null);
-    }
 
     /**
      * Un examen blanc de module CO ou CE, deja existant.
@@ -84,9 +72,19 @@ public record PlanDomainAssessmentDto(
                 questionType, slotNumber, estimatedMinutes);
     }
 
-    /** Une production EE ou EO du catalogue standard. */
-    public static PlanDomainAssessmentDto production(EpreuveType epreuve) {
+    /**
+     * Un examen blanc de production EE ou EO — les 3 taches enchainees, deja
+     * existantes.
+     *
+     * <p>Le slot est celui que l'appelant a decide, comme pour
+     * {@link #moduleMockExam}. {@code estimatedMinutes} est <b>nullable</b> :
+     * l'expression orale n'a pas de duree d'epreuve, et on n'annonce alors
+     * aucune minute plutot qu'un chiffre invente.
+     */
+    public static PlanDomainAssessmentDto productionMockExam(
+            EpreuveType epreuve, int slotNumber, Integer estimatedMinutes) {
         return new PlanDomainAssessmentDto(
-                epreuve, PlanDomainAssessmentKind.PRODUCTION, null, null, null);
+                epreuve, PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM,
+                null, slotNumber, estimatedMinutes);
     }
 }

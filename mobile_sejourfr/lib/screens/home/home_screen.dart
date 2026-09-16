@@ -575,7 +575,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
     final mesure = epreuve.niveau == null ? epreuve.evaluation : null;
     if (mesure != null) {
-      openPlanAssessment(context, mesure);
+      openPlanAssessment(context, ref, mesure);
       return;
     }
     if (accueilEpreuveOuvreLExercice(epreuve)) {

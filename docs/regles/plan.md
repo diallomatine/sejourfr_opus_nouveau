@@ -638,6 +638,38 @@ Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
   n'a plus qu'une porte »). Le champ **reste servi et reste lu** : la fiche d'un domaine,
   « Ma progression » et la **ligne `A_EVALUER` de la séance** s'en servent toujours, par le
   même lanceur unique (`usePlanAssessment` ⇄ `openPlanAssessment`).
+
+  🛑 **Mesurer un domaine, c'est passer un EXAMEN BLANC — les quatre épreuves, sans
+  exception** (arbitrage du propriétaire, **2026-09-16**). `PlanDomainAssessmentKind` n'a plus
+  que **deux** natures, et `PlanDomainAssessmentResolver.pour(epreuve)` est la seule table :
+
+  | épreuve | nature | ce qui est lancé | `moduleExamQuestionType` | `slotNumber` | `estimatedMinutes` |
+  |---|---|---|---|---|---|
+  | `TCF_CO` | `MODULE_MOCK_EXAM` | `POST /api/attempts` `MOCK_EXAM` | `CO` | 1 | 20 |
+  | `TCF_CE` | `MODULE_MOCK_EXAM` | `POST /api/attempts` `MOCK_EXAM` | `CE` | 1 | 35 |
+  | `TCF_EE` | `PRODUCTION_MOCK_EXAM` | `POST /api/attempts/production` `exam=true` | `null` | 1 | 30 |
+  | `TCF_EO` | `PRODUCTION_MOCK_EXAM` | `POST /api/attempts/production` `exam=true` | `null` | 1 | **`null`** |
+
+  ⚠️ **Révoque les natures `DIAGNOSTIC` et `PRODUCTION`**, supprimées de l'enum, de leurs
+  factories et de tous les cas front. L'expression partait vers l'ancien diagnostic
+  (1 EE + 1 EO) tant qu'il restait à faire, vers l'entraînement libre sur les 3 tâches
+  ensuite : **aucun des deux ne lançait un examen blanc**, et « mesurer ce domaine » ne
+  voulait donc pas dire la même chose selon l'épreuve. C'est l'**action** qui change, pas
+  l'**affichage** — le niveau qu'un ancien diagnostic a produit continue de s'afficher
+  (`TcfProfileService`, repli inchangé).
+
+  🛑 **`estimatedMinutes` est `null` en EO**, jamais `0` : l'oral n'a pas de durée d'épreuve
+  opposable (`DureeEpreuve`), il se chronomètre tâche par tâche — on n'annonce alors aucune
+  minute plutôt qu'un chiffre faux.
+
+  🛑 **Le paramètre `diagnosticTermine` a disparu** de `pour()`, `resolve()` et
+  `indispensable()`, et de tous leurs appelants : il n'aiguillait que l'expression.
+  `ProgressService` ne lit plus `PlanFoundationResolver` — une requête de moins par lecture.
+
+  🛑 **Le démarrage d'un examen de production est celui du JALON**, extrait pour ne pas être
+  recopié : `startProductionMockExam` (`use-plan-exercise.ts`) ⇄ `startProductionExam`
+  (`screens/tcf_production/production_exam_launcher.dart`, partagé avec la grille d'examens de
+  l'épreuve). Le `slotNumber` **servi** pilote le lancement, jamais un `1` écrit côté front.
 - **`seance`** (`PlanSeanceDto`) : ≤ **3** items, **1 compétence = 1 slot**, minutes
   **recalculées**. `PlanExerciseKind` gagne `TARGETED_QCM_SERIES` (+ `questionCount` sur
   `PlanRecommendedExerciseDto`).

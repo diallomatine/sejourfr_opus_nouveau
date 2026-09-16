@@ -183,7 +183,7 @@ public class LearningPlanService {
                     // pointent vers le diagnostic, les deux de comprehension vers
                     // leur examen blanc de module. C'est exactement l'ecran
                     // d'onboarding du brief §6 — et il n'est jamais vide.
-                    assessmentResolver.resolve(domaines, false),
+                    assessmentResolver.resolve(domaines),
                     // Aucune priorite, donc aucune seance et rien qui ait bouge :
                     // le Plan sert le profil, pas une journee de travail.
                     new PlanSeanceDto(List.of(), 0), null);
@@ -533,7 +533,7 @@ public class LearningPlanService {
         // se traite par une acquisition. Zero requete, meme resolution que
         // « Completer mon profil ».
         PlanDomainAssessmentDto mesure = assessmentResolver
-                .indispensable(profil.domaines(), allObservations, true)
+                .indispensable(profil.domaines(), allObservations)
                 .orElse(null);
         PlanSeanceDto seance = seanceBuilder.build(mesure, priorities, skillsDesPriorites,
                 lastActivity, milestone);
@@ -573,7 +573,7 @@ public class LearningPlanService {
                 // evalue en EE/EO garde CO et CE a mesurer, et la session
                 // terminee ne se rejoue pas — ces domaines-la, s'ils manquaient
                 // encore, retomberaient sur une production.
-                assessmentResolver.resolve(domaines, true),
+                assessmentResolver.resolve(domaines),
                 seance, changes);
     }
 

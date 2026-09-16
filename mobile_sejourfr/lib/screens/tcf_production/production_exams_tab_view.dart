@@ -10,14 +10,11 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/selected_module.dart';
-import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
-import 'ee_session_controller.dart';
-import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
 import 'production_catalog.dart';
+import 'production_exam_launcher.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/exam_slot/exam_slot_card.dart';
@@ -233,23 +230,19 @@ class _ProductionExamsTabViewState
     );
   }
 
+  /// ⚠️ **Le démarrage ne vit plus ici** : `startProductionExam` est l'autorité
+  /// partagée avec le jalon du Plan et la mesure d'un domaine d'expression. Cet
+  /// écran ne garde que son voile d'attente.
   Future<void> _startExam(int slotNumber) async {
     if (_starting) return;
     _setStarting(true);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
-      if (widget.module.isEo) {
-        await ref.read(eoSessionProvider.notifier).startExam(slotNumber: slotNumber);
-        if (!mounted) return;
-        context.push('/tcf/expression-orale/t/0');
-      } else {
-        await ref.read(eeSessionProvider.notifier).startExam(slotNumber: slotNumber);
-        if (!mounted) return;
-        context.push('/tcf/expression-ecrite/t/0');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showPaywallOrError(context, e);
+      await startProductionExam(
+        context,
+        ref,
+        epreuve: widget.module.epreuve,
+        slotNumber: slotNumber,
+      );
     } finally {
       if (mounted) _setStarting(false);
     }

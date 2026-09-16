@@ -19,7 +19,6 @@ import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
-import com.sejourfr.app.service.PlanFoundationResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.SubscriptionService;
@@ -76,10 +75,9 @@ import java.util.UUID;
  *
  * <p>🛑 <b>Il n'invente aucun parcours de mesure.</b> « Par quoi mesurer une
  * épreuve jamais évaluée » vient de {@link PlanDomainAssessmentResolver#pour},
- * la même autorité que « Compléter mon profil » et que la ligne
- * {@code A_EVALUER} de la séance ; et « le diagnostic est-il terminé ? » de
- * {@link PlanFoundationResolver}, la même que le Plan. Cet écran <b>assemble</b>,
- * il ne décide pas.
+ * la même autorité que « Compléter mon profil », que la fiche d'un domaine et
+ * que la ligne {@code A_EVALUER} de la séance. Cet écran <b>assemble</b>, il ne
+ * décide pas.
  *
  * <p>🛑 <b>Aucun appel LLM</b> : tout est relu.
  */
@@ -113,7 +111,6 @@ public class ProgressService {
     private final SubscriptionService subscriptionService;
     private final ActiviteResolver activiteResolver;
     private final StatutObjectifResolver statutObjectifResolver;
-    private final PlanFoundationResolver foundationResolver;
     private final PlanDomainAssessmentResolver assessmentResolver;
 
     @Transactional(readOnly = true)
@@ -181,12 +178,6 @@ public class ProgressService {
         // « niveau d'expression orale » chez quelqu'un qui n'a jamais passe
         // d'epreuve d'EO. Les deux ecrans peuvent donc diverger, et c'est voulu.
         TcfLevelProfile profil = tcfProfileService.levelProfileAccueil(user.getId());
-        // 🛑 « Le diagnostic est-il termine ? » a DEJA son autorite, partagee
-        // avec le Plan et avec `PreparationDto.planDisponible` : on l'appelle,
-        // on ne la recopie pas. C'est elle que `LearningPlanService` passe a ce
-        // meme resolveur, donc la carte de l'Accueil et la carte du Plan ne
-        // peuvent pas designer deux parcours differents pour le meme domaine.
-        boolean diagnosticTermine = foundationResolver.resolve(user.getId()).exists();
         List<ProgressDto.Epreuve> epreuves = new ArrayList<>(EPREUVES.size());
         for (EpreuveType epreuve : EPREUVES) {
             NiveauCecrl actuel = actuel(profil, epreuve);
@@ -210,7 +201,7 @@ public class ProgressService {
                     // 🛑 Rien a lancer sur une epreuve DEJA mesuree : on ne
                     // propose pas de refaire une mesure qui existe.
                     actuel == null
-                            ? assessmentResolver.pour(epreuve, diagnosticTermine)
+                            ? assessmentResolver.pour(epreuve)
                             : null));
         }
 
