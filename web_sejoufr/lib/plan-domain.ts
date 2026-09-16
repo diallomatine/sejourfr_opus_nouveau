@@ -305,24 +305,23 @@ export const PLAN_COMPLETE_PROFILE_NOTE =
     "Les séries ciblées font progresser vos compétences, mais ne remplacent pas un examen blanc : c'est lui qui donne un niveau au domaine.";
 
 /** Par quoi mesurer ce domaine — le CTA nomme le parcours réel, jamais un
- *  contenu inventé. */
-export function planAssessmentCta(assessment: PlanDomainAssessmentDto): string {
-    if (assessment.kind === "DIAGNOSTIC") return "Faire mon diagnostic";
-    if (assessment.kind === "PRODUCTION") return "Faire une production";
+ *  contenu inventé.
+ *
+ *  🛑 **Le même geste sur les quatre épreuves**, parce que c'est la même chose
+ *  qui se lance : un examen blanc (de module en CO/CE, de production en EE/EO). */
+export function planAssessmentCta(_assessment: PlanDomainAssessmentDto): string {
     return "Passer l'examen blanc";
 }
 
 /** Le parcours **réel** qu'ouvre une mesure, nommé tel quel. Aucun contenu
- *  n'est créé : chacune de ces trois natures existe déjà. */
+ *  n'est créé : les deux natures existent déjà. */
 export function planAssessmentNature(assessment: PlanDomainAssessmentDto): string {
-    if (assessment.kind === "DIAGNOSTIC") return "Diagnostic";
-    if (assessment.kind === "PRODUCTION") return "Production complète";
     return `Examen blanc n°${assessment.slotNumber ?? 1}`;
 }
 
 /** Le repère factuel de la ligne : la nature du passage et sa durée quand elle
- *  en a une (le diagnostic et une production ne sont pas chronométrés par
- *  épreuve — on n'écrit alors aucune minute). */
+ *  en a une (l'expression orale se chronomètre tâche par tâche — on n'écrit
+ *  alors aucune minute). */
 export function planAssessmentMeta(assessment: PlanDomainAssessmentDto): string {
     const nature = planAssessmentNature(assessment);
     return assessment.estimatedMinutes
