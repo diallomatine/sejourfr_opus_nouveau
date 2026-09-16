@@ -486,23 +486,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 4),
           const SfTiny(kHomeSituationCardLead),
           const SizedBox(height: 12),
-          for (final epreuve in epreuves) ...[
-            HomeSituationCard(
-              title: epreuve.epreuve.displayLabel,
-              badge: accueilEpreuveBadge(epreuve),
-              mesure: epreuve.niveau != null,
-              statut: accueilEpreuveStatut(epreuve),
-              jauge: accueilEpreuveJauge(epreuve),
-              tone: accueilEpreuveTon(epreuve),
-              cta: accueilEpreuveCta(epreuve),
-              onTap: () => _ouvrirEpreuve(context, epreuve),
-            ),
-            const SizedBox(height: 10),
-          ],
+          HomeSituationGrid(
+            children: [
+              for (final epreuve in epreuves)
+                HomeSituationCard(
+                  title: epreuve.epreuve.displayLabel,
+                  badge: accueilEpreuveBadge(epreuve),
+                  mesure: epreuve.niveau != null,
+                  statut: accueilEpreuveStatut(epreuve),
+                  jauge: accueilEpreuveJauge(epreuve),
+                  tone: accueilEpreuveTon(epreuve),
+                  cta: accueilEpreuveCta(epreuve),
+                  onTap: () => _ouvrirEpreuve(context, epreuve),
+                ),
+            ],
+          ),
           // 🛑 Sans démarche déclarée, pas de bandeau : on ne devine pas
           // l'objectif d'un candidat qui n'en a pas donné.
-          if (objectif != null)
+          // 🛑 Le bandeau reste PLEINE LARGEUR, sous la grille : il porte
+          // l'objectif de l'épreuve entière, pas d'une carte.
+          if (objectif != null) ...[
+            const SizedBox(height: 12),
             HomeGoalBanner(text: homeGoalText(objectif.shortName)),
+          ],
         ],
       ),
     );
@@ -526,23 +532,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 4),
           const SfTiny(kHomeSituationCivicCardLead),
           const SizedBox(height: 12),
-          for (final theme in themes) ...[
-            HomeSituationCard(
-              title: theme.label,
-              // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
-              // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
-              badge: theme.etat == CivicThemeState.nonEvalue
-                  ? kNonMesureLabel
-                  : theme.etat.label,
-              mesure: theme.etat != CivicThemeState.nonEvalue,
-              statut: theme.etat.label,
-              jauge: civicThemeJauge(theme.etat),
-              tone: civicThemeBarTone(theme.etat),
-              cta: kHomeSituationCivicCta,
-              onTap: () => _ouvrirPlan(context, civique: true),
-            ),
-            const SizedBox(height: 10),
-          ],
+          // Même grille qu'en TCF : un thème civique se dit en un libellé, un
+          // état et une jauge — exactement ce qu'une carte compacte porte.
+          HomeSituationGrid(
+            children: [
+              for (final theme in themes)
+                HomeSituationCard(
+                  title: theme.label,
+                  // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
+                  // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
+                  badge: theme.etat == CivicThemeState.nonEvalue
+                      ? kNonMesureLabel
+                      : theme.etat.label,
+                  mesure: theme.etat != CivicThemeState.nonEvalue,
+                  statut: theme.etat.label,
+                  jauge: civicThemeJauge(theme.etat),
+                  tone: civicThemeBarTone(theme.etat),
+                  cta: kHomeSituationCivicCta,
+                  onTap: () => _ouvrirPlan(context, civique: true),
+                ),
+            ],
+          ),
         ],
       ),
     );
