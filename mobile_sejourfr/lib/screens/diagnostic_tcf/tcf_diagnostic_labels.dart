@@ -132,8 +132,15 @@ String progressionLabel(TcfDiagnosticDto d) {
 }
 
 /// Toutes les sections existantes sont closes ⇒ le résultat est demandable.
+///
+/// 🛑 Une section **mesurée ailleurs** compte comme existante même sans
+/// sous-attempt propre (mode dégradé : l'épreuve n'a pas été tirée, mais un
+/// examen blanc l'a mesurée). Sans ça, un diagnostic entièrement mesuré par
+/// ailleurs n'aurait jamais proposé son résultat.
 bool resultatDisponible(TcfDiagnosticDto d) {
-  final existantes = d.sections.where((s) => s.attemptId != null).toList();
+  final existantes = d.sections
+      .where((s) => s.attemptId != null || s.rapportAttemptId != null)
+      .toList();
   if (existantes.isEmpty) return false;
   return existantes.every((s) => s.etat == TcfDiagnosticSectionState.terminee);
 }
@@ -142,7 +149,11 @@ bool resultatDisponible(TcfDiagnosticDto d) {
 ///
 /// 🛑 Le candidat ne doit **jamais** voir qu'il manque du contenu (`00_` §7.4) :
 /// on la nomme « non évaluée », comme une épreuve qu'il n'a pas passée.
-bool sectionIndisponible(TcfDiagnosticSectionDto s) => s.attemptId == null;
+///
+/// ⚠️ Une épreuve **mesurée ailleurs** n'est jamais indisponible, même sans
+/// sous-attempt : elle a un niveau et un rapport, elle se lit comme faite.
+bool sectionIndisponible(TcfDiagnosticSectionDto s) =>
+    s.attemptId == null && s.rapportAttemptId == null;
 
 /// Le décompte de jours restants, calculé à l'affichage et jamais persisté.
 int joursRestants(DateTime expiresAt, {DateTime? now}) {

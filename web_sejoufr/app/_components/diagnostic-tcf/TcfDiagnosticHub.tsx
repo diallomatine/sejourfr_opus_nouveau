@@ -529,10 +529,19 @@ function SectionCard({
                                 : NIVEAU_NON_EVALUE}
                         </p>
                     )}
-                    {section.attemptId !== null && (
+                    {/* 🛑 `rapportAttemptId`, pas `attemptId` (2026-09-16) :
+                        sur une épreuve mesurée par un examen blanc, c'est cet
+                        examen-là qui porte le rapport — le sous-attempt du
+                        diagnostic est vide. Sur une section jouée ici, les deux
+                        sont le même, rien ne change. Aucun rapport servi ⇒
+                        aucun lien, on n'ouvre jamais un rapport vide. */}
+                    {section.rapportAttemptId !== null && (
                         <Link
                             className="btn btn-ghost"
-                            href={sectionRapportHref(section.epreuve, section.attemptId)}
+                            href={sectionRapportHref(
+                                section.epreuve,
+                                section.rapportAttemptId,
+                            )}
                         >
                             {TCF_DIAGNOSTIC_RAPPORT_CTA}
                         </Link>

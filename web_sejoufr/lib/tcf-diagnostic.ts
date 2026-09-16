@@ -139,9 +139,18 @@ export function progressionLabel(d: TcfDiagnosticDto): string {
     }`;
 }
 
-/** Toutes les sections existantes sont closes ⇒ le résultat est demandable. */
+/**
+ * Toutes les sections existantes sont closes ⇒ le résultat est demandable.
+ *
+ * 🛑 Une section **mesurée ailleurs** compte comme existante même sans
+ * sous-attempt propre (mode dégradé : l'épreuve n'a pas été tirée, mais un
+ * examen blanc l'a mesurée). Sans ça, un diagnostic entièrement mesuré par
+ * ailleurs n'aurait jamais proposé son résultat.
+ */
 export function resultatDisponible(d: TcfDiagnosticDto): boolean {
-    const existantes = d.sections.filter((s) => s.attemptId !== null);
+    const existantes = d.sections.filter(
+        (s) => s.attemptId !== null || s.rapportAttemptId !== null,
+    );
     if (existantes.length === 0) return false;
     return existantes.every((s) => s.etat === "TERMINEE");
 }
@@ -161,9 +170,12 @@ export const TCF_DIAGNOSTIC_REPRISE_ECOULEE =
  *
  * 🛑 Le candidat ne doit **jamais** voir qu'il manque du contenu (`00_` §7.4) :
  * on la nomme « non évaluée », comme une épreuve qu'il n'a pas passée.
+ *
+ * ⚠️ Une épreuve **mesurée ailleurs** n'est jamais indisponible, même sans
+ * sous-attempt : elle a un niveau et un rapport, elle se lit comme faite.
  */
 export function sectionIndisponible(s: TcfDiagnosticSectionDto): boolean {
-    return s.attemptId === null;
+    return s.attemptId === null && s.rapportAttemptId === null;
 }
 
 /**
@@ -251,6 +263,10 @@ export function sectionIntro(section: TcfDiagnosticSectionDto): ExamIntroCopy {
  * au lieu du bilan individuel). Ici on veut justement le bilan — la
  * compréhension ouvre son rapport question par question, la production son
  * bilan de session. Aucun second écran n'est créé.
+ *
+ * 🛑 **L'`attemptId` à lui passer est `rapportAttemptId`**, pas `attemptId` :
+ * sur une épreuve mesurée par un examen blanc, c'est cet examen-là qui a un
+ * rapport — le sous-attempt du diagnostic, lui, est vide (2026-09-16).
  */
 export function sectionRapportHref(epreuve: EpreuveType, attemptId: string): string {
     switch (epreuve) {

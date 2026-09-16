@@ -44,6 +44,7 @@ class TcfDiagnosticSectionDto {
     this.niveau,
     this.scoreCalibre,
     this.analyseEnCours = false,
+    this.rapportAttemptId,
   });
 
   final EpreuveType epreuve;
@@ -75,6 +76,21 @@ class TcfDiagnosticSectionDto {
   /// deux `niveau == null`.
   final bool analyseEnCours;
 
+  /// L'attempt dont le **rapport** explique [niveau] — la destination de
+  /// « Voir le rapport ».
+  ///
+  /// C'est [attemptId] quand la section a elle-même mesuré l'épreuve. Quand
+  /// l'épreuve a été mesurée **ailleurs** (examen blanc isolé, examen TCF
+  /// complet), c'est l'examen qualifiant le plus récent : une section vide n'a
+  /// pas de rapport, l'examen qui l'a mesurée en a un.
+  ///
+  /// 🛑 `null` = **rien de mesuré**, donc aucun rapport à ouvrir.
+  ///
+  /// 🛑 **Il ne dit pas la provenance** : le propriétaire refuse tout
+  /// vocabulaire « mesurée ailleurs » à l'écran (2026-09-16). Une épreuve
+  /// mesurée se lit comme **faite**, point.
+  final String? rapportAttemptId;
+
   /// Le résultat de cette épreuve est lisible.
   bool get resultatLisible => niveau != null;
 
@@ -88,6 +104,7 @@ class TcfDiagnosticSectionDto {
         niveau: NiveauCecrl.fromWireNullable(json['niveau'] as String?),
         scoreCalibre: json['scoreCalibre'] as int?,
         analyseEnCours: json['analyseEnCours'] as bool? ?? false,
+        rapportAttemptId: json['rapportAttemptId'] as String?,
       );
 }
 
