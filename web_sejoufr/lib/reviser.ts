@@ -26,11 +26,10 @@ import type {
     LearningPlanDto,
     PlanDomainDto,
     PlanDomainTaskDto,
-    PlanSeanceItemDto,
     SkillSection,
 } from "./types";
 import {niveauCecrlLabel} from "./types";
-import {planDomainLabel, type PlanDomainEpreuve} from "./plan-domain";
+import {planNowCard, type PlanDomainEpreuve, type PlanNowVue} from "./plan-domain";
 import {CIVIQUE_LABEL, TCF_LABEL} from "./preparation";
 
 /* ------------------------------------------------------------------ En-tête */
@@ -114,56 +113,42 @@ export const REVISER_DEPART_LABEL = "Votre point de départ";
 /**
  * Ce que le Plan demande de faire **maintenant**, mis en mots.
  *
- * 🛑 **La source est le Plan, jamais un historique d'écran** : c'est la première
- * ligne de la séance du jour, sinon la priorité n°1. Les deux viennent de la
- * même autorité que l'écran Plan — Réviser ne peut donc pas désigner autre
- * chose que lui.
+ * 🛑 **La source est le Plan, jamais un historique d'écran** — et c'est
+ * `planNowCard` qui la décide, la **même autorité** que la carte « À faire
+ * maintenant » du Plan (`ActionMaintenant`) et de l'Accueil
+ * (`ActionPlanDuJour`), des deux côtés. Réviser lisait `seance.items[0]` puis
+ * retombait sur `currentPriority` : une **mesure de domaine** qui n'ouvrait pas
+ * la séance lui échappait, et l'écran annonçait la priorité pédagogique pendant
+ * que le Plan, au même instant, demandait de compléter une mesure.
  *
- * `null` quand il n'y a rien à reprendre : pas de plan, séance vide, ou action
- * **verrouillée** — un compte sans accès ne se voit pas proposer de reprendre
- * ce qu'il ne peut pas faire, il entre par la liste des épreuves (arbitrage du
- * propriétaire, 2026-09-12 : « on passe par Réviser pour voir ce qu'on peut
- * utiliser gratuitement »).
+ * `null` quand il n'y a rien à reprendre : pas de plan, aucune priorité servie,
+ * rien à lancer, ou action **verrouillée** — un compte sans accès ne se voit pas
+ * proposer de reprendre ce qu'il ne peut pas faire, il entre par la liste des
+ * épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe par Réviser pour
+ * voir ce qu'on peut utiliser gratuitement »).
  */
 export function reviserResumeTcf(plan: LearningPlanDto | null): ReviserResume | null {
     if (!plan) return null;
-    const item = plan.seance?.items?.[0] ?? null;
-    if (item) {
-        if (item.locked) return null;
-        const title = item.title ?? plan.currentPriority?.title ?? null;
-        if (!title) return null;
-        return {
-            title,
-            subtitle: reviserResumeSubtitle(plan, item),
-            section: item.section,
-            item,
-        };
-    }
-    const priority = plan.currentPriority;
-    if (!priority || priority.locked || !priority.title) return null;
-    return {title: priority.title, subtitle: null, section: priority.section, item: null};
+    const carte = planNowCard(plan);
+    if (!carte || carte.locked) return null;
+    // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
+    if (!carte.mesure && !carte.exercise) return null;
+    return {
+        title: carte.title,
+        subtitle: carte.subtitle,
+        section: carte.section,
+        carte,
+    };
 }
 
 export interface ReviserResume {
     title: string;
     subtitle: string | null;
-    /** La section travaillée — c'est elle qui donne le pictogramme. */
+    /** La section travaillée — c'est elle qui donne le pictogramme. Celle du
+     *  domaine **réellement lancé**, mesure comprise. */
     section: SkillSection | null;
-    /**
-     * La ligne de séance à lancer, quand c'en est une. `null` quand la reprise
-     * retombe sur la priorité n°1, qui se lance par son propre exercice.
-     */
-    item: PlanSeanceItemDto | null;
-}
-
-/** « Expression écrite · Tâche 3 » — le domaine, puis son repère. */
-function reviserResumeSubtitle(plan: LearningPlanDto, item: PlanSeanceItemDto): string | null {
-    const epreuve = sectionEpreuve(item.section);
-    if (!epreuve) return null;
-    const domain = planDomainLabel(epreuve);
-    const tache = item.exercise?.tacheNumero ?? domainOf(plan, epreuve)?.tacheCourante ?? null;
-    if (tache) return `${domain} · Tâche ${tache}`;
-    return item.level ? `${domain} · Palier ${item.level}` : domain;
+    /** **Ce que le bouton lance**, tel que le Plan l'a désigné. */
+    carte: PlanNowVue;
 }
 
 /** « Le Parlement » et « Institutions · notion à travailler ». */

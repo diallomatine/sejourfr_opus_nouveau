@@ -22,6 +22,7 @@ import '../plan/civic_serie_launcher.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
 import '../plan/plan_labels.dart';
+import '../plan/plan_now_card.dart';
 import 'reviser_labels.dart';
 
 /// **L'onglet « Réviser »** — la maquette du propriétaire
@@ -32,10 +33,11 @@ import 'reviser_labels.dart';
 /// épreuves (TCF) ou des cinq thèmes (civique).
 ///
 /// 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
-/// c'est la première ligne de la séance du jour côté TCF, la cible de rang 1
-/// côté civique. Réviser ne tient aucun historique à lui — le Plan est
-/// l'autorité, et les deux écrans ne peuvent donc pas désigner deux choses
-/// différentes.
+/// côté TCF c'est [planNowCard] — la **même** autorité que la carte « À faire
+/// maintenant » du Plan et de l'Accueil, donc la même action, mesure de domaine
+/// prioritaire comprise —, la cible de rang 1 côté civique. Réviser ne tient
+/// aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
+/// trois choses différentes.
 ///
 /// 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
 /// propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
@@ -151,15 +153,16 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
     return <Widget>[
-      if (resume != null)
+      if (resume?.carte != null)
         _ResumeCard(
-          title: resume.title,
+          title: resume!.title,
           subtitle: resume.subtitle,
           // L'icône du domaine, la même que sur le Plan et sur son hub — le
-          // candidat doit reconnaître ce qu'il reprend.
+          // candidat doit reconnaître ce qu'il reprend. C'est le domaine
+          // **réellement lancé** : celui de la mesure quand elle passe devant.
           icon: planDomainIcon(sectionEpreuve(resume.section)),
           variant: SfButtonVariant.primary,
-          onContinue: () => _reprendreTcf(resume),
+          onContinue: () => _reprendreTcf(resume.carte!),
         )
       else if (porte != null)
         _GateCard(porte: porte, variant: SfButtonVariant.primary),
@@ -208,26 +211,25 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   }
 
   /// Lance ce que le Plan désigne — le **même** geste que le bouton principal
-  /// du Plan (`startPlanSeanceItem` / `openPlanExercise`), jamais un second
-  /// chemin écrit ici.
-  Future<void> _reprendreTcf(ReviserResume resume) async {
+  /// du Plan (`startPlanSeanceItem` / `openPlanExercise`), sur la **même**
+  /// action (`planNowCard`), jamais un second chemin écrit ici.
+  ///
+  /// 🛑 **Une MESURE passe devant tout le reste**, ici comme sur le Plan et sur
+  /// l'Accueil : c'est [planNowCard] qui l'a tranché, l'écran exécute.
+  Future<void> _reprendreTcf(PlanNowCard carte) async {
     if (_lancement) return;
     setState(() => _lancement = true);
-    final item = resume.item;
-    if (item != null) {
-      await startPlanSeanceItem(context, ref, item);
-    } else {
-      final exercise =
-          ref.read(learningPlanProvider).valueOrNull?.currentPriority;
-      final recommended = exercise?.recommendedExercise;
-      if (recommended != null && mounted) {
-        await openPlanExercise(
-          context,
-          ref,
-          recommended,
-          masteryBefore: exercise?.masteryState,
-        );
-      }
+    final mesure = carte.mesure;
+    final exercice = carte.exercise;
+    if (mesure != null) {
+      await startPlanSeanceItem(context, ref, mesure);
+    } else if (exercice != null) {
+      await openPlanExercise(
+        context,
+        ref,
+        exercice,
+        masteryBefore: carte.priority.masteryState,
+      );
     }
     if (!mounted) return;
     setState(() => _lancement = false);

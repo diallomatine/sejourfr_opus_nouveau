@@ -8,15 +8,21 @@ import 'plan_seance_state.dart';
 
 /// **Ce que la carte « À faire maintenant » annonce.**
 ///
-/// 🛑 **Une seule autorité pour les QUATRE sites d'appel** — le Plan et
-/// l'Accueil, web et mobile. La règle « une MESURE passe devant tout le reste »
-/// vivait dans `_nowCard` (Plan mobile) et `ActionMaintenant` (Plan web) ; les
-/// deux cartes d'Accueil (`_actionTcf`, `ActionPrincipale`) ne l'avaient
-/// **jamais** reçue et lisaient `currentPriority` seule. Sur les mêmes données,
-/// l'Accueil annonçait « Raconter brièvement une expérience passée · VOTRE
-/// PRIORITÉ DU JOUR » pendant que le Plan annonçait « Compléter mon évaluation
-/// de compréhension écrite · À ÉVALUER » : deux « à faire maintenant »
-/// contradictoires pour le même candidat, au même instant.
+/// 🛑 **Une seule autorité pour les SIX sites d'appel** — le Plan, l'Accueil et
+/// **Réviser**, web et mobile. La règle « une MESURE passe devant tout le
+/// reste » vivait dans `_nowCard` (Plan mobile) et `ActionMaintenant` (Plan
+/// web) ; les deux cartes d'Accueil (`_actionTcf`, `ActionPrincipale`) ne
+/// l'avaient **jamais** reçue et lisaient `currentPriority` seule. Sur les
+/// mêmes données, l'Accueil annonçait « Raconter brièvement une expérience
+/// passée · VOTRE PRIORITÉ DU JOUR » pendant que le Plan annonçait « Compléter
+/// mon évaluation de compréhension écrite · À ÉVALUER » : deux « à faire
+/// maintenant » contradictoires pour le même candidat, au même instant.
+///
+/// ⚠️ **La carte « Reprendre là où vous vous êtes arrêté » de Réviser en dérive
+/// aussi** (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart`) : elle
+/// lisait `plan.seance.items.first` puis retombait sur `currentPriority`, donc
+/// une mesure qui n'ouvrait pas la séance lui échappait — troisième écran, même
+/// contradiction.
 ///
 /// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`). Le web
 /// y prend en plus un drapeau `free` parce que sa carte de plan **gratuit** est
@@ -41,6 +47,7 @@ class PlanNowCard {
     required this.mesure,
     required this.priority,
     required this.exercise,
+    required this.section,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -65,6 +72,14 @@ class PlanNowCard {
 
   /// L'exercice de la priorité — celui que la carte lance **hors mesure**.
   final PlanRecommendedExercise? exercise;
+
+  /// 🛑 **Le domaine réellement lancé** — celui de la **mesure** quand elle
+  /// passe devant, celui de la priorité sinon. `null` seulement quand le
+  /// domaine mesuré n'est pas l'un des quatre du Plan.
+  ///
+  /// ⚠️ Miroir du web (`PlanNowVue.section`) : un écran qui a besoin de
+  /// l'épreuve lancée la **lit** ici, il ne la redérive pas de la priorité.
+  final SkillSection? section;
 
   /// 🛑 **L'icône du domaine réellement lancé.** Elle empruntait celle de la
   /// priorité : le candidat lisait une tâche d'expression orale et atterrissait
@@ -149,6 +164,7 @@ PlanNowCard? planNowCard(LearningPlan plan) {
       mesure: mesure,
       priority: priority,
       exercise: exercise,
+      section: planDomainSection(mesureDomaine.epreuve),
       icon: planDomainIcon(mesureDomaine.epreuve),
       title: planAssessmentItemTitle(mesureDomaine),
       subtitle: planAssessmentNature(mesureDomaine),
@@ -175,6 +191,7 @@ PlanNowCard? planNowCard(LearningPlan plan) {
     mesure: null,
     priority: priority,
     exercise: exercise,
+    section: priority.section,
     icon: verifier ? LucideIcons.badgeCheck : planDomainIcon(epreuve),
     // 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
     // titre avant 5/5 et en sous-titre sur la vérification, dont le titre nomme

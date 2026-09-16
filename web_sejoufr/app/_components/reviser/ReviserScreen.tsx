@@ -16,10 +16,11 @@
  * l'affichage la présentait comme un pair.
  *
  * 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
- * c'est la première ligne de la séance du jour côté TCF, la cible de rang 1
- * côté civique. Réviser ne tient aucun historique à lui — le Plan est
- * l'autorité, et les deux écrans ne peuvent donc pas désigner deux choses
- * différentes.
+ * côté TCF c'est `planNowCard` — la **même** autorité que la carte « À faire
+ * maintenant » du Plan et de l'Accueil, donc la même action, mesure de domaine
+ * prioritaire comprise —, la cible de rang 1 côté civique. Réviser ne tient
+ * aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
+ * trois choses différentes.
  *
  * 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
  * propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
@@ -253,7 +254,7 @@ function TcfBody({
      diagnostic**, avec les mots de `planIndisponible`. */
   const resume = disponible ? reviserResumeTcf(plan.data ?? null) : null;
   const gate = prep && !disponible ? planIndisponible(prep, "TCF") : null;
-  const item = resume?.item ?? null;
+  const carte = resume?.carte ?? null;
   const busy = exercise.starting || assessment.starting !== null;
 
   const stats = useMemo(() => orderedTcf(summary), [summary]);
@@ -261,23 +262,28 @@ function TcfBody({
      du TCF IRN. `orderedTcf` ne la trouve plus dans son ordre canonique. */
   const complementaire = useMemo(() => statComplementaire(summary), [summary]);
 
+  /* 🛑 **Le même geste que le bouton du Plan**, sur la **même** action : une
+     MESURE passe devant tout le reste, et c'est `planNowCard` qui l'a tranché —
+     l'écran exécute, il ne rechoisit pas. */
   const reprendre = () => {
-    if (!item) return;
-    if (item.nature === "A_EVALUER") void assessment.start(item.assessment);
-    else void exercise.startItem(item);
+    if (!carte) return;
+    if (carte.mesure) {
+      void assessment.start(carte.mesure.assessment);
+      return;
+    }
+    if (carte.exercise) void exercise.start(carte.exercise);
   };
 
   return (
     <>
       {resume ? (
         <ResumeCard
+          /* Le domaine **réellement lancé** : celui de la mesure quand elle
+             passe devant, celui de la priorité sinon. */
           icon={iconFor(sectionEpreuve(resume.section) ?? "TCF_CO")}
           title={resume.title}
           subtitle={resume.subtitle}
-          /* Sans ligne de séance, la reprise est la priorité n°1 :
-             elle se lance depuis le Plan, qui porte son exercice. */
-          href={item ? undefined : "/plan?module=TCF"}
-          onClick={item ? reprendre : undefined}
+          onClick={reprendre}
           busy={busy}
           error={exercise.error ?? assessment.error}
           tone="primary"

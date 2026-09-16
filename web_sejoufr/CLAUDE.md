@@ -1251,10 +1251,15 @@ bloc avec le mobile.
 vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
 (`Stack className={deskGrid2}` : une colonne, deux à partir de 960 px).
 
-- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : `seance.items[0]`
-  côté TCF, `civicPlan.prochaine` côté civique. Le lancement passe par
-  **`usePlanExercise` / `usePlanAssessment`** (TCF) et **`useCivicSerie`**
-  (civique) — les lanceurs du Plan, jamais un second chemin.
+- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : côté TCF c'est
+  **`planNowCard`** (2026-09-16), la même autorité que « À faire maintenant » du
+  Plan et de l'Accueil — donc la **même action, mesure de domaine prioritaire
+  comprise** ; côté civique, `civicPlan.prochaine`. ⚠️ `reviserResumeTcf` lisait
+  `seance.items[0]` puis retombait sur `currentPriority` : une mesure qui
+  n'ouvrait pas la séance lui échappait, et Réviser contredisait les deux autres
+  écrans. Le lancement passe par **`usePlanExercise` / `usePlanAssessment`**
+  (TCF) et **`useCivicSerie`** (civique) — les lanceurs du Plan, jamais un
+  second chemin. → `docs/regles/plan.md`, § « Le 5ᵉ et le 6ᵉ site ».
 - 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
   propriétaire, 2026-09-13 : « si le diagnostic n'est pas fait, dans la section
   Reprendre où vous vous êtes arrêté, plutôt proposer de faire le diagnostic »).

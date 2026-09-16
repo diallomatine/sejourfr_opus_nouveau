@@ -613,15 +613,20 @@ export interface PlanNowVue {
  * **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
  * n'a désigné aucune priorité (l'écran affiche alors son état vide).
  *
- * 🛑 **Une seule autorité pour les QUATRE sites d'appel** — le Plan et
- * l'Accueil, web et mobile. La règle « une MESURE passe devant tout le reste »
- * vivait dans `ActionMaintenant` et `_nowCard` ; les deux cartes d'Accueil
- * (`ActionPrincipale`, `_actionTcf`) ne l'avaient **jamais** reçue et lisaient
- * `currentPriority` seule. Sur les mêmes données, l'Accueil annonçait
+ * 🛑 **Une seule autorité pour les SIX sites d'appel** — le Plan, l'Accueil et
+ * **Réviser**, web et mobile. La règle « une MESURE passe devant tout le
+ * reste » vivait dans `ActionMaintenant` et `_nowCard` ; les deux cartes
+ * d'Accueil (`ActionPrincipale`, `_actionTcf`) ne l'avaient **jamais** reçue et
+ * lisaient `currentPriority` seule. Sur les mêmes données, l'Accueil annonçait
  * « Raconter brièvement une expérience passée · VOTRE PRIORITÉ DU JOUR »
  * pendant que le Plan annonçait « Compléter mon évaluation de compréhension
  * écrite · À ÉVALUER » : deux « à faire maintenant » contradictoires pour le
  * même candidat, au même instant.
+ *
+ * ⚠️ **La carte « Reprendre là où vous vous êtes arrêté » de Réviser en dérive
+ * aussi** (`reviserResumeTcf`, `lib/reviser.ts`) : elle lisait
+ * `seance.items[0]` puis retombait sur `currentPriority`, donc une mesure qui
+ * n'ouvrait pas la séance lui échappait — troisième écran, même contradiction.
  *
  * 🛑 **Rien n'est décidé ici** : la précédence de la mesure, la nature de
  * l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne

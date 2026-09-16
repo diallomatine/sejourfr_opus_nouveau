@@ -19,7 +19,7 @@ import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
-import '../plan/plan_labels.dart';
+import '../plan/plan_now_card.dart';
 
 /* --------------------------------- Structure de la langue, hors examen ---- */
 
@@ -82,7 +82,7 @@ class ReviserResume {
     required this.title,
     this.subtitle,
     this.section,
-    this.item,
+    this.carte,
   });
 
   final String title;
@@ -91,53 +91,38 @@ class ReviserResume {
   /// La section travaillée — c'est elle qui donne le pictogramme.
   final SkillSection? section;
 
-  /// La ligne de séance à lancer, quand c'en est une. `null` quand la reprise
-  /// retombe sur la priorité n°1, qui se lance par son propre exercice.
-  final PlanSeanceItem? item;
+  /// **Ce que le bouton lance**, tel que le Plan l'a désigné. `null` en
+  /// civique, dont la reprise est une cible et se lance par `startCivicSerie`.
+  final PlanNowCard? carte;
 }
 
 /// La reprise TCF.
 ///
-/// 🛑 **La source est le Plan, jamais un historique d'écran** : c'est la
-/// première ligne de la séance du jour, sinon la priorité n°1. Les deux
-/// viennent de la même autorité que l'écran Plan — Réviser ne peut donc pas
-/// désigner autre chose que lui.
+/// 🛑 **La source est le Plan, jamais un historique d'écran** — et c'est
+/// [planNowCard] qui la décide, la **même autorité** que la carte « À faire
+/// maintenant » du Plan et de l'Accueil, des deux côtés. Réviser lisait
+/// `plan.seance.items.first` puis retombait sur `currentPriority` : une
+/// **mesure de domaine** qui n'ouvrait pas la séance lui échappait, et l'écran
+/// annonçait la priorité pédagogique pendant que le Plan, au même instant,
+/// demandait de compléter une mesure.
 ///
-/// `null` quand il n'y a rien à reprendre : pas de plan, séance vide, ou action
-/// **verrouillée** — un compte sans accès ne se voit pas proposer de reprendre
-/// ce qu'il ne peut pas faire, il entre par la liste des épreuves (arbitrage du
-/// propriétaire, 2026-09-12 : « on passe par Réviser pour voir ce qu'on peut
-/// utiliser gratuitement »).
+/// `null` quand il n'y a rien à reprendre : pas de plan, aucune priorité
+/// servie, rien à lancer, ou action **verrouillée** — un compte sans accès ne
+/// se voit pas proposer de reprendre ce qu'il ne peut pas faire, il entre par
+/// la liste des épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe
+/// par Réviser pour voir ce qu'on peut utiliser gratuitement »).
 ReviserResume? reviserResumeTcf(LearningPlan? plan) {
   if (plan == null) return null;
-  final items = plan.seance.items;
-  if (items.isNotEmpty) {
-    final item = items.first;
-    if (item.locked) return null;
-    final title = item.title ?? plan.currentPriority?.title;
-    if (title == null) return null;
-    return ReviserResume(
-      title: title,
-      subtitle: _resumeSubtitle(plan, item),
-      section: item.section,
-      item: item,
-    );
-  }
-  final priority = plan.currentPriority;
-  if (priority == null || priority.locked) return null;
-  return ReviserResume(title: priority.title, section: priority.section);
-}
-
-/// « Expression écrite · Tâche 3 » — le domaine, puis son repère.
-String? _resumeSubtitle(LearningPlan plan, PlanSeanceItem item) {
-  final epreuve = sectionEpreuve(item.section);
-  if (epreuve == null) return null;
-  final domain = planDomainLabel(epreuve);
-  final tache =
-      item.exercise?.tacheNumero ?? domainOf(plan, epreuve)?.tacheCourante;
-  if (tache != null) return '$domain · Tâche $tache';
-  final level = item.level;
-  return level == null ? domain : '$domain · Palier $level';
+  final carte = planNowCard(plan);
+  if (carte == null || carte.locked) return null;
+  // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
+  if (carte.mesure == null && carte.exercise == null) return null;
+  return ReviserResume(
+    title: carte.title,
+    subtitle: carte.subtitle,
+    section: carte.section,
+    carte: carte,
+  );
 }
 
 /// « Le Parlement » et « Institutions · notion à travailler ».

@@ -1585,11 +1585,16 @@ web (`/entrainement?module=`).
 parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté »** →
 **« Les 5 épreuves »** / **« Les 5 thèmes »**.
 
-- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : `seance.items[0]`
-  côté TCF, `civicPlan.prochaine` côté civique. Réviser ne tient **aucun**
-  historique à lui. Le lancement passe par `startPlanSeanceItem` /
-  `openPlanExercise` (TCF) et `startCivicSerie` (civique) — **les gestes du
-  Plan**, jamais un second chemin.
+- 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire) : côté TCF c'est
+  **`planNowCard`** (2026-09-16), la même autorité que « À faire maintenant » du
+  Plan et de l'Accueil — donc la **même action, mesure de domaine prioritaire
+  comprise** ; côté civique, `civicPlan.prochaine`. ⚠️ `reviserResumeTcf` lisait
+  `seance.items[0]` puis retombait sur `currentPriority` : une mesure qui
+  n'ouvrait pas la séance lui échappait, et Réviser contredisait les deux autres
+  écrans. Réviser ne tient **aucun** historique à lui. Le lancement passe par
+  `startPlanSeanceItem` / `openPlanExercise` (TCF) et `startCivicSerie`
+  (civique) — **les gestes du Plan**, jamais un second chemin.
+  → `docs/regles/plan.md`, § « Le 5ᵉ et le 6ᵉ site ».
 - 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
   propriétaire, 2026-09-13). ⚠️ **Révoque « sans diagnostic, pas de carte »** :
   l'écran ouvrait sur sa liste d'épreuves sans jamais nommer le geste qui débloque

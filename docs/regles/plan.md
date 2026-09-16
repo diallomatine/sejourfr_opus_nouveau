@@ -1787,7 +1787,7 @@ Dès qu'une mesure prend le pas, **tout ce qui identifie la carte vient d'elle**
 - **Le plan GRATUIT n'est pas concerné** : sa carte ne lance rien, elle
   constate — elle garde l'étape nommée et ses trois bénéfices verrouillés.
 
-#### La règle vaut pour les QUATRE cartes, par une fonction partagée (2026-09-16)
+#### La règle vaut pour les SIX cartes, par une fonction partagée (2026-09-16)
 
 ⚠️ **Elle n'avait été posée que sur les deux cartes du PLAN.** Les deux cartes
 de l'**Accueil** (`_actionTcf`, `home_screen.dart` ⇄ `ActionPrincipale`,
@@ -1803,12 +1803,12 @@ Le kit garantissait déjà la parité **visuelle** des quatre cartes
 (`SfNowCard` ⇄ `NowCard`) ; ce qui manquait, c'est la parité de la **sélection
 du contenu**, dupliquée indépendamment au lieu d'être extraite.
 
-🛑 **Une seule autorité, quatre sites d'appel** :
+🛑 **Une seule autorité, six sites d'appel** :
 
 | | fonction partagée | sites d'appel |
 |---|---|---|
-| mobile | `planNowCard` — `screens/plan/plan_now_card.dart` | `_nowCard` (Plan) · `_actionTcf` (Accueil) |
-| web | `planNowCard` — `lib/plan-domain.ts` | `ActionMaintenant` (Plan) · `ActionPlanDuJour` (Accueil) |
+| mobile | `planNowCard` — `screens/plan/plan_now_card.dart` | `_nowCard` (Plan) · `_actionTcf` (Accueil) · `reviserResumeTcf` (Réviser) |
+| web | `planNowCard` — `lib/plan-domain.ts` | `ActionMaintenant` (Plan) · `ActionPlanDuJour` (Accueil) · `reviserResumeTcf` (Réviser) |
 
 Elle rend l'**identité complète** de la carte — nature (`MESURE` /
 `VERIFICATION` / `ETAPE`), icône, titre, sous-titre, pastille, méta, constat,
@@ -1842,3 +1842,39 @@ Les écrans assemblent le kit ; ils ne choisissent plus rien.
   remplacé par `PLAN_SECTION_ICON` / `planNowIcon` dans `PlanBits.tsx`, que les
   deux écrans lisent) et `homeExerciseMeta` (`home_labels.dart`), dont le
   sous-titre vient maintenant de la fonction partagée.
+
+##### Le 5ᵉ et le 6ᵉ site : la carte de RÉVISER (2026-09-16, même passe)
+
+⚠️ **La migration précédente avait oublié un écran.** « Reprendre là où vous
+vous êtes arrêté » (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart` ⇄
+`lib/reviser.ts`) tenait sa **propre** sélection : `plan.seance.items.first` /
+`plan.seance?.items?.[0]`, puis repli sur `plan.currentPriority`. Elle ne
+cherchait donc **jamais** une mesure avec `planSeanceMesure` : dès que la mesure
+en attente n'était pas le **premier** item de la séance, Réviser annonçait la
+priorité pédagogique pendant que le Plan et l'Accueil annonçaient la mesure.
+Troisième écran, même contradiction, sur les mêmes données.
+
+- **`reviserResumeTcf` DÉRIVE de `planNowCard(plan)`** — elle ne lit plus ni la
+  séance ni `currentPriority`. Elle n'en garde que la mise en forme de la carte
+  de Réviser : `title`, `subtitle`, `section` (le pictogramme) et **la carte
+  elle-même**, qui porte ce qu'il y a à lancer.
+- **Le bouton « Continuer » part par les lanceurs du Plan** :
+  `startPlanSeanceItem` / `usePlanAssessment` sur une mesure, `openPlanExercise`
+  / `usePlanExercise` sinon — exactement `_nowCard` et `ActionMaintenant`. Le
+  repli « sans ligne de séance, on renvoie vers `/plan` » du web disparaît : la
+  carte sait maintenant lancer ce qu'elle nomme.
+- **`null` reste `null`** : pas de plan, aucune priorité servie (`planNowCard`
+  rend `null`), action **verrouillée**, ou **rien à lancer** (ni mesure ni
+  exercice) ⇒ la carte disparaît et l'écran ouvre sur sa liste d'épreuves, comme
+  avant. On ne rend jamais un « Continuer » qui ne mène nulle part.
+- **`PlanNowVue.section` gagne son miroir Dart** (`PlanNowCard.section`) : le
+  pictogramme de Réviser se lisait sur la section du premier item de séance, il
+  se lit désormais sur le **domaine réellement lancé** — celui de la mesure
+  quand elle passe devant. Chaque écran garde sa propre table d'icônes.
+- 🛑 **Le civique n'est PAS concerné** : `reviserResumeCivique` met en mots la
+  cible de rang 1 (`civicPlan.prochaine`), **désignée par le serveur**, et le
+  module civique n'a aucune notion de mesure de domaine — il n'y a donc aucune
+  précédence à appliquer, et rien n'y a été touché.
+- **Supprimé dans la foulée** : `_resumeSubtitle` / `reviserResumeSubtitle`
+  (le sous-titre vient de `planNowCard`) et le champ `item` de `ReviserResume`,
+  remplacé par `carte`.
