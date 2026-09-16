@@ -264,3 +264,68 @@ contenu au moment ou l'evaluation les designe.
 
 `./mvnw -o verify` — **1296 tests, 0 echec, BUILD SUCCESS.** Dont 48 pour le parcours : 16 de
 schema, 9 de construction de lots, 14 d'orchestration, 6 de progression, 3 de configuration.
+---
+
+## Lot 4 — Les fronts (2026-09-17, nuit)
+
+### A18 — 🛑 TROU DANS LA SPEC §16 : le parcours dit QUELLE étape, jamais COMMENT la lancer
+
+**Le constat.** `JourneyStepDto` (spec §16) porte l'identité d'une étape — `type`, `purpose`,
+`examType`, `section`, `taskCode`, `skillCode`, `skillTitle`, `progress`, `locked` — mais
+**aucune action à lancer**. Or §10 dit que la carte « À faire maintenant » *est* l'étape
+`CURRENT`, bouton compris. Ces deux phrases ne peuvent pas être vraies en même temps : avec le
+seul contrat servi, la carte sait quoi **annoncer** et pas quoi **ouvrir**.
+
+Ce que le Plan porte et que le parcours n'a pas :
+- `LearningPlanPriorityDto.recommendedExercise` — le petit sujet **précis** que
+  `RecommendedExerciseSelector` a désigné (et son `locked`, et ses minutes) ;
+- `LearningPlanDto.domainesAEvaluer` — par quoi mesurer une épreuve
+  (`PlanDomainAssessmentKind`, `slotNumber`, `moduleExamQuestionType`,
+  `estimatedMinutes`), arbitré le 2026-09-16 ;
+- la nature servie (`PlanActionNature`) et la bascule vers la **vérification en situation**.
+
+**Décidé (proposition, à valider).** **Le parcours décide QUELLE étape est courante ; le Plan
+fournit COMMENT la lancer.** `planNowCard(plan, {free, journey})` reçoit le parcours :
+- l'**identité** de la carte (titre, sous-titre, pastille, progression, verrou) vient de
+  `journey.current` — c'est ce que §10 demande, et c'est ce qui rend les six cartes
+  identiques ;
+- l'**action** se résout en rapprochant l'étape des données du Plan : `TRAIN_SKILL` → la
+  priorité de même `skillCode` et son `recommendedExercise` ; `SECTION_EXAM` → l'entrée de
+  `domainesAEvaluer` de même épreuve ; `DIAGNOSTIC` → `/diagnostic` ;
+- **sans parcours servi** (backend antérieur, parcours pas encore chargé) : comportement
+  d'aujourd'hui, inchangé.
+
+**Pourquoi pas l'inverse — enrichir le DTO d'un `action`.** Ce serait une **seconde autorité**
+sur « par quoi mesurer une épreuve » et « quel sujet proposer », deux règles qui ont déjà leur
+resolver et dont l'une vient d'être arbitrée. Le parcours est une couche d'**orchestration**
+(spec §0.4) : lui faire porter le catalogue d'actions le transformerait en second moteur.
+
+**Pourquoi ce n'est pas fait cette nuit.** `planNowCard` est la surface la plus sensible du
+dépôt : **six** sites d'appel, et la contradiction qu'elle a corrigée le 2026-09-16 (l'Accueil
+annonçant une action, le Plan une autre, au même instant) est exactement ce qu'une réécriture
+inachevée rouvrirait. Elle demande une passe entière, pas un quart d'heure.
+
+### A19 — La timeline sert les DEUX variantes de l'écran, abonné comme gratuit
+
+**Décidé.** La même `JourneySection` / `_journeySection()` est rendue dans les deux branches du
+Plan.
+
+**Pourquoi.** Un parcours amputé pour un compte gratuit serait **un second parcours** — et la
+contradiction #1 du dépôt (tranchée le 2026-08-21) dit que le Plan reste intégralement visible.
+Le verrou est **lu par étape** (`locked` servi) et se rend par un cadenas, à la place de
+l'étape, sans en déplacer aucune. C'est ce qui remplace l'ancienne liste `SfLockRow` /
+`LockRow`, qui montrait les compétences de la tâche **sans leur état**.
+
+### A20 — Le parcours est chargé en parallèle du Plan, et son échec est silencieux
+
+**Décidé.** Web : `journeyApi.getCached()` lancé dans le même effet que le Plan, erreur avalée.
+Mobile : `journeyProvider`, observé par `ref.watch(...).valueOrNull`.
+
+**Pourquoi.** Les deux alimentent le **même écran** : les enchaîner ferait clignoter la carte
+entre deux autorités. Et un backend antérieur à l'endpoint doit laisser un Plan **entier** —
+la section disparaît, elle n'affiche jamais de squelette.
+
+🛑 **Corollaire non négociable** : le parcours partage les **points de fraîcheur** du Plan —
+préfixe de cache commun côté web (donc purgé par `invalidateDiagnosticAndPlan()`), mêmes
+`ref.watch` côté mobile. Sans ça, une évaluation rechargerait l'un et laisserait l'autre sur son
+état d'avant : deux lectures du même candidat, au même instant, qui se contrediraient à l'écran.
