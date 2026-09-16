@@ -198,32 +198,20 @@ public class ProductionSubmissionService {
         boolean finished = attempt.getFinishedAt() != null;
 
         List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
-        boolean inFlight = false;
-        boolean anyFailed = false;
-        for (ProductionSubmission s : submissions) {
-            if (s.getStatut() == SubmissionStatut.FAILED) {
-                anyFailed = true;
-            } else if (s.getStatut() != SubmissionStatut.EVALUATED) {
-                inFlight = true;
-            }
-        }
-        Map<Integer, AiEvaluation> evalsByTache = bilanService.latestEvalsByTache(submissions);
-        int evaluatedCount = evalsByTache.size();
 
-        // Niveau d'épreuve : examen complet → moyenne pondérée des 3 tâches ;
-        // examen terminé incomplet (chrono écoulé, abandon) sans pipeline IA
-        // en cours ni FAILED à retenter → tâches manquantes comptées 0.
-        NiveauCecrl niveauGlobal = null;
-        // Épreuve écourtée : les tâches jamais rendues comptent 0 — dans le
-        // niveau ET dans la note, sinon le bilan afficherait une note calculée
-        // sur deux tâches à côté d'un niveau calculé sur trois.
-        boolean manquantesAZero = false;
-        if (exam && evaluatedCount >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
-            niveauGlobal = bilanService.bilanEpreuve(evalsByTache);
-        } else if (exam && finished && !inFlight && !anyFailed) {
-            niveauGlobal = bilanService.bilanEpreuveTerminee(evalsByTache);
-            manquantesAZero = true;
-        }
+        // 🛑 **Le niveau d'épreuve se demande, il ne se recalcule pas ici.**
+        // Examen complet → moyenne pondérée des 3 tâches ; examen terminé
+        // incomplet (chrono écoulé, abandon) sans pipeline IA en cours ni
+        // FAILED à retenter → tâches manquantes comptées 0 — dans le niveau ET
+        // dans la note, sinon le bilan afficherait une note calculée sur deux
+        // tâches à côté d'un niveau calculé sur trois. L'écran « Voir mes
+        // résultats » lit la même autorité, donc le même palier.
+        ProductionBilanService.NiveauEpreuve verdict =
+                bilanService.niveauEpreuve(submissions, exam, finished);
+        Map<Integer, AiEvaluation> evalsByTache = verdict.evalsByTache();
+        int evaluatedCount = evalsByTache.size();
+        NiveauCecrl niveauGlobal = verdict.niveau();
+        boolean manquantesAZero = verdict.manquantesAZero();
         return new ProductionBilanResponse(
                 attemptId,
                 epreuve,

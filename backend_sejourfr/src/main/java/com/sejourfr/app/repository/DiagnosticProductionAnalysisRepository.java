@@ -25,9 +25,18 @@ public interface DiagnosticProductionAnalysisRepository
      * ou {@code FAILED} n'a pas de verdict opposable. Le rattachement passe par
      * les deux attempts de la session — c'est la seule chose qui relie une
      * soumission diagnostique à sa session.
+     *
+     * <p>🛑 <b>Une seule requête pour deux lecteurs.</b>
+     * {@code TcfProfileService} y cherche un <b>maximum</b> par épreuve ;
+     * {@code EpreuveHistoriqueService} y cherche une <b>chronologie</b>. Ils
+     * doivent retenir exactement les mêmes lignes, sinon l'écran expliquerait
+     * un niveau par des mesures qui ne l'ont pas produit — d'où la date
+     * ({@code analyzedAt}) dans la projection plutôt qu'une seconde requête à
+     * côté.
      */
     @Query("""
-            SELECT new com.sejourfr.app.dto.DiagnosticEpreuveLevel(pt.epreuve, a.levelEstimate)
+            SELECT new com.sejourfr.app.dto.DiagnosticEpreuveLevel(
+                       pt.epreuve, a.levelEstimate, a.analyzedAt)
             FROM DiagnosticProductionAnalysis a
             JOIN a.submission s
             JOIN s.productionTask pt

@@ -347,7 +347,11 @@ class ProductionSubmissionServiceTest {
         training.setEpreuve(EpreuveType.TCF_EE); // slotNumber null + parent null → exam=false
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(training));
         when(submissionManager.findByAttemptId(attemptId)).thenReturn(List.of());
-        when(bilanService.latestEvalsByTache(any())).thenReturn(Map.of());
+        // 🛑 Le verdict d'épreuve est rendu par UNE autorité, `niveauEpreuve` :
+        // en entraînement libre elle ne rend aucun palier, et c'est elle que
+        // l'écran « Voir mes résultats » interroge aussi.
+        when(bilanService.niveauEpreuve(List.of(), false, false))
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(null, false, Map.of()));
         when(bilanService.moyenneNotes(any())).thenReturn(null);
 
         ProductionBilanResponse resp = service.bilan(attemptId);
@@ -373,8 +377,8 @@ class ProductionSubmissionServiceTest {
         Map<Integer, AiEvaluation> evals = Map.of(
                 1, new AiEvaluation(), 2, new AiEvaluation(), 3, new AiEvaluation());
         CorrespondanceTcfDto correspondance = new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9);
-        when(bilanService.latestEvalsByTache(any())).thenReturn(evals);
-        when(bilanService.bilanEpreuve(evals)).thenReturn(NiveauCecrl.B1);
+        when(bilanService.niveauEpreuve(List.of(), true, false))
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(NiveauCecrl.B1, false, evals));
         when(bilanService.moyenneNotes(any())).thenReturn(null);
         when(bilanService.correspondanceTcf(NiveauCecrl.B1)).thenReturn(correspondance);
 

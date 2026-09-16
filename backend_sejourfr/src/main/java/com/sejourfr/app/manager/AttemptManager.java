@@ -189,4 +189,13 @@ public class AttemptManager {
     public List<Attempt> findQcmEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
         return repository.findQcmEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
     }
+
+    /**
+     * Épreuves de production TCF (EE/EO) réellement passées : session d'examen
+     * blanc terminée portant au moins une soumission, de la plus récente à la
+     * plus ancienne — cf. le javadoc de la requête.
+     */
+    public List<Attempt> findProductionEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findProductionEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
+    }
 }

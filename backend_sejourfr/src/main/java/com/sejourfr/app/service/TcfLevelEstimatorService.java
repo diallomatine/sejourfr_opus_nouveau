@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.QcmAnswerResult;
+import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.NiveauCecrl;
 import org.springframework.stereotype.Service;
@@ -147,6 +148,29 @@ public class TcfLevelEstimatorService {
              : score >= 200 ? NiveauCecrl.A2
              : score >= 101 ? NiveauCecrl.A1
              : NiveauCecrl.A1_NON_ATTEINT;
+    }
+
+    /**
+     * Niveau CECRL d'<b>une</b> épreuve QCM passée (CO/CE) : le
+     * {@code cecrl_level} posé à la finalisation, plafonné B2 — et à défaut,
+     * pour les attempts antérieurs à V416 qui n'en portent pas, le niveau
+     * dérivé du score pondéré.
+     *
+     * <p>🛑 <b>Autorité unique</b> (extraite le 2026-09-16, à sa 2ᵉ
+     * occurrence) : {@code TcfProfileService.bestQcm} en tire le meilleur
+     * résultat du candidat, {@code EpreuveHistoriqueService} en tire la
+     * chronologie qui l'explique. Deux copies de ce repli auraient fini par
+     * afficher un niveau qui ne correspond plus à celui du profil, sur l'écran
+     * même qui prétend le justifier.
+     *
+     * @return {@code null} si l'attempt ne porte rien d'exploitable — inconnu,
+     *         jamais {@code A1_NON_ATTEINT}
+     */
+    public NiveauCecrl niveauEpreuveQcm(Attempt attempt) {
+        if (attempt == null) return null;
+        return attempt.getCecrlLevel() != null
+                ? capB2(attempt.getCecrlLevel())
+                : levelFromWeighted(attempt.getWeightedScore(), attempt.getMaxWeightedScore());
     }
 
     /** Plafonne tout niveau à B2 (cadre IRN). C1/C2 → B2. */

@@ -109,8 +109,13 @@ class TcfProfileServiceTest {
                 .thenReturn(List.of(rows));
     }
 
+    /**
+     * La date portée par la projection n'intéresse pas ce service : il cherche
+     * un <b>maximum</b>, pas une chronologie. Elle existe pour
+     * {@code EpreuveHistoriqueService}, qui lit la même requête.
+     */
     private static DiagnosticEpreuveLevel diag(EpreuveType epreuve, NiveauCecrl level) {
-        return new DiagnosticEpreuveLevel(epreuve, level);
+        return new DiagnosticEpreuveLevel(epreuve, level, java.time.Instant.now());
     }
 
     // ------------------------------------------------------------------ aucune donnée
