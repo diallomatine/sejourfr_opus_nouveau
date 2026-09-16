@@ -2770,10 +2770,16 @@ qui fait foi.
 
 Le diagnostic n'était pas seul concerné. Une production d'entraînement ou d'examen blanc jugée
 inexploitable recevait, elle aussi, **0/20 et « A1 non atteint »** — sans qu'aucune IA n'ait
-jamais rien lu. Et le problème y était **plus large** : ces corrections-là sont la **première**
-source du niveau affiché à un candidat en expression écrite et orale (le diagnostic n'en est
-que le remplaçant, quand il n'y a rien d'autre). Une seule production ratée pouvait donc
-définir son niveau dans ce domaine, puis, de proche en proche, son niveau global.
+jamais rien lu. Et le problème y était **plus large** : ces corrections-là étaient alors la
+**première** source du niveau affiché à un candidat en expression écrite et orale (le
+diagnostic n'en était que le remplaçant, quand il n'y avait rien d'autre). Une seule production
+ratée pouvait donc définir son niveau dans ce domaine, puis, de proche en proche, son niveau
+global.
+
+> ⚠️ **Depuis le 16 septembre 2026, ce n'est plus vrai des productions d'entraînement** : elles
+> ne décident plus du niveau **affiché sur votre accueil**, quel que soit leur résultat. Voir
+> la section « Un entraînement ne décide jamais de votre niveau » ci-dessous. Ce qui suit reste
+> exact pour les productions d'**examen**.
 
 Le comportement est désormais le même que pour le diagnostic : **ni note, ni niveau**. La
 correction est bien rendue au candidat — elle lui dit en clair pourquoi sa production n'a pas
@@ -2821,6 +2827,48 @@ production non exploitable, ce sont des **faits** : l'objectif n'est pas atteint
 est faible, et pourquoi.
 
 **Les corrections déjà enregistrées gardent leurs quatre zéros** : elles ne sont pas migrées.
+
+### 🛑 Un entraînement ne décide jamais de votre niveau (16 septembre 2026)
+
+**Vous pouvez vous entraîner autant que vous voulez en expression orale et écrite : cela ne
+changera jamais, ni vers le haut ni vers le bas, le niveau affiché sur votre accueil.**
+
+C'est une décision du propriétaire, et elle répare une situation gênante. Un compte de test
+n'avait fait qu'**un seul** entraînement d'expression orale — trois minutes, une tâche isolée,
+corrigée A2 par l'IA. Son accueil annonçait « Expression orale : A2 », alors que ce candidat
+n'avait jamais passé la moindre épreuve d'expression orale. Trois minutes d'entraînement
+donnaient un verdict sur une épreuve qui en dure une bonne vingtaine et compte trois tâches.
+
+**Un entraînement sert à trois choses, et il les fait toujours :**
+
+- vous entraîner autant que vous le souhaitez, sans limite autre que votre abonnement ;
+- alimenter vos **compétences**, vos **priorités** et vos **retours détaillés** — c'est-à-dire
+  tout votre plan de travail. Un entraînement reste une **observation** : votre plan s'en sert
+  pour savoir quoi vous proposer ensuite. Ce qu'il ne fait pas, c'est **afficher un niveau
+  d'épreuve** ;
+- afficher, sur **son propre écran de résultat**, le niveau observé **sur cette tâche-là**.
+  Ce niveau ne disparaît pas : il vous dit où vous en êtes sur l'exercice que vous venez de
+  faire. Il ne prétend simplement plus parler de toute l'épreuve.
+
+**Votre niveau d'expression orale, ou écrite, ne se met à jour que lorsque vous avez passé
+l'épreuve entière.** Il y a exactement trois façons de le faire :
+
+1. l'épreuve d'expression du **diagnostic complet** (celui des 4 épreuves) ;
+2. un **examen blanc de cette épreuve seule** ;
+3. l'épreuve d'expression à l'intérieur d'un **examen blanc TCF complet**.
+
+Dans ces trois cas, le niveau retenu est celui de l'**épreuve entière** — le résultat combiné
+de ses **trois tâches** —, jamais celui d'une tâche prise à part. Tant que vous n'en avez passé
+aucune, votre accueil affiche « **Expression orale — À évaluer** », et de même pour l'écrit.
+
+C'est la même exigence que partout ailleurs ici : **une absence de mesure n'est pas un mauvais
+résultat**. Nous préférons vous dire « à évaluer » plutôt que de vous annoncer un niveau que
+rien de comparable à un examen n'a établi.
+
+⚠️ **Une précision** : si vous avez fait le **diagnostic rapide** (le court, deux productions),
+son estimation continue de renseigner votre niveau tant que vous n'avez passé aucune épreuve
+complète. C'est un repère de départ, il n'a jamais eu la valeur d'une épreuve — et dès qu'une
+épreuve complète existe, c'est elle qui parle.
 
 ---
 

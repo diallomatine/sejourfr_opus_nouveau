@@ -54,6 +54,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -134,7 +135,12 @@ class ProgressServiceTest {
         when(userManager.findById(userId)).thenReturn(Optional.of(user));
         // Le profil TCF est lu a CHAQUE lecture depuis le 2026-09-16, y compris
         // sans diagnostic clos : les 4 epreuves ne dependent plus de lui.
-        when(tcfProfileService.levelProfile(userId)).thenReturn(
+        //
+        // 🛑 `levelProfileAccueil`, PAS `levelProfile` : c'est la lecture ou EE
+        // et EO n'existent que par une EPREUVE COMPLETE. Que ce soit un stub
+        // different est justement ce qui rend visible, ici, que l'ecran ne lit
+        // pas la meme chose que le Plan.
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
                 new TcfLevelProfile(null, null, null, null, null));
         when(foundationResolver.resolve(userId))
                 .thenReturn(PlanFoundationResolver.Foundation.AUCUNE);
@@ -224,7 +230,7 @@ class ProgressServiceTest {
         // cran en dessous, EO jamais evaluee.
         diagnosticClos(NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, null);
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B2));
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B2, NiveauCecrl.B2, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = service.progres(userId).tcf()
@@ -256,7 +262,7 @@ class ProgressServiceTest {
     void sansObjectifAucunStatut() {
         diagnosticClos(NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1);
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.empty());
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1,
                 NiveauCecrl.B1));
 
@@ -265,6 +271,24 @@ class ProgressServiceTest {
         assertThat(tcf.objectif()).isNull();
         assertThat(tcf.epreuves()).isNotEmpty();
         assertThat(tcf.epreuves()).allSatisfy(e -> assertThat(e.status()).isNull());
+    }
+
+    /**
+     * 🛑 <b>L'Accueil ne lit JAMAIS la lecture du Plan</b> (arbitrage du
+     * 2026-09-16). {@code levelProfile} voit les entraînements EE/EO évalués —
+     * utile aux priorités et aux compétences, jamais à l'affichage d'un niveau
+     * global. Un retour à {@code levelProfile} ici reproduirait le défaut du
+     * compte qui affichait « expression orale : A2 » sans avoir passé d'épreuve.
+     * Le comportement bout en bout est verrouillé par
+     * {@code ProgressServiceIT.lEntrainementRenseigneLePlanPasLAccueil}.
+     */
+    @Test
+    @DisplayName("🛑 L'Accueil lit levelProfileAccueil, jamais la lecture du Plan")
+    void lAccueilNeLitQueSaPropreLecture() {
+        service.progres(userId);
+
+        verify(tcfProfileService).levelProfileAccueil(userId);
+        verify(tcfProfileService, never()).levelProfile(userId);
     }
 
     // ------------------------------------------------------------------------
@@ -284,7 +308,7 @@ class ProgressServiceTest {
         // Aucun diagnostic TCF clos, mais une CO et une CE deja mesurees.
         when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.B1, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
 
         ProgressDto.Tcf tcf = service.progres(userId).tcf();
@@ -317,7 +341,7 @@ class ProgressServiceTest {
     void uneEpreuveJamaisEvalueePorteSaMesure() {
         when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfile(userId)).thenReturn(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
                 new TcfLevelProfile(null, null, null, null, null));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
@@ -355,7 +379,7 @@ class ProgressServiceTest {
         when(foundationResolver.resolve(userId)).thenReturn(
                 PlanFoundationResolver.of(null, session(TcfDiagnosticStatus.COMPLETED)));
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfile(userId)).thenReturn(new TcfLevelProfile(
+        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
                 NiveauCecrl.A2, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,22 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
 
     /** Toutes les submissions d'un attempt (utile pour assembler le score d'un examen complet). */
     List<ProductionSubmission> findByAttemptIdOrderBySubmittedAtAsc(UUID attemptId);
+
+    /**
+     * Les submissions de PLUSIEURS attempts en <b>une</b> requête, leur
+     * {@code productionTask} jointe.
+     *
+     * <p>🛑 <b>C'est le coût du profil TCF qui en dépend.</b>
+     * {@code EpreuvesProductionQualifiantesResolver} évalue toutes les épreuves
+     * complètes d'un candidat à chaque lecture d'Accueil et de « Voir mes
+     * résultats » : une requête par session, plus un lazy-load de tâche par
+     * soumission, faisait un N+1 qui grandissait avec l'historique (mesuré à +14
+     * requêtes). Le {@code JOIN FETCH} est ce qui rend le coût <b>constant</b>.
+     */
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask "
+        + "WHERE s.attempt.id IN :attemptIds ORDER BY s.submittedAt ASC")
+    List<ProductionSubmission> findByAttemptIdsWithTask(
+            @Param("attemptIds") Collection<UUID> attemptIds);
 
     /**
      * Submission + sa {@code productionTask} eager-loadée. Utilisé par le retry :

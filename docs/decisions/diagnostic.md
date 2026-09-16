@@ -10,6 +10,121 @@
 
 ---
 
+- 🛑 **PÉRIMÈTRE CORRIGÉ LE MÊME JOUR — la règle vaut pour l'ACCUEIL, PAS pour le PLAN**
+  (2026-09-16, seconde décision du propriétaire, celle **qui fait foi**). La première passe
+  décrite juste en dessous avait restreint `TcfProfileService.levelProfile` **globalement**,
+  donc aussi `PlanCycleResolver`, les priorités et les compétences. Le propriétaire a tranché
+  que c'était trop large :
+  - **Son énoncé, verbatim.** « Limite l'effet à l'Accueil uniquement. Accueil / niveau global
+    par épreuve → uniquement basé sur un examen complet de l'épreuve. Plan / priorités /
+    compétences → peut continuer à utiliser les observations issues des entraînements EO/EE.
+    Ne change PAS `TcfProfileService.levelProfile` globalement si ça impacte le Plan. Fais
+    plutôt une logique dédiée à l'affichage du niveau sur l'Accueil, ou un resolver spécifique
+    pour le "niveau global affichable". En résumé : entraînement EO/EE = utile pour le Plan ;
+    examen complet EO/EE = nécessaire pour afficher un niveau global sur l'Accueil. »
+  - **Ce qui a été reverté**, exactement : `TcfProfileService.bestProduction` retrouve son
+    comportement d'avant — toute évaluation IA valide, entraînement compris, la plus récente
+    par soumission faisant foi, avec le repli sur `diagnostic_production_analyses`. Avec lui,
+    le **budget de requêtes du Plan revient à 23** (`LearningPlanCycleIT
+    .leCoutDuPlanNeGrandiPasAvecLHistorique`) : le N+1 corrigé en lots dans la première passe
+    n'a plus lieu d'être là, puisque le Plan ne lit plus les épreuves complètes.
+  - **Ce qui a été GARDÉ** : `EpreuvesProductionQualifiantesResolver`, l'autorité qui
+    distingue l'examen complet de l'entraînement, et ses deux requêtes en lot. C'est la bonne
+    logique ; elle sert désormais deux lecteurs — la page « Voir mes résultats » et l'Accueil.
+  - **Où vit la règle d'Accueil maintenant** : `TcfProfileService.levelProfileAccueil`, une
+    **seconde lecture** du même profil, appelée **uniquement** par `ProgressService.tcf()`.
+    Elle partage tout avec `levelProfile` — CO/CE, repli baseline, plancher — et ne diffère
+    que sur la source d'EE/EO (`bestEpreuveComplete` au lieu de `bestProduction`). Une seule
+    autorité, deux lectures nommées, aucune duplication de la baseline ni du plancher.
+  - **Le niveau GLOBAL de l'Accueil suit** : c'est le plancher des **quatre paliers
+    affichés**, sinon l'écran annoncerait un niveau global tiré d'une EO qu'il présente deux
+    lignes plus bas comme non évaluée. `UserDashboardService` (l'ancien `/dashboard`) n'est
+    pas concerné : il garde `levelProfile`, hors périmètre de l'arbitrage.
+  - **`niveauInitial` / `evolution` / `status` : inchangés, et c'est cohérent.**
+    `niveauInitial` vient des sections du **premier diagnostic 4 épreuves clos** — or une
+    section EE/EO de diagnostic complet est justement l'une des trois provenances
+    qualifiantes. Les deux paliers se lisent donc déjà sur la même famille de mesures, et
+    `actuel` étant un **maximum** sur ces sessions, il ne peut pas passer sous `initial`.
+    `status` dérive d'`actuel`, il suit sans rien à changer.
+  - **Verrouillé par** : `ProgressServiceIT.lEntrainementRenseigneLePlanPasLAccueil` — le même
+    candidat, le même entraînement EO noté B1 : le Plan lit **B1**, l'Accueil affiche **« à
+    évaluer »**, et une épreuve complète à A2 ajoutée ensuite s'affiche, elle, à **A2** sans
+    faire bouger le B1 du Plan. Plus `ProgressServiceTest.lAccueilNeLitQueSaPropreLecture`
+    (l'Accueil n'appelle jamais `levelProfile`) et la section « lecture d'ACCUEIL » de
+    `TcfProfileServiceTest`.
+
+- **EE/EO : UN ENTRAÎNEMENT NE DÉFINIT PLUS LE NIVEAU GLOBAL D'UNE ÉPREUVE** (2026-09-16,
+  règle du propriétaire). ⚠️ **Entrée conservée pour la trace ; son périmètre est corrigé par
+  l'entrée ci-dessus — Accueil seulement, jamais le Plan.** `TcfProfileService.bestProduction`
+  se restreint aux **examens complets de l'épreuve**. C'est la **sortie 1** de l'arbitrage
+  laissé ouvert le matin même
+  par `EpreuveHistoriqueService` (« restreindre le profil EE/EO aux sessions d'examen » vs
+  « accueillir l'entraînement libre sous une 5ᵉ provenance ») ; `docs/regles/progression.md`
+  le notait comme *ouvert*, il est **clos**.
+  - **L'énoncé du propriétaire, verbatim.** « Pour EO et EE, un entraînement ne doit JAMAIS
+    définir le niveau global affiché à l'accueil, même s'il est corrigé par l'IA et produit un
+    niveau CECRL. Les entraînements servent uniquement à : pratiquer autant que l'utilisateur
+    veut ; alimenter les compétences/priorités/feedbacks ; conserver éventuellement un niveau
+    observé sur la tâche. Le niveau global EO/EE ne doit être mis à jour que lorsqu'un examen
+    complet de l'épreuve a été réalisé. Trois cas valides, et seulement trois : (1) l'épreuve
+    EO/EE complète réalisée dans le diagnostic complet (4-épreuves) ; (2) un examen blanc
+    isolé EO ou EE réalisé indépendamment ; (3) l'épreuve EO/EE réalisée dans le cadre d'un
+    examen blanc TCF complet. Dans ces trois cas, on utilise le niveau calculé pour l'épreuve
+    complète (l'agrégat des 3 tâches, pas une tâche isolée) et on peut l'afficher comme niveau
+    global. Si aucun examen complet EO n'a encore été fait : `Expression orale — À évaluer`.
+    Même chose pour EE. »
+  - **LE CAS CONSTATÉ, en base.** Compte `wewiwe4789@bowlfuel.com` : **une seule** soumission
+    EO, un entraînement libre de trois minutes (`attempts.type = TRAINING`,
+    `mode = ENTRAINEMENT`, ni slot ni parent), évaluée **A2** par l'IA le 2026-09-13. Ce A2
+    remontait comme « niveau global d'expression orale » à l'Accueil, alors qu'aucune épreuve
+    d'EO n'avait jamais été passée par ce compte. Sa sous-épreuve EO de diagnostic complet
+    existait bien, mais **vide** (0 soumission, jamais terminée). Après le correctif : EO =
+    `null` ⇒ « À évaluer ». Son EE, elle, reste **B1** — par le **repli** sur la baseline du
+    diagnostic rapide, inchangé.
+  - **Ce qui distingue les 3 cas d'un entraînement, en SQL.** 🛑 **Pas `attempts.type`** :
+    `AttemptService.startProduction` pose `TRAINING` sur **toutes** les sessions de
+    production, examen blanc isolé compris — le drapeau d'examen y est le `slot_number`. Un
+    filtre `type = MOCK_EXAM` aurait laissé le cas 2 dehors. Le prédicat réel est celui de
+    `ProductionAccessService.isExamSession`, déjà porté en JPQL par
+    `AttemptRepository.findProductionEpreuvesPassees` : `slot_number IS NOT NULL` (cas 2)
+    **OU** `parent_attempt_id IS NOT NULL` (cas 3, **et** cas 1 — `TcfDiagnosticSectionStarter
+    .creerProduction` accroche ses sections au même conteneur `TCF_COMPLET`), plus
+    `finished_at IS NOT NULL` et `EXISTS` une soumission.
+  - **Aucune règle dupliquée, une autorité EXTRAITE.** La liste des sessions qualifiantes et
+    le niveau de chacune existaient déjà, dans `EpreuveHistoriqueService`. À la 2ᵉ occurrence,
+    ils sont sortis dans `EpreuvesProductionQualifiantesResolver`, appelé par **les deux** —
+    le profil en prend le **maximum**, la page « Voir mes résultats » la **chronologie**. Le
+    niveau d'une session reste demandé à `ProductionBilanService.niveauEpreuve` : l'agrégat
+    pondéré des 3 tâches, avec son garde-fou de cohérence T3 et son « reste noté 0 ».
+  - **Ce qui NE change pas**, et c'est délibéré : (1) le **maximum monotone** — le niveau
+    d'une épreuve reste le meilleur de tout l'historique qualifiant, jamais le dernier, donc
+    l'anti-yoyo tient toujours par construction ; (2) le **repli** sur
+    `diagnostic_production_analyses` quand aucune des 3 sources n'existe — « une baseline n'est
+    jamais concurrente d'une preuve réelle » ; (3) le **niveau observé sur la tâche**, que
+    l'écran de résultat d'un entraînement continue d'afficher (`EvaluationResult.niveauObserve`)
+    — seul le niveau **global** de l'épreuve cesse d'en tenir compte ; (4) la **forme du
+    contrat** : `niveau` était déjà nullable, **aucun front n'est touché**.
+  - 🛑 ~~**Le Plan en hérite, et c'est cohérent.**~~ **RÉVOQUÉ le jour même** par l'entrée
+    ci-dessus. C'est précisément ce que le propriétaire a refusé : le Plan, les priorités et
+    les compétences **continuent** de voir les observations d'entraînement EE/EO. Seul
+    l'affichage d'un niveau global sur l'Accueil exige une épreuve complète.
+  - ⚠️ **Le coût a dû être retenu.** Le profil évaluait, dans cette première passe, toutes les
+    épreuves complètes d'un candidat à chaque lecture d'Accueil **et de Plan**. La version
+    naïve (une requête par session, une par soumission, un lazy-load de tâche par soumission)
+    coûtait **+14 requêtes** sur le budget du Plan et **grandissait avec l'historique** — le
+    test d'égalité `LearningPlanCycleIT.leCoutDuPlanNeGrandiPasAvecLHistorique` l'a attrapé
+    immédiatement, ce pour quoi il existe. Corrigé en lots : `findByAttemptIdsWithTask`
+    (`JOIN FETCH` sur la tâche) et `findLatestBySubmissionIds`. Coût final **3 requêtes par
+    épreuve, constant**. 🛑 **Le budget du Plan était passé à 27 ; il est revenu à 23** avec
+    le revert de périmètre — le Plan ne lit plus ces épreuves du tout. Les deux requêtes en
+    lot, elles, **restent** : elles servent l'Accueil et « Voir mes résultats ».
+  - **Verrouillé par** : `TcfProfileServiceIT` (le compte constaté, les 3 cas positifs,
+    l'agrégat, le maximum entre examens, le repli baseline),
+    `EpreuvesProductionQualifiantesResolverTest` (le lot unique, le `null` non servi),
+    `TcfProfileServiceTest` (anti-yoyo intact). `TestData.epreuveProductionPassee` est la
+    fixture partagée : les tests du Plan la réutilisent au lieu de recopier une production
+    d'entraînement.
+
 - **LE DIAGNOSTIC COMPTE DÉSORMAIS DANS LE PROFIL TCF — inversion de la décision V049**
   (2026-09-16). `AttemptRepository.findQcmEpreuvesPassees` portait `AND a.tcfDiagnostic IS
   NULL` depuis le commit `c675ad5c` (2026-09-10). Le filtre est **retiré**.

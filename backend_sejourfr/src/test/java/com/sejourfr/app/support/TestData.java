@@ -454,6 +454,73 @@ public class TestData {
         return productionSubmission(attempt(u), productionTask(), u);
     }
 
+    /**
+     * Les <b>3 tâches</b> d'une épreuve de production, soumises et évaluées au
+     * niveau donné.
+     *
+     * <p>🛑 Les évaluations ne portent <b>ni note ni scores de critères</b>,
+     * volontairement : {@code ProductionBilanService} retombe alors sur le
+     * plancher des niveaux persistés et l'agrégat d'épreuve vaut exactement
+     * {@code niveau}, quels que soient les seuils de la grille active. Un test
+     * qui veut exercer la moyenne pondérée pose ses propres notes.
+     */
+    public void troisTachesEvaluees(
+            Attempt attempt, User user, EpreuveType epreuve, NiveauCecrl niveau) {
+        for (short numero = 1; numero <= 3; numero++) {
+            ProductionSubmission s =
+                    productionSubmission(attempt, productionTacheNumero(epreuve, numero), user);
+            s.setStatut(SubmissionStatut.EVALUATED);
+            productionSubmissionManager.save(s);
+            AiEvaluation e = aiEvaluation(s);
+            e.setNoteSur20(null);
+            e.setNiveauCecrl(niveau);
+            e.setNiveauCecrlIa(niveau);
+            e.setFeedbackJson(new HashMap<>());
+            aiEvaluationManager.save(e);
+        }
+    }
+
+    /**
+     * Une <b>ÉPREUVE COMPLÈTE de production réellement passée</b> : session
+     * d'examen blanc isolé (slot posé au démarrage), terminée, ses 3 tâches
+     * évaluées.
+     *
+     * <p>🛑 C'est la seule forme qui définit le niveau global d'une épreuve
+     * EE/EO (règle du propriétaire, 2026-09-16) — un entraînement libre, même
+     * corrigé par l'IA, n'en est pas une. ⚠️ Ce n'est pas {@code type} qui la
+     * qualifie : {@code AttemptService.startProduction} pose {@code TRAINING}
+     * sur tous les examens blancs d'épreuve ; c'est le {@code slotNumber}.
+     */
+    public Attempt epreuveProductionPassee(User user, EpreuveType epreuve, NiveauCecrl niveau) {
+        Attempt a = new Attempt();
+        a.setUser(user);
+        a.setType(AttemptType.TRAINING);
+        a.setModule(Module.TCF);
+        a.setEpreuve(epreuve);
+        a.setMode(AttemptMode.EXAMEN);
+        a.setStatus(AttemptStatus.TERMINE);
+        a.setSlotNumber(1);
+        a.setStartedAt(Instant.now().minus(30, java.time.temporal.ChronoUnit.MINUTES));
+        a.setFinishedAt(Instant.now());
+        attemptManager.save(a);
+        troisTachesEvaluees(a, user, epreuve, niveau);
+        return a;
+    }
+
+    /**
+     * Une tâche n° {@code numero} de l'épreuve. Les bornes de mots des tâches EE
+     * 2 et 3 sont imposées par {@code chk_prod_task_tcf_irn_ee_word_bounds}.
+     */
+    public ProductionTask productionTacheNumero(EpreuveType epreuve, short numero) {
+        ProductionTask t = productionTask(epreuve);
+        t.setTacheNumero(numero);
+        if (epreuve == EpreuveType.TCF_EE && numero > 1) {
+            t.setMotsMin(40);
+            t.setMotsMax(90);
+        }
+        return productionTaskRepository.save(t);
+    }
+
     public ProductionExample productionExample(ProductionTask task) {
         ProductionExample e = new ProductionExample();
         e.setTaskId(task.getId());

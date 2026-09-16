@@ -3,15 +3,13 @@ package com.sejourfr.app.service.progres;
 import com.sejourfr.app.dto.DiagnosticEpreuveLevel;
 import com.sejourfr.app.dto.EpreuveHistoriqueDto;
 import com.sejourfr.app.entity.Attempt;
-import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SourceEvaluation;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
-import com.sejourfr.app.manager.ProductionSubmissionManager;
-import com.sejourfr.app.service.ProductionBilanService;
+import com.sejourfr.app.service.EpreuvesProductionQualifiantesResolver;
 import com.sejourfr.app.service.TcfLevelEstimatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,26 +31,21 @@ import java.util.UUID;
  * {@code TcfLevelEstimatorService.niveauEpreuveQcm}. Ce qui est servi ici
  * explique donc exactement le palier servi là-bas.
  *
- * <h2>⚠️ EE/EO : plus étroit que le profil, et c'est un arbitrage ouvert</h2>
- * <p>Le propriétaire a tranché que cette page montre les <b>épreuves
- * complètes</b> (seules, en examen blanc) et le diagnostic rapide. Or
- * {@code TcfProfileService.bestProduction} alimente {@code niveau} à partir de
- * <b>toute</b> tâche évaluée — {@code AiEvaluationRepository.findByUserAndEpreuve}
- * ne filtre ni sur la session d'examen ni sur l'entraînement libre — et il
- * retient un maximum <b>par TÂCHE</b>, là où ce service lit un agrégat
- * <b>par SESSION</b> ({@code ProductionBilanService.niveauEpreuve}).
+ * <h2>🛑 EE/EO : mêmes sessions que l'ACCUEIL — arbitrage clos</h2>
+ * <p>Le propriétaire a tranché le <b>2026-09-16</b> : seul un <b>examen complet
+ * de l'épreuve</b> peut <b>afficher</b> un niveau global d'EE/EO sur l'Accueil.
+ * La contradiction décrite ici auparavant — cette page ne montrait que les
+ * épreuves complètes pendant que la carte d'Accueil servait un palier tiré de
+ * <b>n'importe quelle tâche évaluée</b>, entraînement libre compris, si bien
+ * qu'elle proposait « Voir mes résultats » à un candidat à qui cette page
+ * répondait « aucune évaluation qualifiante » — est donc fermée : les deux
+ * écrans lisent {@link EpreuvesProductionQualifiantesResolver}, à un usage près
+ * (un maximum pour l'Accueil, une chronologie ici).
  *
- * <p>🛑 <b>Conséquence à connaître</b> : un candidat qui n'a fait que de
- * l'entraînement libre en EE/EO a un {@code niveau} servi, donc une carte
- * d'Accueil qui propose « Voir mes résultats », et cette page lui répond
- * « aucune évaluation qualifiante ». Les deux sont vrais séparément — le palier
- * vient bien de quelque part, mais pas d'une épreuve.
- *
- * <p>Deux sorties possibles, et <b>aucune ne se prend ici</b> : soit le profil
- * EE/EO se restreint lui aussi aux sessions d'examen (il <b>baisserait</b> des
- * niveaux déjà affichés à des candidats), soit cette page accueille
- * l'entraînement libre sous une 5ᵉ provenance (elle contredirait l'énoncé du
- * propriétaire). Les deux sont des décisions produit.
+ * <p>⚠️ <b>Le PLAN, lui, n'est pas concerné</b> : {@code TcfProfileService.levelProfile}
+ * — sa lecture — voit toujours les entraînements EE/EO évalués, parce qu'un
+ * entraînement est une observation utile aux priorités et aux compétences. C'est
+ * {@code TcfProfileService.levelProfileAccueil} qui se restreint, et lui seul.
  * → {@code docs/regles/progression.md}, section « Écran ACCUEIL ».
  *
  * <table>
@@ -66,7 +59,7 @@ import java.util.UUID;
  *   </tr>
  *   <tr>
  *     <td>EE / EO</td>
- *     <td>{@code AttemptManager.findProductionEpreuvesPassees}</td>
+ *     <td>{@code EpreuvesProductionQualifiantesResolver.qualifiantes}</td>
  *     <td>{@code ProductionBilanService.niveauEpreuve}</td>
  *     <td>{@code finishedAt}</td>
  *   </tr>
@@ -119,9 +112,8 @@ public class EpreuveHistoriqueService {
             EpreuveType.TCF_EE, EpreuveType.TCF_EO);
 
     private final AttemptManager attemptManager;
-    private final ProductionSubmissionManager submissionManager;
+    private final EpreuvesProductionQualifiantesResolver qualifiantesResolver;
     private final DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
-    private final ProductionBilanService bilanService;
     private final TcfLevelEstimatorService levelEstimator;
 
     /**
@@ -173,18 +165,10 @@ public class EpreuveHistoriqueService {
 
     private List<EpreuveHistoriqueDto.Evaluation> production(UUID userId, EpreuveType epreuve) {
         final List<EpreuveHistoriqueDto.Evaluation> out = new ArrayList<>();
-        for (final Attempt a
-                : attemptManager.findProductionEpreuvesPassees(userId, epreuve, SCAN_LIMIT)) {
-            final List<ProductionSubmission> submissions =
-                    submissionManager.findByAttemptId(a.getId());
-            // La requête ne rend que des sessions d'examen terminées : les deux
-            // drapeaux sont vrais par construction, et les passer explicitement
-            // garde l'autorité au même endroit pour tout le monde.
-            final NiveauCecrl niveau =
-                    bilanService.niveauEpreuve(submissions, true, true).niveau();
-            if (niveau == null || a.getFinishedAt() == null) continue;
+        for (final EpreuvesProductionQualifiantesResolver.EpreuveQualifiante q
+                : qualifiantesResolver.qualifiantes(userId, epreuve, SCAN_LIMIT)) {
             out.add(new EpreuveHistoriqueDto.Evaluation(
-                    a.getFinishedAt(), source(a), niveau));
+                    q.mesureA(), source(q.attempt()), q.niveau()));
         }
         for (final DiagnosticEpreuveLevel row
                 : diagnosticAnalysisManager.findCompletedLevelsByUser(userId)) {

@@ -3,11 +3,14 @@ package com.sejourfr.app.service.progres;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
+import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.NiveauEvolution;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
+import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -46,6 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProgressServiceIT extends AbstractIntegrationTest {
 
     @Autowired private ProgressService service;
+    @Autowired private TcfProfileService tcfProfileService;
     @Autowired private CivicDiagnosticService civicDiagnosticService;
     @Autowired private TestData testData;
     @Autowired private EntityManager entityManager;
@@ -139,6 +143,64 @@ class ProgressServiceIT extends AbstractIntegrationTest {
                 .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
         assertThat(mesures.get(EpreuveType.TCF_EO).kind())
                 .isEqualTo(PlanDomainAssessmentKind.DIAGNOSTIC);
+    }
+
+    /**
+     * 🛑 <b>LE test de l'arbitrage du 2026-09-16</b>, et le plus important de
+     * cet écran : le <b>Plan</b> et l'<b>Accueil</b> peuvent dire deux choses
+     * différentes de la même EO, et c'est voulu.
+     *
+     * <p>Un entraînement EO libre corrigé B1 par l'IA est une <b>observation</b>
+     * : le Plan la voit ({@code TcfProfileService.levelProfile}), il en tire des
+     * priorités et des compétences. Elle n'est pas pour autant une
+     * <b>mesure d'épreuve</b> : l'Accueil affiche « à évaluer » et propose de
+     * quoi se faire mesurer, parce qu'aucune épreuve d'EO n'a jamais été passée.
+     *
+     * <p>Le premier jet de cette règle avait restreint {@code levelProfile}
+     * lui-même : le Plan perdait alors l'observation. C'est ce que la première
+     * assertion empêche de revenir.
+     */
+    @Test
+    @DisplayName("🛑 Un entrainement EO renseigne le PLAN, pas le niveau affiche sur l'ACCUEIL")
+    void lEntrainementRenseigneLePlanPasLAccueil() {
+        User user = testData.user();
+        // Entrainement libre : l'attempt n'a ni slot ni parent, il n'est pas
+        // termine — rien de ce qui fait une epreuve. Mais l'IA a bien note.
+        ProductionSubmission soumission = testData.productionSubmission(
+                testData.attempt(user), testData.productionTask(EpreuveType.TCF_EO), user);
+        testData.aiEvaluation(soumission).setNiveauCecrl(NiveauCecrl.B1);
+        entityManager.flush();
+        entityManager.clear();
+
+        // 🛑 Le PLAN voit B1 : c'est la lecture large, restauree le 2026-09-16
+        // apres une passe qui l'avait restreinte par erreur.
+        assertThat(tcfProfileService.levelProfile(user.getId()).eo())
+                .isEqualTo(NiveauCecrl.B1);
+
+        ProgressDto.Epreuve eo = epreuve(user, EpreuveType.TCF_EO);
+        // ...et l'ACCUEIL n'affiche rien. `null` = inconnu, jamais A1.
+        assertThat(eo.niveau()).isNull();
+        // Corollaire : la carte porte DE QUOI se faire mesurer, au lieu de
+        // proposer « Voir mes resultats » d'une epreuve jamais passee.
+        assertThat(eo.evaluation()).isNotNull();
+
+        // Une EPREUVE COMPLETE, elle, s'affiche — meme plus basse que
+        // l'entrainement : c'est une mesure, l'autre n'en est pas une.
+        testData.epreuveProductionPassee(user, EpreuveType.TCF_EO, NiveauCecrl.A2);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(epreuve(user, EpreuveType.TCF_EO).niveau()).isEqualTo(NiveauCecrl.A2);
+        assertThat(tcfProfileService.levelProfile(user.getId()).eo())
+                .as("le PLAN garde son maximum, entrainement compris")
+                .isEqualTo(NiveauCecrl.B1);
+    }
+
+    private ProgressDto.Epreuve epreuve(User user, EpreuveType epreuve) {
+        return service.progres(user.getId()).tcf().epreuves().stream()
+                .filter(e -> e.epreuve() == epreuve)
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test

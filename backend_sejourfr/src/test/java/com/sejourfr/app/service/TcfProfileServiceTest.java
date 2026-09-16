@@ -35,11 +35,18 @@ import static org.mockito.Mockito.when;
  * pure) est instancié réel pour exercer le vrai plancher / plafond B2.
  * L'exclusion des examens QCM sans aucune réponse vit dans la requête et est
  * verrouillée par {@code AttemptManagerIT}.
+ *
+ * <p>🛑 <b>Ce fichier couvre {@code levelProfile}</b>, la lecture du <b>PLAN</b>
+ * — celle qui voit toute évaluation IA valide, entraînement compris. La lecture
+ * d'<b>ACCUEIL</b> ({@code levelProfileAccueil}) a sa propre section en bas ; ce
+ * qui les sépare est verrouillé bout en bout par
+ * {@code ProgressServiceIT.lEntrainementRenseigneLePlanPasLAccueil}.
  */
 class TcfProfileServiceTest {
 
     private AttemptManager attemptManager;
     private AiEvaluationManager aiEvaluationManager;
+    private EpreuvesProductionQualifiantesResolver qualifiantesResolver;
     private DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
     private TcfProfileService service;
 
@@ -49,10 +56,12 @@ class TcfProfileServiceTest {
     void setUp() {
         attemptManager = mock(AttemptManager.class);
         aiEvaluationManager = mock(AiEvaluationManager.class);
+        qualifiantesResolver = mock(EpreuvesProductionQualifiantesResolver.class);
         diagnosticAnalysisManager = mock(DiagnosticProductionAnalysisManager.class);
         when(diagnosticAnalysisManager.findCompletedLevelsByUser(userId)).thenReturn(List.of());
         service = new TcfProfileService(attemptManager, aiEvaluationManager,
-                diagnosticAnalysisManager, new TcfLevelEstimatorService());
+                qualifiantesResolver, diagnosticAnalysisManager,
+                new TcfLevelEstimatorService());
     }
 
     // ------------------------------------------------------------------ fixtures
@@ -540,5 +549,109 @@ class TcfProfileServiceTest {
 
         assertThat(p.co()).isNull();
         assertThat(p.ce()).isNull();
+    }
+
+    // ------------------------------------------------- la lecture d'ACCUEIL
+    // 🛑 Arbitrage du proprietaire, 2026-09-16 : seule une EPREUVE COMPLETE
+    // peut AFFICHER un niveau global d'EE/EO. Le PLAN, lui, garde la lecture
+    // large — c'est `levelProfile`, teste au-dessus.
+
+    private void stubQualifiantes(EpreuveType epreuve, NiveauCecrl... niveaux) {
+        List<EpreuvesProductionQualifiantesResolver.EpreuveQualifiante> sessions =
+                java.util.Arrays.stream(niveaux)
+                        .map(n -> new EpreuvesProductionQualifiantesResolver.EpreuveQualifiante(
+                                new Attempt(), Instant.now(), n))
+                        .toList();
+        when(qualifiantesResolver.qualifiantes(eq(userId), eq(epreuve), anyInt()))
+                .thenReturn(sessions);
+    }
+
+    /**
+     * 🛑 <b>LE test de la separation.</b> Le meme candidat, les memes donnees :
+     * un entrainement EO evalue B1, aucune epreuve complete. Le Plan lit B1,
+     * l'Accueil ne lit rien — et « rien » veut dire <b>null</b>, pas A1.
+     */
+    @Test
+    void accueil_unEntrainementNAfficheAucunNiveau_maisLePlanLeVoit() {
+        stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.B1, Instant.now())));
+        when(qualifiantesResolver.qualifiantes(eq(userId), eq(EpreuveType.TCF_EO), anyInt()))
+                .thenReturn(List.of());
+
+        assertThat(service.levelProfile(userId).eo())
+                .as("le PLAN voit l'entrainement, c'est une observation")
+                .isEqualTo(NiveauCecrl.B1);
+        assertThat(service.levelProfileAccueil(userId).eo())
+                .as("l'ACCUEIL exige une epreuve complete")
+                .isNull();
+    }
+
+    /** Une epreuve complete, elle, s'affiche — et c'est le MEILLEUR qui fait foi. */
+    @Test
+    void accueil_retientLaMeilleureEpreuveComplete() {
+        stubQualifiantes(EpreuveType.TCF_EE,
+                NiveauCecrl.A2, NiveauCecrl.B1, NiveauCecrl.A1);
+
+        assertThat(service.levelProfileAccueil(userId).ee()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * Le repli baseline reste le meme pour les deux lectures : le diagnostic
+     * rapide n'a pas ete retire de l'Accueil, il n'a jamais ete l'objet de
+     * l'arbitrage.
+     */
+    @Test
+    void accueil_gardeLeRepliSurLaBaselineDuDiagnostic() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2));
+
+        assertThat(service.levelProfileAccueil(userId).ee()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * 🛑 Le <b>niveau global</b> de l'Accueil est le plancher des paliers
+     * AFFICHES. Sans ca, l'ecran annoncerait « A2 » a cause d'une EO
+     * d'entrainement qu'il presente deux lignes plus bas comme non evaluee.
+     */
+    @Test
+    void accueil_leNiveauGlobalNeTombePasSurUneEpreuveQuIlNAffichePas() {
+        stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.B1)));
+        stubQcm(EpreuveType.TCF_CE, List.of(qcm(NiveauCecrl.B1)));
+        stubProduction(EpreuveType.TCF_EO, List.of(eval(NiveauCecrl.A2, Instant.now())));
+
+        assertThat(service.levelProfile(userId).globalLevel())
+                .as("le PLAN plancher sur l'entrainement EO")
+                .isEqualTo(NiveauCecrl.A2);
+        assertThat(service.levelProfileAccueil(userId).globalLevel())
+                .as("l'ACCUEIL ne plancher que sur ce qu'il montre")
+                .isEqualTo(NiveauCecrl.B1);
+    }
+
+    /** CO et CE ne sont pas concernees : meme lecture des deux cotes. */
+    @Test
+    void accueil_neChangeRienACoNiACe() {
+        stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.B2)));
+        stubQcm(EpreuveType.TCF_CE, List.of(qcm(NiveauCecrl.A2)));
+
+        TcfLevelProfile accueil = service.levelProfileAccueil(userId);
+
+        assertThat(accueil.co()).isEqualTo(NiveauCecrl.B2);
+        assertThat(accueil.ce()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * 🛑 L'Accueil ne lit JAMAIS {@code ai_evaluations} pour EE/EO : le passage
+     * par le resolveur est ce qui tient la regle, et une lecture directe la
+     * contournerait sans bruit.
+     */
+    @Test
+    void accueil_neLitPasLesEvaluationsDeTaches() {
+        stubQualifiantes(EpreuveType.TCF_EE, NiveauCecrl.B1);
+        stubQualifiantes(EpreuveType.TCF_EO, NiveauCecrl.B1);
+
+        service.levelProfileAccueil(userId);
+
+        verify(aiEvaluationManager, never())
+                .findByUserAndEpreuve(userId, EpreuveType.TCF_EE);
+        verify(aiEvaluationManager, never())
+                .findByUserAndEpreuve(userId, EpreuveType.TCF_EO);
     }
 }
