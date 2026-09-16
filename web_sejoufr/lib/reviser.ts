@@ -25,13 +25,13 @@ import type {
     CivicPlanThemeLigneDto,
     DashboardCategoryStat,
     LearningPlanDto,
-    NiveauCecrl,
     PlanDomainDto,
     PlanDomainTaskDto,
     SkillSection,
     TcfDomainProfileDto,
 } from "./types";
 import {niveauCecrlLabel} from "./types";
+import {niveauActuelEpreuve} from "./progres";
 import {planNowCard, type PlanDomainEpreuve, type PlanNowVue} from "./plan-domain";
 import {CIVIQUE_LABEL, TCF_LABEL} from "./preparation";
 
@@ -220,35 +220,6 @@ export function isProductionCode(code: string): boolean {
 export function currentTache(domain: PlanDomainDto | null): PlanDomainTaskDto | null {
     if (!domain?.tacheCourante) return null;
     return domain.taches.find((t) => t.tacheNumero === domain.tacheCourante) ?? null;
-}
-
-/**
- * **Le niveau ACTUEL d'une épreuve, tel qu'il est AFFICHÉ partout ailleurs.**
- *
- * 🛑 **L'autorité d'affichage, et elle seule** : `tcfDomainProfile` publie le
- * niveau de `TcfProfileService.levelProfileAccueil` — la **moyenne des ≤ 3
- * derniers examens qualifiants** —, exactement ce que disent l'Accueil, le
- * Profil, l'écran Progrès et l'écran Diagnostic. Réviser lisait
- * `PlanDomainDto.niveau` (la lecture du **Plan** : le maximum de toutes les
- * sources, **entraînements EE/EO compris**) puis retombait sur
- * `DashboardCategoryStat.level` (le dernier niveau de n'importe quelle
- * soumission) : un candidat dont la seule trace EO était un entraînement de
- * trois minutes y lisait un palier pendant que quatre autres écrans disaient
- * « à évaluer ». → `docs/decisions/diagnostic.md`, 2026-09-16.
- *
- * 🛑 **`null` = pas mesuré, jamais un plancher** : la ligne retombe alors sur ce
- * qu'elle sait **compter** (séries, compétences), et à défaut sur
- * `REVISER_NOT_STARTED`.
- *
- * Le code de catégorie **est** la valeur de `epreuve` pour les quatre épreuves :
- * aucune table de correspondance n'est écrite ici. `TCF_STRUCTURE` et les thèmes
- * civiques n'y figurent pas — ils rendent `null`, ce qui est exact.
- */
-export function niveauActuelEpreuve(
-    profil: TcfDomainProfileDto | null,
-    code: string,
-): NiveauCecrl | null {
-    return profil?.domaines.find((d) => d.epreuve === code)?.niveau ?? null;
 }
 
 /** « 2/10 séries » · « 3/8 compétences ». `null` quand il n'y a rien à compter. */

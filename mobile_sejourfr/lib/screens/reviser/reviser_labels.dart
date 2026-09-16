@@ -21,6 +21,7 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../plan/plan_now_card.dart';
+import '../progres/progres_labels.dart' show niveauActuelEpreuve;
 
 /* --------------------------------- Structure de la langue, hors examen ---- */
 
@@ -177,34 +178,6 @@ PlanDomainTask? currentTache(PlanDomain? domain) {
   if (domain == null || numero == null) return null;
   for (final tache in domain.taches) {
     if (tache.tacheNumero == numero) return tache;
-  }
-  return null;
-}
-
-/// **Le niveau ACTUEL d'une épreuve, tel qu'il est AFFICHÉ partout ailleurs.**
-///
-/// 🛑 **L'autorité d'affichage, et elle seule** : `tcfDomainProfile` publie le
-/// niveau de `TcfProfileService.levelProfileAccueil` — la **moyenne des ≤ 3
-/// derniers examens qualifiants** —, exactement ce que disent l'Accueil, le
-/// Profil, l'écran Progrès et l'écran Diagnostic. Réviser lisait
-/// `PlanDomain.niveau` (la lecture du **Plan** : le maximum de toutes les
-/// sources, **entraînements EE/EO compris**) puis retombait sur
-/// `DashboardCategoryStat.level` (le dernier niveau de n'importe quelle
-/// soumission) : un candidat dont la seule trace EO était un entraînement de
-/// trois minutes y lisait un palier pendant que quatre autres écrans disaient
-/// « à évaluer ». → `docs/decisions/diagnostic.md`, 2026-09-16.
-///
-/// 🛑 **`null` = pas mesuré, jamais un plancher** : la ligne retombe alors sur
-/// ce qu'elle sait **compter** (séries, compétences), et à défaut sur
-/// [kReviserNotStarted].
-///
-/// Le code de catégorie **est** la valeur de `epreuve` pour les quatre
-/// épreuves : aucune table de correspondance n'est écrite ici. `TCF_STRUCTURE`
-/// et les thèmes civiques n'y figurent pas — ils rendent `null`, ce qui est
-/// exact.
-NiveauCecrl? niveauActuelEpreuve(TcfDomainProfile? profil, String code) {
-  for (final domaine in profil?.domaines ?? const <TcfDomain>[]) {
-    if (domaine.epreuve.wire == code) return domaine.niveau;
   }
   return null;
 }

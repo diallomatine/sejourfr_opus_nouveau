@@ -27,6 +27,7 @@ import type {
     ProgressEpreuveDto,
     ProgressTcfDto,
     StatutObjectif,
+    TcfDomainProfileDto,
 } from "./types";
 
 export const PROGRES_TITLE = "Ce qui a bougé";
@@ -195,6 +196,58 @@ export function progresStatutTone(
     if (epreuve.status === "TARGET_REACHED") return "ok";
     if (epreuve.status === "CLOSE_TO_TARGET") return "warn";
     return "hot";
+}
+
+/* ---------------------------------------------------------------------------
+ * L'AUTORITÉ D'AFFICHAGE du niveau d'une épreuve
+ * ------------------------------------------------------------------------- */
+
+/**
+ * **Le niveau ACTUEL d'une épreuve, tel qu'il est AFFICHÉ partout.**
+ *
+ * 🛑 **L'autorité d'affichage, et elle seule** : `tcfDomainProfile` publie le
+ * niveau de `TcfProfileService.levelProfileAccueil` — la **moyenne des ≤ 3
+ * derniers examens qualifiants** —, exactement ce que disent l'Accueil, le
+ * Profil, le Diagnostic et Réviser. Les écrans de suivi lisaient
+ * `DashboardCategoryStat.level`, une **troisième** autorité (le dernier niveau
+ * CECRL de n'importe quelle soumission, **entraînements compris**) : un
+ * candidat dont la seule trace EO était un entraînement de trois minutes y
+ * lisait un palier pendant que tous les autres écrans disaient « à évaluer ».
+ * → `docs/decisions/diagnostic.md`, 2026-09-16.
+ *
+ * 🛑 **`null` = pas mesuré, jamais un plancher** : la ligne retombe alors sur
+ * ce que son écran sait **compter**.
+ *
+ * Le code de catégorie **est** la valeur de `epreuve` pour les quatre
+ * épreuves : aucune table de correspondance n'est écrite ici. `TCF_STRUCTURE`
+ * et les thèmes civiques n'y figurent pas — ils rendent `null`, ce qui est
+ * exact : aucun palier CECRL ne leur est servi.
+ *
+ * 🛑 **Miroir de `niveauActuelEpreuve` côté mobile**
+ * (`screens/progres/progres_labels.dart`).
+ */
+export function niveauActuelEpreuve(
+    profil: TcfDomainProfileDto | null,
+    code: string,
+): NiveauCecrl | null {
+    return profil?.domaines.find((d) => d.epreuve === code)?.niveau ?? null;
+}
+
+/** 🛑 Miroir mobile : `kSuiviSansExamenLabel`. */
+export const SUIVI_SANS_EXAMEN_LABEL = "Pas encore d'examen";
+
+/**
+ * La ligne de niveau d'une épreuve sur un écran de **suivi chiffré**
+ * (`/statistiques`, écran Progrès) — jamais sur un écran de constat.
+ *
+ * 🛑 **Non mesurée ⇒ aucun palier inventé.** On ne dit pas « À évaluer » ici,
+ * qui est le mot d'un constat (l'Accueil) : on dit ce qui **manque à
+ * compter** — aucun examen qualifiant n'a encore été passé.
+ */
+export function suiviNiveauLabel(niveau: NiveauCecrl | null): string {
+    return niveau
+        ? `Niveau estimé ${niveauCecrlLabel(niveau)}`
+        : SUIVI_SANS_EXAMEN_LABEL;
 }
 
 /* ---------------------------------------------------------------------------
