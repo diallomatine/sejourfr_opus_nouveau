@@ -9,11 +9,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Couche d'acces aux donnees pour {@link ProductionSubmission}.
@@ -57,6 +59,20 @@ public class ProductionSubmissionManager {
     /** Toutes les submissions liées à un attempt EE/EO (utile pour assembler un examen blanc complet). */
     public List<ProductionSubmission> findByAttemptId(UUID attemptId) {
         return repository.findByAttemptIdOrderBySubmittedAtAsc(attemptId);
+    }
+
+    /**
+     * Les submissions de plusieurs attempts, <b>groupées par attempt</b>, en une
+     * seule requête et avec leur {@code productionTask} jointe — cf. le javadoc
+     * de la requête : c'est ce qui rend constant le coût du profil TCF.
+     *
+     * <p>Aucun accès base sur une liste vide : le candidat qui n'a passé aucune
+     * épreuve ne paie rien.
+     */
+    public Map<UUID, List<ProductionSubmission>> findByAttemptIdsGrouped(Collection<UUID> attemptIds) {
+        if (attemptIds == null || attemptIds.isEmpty()) return Map.of();
+        return repository.findByAttemptIdsWithTask(attemptIds).stream()
+                .collect(Collectors.groupingBy(s -> s.getAttempt().getId()));
     }
 
     /** Soumissions déjà faites sur une tâche précise d'une session (plafond d'examen). */
