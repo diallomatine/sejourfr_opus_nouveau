@@ -20,6 +20,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Source de vérité de la math CECRL des épreuves productives (EE / EO) —
@@ -80,6 +83,22 @@ public class ProductionBilanService {
      * domaine entier du candidat.
      */
     public Map<Integer, AiEvaluation> latestEvalsByTache(List<ProductionSubmission> submissions) {
+        return latestEvalsByTache(submissions, aiEvaluationManager::findLatestBySubmissionId);
+    }
+
+    /**
+     * Le même calcul, mais la <b>dernière évaluation d'une soumission</b> est
+     * fournie par l'appelant plutôt que lue une par une.
+     *
+     * <p>🛑 Existe pour le <b>coût</b>, jamais pour la règle : le tri « la plus
+     * récente fait foi » et le rejet des lignes sans verdict restent ici, une
+     * seule fois. Un appelant qui évalue plusieurs sessions d'un coup
+     * ({@code EpreuvesProductionQualifiantesResolver}) charge ses évaluations en
+     * un lot et les passe ; il ne réimplémente rien.
+     */
+    public Map<Integer, AiEvaluation> latestEvalsByTache(
+            List<ProductionSubmission> submissions,
+            Function<UUID, Optional<AiEvaluation>> latestEval) {
         Map<Integer, ProductionSubmission> latestSub = new HashMap<>();
         for (ProductionSubmission s : submissions) {
             if (s.getStatut() != SubmissionStatut.EVALUATED) continue;
@@ -94,7 +113,7 @@ public class ProductionBilanService {
         }
         Map<Integer, AiEvaluation> out = new LinkedHashMap<>();
         for (Map.Entry<Integer, ProductionSubmission> e : latestSub.entrySet()) {
-            aiEvaluationManager.findLatestBySubmissionId(e.getValue().getId())
+            latestEval.apply(e.getValue().getId())
                     .filter(eval -> eval.getNiveauCecrl() != null || eval.getNoteSur20() != null)
                     .ifPresent(eval -> out.put(e.getKey(), eval));
         }
@@ -169,6 +188,19 @@ public class ProductionBilanService {
      */
     public NiveauEpreuve niveauEpreuve(
             List<ProductionSubmission> submissions, boolean exam, boolean finished) {
+        return niveauEpreuve(submissions, latestEvalsByTache(submissions), exam, finished);
+    }
+
+    /**
+     * Le même verdict, avec les évaluations par tâche <b>déjà résolues</b> par
+     * l'appelant (cf. {@link #latestEvalsByTache(List, Function)}).
+     * 🛑 Les trois règles ci-dessus vivent ici et nulle part ailleurs : cette
+     * surcharge ne fait que s'épargner des requêtes.
+     */
+    public NiveauEpreuve niveauEpreuve(
+            List<ProductionSubmission> submissions,
+            Map<Integer, AiEvaluation> evalsByTache,
+            boolean exam, boolean finished) {
         boolean inFlight = false;
         boolean anyFailed = false;
         for (ProductionSubmission s : submissions) {
@@ -178,7 +210,6 @@ public class ProductionBilanService {
                 inFlight = true;
             }
         }
-        Map<Integer, AiEvaluation> evalsByTache = latestEvalsByTache(submissions);
         if (exam && evalsByTache.size() >= EXPECTED_TASKS_PER_EPREUVE) {
             return new NiveauEpreuve(bilanEpreuve(evalsByTache), false, evalsByTache);
         }
