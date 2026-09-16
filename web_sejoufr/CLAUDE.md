@@ -787,13 +787,19 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `ExamRow`, `ThemeLine`, `Prio`, `ProgressMini`, `SkillRow`, `PathCard`,
   `NowCard`, `MiniPlan`, `LockRow`, `CheckList`, `DoneRow`, `PillMeta`,
   `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`, **`TopSlot`**…).
-  ✅ **Ajoutées le 2026-09-16** sur la maquette `~/Downloads/ou_en_vous.html`,
-  **avec leur miroir Flutter dans la même passe** : `LevelCard`, `LevelGrid`,
-  `GoalRibbon`, `MicroNote`, `PanelHead`, `ResultHero`, `LevelChart`
-  (+ `ChartPoint`), `FilterChips`, `HistoryRow`, `InfoNote`, et la **cocarde**
-  de tête de carte (`Card rule="flag"`). Elles servent « Où vous en êtes »
-  (`/dashboard`) et « Vos résultats »
+  ✅ **Ajoutées le 2026-09-16** sur les maquettes du propriétaire, **avec leur
+  miroir Flutter dans la même passe** : `MicroNote`, `PanelHead` (+ sa variante
+  **`lead`**, la tête de carte éditoriale), `ResultHero`, `LevelChart`
+  (+ `ChartPoint`), `FilterChips`, `HistoryRow`, `InfoNote`, le **liseré
+  tricolore** de tête de carte (`Card rule="flag"`) et, sur la maquette v2
+  (`ou_en_vous_v2.html`), **`LevelLadder`** (l'échelle CECRL à quatre crans),
+  **`LevelRow`**, **`LevelList`** et **`GoalBanner`**. Elles servent « Où vous
+  en êtes » (`/dashboard`) et « Vos résultats »
   (`/historique/epreuve/[domaine]`) — → `docs/regles/progression.md`.
+  ⚠️ **`LevelCard`, `LevelGrid` et `GoalRibbon` sont SUPPRIMÉES** le même jour
+  (elles ne servaient que la maquette v1 de « Où vous en êtes »), avec leurs
+  classes `.levelCard` / `.levelGrid` / `.goalRibbon` et leurs dérivées. La
+  primitive qui les remplace est une **liste**, plus une grille.
 🛑 **Cinq états d'étape, pas trois (2026-09-13).** `StepState` / `SfStepState`
 valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` portent
 un `pill` **composé par l'appelant** à partir d'un libellé **servi**
@@ -1083,30 +1089,43 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 6. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
 7. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
 
-✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire,
-`~/Downloads/ou_en_vous.html`), **refait sur elle le jour même en 2ᵉ passe** :
-une carte de tête à **cocarde** (`Card rule="flag"`) qui porte le titre « Votre
-niveau par épreuve », sa phrase de cadrage, puis **dans cet ordre** le
-**bandeau d'objectif avec son compteur « 3 / 4 évaluées »** (`GoalRibbon`), la
-**grille à deux colonnes** des épreuves (`LevelGrid` + `LevelCard`) et la
-**note de pied** (`MicroNote`). ⚠️ La 1ʳᵉ passe mettait le bandeau **sous** la
-grille, sans compteur ni note : **révoqué**, la maquette est plus récente.
-Une carte d'épreuve porte le repère court (`CO`…), la pastille de palier, le
-nom, la ligne « palier atteint · Objectif B2 », le rail, l'état en un mot et
-l'action ; en civique, `mark`, ligne de repères, cocarde et note sont **omis**
-(rien ne les sert).
-🛑 **Ces cinq briques vivent dans le KIT**, ajoutées **des deux côtés dans la
-même passe** : `HomeSituationCard`, `HomeSituationGrid`, `HomeGoalBanner` et
-les classes `.home-situation-grid` / `-card` / `-head` / `-name` / `-badge` /
-`-statut` / `.home-goal` sont **supprimées**. `homeStyles` ne garde que
-l'en-tête (`.home-situation-title`, `.home-situation-copy`).
+✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
+jour sur les maquettes du propriétaire**. ⚠️ **La 3ᵉ passe (`ou_en_vous_v2.html`)
+fait foi et RÉVOQUE la grille à deux colonnes de cartes compactes** — ce n'est
+pas un habillage, c'est la structure : une carte de tête à **liseré tricolore
+pleine largeur** (`Card rule="flag"`) portant le titre « Votre niveau par
+épreuve » et sa phrase de cadrage (`PanelHead lead`), puis **dans cet ordre** la
+**bande bleue d'objectif** à cocarde, compteur « 3 / 4 », pastilles et mot
+« évaluées » (`GoalBanner`), la **liste verticale** des épreuves (`LevelList` +
+`LevelRow`) et la **note de pied** (`MicroNote`, **hors maquette et conservée
+volontairement**).
+Une **ligne** d'épreuve porte le repère court en pastille mono (`CO`…), le nom,
+le **statut à pastille colorée**, le palier en gros à droite, l'**échelle CECRL
+à quatre crans** (`LevelLadder`) et une ligne de pied « action · objectif ». Une
+épreuve jamais mesurée passe en fond gris, repère en contour, échelle en contour
+et **CTA rouge plein** — la seule action qui *manque*.
+🛑 **L'échelle s'arrête à B2** : la maquette en montrait six (C1/C2 grisés), le
+propriétaire a tranché pour la règle du dépôt en cours de passe. `A1_NON_ATTEINT`
+**n'allume aucun cran** — on ne ment jamais vers le haut.
+🛑 **Le civique prend la MÊME anatomie** (arbitrage du même jour), avec ses
+données à lui : bande « Votre dernier résultat » (`progresCiviqueScore`, servi),
+compteur de thèmes évalués, rang servi en pastille, et **ni échelle, ni palier,
+ni objectif** — rien ne les sert. Détail ligne par ligne :
+`docs/regles/progression.md`.
+🛑 **Ces briques vivent dans le KIT**, ajoutées **des deux côtés dans la même
+passe** : `LevelCard`, `LevelGrid`, `GoalRibbon` sont **supprimées** avec leurs
+classes, comme l'étaient déjà `HomeSituationCard`, `HomeSituationGrid`,
+`HomeGoalBanner` et `.home-situation-*`. `homeStyles` **n'a plus une seule
+règle** pour cette section.
 🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses deux
 compteurs. 🛑 **Aucun appel de plus** — `progres` est déjà dans l'état de
 l'écran. ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le
-`deskPair` : quatre cartes dans une demi-colonne de 1080 px se replieraient en
-une file illisible. La dérivation (état → libellé, ton, jauge, CTA,
-destination) vit dans `lib/progres.ts`, **avec celle de l'écran Progrès** :
-c'est le même statut servi.
+`deskPair`, et au palier desktop (960 px) c'est **la liste** qui passe à deux
+colonnes, pas la carte : une échelle étirée sur 1 000 px ne situe plus rien.
+Aucun miroir Flutter pour ce palier. La dérivation (état → libellé, ton,
+échelle, CTA, destination) vit dans `lib/progres.ts`, **avec celle de l'écran
+Progrès** : c'est le même statut servi. ⚠️ `accueilEpreuveJauge` et
+`accueilEvalueesLabel` sont **supprimées** avec leur dernier lecteur.
 🛑 **La section s'affiche TOUJOURS** (correctif serveur du 2026-09-16) : les
 4 épreuves ne dépendent plus du diagnostic 4 épreuves, leur palier venant du
 profil TCF. ⚠️ Révoque « une liste vide veut dire aucun diagnostic clos ».

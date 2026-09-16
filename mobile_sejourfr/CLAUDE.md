@@ -1156,13 +1156,18 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `SfPillMeta`, `SfChoiceCard`, `SfButton`, `SfStatGrid`, `SfBulletList`,
   `SfThreshold`, `SfHeadline`, `SfStickyBar`, `SfUnlockHero`, `SfSection`,
   `SfStack`, **`SfTopSlot`**.
-  ✅ **Ajoutées le 2026-09-16** sur la maquette `~/Downloads/ou_en_vous.html`,
-  **avec leur miroir web dans la même passe** : `SfLevelCard`, `SfLevelGrid`,
-  `SfGoalRibbon`, `SfMicroNote`, `SfPanelHead`, `SfResultHero`, `SfLevelChart`
-  (+ `SfChartPoint`), `SfFilterChips`, `SfHistoryRow`, `SfInfoNote`, et la
-  **cocarde** de tête de carte (`SfCard(rule: true)`). Elles servent « Où vous
-  en êtes » (Accueil) et « Vos résultats » (`EpreuveHistoriqueScreen`) —
-  → `docs/regles/progression.md`.
+  ✅ **Ajoutées le 2026-09-16** sur les maquettes du propriétaire, **avec leur
+  miroir web dans la même passe** : `SfMicroNote`, `SfPanelHead` (+ sa variante
+  **`lead`**, la tête de carte éditoriale), `SfResultHero`, `SfLevelChart`
+  (+ `SfChartPoint`), `SfFilterChips`, `SfHistoryRow`, `SfInfoNote`, le
+  **liseré tricolore** de tête de carte (`SfCard(rule: true)`) et, sur la
+  maquette v2 (`ou_en_vous_v2.html`), **`SfLevelLadder`** (+ `SfLadderStep`,
+  l'échelle CECRL à quatre crans), **`SfLevelRow`**, **`SfLevelList`** et
+  **`SfGoalBanner`**. Elles servent « Où vous en êtes » (Accueil) et « Vos
+  résultats » (`EpreuveHistoriqueScreen`) — → `docs/regles/progression.md`.
+  ⚠️ **`SfLevelCard`, `SfLevelGrid` et `SfGoalRibbon` sont SUPPRIMÉES** le même
+  jour (elles ne servaient que la maquette v1 de « Où vous en êtes »). La
+  primitive qui les remplace est une **liste**, plus une grille.
 🛑 **Cinq états d'étape, pas trois (2026-09-13).** `StepState` / `SfStepState`
 valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` portent
 un `pill` **composé par l'appelant** à partir d'un libellé **servi**
@@ -1456,28 +1461,47 @@ civique** → **À faire maintenant** → **Où vous en êtes** → **Votre Plan
 (aperçu) → **Votre progression** → **Affiner votre Plan** (TCF, complet
 commencé) → **Vos parcours**.
 
-✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire,
-`~/Downloads/ou_en_vous.html`), **refait sur elle le jour même en 2ᵉ passe** :
-une carte de tête à **cocarde** (`SfCard(rule: true)`) qui porte le titre
-« Votre niveau par épreuve », sa phrase de cadrage, puis **dans cet ordre** le
-**bandeau d'objectif avec son compteur « 3 / 4 évaluées »** (`SfGoalRibbon`),
-la **grille à deux colonnes** (`SfLevelGrid` + `SfLevelCard`) et la **note de
-pied** (`SfMicroNote`). ⚠️ La 1ʳᵉ passe mettait le bandeau **sous** la grille,
-sans compteur ni note : **révoqué**, la maquette est plus récente.
-Une carte d'épreuve porte le repère court (`CO`…, `planDomainSection().wire`),
-la pastille de palier, le nom, la ligne « palier atteint · Objectif B2 », le
-rail, l'état en un mot et l'action ; en civique, `mark`, ligne de repères,
-cocarde et note sont **omis** (rien ne les sert).
-🛑 **Ces cinq briques vivent dans le KIT**, ajoutées **des deux côtés dans la
-même passe** : `HomeSituationCard`, `HomeSituationGrid` et `HomeGoalBanner`
-sont **supprimées** de `home_blocks.dart`, qui ne garde que `HomeBanner`,
+✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
+jour sur les maquettes du propriétaire**. ⚠️ **La 3ᵉ passe (`ou_en_vous_v2.html`)
+fait foi et RÉVOQUE la grille à deux colonnes de cartes compactes** — ce n'est
+pas un habillage, c'est la structure : une carte de tête à **liseré tricolore
+pleine largeur** (`SfCard(rule: true)`) portant le titre « Votre niveau par
+épreuve » et sa phrase de cadrage (`SfPanelHead(lead: true)`), puis **dans cet
+ordre** la **bande bleue d'objectif** à cocarde, compteur « 3 / 4 », pastilles
+et mot « évaluées » (`SfGoalBanner`), la **liste verticale** des épreuves
+(`SfLevelList` + `SfLevelRow`) et la **note de pied** (`SfMicroNote`, **hors
+maquette et conservée volontairement**).
+Une **ligne** d'épreuve porte le repère court en pastille (`CO`…,
+`planDomainSection().wire`), le nom, le **statut à pastille colorée**, le palier
+en gros à droite, l'**échelle CECRL à quatre crans** (`SfLevelLadder`) et une
+ligne de pied « action · objectif ». Une épreuve jamais mesurée passe en fond
+gris, repère en contour, échelle en contour et **CTA rouge plein** — la seule
+action qui *manque*.
+🛑 **L'échelle s'arrête à B2** : la maquette en montrait six (C1/C2 grisés), le
+propriétaire a tranché pour la règle du dépôt en cours de passe. `a1NonAtteint`
+**n'allume aucun cran**, et le lecteur d'écran entend « Niveau inférieur à A1 » —
+on ne ment jamais vers le haut. Position lue par `NiveauCecrl.scaleIndex`, plus
+la seule garde qui lui manque (`_accueilRangCecrl`).
+🛑 **Le civique prend la MÊME anatomie** (arbitrage du même jour), avec ses
+données à lui : bande « Votre dernier résultat » (`progresCiviqueScore`, servi),
+compteur de thèmes évalués, rang servi en pastille, et **ni échelle, ni palier,
+ni objectif** — rien ne les sert. Détail ligne par ligne :
+`docs/regles/progression.md`.
+🛑 **Ces briques vivent dans le KIT**, ajoutées **des deux côtés dans la même
+passe** : `HomeSituationCard`, `HomeSituationGrid` et `HomeGoalBanner` sont
+**supprimées** de `home_blocks.dart`, qui ne garde que `HomeBanner`,
 `HomeMiniPlan`, `HomeTrackRow`, `HomeLink` et `HomeSoftAction`.
 🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses deux
 compteurs : l'une dit *où en est chaque épreuve*, l'autre *combien de
 compétences ont bougé*. 🛑 **Aucun appel de plus** — `progressProvider` est
-déjà lu, et porte déjà les 4 épreuves. La dérivation (état → libellé, ton,
-jauge, CTA, destination) vit dans `screens/progres/progres_labels.dart`, **avec
-celle de l'écran Progrès** : c'est le même statut servi.
+déjà lu, et porte déjà les 4 épreuves **et** les thèmes civiques. La dérivation
+(état → libellé, ton, échelle, CTA, destination) vit dans
+`screens/progres/progres_labels.dart`, **avec celle de l'écran Progrès** : c'est
+le même statut servi. ⚠️ `accueilEpreuveJauge` et `accueilEvalueesLabel` sont
+**supprimées** avec leur dernier lecteur.
+⚠️ **Le web passe sa liste à deux colonnes au-dessus de 960 px ; rien à porter
+ici** — une media query n'est pas une primitive, l'app est en portrait
+téléphone.
 🛑 **La section s'affiche TOUJOURS** (correctif serveur du 2026-09-16) : les
 4 épreuves ne dépendent plus du diagnostic 4 épreuves, leur palier venant du
 profil TCF. ⚠️ Révoque « une liste vide veut dire aucun diagnostic clos ».

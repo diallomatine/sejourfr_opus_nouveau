@@ -466,57 +466,151 @@ Routes : `docs/api-endpoints.md`, section « Progrès (T28) ». Journal :
 
 🛑 **À distinguer de l'écran Progrès**, qui reste inchangé. Une section
 **ajoutée** à l'Accueil, entre « À faire maintenant » et « Votre Plan ».
-Maquette du propriétaire : **`~/Downloads/ou_en_vous.html`**, seule référence
-(aucune capture n'existe dans `~/Desktop/sejourfr_ecrans` ni
-`~/Desktop/grok_ecran` pour cette section).
+Maquette du propriétaire : **`ou_en_vous_v2.html`**, seule référence (aucune
+capture n'existe dans `~/Desktop/sejourfr_ecrans` ni `~/Desktop/grok_ecran` pour
+cette section).
 
-#### Anatomie, refaite sur la maquette le 2026-09-16 (2ᵉ passe)
+#### Anatomie, refaite sur la maquette v2 le 2026-09-16 (3ᵉ passe)
 
-⚠️ **Cette anatomie RÉVOQUE celle de la 1ʳᵉ passe du même jour** (titre 19 px,
-pastille sous le titre, bandeau d'objectif **sous** la grille, pas de note de
-pied). La maquette est plus récente, elle fait foi.
+⚠️ **Cette anatomie RÉVOQUE les deux passes précédentes du même jour** — et pas
+seulement leur habillage : la **grille à deux colonnes de cartes compactes**
+(`LevelCard` / `LevelGrid`) est remplacée par une **liste verticale de lignes
+dans une seule carte**, chaque ligne portant une **échelle CECRL**. La maquette
+v2 est plus récente, elle fait foi.
 
-Une **carte de tête** — cocarde bleu · blanc · rouge en filet de 3 px, titre
-« Votre niveau par épreuve », phrase de cadrage — qui contient, **dans cet
-ordre** :
+Une **carte de tête** — liseré tricolore **pleine largeur** de 5 px (bleu ·
+blanc · rouge), titre « Votre niveau par épreuve », phrase de cadrage — qui
+contient, **dans cet ordre** :
 
-1. le **bandeau d'objectif**, `GoalRibbon` ⇄ `SfGoalRibbon` : pastille rouge,
-   « Objectif actuel / Atteindre B2 partout », et à droite un **compteur
-   « 3 / 4 évaluées »**. 🛑 Il annonce vers quoi on va **avant** de montrer où
-   on en est — c'est la maquette, et c'est aussi ce qui évite de finir la
-   section sur un objectif quand elle doit finir sur une action ;
-2. la **grille à deux colonnes** des épreuves, `LevelGrid` ⇄ `SfLevelGrid` ;
-3. la **note de pied**, `MicroNote` ⇄ `SfMicroNote` : « Le niveau affiché
-   évolue uniquement avec vos diagnostics et vos épreuves complètes. » 🛑 Elle
-   dit la règle EE/EO ci-dessous **à l'endroit où elle surprend** — sans elle,
-   un candidat qui vient d'enchaîner des séries lit un niveau inchangé et croit
-   à une panne.
+1. la **bande d'objectif**, `GoalBanner` ⇄ `SfGoalBanner` : **bande bleue
+   pleine**, cocarde, « Objectif actuel / Atteindre B2 partout », puis à droite
+   le compteur **« 3 / 4 »**, ses **pastilles** (une par épreuve servie) et le
+   mot **« évaluées »**. 🛑 Elle annonce vers quoi on va **avant** de montrer où
+   on en est ;
+2. la **liste verticale** des épreuves, `LevelList` ⇄ `SfLevelList` ;
+3. la **note de pied**, `MicroNote` ⇄ `SfMicroNote` : « Le niveau affiché évolue
+   uniquement avec vos diagnostics et vos épreuves complètes. » ⚠️ **Hors
+   maquette, conservée volontairement** : elle dit la règle EE/EO ci-dessous **à
+   l'endroit où elle surprend** — sans elle, un candidat qui vient d'enchaîner
+   des séries lit un niveau inchangé et croit à une panne.
 
-**Une carte d'épreuve** (`LevelCard` ⇄ `SfLevelCard`) porte : le **repère
-court** (`CO` / `CE` / `EE` / `EO`, en mono), la **pastille de palier**, le nom
-de l'épreuve, la **ligne de repères** « palier atteint · Objectif B2 », le
-**rail**, l'**état en un mot**, et l'action. Une épreuve **mesurée** se
-distingue par un fond blanc, un relief et un filet d'accent bleu → rouge ; une
-épreuve non mesurée reste en bleu doux, pastille neutre.
+**Une ligne d'épreuve** (`LevelRow` ⇄ `SfLevelRow`) porte, de haut en bas : le
+**repère court** en pastille mono (`CO` / `CE` / `EE` / `EO`), le nom de
+l'épreuve, le **statut à pastille colorée** (le ton servi, et le mot le redit —
+la couleur n'est jamais seule), le **palier** en gros à droite, puis
+l'**échelle CECRL** et une **ligne de pied** « action · objectif ». Une épreuve
+**jamais mesurée** se distingue par un fond gris, un repère en contour, une
+pastille neutre à la place du palier et un **CTA rouge plein** — c'est la seule
+action qui *manque*.
 
-🛑 **Le compteur « 3 / 4 évaluées » compte des mesures, il n'en classe aucune** :
-`accueilEvalueesLabel` (`lib/progres.ts` ⇄ `progres_labels.dart`) ne lit que la
-présence d'un `niveau` servi, et son total est **la liste servie**, jamais un
-« 4 » écrit en dur.
+#### L'échelle CECRL — quatre crans, A1 → B2
 
-🛑 **Les cartes se posent en GRILLE À DEUX COLONNES, dès 360 px** — jamais une
-file de cartes pleine largeur. Au palier desktop du kit (960 px) la colonne de
-1080 px les pose de front (`repeat(auto-fit, minmax(190px, 1fr))`) ; **ce palier
-n'a aucun miroir Flutter**, l'app étant en portrait téléphone.
+🛑 **Elle s'arrête à B2**, comme partout ailleurs dans le produit : le profil
+TCF IRN ne délivre jamais au-delà, et l'échelle du bilan n'affiche déjà que
+A1 → B2. ⚠️ **La maquette en montrait SIX**, C1 et C2 grisés et hors d'atteinte ;
+le propriétaire a **tranché pour la règle** le 2026-09-16, en cours de passe —
+deux paliers que la notation ne rend jamais n'ont rien à faire sur l'échelle
+d'un candidat.
+
+- **Ce n'est ni une jauge ni un pourcentage** : elle situe un **palier servi**
+  face à un **objectif servi**, à crans de largeur égale. Aucun chiffre n'y est
+  écrit, et la règle « aucun pourcentage de progression vers un palier » tient.
+- **Trois états de cran** : `done` (rempli, jusqu'au palier atteint inclus),
+  `target` (le cran de l'objectif, en contour rouge) et `empty`.
+  Sous les crans, les libellés : le palier **atteint** en bleu, l'objectif en
+  rouge — et **le palier atteint l'emporte** quand les deux tombent sur le même
+  cran (l'objectif est alors atteint, le dire en rouge se lirait comme un
+  manque).
+- 🛑 **`A1_NON_ATTEINT` (« &lt;A1 ») n'allume AUCUN cran.** Le candidat n'a
+  atteint aucun des quatre paliers ; allumer A1 lui annoncerait celui qu'il n'a
+  justement pas. La pastille dit « &lt;A1 », l'échelle reste vide, et le lecteur
+  d'écran entend « **Niveau inférieur à A1** » — on ne ment jamais vers le haut.
+  ⚠️ **Ce n'est PAS le rendu d'une épreuve non mesurée** : la ligne garde son
+  fond blanc, son repère plein et ses crans *pleins mais éteints*, là où une
+  épreuve à évaluer passe en contour. Un candidat mesuré sous A1 et un candidat
+  jamais mesuré ne doivent pas se voir dans le même écran.
+- 🛑 **Une seule autorité de position** : `cecrlIndex` (`lib/types.ts`) ⇄
+  `NiveauCecrl.scaleIndex` — la même que le rail des bilans, d'où le rabattement
+  de C1/C2 sur B2 pour relire un historique sans mentir. Côté mobile,
+  `_accueilRangCecrl` n'ajoute que la garde qui manque à `scaleIndex`
+  (`a1NonAtteint` y vaut 0, cette barre-là n'ayant que quatre libellés).
+- **Accessibilité** : `role="img"` + `aria-label` composé (« Niveau B1, objectif
+  B2 ») côté web, `Semantics(image: true, excludeSemantics: true)` côté Flutter.
+  Les libellés de crans sont décoratifs des deux côtés — personne n'a à épeler
+  quatre crans pour comprendre une phrase.
+
+🛑 **Le compteur « 3 / 4 » compte des mesures, il n'en classe aucune** :
+`accueilEvaluees` (`lib/progres.ts` ⇄ `progres_labels.dart`) ne lit que la
+présence d'un `niveau` servi, et son total est **la liste servie** — c'est lui
+qui pose le nombre de pastilles, jamais un « 4 » écrit en dur.
+
+#### Le palier desktop du web (≥ 960 px)
+
+🛑 **La liste passe à DEUX colonnes, et c'est tout ce que le desktop lui fait.**
+Sur la colonne large du kit (1080 px), une ligne unique étirerait son échelle sur
+près de 1 000 px : quatre crans à 240 px ne situent plus rien, et l'intitulé
+flotterait à un écran du CTA. Deux colonnes ramènent chaque ligne autour de
+500 px, l'ordre de grandeur des 440 px de la maquette. L'en-tête, la bande
+d'objectif et la note de pied restent **pleine largeur** — on ne coupe pas la
+carte en deux. C'est le pendant de `.deskGrid2`, donc **une media query sur une
+primitive existante**, et **sans miroir Flutter** : l'app est en portrait
+téléphone.
+
+#### Le pendant CIVIQUE — même anatomie, données civiques
+
+🛑 **Arbitrage du propriétaire (2026-09-16)** : le civique adopte **la même
+anatomie** — carte à liseré tricolore, en-tête, bande de tête, liste verticale à
+pastille, statut à pastille colorée, ligne de pied. 🛑 **Adapté, jamais
+transposé** : le civique n'a ni palier CECRL ni objectif CECRL servi, et on ne
+fabrique pas ce qui manque.
+
+| brique | TCF | civique |
+|---|---|---|
+| liseré tricolore | ✅ | ✅ |
+| en-tête titre + phrase | « Votre niveau par épreuve » | « Votre niveau par thème » |
+| bande de tête — intitulé | « Objectif actuel » | « **Votre dernier résultat** » |
+| bande de tête — valeur | « Atteindre B2 partout » (`objectif` servi) | `progresCiviqueScore` — « 28 / 40 · seuil 32 / 40 », **servi** (`historique.at(-1)`) |
+| bande de tête — compteur | épreuves mesurées / servies, « évaluées » | thèmes d'`etat ≠ NON_EVALUE` / servis, « **évalués** » |
+| pastille de ligne | le repère court servi (`CO`…) | le **rang servi** (`1`…`5`) |
+| statut + ton | `accueilEpreuveStatut` / `accueilEpreuveTon` | `CIVIC_THEME_STATE_LABEL` (ou « À évaluer ») / `civicBarTone` |
+| palier à droite | `accueilEpreuveBadge` | **omis** — aucun palier CECRL servi |
+| échelle CECRL | ✅ | **omise** — aucun palier, aucun objectif CECRL servi |
+| à sa place | — | la **jauge d'état** (`civicBarJauge` / `civicBarTone`), autorité déjà en place pour cet enum |
+| ligne de pied | « Voir mes résultats » · « Objectif B2 » | « Travailler ce thème », **sans objectif** |
+| CTA rouge plein | épreuve jamais mesurée | **jamais** — le civique ne lance rien depuis l'Accueil |
+
+🛑 **Ce qui est OMIS côté civique, et pourquoi** : l'échelle CECRL et le palier
+(aucun niveau CECRL n'est servi pour le civique, `20_` §12), l'objectif de la
+ligne de pied et le libellé « Objectif actuel » (aucun objectif civique servi),
+et le CTA rouge (le Plan civique porte le seul lanceur de série). **La bande de
+tête entière disparaît** quand aucun examen civique n'a été passé : sans
+`historique`, le serveur ne sert ni score ni seuil — exactement comme le bandeau
+TCF disparaît sans démarche déclarée.
+
+🛑 **Le rang n'est pas un code inventé** : un thème sert un `code`
+(`CIV_PRINCIPES`…), qui n'est pas une abréviation de deux lettres, et en
+fabriquer une serait inventer un libellé. On montre la **position dans la liste
+que le serveur ordonne** — ce que le produit fait déjà des cinq thèmes du livret
+citoyen. `NON_EVALUE` reste **neutre**, jamais ambre ni rouge : `null = inconnu,
+jamais mauvais`.
 
 🛑 **Ces briques vivent dans le KIT, pas dans l'écran** (2026-09-16) :
-`LevelCard`, `LevelGrid`, `GoalRibbon`, `MicroNote` et la cocarde
-(`Card rule="flag"` ⇄ `SfCard(rule: true)`) sont ajoutées **des deux côtés dans
-la même passe**. Elles **remplacent** `HomeSituationCard`, `HomeSituationGrid`,
-`HomeGoalBanner` et les classes `.home-situation-grid` / `-card` / `-head` /
-`-name` / `-badge` / `-statut` / `.home-goal`, **supprimées**. Seule l'en-tête
-de la carte (`.home-situation-title`, `.home-situation-copy`) reste locale à
-l'écran.
+`LevelLadder`, `LevelRow`, `LevelList`, `GoalBanner`, `MicroNote`, la variante
+`PanelHead lead` et le liseré (`Card rule="flag"` ⇄ `SfCard(rule: true)`) sont
+ajoutées **des deux côtés dans la même passe**. Elles **remplacent** `LevelCard`
+⇄ `SfLevelCard`, `LevelGrid` ⇄ `SfLevelGrid` et `GoalRibbon` ⇄ `SfGoalRibbon`,
+**supprimées** avec leurs classes (`.levelCard`, `.levelGrid`, `.goalRibbon` et
+leurs dérivées) — comme l'étaient déjà `HomeSituationCard`, `HomeSituationGrid`,
+`HomeGoalBanner` et `.home-situation-*`. **L'écran n'a plus une seule règle de
+style à lui** pour cette section : `.home-situation-title` et
+`.home-situation-copy` sont parties avec la 2ᵉ passe.
+
+🛑 **Deux dérivations supprimées avec leur dernier lecteur** :
+`accueilEpreuveJauge` (l'échelle a pris la place du rail — une jauge à cinq
+positions fixes disait la même chose que le mot juste à côté) et
+`accueilEvalueesLabel` (le compteur se rend en trois morceaux : le compte, les
+pastilles et le mot). `accueilEpreuveTon` **reste** : il teinte la pastille de
+statut.
 
 🛑 **Elle ne remplace PAS « Votre progression »**, qui garde ses deux compteurs
 de compétences juste en dessous. L'une dit *où en est chaque épreuve*, l'autre
@@ -525,7 +619,7 @@ compteur servi pour les deux parcours.
 
 🛑 **Aucun appel de plus.** `GET /api/me/progress` est déjà lu par l'Accueil
 (`progressProvider` ⇄ le lot parallèle du dashboard) et porte déjà les
-4 épreuves : la section ne coûte rien au réseau.
+4 épreuves **et** les thèmes civiques : la section ne coûte rien au réseau.
 
 ### 🛑 EE/EO — un ENTRAÎNEMENT ne définit JAMAIS le niveau global AFFICHÉ ICI (2026-09-16)
 
