@@ -2,17 +2,21 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DiagnosticEpreuveLevel;
 import com.sejourfr.app.dto.TcfLevelProfile;
+import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,30 +39,14 @@ import java.util.UUID;
  *       tirage et la même durée. L'exclusion des diagnostics (V049) est
  *       révoquée ; {@link #bestQcm} retenant un <b>maximum</b>, rien n'est
  *       compté deux fois.</li>
- *   <li><b>EE / EO</b> : épreuve sans <b>aucun examen complet évalué</b> ni
+ *   <li><b>EE / EO</b> : épreuve sans <b>aucune soumission évaluée</b> ni
  *       analyse de diagnostic ⇒ aucun niveau ⇒ épreuve à null. Une production
  *       rendue mais <b>inexploitable</b> (vide, quasi vide, langue non
  *       française, recopiage de la consigne) est du même ordre : sa ligne
  *       {@code ai_evaluations} existe mais ne porte aucun niveau
- *       ({@code evaluabilite = NON_EVALUABLE}), donc elle ne pèse pas dans le
- *       bilan de son épreuve — le domaine peut rester non évalué et le profil
- *       partiel.</li>
+ *       ({@code evaluabilite = NON_EVALUABLE}), donc elle n'entre pas dans le
+ *       calcul — le domaine reste non évalué et le profil partiel.</li>
  * </ul>
- *
- * <h2>🛑 EE / EO : un ENTRAÎNEMENT ne définit jamais le niveau global</h2>
- * <p>Règle du propriétaire, <b>2026-09-16</b>. Le niveau global d'une épreuve de
- * production ne bouge que sur un <b>examen complet de l'épreuve</b> : celle du
- * diagnostic complet, un examen blanc isolé, ou la sous-épreuve d'un examen
- * blanc TCF complet. L'entraînement libre — même corrigé par l'IA, même situé
- * sur un palier, examinateur vocal temps réel compris — pratique, alimente les
- * compétences et garde son <b>niveau observé sur la tâche</b> sur son propre
- * écran de résultat ; il ne mesure pas l'épreuve.
- *
- * <p>Ce que ça a corrigé : un compte dont la seule trace EO était un
- * entraînement de trois minutes noté A2 affichait « expression orale : A2 » à
- * l'Accueil, sans avoir jamais passé d'épreuve d'EO. La liste des sessions qui
- * qualifient, et le niveau agrégé de chacune, vivent une seule fois, dans
- * {@link EpreuvesProductionQualifiantesResolver}.
  *
  * <h2>Le diagnostic est une BASELINE, pas un résultat</h2>
  * <p><b>Règle d'arbitrage</b> : le niveau estimé par le diagnostic ne renseigne
@@ -107,7 +95,7 @@ public class TcfProfileService {
     private static final int SCAN_LIMIT = 200;
 
     private final AttemptManager attemptManager;
-    private final EpreuvesProductionQualifiantesResolver qualifiantesResolver;
+    private final AiEvaluationManager aiEvaluationManager;
     private final DiagnosticProductionAnalysisManager diagnosticAnalysisManager;
     private final TcfLevelEstimatorService levelEstimator;
 
@@ -156,32 +144,34 @@ public class TcfProfileService {
     }
 
     /**
-     * Meilleur niveau d'une épreuve de production (EE/EO) : le plus haut
-     * <b>niveau d'épreuve complète</b> jamais obtenu.
+     * Meilleur niveau d'une épreuve de production (EE/EO) : le plus haut niveau
+     * obtenu sur une tâche évaluée. L'unité retenue est la <b>tâche</b>, parce
+     * que c'est l'unité que le candidat travaille (une session d'entraînement
+     * EE/EO = une tâche).
      *
-     * <p>🛑 <b>L'unité est l'ÉPREUVE, jamais la tâche</b>, et la liste des
-     * sessions qui y donnent droit n'est pas décidée ici : c'est
-     * {@link EpreuvesProductionQualifiantesResolver}, la même autorité que la
-     * page « Voir mes résultats » ({@code EpreuveHistoriqueService}). Les deux
-     * écrans parlent donc désormais des mêmes mesures — l'un en prend le
-     * maximum, l'autre la chronologie.
-     *
-     * <p><b>Ce que ça exclut, et c'est le but</b> (règle du propriétaire,
-     * 2026-09-16) : l'entraînement libre, y compris évalué par l'IA et y compris
-     * l'examinateur vocal temps réel. Un compte de test n'avait qu'un
-     * entraînement EO de trois minutes, noté A2 : ce A2 s'affichait comme
-     * « niveau global d'expression orale » alors qu'aucune épreuve d'EO n'avait
-     * jamais été passée. Sans examen complet, l'épreuve reste <b>à évaluer</b>.
-     *
-     * <p><b>Toujours un maximum monotone</b> : la mauvaise journée ne fait pas
-     * redescendre, et l'ordre des sessions n'influence rien. C'est ce qui tient
-     * l'anti-yoyo sans règle de séquence.
+     * <p>Une soumission ré-évaluée porte plusieurs {@code ai_evaluations} :
+     * seule la plus récente fait foi, sinon un verdict périmé pourrait
+     * l'emporter.
      */
     private NiveauCecrl bestProduction(UUID userId, EpreuveType epreuve) {
+        final Map<UUID, AiEvaluation> latestBySubmission = new HashMap<>();
+        for (final AiEvaluation e : aiEvaluationManager.findByUserAndEpreuve(userId, epreuve)) {
+            if (e.getSubmission() == null) continue;
+            // Le tri « la plus recente fait foi » se fait sur TOUTES les lignes,
+            // y compris celles sans niveau : filtrer avant reviendrait a laisser
+            // un verdict perime l'emporter sur une re-evaluation qui n'a rien
+            // pu observer.
+            latestBySubmission.merge(e.getSubmission().getId(), e, TcfProfileService::mostRecent);
+        }
+
         NiveauCecrl best = null;
-        for (final EpreuvesProductionQualifiantesResolver.EpreuveQualifiante q
-                : qualifiantesResolver.qualifiantes(userId, epreuve, SCAN_LIMIT)) {
-            best = levelEstimator.max(best, levelEstimator.capB2(q.niveau()));
+        for (final AiEvaluation e : latestBySubmission.values()) {
+            // Sans niveau, la ligne n'est pas une mauvaise preuve : elle n'est
+            // pas une preuve. C'est le cas d'une production INEXPLOITABLE
+            // (evaluabilite NON_EVALUABLE, aucun appel LLM emis) comme d'une
+            // evaluation sans niveau situable.
+            if (e.getNiveauCecrl() == null) continue;
+            best = levelEstimator.max(best, levelEstimator.capB2(e.getNiveauCecrl()));
         }
         return best;
     }
@@ -198,5 +188,14 @@ public class TcfProfileService {
             out.merge(row.epreuve(), levelEstimator.capB2(row.niveau()), levelEstimator::max);
         }
         return out;
+    }
+
+    /** Plus récente des deux évaluations ; une date absente ne l'emporte jamais. */
+    private static AiEvaluation mostRecent(AiEvaluation a, AiEvaluation b) {
+        final Instant da = a.getEvaluatedAt();
+        final Instant db = b.getEvaluatedAt();
+        if (db == null) return a;
+        if (da == null) return b;
+        return db.isAfter(da) ? b : a;
     }
 }
