@@ -89,12 +89,20 @@ public class UserDashboardService {
         final MockExamCounts civiqueExams = civiqueMockExamCounts(userId);
         final MockExamCounts tcfExams = tcfMockExamCounts(userId);
 
-        // Niveau TCF estimé : plancher des 4 épreuves, chacune retenant son
-        // MEILLEUR résultat, une épreuve abandonnée sans rien rendre étant
-        // exclue (cf. TcfProfileService). Dérivé serveur — aucun front ne le
-        // recalcule, et son PÉRIMÈTRE part avec lui : sans ça, une seule épreuve
-        // passée s'affichait comme un niveau TCF tout court.
-        final TcfLevelProfile tcfProfile = tcfProfileService.levelProfile(userId);
+        // Niveau TCF estimé : plancher des 4 épreuves, chacune valant la
+        // MOYENNE de ses 3 derniers examens qualifiants, une épreuve jamais
+        // passée étant exclue (cf. TcfProfileService). Dérivé serveur — aucun
+        // front ne le recalcule, et son PÉRIMÈTRE part avec lui : sans ça, une
+        // seule épreuve passée s'affichait comme un niveau TCF tout court.
+        //
+        // 🛑 `levelProfileAccueil`, PAS `levelProfile` (2026-09-16) : c'est la
+        // lecture d'AFFICHAGE, celle du « niveau actuel estimé ». Le Profil,
+        // /dashboard, /statistiques, le hub TCF et /examens-blancs lisent tous
+        // `estimatedTcfLevel`, donc tous cette methode — et donc exactement le
+        // meme palier que l'Accueil, qui passe par `ProgressService.tcf`. La
+        // lecture du PLAN (`levelProfile`, son maximum, ses entrainements)
+        // reste reservee a `PlanCycleResolver` : elle ne s'affiche nulle part.
+        final TcfLevelProfile tcfProfile = tcfProfileService.levelProfileAccueil(userId);
         final NiveauCecrl estimatedTcfLevel = tcfProfile.globalLevel();
 
         final List<DashboardSummaryResponse.CategoryStat> tcf =
