@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/epreuve_historique_models.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../home/widgets/home_blocks.dart';
+import 'progres_labels.dart';
 
 /// Les dernières évaluations qualifiantes d'une épreuve.
 ///
@@ -43,13 +46,135 @@ const String kHistoriqueLead =
 const String kHistoriqueErreur =
     'Vos résultats n\'ont pas pu être chargés. Réessayez dans un instant.';
 
+/* ---------------------------------------------------------------- héros -- */
+
+const String kHistoriqueNiveauLabel = 'Niveau actuel';
+const String kHistoriqueObjectifLabel = 'Objectif';
+
+/* --------------------------------------------------------------- courbe -- */
+
+const String kHistoriqueCourbeTitle = 'Votre évolution';
+const String kHistoriqueCourbeSub = 'Touchez un point pour voir l\'évaluation.';
+
+/* ----------------------------------------------------------- historique -- */
+
+const String kHistoriqueListeTitle = 'Historique';
+
+/// « 4 évaluations complètes ». 🛑 On compte des lignes servies, rien d'autre.
+String historiqueCountLabel(int n) =>
+    '$n évaluation${n > 1 ? 's' : ''} complète${n > 1 ? 's' : ''}';
+
+/// Les trois filtres de la liste. 🛑 Ils partitionnent les **quatre** sources.
+enum HistoriqueFiltre { tout, diagnostic, examen }
+
+const Map<HistoriqueFiltre, String> kHistoriqueFiltreLabel = {
+  HistoriqueFiltre.tout: 'Tout',
+  HistoriqueFiltre.diagnostic: 'Diagnostics',
+  HistoriqueFiltre.examen: 'Examens',
+};
+
+/// À quel filtre appartient une source.
+///
+/// 🛑 **Les quatre valeurs ne se fondent pas deux à deux** ailleurs : ici on ne
+/// les fond que pour **filtrer**, jamais pour les nommer — chaque ligne garde
+/// son libellé gelé (`SourceEvaluation.label`).
+HistoriqueFiltre historiqueFamille(SourceEvaluation source) =>
+    switch (source) {
+      SourceEvaluation.diagnosticRapide ||
+      SourceEvaluation.diagnosticComplet =>
+        HistoriqueFiltre.diagnostic,
+      SourceEvaluation.epreuveSeule ||
+      SourceEvaluation.examenBlanc =>
+        HistoriqueFiltre.examen,
+    };
+
+/// Ce que le détail d'une ligne raconte : d'où vient la mesure.
+///
+/// 🛑 **Rien qui prétende expliquer le palier courant.** Le niveau affiché est
+/// la moyenne des trois derniers examens qualifiants (règle serveur) : écrire
+/// « résultat pris en compte dans votre niveau actuel » sur une ligne précise
+/// serait une affirmation que l'app ne peut pas vérifier.
+const Map<SourceEvaluation, String> kHistoriqueSourceDetail = {
+  SourceEvaluation.diagnosticRapide:
+      'Mesure issue de votre diagnostic rapide.',
+  SourceEvaluation.diagnosticComplet:
+      'Mesure issue de votre diagnostic complet.',
+  SourceEvaluation.epreuveSeule:
+      'Épreuve passée seule, en dehors d\'un examen complet.',
+  SourceEvaluation.examenBlanc:
+      'Cette épreuve faisait partie d\'un examen blanc complet.',
+};
+
+/// « Niveau estimé : B1. » — le palier servi, remis en tête du détail.
+String historiqueNiveauEstime(NiveauCecrl niveau) =>
+    'Niveau estimé : ${niveau.shortName}.';
+
+/// Le pictogramme d'une provenance.
+IconData historiqueSourceIcon(SourceEvaluation source) => switch (source) {
+      SourceEvaluation.diagnosticRapide => LucideIcons.compass,
+      SourceEvaluation.diagnosticComplet => LucideIcons.clipboardCheck,
+      SourceEvaluation.epreuveSeule => LucideIcons.circleCheck,
+      SourceEvaluation.examenBlanc => LucideIcons.fileText,
+    };
+
+/// Ce que la liste compte, et ce qu'elle ne compte pas.
+const String kHistoriquePorteeTitle = 'Ce qui compte ici :';
+const String kHistoriquePorteeText =
+    ' diagnostics et épreuves complètes. Les petits sujets et les entraînements '
+    'libres restent disponibles ailleurs, mais ne modifient pas cet historique.';
+
 /// Le lien vers le hub des historiques. 🛑 **Miroir du web**, où la même carte
 /// porte la même sortie : cet écran ne montre qu'UNE épreuve, et il faut
 /// pouvoir rejoindre le reste sans repasser par l'Accueil.
 const String kHistoriqueTousLabel = 'Tous mes résultats';
 
+/* -------------------------------------------------------------- échelle -- */
+
+/// L'échelle **affichée**, du haut vers le bas.
+///
+/// 🛑 **Elle suit les données servies**, elle ne les rabat pas : une mesure en
+/// dessous de A2 ouvre l'échelle vers le bas. La fenêtre minimale est A2 → B2,
+/// celle de la maquette — trois lignes, l'amplitude utile du TCF IRN.
+///
+/// Miroir web : `echelleAffichee`.
+List<String> echelleAffichee(List<int> rangs) {
+  var bas = 2;
+  var haut = 4;
+  for (final r in rangs) {
+    if (r < bas) bas = r;
+    if (r > haut) haut = r;
+  }
+  return [
+    for (var i = haut; i >= bas; i--) kTcfPaliers[i].shortName,
+  ];
+}
+
+/* ---------------------------------------------------------------- dates -- */
+
+const List<String> _kMois = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+/// « 14 sept. 2026 ». `null` quand le serveur n'a pas de date — on n'en
+/// invente pas.
+String? jourLong(DateTime? quand) {
+  if (quand == null) return null;
+  final local = quand.toLocal();
+  return '${local.day} ${_kMois[local.month - 1]} ${local.year}';
+}
+
+/// « 14 sept. » — l'abscisse de la courbe, où l'année ne tient pas.
+String jourCourt(DateTime? quand) {
+  if (quand == null) return '—';
+  final local = quand.toLocal();
+  return '${local.day} ${_kMois[local.month - 1]}';
+}
+
+/* ------------------------------------------------------------------ vue -- */
+
 /// **« D'où sort mon niveau ? »** — l'écran ouvert depuis une carte d'épreuve
-/// de l'Accueil.
+/// de l'Accueil, refait sur la maquette du propriétaire (2026-09-16).
 ///
 /// 🛑 **Ce n'est pas une seconde liste d'historique.** `/historiques` liste
 /// **toutes** les sessions, entraînements compris ; celui-ci ne montre que les
@@ -58,15 +183,60 @@ const String kHistoriqueTousLabel = 'Tous mes résultats';
 /// « pourquoi ce niveau ? », et elle n'a pas d'équivalent.
 ///
 /// 🛑 **Rien n'est dérivé ici** : date, provenance et palier sont **servis**
-/// (`GET /api/me/progress/tcf/{epreuve}/historique`).
-class EpreuveHistoriqueScreen extends ConsumerWidget {
+/// (`GET /api/me/progress/tcf/{epreuve}/historique`) ; le palier courant,
+/// l'objectif et le sens d'évolution viennent du **même** `progressProvider`
+/// que l'Accueil — donc **aucun appel de plus**, il est gardé en vie pour la
+/// session.
+///
+/// 🛑 **Miroir de `EpreuveHistoriqueView` côté web**, bloc pour bloc.
+class EpreuveHistoriqueScreen extends ConsumerStatefulWidget {
   const EpreuveHistoriqueScreen({super.key, required this.epreuve});
 
   final EpreuveType epreuve;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(epreuveHistoriqueProvider(epreuve));
+  ConsumerState<EpreuveHistoriqueScreen> createState() =>
+      _EpreuveHistoriqueScreenState();
+}
+
+class _EpreuveHistoriqueScreenState
+    extends ConsumerState<EpreuveHistoriqueScreen> {
+  HistoriqueFiltre _filtre = HistoriqueFiltre.tout;
+
+  /// L'index **dans la liste servie** (la plus récente d'abord).
+  int? _choisi;
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(epreuveHistoriqueProvider(widget.epreuve));
+    // 🛑 **Le palier courant est un CONFORT** : son absence laisse la liste
+    // entière, elle ne doit jamais empêcher de lire son historique.
+    final progres = ref.watch(progressProvider).valueOrNull;
+    final situation = progres?.tcf.epreuves
+        .where((e) => e.epreuve == widget.epreuve)
+        .firstOrNull;
+    final objectif = progres?.tcf.objectif;
+
+    final evaluations = async.valueOrNull?.evaluations ?? const [];
+    // Du plus ancien au plus récent : une courbe se lit dans ce sens.
+    final chronologie = evaluations.reversed.toList(growable: false);
+    final rangs = [
+      for (final e in chronologie) e.niveau.tcfPalierIndex,
+      if (objectif != null) objectif.tcfPalierIndex,
+    ];
+    final ladder = echelleAffichee(rangs);
+    final haut = ladder.isEmpty
+        ? 4
+        : kTcfPaliers.indexWhere((p) => p.shortName == ladder.first);
+    final points = [
+      for (final e in chronologie)
+        SfChartPoint(
+          date: jourCourt(e.mesureA),
+          level: e.niveau.shortName,
+          row: haut - e.niveau.tcfPalierIndex,
+        ),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -75,52 +245,128 @@ class EpreuveHistoriqueScreen extends ConsumerWidget {
           children: [
             SfTop(
               onBack: () => retourOuRepli(context, repli: '/'),
-              kicker: epreuve.displayLabel,
+              kicker: widget.epreuve.displayLabel,
               title: kHistoriqueTitle,
             ),
             SfSection(
               flush: true,
-              child: SfCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SfTiny(kHistoriqueLead),
-                    const SizedBox(height: 12),
-                    async.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
+              child: SfStack(
+                pad: false,
+                children: [
+                  // 🛑 **Le palier et l'objectif sont SERVIS**, et « — » est le
+                  // rendu d'une absence de mesure : jamais « A1 ».
+                  SfResultHero(
+                    label: kHistoriqueNiveauLabel,
+                    level: situation?.niveau?.shortName ?? '—',
+                    goalLabel: kHistoriqueObjectifLabel,
+                    goal: objectif?.shortName,
+                    trend: situation == null
+                        ? null
+                        : progresEvolutionLabel(situation),
+                    note: kHistoriqueLead,
+                  ),
+                  // 🛑 **Pas de courbe sans point** : un panneau vide
+                  // raconterait une absence comme un incident.
+                  if (points.isNotEmpty)
+                    SfCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SfPanelHead(
+                            title: kHistoriqueCourbeTitle,
+                            sub: points.length > 1
+                                ? kHistoriqueCourbeSub
+                                : null,
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          SfLevelChart(
+                            ladder: ladder,
+                            points: points,
+                            activeIndex: _choisi == null
+                                ? points.length - 1
+                                : evaluations.length - 1 - _choisi!,
+                            onSelect: (i) => setState(
+                                () => _choisi = evaluations.length - 1 - i),
+                          ),
+                        ],
                       ),
-                      // 🛑 Un échec de chargement n'est pas « aucune
-                      // évaluation » : on ne range pas une panne dans le
-                      // verdict le plus bas.
-                      error: (_, __) => const SfTiny(kHistoriqueErreur),
-                      data: (historique) => historique.evaluations.isEmpty
-                          ? const _Vide()
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                    ),
+                  SfCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SfPanelHead(
+                          title: kHistoriqueListeTitle,
+                          sub: evaluations.isEmpty
+                              ? null
+                              : historiqueCountLabel(evaluations.length),
+                        ),
+                        const SizedBox(height: 12),
+                        async.when(
+                          loading: () => const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 18),
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2.4),
+                              ),
+                            ),
+                          ),
+                          // 🛑 Un échec de chargement n'est pas « aucune
+                          // évaluation » : on ne range pas une panne dans le
+                          // verdict le plus bas.
+                          error: (_, __) => const SfTiny(kHistoriqueErreur),
+                          data: (historique) => historique.evaluations.isEmpty
+                              ? const _Vide()
+                              : _Liste(
+                                  evaluations: historique.evaluations,
+                                  filtre: _filtre,
+                                  choisi: _choisi,
+                                  onFiltre: (f) => setState(() => _filtre = f),
+                                  onToggle: (i) => setState(
+                                      () => _choisi = _choisi == i ? null : i),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        SfInfoNote(
+                          child: Text.rich(
+                            TextSpan(
                               children: [
-                                for (final e in historique.evaluations)
-                                  _Ligne(evaluation: e),
+                                TextSpan(
+                                  text: kHistoriquePorteeTitle,
+                                  style: AppFonts.ui(
+                                    size: 11.5,
+                                    weight: FontWeight.w800,
+                                    color: AppColors.amberDark,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: kHistoriquePorteeText,
+                                  style: AppFonts.ui(
+                                    size: 11.5,
+                                    color: AppColors.amberDark,
+                                    height: 1.45,
+                                  ),
+                                ),
                               ],
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: HomeLink(
+                            label: kHistoriqueTousLabel,
+                            onTap: () => context.push(AppRoutes.historiques),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: HomeLink(
-                        label: kHistoriqueTousLabel,
-                        onTap: () => context.push(AppRoutes.historiques),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 28),
@@ -150,54 +396,101 @@ class _Vide extends StatelessWidget {
   }
 }
 
-/// Une évaluation : sa provenance, sa date, son palier.
-class _Ligne extends StatelessWidget {
-  const _Ligne({required this.evaluation});
+/// La liste filtrable des évaluations.
+class _Liste extends StatelessWidget {
+  const _Liste({
+    required this.evaluations,
+    required this.filtre,
+    required this.choisi,
+    required this.onFiltre,
+    required this.onToggle,
+  });
 
-  final EvaluationQualifiante evaluation;
-
-  /// « 14 sept. 2026 ». `null` quand le serveur n'a pas de date — on n'en
-  /// invente pas.
-  String? get _date {
-    final quand = evaluation.mesureA;
-    if (quand == null) return null;
-    final local = quand.toLocal();
-    const mois = [
-      'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-    ];
-    return '${local.day} ${mois[local.month - 1]} ${local.year}';
-  }
+  final List<EvaluationQualifiante> evaluations;
+  final HistoriqueFiltre filtre;
+  final int? choisi;
+  final ValueChanged<HistoriqueFiltre> onFiltre;
+  final ValueChanged<int> onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final date = _date;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  evaluation.source.label,
-                  style: AppFonts.ui(size: 14, weight: FontWeight.w700),
-                ),
-                if (date != null) ...[
-                  const SizedBox(height: 1),
-                  SfTiny(date),
-                ],
-              ],
-            ),
+    final visibles = <int>[
+      for (var i = 0; i < evaluations.length; i++)
+        if (filtre == HistoriqueFiltre.tout ||
+            historiqueFamille(evaluations[i].source) == filtre)
+          i,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 🛑 **Le filtre ne se montre que s'il a de quoi trier** : une rangée
+        // d'onglets au-dessus d'une ligne unique ne filtre rien.
+        if (evaluations.length > 1) ...[
+          SfFilterChips<HistoriqueFiltre>(
+            options: [
+              for (final f in HistoriqueFiltre.values)
+                (id: f, label: kHistoriqueFiltreLabel[f]!),
+            ],
+            value: filtre,
+            onChanged: onFiltre,
           ),
-          const SizedBox(width: 12),
-          Text(
-            evaluation.niveau.shortName,
-            style: AppFonts.label(size: 13, color: AppColors.blue),
+          const SizedBox(height: 12),
+        ],
+        for (var k = 0; k < visibles.length; k++) ...[
+          if (k > 0) const SizedBox(height: 10),
+          _Ligne(
+            evaluation: evaluations[visibles[k]],
+            open: choisi == visibles[k],
+            onToggle: () => onToggle(visibles[k]),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Une évaluation : sa provenance, sa date, son palier, et son détail.
+class _Ligne extends StatelessWidget {
+  const _Ligne({
+    required this.evaluation,
+    required this.open,
+    required this.onToggle,
+  });
+
+  final EvaluationQualifiante evaluation;
+  final bool open;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return SfHistoryRow(
+      icon: historiqueSourceIcon(evaluation.source),
+      title: evaluation.source.label,
+      date: jourLong(evaluation.mesureA),
+      level: evaluation.niveau.shortName,
+      open: open,
+      onToggle: onToggle,
+      detail: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: historiqueNiveauEstime(evaluation.niveau),
+              style: AppFonts.ui(
+                size: 11.5,
+                weight: FontWeight.w800,
+                height: 1.45,
+              ),
+            ),
+            TextSpan(
+              text: ' ${kHistoriqueSourceDetail[evaluation.source]}',
+              style: AppFonts.ui(
+                size: 11.5,
+                color: AppColors.muted,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

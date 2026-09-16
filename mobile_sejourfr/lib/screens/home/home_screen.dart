@@ -476,39 +476,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final objectif = progres.tcf.objectif;
     return SfCard(
+      // 🛑 **La cocarde est décorative** : elle marque la carte de tête de la
+      // maquette, elle ne code aucun état.
+      rule: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             kHomeSituationCardTitle,
-            style: AppFonts.display(size: 19, weight: FontWeight.w700, height: 1.2),
+            style: AppFonts.display(size: 23, weight: FontWeight.w700, height: 1.1),
           ),
-          const SizedBox(height: 4),
-          const SfTiny(kHomeSituationCardLead),
-          const SizedBox(height: 12),
-          HomeSituationGrid(
+          const SizedBox(height: 6),
+          Text(
+            kHomeSituationCardLead,
+            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.45),
+          ),
+          // 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) : il annonce
+          // vers quoi on va avant de montrer où on en est. Sans démarche
+          // déclarée, pas de bandeau — on ne devine pas l'objectif d'un candidat
+          // qui n'en a pas donné, et le compteur part avec lui.
+          if (objectif != null) ...[
+            const SizedBox(height: 14),
+            SfGoalRibbon(
+              label: kHomeGoalLabel,
+              value: homeGoalText(objectif.shortName),
+              count: accueilEvalueesLabel(epreuves),
+            ),
+          ],
+          const SizedBox(height: 14),
+          SfLevelGrid(
             children: [
               for (final epreuve in epreuves)
-                HomeSituationCard(
+                SfLevelCard(
+                  mark: planDomainSection(epreuve.epreuve)?.wire,
                   title: epreuve.epreuve.displayLabel,
-                  badge: accueilEpreuveBadge(epreuve),
-                  mesure: epreuve.niveau != null,
-                  statut: accueilEpreuveStatut(epreuve),
-                  jauge: accueilEpreuveJauge(epreuve),
+                  level: accueilEpreuveBadge(epreuve),
+                  measured: epreuve.niveau != null,
+                  from: progresEpreuveNiveau(epreuve),
+                  to: accueilObjectifLabel(objectif),
+                  status: accueilEpreuveStatut(epreuve),
+                  ratio: accueilEpreuveJauge(epreuve),
                   tone: accueilEpreuveTon(epreuve),
                   cta: accueilEpreuveCta(epreuve),
                   onTap: () => _ouvrirEpreuve(context, epreuve),
                 ),
             ],
           ),
-          // 🛑 Sans démarche déclarée, pas de bandeau : on ne devine pas
-          // l'objectif d'un candidat qui n'en a pas donné.
-          // 🛑 Le bandeau reste PLEINE LARGEUR, sous la grille : il porte
-          // l'objectif de l'épreuve entière, pas d'une carte.
-          if (objectif != null) ...[
-            const SizedBox(height: 12),
-            HomeGoalBanner(text: homeGoalText(objectif.shortName)),
-          ],
+          const SizedBox(height: 14),
+          const SfMicroNote(kHomeSituationNote),
         ],
       ),
     );
@@ -527,26 +542,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Text(
             kHomeSituationCivicCardTitle,
-            style: AppFonts.display(size: 19, weight: FontWeight.w700, height: 1.2),
+            style: AppFonts.display(size: 23, weight: FontWeight.w700, height: 1.1),
           ),
-          const SizedBox(height: 4),
-          const SfTiny(kHomeSituationCivicCardLead),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
+          Text(
+            kHomeSituationCivicCardLead,
+            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.45),
+          ),
+          const SizedBox(height: 14),
           // Même grille qu'en TCF : un thème civique se dit en un libellé, un
           // état et une jauge — exactement ce qu'une carte compacte porte.
-          HomeSituationGrid(
+          SfLevelGrid(
             children: [
               for (final theme in themes)
-                HomeSituationCard(
+                SfLevelCard(
+                  // 🛑 **Pas de repère court en civique** : la maquette n'en
+                  // donne qu'aux quatre épreuves (CO/CE/EE/EO), et un thème n'a
+                  // aucun code de deux lettres servi. On omet, on n'invente pas.
+                  mark: null,
                   title: theme.label,
                   // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne
                   // classe aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
-                  badge: theme.etat == CivicThemeState.nonEvalue
+                  level: theme.etat == CivicThemeState.nonEvalue
                       ? kNonMesureLabel
                       : theme.etat.label,
-                  mesure: theme.etat != CivicThemeState.nonEvalue,
-                  statut: theme.etat.label,
-                  jauge: civicThemeJauge(theme.etat),
+                  measured: theme.etat != CivicThemeState.nonEvalue,
+                  // 🛑 **Aucune ligne de repères en civique** : il n'a ni palier
+                  // CECRL ni objectif servi, et la fabriquer serait inventer une
+                  // donnée.
+                  from: null,
+                  to: null,
+                  status: theme.etat.label,
+                  ratio: civicThemeJauge(theme.etat),
                   tone: civicThemeBarTone(theme.etat),
                   cta: kHomeSituationCivicCta,
                   onTap: () => _ouvrirPlan(context, civique: true),

@@ -1931,3 +1931,649 @@
     padding-top: 64px;
   }
 }
+
+/* ==========================================================================
+   Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16)
+
+   🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
+   `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
+   ce bloc doit rester vide.
+   ========================================================================== */
+
+/* ---------- Le filet de tête d'une carte ---------- */
+
+/* 🛑 **Décoratif, et rien d'autre** : il ne code aucun état. C'est la cocarde
+   de la maquette, posée en tête de la carte « Votre niveau par épreuve ». */
+.ruleFlag {
+  position: relative;
+  overflow: hidden;
+}
+
+.ruleFlag::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  border-radius: 0 0 var(--sf-radius-pill) var(--sf-radius-pill);
+  background: linear-gradient(
+    90deg,
+    var(--color-blue) 0 42%,
+    white 42% 58%,
+    var(--color-red) 58% 100%
+  );
+}
+
+/* ---------- « Où vous en êtes » : la grille et ses cartes ---------- */
+
+/* 🛑 **Deux colonnes DÈS 360 px**, comme la maquette et comme le miroir Flutter
+   (`SfLevelGrid`) : une file de cartes pleine largeur n'est pas ce qui a été
+   validé. Le palier desktop du kit les pose de front. */
+.levelGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.levelCard {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  padding: 14px;
+  border: 0;
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-blue-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 8%, transparent);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--sf-quick) var(--sf-ease-out), box-shadow var(--sf-quick);
+}
+
+.levelCard:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.levelCard:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.levelCard:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Une épreuve **mesurée** se détache : fond blanc, relief, et le filet de tête.
+   🛑 C'est le seul signal porté par la carte elle-même — l'état pédagogique,
+   lui, reste écrit en toutes lettres sous le rail. */
+.isAssessed.levelCard {
+  background: white;
+  box-shadow: var(--sf-shadow-border);
+}
+
+.isAssessed.levelCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-blue) 0 72%, var(--color-red) 72% 100%);
+}
+
+.levelCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Le repère court (« CO »), en mono : c'est une étiquette technique. */
+.levelMark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.levelCard:not(.isAssessed) .levelMark {
+  background: white;
+  color: var(--color-blue);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 16%, transparent);
+}
+
+.levelChip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* 🛑 Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
+   pastille de marque sur une absence de mesure se lirait comme un résultat. */
+.levelChip.isNa {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.levelCardTitle {
+  margin: 12px 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* La ligne de repères : le palier atteint à gauche, l'objectif à droite. */
+.levelMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.levelMeta span {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.levelStatus {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--color-ink-2);
+}
+
+.levelCardEnd {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-blue);
+}
+
+.levelCardEnd svg {
+  flex: 0 0 auto;
+}
+
+/* ---------- Le bandeau d'objectif ---------- */
+
+.goalRibbon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--sf-radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 8%, transparent);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-blue) 8%, white) 0%,
+    white 56%,
+    color-mix(in srgb, var(--color-red) 7%, white) 100%
+  );
+}
+
+.goalDot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-red);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-red) 10%, transparent);
+}
+
+.goalRibbonBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.goalRibbonBody small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.goalRibbonBody b {
+  margin-top: 1px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.goalCount {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------- La note discrète de bas de carte ---------- */
+
+.microNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.microNoteIco {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-blue);
+}
+
+/* ---------- L'en-tête d'un panneau ---------- */
+
+.panelHead {
+  margin-bottom: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.panelSub {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* ---------- Le héros d'une page de résultats ---------- */
+
+.resultHero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 20px 18px;
+  background: var(--gradient-ink-blue);
+  box-shadow: var(--sf-shadow-lift);
+  color: white;
+}
+
+.resultHero::after {
+  content: "";
+  position: absolute;
+  right: -46px;
+  top: -60px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: color-mix(in srgb, white 8%, transparent);
+}
+
+.resultHeroLabel {
+  position: relative;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: color-mix(in srgb, white 78%, var(--color-blue));
+}
+
+.resultHeroRow {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.resultHeroLevel {
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 620;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  color: white;
+}
+
+.resultHeroGoal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 12px;
+  color: color-mix(in srgb, white 82%, var(--color-blue));
+  white-space: nowrap;
+}
+
+.resultHeroGoal b {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 800;
+  color: white;
+}
+
+.trendChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 7px 11px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 14%, transparent);
+  border: 1px solid color-mix(in srgb, white 16%, transparent);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: white;
+}
+
+.resultHeroFoot {
+  position: relative;
+  margin: 10px 0 0;
+  max-width: 320px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: color-mix(in srgb, white 76%, var(--color-blue));
+}
+
+/* ---------- La courbe d'évolution ---------- */
+
+.chart {
+  position: relative;
+  height: 180px;
+  padding: 10px 6px 26px 38px;
+}
+
+.chartYAxis {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 26px;
+  width: 34px;
+}
+
+.chartYLabel {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.chartPlot {
+  position: relative;
+  height: 100%;
+}
+
+.chartGrid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-line-2);
+}
+
+.chartLine {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chartDot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  border: 4px solid var(--color-blue);
+  background: white;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: box-shadow var(--sf-quick);
+}
+
+.chartDot.isOn {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-blue) 12%, transparent);
+}
+
+.chartDot:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.chartDate {
+  position: absolute;
+  bottom: -22px;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* ---------- La rangée de filtres ---------- */
+
+.filterRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filterRow::-webkit-scrollbar {
+  display: none;
+}
+
+.filter {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 8px 12px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filter.isOn {
+  background: var(--color-ink);
+  color: white;
+}
+
+.filter:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* ---------- Une ligne d'historique ---------- */
+
+.histItem {
+  border-radius: var(--sf-radius-md);
+  background: var(--color-blue-soft);
+  overflow: hidden;
+  transition: background var(--sf-quick);
+}
+
+.histItem.isOn {
+  background: var(--color-blue-light);
+}
+
+.histMain {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.histMain:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+
+.histIco {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--sf-radius-sm);
+  background: white;
+  color: var(--color-blue);
+}
+
+.histBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.histBody b {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+.histBody small {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.histLevel {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-blue);
+  white-space: nowrap;
+}
+
+.histDetail {
+  padding: 0 12px 12px 64px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.histDetail strong {
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+/* ---------- L'encart de pied de liste ---------- */
+
+.infoNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 12px 13px;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-amber-light);
+  border: 1px solid var(--color-amber-border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-amber-dark);
+}
+
+.infoNote b {
+  font-weight: 800;
+}
+
+.infoNoteIco {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--color-amber-dark);
+}
+
+/* ---------- Palier desktop (960 px) — la borne du kit, pas une de plus ---- */
+
+@media (min-width: 960px) {
+  /* La colonne de 1080 px pose les quatre épreuves de front. */
+  .levelGrid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+
+  .levelCardTop {
+    flex-wrap: nowrap;
+  }
+
+  .chart {
+    height: 220px;
+  }
+
+  .resultHeroLevel {
+    font-size: 54px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levelCard,
+  .histItem,
+  .chartDot {
+    transition: none;
+  }
+}

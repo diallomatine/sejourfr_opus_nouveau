@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   Circle,
   CircleDot,
+  Info,
   Minus,
   AlertCircle,
   type LucideIcon,
@@ -226,6 +227,7 @@ export function Card({
   children,
   variant,
   padding,
+  rule,
   className,
   style,
 }: {
@@ -233,6 +235,14 @@ export function Card({
   variant?: "soft" | "warn" | "ok" | "hero";
   /** `tight` pour une carte qui n'empile que des lignes séparées d'un filet. */
   padding?: "tight" | "rows";
+  /**
+   * La **cocarde** de 3 px posée en tête de carte (maquette du propriétaire) :
+   * bleu · blanc · rouge.
+   *
+   * 🛑 **Décorative et rien d'autre** : elle ne code aucun état et ne change
+   * jamais selon une donnée. Miroir Flutter : `SfCard.rule`.
+   */
+  rule?: "flag";
   className?: string;
   style?: CSSProperties;
 }) {
@@ -246,6 +256,7 @@ export function Card({
         variant === "ok" && styles.cardOk,
         padding === "tight" && styles.cardTight,
         padding === "rows" && styles.cardRows,
+        rule === "flag" && styles.ruleFlag,
         className,
       )}
       style={style}
@@ -1098,5 +1109,408 @@ export function PassCard({
       </div>
       <span className={styles.choiceMark} />
     </button>
+  );
+}
+
+/* ========================================================================== */
+/* Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16) */
+/* ========================================================================== */
+
+/**
+ * **La carte compacte d'une épreuve** — le `.level-card` de la maquette :
+ * repère court, palier, intitulé, la ligne « actuel / objectif », le rail,
+ * l'état en un mot, et ce qu'on peut faire.
+ *
+ * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
+ * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`) : elle ne voit
+ * ni niveau CECRL, ni statut servi, ni pourcentage.
+ *
+ * 🛑 **Le rail n'affiche aucun chiffre** : c'est le codage visuel de l'état
+ * écrit juste en dessous, pas une progression vers un palier.
+ *
+ * Miroir Flutter : `SfLevelCard`.
+ */
+export function LevelCard({
+  mark,
+  level,
+  measured,
+  title,
+  from,
+  to,
+  ratio,
+  tone,
+  status,
+  cta,
+  href,
+  onClick,
+  busy,
+}: {
+  /** Repère court (« CO »). `null` quand rien n'en sert — on n'en invente pas. */
+  mark: string | null;
+  /** Le palier servi, ou le mot d'une absence de mesure. */
+  level: string;
+  /**
+   * Y a-t-il une mesure derrière `level` ?
+   *
+   * 🛑 **Passé, jamais deviné du texte** : comparer un libellé pour décider
+   * d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
+   */
+  measured: boolean;
+  title: string;
+  /**
+   * La gauche de la ligne de repères (« B1 », « Non évaluée »).
+   *
+   * 🛑 `null` **retire la ligne entière** : le civique n'a aucun palier CECRL
+   * et aucun objectif servi — une ligne de repères y serait fabriquée.
+   */
+  from: string | null;
+  /** La droite (« Objectif B2 »). `null` quand aucune démarche n'est servie. */
+  to: string | null;
+  ratio: number;
+  tone: BarTone;
+  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
+  status: string | null;
+  cta: string;
+  /** Où mène la carte. `null` quand elle **lance** au lieu de naviguer. */
+  href: string | null;
+  onClick?: () => void;
+  busy?: boolean;
+}) {
+  const body = (
+    <>
+      <span className={styles.levelCardTop}>
+        {mark ? <span className={styles.levelMark}>{mark}</span> : null}
+        <span className={cx(styles.levelChip, !measured && styles.isNa)}>{level}</span>
+      </span>
+      <span className={styles.levelCardTitle}>{title}</span>
+      {from ? (
+        <span className={styles.levelMeta}>
+          <span>{from}</span>
+          {to ? <span>{to}</span> : null}
+        </span>
+      ) : null}
+      <ProgressMini ratio={ratio} tone={tone} label={status ?? undefined} />
+      {status ? <span className={styles.levelStatus}>{status}</span> : null}
+      <span className={styles.levelCardEnd}>
+        {cta}
+        <ArrowRight size={16} strokeWidth={2.4} aria-hidden />
+      </span>
+    </>
+  );
+  const cls = cx(styles.levelCard, measured && styles.isAssessed);
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={cls} onClick={onClick} disabled={busy}>
+      {body}
+    </button>
+  );
+}
+
+/**
+ * Les cartes d'épreuve, **deux par rangée dès 360 px** (maquette). Au palier
+ * desktop la colonne de 1080 px les pose de front.
+ *
+ * Miroir Flutter : `SfLevelGrid`.
+ */
+export function LevelGrid({ children }: { children: ReactNode }) {
+  return <div className={styles.levelGrid}>{children}</div>;
+}
+
+/**
+ * **Le bandeau d'objectif** — le `.goal-strip` de la maquette : pastille,
+ * intitulé + valeur, et à droite un compteur.
+ *
+ * 🛑 `count` est **passé**, jamais compté ici. Miroir Flutter : `SfGoalRibbon`.
+ */
+export function GoalRibbon({
+  label,
+  value,
+  count,
+}: {
+  label: string;
+  value: string;
+  count?: string | null;
+}) {
+  return (
+    <div className={styles.goalRibbon}>
+      <span className={styles.goalDot} aria-hidden />
+      <span className={styles.goalRibbonBody}>
+        <small>{label}</small>
+        <b>{value}</b>
+      </span>
+      {count ? <span className={styles.goalCount}>{count}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * La note discrète de bas de carte (`.micro-note`) : une pastille « i » et une
+ * phrase fine. Miroir Flutter : `SfMicroNote`.
+ */
+export function MicroNote({ children }: { children: ReactNode }) {
+  return (
+    <p className={styles.microNote}>
+      <span className={styles.microNoteIco} aria-hidden>
+        <Info size={11} strokeWidth={2.6} />
+      </span>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/** L'en-tête d'un panneau : son titre, et ce qu'il contient en sous-titre. */
+export function PanelHead({ title, sub }: { title: string; sub?: string | null }) {
+  return (
+    <div className={styles.panelHead}>
+      <h3 className={styles.panelTitle}>{title}</h3>
+      {sub ? <p className={styles.panelSub}>{sub}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * **Le héros d'une page de résultats** — le `.result-hero` de la maquette :
+ * fond sombre de marque, le palier en très gros, l'objectif à droite, une
+ * pastille d'évolution et une note de portée.
+ *
+ * 🛑 **Aucune valeur n'est dérivée ici** : palier, objectif et pastille
+ * arrivent composés d'un fait servi. Miroir Flutter : `SfResultHero`.
+ */
+export function ResultHero({
+  label,
+  level,
+  goalLabel,
+  goal,
+  trend,
+  note,
+}: {
+  label: string;
+  level: string;
+  goalLabel: string;
+  /** `null` quand aucune démarche n'est déclarée : rien vers quoi situer. */
+  goal: string | null;
+  /** `null` quand l'évolution est inconnue — surtout pas un « = » consolant. */
+  trend?: string | null;
+  note?: string | null;
+}) {
+  return (
+    <div className={styles.resultHero}>
+      <p className={styles.resultHeroLabel}>{label}</p>
+      <div className={styles.resultHeroRow}>
+        <span className={styles.resultHeroLevel}>{level}</span>
+        {goal ? (
+          <span className={styles.resultHeroGoal}>
+            {goalLabel}
+            <b>{goal}</b>
+          </span>
+        ) : null}
+      </div>
+      {trend ? <span className={styles.trendChip}>{trend}</span> : null}
+      {note ? <p className={styles.resultHeroFoot}>{note}</p> : null}
+    </div>
+  );
+}
+
+/** Un point de la courbe : sa date, son palier, et sa ligne dans l'échelle. */
+export type ChartPoint = {
+  /** Abscisse lisible (« 11 sept. »). */
+  date: string;
+  /** Le palier, tel qu'il s'écrit sur la pastille. */
+  level: string;
+  /** Index dans `ladder`, 0 = le palier le plus haut. **Passé, jamais deviné.** */
+  row: number;
+};
+
+/**
+ * **La courbe d'évolution** d'une épreuve.
+ *
+ * 🛑 **Aucune interpolation, aucune moyenne** : un point par évaluation
+ * **servie**, posé sur l'échelle de paliers que l'appelant lui donne. L'axe ne
+ * porte aucun chiffre — seulement des paliers.
+ *
+ * Miroir Flutter : `SfLevelChart`.
+ */
+export function LevelChart({
+  ladder,
+  points,
+  activeIndex,
+  onSelect,
+}: {
+  /** Du plus haut au plus bas (« B2 », « B1 », « A2 »). */
+  ladder: string[];
+  /** Du plus ancien au plus récent. */
+  points: ChartPoint[];
+  activeIndex: number;
+  onSelect: (index: number) => void;
+}) {
+  const rows = Math.max(ladder.length - 1, 1);
+  const cols = Math.max(points.length - 1, 1);
+  const y = (row: number) => (ladder.length > 1 ? (row / rows) * 100 : 50);
+  const x = (i: number) => (points.length > 1 ? (i / cols) * 100 : 50);
+
+  return (
+    <div className={styles.chart}>
+      <div className={styles.chartYAxis} aria-hidden>
+        {ladder.map((lvl, i) => (
+          <span key={lvl} className={styles.chartYLabel} style={{ top: `${y(i)}%` }}>
+            {lvl}
+          </span>
+        ))}
+      </div>
+      <div className={styles.chartPlot}>
+        {ladder.map((lvl, i) => (
+          <span key={lvl} className={styles.chartGrid} style={{ top: `${y(i)}%` }} aria-hidden />
+        ))}
+        {points.length > 1 ? (
+          <svg
+            className={styles.chartLine}
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            <polyline
+              points={points.map((p, i) => `${x(i)},${y(p.row)}`).join(" ")}
+              fill="none"
+              stroke="var(--color-blue)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        ) : null}
+        {points.map((p, i) => (
+          <button
+            key={`p-${i}`}
+            type="button"
+            className={cx(styles.chartDot, i === activeIndex && styles.isOn)}
+            style={{ left: `${x(i)}%`, top: `${y(p.row)}%` }}
+            aria-label={`${p.date} : niveau ${p.level}`}
+            aria-pressed={i === activeIndex}
+            onClick={() => onSelect(i)}
+          />
+        ))}
+        {points.map((p, i) => (
+          <span
+            key={`d-${i}`}
+            className={styles.chartDate}
+            style={{ left: `${x(i)}%` }}
+            aria-hidden
+          >
+            {p.date}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * La rangée de filtres d'une liste. 🛑 **Les options sont servies par
+ * l'appelant** : le kit ne sait pas ce qu'il filtre.
+ *
+ * Miroir Flutter : `SfFilterChips`.
+ */
+export function FilterChips<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: ReadonlyArray<{ id: T; label: string }>;
+  value: T;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div className={styles.filterRow} role="tablist">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="tab"
+          aria-selected={o.id === value}
+          className={cx(styles.filter, o.id === value && styles.isOn)}
+          onClick={() => onChange(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * **Une ligne d'historique dépliable** : pictogramme, intitulé + date, palier,
+ * et un détail qui s'ouvre au toucher.
+ *
+ * Miroir Flutter : `SfHistoryRow`.
+ */
+export function HistoryRow({
+  icon: Icon,
+  title,
+  date,
+  level,
+  detail,
+  active,
+  open,
+  onToggle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  /** `null` quand le serveur n'a pas de date — on n'en invente pas. */
+  date: string | null;
+  level: string;
+  detail: ReactNode;
+  active?: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const panelId = useId();
+  return (
+    <article className={cx(styles.histItem, active && styles.isOn)}>
+      <button
+        type="button"
+        className={styles.histMain}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className={styles.histIco}>
+          <Icon size={18} strokeWidth={2} aria-hidden />
+        </span>
+        <span className={styles.histBody}>
+          <b>{title}</b>
+          {date ? <small>{date}</small> : null}
+        </span>
+        <span className={styles.histLevel}>{level}</span>
+      </button>
+      {/* `hidden` plutôt qu'un démontage : le détail replié sort de l'arbre
+          d'accessibilité ET du parcours clavier. */}
+      <div id={panelId} className={styles.histDetail} hidden={!open}>
+        {detail}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * L'encart ambre de pied de page (`.footer-info`) : ce que la liste au-dessus
+ * compte, et ce qu'elle ne compte pas.
+ *
+ * Miroir Flutter : `SfInfoNote`.
+ */
+export function InfoNote({ children }: { children: ReactNode }) {
+  return (
+    <div className={styles.infoNote}>
+      <span className={styles.infoNoteIco} aria-hidden>
+        <Info size={14} strokeWidth={2.4} />
+      </span>
+      <span>{children}</span>
+    </div>
   );
 }
