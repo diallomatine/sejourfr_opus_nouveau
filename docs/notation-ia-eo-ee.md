@@ -2777,9 +2777,9 @@ ratée pouvait donc définir son niveau dans ce domaine, puis, de proche en proc
 global.
 
 > ⚠️ **Depuis le 16 septembre 2026, ce n'est plus vrai des productions d'entraînement** : elles
-> ne définissent plus aucun niveau d'épreuve, quel que soit leur résultat. Voir la section
-> « Un entraînement ne décide jamais de votre niveau » ci-dessous. Ce qui suit reste exact pour
-> les productions d'**examen**.
+> ne décident plus du niveau **affiché sur votre accueil**, quel que soit leur résultat. Voir
+> la section « Un entraînement ne décide jamais de votre niveau » ci-dessous. Ce qui suit reste
+> exact pour les productions d'**examen**.
 
 Le comportement est désormais le même que pour le diagnostic : **ni note, ni niveau**. La
 correction est bien rendue au candidat — elle lui dit en clair pourquoi sa production n'a pas
@@ -2842,7 +2842,10 @@ donnaient un verdict sur une épreuve qui en dure une bonne vingtaine et compte 
 **Un entraînement sert à trois choses, et il les fait toujours :**
 
 - vous entraîner autant que vous le souhaitez, sans limite autre que votre abonnement ;
-- alimenter vos **compétences**, vos **priorités** et vos **retours détaillés** ;
+- alimenter vos **compétences**, vos **priorités** et vos **retours détaillés** — c'est-à-dire
+  tout votre plan de travail. Un entraînement reste une **observation** : votre plan s'en sert
+  pour savoir quoi vous proposer ensuite. Ce qu'il ne fait pas, c'est **afficher un niveau
+  d'épreuve** ;
 - afficher, sur **son propre écran de résultat**, le niveau observé **sur cette tâche-là**.
   Ce niveau ne disparaît pas : il vous dit où vous en êtes sur l'exercice que vous venez de
   faire. Il ne prétend simplement plus parler de toute l'épreuve.

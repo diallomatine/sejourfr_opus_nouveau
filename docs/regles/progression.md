@@ -489,13 +489,29 @@ compteur servi pour les deux parcours.
 (`progressProvider` ⇄ le lot parallèle du dashboard) et porte déjà les
 4 épreuves : la section ne coûte rien au réseau.
 
-### 🛑 EE/EO — un ENTRAÎNEMENT ne définit JAMAIS le niveau global (2026-09-16)
+### 🛑 EE/EO — un ENTRAÎNEMENT ne définit JAMAIS le niveau global AFFICHÉ ICI (2026-09-16)
 
 Règle du propriétaire. Pour l'expression **orale** et **écrite**, un
 entraînement ne définit jamais le palier affiché ici, **même corrigé par l'IA et
 même situé sur un niveau CECRL**. Un entraînement sert à pratiquer autant qu'on
 veut, à alimenter compétences / priorités / feedbacks, et à porter son **niveau
 observé sur la tâche** — sur son propre écran de résultat, ce qui ne change pas.
+
+🛑 **Cette règle s'arrête à l'ACCUEIL. Le PLAN n'est pas concerné** (périmètre
+corrigé le jour même par le propriétaire). Le Plan, ses priorités et ses
+compétences **continuent** de voir les observations d'entraînement EE/EO : une
+production d'entraînement corrigée est une observation pleine et entière, elle
+n'est simplement pas une **mesure d'épreuve**. Concrètement, deux lectures de la
+même autorité :
+
+| lecture | qui l'appelle | EE/EO viennent de |
+|---|---|---|
+| `TcfProfileService.levelProfile` | `PlanCycleResolver`, priorités, compétences, `UserDashboardService` | **toute** évaluation IA valide, entraînement compris |
+| `TcfProfileService.levelProfileAccueil` | **`ProgressService.tcf()` et lui seul** | **uniquement** les épreuves complètes |
+
+Les deux peuvent donc **diverger**, et c'est voulu : l'Accueil dit « à évaluer »
+pendant que le Plan travaille déjà le domaine. Ce qui serait un défaut, c'est
+qu'un écran **recalcule** l'une des deux — ils l'appellent.
 
 Le niveau global d'une épreuve de production ne bouge que sur un **examen
 complet de l'épreuve**. **Trois provenances, et seulement trois** :
@@ -520,10 +536,23 @@ diagnostic complet accrochant ses sections au même conteneur), plus
 `finished_at IS NOT NULL` et au moins une soumission.
 
 **Une règle, une autorité** : `EpreuvesProductionQualifiantesResolver` (extrait
-le 2026-09-16 à sa 2ᵉ occurrence), appelé par `TcfProfileService.bestProduction`
-**et** par `EpreuveHistoriqueService`. L'entraînement libre — sessions temps réel
-de l'examinateur vocal comprises — n'a ni slot ni parent : il est dehors, quel
-que soit le nombre de tâches soumises.
+le 2026-09-16 à sa 2ᵉ occurrence), appelé par
+`TcfProfileService.levelProfileAccueil` **et** par `EpreuveHistoriqueService` —
+jamais par la lecture du Plan. L'entraînement libre — sessions temps réel de
+l'examinateur vocal comprises — n'a ni slot ni parent : il est dehors, quel que
+soit le nombre de tâches soumises.
+
+🛑 **Le niveau GLOBAL de l'Accueil suit la même règle** : c'est le plancher des
+**quatre paliers affichés**, pas celui du profil du Plan. Sinon l'écran
+annoncerait un niveau global tiré d'une EO qu'il présente deux lignes plus bas
+comme non évaluée.
+
+**`niveauInitial`, `evolution` et `status` ne changent pas** : `niveauInitial`
+vient des sections du premier diagnostic 4 épreuves clos, et une section EE/EO de
+diagnostic complet est justement l'une des trois provenances qualifiantes — les
+deux paliers se lisent déjà sur la même famille de mesures. `actuel` étant un
+**maximum** sur ces sessions, il ne peut pas passer sous `initial`, et `status`
+en dérive.
 
 **Ce qui a motivé la règle** : un compte dont la seule trace EO était un
 entraînement de trois minutes, noté A2, affichait « expression orale : A2 » sans
@@ -689,22 +718,31 @@ progression.
 erreur. Et un **échec de chargement** se dit autrement : on ne range pas une
 panne réseau dans le verdict le plus bas.
 
-#### ✅ Arbitrage CLOS le 2026-09-16 — la page et le profil lisent la même chose
+#### ✅ Arbitrage CLOS le 2026-09-16 — cette page et l'ACCUEIL lisent la même chose
 
-Le propriétaire a tranché la **sortie 1** : le profil EE/EO se restreint lui
-aussi aux **examens complets**. → journal : `docs/decisions/diagnostic.md`.
+Le propriétaire a tranché la **sortie 1**, puis en a **borné le périmètre le jour
+même** : c'est le niveau **affiché sur l'Accueil** qui se restreint aux examens
+complets, pas la lecture du Plan. → journal : `docs/decisions/diagnostic.md`.
 
 🛑 **CO/CE : aucun écart**, et il n'y en a jamais eu. Même requête
 (`findQcmEpreuvesPassees`) et même autorité de niveau (`niveauEpreuveQcm`) que
 `TcfProfileService` : ce que la page montre explique exactement le palier servi.
 
-🛑 **EE/EO : plus d'écart non plus.** Les deux lisent
+🛑 **EE/EO : plus d'écart avec l'Accueil.** Les deux lisent
 `EpreuvesProductionQualifiantesResolver.qualifiantes(...)` — même liste de
 sessions, même niveau par session (`ProductionBilanService.niveauEpreuve`,
-l'agrégat des 3 tâches). Le seul écart restant est l'**usage** : le profil en
-prend le **maximum**, la page en garde la **chronologie**. Un candidat ne peut
-donc plus voir un palier d'Accueil que cette page ne sait pas expliquer.
+l'agrégat des 3 tâches). Le seul écart restant est l'**usage** : l'Accueil en
+prend le **maximum** (`TcfProfileService.levelProfileAccueil`), la page en garde
+la **chronologie**. Un candidat ne peut donc plus voir un palier d'Accueil que
+cette page ne sait pas expliquer.
 
-Ce que la page ajoute au profil, et c'est voulu : la **baseline du diagnostic
-rapide** y apparaît toujours en 4ᵉ provenance, alors que le profil ne s'en sert
-qu'**en repli** (cf. plus bas).
+⚠️ **Le PLAN, lui, reste plus large, et c'est voulu** :
+`TcfProfileService.levelProfile` voit toujours les entraînements EE/EO évalués.
+Un domaine peut donc être travaillé par le Plan pendant que cette page et
+l'Accueil disent « à évaluer » — ce n'est pas une contradiction, ce sont deux
+questions différentes : « qu'ai-je observé de vous ? » contre « quelle épreuve
+avez-vous passée ? ».
+
+Ce que la page ajoute, et c'est voulu : la **baseline du diagnostic rapide** y
+apparaît toujours en 4ᵉ provenance, alors que les deux lectures du profil ne s'en
+servent qu'**en repli** (cf. plus bas).
