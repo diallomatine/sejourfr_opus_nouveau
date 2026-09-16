@@ -209,8 +209,13 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
   /// n'est créé pour le diagnostic. Une section est un examen blanc de son
   /// épreuve : la compréhension ouvre le rapport question par question, la
   /// production le bilan de session, exactement comme après un examen blanc.
+  ///
+  /// 🛑 **`rapportAttemptId`, pas `attemptId`** (2026-09-16) : sur une épreuve
+  /// mesurée par un examen blanc, c'est cet examen-là qui porte le rapport — le
+  /// sous-attempt du diagnostic est vide. Sur une section jouée ici, les deux
+  /// sont le même, rien ne change.
   void _ouvrirRapport(TcfDiagnosticSectionDto section) {
-    final id = section.attemptId;
+    final id = section.rapportAttemptId;
     if (id == null) return;
     switch (section.epreuve) {
       case EpreuveType.tcfCo:
@@ -560,13 +565,17 @@ class _SectionCard extends StatelessWidget {
             // GLOBAL et les priorites.
             const SizedBox(height: 10),
             _Resultat(section: section),
-            const SizedBox(height: 10),
-            AppButton(
-              label: kTcfDiagnosticRapportCta,
-              onPressed: onRapport,
-              variant: AppButtonVariant.outline,
-              height: 44,
-            ),
+            // Aucun rapport servi ⇒ aucun bouton : on n'ouvre jamais un
+            // rapport vide (une section close sans une seule réponse).
+            if (section.rapportAttemptId != null) ...[
+              const SizedBox(height: 10),
+              AppButton(
+                label: kTcfDiagnosticRapportCta,
+                onPressed: onRapport,
+                variant: AppButtonVariant.outline,
+                height: 44,
+              ),
+            ],
           ] else ...[
             const SizedBox(height: 10),
             Text(

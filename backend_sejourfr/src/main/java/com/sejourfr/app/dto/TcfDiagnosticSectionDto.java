@@ -60,6 +60,23 @@ public record TcfDiagnosticSectionDto(
          * examen blanc : chaque tache part a la correction des qu'elle est
          * rendue, seule la derniere se fait attendre.
          */
-        boolean analyseEnCours
+        boolean analyseEnCours,
+        /**
+         * L'attempt dont le <b>rapport</b> explique {@link #niveau()} — la
+         * destination de « Voir le rapport ».
+         *
+         * <p>C'est {@link #attemptId()} quand la section a elle-meme mesure
+         * l'epreuve. Quand l'epreuve a ete mesuree <b>ailleurs</b> (examen blanc
+         * isole, examen TCF complet), c'est l'examen qualifiant le plus recent :
+         * une section vide n'a pas de rapport, l'examen qui l'a mesuree en a un.
+         *
+         * <p>🛑 {@code null} = <b>rien de mesure</b>, donc aucun rapport a
+         * ouvrir. Les fronts ne proposent alors pas le lien.
+         *
+         * <p>🛑 <b>Il ne dit PAS la provenance</b>, et ce n'est pas un oubli : le
+         * proprietaire refuse tout vocabulaire « mesuree ailleurs » a l'ecran
+         * (2026-09-16). Une epreuve mesuree se lit comme <b>faite</b>, point.
+         */
+        UUID rapportAttemptId
 ) {
 }

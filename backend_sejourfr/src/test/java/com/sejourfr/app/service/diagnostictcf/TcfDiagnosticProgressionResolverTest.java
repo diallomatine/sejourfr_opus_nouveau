@@ -29,8 +29,10 @@ class TcfDiagnosticProgressionResolverTest {
                     new TcfDiagnosticLevelResolver(new TcfDiagnosticProperties()));
 
     private static Section section(EpreuveType epreuve, NiveauCecrl niveau) {
-        return new Section(epreuve, UUID.randomUUID(),
-                TcfDiagnosticSectionState.TERMINEE, null, niveau, null, false);
+        UUID attemptId = UUID.randomUUID();
+        return new Section(epreuve, attemptId,
+                TcfDiagnosticSectionState.TERMINEE, null, niveau, null, false,
+                niveau == null ? null : attemptId);
     }
 
     @Test

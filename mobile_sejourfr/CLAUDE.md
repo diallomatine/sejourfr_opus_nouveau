@@ -548,6 +548,20 @@ ancre, la section n'a aucune échéance. Idempotent — reprendre ne rend pas de
 🛑 **Aucun niveau ne transite par l'accueil** : `TcfDiagnosticDto` n'en porte pas (`10_`
 §4.2 interdit tout résultat partiel entre les sections). Ne pas l'enrichir.
 
+🛑 **Une épreuve MESURÉE est une section FAITE (2026-09-16).** Arbitrage du
+propriétaire : si un examen blanc de l'épreuve a été passé ailleurs, le
+diagnostic de cette épreuve **est fait**. Le serveur sert la section `terminee`,
+avec le niveau du produit (le **même** que l'Accueil et le Profil) et un
+**`rapportAttemptId`** neuf sur `TcfDiagnosticSectionDto`.
+- 🛑 **`_ouvrirRapport` lit `rapportAttemptId`, jamais `attemptId`** : sur une
+  épreuve mesurée par un examen blanc, c'est cet examen-là qui porte le rapport —
+  le sous-attempt du diagnostic est vide. `null` ⇒ **pas de bouton**, on n'ouvre
+  jamais un rapport vide (⚠️ change le cas « section close à zéro réponse »).
+- 🛑 **Aucun vocabulaire « mesurée ailleurs »** (refus explicite du propriétaire).
+- `sectionIndisponible` et `resultatDisponible` (`tcf_diagnostic_labels.dart`)
+  acceptent une section sans `attemptId` mais avec un `rapportAttemptId`.
+- Miroir web dans la même passe. → `docs/regles/diagnostic-tcf-4-epreuves.md`
+
 🛑 **`niveauGlobal` et le `niveau` d'une épreuve sont NULLABLES** : c'est « non évaluée »,
 jamais A1. L'écran de résultat les **nomme** ; il n'invente aucun palier.
 
