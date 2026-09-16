@@ -489,6 +489,51 @@ compteur servi pour les deux parcours.
 (`progressProvider` ⇄ le lot parallèle du dashboard) et porte déjà les
 4 épreuves : la section ne coûte rien au réseau.
 
+### 🛑 EE/EO — un ENTRAÎNEMENT ne définit JAMAIS le niveau global (2026-09-16)
+
+Règle du propriétaire. Pour l'expression **orale** et **écrite**, un
+entraînement ne définit jamais le palier affiché ici, **même corrigé par l'IA et
+même situé sur un niveau CECRL**. Un entraînement sert à pratiquer autant qu'on
+veut, à alimenter compétences / priorités / feedbacks, et à porter son **niveau
+observé sur la tâche** — sur son propre écran de résultat, ce qui ne change pas.
+
+Le niveau global d'une épreuve de production ne bouge que sur un **examen
+complet de l'épreuve**. **Trois provenances, et seulement trois** :
+
+1. l'épreuve EO/EE du **diagnostic complet** (4 épreuves) ;
+2. un **examen blanc isolé** de l'épreuve ;
+3. l'épreuve EO/EE d'un **examen blanc TCF complet**.
+
+Dans les trois cas, le niveau retenu est celui de l'**épreuve entière** —
+l'agrégat pondéré de ses 3 tâches (`ProductionBilanService.niveauEpreuve`),
+jamais une tâche isolée. Sans aucun examen complet : `niveau = null`, et l'écran
+dit « **Expression orale — À évaluer** ». Le contrat ne change pas de forme :
+`niveau` était déjà nullable, aucun front n'est touché.
+
+🛑 **`attempts.type` ne distingue RIEN ici** — piège coûteux :
+`AttemptService.startProduction` pose `TRAINING` sur **toutes** les sessions de
+production, examen blanc isolé compris. Le prédicat réel est celui de
+`ProductionAccessService.isExamSession`, porté en JPQL par
+`AttemptRepository.findProductionEpreuvesPassees` : `slot_number IS NOT NULL`
+(cas 2) **ou** `parent_attempt_id IS NOT NULL` (cas 3 **et** cas 1, le
+diagnostic complet accrochant ses sections au même conteneur), plus
+`finished_at IS NOT NULL` et au moins une soumission.
+
+**Une règle, une autorité** : `EpreuvesProductionQualifiantesResolver` (extrait
+le 2026-09-16 à sa 2ᵉ occurrence), appelé par `TcfProfileService.bestProduction`
+**et** par `EpreuveHistoriqueService`. L'entraînement libre — sessions temps réel
+de l'examinateur vocal comprises — n'a ni slot ni parent : il est dehors, quel
+que soit le nombre de tâches soumises.
+
+**Ce qui a motivé la règle** : un compte dont la seule trace EO était un
+entraînement de trois minutes, noté A2, affichait « expression orale : A2 » sans
+avoir jamais passé d'épreuve d'EO. → `docs/decisions/diagnostic.md`.
+
+🛑 **Le repli sur la baseline du diagnostic RAPIDE est inchangé** : quand aucune
+des trois provenances n'existe, `diagnostic_production_analyses` renseigne encore
+le domaine. Une baseline n'est jamais **concurrente** d'une preuve réelle, elle
+n'est qu'un **repli** — cette règle-là n'a pas bougé.
+
 ### 🛑 La section s'affiche TOUJOURS (correctif du 2026-09-16)
 
 ⚠️ **Révoque « une liste vide veut dire aucun diagnostic clos, le bloc se
@@ -644,35 +689,22 @@ progression.
 erreur. Et un **échec de chargement** se dit autrement : on ne range pas une
 panne réseau dans le verdict le plus bas.
 
-#### ⚠️ Arbitrage OUVERT — EE/EO : la page est plus étroite que le profil
+#### ✅ Arbitrage CLOS le 2026-09-16 — la page et le profil lisent la même chose
 
-🛑 **CO/CE : aucun écart.** Même requête (`findQcmEpreuvesPassees`) et même
-autorité de niveau (`niveauEpreuveQcm`) que `TcfProfileService` : ce que la
-page montre explique exactement le palier servi.
+Le propriétaire a tranché la **sortie 1** : le profil EE/EO se restreint lui
+aussi aux **examens complets**. → journal : `docs/decisions/diagnostic.md`.
 
-**EE/EO : deux écarts**, et ils viennent d'une prémisse fausse de l'énoncé
-(« exactement la même définition qui alimente déjà `niveau` ») :
+🛑 **CO/CE : aucun écart**, et il n'y en a jamais eu. Même requête
+(`findQcmEpreuvesPassees`) et même autorité de niveau (`niveauEpreuveQcm`) que
+`TcfProfileService` : ce que la page montre explique exactement le palier servi.
 
-| | profil (`bestProduction`) | cette page |
-|---|---|---|
-| unité | le **maximum par TÂCHE** | l'**agrégat par SESSION** (`niveauEpreuve`) |
-| périmètre | **toute** tâche évaluée — `AiEvaluationRepository.findByUserAndEpreuve` ne filtre ni la session d'examen ni l'entraînement libre | **sessions d'examen** + baseline du diagnostic rapide |
+🛑 **EE/EO : plus d'écart non plus.** Les deux lisent
+`EpreuvesProductionQualifiantesResolver.qualifiantes(...)` — même liste de
+sessions, même niveau par session (`ProductionBilanService.niveauEpreuve`,
+l'agrégat des 3 tâches). Le seul écart restant est l'**usage** : le profil en
+prend le **maximum**, la page en garde la **chronologie**. Un candidat ne peut
+donc plus voir un palier d'Accueil que cette page ne sait pas expliquer.
 
-🛑 **Conséquence à connaître** : un candidat qui n'a fait que de l'entraînement
-libre en EE/EO a un `niveau` servi — donc une carte d'Accueil qui propose
-« Voir mes résultats » — et cette page lui répond « aucune évaluation
-qualifiante ». Les deux énoncés sont vrais séparément : le palier vient bien de
-quelque part, mais pas d'une épreuve.
-
-Ce qui a été fait en attendant l'arbitrage : **le libellé de la page ne promet
-plus d'expliquer le niveau**, il dit ce que la liste *contient* (« Vos épreuves
-complètes et vos diagnostics… »), donc il reste vrai même vide.
-
-Deux sorties, **toutes deux des décisions produit** :
-
-1. **restreindre le profil EE/EO** aux sessions d'examen — il **baisserait** des
-   niveaux déjà affichés à des candidats, ce que le dépôt n'autorise qu'à un
-   garde-fou explicite ;
-2. **accueillir l'entraînement libre** ici sous une 5ᵉ provenance — ce qui
-   contredirait l'énumération du propriétaire (« pas les petites séries /
-   petits sujets d'entraînement »).
+Ce que la page ajoute au profil, et c'est voulu : la **baseline du diagnostic
+rapide** y apparaît toujours en 4ᵉ provenance, alors que le profil ne s'en sert
+qu'**en repli** (cf. plus bas).
