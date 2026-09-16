@@ -41,6 +41,14 @@ import {
   type PlanPriorityGroup,
 } from "@/lib/plan-domain";
 import {
+  JOURNEY_LOCKED_CAPTION,
+  JOURNEY_NEEDS_OBJECTIVE_CTA,
+  JOURNEY_NEEDS_OBJECTIVE_TEXT,
+  JOURNEY_NEEDS_OBJECTIVE_TITLE,
+  JOURNEY_SUGGESTION_MOCK_EXAM,
+  JOURNEY_TARGET_PATH_HREF,
+  JOURNEY_UP_TO_DATE_TEXT,
+  JOURNEY_UP_TO_DATE_TITLE,
   journeyBadge,
   journeyKind,
   journeyKitState,
@@ -669,7 +677,44 @@ function groupTitle(group: PlanPriorityGroup): string {
  * l'endpoint : la section disparaît, elle n'affiche jamais un squelette.
  */
 function JourneySection({journey}: {journey: JourneyDto | null}) {
-  if (!journey || journey.steps.length === 0) return null;
+  if (!journey) return null;
+
+  /* 🛑 **Aucun objectif déclaré ⇒ aucun parcours en base** (arbitrage D-3).
+     Ce n'est pas un parcours vide : c'est l'absence de parcours, et le
+     distinguer évite de féliciter un candidat qui n'a rien commencé. */
+  if (journey.state === "NEEDS_OBJECTIVE") {
+    return (
+      <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
+        <Pad>
+          <Stack>
+            <Card>
+              <p className={sejourStyles.sub}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+            </Card>
+            <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+          </Stack>
+        </Pad>
+      </Section>
+    );
+  }
+
+  /* Plus rien d'ouvert. 🛑 La **suggestion** est hors file : elle n'a pas de
+     position, elle ne se clôt pas, et l'ignorer ne laisse rien « en attente ». */
+  if (journey.state === "UP_TO_DATE") {
+    return (
+      <Section title={JOURNEY_UP_TO_DATE_TITLE}>
+        <Pad>
+          <Card>
+            <p className={sejourStyles.sub}>{JOURNEY_UP_TO_DATE_TEXT}</p>
+            {journey.suggestion === "MOCK_EXAM" && (
+              <p className={sejourStyles.tiny}>{JOURNEY_SUGGESTION_MOCK_EXAM}</p>
+            )}
+          </Card>
+        </Pad>
+      </Section>
+    );
+  }
+
+  if (journey.steps.length === 0) return null;
   const more = journeyMoreLabel(journey.hiddenUpcomingCount);
   return (
     <Section title={journeyTitle(journey.targetLevel)} flush>
@@ -692,6 +737,12 @@ function JourneySection({journey}: {journey: JourneyDto | null}) {
           longueur de `steps` donnerait un nombre faux dès que le filtrage
           d'affichage retient une étape verrouillée hors fenêtre. */}
       {more && <p className={sejourStyles.tiny}>{more}</p>}
+      {/* 🛑 Des étapes restent, mais **aucune n'est exécutable** : on le dit au
+          lieu de laisser une file sans étape courante, qui se lirait comme un
+          parcours en panne. */}
+      {journey.state === "LOCKED" && (
+        <p className={sejourStyles.tiny}>{JOURNEY_LOCKED_CAPTION}</p>
+      )}
     </Section>
   );
 }

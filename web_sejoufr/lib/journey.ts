@@ -140,6 +140,10 @@ export const JOURNEY_NEEDS_OBJECTIVE_TEXT =
     "Votre parcours dépend de la démarche que vous visez.";
 export const JOURNEY_NEEDS_OBJECTIVE_CTA = "Choisir ma démarche";
 
+/** L'écran qui pose la question. 🛑 Une seule constante : un chemin recopié
+ *  dans un composant finirait par diverger du router. */
+export const JOURNEY_TARGET_PATH_HREF = "/parcours";
+
 /** Rien n'est exécutable : la carte montre la première étape, verrouillée. */
 export const JOURNEY_LOCKED_CAPTION =
     "Cette étape fait partie de l'abonnement Intégral. Votre parcours, lui, reste entier.";

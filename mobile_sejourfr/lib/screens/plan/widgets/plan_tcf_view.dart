@@ -118,7 +118,7 @@ class PlanTcfView extends ConsumerWidget {
         flush: true,
         child: _nowCard(context, ref),
       ),
-      ..._journeySection(),
+      ..._journeySection(context),
       ..._prioritiesSection(free: false),
       ..._doneSection(),
       ..._changesSection(changes),
@@ -148,7 +148,7 @@ class PlanTcfView extends ConsumerWidget {
           flush: true,
           child: _freeStepCard(),
         ),
-        ..._journeySection(),
+        ..._journeySection(context),
         const SfSection(
           flush: true,
           child: SfUnlockHero(
@@ -361,9 +361,61 @@ class PlanTcfView extends ConsumerWidget {
   /// tranchée le 2026-08-21). C'est pourquoi la **même** section sert les deux
   /// variantes de l'écran — un parcours amputé pour un compte gratuit serait un
   /// second parcours.
-  List<Widget> _journeySection() {
+  List<Widget> _journeySection(BuildContext context) {
     final parcours = journey;
-    if (parcours == null || parcours.steps.isEmpty) return const <Widget>[];
+    if (parcours == null) return const <Widget>[];
+
+    // 🛑 **Aucun objectif déclaré ⇒ aucun parcours en base** (arbitrage D-3).
+    // Ce n'est pas un parcours vide : c'est l'absence de parcours, et le
+    // distinguer évite de féliciter un candidat qui n'a rien commencé.
+    if (parcours.state == JourneyState.needsObjective) {
+      return <Widget>[
+        SfSection(
+          title: kJourneyNeedsObjectiveTitle,
+          child: SfStack(
+            children: [
+              const SfCard(
+                child: Text(kJourneyNeedsObjectiveText),
+              ),
+              SfButton(
+                label: kJourneyNeedsObjectiveCta,
+                onPressed: () => context.push(AppRoutes.targetPath),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    // Plus rien d'ouvert. 🛑 La **suggestion** est hors file : elle n'a pas de
+    // position, elle ne se clôt pas, et l'ignorer ne laisse rien « en attente ».
+    if (parcours.state == JourneyState.upToDate) {
+      return <Widget>[
+        SfSection(
+          title: kJourneyUpToDateTitle,
+          child: SfCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kJourneyUpToDateText,
+                  style: AppFonts.ui(size: 14, color: AppColors.inkSoft),
+                ),
+                if (parcours.suggestion == JourneySuggestionType.mockExam) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    kJourneySuggestionMockExam,
+                    style: AppFonts.ui(size: 12, color: AppColors.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (parcours.steps.isEmpty) return const <Widget>[];
     final more = journeyMoreLabel(parcours.hiddenUpcomingCount);
     return <Widget>[
       SfSection(
@@ -393,6 +445,19 @@ class PlanTcfView extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(more, style: AppFonts.ui(size: 12, color: AppColors.muted)),
+        ),
+      ],
+      // 🛑 Des étapes restent, mais **aucune n'est exécutable** : on le dit au
+      // lieu de laisser une file sans étape courante, qui se lirait comme un
+      // parcours en panne.
+      if (parcours.state == JourneyState.locked) ...[
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            kJourneyLockedCaption,
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
+          ),
         ),
       ],
     ];
