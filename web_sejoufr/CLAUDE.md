@@ -787,6 +787,13 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `ExamRow`, `ThemeLine`, `Prio`, `ProgressMini`, `SkillRow`, `PathCard`,
   `NowCard`, `MiniPlan`, `LockRow`, `CheckList`, `DoneRow`, `PillMeta`,
   `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`, **`TopSlot`**…).
+  ✅ **Ajoutées le 2026-09-16** sur la maquette `~/Downloads/ou_en_vous.html`,
+  **avec leur miroir Flutter dans la même passe** : `LevelCard`, `LevelGrid`,
+  `GoalRibbon`, `MicroNote`, `PanelHead`, `ResultHero`, `LevelChart`
+  (+ `ChartPoint`), `FilterChips`, `HistoryRow`, `InfoNote`, et la **cocarde**
+  de tête de carte (`Card rule="flag"`). Elles servent « Où vous en êtes »
+  (`/dashboard`) et « Vos résultats »
+  (`/historique/epreuve/[domaine]`) — → `docs/regles/progression.md`.
 🛑 **Cinq états d'étape, pas trois (2026-09-13).** `StepState` / `SfStepState`
 valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` portent
 un `pill` **composé par l'appelant** à partir d'un libellé **servi**
@@ -1076,9 +1083,23 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 6. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
 7. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
 
-✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
-une carte compacte par épreuve TCF — palier, jauge, état en un mot, action —
-puis le bandeau d'objectif ; en civique, une carte par thème, sans bandeau.
+✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire,
+`~/Downloads/ou_en_vous.html`), **refait sur elle le jour même en 2ᵉ passe** :
+une carte de tête à **cocarde** (`Card rule="flag"`) qui porte le titre « Votre
+niveau par épreuve », sa phrase de cadrage, puis **dans cet ordre** le
+**bandeau d'objectif avec son compteur « 3 / 4 évaluées »** (`GoalRibbon`), la
+**grille à deux colonnes** des épreuves (`LevelGrid` + `LevelCard`) et la
+**note de pied** (`MicroNote`). ⚠️ La 1ʳᵉ passe mettait le bandeau **sous** la
+grille, sans compteur ni note : **révoqué**, la maquette est plus récente.
+Une carte d'épreuve porte le repère court (`CO`…), la pastille de palier, le
+nom, la ligne « palier atteint · Objectif B2 », le rail, l'état en un mot et
+l'action ; en civique, `mark`, ligne de repères, cocarde et note sont **omis**
+(rien ne les sert).
+🛑 **Ces cinq briques vivent dans le KIT**, ajoutées **des deux côtés dans la
+même passe** : `HomeSituationCard`, `HomeSituationGrid`, `HomeGoalBanner` et
+les classes `.home-situation-grid` / `-card` / `-head` / `-name` / `-badge` /
+`-statut` / `.home-goal` sont **supprimées**. `homeStyles` ne garde que
+l'en-tête (`.home-situation-title`, `.home-situation-copy`).
 🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses deux
 compteurs. 🛑 **Aucun appel de plus** — `progres` est déjà dans l'état de
 l'écran. ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le

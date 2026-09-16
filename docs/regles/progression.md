@@ -465,20 +465,58 @@ Routes : `docs/api-endpoints.md`, section « Progrès (T28) ». Journal :
 ## Écran ACCUEIL — « Où vous en êtes » (2026-09-16)
 
 🛑 **À distinguer de l'écran Progrès**, qui reste inchangé. Une section
-**ajoutée** à l'Accueil, entre « À faire maintenant » et « Votre Plan » : une
-carte compacte par épreuve TCF — palier, jauge, état en un mot, action — puis
-le bandeau « Objectif actuel · Atteindre B1 partout ». Maquette du
-propriétaire, seule référence (aucune capture validée n'existe dans
-`~/Desktop/sejourfr_ecrans` ni `~/Desktop/grok_ecran` pour cette section).
+**ajoutée** à l'Accueil, entre « À faire maintenant » et « Votre Plan ».
+Maquette du propriétaire : **`~/Downloads/ou_en_vous.html`**, seule référence
+(aucune capture n'existe dans `~/Desktop/sejourfr_ecrans` ni
+`~/Desktop/grok_ecran` pour cette section).
 
-🛑 **Les cartes d'épreuve se posent en GRILLE À DEUX COLONNES, dès 360 px**
-(maquette du propriétaire, 2026-09-16) — jamais une file de cartes pleine
-largeur. `HomeSituationGrid` (mobile) ⇄ `.home-situation-grid` (web, qui reprend
-son auto-fit au palier desktop de 960 px, où la colonne pose les 4 épreuves de
-front). Sur une demi-largeur de téléphone, la pastille de palier passe **sous**
-le titre plutôt que de le casser au milieu d'un mot. Le bandeau d'objectif, lui,
-reste **pleine largeur sous la grille** : il porte l'objectif de toutes les
-épreuves, pas d'une carte.
+#### Anatomie, refaite sur la maquette le 2026-09-16 (2ᵉ passe)
+
+⚠️ **Cette anatomie RÉVOQUE celle de la 1ʳᵉ passe du même jour** (titre 19 px,
+pastille sous le titre, bandeau d'objectif **sous** la grille, pas de note de
+pied). La maquette est plus récente, elle fait foi.
+
+Une **carte de tête** — cocarde bleu · blanc · rouge en filet de 3 px, titre
+« Votre niveau par épreuve », phrase de cadrage — qui contient, **dans cet
+ordre** :
+
+1. le **bandeau d'objectif**, `GoalRibbon` ⇄ `SfGoalRibbon` : pastille rouge,
+   « Objectif actuel / Atteindre B2 partout », et à droite un **compteur
+   « 3 / 4 évaluées »**. 🛑 Il annonce vers quoi on va **avant** de montrer où
+   on en est — c'est la maquette, et c'est aussi ce qui évite de finir la
+   section sur un objectif quand elle doit finir sur une action ;
+2. la **grille à deux colonnes** des épreuves, `LevelGrid` ⇄ `SfLevelGrid` ;
+3. la **note de pied**, `MicroNote` ⇄ `SfMicroNote` : « Le niveau affiché
+   évolue uniquement avec vos diagnostics et vos épreuves complètes. » 🛑 Elle
+   dit la règle EE/EO ci-dessous **à l'endroit où elle surprend** — sans elle,
+   un candidat qui vient d'enchaîner des séries lit un niveau inchangé et croit
+   à une panne.
+
+**Une carte d'épreuve** (`LevelCard` ⇄ `SfLevelCard`) porte : le **repère
+court** (`CO` / `CE` / `EE` / `EO`, en mono), la **pastille de palier**, le nom
+de l'épreuve, la **ligne de repères** « palier atteint · Objectif B2 », le
+**rail**, l'**état en un mot**, et l'action. Une épreuve **mesurée** se
+distingue par un fond blanc, un relief et un filet d'accent bleu → rouge ; une
+épreuve non mesurée reste en bleu doux, pastille neutre.
+
+🛑 **Le compteur « 3 / 4 évaluées » compte des mesures, il n'en classe aucune** :
+`accueilEvalueesLabel` (`lib/progres.ts` ⇄ `progres_labels.dart`) ne lit que la
+présence d'un `niveau` servi, et son total est **la liste servie**, jamais un
+« 4 » écrit en dur.
+
+🛑 **Les cartes se posent en GRILLE À DEUX COLONNES, dès 360 px** — jamais une
+file de cartes pleine largeur. Au palier desktop du kit (960 px) la colonne de
+1080 px les pose de front (`repeat(auto-fit, minmax(190px, 1fr))`) ; **ce palier
+n'a aucun miroir Flutter**, l'app étant en portrait téléphone.
+
+🛑 **Ces briques vivent dans le KIT, pas dans l'écran** (2026-09-16) :
+`LevelCard`, `LevelGrid`, `GoalRibbon`, `MicroNote` et la cocarde
+(`Card rule="flag"` ⇄ `SfCard(rule: true)`) sont ajoutées **des deux côtés dans
+la même passe**. Elles **remplacent** `HomeSituationCard`, `HomeSituationGrid`,
+`HomeGoalBanner` et les classes `.home-situation-grid` / `-card` / `-head` /
+`-name` / `-badge` / `-statut` / `.home-goal`, **supprimées**. Seule l'en-tête
+de la carte (`.home-situation-title`, `.home-situation-copy`) reste locale à
+l'écran.
 
 🛑 **Elle ne remplace PAS « Votre progression »**, qui garde ses deux compteurs
 de compétences juste en dessous. L'une dit *où en est chaque épreuve*, l'autre
@@ -858,7 +896,13 @@ arrive servi, son libellé vient de `CIVIC_THEME_STATE_LABEL` ⇄
 **dérivent** de `kitTone` ⇄ `civicThemeTone` au lieu de reclasser l'état.
 🛑 `NON_EVALUE` reste **neutre**, badge « À évaluer », jauge 0 — jamais ambre.
 🛑 Le **bandeau d'objectif est omis** côté civique : rien ne sert d'objectif
-civique, et on ne fabrique pas une mesure qui n'existe pas.
+civique, et on ne fabrique pas une mesure qui n'existe pas. Le **compteur**
+part avec lui, puisqu'il vit dans le bandeau.
+🛑 **Trois autres blocs sont omis, et c'est voulu** (2026-09-16) : le **repère
+court** (`mark`) — la maquette n'en donne qu'aux quatre épreuves, et un thème
+n'a aucun code de deux lettres servi ; la **ligne de repères** — le civique n'a
+ni palier CECRL ni objectif ; la **cocarde** et la **note de pied** — elles
+parlent d'un niveau, qui n'existe pas ici.
 
 ### La page « Voir mes résultats »
 
@@ -877,6 +921,53 @@ progression.
 🛑 **Cas vide** : « Aucune évaluation qualifiante pour l'instant. » — jamais une
 erreur. Et un **échec de chargement** se dit autrement : on ne range pas une
 panne réseau dans le verdict le plus bas.
+
+#### Anatomie, refaite sur la maquette le 2026-09-16
+
+Maquette du propriétaire : **`~/Downloads/ou_en_vous.html`**, écran
+« Résultats ». ⚠️ Elle **révoque** la version d'origine du même jour (une carte
+unique portant une liste de lignes). Quatre blocs, dans cet ordre :
+
+1. **En-tête** : flèche de retour, eyebrow = le nom de l'épreuve, titre « Vos
+   résultats » ;
+2. **le héros sombre** (`ResultHero` ⇄ `SfResultHero`) : « Niveau actuel » + le
+   palier en très gros, « Objectif B2 » à droite, une **pastille d'évolution**
+   et la phrase de portée. 🛑 Les trois valeurs sont **servies** —
+   `ProgressEpreuveDto.niveau`, `ProgressTcfDto.objectif` et
+   `progresEvolutionLabel(epreuve)`, **l'autorité déjà employée par l'écran
+   Progrès** : aucune seconde formulation de l'évolution n'a été écrite, donc
+   « = » reste « = » et `INCONNUE` ne rend **aucune** pastille. Sans palier
+   mesuré, le héros affiche « **—** », jamais « A1 ». Sans démarche déclarée,
+   le bloc objectif disparaît ;
+3. **« Votre évolution »** (`LevelChart` ⇄ `SfLevelChart`) : un point par
+   évaluation **servie**, du plus ancien au plus récent, posé sur une échelle de
+   **paliers** — jamais de chiffres, jamais d'interpolation, jamais de moyenne.
+   L'échelle affichée est la fenêtre **A2 → B2** de la maquette, **ouverte vers
+   le bas** si une mesure servie est plus basse (`echelleAffichee`). Toucher un
+   point sélectionne l'évaluation correspondante dans la liste. 🛑 **Pas de
+   courbe sans point** : le panneau entier disparaît ;
+4. **« Historique »** : le compteur « 4 évaluations complètes », les filtres
+   **Tout / Diagnostics / Examens** (`FilterChips` ⇄ `SfFilterChips`, rendus
+   seulement quand il y a plus d'une ligne à trier), les lignes dépliables
+   (`HistoryRow` ⇄ `SfHistoryRow` : pictogramme de provenance, libellé **gelé**
+   `SOURCE_EVALUATION_LABEL` ⇄ `SourceEvaluation.label`, date, palier), l'encart
+   ambre de portée (`InfoNote` ⇄ `SfInfoNote`) et le lien « Tous mes résultats ».
+
+🛑 **Le détail d'une ligne ne prétend PAS expliquer le palier courant.** Il dit
+« Niveau estimé : B1. » + d'où vient la mesure, et rien d'autre : le niveau
+affiché est la **moyenne des trois derniers examens qualifiants** (règle
+serveur), donc écrire « résultat pris en compte dans votre niveau actuel » sur
+une ligne précise — comme le fait la maquette — serait une affirmation qu'aucun
+front ne peut vérifier.
+
+🛑 **Aucun endpoint n'a été ajouté, et aucun appel non plus** : le palier
+courant, l'objectif et l'évolution viennent de `GET /api/me/progress`, déjà en
+cache (`progressApi` ⇄ `progressProvider`, gardé en vie pour la session). Son
+échec est un **confort perdu**, pas un écran cassé : la liste reste entière.
+
+🛑 **Les six primitives sont ajoutées aux DEUX kits dans la même passe** :
+`ResultHero`, `LevelChart`, `FilterChips`, `HistoryRow`, `InfoNote`,
+`PanelHead`. Le `<style>` d'écran ne garde qu'une règle, l'état vide.
 
 #### ✅ Arbitrage CLOS le 2026-09-16 — cette page et l'ACCUEIL lisent la même chose
 
