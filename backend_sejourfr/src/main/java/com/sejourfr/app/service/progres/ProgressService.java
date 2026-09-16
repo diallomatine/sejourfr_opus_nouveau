@@ -11,7 +11,6 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.NiveauEvolution;
-import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -222,10 +221,16 @@ public class ProgressService {
         Map<UUID, SkillMasteryEngine.SkillMastery> maitrise =
                 masteryResolver.bySkillIds(userId, parSkill.keySet());
 
+        // 🛑 « Maitrisee » se lit sur transferProven, la MEME autorite que
+        // `completedSteps` et que `PlanSkillStepState.ACQUIS` — pas sur
+        // `state() == SOLID`. Le parcours normal (5 petits sujets puis une
+        // verification reussie) plafonne autour de 0,68 et n'atteint jamais
+        // SOLID : cet ecran annoncait « 0 competence maitrisee » pendant que le
+        // Plan de la meme app cochait les memes competences « acquises ».
         List<ProgressDto.CompetenceAcquise> tenues = parSkill.values().stream()
                 .filter(s -> {
                     SkillMasteryEngine.SkillMastery m = maitrise.get(s.getId());
-                    return m != null && m.state() == SkillMasteryState.SOLID;
+                    return m != null && m.transferProven();
                 })
                 .map(s -> new ProgressDto.CompetenceAcquise(
                         s.getId(), s.getCode(), s.getTitle(), s.getSection(),

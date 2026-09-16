@@ -403,6 +403,15 @@ Aucun niveau, aucun palier, aucun état n'est recalculé ici.
 - 🛑 **Les 4 épreuves sont toujours servies**, évaluées ou non. Une épreuve
   absente de la liste disparaîtrait de l'écran au lieu de se dire « non
   évaluée ».
+- 🛑 **« Maîtrisée » se lit sur `SkillMastery.transferProven`, PAS sur
+  `state() == SOLID`** (correctif du **2026-09-16**). C'est la **même** autorité
+  que « acquis » sur le Plan (`PlanStepStateResolver`, `completedSteps` — voir
+  `docs/regles/plan.md`), et ce service ne la recopie pas, il l'appelle. L'écart
+  n'était pas théorique : le parcours **normal** (cinq micro-entraînements puis
+  une vérification réussie) plafonne sous `solid-score`, donc la carte « Votre
+  progression » annonçait « 0 compétence maîtrisée » pendant que le Plan de la
+  même app cochait les mêmes compétences. Verrouillé par
+  `ProgressServiceTest.leTransfertProuveCompteMemeSansSolid`.
 - 🛑 **Freemium : les compteurs de compétences restent, le DÉTAIL part**
   (`30_` §7 : « blocs 1 et 2 visibles, 3 et 5 verrouillés »). Cacher le nombre
   reviendrait à cacher au candidat ce qu'il a lui-même produit.

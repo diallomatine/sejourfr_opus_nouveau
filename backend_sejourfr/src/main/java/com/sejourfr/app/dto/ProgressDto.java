@@ -125,7 +125,10 @@ public record ProgressDto(
      *
      * @param travaillees  compétences sur lesquelles au moins une observation
      *                     existe
-     * @param maitrisees   dont l'état agrégé est solide
+     * @param maitrisees   dont le <b>transfert est prouvé</b>
+     *                     ({@code SkillMastery.transferProven}) — la même
+     *                     autorité que « acquis » sur le Plan, jamais le seul
+     *                     {@code SkillMasteryState.SOLID}
      * @param dernieres    les plus récemment tenues, avec la date de la preuve.
      *                     Vide quand {@code locked}
      * @param locked       le détail est-il réservé ?
