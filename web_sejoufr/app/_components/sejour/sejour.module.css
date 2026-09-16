@@ -1263,6 +1263,7 @@
 /* ---------- Progression fine (barre de compétences) ---------- */
 
 .progressMini {
+  display: block;
   height: 6px;
   background: var(--color-line);
   border-radius: 99px;
@@ -1898,6 +1899,26 @@
   .deskGrid2 > :only-child {
     grid-column: 1 / -1;
   }
+
+  /* ⚠️ **La liste d'épreuves passe à DEUX colonnes**, et c'est tout ce que le
+     desktop lui fait. Sur la colonne large du kit (1080 px), une ligne unique
+     étirerait son échelle sur près de 1 000 px : quatre crans à 240 px ne
+     situent plus rien, et l'intitulé flotterait à un écran du CTA. Deux
+     colonnes ramènent chaque ligne autour de 500 px, l'ordre de grandeur des
+     440 px de la maquette.
+
+     🛑 **Aucun composant nouveau, aucune donnée de plus** : c'est le pendant de
+     `.deskGrid2`, et donc **sans miroir Flutter** — l'app est en portrait
+     téléphone. On ne tranche pas non plus la carte en deux : l'en-tête, le
+     bandeau d'objectif et la note de pied restent pleine largeur. */
+  .levelList {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px 12px;
+  }
+
+  .isLead .panelTitle {
+    font-size: 28px;
+  }
 }
 
 @media (min-width: 1100px) {
@@ -1949,246 +1970,399 @@
   overflow: hidden;
 }
 
+/* 🛑 **Le liseré est PLEINE LARGEUR** (maquette v2) : trois bandes égales de
+   5 px en tête de carte, pas un filet en retrait. La carte porte `overflow:
+   hidden`, donc il suit son rayon. */
 .ruleFlag::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 24px;
-  right: 24px;
-  height: 3px;
-  border-radius: 0 0 var(--sf-radius-pill) var(--sf-radius-pill);
+  left: 0;
+  right: 0;
+  height: 5px;
   background: linear-gradient(
     90deg,
-    var(--color-blue) 0 42%,
-    white 42% 58%,
-    var(--color-red) 58% 100%
+    var(--color-blue) 0 33.333%,
+    white 33.333% 66.666%,
+    var(--color-red) 66.666% 100%
   );
 }
 
-/* ---------- « Où vous en êtes » : la grille et ses cartes ---------- */
+/* ---------- « Où vous en êtes » : la liste et ses lignes ---------- */
 
-/* 🛑 **Deux colonnes DÈS 360 px**, comme la maquette et comme le miroir Flutter
-   (`SfLevelGrid`) : une file de cartes pleine largeur n'est pas ce qui a été
-   validé. Le palier desktop du kit les pose de front. */
-.levelGrid {
+/* 🛑 **Une seule colonne** sur téléphone, comme la maquette v2 (calée sur
+   440 px) : la liste verticale remplace la grille de cartes compactes de la
+   maquette v1, et chaque ligne porte son échelle CECRL.
+
+   La marge négative fait affleurer les lignes au bord de la carte : leur
+   padding de 12 px les réaligne alors exactement sous le titre. */
+.levelList {
+  list-style: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  margin: 14px 0;
+  gap: 4px;
+  margin: 14px -12px 0;
+  padding: 0;
 }
 
-.levelCard {
-  position: relative;
-  overflow: hidden;
+.levelRow {
+  min-width: 0;
+}
+
+.levelRowLink {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0;
-  min-width: 0;
-  padding: 14px;
+  width: 100%;
+  padding: 14px 12px;
   border: 0;
-  border-radius: var(--sf-radius-lg);
-  background: var(--color-blue-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 8%, transparent);
+  border-radius: var(--sf-radius-md);
+  background: transparent;
   color: var(--color-ink);
   font-family: var(--font-sans);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: transform var(--sf-quick) var(--sf-ease-out), box-shadow var(--sf-quick);
+  transition: background var(--sf-quick);
 }
 
-.levelCard:disabled {
+.levelRowLink:hover {
+  background: var(--color-blue-soft);
+}
+
+.levelRowLink:disabled {
   cursor: progress;
   opacity: 0.65;
 }
 
-.levelCard:active:not(:disabled) {
-  transform: scale(0.985);
-}
-
-.levelCard:focus-visible {
+.levelRowLink:focus-visible {
   outline: 2px solid var(--color-blue);
   outline-offset: 2px;
 }
 
-/* Une épreuve **mesurée** se détache : fond blanc, relief, et le filet de tête.
-   🛑 C'est le seul signal porté par la carte elle-même — l'état pédagogique,
-   lui, reste écrit en toutes lettres sous le rail. */
-.isAssessed.levelCard {
-  background: white;
-  box-shadow: var(--sf-shadow-border);
+/* Une épreuve **jamais mesurée** se détache : c'est la seule ligne qui demande
+   un geste pour exister. 🛑 Le fait est **passé** (`measured`), jamais lu d'un
+   libellé — et il ne se confond pas avec « &lt;A1 », qui est une mesure. */
+.isTodo.levelRowLink {
+  background: var(--color-paper-2);
 }
 
-.isAssessed.levelCard::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-blue) 0 72%, var(--color-red) 72% 100%);
+.isTodo.levelRowLink:hover {
+  background: var(--color-line-2);
 }
 
-.levelCardTop {
+.levelRowTop {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 /* Le repère court (« CO »), en mono : c'est une étiquette technique. */
 .levelMark {
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
   border-radius: var(--sf-radius-sm);
   background: var(--color-blue);
   color: white;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-.levelCard:not(.isAssessed) .levelMark {
+.isTodo .levelMark {
   background: white;
   color: var(--color-blue);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-blue) 16%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--color-blue);
 }
 
-.levelChip {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: var(--sf-radius-sm);
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+.levelRowId {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-/* 🛑 Non mesuré : pastille neutre. Le bleu est réservé à un palier réel — une
-   pastille de marque sur une absence de mesure se lirait comme un résultat. */
-.levelChip.isNa {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.levelCardTitle {
-  margin: 12px 0 8px;
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.22;
-  letter-spacing: -0.02em;
-  color: var(--color-ink);
+.levelRowName {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
-/* La ligne de repères : le palier atteint à gauche, l'objectif à droite. */
-.levelMeta {
+/* La pastille de statut prend le ton **servi**, et le mot le redit : la
+   couleur n'est jamais le seul porteur de l'information. */
+.levelRowStatus {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.levelMeta span {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.levelStatus {
-  margin-top: 8px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
   font-size: 12.5px;
-  font-weight: 800;
-  line-height: 1.3;
-  color: var(--color-ink-2);
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
-.levelCardEnd {
-  margin-top: 12px;
+.levelRowStatus::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.toneOk { color: var(--color-green); }
+.toneNow { color: var(--color-blue); }
+.toneWarn { color: var(--color-amber-dark); }
+.toneHot { color: var(--color-red-dark); }
+.toneMuted { color: var(--color-muted); }
+
+/* Le palier, en mono : c'est un repère, pas un titre. */
+.levelChip {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-blue);
+  white-space: nowrap;
+}
+
+/* 🛑 Non mesuré : pastille neutre et petite. Le bleu est réservé à un palier
+   réel — une pastille de marque sur une absence de mesure se lirait comme un
+   résultat. */
+.levelChip.isNa {
+  padding: 4px 8px;
+  border-radius: var(--sf-radius-xs);
+  background: white;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* L'échelle et la ligne de pied s'alignent sous l'intitulé, pas sous le
+   repère : 42 px de pastille + 12 px de gouttière. */
+.levelRowScale,
+.levelRowMeta {
+  display: block;
+  padding-left: 54px;
+}
+
+/* Sans repère court (le civique), rien ne justifie le retrait. */
+.isFlush .levelRowScale,
+.isFlush .levelRowMeta {
+  padding-left: 0;
+}
+
+.levelRowMeta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 10px;
   font-size: 12.5px;
-  font-weight: 800;
+}
+
+.levelRowCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
   color: var(--color-blue);
 }
 
-.levelCardEnd svg {
+/* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
+   jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
+.levelRowCta.isPrimary {
+  padding: 8px 14px;
+  border-radius: var(--sf-radius-xs);
+  background: var(--color-red);
+  color: white;
+  transition: background var(--sf-quick);
+}
+
+.levelRowLink:hover .levelRowCta.isPrimary {
+  background: var(--color-red-dark);
+}
+
+.levelRowGoal {
   flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* ---------- L'échelle CECRL : l'élément signature ---------- */
+
+/* 🛑 **Quatre crans à largeur égale**, jamais proportionnels : ce n'est pas
+   une jauge, c'est une position. Aucun chiffre n'y est écrit.
+
+   ⚠️ La maquette en montrait SIX (C1 et C2 grisés) : arbitrage du propriétaire
+   du 2026-09-16 — l'échelle s'arrête à B2, comme le reste du produit. */
+.ladder {
+  display: block;
+  margin-top: 12px;
+}
+
+.ladderTrack {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.ladderStep {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-line);
+}
+
+.ladderStep.isDone {
+  background: var(--color-blue);
+}
+
+.ladderStep.isTarget {
+  background: var(--color-red-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-red);
+}
+
+/* Épreuve jamais mesurée : les crans passent en contour. Le cran d'objectif,
+   lui, reste marqué — c'est la seule chose qu'on sait d'elle. */
+.ladder.isDim .ladderStep {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.ladder.isDim .ladderStep.isTarget {
+  background: var(--color-red-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-red);
+}
+
+.ladderLabels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.ladderLabels span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-muted-2);
+  text-align: center;
+}
+
+.ladderLabels .isCur {
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.ladderLabels .isTgt {
+  color: var(--color-red);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ladderStep {
+    transition: background var(--sf-fast);
+  }
 }
 
 /* ---------- Le bandeau d'objectif ---------- */
 
-.goalRibbon {
+/* 🛑 **Bande bleue pleine** (maquette v2) : elle annonce l'objectif avant que
+   la liste dise où on en est. ⚠️ Remplace `.goalRibbon`, la bande claire à
+   filet de la maquette v1. */
+.goalBanner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 14px;
+  padding: 14px 16px;
   border-radius: var(--sf-radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-blue) 8%, transparent);
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--color-blue) 8%, white) 0%,
-    white 56%,
-    color-mix(in srgb, var(--color-red) 7%, white) 100%
-  );
+  background: var(--color-blue);
+  color: white;
 }
 
-.goalDot {
+/* La cocarde : trois cercles concentriques, en pur dégradé radial. */
+.goalCocarde {
   flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--color-red);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-red) 10%, transparent);
+  background: radial-gradient(
+    circle,
+    var(--color-red) 0 30%,
+    white 31% 58%,
+    var(--color-blue-dark) 59%
+  );
+  box-shadow: 0 0 0 2px color-mix(in srgb, white 25%, transparent);
 }
 
-.goalRibbonBody {
+.goalBannerBody {
   display: flex;
   flex-direction: column;
-  min-width: 0;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
-.goalRibbonBody small {
+.goalBannerBody small {
   font-size: 12px;
-  font-weight: 700;
-  color: var(--color-muted);
+  font-weight: 600;
+  color: color-mix(in srgb, white 75%, var(--color-blue));
 }
 
-.goalRibbonBody b {
+.goalBannerBody b {
   margin-top: 1px;
-  font-size: 14px;
+  font-size: 16.5px;
   font-weight: 800;
-  color: var(--color-ink);
+  letter-spacing: -0.01em;
 }
 
 .goalCount {
   flex: 0 0 auto;
-  padding: 6px 9px;
-  border-radius: var(--sf-radius-pill);
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
 }
+
+.goalCount b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.goalCount small {
+  margin-top: 4px;
+  font-size: 11px;
+  color: color-mix(in srgb, white 75%, var(--color-blue));
+}
+
+/* Une pastille par épreuve SERVIE — le nombre vient du serveur, jamais d'un
+   « 4 » écrit ici. */
+.goalPips {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+  justify-content: flex-end;
+}
+
+.goalPips i {
+  width: 14px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, white 25%, transparent);
+}
+
+.goalPips i.isOn {
+  background: white;
+}
+
 
 /* ---------- La note discrète de bas de carte ---------- */
 
@@ -2235,6 +2409,26 @@
   font-size: 11.5px;
   font-weight: 700;
   color: var(--color-muted);
+}
+
+/* Variante **de tête de carte** (maquette « Où vous en êtes » v2) : un titre
+   éditorial et une phrase de cadrage, là où la variante par défaut coiffe un
+   bloc dans une page de résultats. 🛑 Une variante, pas une primitive de plus. */
+.panelHead.isLead {
+  margin-bottom: 14px;
+}
+
+.isLead .panelTitle {
+  font-size: 25px;
+  letter-spacing: -0.03em;
+}
+
+.isLead .panelSub {
+  margin-top: 8px;
+  max-width: 44ch;
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 /* ---------- Le héros d'une page de résultats ---------- */
@@ -2552,15 +2746,9 @@
 /* ---------- Palier desktop (960 px) — la borne du kit, pas une de plus ---- */
 
 @media (min-width: 960px) {
-  /* La colonne de 1080 px pose les quatre épreuves de front. */
-  .levelGrid {
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  }
-
-  .levelCardTop {
-    flex-wrap: nowrap;
-  }
-
+  /* ⚠️ Les deux règles de « Où vous en êtes » sont parties avec la maquette v1
+     (`.levelGrid`, `.levelCardTop`) : la liste a sa propre règle de palier, plus
+     haut, avec le reste du kit. */
   .chart {
     height: 220px;
   }
@@ -2571,7 +2759,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .levelCard,
+  .levelRowLink,
+  .ladderStep,
   .histItem,
   .chartDot {
     transition: none;

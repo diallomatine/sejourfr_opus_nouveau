@@ -797,10 +797,14 @@ export function ProgressMini({
   tone?: BarTone;
 }) {
   const pct = Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
+  /* `<span>` et non `<div>` : la jauge est rendue **dans** une ligne d'épreuve
+     (`LevelRow`), donc à l'intérieur d'un lien — un `<div>` y serait un nœud de
+     flux dans du contenu phrasé. `display: block` lui garde exactement le même
+     rendu chez ses appelants d'origine. */
   return (
-    <div className={cx(styles.progressMini, barToneClass[tone])} aria-label={label}>
+    <span className={cx(styles.progressMini, barToneClass[tone])} aria-label={label}>
       <span style={{ width: `${pct}%` }} />
-    </div>
+    </span>
   );
 }
 
@@ -1114,41 +1118,144 @@ export function PassCard({
 
 /* ========================================================================== */
 /* Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16) */
+/*                                                                            */
+/* ⚠️ « Où vous en êtes » a été REFAIT le même jour sur une seconde maquette   */
+/* (`ou_en_vous_v2.html`) : la grille de cartes compactes est devenue une      */
+/* LISTE verticale dans une seule carte, chaque ligne portant une échelle      */
+/* CECRL à six crans. `LevelCard`, `LevelGrid` et `GoalRibbon` sont            */
+/* **supprimées** avec leurs classes — refonte = suppression de l'ancien.     */
 /* ========================================================================== */
 
 /**
- * **La carte compacte d'une épreuve** — le `.level-card` de la maquette :
- * repère court, palier, intitulé, la ligne « actuel / objectif », le rail,
- * l'état en un mot, et ce qu'on peut faire.
+ * Le ton d'une **pastille de statut** — le même contrat que celui d'une jauge,
+ * mais posé sur du texte : `barToneClass` ne teinte qu'un enfant de barre.
+ */
+const statusToneClass: Record<BarTone, string> = {
+  ok: styles.toneOk,
+  now: styles.toneNow,
+  warn: styles.toneWarn,
+  hot: styles.toneHot,
+  muted: styles.toneMuted,
+};
+
+/**
+ * Un cran de l'échelle CECRL, **composé par l'appelant**
+ * (`accueilEchelons`, `lib/progres.ts` ⇄ `progres_labels.dart`).
+ *
+ * 🛑 Le kit ne sait ni ce qu'est un palier, ni lequel est atteint : il reçoit
+ * des crans déjà situés, et il en rend autant qu'on lui en donne — c'est
+ * l'appelant qui décide que l'échelle s'arrête à B2. Miroir Flutter :
+ * `SfLadderStep`.
+ */
+export type LadderStep = {
+  /** Ce qui s'écrit sous le cran (« A1 »…). Décoratif : l'échelle est un `img`. */
+  label: string;
+  /** `done` = palier acquis · `target` = le cran visé · `empty` = le reste. */
+  state: "done" | "target" | "empty";
+  /** Le palier ACTUEL du candidat — au plus un cran, aucun quand rien n'est mesuré. */
+  current: boolean;
+  /** Le palier VISÉ — au plus un cran, aucun sans démarche déclarée. */
+  goal: boolean;
+};
+
+/**
+ * **L'échelle CECRL** — l'élément signature de la maquette v2 : les crans du
+ * parcours et leurs libellés, sous la ligne d'une épreuve.
+ *
+ * 🛑 **Ce n'est pas une jauge et elle n'affiche aucun chiffre** : elle situe un
+ * **palier servi** face à un **objectif servi**. Aucun pourcentage de
+ * progression vers un palier n'est calculé ni montré — la règle qui l'interdit
+ * tient toujours.
+ *
+ * 🛑 **Rendue en `role="img"`** avec un `aria-label` composé par l'appelant :
+ * les libellés sont `aria-hidden`, un lecteur d'écran n'a pas à épeler quatre
+ * crans pour comprendre « Niveau B1, objectif B2 ».
+ *
+ * Miroir Flutter : `SfLevelLadder`.
+ */
+export function LevelLadder({
+  steps,
+  label,
+  dim,
+}: {
+  steps: LadderStep[];
+  /** Ce que l'échelle DIT. Jamais dérivé ici. */
+  label: string;
+  /**
+   * Épreuve jamais mesurée : les crans passent en contour, sans remplissage.
+   * 🛑 **Passé, jamais deviné** d'un cran vide — une épreuve `<A1` n'a elle non
+   * plus aucun cran rempli, et ce n'est pas la même chose.
+   */
+  dim?: boolean;
+}) {
+  return (
+    <span className={cx(styles.ladder, dim && styles.isDim)} role="img" aria-label={label}>
+      <span className={styles.ladderTrack}>
+        {steps.map((step) => (
+          <i
+            key={step.label}
+            className={cx(
+              styles.ladderStep,
+              step.state === "done" && styles.isDone,
+              step.state === "target" && styles.isTarget,
+            )}
+          />
+        ))}
+      </span>
+      <span className={styles.ladderLabels} aria-hidden>
+        {steps.map((step) => (
+          <span
+            key={step.label}
+            className={cx(
+              step.current && styles.isCur,
+              !step.current && step.goal && styles.isTgt,
+            )}
+          >
+            {step.label}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * **La ligne d'une épreuve** — le `.test` de la maquette v2 : repère court en
+ * pastille mono, intitulé, statut à pastille colorée, palier à droite, puis
+ * l'échelle et une ligne de pied « action · objectif ».
  *
  * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
- * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`) : elle ne voit
- * ni niveau CECRL, ni statut servi, ni pourcentage.
+ * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`).
  *
- * 🛑 **Le rail n'affiche aucun chiffre** : c'est le codage visuel de l'état
- * écrit juste en dessous, pas une progression vers un palier.
- *
- * Miroir Flutter : `SfLevelCard`.
+ * Miroir Flutter : `SfLevelRow`.
  */
-export function LevelCard({
+export function LevelRow({
   mark,
+  title,
+  status,
+  tone,
   level,
   measured,
-  title,
-  from,
-  to,
-  ratio,
-  tone,
-  status,
+  scale,
   cta,
+  ctaPrimary,
+  goal,
   href,
   onClick,
   busy,
 }: {
   /** Repère court (« CO »). `null` quand rien n'en sert — on n'en invente pas. */
   mark: string | null;
-  /** Le palier servi, ou le mot d'une absence de mesure. */
-  level: string;
+  title: string;
+  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
+  status: string | null;
+  /** Le ton de la pastille de statut. */
+  tone: BarTone;
+  /**
+   * Le palier servi, ou le mot d'une absence de mesure. `null` retire la
+   * pastille : le civique n'a aucun palier CECRL servi.
+   */
+  level: string | null;
   /**
    * Y a-t-il une mesure derrière `level` ?
    *
@@ -1156,95 +1263,120 @@ export function LevelCard({
    * d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
    */
   measured: boolean;
-  title: string;
-  /**
-   * La gauche de la ligne de repères (« B1 », « Non évaluée »).
-   *
-   * 🛑 `null` **retire la ligne entière** : le civique n'a aucun palier CECRL
-   * et aucun objectif servi — une ligne de repères y serait fabriquée.
-   */
-  from: string | null;
-  /** La droite (« Objectif B2 »). `null` quand aucune démarche n'est servie. */
-  to: string | null;
-  ratio: number;
-  tone: BarTone;
-  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
-  status: string | null;
+  /** L'échelle, ou la jauge du civique. `null` quand rien ne la sert. */
+  scale?: ReactNode;
   cta: string;
-  /** Où mène la carte. `null` quand elle **lance** au lieu de naviguer. */
+  /** Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit. */
+  ctaPrimary?: boolean;
+  /** « Objectif B2 ». `null` quand aucune démarche n'est servie. */
+  goal: string | null;
+  /** Où mène la ligne. `null` quand elle **lance** au lieu de naviguer. */
   href: string | null;
   onClick?: () => void;
   busy?: boolean;
 }) {
   const body = (
     <>
-      <span className={styles.levelCardTop}>
+      <span className={styles.levelRowTop}>
         {mark ? <span className={styles.levelMark}>{mark}</span> : null}
-        <span className={cx(styles.levelChip, !measured && styles.isNa)}>{level}</span>
-      </span>
-      <span className={styles.levelCardTitle}>{title}</span>
-      {from ? (
-        <span className={styles.levelMeta}>
-          <span>{from}</span>
-          {to ? <span>{to}</span> : null}
+        <span className={styles.levelRowId}>
+          <span className={styles.levelRowName}>{title}</span>
+          {status ? (
+            <span className={cx(styles.levelRowStatus, statusToneClass[tone])}>{status}</span>
+          ) : null}
         </span>
-      ) : null}
-      <ProgressMini ratio={ratio} tone={tone} label={status ?? undefined} />
-      {status ? <span className={styles.levelStatus}>{status}</span> : null}
-      <span className={styles.levelCardEnd}>
-        {cta}
-        <ArrowRight size={16} strokeWidth={2.4} aria-hidden />
+        {level ? (
+          <span className={cx(styles.levelChip, !measured && styles.isNa)}>{level}</span>
+        ) : null}
+      </span>
+      {scale ? <span className={styles.levelRowScale}>{scale}</span> : null}
+      <span className={styles.levelRowMeta}>
+        <span className={cx(styles.levelRowCta, ctaPrimary && styles.isPrimary)}>
+          {cta}
+          {ctaPrimary ? null : <ArrowRight size={14} strokeWidth={2.6} aria-hidden />}
+        </span>
+        {goal ? <span className={styles.levelRowGoal}>{goal}</span> : null}
       </span>
     </>
   );
-  const cls = cx(styles.levelCard, measured && styles.isAssessed);
-  if (href) {
-    return (
-      <Link href={href} className={cls}>
-        {body}
-      </Link>
-    );
-  }
+  /* Sans repère court (le civique), l'échelle et la ligne de pied n'ont rien
+     sous quoi s'aligner : elles reprennent le bord du texte. */
+  const cls = cx(styles.levelRowLink, !measured && styles.isTodo, !mark && styles.isFlush);
   return (
-    <button type="button" className={cls} onClick={onClick} disabled={busy}>
-      {body}
-    </button>
+    <li className={styles.levelRow}>
+      {href ? (
+        <Link href={href} className={cls}>
+          {body}
+        </Link>
+      ) : (
+        <button type="button" className={cls} onClick={onClick} disabled={busy}>
+          {body}
+        </button>
+      )}
+    </li>
   );
 }
 
 /**
- * Les cartes d'épreuve, **deux par rangée dès 360 px** (maquette). Au palier
- * desktop la colonne de 1080 px les pose de front.
+ * La liste des épreuves — **une seule colonne** sur téléphone, comme la
+ * maquette (calée sur 440 px).
  *
- * Miroir Flutter : `SfLevelGrid`.
+ * ⚠️ **Deux colonnes au palier desktop du kit (≥ 960 px), et rien de plus** :
+ * une échelle de six crans étirée sur 1 000 px ne veut plus rien dire. C'est
+ * une **media query sur une primitive existante**, donc **sans miroir Flutter**
+ * — l'app est en portrait téléphone. Le pendant de `.deskGrid2`.
+ *
+ * Miroir Flutter : `SfLevelList`.
  */
-export function LevelGrid({ children }: { children: ReactNode }) {
-  return <div className={styles.levelGrid}>{children}</div>;
+export function LevelList({ children }: { children: ReactNode }) {
+  return <ul className={styles.levelList}>{children}</ul>;
 }
 
 /**
- * **Le bandeau d'objectif** — le `.goal-strip` de la maquette : pastille,
- * intitulé + valeur, et à droite un compteur.
+ * **Le bandeau d'objectif** — la bande bleue pleine de la maquette v2 :
+ * cocarde, intitulé + valeur, puis le compteur « 3 / 4 », ses pastilles et le
+ * mot qu'elles comptent.
  *
- * 🛑 `count` est **passé**, jamais compté ici. Miroir Flutter : `SfGoalRibbon`.
+ * 🛑 `count` et `total` sont **passés**, jamais comptés ici — et `total` pose
+ * le nombre de pastilles, donc l'écran ne peut pas en dessiner quatre quand le
+ * serveur en publie trois.
+ *
+ * ⚠️ **Remplace `GoalRibbon`** (bande claire à filet, maquette v1).
+ * Miroir Flutter : `SfGoalBanner`.
  */
-export function GoalRibbon({
+export function GoalBanner({
   label,
   value,
   count,
+  total,
+  caption,
 }: {
   label: string;
   value: string;
-  count?: string | null;
+  /** Le nombre de mesures faites. `null` retire le compteur entier. */
+  count?: number | null;
+  total?: number | null;
+  caption?: string;
 }) {
+  const pips = count != null && total != null && total > 0;
   return (
-    <div className={styles.goalRibbon}>
-      <span className={styles.goalDot} aria-hidden />
-      <span className={styles.goalRibbonBody}>
+    <div className={styles.goalBanner}>
+      <span className={styles.goalCocarde} aria-hidden />
+      <span className={styles.goalBannerBody}>
         <small>{label}</small>
         <b>{value}</b>
       </span>
-      {count ? <span className={styles.goalCount}>{count}</span> : null}
+      {pips ? (
+        <span className={styles.goalCount}>
+          <b>{`${count} / ${total}`}</b>
+          <span className={styles.goalPips} aria-hidden>
+            {Array.from({ length: total }, (_, i) => (
+              <i key={i} className={cx(i < count && styles.isOn)} />
+            ))}
+          </span>
+          {caption ? <small>{caption}</small> : null}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -1264,10 +1396,25 @@ export function MicroNote({ children }: { children: ReactNode }) {
   );
 }
 
-/** L'en-tête d'un panneau : son titre, et ce qu'il contient en sous-titre. */
-export function PanelHead({ title, sub }: { title: string; sub?: string | null }) {
+/**
+ * L'en-tête d'un panneau : son titre, et ce qu'il contient en sous-titre.
+ *
+ * `lead` est la variante **de tête de carte** (maquette « Où vous en êtes »
+ * v2) : titre éditorial plus grand et sous-titre en phrase de cadrage, là où la
+ * variante par défaut coiffe un bloc à l'intérieur d'une page de résultats.
+ * 🛑 Une **variante**, pas une seconde primitive.
+ */
+export function PanelHead({
+  title,
+  sub,
+  lead,
+}: {
+  title: string;
+  sub?: string | null;
+  lead?: boolean;
+}) {
   return (
-    <div className={styles.panelHead}>
+    <div className={cx(styles.panelHead, lead && styles.isLead)}>
       <h3 className={styles.panelTitle}>{title}</h3>
       {sub ? <p className={styles.panelSub}>{sub}</p> : null}
     </div>
