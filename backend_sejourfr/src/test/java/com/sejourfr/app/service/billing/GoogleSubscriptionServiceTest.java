@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -275,6 +276,86 @@ class GoogleSubscriptionServiceTest {
 
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Pub/Sub livre at-least-once et plusieurs RTDN décrivent le même cycle :
+     * deux messageId DISTINCTS (donc non dédupliqués) qui refetchent le même
+     * état ne doivent produire qu'une seule écriture. Sinon {@code updated_at}
+     * avance sans qu'aucun champ métier n'ait bougé.
+     */
+    @Test
+    void rtdn_memeEtatRejoue_neSauvegardeQuUneFois() throws Exception {
+        when(processedEventManager.tryMarkProcessed(
+                org.mockito.ArgumentMatchers.eq("google"), any())).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.PENDING);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.GOOGLE, "tok")).thenReturn(Optional.of(sub));
+        // Le MÊME état renvoyé aux deux refetchs (même expiryTime, même orderId).
+        SubscriptionPurchaseV2 state = stateMock("integral_monthly", "SUBSCRIPTION_STATE_ACTIVE");
+        when(googleStoreClient.getSubscriptionV2("tok")).thenReturn(state);
+
+        service.handleNotification("Bearer x", pubSubPayload("m6a", 4, "tok"));
+        service.handleNotification("Bearer x", pubSubPayload("m6b", 4, "tok"));
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        verify(userSubscriptionManager, times(1)).save(any());
+    }
+
+    /** Une RTDN qui change vraiment l'état est bien écrite, elle. */
+    @Test
+    void rtdn_changementReel_sauvegardeANouveau() throws Exception {
+        when(processedEventManager.tryMarkProcessed(
+                org.mockito.ArgumentMatchers.eq("google"), any())).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.PENDING);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.GOOGLE, "tok")).thenReturn(Optional.of(sub));
+        SubscriptionPurchaseV2 actif = stateMock("integral_monthly", "SUBSCRIPTION_STATE_ACTIVE");
+        when(googleStoreClient.getSubscriptionV2("tok")).thenReturn(actif);
+
+        service.handleNotification("Bearer x", pubSubPayload("m7a", 4, "tok"));
+        service.handleNotification("Bearer x", pubSubPayload("m7b", 4, "tok"));
+
+        SubscriptionPurchaseV2 expire = stateMock("integral_monthly", "SUBSCRIPTION_STATE_EXPIRED");
+        when(googleStoreClient.getSubscriptionV2("tok")).thenReturn(expire);
+        service.handleNotification("Bearer x", pubSubPayload("m7c", 13, "tok"));
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.EXPIRED);
+        verify(userSubscriptionManager, times(2)).save(any());
+    }
+
+    /** 🛑 {@code null} = inconnu : un état Play sans {@code latestOrderId} ne
+     *  fait pas oublier la commande déjà connue. */
+    @Test
+    void rtdn_sansLatestOrderId_gardeLaCommandeDejaConnue() throws Exception {
+        when(processedEventManager.tryMarkProcessed("google", "m9")).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.ACTIVE);
+        sub.setExternalTransactionId("order_1");
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.GOOGLE, "tok")).thenReturn(Optional.of(sub));
+        SubscriptionPurchaseV2 state = stateMock("integral_monthly", "SUBSCRIPTION_STATE_ACTIVE");
+        when(state.getLatestOrderId()).thenReturn(null);
+        when(googleStoreClient.getSubscriptionV2("tok")).thenReturn(state);
+
+        service.handleNotification("Bearer x", pubSubPayload("m9", 4, "tok"));
+
+        assertThat(sub.getExternalTransactionId()).isEqualTo("order_1");
+    }
+
+    @Test
+    void rtdn_revoked_rejoue_neSauvegardeQuUneFois() throws Exception {
+        when(processedEventManager.tryMarkProcessed(
+                org.mockito.ArgumentMatchers.eq("google"), any())).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.ACTIVE);
+        sub.setAutoRenew(true);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.GOOGLE, "tok")).thenReturn(Optional.of(sub));
+
+        service.handleNotification("Bearer x", pubSubPayload("m8a", 12, "tok"));
+        service.handleNotification("Bearer x", pubSubPayload("m8b", 12, "tok"));
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        verify(userSubscriptionManager, times(1)).save(any());
     }
 
     // ----- verify-receipt, pass one-time (lot 5) ------------------------------

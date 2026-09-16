@@ -226,13 +226,21 @@ public class StripeSubscriptionService {
 
         UserSubscription sub = existing.get();
         SubscriptionStatus oldStatus = sub.getStatus();
+        EtatAbonnement avant = EtatAbonnement.de(sub);
         applySubscriptionState(sub, subscription);
-        userSubscriptionManager.save(sub);
-        log.info(
-                "Stripe {} appliqué user={} sub={} status={} endsAt={} autoRenew={}",
-                type, sub.getUser().getId(), subscription.getId(),
-                sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
-        );
+        if (avant.identiqueA(sub)) {
+            // Stripe émet plusieurs events pour un même cycle métier : le
+            // premier a déjà posé cet état, les suivants n'ont rien à écrire.
+            log.debug("Stripe {} sans changement d'état pour sub={} — pas de sauvegarde.",
+                    type, subscription.getId());
+        } else {
+            userSubscriptionManager.save(sub);
+            log.info(
+                    "Stripe {} appliqué user={} sub={} status={} endsAt={} autoRenew={}",
+                    type, sub.getUser().getId(), subscription.getId(),
+                    sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
+            );
+        }
 
         // Mail de résiliation UNIQUEMENT sur transition ACTIVE-like → CANCELED.
         // Si CANCELED → CANCELED (replay webhook ou cancel déjà initié par
@@ -254,9 +262,18 @@ public class StripeSubscriptionService {
                         SubscriptionSource.STRIPE, subscription.getId())
                 .ifPresentOrElse(
                         sub -> {
-                            sub.setStatus(SubscriptionStatus.EXPIRED);
-                            sub.setAutoRenew(false);
-                            sub.setEndsAt(toInstant(subscription.getCanceledAt(), sub.getEndsAt()));
+                            EtatAbonnement avant = EtatAbonnement.de(sub);
+                            EtatAbonnement.poser(SubscriptionStatus.EXPIRED,
+                                    sub::getStatus, sub::setStatus);
+                            EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+                            EtatAbonnement.poser(
+                                    toInstant(subscription.getCanceledAt(), sub.getEndsAt()),
+                                    sub::getEndsAt, sub::setEndsAt);
+                            if (avant.identiqueA(sub)) {
+                                log.debug("Stripe subscription deleted sub={} déjà appliqué — "
+                                        + "pas de sauvegarde.", subscription.getId());
+                                return;
+                            }
                             userSubscriptionManager.save(sub);
                             log.info("Stripe subscription deleted user={} sub={}",
                                     sub.getUser().getId(), subscription.getId());
@@ -284,13 +301,7 @@ public class StripeSubscriptionService {
             if (paymentIntent != null && !paymentIntent.isBlank()) {
                 userSubscriptionManager
                         .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
-                        .ifPresent(sub -> {
-                            sub.setStatus(SubscriptionStatus.REFUNDED);
-                            sub.setAutoRenew(false);
-                            userSubscriptionManager.save(sub);
-                            log.info("Stripe one-time refund user={} pi={}",
-                                    sub.getUser().getId(), paymentIntent);
-                        });
+                        .ifPresent(sub -> appliquerRemboursement(sub, "one-time", paymentIntent));
             } else {
                 log.debug("charge.refunded sans invoice ni payment_intent (charge={}) — ignoré.",
                         charge.getId());
@@ -309,17 +320,28 @@ public class StripeSubscriptionService {
             userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(
                             SubscriptionSource.STRIPE, subscriptionId)
-                    .ifPresent(sub -> {
-                        sub.setStatus(SubscriptionStatus.REFUNDED);
-                        sub.setAutoRenew(false);
-                        userSubscriptionManager.save(sub);
-                        log.info("Stripe charge refunded user={} sub={}",
-                                sub.getUser().getId(), subscriptionId);
-                    });
+                    .ifPresent(sub -> appliquerRemboursement(sub, "charge", subscriptionId));
         } catch (StripeException e) {
             log.warn("Impossible de récupérer l'invoice {} pour refund : {}",
                     invoiceId, e.getMessage());
         }
+    }
+
+    /**
+     * Retire l'accès Premium après un remboursement. Rejouable : un second
+     * {@code charge.refunded} sur une ligne déjà REFUNDED n'écrit rien.
+     */
+    private void appliquerRemboursement(UserSubscription sub, String contexte, String reference) {
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+        EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+        if (avant.identiqueA(sub)) {
+            log.debug("Stripe refund {} ref={} déjà appliqué — pas de sauvegarde.",
+                    contexte, reference);
+            return;
+        }
+        userSubscriptionManager.save(sub);
+        log.info("Stripe refund {} user={} ref={}", contexte, sub.getUser().getId(), reference);
     }
 
     // ------------------------------------------------------------------------
@@ -358,8 +380,10 @@ public class StripeSubscriptionService {
             );
         }
 
-        sub.setStripeCustomerId(customerId);
-        sub.setStripeSubscriptionId(subscription.getId());
+        EtatAbonnement avant = isNew ? null : EtatAbonnement.de(sub);
+        EtatAbonnement.poser(customerId, sub::getStripeCustomerId, sub::setStripeCustomerId);
+        EtatAbonnement.poser(subscription.getId(),
+                sub::getStripeSubscriptionId, sub::setStripeSubscriptionId);
         applySubscriptionState(sub, subscription);
         // Sessions EO temps réel : allocation du pass à la 1re souscription
         // (le plan vient d'être posé par applySubscriptionState). TODO (récurrent
@@ -376,7 +400,11 @@ public class StripeSubscriptionService {
             // one-time, où le montant vient de `amount_total`, qui est un fait.
             montantEncaisseResolver.duPlan(sub.getPlan()).appliquerA(sub);
         }
-        userSubscriptionManager.save(sub);
+        // Une ligne neuve doit être écrite ; un re-checkout sur une ligne
+        // déjà à jour ne doit PAS faire avancer `updated_at`.
+        if (isNew || !avant.identiqueA(sub)) {
+            userSubscriptionManager.save(sub);
+        }
         return isNew;
     }
 
@@ -388,17 +416,22 @@ public class StripeSubscriptionService {
     private void applySubscriptionState(UserSubscription sub, Subscription subscription) {
         Plan plan = lookupPlanFromSubscription(subscription);
         if (plan != null) {
-            sub.setPlan(plan);
-            sub.setProductId(plan.getCode());
+            EtatAbonnement.poser(plan, sub::getPlan, sub::setPlan);
+            EtatAbonnement.poser(plan.getCode(), sub::getProductId, sub::setProductId);
         }
-        sub.setExternalTransactionId(subscription.getLatestInvoice());
-        sub.setEndsAt(toInstant(subscription.getCurrentPeriodEnd(), sub.getEndsAt()));
-        sub.setAutoRenew(!Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()));
-        sub.setStatus(mapStripeStatus(
-                subscription.getStatus(),
-                Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
-                sub.getStatus()
-        ));
+        EtatAbonnement.poser(
+                EtatAbonnement.connuOu(
+                        subscription.getLatestInvoice(), sub.getExternalTransactionId()),
+                sub::getExternalTransactionId, sub::setExternalTransactionId);
+        EtatAbonnement.poser(toInstant(subscription.getCurrentPeriodEnd(), sub.getEndsAt()),
+                sub::getEndsAt, sub::setEndsAt);
+        EtatAbonnement.poser(!Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
+                sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(mapStripeStatus(
+                        subscription.getStatus(),
+                        Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
+                        sub.getStatus()),
+                sub::getStatus, sub::setStatus);
     }
 
     /**

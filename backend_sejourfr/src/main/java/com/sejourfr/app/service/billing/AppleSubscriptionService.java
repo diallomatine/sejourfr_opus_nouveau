@@ -245,11 +245,17 @@ public class AppleSubscriptionService {
         // (retrait d'accès). On ne touche pas endsAt (posé par le backend).
         if (billingProperties.isOneTime()) {
             if (type == NotificationTypeV2.REFUND || type == NotificationTypeV2.REVOKE) {
-                sub.setStatus(SubscriptionStatus.REFUNDED);
-                sub.setAutoRenew(false);
-                userSubscriptionManager.save(sub);
-                log.info("Apple one-time refund/revoke user={} type={} origTx={}",
-                        sub.getUser().getId(), type, tx.getOriginalTransactionId());
+                EtatAbonnement avant = EtatAbonnement.de(sub);
+                EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+                EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+                if (avant.identiqueA(sub)) {
+                    log.debug("Apple one-time refund/revoke déjà appliqué (origTx={}) — "
+                            + "pas de sauvegarde.", tx.getOriginalTransactionId());
+                } else {
+                    userSubscriptionManager.save(sub);
+                    log.info("Apple one-time refund/revoke user={} type={} origTx={}",
+                            sub.getUser().getId(), type, tx.getOriginalTransactionId());
+                }
             } else {
                 log.debug("Apple notification {} type={} ignorée (mode one-time).",
                         notificationUUID, type);
@@ -259,15 +265,24 @@ public class AppleSubscriptionService {
 
         Plan plan = sub.getPlan();
         SubscriptionStatus oldStatus = sub.getStatus();
+        EtatAbonnement avant = EtatAbonnement.de(sub);
         applyNotificationTransition(sub, type, subtype, tx, renewalInfo);
-        sub.setPlan(plan); // garantir que la FK reste posée
-        userSubscriptionManager.save(sub);
+        EtatAbonnement.poser(plan, sub::getPlan, sub::setPlan); // garantir que la FK reste posée
 
-        log.info(
-                "Apple notification {} (type={}, subtype={}) appliquée user={} status={} endsAt={} autoRenew={}",
-                notificationUUID, type, subtype,
-                sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
-        );
+        if (avant.identiqueA(sub)) {
+            // Apple renotifie (et un type sans impact Premium ne change rien) :
+            // sans changement d'état, aucune écriture — donc pas de bump de
+            // `updated_at`.
+            log.debug("Apple notification {} (type={}) sans changement d'état — pas de sauvegarde.",
+                    notificationUUID, type);
+        } else {
+            userSubscriptionManager.save(sub);
+            log.info(
+                    "Apple notification {} (type={}, subtype={}) appliquée user={} status={} endsAt={} autoRenew={}",
+                    notificationUUID, type, subtype,
+                    sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
+            );
+        }
 
         // Mail de résiliation UNIQUEMENT sur transition vers CANCELED
         // (typiquement DID_CHANGE_RENEWAL_STATUS avec AUTO_RENEW_DISABLED).
@@ -422,19 +437,23 @@ public class AppleSubscriptionService {
             JWSRenewalInfoDecodedPayload renewalInfo) {
         // Toujours mettre à jour les champs "fait" depuis la transaction —
         // c'est la source de vérité.
-        sub.setExternalTransactionId(tx.getTransactionId());
-        sub.setEndsAt(toInstant(tx.getExpiresDate(), sub.getEndsAt()));
-        sub.setAutoRenew(deriveAutoRenew(renewalInfo, sub.isAutoRenew()));
+        EtatAbonnement.poser(
+                EtatAbonnement.connuOu(tx.getTransactionId(), sub.getExternalTransactionId()),
+                sub::getExternalTransactionId, sub::setExternalTransactionId);
+        EtatAbonnement.poser(toInstant(tx.getExpiresDate(), sub.getEndsAt()),
+                sub::getEndsAt, sub::setEndsAt);
+        EtatAbonnement.poser(deriveAutoRenew(renewalInfo, sub.isAutoRenew()),
+                sub::isAutoRenew, sub::setAutoRenew);
 
         switch (type) {
-            case SUBSCRIBED, DID_RENEW, OFFER_REDEEMED -> sub.setStatus(SubscriptionStatus.ACTIVE);
-            case EXPIRED, GRACE_PERIOD_EXPIRED -> sub.setStatus(SubscriptionStatus.EXPIRED);
+            case SUBSCRIBED, DID_RENEW, OFFER_REDEEMED -> poserStatut(sub, SubscriptionStatus.ACTIVE);
+            case EXPIRED, GRACE_PERIOD_EXPIRED -> poserStatut(sub, SubscriptionStatus.EXPIRED);
             case DID_FAIL_TO_RENEW -> {
                 // Avec subtype=GRACE_PERIOD, Apple donne au user une période
                 // de grâce avant de couper. Sans subtype, le retry de paiement
                 // a échoué mais l'abonnement court encore jusqu'à expiresDate.
                 if (subtype == Subtype.GRACE_PERIOD) {
-                    sub.setStatus(SubscriptionStatus.IN_GRACE);
+                    poserStatut(sub, SubscriptionStatus.IN_GRACE);
                 } else {
                     // L'abonnement reste ACTIVE tant que ends_at est dans le
                     // futur — pas de transition de statut, juste le log.
@@ -445,20 +464,20 @@ public class AppleSubscriptionService {
                 // a désactivé le renouvellement, on ne touche pas au statut :
                 // ACTIVE jusqu'à expiresDate, puis EXPIRED via la notif EXPIRED.
                 if (subtype == Subtype.AUTO_RENEW_DISABLED) {
-                    sub.setStatus(SubscriptionStatus.CANCELED);
+                    poserStatut(sub, SubscriptionStatus.CANCELED);
                 } else if (subtype == Subtype.AUTO_RENEW_ENABLED
                         && sub.getStatus() == SubscriptionStatus.CANCELED) {
                     // Le user a réactivé le renouvellement avant la fin —
                     // on repasse ACTIVE.
-                    sub.setStatus(SubscriptionStatus.ACTIVE);
+                    poserStatut(sub, SubscriptionStatus.ACTIVE);
                 }
             }
-            case REFUND, REVOKE -> sub.setStatus(SubscriptionStatus.REFUNDED);
+            case REFUND, REVOKE -> poserStatut(sub, SubscriptionStatus.REFUNDED);
             case REFUND_REVERSED -> {
                 // Apple a annulé le remboursement : on remet ACTIVE si la date
                 // de fin couvre encore.
                 if (sub.getEndsAt() != null && sub.getEndsAt().isAfter(Instant.now())) {
-                    sub.setStatus(SubscriptionStatus.ACTIVE);
+                    poserStatut(sub, SubscriptionStatus.ACTIVE);
                 }
             }
             case DID_CHANGE_RENEWAL_PREF -> {
@@ -473,6 +492,11 @@ public class AppleSubscriptionService {
                 log.debug("Apple notification type={} ignorée (pas d'impact Premium).", type);
             }
         }
+    }
+
+    /** Le statut ne s'écrit que s'il change vraiment (cf. {@link EtatAbonnement}). */
+    private static void poserStatut(UserSubscription sub, SubscriptionStatus statut) {
+        EtatAbonnement.poser(statut, sub::getStatus, sub::setStatus);
     }
 
     private SubscriptionStatus deriveStatusFromTransaction(JWSTransactionDecodedPayload tx) {

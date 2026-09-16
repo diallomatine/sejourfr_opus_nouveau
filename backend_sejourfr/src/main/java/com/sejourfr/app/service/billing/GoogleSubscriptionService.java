@@ -363,11 +363,7 @@ public class GoogleSubscriptionService {
         // peut encore montrer ACTIVE temporairement le temps que l'état se
         // propage.
         if (notificationType == GoogleNotificationType.SUBSCRIPTION_REVOKED) {
-            sub.setStatus(SubscriptionStatus.REFUNDED);
-            sub.setAutoRenew(false);
-            userSubscriptionManager.save(sub);
-            log.info("Google RTDN REVOKED appliqué user={} purchaseToken={}",
-                    sub.getUser().getId(), LogMask.token(purchaseToken));
+            appliquerRetraitAcces(sub, "RTDN REVOKED", purchaseToken);
             return;
         }
 
@@ -389,12 +385,25 @@ public class GoogleSubscriptionService {
 
         SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, null);
         SubscriptionStatus oldStatus = sub.getStatus();
-        sub.setProductId(lineItem.getProductId());
-        sub.setExternalTransactionId(state.getLatestOrderId());
-        sub.setEndsAt(parseExpiry(lineItem.getExpiryTime(), sub.getEndsAt()));
-        sub.setAutoRenew(deriveAutoRenew(lineItem, sub.isAutoRenew()));
-        sub.setStatus(mapSubscriptionState(state.getSubscriptionState(), sub.getStatus()));
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        EtatAbonnement.poser(lineItem.getProductId(), sub::getProductId, sub::setProductId);
+        EtatAbonnement.poser(
+                EtatAbonnement.connuOu(state.getLatestOrderId(), sub.getExternalTransactionId()),
+                sub::getExternalTransactionId, sub::setExternalTransactionId);
+        EtatAbonnement.poser(parseExpiry(lineItem.getExpiryTime(), sub.getEndsAt()),
+                sub::getEndsAt, sub::setEndsAt);
+        EtatAbonnement.poser(deriveAutoRenew(lineItem, sub.isAutoRenew()),
+                sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(mapSubscriptionState(state.getSubscriptionState(), sub.getStatus()),
+                sub::getStatus, sub::setStatus);
 
+        if (avant.identiqueA(sub)) {
+            // Pub/Sub est at-least-once, et plusieurs RTDN décrivent le même
+            // cycle : l'état refetché est déjà celui de la ligne, rien à écrire.
+            log.debug("Google RTDN type={} messageId={} sans changement d'état — pas de sauvegarde.",
+                    notificationType, messageId);
+            return;
+        }
         userSubscriptionManager.save(sub);
 
         // Mail de résiliation UNIQUEMENT sur transition vers CANCELED. Pas
@@ -408,6 +417,25 @@ public class GoogleSubscriptionService {
                 notificationType, messageId,
                 sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
         );
+    }
+
+    /**
+     * Retire l'accès Premium (révocation, remboursement, chargeback). Rejouable :
+     * une seconde notification sur une ligne déjà REFUNDED n'écrit rien, donc
+     * {@code updated_at} n'avance pas.
+     */
+    private void appliquerRetraitAcces(UserSubscription sub, String contexte, String purchaseToken) {
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+        EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+        if (avant.identiqueA(sub)) {
+            log.debug("Google {} déjà appliqué (token={}) — pas de sauvegarde.",
+                    contexte, LogMask.token(purchaseToken));
+            return;
+        }
+        userSubscriptionManager.save(sub);
+        log.info("Google {} appliqué user={} purchaseToken={}",
+                contexte, sub.getUser().getId(), LogMask.token(purchaseToken));
     }
 
     /**
@@ -425,15 +453,11 @@ public class GoogleSubscriptionService {
             }
             userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, token)
-                    .ifPresentOrElse(sub -> {
-                        sub.setStatus(SubscriptionStatus.REFUNDED);
-                        sub.setAutoRenew(false);
-                        userSubscriptionManager.save(sub);
-                        log.info("Google one-time voided/refund user={} token={}",
-                                sub.getUser().getId(), LogMask.token(token));
-                    }, () -> log.warn(
-                            "Google RTDN voided messageId={} token={} : aucune subscription locale.",
-                            messageId, LogMask.token(token)));
+                    .ifPresentOrElse(
+                            sub -> appliquerRetraitAcces(sub, "one-time voided/refund", token),
+                            () -> log.warn(
+                                    "Google RTDN voided messageId={} token={} : aucune subscription locale.",
+                                    messageId, LogMask.token(token)));
             return;
         }
         JsonNode oneTime = data.path("oneTimeProductNotification");

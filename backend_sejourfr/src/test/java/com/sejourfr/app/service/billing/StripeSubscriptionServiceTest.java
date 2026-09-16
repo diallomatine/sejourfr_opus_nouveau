@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -171,6 +172,92 @@ class StripeSubscriptionServiceTest {
                 subscriptionMock("active", false)));
         verify(userSubscriptionManager, never()).save(any());
         verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Stripe émet une rafale d'events pour un même cycle métier (28
+     * {@code event_id} distincts en quelques dizaines de secondes, constaté en
+     * base). La dédup par {@code event_id} ne les couvre pas : ce sont des
+     * events différents. Seul le premier a quelque chose à écrire — les
+     * suivants ne doivent PAS resauvegarder, sinon {@code updated_at} avance
+     * sans aucun changement métier.
+     */
+    @Test
+    void update_memeEtatRejoue_neSauvegardeQuUneFois() {
+        UserSubscription existing = existingSub(SubscriptionStatus.PENDING);
+        dispatchUpdate("active", false, existing);
+        dispatchUpdate("active", false, existing);
+        dispatchUpdate("active", false, existing);
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        verify(userSubscriptionManager, times(1)).save(any());
+    }
+
+    /** Un event qui change vraiment l'état est bien écrit, lui. */
+    @Test
+    void update_changementReel_sauvegardeANouveau() {
+        UserSubscription existing = existingSub(SubscriptionStatus.PENDING);
+        dispatchUpdate("active", false, existing);   // PENDING → ACTIVE : écrit
+        dispatchUpdate("active", false, existing);   // rien de neuf : pas écrit
+        dispatchUpdate("active", true, existing);    // résiliation : écrit
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
+        verify(userSubscriptionManager, times(2)).save(any());
+    }
+
+    /**
+     * 🛑 {@code null} = inconnu. Stripe émet des {@code subscription.updated}
+     * dont le {@code latest_invoice} est encore {@code null} : ça ne veut pas
+     * dire « plus de facture ». Écraser l'id connu perdrait la traçabilité et
+     * ferait avancer {@code updated_at} sur un aller-retour null ⇄ in_1.
+     */
+    @Test
+    void update_sansLatestInvoice_gardeLaFactureDejaConnue() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        existing.setAutoRenew(true);
+        existing.setExternalTransactionId("in_1");
+
+        Subscription sansFacture = subscriptionMock("active", false);
+        when(sansFacture.getLatestInvoice()).thenReturn(null);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "sub_1")).thenReturn(Optional.of(existing));
+        service.dispatch(eventOf("customer.subscription.updated", sansFacture));
+
+        assertThat(existing.getExternalTransactionId()).isEqualTo("in_1");
+        verify(userSubscriptionManager, never()).save(any());
+    }
+
+    @Test
+    void deleted_rejoue_neSauvegardeQuUneFois() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        existing.setAutoRenew(true);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "sub_1")).thenReturn(Optional.of(existing));
+        Subscription s = mock(Subscription.class);
+        when(s.getId()).thenReturn("sub_1");
+        when(s.getCanceledAt()).thenReturn(null);
+
+        service.dispatch(eventOf("customer.subscription.deleted", s));
+        service.dispatch(eventOf("customer.subscription.deleted", s));
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.EXPIRED);
+        verify(userSubscriptionManager, times(1)).save(any());
+    }
+
+    @Test
+    void chargeRefunded_rejoue_neSauvegardeQuUneFois() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        Charge charge = mock(Charge.class);
+        when(charge.getInvoice()).thenReturn(null);
+        when(charge.getPaymentIntent()).thenReturn("pi_99");
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
+
+        service.dispatch(eventOf("charge.refunded", charge));
+        service.dispatch(eventOf("charge.refunded", charge));
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        verify(userSubscriptionManager, times(1)).save(any());
     }
 
     @Test
