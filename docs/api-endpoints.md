@@ -406,6 +406,17 @@ aucun palier, aucun état n'est recalculé.
   🛑 Les 4 épreuves sont **toujours** servies, évaluées ou non : une épreuve
   absente de la liste disparaîtrait de l'écran au lieu de se dire « non
   évaluée ».
+  🛑 **`epreuves` NE DÉPEND PAS de `tcf.disponible`** (2026-09-16). Ce booléen
+  dit « un diagnostic TCF 4 épreuves est clos » et ne commande que la **courbe**
+  (`historique`), le **palier global** et `niveauInitial` ; le palier d'une
+  épreuve vient du **profil TCF**, donc d'un examen de module comme d'une
+  section de diagnostic close isolément. La liste coupée sous `disponible`
+  masquait toute la section « Où vous en êtes » de l'Accueil.
+  🛑 `epreuve.evaluation` (`PlanDomainAssessmentDto`) est servi **quand et
+  seulement quand `niveau == null`** : par quoi mesurer cette épreuve. C'est le
+  **même** descripteur que « Compléter mon profil » et que la ligne `A_EVALUER`
+  de la séance (`PlanDomainAssessmentResolver`, autorité unique), donc le même
+  lanceur côté front — aucun mécanisme n'est créé pour l'Accueil.
   🛑 `competences` porte ses **compteurs même verrouillés** (`30_` §7 : « blocs 1
   et 2 visibles, 3 et 5 verrouillés ») : c'est le **détail** qui est premium, pas
   le fait d'avoir progressé.

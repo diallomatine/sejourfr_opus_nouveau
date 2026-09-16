@@ -1433,6 +1433,14 @@ compétences ont bougé*. 🛑 **Aucun appel de plus** — `progressProvider` es
 déjà lu, et porte déjà les 4 épreuves. La dérivation (état → libellé, ton,
 jauge, CTA, destination) vit dans `screens/progres/progres_labels.dart`, **avec
 celle de l'écran Progrès** : c'est le même statut servi.
+🛑 **La section s'affiche TOUJOURS** (correctif serveur du 2026-09-16) : les
+4 épreuves ne dépendent plus du diagnostic 4 épreuves, leur palier venant du
+profil TCF. ⚠️ Révoque « une liste vide veut dire aucun diagnostic clos ».
+🛑 **« Faire un exercice » LANCE la mesure**, sans étape intermédiaire :
+`ProgressEpreuve.evaluation` est le **même** `PlanDomainAssessment` que
+« Compléter mon profil », et c'est **`openPlanAssessment`** qui l'ouvre — jamais
+un second chemin. Descripteur absent (backend antérieur) ⇒ repli sur
+`openPlanDomain`, le comportement d'avant.
 → `docs/regles/progression.md`, section « Écran ACCUEIL ».
 
 🛑 **L'Accueil est SCOPÉ au parcours choisi**, et la bascule **change ce qu'il

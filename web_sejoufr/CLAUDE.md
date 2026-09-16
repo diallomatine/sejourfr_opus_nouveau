@@ -1085,8 +1085,16 @@ l'écran. ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le
 `deskPair` : quatre cartes dans une demi-colonne de 1080 px se replieraient en
 une file illisible. La dérivation (état → libellé, ton, jauge, CTA,
 destination) vit dans `lib/progres.ts`, **avec celle de l'écran Progrès** :
-c'est le même statut servi. → `docs/regles/progression.md`, section
-« Écran ACCUEIL ».
+c'est le même statut servi.
+🛑 **La section s'affiche TOUJOURS** (correctif serveur du 2026-09-16) : les
+4 épreuves ne dépendent plus du diagnostic 4 épreuves, leur palier venant du
+profil TCF. ⚠️ Révoque « une liste vide veut dire aucun diagnostic clos ».
+🛑 **« Faire un exercice » LANCE la mesure**, sans étape intermédiaire :
+`ProgressEpreuveDto.evaluation` est le **même** `PlanDomainAssessmentDto` que
+« Compléter mon profil », et c'est **`usePlanAssessment`** qui l'ouvre — jamais
+un second chemin. Descripteur absent (backend antérieur) ⇒ repli sur
+`planDomainHref`, le comportement d'avant.
+→ `docs/regles/progression.md`, section « Écran ACCUEIL ».
 
 ⚠️ **Corrigé sur capture le 2026-09-12** : la version précédente ajoutait
 « Ma préparation » et « À renforcer en priorité », affichait **quatre tuiles**
