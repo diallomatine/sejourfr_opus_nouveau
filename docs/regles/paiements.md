@@ -256,6 +256,47 @@ toute la chaîne de renouvellements. Les events arrivant pour un
 subscription_id inconnu (race avec checkout.session.completed) sont logués
 et ignorés.
 
+### 🛑 Un webhook ne sauvegarde que si l'état métier a changé
+
+Valable pour les **trois** sources. `updated_at` (colonne « mise à jour » de la
+console admin) n'avance **que sur un vrai changement** — c'est un
+`@PreUpdate` sur `UserSubscription`, il ne se déclenche que si un `UPDATE` est
+réellement émis.
+
+- La dédup par `event_id` / `notificationUUID` / `messageId`
+  (`processed_external_events`) dit « ce **message**-là a déjà été vu ». Elle ne
+  dit **jamais** « cet **état**-là est déjà en base ». Les deux sont
+  nécessaires : plusieurs messages **légitimement distincts** décrivent le même
+  événement métier (Stripe émet une rafale d'events par cycle, Pub/Sub est
+  at-least-once par design, Apple renotifie).
+- Donc, avant tout `save()` : on **photographie** l'état métier
+  (`EtatAbonnement.de(sub)`), on applique l'état entrant, on **compare**
+  (`identiqueA`). Rien n'a bougé ⇒ **pas de `save()`**. Toute nouvelle colonne
+  métier de `user_subscriptions` s'ajoute à ce record — un champ oublié serait
+  un changement réel qui ne déclencherait aucune sauvegarde.
+- Les `apply*` n'écrivent que ce qui diffère (`EtatAbonnement.poser`). Le
+  dirty-checking par défaut d'Hibernate compare au snapshot de chargement (une
+  ré-affectation identique ne salit donc pas l'entité), mais on ne fait pas
+  reposer une règle de facturation sur un réglage : un dirty-tracking par
+  bytecode suivrait l'appel du setter, pas la valeur.
+- 🛑 **`null` = inconnu, jamais « effacé »** sur un identifiant servi par un
+  store : un `customer.subscription.updated` dont `latest_invoice` est encore
+  `null`, ou un état Play sans `latestOrderId`, ne fait **pas** oublier l'id
+  déjà connu (`EtatAbonnement.connuOu`). Sans ça, la ligne perd sa traçabilité
+  **et** l'aller-retour `null ⇄ in_xxx` fait avancer `updated_at` deux fois
+  sans le moindre changement métier. Même convention que les
+  `toInstant(valeur, fallback)` / `parseExpiry(…)` / `deriveAutoRenew(…)` des
+  autres champs.
+- **Ce qui n'est PAS concerné** : `ExpiryReminderJob`, dont le `save()` pose
+  réellement `expiry_reminded_at` (et dont la requête ne rend que les passes
+  jamais rappelés).
+
+Verrouillé par `StripeSubscriptionServiceTest` / `AppleSubscriptionServiceTest` /
+`GoogleSubscriptionServiceTest` (un webhook rejoué à état identique ⇒ `save()`
+appelé **au plus une fois**) et par `StripeWebhookUpdatedAtIT`, qui le vérifie
+contre la vraie base : `updated_at` ne bouge pas sur un webhook sans
+changement, et avance sur un renouvellement.
+
 
 ---
 
