@@ -379,7 +379,12 @@ export default function RecommandationsPage() {
         ) : (
           <ul className="reco-list">
             {ranked.map((cat) => (
-              <ReinforceRow key={cat.code} cat={cat} showModuleTag />
+              <ReinforceRow
+                key={cat.code}
+                cat={cat}
+                showModuleTag
+                profil={summary?.tcfDomainProfile ?? null}
+              />
             ))}
           </ul>
         )}

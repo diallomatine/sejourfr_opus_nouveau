@@ -3592,8 +3592,15 @@ export interface DashboardCategoryStat {
      */
     seriesDone: number;
     seriesTotal: number;
-    /** Dernier niveau CECRL évalué — EE/EO uniquement. */
-    level: NiveauCecrl | null;
+    /*
+     * 🛑 **Aucun niveau CECRL ici** (2026-09-16). Le champ `level` — « dernier
+     * niveau évalué, entraînements compris » — a été **retiré du DTO** : c'était
+     * une **troisième** autorité de niveau, plus large que la lecture du Plan et
+     * que la lecture d'affichage. Le niveau **affiché** d'une épreuve se lit sur
+     * `DashboardSummaryResponse.tcfDomainProfile`, par `niveauActuelEpreuve`
+     * (`lib/progres.ts`). Ne pas le réintroduire.
+     * → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
+     */
 }
 
 /**

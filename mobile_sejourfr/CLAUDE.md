@@ -1709,10 +1709,13 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
   dernier niveau de n'importe quelle soumission). Un candidat dont la seule trace
   EO était un entraînement de 3 min lisait ici un palier que quatre autres écrans
   déclaraient « à évaluer ». 🛑 **Aucun appel de plus** — `dashboardProvider` est
-  déjà observé par l'écran. `DashboardCategoryStat.level` **reste au modèle** (lu
-  par `progres_screen` et `reco_screen`), il n'est simplement plus lu ici.
-  Épreuve non mesurée ⇒ on retombe sur ce qui se **compte**, puis sur
-  `kReviserNotStarted` — jamais un palier inventé.
+  déjà observé par l'écran. Épreuve non mesurée ⇒ on retombe sur ce qui se
+  **compte**, puis sur `kReviserNotStarted` — jamais un palier inventé.
+  🛑 **Le helper VIT DANS `screens/progres/progres_labels.dart`** (2026-09-16,
+  quatrième passe) : il sert cinq surfaces, donc il a rejoint les dérivations
+  d'affichage du niveau et `reviser_labels.dart` l'**importe**. Et
+  `DashboardCategoryStat.level` **n'existe plus** — retiré du DTO backend et des
+  miroirs front avec ses quatre derniers lecteurs.
   → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
 - **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `SfRing`
   (anneau de **couverture**, sans chiffre au centre — à ne pas confondre avec
@@ -3495,6 +3498,18 @@ en met un) : l'écran empile déjà les deux parcours.
   table des noms d'épreuve, pendant Dart d'`EPREUVE_PRESENTATION` côté web.
   ⚠️ Quatre écrans d'examen complet les écrivent encore en dur : dette antérieure,
   à migrer au fil de l'eau — ne pas en ajouter une copie de plus.
+- 🛑 **« Niveau estimé X » d'une ligne de catégorie lit l'AUTORITÉ D'AFFICHAGE**
+  (2026-09-16) — `summary.tcfDomainProfile`, par `niveauActuelEpreuve` /
+  `suiviNiveauLabel` (`progres_labels.dart`). ⚠️ **Révoque `stat.level`**, retiré
+  du modèle : c'était le dernier niveau de **n'importe quelle** soumission,
+  entraînements compris. Vaut pour `progres_screen` (`_CategoryRow`) **et** pour
+  `reco_screen` — **aucun appel de plus**, les deux rendent déjà le
+  `DashboardSummary`.
+  🛑 **Seules les 4 épreuves TCF ont un palier** : un thème civique et
+  `TCF_STRUCTURE` rendent `null` et la ligne retombe sur ce qu'elle **compte**.
+  🛑 **Épreuve non mesurée ⇒ « Pas encore d'examen »** (`kSuiviSansExamenLabel`),
+  jamais le « À évaluer » de l'Accueil : ce sont des écrans de **suivi chiffré**.
+  → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
 
 ## Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 

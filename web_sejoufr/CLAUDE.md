@@ -1370,11 +1370,13 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
   dernier niveau de n'importe quelle soumission). Un candidat dont la seule trace
   EO était un entraînement de 3 min lisait ici un palier que quatre autres écrans
   déclaraient « à évaluer ». 🛑 **Aucun appel de plus** — `dashboardApi` est déjà
-  lu par l'écran. `DashboardCategoryStat.level` **reste au DTO** (lu par
-  `/statistiques` et `ReinforceRow`), il n'est simplement plus lu ici. Épreuve non
-  mesurée ⇒ on retombe sur ce qui se **compte**, puis sur `REVISER_NOT_STARTED` —
-  jamais un palier inventé. → `docs/regles/progression.md`,
-  `docs/decisions/diagnostic.md`.
+  lu par l'écran. Épreuve non mesurée ⇒ on retombe sur ce qui se **compte**, puis
+  sur `REVISER_NOT_STARTED` — jamais un palier inventé.
+  🛑 **Le helper VIT DANS `lib/progres.ts`** (2026-09-16, quatrième passe) : il
+  sert cinq surfaces, donc il a rejoint les dérivations d'affichage du niveau et
+  Réviser l'**importe**. Et `DashboardCategoryStat.level` **n'existe plus** —
+  retiré du DTO backend et des miroirs front avec ses quatre derniers lecteurs.
+  → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
 - **Primitives ajoutées au kit, des DEUX côtés dans la même passe** : `Ring`
   (anneau de **couverture** — pas une note, pas un état pédagogique) et
   `EpreuveRow`. Miroirs Flutter : `SfRing`, `SfEpreuveRow`.
@@ -2263,6 +2265,18 @@ gouvernerait que sa moitié haute.
 - ⚠️ `activite.fenetreJours` vaut **28** (quatre semaines pleines), pas 30 : une
   frise dont la somme ne vaut pas son compteur serait pire qu'un arrondi. La
   fenêtre est servie — ne jamais écrire « 30 » en dur.
+- 🛑 **« Niveau estimé X » d'une ligne de catégorie lit l'AUTORITÉ D'AFFICHAGE**
+  (2026-09-16) — `summary.tcfDomainProfile`, par `niveauActuelEpreuve` /
+  `suiviNiveauLabel` (`lib/progres.ts`). ⚠️ **Révoque `cat.level`**, retiré du
+  DTO : c'était le dernier niveau de **n'importe quelle** soumission,
+  entraînements compris. Vaut pour `/statistiques` (`CategoryRow`) **et** pour
+  `ReinforceRow`, qui reçoit le profil en prop depuis `/recommandations` —
+  **aucun appel de plus**, le `summary` est déjà chargé des deux côtés.
+  🛑 **Seules les 4 épreuves TCF ont un palier** : un thème civique et
+  `TCF_STRUCTURE` rendent `null` et la ligne retombe sur ce qu'elle **compte**.
+  🛑 **Épreuve non mesurée ⇒ « Pas encore d'examen »** (`SUIVI_SANS_EXAMEN_LABEL`),
+  jamais le « À évaluer » de l'Accueil : ce sont des écrans de **suivi chiffré**.
+  → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
 
 ### Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 

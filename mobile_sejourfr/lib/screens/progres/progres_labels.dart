@@ -1,3 +1,4 @@
+import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -160,6 +161,49 @@ ProgresStatutTone progresStatutTone(ProgressEpreuve epreuve) {
     StatutObjectif.toReinforce => ProgresStatutTone.hot,
   };
 }
+
+/* ------------------------ L'AUTORITÉ D'AFFICHAGE du niveau d'une épreuve --- */
+
+/// **Le niveau ACTUEL d'une épreuve, tel qu'il est AFFICHÉ partout.**
+///
+/// 🛑 **L'autorité d'affichage, et elle seule** : `tcfDomainProfile` publie le
+/// niveau de `TcfProfileService.levelProfileAccueil` — la **moyenne des ≤ 3
+/// derniers examens qualifiants** —, exactement ce que disent l'Accueil, le
+/// Profil, le Diagnostic et Réviser. Les écrans de suivi lisaient
+/// `DashboardCategoryStat.level`, une **troisième** autorité (le dernier
+/// niveau CECRL de n'importe quelle soumission, **entraînements compris**) :
+/// un candidat dont la seule trace EO était un entraînement de trois minutes y
+/// lisait un palier pendant que tous les autres écrans disaient « à évaluer ».
+/// → `docs/decisions/diagnostic.md`, 2026-09-16.
+///
+/// 🛑 **`null` = pas mesuré, jamais un plancher** : la ligne retombe alors sur
+/// ce que son écran sait **compter**.
+///
+/// Le code de catégorie **est** la valeur de `epreuve` pour les quatre
+/// épreuves : aucune table de correspondance n'est écrite ici.
+/// `TCF_STRUCTURE` et les thèmes civiques n'y figurent pas — ils rendent
+/// `null`, ce qui est exact : aucun palier CECRL ne leur est servi.
+///
+/// 🛑 **Miroir de `niveauActuelEpreuve` côté web** (`lib/progres.ts`).
+NiveauCecrl? niveauActuelEpreuve(TcfDomainProfile? profil, String code) {
+  for (final domaine in profil?.domaines ?? const <TcfDomain>[]) {
+    if (domaine.epreuve.wire == code) return domaine.niveau;
+  }
+  return null;
+}
+
+/// 🛑 Miroir web : `SUIVI_SANS_EXAMEN_LABEL`.
+const String kSuiviSansExamenLabel = "Pas encore d'examen";
+
+/// La ligne de niveau d'une épreuve sur un écran de **suivi chiffré**
+/// (écran Progrès, `/statistiques`) — jamais sur un écran de constat.
+///
+/// 🛑 **Non mesurée ⇒ aucun palier inventé.** On ne dit pas « À évaluer » ici,
+/// qui est le mot d'un constat (l'Accueil) : on dit ce qui **manque à
+/// compter** — aucun examen qualifiant n'a encore été passé.
+String suiviNiveauLabel(NiveauCecrl? niveau) => niveau == null
+    ? kSuiviSansExamenLabel
+    : 'Niveau estimé ${niveau.displayName}';
 
 /// ---------------------------------------------------------------------------
 /// « Où vous en êtes » — la carte compacte d'une épreuve sur l'ACCUEIL

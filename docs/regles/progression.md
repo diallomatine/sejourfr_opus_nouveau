@@ -562,8 +562,7 @@ que l'Accueil**, au même instant. Avant, le Profil servait le maximum du Plan
 pendant que l'Accueil servait autre chose. **Aucun DTO n'a changé de forme**, et
 `TcfDomainProfileDto` publiait déjà les 4 paliers d'épreuve à côté du global.
 
-✅ **RÉVISER a rejoint la liste le 2026-09-16** (troisième passe), et c'était la
-**dernière contradiction de niveau connue** du dépôt. L'écran écrivait
+✅ **RÉVISER a rejoint la liste le 2026-09-16** (troisième passe). L'écran écrivait
 « Niveau estimé : X » sur `domain?.niveau ?? stat.level`, c'est-à-dire **deux
 autres autorités** : la lecture du **Plan** (`PlanDomainDto.niveau` — le maximum,
 entraînements EE/EO compris) puis, en repli, `DashboardCategoryStat.level` — le
@@ -573,16 +572,13 @@ la seule trace EO était un entraînement de trois minutes y lisait un palier
 pendant que l'Accueil, le Profil, l'écran Progrès et l'écran Diagnostic disaient
 tous « à évaluer ».
 - Il lit désormais **`tcfDomainProfile`**, par
-  `niveauActuelEpreuve(profil, code)` (`web_sejoufr/lib/reviser.ts` ⇄
-  `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`). Le **code de
-  catégorie est la valeur de `epreuve`** : aucune table de correspondance n'est
-  écrite côté front.
+  `niveauActuelEpreuve(profil, code)`. Le **code de catégorie est la valeur de
+  `epreuve`** : aucune table de correspondance n'est écrite côté front.
 - 🛑 **Aucun appel de plus** : les deux Réviser chargeaient déjà
   `GET /api/me/dashboard` — ils y lisent `CategoryStat` pour les séries. Le
   profil par domaine voyageait dans la même réponse, inutilisé.
-- 🛑 **Le repli `stat.level` est SUPPRIMÉ de cette phrase.** Le champ **reste au
-  DTO** : il a d'autres lecteurs (`/statistiques` et `ReinforceRow` côté web,
-  `progres_screen` et `reco_screen` côté mobile).
+- 🛑 **Le repli `stat.level` est SUPPRIMÉ de cette phrase**, et depuis la
+  **quatrième passe du même jour le champ n'existe plus** (voir ci-dessous).
 - **Épreuve non mesurée ⇒ aucun palier inventé** : la ligne retombe sur ce que
   Réviser sait **compter** (séries terminées, compétences observées), et à
   défaut sur son propre « **Pas encore travaillé** » — le vocabulaire du
@@ -596,6 +592,56 @@ tous « à évaluer ».
 - ⚠️ **La fiche de domaine du Plan (`/plan/domaine/[x]`) n'est PAS concernée** :
   elle affiche la lecture du Plan parce qu'elle *est* le Plan. → journal :
   `docs/decisions/diagnostic.md`.
+
+✅ **LES ÉCRANS DE SUIVI ONT REJOINT LA LISTE le 2026-09-16** (quatrième passe),
+et c'était la **dernière famille de contradictions de niveau** du dépôt.
+Quatre surfaces lisaient encore `DashboardCategoryStat.level` — le dernier
+niveau CECRL de **n'importe quelle** soumission, **entraînements compris**, la
+plus large des trois autorités :
+
+| surface | ce qu'elle lit désormais |
+|---|---|
+| `web_sejoufr/app/(app)/statistiques/page.tsx` | `summary.tcfDomainProfile`, passé en prop à `ModuleProgressSection` → `CategoryRow` |
+| `web_sejoufr/app/_components/ReinforceRow.tsx` | prop `profil`, posée par `/recommandations` depuis son `summary` |
+| `mobile_sejourfr/lib/screens/progres/progres_screen.dart` | `summary.tcfDomainProfile`, passé à `_ParcoursSection` → `_CategoryRow` |
+| `mobile_sejourfr/lib/screens/progres/reco_screen.dart` | `summary.tcfDomainProfile`, lu sur place |
+
+- 🛑 **LE HELPER A MONTÉ DANS LE MODULE PARTAGÉ.** `niveauActuelEpreuve` vivait
+  dans les fichiers de **Réviser** ; il sert maintenant **cinq** surfaces, donc
+  il vit dans **`web_sejoufr/lib/progres.ts` ⇄
+  `mobile_sejourfr/lib/screens/progres/progres_labels.dart`** — là où vivent
+  déjà les dérivations d'affichage du niveau (Accueil, écran Progrès). Réviser
+  l'**importe** ; l'ancien emplacement est **supprimé**, pas dupliqué.
+- 🛑 **`DashboardCategoryStat.level` N'EXISTE PLUS.** Plus aucun lecteur
+  légitime ne restait : le champ est retiré de `DashboardSummaryResponse
+  .CategoryStat`, de `UserDashboardService.productionCategory` (qui ne calcule
+  plus « le dernier niveau évalué ») et des **deux** miroirs front qui le
+  portaient — `web_sejoufr/lib/types.ts` et
+  `mobile_sejourfr/lib/core/models/dashboard_models.dart`. L'**admin** ne
+  mirrorait pas ce DTO. Gelé par `UserDashboardServiceTest
+  .summary_productionCategory_neSertAucunNiveau`, qui vérifie l'absence du
+  composant sur la forme du record. **Ne pas le réintroduire.**
+- 🛑 **Aucun appel de plus** : les quatre vivent déjà sur
+  `GET /api/me/dashboard`, d'où viennent leurs `CategoryStat`. Le profil par
+  domaine voyageait dans la **même** réponse.
+- 🛑 **Deux cas « sans niveau », et ils ne se disent pas pareil** :
+  - **catégorie non-TCF** (5 thèmes civiques, `TCF_STRUCTURE`) : aucun palier
+    CECRL ne leur est servi, le helper rend `null`, et la ligne **ne parle pas
+    de niveau du tout** — elle retombe sur ce qu'elle sait **compter** (examens
+    passés, record, tendance, maîtrise). Aucune de ces catégories n'en a jamais
+    porté ;
+  - **épreuve TCF non mesurée** (aucun examen qualifiant) : la ligne dit
+    « **Pas encore d'examen** » — `SUIVI_SANS_EXAMEN_LABEL` ⇄
+    `kSuiviSansExamenLabel`, posé par `suiviNiveauLabel`, **miroirs**.
+    ⚠️ **Pas le « À évaluer » de l'Accueil** : Progrès et `/statistiques` sont
+    des écrans de **suivi chiffré**, pas des constats. Et l'ancienne phrase du
+    web, « Évaluation IA · pas encore évaluée », serait désormais **fausse** —
+    l'autorité d'affichage ne parle pas d'analyse IA, elle parle d'**examens
+    qualifiants**. `null` = inconnu, jamais un plancher.
+- **La forme des quatre lignes n'a pas bougé** : même gate (une épreuve
+  d'expression annonce son niveau, une épreuve de compréhension ses examens),
+  même barre, même repli neutre (« — » sur `/statistiques`, « À découvrir » sur
+  `ReinforceRow`). Seule la **source** du palier change.
 
 Le niveau global d'une épreuve de production ne bouge que sur un **examen
 complet de l'épreuve**. **Trois provenances, et seulement trois** :

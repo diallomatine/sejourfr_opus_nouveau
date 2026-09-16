@@ -262,7 +262,6 @@ public class UserDashboardService {
                     agg == null ? null : agg.best,
                     agg == null ? null : agg.last,
                     agg == null ? null : agg.prev,
-                    null,
                     series.done(),
                     series.total()));
         }
@@ -297,7 +296,18 @@ public class UserDashboardService {
      * Entrée synthétique EE/EO. Progression = moyenne des notes /20 des
      * {@value #PRODUCTION_CONFIDENCE_SAMPLE} dernières soumissions évaluées
      * ×5, pondérée par la confiance (nb de soumissions / 3) — même règle que
-     * les QCM. Level = dernier niveau CECRL évalué.
+     * les QCM.
+     *
+     * <p>🛑 <b>Aucun niveau CECRL n'est servi ici</b> (2026-09-16). Cette entrée
+     * portait un {@code level} = « dernier niveau CECRL évalué, entraînements
+     * compris » : une <b>troisième</b> autorité de niveau, plus large que la
+     * lecture du Plan et que la lecture d'affichage, qui faisait lire un palier
+     * sur {@code /statistiques} et sur les recommandations pendant que
+     * l'Accueil, le Profil, le Diagnostic et Réviser disaient « à évaluer ».
+     * Le niveau <b>affiché</b> d'une épreuve vient de
+     * {@code tcfDomainProfile} ({@link TcfProfileService#levelProfileAccueil}),
+     * publié par ce même DTO. Ne pas le réintroduire.
+     * → {@code docs/decisions/diagnostic.md}, {@code docs/regles/progression.md}.
      */
     private DashboardSummaryResponse.CategoryStat productionCategory(
             UUID userId, EpreuveType epreuve, String code, String label) {
@@ -305,16 +315,6 @@ public class UserDashboardService {
                 .stream()
                 .sorted(Comparator.comparing(AiEvaluation::getEvaluatedAt).reversed())
                 .toList();
-
-        // « Dernier niveau CECRL EVALUE » : on saute les lignes qui n'en portent
-        // pas — une production inexploitable (evaluabilite NON_EVALUABLE) n'a
-        // rien observe, elle ne doit ni afficher un niveau qu'elle n'a pas, ni
-        // effacer celui d'une production reellement corrigee avant elle.
-        final NiveauCecrl level = recents.stream()
-                .map(AiEvaluation::getNiveauCecrl)
-                .filter(java.util.Objects::nonNull)
-                .findFirst()
-                .orElse(null);
 
         final List<BigDecimal> notes = recents.stream()
                 .map(AiEvaluation::getNoteSur20)
@@ -332,7 +332,7 @@ public class UserDashboardService {
         // Réviser y montre des compétences à la place. Zéro, pas null : il n'y
         // a rien d'inconnu ici, il n'y a rien du tout.
         return new DashboardSummaryResponse.CategoryStat(
-                null, code, label, percent, 0, 0, 0, null, null, null, level, 0, 0);
+                null, code, label, percent, 0, 0, 0, null, null, null, 0, 0);
     }
 
     // ------------------------------------------------------------------------

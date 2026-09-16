@@ -197,7 +197,6 @@ class DashboardCategoryStat {
     required this.bestMockScore,
     required this.lastMockScore,
     required this.prevMockScore,
-    required this.level,
     required this.seriesDone,
     required this.seriesTotal,
   });
@@ -213,8 +212,13 @@ class DashboardCategoryStat {
   final int? lastMockScore;
   final int? prevMockScore;
 
-  /// Dernier niveau CECRL évalué — renseigné uniquement pour EE/EO.
-  final NiveauCecrl? level;
+  // 🛑 AUCUN NIVEAU CECRL ICI (2026-09-16). Le champ `level` — « dernier niveau
+  // évalué, entraînements compris » — a été retiré du DTO : c'était une
+  // TROISIÈME autorité de niveau, plus large que la lecture du Plan et que la
+  // lecture d'affichage. Le niveau AFFICHÉ d'une épreuve se lit sur
+  // `DashboardSummary.tcfDomainProfile`, par `niveauActuelEpreuve`
+  // (`screens/progres/progres_labels.dart`). Ne pas le réintroduire.
+  // → docs/regles/progression.md, docs/decisions/diagnostic.md
 
   /// Les **séries** d'entraînement de la catégorie : combien le candidat en a
   /// terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran Réviser).
@@ -240,7 +244,6 @@ class DashboardCategoryStat {
         bestMockScore: (json['bestMockScore'] as num?)?.toInt(),
         lastMockScore: (json['lastMockScore'] as num?)?.toInt(),
         prevMockScore: (json['prevMockScore'] as num?)?.toInt(),
-        level: NiveauCecrl.fromWireNullable(json['level'] as String?),
         seriesDone: (json['seriesDone'] as num? ?? 0).toInt(),
         seriesTotal: (json['seriesTotal'] as num? ?? 0).toInt(),
       );

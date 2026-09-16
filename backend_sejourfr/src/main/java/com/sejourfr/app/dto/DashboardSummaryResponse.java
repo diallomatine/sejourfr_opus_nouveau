@@ -93,8 +93,6 @@ public record DashboardSummaryResponse(
      *       brut sur les examens de la catégorie (page Progression : « record
      *       17/20 » + flèche de tendance dernier vs avant-dernier). Null si
      *       pas assez d'examens.</li>
-     *   <li>{@code level} : dernier niveau CECRL évalué — renseigné uniquement
-     *       pour EE/EO.</li>
      *   <li>{@code seriesDone} / {@code seriesTotal} : les <b>séries</b>
      *       d'entraînement de la catégorie — combien le candidat en a terminé,
      *       sur combien elle en porte. C'est le « 2 / 10 séries » de l'écran
@@ -116,7 +114,6 @@ public record DashboardSummaryResponse(
             Integer bestMockScore,
             Integer lastMockScore,
             Integer prevMockScore,
-            NiveauCecrl level,
             int seriesDone,
             int seriesTotal
     ) {

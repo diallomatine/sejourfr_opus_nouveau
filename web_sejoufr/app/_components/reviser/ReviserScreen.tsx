@@ -412,7 +412,6 @@ function statComplementaire(
       bestMockScore: null,
       lastMockScore: null,
       prevMockScore: null,
-      level: null,
       seriesDone: 0,
       seriesTotal: 0,
     }

@@ -14,6 +14,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/screen_header.dart';
+import 'progres_labels.dart';
 import 'progres_mouvement.dart';
 
 /// Onglet « Progrès » de la refonte 2026 (cf. `MProgres` maquette) :
@@ -158,6 +159,7 @@ class _ProgresBody extends StatelessWidget {
           color: AppColors.red,
           stats: orderedTcfCategories(summary.tcf),
           examOutOf: 25,
+          profil: summary.tcfDomainProfile,
         ),
         const SizedBox(height: 20),
         _ParcoursSection(
@@ -165,6 +167,7 @@ class _ProgresBody extends StatelessWidget {
           color: AppColors.blue,
           stats: summary.civique,
           examOutOf: 20,
+          profil: summary.tcfDomainProfile,
         ),
         const SizedBox(height: 20),
         AppCard(
@@ -251,11 +254,16 @@ class _ParcoursSection extends StatelessWidget {
     required this.color,
     required this.stats,
     required this.examOutOf,
+    required this.profil,
   });
 
   final String label;
   final Color color;
   final List<DashboardCategoryStat> stats;
+
+  /// L'autorité d'affichage du niveau d'une épreuve, servie par le **même**
+  /// appel que les catégories (`GET /api/me/dashboard`) — aucun appel de plus.
+  final TcfDomainProfile? profil;
 
   /// Nombre de questions d'un examen blanc de ce parcours : 25 pour un examen
   /// module TCF (CO / CE / Structure), 20 pour un examen de thème civique.
@@ -286,7 +294,11 @@ class _ParcoursSection extends StatelessWidget {
         ListGroup(
           children: [
             for (final stat in stats)
-              _CategoryRow(stat: stat, examOutOf: examOutOf),
+              _CategoryRow(
+                stat: stat,
+                examOutOf: examOutOf,
+                profil: profil,
+              ),
           ],
         ),
       ],
@@ -294,11 +306,28 @@ class _ParcoursSection extends StatelessWidget {
   }
 }
 
+/// Une ligne de catégorie.
+///
+/// 🛑 **Le niveau vient de l'AUTORITÉ D'AFFICHAGE** ([niveauActuelEpreuve] sur
+/// `tcfDomainProfile`), la même que l'Accueil, le Profil, le Diagnostic et
+/// Réviser — jamais de `DashboardCategoryStat.level`, qui voyait le dernier
+/// niveau de **n'importe quelle** soumission, entraînements compris.
+/// → `docs/decisions/diagnostic.md`, 2026-09-16.
+///
+/// 🛑 **Seules les 4 épreuves TCF ont un palier.** Un thème civique et
+/// `TCF_STRUCTURE` rendent `null` : la ligne retombe alors sur ce qu'elle sait
+/// **compter** (examens passés, record, maîtrise), jamais sur un palier
+/// fabriqué.
 class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({required this.stat, required this.examOutOf});
+  const _CategoryRow({
+    required this.stat,
+    required this.examOutOf,
+    required this.profil,
+  });
 
   final DashboardCategoryStat stat;
   final int examOutOf;
+  final TcfDomainProfile? profil;
 
   @override
   Widget build(BuildContext context) {
@@ -310,9 +339,7 @@ class _CategoryRow extends StatelessWidget {
 
     final String sub;
     if (stat.isProduction) {
-      sub = stat.level != null
-          ? 'Niveau estimé ${stat.level!.displayName}'
-          : 'Pas encore évalué';
+      sub = suiviNiveauLabel(niveauActuelEpreuve(profil, stat.code));
     } else if (stat.mockExams > 0 && stat.bestMockScore != null) {
       final n = stat.mockExams;
       sub = '$n examen${n > 1 ? 's' : ''} · record '

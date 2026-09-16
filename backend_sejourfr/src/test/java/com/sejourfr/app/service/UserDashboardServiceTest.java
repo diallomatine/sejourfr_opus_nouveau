@@ -192,7 +192,34 @@ class UserDashboardServiceTest {
                 .findFirst().orElseThrow();
         // avg 14 ×5 × min(1, 1/3) = 70 × 0.3333 = 23.33 → 23.
         assertThat(ee.percent()).isEqualTo(23);
-        assertThat(ee.level()).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * 🛑 <b>Une entrée EE/EO ne sert AUCUN niveau CECRL</b> (2026-09-16).
+     * {@code CategoryStat.level} valait « dernier niveau évalué, entraînements
+     * compris » — une <b>troisième</b> autorité de niveau, lue par
+     * {@code /statistiques}, les recommandations et leurs miroirs mobiles, qui
+     * y affichaient un palier pendant que l'Accueil, le Profil, le Diagnostic
+     * et Réviser disaient « à évaluer ». Le niveau <b>affiché</b> d'une épreuve
+     * vient de {@code tcfDomainProfile}, publié par le même DTO. Ce test gèle
+     * l'absence du champ : sa forme ne doit plus jamais reporter un niveau.
+     */
+    @Test
+    void summary_productionCategory_neSertAucunNiveau() {
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("14"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setEvaluatedAt(Instant.now());
+        when(aiEvaluationManager.findByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(List.of(eval));
+
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        assertThat(DashboardSummaryResponse.CategoryStat.class.getRecordComponents())
+                .extracting(java.lang.reflect.RecordComponent::getName)
+                .doesNotContain("level");
+        // Le niveau d'affichage, lui, voyage bien — dans tcfDomainProfile.
+        assertThat(resp.tcfDomainProfile()).isNotNull();
     }
 
     // ------------------------------------------------------------------ niveau TCF estimé
