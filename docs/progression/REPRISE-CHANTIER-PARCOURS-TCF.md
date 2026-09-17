@@ -37,52 +37,25 @@
 | **Phase 1** | DDL `V066`, entités, enums, repositories, managers, config versionnée | 🔄 **en cours** |
 | **Phase 2** | Orchestration, filtre R1, bootstrap, branchements, 48 tests | ✅ **fait** — suite complète 1296 tests verts |
 | **Phase 3** | `GET /api/me/plan/journey`, DTO, miroirs web + mobile | ✅ **fait** — `tsc` + `flutter analyze` verts |
-| **Phase 4** | 6 cartes « À faire maintenant », timeline dans les 2 kits, suppressions front | 🔄 **en cours** — timeline faite, cartes et suppressions à faire |
+| **Phase 4** | 6 cartes « À faire maintenant », timeline dans les 2 kits, suppressions, docs | ✅ **fait** |
 
-### Détail du lot en cours
+### Ce qui reste
 
-**Phases 1 à 3 — livrées.** Backend `./mvnw -o verify` → **1296 tests, 0 échec**.
-**Phases 4a, 4b et 4c — livrées** : les primitives de timeline sont dans **les deux kits**
-(`JourneyRow`/`JourneyList` ⇄ `SfJourneyRow`/`SfJourneyList`), les phrases dans
-`web_sejoufr/lib/journey.ts` ⇄ `mobile_sejourfr/lib/screens/plan/journey_labels.dart`, et
-**l'écran Plan des deux fronts affiche la file** — abonné comme compte gratuit. Le parcours de
-tâche et le chemin de palier en ont disparu, et les **trois états** du parcours s'affichent :
-« Choisir mon objectif » (D-3), « Votre parcours est à jour » + sa suggestion hors file, et la
-note du cas `LOCKED`. `npm run build` et `flutter analyze` verts.
+**La spec est livrée de bout en bout.** Backend `./mvnw verify` → **1300 tests, 0 échec** ;
+`npm run build` et `flutter analyze` verts ; **aucun test front ajouté**.
 
-**Ce qui reste, dans cet ordre :**
+Trois points **ouverts**, tous consignés et aucun bloquant :
 
-1. 🛑 **Les 6 cartes « À faire maintenant »** — *lire d'abord la décision **A18** dans
-   `docs/decisions-autonomes-parcours-tcf.md`* : la spec §16 a un trou, `JourneyStepDto` ne
-   porte **aucune action à lancer**. La résolution proposée (et non encore implémentée) est
-   `planNowCard(plan, {free, journey})` : l'**identité** vient de `journey.current`,
-   l'**action** se résout en rapprochant l'étape des données du Plan
-   (`recommendedExercise` pour `TRAIN_SKILL`, `domainesAEvaluer` pour `SECTION_EXAM`,
-   `/diagnostic` pour `DIAGNOSTIC`), et sans parcours servi le comportement d'aujourd'hui est
-   **inchangé**.
-   ⚠️ Six sites d'appel : Plan (`LearningPlanView.tsx` ⇄ `plan_tcf_view.dart`), Accueil
-   (`dashboard/page.tsx` ⇄ `home_screen.dart`), Réviser (`lib/reviser.ts` ⇄
-   `reviser_labels.dart`). **N'en migrer que quelques-uns rouvrirait la contradiction corrigée
-   le 2026-09-16.** Accueil et Réviser devront donc lire le parcours eux aussi
-   (`journeyApi.getCached()` ⇄ `journeyProvider`, déjà en place).
-2. ✅ **Fait (4c)** — les trois états `NEEDS_OBJECTIVE` / `UP_TO_DATE` / `LOCKED` s'affichent
-   sur le Plan des deux fronts. ⚠️ Ils ne s'affichent **que sur le Plan** : l'Accueil et
-   Réviser les verront quand le point 1 sera fait.
-3. **Les suppressions §11 encore à faire** — le bloc « Votre parcours — Tâche X » a disparu du
-   **Plan**, mais ses dérivations vivent toujours et servent l'**Accueil** :
-   `parcoursDeLaTache` / `planTaskPath`, `plan_task_path.dart`, `plan_task_row.dart`. Les
-   supprimer suppose d'avoir traité le point 1 (l'Accueil lit le parcours).
-   Et le **chemin vers l'objectif** côté serveur n'est pas encore retiré :
-   `PlanCycleDto.path`, `PlanCycleResolver.chemin` (l.235), `PlanPathStepDto`,
-   `PlanPathStepKind`, `PlanPathStepStatus`, les `PLAN_PATH_*` du web, `plan_path_section.dart`,
-   plus les tests `LearningPlanCycleIT` / `PlanCycleResolverTest` (à **mettre à jour**).
-   🛑 **`PlanCycleDto` survit** : seul son champ `path` disparaît.
-4. **`plan_pinned_priorities` + `PlanFocusResolver.epingler`** — ⚠️ **décision A13** : deux
-   blocages à résoudre d'abord (candidats **sans objectif déclaré**, et la première place du
-   Plan existant).
-5. **Documentation** : `docs/regles/plan.md` (R1, R2 et son budget assumé **avec sa raison**,
-   R8, la notion d'étape exécutable), le `CLAUDE.md` de chaque front, et le `CLAUDE.md`
-   backend — qui cite encore V065 comme « seule exception assumée » à « un dérivé se relit ».
+1. 🛑 **A23 — `plan_pinned_priorities` n'est pas supprimée**, contrairement à la spec §6. Elle
+   est devenue le **repli** pour les candidats sans objectif déclaré (17 sur 34 en dev), qui
+   n'ont pas de parcours. La supprimer pour de bon suppose un arbitrage produit :
+   **le Plan exige-t-il lui aussi un objectif déclaré ?**
+2. ⚠️ **A16 — limite connue côté production** : une épreuve EE/EO **abandonnée** dont la
+   dernière évaluation atterrit avant la clôture de la session n'ouvre pas de lot. L'épreuve
+   reste **mesurée**, et la prochaine évaluation reprend la main. La fermer proprement
+   demanderait un déclencheur à la clôture de session, qui n'existe pas aujourd'hui.
+3. ⚠️ **Cosmétique** : `mobile_sejourfr/lib/screens/plan/plan_task_path.dart` ne contient plus
+   de « task path ». Renommage non fait — quatre imports pour zéro changement de comportement.
 
 ## Pièges relevés par l'audit — à ne pas réapprendre
 
