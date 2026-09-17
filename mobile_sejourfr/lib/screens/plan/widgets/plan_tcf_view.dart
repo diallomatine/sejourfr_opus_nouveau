@@ -327,22 +327,27 @@ class PlanTcfView extends ConsumerWidget {
       objectiveLabel: carte.objectiveLabel,
       objective: carte.objective,
       meta: meta,
-      action: SfButton(
-        label: carte.locked ? kPlanNowLockedCta : carte.cta,
-        onPressed: mesure != null
-            // Le lanceur de mesure est une AUTORITÉ EXISTANTE
-            // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne réécrit
-            // aucun aiguillage ici, le mobile lit et exécute.
-            ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
-            : exercise == null
-                ? null
-                : () => unawaited(openPlanExercise(
-                      context,
-                      ref,
-                      exercise,
-                      masteryBefore: carte.priority.masteryState,
-                    )),
-      ),
+      // 🛑 **Aucun bouton sur une étape dont l'action ne se résout pas.** Il ne
+      // lançait rien, et la version d'avant lançait pire : la compétence que le
+      // Plan priorisait ce jour-là, pendant que la carte en annonçait une autre.
+      action: carte.estIndisponible
+          ? null
+          : SfButton(
+              label: carte.locked ? kPlanNowLockedCta : carte.cta,
+              onPressed: mesure != null
+                  // Le lanceur de mesure est une AUTORITÉ EXISTANTE
+                  // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne réécrit
+                  // aucun aiguillage ici, le mobile lit et exécute.
+                  ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
+                  : exercise == null
+                      ? null
+                      : () => unawaited(openPlanExercise(
+                            context,
+                            ref,
+                            exercise,
+                            masteryBefore: carte.priority?.masteryState,
+                          )),
+            ),
       // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
       // la série. Concaténées, la seconde se lisait comme la suite de la
       // première phrase.
@@ -444,7 +449,8 @@ class PlanTcfView extends ConsumerWidget {
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(more, style: AppFonts.ui(size: 12, color: AppColors.muted)),
+          child:
+              Text(more, style: AppFonts.ui(size: 12, color: AppColors.muted)),
         ),
       ],
       // 🛑 Des étapes restent, mais **aucune n'est exécutable** : on le dit au
@@ -476,12 +482,12 @@ class PlanTcfView extends ConsumerWidget {
       SfSection(
         // Un compte sans accès ne lit pas encore un objectif chiffré : son
         // bloc s'appelle simplement « Vos priorités », comme la maquette.
-        title: free ? kPlanPrioritiesShort : planPrioritiesSectionTitle(objective),
+        title:
+            free ? kPlanPrioritiesShort : planPrioritiesSectionTitle(objective),
         child: SfStack(
           children: [
             for (var i = 0; i < shown.length; i++)
-              _priorityCard(shown[i], i + 1,
-                  free: free, repliable: repliables),
+              _priorityCard(shown[i], i + 1, free: free, repliable: repliables),
           ],
         ),
       ),
@@ -627,8 +633,9 @@ class PlanTcfView extends ConsumerWidget {
             SfTiny(milestone.displayMeta),
             const SizedBox(height: 12),
             SfButton(
-              label:
-                  milestone.locked ? kPlanMilestoneLockedCta : kPlanMilestoneCta,
+              label: milestone.locked
+                  ? kPlanMilestoneLockedCta
+                  : kPlanMilestoneCta,
               variant: SfButtonVariant.blue,
               onPressed: () => unawaited(
                 milestone.locked
@@ -711,7 +718,6 @@ class PlanTcfView extends ConsumerWidget {
   }
 
   PlanDomainTask? _taskDto(SkillTaskCode task) => planTaskDto(plan, task);
-
 }
 
 /// Le geste de la barre basse : il nomme le palier visé quand il est connu,
@@ -719,4 +725,3 @@ class PlanTcfView extends ConsumerWidget {
 /// [kUnlockPlanCta] — l'app n'a qu'une formule pour cette action.
 String _unlockCta(TargetLevel? objective) =>
     objective == null ? kUnlockPlanCta : '$kUnlockPlanCta ${objective.wire}';
-

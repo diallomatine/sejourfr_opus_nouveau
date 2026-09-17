@@ -13,6 +13,7 @@
 /// finirait par désigner une autre étape que le serveur.
 library;
 
+import 'diagnostic_models.dart';
 import 'enums.dart';
 import 'skill_models.dart';
 
@@ -210,6 +211,7 @@ class JourneyStep {
     this.lotId,
     this.sourceAssessmentId,
     this.progress,
+    this.assessment,
   });
 
   final String id;
@@ -251,6 +253,20 @@ class JourneyStep {
   /// reste intégralement visible.
   final bool locked;
 
+  /// **Par quoi mesurer cette épreuve** — l'action que la carte lance, non
+  /// `null` pour les seules étapes [JourneyStepType.sectionExam].
+  ///
+  /// 🛑 **Relayée du même resolver que partout ailleurs**
+  /// (`PlanDomainAssessmentResolver.pour`) : le parcours ne compose aucune
+  /// action, il en devient le sixième lecteur.
+  ///
+  /// ⚠️ **À lire ici, jamais à retrouver dans `domainesAEvaluer`** : celui-ci
+  /// ne liste que les épreuves **jamais mesurées**, or le point d'étape d'un
+  /// lot porte toujours sur une épreuve **déjà** mesurée — c'est elle qui a
+  /// créé le lot. Les fronts ne résolvaient donc aucune action pour le cas le
+  /// plus courant du parcours.
+  final PlanDomainAssessment? assessment;
+
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(
         id: json['id'] as String,
         type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
@@ -270,6 +286,10 @@ class JourneyStep {
             ? null
             : JourneyProgress.fromJson(json['progress'] as Map<String, dynamic>),
         locked: json['locked'] as bool? ?? false,
+        assessment: json['assessment'] == null
+            ? null
+            : PlanDomainAssessment.fromJson(
+                json['assessment'] as Map<String, dynamic>),
       );
 }
 

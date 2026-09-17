@@ -2058,5 +2058,44 @@ priverait le candidat gratuit de sa **vraie** priorité n°1.
 - le bloc **« Votre parcours — Tâche X »** et ses dérivations (`parcoursDeLaTache`,
   `planTaskPath`) ;
 - ⚠️ **`plan_pinned_priorities` NON** : elle devient le **repli** pour les candidats sans
-  objectif déclaré, qui n'ont pas de parcours. Cf. `docs/decisions-autonomes-parcours-tcf.md`,
-  décision A23.
+  objectif déclaré, qui n'ont pas de parcours. ✅ **Arbitré le 2026-09-17** : « le Plan n'exige
+  PAS d'objectif déclaré » — la suppression prévue par la spec §6 n'aura pas lieu, et l'épingle
+  est notée **dette de transition**. Cf. `docs/decisions/plan-parcours-tcf.md` (D-10) et
+  `docs/decisions-autonomes-parcours-tcf.md` (A23).
+
+### Le parcours DÉSIGNE, le Plan EXÉCUTE — et jamais autre chose
+
+`JourneyStepDto` porte l'**identité** d'une étape ; l'**action** vient du Plan. Les six cartes
+« À faire maintenant » (Plan, Accueil, Réviser, web et mobile) passent le parcours à
+`planNowCard` : l'identité vient de `journey.current`, l'action se résout à côté.
+
+| Type d'étape | Ce que la carte lance | Où elle le trouve |
+|---|---|---|
+| `TRAIN_SKILL` | le petit sujet / la série désignés | la priorité du Plan de même `skillCode`, et son `recommendedExercise` |
+| `SECTION_EXAM` | l'examen blanc de l'épreuve | la ligne de séance si elle y est, sinon **`step.assessment`** |
+| `DIAGNOSTIC` | — | rien (le Plan n'est pas `ACTIVE` dans ce cas) |
+
+🛑 **`step.assessment` est SERVI, et il le fallait** (2026-09-17). `domainesAEvaluer` ne liste
+que les épreuves **jamais mesurées**, or le point d'étape d'un lot porte **toujours** sur une
+épreuve déjà mesurée — c'est elle qui a créé le lot. Aucune action ne s'y résolvait. Le champ est
+**relayé** de `PlanDomainAssessmentResolver.pour`, l'autorité de « par quoi mesurer ce
+domaine » : le parcours en devient le sixième lecteur, il n'écrit aucune règle.
+
+🛑 **GARDE-FOU : une carte ne lance JAMAIS autre chose que l'étape qu'elle annonce.** Quand
+l'action ne se résout pas — compétence que le Plan ne priorise plus, ou hors de la fenêtre
+d'affichage des priorités —, la carte prend la nature **`INDISPONIBLE`** : elle nomme l'étape du
+parcours, sans bouton. Elle retombait sur `plan.currentPriority`, donc annonçait une compétence
+et en ouvrait une autre.
+
+🛑 **Trois lecteurs, UNE seule « première étape d'entraînement ouverte »** : l'élection de
+`CURRENT`, l'exemption freemium (`SkillAccessService`) et la première place du Plan
+(`PlanFocusResolver`) sautent les **mêmes** étapes — celles sans contenu publié — dans le même
+ordre. Le verrou, lui, ne les sépare pas : l'exemption déverrouille l'étape qu'elle reçoit.
+
+### Sans objectif déclaré, on INVITE — on ne ferme rien
+
+Un candidat sans démarche déclarée n'a **pas** de parcours (D-3) mais a bien un **Plan**
+(D-10). La carte « Choisir mon objectif » se lit donc sur les **six** surfaces qui portent une
+carte « À faire maintenant », et **s'ajoute** à ce que l'écran affichait déjà. ⚠️ Elle ne
+remplace jamais la carte d'action : exiger un objectif pour travailler ferait du Plan l'inverse
+de ce que D-10 vient de trancher.

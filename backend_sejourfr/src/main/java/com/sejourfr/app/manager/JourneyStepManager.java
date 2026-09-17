@@ -40,13 +40,24 @@ public class JourneyStepManager {
     }
 
     /**
-     * La competence de la premiere etape d'entrainement encore ouverte — la
-     * « premiere place » que le freemium ouvre d'office. <b>Une requete.</b>
+     * Les competences des etapes d'entrainement encore ouvertes, <b>dans l'ordre
+     * de la file</b> — la « premiere place » que le freemium ouvre d'office.
+     * <b>Une requete.</b>
+     *
+     * <p>{@link #COMPETENCES_OUVERTES_LUES} lignes au plus : l'appelant garde la
+     * premiere qui est dans son pool, et un parcours n'a jamais des dizaines
+     * d'etapes d'entrainement ouvertes d'affilee sans contenu.
      */
-    public Optional<Skill> findPremiereCompetenceOuverte(UUID userId, TargetLevel targetLevel) {
-        return repository
-                .findPremiereCompetenceOuverte(userId, targetLevel, PageRequest.of(0, 1))
-                .stream()
-                .findFirst();
+    public List<Skill> findCompetencesOuvertes(UUID userId, TargetLevel targetLevel) {
+        return repository.findCompetencesOuvertes(
+                userId, targetLevel, PageRequest.of(0, COMPETENCES_OUVERTES_LUES));
     }
+
+    /**
+     * Combien d'etapes d'entrainement ouvertes on lit pour trouver la premiere
+     * place. Un plafond, pas un budget : la <b>premiere</b> dans le pool gagne,
+     * et depasser ce plafond voudrait dire que le pool du Plan a ecarte douze
+     * competences d'affilee — un catalogue vide, pas un parcours.
+     */
+    static final int COMPETENCES_OUVERTES_LUES = 12;
 }

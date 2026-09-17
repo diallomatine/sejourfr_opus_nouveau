@@ -405,10 +405,30 @@ class PlanFocusResolverTest {
         verify(pinManager).save(any());
     }
 
-    /** Un parcours dont la premiere etape ouverte travaille cette competence. */
-    private void parcoursAvec(Skill skill) {
-        when(stepManager.findPremiereCompetenceOuverte(eq(userId), any()))
-                .thenReturn(Optional.of(skill));
+    @Test
+    @DisplayName("Premiere etape hors du pool, la suivante dedans : c'est la SUIVANTE")
+    void lEtapeSansContenuEstSauteeCommeDansElire() {
+        Skill sansContenu = skill("EE2-C1");
+        Skill suivante = skill("EO1-C1");
+        Skill autre = skill("EE3-C1");
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetLevel.B2);
+        parcoursAvec(sansContenu, suivante);
+
+        // 🛑 C'est exactement le saut de `JourneyReadService.elire`, qui ecarte
+        // une etape d'expression sans aucun sujet publie. S'arreter a la
+        // premiere ligne faisait retomber ce resolveur sur l'epingle — donc le
+        // freemium ouvrait `autre` pendant que la carte annoncait `suivante`.
+        assertThat(resolver.epingler(user, List.of(autre, suivante)))
+                .contains(suivante);
+        verify(pinManager, never()).save(any());
+    }
+
+    /** Un parcours dont les etapes ouvertes travaillent ces competences, dans
+     *  l'ordre de la file. */
+    private void parcoursAvec(Skill... skills) {
+        when(stepManager.findCompetencesOuvertes(eq(userId), any()))
+                .thenReturn(List.of(skills));
     }
 
 

@@ -130,7 +130,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.invalidate(diagnosticCourantProvider);
     await Future.wait<void>([
       ref.read(progressProvider.future).then((_) {}).catchError((_) {}),
-      ref.read(diagnosticCourantProvider.future).then((_) {}).catchError((_) {}),
+      ref
+          .read(diagnosticCourantProvider.future)
+          .then((_) {})
+          .catchError((_) {}),
     ]);
   }
 
@@ -203,6 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final action = civique ? _actionCivique(context) : _actionTcf(context);
     final situation = _ouVousEnEtes(context, civique);
     final apercu = civique ? _apercuCivique(context) : _apercuTcf(context);
+    final objectif = civique ? null : _objectifTcf(context);
     final progression = _progression(civique);
 
     // 🛑 **TCF seulement** : le diagnostic 4 épreuves est un objet TCF, il n'a
@@ -216,6 +220,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return <Widget>[
       if (action != null)
         SfSection(title: kHomeNowTitle, flush: true, child: action),
+      if (objectif != null)
+        SfSection(
+            title: kJourneyNeedsObjectiveTitle, flush: true, child: objectif),
       if (situation != null)
         SfSection(title: kHomeSituationTitle, flush: true, child: situation),
       if (apercu != null)
@@ -223,7 +230,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (progression != null)
         SfSection(title: kHomeProgressTitle, flush: true, child: progression),
       if (affiner != null)
-        SfSection(flush: true, child: AffinerPlanCard(info: affiner, pad: false)),
+        SfSection(
+            flush: true, child: AffinerPlanCard(info: affiner, pad: false)),
       SfSection(
         title: kHomeTracksTitle,
         child: SfStack(
@@ -341,17 +349,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
     // aucun verrou dessus — mais s'il en posait un, `locked` le dirait et on
     // retomberait sur la carte générique.
+    // 🛑 Une étape dont l'action ne se résout pas se NOMME quand même : c'est
+    // celle que l'aperçu du parcours montre juste en dessous, et taire son nom
+    // ici ferait dire deux choses au même écran. Elle n'a simplement aucun
+    // raccourci — `lancable` s'en charge.
     final nommable = carte != null &&
-        (carte.estMesure ? !carte.locked : !carte.priority.locked);
+        (carte.estMesure || carte.estIndisponible
+            ? !carte.locked
+            : carte.priority?.locked != true);
 
     final mesure = carte?.mesure;
     final exercice = carte?.exercise;
     // 🛑 **Un raccourci verrouillé n'en est pas un** : « Commencer directement »
     // enverrait un compte gratuit droit sur un 403. Le Plan, lui, reste ouvert.
     final lancable = nommable &&
-        (mesure != null
-            ? !carte.locked
-            : exercice != null && !exercice.locked);
+        (mesure != null ? !carte.locked : exercice != null && !exercice.locked);
 
     return SfNowCard(
       // Quand la série se termine, la carte change de nature : sans son accent
@@ -388,7 +400,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         context,
                         ref,
                         exercice!,
-                        masteryBefore: carte.priority.masteryState,
+                        masteryBefore: carte.priority?.masteryState,
                       ),
               ),
             ),
@@ -474,7 +486,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget? _ouVousEnEtes(BuildContext context, bool civique) {
     final progres = ref.watch(progressProvider).valueOrNull;
     if (progres == null) return null;
-    return civique ? _situationCivique(context, progres) : _situationTcf(context, progres);
+    return civique
+        ? _situationCivique(context, progres)
+        : _situationTcf(context, progres);
   }
 
   Widget? _situationTcf(BuildContext context, Progress progres) {
@@ -664,11 +678,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       openPlanDomain(context, epreuve.epreuve);
       return;
     }
-    context.push(
-        AppRoutes.epreuveHistoriquePath(planDomainKey(epreuve.epreuve)));
+    context
+        .push(AppRoutes.epreuveHistoriquePath(planDomainKey(epreuve.epreuve)));
   }
 
   /* ------------------------------------------------------- votre plan ----- */
+
+  /// **L'invitation à déclarer un objectif**, quand le candidat n'en a pas.
+  ///
+  /// 🛑 **Elle n'enlève rien** (arbitrage du propriétaire, 2026-09-17) : le Plan
+  /// n'exige **pas** d'objectif déclaré, sa carte d'action reste au-dessus,
+  /// entière. C'est une invitation, jamais une porte fermée — et elle doit se
+  /// lire partout où une carte « À faire maintenant » se lit, sans quoi le
+  /// candidat ne découvre jamais que déclarer sa démarche lui ouvre un parcours.
+  Widget? _objectifTcf(BuildContext context) {
+    final parcours = ref.watch(journeyProvider).valueOrNull;
+    if (parcours == null || parcours.state != JourneyState.needsObjective) {
+      return null;
+    }
+    return SfStack(
+      children: [
+        const SfCard(child: Text(kJourneyNeedsObjectiveText)),
+        SfButton(
+          label: kJourneyNeedsObjectiveCta,
+          onPressed: () => context.push(AppRoutes.targetPath),
+        ),
+      ],
+    );
+  }
 
   /// L'aperçu du **parcours TCF** : l'étape courante et sa voisine.
   ///
@@ -789,8 +826,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           (
             value: '$maitrisees',
-            label: homeMasteredLabel(maitrisees,
-                civique: civique, notion: notion),
+            label:
+                homeMasteredLabel(maitrisees, civique: civique, notion: notion),
           ),
         ],
       ),

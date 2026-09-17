@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
+import 'journey_labels.dart';
 import 'plan_labels.dart';
 import 'plan_seance_state.dart';
 
@@ -39,6 +40,19 @@ enum PlanNowNature {
 
   /// Le cas courant : l'étape de la priorité n°1.
   etape,
+
+  /// 🛑 **Le parcours a désigné une étape dont l'action ne se résout pas.**
+  /// La carte nomme alors **cette étape-là**, sans bouton — et **jamais** une
+  /// autre compétence ni un autre examen.
+  ///
+  /// Elle existe parce que le repli silencieux sur `plan.currentPriority`
+  /// annonçait l'étape du parcours et lançait autre chose : le candidat lisait
+  /// « Tâche 2 » et atterrissait sur la compétence que le Plan priorisait ce
+  /// jour-là. Deux causes connues, toutes deux transitoires : une compétence
+  /// dont le transfert vient d'être prouvé (le Plan l'a sortie de ses
+  /// priorités), et une compétence hors de la fenêtre d'affichage des
+  /// priorités.
+  indisponible,
 }
 
 /// L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance.
@@ -69,7 +83,9 @@ class PlanNowCard {
   /// ([startPlanSeanceItem]).
   final PlanSeanceItem? mesure;
 
-  final LearningPlanPriority priority;
+  /// `null` sur la seule nature [PlanNowNature.indisponible] : il n'y a **rien**
+  /// à lancer, et nommer la priorité du Plan désignerait une autre compétence.
+  final LearningPlanPriority? priority;
 
   /// L'exercice de la priorité — celui que la carte lance **hors mesure**.
   final PlanRecommendedExercise? exercise;
@@ -118,6 +134,7 @@ class PlanNowCard {
 
   bool get estMesure => nature == PlanNowNature.mesure;
   bool get estVerification => nature == PlanNowNature.verification;
+  bool get estIndisponible => nature == PlanNowNature.indisponible;
 }
 
 /// **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
@@ -137,26 +154,32 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
   // `PlanDomainAssessmentResolver`. Les recopier dans le parcours en ferait un
   // second moteur, ce que la spec §0.4 interdit.
   final etape = journey?.current;
-  // ⚠️ **Repli assumé** quand le parcours nomme une compétence que le Plan ne
-  // priorise plus (cas normal : son transfert vient d'être prouvé). Montrer la
-  // carte du Plan vaut mieux que ne rien montrer, et l'écart est transitoire.
-  final priority = (etape == null ? null : _priorityDe(plan, etape)) ??
-      plan.currentPriority;
-  if (priority == null) return null;
-
-  final exercise = priority.recommendedExercise;
+  final duParcours = etape == null ? null : _priorityDe(plan, etape);
   // 🛑 **Une MESURE passe devant tout le reste** — sauf quand un parcours est
   // servi : il a **déjà** appliqué la précédence (R12), et rejouer
   // `planSeanceMesure` ferait passer une mesure devant l'étape qu'il vient de
   // désigner. Deux règles de précédence pour une seule carte.
   final mesure =
       etape == null ? planSeanceMesure(plan) : _mesureDe(plan, etape);
+
+  // 🛑 **GARDE-FOU : on ne lance JAMAIS autre chose que l'étape annoncée.**
+  // Quand le parcours désigne une étape dont l'action ne se résout pas, cette
+  // fonction retombait sur `plan.currentPriority` : la carte annonçait l'étape
+  // du parcours et ouvrait la compétence que le Plan priorisait ce jour-là.
+  if (etape != null && duParcours == null && mesure == null) {
+    return _carteIndisponible(etape);
+  }
+
+  final priority = duParcours ?? plan.currentPriority;
+  if (priority == null && mesure == null) return null;
+
+  final exercise = priority?.recommendedExercise;
   final mesureDomaine = mesure?.assessment;
 
   // 🛑 **La carte de vérification est une AUTRE carte.** Elle se lit sur la
   // nature **servie**, jamais sur un compteur.
   final verifier = mesureDomaine == null &&
-      priority.nature == PlanActionNature.aVerifier &&
+      priority?.nature == PlanActionNature.aVerifier &&
       exercise?.kind == PlanExerciseKind.reassessment;
 
   final minutes = mesure != null
@@ -169,9 +192,9 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       // les cinq.
       : mesure == null &&
               !verifier &&
-              priority.stepPromptCount > 0 &&
+              (priority?.stepPromptCount ?? 0) > 0 &&
               exercise?.kind == PlanExerciseKind.microTraining
-          ? '${priority.stepPromptCount} petits sujets · ≈ $minutes min chacun'
+          ? '${priority?.stepPromptCount} petits sujets · ≈ $minutes min chacun'
           : '≈ $minutes min';
 
   if (mesureDomaine != null) {
@@ -197,6 +220,10 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       locked: planSeanceItemLocked(mesure!),
     );
   }
+
+  // Plus de mesure et plus de priorité : il n'y a rien à annoncer, et l'écran
+  // affiche son état vide.
+  if (priority == null) return null;
 
   final epreuve = planEpreuveOfSection(priority.section);
   final task = SkillTaskCode.fromSkillCode(priority.skillCode);
@@ -273,25 +300,58 @@ PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
   for (final item in plan.seance.items) {
     if (item.assessment?.epreuve == etape.examType) return item;
   }
-  for (final assessment in plan.domainesAEvaluer) {
-    if (assessment.epreuve != etape.examType) continue;
-    // Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
-    // tous ces champs sont **structurellement** nuls sur une ligne de mesure,
-    // exactement comme le serveur les sert dans la séance. Rien n'est inventé
-    // ici — seule l'enveloppe est reconstituée.
-    return PlanSeanceItem(
-      nature: PlanActionNature.aEvaluer,
-      assessment: assessment,
-      stepPromptCount: 0,
-      stepAttemptedCount: 0,
-      stepValidatedCount: 0,
-      stepCompleted: false,
-      readyForReassessment: false,
-      // 🛑 Une mesure n'est **jamais** verrouillée : le slot offert est ouvert à
-      // tout compte inscrit, et `PlanDomainAssessmentResolver` ne sert aucun
-      // `locked` pour cette raison exacte.
-      locked: false,
-    );
-  }
-  return null;
+  final assessment = etape.assessment;
+  if (assessment == null) return null;
+  // Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
+  // tous ces champs sont **structurellement** nuls sur une ligne de mesure,
+  // exactement comme le serveur les sert dans la séance. Rien n'est inventé
+  // ici — seule l'enveloppe est reconstituée.
+  return PlanSeanceItem(
+    nature: PlanActionNature.aEvaluer,
+    assessment: assessment,
+    stepPromptCount: 0,
+    stepAttemptedCount: 0,
+    stepValidatedCount: 0,
+    stepCompleted: false,
+    readyForReassessment: false,
+    // 🛑 Une mesure n'est **jamais** verrouillée : le slot offert est ouvert à
+    // tout compte inscrit, et `PlanDomainAssessmentResolver` ne sert aucun
+    // `locked` pour cette raison exacte.
+    locked: false,
+  );
+}
+
+/// **La carte d'une étape dont l'action ne se résout pas.**
+///
+/// 🛑 Elle nomme **l'étape que le parcours a désignée**, et rien d'autre : c'est
+/// tout son objet. Pas de bouton, pas de repli sur la priorité du Plan — lancer
+/// une autre compétence que celle qu'on affiche est exactement la contradiction
+/// que le parcours a été écrit pour fermer.
+///
+/// Le titre et le sous-titre viennent des **libellés du parcours**
+/// (`journey_labels.dart`), la même autorité que la timeline : la carte et la
+/// ligne de la timeline disent donc mot pour mot la même chose.
+PlanNowCard _carteIndisponible(JourneyStep etape) {
+  final epreuve = etape.examType;
+  return PlanNowCard(
+    nature: PlanNowNature.indisponible,
+    mesure: null,
+    priority: null,
+    exercise: null,
+    section: etape.section,
+    icon: epreuve == null ? LucideIcons.target : planDomainIcon(epreuve),
+    title: journeyStepTitle(etape),
+    subtitle: journeyStepSubtitle(etape),
+    badge: '',
+    objectiveLabel: null,
+    objective: null,
+    minutesLabel: null,
+    kindLabel: null,
+    lines: const [kPlanNowUnavailableText],
+    cta: kPlanNowStartCta,
+    // Le verrou **servi** de l'étape, pas une déduction : une étape
+    // indisponible peut être verrouillée par ailleurs, et l'écran doit
+    // continuer à le dire.
+    locked: etape.locked,
+  );
 }

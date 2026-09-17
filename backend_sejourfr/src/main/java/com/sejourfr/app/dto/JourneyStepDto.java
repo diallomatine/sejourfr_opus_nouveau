@@ -72,7 +72,31 @@ public record JourneyStepDto(
          * cacher (contradiction #1 du depot, tranchee le 2026-08-21 : « le Plan
          * reste integralement visible »).
          */
-        boolean locked
+        boolean locked,
+        /**
+         * <b>Par quoi mesurer cette epreuve</b> — l'action que la carte lance,
+         * non {@code null} pour les seules etapes {@code SECTION_EXAM}.
+         *
+         * <h3>🛑 Ce n'est pas un second moteur, c'est le MEME resolveur</h3>
+         * <p>{@code PlanDomainAssessmentResolver.pour(EpreuveType)}
+         * est publique depuis le 2026-09-16 precisement pour que « mesurer ce
+         * domaine » veuille dire la meme chose partout : la fiche d'un domaine,
+         * « Completer mon profil », l'Accueil, Reviser, la ligne
+         * {@code A_EVALUER} de la seance — et desormais le parcours. Le
+         * parcours ne <b>compose</b> aucune action, il <b>relaie</b> celle de
+         * son autorite.
+         *
+         * <h3>Pourquoi elle est servie, alors que A18 dit le contraire</h3>
+         * <p>A18 (« le parcours designe, le Plan execute ») tenait tant que
+         * l'action se retrouvait dans le Plan. Elle ne s'y retrouve <b>pas</b>
+         * pour un point d'etape {@code REASSESS} : {@code domainesAEvaluer} ne
+         * liste que les epreuves <b>jamais mesurees</b> (c'est sa definition),
+         * et la seance ne porte que la mesure <b>indispensable</b>. Un
+         * checkpoint sur une epreuve deja mesuree n'avait donc aucune action
+         * resoluble, et les fronts retombaient sur {@code currentPriority} —
+         * une <b>autre competence</b> que celle annoncee.
+         */
+        PlanDomainAssessmentDto assessment
 ) {
 
     /**

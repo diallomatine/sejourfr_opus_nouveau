@@ -15,7 +15,9 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.JourneySuggestionType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
+import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.SkillAccessService;
 import com.sejourfr.app.service.SkillProgressCounter;
@@ -77,6 +79,7 @@ public class JourneyReadService {
     private final ProductionAccessService productionAccessService;
     private final LearningPlanObservationManager observationManager;
     private final NiveauActuelEpreuveResolver mesureResolver;
+    private final PlanDomainAssessmentResolver assessmentResolver;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
@@ -107,19 +110,30 @@ public class JourneyReadService {
                 .filter(JourneyStep::estOuverte)
                 .toList();
 
-        // 🛑 LA PREMIERE ETAPE OUVERTE, VERROUS IGNORES : c'est elle que le
-        // freemium ouvre d'office, et c'est ce qui casse la circularite
-        // CURRENT ⇄ locked (cf. l'en-tete de classe).
+        Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression =
+                progressionDesCompetencesDExpression(userId, ouvertes);
+
+        // 🛑 LA PREMIERE ETAPE D'ENTRAINEMENT OUVERTE, VERROUS IGNORES : c'est
+        // elle que le freemium ouvre d'office, et c'est ce qui casse la
+        // circularite CURRENT ⇄ locked (cf. l'en-tete de classe).
+        //
+        // 🛑 **Les etapes SANS CONTENU sont sautees, exactement comme dans
+        // {@link #elire}** (correctif du 2026-09-17) : l'exemption doit tomber
+        // sur l'etape qui prendra reellement la main. Sans ce saut, une
+        // competence d'expression sans aucun sujet publie consommait
+        // l'exemption — elle n'a rien a ouvrir —, la main passait a l'etape
+        // suivante, et le compte gratuit lisait donc une etape sans y avoir
+        // acces. C'est le meme filtre qui aligne `PlanFocusResolver`, l'autre
+        // lecteur de cette premiere place.
         UUID focusSkillId = ouvertes.stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> !sansContenu(step, progressionExpression))
                 .map(JourneyStep::getSkill)
                 .filter(java.util.Objects::nonNull)
                 .map(Skill::getId)
                 .findFirst()
                 .orElse(null);
         SkillAccessService.SkillAccess access = accessService.resolve(userId, focusSkillId);
-
-        Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression =
-                progressionDesCompetencesDExpression(userId, ouvertes);
         Map<UUID, Integer> seriesParCompetence = seriesTermineesDepuisLaCreation(userId, ouvertes);
         // Le verrou EE/EO est le meme quel que soit le nombre d'etapes
         // concernees : une seule lecture, et seulement si une etape le demande.
@@ -466,7 +480,7 @@ public class JourneyReadService {
         return section != null && section.isProduction();
     }
 
-    private static JourneyStepDto dto(Etat etat) {
+    private JourneyStepDto dto(Etat etat) {
         JourneyStep step = etat.step();
         Skill skill = step.getSkill();
         return new JourneyStepDto(
@@ -483,6 +497,29 @@ public class JourneyReadService {
                 step.getSourceAssessmentId(),
                 step.getPosition(),
                 etat.progress(),
-                etat.locked());
+                etat.locked(),
+                mesureDe(step));
+    }
+
+    /**
+     * <b>Par quoi mesurer l'epreuve de cette etape</b>, ou {@code null} hors
+     * {@code SECTION_EXAM}.
+     *
+     * <p>🛑 <b>Relayee, jamais composee</b> : c'est le meme
+     * {@code PlanDomainAssessmentResolver.pour} que la fiche d'un domaine,
+     * « Completer mon profil », l'Accueil, Reviser et la seance. Le parcours
+     * devient son sixieme appelant, pas une sixieme regle.
+     *
+     * <p><b>Zero requete</b> : la methode est une table de natures, elle ne lit
+     * ni la base ni l'historique.
+     *
+     * <p>Elle est servie <b>meme sur une epreuve deja mesuree</b>, et c'est
+     * tout l'interet : un point d'etape {@code REASSESS} ne se retrouve ni dans
+     * {@code domainesAEvaluer} (qui ne liste que le jamais-mesure) ni dans la
+     * seance (qui ne porte que la mesure indispensable).
+     */
+    private PlanDomainAssessmentDto mesureDe(JourneyStep step) {
+        if (step.getType() != JourneyStepType.SECTION_EXAM) return null;
+        return assessmentResolver.pour(step.getExamType());
     }
 }

@@ -27,6 +27,10 @@ import {
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
 import {
+    JOURNEY_NEEDS_OBJECTIVE_CTA,
+    JOURNEY_NEEDS_OBJECTIVE_TEXT,
+    JOURNEY_NEEDS_OBJECTIVE_TITLE,
+    JOURNEY_TARGET_PATH_HREF,
     journeyBadge,
     journeyKind,
     journeyKitState,
@@ -581,7 +585,14 @@ function ActionPlanDuJour({plan, journey}: {
        ⚠️ **Une MESURE n'est pas une priorité** : elle n'est floutée nulle part,
        donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
        aucun verrou dessus — s'il en posait un, `locked` le dirait. */
-    const carte = vue && (vue.nature === "MESURE" ? !vue.locked : !vue.priority.locked)
+    const carte = vue && (
+        vue.nature === "MESURE" || vue.nature === "INDISPONIBLE"
+            /* 🛑 Une étape dont l'action ne se résout pas se NOMME quand même :
+               c'est celle que l'aperçu du parcours montre juste en dessous, et
+               taire son nom ici ferait dire deux choses au même écran. Elle n'a
+               simplement aucun raccourci — `startable` s'en charge. */
+            ? !vue.locked
+            : vue.priority?.locked !== true)
         ? vue
         : null;
     const mesure = carte?.mesure ?? null;
@@ -985,6 +996,25 @@ function VotrePlan({civique, journey, cible}: {
        🛑 **Pas de `current` ⇒ pas de bloc** : aucun objectif déclaré, plus rien
        à faire, ou rien d'exécutable. Dans ce dernier cas la carte d'action
        porte déjà le paywall — l'aperçu n'a rien à ajouter. */
+    /* 🛑 **Le candidat sans objectif déclaré est invité à en choisir un, ici
+       aussi** (arbitrage du propriétaire, 2026-09-17). Le Plan, lui, n'exige
+       **pas** d'objectif : sa carte d'action reste au-dessus, entière. C'est
+       une invitation, jamais une porte fermée — et elle doit se lire partout où
+       une carte « À faire maintenant » se lit, sans quoi le candidat ne
+       découvre jamais que déclarer sa démarche lui ouvre un parcours. */
+    if (journey?.state === "NEEDS_OBJECTIVE") {
+        return (
+            <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
+                <Pad>
+                    <Card>
+                        <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+                        <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+                    </Card>
+                </Pad>
+            </Section>
+        );
+    }
+
     const courante = journey?.current ?? null;
     if (!journey || !courante) return null;
     const fenetre = apercuJourneySteps(journey.steps, courante.id);

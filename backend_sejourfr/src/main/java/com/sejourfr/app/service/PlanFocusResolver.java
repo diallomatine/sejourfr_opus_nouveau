@@ -236,22 +236,37 @@ public class PlanFocusResolver {
      * competence sans contenu publie n'est pas une premiere place, et le
      * freemium n'ouvre jamais du vide.
      *
+     * <p>🛑 <b>La PREMIERE etape d'entrainement DU POOL, pas la premiere tout
+     * court</b> (correctif du 2026-09-17). Une etape dont la competence n'est
+     * pas dans le pool est une etape <b>sans contenu publie</b>, et c'est
+     * exactement celle que {@code JourneyReadService.elire} saute pour elire
+     * {@code CURRENT} : s'arreter a la premiere ligne faisait retomber ce
+     * resolveur sur l'<b>epingle</b> pendant que le parcours, lui, avait deja
+     * designe l'etape suivante — donc le freemium ouvrait une competence que la
+     * carte n'annoncait pas. Les deux lecteurs sautent desormais les memes
+     * etapes, dans le meme ordre.
+     *
      * <p>{@link Optional#empty()} quand il n'y a <b>pas de parcours</b> — un
-     * candidat sans demarche declaree n'en a aucun (arbitrage D-3) — ou quand
-     * sa premiere etape ouverte n'est pas un entrainement. L'appelant retombe
-     * alors sur l'epingle, qui garde exactement son role d'avant.
+     * candidat sans demarche declaree n'en a aucun (arbitrage D-3) —, quand
+     * aucune de ses etapes ouvertes n'est un entrainement (le parcours designe
+     * alors un examen, qui n'ouvre aucune competence), ou quand aucune de leurs
+     * competences n'est dans le pool. L'appelant retombe alors sur l'epingle,
+     * qui garde exactement son role d'avant.
      */
     private Optional<Skill> premiereDuParcours(User user, List<Skill> candidats) {
         if (candidats == null || candidats.isEmpty()) return Optional.empty();
         TargetLevel cible = TargetProcedure.niveauVise(
                 user.getTargetProcedure(), user.getTargetLevel());
         if (cible == null) return Optional.empty();
-        return stepManager.findPremiereCompetenceOuverte(user.getId(), cible)
-                .map(Skill::getId)
-                .flatMap(skillId -> candidats.stream()
-                        .filter(candidat -> candidat != null
-                                && skillId.equals(candidat.getId()))
-                        .findFirst());
+        for (Skill duParcours : stepManager.findCompetencesOuvertes(user.getId(), cible)) {
+            if (duParcours == null) continue;
+            Optional<Skill> dansLePool = candidats.stream()
+                    .filter(candidat -> candidat != null
+                            && duParcours.getId().equals(candidat.getId()))
+                    .findFirst();
+            if (dansLePool.isPresent()) return dansLePool;
+        }
+        return Optional.empty();
     }
 
     /**

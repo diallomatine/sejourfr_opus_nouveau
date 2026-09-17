@@ -18,7 +18,9 @@ import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../plan/civic_plan_provider.dart';
+import '../../core/router/app_router.dart';
 import '../plan/civic_serie_launcher.dart';
+import '../plan/journey_labels.dart';
 import '../../core/models/journey_models.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
@@ -131,7 +133,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
                   ],
                   data: (d) => civique
                       ? _civique(d, civicPlan, prep?.civique)
-                      : _tcf(d, plan, parcours, prep?.tcf),
+                      : _tcf(context, d, plan, parcours, prep?.tcf),
                 ),
               ],
             ),
@@ -144,6 +146,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   /* ------------------------------------------------------------------ TCF */
 
   List<Widget> _tcf(
+    BuildContext context,
     DashboardSummary dashboard,
     LearningPlan? plan,
     Journey? parcours,
@@ -153,7 +156,8 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     // reprendre — et on ne l'invente pas : la carte de tête devient la porte du
     // diagnostic, avec les mots de [planIndisponible].
     final disponible = prep?.planDisponible == true;
-    final resume = disponible ? reviserResumeTcf(plan, journey: parcours) : null;
+    final resume =
+        disponible ? reviserResumeTcf(plan, journey: parcours) : null;
     final porte = prep == null ? null : planIndisponible(prep, civique: false);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
@@ -172,6 +176,24 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
         )
       else if (porte != null)
         _GateCard(porte: porte, variant: SfButtonVariant.primary),
+      // 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
+      // du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un compte
+      // gratuit : sans elle, un candidat sans démarche déclarée n'apprenait
+      // nulle part qu'elle lui ouvre un parcours. Elle n'enlève rien — la
+      // reprise ci-dessus reste servie, le Plan n'exige pas d'objectif.
+      if (parcours?.state == JourneyState.needsObjective)
+        SfSection(
+          title: kJourneyNeedsObjectiveTitle,
+          child: SfStack(
+            children: [
+              const SfCard(child: Text(kJourneyNeedsObjectiveText)),
+              SfButton(
+                label: kJourneyNeedsObjectiveCta,
+                onPressed: () => context.push(AppRoutes.targetPath),
+              ),
+            ],
+          ),
+        ),
       SfSection(
         title: reviserSectionTitle(AppModule.tcf, stats.length),
         flush: true,
@@ -244,7 +266,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
         context,
         ref,
         exercice,
-        masteryBefore: carte.priority.masteryState,
+        masteryBefore: carte.priority?.masteryState,
       );
     }
     if (!mounted) return;

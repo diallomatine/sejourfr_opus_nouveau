@@ -4715,6 +4715,21 @@ export interface JourneyStepDto {
      * reste intégralement visible.
      */
     locked: boolean;
+    /**
+     * **Par quoi mesurer cette épreuve** — l'action que la carte lance, non
+     * `null` pour les seules étapes `SECTION_EXAM`.
+     *
+     * 🛑 **Relayée du même resolver que partout ailleurs**
+     * (`PlanDomainAssessmentResolver.pour`, publique depuis le 2026-09-16) : le
+     * parcours ne compose aucune action, il en devient le sixième lecteur.
+     *
+     * ⚠️ **À lire ici, jamais à retrouver dans `domainesAEvaluer`** : celui-ci
+     * ne liste que les épreuves **jamais mesurées**, or le point d'étape d'un
+     * lot porte toujours sur une épreuve **déjà** mesurée — c'est elle qui a
+     * créé le lot. Les fronts ne résolvaient donc aucune action pour le cas le
+     * plus courant du parcours.
+     */
+    assessment: PlanDomainAssessmentDto | null;
 }
 
 export interface JourneyDto {

@@ -13,6 +13,8 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanDomainAssessmentKind;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -392,6 +394,63 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         assertThat(codesDEntrainement(b2)).isNotEmpty();
         // L'ancien parcours est CONSERVE tel quel.
         assertThat(journeyService.getOrCreate(user.getId())).isPresent();
+    }
+
+    // =====================================================================
+    // §16 / A24 — l'action d'une etape d'examen est SERVIE
+    // =====================================================================
+
+    @Test
+    @DisplayName("§16-3 — le checkpoint d'un lot porte SA mesure, alors que l'epreuve est deja mesuree")
+    void leCheckpointDUnLotPorteSaMesure() {
+        User user = candidat(TargetProcedure.NAT);
+        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+
+        JourneyDto vue = journeyService.lire(user.getId(), true);
+
+        JourneyStepDto checkpoint = vue.steps().stream()
+                .filter(step -> step.purpose() == JourneyStepPurpose.REASSESS)
+                .filter(step -> step.examType() == EpreuveType.TCF_EE)
+                .findFirst().orElseThrow();
+        // 🛑 L'EE vient d'etre mesuree — c'est elle qui a cree le lot. Elle ne
+        // figure donc PAS dans `domainesAEvaluer`, qui ne liste que le
+        // jamais-mesure, et la seance ne porte que la mesure indispensable.
+        // Sans cette ligne servie, les fronts ne resolvaient AUCUNE action pour
+        // le checkpoint de chaque lot — le cas le plus courant du parcours — et
+        // retombaient sur `currentPriority`, une AUTRE competence que celle que
+        // la carte annoncait.
+        assertThat(checkpoint.assessment()).isNotNull();
+        assertThat(checkpoint.assessment().epreuve()).isEqualTo(EpreuveType.TCF_EE);
+        assertThat(checkpoint.assessment().kind())
+                .isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        // Le slot OFFERT, celui que `PlanDomainAssessmentResolver` sert partout
+        // ailleurs : mesurer un domaine ne bute jamais sur le paywall.
+        assertThat(checkpoint.assessment().slotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("§16-4 — une etape d'entrainement ne mesure rien, et l'examen CO porte son type de questions")
+    void seulesLesEtapesDExamenPortentUneMesure() {
+        User user = candidat(TargetProcedure.NAT);
+        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+
+        JourneyDto vue = journeyService.lire(user.getId(), true);
+
+        assertThat(vue.steps().stream()
+                .filter(step -> step.type() == JourneyStepType.TRAIN_SKILL)
+                .map(JourneyStepDto::assessment))
+                .isNotEmpty()
+                .containsOnlyNulls();
+        // R12 — la CO n'est pas mesuree, son « Evaluer mon niveau » est dans la
+        // file : sa mesure est l'examen de module, avec le type de questions que
+        // `StartAttemptRequest` attend. Rien n'est compose par les fronts.
+        JourneyStepDto co = vue.steps().stream()
+                .filter(step -> step.examType() == EpreuveType.TCF_CO)
+                .findFirst().orElseThrow();
+        assertThat(co.assessment()).isNotNull();
+        assertThat(co.assessment().kind())
+                .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
+        assertThat(co.assessment().moduleExamQuestionType()).isEqualTo(QuestionType.CO);
     }
 
     // ------------------------------------------------------------- fabriques

@@ -565,7 +565,11 @@ function ActionMaintenant({plan, journey, free}: {
               <LockItem icon={Lock} label="Suivi de cette compétence" />
             </LockList>
           )}
-          {!free && !actionLocked && (
+          {/* 🛑 **Aucun bouton sur une étape dont l'action ne se résout pas.**
+              Il ne lançait rien, et la version d'avant lançait pire : la
+              compétence que le Plan priorisait ce jour-là, pendant que la carte
+              en annonçait une autre. */}
+          {!free && !actionLocked && vue.nature !== "INDISPONIBLE" && (
             <Cta onClick={startNext} disabled={busy}>
               {busy ? PLAN_STARTING : vue.cta}
             </Cta>

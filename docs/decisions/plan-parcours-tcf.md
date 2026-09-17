@@ -284,3 +284,48 @@ validé le rapport et tranché les 9 questions ouvertes.
   attempts, 105 examens blancs TCF terminés, 18 diagnostics rapides, 6 diagnostics complets, 455
   observations, 18 utilisateurs avec au moins une observation. **Chiffres de dev, pas de prod** — la
   base de production n'était pas accessible depuis la session d'audit.
+
+---
+
+## Revue de livraison — 2026-09-17 (soir)
+
+Le propriétaire a relu les 23 décisions autonomes (`docs/decisions-autonomes-parcours-tcf.md`)
+et les a **validées**, avec cinq points de vérification. Verbatim des deux arbitrages qu'elle a
+produits :
+
+### D-10 — Le Plan n'exige PAS d'objectif déclaré
+
+> « Le Plan n'exige PAS d'objectif déclaré. L'épingle reste en repli, notée comme dette de
+> transition. Vérifier que la carte "Choisir mon objectif" est visible sur les 6 sites. »
+
+**Ce que ça tranche.** La question laissée ouverte par **A23** est close : la suppression de
+`plan_pinned_priorities` prévue par la spec §6 **n'aura pas lieu**. La table reste le **repli**
+des candidats sans démarche déclarée — **17 sur 34** sur la base de dev —, qui n'ont pas de
+parcours (D-3) mais ont bien un Plan.
+
+**Ce que ça impose, et qui a été fait dans la foulée.** L'invitation « Choisir mon objectif »
+vivait sur le **seul** écran Plan (web et mobile). Elle est désormais rendue sur les **six**
+surfaces qui portent une carte « À faire maintenant » : Plan, Accueil et Réviser, des deux
+côtés. 🛑 **Elle n'enlève rien** — elle s'ajoute au-dessus de ce que l'écran affichait déjà, et
+la carte d'action reste servie. Un candidat sans objectif garde son Plan entier ; il apprend
+simplement que déclarer sa démarche lui ouvre un parcours.
+
+**Dette de transition** : le jour où la démarche deviendra obligatoire, l'épingle n'aura plus
+aucun lecteur et `PlanFocusResolver` se réduira à sa lecture du parcours.
+
+### D-11 — Déclencher le parcours à la clôture définitive d'un Attempt de production
+
+> « A16 — inscrire en dette technique : "déclencher le parcours à la clôture définitive d'un
+> Attempt de production". »
+
+**Inscrit.** Une épreuve EE/EO **abandonnée** dont la dernière évaluation atterrit avant la
+clôture de session n'ouvre aujourd'hui aucun lot. Détail du manque, des quatre chemins de
+clôture concernés et de l'arbitrage produit qui reste à rendre : **A16 bis**.
+
+### Trois corrections livrées dans la même revue
+
+| # | Ce qui n'allait pas | Correctif |
+|---|---|---|
+| **A24** | Le point d'étape de **chaque lot** n'avait aucune action résoluble : `domainesAEvaluer` ne liste que les épreuves **jamais** mesurées, or un checkpoint porte toujours sur une épreuve **déjà** mesurée. | `JourneyStepDto.assessment`, relayé de `PlanDomainAssessmentResolver.pour` — son sixième appelant, pas une sixième règle. |
+| **A25** | Sans action résoluble, la carte annonçait l'étape du parcours et **lançait une autre compétence** (repli sur `plan.currentPriority`). | Nature `INDISPONIBLE` : la carte nomme l'étape, sans bouton. `priority` devient nullable, et c'est le seul cas. |
+| **A26** | L'exemption freemium, l'élection de `CURRENT` et la première place du Plan pouvaient désigner **trois** étapes différentes (une compétence sans sujet publié les séparait). | Les trois sautent les mêmes étapes, dans le même ordre. Toujours **une** requête : le budget du Plan ne bouge pas.

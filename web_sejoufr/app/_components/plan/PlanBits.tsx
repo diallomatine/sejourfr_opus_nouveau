@@ -11,6 +11,7 @@ import {
     Headphones,
     Mic,
     ShieldCheck,
+    Target,
     Wrench,
     type LucideIcon,
 } from "lucide-react";
@@ -73,7 +74,10 @@ export const PLAN_SECTION_ICON: Record<SkillSection, LucideIcon> = {
  *  celui de la **mesure** quand elle passe devant — ou la marque de
  *  vérification quand la série vient de se terminer. */
 export function planNowIcon(vue: PlanNowVue): LucideIcon {
-    return vue.nature === "VERIFICATION" ? BadgeCheck : PLAN_SECTION_ICON[vue.section];
+    if (vue.nature === "VERIFICATION") return BadgeCheck;
+    /* Une étape de diagnostic ne travaille aucun domaine : `Target` est
+       l'icône générique que l'Accueil emploie déjà quand il n'a pas de carte. */
+    return vue.section ? PLAN_SECTION_ICON[vue.section] : Target;
 }
 
 /**

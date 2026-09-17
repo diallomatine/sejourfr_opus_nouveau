@@ -4284,6 +4284,19 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   (`recommendedExercise`, `domainesAEvaluer`) : le DTO du parcours n'en porte aucune, et l'y
   mettre en ferait un second moteur. N'en migrer que quelques-uns rouvrirait la contradiction
   corrigée le 2026-09-16.
+- 🛑 **L'action d'une étape d'examen est SERVIE** (`step.assessment`, 2026-09-17) : on la lit
+  **là**, jamais dans `domainesAEvaluer`, qui ne liste que les épreuves **jamais mesurées** —
+  or le point d'étape d'un lot porte **toujours** sur une épreuve déjà mesurée, c'est elle qui a
+  créé le lot. Aucune action ne s'y résolvait.
+- 🛑 **GARDE-FOU — une carte ne lance JAMAIS autre chose que l'étape qu'elle annonce.** Quand
+  l'action ne se résout pas, `planNowCard` rend la nature **`INDISPONIBLE`** : la carte nomme
+  l'étape (libellés du parcours, la même autorité que la timeline), **sans bouton**, et
+  `priority` vaut `null` — le seul cas. Elle retombait sur `plan.currentPriority`, donc
+  annonçait une compétence et en ouvrait une autre.
+- 🛑 **Sans objectif déclaré, on INVITE — on ne ferme rien.** La carte « Choisir mon objectif »
+  se lit sur les **six** surfaces qui portent une carte « À faire maintenant », et **s'ajoute**
+  à ce que l'écran affichait déjà : le Plan n'exige **pas** d'objectif (arbitrage du
+  propriétaire, 2026-09-17), sa carte d'action reste servie au-dessus.
 - 🛑 **Une étape verrouillée reste affichée à sa place**, cadenas compris, et ne devient jamais
   `CURRENT` — sinon le parcours d'un compte gratuit se figerait définitivement sur elle.
 - **Supprimés dans la même passe** : le « chemin vers l'objectif » (`cycle.path`,

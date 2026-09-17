@@ -76,6 +76,10 @@ Cf. `exams-tcf.md`.
   les compétences de compréhension n'ont ni tâche ni petit sujet, leur grain est la série.
   Le serveur sert des **faits** (`section`, `taskCode`, `skillCode`, `skillTitle`, `purpose`) —
   « Expression écrite · Tâche 1 » et « Vérifier mes progrès » se composent dans les fronts.
+  `assessment` (non `null` sur les seules étapes `SECTION_EXAM`) porte **par quoi mesurer
+  l'épreuve**, relayé de `PlanDomainAssessmentResolver.pour` : 🛑 **à lire ici, jamais à
+  retrouver dans `domainesAEvaluer`**, qui ne liste que les épreuves **jamais mesurées** alors
+  qu'un point d'étape porte toujours sur une épreuve déjà mesurée.
   Spec : `docs/progression/spec-plan-tcf-parcours-evaluations-v2.md`.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit

@@ -649,6 +649,15 @@ const String kPlanNowVerifyCta = 'Faire la vérification';
 /// mot du web (`PLAN_NOW_CTA_MEASURE`).
 const String kPlanNowMeasureCta = 'Compléter la mesure';
 
+/// Ce que lit le candidat quand l'action de son étape ne se résout pas.
+///
+/// 🛑 **Aucune promesse de délai** : les deux causes connues se referment à la
+/// prochaine évaluation, et c'est tout ce qu'on peut affirmer.
+///
+/// ⚠️ Miroir mot pour mot du web (`PLAN_NOW_UNAVAILABLE_TEXT`).
+const String kPlanNowUnavailableText =
+    "Cette étape n'a pas d'exercice disponible pour l'instant. Votre prochaine évaluation la remettra à jour.";
+
 /// Ce que dit le bouton de la carte d'action.
 ///
 /// 🛑 **Rien n'est déduit d'un pourcentage** : la vérification se lit sur la
@@ -657,12 +666,17 @@ const String kPlanNowMeasureCta = 'Compléter la mesure';
 ///
 /// ⚠️ Miroir mot pour mot du web (`planNowCta`).
 String planNowCta(
-  LearningPlanPriority priority, {
+  LearningPlanPriority? priority, {
   required bool verifier,
   required bool mesure,
 }) {
+  // 🛑 **Une mesure se nomme sans aucune priorité.** Le parcours peut désigner
+  // un examen alors que le Plan n'a plus rien à prioriser — c'est même le cas
+  // quand tout a été travaillé —, et exiger une priorité ici faisait
+  // disparaître la carte.
   if (mesure) return kPlanNowMeasureCta;
   if (verifier) return kPlanNowVerifyCta;
+  if (priority == null) return kPlanNowStartCta;
   if (priority.nature == PlanActionNature.aAcquerir) return kPlanNowDiscoverCta;
   return priority.stepAttemptedCount > 0
       ? kPlanNowContinueCta

@@ -300,10 +300,20 @@ sur « par quoi mesurer une épreuve » et « quel sujet proposer », deux règl
 resolver et dont l'une vient d'être arbitrée. Le parcours est une couche d'**orchestration**
 (spec §0.4) : lui faire porter le catalogue d'actions le transformerait en second moteur.
 
-**Pourquoi ce n'est pas fait cette nuit.** `planNowCard` est la surface la plus sensible du
-dépôt : **six** sites d'appel, et la contradiction qu'elle a corrigée le 2026-09-16 (l'Accueil
-annonçant une action, le Plan une autre, au même instant) est exactement ce qu'une réécriture
-inachevée rouvrirait. Elle demande une passe entière, pas un quart d'heure.
+**✅ FAIT (lot 4d, commit `5b47748d` et suivants).** ⚠️ Le paragraphe qui disait ici « ce n'est
+pas fait cette nuit » est **périmé** : `planNowCard(plan, {free, journey})` a bien été réécrite,
+et les **six** sites d'appel la lui passent — `LearningPlanView.ActionMaintenant`,
+`dashboard/page.tsx::ActionPlanDuJour`, `lib/reviser.ts::reviserResumeTcf` côté web ;
+`plan_tcf_view._nowCard`, `home_screen._actionTcf`, `reviser_labels.reviserResumeTcf` côté
+mobile. L'identité de la carte vient de `journey.current` ; l'action se résout dans le Plan.
+
+**⚠️ Deux défauts de cette première version, corrigés le 2026-09-17** (revue du propriétaire) :
+
+1. **l'action d'un point d'étape ne se résolvait pas** — voir **A24**, qui sert désormais la
+   mesure sur l'étape elle-même ;
+2. **le repli était silencieux et faux** — quand rien ne se résolvait, la fonction retombait sur
+   `plan.currentPriority` : la carte annonçait l'étape du parcours et **ouvrait une autre
+   compétence**. Voir **A25**, le garde-fou.
 
 ### A19 — La timeline sert les DEUX variantes de l'écran, abonné comme gratuit
 
@@ -372,8 +382,18 @@ l'épingle priverait de leur priorité n°1 tous les candidats sans démarche �
 base de dev — et leur rendrait l'instabilité que V065 avait corrigée (cas réel mesuré : « EE3 à
 0/5, remplacée par EO1 dès la première production orale »).
 
-**La supprimer pour de bon suppose un arbitrage produit** que le propriétaire n'a pas rendu :
-*le Plan exige-t-il lui aussi un objectif déclaré ?* Si oui, l'épingle part le jour même.
+**✅ ARBITRÉ le 2026-09-17** — verbatim du propriétaire : « **le Plan n'exige PAS d'objectif
+déclaré. L'épingle reste en repli, notée comme dette de transition.** » La question ouverte est
+donc close : `plan_pinned_priorities` **reste**, et la suppression prévue par la spec §6
+**n'aura pas lieu** tant que le Plan fonctionnera sans démarche déclarée.
+
+⚠️ **Dette de transition**, à relire le jour où la démarche deviendra obligatoire : l'épingle
+n'aura alors plus aucun lecteur, et `PlanFocusResolver` se réduira à
+`premiereDuParcours`. Le contre-pied de cette dette est **l'invitation** ajoutée le même jour —
+la carte « Choisir mon objectif » se lit désormais **partout où une carte « À faire
+maintenant » se lit** (Plan, Accueil et Réviser, web et mobile), et non plus sur le seul Plan.
+Elle **n'enlève rien** : le Plan reste entier sans objectif, c'est une porte ouverte, pas une
+porte fermée.
 
 **Ce que ce changement corrige quand même, et c'est le vrai motif.** Le freemium ouvrait
 d'office la compétence de la première place **du Plan**, pendant que la carte « À faire
@@ -388,3 +408,117 @@ comprise : lire le parcours puis ses étapes en aurait coûté deux.
 **Ce qui n'a pas changé** : l'exemption reçoit une étape **verrous ignorés** (arbitrage du
 2026-08-21), et le **pool** reste la condition — une compétence sans contenu publié n'est pas
 une première place, et le freemium n'ouvre jamais du vide.
+
+
+---
+
+## Corrections de la revue du propriétaire (2026-09-17, seconde passe)
+
+### A24 — 🛑 L'action d'une étape d'examen est SERVIE (`JourneyStepDto.assessment`)
+
+**Le constat, et il est structurel.** Un point d'étape (`SECTION_EXAM` / `REASSESS`) porte
+**toujours** sur une épreuve **déjà mesurée** — c'est elle qui a créé le lot. Or les deux
+sources où les fronts allaient chercher l'action ne contiennent que le contraire :
+
+- `LearningPlanDto.domainesAEvaluer` ne liste que les épreuves **jamais mesurées** (c'est sa
+  définition : `PlanDomainAssessmentResolver.resolve` saute tout `domaine.evaluated()`) ;
+- la séance ne porte qu'une mesure, l'**indispensable** (`resolver.indispensable`), réservée
+  au cas « la production a été rendue et le correcteur n'a rien pu observer ».
+
+Le checkpoint de **chaque lot** — le cas le plus courant du parcours — n'avait donc **aucune
+action résoluble**, et les deux fronts retombaient sur `plan.currentPriority`.
+
+**Décidé.** `JourneyReadService` appelle `PlanDomainAssessmentResolver.pour(examType)` et sert
+le `PlanDomainAssessmentDto` sur l'étape. Les fronts lisent `etape.assessment` au lieu de
+fouiller `domainesAEvaluer`, et cessent de reconstituer une enveloppe de séance à la main.
+
+**Pourquoi ça ne contredit pas A18.** A18 interdit au parcours de **composer** une action ; ici
+il en **relaie** une, depuis l'autorité qui la porte déjà. `pour(EpreuveType)` est publique
+depuis le 2026-09-16 précisément pour ça — « Cinq appelants, pas cinq règles », dit son
+javadoc ; le parcours devient le sixième. **Zéro requête** : c'est une table de natures.
+
+**Vérifié par** `JourneyServiceIT.leCheckpointDUnLotPorteSaMesure` (EE déjà mesurée ⇒
+`PRODUCTION_MOCK_EXAM`, slot 1) et `…seulesLesEtapesDExamenPortentUneMesure` (CO non mesurée ⇒
+`MODULE_MOCK_EXAM` + `QuestionType.CO` ; toute étape d'entraînement ⇒ `null`), plus
+`JourneyReadServiceTest`.
+
+### A25 — 🛑 GARDE-FOU : une carte ne lance JAMAIS autre chose que l'étape qu'elle annonce
+
+**Le constat.** `planNowCard` faisait `journeyPriorityDe(...) ?? plan.currentPriority`. Quand le
+parcours désignait une étape dont l'action ne se résolvait pas, la carte gardait le titre de
+l'étape **et lançait la priorité du Plan** — une autre compétence. Le commentaire l'assumait
+(« repli assumé… l'écart est transitoire »), mais c'est exactement la contradiction que le
+parcours a été écrit pour fermer.
+
+**Décidé.** Une **quatrième nature**, `INDISPONIBLE` / `PlanNowNature.indisponible` : la carte
+nomme **l'étape du parcours** (titre et sous-titre venant de `journey.ts` ⇄
+`journey_labels.dart`, la même autorité que la timeline), sans bouton, avec une ligne qui dit
+que la prochaine évaluation la remettra à jour. `PlanNowVue.priority` / `PlanNowCard.priority`
+deviennent **nullables** — c'est le seul cas.
+
+**Les deux causes connues, toutes deux transitoires** : une compétence que le Plan ne priorise
+plus (son transfert vient d'être prouvé, le parcours clôturera l'étape au prochain
+entraînement), et une compétence **hors de la fenêtre d'affichage** des priorités
+(`plan.display.prioritiesMaxActions`). ⚠️ La seconde est rendue rare par A23 — la première place
+est celle du parcours —, mais **pas impossible** : le parcours peut désigner un examen, et
+l'épingle gouverner alors le classement.
+
+**Rendu par écran, et ce n'est pas la même chose partout** : le Plan affiche la carte
+indisponible (sans CTA) ; l'**Accueil** la nomme mais n'offre aucun raccourci ; **Réviser** ne
+propose pas de reprise (règle déjà en place : « rien à lancer ⇒ pas de bouton mort »).
+
+**Corollaire** : `planNowCta` accepte désormais une priorité `null` et rend le libellé de mesure
+en premier. Une étape d'examen se nomme sans aucune priorité — c'est même le cas quand tout a
+été travaillé, et l'exiger faisait disparaître la carte.
+
+### A26 — L'exemption freemium et le Plan élisent la MÊME étape que `CURRENT`
+
+**Le constat.** Trois lectures de « la première étape d'entraînement ouverte » coexistaient et
+pouvaient diverger :
+
+| lecteur | ce qu'il prenait |
+|---|---|
+| `JourneyReadService.elire` (⇒ `CURRENT`) | la première **ouverte, non verrouillée et avec du contenu** |
+| `JourneyReadService.focusSkillId` (⇒ exemption freemium) | la première ouverte, **quelle qu'elle soit** |
+| `PlanFocusResolver.premiereDuParcours` (⇒ première place du Plan) | la première ouverte, **et seulement elle**, abandonnée si hors du pool |
+
+Le verrou, lui, ne les sépare pas : l'exemption **déverrouille** l'étape qu'elle reçoit, donc
+`elire` l'élit ensuite. C'est le **contenu** qui les séparait — une compétence d'expression sans
+aucun sujet publié : `elire` la saute, les deux autres s'y arrêtaient. Résultat : l'exemption
+tombait sur une compétence qui n'a rien à ouvrir, `PlanFocusResolver` retombait sur l'épingle,
+et le compte gratuit lisait une étape sans y avoir accès.
+
+**Décidé.** Les trois sautent désormais les mêmes étapes, dans le même ordre.
+`focusSkillId` applique `sansContenu` (le filtre d'`elire`, la progression étant calculée avant
+l'accès — elle n'en dépend pas) ; `premiereDuParcours` **parcourt** les étapes ouvertes et garde
+la première dont la compétence est **dans le pool** (le pool écarte déjà les compétences sans
+contenu publié), au lieu de s'arrêter à la première ligne. `findPremiereCompetenceOuverte`
+devient `findCompetencesOuvertes` et rend jusqu'à 12 lignes — **toujours une seule requête**,
+donc le budget du Plan ne bouge pas.
+
+**Ce qui reste volontairement différent** : le parcours peut désigner un **examen** comme étape
+courante ; l'exemption ouvre alors la première compétence d'entraînement de la file, celle que
+le candidat atteindra ensuite. Aucune contradiction à l'écran — la carte annonce l'examen.
+
+**Vérifié par** `JourneyReadServiceTest.lExemptionTombeSurLEtapeQuiPrendLaMain` et
+`PlanFocusResolverTest.lEtapeSansContenuEstSauteeCommeDansElire`.
+
+### A16 bis — DETTE TECHNIQUE : déclencher le parcours à la clôture définitive d'un Attempt
+
+**Inscrit comme dette** (décision du propriétaire, 2026-09-17).
+
+**Ce qui manque.** `DiagnosticProductionAnalysisService.porterAuParcours` déclenche le parcours
+quand la session est un examen **et** que les 3 tâches sont évaluées (A16). Une épreuve EE/EO
+**abandonnée** dont la dernière évaluation atterrit **avant** la clôture de session n'ouvre donc
+aucun lot : l'épreuve reste mesurée, et c'est la **prochaine** évaluation qui reprend la main.
+
+**Ce qu'il faudrait.** Un point de déclenchement à la **clôture définitive** d'un `Attempt` de
+production — là où `finishSubAttemptIfFullExam` et les chemins d'abandon posent `finishedAt` —,
+qui appelle `onAssessmentCompleted` avec ce qui a été réellement évalué. Il couvrirait aussi
+l'examen suspendu puis expiré, que rien ne couvre aujourd'hui.
+
+**Pourquoi ce n'est pas fait dans cette passe.** Il y a **quatre** chemins de clôture (fin
+normale, abandon, expiration du chrono, suspension d'examen complet) et l'idempotence par
+évaluation ne suffit pas à elle seule : il faut décider ce qu'une épreuve partiellement évaluée
+doit produire — un lot sur ce qui a été mesuré, ou rien. C'est un arbitrage produit, pas un
+branchement.

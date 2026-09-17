@@ -54,8 +54,8 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
     List<JourneyStep> findOuvertesByLot(@Param("lotId") UUID lotId);
 
     /**
-     * <b>La competence de la premiere etape d'entrainement encore ouverte</b>
-     * d'un candidat, pour un niveau cible.
+     * <b>Les competences des etapes d'entrainement encore ouvertes</b> d'un
+     * candidat, <b>dans l'ordre de la file</b>.
      *
      * <p>C'est la « premiere place » que le freemium ouvre d'office
      * ({@code PlanFocusResolver}). 🛑 <b>UNE seule requete</b>, jointure
@@ -66,6 +66,14 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
      * <p>🛑 <b>Verrous ignores</b>, volontairement : c'est l'etape que le
      * parcours designe, pas celle qu'il rend executable. Lui preferer une etape
      * deja deverrouillee rendrait l'exemption inutile.
+     *
+     * <p>🛑 <b>Plusieurs lignes, pas une seule</b> (correctif du 2026-09-17) :
+     * l'appelant garde la premiere competence <b>presente dans son pool</b>, et
+     * le pool ecarte les competences sans contenu publie. C'est exactement le
+     * saut que fait {@code JourneyReadService.elire} ; ne lire qu'une ligne
+     * faisait dire a l'un « c'est celle-la » et a l'autre « il n'y en a
+     * pas », donc ouvrait au compte gratuit une competence que la carte
+     * n'annoncait pas.
      */
     @Query("""
             SELECT s.skill FROM JourneyStep s
@@ -76,7 +84,7 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
               AND s.skill IS NOT NULL
             ORDER BY s.position ASC
             """)
-    List<Skill> findPremiereCompetenceOuverte(
+    List<Skill> findCompetencesOuvertes(
             @Param("userId") UUID userId,
             @Param("targetLevel") TargetLevel targetLevel,
             Pageable pageable);

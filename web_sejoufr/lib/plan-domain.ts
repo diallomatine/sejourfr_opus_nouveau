@@ -23,6 +23,7 @@ import {
     productionSectionLabel,
     skillTaskNumber,
 } from "@/lib/diagnostic";
+import {journeyStepSubtitle, journeyStepTitle} from "@/lib/journey";
 import {
     type JourneyDto,
     type JourneyStepDto,
@@ -416,12 +417,17 @@ export const PLAN_NOW_CTA_MEASURE = "Compléter la mesure";
  * ⚠️ Miroir mot pour mot du mobile (`planNowCta`).
  */
 export function planNowCta(
-    priority: LearningPlanPriorityDto,
+    priority: LearningPlanPriorityDto | null,
     verifier: boolean,
     mesure: boolean,
 ): string {
+    /* 🛑 **Une mesure se nomme sans aucune priorité.** Le parcours peut
+       désigner un examen alors que le Plan n'a plus rien à prioriser — c'est
+       même le cas quand tout a été travaillé —, et exiger une priorité ici
+       faisait disparaître la carte. */
     if (mesure) return PLAN_NOW_CTA_MEASURE;
     if (verifier) return PLAN_NOW_CTA_VERIFY;
+    if (!priority) return PLAN_NOW_CTA_START;
     if (priority.nature === "A_ACQUERIR") return PLAN_NOW_CTA_DISCOVER;
     return priority.stepAttemptedCount > 0 ? PLAN_NOW_CTA_CONTINUE : PLAN_NOW_CTA_START;
 }
@@ -510,7 +516,21 @@ export type PlanNowNature =
     /** L'étape est terminée : le Plan demande une **vérification en situation**. */
     | "VERIFICATION"
     /** Le cas courant : l'étape de la priorité n°1. */
-    | "ETAPE";
+    | "ETAPE"
+    /**
+     * 🛑 **Le parcours a désigné une étape dont l'action ne se résout pas.**
+     * La carte nomme alors **cette étape-là**, sans bouton — et **jamais** une
+     * autre compétence ni un autre examen.
+     *
+     * Elle existe parce que le repli silencieux sur `plan.currentPriority`
+     * annonçait l'étape du parcours et lançait autre chose : le candidat lisait
+     * « Tâche 2 » et atterrissait sur la compétence que le Plan priorisait ce
+     * jour-là. Deux causes connues, toutes deux transitoires : une compétence
+     * dont le transfert vient d'être prouvé (le Plan l'a sortie de ses
+     * priorités, le parcours clôturera son étape au prochain entraînement), et
+     * une compétence hors de la fenêtre d'affichage des priorités.
+     */
+    | "INDISPONIBLE";
 
 /** L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance. */
 export interface PlanNowVue {
@@ -521,7 +541,9 @@ export interface PlanNowVue {
      * du verrou comme du démarrage (`usePlanAssessment`).
      */
     mesure: PlanSeanceAssessmentItemDto | null;
-    priority: LearningPlanPriorityDto;
+    /** `null` sur la seule nature `INDISPONIBLE` : il n'y a **rien** à lancer,
+     *  et nommer la priorité du Plan désignerait une autre compétence. */
+    priority: LearningPlanPriorityDto | null;
     /** L'exercice de la priorité — celui que la carte lance **hors mesure**. */
     exercise: PlanSkillExerciseDto | null;
     /**
@@ -529,10 +551,14 @@ export interface PlanNowVue {
      * empruntait celle de la priorité : le candidat lisait une tâche
      * d'expression orale et atterrissait dans l'examen blanc de compréhension
      * orale de la mesure.
+     *
+     * `null` sur une étape de diagnostic, qui ne travaille aucun domaine.
+     * ⚠️ Miroir du mobile (`PlanNowCard.section`), nullable depuis toujours.
      */
-    section: SkillSection;
-    /** Le repère de la priorité (« Tâche 2 », « Palier B1 »). */
-    repere: string;
+    section: SkillSection | null;
+    /** Le repère de la priorité (« Tâche 2 », « Palier B1 »). `null` quand la
+     *  carte ne porte aucune priorité. */
+    repere: string | null;
     title: string;
     subtitle: string;
     /** `null` sur un plan gratuit : sa carte constate, elle ne classe pas. */
@@ -551,6 +577,54 @@ export interface PlanNowVue {
     /** Le verrou **lu**, jamais déduit d'un rang. */
     locked: boolean;
 }
+
+/**
+ * **La carte d'une étape dont l'action ne se résout pas.**
+ *
+ * 🛑 Elle nomme **l'étape que le parcours a désignée**, et rien d'autre : c'est
+ * tout son objet. Pas de bouton, pas de repli sur la priorité du Plan — lancer
+ * une autre compétence que celle qu'on affiche est exactement la contradiction
+ * que le parcours a été écrit pour fermer.
+ *
+ * Le titre et le sous-titre viennent des **libellés du parcours**
+ * (`lib/journey.ts`), la même autorité que la timeline : la carte et la ligne
+ * de la timeline disent donc mot pour mot la même chose.
+ */
+function carteIndisponible(etape: JourneyStepDto): PlanNowVue {
+    return {
+        nature: "INDISPONIBLE",
+        mesure: null,
+        priority: null,
+        exercise: null,
+        section: etape.section
+            ?? (etape.examType ? PLAN_DOMAIN_SECTION[etape.examType as PlanDomainEpreuve] : null),
+        repere: null,
+        title: journeyStepTitle(etape),
+        subtitle: journeyStepSubtitle(etape) ?? "",
+        badge: null,
+        objectiveLabel: null,
+        objective: null,
+        minutesLabel: null,
+        kindLabel: null,
+        lines: [PLAN_NOW_UNAVAILABLE_TEXT],
+        cta: PLAN_NOW_CTA_START,
+        /* Le verrou **servi** de l'étape, pas une déduction : une étape
+           indisponible peut être verrouillée par ailleurs, et l'écran doit
+           continuer à le dire. */
+        locked: etape.locked,
+    };
+}
+
+/**
+ * Ce que lit le candidat quand l'action de son étape ne se résout pas.
+ *
+ * 🛑 **Aucune promesse de délai** : les deux causes connues se referment à la
+ * prochaine évaluation, et c'est tout ce qu'on peut affirmer.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`kPlanNowUnavailableText`).
+ */
+export const PLAN_NOW_UNAVAILABLE_TEXT =
+    "Cette étape n'a pas d'exercice disponible pour l'instant. Votre prochaine évaluation la remettra à jour.";
 
 /**
  * La priorité du Plan qui porte la compétence de cette étape — **son action**.
@@ -574,16 +648,22 @@ function journeyPriorityDe(
 }
 
 /**
- * La mesure que lance une étape d'examen — **cherchée d'abord dans la séance**,
- * puis dans « ce qu'il reste à mesurer ».
+ * La mesure que lance une étape d'examen — **la ligne de la séance** si elle y
+ * est, sinon celle que **l'étape porte**.
  *
  * 🛑 Les deux viennent du **même** resolver serveur
  * (`PlanDomainAssessmentResolver`) : on ne compose aucune action, on retrouve
- * celle qui est déjà servie. Le second chemin existe parce que le parcours peut
- * nommer une épreuve que la séance du jour n'a pas retenue — la séance est une
- * vue bornée, la file ne l'est pas.
+ * celle qui est déjà servie. La séance passe devant parce qu'elle porte en plus
+ * les compteurs et le verrou de sa ligne.
  *
- * `null` = étape d'entraînement, ou épreuve dont plus rien n'est à mesurer.
+ * ⚠️ **Ce second chemin lisait `domainesAEvaluer`** jusqu'au 2026-09-17, et
+ * c'était faux : cette liste ne contient que les épreuves **jamais mesurées**,
+ * alors que le point d'étape d'un lot porte toujours sur une épreuve **déjà**
+ * mesurée — c'est elle qui a créé le lot. Aucune action ne se résolvait donc
+ * pour le cas le plus courant du parcours.
+ *
+ * `null` = étape d'entraînement, ou étape d'examen servie par un backend
+ * antérieur au champ `assessment`.
  */
 function journeyMesureDe(
     plan: LearningPlanDto,
@@ -595,7 +675,7 @@ function journeyMesureDe(
             item.exercise === null && item.assessment.epreuve === etape.examType,
     );
     if (dansLaSeance) return dansLaSeance;
-    const assessment = plan.domainesAEvaluer.find((item) => item.epreuve === etape.examType);
+    const assessment = etape.assessment;
     if (!assessment) return null;
     /* Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
        tous ces champs sont **structurellement** nuls sur une ligne de mesure,
@@ -669,32 +749,41 @@ export function planNowCard(
        Donc : le parcours **désigne**, le Plan **exécute**. C'est ce qui rend la
        carte identique sur les six sites d'appel sans dupliquer une règle. */
     const etape = journey?.current ?? null;
-    /* ⚠️ **Repli assumé** quand le parcours nomme une compétence que le Plan ne
-       priorise plus (cas normal : son transfert vient d'être prouvé, le Plan
-       l'a sortie de ses priorités et le parcours clôturera son étape au
-       prochain entraînement). Montrer la carte du Plan vaut mieux que ne rien
-       montrer, et l'écart est **transitoire**. */
-    const priority = (etape ? journeyPriorityDe(plan, etape) : null) ?? plan.currentPriority;
-    if (!priority) return null;
-
-    const exercise = priority.recommendedExercise;
+    const duParcours = etape ? journeyPriorityDe(plan, etape) : null;
     /* 🛑 **Le parcours a déjà appliqué la précédence** (R12 : une épreuve non
        mesurée passe après les lots, et son étape est à sa position). On ne
        rejoue donc PAS `planSeanceMesure`, qui ferait passer une mesure devant
        l'étape que le parcours vient de désigner — deux règles de précédence
        pour une seule carte. */
     const mesure = etape ? journeyMesureDe(plan, etape) : planSeanceMesure(plan);
+
+    /* 🛑 **GARDE-FOU : on ne lance JAMAIS autre chose que l'étape annoncée.**
+       Quand le parcours désigne une étape dont l'action ne se résout pas, cette
+       fonction retombait sur `plan.currentPriority` : la carte annonçait
+       l'étape du parcours et ouvrait la compétence que le Plan priorisait ce
+       jour-là. Deux causes, toutes deux transitoires — une compétence que le
+       Plan ne priorise plus (son transfert vient d'être prouvé) et une
+       compétence hors de la fenêtre d'affichage des priorités. Dans les deux
+       cas, la carte nomme **cette étape-là**, sans bouton. */
+    if (etape && !duParcours && !mesure) return carteIndisponible(etape);
+
+    const priority = duParcours ?? plan.currentPriority;
+    if (!priority && !mesure) return null;
+
+    const exercise = priority?.recommendedExercise ?? null;
     /* 🛑 Le verrou se lit sur ce que la carte LANCE — la mesure réelle, même
        quand un plan gratuit ne la nomme pas. */
     const locked = mesure
         ? planSeanceItemLocked(mesure)
-        : (priority.locked || exercise?.locked === true);
+        : (priority!.locked || exercise?.locked === true);
 
-    const level = planSkillLevel(plan, priority.skillId);
-    const tache = skillTaskNumber(priority.skillCode);
-    const repere = isComprehension(priority.section)
-        ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
-        : planTaskBadge(tache ?? 1);
+    const level = priority ? planSkillLevel(plan, priority.skillId) : null;
+    const tache = priority ? skillTaskNumber(priority.skillCode) : null;
+    const repere = !priority
+        ? null
+        : isComprehension(priority.section)
+            ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
+            : planTaskBadge(tache ?? 1);
 
     /* 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
        compétence ne change pas quand la série se termine : si seuls le bouton
@@ -703,7 +792,7 @@ export function planNowCard(
        jamais sur un compteur. */
     const mesureCard = free ? null : mesure;
     const verifier = mesureCard === null
-        && priority.nature === "A_VERIFIER"
+        && priority?.nature === "A_VERIFIER"
         && exercise?.kind === "REASSESSMENT";
 
     const minutes = mesureCard ? planItemMinutes(mesureCard) : exercise?.estimatedMinutes ?? null;
@@ -716,9 +805,9 @@ export function planNowCard(
         ? null
         : mesureCard === null
             && !verifier
-            && priority.stepPromptCount > 0
+            && (priority?.stepPromptCount ?? 0) > 0
             && exercise?.kind === "MICRO_TRAINING"
-            ? `${priority.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
+            ? `${priority?.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
             : `≈ ${minutes} min`;
 
     if (mesureCard) {
@@ -746,6 +835,10 @@ export function planNowCard(
         };
     }
 
+    /* Plus de mesure et plus de priorité : il n'y a rien à annoncer, et l'écran
+       affiche son état vide. */
+    if (!priority) return null;
+
     return {
         nature: verifier ? "VERIFICATION" : "ETAPE",
         mesure,
@@ -756,7 +849,7 @@ export function planNowCard(
         /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
            titre avant 5/5 et en sous-titre sur la vérification, dont le titre
            nomme l'ACTION. */
-        title: verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere : priority.title,
+        title: verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere ?? priority.title : priority.title,
         subtitle: free
             ? priority.title
             : verifier

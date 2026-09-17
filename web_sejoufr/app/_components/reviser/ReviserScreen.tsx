@@ -134,6 +134,12 @@ import {
   TCF_EPREUVES_OFFICIELLES,
   themeStatus,
 } from "@/lib/reviser";
+import {
+  JOURNEY_NEEDS_OBJECTIVE_CTA,
+  JOURNEY_NEEDS_OBJECTIVE_TEXT,
+  JOURNEY_NEEDS_OBJECTIVE_TITLE,
+  JOURNEY_TARGET_PATH_HREF,
+} from "@/lib/journey";
 import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
 import styles from "./reviser.module.css";
 
@@ -309,6 +315,22 @@ function TcfBody({
       ) : gate ? (
         <GateCard gate={gate} tone="primary" />
       ) : null}
+      {/* 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
+          du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un
+          compte gratuit : sans cette invitation, un candidat sans démarche
+          déclarée n'apprenait nulle part qu'elle lui ouvre un parcours. Elle
+          n'enlève rien — la reprise ci-dessus reste servie, le Plan n'exige pas
+          d'objectif. */}
+      {journey.data?.state === "NEEDS_OBJECTIVE" && (
+        <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
+          <Pad>
+            <Card>
+              <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+              <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+            </Card>
+          </Pad>
+        </Section>
+      )}
       <PaywallSheet
         origin="plan"
         open={exercise.paywallOpen}
