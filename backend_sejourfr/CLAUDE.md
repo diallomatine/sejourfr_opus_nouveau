@@ -36,10 +36,19 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   achèvements : un `*Resolver` calcule à la lecture. Recalibrer un poids relit alors tout
   l'historique au prochain appel, **sans migration ni job**. Patrons de référence :
   `SkillStatusResolver`, `SituationDansNiveau`, `SkillMasteryResolver`, `PlanCycleResolver`.
-  ⚠️ **Une seule exception, et elle est assumée** : la **première place du Plan**
-  (`plan_pinned_priorities`, V065) est *persistée*, parce qu'une **désignation prise à un
-  instant** ne se dérive de rien — l'étape en cours pouvait être à 0/5. La **file** des
-  priorités suivantes, elle, reste entièrement dérivée. → `docs/regles/plan.md`
+  ⚠️ **Deux exceptions, et elles sont assumées.** Toutes deux persistent une **décision prise
+  à un instant**, que rien ne permet de recalculer après coup :
+  1. la **première place du Plan** (`plan_pinned_priorities`, V065) — l'étape en cours pouvait
+     être à 0/5, donc ne se lisait nulle part. ⚠️ Elle est devenue le **repli** le 2026-09-17 :
+     la première place se lit d'abord sur le **parcours**, et l'épingle ne sert plus qu'aux
+     candidats **sans objectif déclaré**, qui n'ont pas de parcours (arbitrage D-3) ;
+  2. le **parcours TCF** (`journey`, `journey_lot`, `journey_step`,
+     `journey_assessment_event`, V066) — l'**ordre** d'une file dépend de l'ordre d'arrivée des
+     évaluations, et le journal des évaluations traitées est ce qui rend le traitement
+     idempotent. 🛑 **Seules la structure et la clôture d'une étape y sont persistées** : le
+     statut d'affichage, le verrou et l'état de maîtrise restent **dérivés à la lecture** — un
+     abonnement souscrit change donc l'écran sans une seule écriture.
+  → `docs/regles/plan.md`, `docs/decisions/plan-parcours-tcf.md`
 - **Une règle = une autorité, et on l'appelle.** Jamais une copie. À la 2ᵉ occurrence, on
   **extrait** dans `util/` ou un resolver dédié (`TexteNormalise`, `CoutAppelLlm`,
   `FenetreMesure`, `ProductionValidityService`, `EvaluationProductionSegments`). Le défaut le

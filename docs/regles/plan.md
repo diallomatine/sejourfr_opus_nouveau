@@ -1950,3 +1950,113 @@ Troisième écran, même contradiction, sur les mêmes données.
 - **Supprimé dans la foulée** : `_resumeSubtitle` / `reviserResumeSubtitle`
   (le sous-titre vient de `planNowCard`) et le champ `item` de `ReviserResume`,
   remplacé par `carte`.
+
+---
+
+## Le PARCOURS TCF — une file d'étapes pilotée par les évaluations (2026-09-17)
+
+> Spec : `docs/progression/spec-plan-tcf-parcours-evaluations-v2.md`.
+> Arbitrages du propriétaire (D-1 → D-9) : `docs/decisions/plan-parcours-tcf.md`.
+> Décisions prises en autonomie : `docs/decisions-autonomes-parcours-tcf.md`.
+> Endpoint : `GET /api/me/plan/journey`.
+
+⚠️ **Cette section prime sur les descriptions d'écran plus anciennes de ce fichier** pour tout
+ce qui touche à l'**ordre** du Plan TCF et à la carte « À faire maintenant ». Les règles
+pédagogiques (priorités, maîtrise, freemium, séance) sont **inchangées** : le parcours est une
+couche d'**orchestration**, pas un second moteur.
+
+### R1 — seules les ÉVALUATIONS alimentent la file
+
+| Peuvent **ajouter** une étape | Ne peuvent **jamais** en ajouter |
+|---|---|
+| Diagnostic rapide · diagnostic complet | Micro-entraînement (petit sujet) |
+| Examen CO / CE / EE / EO | Série ciblée de QCM CO/CE |
+| Sous-épreuves d'un examen blanc complet | Exercice de révision, feedback d'entraînement |
+
+🛑 **Le producteur d'observations ne change pas.** `AttemptInteractionService.doFinish` appelle
+`ComprehensionObservationService.record` pour **toute** session TCF terminée, entraînement
+compris — la doctrine du 2026-08-21 tient (« en compréhension, une bonne réponse est une bonne
+réponse »). C'est **la file** qui filtre, dans **une seule classe**,
+`JourneyEvaluationFilter`, partagée par l'orchestration **et** par le bootstrap :
+
+```text
+source_type ∈ { DIAGNOSTIC_EE, DIAGNOSTIC_EO, MOCK_EXAM_EE, MOCK_EXAM_EO }
+OU (source_type ∈ { TCF_CO, TCF_CE } ET l'attempt source est un MOCK_EXAM)
+```
+
+**Ce qu'un entraînement garde le droit de faire** : faire **avancer** et **clôturer** une étape
+déjà présente. Il n'en crée jamais. ⚠️ Conséquence assumée : un candidat qui ne passerait **que**
+des séries ciblées n'aurait jamais de file — R12 lui propose alors « {Épreuve} — Évaluer mon
+niveau », et c'est le sens du produit.
+
+### R2 — trois priorités par lot, et c'est un BUDGET assumé
+
+🛑 Le `CLAUDE.md` racine porte l'invariant inverse : « un plafond d'AFFICHAGE n'est jamais un
+budget PÉDAGOGIQUE ». `maxPrioritiesPerLot: 3` **en est un** — les priorités au-delà ne sont ni
+stockées ni mises en attente.
+
+**Ce n'est pas l'incident du 2026-08-25**, et la différence est ce qui rend ce choix tenable :
+là-bas un plafond de 5 actions était **partagé entre 4 domaines**, et trois domaines sur quatre
+se retrouvaient sans aucune action (10 actions existaient, 2 étaient servies). Ici le plafond est
+**par épreuve** — jusqu'à 12 priorités vivantes —, aucune épreuve n'est privée, et le moteur
+continue de calculer **tout**. C'est la **file** qui borne ce qu'elle met en attente, pas l'écran
+qui borne ce que le moteur produit.
+
+⚠️ **Limite connue et acceptée** de `TOP_SEVERITY` : avec trois compétences très faibles, une
+quatrième n'apparaîtra jamais. Une stratégie de rotation pourra s'ajouter **sans changer le
+modèle** (nouvelle valeur de `lotSelectionStrategy`).
+
+### R8 — une étape se clôt par MAÎTRISE ou par QUOTA, et le quota n'a pas la même unité
+
+| Famille | Quota | Autorité **lue** |
+|---|---|---|
+| EE / EO | les **5 sujets de l'étape** traités | `LearningPlanStep.Progress.completed()` |
+| CO / CE | **2 séries ciblées** terminées depuis la création de l'étape | `trainSeriesQuota` (config) |
+
+🛑 **Aucune nouvelle valeur pour l'expression** : le quota **est**
+`LearningPlanStep.PROMPTS_PAR_ETAPE`, déjà servi aux deux fronts dans `progress.quota`. Le
+déclarer en configuration en ferait la 2ᵉ copie d'un chiffre déjà affiché.
+
+🛑 **L'unité est SERVIE** (`progress.unit` : `PROMPT` / `SERIES`). Les compétences de
+compréhension n'ont **ni tâche ni petit sujet** — la déduire de la nullité de `taskCode`
+reviendrait à recopier une règle du référentiel dans les deux fronts.
+
+🛑 **Une clôture ne se réouvre jamais.** Une compétence redevenue fragile ne rouvre pas son
+étape : elle reviendra par un **examen** (R7). C'est ce qui empêche le parcours de tourner en
+rond, et c'est aussi pourquoi `resolution = MASTERED` dit « le moteur concluait au transfert **à
+cette date** », jamais « acquise aujourd'hui » — cette question-là a une seule autorité,
+`SkillMasteryEngine`, et elle se relit.
+
+### Étape EXÉCUTABLE — ce que `CURRENT` exige en plus d'être ouverte
+
+`CURRENT` est la première étape **non clôturée ET exécutable** (arbitrage D-1). « Exécutable »
+veut dire **finissable**, pas « déverrouillée » :
+
+| Étape | Verrouillée quand | Autorité |
+|---|---|---|
+| `TRAIN_SKILL` expression | moins de sujets **ouverts** que l'étape n'en compte (gratuit : 2 < 5) | `SkillAccessService` + `LearningPlanStep` |
+| `TRAIN_SKILL` compréhension | la compétence est verrouillée | `SkillAccessService` |
+| `SECTION_EXAM` CO / CE | **jamais** — slot 1 offert et rejouable | `AttemptService.enforceMockExamSlotAccess` |
+| `SECTION_EXAM` EE / EO | quota d'examen blanc de production consommé | `ProductionAccessService` |
+
+**Pourquoi « finissable » et pas « ouverte »** : un compte gratuit a bien accès à 2 sujets sur 5
+de sa première compétence, mais l'étape ne se clôt **jamais** (arbitrage produit du 2026-08-14,
+« la vérification est premium, ne pas le réparer »). La déclarer exécutable aurait figé son
+parcours **définitivement** sur elle.
+
+🛑 **Une étape verrouillée reste affichée à sa place**, avec son cadenas et son CTA paywall —
+contradiction #1 du dépôt, tranchée le 2026-08-21. Et l'ordre de la promotion est **normatif** :
+`SkillAccessService` reçoit la **première étape non clôturée**, verrous ignorés, jamais
+`CURRENT` — lui passer `CURRENT` serait circulaire, et lui passer une étape déjà déverrouillée
+priverait le candidat gratuit de sa **vraie** priorité n°1.
+
+### Ce qui a disparu dans la même passe
+
+- le **« chemin vers l'objectif »** (`PlanCycleDto.path`, `PlanPathStep*`) — la timeline du
+  parcours le remplace (D-4). 🛑 **`PlanCycleDto` survit** : il porte l'en-tête « niveau actuel /
+  objectif » et le gate d'examen blanc complet ;
+- le bloc **« Votre parcours — Tâche X »** et ses dérivations (`parcoursDeLaTache`,
+  `planTaskPath`) ;
+- ⚠️ **`plan_pinned_priorities` NON** : elle devient le **repli** pour les candidats sans
+  objectif déclaré, qui n'ont pas de parcours. Cf. `docs/decisions-autonomes-parcours-tcf.md`,
+  décision A23.
