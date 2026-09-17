@@ -1162,7 +1162,8 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   (+ `SfChartPoint`), `SfFilterChips`, `SfHistoryRow`, `SfInfoNote`, le
   **liseré tricolore** de tête de carte (`SfCard(rule: true)`) et, sur la
   maquette v2 (`ou_en_vous_v2.html`), **`SfLevelLadder`** (+ `SfLadderStep`,
-  l'échelle CECRL à quatre crans), **`SfLevelRow`**, **`SfLevelList`** et
+  l'échelle CECRL à quatre crans) et **`SfLadderLegend`** (ses libellés, écrits
+  une seule fois pour la liste), **`SfLevelRow`**, **`SfLevelList`** et
   **`SfGoalBanner`**. Elles servent « Où vous en êtes » (Accueil) et « Vos
   résultats » (`EpreuveHistoriqueScreen`) — → `docs/regles/progression.md`.
   ⚠️ **`SfLevelCard`, `SfLevelGrid` et `SfGoalRibbon` sont SUPPRIMÉES** le même
@@ -1473,10 +1474,27 @@ et mot « évaluées » (`SfGoalBanner`), la **liste verticale** des épreuves
 maquette et conservée volontairement**).
 Une **ligne** d'épreuve porte le repère court en pastille (`CO`…,
 `planDomainSection().wire`), le nom, le **statut à pastille colorée**, le palier
-en gros à droite, l'**échelle CECRL à quatre crans** (`SfLevelLadder`) et une
-ligne de pied « action · objectif ». Une épreuve jamais mesurée passe en fond
-gris, repère en contour, échelle en contour et **CTA rouge plein** — la seule
-action qui *manque*.
+en gros à droite, l'**échelle CECRL à quatre crans** (`SfLevelLadder`) et sa
+**ligne d'action**. Une épreuve jamais mesurée passe en fond gris, repère en
+contour, échelle en contour et **CTA rouge plein** — la seule action qui
+*manque*.
+
+⚠️ **RESSERRÉE le 2026-09-17** (la carte ne tenait pas sur l'écran d'un
+téléphone, constat du propriétaire à l'écran). Rien n'a été retiré de ce qu'elle
+dit ; **deux répétitions** ont disparu et les gouttières se sont serrées :
+- les **libellés de l'échelle** ne sont plus écrits par ligne — la même échelle
+  quatre fois, une ligne de texte par épreuve. Ils vivent dans une **légende
+  rendue une seule fois** au-dessus de la liste (`LadderLegend` ⇄
+  `SfLadderLegend`), alignée sous les crans, le cran d'**objectif** en rouge.
+  Le palier atteint se lit déjà en gros sur la ligne ;
+- l'**« Objectif B2 » par ligne** disparaît : il valait la **même** chaîne sur
+  les quatre lignes, et le bandeau juste au-dessus dit déjà « Atteindre B2
+  partout ». `goal` quitte `LevelRow` / `SfLevelRow`, et `accueilObjectifLabel`
+  avec lui.
+⚠️ **Au palier DESKTOP du web, les libellés reviennent par ligne et la légende
+s'efface** : la liste y passe à deux colonnes — une légende unique ne peut pas
+s'aligner sur deux échelles — et la hauteur n'y est pas une contrainte. C'est
+une **media query** sur des primitives existantes, donc **sans miroir Flutter**.
 🛑 **L'échelle s'arrête à B2** : la maquette en montrait six (C1/C2 grisés), le
 propriétaire a tranché pour la règle du dépôt en cours de passe. `a1NonAtteint`
 **n'allume aucun cran**, et le lecteur d'écran entend « Niveau inférieur à A1 » —

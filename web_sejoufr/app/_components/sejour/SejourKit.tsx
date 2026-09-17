@@ -1318,9 +1318,51 @@ export function LevelLadder({
 }
 
 /**
+ * **La légende de l'échelle CECRL** — les quatre paliers, écrits **une seule
+ * fois** pour toute la liste.
+ *
+ * 🛑 **Elle remplace quatre répétitions** (2026-09-17) : chaque ligne d'épreuve
+ * écrivait « A1 A2 B1 B2 » sous son échelle, soit la même échelle quatre fois
+ * et une ligne de texte par épreuve. Le palier atteint se lit déjà en gros à
+ * droite de la ligne, et l'objectif est annoncé par le bandeau au-dessus : les
+ * libellés par ligne n'ajoutaient rien et coûtaient une hauteur d'écran sur
+ * téléphone.
+ *
+ * 🛑 **Le cran d'objectif reste marqué en rouge** : c'est le seul repère des
+ * libellés qui portait une information, et il est **global** — le même pour les
+ * quatre épreuves.
+ *
+ * ⚠️ **Elle disparaît au palier DESKTOP** (`@media`), où la liste passe à deux
+ * colonnes — une légende ne peut pas s'aligner sur deux échelles à la fois — et
+ * où les libellés par ligne reviennent, la hauteur n'y étant pas une
+ * contrainte. C'est une media query sur des primitives existantes, pas une
+ * seconde anatomie. Miroir Flutter : `SfLadderLegend` (sans palier desktop :
+ * l'app est en portrait téléphone).
+ */
+export function LadderLegend({
+  labels,
+  goalIndex,
+}: {
+  /** Les paliers de l'échelle, dans l'ordre. **Passés**, jamais dérivés ici. */
+  labels: string[];
+  /** Le rang du palier visé. `null` sans démarche déclarée. */
+  goalIndex: number | null;
+}) {
+  return (
+    <p className={styles.ladderLegend} aria-hidden>
+      {labels.map((label, i) => (
+        <span key={label} className={cx(i === goalIndex && styles.isTgt)}>
+          {label}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/**
  * **La ligne d'une épreuve** — le `.test` de la maquette v2 : repère court en
  * pastille mono, intitulé, statut à pastille colorée, palier à droite, puis
- * l'échelle et une ligne de pied « action · objectif ».
+ * l'échelle et sa ligne d'action.
  *
  * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
  * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`).
@@ -1337,7 +1379,6 @@ export function LevelRow({
   scale,
   cta,
   ctaPrimary,
-  goal,
   href,
   onClick,
   busy,
@@ -1366,8 +1407,6 @@ export function LevelRow({
   cta: string;
   /** Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit. */
   ctaPrimary?: boolean;
-  /** « Objectif B2 ». `null` quand aucune démarche n'est servie. */
-  goal: string | null;
   /** Où mène la ligne. `null` quand elle **lance** au lieu de naviguer. */
   href: string | null;
   onClick?: () => void;
@@ -1388,12 +1427,14 @@ export function LevelRow({
         ) : null}
       </span>
       {scale ? <span className={styles.levelRowScale}>{scale}</span> : null}
+      {/* 🛑 **Plus d'« Objectif B2 » par ligne** (2026-09-17) : il valait la
+          MÊME chaîne sur les quatre lignes, et le bandeau juste au-dessus dit
+          déjà « Atteindre B2 partout ». Quatre répétitions du bandeau. */}
       <span className={styles.levelRowMeta}>
         <span className={cx(styles.levelRowCta, ctaPrimary && styles.isPrimary)}>
           {cta}
           {ctaPrimary ? null : <ArrowRight size={14} strokeWidth={2.6} aria-hidden />}
         </span>
-        {goal ? <span className={styles.levelRowGoal}>{goal}</span> : null}
       </span>
     </>
   );

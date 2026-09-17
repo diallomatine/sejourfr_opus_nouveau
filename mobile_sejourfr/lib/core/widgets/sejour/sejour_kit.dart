@@ -127,7 +127,8 @@ class SfSectionTitle extends StatelessWidget {
 
 /// Une section : un titre optionnel puis son contenu, avec l'espace au-dessus.
 class SfSection extends StatelessWidget {
-  const SfSection({super.key, this.title, required this.child, this.flush = false});
+  const SfSection(
+      {super.key, this.title, required this.child, this.flush = false});
 
   final String? title;
   final Widget child;
@@ -136,7 +137,8 @@ class SfSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(top: sfSectionGap, left: flush ? 16 : 0, right: flush ? 16 : 0),
+      padding: EdgeInsets.only(
+          top: sfSectionGap, left: flush ? 16 : 0, right: flush ? 16 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -207,12 +209,16 @@ class SfCard extends StatelessWidget {
     };
     final radius = BorderRadius.circular(hero ? 28 : AppRadii.xl);
     final body = Container(
-      padding: padding ?? (hero ? const EdgeInsets.fromLTRB(18, 22, 18, 18) : const EdgeInsets.fromLTRB(16, 18, 16, 18)),
+      padding: padding ??
+          (hero
+              ? const EdgeInsets.fromLTRB(18, 22, 18, 18)
+              : const EdgeInsets.fromLTRB(16, 18, 16, 18)),
       decoration: BoxDecoration(
         color: background,
         borderRadius: radius,
         border: border == null ? null : Border.all(color: border),
-        boxShadow: border == null ? (hero ? AppShadows.md : AppShadows.card) : null,
+        boxShadow:
+            border == null ? (hero ? AppShadows.md : AppShadows.card) : null,
       ),
       child: child,
     );
@@ -302,7 +308,8 @@ class SfTiny extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: AppFonts.ui(size: 12.5, color: color ?? AppColors.muted, height: 1.45),
+      style: AppFonts.ui(
+          size: 12.5, color: color ?? AppColors.muted, height: 1.45),
     );
   }
 }
@@ -319,14 +326,22 @@ class SfLevel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       level,
-      style: AppFonts.display(size: 72, weight: FontWeight.w600, color: AppColors.blue, height: 0.9),
+      style: AppFonts.display(
+          size: 72,
+          weight: FontWeight.w600,
+          color: AppColors.blue,
+          height: 0.9),
     );
   }
 }
 
 /// Le score brut « 18 / 40 » de la carte de tête civique.
 class SfScore extends StatelessWidget {
-  const SfScore({super.key, required this.score, required this.total, this.compact = false});
+  const SfScore(
+      {super.key,
+      required this.score,
+      required this.total,
+      this.compact = false});
 
   final int score;
   final int total;
@@ -393,7 +408,8 @@ class SfLevelTrack extends StatelessWidget {
             final railStart = columnWidth / 2;
             final railEnd = constraints.maxWidth - columnWidth / 2;
             final ratio = levels.length > 1
-                ? (currentIndex.clamp(0, levels.length - 1)) / (levels.length - 1)
+                ? (currentIndex.clamp(0, levels.length - 1)) /
+                    (levels.length - 1)
                 : 0.0;
             return Stack(
               children: [
@@ -481,7 +497,8 @@ class _SfTrackColumn extends StatelessWidget {
                     : isGoal
                         ? AppColors.white
                         : (isDone ? AppColors.muted2 : AppColors.lineStrong),
-                border: isGoal ? Border.all(color: AppColors.blue, width: 2) : null,
+                border:
+                    isGoal ? Border.all(color: AppColors.blue, width: 2) : null,
                 boxShadow: [
                   BoxShadow(
                     color: isNow ? AppColors.blueLight : AppColors.white,
@@ -498,13 +515,16 @@ class _SfTrackColumn extends StatelessWidget {
           style: AppFonts.ui(
             size: 12,
             weight: FontWeight.w800,
-            color: isNow ? AppColors.blue : (isGoal ? AppColors.ink : AppColors.muted),
+            color: isNow
+                ? AppColors.blue
+                : (isGoal ? AppColors.ink : AppColors.muted),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           caption,
-          style: AppFonts.ui(size: 11, weight: FontWeight.w600, color: AppColors.muted),
+          style: AppFonts.ui(
+              size: 11, weight: FontWeight.w600, color: AppColors.muted),
         ),
       ],
     );
@@ -535,8 +555,10 @@ class SfGoalStrip extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(color: AppColors.blueLight, shape: BoxShape.circle),
-            child: const Icon(LucideIcons.arrowRight, size: 20, color: AppColors.blue),
+            decoration: const BoxDecoration(
+                color: AppColors.blueLight, shape: BoxShape.circle),
+            child: const Icon(LucideIcons.arrowRight,
+                size: 20, color: AppColors.blue),
           ),
           Expanded(child: _cell(goalLabel, goal)),
         ],
@@ -554,7 +576,8 @@ class SfGoalStrip extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: AppFonts.display(size: 32, weight: FontWeight.w600, color: AppColors.blue),
+            style: AppFonts.display(
+                size: 32, weight: FontWeight.w600, color: AppColors.blue),
           ),
         ],
       );
@@ -606,7 +629,8 @@ class SfButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.md),
               child: Container(
                 constraints: const BoxConstraints(minHeight: 52),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppRadii.md),
                   border: line ? Border.all(color: AppColors.line) : null,
@@ -706,13 +730,15 @@ class SfObservation extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   title,
-                  style: AppFonts.ui(size: 14, weight: FontWeight.w700, height: 1.3),
+                  style: AppFonts.ui(
+                      size: 14, weight: FontWeight.w700, height: 1.3),
                 ),
                 if (text != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     text!,
-                    style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.4),
+                    style: AppFonts.ui(
+                        size: 13, color: AppColors.muted, height: 1.4),
                   ),
                 ],
               ],
@@ -756,7 +782,8 @@ class SfNoteCard extends StatelessWidget {
               color: ok ? AppColors.white : AppColors.blueLight,
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(icon, size: 20, color: ok ? AppColors.green : AppColors.blue),
+            child: Icon(icon,
+                size: 20, color: ok ? AppColors.green : AppColors.blue),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -765,7 +792,8 @@ class SfNoteCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppFonts.display(size: titleSize, weight: FontWeight.w700, height: 1.3),
+                  style: AppFonts.display(
+                      size: titleSize, weight: FontWeight.w700, height: 1.3),
                 ),
                 if (child != null) ...[const SizedBox(height: 6), child!],
               ],
@@ -823,9 +851,11 @@ class SfExamRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppFonts.ui(size: 14, weight: FontWeight.w700)),
+                Text(title,
+                    style: AppFonts.ui(size: 14, weight: FontWeight.w700)),
                 if (subtitle != null)
-                  Text(subtitle!, style: AppFonts.ui(size: 12, color: AppColors.muted)),
+                  Text(subtitle!,
+                      style: AppFonts.ui(size: 12, color: AppColors.muted)),
               ],
             ),
           ),
@@ -837,7 +867,10 @@ class SfExamRow extends StatelessWidget {
                 if (level != null)
                   Text(
                     level!,
-                    style: AppFonts.display(size: 22, weight: FontWeight.w600, color: AppColors.blue),
+                    style: AppFonts.display(
+                        size: 22,
+                        weight: FontWeight.w600,
+                        color: AppColors.blue),
                   ),
                 if (status != null) ...[
                   const SizedBox(height: 3),
@@ -869,7 +902,8 @@ class SfExamRow extends StatelessWidget {
 /// un pourcentage en son centre : ici il n'y a **aucun chiffre** dans l'anneau,
 /// le compteur vit sur la ligne.
 class SfRing extends StatelessWidget {
-  const SfRing({super.key, required this.ratio, this.size = 40, this.stroke = 4});
+  const SfRing(
+      {super.key, required this.ratio, this.size = 40, this.stroke = 4});
 
   final double ratio;
   final double size;
@@ -877,9 +911,8 @@ class SfRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final part = ratio.isNaN || ratio.isInfinite
-        ? 0.0
-        : ratio.clamp(0, 1).toDouble();
+    final part =
+        ratio.isNaN || ratio.isInfinite ? 0.0 : ratio.clamp(0, 1).toDouble();
     return SizedBox(
       width: size,
       height: size,
@@ -895,7 +928,8 @@ class SfRing extends StatelessWidget {
 }
 
 class _SfRingPainter extends CustomPainter {
-  _SfRingPainter({required this.part, required this.stroke, required this.color});
+  _SfRingPainter(
+      {required this.part, required this.stroke, required this.color});
 
   final double part;
   final double stroke;
@@ -1065,7 +1099,9 @@ class SfThemeLine extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
       decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.line)),
+        border: last
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.line)),
       ),
       child: Row(
         children: [
@@ -1079,13 +1115,15 @@ class SfThemeLine extends StatelessWidget {
           Expanded(
             child: Text(
               name,
-              style: AppFonts.ui(size: 13.5, weight: FontWeight.w700, height: 1.3),
+              style:
+                  AppFonts.ui(size: 13.5, weight: FontWeight.w700, height: 1.3),
             ),
           ),
           const SizedBox(width: 10),
           Text(
             status,
-            style: AppFonts.ui(size: 11, weight: FontWeight.w700, color: tone.text),
+            style: AppFonts.ui(
+                size: 11, weight: FontWeight.w700, color: tone.text),
           ),
         ],
       ),
@@ -1198,17 +1236,24 @@ class _SfPrioState extends State<SfPrio> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(widget.tag.toUpperCase(), style: AppFonts.label(size: 11)),
+                          Text(widget.tag.toUpperCase(),
+                              style: AppFonts.label(size: 11)),
                           const SizedBox(height: 3),
                           Text(
                             widget.title,
-                            style: AppFonts.display(size: 14.5, weight: FontWeight.w700, height: 1.25),
+                            style: AppFonts.display(
+                                size: 14.5,
+                                weight: FontWeight.w700,
+                                height: 1.25),
                           ),
                           if (widget.text != null) ...[
                             const SizedBox(height: 5),
                             Text(
                               widget.text!,
-                              style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.4),
+                              style: AppFonts.ui(
+                                  size: 13,
+                                  color: AppColors.muted,
+                                  height: 1.4),
                             ),
                           ],
                           if (widget.child != null) widget.child!,
@@ -1353,7 +1398,9 @@ class SfSkillRow extends StatelessWidget {
                 size: 13,
                 color: color,
                 height: 1.3,
-                weight: state == SfStepState.now ? FontWeight.w700 : FontWeight.w500,
+                weight: state == SfStepState.now
+                    ? FontWeight.w700
+                    : FontWeight.w500,
               ),
             ),
           ),
@@ -1410,7 +1457,10 @@ class SfPathCard extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 counterLabel,
-                style: AppFonts.ui(size: 12.5, color: AppColors.muted, weight: FontWeight.w600),
+                style: AppFonts.ui(
+                    size: 12.5,
+                    color: AppColors.muted,
+                    weight: FontWeight.w600),
               ),
             ],
           ),
@@ -1453,7 +1503,8 @@ class SfPathCard extends StatelessWidget {
 /// 🛑 **Le libellé de la pastille vient de l'appelant**, jamais d'ici : il porte
 /// un état **servi**, pas une phrase du kit.
 class SfPathRow extends StatelessWidget {
-  const SfPathRow({super.key, required this.label, required this.state, this.pill});
+  const SfPathRow(
+      {super.key, required this.label, required this.state, this.pill});
 
   final String label;
   final SfStepState state;
@@ -1514,7 +1565,9 @@ class SfPathRow extends StatelessWidget {
               style: AppFonts.ui(
                 size: 14,
                 color: done ? AppColors.muted : AppColors.ink,
-                weight: accent ? FontWeight.w700 : (done ? FontWeight.w600 : FontWeight.w500),
+                weight: accent
+                    ? FontWeight.w700
+                    : (done ? FontWeight.w600 : FontWeight.w500),
               ),
             ),
           ),
@@ -1554,7 +1607,8 @@ class SfPathRow extends StatelessWidget {
 
 /// Étape verrouillée (plan gratuit) : rang + libellé + cadenas.
 class SfLockRow extends StatelessWidget {
-  const SfLockRow({super.key, required this.rank, required this.label, this.last = false});
+  const SfLockRow(
+      {super.key, required this.rank, required this.label, this.last = false});
 
   final int rank;
   final String label;
@@ -1565,7 +1619,9 @@ class SfLockRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 11),
       decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.line)),
+        border: last
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.line)),
       ),
       child: Row(
         children: [
@@ -1579,7 +1635,8 @@ class SfLockRow extends StatelessWidget {
             ),
             child: Text(
               '$rank',
-              style: AppFonts.ui(size: 12, weight: FontWeight.w800, color: AppColors.blue),
+              style: AppFonts.ui(
+                  size: 12, weight: FontWeight.w800, color: AppColors.blue),
             ),
           ),
           const SizedBox(width: 10),
@@ -1607,7 +1664,8 @@ class SfLockItem extends StatelessWidget {
           const Icon(LucideIcons.lock, size: 16, color: AppColors.muted),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(label, style: AppFonts.ui(size: 13.5, color: AppColors.ink2)),
+            child: Text(label,
+                style: AppFonts.ui(size: 13.5, color: AppColors.ink2)),
           ),
         ],
       ),
@@ -1711,16 +1769,19 @@ class SfNowCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppFonts.display(size: 16, weight: FontWeight.w700),
+                      style:
+                          AppFonts.display(size: 16, weight: FontWeight.w700),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(subtitle!, style: AppFonts.ui(size: 13, color: AppColors.muted)),
+                      Text(subtitle!,
+                          style: AppFonts.ui(size: 13, color: AppColors.muted)),
                     ],
                     if (badge != null) ...[
                       const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: verify ? AppColors.white : AppColors.redLight,
                           borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -1732,7 +1793,9 @@ class SfNowCard extends StatelessWidget {
                           badge!.toUpperCase(),
                           style: AppFonts.label(
                             size: 10,
-                            color: verify ? AppColors.amberDark : AppColors.redDark,
+                            color: verify
+                                ? AppColors.amberDark
+                                : AppColors.redDark,
                           ),
                         ),
                       ),
@@ -1749,7 +1812,8 @@ class SfNowCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: verify ? AppColors.white : AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(14),
-                border: verify ? Border.all(color: AppColors.amberBorder) : null,
+                border:
+                    verify ? Border.all(color: AppColors.amberBorder) : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1766,7 +1830,8 @@ class SfNowCard extends StatelessWidget {
                   ],
                   Text(
                     objective!,
-                    style: AppFonts.ui(size: 14, weight: FontWeight.w600, height: 1.4),
+                    style: AppFonts.ui(
+                        size: 14, weight: FontWeight.w600, height: 1.4),
                   ),
                 ],
               ),
@@ -1806,7 +1871,8 @@ class SfNowCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: verify ? AppColors.white : AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(AppRadii.md),
-                border: verify ? Border.all(color: AppColors.amberBorder) : null,
+                border:
+                    verify ? Border.all(color: AppColors.amberBorder) : null,
               ),
               child: Text(
                 caption!,
@@ -1859,14 +1925,19 @@ class SfMiniPlan extends StatelessWidget {
                   width: 22,
                   child: Text(
                     '${i + 1}',
-                    style: AppFonts.ui(size: 13, weight: FontWeight.w800, color: AppColors.blue),
+                    style: AppFonts.ui(
+                        size: 13,
+                        weight: FontWeight.w800,
+                        color: AppColors.blue),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(rows[i].label, style: AppFonts.ui(size: 13.5))),
+                Expanded(
+                    child: Text(rows[i].label, style: AppFonts.ui(size: 13.5))),
                 if (rows[i].pill != null) ...[
                   const SizedBox(width: 10),
-                  SfPill(label: rows[i].pill!, tone: rows[i].tone ?? SfTone.warn),
+                  SfPill(
+                      label: rows[i].pill!, tone: rows[i].tone ?? SfTone.warn),
                 ],
               ],
             ),
@@ -1924,7 +1995,8 @@ class SfPillMeta extends StatelessWidget {
           ],
           Text(
             label,
-            style: AppFonts.ui(size: 12.5, weight: FontWeight.w600, color: AppColors.ink2),
+            style: AppFonts.ui(
+                size: 12.5, weight: FontWeight.w600, color: AppColors.ink2),
           ),
         ],
       ),
@@ -1950,14 +2022,17 @@ class SfCheckRow extends StatelessWidget {
           Container(
             width: size,
             height: size,
-            decoration: const BoxDecoration(color: AppColors.greenLight, shape: BoxShape.circle),
-            child: const Icon(LucideIcons.check, size: 14, color: AppColors.green),
+            decoration: const BoxDecoration(
+                color: AppColors.greenLight, shape: BoxShape.circle),
+            child:
+                const Icon(LucideIcons.check, size: 14, color: AppColors.green),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: AppFonts.ui(size: large ? 14 : 13.5, color: AppColors.ink2, height: 1.4),
+              style: AppFonts.ui(
+                  size: large ? 14 : 13.5, color: AppColors.ink2, height: 1.4),
             ),
           ),
         ],
@@ -2012,7 +2087,9 @@ class SfChoiceCard extends StatelessWidget {
                         label,
                         style: AppFonts.ui(
                           size: subtitle == null ? 14.5 : 15,
-                          weight: subtitle == null ? FontWeight.w600 : FontWeight.w700,
+                          weight: subtitle == null
+                              ? FontWeight.w600
+                              : FontWeight.w700,
                           color: selected ? AppColors.blueDark : AppColors.ink,
                         ),
                       ),
@@ -2020,7 +2097,8 @@ class SfChoiceCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: AppFonts.ui(size: 12.5, color: AppColors.muted),
+                          style:
+                              AppFonts.ui(size: 12.5, color: AppColors.muted),
                         ),
                       ],
                     ],
@@ -2039,7 +2117,8 @@ class SfChoiceCard extends StatelessWidget {
                     ),
                   ),
                   child: selected
-                      ? const Icon(LucideIcons.check, size: 12, color: AppColors.white)
+                      ? const Icon(LucideIcons.check,
+                          size: 12, color: AppColors.white)
                       : null,
                 ),
               ],
@@ -2143,7 +2222,8 @@ class SfTop extends StatelessWidget {
                 Text(
                   title,
                   textAlign: TextAlign.start,
-                  style: AppFonts.display(size: 22, weight: FontWeight.w700, height: 1.15),
+                  style: AppFonts.display(
+                      size: 22, weight: FontWeight.w700, height: 1.15),
                 ),
                 if (badges.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -2237,7 +2317,8 @@ class SfGoalLine extends StatelessWidget {
         children: [
           TextSpan(
             text: goal,
-            style: AppFonts.ui(size: 15, weight: FontWeight.w800, color: AppColors.blue),
+            style: AppFonts.ui(
+                size: 15, weight: FontWeight.w800, color: AppColors.blue),
           ),
         ],
       ),
@@ -2333,7 +2414,8 @@ class SfBulletList extends StatelessWidget {
       children: [
         for (var i = 0; i < items.length; i++)
           Container(
-            padding: EdgeInsets.fromLTRB(0, 8, 0, i == items.length - 1 ? 0 : 8),
+            padding:
+                EdgeInsets.fromLTRB(0, 8, 0, i == items.length - 1 ? 0 : 8),
             decoration: BoxDecoration(
               border: i == items.length - 1
                   ? null
@@ -2464,7 +2546,8 @@ class SfUnlockHero extends StatelessWidget {
         children: [
           Text(
             title,
-            style: AppFonts.display(size: 20, weight: FontWeight.w700, height: 1.2),
+            style: AppFonts.display(
+                size: 20, weight: FontWeight.w700, height: 1.2),
           ),
           const SizedBox(height: 8),
           SfInsight(text),
@@ -2555,7 +2638,7 @@ class SfLevelLadder extends StatelessWidget {
   /// elle non plus aucun cran rempli, et ce n'est pas la même chose.
   final bool dim;
 
-  static const double _gap = 4;
+  static const double gap = 4;
 
   @override
   Widget build(BuildContext context) {
@@ -2563,27 +2646,72 @@ class SfLevelLadder extends StatelessWidget {
       label: label,
       image: true,
       excludeSemantics: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              for (var i = 0; i < steps.length; i++) ...[
-                if (i > 0) const SizedBox(width: _gap),
-                Expanded(child: _SfLadderBar(step: steps[i], dim: dim)),
-              ],
-            ],
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              for (var i = 0; i < steps.length; i++) ...[
-                if (i > 0) const SizedBox(width: _gap),
-                Expanded(child: _SfLadderLabel(steps[i])),
-              ],
-            ],
-          ),
+          for (var i = 0; i < steps.length; i++) ...[
+            if (i > 0) const SizedBox(width: gap),
+            Expanded(child: _SfLadderBar(step: steps[i], dim: dim)),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// **La légende de l'échelle CECRL** — les quatre paliers, écrits **une seule
+/// fois** pour toute la liste.
+///
+/// 🛑 **Elle remplace quatre répétitions** (2026-09-17) : chaque ligne
+/// d'épreuve écrivait « A1 A2 B1 B2 » sous son échelle, soit la même échelle
+/// quatre fois et une ligne de texte par épreuve. Le palier atteint se lit déjà
+/// en gros à droite de la ligne, et l'objectif est annoncé par le bandeau
+/// au-dessus : les libellés par ligne n'ajoutaient rien et coûtaient une
+/// hauteur d'écran.
+///
+/// 🛑 **Le cran d'objectif reste marqué en rouge** : c'est le seul repère des
+/// libellés qui portait une information, et il est **global** — le même pour
+/// les quatre épreuves.
+///
+/// ⚠️ **Alignée sur les échelles des lignes** ([SfLevelRow.legendIndent]) : elle
+/// n'a de sens qu'au-dessus d'une liste dont les lignes portent un repère
+/// court. Miroir web : `LadderLegend` (que le palier desktop masque, où la
+/// hauteur n'est pas une contrainte et où la liste passe à deux colonnes).
+class SfLadderLegend extends StatelessWidget {
+  const SfLadderLegend({super.key, required this.labels, this.goalIndex});
+
+  /// Les paliers de l'échelle, dans l'ordre. **Passés**, jamais dérivés ici.
+  final List<String> labels;
+
+  /// Le rang du palier visé. `null` sans démarche déclarée.
+  final int? goalIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(left: SfLevelRow.legendIndent),
+        child: Row(
+          children: [
+            for (var i = 0; i < labels.length; i++) ...[
+              if (i > 0) const SizedBox(width: SfLevelLadder.gap),
+              Expanded(
+                child: Text(
+                  labels[i],
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  style: AppFonts.label(
+                    size: 10,
+                    color: i == goalIndex ? AppColors.red : AppColors.muted2,
+                  ).copyWith(
+                    fontWeight:
+                        i == goalIndex ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -2601,7 +2729,7 @@ class _SfLadderBar extends StatelessWidget {
     // la seule chose qu'on sache d'elle.
     if (step.state == SfLadderState.target) {
       return Container(
-        height: 8,
+        height: 7,
         decoration: BoxDecoration(
           color: AppColors.redLight,
           borderRadius: BorderRadius.circular(4),
@@ -2611,7 +2739,7 @@ class _SfLadderBar extends StatelessWidget {
     }
     final rempli = step.state == SfLadderState.done;
     return Container(
-      height: 8,
+      height: 7,
       decoration: BoxDecoration(
         color: rempli
             ? AppColors.blue
@@ -2619,32 +2747,6 @@ class _SfLadderBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: dim && !rempli ? Border.all(color: AppColors.line) : null,
       ),
-    );
-  }
-}
-
-class _SfLadderLabel extends StatelessWidget {
-  const _SfLadderLabel(this.step);
-
-  final SfLadderStep step;
-
-  @override
-  Widget build(BuildContext context) {
-    // 🛑 Le palier ATTEINT l'emporte sur le palier visé quand les deux tombent
-    // sur le même cran : l'objectif est alors atteint, et le dire en rouge se
-    // lirait comme un manque.
-    final (color, weight) = step.current
-        ? (AppColors.blue, FontWeight.w700)
-        : step.goal
-            ? (AppColors.red, FontWeight.w700)
-            : (AppColors.muted2, FontWeight.w500);
-    return Text(
-      step.label,
-      textAlign: TextAlign.center,
-      maxLines: 1,
-      overflow: TextOverflow.clip,
-      // Un palier est une étiquette technique : la fonte de label.
-      style: AppFonts.label(size: 10, color: color).copyWith(fontWeight: weight),
     );
   }
 }
@@ -2679,7 +2781,6 @@ class SfLevelRow extends StatelessWidget {
     required this.level,
     required this.measured,
     required this.cta,
-    required this.goal,
     required this.onTap,
     this.scale,
     this.ctaPrimary = false,
@@ -2715,15 +2816,19 @@ class SfLevelRow extends StatelessWidget {
   /// Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit.
   final bool ctaPrimary;
 
-  /// « Objectif B2 ». `null` quand aucune démarche n'est servie.
-  final String? goal;
-
   final VoidCallback onTap;
   final bool busy;
 
-  /// 42 px de pastille + 12 px de gouttière : l'échelle et la ligne de pied
+  /// 38 px de pastille + 12 px de gouttière : l'échelle et la ligne de pied
   /// s'alignent sous l'intitulé, pas sous le repère.
-  static const double _indent = 54;
+  static const double _indent = 50;
+
+  /// Le retrait d'une échelle **depuis le bord de la carte** : le padding de la
+  /// ligne plus [_indent]. C'est ce dont [SfLadderLegend] a besoin pour tomber
+  /// exactement sous les crans.
+  static const double legendIndent = _padding + _indent;
+
+  static const double _padding = 12;
 
   @override
   Widget build(BuildContext context) {
@@ -2739,7 +2844,10 @@ class SfLevelRow extends StatelessWidget {
         onTap: busy ? null : onTap,
         borderRadius: radius,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _padding,
+            vertical: 11,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2753,25 +2861,12 @@ class SfLevelRow extends StatelessWidget {
               ),
               if (scale != null)
                 Padding(
-                  padding: EdgeInsets.only(left: retrait, top: 12),
+                  padding: EdgeInsets.only(left: retrait, top: 9),
                   child: scale!,
                 ),
               Padding(
-                padding: EdgeInsets.only(left: retrait, top: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _SfLevelRowCta(cta: cta, primary: ctaPrimary),
-                    ),
-                    if (goal != null) ...[
-                      const SizedBox(width: 10),
-                      Text(
-                        goal!,
-                        style: AppFonts.label(size: 11, color: AppColors.muted),
-                      ),
-                    ],
-                  ],
-                ),
+                padding: EdgeInsets.only(left: retrait, top: 7),
+                child: _SfLevelRowCta(cta: cta, primary: ctaPrimary),
               ),
             ],
           ),
@@ -2804,8 +2899,8 @@ class _SfLevelRowTop extends StatelessWidget {
       children: [
         if (mark != null) ...[
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: measured ? AppColors.blue : AppColors.white,
@@ -2832,9 +2927,9 @@ class _SfLevelRowTop extends StatelessWidget {
               Text(
                 title,
                 style: AppFonts.ui(
-                  size: 15.5,
+                  size: 15,
                   weight: FontWeight.w700,
-                  height: 1.25,
+                  height: 1.2,
                 ),
               ),
               if (status != null) ...[
@@ -2878,7 +2973,7 @@ class _SfLevelRowTop extends StatelessWidget {
           if (measured)
             Text(
               level!,
-              style: AppFonts.label(size: 19, color: AppColors.blue),
+              style: AppFonts.label(size: 18, color: AppColors.blue),
             )
           else
             Container(
@@ -2916,7 +3011,7 @@ class _SfLevelRowCta extends StatelessWidget {
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
             color: AppColors.red,
             borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -2933,6 +3028,7 @@ class _SfLevelRowCta extends StatelessWidget {
       );
     }
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
           child: Text(
@@ -3017,7 +3113,7 @@ class SfGoalBanner extends StatelessWidget {
     final pastilles = faites != null && sur != null && sur > 0;
     final doux = AppColors.white.withValues(alpha: 0.75);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.blue,
         borderRadius: BorderRadius.circular(AppRadii.md),
@@ -3026,8 +3122,8 @@ class SfGoalBanner extends StatelessWidget {
         children: [
           // La cocarde : trois cercles concentriques, en pur dégradé radial.
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -3064,7 +3160,7 @@ class SfGoalBanner extends StatelessWidget {
                 Text(
                   value,
                   style: AppFonts.ui(
-                    size: 16.5,
+                    size: 15.5,
                     weight: FontWeight.w800,
                     color: AppColors.white,
                   ),
@@ -3184,20 +3280,20 @@ class SfPanelHead extends StatelessWidget {
         Text(
           title,
           style: AppFonts.display(
-            size: lead ? 23 : 19,
+            size: lead ? 22 : 19,
             weight: FontWeight.w700,
             height: lead ? 1.1 : 1.2,
           ),
         ),
         if (sub != null) ...[
-          SizedBox(height: lead ? 8 : 3),
+          SizedBox(height: lead ? 6 : 3),
           Text(
             sub!,
             style: AppFonts.ui(
-              size: lead ? 13.5 : 11.5,
+              size: lead ? 13 : 11.5,
               weight: lead ? FontWeight.w400 : FontWeight.w700,
               color: AppColors.muted,
-              height: lead ? 1.45 : null,
+              height: lead ? 1.35 : null,
             ),
           ),
         ],
@@ -3311,8 +3407,8 @@ class SfResultHero extends StatelessWidget {
                   if (trend != null) ...[
                     const SizedBox(height: 14),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 11, vertical: 7),
                       decoration: BoxDecoration(
                         color: AppColors.white.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -3443,7 +3539,8 @@ class SfLevelChart extends StatelessWidget {
                         left: xOf(i) * plotWidth - 14,
                         top: yOf(points[i].row) * _plotHeight - 14,
                         child: Semantics(
-                          label: '${points[i].date} : niveau ${points[i].level}',
+                          label:
+                              '${points[i].date} : niveau ${points[i].level}',
                           button: true,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
@@ -3816,7 +3913,8 @@ class SfJourneyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final done = state == SfJourneyState.done || state == SfJourneyState.skipped;
+    final done =
+        state == SfJourneyState.done || state == SfJourneyState.skipped;
     final current = state == SfJourneyState.current;
     final exam = kind == SfJourneyKind.exam && !done;
     final ligne = Container(

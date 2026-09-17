@@ -498,10 +498,26 @@ contient, **dans cet ordre** :
 **repère court** en pastille mono (`CO` / `CE` / `EE` / `EO`), le nom de
 l'épreuve, le **statut à pastille colorée** (le ton servi, et le mot le redit —
 la couleur n'est jamais seule), le **palier** en gros à droite, puis
-l'**échelle CECRL** et une **ligne de pied** « action · objectif ». Une épreuve
-**jamais mesurée** se distingue par un fond gris, un repère en contour, une
-pastille neutre à la place du palier et un **CTA rouge plein** — c'est la seule
-action qui *manque*.
+l'**échelle CECRL** et sa **ligne d'action**. Une épreuve **jamais mesurée** se
+distingue par un fond gris, un repère en contour, une pastille neutre à la place
+du palier et un **CTA rouge plein** — c'est la seule action qui *manque*.
+
+⚠️ **RESSERRÉE le 2026-09-17** (la carte ne tenait pas sur l'écran d'un
+téléphone, constat du propriétaire à l'écran). Rien n'a été retiré de ce qu'elle
+dit ; **deux répétitions** ont disparu et les gouttières se sont serrées :
+- les **libellés de l'échelle** ne sont plus écrits par ligne — la même échelle
+  quatre fois, une ligne de texte par épreuve. Ils vivent dans une **légende
+  rendue une seule fois** au-dessus de la liste (`LadderLegend` ⇄
+  `SfLadderLegend`), alignée sous les crans, le cran d'**objectif** en rouge.
+  Le palier atteint se lit déjà en gros sur la ligne ;
+- l'**« Objectif B2 » par ligne** disparaît : il valait la **même** chaîne sur
+  les quatre lignes, et le bandeau juste au-dessus dit déjà « Atteindre B2
+  partout ». `goal` quitte `LevelRow` / `SfLevelRow`, et `accueilObjectifLabel`
+  avec lui.
+⚠️ **Au palier DESKTOP du web, les libellés reviennent par ligne et la légende
+s'efface** : la liste y passe à deux colonnes — une légende unique ne peut pas
+s'aligner sur deux échelles — et la hauteur n'y est pas une contrainte. C'est
+une **media query** sur des primitives existantes, donc **sans miroir Flutter**.
 
 #### L'échelle CECRL — quatre crans, A1 → B2
 

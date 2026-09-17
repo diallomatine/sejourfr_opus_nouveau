@@ -15,7 +15,9 @@ import '../diagnostic/diagnostic_intro_labels.dart';
 /// « Bonjour Abdoul ». Sans prénom servi, on ne fabrique pas d'identité.
 String homeHello(String? firstName) {
   final prenom = firstName?.trim();
-  return prenom == null || prenom.isEmpty ? 'Bonjour à vous' : 'Bonjour $prenom';
+  return prenom == null || prenom.isEmpty
+      ? 'Bonjour à vous'
+      : 'Bonjour $prenom';
 }
 
 /// Le bandeau d'un compte **sans démarche déclarée**. C'est la seule chose qui
@@ -35,8 +37,12 @@ const String kHomeNowTitle = 'À faire maintenant';
 /// La section des cartes d'épreuve, entre l'action du jour et l'aperçu du Plan.
 const String kHomeSituationTitle = 'Où vous en êtes';
 const String kHomeSituationCardTitle = 'Votre niveau par épreuve';
+
+/// ⚠️ **Tenue sur UNE ligne** (2026-09-17) : la phrase de cadrage en prenait
+/// deux, et la carte ne tenait pas sur l'écran d'un téléphone. Elle dit la même
+/// chose.
 const String kHomeSituationCardLead =
-    'Une vue simple de votre niveau actuel et de ce qu\'il reste à atteindre.';
+    'Votre niveau actuel, et ce qu\'il reste à atteindre.';
 
 /// La note de pied de carte (maquette du propriétaire, 2026-09-16).
 ///
@@ -77,7 +83,6 @@ const String kHomePlanLink = 'Voir mon Plan';
 const String kHomeProgressTitle = 'Votre progression';
 const String kHomeTracksTitle = 'Vos parcours';
 
-
 /* --------------------------------------------- l'action du jour — TCF ----- */
 
 const String kHomeDiagStartTitle = 'Découvrez ce qui vous bloque au TCF';
@@ -108,7 +113,8 @@ String homeDiagStartSubtitle(DiagnosticFormat? format) {
 /// « On analyse votre écrit pour construire votre premier plan. » — l'oral
 /// n'est nommé que si ce diagnostic en comporte un.
 String homeDiagStartObjective(DiagnosticFormat? format) {
-  final quoi = (format?.hasOral ?? false) ? 'votre écrit et votre oral' : 'votre écrit';
+  final quoi =
+      (format?.hasOral ?? false) ? 'votre écrit et votre oral' : 'votre écrit';
   return 'On analyse $quoi pour construire votre premier plan.';
 }
 

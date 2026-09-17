@@ -9,6 +9,7 @@ import {
     Card,
     Cta,
     GoalBanner,
+    LadderLegend,
     LevelLadder,
     LevelList,
     LevelRow,
@@ -44,6 +45,8 @@ import {
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
     NON_MESURE_LABEL,
     accueilEchelleLabel,
+    accueilEchelleLegende,
+    accueilEchelleRangObjectif,
     accueilEchelons,
     accueilEpreuveBadge,
     accueilEpreuveCta,
@@ -52,7 +55,6 @@ import {
     accueilEpreuveTon,
     accueilEvaluees,
     accueilEvaluesCivique,
-    accueilObjectifLabel,
     progresCiviqueScore,
 } from "@/lib/progres";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
@@ -175,8 +177,10 @@ import {
  */
 const SITUATION_TITLE = "Où vous en êtes";
 const SITUATION_CARD_TITLE = "Votre niveau par épreuve";
-const SITUATION_CARD_LEAD =
-    "Une vue simple de votre niveau actuel et de ce qu'il reste à atteindre.";
+/* ⚠️ **Tenue sur UNE ligne** (2026-09-17) : la phrase de cadrage en prenait
+   deux, et la carte ne tenait pas sur l'écran d'un téléphone. Elle dit la même
+   chose. */
+const SITUATION_CARD_LEAD = "Votre niveau actuel, et ce qu'il reste à atteindre.";
 
 /**
  * La note de pied de carte (maquette).
@@ -789,6 +793,18 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                             caption={ACCUEIL_EVALUEES_CAPTION}
                         />
                     )}
+                    {/* 🛑 **L'échelle CECRL s'écrit UNE fois** (2026-09-17) :
+                        chaque ligne portait ses quatre libellés sous ses crans,
+                        soit la même échelle quatre fois et une ligne de texte
+                        par épreuve. Le palier atteint se lit déjà en gros sur la
+                        ligne, l'objectif est dans le bandeau au-dessus — et la
+                        carte ne tenait pas sur l'écran d'un téléphone. Au palier
+                        desktop, les libellés par ligne reviennent et la légende
+                        s'efface (la liste y passe à deux colonnes). */}
+                    <LadderLegend
+                        labels={accueilEchelleLegende()}
+                        goalIndex={accueilEchelleRangObjectif(objectif)}
+                    />
                     <LevelList>
                         {epreuves.map((e) => {
                             /* 🛑 **Trois issues, aucune inventée.**
@@ -832,7 +848,6 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                                        MANQUE : mesurer une épreuve jamais
                                        évaluée. Relire un résultat reste un lien. */
                                     ctaPrimary={!mesuree}
-                                    goal={accueilObjectifLabel(objectif)}
                                     busy={assessments.starting === e.epreuve}
                                     href={mesure ? null : href}
                                     onClick={mesure
@@ -943,7 +958,6 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                     />
                                 }
                                 cta={SITUATION_CIVIC_CTA}
-                                goal={null}
                                 href={planHref("CIVIQUE")}
                             />
                         ))}

@@ -454,16 +454,28 @@ export function accueilEchelleLabel(
 }
 
 /**
- * La droite de la ligne de repères d'une carte d'épreuve — « Objectif B2 ».
+ * **Les quatre paliers de l'échelle**, pour la légende rendue une seule fois
+ * au-dessus de la liste (2026-09-17).
  *
- * 🛑 **Le palier est SERVI** (`ProgressTcfDto.objectif`, dérivé de la démarche
- * côté serveur) : aucun écran ne le devine. `null` quand aucune démarche n'est
- * déclarée — la carte n'affiche alors que le palier atteint.
+ * 🛑 **La même table que les crans** (`ACCUEIL_ECHELLE_CECRL`) : deux listes de
+ * paliers finiraient par ne plus se superposer.
  *
- * Miroir mobile : `accueilObjectifLabel`.
+ * Miroir mobile : `accueilEchelleLegende`.
  */
-export function accueilObjectifLabel(objectif: NiveauCecrl | null): string | null {
-    return objectif ? `Objectif ${niveauCecrlShort(objectif)}` : null;
+export function accueilEchelleLegende(): string[] {
+    return ACCUEIL_ECHELLE_CECRL.map((niveau) => niveauCecrlShort(niveau));
+}
+
+/**
+ * Le rang du palier **visé** sur cette échelle, ou `null` sans démarche
+ * déclarée — le seul repère que les libellés par ligne portaient et qui dise
+ * quelque chose, et il est **global** aux quatre épreuves.
+ *
+ * Miroir mobile : `accueilEchelleRangObjectif`.
+ */
+export function accueilEchelleRangObjectif(objectif: NiveauCecrl | null): number | null {
+    const rang = cecrlIndex(objectif);
+    return rang < 0 ? null : rang;
 }
 
 /**

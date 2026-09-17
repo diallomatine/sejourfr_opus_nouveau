@@ -519,7 +519,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // déclarée, pas de bandeau — on ne devine pas l'objectif d'un candidat
           // qui n'en a pas donné, et le compteur part avec lui.
           if (objectif != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             SfGoalBanner(
               label: kHomeGoalLabel,
               value: homeGoalText(objectif.shortName),
@@ -528,7 +528,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               caption: kAccueilEvalueesCaption,
             ),
           ],
-          const SizedBox(height: 14),
+          // 🛑 **L'échelle CECRL s'écrit UNE fois** (2026-09-17) : chaque ligne
+          // portait ses quatre libellés sous ses crans, soit la même échelle
+          // quatre fois et une ligne de texte par épreuve. Le palier atteint se
+          // lit déjà en gros sur la ligne, l'objectif est dans le bandeau
+          // au-dessus — et la carte tenait sur une fois et demie l'écran d'un
+          // téléphone.
+          const SizedBox(height: 12),
+          SfLadderLegend(
+            labels: accueilEchelleLegende(),
+            goalIndex: accueilEchelleRangObjectif(objectif),
+          ),
+          const SizedBox(height: 6),
           SfLevelList(
             children: [
               for (final epreuve in epreuves)
@@ -548,12 +559,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Le bouton plein est réservé à l'action qui MANQUE : mesurer
                   // une épreuve jamais évaluée. Relire un résultat reste un lien.
                   ctaPrimary: epreuve.niveau == null,
-                  goal: accueilObjectifLabel(objectif),
                   onTap: () => _ouvrirEpreuve(context, epreuve),
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           // ⚠️ **Hors maquette, et conservée volontairement** : elle dit ce qui
           // fait bouger le palier (diagnostics et épreuves complètes, pas les
           // séries). Sans elle, un candidat qui vient d'enchaîner des
@@ -594,7 +604,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             sub: kHomeSituationCivicCardLead,
           ),
           if (dernier != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             SfGoalBanner(
               label: kHomeSituationCivicResultLabel,
               value: dernier,
@@ -603,7 +613,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               caption: kAccueilEvaluesCaptionCivique,
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           SfLevelList(
             children: [
               for (var rang = 0; rang < themes.length; rang++)
@@ -649,7 +659,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         semanticsLabel: theme.etat.label,
       ),
       cta: kHomeSituationCivicCta,
-      goal: null,
       onTap: () => _ouvrirPlan(context, civique: true),
     );
   }

@@ -1913,7 +1913,6 @@
      bandeau d'objectif et la note de pied restent pleine largeur. */
   .levelList {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 4px 12px;
   }
 
   .isLead .panelTitle {
@@ -2000,8 +1999,15 @@
   list-style: none;
   display: grid;
   gap: 4px;
-  margin: 14px -12px 0;
+  margin: 12px -12px 0;
   padding: 0;
+}
+
+/* La légende porte déjà l'espace au-dessus d'elle : la liste se contente de
+   s'en détacher. Sans ce sélecteur, la carte CIVIQUE — qui n'a pas d'échelle
+   CECRL, donc pas de légende — collerait sa liste sous son bandeau. */
+.ladderLegend + .levelList {
+  margin-top: 6px;
 }
 
 .levelRow {
@@ -2013,7 +2019,7 @@
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  padding: 14px 12px;
+  padding: 11px 12px;
   border: 0;
   border-radius: var(--sf-radius-md);
   background: transparent;
@@ -2062,8 +2068,8 @@
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--sf-radius-sm);
   background: var(--color-blue);
   color: white;
@@ -2086,9 +2092,9 @@
 
 .levelRowName {
   display: block;
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
@@ -2124,7 +2130,7 @@
 .levelChip {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-blue);
@@ -2144,12 +2150,12 @@
   font-weight: 700;
 }
 
-/* L'échelle et la ligne de pied s'alignent sous l'intitulé, pas sous le
-   repère : 42 px de pastille + 12 px de gouttière. */
+/* L'échelle et la ligne d'action s'alignent sous l'intitulé, pas sous le
+   repère : 38 px de pastille + 12 px de gouttière. */
 .levelRowScale,
 .levelRowMeta {
   display: block;
-  padding-left: 54px;
+  padding-left: 50px;
 }
 
 /* Sans repère court (le civique), rien ne justifie le retrait. */
@@ -2161,9 +2167,8 @@
 .levelRowMeta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 7px;
   font-size: 12.5px;
 }
 
@@ -2178,7 +2183,7 @@
 /* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
    jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
 .levelRowCta.isPrimary {
-  padding: 8px 14px;
+  padding: 7px 14px;
   border-radius: var(--sf-radius-xs);
   background: var(--color-red);
   color: white;
@@ -2187,14 +2192,6 @@
 
 .levelRowLink:hover .levelRowCta.isPrimary {
   background: var(--color-red-dark);
-}
-
-.levelRowGoal {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-muted);
-  white-space: nowrap;
 }
 
 /* ---------- L'échelle CECRL : l'élément signature ---------- */
@@ -2206,7 +2203,7 @@
    du 2026-09-16 — l'échelle s'arrête à B2, comme le reste du produit. */
 .ladder {
   display: block;
-  margin-top: 12px;
+  margin-top: 9px;
 }
 
 .ladderTrack {
@@ -2216,7 +2213,7 @@
 }
 
 .ladderStep {
-  height: 8px;
+  height: 7px;
   border-radius: 4px;
   background: var(--color-line);
 }
@@ -2242,8 +2239,13 @@
   box-shadow: inset 0 0 0 1.5px var(--color-red);
 }
 
+/* 🛑 **Masqués sur téléphone** (2026-09-17) : quatre lignes de libellés pour
+   une seule échelle, c'était une hauteur d'écran perdue. `.ladderLegend` les
+   dit une fois pour toute la liste. Ils reviennent au palier desktop, où la
+   liste passe à deux colonnes — une légende ne peut pas s'aligner sur deux
+   échelles — et où la hauteur n'est pas une contrainte. */
 .ladderLabels {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin-top: 5px;
@@ -2267,6 +2269,58 @@
   font-weight: 700;
 }
 
+/* La légende de l'échelle, rendue UNE fois au-dessus de la liste. Le retrait
+   reprend celui des échelles : la liste affleure le bord par sa marge négative
+   de 12 px, la ligne la rattrape par son padding, et l'échelle s'indente de
+   50 px — donc 50 px suffisent ici pour tomber exactement sous les crans. */
+.ladderLegend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 12px 0 0;
+  padding-left: 50px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-muted-2);
+}
+
+.ladderLegend span {
+  text-align: center;
+}
+
+.ladderLegend .isTgt {
+  color: var(--color-red);
+  font-weight: 700;
+}
+
+/* ⚠️ **Le palier desktop de cette section est déclaré ICI, pas dans le grand
+   bloc `@media` du haut du fichier** : celui-ci précède les règles de base de
+   la liste, qui le neutraliseraient à égalité de spécificité. C'est aussi ce
+   qui rend enfin effective la gouttière de 12 px entre les deux colonnes. */
+@media (min-width: 960px) {
+  .levelList {
+    gap: 4px 12px;
+    margin-top: 14px;
+  }
+
+  /* 🛑 **Les libellés reviennent PAR LIGNE, la légende s'efface.** Sur deux
+     colonnes, une légende unique ne peut pas s'aligner sur deux échelles ; et
+     la hauteur, qui a motivé son extraction sur téléphone, n'est pas une
+     contrainte ici. */
+  .ladderLabels {
+    display: grid;
+  }
+
+  .ladderLegend {
+    display: none;
+  }
+
+  .ladderLegend + .levelList {
+    margin-top: 14px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ladderStep {
     transition: background var(--sf-fast);
@@ -2282,7 +2336,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: var(--sf-radius-md);
   background: var(--color-blue);
   color: white;
@@ -2291,8 +2345,8 @@
 /* La cocarde : trois cercles concentriques, en pur dégradé radial. */
 .goalCocarde {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: radial-gradient(
     circle,
@@ -2318,7 +2372,7 @@
 
 .goalBannerBody b {
   margin-top: 1px;
-  font-size: 16.5px;
+  font-size: 15.5px;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -2415,20 +2469,20 @@
    éditorial et une phrase de cadrage, là où la variante par défaut coiffe un
    bloc dans une page de résultats. 🛑 Une variante, pas une primitive de plus. */
 .panelHead.isLead {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .isLead .panelTitle {
-  font-size: 25px;
+  font-size: 23px;
   letter-spacing: -0.03em;
 }
 
 .isLead .panelSub {
-  margin-top: 8px;
+  margin-top: 6px;
   max-width: 44ch;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 /* ---------- Le héros d'une page de résultats ---------- */

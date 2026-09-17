@@ -396,6 +396,25 @@ List<SfLadderStep> accueilEchelons(
   ];
 }
 
+/// **Les quatre paliers de l'échelle**, pour la légende rendue une seule fois
+/// au-dessus de la liste (2026-09-17).
+///
+/// 🛑 **La même table que les crans** (`kAccueilEchelleCecrl`) : deux listes de
+/// paliers finiraient par ne plus se superposer. Miroir web :
+/// `accueilEchelleLegende`.
+List<String> accueilEchelleLegende() =>
+    [for (final niveau in kAccueilEchelleCecrl) niveau.shortName];
+
+/// Le rang du palier **visé** sur cette échelle, ou `null` sans démarche
+/// déclarée — le seul repère que les libellés par ligne portaient et qui dise
+/// quelque chose, et il est **global** aux quatre épreuves.
+///
+/// Miroir web : `accueilEchelleRangObjectif`.
+int? accueilEchelleRangObjectif(NiveauCecrl? objectif) {
+  final rang = _accueilRangCecrl(objectif);
+  return rang < 0 ? null : rang;
+}
+
 /// Ce que l'échelle dit à un lecteur d'écran — elle est rendue en image, ses
 /// libellés sont décoratifs.
 ///
@@ -411,16 +430,6 @@ String accueilEchelleLabel(ProgressEpreuve epreuve, NiveauCecrl? objectif) {
           : 'Niveau ${niveau.shortName}';
   return objectif == null ? debut : '$debut, objectif ${objectif.shortName}';
 }
-
-/// La droite de la ligne de repères d'une carte d'épreuve — « Objectif B2 ».
-///
-/// 🛑 **Le palier est SERVI** (`ProgressTcf.objectif`, dérivé de la démarche
-/// côté serveur) : aucun écran ne le devine. `null` quand aucune démarche n'est
-/// déclarée — la carte n'affiche alors que le palier atteint.
-///
-/// Miroir web : `accueilObjectifLabel`.
-String? accueilObjectifLabel(NiveauCecrl? objectif) =>
-    objectif == null ? null : 'Objectif ${objectif.shortName}';
 
 /// Le compteur du bandeau d'objectif — « 3 / 4 » et ses pastilles.
 ///
@@ -458,8 +467,7 @@ const String kAccueilEvalueesCaption = 'évaluées';
 ) {
   if (themes.isEmpty) return null;
   return (
-    faites:
-        themes.where((t) => t.etat != CivicThemeState.nonEvalue).length,
+    faites: themes.where((t) => t.etat != CivicThemeState.nonEvalue).length,
     total: themes.length,
   );
 }
