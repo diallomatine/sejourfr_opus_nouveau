@@ -4259,3 +4259,33 @@ dashboard (cf. Vague 4).
 - Pas de README générés automatiquement, pas d'images de rendu
 - Code direct + quelques explications
 - Pour les décisions structurantes : proposer des options, pas imposer
+
+## Le PARCOURS TCF — la file d'étapes du Plan (2026-09-17)
+
+> Règles et invariants : `docs/regles/plan.md`, section « Le PARCOURS TCF ».
+> Arbitrages du propriétaire : `docs/decisions/plan-parcours-tcf.md`.
+> Décisions prises en autonomie : `docs/decisions-autonomes-parcours-tcf.md`.
+
+⚠️ **Cette section prime sur les descriptions plus anciennes de ce fichier** pour tout ce qui
+touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
+
+- **`GET /api/me/plan/journey`** sert la file : `current` (l'étape à faire maintenant),
+  `steps` (déjà filtrées par le serveur), `hiddenUpcomingCount`, `state` et `suggestion`.
+  🛑 **Aucun `targetLevel` en paramètre** : le serveur connaît le niveau visé du candidat.
+- **Les phrases** vivent dans `journey.ts` ⇄ `journey_labels.dart`, **miroirs mot pour mot**.
+  Rien n'y déduit un état d'un compteur : chaque fonction pose un libellé sur un fait
+  **servi** — `status`, `locked`, `progress.unit`.
+- **La timeline** est une primitive du **kit** (`JourneyRow`/`JourneyList` ⇄
+  `SfJourneyRow`/`SfJourneyList`), ajoutée des deux côtés dans la même passe. ⚠️ **À ne pas
+  confondre avec `PathRow`/`SfPathRow`**, qui décrit une étape de **tâche** ou du parcours
+  **civique** : les confondre ferait cocher en vert une série finie qui n'a rien prouvé.
+- 🛑 **`planNowCard` prend le parcours**, et les **six** sites le lui passent — Plan, Accueil,
+  Réviser, web et mobile. Le parcours **désigne** l'étape, le Plan **fournit** l'action
+  (`recommendedExercise`, `domainesAEvaluer`) : le DTO du parcours n'en porte aucune, et l'y
+  mettre en ferait un second moteur. N'en migrer que quelques-uns rouvrirait la contradiction
+  corrigée le 2026-09-16.
+- 🛑 **Une étape verrouillée reste affichée à sa place**, cadenas compris, et ne devient jamais
+  `CURRENT` — sinon le parcours d'un compte gratuit se figerait définitivement sur elle.
+- **Supprimés dans la même passe** : le « chemin vers l'objectif » (`cycle.path`,
+  `PlanPathStep*`) et le bloc « Votre parcours — Tâche X » (`parcoursDeLaTache` / `planTaskPath`).
+  🛑 **`PlanCycleDto` survit** : il porte l'en-tête « niveau actuel / objectif ».
