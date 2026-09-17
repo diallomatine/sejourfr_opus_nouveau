@@ -17,6 +17,7 @@ import {
     NowCard,
     Pad,
     PanelHead,
+    JourneyRow,
     PathRow,
     ProgressMini,
     Section,
@@ -25,6 +26,13 @@ import {
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
+import {
+    journeyBadge,
+    journeyKind,
+    journeyKitState,
+    journeyStepSubtitle,
+    journeyStepTitle,
+} from "@/lib/journey";
 import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
 import {
@@ -55,7 +63,6 @@ import {
 } from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {
-    parcoursDeLaTache,
     planDomainHref,
     planDomainLabel,
     planDomainShort,
@@ -85,6 +92,7 @@ import {
     type CivicPlanDto,
     type DiagnosticResponse,
     type JourneyDto,
+    type JourneyStepDto,
     type LearningPlanDto,
     type PreparationDto,
     type ProgressDto,
@@ -412,7 +420,7 @@ function DashboardRoot() {
                     part, il mène au Plan. */}
                 <VotrePlan
                     civique={civique}
-                    plan={plan}
+                    journey={journey}
                     cible={cibleCivique}
                 />
             </div>
@@ -950,9 +958,9 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
  * 🛑 **Aucun contenu fabriqué** : sans priorité servie, sans tâche servie ou
  * sans parcours servi, la section n'existe pas.
  */
-function VotrePlan({civique, plan, cible}: {
+function VotrePlan({civique, journey, cible}: {
     civique: boolean;
-    plan: LearningPlanDto | null;
+    journey: JourneyDto | null;
     cible: CivicPlanCibleDto | null;
 }) {
     if (civique) {
@@ -970,20 +978,51 @@ function VotrePlan({civique, plan, cible}: {
         );
     }
 
-    const priority = plan?.currentPriority ?? null;
-    if (!plan || !priority || priority.locked) return null;
-    const path = parcoursDeLaTache(plan, priority);
-    if (!path) return null;
-    const epreuve = planSectionEpreuve(priority.section);
+    /* 🛑 **L'aperçu suit le PARCOURS**, plus le parcours d'une tâche : c'est la
+       même file que le Plan affiche en entier, et la même que la carte « À
+       faire maintenant » vient de nommer. Trois vues d'un seul objet.
+
+       🛑 **Pas de `current` ⇒ pas de bloc** : aucun objectif déclaré, plus rien
+       à faire, ou rien d'exécutable. Dans ce dernier cas la carte d'action
+       porte déjà le paywall — l'aperçu n'a rien à ajouter. */
+    const courante = journey?.current ?? null;
+    if (!journey || !courante) return null;
+    const fenetre = apercuJourneySteps(journey.steps, courante.id);
+    if (fenetre.length === 0) return null;
     return (
         <PlanApercu
-            title={`${planDomainLabel(epreuve)} · ${planTaskBadge(path.tacheNumero)}`}
-            subtitle={priority.title}
-            counter={path.counterLabel}
-            steps={path.steps}
+            title={journeyStepTitle(courante)}
+            subtitle={journeyStepSubtitle(courante) ?? null}
+            /* 🛑 **Aucun compteur d'étape.** Le parcours n'en sert pas, et
+               `steps` est **déjà filtrée** par le serveur : un « Étape 2 / 5 »
+               dérivé de cette liste compterait la fenêtre, pas la file. On
+               n'affiche pas un nombre qu'on ne sait pas. */
+            counter={null}
+            steps={fenetre}
             href={planHref("TCF")}
         />
     );
+}
+
+/**
+ * La fenêtre d'étapes affichée sur l'Accueil, **centrée sur l'étape courante**.
+ *
+ * 🛑 **Un plafond d'AFFICHAGE, jamais un budget pédagogique** : la file entière
+ * est servie et se lit sur le Plan, où « Voir mon Plan » renvoie.
+ *
+ * 🛑 **La fenêtre contient TOUJOURS l'étape courante** : elle et la suivante,
+ * ou la précédente et elle quand elle ferme la file. Montrer « les deux
+ * premières » aurait caché exactement ce que le candidat doit faire maintenant.
+ */
+function apercuJourneySteps(steps: JourneyStepDto[], currentId: string): JourneyStepDto[] {
+    if (steps.length <= APERCU_STEPS_MAX) return steps;
+    const maintenant = steps.findIndex((step) => step.id === currentId);
+    if (maintenant < 0) return steps.slice(0, APERCU_STEPS_MAX);
+    const debut =
+        maintenant + APERCU_STEPS_MAX <= steps.length
+            ? maintenant
+            : steps.length - APERCU_STEPS_MAX;
+    return steps.slice(debut, debut + APERCU_STEPS_MAX);
 }
 
 /**
@@ -1020,8 +1059,11 @@ function apercuSteps(steps: PlanPathStep[]): PlanPathStep[] {
 function PlanApercu({title, subtitle, counter, steps, href}: {
     title: string;
     subtitle: string | null;
-    counter: string;
-    steps: PlanPathStep[];
+    /** `null` sur le parcours TCF : il ne sert aucune position d'étape. */
+    counter: string | null;
+    /** Les étapes **du parcours** (TCF) ou **du parcours civique**, déjà
+     *  fenêtrées par l'appelant. */
+    steps: JourneyStepDto[] | PlanPathStep[];
     href: string;
 }) {
     return (
@@ -1030,7 +1072,7 @@ function PlanApercu({title, subtitle, counter, steps, href}: {
                 <Card>
                     <div className="home-plan-head">
                         <p className={sejourStyles.label}>Priorité actuelle</p>
-                        <span className={sejourStyles.tiny}>{counter}</span>
+                        {counter && <span className={sejourStyles.tiny}>{counter}</span>}
                     </div>
                     <p className="home-plan-title">{title}</p>
                     {subtitle && (
@@ -1038,9 +1080,21 @@ function PlanApercu({title, subtitle, counter, steps, href}: {
                             {subtitle}
                         </p>
                     )}
-                    {apercuSteps(steps).map((step, index) => (
-                        <PathRow key={`${step.label}-${index}`} label={step.label} state={step.state}/>
-                    ))}
+                    {steps.map((step, index) =>
+                        "id" in step ? (
+                            <JourneyRow
+                                key={step.id}
+                                title={journeyStepTitle(step)}
+                                subtitle={journeyStepSubtitle(step)}
+                                state={journeyKitState(step)}
+                                kind={journeyKind(step)}
+                                badge={journeyBadge(step)}
+                                locked={step.locked}
+                            />
+                        ) : (
+                            <PathRow key={`${step.label}-${index}`} label={step.label} state={step.state}/>
+                        ),
+                    )}
                     <Link href={href} className={sejourStyles.link} style={{marginTop: 12}}>
                         Voir mon Plan <ArrowRight size={16} strokeWidth={2.4} aria-hidden/>
                     </Link>

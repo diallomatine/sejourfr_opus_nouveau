@@ -115,16 +115,26 @@ class HomeMiniPlan extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.counter,
-    required this.steps,
+    this.steps,
+    this.journeySteps,
     required this.onOpen,
   });
 
   final String title;
   final String? subtitle;
 
-  /// « Étape 3 / 5 ». `null` quand le serveur n'en sert pas.
+  /// « Étape 3 / 5 ». `null` quand le serveur n'en sert pas — c'est le cas du
+  /// **parcours TCF**, qui ne sert aucune position d'étape : un compteur dérivé
+  /// d'une liste déjà filtrée compterait la fenêtre, pas la file.
   final String? counter;
-  final List<SfPathStep> steps;
+
+  /// Les étapes du parcours **civique** (`SfPathStep`) — `null` côté TCF, où
+  /// [journeySteps] prend le relais.
+  final List<SfPathStep>? steps;
+
+  /// Les étapes du **parcours TCF**, déjà fenêtrées par l'appelant.
+  final List<Widget>? journeySteps;
+
   final VoidCallback onOpen;
 
   @override
@@ -154,8 +164,11 @@ class HomeMiniPlan extends StatelessWidget {
             SfTiny(subtitle!),
           ],
           const SizedBox(height: 10),
-          for (final step in homePlanSteps(steps))
-            SfPathRow(label: step.label, state: step.state),
+          if (journeySteps != null)
+            SfJourneyList(children: journeySteps!)
+          else
+            for (final step in homePlanSteps(steps ?? const <SfPathStep>[]))
+              SfPathRow(label: step.label, state: step.state),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,

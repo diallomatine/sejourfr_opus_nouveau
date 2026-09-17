@@ -77,10 +77,6 @@ const String kHomePlanLink = 'Voir mon Plan';
 const String kHomeProgressTitle = 'Votre progression';
 const String kHomeTracksTitle = 'Vos parcours';
 
-/// « Expression orale · Tâche 3 ». Le domaine et le rang de la tâche sont
-/// **servis** — aucun des deux n'est écrit ici.
-String homePlanTaskTitle(String domaine, int tache) =>
-    '$domaine · Tâche $tache';
 
 /* --------------------------------------------- l'action du jour — TCF ----- */
 

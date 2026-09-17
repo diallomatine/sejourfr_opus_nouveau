@@ -329,3 +329,32 @@ la section disparaît, elle n'affiche jamais de squelette.
 préfixe de cache commun côté web (donc purgé par `invalidateDiagnosticAndPlan()`), mêmes
 `ref.watch` côté mobile. Sans ça, une évaluation rechargerait l'un et laisserait l'autre sur son
 état d'avant : deux lectures du même candidat, au même instant, qui se contrediraient à l'écran.
+
+### A21 — L'aperçu de l'Accueil n'affiche **aucun compteur d'étape**
+
+**Décidé.** Le bloc « Votre Plan » de l'Accueil montre l'étape courante et sa voisine, **sans**
+« Étape 2 / 5 ». Le parcours **civique**, lui, garde le sien (`civicPathCounter`).
+
+**Pourquoi.** Le parcours TCF ne sert **aucune position d'étape**, et `steps` est **déjà
+filtrée** par le serveur (§14) : un compteur dérivé de cette liste compterait la **fenêtre**,
+pas la file. On n'affiche pas un nombre qu'on ne sait pas.
+
+**Ce qui est conservé du bloc d'avant** : la fenêtre de **deux** étapes (plafond d'affichage
+arbitré le 2026-09-12) et la règle qui la rend utile — **elle contient toujours l'étape
+courante**, elle et sa suivante, ou la précédente et elle quand elle ferme la file. Montrer
+« les deux premières » aurait caché exactement ce qu'il y a à faire maintenant.
+
+### A22 — `PlanPathStep` survit, mais ne décrit plus que le parcours **civique**
+
+**Décidé.** Le type reste ; sa documentation dit désormais ce qu'il est.
+
+**Pourquoi.** Le parcours de **tâche** a disparu avec le bloc « Votre parcours — Tâche X »
+(spec §11), mais `civicPath` rend toujours des `PlanPathStep` — et le parcours civique n'a
+**pas** de file d'évaluations : ses cinq étapes viennent de la boîte Leitner. Deux objets
+différents, deux types différents. ⚠️ Le confondre avec `JourneyStepDto` ferait cocher une
+étape civique avec la sémantique du parcours TCF.
+
+⚠️ **Reste à faire, cosmétique** : `mobile_sejourfr/lib/screens/plan/plan_task_path.dart` ne
+contient plus de « task path » (seulement `planTaskDto` et les tables d'état d'étape). Son nom
+ment. Renommage volontairement **non fait** cette nuit : il touche quatre imports pour zéro
+changement de comportement, et l'entête du fichier dit maintenant ce qu'il porte.

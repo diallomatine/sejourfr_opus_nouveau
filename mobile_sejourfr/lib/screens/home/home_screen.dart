@@ -24,11 +24,12 @@ import '../diagnostic/diagnostic_controller.dart';
 import '../diagnostic/diagnostic_courant_provider.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/civic_plan_provider.dart';
+import '../../core/models/journey_models.dart';
+import '../plan/journey_labels.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
-import '../plan/plan_task_path.dart';
 import '../progres/progres_labels.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
@@ -669,31 +670,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /* ------------------------------------------------------- votre plan ----- */
 
-  /// L'aperçu du Plan TCF : la priorité actuelle et le parcours de sa tâche.
+  /// L'aperçu du **parcours TCF** : l'étape courante et sa voisine.
   ///
-  /// 🛑 **Une priorité verrouillée n'est pas nommée ici non plus** : le bloc
-  /// entier disparaît. Il nommerait en clair, sur l'écran d'accueil, ce que
-  /// « Mes priorités » floute un écran plus loin.
+  /// 🛑 **La même file que le Plan affiche en entier**, et la même que la carte
+  /// « À faire maintenant » vient de nommer — trois vues d'un seul objet, plus
+  /// trois dérivations parallèles.
   ///
-  /// 🛑 **Rien n'est dérivé ici** : [planTaskPath] est l'autorité partagée avec
-  /// l'écran Plan, et le compteur est **lu** sur la tâche servie.
+  /// 🛑 **Pas d'étape courante ⇒ pas de bloc** : aucun objectif déclaré, plus
+  /// rien à faire, ou rien d'exécutable. Dans ce dernier cas la carte d'action
+  /// porte déjà le paywall — l'aperçu n'a rien à ajouter.
   Widget? _apercuTcf(BuildContext context) {
-    final plan = ref.watch(learningPlanProvider).valueOrNull;
-    final priorite = plan?.currentPriority;
-    if (plan == null || priorite == null || priorite.locked) return null;
-    final chemin = planTaskPath(plan);
-    if (chemin == null) return null;
-    final epreuve = planEpreuveOfSection(priorite.section);
+    final parcours = ref.watch(journeyProvider).valueOrNull;
+    final courante = parcours?.current;
+    if (parcours == null || courante == null) return null;
+    final fenetre = _fenetreDuParcours(parcours.steps, courante.id);
+    if (fenetre.isEmpty) return null;
     return HomeMiniPlan(
-      title: epreuve == null
-          ? priorite.title
-          : homePlanTaskTitle(
-              planDomainLabel(epreuve), chemin.task.tacheNumero),
-      subtitle: priorite.title,
-      counter: planPathCounter(chemin.dto),
-      steps: planPathSteps(chemin),
+      title: journeyStepTitle(courante),
+      subtitle: journeyStepSubtitle(courante),
+      // 🛑 Aucun compteur : le parcours n'en sert pas, et `steps` est **déjà
+      // filtrée** par le serveur. On n'affiche pas un nombre qu'on ne sait pas.
+      counter: null,
+      journeySteps: [
+        for (final step in fenetre)
+          SfJourneyRow(
+            title: journeyStepTitle(step),
+            subtitle: journeyStepSubtitle(step),
+            state: journeyKitState(step),
+            kind: journeyKind(step),
+            badge: journeyBadge(step),
+            locked: step.locked,
+          ),
+      ],
       onOpen: () => _ouvrirPlan(context, civique: false),
     );
+  }
+
+  /// La fenêtre affichée, **centrée sur l'étape courante**.
+  ///
+  /// 🛑 **Un plafond d'AFFICHAGE, jamais un budget** : la file entière est
+  /// servie et se lit sur le Plan. Elle contient **toujours** l'étape courante —
+  /// montrer « les deux premières » aurait caché exactement ce qu'il y a à faire
+  /// maintenant.
+  static List<JourneyStep> _fenetreDuParcours(
+      List<JourneyStep> steps, String currentId) {
+    if (steps.length <= kHomePlanStepsMax) return steps;
+    final maintenant = steps.indexWhere((step) => step.id == currentId);
+    if (maintenant < 0) return steps.take(kHomePlanStepsMax).toList();
+    final debut = maintenant + kHomePlanStepsMax <= steps.length
+        ? maintenant
+        : steps.length - kHomePlanStepsMax;
+    return steps.sublist(debut, debut + kHomePlanStepsMax);
   }
 
   /// L'aperçu du Plan civique : la cible de rang 1 et les cinq étapes de son

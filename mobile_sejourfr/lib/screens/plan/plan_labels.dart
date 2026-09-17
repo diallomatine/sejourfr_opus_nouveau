@@ -691,18 +691,7 @@ String planNowVerifySubtitle(String title, SkillTaskCode? task) =>
 
 const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
 
-/// Le titre de la section « parcours », qui nomme la tâche travaillée.
-String planPathSectionTitle(SkillTaskCode task) =>
-    'Votre parcours — Tâche ${task.tacheNumero}';
 
-/// « Observées : 2 / 8 » — **lu** sur `domaines[].taches[]`, jamais compté ici.
-///
-/// 🛑 **Ce n'est PAS une position.** Il disait « Étape 2 / 8 » pendant que la
-/// frise colorait le 3ᵉ segment : deux sens différents au même endroit. Le fait
-/// servi est un **compte de compétences observées**, il se nomme donc pour ce
-/// qu'il est ; la frise continue de montrer l'état de chaque compétence.
-String planPathCounter(PlanDomainTask task) =>
-    'Observées : ${task.observedSkills} / ${task.totalSkills}';
 
 /// Le titre de la section des priorités. Il nomme l'objectif quand il est
 /// connu, et se tait sinon.
@@ -751,7 +740,6 @@ const List<String> kPlanFreeStepLocks = <String>[
   'Suivi de cette compétence',
 ];
 
-const String kPlanFreePathTitle = 'Le parcours de cette tâche';
 
 const String kPlanUnlockHeroTitle = 'Passez du diagnostic à la progression';
 const String kPlanUnlockHeroText =

@@ -31,7 +31,6 @@ import {
   planActivePriorities,
   planNowCard,
   planPriorityGroups,
-  type PlanTachePath,
   planRowStatusSummary,
   planTaskBadge,
   planTransitionLine,
