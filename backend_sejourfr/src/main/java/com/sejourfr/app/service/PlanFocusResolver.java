@@ -1,6 +1,9 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.entity.PlanPinnedPriority;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
@@ -128,6 +131,7 @@ public class PlanFocusResolver {
     private final PlanContentAvailability contentAvailability;
     private final PlanDomainTargetLevelResolver targetLevelResolver;
     private final PlanPinnedPriorityManager pinManager;
+    private final JourneyStepManager stepManager;
 
     /**
      * La regle, sur des listes <b>deja calculees</b> : la premiere fragilite
@@ -180,6 +184,14 @@ public class PlanFocusResolver {
     @Transactional
     public Optional<Skill> epingler(User user, List<Skill> candidats) {
         if (user == null) return premier(candidats);
+        // 🛑 **LE PARCOURS EST L'EPINGLE, QUAND IL EXISTE** (2026-09-17).
+        // La position d'une etape ne bouge jamais : elle tient, par
+        // construction, ce que l'epingle tenait a la main. Et surtout, c'est
+        // elle que la carte « À faire maintenant » annonce sur les six sites —
+        // ouvrir au compte gratuit une AUTRE competence que celle qu'on lui
+        // montre serait la contradiction qu'on vient de fermer.
+        Optional<Skill> duParcours = premiereDuParcours(user, candidats);
+        if (duParcours.isPresent()) return duParcours;
         // UNE SEULE lecture de l'epingle par construction du Plan : elle sert a
         // la fois a savoir si on la maintient et, le cas echeant, a la reecrire
         // en place. La relire pour ecrire aurait coute une requete de plus a
@@ -206,6 +218,40 @@ public class PlanFocusResolver {
         ligne.setPinnedAt(Instant.now());
         pinManager.save(ligne);
         return choisie;
+    }
+
+
+    /**
+     * La competence de la <b>premiere etape ouverte</b> du parcours, si elle est
+     * dans le pool.
+     *
+     * <p>🛑 <b>Verrous ignores, volontairement</b> : c'est l'etape que
+     * {@code JourneyReadService} passe lui-meme a {@code SkillAccessService}
+     * pour casser la circularite {@code CURRENT} ⇄ {@code locked}. Lui donner
+     * ici une etape deja deverrouillee rendrait l'exemption inutile, et
+     * priverait le candidat gratuit de sa <b>vraie</b> priorite n&deg;1
+     * (arbitrage du 2026-08-21).
+     *
+     * <p>🛑 <b>Le pool reste la condition</b>, comme pour l'epingle : une
+     * competence sans contenu publie n'est pas une premiere place, et le
+     * freemium n'ouvre jamais du vide.
+     *
+     * <p>{@link Optional#empty()} quand il n'y a <b>pas de parcours</b> — un
+     * candidat sans demarche declaree n'en a aucun (arbitrage D-3) — ou quand
+     * sa premiere etape ouverte n'est pas un entrainement. L'appelant retombe
+     * alors sur l'epingle, qui garde exactement son role d'avant.
+     */
+    private Optional<Skill> premiereDuParcours(User user, List<Skill> candidats) {
+        if (candidats == null || candidats.isEmpty()) return Optional.empty();
+        TargetLevel cible = TargetProcedure.niveauVise(
+                user.getTargetProcedure(), user.getTargetLevel());
+        if (cible == null) return Optional.empty();
+        return stepManager.findPremiereCompetenceOuverte(user.getId(), cible)
+                .map(Skill::getId)
+                .flatMap(skillId -> candidats.stream()
+                        .filter(candidat -> candidat != null
+                                && skillId.equals(candidat.getId()))
+                        .findFirst());
     }
 
     /**

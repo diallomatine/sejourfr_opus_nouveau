@@ -1,6 +1,10 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.JourneyStep;
+import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.repository.JourneyStepRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,5 +37,16 @@ public class JourneyStepManager {
 
     public List<JourneyStep> saveAll(List<JourneyStep> steps) {
         return repository.saveAll(steps);
+    }
+
+    /**
+     * La competence de la premiere etape d'entrainement encore ouverte — la
+     * « premiere place » que le freemium ouvre d'office. <b>Une requete.</b>
+     */
+    public Optional<Skill> findPremiereCompetenceOuverte(UUID userId, TargetLevel targetLevel) {
+        return repository
+                .findPremiereCompetenceOuverte(userId, targetLevel, PageRequest.of(0, 1))
+                .stream()
+                .findFirst();
     }
 }

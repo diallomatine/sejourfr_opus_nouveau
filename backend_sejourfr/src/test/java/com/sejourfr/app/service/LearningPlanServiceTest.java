@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanSeanceItemDto;
@@ -194,7 +195,8 @@ class LearningPlanServiceTest {
         PlanFocusResolver focusResolver = new PlanFocusResolver(
                 observationManager, priorityResolver, sessionManager, userManager,
                 cycleResolver, acquisitionSelector, contentAvailability,
-                targetLevelResolver, pinManager);
+                targetLevelResolver, pinManager,
+                        mock(JourneyStepManager.class));
         service = new LearningPlanService(new DiagnosticProperties(), taskManager,
                 sessionManager, observationManager,
                 priorityResolver,

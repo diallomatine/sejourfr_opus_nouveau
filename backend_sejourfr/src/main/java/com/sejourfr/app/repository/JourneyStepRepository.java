@@ -1,6 +1,9 @@
 package com.sejourfr.app.repository;
 
 import com.sejourfr.app.entity.JourneyStep;
+import org.springframework.data.domain.Pageable;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.entity.Skill;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -49,4 +52,32 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
             ORDER BY s.position ASC
             """)
     List<JourneyStep> findOuvertesByLot(@Param("lotId") UUID lotId);
+
+    /**
+     * <b>La competence de la premiere etape d'entrainement encore ouverte</b>
+     * d'un candidat, pour un niveau cible.
+     *
+     * <p>C'est la « premiere place » que le freemium ouvre d'office
+     * ({@code PlanFocusResolver}). 🛑 <b>UNE seule requete</b>, jointure
+     * comprise : le Plan verrouille son cout par une <b>egalite</b>, et deux
+     * lectures (le parcours, puis ses etapes) l'auraient fait grimper de deux a
+     * chaque ouverture de l'ecran.
+     *
+     * <p>🛑 <b>Verrous ignores</b>, volontairement : c'est l'etape que le
+     * parcours designe, pas celle qu'il rend executable. Lui preferer une etape
+     * deja deverrouillee rendrait l'exemption inutile.
+     */
+    @Query("""
+            SELECT s.skill FROM JourneyStep s
+            WHERE s.journey.user.id = :userId
+              AND s.journey.targetLevel = :targetLevel
+              AND s.closedAt IS NULL
+              AND s.type = com.sejourfr.app.enums.JourneyStepType.TRAIN_SKILL
+              AND s.skill IS NOT NULL
+            ORDER BY s.position ASC
+            """)
+    List<Skill> findPremiereCompetenceOuverte(
+            @Param("userId") UUID userId,
+            @Param("targetLevel") TargetLevel targetLevel,
+            Pageable pageable);
 }

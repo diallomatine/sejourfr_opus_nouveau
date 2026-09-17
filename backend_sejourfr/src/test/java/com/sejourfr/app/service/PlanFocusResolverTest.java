@@ -1,5 +1,7 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -36,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -69,6 +72,7 @@ class PlanFocusResolverTest {
     @Mock private PlanAcquisitionSelector acquisitionSelector;
     @Mock private PlanContentAvailability contentAvailability;
     @Mock private PlanPinnedPriorityManager pinManager;
+    @Mock private JourneyStepManager stepManager;
 
     private PlanFocusResolver resolver;
 
@@ -88,7 +92,7 @@ class PlanFocusResolverTest {
                 sessionManager, userManager, cycleResolver, acquisitionSelector,
                 contentAvailability,
                 new PlanDomainTargetLevelResolver(mock(ProgressionPlanBridge.class)),
-                pinManager);
+                pinManager, stepManager);
         user = new User();
         user.setId(userId);
         epingles.clear();
@@ -353,6 +357,60 @@ class PlanFocusResolverTest {
                         PlanCycleState.TRAINING, 4, 4, true),
                 List.of(), List.of());
     }
+
+
+    // ------------------------------------------------------------------------
+    // Le PARCOURS est l'epingle, quand il existe (2026-09-17)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Parcours servi : la premiere etape OUVERTE prend la premiere place")
+    void leParcoursDesigneLaPremierePlace() {
+        Skill duParcours = skill("EE2-C1");
+        Skill autre = skill("EO1-C1");
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetLevel.B2);
+        parcoursAvec(duParcours);
+
+        // Le pool met `autre` en tete : sans parcours, ce serait elle.
+        assertThat(resolver.epingler(user, List.of(autre, duParcours)))
+                .contains(duParcours);
+        // 🛑 Rien n'est epingle : la POSITION de l'etape tient deja la premiere
+        // place, et une seconde memoire aurait fini par en designer une autre.
+        verify(pinManager, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Parcours servi mais competence hors du pool : on retombe sur l'epingle")
+    void horsDuPoolOnRetombeSurLEpingle() {
+        Skill duParcours = skill("EE2-C1");
+        Skill dansLePool = skill("EO1-C1");
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetLevel.B2);
+        parcoursAvec(duParcours);
+
+        // Une competence sans contenu publie n'est pas une premiere place : le
+        // freemium n'ouvre jamais du vide.
+        assertThat(resolver.epingler(user, List.of(dansLePool))).contains(dansLePool);
+    }
+
+    @Test
+    @DisplayName("Aucune demarche declaree : aucun parcours, l'epingle garde son role")
+    void sansObjectifLEpingleGardeSonRole() {
+        Skill premiere = skill("EE1-C1");
+        // 🛑 17 candidats sur 34 sont dans ce cas sur la base de dev : leur
+        // priorite n°1 doit rester ouverte (arbitrage du 2026-08-21), et c'est
+        // l'epingle qui la tient tant qu'ils n'ont pas declare d'objectif.
+        assertThat(resolver.epingler(user, List.of(premiere))).contains(premiere);
+        verify(pinManager).save(any());
+    }
+
+    /** Un parcours dont la premiere etape ouverte travaille cette competence. */
+    private void parcoursAvec(Skill skill) {
+        when(stepManager.findPremiereCompetenceOuverte(eq(userId), any()))
+                .thenReturn(Optional.of(skill));
+    }
+
 
     private static Skill skill(String code) {
         Skill skill = new Skill();

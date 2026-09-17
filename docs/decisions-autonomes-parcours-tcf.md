@@ -358,3 +358,33 @@ différents, deux types différents. ⚠️ Le confondre avec `JourneyStepDto` f
 contient plus de « task path » (seulement `planTaskDto` et les tables d'état d'étape). Son nom
 ment. Renommage volontairement **non fait** cette nuit : il touche quatre imports pour zéro
 changement de comportement, et l'entête du fichier dit maintenant ce qu'il porte.
+
+### A23 — 🛑 `plan_pinned_priorities` n'est PAS supprimée : elle devient le **repli**
+
+**Décidé.** `PlanFocusResolver` lit d'abord le **parcours** — la première étape d'entraînement
+encore ouverte — et **ne retombe sur l'épingle que lorsqu'il n'y a pas de parcours**. La table
+reste, son rôle se réduit.
+
+**Pourquoi la suppression prévue par la spec §6 n'a pas lieu.** Sa prémisse — « la position
+d'une étape EST l'épingle » — n'est vraie **que lorsqu'un parcours existe**, et D-3 en fait une
+conséquence de la démarche déclarée. Or le Plan, lui, fonctionne **sans objectif** : supprimer
+l'épingle priverait de leur priorité n°1 tous les candidats sans démarche — **17 sur 34** sur la
+base de dev — et leur rendrait l'instabilité que V065 avait corrigée (cas réel mesuré : « EE3 à
+0/5, remplacée par EO1 dès la première production orale »).
+
+**La supprimer pour de bon suppose un arbitrage produit** que le propriétaire n'a pas rendu :
+*le Plan exige-t-il lui aussi un objectif déclaré ?* Si oui, l'épingle part le jour même.
+
+**Ce que ce changement corrige quand même, et c'est le vrai motif.** Le freemium ouvrait
+d'office la compétence de la première place **du Plan**, pendant que la carte « À faire
+maintenant » annonçait celle du **parcours** : le candidat gratuit lisait une étape et pouvait
+en travailler une autre. Les deux disent désormais la même chose.
+
+**Coût assumé, et mesuré.** Le budget de requêtes du Plan passe de **23 à 24**
+(`LearningPlanCycleIT.leCoutDuPlanNeGrandiPasAvecLHistorique`, qui a attrapé le dépassement
+avant moi — c'est exactement l'usage prévu de cette égalité). **Une** requête, jointure
+comprise : lire le parcours puis ses étapes en aurait coûté deux.
+
+**Ce qui n'a pas changé** : l'exemption reçoit une étape **verrous ignorés** (arbitrage du
+2026-08-21), et le **pool** reste la condition — une compétence sans contenu publié n'est pas
+une première place, et le freemium n'ouvre jamais du vide.

@@ -217,9 +217,19 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // sinon `pinned_at` daterait la derniere consultation et ce GET serait
         // un UPDATE par appel. C'est ce que verrouille
         // LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle.
+        //
+        // 24 depuis le 2026-09-17 : la PREMIERE PLACE SE LIT SUR LE PARCOURS
+        // quand il existe (`journey_step`, premiere etape d'entrainement encore
+        // ouverte). Une lecture indexee, INCONDITIONNELLE et independante des
+        // donnees du candidat — la meme condition que pour les quatre requetes
+        // precedentes. 🛑 Elle se paie parce que sans elle le freemium ouvrait
+        // une AUTRE competence que celle que la carte « À faire maintenant »
+        // annonce : le candidat gratuit lisait une etape et pouvait en
+        // travailler une autre. UNE requete, jointure comprise — deux lectures
+        // (le parcours, puis ses etapes) auraient coute deux.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(23);
+                .isEqualTo(24);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
