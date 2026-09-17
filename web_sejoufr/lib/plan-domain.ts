@@ -24,6 +24,8 @@ import {
     skillTaskNumber,
 } from "@/lib/diagnostic";
 import {
+    type JourneyDto,
+    type JourneyStepDto,
     type LearningPlanDto,
     type LearningPlanPriorityDto,
     type LearningPlanSkillStatus,
@@ -609,6 +611,78 @@ export interface PlanNowVue {
 }
 
 /**
+ * La priorité du Plan qui porte la compétence de cette étape — **son action**.
+ *
+ * 🛑 Le rapprochement se fait sur `skillCode`, pas sur `skillId` : c'est le
+ * code qui est stable et lisible des deux côtés, et c'est lui que le parcours
+ * sert.
+ *
+ * `null` est un cas **normal** : étape d'examen (elle n'a pas de compétence),
+ * ou compétence que le Plan ne priorise plus.
+ */
+function journeyPriorityDe(
+    plan: LearningPlanDto,
+    etape: JourneyStepDto,
+): LearningPlanPriorityDto | null {
+    if (etape.type !== "TRAIN_SKILL" || !etape.skillCode) return null;
+    const toutes = [plan.currentPriority, ...plan.nextPriorities].filter(
+        (item): item is LearningPlanPriorityDto => item !== null,
+    );
+    return toutes.find((item) => item.skillCode === etape.skillCode) ?? null;
+}
+
+/**
+ * La mesure que lance une étape d'examen — **cherchée d'abord dans la séance**,
+ * puis dans « ce qu'il reste à mesurer ».
+ *
+ * 🛑 Les deux viennent du **même** resolver serveur
+ * (`PlanDomainAssessmentResolver`) : on ne compose aucune action, on retrouve
+ * celle qui est déjà servie. Le second chemin existe parce que le parcours peut
+ * nommer une épreuve que la séance du jour n'a pas retenue — la séance est une
+ * vue bornée, la file ne l'est pas.
+ *
+ * `null` = étape d'entraînement, ou épreuve dont plus rien n'est à mesurer.
+ */
+function journeyMesureDe(
+    plan: LearningPlanDto,
+    etape: JourneyStepDto,
+): PlanSeanceAssessmentItemDto | null {
+    if (etape.type !== "SECTION_EXAM" || !etape.examType) return null;
+    const dansLaSeance = plan.seance.items.find(
+        (item): item is PlanSeanceAssessmentItemDto =>
+            item.exercise === null && item.assessment.epreuve === etape.examType,
+    );
+    if (dansLaSeance) return dansLaSeance;
+    const assessment = plan.domainesAEvaluer.find((item) => item.epreuve === etape.examType);
+    if (!assessment) return null;
+    /* Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
+       tous ces champs sont **structurellement** nuls sur une ligne de mesure,
+       exactement comme le serveur les sert dans la séance. Rien n'est inventé
+       ici — seule l'enveloppe est reconstituée. */
+    return {
+        nature: "A_EVALUER",
+        exercise: null,
+        assessment,
+        skillId: null,
+        skillCode: null,
+        title: null,
+        section: null,
+        level: null,
+        masteryState: null,
+        stepPromptCount: 0,
+        stepAttemptedCount: 0,
+        stepValidatedCount: 0,
+        stepCompleted: false,
+        readyForReassessment: false,
+        /* 🛑 Une mesure n'est **jamais** verrouillée : le slot offert est ouvert
+           à tout compte inscrit, et `PlanDomainAssessmentResolver` ne sert
+           aucun `locked` pour cette raison exacte. */
+        locked: false,
+        lastActivityAt: null,
+    };
+}
+
+/**
  * **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
  * n'a désigné aucune priorité (l'écran affiche alors son état vide).
  *
@@ -638,13 +712,36 @@ export interface PlanNowVue {
  */
 export function planNowCard(
     plan: LearningPlanDto,
-    {free = false}: {free?: boolean} = {},
+    {free = false, journey = null}: {free?: boolean; journey?: JourneyDto | null} = {},
 ): PlanNowVue | null {
-    const priority = plan.currentPriority;
+    /* 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
+       (décision A18, `docs/decisions-autonomes-parcours-tcf.md`).
+
+       `JourneyStepDto` porte l'identité d'une étape — et **aucune action à
+       lancer**. Le catalogue d'actions vit chez ses autorités : le petit sujet
+       précis chez `RecommendedExerciseSelector`, « par quoi mesurer une
+       épreuve » chez `PlanDomainAssessmentResolver` (arbitré le 2026-09-16).
+       Les recopier dans le parcours en ferait un second moteur, ce que la
+       spec §0.4 interdit.
+
+       Donc : le parcours **désigne**, le Plan **exécute**. C'est ce qui rend la
+       carte identique sur les six sites d'appel sans dupliquer une règle. */
+    const etape = journey?.current ?? null;
+    /* ⚠️ **Repli assumé** quand le parcours nomme une compétence que le Plan ne
+       priorise plus (cas normal : son transfert vient d'être prouvé, le Plan
+       l'a sortie de ses priorités et le parcours clôturera son étape au
+       prochain entraînement). Montrer la carte du Plan vaut mieux que ne rien
+       montrer, et l'écart est **transitoire**. */
+    const priority = (etape ? journeyPriorityDe(plan, etape) : null) ?? plan.currentPriority;
     if (!priority) return null;
 
     const exercise = priority.recommendedExercise;
-    const mesure = planSeanceMesure(plan);
+    /* 🛑 **Le parcours a déjà appliqué la précédence** (R12 : une épreuve non
+       mesurée passe après les lots, et son étape est à sa position). On ne
+       rejoue donc PAS `planSeanceMesure`, qui ferait passer une mesure devant
+       l'étape que le parcours vient de désigner — deux règles de précédence
+       pour une seule carte. */
+    const mesure = etape ? journeyMesureDe(plan, etape) : planSeanceMesure(plan);
     /* 🛑 Le verrou se lit sur ce que la carte LANCE — la mesure réelle, même
        quand un plan gratuit ne la nomme pas. */
     const locked = mesure

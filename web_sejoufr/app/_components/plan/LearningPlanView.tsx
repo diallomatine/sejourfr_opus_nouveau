@@ -336,7 +336,7 @@ function TcfPlanPremium({plan, journey, affiner}: {
           priorité servie, pas de parcours — l'autre prend toute la rangée : la
           règle est dans le kit (`:only-child`), pas ici. */}
       <div className={sejourStyles.deskPair}>
-        <ActionMaintenant plan={plan} />
+        <ActionMaintenant plan={plan} journey={journey} />
 
         {/* 🛑 **La timeline du PARCOURS remplace le chemin vers l'objectif**
             (arbitrage D-4) : le palier reste dans l'en-tête, et l'écran ne
@@ -442,7 +442,7 @@ function TcfPlanFree({plan, journey, affiner}: {
         </Section>
       )}
 
-      <ActionMaintenant plan={plan} free />
+      <ActionMaintenant plan={plan} journey={journey} free />
 
       {/* 🛑 **Le parcours reste ENTIER, même sans accès** : ses étapes sont
           affichées à leur place, avec leur cadenas. Le masquer priverait le
@@ -503,7 +503,11 @@ function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
  * jamais déduit d'un rang : la première place du Plan est ouverte à un compte
  * gratuit, et c'est pour ça qu'un vrai CTA s'y affiche.
  */
-function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean}) {
+function ActionMaintenant({plan, journey, free}: {
+  plan: LearningPlanDto;
+  journey: JourneyDto | null;
+  free?: boolean;
+}) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
 
@@ -511,7 +515,7 @@ function ActionMaintenant({plan, free}: {plan: LearningPlanDto; free?: boolean})
      même autorité que l'Accueil (`ActionPrincipale`) et que les deux cartes du
      mobile. C'est elle qui applique « une MESURE passe devant tout le reste »,
      et qui garantit que les deux écrans annoncent la même action. */
-  const vue = planNowCard(plan, {free});
+  const vue = planNowCard(plan, {free, journey});
   if (!vue) return null;
 
   const {mesure, exercise, lines} = vue;

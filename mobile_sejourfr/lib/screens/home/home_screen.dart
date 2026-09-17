@@ -325,7 +325,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // d'expression orale pendant que le Plan, au même instant, demandait de
     // compléter une mesure de compréhension écrite.
     final plan = ref.watch(learningPlanProvider).valueOrNull;
-    final carte = plan == null ? null : planNowCard(plan);
+    // 🛑 **Le parcours est lu ici aussi** : sans lui, l'Accueil retomberait sur
+    // la règle du Plan pendant que le Plan suivrait le parcours — la même
+    // contradiction, à un étage de plus.
+    final parcours = ref.watch(journeyProvider).valueOrNull;
+    final carte = plan == null ? null : planNowCard(plan, journey: parcours);
 
     // 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
     // Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1

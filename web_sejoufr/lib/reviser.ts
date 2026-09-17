@@ -21,6 +21,7 @@
  */
 
 import type {
+    JourneyDto,
     CivicPlanGrain,
     CivicPlanThemeLigneDto,
     DashboardCategoryStat,
@@ -130,9 +131,15 @@ export const REVISER_DEPART_LABEL = "Votre point de départ";
  * épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe par Réviser pour
  * voir ce qu'on peut utiliser gratuitement »).
  */
-export function reviserResumeTcf(plan: LearningPlanDto | null): ReviserResume | null {
+export function reviserResumeTcf(
+    plan: LearningPlanDto | null,
+    journey: JourneyDto | null = null,
+): ReviserResume | null {
     if (!plan) return null;
-    const carte = planNowCard(plan);
+    /* 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
+       la règle du Plan pendant que le Plan suivrait le parcours — la même
+       contradiction, à un troisième écran. */
+    const carte = planNowCard(plan, {journey});
     if (!carte || carte.locked) return null;
     // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
     if (!carte.mesure && !carte.exercise) return null;

@@ -24,7 +24,7 @@ import {
     Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {civicPlanApi, diagnosticApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
+import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
 import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
 import {
@@ -84,6 +84,7 @@ import {
     type CivicPlanCibleDto,
     type CivicPlanDto,
     type DiagnosticResponse,
+    type JourneyDto,
     type LearningPlanDto,
     type PreparationDto,
     type ProgressDto,
@@ -222,6 +223,12 @@ function DashboardRoot() {
     const [progres, setProgres] = useState<ProgressDto | null>(null);
     const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
     const [plan, setPlan] = useState<LearningPlanDto | null>(null);
+    /* 🛑 **Le parcours est lu ICI aussi** : la carte « À faire maintenant » de
+       l'Accueil doit annoncer **la même** étape que celle du Plan. Sans lui,
+       cet écran retomberait sur la règle du Plan pendant que le Plan suivrait
+       le parcours — exactement la contradiction corrigée le 2026-09-16, à un
+       étage de plus. */
+    const [journey, setJourney] = useState<JourneyDto | null>(null);
     const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
     const [prep, setPrep] = useState<PreparationDto | null>(null);
     const [diagnosticDismissed, setDiagnosticDismissed] = useState(false);
@@ -242,7 +249,7 @@ function DashboardRoot() {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [progression, currentDiagnostic, currentPlan, preparation, planCivique] = await Promise.all([
+            const [progression, currentDiagnostic, currentPlan, preparation, planCivique, parcours] = await Promise.all([
                 // 🛑 Les compteurs de compétences viennent d'ICI, servis pour les
                 // deux parcours — l'Accueil ne les recompte pas.
                 progressApi.get().catch((): ProgressDto | null => null),
@@ -255,6 +262,9 @@ function DashboardRoot() {
                 // Le pendant civique : l'action du jour, ses priorités et ce qui
                 // a bougé. Best-effort — son échec laisse l'écran entier.
                 civicPlanApi.getCached().catch((): CivicPlanDto | null => null),
+                // Best-effort, comme le reste : un backend antérieur à
+                // l'endpoint laisse l'Accueil entier, sur la règle du Plan.
+                journeyApi.getCached().catch((): JourneyDto | null => null),
             ]);
             if (cancelled) return;
             setProgres(progression);
@@ -262,6 +272,7 @@ function DashboardRoot() {
             setPlan(currentPlan);
             setPrep(preparation);
             setCivicPlan(planCivique);
+            setJourney(parcours);
             if (preparation) setDefaut(moduleParDefaut(preparation));
             setLoading(false);
         })();
@@ -382,6 +393,7 @@ function DashboardRoot() {
                                 <ActionPrincipale
                                     diagnostic={diagnostic}
                                     plan={plan}
+                                    journey={journey}
                                     dismissed={diagnosticDismissed}
                                     onDismiss={() => setDiagnosticDismissed(true)}
                                 />
@@ -468,11 +480,13 @@ function DashboardRoot() {
 function ActionPrincipale({
                               diagnostic,
                               plan,
+                              journey,
                               dismissed,
                               onDismiss,
                           }: {
     diagnostic: DiagnosticResponse;
     plan: LearningPlanDto | null;
+    journey: JourneyDto | null;
     dismissed: boolean;
     onDismiss: () => void;
 }) {
@@ -525,7 +539,7 @@ function ActionPrincipale({
         );
     }
 
-    return <ActionPlanDuJour plan={plan}/>;
+    return <ActionPlanDuJour plan={plan} journey={journey}/>;
 }
 
 /**
@@ -542,11 +556,14 @@ function ActionPrincipale({
  * qui rend une carte à part pour un compte sans accès. Ici le seul fait lu est
  * le `locked` **servi**, comme avant : rien à masquer de plus.
  */
-function ActionPlanDuJour({plan}: {plan: LearningPlanDto | null}) {
+function ActionPlanDuJour({plan, journey}: {
+    plan: LearningPlanDto | null;
+    journey: JourneyDto | null;
+}) {
     const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
     const assessments = usePlanAssessment();
 
-    const vue = plan ? planNowCard(plan) : null;
+    const vue = plan ? planNowCard(plan, {journey}) : null;
     /* 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
        Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
        peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire

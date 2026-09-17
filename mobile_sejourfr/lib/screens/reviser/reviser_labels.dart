@@ -20,6 +20,7 @@ import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
+import '../../core/models/journey_models.dart';
 import '../plan/plan_now_card.dart';
 import '../progres/progres_labels.dart' show niveauActuelEpreuve;
 
@@ -113,9 +114,12 @@ class ReviserResume {
 /// se voit pas proposer de reprendre ce qu'il ne peut pas faire, il entre par
 /// la liste des épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe
 /// par Réviser pour voir ce qu'on peut utiliser gratuitement »).
-ReviserResume? reviserResumeTcf(LearningPlan? plan) {
+ReviserResume? reviserResumeTcf(LearningPlan? plan, {Journey? journey}) {
   if (plan == null) return null;
-  final carte = planNowCard(plan);
+  // 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
+  // la règle du Plan pendant que le Plan suivrait le parcours — la même
+  // contradiction, à un troisième écran.
+  final carte = planNowCard(plan, journey: journey);
   if (carte == null || carte.locked) return null;
   // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
   if (carte.mesure == null && carte.exercise == null) return null;

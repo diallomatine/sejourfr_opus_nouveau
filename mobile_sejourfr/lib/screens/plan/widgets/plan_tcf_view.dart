@@ -298,7 +298,7 @@ class PlanTcfView extends ConsumerWidget {
   /// assemble le kit, il ne choisit ni l'identité de la carte ni ce qu'elle
   /// lance.
   Widget _nowCard(BuildContext context, WidgetRef ref) {
-    final carte = planNowCard(plan);
+    final carte = planNowCard(plan, journey: journey);
     if (carte == null) {
       return const SfNoteCard(
         icon: LucideIcons.circleCheck,

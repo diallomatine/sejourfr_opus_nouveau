@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
 import 'plan_labels.dart';
 import 'plan_seance_state.dart';
@@ -126,15 +127,30 @@ class PlanNowCard {
 /// l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
 /// fait que choisir *laquelle* des deux identités la carte porte, et le dire une
 /// seule fois pour les deux écrans.
-PlanNowCard? planNowCard(LearningPlan plan) {
-  final priority = plan.currentPriority;
+PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
+  // 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
+  // (décision A18, `docs/decisions-autonomes-parcours-tcf.md`).
+  //
+  // `JourneyStep` porte l'identité d'une étape — et **aucune action à lancer**.
+  // Le catalogue d'actions vit chez ses autorités : le petit sujet précis chez
+  // `RecommendedExerciseSelector`, « par quoi mesurer une épreuve » chez
+  // `PlanDomainAssessmentResolver`. Les recopier dans le parcours en ferait un
+  // second moteur, ce que la spec §0.4 interdit.
+  final etape = journey?.current;
+  // ⚠️ **Repli assumé** quand le parcours nomme une compétence que le Plan ne
+  // priorise plus (cas normal : son transfert vient d'être prouvé). Montrer la
+  // carte du Plan vaut mieux que ne rien montrer, et l'écart est transitoire.
+  final priority = (etape == null ? null : _priorityDe(plan, etape)) ??
+      plan.currentPriority;
   if (priority == null) return null;
 
   final exercise = priority.recommendedExercise;
-  // 🛑 **Une MESURE passe devant tout le reste.** C'est le seul cas où le bouton
-  // ne lance pas l'étape. Le fait lu est `assessment`, jamais l'absence
-  // d'exercice — un jalon n'a pas non plus d'`exercise` côté mobile.
-  final mesure = planSeanceMesure(plan);
+  // 🛑 **Une MESURE passe devant tout le reste** — sauf quand un parcours est
+  // servi : il a **déjà** appliqué la précédence (R12), et rejouer
+  // `planSeanceMesure` ferait passer une mesure devant l'étape qu'il vient de
+  // désigner. Deux règles de précédence pour une seule carte.
+  final mesure =
+      etape == null ? planSeanceMesure(plan) : _mesureDe(plan, etape);
   final mesureDomaine = mesure?.assessment;
 
   // 🛑 **La carte de vérification est une AUTRE carte.** Elle se lit sur la
@@ -218,4 +234,64 @@ PlanNowCard? planNowCard(LearningPlan plan) {
     cta: planNowCta(priority, verifier: verifier, mesure: false),
     locked: priority.locked || (exercise?.locked ?? false),
   );
+}
+
+/// La priorité du Plan qui porte la compétence de cette étape — **son action**.
+///
+/// 🛑 Le rapprochement se fait sur `skillCode`, pas sur `skillId` : c'est le
+/// code qui est stable et lisible des deux côtés, et c'est lui que le parcours
+/// sert.
+///
+/// `null` est un cas **normal** : étape d'examen (elle n'a pas de compétence),
+/// ou compétence que le Plan ne priorise plus.
+LearningPlanPriority? _priorityDe(LearningPlan plan, JourneyStep etape) {
+  if (etape.type != JourneyStepType.trainSkill || etape.skillCode == null) {
+    return null;
+  }
+  final toutes = <LearningPlanPriority>[
+    if (plan.currentPriority != null) plan.currentPriority!,
+    ...plan.nextPriorities,
+  ];
+  for (final item in toutes) {
+    if (item.skillCode == etape.skillCode) return item;
+  }
+  return null;
+}
+
+/// La mesure que lance une étape d'examen — **cherchée d'abord dans la séance**,
+/// puis dans « ce qu'il reste à mesurer ».
+///
+/// 🛑 Les deux viennent du **même** resolver serveur
+/// (`PlanDomainAssessmentResolver`) : on ne compose aucune action, on retrouve
+/// celle qui est déjà servie. Le second chemin existe parce que le parcours peut
+/// nommer une épreuve que la séance du jour n'a pas retenue — la séance est une
+/// vue bornée, la file ne l'est pas.
+PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
+  if (etape.type != JourneyStepType.sectionExam || etape.examType == null) {
+    return null;
+  }
+  for (final item in plan.seance.items) {
+    if (item.assessment?.epreuve == etape.examType) return item;
+  }
+  for (final assessment in plan.domainesAEvaluer) {
+    if (assessment.epreuve != etape.examType) continue;
+    // Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
+    // tous ces champs sont **structurellement** nuls sur une ligne de mesure,
+    // exactement comme le serveur les sert dans la séance. Rien n'est inventé
+    // ici — seule l'enveloppe est reconstituée.
+    return PlanSeanceItem(
+      nature: PlanActionNature.aEvaluer,
+      assessment: assessment,
+      stepPromptCount: 0,
+      stepAttemptedCount: 0,
+      stepValidatedCount: 0,
+      stepCompleted: false,
+      readyForReassessment: false,
+      // 🛑 Une mesure n'est **jamais** verrouillée : le slot offert est ouvert à
+      // tout compte inscrit, et `PlanDomainAssessmentResolver` ne sert aucun
+      // `locked` pour cette raison exacte.
+      locked: false,
+    );
+  }
+  return null;
 }

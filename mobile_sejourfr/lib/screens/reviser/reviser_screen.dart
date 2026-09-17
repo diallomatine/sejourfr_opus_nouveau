@@ -19,6 +19,7 @@ import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../plan/civic_plan_provider.dart';
 import '../plan/civic_serie_launcher.dart';
+import '../../core/models/journey_models.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
 import '../plan/plan_labels.dart';
@@ -74,6 +75,9 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     // pour une réponse identique. La bascule ne coûte aucun appel.
     final dashboard = ref.watch(dashboardProvider);
     final plan = ref.watch(learningPlanProvider).valueOrNull;
+    // 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent
+    // la même carte de reprise, et n'en observer qu'un rouvrirait l'écart.
+    final parcours = ref.watch(journeyProvider).valueOrNull;
     final civicPlan = ref.watch(civicPlanProvider).valueOrNull;
     final prep = ref.watch(preparationProvider).valueOrNull;
 
@@ -127,7 +131,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
                   ],
                   data: (d) => civique
                       ? _civique(d, civicPlan, prep?.civique)
-                      : _tcf(d, plan, prep?.tcf),
+                      : _tcf(d, plan, parcours, prep?.tcf),
                 ),
               ],
             ),
@@ -142,13 +146,14 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   List<Widget> _tcf(
     DashboardSummary dashboard,
     LearningPlan? plan,
+    Journey? parcours,
     ModulePreparation? prep,
   ) {
     // 🛑 `planDisponible` est **le fait à lire**. Sans lui, on n'a rien à
     // reprendre — et on ne l'invente pas : la carte de tête devient la porte du
     // diagnostic, avec les mots de [planIndisponible].
     final disponible = prep?.planDisponible == true;
-    final resume = disponible ? reviserResumeTcf(plan) : null;
+    final resume = disponible ? reviserResumeTcf(plan, journey: parcours) : null;
     final porte = prep == null ? null : planIndisponible(prep, civique: false);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);

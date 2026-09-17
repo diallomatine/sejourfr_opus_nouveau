@@ -70,6 +70,7 @@ import {
 import {
   civicPlanApi,
   dashboardApi,
+  journeyApi,
   learningPlanApi,
   publicThemeApi,
   userContentApi,
@@ -88,6 +89,7 @@ import {
   type CivicPlanCibleDto,
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
+  type JourneyDto,
   type LearningPlanDto,
   type ModulePreparation,
   type PlanDomainDto,
@@ -241,6 +243,12 @@ function TcfBody({
     isGuest ? null : learningPlanApi.cacheKey,
     () => learningPlanApi.getCached(),
   );
+  /* 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent la
+     même carte de reprise, et n'en lire qu'un rouvrirait l'écart. */
+  const journey = useCachedData<JourneyDto>(
+    isGuest ? null : journeyApi.cacheKey,
+    () => journeyApi.getCached(),
+  );
   const prep = useModulePreparation(isGuest, "TCF");
   const disponible = prep?.planDisponible === true;
   /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
@@ -252,7 +260,9 @@ function TcfBody({
   /* 🛑 Sans `planDisponible`, il n'y a rien à reprendre — et on ne l'invente
      pas. La carte de tête cesse d'être une reprise et devient la **porte du
      diagnostic**, avec les mots de `planIndisponible`. */
-  const resume = disponible ? reviserResumeTcf(plan.data ?? null) : null;
+  const resume = disponible
+    ? reviserResumeTcf(plan.data ?? null, journey.data ?? null)
+    : null;
   const gate = prep && !disponible ? planIndisponible(prep, "TCF") : null;
   const carte = resume?.carte ?? null;
   const busy = exercise.starting || assessment.starting !== null;
