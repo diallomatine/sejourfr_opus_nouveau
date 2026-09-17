@@ -20,7 +20,6 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainPriority;
-import com.sejourfr.app.enums.PlanPathStepStatus;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
@@ -103,10 +102,6 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         assertThat(plan.cycle().domainsEvaluated()).isEqualTo(4);
         // Une fragilité reste ouverte : le palier n'est pas prêt à être confirmé.
         assertThat(plan.cycle().state()).isEqualTo(PlanCycleState.TRAINING);
-        assertThat(plan.cycle().path())
-                .filteredOn(etape -> etape.status() == PlanPathStepStatus.CURRENT)
-                .hasSize(1);
-
         // Compréhension : la règle de prérequis se lit sur les trois paliers.
         PlanDomainDto co = domaine(plan, EpreuveType.TCF_CO);
         assertThat(co.paliers()).hasSize(3);

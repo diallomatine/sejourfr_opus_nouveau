@@ -1416,45 +1416,6 @@ enum PlanCycleState {
   }
 }
 
-/// Nature d'une étape du chemin vers l'objectif. Miroir de `PlanPathStepKind`.
-///
-/// Aucun libellé serveur : « Construire votre B1 » appartient au front.
-enum PlanPathStepKind {
-  completeProfile('COMPLETE_PROFILE'),
-  buildLevel('BUILD_LEVEL'),
-  stabilize('STABILIZE');
-
-  const PlanPathStepKind(this.wire);
-
-  final String wire;
-
-  static PlanPathStepKind? fromWireNullable(String? value) {
-    if (value == null) return null;
-    for (final kind in PlanPathStepKind.values) {
-      if (kind.wire == value) return kind;
-    }
-    return null;
-  }
-}
-
-/// Où en est une étape du chemin. Miroir de `PlanPathStepStatus`.
-enum PlanPathStepStatus {
-  done('DONE'),
-  current('CURRENT'),
-  upcoming('UPCOMING');
-
-  const PlanPathStepStatus(this.wire);
-
-  final String wire;
-
-  static PlanPathStepStatus? fromWireNullable(String? value) {
-    if (value == null) return null;
-    for (final status in PlanPathStepStatus.values) {
-      if (status.wire == value) return status;
-    }
-    return null;
-  }
-}
 
 /// Le parcours **déjà existant** par lequel se mesure un domaine jamais évalué.
 /// Miroir de `PlanDomainAssessmentKind`.
@@ -1829,7 +1790,6 @@ class PlanCycle {
     required this.profileComplete,
     this.startingLevel,
     this.objectiveLevel,
-    this.path = const <PlanPathStep>[],
   });
 
   /// Niveau global mesuré d'où part le cycle. `null` tant que rien n'est
@@ -1850,10 +1810,6 @@ class PlanCycle {
   final int domainsExpected;
   final bool profileComplete;
 
-  /// Le chemin, de la première étape à la dernière. Jamais `null` ; une seule
-  /// étape y est [PlanPathStepStatus.current].
-  final List<PlanPathStep> path;
-
   factory PlanCycle.fromJson(Map<String, dynamic> json) => PlanCycle(
         startingLevel:
             NiveauCecrl.fromWireNullable(json['startingLevel'] as String?),
@@ -1867,43 +1823,12 @@ class PlanCycle {
         domainsEvaluated: (json['domainsEvaluated'] as num? ?? 0).toInt(),
         domainsExpected: (json['domainsExpected'] as num? ?? 0).toInt(),
         profileComplete: json['profileComplete'] as bool? ?? false,
-        path: _objectList(json['path'])
-            .map(PlanPathStep.fromJson)
-            .toList(growable: false),
       );
 
   static PlanCycle? fromJsonOrNull(Object? value) =>
       value is Map<String, dynamic> ? PlanCycle.fromJson(value) : null;
 }
 
-/// Une étape du chemin vers l'objectif. Miroir de `PlanPathStepDto`.
-///
-/// Le serveur dit **quoi** et **où en est le candidat** ; le titre
-/// (« Construire votre B1 ») appartient au front.
-class PlanPathStep {
-  const PlanPathStep({
-    required this.kind,
-    required this.status,
-    this.level,
-  });
-
-  final PlanPathStepKind kind;
-
-  /// Palier concerné — renseigné **uniquement** sur
-  /// [PlanPathStepKind.buildLevel], `null` ailleurs.
-  final TargetLevel? level;
-
-  final PlanPathStepStatus status;
-
-  factory PlanPathStep.fromJson(Map<String, dynamic> json) => PlanPathStep(
-        kind: PlanPathStepKind.fromWireNullable(json['kind'] as String?) ??
-            PlanPathStepKind.buildLevel,
-        level: TargetLevel.fromWireNullable(json['level'] as String?),
-        status:
-            PlanPathStepStatus.fromWireNullable(json['status'] as String?) ??
-                PlanPathStepStatus.upcoming,
-      );
-}
 
 /// Ce qu'il faut lancer pour mesurer un domaine du TCF qui ne l'a **jamais**
 /// été. Miroir de `PlanDomainAssessmentDto`.

@@ -9,12 +9,10 @@ import {
   PLAN_CYCLE_STATE_TEXT,
   PLAN_RECENT_NEW_PRIORITY,
   planCycleLine,
-  planPathTitle,
   planSkillMeta,
   planTransitionLine,
 } from "@/lib/plan-domain";
 import {BlockHead, EmptyCard, PlanShell} from "./PlanLayout";
-import {PlanPathList} from "./PlanBits";
 import {
   type LearningPlanDto,
   PLAN_RECENT_CHANGES_WINDOW_LABEL,
@@ -138,15 +136,6 @@ export function PlanEvolutionView() {
                 Votre programme se réordonne à chaque nouvelle observation, donc à votre
                 prochaine production. En attendant, votre plan reste celui-ci.
               </p>
-            </section>
-          )}
-
-          {plan.cycle.path.length > 0 && (
-            <section className={styles.panel} aria-labelledby="evolution-path">
-              <div className={styles.panelHead}>
-                <div><h2 id="evolution-path">{planPathTitle(plan.cycle)}</h2></div>
-              </div>
-              <PlanPathList cycle={plan.cycle} titleId="evolution-path" />
             </section>
           )}
 

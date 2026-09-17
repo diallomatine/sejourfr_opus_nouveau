@@ -14,7 +14,6 @@ import '../../core/widgets/screen_header.dart';
 import 'learning_plan_provider.dart';
 import 'plan_labels.dart';
 import 'widgets/plan_changes_section.dart';
-import 'widgets/plan_path_section.dart';
 import 'widgets/plan_tokens.dart';
 
 /// **« Votre programme évolue »** : le détail de la bascule de palier — d'où
@@ -198,10 +197,6 @@ class _EvolutionBody extends StatelessWidget {
               ),
             ),
           ],
-        ],
-        if (cycle != null && cycle.path.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          PlanPathSection(cycle: cycle),
         ],
         const SizedBox(height: 16),
         const PlanNote(kPlanEvolutionNote),

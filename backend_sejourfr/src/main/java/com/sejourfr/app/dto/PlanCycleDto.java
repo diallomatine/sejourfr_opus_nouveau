@@ -4,7 +4,6 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.TargetLevel;
 
-import java.util.List;
 
 /**
  * Le <b>cycle de palier</b> en cours : d'ou part le candidat, quel palier le
@@ -38,8 +37,11 @@ import java.util.List;
  * @param domainsEvaluated domaines reellement mesures (0..4)
  * @param domainsExpected  4, toujours
  * @param profileComplete  les quatre domaines sont mesures
- * @param path            le chemin, de la premiere etape a la derniere ; jamais
- *                        {@code null}, une seule etape y est {@code CURRENT}
+ *
+ * <p>🛑 <b>Le CHEMIN a ete supprime le 2026-09-17</b> (arbitrage D-4) : la
+ * timeline du <b>parcours</b> ({@code GET /api/me/plan/journey}) le remplace sur
+ * le Plan, et le palier reste dans l'en-tete « niveau actuel / objectif » que
+ * porte ce DTO. Deux files dans le meme ecran se lisaient comme deux parcours.
  */
 public record PlanCycleDto(
         NiveauCecrl startingLevel,
@@ -48,6 +50,5 @@ public record PlanCycleDto(
         PlanCycleState state,
         int domainsEvaluated,
         int domainsExpected,
-        boolean profileComplete,
-        List<PlanPathStepDto> path
+        boolean profileComplete
 ) {}

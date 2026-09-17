@@ -4,7 +4,6 @@ import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.dto.PlanDomainDto;
 import com.sejourfr.app.dto.PlanDomainLevelDto;
 import com.sejourfr.app.dto.PlanDomainTaskDto;
-import com.sejourfr.app.dto.PlanPathStepDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -15,8 +14,6 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainPriority;
-import com.sejourfr.app.enums.PlanPathStepKind;
-import com.sejourfr.app.enums.PlanPathStepStatus;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -176,8 +173,7 @@ public class PlanCycleResolver {
 
         PlanCycleDto cycle = new PlanCycleDto(
                 depart, vise, objectif, etat,
-                evalues, TcfLevelProfile.EPREUVES_EXPECTED, profilComplet,
-                chemin(depart, vise, objectif, profilComplet, objectifAtteint));
+                evalues, TcfLevelProfile.EPREUVES_EXPECTED, profilComplet);
 
         // Le referentiel actif, en DEUX lots bornes : les six competences de
         // palier de la comprehension, les 48 competences des six taches. C'est
@@ -218,46 +214,6 @@ public class PlanCycleResolver {
         }
         if (objectif != null && candidat.ordinal() > objectif.ordinal()) return objectif;
         return candidat;
-    }
-
-    /**
-     * Le chemin, de la premiere etape a la derniere : completer le profil, puis
-     * un palier par cran jusqu'a l'objectif, puis stabiliser.
-     *
-     * <p><b>Les paliers deja acquis restent affiches, coches</b> : ils ne
-     * disparaissent pas du chemin, sinon le candidat perdrait la trace de ce
-     * qu'il a franchi — meme raison que les etapes franchies du parcours de
-     * competences.
-     *
-     * <p>Exactement une etape est {@code CURRENT}, et le profil incomplet passe
-     * <b>avant</b> tout le reste (brief §77) : on ne fait pas construire un
-     * palier a quelqu'un dont on n'a pas mesure les quatre domaines.
-     */
-    private static List<PlanPathStepDto> chemin(
-            NiveauCecrl depart, TargetLevel vise, TargetLevel objectif,
-            boolean profilComplet, boolean objectifAtteint) {
-        List<PlanPathStepDto> etapes = new ArrayList<>();
-        etapes.add(new PlanPathStepDto(PlanPathStepKind.COMPLETE_PROFILE, null,
-                profilComplet ? PlanPathStepStatus.DONE : PlanPathStepStatus.CURRENT));
-
-        TargetLevel plafond = objectif == null ? TargetLevel.B2 : objectif;
-        for (TargetLevel palier : PALIERS) {
-            if (palier.ordinal() > plafond.ordinal()) break;
-            PlanPathStepStatus statut;
-            if (depart != null && depart.ordinal() >= niveau(palier).ordinal()) {
-                statut = PlanPathStepStatus.DONE;
-            } else if (profilComplet && !objectifAtteint && palier == vise) {
-                statut = PlanPathStepStatus.CURRENT;
-            } else {
-                statut = PlanPathStepStatus.UPCOMING;
-            }
-            etapes.add(new PlanPathStepDto(PlanPathStepKind.BUILD_LEVEL, palier, statut));
-        }
-
-        etapes.add(new PlanPathStepDto(PlanPathStepKind.STABILIZE, null,
-                profilComplet && objectifAtteint
-                        ? PlanPathStepStatus.CURRENT : PlanPathStepStatus.UPCOMING));
-        return List.copyOf(etapes);
     }
 
     // ------------------------------------------------------------------------

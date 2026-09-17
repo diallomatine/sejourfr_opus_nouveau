@@ -28,13 +28,9 @@ import {
 import {
     isComprehension,
     PLAN_DOMAIN_SECTION,
-    PLAN_PATH_CURRENT_BADGE,
     type PlanDomainEpreuve,
     type PlanNowVue,
     planDomainLabel,
-    planPathStepMeta,
-    planPathStepNote,
-    planPathStepTitle,
     planTaskBadge,
     planTaskObservedLabel,
 } from "@/lib/plan-domain";
@@ -227,46 +223,6 @@ export function PlanBlur({children}: {children: ReactNode}) {
 
 /* --------------------------------------------------------------- le chemin */
 
-/**
- * **Le chemin de palier**, servi par `cycle.path` — la même liste sur le Plan
- * et sur « Votre programme évolue ». Extraite à la **2ᵉ occurrence** : les deux
- * écrans en portaient une copie, et la note du gate n'en aurait alors touché
- * qu'un seul.
- *
- * 🛑 **Rien n'est décidé ici** : l'ordre, le statut de chaque étape et le palier
- * concerné viennent du serveur. Le front n'apporte que la phrase — dont celle
- * qui manquait au candidat : **un palier se confirme par un examen blanc TCF
- * complet** (`planPathStepNote`). C'est ce que réclame
- * `cycle.state === "READY_FOR_GATE_MOCK"`, et le jalon correspondant est servi
- * à côté (`LearningPlanDto.milestone`).
- */
-export function PlanPathList({cycle, titleId}: {cycle: PlanCycleDto; titleId?: string}) {
-    if (cycle.path.length === 0) return null;
-    return (
-        <ol className={styles.pathList} aria-labelledby={titleId}>
-            {cycle.path.map((step, index) => {
-                const note = planPathStepNote(step, cycle);
-                return (
-                    <li key={`${step.kind}-${step.level ?? index}`} data-status={step.status}>
-                        <span className={styles.pathMark} aria-hidden>
-                            {step.status === "DONE" ? <Check size={13} strokeWidth={3} /> : index + 1}
-                        </span>
-                        <span className={styles.pathBody}>
-                            <span className={styles.pathTitle}>
-                                {planPathStepTitle(step)}
-                                {step.status === "CURRENT" && (
-                                    <span className={styles.pathBadge}>{PLAN_PATH_CURRENT_BADGE}</span>
-                                )}
-                            </span>
-                            <span className={styles.pathMeta}>{planPathStepMeta(step, cycle)}</span>
-                            {note && <span className={styles.pathNote}>{note}</span>}
-                        </span>
-                    </li>
-                );
-            })}
-        </ol>
-    );
-}
 
 /* ------------------------------------------------------ tâche d'expression */
 

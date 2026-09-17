@@ -1765,33 +1765,14 @@ export type PlanCycleState =
      *  on entretient et on remesure. */
     | "TARGET_STABILIZATION";
 
-/** Nature d'une étape du chemin vers l'objectif. Le serveur expose des faits ;
- *  « Construire votre B1 » est une formulation, pas une donnée. */
-export type PlanPathStepKind =
-    /** Mesurer les quatre domaines. Toujours la première étape. */
-    | "COMPLETE_PROFILE"
-    /** Construire un palier CECRL ; le palier vit sur `level`. */
-    | "BUILD_LEVEL"
-    /** Objectif atteint : tenir le niveau en conditions d'examen. Toujours la
-     *  dernière. */
-    | "STABILIZE";
-
-/** Où se situe une étape du chemin. Un enum plutôt que deux booléens : « faite »
- *  et « en cours » ne peuvent pas être vraies ensemble. */
-export type PlanPathStepStatus = "DONE" | "CURRENT" | "UPCOMING";
-
-/** Une étape du chemin vers l'objectif, telle que le Plan la sert. */
-export interface PlanPathStepDto {
-    kind: PlanPathStepKind;
-    /** Palier concerné — renseigné **uniquement** sur `BUILD_LEVEL`, `null`
-     *  ailleurs. */
-    level: TargetLevel | null;
-    status: PlanPathStepStatus;
-}
-
 /**
  * Le **cycle de palier** en cours : d'où part le candidat, quel palier le Plan
- * construit maintenant, son objectif, et où il en est sur le chemin.
+ * construit maintenant, et son objectif.
+ *
+ * 🛑 **Le CHEMIN a été supprimé le 2026-09-17** (arbitrage D-4) : la timeline du
+ * **parcours** (`GET /api/me/plan/journey`) le remplace sur le Plan, et le palier
+ * reste dans l'en-tête que porte ce DTO. Deux files dans le même écran se
+ * lisaient comme deux parcours.
  *
  * **`targetLevel` est le cran AU-DESSUS de `startingLevel`, jamais l'objectif
  * directement** : un candidat A2 qui vise le B2 travaille d'abord le B1. Il est
@@ -1817,9 +1798,6 @@ export interface PlanCycleDto {
     /** 4, toujours. */
     domainsExpected: number;
     profileComplete: boolean;
-    /** Le chemin, de la première étape à la dernière. Jamais `null` ; une seule
-     *  étape y est `CURRENT`. */
-    path: PlanPathStepDto[];
 }
 
 /* ----------------------------------------------------- compléter le profil */

@@ -4,7 +4,6 @@ import com.sejourfr.app.progression.service.ProgressionPlanBridge;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.dto.PlanCycleDto;
 import com.sejourfr.app.dto.PlanDomainDto;
-import com.sejourfr.app.dto.PlanPathStepDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
@@ -16,8 +15,6 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanDomainPriority;
-import com.sejourfr.app.enums.PlanPathStepKind;
-import com.sejourfr.app.enums.PlanPathStepStatus;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
@@ -313,21 +310,19 @@ class PlanCycleResolverTest {
     }
 
     @Test
-    @DisplayName("Le chemin garde les paliers acquis, coches, et n'a qu'une seule etape en cours")
-    void leCheminNaQuUneEtapeCourante() {
+    @DisplayName("Paliers acquis : le cycle construit le palier SUIVANT, jamais un deja atteint")
+    void leCycleConstruitLePalierSuivant() {
         profil(NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2);
 
-        List<PlanPathStepDto> chemin = resolve(nat(), List.of(), List.of()).cycle().path();
+        PlanCycleDto cycle = resolve(nat(), List.of(), List.of()).cycle();
 
-        assertThat(chemin).extracting(PlanPathStepDto::kind).containsExactly(
-                PlanPathStepKind.COMPLETE_PROFILE, PlanPathStepKind.BUILD_LEVEL,
-                PlanPathStepKind.BUILD_LEVEL, PlanPathStepKind.BUILD_LEVEL,
-                PlanPathStepKind.STABILIZE);
-        assertThat(chemin).filteredOn(etape -> etape.status() == PlanPathStepStatus.CURRENT)
-                .singleElement()
-                .satisfies(etape -> assertThat(etape.level()).isEqualTo(TargetLevel.B1));
-        assertThat(chemin.get(1).status()).isEqualTo(PlanPathStepStatus.DONE);
-        assertThat(chemin.get(3).status()).isEqualTo(PlanPathStepStatus.UPCOMING);
+        // ⚠️ Ce test verrouillait le CHEMIN (`cycle.path`), supprime le
+        // 2026-09-17 (arbitrage D-4) : la timeline du parcours le remplace. Ce
+        // qu'il verifiait reellement — « on ne fait pas reconstruire un palier
+        // deja acquis » — reste vrai et se lit sur le cycle lui-meme.
+        assertThat(cycle.targetLevel()).isEqualTo(TargetLevel.B1);
+        assertThat(cycle.profileComplete()).isTrue();
+        assertThat(cycle.state()).isEqualTo(PlanCycleState.READY_FOR_GATE_MOCK);
     }
 
     @Test
@@ -337,11 +332,10 @@ class PlanCycleResolverTest {
 
         PlanCycleDto cycle = resolve(nat(), List.of(), List.of()).cycle();
 
+        // 🛑 Profil incomplet ⇒ BUILDING_BASELINE : on ne fait pas construire un
+        // palier a quelqu'un dont on n'a pas mesure les quatre domaines.
         assertThat(cycle.state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
-        assertThat(cycle.path()).filteredOn(etape -> etape.status() == PlanPathStepStatus.CURRENT)
-                .singleElement()
-                .satisfies(etape ->
-                        assertThat(etape.kind()).isEqualTo(PlanPathStepKind.COMPLETE_PROFILE));
+        assertThat(cycle.profileComplete()).isFalse();
     }
 
     // ------------------------------------------------------------------------
@@ -396,8 +390,10 @@ class PlanCycleResolverTest {
 
         PlanCycleDto cycle = resolve(nat(), List.of(), List.of()).cycle();
 
+        // Objectif atteint : il n'y a plus de palier a construire, seulement a
+        // tenir. `targetLevel` reste l'objectif, il ne le depasse pas.
         assertThat(cycle.state()).isEqualTo(PlanCycleState.TARGET_STABILIZATION);
-        assertThat(cycle.path().getLast().status()).isEqualTo(PlanPathStepStatus.CURRENT);
+        assertThat(cycle.targetLevel()).isEqualTo(TargetLevel.B2);
     }
 
     // ------------------------------------------------------------------------

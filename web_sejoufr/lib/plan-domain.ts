@@ -42,7 +42,6 @@ import {
     type PlanDomainLevelDto,
     type PlanDomainSkillDto,
     type PlanDomainTaskDto,
-    type PlanPathStepDto,
     type PlanRecentChangesDto,
     type PlanSeanceAssessmentItemDto,
     type PlanSeanceItemDto,
@@ -133,10 +132,6 @@ export function planTitle(cycle: PlanCycleDto): string {
     return cycle.objectiveLevel ? `Mon plan vers le ${cycle.objectiveLevel}` : "Mon plan";
 }
 
-/** Intertitre du chemin, même prudence sur l'objectif inconnu. */
-export function planPathTitle(cycle: PlanCycleDto): string {
-    return cycle.objectiveLevel ? `Mon chemin vers le ${cycle.objectiveLevel}` : "Mon chemin";
-}
 
 /** La phrase de tête : d'où l'on part, ce que le cycle construit. Composée de
  *  faits servis, sans aucun chiffre écrit ici. */
@@ -160,64 +155,11 @@ export const PLAN_CYCLE_STATE_TEXT: Record<PlanCycleDto["state"], string> = {
 
 /* ------------------------------------------------------------------ chemin */
 
-/** Titre d'une étape du chemin. Le serveur donne `kind` + `level` ; la
- *  formulation appartient au front. */
-export function planPathStepTitle(step: PlanPathStepDto): string {
-    /* ⚠️ **Ce n'est pas la section supprimée le 2026-09-13.** C'est la 1ʳᵉ étape
-       du CYCLE DE PALIER (`cycle.path`) : mesurer les quatre épreuves avant de
-       construire un palier. Elle portait le même nom que la section disparue,
-       ce qui la faisait lire comme son retour. Le nom dit maintenant ce que
-       l'étape est ; sa logique, son statut et son repère (« 0 / 4 domaines »)
-       n'ont pas bougé d'une ligne. */
-    if (step.kind === "COMPLETE_PROFILE") return PLAN_PATH_MEASURE_TITLE;
-    if (step.kind === "STABILIZE") return "Tenir mon niveau en conditions d'examen";
-    return `Construire mon ${step.level}`;
-}
 
-/** Le repère sous le titre : où en est cette étape, et sur quoi elle porte. */
-export function planPathStepMeta(step: PlanPathStepDto, cycle: PlanCycleDto): string {
-    const état = step.status === "DONE" ? "terminé" : step.status === "UPCOMING" ? "à venir" : null;
-    if (step.kind === "COMPLETE_PROFILE") {
-        const base = `${cycle.domainsEvaluated} / ${cycle.domainsExpected} domaines`;
-        return état ? `${base} · ${état}` : base;
-    }
-    const base = step.kind === "STABILIZE"
-        ? "Examens blancs"
-        : `Palier ${step.level}`;
-    return état ? `${base} · ${état}` : base;
-}
 
-/** Le titre de la 1ʳᵉ étape du cycle de palier. Miroir mot pour mot du mobile
- *  (`kPlanPathMeasureTitle`). */
-export const PLAN_PATH_MEASURE_TITLE = "Mesurer mes 4 épreuves";
 
-export const PLAN_PATH_CURRENT_BADGE = "En cours";
 
-/**
- * **Comment un palier se confirme.** C'est le cœur du parcours : on ne change
- * pas de niveau parce qu'on a fini des exercices, mais parce qu'un **examen
- * blanc complet** l'a confirmé en conditions réelles.
- *
- * 🛑 **Rien n'est déduit ici** : la phrase ne s'affiche que sur une étape de
- * palier (`BUILD_LEVEL`) **pas encore terminée**, et sa variante « maintenant »
- * se lit sur l'état servi (`READY_FOR_GATE_MOCK`) — jamais sur un calcul du
- * front. Une étape déjà franchie ne dit rien : le serveur ne publie pas
- * *comment* elle l'a été, et l'inventer serait faux.
- *
- * Miroir mot pour mot de `planPathStepNote` côté mobile.
- */
-export function planPathStepNote(step: PlanPathStepDto, cycle: PlanCycleDto): string | null {
-    if (step.kind !== "BUILD_LEVEL") return null;
-    if (step.status === "DONE") return null;
-    if (step.status === "CURRENT" && cycle.state === "READY_FOR_GATE_MOCK") {
-        return PLAN_GATE_READY;
-    }
-    return PLAN_GATE_RULE;
-}
 
-export const PLAN_GATE_RULE = "Ce palier se confirme par un examen blanc complet.";
-export const PLAN_GATE_READY =
-    "Vous y êtes : un examen blanc complet peut maintenant confirmer ce palier.";
 
 /* ------------------------------------------------------- ma progression */
 

@@ -450,64 +450,6 @@ const String kPlanProgressTasksTitle = 'Vos tâches';
 /* -------------------------------------------------------------- le cycle    */
 
 /// Titre de la section « chemin ». Le palier visé est **nullable** : sans lui,
-/// on ne nomme aucun objectif.
-String planPathTitle(TargetLevel? objective) => objective == null
-    ? 'Mon chemin'
-    : 'Mon chemin vers le ${objective.wire}';
-
-/// Titre d'une étape du chemin. Le serveur dit **quoi** et **où on en est** ;
-/// la phrase est d'ici.
-/// Le titre de la 1ʳᵉ étape du cycle de palier. Miroir mot pour mot du web
-/// (`PLAN_PATH_MEASURE_TITLE`).
-const String kPlanPathMeasureTitle = 'Mesurer mes 4 épreuves';
-
-String planPathStepTitle(PlanPathStep step, TargetLevel? objective) =>
-    switch (step.kind) {
-      // ⚠️ **Ce n'est pas la section supprimée le 2026-09-13.** C'est la 1ʳᵉ
-      // étape du CYCLE DE PALIER : mesurer les quatre épreuves avant de
-      // construire un palier. Elle portait le même nom que la section
-      // disparue, ce qui la faisait lire comme son retour. Le nom dit
-      // maintenant ce que l'étape est ; sa logique n'a pas bougé.
-      PlanPathStepKind.completeProfile => kPlanPathMeasureTitle,
-      PlanPathStepKind.buildLevel => step.level == null
-          ? 'Construire mon palier'
-          : 'Construire mon ${step.level!.wire}',
-      PlanPathStepKind.stabilize => objective == null
-          ? 'Stabiliser mon niveau'
-          : 'Stabiliser mon ${objective.wire}',
-    };
-
-String planPathStepStatusLabel(PlanPathStepStatus status) => switch (status) {
-      PlanPathStepStatus.done => 'Terminé',
-      PlanPathStepStatus.current => 'En cours',
-      PlanPathStepStatus.upcoming => 'À venir',
-    };
-
-/// **Comment un palier se confirme.** C'est le cœur du parcours : on ne change
-/// pas de niveau parce qu'on a fini des exercices, mais parce qu'un **examen
-/// blanc complet** l'a confirmé en conditions réelles.
-///
-/// 🛑 **Rien n'est déduit ici** : la phrase ne s'affiche que sur une étape de
-/// palier (`BUILD_LEVEL`) **pas encore terminée**, et sa variante « maintenant »
-/// se lit sur l'état servi ([PlanCycleState.readyForGateMock]) — jamais sur un
-/// calcul du front. Une étape déjà franchie ne dit rien : le serveur ne publie
-/// pas *comment* elle l'a été, et l'inventer serait faux.
-String? planPathStepNote(PlanPathStep step, PlanCycle cycle) {
-  if (step.kind != PlanPathStepKind.buildLevel) return null;
-  if (step.status == PlanPathStepStatus.done) return null;
-  if (step.status == PlanPathStepStatus.current &&
-      cycle.state == PlanCycleState.readyForGateMock) {
-    return kPlanGateReady;
-  }
-  return kPlanGateRule;
-}
-
-const String kPlanGateRule =
-    'Ce palier se confirme par un examen blanc complet.';
-const String kPlanGateReady =
-    'Vous y êtes : un examen blanc complet peut maintenant confirmer ce '
-    'palier.';
-
 /// Ce qu'annonce l'**état du cycle**, en une phrase. Les quatre états sont
 /// servis par le serveur et se disent au candidat, pas en jargon.
 ///
