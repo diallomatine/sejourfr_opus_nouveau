@@ -322,14 +322,26 @@ export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): str
     }
     if (exam.locked) {
         const reste = bloc.competencesRestantes;
-        return reste > 0
-            ? `Disponible dès que les ${reste} compétence${reste === 1 ? "" : "s"} de cette épreuve ${reste === 1 ? "est terminée" : "sont terminées"}.`
+        /* 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
+           1 compétence … est terminée » se lisait comme une panne de gabarit. */
+        if (reste === 1) return "Disponible dès que la compétence de cette épreuve est terminée.";
+        return reste > 1
+            ? `Disponible dès que les ${reste} compétences de cette épreuve sont terminées.`
             : "Disponible dès que les compétences de cette épreuve sont terminées.";
     }
     return bloc.competencesRestantes === 0 && bloc.steps.length === 0
         ? "Aucune compétence à travailler avant : l'examen est la prochaine action de cette épreuve."
         : "Les compétences de cette épreuve sont terminées : l'examen est la prochaine action.";
 }
+
+/**
+ * Le lien d'action d'une ligne d'étape, dans le corps déplié d'un bloc.
+ *
+ * 🛑 **Servi au kit** : `JourneyRow` ne compose aucune phrase, pas même
+ * celle-ci. Miroir mot pour mot de `kJourneyStepActionLink`
+ * (`mobile .../screens/plan/journey_labels.dart`).
+ */
+export const JOURNEY_STEP_ACTION_LINK = "Faire cette étape →";
 
 /** La note de pied du cycle — la liberté d'ordre, et sa seule exception. */
 export const JOURNEY_CYCLE_NOTE =

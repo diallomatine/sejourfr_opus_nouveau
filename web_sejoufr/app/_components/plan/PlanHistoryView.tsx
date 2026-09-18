@@ -202,25 +202,33 @@ function CycleTermine({cycle, open, onToggle}: {
             onToggle={onToggle}
         >
             {/* 🛑 Une épreuve sans compétence travaillée garde sa ligne : elle a
-                reçu un examen, et l'omettre effacerait ce qui y a été mesuré. */}
-            {cycle.blocs.length > 0 && (
-                <JourneyList>
-                    {cycle.blocs.map((bloc) => (
-                        <JourneyRow
-                            key={bloc.examType}
-                            state="done"
-                            title={journeyBlocTitle(bloc.examType)}
-                            subtitle={journeyHistoryBlocSkills(bloc)}
-                        />
-                    ))}
-                </JourneyList>
-            )}
-            <ExamStepBox
-                title={journeyHistoryLevelTitle(cycle)}
-                state={journeyHistoryLevelState(cycle)}
-                note={journeyHistoryLevelNote(cycle)}
-                locked
-            />
+                reçu un examen, et l'omettre effacerait ce qui y a été mesuré.
+
+                Le corps d'un cycle archivé prend la **même** variante que celui
+                du cycle en cours : c'est le même bloc, et deux corps différents
+                sous le même en-tête se liraient comme deux écrans. Les lignes y
+                sont toutes `done` — coche verte, aucune ligne d'action — et
+                l'encart de niveau ferme le rail avec sa pastille « ◎ ». */}
+            <JourneyList
+                variant="cycle"
+                exam={
+                    <ExamStepBox
+                        title={journeyHistoryLevelTitle(cycle)}
+                        state={journeyHistoryLevelState(cycle)}
+                        note={journeyHistoryLevelNote(cycle)}
+                        locked
+                    />
+                }
+            >
+                {cycle.blocs.map((bloc) => (
+                    <JourneyRow
+                        key={bloc.examType}
+                        state="done"
+                        title={journeyBlocTitle(bloc.examType)}
+                        subtitle={journeyHistoryBlocSkills(bloc)}
+                    />
+                ))}
+            </JourneyList>
         </BlocAccordion>
     );
 }

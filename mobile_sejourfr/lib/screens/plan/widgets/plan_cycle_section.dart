@@ -215,36 +215,38 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   ///
   /// 🛑 L'examen est servi **à part** (`bloc.exam`) et rendu en fin de bloc :
   /// c'est un checkpoint, pas une étape de plus dans la liste.
+  ///
+  /// 🛑 **Toutes les etapes du bloc, y compris celles deja closes** : le
+  /// serveur sert les `COMPLETED` (seules les OBSOLETE sont exclues), et c'est
+  /// ce qui donne a la file son « avant / maintenant / apres ». Aucun filtre.
   Widget _corpsDuBloc(JourneyBloc bloc) {
     final exam = bloc.exam;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SfJourneyList(
+      variant: SfJourneyVariant.cycle,
+      // 🛑 L'examen est la DERNIERE etape de la file, sur le rail et avec sa
+      // pastille « ◎ » : c'est la maquette. Il reste servi a part
+      // (`bloc.exam`), l'ecran ne fait que le ranger.
+      exam: exam == null
+          ? null
+          : SfExamStepBox(
+              title: journeyExamTitle(exam),
+              state: journeyExamState(exam),
+              note: journeyExamNote(bloc, exam),
+              locked: exam.locked,
+              onTap: _actionDe(exam),
+            ),
       children: [
-        if (bloc.steps.isNotEmpty)
-          SfJourneyList(
-            children: [
-              for (final step in bloc.steps)
-                SfJourneyRow(
-                  title: journeyStepTitle(step),
-                  subtitle: journeyStepSubtitle(step),
-                  state: journeyKitState(step),
-                  kind: journeyKind(step),
-                  badge: journeyBadge(step),
-                  locked: step.locked,
-                  onTap: _actionDe(step),
-                ),
-            ],
+        for (final step in bloc.steps)
+          SfJourneyRow(
+            title: journeyStepTitle(step),
+            subtitle: journeyStepSubtitle(step),
+            state: journeyKitState(step),
+            kind: journeyKind(step),
+            badge: journeyBadge(step),
+            locked: step.locked,
+            actionLabel: kJourneyStepActionLink,
+            onTap: _actionDe(step),
           ),
-        if (exam != null) ...[
-          if (bloc.steps.isNotEmpty) const SizedBox(height: 10),
-          SfExamStepBox(
-            title: journeyExamTitle(exam),
-            state: journeyExamState(exam),
-            note: journeyExamNote(bloc, exam),
-            locked: exam.locked,
-            onTap: _actionDe(exam),
-          ),
-        ],
       ],
     );
   }

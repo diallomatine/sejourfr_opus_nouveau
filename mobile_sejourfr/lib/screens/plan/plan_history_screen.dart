@@ -195,28 +195,29 @@ class _CycleTermine extends StatelessWidget {
       status: (label: kJourneyHistoryDonePill, tone: SfTone.ok),
       open: open,
       onToggle: onToggle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // 🛑 Une épreuve sans compétence travaillée garde sa ligne : elle a reçu
+      // un examen, et l'omettre effacerait ce qui y a été mesuré.
+      //
+      // Le corps d'un cycle archivé prend la **même** variante que celui du
+      // cycle en cours : c'est le même bloc, et deux corps différents sous le
+      // même en-tête se liraient comme deux écrans. Les lignes y sont toutes
+      // `done` — coche verte, aucune ligne d'action — et l'encart de niveau
+      // ferme le rail avec sa pastille « ◎ ».
+      child: SfJourneyList(
+        variant: SfJourneyVariant.cycle,
+        exam: SfExamStepBox(
+          title: journeyHistoryLevelTitle(cycle),
+          state: journeyHistoryLevelState(cycle),
+          note: journeyHistoryLevelNote(cycle),
+          locked: true,
+        ),
         children: [
-          // 🛑 Une épreuve sans compétence travaillée garde sa ligne : elle a
-          // reçu un examen, et l'omettre effacerait ce qui y a été mesuré.
-          if (cycle.blocs.isNotEmpty)
-            SfJourneyList(
-              children: [
-                for (final bloc in cycle.blocs)
-                  SfJourneyRow(
-                    state: SfJourneyState.done,
-                    title: journeyBlocTitle(bloc.examType),
-                    subtitle: journeyHistoryBlocSkills(bloc),
-                  ),
-              ],
+          for (final bloc in cycle.blocs)
+            SfJourneyRow(
+              state: SfJourneyState.done,
+              title: journeyBlocTitle(bloc.examType),
+              subtitle: journeyHistoryBlocSkills(bloc),
             ),
-          SfExamStepBox(
-            title: journeyHistoryLevelTitle(cycle),
-            state: journeyHistoryLevelState(cycle),
-            note: journeyHistoryLevelNote(cycle),
-            locked: true,
-          ),
         ],
       ),
     );

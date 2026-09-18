@@ -304,11 +304,14 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
   }
   if (exam.locked) {
     final reste = bloc.competencesRestantes;
-    if (reste > 0) {
-      final s = reste == 1 ? '' : 's';
-      final verbe = reste == 1 ? 'est terminée' : 'sont terminées';
-      return 'Disponible dès que les $reste compétence$s de cette épreuve '
-          '$verbe.';
+    // 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
+    // 1 competence … est terminee » se lisait comme une panne de gabarit.
+    if (reste == 1) {
+      return 'Disponible dès que la compétence de cette épreuve est terminée.';
+    }
+    if (reste > 1) {
+      return 'Disponible dès que les $reste compétences de cette épreuve '
+          'sont terminées.';
     }
     return 'Disponible dès que les compétences de cette épreuve sont '
         'terminées.';
@@ -319,6 +322,13 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
       : 'Les compétences de cette épreuve sont terminées : l\'examen est la '
           'prochaine action.';
 }
+
+/// Le lien d'action d'une ligne d'étape, dans le corps déplié d'un bloc.
+///
+/// 🛑 **Servi au kit** : [SfJourneyRow] ne compose aucune phrase, pas même
+/// celle-ci. Miroir mot pour mot de `JOURNEY_STEP_ACTION_LINK`
+/// (`web_sejoufr/lib/journey.ts`).
+const String kJourneyStepActionLink = 'Faire cette étape →';
 
 /// La note de pied du cycle — la liberté d'ordre, et sa seule exception.
 const String kJourneyCycleNote =

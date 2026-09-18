@@ -963,6 +963,27 @@ export type JourneyState = "done" | "skipped" | "current" | "upcoming";
 export type JourneyKind = "step" | "exam";
 
 /**
+ * **La variante de rendu d'une file d'étapes.**
+ *
+ * - `"default"` : la file de l'**Accueil** et son rail continu — le rendu
+ *   historique, intouché (D-22 : « l'Accueil ne bouge pas d'un pixel »).
+ * - `"cycle"` : le **corps déplié d'un bloc d'épreuve** du Plan, à la lettre de
+ *   `docs/progression/plan_cycle.html` — retrait de 65 px, pastilles 16 px sur
+ *   un rail segmenté, pointillés entre étapes, ligne d'action séparée.
+ *
+ * 🛑 **Elle se pose sur la LISTE, pas sur chaque ligne** : le rail, les
+ * séparateurs et la position des pastilles doivent s'accorder, et deux
+ * appelants qui répondraient différemment produiraient une file bancale.
+ * `JourneyRow` la lit par contexte — une ligne rendue hors d'une `JourneyList`
+ * (c'est le cas de l'Accueil) retombe donc sur `"default"` par construction.
+ *
+ * ⚠️ Miroir de `SfJourneyVariant` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type JourneyVariant = "default" | "cycle";
+
+const JourneyVariantContext = createContext<JourneyVariant>("default");
+
+/**
  * Une ligne du parcours.
  *
  * @param badge  **servi par l'appelant** — « MAINTENANT », « EXAMEN », « Déjà
@@ -970,6 +991,11 @@ export type JourneyKind = "step" | "exam";
  * @param locked l'étape ne peut pas être menée à son terme avec l'accès du
  *               candidat. 🛑 **Elle reste à sa place** : on ajoute un cadenas,
  *               on ne déplace ni ne masque rien (R16).
+ * @param actionLabel le libellé du lien d'action, **servi** (« Faire cette
+ *               étape → »). Il n'existe que dans la variante `cycle`, où la
+ *               maquette met l'action sur sa propre ligne : là, c'est **le
+ *               lien** qui est le bouton, jamais la ligne entière — un
+ *               `<button>` dans un `<button>` n'est pas du HTML valide.
  */
 export function JourneyRow({
   title,
@@ -978,6 +1004,7 @@ export function JourneyRow({
   kind = "step",
   badge,
   locked,
+  actionLabel,
   onClick,
 }: {
   title: string;
@@ -986,13 +1013,61 @@ export function JourneyRow({
   kind?: JourneyKind;
   badge?: string;
   locked?: boolean;
+  actionLabel?: string;
   onClick?: () => void;
 }) {
+  const variant = useContext(JourneyVariantContext);
   const done = state === "done" || state === "skipped";
-  const Icon = done ? Check : kind === "exam" ? Target : state === "current" ? ArrowRight : Circle;
+  const exam = kind === "exam" && !done;
+  const Icon = done ? Check : exam ? Target : state === "current" ? ArrowRight : Circle;
+  const className = cx(
+    styles.jRow,
+    done && styles.jDone,
+    state === "current" && styles.jCurrent,
+    /* 🛑 Posée dans la SEULE variante `cycle` : elle ne sert qu'au ton du tag,
+       et l'Accueil doit rester au caractère près ce qu'il était (D-22). */
+    variant === "cycle" && state === "upcoming" && styles.jUpcoming,
+    locked && styles.jLocked,
+  );
+
+  /* La maquette du cycle : pastille de rail, titre, sous-titre, puis une ligne
+     d'action à part. 🛑 La pastille n'y porte AUCUN glyphe sauf la coche — le
+     « ◎ » de l'examen et le halo de l'étape courante sont dessinés par le CSS,
+     et une icône Lucide de 15 px dans un rond de 16 px ne serait qu'une tache. */
+  if (variant === "cycle") {
+    const action = onClick && actionLabel ? (
+      <button type="button" className={styles.jLink} onClick={onClick}>
+        {actionLabel}
+      </button>
+    ) : null;
+    const gauche = locked || badge ? (
+      <span className={styles.jActionLeft}>
+        {locked ? <Lock size={13} strokeWidth={2} aria-hidden /> : null}
+        {badge ? <span className={styles.jTag}>{badge}</span> : null}
+      </span>
+    ) : null;
+    return (
+      <div className={className}>
+        <span className={cx(styles.jBullet, exam && styles.jExam)} aria-hidden>
+          {done ? <Check size={9} strokeWidth={3.5} aria-hidden /> : null}
+        </span>
+        <span className={styles.jText}>
+          {state === "upcoming" ? <span>{title}</span> : <b>{title}</b>}
+          {subtitle ? <small>{subtitle}</small> : null}
+        </span>
+        {gauche || action ? (
+          <span className={styles.jAction}>
+            {gauche ?? <span />}
+            {action}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   const body = (
     <>
-      <span className={cx(styles.jBullet, kind === "exam" && !done && styles.jExam)}>
+      <span className={cx(styles.jBullet, exam && styles.jExam)}>
         <Icon size={15} strokeWidth={2.2} aria-hidden />
       </span>
       <span className={styles.jText}>
@@ -1002,12 +1077,6 @@ export function JourneyRow({
       {locked ? <Lock size={14} strokeWidth={2} aria-hidden className={styles.jLock} /> : null}
       {badge ? <span className={styles.jBadge}>{badge}</span> : null}
     </>
-  );
-  const className = cx(
-    styles.jRow,
-    done && styles.jDone,
-    state === "current" && styles.jCurrent,
-    locked && styles.jLocked,
   );
   return onClick ? (
     <button type="button" className={cx(className, styles.jRowButton)} onClick={onClick}>
@@ -1024,9 +1093,37 @@ export function JourneyRow({
  * 🛑 **L'ordre est celui du serveur**, jamais retrié : la position d'une étape
  * *est* la décision d'ordonnancement que le parcours a prise, et elle ne se
  * recalcule pas.
+ *
+ * @param exam **la dernière étape de la file** — l'`ExamStepBox` du bloc. Dans
+ *   la variante `cycle`, la maquette le range SUR le rail, avec sa pastille
+ *   « ◎ » : posé à côté de la liste il perdrait son repère de checkpoint. Il
+ *   reste servi à part par le serveur (`bloc.exam`), et le kit ne décide donc
+ *   ni de sa présence ni de son contenu.
  */
-export function JourneyList({ children }: { children: ReactNode }) {
-  return <div className={styles.journey}>{children}</div>;
+export function JourneyList({
+  children,
+  variant = "default",
+  exam,
+}: {
+  children?: ReactNode;
+  variant?: JourneyVariant;
+  exam?: ReactNode;
+}) {
+  return (
+    <JourneyVariantContext.Provider value={variant}>
+      <div className={cx(styles.journey, variant === "cycle" && styles.journeyCycle)}>
+        {children}
+        {exam && variant === "cycle" ? (
+          <div className={cx(styles.jRow, styles.jExamStep)}>
+            <span className={cx(styles.jBullet, styles.jExam)} aria-hidden />
+            {exam}
+          </div>
+        ) : (
+          exam ?? null
+        )}
+      </div>
+    </JourneyVariantContext.Provider>
+  );
 }
 
 /* ------------------------------------------------- « À faire maintenant » */

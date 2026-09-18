@@ -2998,6 +2998,251 @@
   box-shadow: 0 0 0 1px var(--color-green-border);
 }
 
+/* ----------------------------------------------------------------------
+   VARIANTE « cycle » — le CORPS DÉPLIÉ d'un bloc d'épreuve
+   (`.groupBody` / `.step` de `docs/progression/plan_cycle.html`)
+
+   🛑 **Une VARIANTE, pas un remplacement.** `JourneyRow` est aussi la file de
+   l'ACCUEIL (`app/(app)/dashboard/page.tsx`), qui ne doit pas bouger d'un
+   pixel (D-22). L'Accueil n'enveloppe pas ses lignes dans une `JourneyList` :
+   il ne peut donc pas hériter de `.journeyCycle`, et tout ce qui suit est
+   inatteignable depuis lui. Le rendu par défaut ci-dessus est intact.
+
+   🛑 **Géométrie copiée à la lettre** (consigne du propriétaire du
+   2026-09-19 : « fais comme la maquette avec nos couleurs ») : retrait de
+   65 px, pastilles 16×16 à `left:-28px` / `top:17px`, rail de 2 px aligné sous
+   leur centre, pointillés entre les étapes et pas après la dernière, 14 px de
+   respiration, ligne d'action à 9 px.
+
+   Teintes : ce sont NOS tokens, choisis au plus près de la maquette —
+   `#e6e9f1` (pointillé) et `#e7eaf2` (rail) ⇒ `--color-line` (#E4E7F2),
+   `#cfd5e5` (bordure de pastille) ⇒ `--color-line-strong` (#D4DAE6),
+   `#fff3f1` (fond du tag) ⇒ `--color-red-light`.
+
+   Miroir Flutter : `SfJourneyList(variant: SfJourneyVariant.cycle)` +
+   `_SfJourneyCycleSlot`.
+   ---------------------------------------------------------------------- */
+
+.journeyCycle {
+  display: block;
+  /* `.groupBody` de la maquette retire à 65 px. `.blocBody` en pose déjà 15 :
+     la file complète les 50 qui manquent, et l'encart d'examen — qui est ici
+     la dernière étape de la file — s'aligne dessus. */
+  padding-left: 50px;
+}
+
+/* Le rail CONTINU du rendu par défaut n'a pas cours ici : chaque étape porte
+   son propre segment, qui s'interrompt autour de chaque pastille. */
+.journeyCycle::before {
+  content: none;
+}
+
+.journeyCycle .jRow {
+  display: block;
+  position: relative;
+  grid-template-columns: none;
+  gap: 0;
+  padding: 14px 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-ink);
+  /* `.step` : 1px dashed #e6e9f1 — notre `--color-line` en est à 2 unités. */
+  border-bottom: 1px dashed var(--color-line);
+}
+
+.journeyCycle .jRow:last-child {
+  border-bottom: 0;
+}
+
+/* `.step:not(:last-child):after` — de 2 px sous la pastille jusqu'au haut de
+   la suivante (`top:35px`, `height:calc(100% - 18px)`), donc il traverse le
+   pointillé, comme dans la maquette. Recentré à -21 px : la maquette écrit -20
+   et laisse le rail 1 px à droite du centre de la pastille. */
+.journeyCycle .jRow::after {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 35px;
+  width: 2px;
+  height: calc(100% - 18px);
+  background: var(--color-line);
+}
+
+.journeyCycle .jRow:last-child::after {
+  content: none;
+}
+
+/* La pastille quitte la grille et devient le marqueur du rail. */
+.journeyCycle .jBullet {
+  position: absolute;
+  left: -28px;
+  top: 17px;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 2px solid var(--color-line-strong);
+  box-shadow: none;
+  color: var(--color-muted);
+}
+
+.journeyCycle .jDone .jBullet {
+  background: var(--color-green);
+  border-color: var(--color-green);
+  box-shadow: none;
+  color: white;
+}
+
+/* `.step.current:before` : disque ROUGE, bordure blanche, halo 4 px. */
+.journeyCycle .jCurrent .jBullet {
+  background: var(--color-red);
+  border-color: white;
+  box-shadow: 0 0 0 4px var(--color-red-light);
+  color: white;
+}
+
+/* `.step.exam:before` : le « ◎ » — anneau bleu, point bleu, rien d'autre. */
+.journeyCycle .jBullet.jExam {
+  background: white;
+  border-color: var(--color-blue);
+  box-shadow: none;
+}
+
+.journeyCycle .jBullet.jExam::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-blue);
+}
+
+.journeyCycle .jText {
+  display: block;
+  min-width: 0;
+}
+
+.journeyCycle .jText b,
+.journeyCycle .jText span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* La maquette écrit TOUTES ses étapes en `<strong>` : une étape à venir n'est
+   pas plus pâle qu'une autre, elle n'a simplement pas encore d'action. */
+.journeyCycle .jText span {
+  font-weight: 600;
+}
+
+.journeyCycle .jText small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+/* Une étape courante n'a plus de fond : ce qui la signale est sa pastille
+   rouge et son tag, exactement comme dans la maquette. */
+.journeyCycle .jCurrent {
+  background: none;
+}
+
+.journeyCycle .jDone {
+  color: var(--color-ink);
+}
+
+.journeyCycle .jDone .jText b {
+  font-weight: 700;
+}
+
+.journeyCycle .jCurrent .jText b {
+  font-weight: 800;
+}
+
+/* `.rowAction` : le tag à gauche, le lien à droite. */
+.jAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.jActionLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jActionLeft svg {
+  color: var(--color-muted);
+}
+
+/* `.tag` : 9 px, poids 900, rouge sur rouge très pâle. Le ton suit l'état —
+   un « Déjà travaillée » en rouge dirait une urgence qui n'existe pas. */
+.jTag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 7px;
+  border-radius: var(--sf-radius-pill);
+  color: var(--color-red);
+  background: var(--color-red-light);
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.jDone .jTag {
+  color: var(--color-green-dark);
+  background: var(--color-green-light);
+}
+
+/* La maquette n'a pas de tag sur une étape à venir ; « Examen » en porte un.
+   `--color-line-2` ⇄ `AppColors.line2` sont la même valeur des deux côtés. */
+.jUpcoming .jTag {
+  color: var(--color-muted);
+  background: var(--color-line-2);
+}
+
+/* `.link` : bleu, poids 900, 10,5 px, ni bordure ni fond. */
+.jLink {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 900;
+  color: var(--color-blue);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jLink:hover {
+  color: var(--color-blue-dark);
+}
+
+.jLink:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: var(--sf-radius-xs);
+}
+
+/* L'encart d'examen est la DERNIÈRE étape de la file : il prend le rail et sa
+   pastille « ◎ », au lieu d'être posé sous la liste sans repère. */
+.journeyCycle .jExamStep {
+  padding-bottom: 0;
+}
+
+.journeyCycle .jExamStep .examBox {
+  margin-top: 2px;
+}
+
 /* ======================================================================
    PLAN — CYCLE ET FIN DE CYCLE (maquettes du propriétaire, 2026-09-18)
    `docs/progression/plan_cycle.html` ⇄ `docs/progression/cycle_termine.html`
@@ -3151,13 +3396,22 @@
   min-width: 0;
 }
 
-/* `.groupTitle` de la maquette : 14 px, poids 850, et **l'encre** — aucune
-   couleur n'est posée là. Le titre paraît bleu dans la capture du
-   propriétaire parce que Safari peint le texte d'un `<button>` en bleu par
-   défaut : c'est pourquoi la couleur est écrite ici, explicitement. */
+/* `.groupTitle` de la maquette : 14 px, poids 850.
+
+   🛑 **Le titre d'une épreuve est BLEU** (arbitrage du propriétaire,
+   2026-09-19). La capture montre un bleu de navigateur — celui que Safari pose
+   sur le texte d'un `<button>` ; c'est **notre** bleu de marque qui est écrit
+   ici, jamais la teinte de la capture. `--color-blue` sur blanc tient largement
+   le contraste AA, et le bloc courant n'est pas concerné : sa pastille
+   d'initiale est bleue PLEINE avec un texte blanc, le titre reste à côté sur le
+   fond blanc de la carte.
+
+   ⚠️ `BlocAccordion` sert aussi « Ma progression », où le titre est
+   « Cycle 2 » : il y passe au bleu lui aussi, et c'est voulu — un seul motif
+   d'en-tête de bloc, pas deux. */
 .blocTitle {
   display: block;
-  color: var(--color-ink);
+  color: var(--color-blue);
   font-size: 14px;
   font-weight: 850;
   line-height: 1.25;

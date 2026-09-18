@@ -3940,6 +3940,146 @@ enum SfJourneyState { done, skipped, current, upcoming }
 /// dans la file.
 enum SfJourneyKind { step, exam }
 
+/// **La variante de rendu d'une file d'etapes.**
+///
+/// - [standard] : la file de l'**ACCUEIL** et son rail continu — le rendu
+///   historique, intouche (D-22 : « l'Accueil ne bouge pas d'un pixel »).
+/// - [cycle] : le **corps deplie d'un bloc d'epreuve** du Plan, a la lettre de
+///   `docs/progression/plan_cycle.html` — retrait de 65 px, pastilles 16 px sur
+///   un rail segmente, separateurs pointilles, ligne d'action separee.
+///
+/// 🛑 **Elle se pose sur la LISTE, pas sur chaque ligne** : le rail, les
+/// separateurs et la position des pastilles doivent s'accorder, et deux
+/// appelants qui repondraient differemment produiraient une file bancale.
+/// [SfJourneyRow] la lit par heritage (`_SfJourneySlot`) — une ligne rendue
+/// hors d'une [SfJourneyList] (c'est le cas de l'Accueil, `home_screen.dart`)
+/// retombe donc sur [standard] par construction.
+///
+/// ⚠️ Miroir de `JourneyVariant` (`web .../sejour/SejourKit.tsx`).
+enum SfJourneyVariant { standard, cycle }
+
+/// Ce que [SfJourneyList] pose sur chacun de ses enfants dans la variante
+/// [SfJourneyVariant.cycle] : la variante, et **« est-ce la derniere ligne ? »**
+/// — le pendant Dart du `:last-child` du CSS, qui decide du separateur
+/// pointille et de la fin du rail.
+class _SfJourneySlot extends InheritedWidget {
+  const _SfJourneySlot({
+    required this.variant,
+    required this.last,
+    required super.child,
+  });
+
+  final SfJourneyVariant variant;
+  final bool last;
+
+  static _SfJourneySlot? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SfJourneySlot>();
+
+  @override
+  bool updateShouldNotify(_SfJourneySlot oldWidget) =>
+      oldWidget.variant != variant || oldWidget.last != last;
+}
+
+/// La pastille de rail de la maquette : 16×16, bordure 2 px.
+///
+/// 🛑 **Declaree une seule fois** : la ligne d'etape et l'encart d'examen la
+/// dessinent tous les deux, et deux copies auraient fini par ne pas s'aligner
+/// sur le meme rail.
+///
+/// Teintes : ce sont NOS tokens, choisis au plus pres de la maquette —
+/// `#cfd5e5` (bordure au repos) ⇒ [AppColors.lineStrong] (#D4DAE6),
+/// `#fff3f1` (halo de l'etape courante) ⇒ [AppColors.redLight].
+Widget _sfCycleBullet({
+  required bool done,
+  required bool current,
+  required bool exam,
+}) {
+  return Container(
+    width: 16,
+    height: 16,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: done
+          ? AppColors.green
+          : current
+              ? AppColors.red
+              : AppColors.white,
+      border: Border.all(
+        color: done
+            ? AppColors.green
+            : current
+                ? AppColors.white
+                : exam
+                    ? AppColors.blue
+                    : AppColors.lineStrong,
+        width: 2,
+      ),
+      boxShadow: current
+          ? const [BoxShadow(color: AppColors.redLight, spreadRadius: 4)]
+          : null,
+    ),
+    // La coche de la maquette, et rien d'autre : un pictogramme de 15 px dans
+    // un rond de 16 ne serait qu'une tache. Le « ◎ » de l'examen est un point
+    // dans un anneau, le rouge de l'etape courante un disque plein.
+    child: done
+        ? const Center(
+            child: Icon(LucideIcons.check, size: 9, color: AppColors.white),
+          )
+        : exam
+            ? const Center(
+                child: SizedBox(
+                  width: 6,
+                  height: 6,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              )
+            : null,
+  );
+}
+
+/// Le separateur pointille entre deux etapes (`1px dashed` de la maquette).
+/// Flutter n'a pas de bordure pointillee : on la peint.
+class _SfDashedLine extends StatelessWidget {
+  const _SfDashedLine();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+        height: 1,
+        width: double.infinity,
+        child: CustomPaint(painter: _SfDashedLinePainter()),
+      );
+}
+
+class _SfDashedLinePainter extends CustomPainter {
+  const _SfDashedLinePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.line
+      ..strokeWidth = 1;
+    const dash = 3.0;
+    const gap = 3.0;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, 0.5),
+        Offset(math.min(x + dash, size.width), 0.5),
+        paint,
+      );
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SfDashedLinePainter oldDelegate) => false;
+}
+
 /// Une ligne du parcours.
 class SfJourneyRow extends StatelessWidget {
   const SfJourneyRow({
@@ -3950,6 +4090,7 @@ class SfJourneyRow extends StatelessWidget {
     this.kind = SfJourneyKind.step,
     this.badge,
     this.locked = false,
+    this.actionLabel,
     this.onTap,
   });
 
@@ -3962,6 +4103,12 @@ class SfJourneyRow extends StatelessWidget {
   /// Le kit ne compose aucune phrase.
   final String? badge;
 
+  /// Le libelle du lien d'action, **servi** (« Faire cette etape → »). Il n'a
+  /// d'effet que dans la variante [SfJourneyVariant.cycle], ou la maquette met
+  /// l'action sur sa propre ligne : la c'est **le lien** qui porte le geste,
+  /// jamais la ligne entiere.
+  final String? actionLabel;
+
   /// L'etape ne peut pas etre menee a son terme avec l'acces du candidat.
   /// 🛑 **Elle reste a sa place** : on ajoute un cadenas, on ne deplace ni ne
   /// masque rien (R16).
@@ -3971,10 +4118,19 @@ class SfJourneyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final slot = _SfJourneySlot.maybeOf(context);
     final done =
         state == SfJourneyState.done || state == SfJourneyState.skipped;
     final current = state == SfJourneyState.current;
     final exam = kind == SfJourneyKind.exam && !done;
+    if (slot?.variant == SfJourneyVariant.cycle) {
+      return _buildCycle(
+        done: done,
+        current: current,
+        exam: exam,
+        last: slot!.last,
+      );
+    }
     final ligne = Container(
       padding: const EdgeInsets.fromLTRB(0, 9, 10, 9),
       decoration: current
@@ -4091,6 +4247,164 @@ class SfJourneyRow extends StatelessWidget {
       child: ligne,
     );
   }
+
+  /// La ligne de la maquette : pastille sur le rail, titre 13 px, sous-titre,
+  /// puis une **ligne d'action separee** a 9 px — le tag a gauche, le lien a
+  /// droite.
+  Widget _buildCycle({
+    required bool done,
+    required bool current,
+    required bool exam,
+    required bool last,
+  }) {
+    final corps = <Widget>[
+      Text(
+        title,
+        style: AppFonts.ui(
+          size: 13,
+          height: 1.35,
+          color: AppColors.ink,
+          weight: current
+              ? FontWeight.w800
+              : done
+                  ? FontWeight.w700
+                  : FontWeight.w600,
+        ),
+      ),
+      if (subtitle != null) ...[
+        const SizedBox(height: 4),
+        Text(
+          subtitle!,
+          style: AppFonts.ui(size: 10.5, color: AppColors.muted, height: 1.4),
+        ),
+      ],
+    ];
+
+    final gauche = <Widget>[
+      if (locked)
+        const Icon(LucideIcons.lock, size: 13, color: AppColors.muted),
+      if (locked && badge != null) const SizedBox(width: 6),
+      if (badge != null)
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+            decoration: BoxDecoration(
+              // Le ton suit l'etat : un « Deja travaillee » en rouge dirait une
+              // urgence qui n'existe pas.
+              color: done
+                  ? AppColors.greenLight
+                  : current
+                      ? AppColors.redLight
+                      // La maquette n'a pas de tag sur une etape a venir ;
+                      // « Examen » en porte un. `AppColors.line2` ⇄
+                      // `--color-line-2` sont la meme valeur des deux cotes.
+                      : AppColors.line2,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              badge!.toUpperCase(),
+              style: AppFonts.label(
+                size: 9,
+                color: done
+                    ? AppColors.greenDark
+                    : current
+                        ? AppColors.red
+                        : AppColors.muted,
+              ).copyWith(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+    ];
+
+    final lien = onTap != null && actionLabel != null
+        ? GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                actionLabel!,
+                style: AppFonts.ui(size: 10.5, color: AppColors.blue)
+                    .copyWith(fontWeight: FontWeight.w900),
+              ),
+            ),
+          )
+        : null;
+
+    if (gauche.isNotEmpty || lien != null) {
+      corps
+        ..add(const SizedBox(height: 9))
+        ..add(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Row(mainAxisSize: MainAxisSize.min, children: gauche),
+              ),
+              if (lien != null) ...[const SizedBox(width: 10), lien],
+            ],
+          ),
+        );
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.passthrough,
+      children: [
+        // `.step:not(:last-child):after` — de 2 px sous la pastille jusqu'au
+        // haut de la suivante (`top:35`, `height:calc(100% - 18px)`), donc il
+        // traverse le pointille, comme dans la maquette. Recentre a -21 : la
+        // maquette ecrit -20 et laisse le rail 1 px a droite du centre.
+        if (!last)
+          const Positioned(
+            left: -21,
+            top: 35,
+            bottom: -17,
+            child: SizedBox(width: 2, child: ColoredBox(color: AppColors.line)),
+          ),
+        Positioned(
+          left: -28,
+          top: 17,
+          child: _sfCycleBullet(done: done, current: current, exam: exam),
+        ),
+        if (!last)
+          const Positioned(left: 0, right: 0, bottom: 0, child: _SfDashedLine()),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: corps,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// L'encart d'examen **sur le rail** : la derniere « etape » d'un bloc, avec sa
+/// pastille « ◎ ». Pose seul sous la liste, il perdrait son repere de
+/// checkpoint.
+class _SfJourneyExamRow extends StatelessWidget {
+  const _SfJourneyExamRow({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.passthrough,
+      children: [
+        Positioned(
+          left: -28,
+          top: 17,
+          child: _sfCycleBullet(done: false, current: false, exam: true),
+        ),
+        // `.step` 14 px + `.examBox { margin-top: 2px }`.
+        Padding(padding: const EdgeInsets.only(top: 16), child: child),
+      ],
+    );
+  }
 }
 
 /// La file d'etapes, avec son **rail vertical**.
@@ -4098,14 +4412,51 @@ class SfJourneyRow extends StatelessWidget {
 /// 🛑 **L'ordre est celui du serveur**, jamais retrie : la position d'une etape
 /// *est* la decision d'ordonnancement que le parcours a prise, et elle ne se
 /// recalcule pas.
+///
+/// [exam] est **la derniere etape de la file** — le [SfExamStepBox] du bloc.
+/// Dans la variante [SfJourneyVariant.cycle], la maquette le range SUR le rail ;
+/// il reste servi a part par le serveur (`bloc.exam`), et le kit ne decide ni
+/// de sa presence ni de son contenu.
 class SfJourneyList extends StatelessWidget {
-  const SfJourneyList({super.key, required this.children});
+  const SfJourneyList({
+    super.key,
+    this.children = const <Widget>[],
+    this.variant = SfJourneyVariant.standard,
+    this.exam,
+  });
 
   final List<Widget> children;
+  final SfJourneyVariant variant;
+  final Widget? exam;
 
   @override
   Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
+    final examen = exam;
+    if (variant == SfJourneyVariant.cycle) {
+      final lignes = <Widget>[
+        ...children,
+        if (examen != null) _SfJourneyExamRow(child: examen),
+      ];
+      if (lignes.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        // `.groupBody` de la maquette retire a 65 px. `SfBlocAccordion` en pose
+        // deja 15 : la file complete les 50 qui manquent, et l'encart d'examen
+        // s'aligne dessus.
+        padding: const EdgeInsets.only(left: 50),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < lignes.length; i++)
+              _SfJourneySlot(
+                variant: SfJourneyVariant.cycle,
+                last: i == lignes.length - 1,
+                child: lignes[i],
+              ),
+          ],
+        ),
+      );
+    }
+    if (children.isEmpty && examen == null) return const SizedBox.shrink();
     return Stack(
       children: [
         // Le rail s'arrete AVANT la premiere pastille et APRES la derniere,
@@ -4118,7 +4469,7 @@ class SfJourneyList extends StatelessWidget {
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
+          children: [...children, if (examen != null) examen],
         ),
       ],
     );
@@ -4372,12 +4723,24 @@ class SfBlocAccordion extends StatelessWidget {
                         children: [
                           Text(
                             title,
-                            // `.groupTitle` : 14 px, poids 850 (w800 ici), et
-                            // l'ENCRE — la maquette ne pose aucune couleur la.
+                            // `.groupTitle` : 14 px, poids 850 (w800 ici).
+                            //
+                            // 🛑 **Le titre d'une epreuve est BLEU** (arbitrage
+                            // du proprietaire, 2026-09-19). La capture montre
+                            // un bleu de navigateur ; c'est **notre** bleu de
+                            // marque qui est ecrit ici. Le bloc courant n'est
+                            // pas concerne : sa pastille d'initiale est bleue
+                            // PLEINE avec un texte blanc, le titre reste a cote
+                            // sur le fond blanc de la carte.
+                            //
+                            // ⚠️ [SfBlocAccordion] sert aussi « Ma
+                            // progression », ou le titre est « Cycle 2 » : il y
+                            // passe au bleu lui aussi, et c'est voulu.
                             style: AppFonts.ui(
                               size: 14,
                               weight: FontWeight.w800,
                               height: 1.25,
+                              color: AppColors.blue,
                             ),
                           ),
                           const SizedBox(height: 3),

@@ -23,6 +23,7 @@ import {
     JOURNEY_NEXT_STEP_TEXT,
     JOURNEY_NEXT_STEP_TEXT_MESURE,
     JOURNEY_NEXT_STEP_TITLE,
+    JOURNEY_STEP_ACTION_LINK,
     JOURNEY_SUGGESTION_MOCK_EXAM,
     JOURNEY_TARGET_PATH_HREF,
     JOURNEY_UP_TO_DATE_TEXT,
@@ -287,34 +288,42 @@ function BlocBody({
     bloc: JourneyBlocDto;
     actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
 }) {
+    /* 🛑 **Toutes les étapes du bloc, y compris celles déjà closes** : le
+       serveur sert les `COMPLETED` (seules les OBSOLETE sont exclues), et c'est
+       ce qui donne à la file son « avant / maintenant / après ». Aucun filtre
+       ici. */
     return (
-        <>
-            {bloc.steps.length > 0 && (
-                <JourneyList>
-                    {bloc.steps.map((step) => (
-                        <JourneyRow
-                            key={step.id}
-                            title={journeyStepTitle(step)}
-                            subtitle={journeyStepSubtitle(step)}
-                            state={journeyKitState(step)}
-                            kind={journeyKind(step)}
-                            badge={journeyBadge(step)}
-                            locked={step.locked}
-                            onClick={actionDe(step)}
-                        />
-                    ))}
-                </JourneyList>
-            )}
-            {bloc.exam && (
-                <ExamStepBox
-                    title={journeyExamTitle(bloc.exam)}
-                    state={journeyExamState(bloc.exam)}
-                    note={journeyExamNote(bloc, bloc.exam)}
-                    locked={bloc.exam.locked}
-                    onClick={actionDe(bloc.exam)}
+        <JourneyList
+            variant="cycle"
+            /* 🛑 L'examen est la DERNIÈRE étape de la file, sur le rail et avec
+               sa pastille « ◎ » : c'est la maquette. Il reste servi à part
+               (`bloc.exam`), l'écran ne fait que le ranger. */
+            exam={
+                bloc.exam && (
+                    <ExamStepBox
+                        title={journeyExamTitle(bloc.exam)}
+                        state={journeyExamState(bloc.exam)}
+                        note={journeyExamNote(bloc, bloc.exam)}
+                        locked={bloc.exam.locked}
+                        onClick={actionDe(bloc.exam)}
+                    />
+                )
+            }
+        >
+            {bloc.steps.map((step) => (
+                <JourneyRow
+                    key={step.id}
+                    title={journeyStepTitle(step)}
+                    subtitle={journeyStepSubtitle(step)}
+                    state={journeyKitState(step)}
+                    kind={journeyKind(step)}
+                    badge={journeyBadge(step)}
+                    locked={step.locked}
+                    actionLabel={JOURNEY_STEP_ACTION_LINK}
+                    onClick={actionDe(step)}
                 />
-            )}
-        </>
+            ))}
+        </JourneyList>
     );
 }
 
