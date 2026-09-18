@@ -1,17 +1,19 @@
 # Reprise — chantier du CYCLE BORNÉ (Plan)
 
-> Écrit le **2026-09-18 22:10** pour qu'une coupure ne coûte rien.
-> Branche : `feature/refonte-l1-socle`.
+> ✅ **CHANTIER LIVRÉ le 2026-09-19.** Ce fichier reste comme trace de reprise ; il n'y a
+> plus rien à reprendre. 7 commits sur `feature/refonte-l1-socle`, arbre de travail propre :
+> `d1cfa93f` kit · `53e0036a` écran Plan · `d0229a41` bug mobile hors ligne · `6a97e532`
+> docs d'arbitrage · `06b84003` schéma + moteur + freemium · `70690c6a` écran
+> « Ma progression » · `b0b101a9` règles et `CLAUDE.md`.
 >
-> **Déjà commité (2026-09-18 22:20)** — 4 lots, chacun vérifié avant commit :
-> `d1cfa93f` kit (4 primitives + `Pill` + `blueMid`) · `53e0036a` écran Plan (blocs par
-> épreuve, cycle terminé, suppression de « Vos priorités » et de la file plate, paywall au
-> tap) · `d0229a41` bug mobile hors ligne · `6a97e532` docs (audit, D-12 → D-24, D-17 bis,
-> A27 → A40, spec, 5 documents périmés).
+> **Vérification finale** : backend `./mvnw verify` → **3 048 + 1 345, 0 échec** ;
+> web `tsc` 0 erreur, build **114 routes**, **270** tests ; mobile `flutter analyze` 0 issue,
+> **296** tests.
 >
-> **Pas encore commité** : tout le backend (~99 fichiers) — schéma V067 + ledger, moteur du
-> cycle, freemium, et ce que P7 écrit. À commiter en lots : `feat(cycle)` schéma, `feat(cycle)`
-> moteur, `refonte(freemium)`, puis P7. Tout est intact sur le disque.
+> **Ce qui reste ouvert** est en bas de ce fichier (§ « Les points laissés au propriétaire »),
+> plus deux dettes nommées dans les décisions : l'endpoint `analysis-quota` à retirer avec ses
+> lecteurs front, et la carte « À faire maintenant » de l'Accueil qui ne nomme jamais une
+> étape verrouillée (A46).
 
 ## Où lire la vérité
 
