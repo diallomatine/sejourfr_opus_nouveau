@@ -75,110 +75,11 @@ class HomeBanner extends StatelessWidget {
 
 /* --------------------------------------------------------- votre plan ---- */
 
-/// Ce que l'Accueil montre du parcours : **deux étapes**, pas plus (demande du
-/// propriétaire, 2026-09-12 — un parcours d'expression en compte huit, et la
-/// carte poussait tout le reste de l'écran hors de vue).
-const int kHomePlanStepsMax = 2;
-
-/// La fenêtre d'étapes affichée sur l'Accueil.
-///
-/// 🛑 **Un plafond d'AFFICHAGE, jamais un budget pédagogique** : le parcours
-/// entier est servi, il est **calculé en entier**, et il se lit sur le Plan —
-/// où « Voir mon Plan » renvoie. On n'en tronque que la vue.
-///
-/// 🛑 **La fenêtre contient TOUJOURS l'étape en cours** : elle et la suivante,
-/// ou la précédente et elle quand elle ferme le parcours. Montrer « les deux
-/// premières » aurait caché exactement ce que le candidat doit faire
-/// maintenant. Sans étape en cours **servie**, on prend les premières — on n'en
-/// devine aucune.
-List<SfPathStep> homePlanSteps(List<SfPathStep> steps) {
-  if (steps.length <= kHomePlanStepsMax) return steps;
-  final maintenant = steps.indexWhere((s) => s.state == SfStepState.now);
-  if (maintenant < 0) {
-    return steps.take(kHomePlanStepsMax).toList(growable: false);
-  }
-  final debut = maintenant + kHomePlanStepsMax <= steps.length
-      ? maintenant
-      : steps.length - kHomePlanStepsMax;
-  return steps.sublist(debut, debut + kHomePlanStepsMax);
-}
-
-/// **Votre Plan** — la priorité actuelle et son parcours, en aperçu.
-///
-/// 🛑 **Un aperçu, pas un second Plan** : aucune action ne part d'ici, la carte
-/// mène au Plan, qui porte les lanceurs. Les états des étapes sont **servis** —
-/// la dérivation vit dans `planTaskPath` (TCF) et `civicPath` (civique), toutes
-/// deux partagées avec l'écran Plan.
-class HomeMiniPlan extends StatelessWidget {
-  const HomeMiniPlan({
-    super.key,
-    required this.title,
-    this.subtitle,
-    this.counter,
-    this.steps,
-    this.journeySteps,
-    required this.onOpen,
-  });
-
-  final String title;
-  final String? subtitle;
-
-  /// « Étape 3 / 5 ». `null` quand le serveur n'en sert pas — c'est le cas du
-  /// **parcours TCF**, qui ne sert aucune position d'étape : un compteur dérivé
-  /// d'une liste déjà filtrée compterait la fenêtre, pas la file.
-  final String? counter;
-
-  /// Les étapes du parcours **civique** (`SfPathStep`) — `null` côté TCF, où
-  /// [journeySteps] prend le relais.
-  final List<SfPathStep>? steps;
-
-  /// Les étapes du **parcours TCF**, déjà fenêtrées par l'appelant.
-  final List<Widget>? journeySteps;
-
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return SfCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(child: SfLabel(kHomePlanCurrentLabel)),
-              if (counter != null) ...[
-                const SizedBox(width: 10),
-                SfTiny(counter!),
-              ],
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            style:
-                AppFonts.display(size: 17, weight: FontWeight.w700, height: 1.2),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 3),
-            SfTiny(subtitle!),
-          ],
-          const SizedBox(height: 10),
-          if (journeySteps != null)
-            SfJourneyList(children: journeySteps!)
-          else
-            for (final step in homePlanSteps(steps ?? const <SfPathStep>[]))
-              SfPathRow(label: step.label, state: step.state),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: HomeLink(label: kHomePlanLink, onTap: onOpen),
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// 🛑 **`HomeMiniPlan`, `homePlanSteps` et `kHomePlanStepsMax` sont SUPPRIMÉS**
+/// le 2026-09-19 (arbitrage du propriétaire) : l'aperçu « Votre Plan » a quitté
+/// l'Accueil, des deux côtés — le Plan entier se lit sur `/plan`, où la carte
+/// menait. **Ne pas les recréer** ; le plafond d'affichage des deux étapes est
+/// parti avec eux, et son miroir web (`apercuSteps`) aussi.
 
 /* ------------------------------------------------- où vous en êtes ------- */
 
@@ -192,54 +93,10 @@ class HomeMiniPlan extends StatelessWidget {
 
 /* ----------------------------------------------------------- parcours ---- */
 
-/// Une ligne de « Vos parcours » : le module, ce qu'elle ouvre, un chevron.
-///
-/// 🛑 **Ce bloc n'est PAS scopé** : il garde la vue d'ensemble des deux modules
-/// pendant que le reste de l'écran suit la bascule.
-class HomeTrackRow extends StatelessWidget {
-  const HomeTrackRow({super.key, required this.title, required this.onTap});
-
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(AppRadii.xl),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppFonts.ui(size: 15.5, weight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 1),
-                    const SfTiny(kHomeTrackLink),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(LucideIcons.arrowRight, size: 20, color: AppColors.ink),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+/// 🛑 **`HomeTrackRow` est SUPPRIMÉ** le 2026-09-19 (arbitrage du
+/// propriétaire) : « Vos parcours » a quitté l'Accueil des deux côtés — la
+/// **bascule** en tête d'écran fait déjà ce travail, et la bottom nav porte
+/// Réviser et Examens. Ne pas la recréer.
 
 /* -------------------------------------------------------------- liens ---- */
 
@@ -260,10 +117,10 @@ class HomeLink extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Le libellé cède, la flèche non : dans une demi-largeur de carte
-            // (`HomeSituationGrid`), « Voir mes résultats » dépasse la ligne et
-            // pousserait la flèche hors du cadre. Même garde que le
-            // `flex-shrink: 0` posé sur le chevron côté web.
+            // Le libellé cède, la flèche non : dans une demi-largeur de carte,
+            // « Voir mes résultats » dépasse la ligne et pousserait la flèche
+            // hors du cadre. Même garde que le `flex-shrink: 0` posé sur le
+            // chevron côté web.
             Flexible(
               child: Text(
                 label,

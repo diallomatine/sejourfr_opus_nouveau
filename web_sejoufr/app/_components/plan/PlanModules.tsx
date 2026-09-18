@@ -171,10 +171,9 @@ export function PlanModules() {
                         icon={affiche === "CIVIQUE" ? Landmark : undefined}
                     />
                 ) : affiche === "TCF" ? (
-                    /* 🛑 `prep` descend jusqu'ici : la carte « Affiner votre
-                       Plan » se pose APRÈS le contenu du Plan, et elle lit les
-                       faits servis (épreuves terminées, prochaine épreuve).
-                       Un second appel à `preparation()` plus bas aurait pu
+                    /* 🛑 `prep` descend jusqu'ici pour la PORTE d'entrée
+                       (`PlanGate`), qui lit l'état servi du diagnostic. Un
+                       second appel à `preparation()` plus bas aurait pu
                        répondre autre chose que celui qui a ouvert l'écran. */
                     <LearningPlanView prep={moduleprep} />
                 ) : (

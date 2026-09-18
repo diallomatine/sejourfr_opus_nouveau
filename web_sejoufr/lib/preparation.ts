@@ -14,8 +14,7 @@
  * Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
 import {MENTION_LABEL} from "./civic-diagnostic";
-import {PLAN_DOMAIN_SECTION, planDomainLabel, type PlanDomainEpreuve} from "./plan-domain";
-import type {EpreuveType, ModulePreparation, PreparationDto, TargetProcedure} from "./types";
+import type {ModulePreparation, PreparationDto, TargetProcedure} from "./types";
 
 export const PREPARATION_TITLE = "Ma préparation";
 
@@ -103,8 +102,7 @@ export interface PreparationAction {
 export function tcfAction(m: ModulePreparation): PreparationAction {
     // 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
     // 2026-09-12). Le diagnostic complet n'est plus une porte à franchir : il
-    // affine, et cette invitation-là vit dans `affinerPlan`, en action
-    // **secondaire**. Envoyer ici vers `/diagnostic-tcf` remettrait une étape
+    // affine. Envoyer ici vers `/diagnostic-tcf` remettrait une étape
     // obligatoire devant un plan déjà utilisable.
     if (m.planDisponible) {
         return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
@@ -338,131 +336,19 @@ export function moduleParDefaut(prep: PreparationDto): "TCF" | "CIVIQUE" {
 }
 
 /* --------------------------------------------------------------------------
-   AFFINER le Plan — le diagnostic complet devient une action SECONDAIRE
+   AFFINER le Plan — SUPPRIMÉ le 2026-09-19
+   --------------------------------------------------------------------------
+
+   🛑 `affinerPlan()`, son type `AffinerPlan` et `AffinerPlanCard` sont
+   **supprimés** : la carte « Continuez votre diagnostic complet » a quitté le
+   Plan le 2026-09-19, puis l'Accueil dans la même journée (arbitrage du
+   propriétaire), et plus rien ne les lisait. Ne pas les recréer — le diagnostic
+   complet garde sa porte, `DIAGNOSTIC_COMPLET_HREF`, appelée par `tcfAction` et
+   `planIndisponible` ci-dessus.
+
+   ⚠️ Conséquence à connaître : `ModulePreparation.prochaineEpreuve` n'a plus de
+   lecteur front. Le champ **reste servi** — on ne touche pas au backend.
    -------------------------------------------------------------------------- */
-
-/**
- * L'invitation au diagnostic complet, sous ses **trois** formes.
- *
- * 🛑 **Le complet ne bloque jamais le Plan** (arbitrage du propriétaire,
- * 2026-09-12) : il l'affine. Cette carte se pose donc **après** le contenu
- * principal, et ne concurrence jamais le CTA d'abonnement d'un compte gratuit.
- *
- * Trois formes, décidées par des **faits servis**, jamais par un compteur
- * reconstruit :
- * - `0 / 4`, jamais commencé → « Affiner votre Plan ». 🛑 **On n'affiche pas
- *   « 0 / 4 »** : un compteur à zéro se lit comme un retard alors que rien n'a
- *   été promis.
- * - `1 / 4` à `3 / 4` → « Diagnostic complet en cours », avec sa progression,
- *   sa barre, et la prochaine épreuve **si le serveur la sert**.
- * - `4 / 4` → `null`, plus aucune invitation nulle part.
- *
- * Miroir mot pour mot de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
- */
-export interface AffinerPlan {
-    /** Épreuves terminées du diagnostic complet — **servi**. */
-    fait: number;
-    total: number;
-    /** `true` dès la première épreuve terminée. */
-    enCours: boolean;
-    titre: string;
-    texte: string;
-    /** « 2 / 4 épreuves terminées ». `null` tant que rien n'est commencé. */
-    progression: string | null;
-    /** « Prochaine épreuve : Expression orale ». 🛑 `null` si non servie. */
-    prochaineEpreuve: string | null;
-    cta: string;
-    href: string;
-}
-
-export function affinerPlan(
-    m: ModulePreparation,
-    options: {surface: "plan" | "accueil"; abonne: boolean},
-): AffinerPlan | null {
-    // Pas de Plan ⇒ rien à affiner : la porte d'entrée dit déjà quoi faire.
-    if (!m.planDisponible) return null;
-    // 🛑 Aucun compteur servi ⇒ aucune carte. On ne fabrique pas un « 0 / 4 »
-    // pour remplir un emplacement (le civique n'a qu'un diagnostic, il n'a
-    // jamais rien à affiner).
-    if (m.fait === null || m.total === null || m.total <= 0) return null;
-    // 4 / 4 : plus aucune invitation, plus aucune progression, nulle part.
-    if (m.fait >= m.total) return null;
-
-    const enCours = m.fait > 0;
-    const restant = m.total - m.fait;
-    const progression = enCours
-        ? `${m.fait} / ${m.total} épreuves terminées`
-        : null;
-    const prochaine = m.prochaineEpreuve
-        ? `Prochaine épreuve : ${epreuveDuDiagnostic(m.prochaineEpreuve)}`
-        : null;
-
-    if (options.surface === "accueil") {
-        // 🛑 L'Accueil ne montre le complet **que** s'il est commencé : une
-        // invitation de plus sur un écran qui en porte déjà deux deviendrait du
-        // bruit, et elle vit déjà sur le Plan.
-        if (!enCours) return null;
-        return {
-            fait: m.fait,
-            total: m.total,
-            enCours,
-            titre: "Continuez votre diagnostic complet",
-            texte: `Il vous reste ${restant} épreuve${restant > 1 ? "s" : ""} pour compléter l'analyse de vos compétences.`,
-            progression,
-            prochaineEpreuve: prochaine,
-            cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
-            href: DIAGNOSTIC_COMPLET_HREF,
-        };
-    }
-
-    if (enCours) {
-        return {
-            fait: m.fait,
-            total: m.total,
-            enCours,
-            titre: "Diagnostic complet en cours",
-            texte: "Continuez votre diagnostic pour affiner progressivement votre Plan.",
-            progression,
-            prochaineEpreuve: prochaine,
-            cta: DIAGNOSTIC_COMPLET_CTA_RESUME,
-            href: DIAGNOSTIC_COMPLET_HREF,
-        };
-    }
-
-    // Jamais commencé. Deux formulations : un compte gratuit vient de voir ce
-    // qui a été détecté et doit d'abord débloquer ; un abonné utilise déjà son
-    // Plan et n'a qu'à le préciser.
-    return {
-        fait: m.fait,
-        total: m.total,
-        enCours,
-        titre: options.abonne ? "Rendez votre Plan encore plus précis" : "Affiner votre Plan",
-        // 🛑 La carte est devenue le SEUL appel à compléter son profil
-        // (2026-09-13) : elle doit donc DIRE ce qui se mesure, et que
-        // l'expression y est offerte — c'est le fait qui décide le candidat.
-        texte: options.abonne
-            ? "Les 4 épreuves du TCF — compréhension orale et écrite, expression écrite et orale. L'expression écrite et orale y est entièrement offerte."
-            : "Votre diagnostic rapide a identifié vos premières priorités. Le diagnostic complet mesure les 4 épreuves du TCF — compréhension orale et écrite, expression écrite et orale — et son expression écrite et orale est entièrement offerte.",
-        progression: null,
-        prochaineEpreuve: null,
-        cta: DIAGNOSTIC_COMPLET_CTA_START,
-        href: DIAGNOSTIC_COMPLET_HREF,
-    };
-}
-
-/**
- * Le nom d'une épreuve du diagnostic complet.
- *
- * 🛑 **Aucune seconde table de libellés** : `planDomainLabel` est déjà
- * l'autorité, et les quatre épreuves du diagnostic sont exactement les quatre
- * domaines du Plan. Une épreuve hors de ces quatre (jamais servie ici) ne se
- * nomme pas plutôt que de se nommer faux.
- */
-function epreuveDuDiagnostic(epreuve: EpreuveType): string {
-    return epreuve in PLAN_DOMAIN_SECTION
-        ? planDomainLabel(epreuve as PlanDomainEpreuve)
-        : "";
-}
 
 /* --------------------------------------------------------------------------
    La DÉMARCHE visée, dite au candidat

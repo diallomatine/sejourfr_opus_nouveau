@@ -46,8 +46,7 @@ String? niveauLine(ModulePreparation m) {
 ///
 /// 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
 /// propriétaire, 2026-09-12). Le diagnostic complet n'est plus une porte à
-/// franchir : il affine, et cette invitation-là vit dans [affinerPlan], en
-/// action **secondaire**. Envoyer ici vers `/diagnostic-tcf` remettrait une
+/// franchir : il affine. Envoyer ici vers `/diagnostic-tcf` remettrait une
 /// étape obligatoire devant un plan déjà utilisable.
 PreparationAction tcfAction(ModulePreparation m) {
   if (m.planDisponible) {
@@ -229,39 +228,6 @@ bool moduleCiviqueParDefaut(PreparationDto prep) =>
 // AFFINER le Plan — le diagnostic complet devient une action SECONDAIRE
 // ---------------------------------------------------------------------------
 
-/// L'invitation au diagnostic complet, sous ses **trois** formes.
-///
-/// 🛑 **Le complet ne bloque jamais le Plan** (arbitrage du propriétaire,
-/// 2026-09-12) : il l'affine. Cette carte se pose donc **après** le contenu
-/// principal, et ne concurrence jamais le CTA d'abonnement d'un compte gratuit.
-///
-/// Trois formes, décidées par des **faits servis**, jamais par un compteur
-/// reconstruit :
-/// - `0 / 4`, jamais commencé → « Affiner votre Plan ». 🛑 **On n'affiche pas
-///   « 0 / 4 »** : un compteur à zéro se lit comme un retard alors que rien n'a
-///   été promis.
-/// - `1 / 4` à `3 / 4` → « Diagnostic complet en cours », avec sa progression,
-///   sa barre, et la prochaine épreuve **si le serveur la sert**.
-/// - `4 / 4` → `null`, plus aucune invitation nulle part.
-typedef AffinerPlan = ({
-  /// Épreuves terminées du diagnostic complet — **servi**.
-  int fait,
-  int total,
-
-  /// `true` dès la première épreuve terminée.
-  bool enCours,
-  String titre,
-  String texte,
-
-  /// « 2 / 4 épreuves terminées ». `null` tant que rien n'est commencé.
-  String? progression,
-
-  /// « Prochaine épreuve : Expression orale ». 🛑 `null` si non servie.
-  String? prochaineEpreuve,
-  String cta,
-  String route,
-});
-
 /// Où le candidat reprend son diagnostic complet.
 ///
 /// 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
@@ -287,89 +253,15 @@ const String kDiagnosticCompletRoute = '/diagnostic-tcf';
 const String kDiagnosticCompletCtaStart = 'Faire le diagnostic complet';
 const String kDiagnosticCompletCtaResume = 'Continuer le diagnostic';
 
-/// Miroir mot pour mot de `affinerPlan` (`web_sejoufr/lib/preparation.ts`).
-AffinerPlan? affinerPlan(
-  ModulePreparation m, {
-  required bool accueil,
-  required bool abonne,
-}) {
-  // Pas de Plan ⇒ rien à affiner : la porte d'entrée dit déjà quoi faire.
-  if (!m.planDisponible) return null;
-  final fait = m.fait;
-  final total = m.total;
-  // 🛑 Aucun compteur servi ⇒ aucune carte. On ne fabrique pas un « 0 / 4 »
-  // pour remplir un emplacement (le civique n'a qu'un diagnostic, il n'a jamais
-  // rien à affiner).
-  if (fait == null || total == null || total <= 0) return null;
-  // 4 / 4 : plus aucune invitation, plus aucune progression, nulle part.
-  if (fait >= total) return null;
-
-  final enCours = fait > 0;
-  final restant = total - fait;
-  final progression = enCours ? '$fait / $total épreuves terminées' : null;
-  final prochaine = m.prochaineEpreuve == null
-      ? null
-      : 'Prochaine épreuve : ${m.prochaineEpreuve!.displayLabel}';
-
-  if (accueil) {
-    // 🛑 L'Accueil ne montre le complet **que** s'il est commencé : une
-    // invitation de plus sur un écran qui en porte déjà deux deviendrait du
-    // bruit, et elle vit déjà sur le Plan.
-    if (!enCours) return null;
-    return (
-      fait: fait,
-      total: total,
-      enCours: enCours,
-      titre: 'Continuez votre diagnostic complet',
-      texte: 'Il vous reste $restant épreuve${restant > 1 ? 's' : ''} pour '
-          'compléter l\'analyse de vos compétences.',
-      progression: progression,
-      prochaineEpreuve: prochaine,
-      cta: kDiagnosticCompletCtaResume,
-      route: kDiagnosticCompletRoute,
-    );
-  }
-
-  if (enCours) {
-    return (
-      fait: fait,
-      total: total,
-      enCours: enCours,
-      titre: 'Diagnostic complet en cours',
-      texte: 'Continuez votre diagnostic pour affiner progressivement votre '
-          'Plan.',
-      progression: progression,
-      prochaineEpreuve: prochaine,
-      cta: kDiagnosticCompletCtaResume,
-      route: kDiagnosticCompletRoute,
-    );
-  }
-
-  // Jamais commencé. Deux formulations : un compte gratuit vient de voir ce qui
-  // a été détecté et doit d'abord débloquer ; un abonné utilise déjà son Plan
-  // et n'a qu'à le préciser.
-  return (
-    fait: fait,
-    total: total,
-    enCours: enCours,
-    titre: abonne ? 'Rendez votre Plan encore plus précis' : 'Affiner votre Plan',
-    // 🛑 La carte est devenue le SEUL appel à compléter son profil
-    // (2026-09-13) : elle doit donc DIRE ce qui se mesure, et que l'expression
-    // y est offerte — c'est le fait qui décide le candidat.
-    texte: abonne
-        ? 'Les 4 épreuves du TCF — compréhension orale et écrite, expression '
-            'écrite et orale. L\'expression écrite et orale y est entièrement '
-            'offerte.'
-        : 'Votre diagnostic rapide a identifié vos premières priorités. Le '
-            'diagnostic complet mesure les 4 épreuves du TCF — compréhension '
-            'orale et écrite, expression écrite et orale — et son expression '
-            'écrite et orale est entièrement offerte.',
-    progression: null,
-    prochaineEpreuve: null,
-    cta: kDiagnosticCompletCtaStart,
-    route: kDiagnosticCompletRoute,
-  );
-}
+// 🛑 **`affinerPlan()` et son type `AffinerPlan` sont SUPPRIMÉS** le
+// 2026-09-19 : la carte « Continuez votre diagnostic complet »
+// (`AffinerPlanCard`) a quitté le Plan puis l'Accueil dans la même journée
+// (arbitrage du propriétaire), et plus rien ne les lisait. Ne pas les recréer —
+// le diagnostic complet garde sa porte, [kDiagnosticCompletRoute], appelée par
+// [tcfAction] et [planIndisponible].
+//
+// ⚠️ Conséquence à connaître : `ModulePreparation.prochaineEpreuve` n'a plus de
+// lecteur front. Le champ **reste servi** — on ne touche pas au backend.
 
 /// **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
 ///

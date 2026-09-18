@@ -77,11 +77,11 @@ const String kHomeGoalLabel = 'Objectif actuel';
 /// dérivé de la démarche) — aucun écran ne le devine.
 String homeGoalText(String niveau) => 'Atteindre $niveau partout';
 
-const String kHomePlanTitle = 'Votre Plan';
-const String kHomePlanCurrentLabel = 'Priorité actuelle';
-const String kHomePlanLink = 'Voir mon Plan';
-const String kHomeProgressTitle = 'Votre progression';
-const String kHomeTracksTitle = 'Vos parcours';
+// 🛑 `kHomePlanTitle`, `kHomePlanCurrentLabel`, `kHomePlanLink`,
+// `kHomeProgressTitle`, `kHomeTracksTitle` et `kHomeTrackLink` sont
+// **supprimés** le 2026-09-19 (arbitrage du propriétaire) : l'aperçu « Votre
+// Plan », les deux compteurs de « Votre progression » et les lignes de « Vos
+// parcours » ont quitté l'Accueil, des deux côtés. Ne pas les recréer.
 
 /* --------------------------------------------- l'action du jour — TCF ----- */
 
@@ -169,29 +169,9 @@ const String kHomeStartDirectCta = 'Commencer directement';
 /// Ce que le plan civique a **observé** sur sa cible de rang 1.
 const String kHomeCivicObservedLabel = 'Ce que le plan a observé';
 
-/* -------------------------------------------------------- progression ----- */
-
-/// Les deux compteurs de la maquette. 🛑 Ils sont **servis**
-/// (`GET /api/me/progress`), jamais recomptés — et le civique compte des
-/// **notions ou des thèmes** selon ce que le tagging permet, donc son libellé
-/// suit le grain **servi** au lieu de dire « compétences » à tort.
-String homeWorkedLabel(int n, {required bool civique, required bool notion}) {
-  final s = n > 1 ? 's' : '';
-  final nom = civique ? (notion ? 'notion' : 'thème') : 'compétence';
-  final accord = civique && !notion ? 'travaillé' : 'travaillée';
-  return '$nom$s $accord$s';
-}
-
-String homeMasteredLabel(int n, {required bool civique, required bool notion}) {
-  final s = n > 1 ? 's' : '';
-  final nom = civique ? (notion ? 'notion' : 'thème') : 'compétence';
-  final accord = civique && !notion ? 'maîtrisé' : 'maîtrisée';
-  return '$nom$s $accord$s';
-}
-
-/* ----------------------------------------------------------- parcours ----- */
-
-/// Ce que chaque ligne de « Vos parcours » propose. 🛑 Elle mène au **Plan** du
-/// module, pas à son hub d'entraînement : c'est ce que dit la maquette, et la
-/// bottom nav porte déjà Réviser et Examens.
-const String kHomeTrackLink = 'Voir mon Plan';
+// 🛑 `homeWorkedLabel` / `homeMasteredLabel` sont **supprimés** le 2026-09-19
+// avec « Votre progression », leur unique lecteur. ⚠️ Les compteurs eux-mêmes
+// ne perdent rien : `ProgressCompetences.travaillees` / `maitrisees` et
+// `ProgressCivique.grainNotion` restent lus par l'écran **Progrès**
+// (`progresCompetencesLabel` / `progresCiviqueLabel`, `progres_labels.dart`),
+// qui les dit d'une autre façon. Ne pas recréer une seconde mise en mots ici.

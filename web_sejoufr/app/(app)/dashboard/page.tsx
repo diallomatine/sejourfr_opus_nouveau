@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {Suspense, useEffect, useMemo, useState} from "react";
+import {Suspense, useEffect, useState} from "react";
 import {ArrowRight, ClipboardCheck, Landmark, Sparkles, Target} from "lucide-react";
-import {AffinerPlanCard} from "@/app/_components/plan/AffinerPlanCard";
 import {
     Card,
     Cta,
@@ -18,12 +17,9 @@ import {
     NowCard,
     Pad,
     PanelHead,
-    JourneyRow,
-    PathRow,
     ProgressMini,
     Section,
     SejourApp,
-    Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
@@ -32,15 +28,9 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_TEXT,
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
     JOURNEY_TARGET_PATH_HREF,
-    journeyBadge,
-    journeyEtapes,
-    journeyKind,
-    journeyKitState,
-    journeyStepSubtitle,
-    journeyStepTitle,
 } from "@/lib/journey";
 import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
-import {civicPath, civicPathCounter, civicPlanRaison} from "@/lib/civic-plan";
+import {civicPlanRaison} from "@/lib/civic-plan";
 import {
     ACCUEIL_EVALUEES_CAPTION,
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
@@ -60,10 +50,7 @@ import {
 } from "@/lib/progres";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
-    CIVIQUE_LABEL,
     DIAGNOSTIC_RAPIDE_START_HREF,
-    TCF_LABEL,
-    affinerPlan,
     moduleParDefaut,
     objectifLabel,
     planIndisponible,
@@ -76,9 +63,6 @@ import {
     planDomainShort,
     planDomainSlug,
     planNowCard,
-    planSectionEpreuve,
-    planTaskBadge,
-    type PlanPathStep,
 } from "@/lib/plan-domain";
 import {planNowIcon} from "@/app/_components/plan/PlanBits";
 import {usePlanAssessment, usePlanExercise} from "@/app/_components/plan/use-plan-exercise";
@@ -100,7 +84,6 @@ import {
     type CivicPlanDto,
     type DiagnosticResponse,
     type JourneyDto,
-    type JourneyStepDto,
     type LearningPlanDto,
     type PreparationDto,
     type ProgressDto,
@@ -118,58 +101,56 @@ import {
  * (`moduleParDefaut(prep)`) et s'inscrit dans l'URL — **aucun `useState` de
  * module**, aucune seconde mécanique.
  *
- * Ce qui suit le parcours : l'action du jour, l'aperçu « Votre Plan »,
- * « Ma préparation », « Affiner votre Plan » (TCF seulement — le diagnostic
- * 4 épreuves n'a pas de pendant civique), « Votre progression » et
- * « À renforcer en priorité ».
- * 🛑 **« Vos parcours » N'EST PAS scopé** : c'est le bloc qui garde la vue
- * d'ensemble des deux modules, et c'est aussi l'un des deux chemins vers les
- * hubs d'entraînement (l'autre étant les deux entrées de la barre latérale).
+ * ## Ce que l'écran porte, de haut en bas (2026-09-19)
+ *
+ * Bandeau « Choisissez votre parcours » (démarche absente) → en-tête
+ * « Bonjour X » + pastille de démarche → **bascule TCF / Examen civique** →
+ * **À faire maintenant** (+ l'invitation à choisir un objectif) → **Où vous en
+ * êtes**. Et rien d'autre.
+ *
+ * 🛑 **Le bas de l'Accueil est SUPPRIMÉ** (arbitrage du propriétaire,
+ * 2026-09-19, verbatim : « Dans Accueil aussi supprime tout ça sauf le "outil
+ * indépendant non affilié…" ») : l'aperçu « Votre Plan », les deux compteurs de
+ * « Votre progression », la carte « Continuez votre diagnostic complet »
+ * (`AffinerPlanCard`, supprimée avec son autorité `affinerPlan`) et les deux
+ * lignes de « Vos parcours » — la bascule ci-dessus fait déjà ce travail.
+ * **Ne pas les réintroduire** : le Plan se lit sur `/plan`, les compteurs de
+ * compétences sur `/statistiques` (`ProgresMouvement`, qui les dit autrement),
+ * et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser,
+ * le Plan et le rapport de diagnostic. Même passe côté mobile.
+ *
+ * 🛑 **Sans objectif déclaré, on INVITE — on ne ferme rien** (arbitrage du
+ * 2026-09-17) : la carte « Choisir mon objectif » reste, elle **s'ajoute** à la
+ * carte d'action au-dessus. Miroir de `_objectifTcf` côté mobile.
  *
  * ## Les sources, parcours par parcours
  *
  * | bloc | TCF | Civique |
  * |---|---|---|
- * | à faire maintenant | `/api/diagnostics/current` puis `plan.currentPriority` | `planIndisponible(prep.civique)` puis `civicPlan.prochaine` |
- * | préparation | `prep.tcf` | `prep.civique` |
- * | progression | `summary.tcf` + `tcfMockExams` + `estimatedTcfLevel` | `summary.civique` + `civiqueMockExams` |
- * | progression détectée | `plan.recentChanges` | `civicPlan.changements` |
- * | à renforcer | `summary.tcf` | `summary.civique` |
+ * | à faire maintenant | `/api/diagnostics/current` puis `planNowCard(plan, journey)` | `planIndisponible(prep.civique)` puis `civicPlan.prochaine` |
+ * | où vous en êtes | `progres.tcf` (4 épreuves) | `progres.civique` (thèmes) |
  *
- * 🛑 **Le civique n'a AUCUN niveau estimé servi** : la quatrième tuile
- * disparaît au lieu d'afficher « — ». `null` = inconnu, jamais mauvais, et on
- * ne fabrique pas une mesure qui n'existe pas.
+ * 🛑 **Le civique n'a AUCUN palier CECRL servi** : pas d'échelle, pas
+ * d'objectif — on ne fabrique pas une mesure qui n'existe pas.
  *
- * ## La mise en page vient de la maquette
+ * ## Ce que la maquette ne décide PAS
  *
  * `~/Desktop/grok_ecran` — `screenshots/accueil.png` et `accueil-civ.png`.
  * L'écran est monté sur le **KIT** (`SejourApp wide` → colonne de 1080 px au
  * palier desktop) et dispose ses sections par paires avec
- * `sejourStyles.deskPair`. 🛑 **Le desktop n'ajoute aucun composant.** En
- * civique, « Affiner votre Plan » disparaît et « Votre progression » prend
- * toute la rangée — c'est la règle `:only-child` du kit qui joue seule, aucun
- * cas particulier n'est écrit ici.
- *
- * ## Ce que la maquette ne décide PAS
+ * `sejourStyles.deskPair`. 🛑 **Le desktop n'ajoute aucun composant**, et une
+ * carte seule sur sa rangée la prend en entier — c'est la règle `:only-child`
+ * du kit, aucun cas particulier n'est écrit ici.
  *
  * 🛑 Elle est une référence de **mise en page**, jamais une source de données
  * ni de règles. La hiérarchie arbitrée est **inchangée** : une seule action
  * dominante — « À faire maintenant » —, un en-tête sans CTA, une priorité TCF
- * verrouillée qui n'est pas nommée, et « Continuez votre diagnostic complet »
- * qui reste secondaire. Les blocs de la maquette sans donnée servie (le trio
- * « compétences travaillées / maîtrisée / validations », les raccourcis du bas)
- * restent **omis**, pas fabriqués.
+ * verrouillée qui n'est pas nommée.
  *
  * ⚠️ **Un écart assumé avec la maquette civique**, à rouvrir si besoin : la
  * pastille d'objectif nomme la **démarche** servie (« Objectif :
  * naturalisation », autorité `objectifLabel`) et non le module, que la bascule
  * juste en dessous annonce déjà.
- *
- * ✅ **« Votre Plan » est revenu le 2026-09-12** (demande du propriétaire :
- * l'Accueil doit ressembler à la maquette, et « côté backend on a tout ce qu'il
- * faut »). C'était le second écart, celui qui était noté « à rouvrir si
- * besoin ». C'est un **aperçu**, pas un second Plan : aucune action n'en part,
- * il mène au Plan. Même bloc et même ordre sur mobile (`HomeMiniPlan`).
  */
 /* --------------------------------------------- « Où vous en êtes » ------- */
 
@@ -309,20 +290,6 @@ function DashboardRoot() {
         router.replace(`${pathname}?${params.toString()}`, {scroll: false});
     }, [demande, defaut, pathname, router, search]);
 
-    /* Le diagnostic complet en cours, en action secondaire persistante.
-       🛑 `abonne: false` : sur l'Accueil la carte ne s'affiche que lorsque le
-       complet est COMMENCÉ, et ce libellé-là ne dépend pas de l'abonnement.
-       🛑 **TCF seulement** : le diagnostic 4 épreuves est un objet TCF, il n'a
-       pas de pendant civique — la maquette ne l'affiche d'ailleurs pas sur
-       l'Accueil civique (`screenshots/accueil-civ.png`). */
-    const affinerAccueil = useMemo(
-        () =>
-            prep && affiche === "TCF"
-                ? affinerPlan(prep.tcf, {surface: "accueil", abonne: false})
-                : null,
-        [prep, affiche],
-    );
-
     if (status === "loading" || (loading && status === "authenticated")) {
         return <DashSkeleton/>;
     }
@@ -376,7 +343,7 @@ function DashboardRoot() {
                 maintenant, juste en dessous. Une seule action dominante par
                 écran. » Le bouton « Entraînement du jour » est parti avec son
                 libellé ; sa destination reste atteignable par les deux entrées
-                de parcours de la barre latérale et par « Vos parcours ». */}
+                de parcours de la barre latérale. */}
             <header className="home-hello">
                 <h1>Bonjour {user.firstName ?? "à vous"}</h1>
                 <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
@@ -393,8 +360,8 @@ function DashboardRoot() {
                 vers le hub (arbitrage du 2026-09-12 : « la bascule avec l'Examen
                 civique doit afficher l'accueil de l'Examen civique »). Les deux
                 hubs d'entraînement restent atteignables par les deux entrées
-                « TCF IRN » / « Examen civique » de la barre latérale et par les
-                cartes de « Vos parcours », qui elles ne sont pas scopées. */}
+                « TCF IRN » / « Examen civique » de la barre latérale — « Vos
+                parcours » a été supprimé de l'Accueil le 2026-09-19. */}
             <ModuleToggle
                 current={civique ? "civique" : "tcf"}
                 tcfHref={`${pathname ?? "/dashboard"}?module=TCF`}
@@ -420,29 +387,19 @@ function DashboardRoot() {
                     </Section>
                 ) : null}
 
-                {/* ✅ **« Votre Plan » est revenu le 2026-09-12** (demande du
-                    propriétaire : l'Accueil doit ressembler à la maquette, et
-                    « côté backend on a tout ce qu'il faut »). Il avait été omis
-                    des deux fronts — « il vit sur le Plan » —, et c'était l'un
-                    des deux écarts « à rouvrir si besoin ».
-
-                    🛑 **Un aperçu, pas un second Plan** : aucune action n'en
-                    part, il mène au Plan. */}
-                <VotrePlan
-                    civique={civique}
-                    journey={journey}
-                    cible={cibleCivique}
-                />
+                {/* 🛑 **L'invitation à déclarer un objectif, et rien d'autre**
+                    (l'aperçu « Votre Plan » a été supprimé le 2026-09-19) :
+                    elle n'enlève rien à la carte ci-dessus, elle s'ajoute. */}
+                <ObjectifManquant civique={civique} journey={journey}/>
             </div>
 
             {/* ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du
                 propriétaire) : une carte compacte par épreuve — palier, jauge,
                 état en un mot, action —, puis l'objectif.
 
-                🛑 **Elle ne remplace pas « Votre progression »**, qui garde ses
-                deux compteurs de compétences juste en dessous : l'une dit *où
-                en est chaque épreuve*, l'autre *combien de compétences ont
-                bougé*.
+                🛑 **C'est le SEUL constat de l'écran** depuis le 2026-09-19 :
+                « Votre progression » et ses deux compteurs de compétences ont
+                été supprimés (ils se lisent sur `/statistiques`).
 
                 🛑 **Aucun appel de plus** : `progres` est déjà dans l'état de
                 l'écran, et le même `ProgressDto` porte déjà les 4 épreuves.
@@ -452,37 +409,6 @@ function DashboardRoot() {
                 1080 px se replieraient en une file illisible, et la maquette la
                 montre pleine largeur. */}
             <OuVousEnEtes progres={progres} civique={civique}/>
-
-            <div className={sejourStyles.deskPair}>
-                <Section title="Votre progression">
-                    <Pad>
-                        <Progression progres={progres} civique={civique}/>
-                    </Pad>
-                </Section>
-
-                {/* 🛑 **Secondaire, et seulement quand le diagnostic complet est
-                    COMMENCÉ.** Elle permet de le reprendre sans passer par le Plan,
-                    mais elle ne devient jamais l'action principale de l'Accueil :
-                    celle-ci reste « Débloquer mon Plan » pour un compte gratuit et
-                    l'action pédagogique du Plan pour un abonné. À 4 / 4 elle
-                    disparaît — c'est `affinerPlan` qui rend `null`, sur des faits
-                    servis, jamais un compteur reconstruit ici. */}
-                {affinerAccueil && <AffinerPlanCard info={affinerAccueil}/>}
-            </div>
-
-            {/* 🛑 **« Vos parcours » n'est PAS scopé** : c'est le bloc qui garde
-                la vue d'ensemble des deux modules pendant que le reste de
-                l'écran suit la bascule. Chaque ligne mène au **Plan** de son
-                module, comme la maquette — les deux hubs d'entraînement restent
-                atteignables par les deux entrées de la barre latérale. */}
-            <Section title="Vos parcours">
-                <Pad>
-                    <Stack className={sejourStyles.deskPair}>
-                        <TrackRow title={TCF_LABEL} href={planHref("TCF")}/>
-                        <TrackRow title={CIVIQUE_LABEL} href={planHref("CIVIQUE")}/>
-                    </Stack>
-                </Pad>
-            </Section>
 
             <style>{homeStyles}</style>
         </SejourApp>
@@ -980,280 +906,35 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
 }
 
 /**
- * **Votre Plan** — la priorité actuelle et son parcours, en aperçu.
+ * **L'invitation à déclarer un objectif**, quand le candidat n'en a pas.
  *
- * 🛑 **Rien n'est dérivé ici** : `parcoursDeLaTache` (TCF) et `civicPath`
- * (civique) sont les autorités **partagées avec l'écran Plan**, et les états
- * des étapes viennent du serveur.
+ * 🛑 **Elle n'enlève rien** (arbitrage du propriétaire, 2026-09-17) : le Plan
+ * n'exige **pas** d'objectif déclaré, et la carte « À faire maintenant » reste
+ * servie au-dessus, entière. C'est une invitation, jamais une porte fermée — et
+ * elle doit se lire partout où une carte « À faire maintenant » se lit, sans
+ * quoi le candidat ne découvre jamais que déclarer sa démarche lui ouvre un
+ * parcours.
  *
- * 🛑 **Une priorité TCF verrouillée n'est pas nommée** : le bloc entier
- * disparaît. Il écrirait en clair, sur l'Accueil, ce que « Mes priorités »
- * floute un écran plus loin. Le civique, lui, nomme sa cible — son verrou porte
- * sur la **série**, jamais sur le constat.
+ * 🛑 **TCF seulement** : le parcours est un objet TCF, le civique n'en a pas.
  *
- * 🛑 **Aucun contenu fabriqué** : sans priorité servie, sans tâche servie ou
- * sans parcours servi, la section n'existe pas.
+ * ⚠️ Elle vivait dans `VotrePlan`, l'aperçu du Plan, **supprimé le 2026-09-19**
+ * (demande du propriétaire). Miroir de `_objectifTcf`
+ * (`mobile_sejourfr/lib/screens/home/home_screen.dart`).
  */
-function VotrePlan({civique, journey, cible}: {
+function ObjectifManquant({civique, journey}: {
     civique: boolean;
     journey: JourneyDto | null;
-    cible: CivicPlanCibleDto | null;
 }) {
-    if (civique) {
-        if (!cible) return null;
-        const steps = civicPath(cible);
-        if (steps.length === 0) return null;
-        return (
-            <PlanApercu
-                title={cible.themeLabel}
-                subtitle={cible.label === cible.themeLabel ? null : cible.label}
-                counter={civicPathCounter(cible)}
-                steps={steps}
-                href={planHref("CIVIQUE")}
-            />
-        );
-    }
-
-    /* 🛑 **L'aperçu suit le PARCOURS**, plus le parcours d'une tâche : c'est la
-       même file que le Plan affiche en entier, et la même que la carte « À
-       faire maintenant » vient de nommer. Trois vues d'un seul objet.
-
-       🛑 **Pas de `current` ⇒ pas de bloc** : aucun objectif déclaré, plus rien
-       à faire, ou rien d'exécutable. Dans ce dernier cas la carte d'action
-       porte déjà le paywall — l'aperçu n'a rien à ajouter. */
-    /* 🛑 **Le candidat sans objectif déclaré est invité à en choisir un, ici
-       aussi** (arbitrage du propriétaire, 2026-09-17). Le Plan, lui, n'exige
-       **pas** d'objectif : sa carte d'action reste au-dessus, entière. C'est
-       une invitation, jamais une porte fermée — et elle doit se lire partout où
-       une carte « À faire maintenant » se lit, sans quoi le candidat ne
-       découvre jamais que déclarer sa démarche lui ouvre un parcours. */
-    if (journey?.state === "NEEDS_OBJECTIVE") {
-        return (
-            <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
-                <Pad>
-                    <Card>
-                        <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-                        <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
-                    </Card>
-                </Pad>
-            </Section>
-        );
-    }
-
-    const courante = journey?.current ?? null;
-    if (!journey || !courante) return null;
-    /* 🛑 **La file vient des BLOCS** (`journeyEtapes`, `lib/journey.ts`) depuis
-       le 2026-09-18 : `JourneyDto.steps` a quitté le contrat avec la refonte du
-       Plan en cycle. **Rien ne change à l'écran** — même ordre, même fenêtre,
-       même rendu : seule la source de la liste bouge, et elle est déclarée une
-       seule fois pour les deux écrans qui la lisent. */
-    const fenetre = apercuJourneySteps(journeyEtapes(journey), courante.id);
-    if (fenetre.length === 0) return null;
+    if (civique || journey?.state !== "NEEDS_OBJECTIVE") return null;
     return (
-        <PlanApercu
-            title={journeyStepTitle(courante)}
-            subtitle={journeyStepSubtitle(courante) ?? null}
-            /* 🛑 **Aucun compteur d'étape.** Le parcours n'en sert pas, et
-               `steps` est **déjà filtrée** par le serveur : un « Étape 2 / 5 »
-               dérivé de cette liste compterait la fenêtre, pas la file. On
-               n'affiche pas un nombre qu'on ne sait pas. */
-            counter={null}
-            steps={fenetre}
-            href={planHref("TCF")}
-        />
-    );
-}
-
-/**
- * La fenêtre d'étapes affichée sur l'Accueil, **centrée sur l'étape courante**.
- *
- * 🛑 **Un plafond d'AFFICHAGE, jamais un budget pédagogique** : la file entière
- * est servie et se lit sur le Plan, où « Voir mon Plan » renvoie.
- *
- * 🛑 **La fenêtre contient TOUJOURS l'étape courante** : elle et la suivante,
- * ou la précédente et elle quand elle ferme la file. Montrer « les deux
- * premières » aurait caché exactement ce que le candidat doit faire maintenant.
- */
-function apercuJourneySteps(steps: JourneyStepDto[], currentId: string): JourneyStepDto[] {
-    if (steps.length <= APERCU_STEPS_MAX) return steps;
-    const maintenant = steps.findIndex((step) => step.id === currentId);
-    if (maintenant < 0) return steps.slice(0, APERCU_STEPS_MAX);
-    const debut =
-        maintenant + APERCU_STEPS_MAX <= steps.length
-            ? maintenant
-            : steps.length - APERCU_STEPS_MAX;
-    return steps.slice(debut, debut + APERCU_STEPS_MAX);
-}
-
-/**
- * Ce que l'Accueil montre du parcours : **deux étapes**, pas plus (demande du
- * propriétaire, 2026-09-12 — un parcours d'expression en compte huit).
- */
-const APERCU_STEPS_MAX = 2;
-
-/**
- * La fenêtre d'étapes affichée sur l'Accueil.
- *
- * 🛑 **Un plafond d'AFFICHAGE, jamais un budget pédagogique** : le parcours
- * entier est servi, calculé en entier, et se lit sur le Plan — où « Voir mon
- * Plan » renvoie. On n'en tronque que la vue.
- *
- * 🛑 **La fenêtre contient TOUJOURS l'étape en cours** : elle et la suivante,
- * ou la précédente et elle quand elle ferme le parcours. Montrer « les deux
- * premières » aurait caché exactement ce que le candidat doit faire maintenant.
- * Sans étape en cours **servie**, on prend les premières — on n'en devine
- * aucune. Miroir de `homePlanSteps`
- * (`mobile_sejourfr/lib/screens/home/widgets/home_blocks.dart`).
- */
-function apercuSteps(steps: PlanPathStep[]): PlanPathStep[] {
-    if (steps.length <= APERCU_STEPS_MAX) return steps;
-    const maintenant = steps.findIndex((step) => step.state === "now");
-    if (maintenant < 0) return steps.slice(0, APERCU_STEPS_MAX);
-    const debut =
-        maintenant + APERCU_STEPS_MAX <= steps.length
-            ? maintenant
-            : steps.length - APERCU_STEPS_MAX;
-    return steps.slice(debut, debut + APERCU_STEPS_MAX);
-}
-
-function PlanApercu({title, subtitle, counter, steps, href}: {
-    title: string;
-    subtitle: string | null;
-    /** `null` sur le parcours TCF : il ne sert aucune position d'étape. */
-    counter: string | null;
-    /** Les étapes **du parcours** (TCF) ou **du parcours civique**, déjà
-     *  fenêtrées par l'appelant. */
-    steps: JourneyStepDto[] | PlanPathStep[];
-    href: string;
-}) {
-    return (
-        <Section title="Votre Plan">
+        <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
             <Pad>
                 <Card>
-                    <div className="home-plan-head">
-                        <p className={sejourStyles.label}>Priorité actuelle</p>
-                        {counter && <span className={sejourStyles.tiny}>{counter}</span>}
-                    </div>
-                    <p className="home-plan-title">{title}</p>
-                    {subtitle && (
-                        <p className={sejourStyles.tiny} style={{margin: "2px 0 10px"}}>
-                            {subtitle}
-                        </p>
-                    )}
-                    {steps.map((step, index) =>
-                        "id" in step ? (
-                            <JourneyRow
-                                key={step.id}
-                                title={journeyStepTitle(step)}
-                                subtitle={journeyStepSubtitle(step)}
-                                state={journeyKitState(step)}
-                                kind={journeyKind(step)}
-                                badge={journeyBadge(step)}
-                                locked={step.locked}
-                            />
-                        ) : (
-                            <PathRow key={`${step.label}-${index}`} label={step.label} state={step.state}/>
-                        ),
-                    )}
-                    <Link href={href} className={sejourStyles.link} style={{marginTop: 12}}>
-                        Voir mon Plan <ArrowRight size={16} strokeWidth={2.4} aria-hidden/>
-                    </Link>
+                    <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+                    <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
                 </Card>
             </Pad>
         </Section>
-    );
-}
-
-/**
- * **Votre progression**, du parcours affiché : les deux compteurs de la
- * maquette, et rien d'autre.
- *
- * 🛑 **Ils sont SERVIS** (`GET /api/me/progress`), pour les deux parcours, et
- * **servis même verrouillés** : c'est le *détail* qui est premium, pas le fait
- * d'avoir progressé. Rien n'est recompté ici.
- *
- * ⚠️ **« Progression détectée » a quitté l'Accueil** (2026-09-12, demande du
- * propriétaire). Le bloc vit toujours sur le **Plan**, où il a son contexte :
- * il y annonce une transition d'état de maîtrise mesurée par le moteur, dans
- * une fenêtre choisie par le serveur. Sur l'Accueil, il arrivait sans le
- * parcours qui l'explique.
- *
- * ⚠️ **La troisième colonne « validations » de la maquette n'est servie par
- * rien** : elle est **omise**, pas fabriquée.
- *
- * 🛑 **Le civique compte des notions OU des thèmes** selon ce que le tagging
- * permet (`grainNotion`, servi) : son libellé le dit, au lieu d'écrire
- * « compétences » à tort.
- */
-function Progression({progres, civique}: {
-    progres: ProgressDto | null;
-    civique: boolean;
-}) {
-    const travaillees = civique
-        ? progres?.civique.travaillees ?? 0
-        : progres?.tcf.competences.travaillees ?? 0;
-    const maitrisees = civique
-        ? progres?.civique.maitrisees ?? 0
-        : progres?.tcf.competences.maitrisees ?? 0;
-    const notion = civique ? progres?.civique.grainNotion ?? false : false;
-
-    // Rien de mesuré : le bloc n'a rien à dire.
-    if (travaillees <= 0) return null;
-
-    return (
-        <Card>
-            <div className="home-stats">
-                <StatBloc
-                    value={`${travaillees}`}
-                    label={compteurLabel(travaillees, {civique, notion, mastered: false})}
-                />
-                <StatBloc
-                    value={`${maitrisees}`}
-                    label={compteurLabel(maitrisees, {civique, notion, mastered: true})}
-                />
-            </div>
-        </Card>
-    );
-}
-
-/**
- * « 3 compétences travaillées » / « 1 thème maîtrisé ».
- *
- * 🛑 Miroir mot pour mot de `homeWorkedLabel` / `homeMasteredLabel`
- * (`mobile_sejourfr/lib/screens/home/home_labels.dart`).
- */
-function compteurLabel(
-    n: number,
-    {civique, notion, mastered}: {civique: boolean; notion: boolean; mastered: boolean},
-): string {
-    const s = n > 1 ? "s" : "";
-    const nom = civique ? (notion ? "notion" : "thème") : "compétence";
-    const verbe = mastered ? "maîtrisé" : "travaillé";
-    const accord = civique && !notion ? verbe : `${verbe}e`;
-    return `${nom}${s} ${accord}${s}`;
-}
-
-function StatBloc({value, label}: {value: string; label: string}) {
-    return (
-        <div className="home-stat">
-            <span className="home-stat-value">{value}</span>
-            <span className="home-stat-label">{label}</span>
-        </div>
-    );
-}
-
-/**
- * Une ligne de « Vos parcours » : le module, ce qu'elle ouvre, un chevron.
- */
-function TrackRow({title, href}: {title: string; href: string}) {
-    return (
-        <Link href={href} className="home-track">
-            <span className="home-track-body">
-                <span className="home-track-title">{title}</span>
-                <span className="home-track-sub">Voir mon Plan</span>
-            </span>
-            <ArrowRight size={20} aria-hidden/>
-        </Link>
     );
 }
 
@@ -1266,8 +947,7 @@ function DashSkeleton() {
                     <div className="sk sk-card"/>
                     <div className="sk sk-card"/>
                 </div>
-                <div className="sk-grid sk-grid-2">
-                    <div className="sk sk-card"/>
+                <div className="sk-grid">
                     <div className="sk sk-card"/>
                 </div>
             </Pad>
@@ -1383,21 +1063,6 @@ const homeStyles = `
   }
   .home-now-later:hover { color: var(--color-blue); text-decoration: underline; }
 
-  /* ===== aperçu « Votre Plan » ===== */
-  .home-plan-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 2px;
-  }
-  .home-plan-title {
-    margin: 0 0 2px;
-    font-family: var(--font-sans);
-    font-size: 17px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--color-ink);
-  }
-
 
   /* ===== « Où vous en êtes » ===== */
   /* 🛑 **Plus une seule règle de cet écran.** Toute la section vit dans le KIT
@@ -1408,52 +1073,6 @@ const homeStyles = `
      .home-situation-copy sont SUPPRIMÉES avec leurs appelants, comme l'étaient
      déjà .home-situation-grid / -card / -head / -name / -badge / -statut et
      .home-goal. */
-
-  /* ===== indicateurs ===== */
-  /* Les deux compteurs SERVIS de la maquette : un chiffre, un libellé. */
-  .home-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 16px 12px;
-    margin-bottom: 16px;
-  }
-  .home-stat { display: flex; flex-direction: column; align-items: center; }
-  .home-stat-value {
-    font-family: var(--font-display);
-    font-size: 30px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--color-blue);
-    line-height: 1.1;
-  }
-  .home-stat-label {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--color-muted);
-    text-align: center;
-    margin-top: 4px;
-  }
-
-  /* ===== une ligne de « Vos parcours » ===== */
-  .home-track {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px;
-    padding: 14px 16px;
-    background: #fff;
-    border-radius: var(--sf-radius-xl, 18px);
-    box-shadow: var(--sf-shadow-card, 0 1px 3px rgba(50, 64, 94, 0.06));
-    color: var(--color-ink);
-    text-decoration: none;
-    transition: box-shadow 0.15s;
-  }
-  .home-track:hover { box-shadow: 0 6px 18px rgba(50, 64, 94, 0.1); }
-  .home-track-body { display: flex; flex-direction: column; min-width: 0; }
-  .home-track-title {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-  }
-  .home-track-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
 
   /* ===== palier desktop (960 px) — la borne du KIT, pas une de plus ===== */
   @media (min-width: 960px) {

@@ -17,7 +17,6 @@ import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/parcours_affiche.dart';
-import '../../core/widgets/affiner_plan_card.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/diagnostic_controller.dart';
@@ -39,26 +38,37 @@ import 'widgets/home_blocks.dart';
 /// `screenshots/accueil-mobile.png` et `accueil-civ-mobile.png`), assemblé avec
 /// le KIT (`core/widgets/sejour/sejour_kit.dart`).
 ///
-/// ## L'ordre vient de la maquette, et de rien d'autre
+/// ## L'ordre, de haut en bas (2026-09-19)
 ///
-/// En-tête → bascule → **À faire maintenant** → **Où vous en êtes** → **Votre
-/// Plan** → **Votre progression** → **Affiner votre Plan** → **Vos parcours**.
+/// Bandeau « Choisissez votre parcours » → en-tête « Bonjour X » + pastille
+/// d'objectif → **bascule TCF / Examen civique** → **À faire maintenant**
+/// (+ l'invitation à choisir un objectif) → **Où vous en êtes** → la note de
+/// non-affiliation. Et rien d'autre.
+///
+/// 🛑 **Le bas de l'Accueil est SUPPRIMÉ** (arbitrage du propriétaire,
+/// 2026-09-19, verbatim : « Dans Accueil aussi supprime tout ça sauf le "outil
+/// indépendant non affilié…" ») : l'aperçu **« Votre Plan »** (`HomeMiniPlan`),
+/// les deux compteurs de **« Votre progression »**, la carte **« Continuez
+/// votre diagnostic complet »** (`AffinerPlanCard`, supprimée avec son autorité
+/// `affinerPlan`) et les deux lignes de **« Vos parcours »** (`HomeTrackRow`) —
+/// la bascule juste au-dessus fait déjà ce travail. **Ne pas les
+/// réintroduire** : le Plan se lit sur `/plan`, les compteurs de compétences
+/// sur l'écran **Progrès** (`ProgresMouvement`, qui les dit autrement), et le
+/// diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser, le
+/// Plan et le rapport de diagnostic. Même passe côté web.
+///
+/// 🛑 **[_IndependenceNote] ne se touche pas** : c'est une exigence de
+/// conformité store (Misleading Claims).
 ///
 /// ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
-/// une carte compacte par épreuve — palier, jauge, état en un mot, action —
-/// puis l'objectif. 🛑 **Elle ne remplace pas « Votre progression »**, qui
-/// garde ses deux compteurs de compétences : l'une dit *où en est chaque
-/// épreuve*, l'autre *combien de compétences ont bougé*.
+/// une ligne par épreuve — palier, échelle, état en un mot, action. C'est
+/// désormais le **seul constat** de l'écran.
 ///
 /// ⚠️ Une première passe avait suivi la structure du **web** plutôt que la
 /// maquette : « Ma préparation » et « À renforcer en priorité » en plus, quatre
 /// tuiles d'indicateurs au lieu des deux compteurs, des cartes de parcours à
-/// barres de catégories, et « Affiner votre Plan » **avant** la progression.
-/// Le propriétaire a tranché sur capture (2026-09-12) : c'est la maquette.
-/// Ces blocs sont **retirés**, pas déplacés.
-/// « Ma préparation » reste la porte du **Plan** et des **Examens** ; sur
-/// l'Accueil, « À faire maintenant » porte déjà cette porte (les trois états du
-/// diagnostic TCF, et `planIndisponible` côté civique).
+/// barres de catégories. Le propriétaire a tranché sur capture (2026-09-12) :
+/// c'est la maquette. Ces blocs sont **retirés**, pas déplacés.
 ///
 /// ## Un écran, deux parcours
 ///
@@ -68,9 +78,6 @@ import 'widgets/home_blocks.dart';
 /// deux mécaniques auraient fini par afficher deux parcours différents sur deux
 /// écrans du même compte. Le défaut est **servi** (`moduleCiviqueParDefaut`).
 ///
-/// 🛑 **« Vos parcours » N'EST PAS scopé** : c'est le bloc qui garde la vue
-/// d'ensemble des deux modules.
-///
 /// ## Ce que la maquette ne décide PAS
 ///
 /// 🛑 Elle est une référence de **mise en page**, jamais une source de données.
@@ -78,11 +85,7 @@ import 'widgets/home_blocks.dart';
 /// une priorité TCF verrouillée qui n'est **pas nommée**, et le diagnostic
 /// complet qui reste secondaire.
 ///
-/// ⚠️ **Trois écarts assumés, et leurs raisons** :
-/// - la **troisième colonne « validations »** du trio de progression n'est
-///   **servie par rien** (`GET /api/me/progress` publie `travaillees` et
-///   `maitrisees`, pas un compte de validations) : elle est **omise**, pas
-///   fabriquée. `SfStatGrid` suit la liste qu'on lui donne ;
+/// ⚠️ **Deux écarts assumés, et leurs raisons** :
 /// - les **raccourcis du bas** (Réviser · Examens blancs · Mes résultats) sont
 ///   omis : la bottom nav les porte déjà, et le propriétaire a écarté une
 ///   rangée de raccourcis redondante le 2026-09-12 ;
@@ -183,6 +186,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.watch(learningPlanProvider);
     ref.watch(civicPlanProvider);
     ref.watch(diagnosticCourantProvider);
+    // 🛑 **La préparation est observée ICI depuis le 2026-09-19** : elle était
+    // lue par `_blocs` pour la carte « Continuez votre diagnostic complet »,
+    // supprimée. Seule `_actionCivique` la lit encore, donc en TCF plus rien ne
+    // l'observait — et `_poserDefaut` compte sur elle.
+    ref.watch(preparationProvider);
 
     return <Widget>[
       if (user != null && user.targetProcedure == null)
@@ -202,20 +210,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// n'a rien à dire : pas de squelette global, pas de section au-dessus du
   /// vide. Miroir du web, dont chaque appel retombe sur `null` en best-effort.
   List<Widget> _blocs(BuildContext context, bool civique) {
-    final prep = ref.watch(preparationProvider).valueOrNull;
     final action = civique ? _actionCivique(context) : _actionTcf(context);
-    final situation = _ouVousEnEtes(context, civique);
-    final apercu = civique ? _apercuCivique(context) : _apercuTcf(context);
     final objectif = civique ? null : _objectifTcf(context);
-    final progression = _progression(civique);
-
-    // 🛑 **TCF seulement** : le diagnostic 4 épreuves est un objet TCF, il n'a
-    // pas de pendant civique. `abonne: false` — sur l'Accueil la carte ne
-    // s'affiche que lorsque le complet est COMMENCÉ, et ce libellé-là ne dépend
-    // pas de l'abonnement.
-    final affiner = !civique && prep != null
-        ? affinerPlan(prep.tcf, accueil: true, abonne: false)
-        : null;
+    final situation = _ouVousEnEtes(context, civique);
 
     return <Widget>[
       if (action != null)
@@ -225,28 +222,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             title: kJourneyNeedsObjectiveTitle, flush: true, child: objectif),
       if (situation != null)
         SfSection(title: kHomeSituationTitle, flush: true, child: situation),
-      if (apercu != null)
-        SfSection(title: kHomePlanTitle, flush: true, child: apercu),
-      if (progression != null)
-        SfSection(title: kHomeProgressTitle, flush: true, child: progression),
-      if (affiner != null)
-        SfSection(
-            flush: true, child: AffinerPlanCard(info: affiner, pad: false)),
-      SfSection(
-        title: kHomeTracksTitle,
-        child: SfStack(
-          children: [
-            HomeTrackRow(
-              title: kTcfLabel,
-              onTap: () => _ouvrirPlan(context, civique: false),
-            ),
-            HomeTrackRow(
-              title: kCiviqueLabel,
-              onTap: () => _ouvrirPlan(context, civique: true),
-            ),
-          ],
-        ),
-      ),
     ];
   }
 
@@ -482,9 +457,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// compactes livrée le matin même : ce n'est pas un habillage, c'est la
   /// structure qui change.
   ///
-  /// 🛑 **Aucun appel de plus** : `progressProvider` est déjà lu par « Votre
-  /// progression », et le même `ProgressDto` porte déjà les 4 épreuves. Cette
-  /// section ne coûte rien au réseau.
+  /// 🛑 **Aucun appel de plus** : `progressProvider` est déjà observé par
+  /// l'écran, et le même `ProgressDto` porte déjà les 4 épreuves. Cette section
+  /// ne coûte rien au réseau.
   ///
   /// 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, échelle et CTA
   /// viennent tous de `accueilEpreuve*` / `accueilEchelons`
@@ -699,7 +674,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .push(AppRoutes.epreuveHistoriquePath(planDomainKey(epreuve.epreuve)));
   }
 
-  /* ------------------------------------------------------- votre plan ----- */
+  /* ------------------------------------------------------- l'objectif ---- */
 
   /// **L'invitation à déclarer un objectif**, quand le candidat n'en a pas.
   ///
@@ -721,138 +696,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onPressed: () => context.push(AppRoutes.targetPath),
         ),
       ],
-    );
-  }
-
-  /// L'aperçu du **parcours TCF** : l'étape courante et sa voisine.
-  ///
-  /// 🛑 **La même file que le Plan affiche en entier**, et la même que la carte
-  /// « À faire maintenant » vient de nommer — trois vues d'un seul objet, plus
-  /// trois dérivations parallèles.
-  ///
-  /// 🛑 **Pas d'étape courante ⇒ pas de bloc** : aucun objectif déclaré, plus
-  /// rien à faire, ou rien d'exécutable. Dans ce dernier cas la carte d'action
-  /// porte déjà le paywall — l'aperçu n'a rien à ajouter.
-  Widget? _apercuTcf(BuildContext context) {
-    final parcours = ref.watch(journeyProvider).valueOrNull;
-    final courante = parcours?.current;
-    if (parcours == null || courante == null) return null;
-    // 🛑 **La file vient des BLOCS** (`journeyEtapes`, `journey_labels.dart`)
-    // depuis le 2026-09-18 : `Journey.steps` a quitté le contrat avec la refonte
-    // du Plan en cycle. **Rien ne change à l'écran** — même ordre, même fenêtre,
-    // même rendu : seule la source de la liste bouge, et elle est déclarée une
-    // seule fois pour les deux écrans qui la lisent.
-    final fenetre = _fenetreDuParcours(journeyEtapes(parcours), courante.id);
-    if (fenetre.isEmpty) return null;
-    return HomeMiniPlan(
-      title: journeyStepTitle(courante),
-      subtitle: journeyStepSubtitle(courante),
-      // 🛑 Aucun compteur : le parcours n'en sert pas, et la file est **déjà
-      // filtrée** par le serveur. On n'affiche pas un nombre qu'on ne sait pas.
-      counter: null,
-      journeySteps: [
-        for (final step in fenetre)
-          SfJourneyRow(
-            title: journeyStepTitle(step),
-            subtitle: journeyStepSubtitle(step),
-            state: journeyKitState(step),
-            kind: journeyKind(step),
-            badge: journeyBadge(step),
-            locked: step.locked,
-          ),
-      ],
-      onOpen: () => _ouvrirPlan(context, civique: false),
-    );
-  }
-
-  /// La fenêtre affichée, **centrée sur l'étape courante**.
-  ///
-  /// 🛑 **Un plafond d'AFFICHAGE, jamais un budget** : la file entière est
-  /// servie et se lit sur le Plan. Elle contient **toujours** l'étape courante —
-  /// montrer « les deux premières » aurait caché exactement ce qu'il y a à faire
-  /// maintenant.
-  static List<JourneyStep> _fenetreDuParcours(
-      List<JourneyStep> steps, String currentId) {
-    if (steps.length <= kHomePlanStepsMax) return steps;
-    final maintenant = steps.indexWhere((step) => step.id == currentId);
-    if (maintenant < 0) return steps.take(kHomePlanStepsMax).toList();
-    final debut = maintenant + kHomePlanStepsMax <= steps.length
-        ? maintenant
-        : steps.length - kHomePlanStepsMax;
-    return steps.sublist(debut, debut + kHomePlanStepsMax);
-  }
-
-  /// L'aperçu du Plan civique : la cible de rang 1 et les cinq étapes de son
-  /// parcours.
-  ///
-  /// 🛑 **Le numéro de boîte ne s'affiche jamais** : ce qu'on montre est une
-  /// **position dans un parcours nommé**, et ses états sont servis
-  /// (`Cible.parcours`). Un parcours vide — client servi par un backend
-  /// antérieur au champ — n'affiche aucune carte.
-  Widget? _apercuCivique(BuildContext context) {
-    final cible = ref.watch(civicPlanProvider).valueOrNull?.prochaine;
-    if (cible == null) return null;
-    final etapes = civicPath(cible);
-    if (etapes.isEmpty) return null;
-    return HomeMiniPlan(
-      title: cible.themeLabel,
-      subtitle: cible.label == cible.themeLabel ? null : cible.label,
-      counter: civicPathCounter(cible),
-      steps: etapes,
-      onOpen: () => _ouvrirPlan(context, civique: true),
-    );
-  }
-
-  /* ------------------------------------------------------ progression ----- */
-
-  /// **Votre progression** — les compteurs de la maquette, puis « Progression
-  /// détectée ».
-  ///
-  /// 🛑 **Les deux compteurs sont SERVIS** (`GET /api/me/progress`), pour les
-  /// deux parcours, et **servis même verrouillés** : c'est le *détail* qui est
-  /// premium, pas le fait d'avoir progressé. Rien n'est recompté ici.
-  ///
-  /// ⚠️ **La troisième colonne « validations » de la maquette n'est servie par
-  /// rien** : elle est **omise**, pas fabriquée. `SfStatGrid` suit la liste
-  /// qu'on lui donne.
-  ///
-  /// 🛑 **Le civique compte des notions OU des thèmes** selon ce que le tagging
-  /// permet (`grainNotion`, servi) : son libellé le dit, au lieu d'écrire
-  /// « compétences » à tort.
-  Widget? _progression(bool civique) {
-    final progres = ref.watch(progressProvider).valueOrNull;
-    if (progres == null) return null;
-
-    final (travaillees, maitrisees, notion) = civique
-        ? (
-            progres.civique.travaillees,
-            progres.civique.maitrisees,
-            progres.civique.grainNotion,
-          )
-        : (
-            progres.tcf.competences.travaillees,
-            progres.tcf.competences.maitrisees,
-            false,
-          );
-
-    // Rien de mesuré : le bloc n'a rien à dire.
-    if (travaillees <= 0) return null;
-
-    return SfCard(
-      child: SfStatGrid(
-        stats: [
-          (
-            value: '$travaillees',
-            label:
-                homeWorkedLabel(travaillees, civique: civique, notion: notion),
-          ),
-          (
-            value: '$maitrisees',
-            label:
-                homeMasteredLabel(maitrisees, civique: civique, notion: notion),
-          ),
-        ],
-      ),
     );
   }
 }
