@@ -1816,9 +1816,25 @@ vérifier » · `SERIE_TERMINEE` « Série terminée » · `MAINTENANT` « Maint
   (les minutes sont celles d'**un** sujet) ; « Petit sujet ciblé » ⇒ « **Sujets
   ciblés** » (une étape n'est pas un sujet). CTA avant 5/5 : « Commencer » à 0/5,
   « **Continuer** » au-delà, « Découvrir » sur une acquisition.
-- **Le nom de la compétence ne s'écrit plus trois fois** sur le même écran : titre
-  de carte avant 5/5, sous-titre sur la vérification — jamais les deux, et plus
-  dans l'encart bleu.
+- **Le nom de la compétence ne s'écrit plus trois fois** sur le même écran : une
+  seule fois, en sous-titre — et sur la vérification il reste sous un titre qui
+  nomme l'ACTION.
+- 🛑 **L'ÉPREUVE en titre, la compétence en sous-titre** (demande du propriétaire,
+  2026-09-18) : « Compréhension orale · Niveau B2 » puis « Comprendre l'implicite
+  et les nuances à l'oral ». Les deux étaient inversés — le candidat lisait
+  d'abord un intitulé de référentiel, long, sur deux lignes, et devait descendre
+  pour savoir de quelle épreuve il s'agissait. Il sait maintenant **où** il
+  travaille avant de lire **quoi**. L'identité se compose à un seul endroit
+  (`planNowIdentite`, miroirs), et **la carte de vérification est le seul cas où
+  l'ordre s'inverse** : son titre nomme l'action.
+  ⚠️ **La timeline du parcours n'est PAS concernée** : ses lignes se distinguent
+  les unes des autres par le nom de la compétence — quatre lignes titrées
+  « Compréhension orale » ne diraient plus laquelle est laquelle.
+  ⚠️ **Correctif de parité dans la même passe** : le web lisait `planSkillLevel`
+  (les paliers de compréhension seuls) et écrivait « Palier B1 », le mobile
+  `planSkillTargetLevel` et « Niveau B2 ». Deux lectures et deux mots pour la
+  ligne désormais promue au titre. Le web s'aligne sur le mobile — « Niveau » est
+  le mot du produit, « palier » celui des règles.
 - **Navigation : le CTA ouvre DIRECTEMENT le prochain petit sujet non traité**
   (`recommendedExercise.skillPromptId`, désigné serveur). Le web ouvrait la
   **liste des 5** (`planSkillHref(..., {planStep:true})`) là où le mobile ouvrait

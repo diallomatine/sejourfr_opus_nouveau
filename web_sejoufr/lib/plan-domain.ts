@@ -482,6 +482,24 @@ export function planNowLines(priority: LearningPlanPriorityDto): string[] {
     return lines;
 }
 
+/**
+ * **L'identité d'une étape** : son épreuve et son repère — « Compréhension
+ * orale · Niveau B2 », « Expression écrite · Tâche 1 ».
+ *
+ * 🛑 C'est le **titre** de la carte « À faire maintenant » depuis le
+ * 2026-09-18 : on dit d'abord où l'on travaille, l'intitulé de la compétence
+ * vient dessous. Sans repère servi, l'épreuve seule — jamais un « · » orphelin.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planNowIdentite`, `plan_labels.dart`).
+ */
+export function planNowIdentite(
+    priority: LearningPlanPriorityDto,
+    repere: string | null,
+): string {
+    const domaine = productionSectionLabel(priority.section);
+    return repere ? `${domaine} · ${repere}` : domaine;
+}
+
 /** La pastille de la carte d'action, hors mesure. ⚠️ Le mobile écrit
  *  « Priorité 1 » (`planPriorityRankTag(1)`) : divergence de forme antérieure,
  *  laissée telle quelle — chaque front garde sa copie. */
@@ -777,12 +795,18 @@ export function planNowCard(
         ? planSeanceItemLocked(mesure)
         : (priority!.locked || exercise?.locked === true);
 
-    const level = priority ? planSkillLevel(plan, priority.skillId) : null;
+    /* ⚠️ **`planSkillTargetLevel`, comme le mobile** (correctif de parité du
+       2026-09-18) : cette carte lisait `planSkillLevel`, les paliers de
+       compréhension seuls, pendant que le mobile lisait le palier porté par la
+       compétence. Deux lectures pour la même ligne, désormais promue au TITRE
+       de la carte. Et le mot est « **Niveau** », celui du reste du produit —
+       « Palier » est le vocabulaire des règles, pas celui du candidat. */
+    const level = priority ? planSkillTargetLevel(plan, priority.skillId) : null;
     const tache = priority ? skillTaskNumber(priority.skillCode) : null;
     const repere = !priority
         ? null
         : isComprehension(priority.section)
-            ? level ? `Palier ${level}` : productionSectionLabel(priority.section)
+            ? level ? `Niveau ${level}` : productionSectionLabel(priority.section)
             : planTaskBadge(tache ?? 1);
 
     /* 🛑 **La carte de vérification est une AUTRE carte.** Le nom de la
@@ -846,15 +870,20 @@ export function planNowCard(
         exercise,
         section: priority.section,
         repere,
-        /* 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
-           titre avant 5/5 et en sous-titre sur la vérification, dont le titre
-           nomme l'ACTION. */
-        title: verifier ? PLAN_NOW_VERIFY_TITLE : free ? repere ?? priority.title : priority.title,
-        subtitle: free
-            ? priority.title
-            : verifier
-                ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
-                : `${productionSectionLabel(priority.section)} · ${repere}`,
+        /* 🛑 **L'ÉPREUVE en titre, la compétence en sous-titre** (demande du
+           propriétaire, 2026-09-18). Les deux étaient inversés : le candidat
+           lisait d'abord « Comprendre l'implicite et les nuances à l'oral » —
+           un intitulé de référentiel, long, sur deux lignes — et devait
+           descendre pour savoir de quelle épreuve il s'agissait. Il sait
+           maintenant **où** il travaille avant de lire **quoi**.
+
+           🛑 **Le nom de la compétence ne se répète pas trois fois** : il vit
+           en sous-titre, et sur la vérification il passe sous le titre — qui
+           nomme alors l'ACTION, et c'est le seul cas où l'ordre s'inverse. */
+        title: verifier ? PLAN_NOW_VERIFY_TITLE : planNowIdentite(priority, repere),
+        subtitle: verifier
+            ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
+            : priority.title,
         badge: free ? null : PLAN_NOW_PRIORITY_BADGE,
         objectiveLabel: verifier && !free ? PLAN_NOW_VERIFY_OBJECTIVE_LABEL : null,
         objective: verifier && !free ? PLAN_NOW_VERIFY_TEXT : null,

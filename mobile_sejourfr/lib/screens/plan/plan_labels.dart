@@ -683,13 +683,16 @@ String planNowCta(
       : kPlanNowStartCta;
 }
 
-/// Le repère « Expression écrite · Tâche 3 » sous le nom de la compétence.
-/// `null` en compréhension, où il n'y a pas de tâche — le palier prend sa place.
+/// **L'identité d'une étape** : son épreuve et son repère — « Compréhension
+/// orale · Niveau B2 », « Expression écrite · Tâche 3 ».
 ///
-/// 🛑 **Il ne répète plus le titre de la compétence** : celui-ci vit en titre de
-/// carte, et le voir trois fois sur le même écran (titre, sous-titre, encart)
-/// ne disait rien de plus.
-String planNowSubtitle({
+/// 🛑 C'est le **titre** de la carte « À faire maintenant » depuis le
+/// 2026-09-18 : on dit d'abord où l'on travaille, l'intitulé de la compétence
+/// vient dessous. Sans repère servi, l'épreuve seule — jamais un « · »
+/// orphelin.
+///
+/// ⚠️ Miroir mot pour mot du web (`planNowIdentite`, `lib/plan-domain.ts`).
+String planNowIdentite({
   required String domaine,
   SkillTaskCode? task,
   TargetLevel? level,

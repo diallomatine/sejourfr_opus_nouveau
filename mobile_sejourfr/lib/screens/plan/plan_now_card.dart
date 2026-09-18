@@ -236,19 +236,28 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
     exercise: exercise,
     section: priority.section,
     icon: verifier ? LucideIcons.badgeCheck : planDomainIcon(epreuve),
-    // 🛑 **Le nom de la compétence ne se répète pas trois fois.** Il vit en
-    // titre avant 5/5 et en sous-titre sur la vérification, dont le titre nomme
-    // l'ACTION.
-    title: verifier ? kPlanNowVerifyTitle : priority.title,
-    subtitle: verifier
-        ? planNowVerifySubtitle(priority.title, task)
-        : planNowSubtitle(
+    // 🛑 **L'ÉPREUVE en titre, la compétence en sous-titre** (demande du
+    // propriétaire, 2026-09-18). Les deux étaient inversés : le candidat lisait
+    // d'abord « Comprendre l'implicite et les nuances à l'oral » — un intitulé
+    // de référentiel, long, sur deux lignes — et devait descendre pour savoir de
+    // quelle épreuve il s'agissait. Il sait maintenant **où** il travaille avant
+    // de lire **quoi**.
+    //
+    // 🛑 **Le nom de la compétence ne se répète pas trois fois** : il vit en
+    // sous-titre, et sur la vérification il passe sous le titre — qui nomme
+    // alors l'ACTION, et c'est le seul cas où l'ordre s'inverse.
+    title: verifier
+        ? kPlanNowVerifyTitle
+        : planNowIdentite(
             domaine: epreuve == null
                 ? priority.section.label
                 : planDomainLabel(epreuve),
             task: task,
             level: level,
           ),
+    subtitle: verifier
+        ? planNowVerifySubtitle(priority.title, task)
+        : priority.title,
     badge: planPriorityRankTag(1),
     objectiveLabel: verifier ? kPlanNowVerifyObjectiveLabel : null,
     objective: verifier ? kPlanNowVerifyText : null,
