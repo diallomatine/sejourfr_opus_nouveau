@@ -2337,7 +2337,7 @@ class SfStatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final rangee = Row(
       crossAxisAlignment:
           onHero ? CrossAxisAlignment.stretch : CrossAxisAlignment.start,
       children: [
@@ -2375,6 +2375,14 @@ class SfStatGrid extends StatelessWidget {
         ],
       ],
     );
+    // 🛑 **`stretch` exige une hauteur BORNÉE.** Les tuiles de marque doivent
+    // toutes faire la hauteur de la plus haute — c'est ce que la maquette
+    // montre —, mais dans une `ListView` la rangée reçoit
+    // `0.0 <= h <= Infinity` : `stretch` transmet alors l'infini aux tuiles,
+    // les contraintes deviennent invalides et **l'écran entier tombe** (blanc
+    // en release). `IntrinsicHeight` mesure d'abord la plus haute et borne la
+    // rangée. Coût négligeable ici : trois tuiles de texte court.
+    return onHero ? IntrinsicHeight(child: rangee) : rangee;
   }
 }
 
