@@ -1800,8 +1800,9 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
 - **Un examen d'expression écrite dure 30 minutes** pour les trois tâches, à répartir
   librement — comme au TCF.
 - **Une épreuve qu'on n'a pas pu passer n'a pas de niveau — elle n'est pas « ratée ».**
-  Deux cas : l'épreuve était **verrouillée** (compte gratuit qui refait un examen blanc
-  complet après avoir déjà utilisé son expression écrite et orale offertes), ou ses
+  Deux cas : l'épreuve était **verrouillée** (compte gratuit dont l'examen blanc offert de
+  **cette épreuve-là** a déjà été corrigé ; depuis le 18 septembre 2026 le verrou est
+  **par épreuve** — celui qui a utilisé son écrit garde son oral), ou ses
   corrections ont **échoué** techniquement. Dans les deux cas, on n'affiche **aucun**
   niveau pour cette épreuve, et elle n'entre pas dans le niveau global de l'examen. Le
   système annonce alors combien d'épreuves comptent réellement, et le résultat est
@@ -2847,7 +2848,9 @@ donnaient un verdict sur une épreuve qui en dure une bonne vingtaine et compte 
 
 **Un entraînement sert à trois choses, et il les fait toujours :**
 
-- vous entraîner autant que vous le souhaitez, sans limite autre que votre abonnement ;
+- vous entraîner autant que vous le souhaitez, sans limite autre que votre abonnement —
+  ⚠️ depuis le 18 septembre 2026, les entraînements d'expression écrite et orale demandent
+  un abonnement (cf. § *Les deux examens blancs offerts*) ;
 - alimenter vos **compétences**, vos **priorités** et vos **retours détaillés** — c'est-à-dire
   tout votre plan de travail. Un entraînement reste une **observation** : votre plan s'en sert
   pour savoir quoi vous proposer ensuite. Ce qu'il ne fait pas, c'est **afficher un niveau
@@ -3412,9 +3415,53 @@ L'analyse par l'IA n'est d'ailleurs **pas automatique** : le candidat peut très
 réponse, la comparer aux exemples, et s'en tenir là. C'est pour cette raison qu'un sujet peut
 être marqué « **Fait** » plutôt que « Validé » ou « À renforcer » : sans analyse, il n'y a aucun
 verdict — le dire « validé » serait faux, le dire « à renforcer » serait faux **et**
-décourageant. Écrire, s'auto-évaluer et lire les exemples de référence est **gratuit et sans
-limite** sur tous les sujets ; c'est **l'analyse par l'IA** qui est réservée aux abonnés, avec
-**trois analyses offertes** pour essayer.
+décourageant.
+
+⚠️ **Ce qui a changé le 18 septembre 2026.** Jusqu'à cette date, écrire, s'auto-évaluer et lire
+les exemples de référence étaient **gratuits et sans limite** sur tous les sujets, et l'analyse
+par l'IA venait avec **trois analyses offertes** pour essayer. Le propriétaire a tranché
+autrement : **les micro-exercices sont désormais entièrement réservés aux abonnés**, et les
+trois analyses offertes n'existent plus. Ce qu'un compte gratuit reçoit à la place, et qui est
+bien plus généreux sur la notation elle-même : **un examen blanc d'expression écrite et un
+examen blanc d'expression orale, offerts une fois chacun dans sa vie, avec les trois tâches
+réellement corrigées par l'IA** — pas un aperçu, l'analyse entière. Le détail de ces deux
+gratuités est plus bas, § *Les deux examens blancs offerts*.
+
+### Les deux examens blancs offerts, et ce que l'IA corrige dedans (18 septembre 2026)
+
+Un compte sans abonnement reçoit **deux examens blancs de production, offerts une fois chacun
+dans sa vie** : un d'**expression écrite**, un d'**expression orale**. Ce sont **deux cadeaux
+distincts** — celui qui a utilisé son écrit garde son oral, et inversement. Ce n'est pas « un au
+choix ».
+
+**Ce que l'IA fait dedans : tout.** Les trois tâches de l'épreuve sont réellement corrigées,
+avec la même grille, les mêmes critères et les mêmes garde-fous que pour un abonné. Le candidat
+reçoit son analyse entière, son niveau par tâche et son niveau d'épreuve. Ce n'est pas un
+aperçu, une version allégée ou un extrait : c'est le produit.
+
+**Quand le cadeau est-il « utilisé » ?** Uniquement quand une analyse a été **rendue**. Un
+examen abandonné en cours de route, un examen dont le temps est écoulé, une panne, une
+correction qui échoue techniquement : dans tous ces cas, **le candidat retrouve son examen
+offert**. C'est la seule lecture honnête de « offert une fois » — sinon cela voudrait dire
+« perdu une fois ».
+
+**Et s'il veut repasser l'épreuve une seconde fois ?** L'épreuve elle-même n'est pas interdite ;
+c'est l'**analyse par l'IA** du second passage qui demande un abonnement. Concrètement :
+
+- à l'**écrit**, le candidat peut refaire l'épreuve : son texte reste sous ses yeux, il peut le
+  relire et le comparer. La correction, elle, ne partira pas ;
+- à l'**oral**, le message d'abonnement se présente **avant** de commencer. C'est volontaire, et
+  c'est même une question d'honnêteté : **nous ne conservons aucun enregistrement de candidat**
+  (le son sert à produire la transcription, puis il disparaît). Sans correction, il ne resterait
+  donc **rien** — ni transcription, ni note, ni trace. Faire parler quelqu'un dix minutes dans
+  le vide n'est pas un geste acceptable, donc on le lui dit avant.
+
+**Aucun appel payant n'est déclenché sur un second passage** : ni la transcription, ni le
+correcteur. Le refus est posé avant tout traitement.
+
+**Ce qui reste gratuit par ailleurs** : le **diagnostic rapide** en entier — priorités et
+analyse comprises —, et les **examens blancs de compréhension** orale et écrite, dont le premier
+est offert **et rejouable autant qu'on veut**. Ces règles-là n'ont pas bougé.
 
 ### Les 48 compétences ont été revues le 13 septembre 2026
 
@@ -4787,7 +4834,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les consignes des micro-exercices par compétence** (§11 bis — ce que l'IA regarde, les trois verdicts, l'interdiction d'une note, la façon dont le niveau doit se montrer dans la copie, les limites de l'oral) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-rubrics-v5.json` (version active — **v4 mot pour mot pour tout ce qui juge** ; elle ajoute trois exemples de correction sur les deux paliers qui n'en avaient aucun et retire une fréquence attendue. Elle garde le **format de réponse v4**, inchangé. v1 à v4 restent chargeables). Fichier **séparé** de celui des tâches complètes : les deux voies n'ont ni les mêmes règles ni le même but, et on ne veut pas qu'une modification de l'une déborde sur l'autre |
 | **Le format de réponse des micro-exercices** (les quatre éléments rendus, les trois verdicts, les longueurs maximales) | `backend_sejourfr/src/main/resources/prompts/competence-analysis-tool-schema-v2.json` (consignes réaccentuées, contrat inchangé) — **aucun champ n'y existe pour une note ou un niveau**, c'est ce qui rend leur apparition impossible plutôt que simplement interdite |
 | **Le plan d'action « pour passer au niveau suivant » des micro-exercices** (§11 bis — la forme des leviers, ce que la réécriture garde du candidat, les marqueurs qui prouvent le palier, le procédé exigé sur chaque levier) | `backend_sejourfr/src/main/resources/prompts/competence-niveau-vise-rubrics-v3.json` et son format de réponse `competence-niveau-vise-tool-schema-v3.json` (version **active** — **la v2 mot pour mot** pour tout ce qui concerne la réécriture et la tournure à retenir ; elle n'édite que la partie « leviers », à laquelle elle ajoute un **procédé de langue obligatoire**). v1 et v2 restent chargeables. Fichiers **séparés** de ceux de l'analyse : c'est un **second correcteur**, qui ne juge rien et à qui l'on ne montre pas la grille d'analyse. Aucun champ n'y existe pour une note ou un niveau |
-| **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement, nombre d'analyses offertes) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
+| **Les réglages des micro-exercices** (longueur maximale acceptée, durée maximale d'un enregistrement) — ⚠️ le *nombre d'analyses offertes* n'y figure plus : il a été supprimé le 18 septembre 2026, l'analyse des micro-exercices est réservée aux abonnés | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.competences.analysis`. Le **correcteur**, lui, n'a pas de réglage propre : cette voie utilise le même que tout le reste (`sejourfr.production-evaluation.provider`) |
 | **Le contenu des micro-exercices** (les compétences, les petits sujets, les trois réponses de référence et leurs notes pédagogiques) | migrations `db/migration/300_tcf/competences/` — fichiers **générés**, à ne pas modifier à la main ; le volume publié est figé par un test automatique |
 | **Les consignes du diagnostic initial et de l'observateur du Plan** (accomplissement avant langue, limites de l'oral transcrit, allowlist de compétences, aucune note officielle) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-rubrics-v1.json`, fichier **séparé** de la notation et des micro-exercices. Le même contrat sert à la baseline et aux observations de productions complètes, avec un `analysis_type` explicite ; une nouvelle règle durable crée une nouvelle version au lieu de réécrire v1 |
 | **Le format structuré du diagnostic/Plan** (niveau prudent ≤ B2, accomplissement, communication, preuves segmentées, confiance et priorités) | `backend_sejourfr/src/main/resources/prompts/diagnostic-analysis-tool-schema-v1.json`, renforcé par `DiagnosticAnalysisValidator` : clés exactes, allowlist exhaustive sans doublon, numéros de segment entiers et existants, cohérence observation/statut/preuve. Le drapeau « priorité » n'est plus contrôlé mais **recalculé** à partir du statut, et le maximum de deux priorités par production est appliqué en **retirant** les priorités surnuméraires (les moins sûres d'abord) : une analyse n'est jamais perdue pour ce motif. Aucun champ de note `/20` n'existe |

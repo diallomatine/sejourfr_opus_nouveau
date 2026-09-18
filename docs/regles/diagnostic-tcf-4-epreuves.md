@@ -505,7 +505,9 @@ l'y proposer contredirait « totalement gratuit »).
 `config/TcfDiagnosticProperties`.
 
 🛑 **`config-version` s'incrémente dès qu'un réglage change le SENS d'un
-résultat** (items par palier, seuils). Il vaut **2** depuis le 2026-09-13. Il est recopié sur chaque session : un
+résultat** (items par palier, seuils). Il vaut **3** depuis le 2026-09-13 — le passage de 2 à 3 est
+celui que §4 décrit (« une section est un examen blanc de son épreuve »), et `application.yaml`
+dit bien 3. Il est recopié sur chaque session : un
 diagnostic se relit avec la configuration **qui l'a produit**, sans quoi un
 recalibrage réinterpréterait rétroactivement des diagnostics déjà passés.
 

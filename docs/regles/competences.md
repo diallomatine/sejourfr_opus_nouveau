@@ -159,10 +159,13 @@ préparation offerte), jamais par un score.
   de CR à NAT vise soudain le B2, et ses tentatives passées doivent l'afficher.
   Libellés gelés par `SkillLabelsTest`, **à mirrorer sur web et mobile**.
 - **Config** : `sejourfr.competences.analysis` (`max-tokens: 600`,
-  `temperature: 0`, `free-analyses: 3`, `max-text-words: 400`,
+  `temperature: 0`, `max-text-words: 400`,
   `max-audio-duration-seconds: 180`) et `sejourfr.competences.niveau-vise`
   (`enabled: true`, `max-tokens: 900`, `temperature: 0`, `max-leviers: 3`), POJO
-  `CompetenceProperties` **aux mêmes valeurs par défaut que le YAML**. Le
+  `CompetenceProperties` **aux mêmes valeurs par défaut que le YAML**.
+  🛑 **`free-analyses: 3` a été SUPPRIMÉ le 2026-09-18** (D-17) et n'a **pas** de
+  remplaçant : l'analyse IA du module est premium, point — aucun quota
+  journalier n'a été introduit. Le
   **fournisseur LLM n'a de réglage propre ni pour l'un ni pour l'autre** :
   `CompetenceLlmConfig` et `CompetenceNiveauViseLlmConfig` lisent
   `sejourfr.production-evaluation.provider`, comme tout le reste (règle « un seul
@@ -258,46 +261,53 @@ préparation offerte), jamais par un score.
   exercice ? »), `skills.general_criterion` = le critère général travaillé (encart
   « Critère travaillé »). Et **ni l'un ni l'autre** n'est
   `skill_prompts.unique_criterion`, qui est le critère précis d'**un** sujet.
-- **Freemium — règle en vigueur depuis le 2026-08-10.** ⚠️ **L'ancienne règle
-  (« aucun sujet n'est verrouillé, seule l'analyse IA est premium ») est
-  RÉVOQUÉE** : elle ouvrait les 720 sujets à un compte gratuit, si bien que le
-  module entier — le cœur de l'entraînement quotidien — ne donnait aucune raison
-  de payer, et les 3 analyses offertes étaient la seule friction. Ne pas la
-  réintroduire au motif qu'elle est encore écrite quelque part : ce qui suit
-  fait foi. Pour un compte **sans accès TCF** (`hasTcf == false`) :
-  - **une seule compétence ouverte par tâche**, celle de `display_order` le plus
-    bas encore actif (= rang 1 sur le contenu publié) → **6 compétences** pour
-    les 6 tâches ;
-  - **plus la compétence de la priorité n°1 de son Plan**, si elle n'y est pas
-    déjà. Sans cette exception, un diagnostic désignant une compétence de rang 5
-    cadenasserait l'**étape 1** du Plan et rendrait le Plan entier inutilisable —
-    or c'est la colonne vertébrale du produit ;
-  - dans une compétence ouverte, **les 2 premiers sujets actifs** seulement
-    (`SkillAccessService.FREE_PROMPTS_PER_SKILL`). ⚠️ **Ne pas l'aligner sur les
-    5 sujets d'une étape du Plan** (`LearningPlanStep.PROMPTS_PAR_ETAPE`) : les
-    deux constantes disent des choses différentes, et le plafond à **2/5** sur
-    l'étape n°1 est la conséquence voulue — aucune étape n'est finissable sans
-    abonnement (arbitré le 2026-08-11) ;
-  - **les 3 analyses IA offertes à vie ne bougent pas** : un sujet ouvert reste
+- 🛑 **Freemium — TOUT LE MODULE EST PREMIUM depuis le 2026-09-18 (D-18).**
+  Travailler une compétence est premium, **sans exception** : un compte **sans
+  accès TCF** (`hasTcf == false`) n'a **aucune** compétence et **aucun** sujet
+  ouverts. Un **abonné TCF** n'a aucun verrou.
+  - ⚠️ **La règle du 2026-08-10 est révoquée**, avec ses quatre ouvertures :
+    « une seule compétence ouverte par tâche » (rang 1 de chacune des 6 tâches) ;
+    « **plus la compétence de la priorité n°1 de son Plan** » ; « dans une
+    compétence ouverte, **les 2 premiers sujets actifs** »
+    (`SkillAccessService.FREE_PROMPTS_PER_SKILL`, **supprimé**) ; et la première
+    compétence de chaque **domaine de compréhension** (`CO-A2` / `CE-A2` — les
+    rangs CO/CE sont traités dans la même passe, D-18 ne connaît pas de domaine
+    d'exception).
+  - ⚠️ **Et la phrase sur les analyses est révoquée aussi**, verbatim : « **les
+    3 analyses IA offertes à vie ne bougent pas** : un sujet ouvert reste
     analysable dans la limite du quota existant (`free-analyses`, décompte
-    inchangé). Sur un sujet ouvert, produire, s'auto-évaluer, se relire et lire
-    les 3 références restent gratuits et illimités ; la garde des références
-    (« au moins une tentative ») est inchangée.
-  - Un **abonné TCF** n'a aucun verrou.
+    inchangé) ». `sejourfr.competences.analysis.free-analyses: 3` est
+    **supprimé** ; `SkillAnalysisAccessService` refuse dès la première analyse.
+  - ⚠️ **L'ancienne règle d'avant le 2026-08-10 reste révoquée elle aussi**
+    (« aucun sujet n'est verrouillé, seule l'analyse IA est premium ») : elle
+    ouvrait les 720 sujets, si bien que le module entier — le cœur de
+    l'entraînement quotidien — ne donnait aucune raison de payer. Ne pas la
+    réintroduire au motif qu'elle est encore écrite quelque part.
+  - 🛑 **Ce qui reste gratuit, et rien d'autre** : le **diagnostic rapide**
+    (priorités et analyse comprises), **un examen blanc EE** et **un examen
+    blanc EO** — une fois à vie chacun, analyse IA complète incluse
+    (`free_entitlement_usage`, `FreeExamEntitlementService`) —, et les examens
+    QCM CO/CE, **inchangés** (slot 1 offert et rejouable à volonté).
+    → `docs/regles/freemium.md`
+  - 🛑 **Rien n'est MASQUÉ pour autant** : les 48 compétences, leurs sujets,
+    leurs libellés, le Plan, les priorités et les niveaux mesurés **restent
+    lisibles et servis**. On ferme l'**exécution**, jamais l'affichage — la
+    contradiction #1 du dépôt n'est pas rouverte.
   **Une seule autorité : `SkillAccessService`** (`SkillAccess.isSkillLocked` /
-  `isPromptLocked`), qui s'appuie sur `LearningPlanPriorityResolver` — extrait
-  exprès pour que l'ordre des priorités du Plan et le verrou ne puissent pas
-  diverger. Aucun mapper, aucun controller, aucun front ne réimplémente la
-  règle : les DTO portent un `locked` (`SkillDto`, `SkillPromptDto`,
+  `isPromptLocked`). ⚠️ Il ne dépend plus de `PlanFocusResolver` : sans
+  exemption, il n'a plus besoin de savoir quelle compétence occupe la première
+  place du Plan, et sa surcharge `resolve(userId, focusSkillId)` est supprimée.
+  Aucun mapper, aucun controller, aucun front ne réimplémente la règle : les DTO portent un `locked` (`SkillDto`, `SkillPromptDto`,
   `SkillPromptSummaryDto`, `LearningPlanPriorityDto`, `LearningPlanSkillDto`,
   `PlanRecommendedExerciseDto`), et le verrou est **opposable serveur** —
   `SkillAccessService.assertCanProduce` rend **403** à la création d'une
   tentative comme sur `analyse` et `retry`, même philosophie que
-  `AttemptService.enforceMockExamSlotAccess`. Résolution **groupée** (4 requêtes
-  au plus, 1 seule pour un abonné) : un écran, c'est 24 compétences × 5 sujets.
-  Le quota d'analyses, lui, se consomme toujours à l'**acceptation**
-  (`analysis_requested = true`), pas au succès : sinon un retry après échec
-  fournisseur en offrirait davantage.
+  `AttemptService.enforceMockExamSlotAccess`. Résolution en **une seule
+  requête** — l'abonnement, et rien d'autre : un écran, c'est 24 compétences ×
+  5 sujets, et il n'y a plus de lot ouvert à composer. ⚠️ Le compteur
+  `SkillAnalysisQuotaDto.freeAnalysesUsed` reste servi (c'est un fait), mais
+  `freeAnalysesTotal` vaut désormais **0** et `remaining` vaut 0 pour un compte
+  gratuit, −1 pour un abonné : la **forme** du contrat ne change pas.
 - **Statut d'un sujet dérivé serveur**, jamais recalculé par un front
   (`SkillStatusResolver`) : `TODO` / **`TREATED`** / `VALIDATED` / `TO_REINFORCE`.
   `TREATED` (« Fait ») est le 4ᵉ statut qu'impose le freemium — une production

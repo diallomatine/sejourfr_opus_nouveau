@@ -68,11 +68,28 @@ services **sous filet de tests** (refacto sans régression).
     transitions de statut, mapping, RGPD, etc.
   - Couverture JaCoCo : ~47 % instr (unit) + 40 % instr (IT), complémentaires
 - [x] Mappers (13, unitaires) + specifications (3, IT) → **929 tests verts** (473 unit + 456 IT)
+      *(chiffre de l'époque du fan-out, conservé comme repère historique — voir le décompte
+      courant ci-dessous)*
 - [x] Refacto archi : `AttemptService` 1252 → 799 l. + 3 services `service/attempt/`
   (`AttemptScoringService`, `AttemptCompositionService`, `AttemptInteractionService`),
   façade à API publique inchangée, 929 tests toujours verts.
 
-## Refacto réalisé (sous filet, API publiques inchangées, 929 tests verts)
+### Décompte courant — **2026-09-18**
+
+Recompté sur le dépôt (`find src/test -name '*Test.java' | wc -l`, idem `*IT.java`, et
+`grep -c '@Test'`) :
+
+| grandeur | valeur mesurée |
+|---|---|
+| classes de test | **396** — 257 `*Test` (surefire) + 139 `*IT` (failsafe) |
+| méthodes `@Test` | **3 848** — 2 824 unitaires + 1 024 d'intégration |
+| `@ParameterizedTest` en plus | **29** — 23 unitaires + 6 d'intégration (chacune s'exécute N fois) |
+| migrations Flyway appliquées par les `*IT` | **312** fichiers `V*.sql` |
+
+⚠️ Les « 929 tests verts » et les « 221 migrations » des sections ci-dessus datent du fan-out
+initial : ce sont des **repères historiques**, pas l'état du dépôt.
+
+## Refacto réalisé (sous filet, API publiques inchangées, 929 tests verts à l'époque)
 
 - **`AttemptService`** 1252 → 799 l. + `service/attempt/` : `AttemptScoringService` (138),
   `AttemptCompositionService` (228), `AttemptInteractionService` (254). Façade orchestrant

@@ -64,20 +64,45 @@ db/migration/
 │   │                                             notion technique « AUCUNE » :
 │   │                                             l'absence de rattachement s'écrit
 │   │                                             avec l'absence de valeur
-│   └── V049__diagnostic_tcf_complet.sql         lot L4 : tcf_diagnostic_sessions +
-│                                                 attempts.tcf_diagnostic_id. 🛑 CE
-│                                                 DISCRIMINANT SE FILTRE PARTOUT
-│                                                 (`tcf_diagnostic_id IS NULL`), comme
-│                                                 production_tasks.diagnostic_code : sans
-│                                                 lui un diagnostic occuperait un slot de
-│                                                 la grille des examens blancs
+│   ├── V049__diagnostic_tcf_complet.sql         lot L4 : tcf_diagnostic_sessions +
+│   │                                             attempts.tcf_diagnostic_id. 🛑 CE
+│   │                                             DISCRIMINANT SE FILTRE PARTOUT
+│   │                                             (`tcf_diagnostic_id IS NULL`), comme
+│   │                                             production_tasks.diagnostic_code : sans
+│   │                                             lui un diagnostic occuperait un slot de
+│   │                                             la grille des examens blancs
+│   ├── V058-V062                                le référentiel civique se stabilise :
+│   │                                             référentiel validé (V058), frontière
+│   │                                             impôts ⇄ institutions (V060), thème
+│   │                                             source d'une suggestion (V061),
+│   │                                             provenance des verdicts (V062).
+│   │                                             ⚠️ V059 N'EXISTE PAS (trou assumé)
+│   ├── V063-V065                                skills.learning_points (V063), ordre
+│   │                                             d'affichage des sujets (V064), et la
+│   │                                             première place du Plan épinglée
+│   │                                             (V065 : plan_pinned_priorities)
+│   ├── V066__schema_journey_tcf.sql             le PARCOURS TCF persisté : journey +
+│   │                                             journey_lot + journey_step +
+│   │                                             journey_assessment_event. 🛑 SEULES LA
+│   │                                             STRUCTURE ET LA CLÔTURE y vivent ; le
+│   │                                             statut d'affichage et le verrou restent
+│   │                                             dérivés à la lecture
+│   └── V067__schema_cycle_journey_et_freebie.sql le parcours devient un CYCLE BORNÉ :
+│                                                 journey.module / status / entry_level /
+│                                                 exit_level / historise_at, deux index
+│                                                 uniques PARTIELS (un EN_COURS + un
+│                                                 EN_ATTENTE par candidat et module) en
+│                                                 remplacement de uq_journey_user_target,
+│                                                 et free_entitlement_usage — le ledger
+│                                                 unique de « offert une fois »
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
 │   ├── V101__ref_themes.sql                     8 thèmes (CIVIQUE ×5, TCF CO/CE/STRUCTURE)
 │   ├── V110-V111                                exam_templates + exam_template_rules
-│   └── V112-V113                                correctifs/compléments de référence
-│                                                 (reset cecrl V112, realtime_eo_sessions V113)
+│   └── V112-V114                                correctifs/compléments de référence
+│                                                 (reset cecrl V112, realtime_eo_sessions V113,
+│                                                 passes courts Intégral V114)
 │
 ├── 200_civique/                     V200-V299   contenu civique (questions + choix), par sous-thème
 │   ├── principes_valeurs/           V201-V219
@@ -89,7 +114,9 @@ db/migration/
 └── 300_tcf/                         V300-V899   contenu TCF (1 centaine par épreuve, 30 numéros par niveau)
     ├── competences/                 V300-V399   module Compétences TCF : skills + skill_prompts
     │                                            + skill_references, un fichier par tâche
-    │                                            (EE1-EE3 = V300-V302, EO1-EO3 = V303-V305)
+    │                                            (EE1-EE3 = V300-V302, EO1-EO3 = V303-V305),
+    │                                            puis les 6 compétences de compréhension
+    │                                            (V318) et la taxonomie V3 (V319-V320)
     │                                            ⚠ FICHIERS GÉNÉRÉS — ne pas éditer à la main
     ├── ce_comprehension_ecrite/     V400-V499   a2=V400-V429, b1=V430-V459, b2=V460-V489
     ├── co_comprehension_orale/      V500-V599   a2=V500-V529, b1=V530-V559, b2=V560-V589
@@ -172,29 +199,31 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V057`**
-  (`question_notion_suggestions.notion_id` devient nullable — « aucune notion du
-  référentiel ne convient » est un VERDICT, et son unicité tient en
-  `UNIQUE NULLS NOT DISTINCT`) → le prochain est `V058`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V067`**
+  (2026-09-18 : `V067__schema_cycle_journey_et_freebie.sql` — le cycle borné du parcours
+  (`journey.module` / `status` / niveaux d'entrée et de sortie) et le ledger
+  `free_entitlement_usage`) → le prochain est `V068`.
+  ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
   numéro, donc un `UPDATE` en `V0xx` s'exécute **avant** les `INSERT` des plages 200/300 et
   ne trouve aucune ligne. On garde la DDL en `00_schema` et on pose l'`UPDATE` dans la plage
   du contenu visé, **après** ses lots (patron `V037` + `V590`, cf. ci-dessous).
-- **Nouvelle donnée de référence** → `100_reference/`, prochain `V1xx`. Max actuel : `V113`.
+- **Nouvelle donnée de référence** → `100_reference/`, prochain `V1xx`. Max actuel : `V114`.
 - **Nouveau lot de contenu** → sous-dossier du domaine/niveau concerné, prochain numéro
   libre dans la plage. Vérifier les slots restants de la sous-plage visée avant de choisir.
-  Maxima réellement occupés aujourd'hui :
+  Maxima réellement occupés, **recomptés le 2026-09-18** (`find db/migration -name 'V*.sql'`) :
 
   | famille                                | max occupé | reste dans la plage |
   |----------------------------------------|-----------:|---------------------|
-  | `200_civique/` (par sous-thème)         | V285       | ~15 slots par sous-thème |
-  | `300_tcf/competences/`                  | V305       | V306-V399 (94)      |
-  | `300_tcf/ce_comprehension_ecrite/`      | V400       | quasi toute la plage |
-  | `300_tcf/co_comprehension_orale/`       | V560, + V590 (backfill `audio_mode`) | V501-V529, V531-V559, V561-V589, V591-V599 |
-  | `300_tcf/structure_langue/`             | V600       | quasi toute la plage |
-  | `300_tcf/production/`                   | V754       | V755-V759           |
+  | `200_civique/` (racine : rangements et correctifs) | V295 | V296-V299 (4) |
+  | `200_civique/` (par sous-thème)         | V202 / V225 / V245 / V265 / V285 | ~15 slots par sous-thème |
+  | `300_tcf/competences/`                  | V320       | V321-V399 (79)      |
+  | `300_tcf/ce_comprehension_ecrite/`      | V483       | V484-V499 (16), + les trous entre paliers |
+  | `300_tcf/co_comprehension_orale/`       | V590 (backfill `audio_mode`) | V501-V529, V531-V559, V561-V589, V591-V599 |
+  | `300_tcf/structure_langue/`             | V686       | V687-V699 (13)      |
+  | `300_tcf/production/`                   | V757, + **V878** (allowlist taxonomie V3) | V758-V759, et ee/eo jusqu'à V724 / V753 |
   | `300_tcf/expression/`                   | V762       | V763-V799           |
-  | `300_tcf/…/audio_drafts/` a2 / b1 / b2  | V814 / V845 / V877 | b2 = V878-V889 (rendus par la renumérotation des compétences) |
+  | `300_tcf/…/audio_drafts/` a2 / b1 / b2  | V814 / V845 / V877 | ⚠️ **b2 s'arrête à V877** : V878 est pris par `production/` |
 - **Nouveau lot de compétences** → ne pas ajouter un `V3xx` à la main : ajouter la tâche au
   générateur `tools/competences/` et régénérer (cf. règle ci-dessus).
 

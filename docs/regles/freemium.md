@@ -40,18 +40,47 @@
   cascade DB, l'index partiel `idx_attempts_demo_quota` (V006) couvre le
   filtre. Un test vérifie qu'à `false` **rien** n'est supprimé, un autre qu'un
   attempt de compte vieux d'un an est épargné.
-- **Compte gratuit, EE/EO** : 1 essai d'entraînement par épreuve à vie + 1
-  examen blanc production offert. L'examen est marqué `attempts.slot_number=1`
-  au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent
-  le quota d'entraînement. Refaire l'examen 1 = toléré une fois mais consomme
-  les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
-  soumise. Règles dans `ProductionAccessService` (quota, partagé avec la voie
-  temps réel) / `AttemptService.startProductionAttempt`. Une **session d'examen
-  production est bornée** : chrono d'épreuve **EE 30 min** (l'**EO n'en a plus**,
-  elle se chronomètre par tâche — cf. § *Temps des examens blancs*) et **une
-  seule soumission par (attempt, tacheNumero)** — un examen, c'est 3 tâches, une
-  fois chacune. QCM entraînement : série 1
-  gratuite, 2+ premium. **Tous les examens blancs QCM** (`MOCK_EXAM`) :
+- 🛑 **Compte gratuit, EE/EO — REFONDU le 2026-09-18 (D-17, D-17 bis).**
+  **Deux examens blancs de production offerts à vie, un par épreuve** : un EE,
+  un EO. **Deux freebies nominatifs**, pas « un au choix » — celui qui a usé son
+  EE garde son EO. Chacun est **complet** : les 3 tâches sont réellement
+  corrigées, le LLM **est** appelé, l'analyse entière est rendue. C'est la
+  vitrine du produit, pas un aperçu.
+  - **Le rejeu est ouvert, c'est l'ANALYSE qui est premium.** Repasser
+    l'épreuve n'est pas interdit ; faire corriger le second passage l'est. 🛑 Et
+    **aucun appel payé ne part** : ni correcteur, ni **Whisper**. Le refus est
+    posé par `ProductionAccessService.enforceQuota`, appelé **avant** le
+    pipeline — même place que l'interception d'idempotence de V046.
+  - **Côté ORAL, le paywall se présente AU DÉMARRAGE** de l'épreuve
+    (`ProductionAccessService.assertCanStartProductionExam`), pas après la
+    soumission : sans Whisper il ne resterait **rien** à lire, et l'audio d'un
+    candidat n'est jamais conservé. À l'écrit, le texte reste sous les yeux du
+    candidat, donc le démarrage reste ouvert.
+  - **La consommation est PERSISTÉE et s'écrit à la REMISE DE L'ANALYSE**, ni au
+    démarrage de l'examen, ni à la clôture de la session : un abandon, une
+    expiration, un échec technique ou un échec du correcteur laissent le freebie
+    **intact**. Ledger `free_entitlement_usage` (V067), `UNIQUE (user_id, code)`,
+    codes `EXAM_BLANC_EE` / `EXAM_BLANC_EO` ; écriture par
+    `FreeExamEntitlementService.consommerApresAnalyse`, appelée par
+    `ProductionPipelineAsyncRunner` après qu'une `AiEvaluation` est produite.
+    ⚠️ La ligne est écrite dès la **première** analyse rendue et porte
+    `source_attempt_id` : les **2 tâches restantes du même examen** restent
+    corrigées au titre de la même gratuité. *(Décision d'implémentation prise en
+    P4 : n'écrire qu'après la 3ᵈ tâche aurait laissé un candidat abandonner
+    chaque examen sur la 2ᵈ tâche et obtenir des corrections LLM sans borne.)*
+  - **Un abonné ne consomme rien** : le ledger dit « ceci lui a été *offert* ».
+  - 🛑 **Les règles révoquées, verbatim** : « 1 essai d'entraînement par épreuve
+    à vie » (`FREE_TRAINING_PER_EPREUVE = 1`, **supprimé** — travailler EE/EO
+    est premium) ; « 2 sessions d'examen, EE+EO confondues »
+    (`countProductionExamSessions(userId) >= 2`, **supprimé** — il comptait des
+    examens *démarrés*, donc abandonnés, et ne savait pas dire sur quelle
+    épreuve) ; « Refaire l'examen 1 = toléré une fois mais consomme les essais
+    d'entraînement restants » (**supprimé**).
+  - **Inchangé** : une **session d'examen production reste bornée** — chrono
+    d'épreuve **EE 30 min** (l'**EO n'en a plus**, elle se chronomètre par
+    tâche — cf. § *Temps des examens blancs*) et **une seule soumission par
+    (attempt, tacheNumero)**, un examen c'est 3 tâches une fois chacune.
+- **QCM entraînement** : série 1 gratuite, 2+ premium. **Tous les examens blancs QCM** (`MOCK_EXAM`) :
   **slot 1 offert ET rejouable à volonté** pour tout compte inscrit, slots 2+
   réservés aux abonnés **du module** (Civique → `hasCivique`, TCF → `hasTcf`).
   Vaut pour les examens module TCF (CO / CE / STRUCTURE via
@@ -64,52 +93,70 @@
   freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
   **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
   fronts) et ne pilote pas la composition (questions tirées du même pool).
-- **Compte gratuit, module Compétences TCF** (micro-entraînement EE/EO) : **une
-  seule compétence ouverte par tâche** (la première de sa `SkillTaskCode`, soit
-  6 pour les 6 tâches) **+ la compétence de la première place du Plan** — celle
-  que désigne `PlanFocusResolver`, **quelle que soit sa nature**, fragilité
-  observée comme compétence « à acquérir » (2026-08-21, cf. la section *Plan
-  adaptatif*) —, et **2 sujets** par compétence ouverte. Le reste est verrouillé — cadenas côté
-  fronts, **403 côté serveur** (`SkillAccessService.assertCanProduce`). Les **3
-  analyses IA offertes à vie** sont un verrou distinct, inchangé, qui se cumule.
-  Règle posée le **2026-08-10**, elle **révoque** l'ancienne (« aucun sujet n'est
-  verrouillé ») ; détail et motif dans la section *Module « Compétences TCF »*.
-- **Compte gratuit, Plan personnalisé** : ⚠️ **la phrase qui ouvrait cette puce a été
-  RETIRÉE le 2026-08-23** — elle avait été explicitement révoquée le 2026-08-21 par la règle
-  « On floute l'ACTION pas encore accessible, jamais le RÉSULTAT mesuré »
-  (`docs/regles/plan.md`), mais elle était restée écrite ici, 766 lignes plus haut dans le
-  même fichier. Texte retiré et motif : `docs/decisions/contradictions-ouvertes.md`
-  (contradiction #1). **Ce qui fait foi aujourd'hui** : le Plan reste **lisible** en entier,
-  mais les **items de séance** et les **lignes de priorité verrouillés** sont floutés — voir
-  `docs/regles/plan.md`. La compétence de sa
-  priorité n°1 reste **ouverte** (cf. ci-dessus), donc l'étape n°1 se
-  **commence** sans payer. ⚠️ **Elle ne se termine pas** : une étape vaut 5
-  sujets, `FREE_PROMPTS_PER_SKILL` en ouvre 2, donc un compte gratuit plafonne à
-  **2/5** et **aucune étape n'est finissable sans abonnement** (arbitré le
-  2026-08-11). Cela **révoque** la formulation précédente (« sa priorité n°1 est
-  jouable, c'est ce qui garde le Plan utilisable sans abonnement ») : ce qui
-  reste gratuit, c'est **lire** son Plan et **commencer** son étape, pas la
-  finir. Ne pas « corriger » `FREE_PROMPTS_PER_SKILL` à 5 pour rétablir
-  l'ancienne phrase. **Conséquence en cascade, arbitrée le 2026-08-14** : la
-  bascule d'une étape en **vérification de progression** exige l'étape
-  *terminée*, donc un compte gratuit ne la voit **jamais**, aucune de ses
-  compétences n'atteint `SOLID`, et il ne reçoit aucun **jalon** d'examen blanc.
-  La vérification est **premium** — c'est un choix produit, détaillé dans la
-  section Plan.
+- 🛑 **Compte gratuit, module Compétences TCF — TOUT EST PREMIUM depuis le
+  2026-09-18 (D-18).** Travailler une compétence est premium, **sans
+  exception** : `SkillAccessService` n'ouvre **aucune** compétence et **aucun**
+  sujet à un compte sans accès TCF. Cadenas côté fronts, **403 côté serveur**
+  (`assertCanProduce` au grain du sujet, `assertCanTrain` au grain de la
+  compétence — la compréhension n'a pas de petit sujet à nommer).
+  - 🛑 **Les quatre ouvertures révoquées** : « une seule compétence ouverte par
+    tâche » ; « **plus la compétence de la première place du Plan** » (exemption
+    du 2026-08-21) ; « **2 sujets** par compétence ouverte »
+    (`FREE_PROMPTS_PER_SKILL = 2`, **supprimé**) ; « la première compétence de
+    chaque domaine de **compréhension** » (`CO-A2` / `CE-A2` — D-18 ne connaît
+    pas de domaine d'exception).
+  - 🛑 **`sejourfr.competences.analysis.free-analyses: 3` est SUPPRIMÉ**, sans
+    remplaçant : l'analyse IA du module Compétences est premium, point. **Aucun
+    quota journalier** n'a été introduit (le premier jet de la spec proposait
+    « 1 analyse IA / jour » : refusé). `SkillAnalysisAccessService` refuse
+    désormais dès la première.
+  - 🛑 **La contradiction #1 n'est PAS rouverte** : le référentiel, le Plan, les
+    priorités, les niveaux mesurés et les compteurs **restent lisibles et
+    servis**. Ce qui se ferme est l'**exécution**, jamais l'affichage — un
+    `locked` servi, jamais une donnée masquée.
+- 🛑 **Compte gratuit, Plan personnalisé — LISIBLE mais INEXÉCUTABLE (D-18,
+  2026-09-18).** Le Plan, le parcours, les priorités, les niveaux mesurés et les
+  compteurs restent **servis en entier** ; **aucune** étape n'est exécutable.
+  Conséquence **voulue** : `JourneyState.LOCKED` permanent, `current = null`, et
+  la carte « À faire maintenant » nomme la **première étape verrouillée** avec
+  son paywall (arbitrage D-1, inchangé : `CURRENT` = première étape non clôturée
+  **et exécutable**).
+  - ⚠️ **La phrase qui ouvrait cette puce avait déjà été RETIRÉE le 2026-08-23**
+    (révoquée le 2026-08-21 par « On floute l'ACTION pas encore accessible,
+    jamais le RÉSULTAT mesuré » — `docs/regles/plan.md`) ; motif dans
+    `docs/decisions/contradictions-ouvertes.md` (contradiction #1).
+  - 🛑 **Et l'exemption qui l'avait remplacée est révoquée à son tour** : « un
+    candidat non abonné pourra travailler sa priorité 1, vu qu'elle est
+    visible ». Il ne reste **rien** d'ouvert, donc **rien** à préparer pour
+    `SkillAccessService` : la circularité `CURRENT` ⇄ `locked` que D-1 avait
+    résolue **disparaît avec l'exemption**, et sa surcharge
+    `resolve(userId, focusSkillId)` est supprimée.
+  - **Conséquences en cascade, déjà arbitrées et toujours vraies** : aucune
+    étape n'est finissable sans abonnement, la bascule en **vérification de
+    progression** exige l'étape terminée donc un compte gratuit ne la voit
+    jamais, aucune de ses compétences n'atteint `SOLID`, et il ne reçoit aucun
+    **jalon** d'examen blanc. La vérification est **premium** — choix produit du
+    2026-08-14, détaillé dans la section Plan. Ne pas « réparer ».
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
-  orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
-  abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
-  reste rejouable en compréhension (CO+CE) mais ses épreuves EE/EO sont
-  **verrouillées** : `FullTcfExamService.start` les pré-termine (finishedAt +
-  TERMINE → comptées `A1_NON_ATTEINT` au bilan) et pose
-  `attempts.production_locked=true` (V015) sur le parent, exposé en
-  `FullTcfExamResponse.SubAttempt.locked` (cadenas + invite abonnement côté
-  fronts). Freebie consommé dès qu'une tâche EE/EO a été soumise dans un examen
-  complet (`ProductionSubmissionManager.hasFullExamProductionSubmission`) —
-  indépendant des freebies EE/EO standalone et des examens module CO/CE
-  (le verrou `startModuleExam` ignore les sous-attempts d'un complet). Examens
-  complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
-  épreuve déjà terminée est refusé (`enforceQuota`).
+  orchestré CO→CE→EE→EO) : **accessible sans abonnement**, et chaque épreuve de
+  production y est incluse **tant que sa gratuité n'est pas consommée**.
+  - 🛑 **Le verrou est PAR ÉPREUVE depuis D-17 bis** : deux gratuités
+    nominatives ne se ferment pas ensemble. `FullTcfExamService.start`
+    pré-termine **la** sous-épreuve dont la gratuité est consommée (finishedAt +
+    TERMINE) et pose `attempts.production_locked = true` **sur ce
+    sous-attempt** ; le drapeau du **parent** ne vaut plus que pour les **deux**
+    épreuves fermées, et reste lu tel quel pour les examens antérieurs (donnée
+    réelle). `FullTcfExamResponseBuilder` lit le OU des deux, exposé en
+    `FullTcfExamResponse.SubAttempt.locked`.
+  - **Une épreuve verrouillée n'a PAS de niveau** et sort du plancher global :
+    le verrou est commercial, pas linguistique.
+  - 🛑 **Le freebie se lit sur le LEDGER**, plus sur l'existence d'une
+    soumission : `ProductionSubmissionManager.hasFullExamProductionSubmission`
+    est **supprimé** (D-17). Il consommait la gratuité dès le dépôt d'une tâche,
+    avant toute correction, et sans savoir sur quelle épreuve — une soumission
+    dont le correcteur échoue ne doit rien fermer.
+  - Les examens complets restent rejouables ; soumettre vers une épreuve déjà
+    terminée est refusé (`enforceQuota`).
 
 ### 🛑 L'EE et l'EO du DIAGNOSTIC TCF sont totalement offertes (2026-09-13)
 

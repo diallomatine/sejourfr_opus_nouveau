@@ -328,7 +328,8 @@
   🛑 **Le périmètre est l'étape ENTIÈRE, pas ce que l'accès du candidat lui
   ouvre — c'est un ARBITRAGE PRODUIT du propriétaire, pas une propriété du
   moteur de maîtrise : la vérification de progression est PREMIUM.** Un compte
-  gratuit plafonne à 2 sujets sur 5 (`FREE_PROMPTS_PER_SKILL`), donc il ne
+  gratuit n'a **aucun** sujet ouvert (D-18, 2026-09-18 — avant cela il plafonnait
+  à 2 sujets sur 5, `FREE_PROMPTS_PER_SKILL`, désormais supprimé), donc il ne
   bascule **jamais** ; aucune de ses compétences n'atteint `SOLID` (qui réclame
   la preuve contextualisée que seule cette vérification apporte) ; et il ne voit
   donc pas non plus les **jalons** de `PlanMilestoneSelector`, dont le
@@ -881,43 +882,33 @@ Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale 
   varier le coût du Plan d'un compte à l'autre — donc invérifiable. C'est ce qui permet aux
   tests de coût d'exiger une **égalité** et d'attraper vraiment un N+1. Ne pas « optimiser »
   en remettant un retour anticipé.
-- **Freemium — LA PREMIÈRE PLACE DU PLAN EST TOUJOURS OUVERTE, quelle que soit sa
-  nature** (2026-08-21). ⚠️ **Révoque** la règle inverse livrée le jour même (« une
-  compétence à acquérir n'est pas déverrouillée par sa place n°1 »), qui était un
-  **état constaté**, pas une décision : arbitrage du propriétaire — *« un candidat non
-  abonné pourra travailler sa priorité 1, vu qu'elle est visible »*. Le Plan promettait
-  une action que le candidat ne pouvait pas commencer.
-  - **Autorité unique : `PlanFocusResolver`** (3ᵉ résolveur du trio, à côté de
-    `LearningPlanPriorityResolver` — l'ordre des priorités — et de
-    `PlanAcquisitionSelector`). Règle : **la première fragilité actionnable ; à défaut,
-    la première acquisition** — exactement l'ordre dans lequel `LearningPlanService`
-    empile ses cartes. `LearningPlanPriorityResolver.currentPrioritySkillId` est
-    **supprimée** : « priorité n°1 » ne veut plus dire « première fragilité ».
-  - **Deux formes, une seule règle** (patron `actionable(list)` ⇄ `actionable(list,
-    mastery)`) : `focus(actionable, acquisitions)` **en mémoire** pour le Plan, qui a
-    déjà ses deux listes, et `currentFocusSkillId(userId)` **autonome** pour
-    `SkillAccessService`. `LearningPlanService` **passe** la première place à
-    `accessService.resolve(userId, focusSkillId)` : le cycle ne tourne donc **pas deux
-    fois** dans une lecture du Plan, dont le coût est **inchangé** (ses deux tests de
-    cout exigent une égalité).
-  - 🛑 **Le coût du verrou reste au plus bas grâce à un RETOUR ANTICIPÉ** : une
-    acquisition ne peut occuper la première place que si le candidat n'a **aucune**
-    fragilité (elles passent toutes devant). Cas courant : **1 requête**, comme avant.
-    Sans fragilité et sans diagnostic terminé : +1, puis sortie. Sans fragilité avec
-    diagnostic terminé : le cycle de palier, borné, jamais une requête par compétence.
-    ⚠️ **C'est l'inverse de la règle du Plan** (`PlanAcquisitionSelector` charge
-    *inconditionnellement*) et les deux se défendent : le Plan est **un** écran dont on
-    veut vérifier le coût par une égalité, `SkillAccessService` est appelé par **tous**
-    les écrans de compétences. Ne pas uniformiser.
-  - **Rien d'autre ne s'ouvre** : c'est **une place**, pas une catégorie. Les
-    acquisitions suivantes gardent leur `locked`, les 2 sujets par compétence ouverte et
-    les 3 analyses IA à vie ne bougent pas, et le verrou reste **opposable serveur**
-    (403). Limite assumée, sans conséquence : le Plan écarte de ses cartes une
-    acquisition **sans exercice publié**, ce que la forme en mémoire ne peut pas savoir
-    (l'exercice se choisit après, et `RecommendedExerciseSelector` lit l'accès — le
-    calculer avant créerait un cycle). Une compétence d'expression sans aucun sujet actif
-    serait donc ouverte sans être affichée : elle n'a rien à produire. Le catalogue
-    publié n'en compte aucune.
+- 🛑 **Freemium — LE PLAN EST LISIBLE MAIS INEXÉCUTABLE (D-18, 2026-09-18).** Travailler
+  une compétence depuis le Plan est **premium, sans exception**.
+  - ⚠️ **La règle qui occupait cette place est RÉVOQUÉE**, verbatim : « **Freemium — LA
+    PREMIÈRE PLACE DU PLAN EST TOUJOURS OUVERTE, quelle que soit sa nature** »
+    (2026-08-21), et son arbitrage — *« un candidat non abonné pourra travailler sa
+    priorité 1, vu qu'elle est visible »*.
+  - **Ce qui reste** : `PlanFocusResolver` **demeure** l'autorité unique de la première
+    place (3ᵉ résolveur du trio, à côté de `LearningPlanPriorityResolver` et de
+    `PlanAcquisitionSelector`) — elle est **épinglée, servie et affichée**. Ce qui
+    disparaît, c'est son effet sur l'**accès** : `SkillAccessService` ne la reçoit plus,
+    et sa surcharge `resolve(userId, focusSkillId)` est **supprimée**.
+  - 🛑 **La circularité que D-1 avait résolue disparaît avec l'exemption.** L'ordre de
+    promotion de D-1 (« `CURRENT` = première étape non clôturée **et exécutable** »)
+    reste valable mot pour mot ; pour un compte gratuit il ne désigne simplement plus
+    rien. `SkillAccessService` ne coûte plus qu'**une** requête — l'abonnement —, et le
+    budget de requêtes du Plan passe de **24 à 21** (`LearningPlanCycleIT`, égalité).
+  - 🛑 **La contradiction #1 n'est PAS rouverte.** « On floute l'ACTION pas encore
+    accessible, jamais le RÉSULTAT mesuré » reste la règle : le cycle, les priorités, les
+    niveaux mesurés et les compteurs **restent lisibles et servis**. Ce qui se ferme est
+    l'**exécution**, pas l'affichage — le cycle visible est l'argument de vente.
+  - **Conséquences en cascade, déjà arbitrées et toujours vraies** : aucune étape n'est
+    finissable sans abonnement, la bascule en vérification de progression exige l'étape
+    terminée donc un compte gratuit ne la voit jamais, aucune de ses compétences
+    n'atteint `SOLID`, et il ne reçoit aucun **jalon** d'examen blanc (2026-08-14).
+  - **Ce qui reste gratuit**, et rien d'autre : le diagnostic rapide, **un** examen blanc
+    EE et **un** examen blanc EO (analyse IA complète incluse), et les examens QCM CO/CE
+    inchangés. → `docs/regles/freemium.md`
 
 ### Diagnostic progressif — 0/4 → 4/4
 Le socle existait aux trois quarts. Deux trous seulement ont été comblés :
@@ -2027,7 +2018,31 @@ modèle** (nouvelle valeur de `lotSelectionStrategy`).
 | Famille | Quota | Autorité **lue** |
 |---|---|---|
 | EE / EO | les **5 sujets de l'étape** traités | `LearningPlanStep.Progress.completed()` |
-| CO / CE | **2 séries ciblées** terminées depuis la création de l'étape | `trainSeriesQuota` (config) |
+| CO / CE | **2 séries réussies**, **ou** **4 séries terminées** depuis la création de l'étape | `trainSeriesQuota` / `trainSeriesFallbackQuota` (config v2) |
+
+🛑 **D-16 (2026-09-18) révoque la ligne CO/CE précédente**, verbatim : « CO / CE — **2 séries
+ciblées** terminées depuis la création de l'étape », et avec elle la doctrine de D-5 inscrite
+dans le code (« le quota mesure le **travail fourni**, pas la réussite »). **L'échappatoire des
+4 séries terminées existe pour une raison nommée : un candidat faible ne doit jamais rester
+bloqué sur une étape.**
+
+🛑 **« Réussie » est LUE, jamais recalculée** : le verdict d'une série de compréhension est déjà
+écrit — `ComprehensionObservationService` pose `learning_plan_observations.status = SOLID` dès
+que le ratio atteint `learning-plan.comprehension.solid-ratio` (0.80). On relit ce statut, donc
+**aucune 8ᵉ déclaration du seuil**, aucun second ratio. ⚠️ Un `NOT_OBSERVED` compte comme
+**terminée** (la série a été jouée) et **jamais** comme réussie — « non observé » reste
+**inconnu, jamais mauvais**.
+
+🛑 **Deux nombres, deux clés** : `trainSeriesQuota` garde son nom et compte les séries
+**réussies** ; `trainSeriesFallbackQuota` porte l'échappatoire. Un seul nombre pour deux sens
+est exactement ce que le dépôt paie cher ailleurs. Le loader **refuse** une échappatoire
+inférieure au quota de réussite (l'échappatoire est un filet, pas la règle).
+Fichier : `plan/tcf-journey-config-v2.json`, version pilotée par
+`sejourfr.tcf-journey.config-version` (défaut **2**). ⚠️ **v1 reste sur le disque et reste
+chargeable** : elle y porte `trainSeriesFallbackQuota = trainSeriesQuota = 2`, et comme les
+réussies sont toujours un sous-ensemble des terminées, « 2 réussies **ou** 2 terminées » **est**
+mot pour mot l'ancienne règle de D-5. Un retour arrière est donc bien une variable
+d'environnement, jamais une migration.
 
 🛑 **Aucune nouvelle valeur pour l'expression** : le quota **est**
 `LearningPlanStep.PROMPTS_PAR_ETAPE`, déjà servi aux deux fronts dans `progress.quota`. Le
@@ -2036,6 +2051,21 @@ déclarer en configuration en ferait la 2ᵉ copie d'un chiffre déjà affiché.
 🛑 **L'unité est SERVIE** (`progress.unit` : `PROMPT` / `SERIES`). Les compétences de
 compréhension n'ont **ni tâche ni petit sujet** — la déduire de la nullité de `taskCode`
 reviendrait à recopier une règle du référentiel dans les deux fronts.
+
+🛑 **Ce que `progress` sert en compréhension : les séries RÉUSSIES, et elles seules.**
+`done` = séries réussies, `quota` = `trainSeriesQuota` ; **l'échappatoire ne s'affiche pas**.
+Trois raisons : afficher « 2 séries ratées sur 4 » invite à **échouer vite** pour se débarrasser
+d'une étape ; un filet annoncé n'en est plus un ; et un seul champ `done`/`quota` ne peut porter
+qu'**une** échelle — servir la plus exigeante ne **survend jamais** l'avancement (l'étape peut
+se clore plus tôt que le compteur ne le laisse croire, jamais plus tard). **Le DTO ne change
+pas** : aucun front n'a à apprendre un second compteur pour une règle qu'on a décidé de ne pas
+lui montrer.
+
+🛑 **Une seule autorité de quota, partagée par la lecture et par la clôture** :
+`JourneyReadService.etapesAuQuota`. Jusqu'à D-16, la clôture relisait `progress.done >=
+progress.quota` de la vue servie — un seul compteur, donc une seule règle. Avec deux compteurs
+dont un invisible, les deux lecteurs partagent la **fonction**, faute de pouvoir partager le
+**nombre**.
 
 🛑 **Une clôture ne se réouvre jamais.** Une compétence redevenue fragile ne rouvre pas son
 étape : elle reviendra par un **examen** (R7). C'est ce qui empêche le parcours de tourner en
@@ -2050,14 +2080,19 @@ veut dire **finissable**, pas « déverrouillée » :
 
 | Étape | Verrouillée quand | Autorité |
 |---|---|---|
-| `TRAIN_SKILL` expression | moins de sujets **ouverts** que l'étape n'en compte (gratuit : 2 < 5) | `SkillAccessService` + `LearningPlanStep` |
-| `TRAIN_SKILL` compréhension | la compétence est verrouillée | `SkillAccessService` |
-| `SECTION_EXAM` CO / CE | **jamais** — slot 1 offert et rejouable | `AttemptService.enforceMockExamSlotAccess` |
-| `SECTION_EXAM` EE / EO | quota d'examen blanc de production consommé | `ProductionAccessService` |
+| `TRAIN_SKILL` expression | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` + `LearningPlanStep` |
+| `TRAIN_SKILL` compréhension | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` |
+| `SECTION_EXAM`, toute épreuve | une compétence du **même bloc** reste ouverte (D-15) | le cycle lui-même |
+| `SECTION_EXAM` CO / CE | **rien d'autre** — slot 1 offert et rejouable | `AttemptService.enforceMockExamSlotAccess` |
+| `SECTION_EXAM` EE / EO | la gratuité d'examen blanc **de cette épreuve** est consommée (D-17 bis : **par épreuve**, jamais un verrou global) | `ProductionAccessService` |
 
-**Pourquoi « finissable » et pas « ouverte »** : un compte gratuit a bien accès à 2 sujets sur 5
-de sa première compétence, mais l'étape ne se clôt **jamais** (arbitrage produit du 2026-08-14,
-« la vérification est premium, ne pas le réparer »). La déclarer exécutable aurait figé son
+🛑 **D-18 (2026-09-18) — conséquence voulue** : pour un compte gratuit, **aucune** étape n'est
+exécutable, donc `current = null` et `JourneyState.LOCKED` est **permanent**. La carte « À faire
+maintenant » nomme la première étape verrouillée et ouvre le paywall.
+
+**Pourquoi « finissable » et pas « ouverte »** : la distinction reste vraie et reste utile pour
+une étape d'expression **sans aucun sujet publié** — ouverte, mais impossible à clore. La
+déclarer exécutable aurait figé son
 parcours **définitivement** sur elle.
 
 🛑 **Une étape verrouillée reste affichée à sa place**, avec son cadenas et son CTA paywall —

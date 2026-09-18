@@ -94,12 +94,13 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   ailleurs — y compris `docs/review_all/`, dont les exigences de « tests de rendu web et
   mobile » sont **retirées**. Vérification d'un changement front : `npx tsc --noEmit` /
   `npm run build` / `flutter analyze`, rien de plus.
-  **Les tests front déjà présents sont CONSERVÉS** (16 en TS, 25 en Dart, tous versionnés) et
+  **Les tests front déjà présents sont CONSERVÉS** (16 en TS, 23 en Dart, tous versionnés) et
   doivent rester verts : un test rendu rouge par un changement voulu se **met à jour ou se
   supprime**, il ne bloque jamais le changement. On n'en supprime aucun en masse.
   ⚠️ **Arbitré le 2026-09-10 par le propriétaire.** La formulation précédente — « Aucun test
   sur les fronts. Jamais. Les seuls tests du dépôt sont ceux du backend. » — était contredite
-  par 41 fichiers réellement versionnés, ce que l'audit a mis au jour
+  par les 39 fichiers réellement versionnés (recomptés le 2026-09-18 : 16 `*.test.ts` +
+  23 `*_test.dart` ; ils étaient 41 au décompte du 2026-09-10), ce que l'audit a mis au jour
   (`docs/review_all/40_SEJOURFR_AUDIT.md` §7.3, blocage B9).
 - **Backend : tests dans la même passe.** Feature, bugfix, règle métier, endpoint, migration à
   impact logique ne se ferment pas sans test(s) qui verrouillent le comportement. Avant un

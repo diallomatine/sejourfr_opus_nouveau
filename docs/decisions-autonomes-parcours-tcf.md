@@ -522,3 +522,165 @@ normale, abandon, expiration du chrono, suspension d'examen complet) et l'idempo
 évaluation ne suffit pas à elle seule : il faut décider ce qu'une épreuve partiellement évaluée
 doit produire — un lot sur ce qui a été mesuré, ou rien. C'est un arbitrage produit, pas un
 branchement.
+
+---
+
+# 2026-09-18 — Chantier du CYCLE BORNÉ : décisions prises en autonomie (A27 → A40)
+
+> Arbitrages du propriétaire : `docs/decisions/plan-parcours-tcf.md` **D-12 → D-24 et D-17 bis**.
+> Ce qui suit est ce que **personne n'a tranché** et qu'il a fallu décider pour livrer. Chaque
+> entrée dit le geste, le motif, et ce qu'il faudrait changer si l'arbitrage était autre.
+
+### A27 — Changer d'objectif ne détruit pas le cycle : son niveau cible est mis à jour
+
+**Le problème.** D-13 impose **un seul cycle `EN_COURS` par (candidat, module)**. Or la clé de
+V066 était `(user_id, target_level)` et le javadoc disait : « changer d'objectif ne détruit rien,
+on bascule vers le parcours de ce niveau, l'ancien est conservé tel quel ». Avec l'index partiel,
+cette bascule crée un **second `EN_COURS`** et échoue.
+
+**La décision.** Le cycle `EN_COURS` **survit avec le même id** et son `target_level` est mis à
+jour. On ne l'historise pas, on ne le recrée pas.
+
+**Motif.** Historiser jetterait le plan que le candidat a sous les yeux, et un ping-pong
+d'objectif remplirait la page Progression de cycles fantômes. Les priorités d'une compétence ne
+deviennent pas fausses parce que la cible a bougé — seul l'**ordre** des lots s'en trouve
+recalculé, et il est déjà dérivé à la lecture.
+
+**Si l'arbitrage était autre** (« changer d'objectif ouvre un nouveau cycle ») : historiser
+l'`EN_COURS` avec son `exit_level`, et laisser le bootstrap R19 reconstruire — le code est en
+place, c'est un `if` dans `JourneyService.getOrCreate`. Verrouillé par un test qui assert
+**l'égalité de l'id** (`JourneyServiceIT` §18-22).
+
+### A28 — La migration réconcilie **avant** de créer l'index unique
+
+**Le problème.** V066 autorisait plusieurs `journey` par candidat (un par niveau cible). V067 leur
+donne tous `status = 'EN_COURS'` par DEFAULT, donc `CREATE UNIQUE INDEX uq_journey_en_cours`
+**échouerait** pour un candidat qui a changé d'objectif entre les deux — et casserait le
+déploiement.
+
+**La décision.** Une requête de réconciliation **déterministe, bornée et idempotente** juste avant
+l'index : on garde le cycle le plus récemment **touché** (`updated_at DESC, created_at DESC, id`)
+et on historise les autres (`historise_at = now()`).
+
+**Motif.** Le parcours vivant d'un candidat est celui sur lequel il travaillait. Un cycle historisé
+n'est pas perdu : il part dans la page Progression. Et c'est l'exception déjà admise dans
+`00_schema` (précédents V023, V024, V042) : aucune logique applicative n'est embarquée — ni niveau,
+ni maîtrise, ni priorité n'est relu. Rejouée, la requête ne trouve plus qu'un `EN_COURS` par
+`(candidat, module)` et ne touche rien.
+
+**Mesure** (SQL sur la base de dev, aucun LLM) : **2 `journey`, 2 candidats, 0 doublon**. La garde
+est donc écrite pour la **prod**, dont le volume n'était pas consultable.
+
+### A29 — `free_entitlement_usage.code` est verrouillé par un CHECK, l'enum Java n'est qu'un miroir
+
+**La décision.** CHECK fermé sur les deux valeurs (`EXAM_BLANC_EE`, `EXAM_BLANC_EO`) ;
+`FreeEntitlementCode` est le miroir, pas l'autorité.
+
+**Motif.** Ordre de préférence du dépôt : une contrainte dure avant une consigne. Avec un code
+libre, une faute de frappe rendrait **gratuite une gratuité déjà consommée**, sans aucun signal.
+**Coût assumé** : ajouter une gratuité demande une migration.
+
+### A30 — `consommer(...)` avale la violation d'unicité et rend un booléen
+
+**La décision.** Le manager rend « cet appel a-t-il consommé ? » et ne propage pas le doublon
+(patron `ProcessedExternalEventManager.tryMarkProcessed`).
+
+**Motif.** L'appelant est une **remise d'analyse déjà payée**. La faire échouer pour un doublon que
+la base vient justement d'empêcher ferait perdre au candidat une analyse qu'il a reçue.
+
+### A31 — L'idempotence d'une évaluation se lit au **candidat**, et chaque cycle qui écrit journalise
+
+**Le problème.** `journey_assessment_event` est unique sur `(journey_id, source_assessment_id)`.
+Avec deux cycles vivants (`EN_COURS` + `EN_ATTENTE`) et une promotion qui change le cycle courant,
+une lecture bornée au cycle courant **retraiterait** une évaluation déjà honorée.
+
+**La décision.** La **lecture** d'idempotence est portée au candidat
+(`dejaTraiteeParUnCycle(user, module, source)`) ; l'écriture reste par cycle : un event pour
+**chaque cycle qui a réellement écrit** (l'`EN_COURS` toujours, l'`EN_ATTENTE` seulement s'il
+reçoit des priorités). Jamais de ligne « pour mémoire ». `derniereMesure` (chronologie R14) est
+portée au candidat pour la même raison.
+
+### A32 — Un cycle ne reçoit une **amorce** que s'il n'a ni lot ni examen
+
+**La décision.** Une évaluation construit le cycle `EN_COURS` seulement quand celui-ci « attend son
+amorce » : **aucun lot et aucune étape `SECTION_EXAM`**. Sinon, ses priorités vont en attente.
+
+**Motif.** Ça fait entrer l'amorce C (diagnostic seul) et le cycle **vide** après actualisation,
+et ça exclut le **cycle de mesure** — dont le premier examen aurait sinon créé un lot et détruit
+sa nature — ainsi que tout cycle mûr, qui est borné par définition.
+
+### A33 — « Cycle de mesure » : aucune `TRAIN_SKILL` **et au moins un** `SECTION_EXAM`
+
+**La décision.** La dérivation exige les deux conditions, pas seulement l'absence d'entraînement.
+
+**Motif.** « Aucune `TRAIN_SKILL` » seul qualifierait aussi le cycle vide et le cycle
+diagnostic-seul — à qui on n'a aucune raison de **refuser** l'examen blanc complet en fin de cycle.
+Rappel : `cycleDeMesure` n'est **pas une colonne** (D-12), et `examenCompletPossible` en découle
+(A36).
+
+### A34 — `CYCLE_COMPLETED` vs `UP_TO_DATE` : la question est « y a-t-il des étapes ? »
+
+**La décision.** Aucune étape ouverte **et aucune étape du tout** ⇒ `UP_TO_DATE` (le « cas vide »
+de la spec §6, suggestion inchangée). Des étapes, toutes closes ⇒ `CYCLE_COMPLETED`, donc l'écran
+« Prochaine étape ».
+
+**Motif.** Un seul état neuf, aucune requête de plus, et « Objectif atteint » reste un **libellé de
+front** — pas un second état serveur qui dirait la même chose que `UP_TO_DATE`.
+
+### A35 — `exit_level` se lit sur la **lecture Plan**, et reste `null` sous l'A2
+
+**La décision.** À l'historisation, `exit_level` = `TcfProfileService.levelProfile().globalLevel()`
+(l'autorité de la lecture Plan, D-2), converti en `TargetLevel`. `null` si rien n'est mesuré —
+**et aussi** si le niveau mesuré est sous l'A2, que la colonne ne sait pas dire.
+
+**Motif.** `null` = inconnu, jamais mauvais : un candidat sous l'A2 ne doit pas être archivé
+« A2 ». Aucun plancher n'est recalculé ici : le niveau se lit, il ne se décide pas.
+
+### A36 — `examenCompletPossible` = `!cycleDeMesure`
+
+**Motif.** Aucune condition « les 4 épreuves sont mesurées » : l'examen complet est justement ce
+qui les mesure. La seule exclusion est un cycle de mesure, où enchaîner un second examen complet
+n'aurait aucun sens (spec §6).
+
+### A37 — L'ordre de dérivation du statut d'un bloc
+
+**La décision.** `EN_COURS` (le bloc porte `current`) > bloc **vide** (`A_EVALUER` si l'épreuve n'a
+jamais été mesurée, sinon `TERMINE`) > `TERMINE` > `A_EVALUER` > `A_VENIR`.
+
+**Motif.** Le bloc qui porte l'action gagne toujours l'affichage, sinon deux blocs se disputeraient
+« EN COURS ». `jamaisMesuree` (`NiveauActuelEpreuveResolver`) est mémoïsé et interrogé **au plus 4
+fois**, seulement pour les blocs candidats : le budget de requêtes du Plan ne bouge pas.
+
+### A38 — Trois correctifs collatéraux qu'il a fallu faire pour que le cycle tienne
+
+1. `findCompetencesOuvertes` (la première place du Plan) est bornée au cycle **`EN_COURS`** du
+   module TCF et **ne filtre plus sur `target_level`** — ce n'en est plus une clé depuis D-13.
+2. `porterAuParcours` n'envoie plus au parcours un `MOCK_EXAM` de `TCF_STRUCTURE` ou
+   `TCF_COMPLET` : il **échouait en silence** contre `chk_journey_assessment_exam_type`.
+   Rappel : `TCF_STRUCTURE` n'est pas une cinquième épreuve.
+3. `natureDeLEvaluation` existait en **deux copies** et allait passer à trois : extraite dans
+   `JourneyProductionBridge`. Deuxième occurrence ⇒ on extrait.
+
+### A39 — Le paywall d'un rejeu **EO** se présente au démarrage de la tâche
+
+**La décision.** Quand le freebie EO est consommé, le paywall s'affiche **avant** que le candidat
+parle, pas après sa soumission.
+
+**Motif.** Un rejeu ne déclenche **aucun appel payant** (D-17 bis), donc pas de Whisper ; et l'audio
+candidat n'est **jamais conservé**. Sans transcription, une soumission EO ne laisserait
+**rien** — ni note, ni texte, ni trace. Faire produire un candidat dans le vide serait malhonnête.
+En **EE** le texte reste relisible : le rejeu y est acceptable sans analyse, et le paywall peut
+rester après la soumission.
+
+### A40 — Trois choix de kit, assumés
+
+1. **La barre d'avancement du cycle garde le dégradé bleu → rouge de la maquette.** Le `CLAUDE.md`
+   racine réserve le rouge aux « CTAs critiques » ; ici c'est un **aplat décoratif** de la maquette
+   validée par le propriétaire, pas un signal d'urgence. Si la règle doit primer, la barre passe en
+   `blue → blue-mid` — un token à changer, des deux côtés.
+2. **Un chevron a été ajouté** à l'en-tête de bloc, que la maquette n'a pas : elle compte sur le
+   curseur `pointer`, qui n'existe pas au doigt. Il pivote comme celui de `Prio`/`SfPrio` et
+   respecte `prefers-reduced-motion`.
+3. **`AppColors.blueMid` a été créé** (miroir de `--color-blue-mid`) pour que le dégradé de
+   `NextStepCard` ait le **même nombre d'arrêts** des deux côtés. Les deux kits sont miroirs brique
+   pour brique : un dégradé à deux arrêts là où le web en a trois se voit.
