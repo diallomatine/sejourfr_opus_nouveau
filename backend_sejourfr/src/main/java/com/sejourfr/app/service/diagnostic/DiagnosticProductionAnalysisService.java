@@ -2,10 +2,10 @@ package com.sejourfr.app.service.diagnostic;
 
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
-import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionBilanService;
 import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
 import com.sejourfr.app.entity.DiagnosticTaskSkill;
@@ -171,22 +171,13 @@ public class DiagnosticProductionAnalysisService {
             Instant fin = attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now();
             journeyService.onAssessmentCompleted(
                     submission.getUser().getId(),
-                    new JourneyEvaluation(attempt.getId(), natureDeLEvaluation(attempt),
+                    new JourneyEvaluation(attempt.getId(),
+                            JourneyProductionBridge.natureDeLEvaluation(attempt),
                             epreuve, fin));
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour pour l'epreuve {} de la session {} : {}",
                     epreuve, attempt.getId(), echec.toString());
         }
-    }
-
-    /**
-     * D'ou vient cette epreuve : une sous-epreuve d'examen blanc complet (ou de
-     * diagnostic complet) porte un parent, une epreuve jouee seule porte un slot.
-     */
-    private static JourneyAssessmentKind natureDeLEvaluation(Attempt attempt) {
-        if (attempt.getTcfDiagnostic() != null) return JourneyAssessmentKind.FULL_DIAGNOSTIC;
-        if (attempt.getParentAttempt() != null) return JourneyAssessmentKind.MOCK_EXAM;
-        return JourneyAssessmentKind.SECTION_EXAM;
     }
 
     private AnalysisRun analyse(ProductionSubmission submission, boolean initialDiagnostic) {

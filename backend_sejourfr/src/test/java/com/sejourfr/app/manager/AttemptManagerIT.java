@@ -334,7 +334,15 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         save(eeNoSlot);
         testData.productionSubmission(eeNoSlot, testData.productionTask(), user);
 
-        assertThat(manager.countProductionExamSessions(user.getId())).isEqualTo(1);
+        // 🛑 D-17 (2026-09-18) : le compteur GLOBAL (« les deux epreuves
+        // confondues ») est supprime — il servait de budget freemium et ne
+        // savait pas distinguer un freebie consomme d'un examen abandonne. Reste
+        // le compteur PAR EPREUVE, qui ne sert qu'a designer le prochain slot de
+        // la grille.
+        assertThat(manager.countProductionExamSessions(user.getId(), EpreuveType.TCF_EE))
+                .isEqualTo(1);
+        assertThat(manager.countProductionExamSessions(user.getId(), EpreuveType.TCF_EO))
+                .isZero();
     }
 
     /**

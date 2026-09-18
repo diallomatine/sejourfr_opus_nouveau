@@ -13,6 +13,7 @@ import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
+import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
@@ -35,6 +36,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.repository.FreeEntitlementUsageRepository;
 import com.sejourfr.app.repository.ProcessedExternalEventRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
 import com.sejourfr.app.repository.SkillRepository;
@@ -90,7 +92,9 @@ public class TestSupportConfig {
                              UserFunnelEventManager userFunnelEventManager,
                              AnalyticsVisitorManager analyticsVisitorManager,
                              AnalyticsEventManager analyticsEventManager,
-                             AnalyticsIdentityManager analyticsIdentityManager) {
+                             AnalyticsIdentityManager analyticsIdentityManager,
+                             JourneyManager journeyManager,
+                             FreeEntitlementUsageRepository freeEntitlementUsageRepository) {
         return new TestData(userManager, themeManager, passwordEncoder,
                 mediaManager, passageManager, questionManager, attemptManager,
                 attemptQuestionManager, answerManager, planManager,
@@ -105,7 +109,8 @@ public class TestSupportConfig {
                 audioQuestionDraftRepository, audioQuestionGenerationLogRepository,
                 diagnosticSessionManager, diagnosticProductionAnalysisManager,
                 userFunnelEventManager,
-                analyticsVisitorManager, analyticsEventManager, analyticsIdentityManager);
+                analyticsVisitorManager, analyticsEventManager, analyticsIdentityManager,
+                journeyManager, freeEntitlementUsageRepository);
     }
 
     @Bean

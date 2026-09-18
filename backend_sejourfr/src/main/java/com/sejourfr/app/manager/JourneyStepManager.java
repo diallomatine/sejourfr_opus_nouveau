@@ -1,14 +1,13 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.JourneyStep;
-import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
-import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.repository.JourneyStepRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +25,19 @@ public class JourneyStepManager {
         return repository.findAllByJourney(journeyId);
     }
 
+    /**
+     * Les etapes <b>cloturees</b> de plusieurs cycles, obsoletes exclues, dans
+     * l'ordre de la file, competence chargee. <b>Une requete pour tous les
+     * cycles</b> (page Progression).
+     *
+     * <p>Une liste vide ne coute <b>aucune</b> requete : un candidat sans cycle
+     * n'a rien a charger, et {@code IN ()} n'est pas du SQL valide partout.
+     */
+    public List<JourneyStep> findCloturesDesCycles(Collection<UUID> journeyIds) {
+        if (journeyIds.isEmpty()) return List.of();
+        return repository.findCloturesDesCycles(journeyIds);
+    }
+
     /** Les etapes encore ouvertes d'un lot (R7). */
     public List<JourneyStep> findOuvertesDuLot(UUID lotId) {
         return repository.findOuvertesByLot(lotId);
@@ -40,17 +52,17 @@ public class JourneyStepManager {
     }
 
     /**
-     * Les competences des etapes d'entrainement encore ouvertes, <b>dans l'ordre
-     * de la file</b> — la « premiere place » que le freemium ouvre d'office.
-     * <b>Une requete.</b>
+     * Les competences des etapes d'entrainement encore ouvertes du <b>cycle en
+     * cours</b>, <b>dans l'ordre de la file</b> — la « premiere place » que le
+     * freemium ouvre d'office. <b>Une requete.</b>
      *
      * <p>{@link #COMPETENCES_OUVERTES_LUES} lignes au plus : l'appelant garde la
      * premiere qui est dans son pool, et un parcours n'a jamais des dizaines
      * d'etapes d'entrainement ouvertes d'affilee sans contenu.
      */
-    public List<Skill> findCompetencesOuvertes(UUID userId, TargetLevel targetLevel) {
+    public List<Skill> findCompetencesOuvertes(UUID userId) {
         return repository.findCompetencesOuvertes(
-                userId, targetLevel, PageRequest.of(0, COMPETENCES_OUVERTES_LUES));
+                userId, PageRequest.of(0, COMPETENCES_OUVERTES_LUES));
     }
 
     /**

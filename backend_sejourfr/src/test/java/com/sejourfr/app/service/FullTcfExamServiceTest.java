@@ -49,6 +49,8 @@ class FullTcfExamServiceTest {
 
     private final UUID userId = UUID.randomUUID();
 
+    private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
+
     @BeforeEach
     void setUp() {
         attemptManager = mock(AttemptManager.class);
@@ -67,13 +69,16 @@ class FullTcfExamServiceTest {
         // Plan. On le construit ICI POUR DE VRAI, sur les memes mocks : c'est ce
         // qui garantit que le cadenas affiche et le verrou applique restent la
         // meme regle.
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
         ProductionAccessService productionAccessService = new ProductionAccessService(
                 subscriptionService, attemptManager, productionSubmissionManager,
-                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
         service = new FullTcfExamService(
                 attemptManager, userManager, attemptService,
                 mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
-                productionAccessService, responseBuilder);
+                productionAccessService, responseBuilder,
+                mock(com.sejourfr.app.service.journey.JourneyProductionBridge.class));
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));

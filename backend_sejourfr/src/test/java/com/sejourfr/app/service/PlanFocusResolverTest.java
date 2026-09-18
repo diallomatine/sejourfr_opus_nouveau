@@ -427,7 +427,7 @@ class PlanFocusResolverTest {
     /** Un parcours dont les etapes ouvertes travaillent ces competences, dans
      *  l'ordre de la file. */
     private void parcoursAvec(Skill... skills) {
-        when(stepManager.findCompetencesOuvertes(eq(userId), any()))
+        when(stepManager.findCompetencesOuvertes(eq(userId)))
                 .thenReturn(List.of(skills));
     }
 

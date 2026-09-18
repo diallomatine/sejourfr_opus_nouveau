@@ -1,16 +1,11 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.SkillPrompt;
-import com.sejourfr.app.manager.SkillManager;
-import com.sejourfr.app.manager.SkillPromptManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,57 +13,58 @@ import java.util.UUID;
  * <b>LA</b> regle d'acces du module Competences : quelles micro-competences et
  * quels petits sujets un candidat donne peut travailler.
  *
- * <p><b>Regle en vigueur depuis le 2026-08-10</b>, pour un compte SANS acces TCF
- * ({@code hasTcf == false}) :
+ * <h2>🛑 Regle en vigueur depuis le 2026-09-18 (D-18) : travailler une
+ * competence est PREMIUM, sans exception</h2>
+ * <p>Un compte <b>sans</b> acces TCF ({@code hasTcf == false}) n'a
+ * <b>aucune</b> competence et <b>aucun</b> sujet ouverts. Un abonne TCF n'a
+ * aucun verrou.
+ *
+ * <h2>Ce que D-18 a revoque, et il l'a revoque verbatim</h2>
+ * <p>Quatre ouvertures d'office existaient, arbitrees les 2026-08-10 et
+ * 2026-08-21. Elles sont <b>toutes supprimees</b> :
  * <ol>
- *   <li>une seule competence ouverte par tache — la premiere de sa
- *       {@code SkillTaskCode} — soit 6 competences pour les 6 taches ;</li>
- *   <li><b>plus la competence de la priorite n&deg;1 de son Plan</b>, si elle
- *       n'est pas deja dans ce lot — <b>quelle que soit sa nature</b>, y compris
- *       une competence « a acquerir » que le candidat n'a jamais travaillee
- *       ({@link PlanFocusResolver}) ;</li>
- *   <li>dans une competence ouverte, seuls les {@value #FREE_PROMPTS_PER_SKILL}
- *       premiers sujets actifs sont ouverts ;</li>
- *   <li><b>plus, pour la COMPREHENSION, la premiere competence de chaque
- *       domaine</b> — soit {@code CO-A2} et {@code CE-A2} sur le contenu
- *       publie. Les niveaux B1 et B2 sont verrouilles.</li>
+ *   <li>« une seule competence ouverte par tache — la premiere de sa
+ *       {@code SkillTaskCode} — soit 6 competences pour les 6 taches » ;</li>
+ *   <li>« <b>plus la competence de la priorite n&deg;1 de son Plan</b>, si elle
+ *       n'est pas deja dans ce lot — quelle que soit sa nature » ;</li>
+ *   <li>« dans une competence ouverte, seuls les 2 premiers sujets actifs sont
+ *       ouverts » ({@code FREE_PROMPTS_PER_SKILL = 2}, devenu sans objet : il
+ *       n'y a plus de competence ouverte a borner) ;</li>
+ *   <li>« plus, pour la COMPREHENSION, la premiere competence de chaque
+ *       domaine » — soit {@code CO-A2} et {@code CE-A2}. 🛑 Les rangs CO/CE
+ *       sont traites <b>dans la meme passe</b> que les rangs EE/EO, par
+ *       coherence avec la meme regle : D-18 ne connait pas de domaine
+ *       d'exception.</li>
  * </ol>
- * Un abonne TCF n'a aucun verrou. Les <b>3 analyses IA offertes a vie</b> ne
- * changent pas : elles restent gerees par {@link SkillAnalysisAccessService} et
- * s'appliquent, inchangees, aux sujets ouverts.
+ * <p>Et avec elles, l'<b>exemption du 2026-08-21</b>, citee ici parce que c'est
+ * l'endroit qu'elle occupait :
+ * <blockquote>« un candidat non abonne pourra travailler sa priorite 1, vu
+ * qu'elle est visible »</blockquote>
  *
- * <p><b>Pourquoi le A2 de chaque domaine, et pas « une competence par
- * domaine » au hasard.</b> La compréhension n'a ni tache ni petit sujet : les
- * deux grains sur lesquels s'appuyait la regle EE/EO n'existent pas. Ce qui la
- * structure, c'est le NIVEAU, et la progression y est sequentielle (A2 solide
- * avant de travailler B1). Ouvrir l'entree de gamme de chaque domaine donne
- * donc au compte gratuit exactement ce que la regle EE/EO lui donne ailleurs :
- * de quoi commencer, jamais de quoi finir. Techniquement c'est le <b>rang actif
- * le plus bas</b> de chaque domaine qui est ouvert — meme definition que « la
- * premiere competence d'une tache », pour la meme raison : desactiver le rang 1
- * depuis la console ne doit pas fermer le domaine entier. Sur le contenu publie
- * (V318) ce rang est le A2.
+ * <h2>Ce qui reste GRATUIT, et ce n'est pas ici</h2>
+ * <p>Le diagnostic rapide, <b>un</b> examen blanc d'expression ecrite et
+ * <b>un</b> examen blanc d'expression orale (analyse IA complete incluse,
+ * {@link FreeExamEntitlementService}), et les examens QCM CO/CE — dont le
+ * <b>slot 1 reste offert ET rejouable a volonte</b>
+ * ({@code AttemptService.enforceMockExamSlotAccess}, inchange). 🛑 Ce service ne
+ * decide <b>rien</b> de tout cela : il ne parle que du travail de competence.
  *
- * <p><b>Ce qui n'est PAS une regle d'acces</b> : une competence de comprehension
- * ouverte ne dispense d'aucun prerequis de progression. Le Plan reste libre de
- * ne pas la proposer ; ce service dit seulement ce que le candidat a le droit de
- * travailler.
+ * <h2>🛑 La contradiction #1 du depot n'est PAS rouverte</h2>
+ * <p>« On floute l'ACTION pas encore accessible, jamais le RESULTAT mesure »
+ * reste la regle. Le Plan, le parcours, les priorites, les niveaux mesures et
+ * les compteurs <b>restent lisibles et servis</b> : ce service pose un
+ * {@code locked}, il ne masque <b>aucune</b> donnee. Ce qui se ferme est
+ * l'<b>execution</b>, et le cycle visible est l'argument de vente.
  *
- * <p><b>Pourquoi la priorite du Plan est ouverte d'office.</b> Le diagnostic
- * peut designer une competence de rang 5 ; sans cette exception l'etape 1 du
- * Plan serait cadenassee et le Plan entier deviendrait inutilisable, alors que
- * c'est la colonne vertebrale du produit. On ouvre donc la competence que le
- * serveur lui-meme designe comme « a faire maintenant ».
- *
- * <p>⚠️ <b>Cette regle vaut pour les TROIS natures d'action</b> depuis le
- * 2026-08-21 (arbitrage du proprietaire : « un candidat non abonne pourra
- * travailler sa priorite 1, vu qu'elle est visible »). Elle s'appuyait jusque-la
- * sur {@code LearningPlanPriorityResolver.currentPrioritySkillId}, qui ne connait
- * que les <b>fragilites observees</b> : une competence « a acquerir » — jamais
- * travaillee, donc absente de l'historique — pouvait etre premiere du Plan et
- * rester verrouillee. {@link PlanFocusResolver} repond desormais pour les deux
- * natures, <b>sans rien couter de plus dans le cas courant</b> : une acquisition
- * ne passe premiere que si le candidat n'a aucune fragilite.
+ * <h2>La circularite que D-1 avait resolue disparait avec l'exemption</h2>
+ * <p>{@code JourneyReadService} devait lui passer la <b>premiere etape non
+ * cloturee</b>, verrous ignores, pour que l'exemption tombe sur la vraie
+ * priorite n&deg;1 sans dependre de {@code locked} — qui depend de l'acces.
+ * Sans exemption, il n'y a plus rien a deverrouiller : {@link #resolve(UUID)}
+ * suffit, et la surcharge qui recevait cette etape est <b>supprimee</b>.
+ * Consequence <b>voulue</b> : pour un compte gratuit, aucune etape n'est
+ * executable, donc {@code current == null} et
+ * {@code JourneyState.LOCKED} est permanent (D-18).
  *
  * <p><b>Cette regle ne vit qu'ici.</b> Ni un mapper, ni un controller, ni un
  * front ne la reimplemente : les DTO portent un simple {@code locked} calcule a
@@ -77,45 +73,24 @@ import java.util.UUID;
  * {@code AttemptService.enforceMockExamSlotAccess} et
  * {@code ProductionAccessService}.
  *
- * <p><b>Cout constant, quel que soit l'ecran.</b> Un ecran de catalogue affiche
- * 24 competences x 15 sujets ; resoudre le verrou ligne par ligne serait un N+1
- * pur. {@link #resolve(UUID)} coute donc <b>4 requetes</b> dans le cas courant —
- * abonnement, premiere competence de chaque tache (6 lignes), priorite du Plan,
- * sujets actifs des 7 competences ouvertes au plus — et <b>une seule</b> pour un
- * abonne, qui court-circuite tout le reste. Seul le candidat <b>sans aucune
- * fragilite</b> paie en plus le cycle de palier, borne, jamais par competence
- * (cf. {@link PlanFocusResolver}).
- *
- * <p><b>Un appelant qui connait deja la premiere place la passe</b> :
- * {@link #resolve(UUID, UUID)}. C'est le cas du Plan, qui vient de la calculer —
- * il ne la fait donc pas recalculer, et son cout est <b>inchange</b>.
+ * <p><b>Cout constant, quel que soit l'ecran, et desormais d'UNE requete.</b>
+ * {@link #resolve(UUID)} ne lit plus que l'abonnement : ni les premieres
+ * competences de chaque tache, ni les rangs de comprehension, ni la premiere
+ * place du Plan, ni les sujets actifs. Un ecran de catalogue de 24 competences x
+ * 15 sujets resout donc son verrou en une lecture, abonne ou pas.
  */
 @Service
 @RequiredArgsConstructor
 public class SkillAccessService {
 
     /**
-     * Sujets ouverts au debut de chaque competence ouverte, pour un compte
-     * gratuit.
-     *
-     * <p><b>Ne pas l'aligner sur</b> {@link LearningPlanStep#PROMPTS_PAR_ETAPE}
-     * (5), qui dit tout autre chose : combien de sujets composent une etape du
-     * Plan. Consequence assumee et voulue — un compte gratuit plafonne a 2/5 sur
-     * son etape n&deg;1, et <b>aucune etape n'est finissable sans abonnement</b>.
-     * Le Plan reste integralement <b>visible</b> et sa priorite n&deg;1 reste
-     * <b>ouverte</b> ; c'est l'achevement, pas la lecture, qui est premium.
-     */
-    public static final int FREE_PROMPTS_PER_SKILL = 2;
-
-    /**
-     * Message de refus, ecrit pour etre <b>affichable tel quel par un paywall</b> :
-     * il dit ce qui reste ouvert avant de dire ce qui manque.
+     * Message de refus d'un <b>sujet</b>, ecrit pour etre <b>affichable tel quel
+     * par un paywall</b>.
      */
     public static final String LOCKED_MESSAGE =
-            "Ce sujet fait partie du contenu réservé. Votre accès gratuit ouvre la première "
-                    + "compétence de chaque tâche (ses 2 premiers sujets) et la compétence de la "
-                    + "priorité n°1 de votre Plan. L'accès TCF ouvre les 48 compétences et leurs "
-                    + "720 sujets.";
+            "Travailler ce sujet demande un accès TCF. Votre plan, vos priorités et vos "
+                    + "niveaux mesurés restent visibles ; l'accès TCF ouvre les 48 compétences "
+                    + "et leurs 720 sujets.";
 
     /**
      * Refus d'une competence entiere, et non d'un sujet : c'est la forme que
@@ -123,69 +98,24 @@ public class SkillAccessService {
      * nommer. Ecrit pour etre affichable tel quel par un paywall.
      */
     public static final String LOCKED_SKILL_MESSAGE =
-            "Cette compétence fait partie du contenu réservé. Votre accès gratuit ouvre le "
-                    + "niveau A2 de la compréhension orale et de la compréhension écrite, ainsi "
-                    + "que la compétence de la priorité n°1 de votre Plan. L'accès TCF ouvre "
-                    + "tous les niveaux.";
+            "Travailler cette compétence demande un accès TCF. Votre plan, vos priorités et "
+                    + "vos niveaux mesurés restent visibles ; l'accès TCF ouvre toutes les "
+                    + "compétences et tous les niveaux.";
 
     private final SubscriptionService subscriptionService;
-    private final SkillManager skillManager;
-    private final SkillPromptManager promptManager;
-    private final PlanFocusResolver focusResolver;
 
     /**
      * L'ensemble de ce qui est ouvert a ce candidat, a resoudre <b>une fois par
      * ecran</b> puis a interroger en memoire.
+     *
+     * <p>Depuis D-18, la reponse est binaire : {@link SkillAccess#UNLIMITED} pour
+     * un abonne TCF, {@link SkillAccess#AUCUN} sinon.
      */
     @Transactional(readOnly = true)
     public SkillAccess resolve(UUID userId) {
-        if (subscriptionService.hasTcf(userId)) {
-            return SkillAccess.UNLIMITED;
-        }
-        return ouvert(focusResolver.currentFocusSkillId(userId).orElse(null));
-    }
-
-    /**
-     * Meme regle, avec la <b>premiere place du Plan deja connue</b> de
-     * l'appelant.
-     *
-     * <p>Reservee a {@link LearningPlanService}, qui vient de l'etablir a partir
-     * de ses priorites et de ses acquisitions ({@link PlanFocusResolver#focus}) :
-     * la lui faire recalculer ferait tourner le cycle de palier une seconde fois
-     * dans la meme lecture, et rendrait le cout du Plan dependant du nombre de
-     * fragilites du candidat — exactement ce que ses deux tests de cout
-     * interdisent.
-     *
-     * @param focusSkillId competence de la premiere place, ou {@code null} quand
-     *                     le Plan n'en designe aucune.
-     */
-    @Transactional(readOnly = true)
-    public SkillAccess resolve(UUID userId, UUID focusSkillId) {
-        if (subscriptionService.hasTcf(userId)) {
-            return SkillAccess.UNLIMITED;
-        }
-        return ouvert(focusSkillId);
-    }
-
-    /** Le lot ouvert a un compte gratuit, l'abonnement etant deja tranche. */
-    private SkillAccess ouvert(UUID focusSkillId) {
-        Set<UUID> openSkillIds =
-                new LinkedHashSet<>(skillManager.findFirstActiveIdPerTaskCode().values());
-        // La comprehension n'a pas de tache : son entree de gamme est le rang
-        // actif le plus bas de chaque domaine (CO-A2 / CE-A2 sur le publie).
-        openSkillIds.addAll(skillManager.findFirstActiveIdPerComprehensionSection().values());
-        if (focusSkillId != null) openSkillIds.add(focusSkillId);
-
-        Set<UUID> openPromptIds = new LinkedHashSet<>();
-        Map<UUID, List<SkillPrompt>> promptsBySkill =
-                promptManager.findActiveBySkillIds(openSkillIds);
-        for (List<SkillPrompt> prompts : promptsBySkill.values()) {
-            // findActiveBySkillIds rend les sujets par rang croissant : les
-            // deux premiers de cette liste SONT les deux premiers rangs actifs.
-            prompts.stream().limit(FREE_PROMPTS_PER_SKILL)
-                    .forEach(prompt -> openPromptIds.add(prompt.getId()));
-        }
-        return new SkillAccess(false, openSkillIds, openPromptIds);
+        return subscriptionService.hasTcf(userId)
+                ? SkillAccess.UNLIMITED
+                : SkillAccess.AUCUN;
     }
 
     /**
@@ -235,6 +165,13 @@ public class SkillAccessService {
 
         /** L'abonne TCF : aucun verrou, aucune requete de plus. */
         public static final SkillAccess UNLIMITED = new SkillAccess(true, Set.of(), Set.of());
+
+        /**
+         * Le compte <b>sans</b> acces TCF : rien d'ouvert, et c'est l'effet
+         * voulu de D-18. 🛑 Rien n'est <b>masque</b> pour autant — un
+         * {@code locked} servi, jamais une donnee absente.
+         */
+        public static final SkillAccess AUCUN = new SkillAccess(false, Set.of(), Set.of());
 
         public SkillAccess {
             openSkillIds = Set.copyOf(openSkillIds);

@@ -70,6 +70,8 @@ class ProductionSubmissionServiceTest {
     private final UUID taskId = UUID.randomUUID();
     private final UUID attemptId = UUID.randomUUID();
 
+    private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
+
     @BeforeEach
     void setUp() {
         evaluationService = mock(ProductionEvaluationService.class);
@@ -85,9 +87,11 @@ class ProductionSubmissionServiceTest {
         rateLimitGuard = mock(RateLimitGuard.class);
         // Quota freemium : collaborateur REEL (la regle a ete factorisee dans
         // ProductionAccessService pour que la voie temps reel l'applique aussi).
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
         ProductionAccessService accessService = new ProductionAccessService(
                 subscriptionService, attemptManager, submissionManager,
-                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
         learningPlanService = mock(LearningPlanService.class);
         when(learningPlanService.changeAfterProduction(any(), any())).thenReturn(Optional.empty());
         service = new ProductionSubmissionService(
@@ -150,50 +154,62 @@ class ProductionSubmissionServiceTest {
 
         verify(rateLimitGuard).checkProductionSubmission(userId);
         verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
-        // Premium : on ne consulte pas le compteur d'entrainement.
-        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
+        // Premium : on ne lit meme pas le ledger des gratuites.
+        verify(freeExamEntitlementService, never())
+                .analyseOffertePossible(any(), any(), any());
     }
 
+    /**
+     * 🛑 D-17 — l'entrainement libre EE/EO est <b>premium sans exception</b> :
+     * l'essai gratuit par epreuve ({@code FREE_TRAINING_PER_EPREUVE = 1}) est
+     * supprime, donc <b>aucun appel paye ne part</b>.
+     */
     @Test
-    void submitText_gratuit_premier_essai_entrainement_autorise() {
+    void submitText_gratuit_entrainement_libre_refuse_D17() {
         when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE)).thenReturn(0L);
-        stubEvaluatedSubmission();
-
-        service.submitText(req());
-
-        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
-    }
-
-    @Test
-    void submitText_gratuit_quota_entrainement_epuise_refuse() {
-        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
-        when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE)).thenReturn(1L);
 
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
         verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
     }
 
+    /** D-17 bis — le 1er examen blanc EE d'un compte gratuit est corrige en entier. */
     @Test
-    void submitText_gratuit_session_examen_slotNumber_bypass_le_quota() {
+    void submitText_gratuit_premier_examen_blanc_passe_D17bis() {
         Attempt examSlot = attempt();
         examSlot.setSlotNumber(1);
         when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(examSlot));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(true);
         stubEvaluatedSubmission();
 
         service.submitText(req());
 
         verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
-        // Bypass : pas de lecture du compteur d'entrainement.
-        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
+    }
+
+    /**
+     * 🛑 D-17 bis — <b>le rejeu est ouvert, c'est l'ANALYSE qui est premium</b>,
+     * et le refus tombe <b>avant le pipeline</b> : ni Whisper, ni correcteur.
+     * Meme place que l'interception d'idempotence de V046.
+     */
+    @Test
+    void submitText_gratuit_rejeu_dun_examen_deja_offert_refuse_avant_le_pipeline_D17bis() {
+        Attempt rejeu = attempt();
+        rejeu.setSlotNumber(2);
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(rejeu));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.submitText(req()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("déjà été corrigé");
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -205,17 +221,6 @@ class ProductionSubmissionServiceTest {
         when(attemptManager.findById(attemptId)).thenReturn(Optional.of(finished));
 
         assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
-    }
-
-    @Test
-    void submitText_gratuit_deux_sessions_examen_consomment_les_essais() {
-        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
-        when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);
-
-        assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
-        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
     }
 
     // ------------------------------------------------------------------------

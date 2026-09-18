@@ -8,9 +8,12 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.FreeEntitlementCode;
+import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.PassageType;
+import com.sejourfr.app.enums.TargetLevel;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -219,6 +222,24 @@ class TestDataFactoryIT extends AbstractIntegrationTest {
     @Test
     void userSkillAttempt() {
         assertThat(data.userSkillAttempt().getId()).isNotNull();
+    }
+
+    @Test
+    void journey() {
+        User user = data.user();
+        assertThat(data.journey(user, TargetLevel.B1).getId()).isNotNull();
+        // Un cycle HISTORISE porte sa date : sans elle,
+        // chk_journey_historisation refuse la ligne.
+        assertThat(data.journey(user, Module.TCF, JourneyStatus.HISTORISE).getId()).isNotNull();
+        assertThat(data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE).getId()).isNotNull();
+    }
+
+    @Test
+    void freeEntitlementUsage() {
+        assertThat(data.freeEntitlementUsage().getId()).isNotNull();
+        User user = data.user();
+        assertThat(data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EO,
+                data.attempt(user)).getId()).isNotNull();
     }
 
     @Test

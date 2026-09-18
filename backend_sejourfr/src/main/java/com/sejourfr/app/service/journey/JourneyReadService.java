@@ -1,6 +1,9 @@
 package com.sejourfr.app.service.journey;
 
+import com.sejourfr.app.dto.JourneyBlocDto;
+import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyDto;
+import com.sejourfr.app.dto.JourneyNextStepDto;
 import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
@@ -13,7 +16,9 @@ import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.JourneySuggestionType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
@@ -33,10 +38,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * <b>Le parcours tel qu'on le LIT</b> : ce qui est verrouille, quelle etape est
- * courante, quel statut chaque etape affiche, et lesquelles l'ecran montre.
+ * courante, et quel statut chaque etape affiche.
+ *
+ * <p>⚠️ <b>Plus aucun fenetrage d'affichage</b> (P6, 2026-09-18). La liste
+ * {@code steps} et le compteur {@code hiddenUpcomingCount} du DTO ont disparu
+ * avec la bascule des deux fronts sur {@code blocs}, et la methode
+ * {@code filtrer(...)} de §14 — les N dernieres closes, le lot courant, les
+ * {@code upcomingVisible} suivantes — avec eux. Cette lecture ne tronque donc
+ * plus rien : elle sert <b>toutes</b> les etapes non obsoletes, rangees par
+ * epreuve.
  *
  * <h2>🛑 Tout l'etat est derive ici, rien n'est relu d'une colonne</h2>
  * <p>Arbitrage D-7 : seuls la <b>structure</b> de la file et la <b>cloture</b>
@@ -46,28 +60,41 @@ import java.util.UUID;
  * recalibrer le moteur de maitrise ne reinterprete <b>aucune</b> etape deja
  * close.
  *
- * <h2>L'ordre de la promotion casse une circularite, et il est normatif</h2>
- * <p>{@code SkillAccessService} ouvre d'office a un compte gratuit la competence
- * de la <b>premiere place du Plan</b>, quelle que soit sa nature (arbitrage du
+ * <h2>🛑 La circularite de D-1 a disparu avec l'exemption (D-18)</h2>
+ * <p>Jusqu'au 2026-09-18, ce service devait passer a {@code SkillAccessService}
+ * la <b>premiere etape non cloturee</b>, verrous ignores, parce que le freemium
+ * ouvrait d'office la competence de la premiere place du Plan (arbitrage du
  * 2026-08-21 : « un candidat non abonne pourra travailler sa priorite 1, vu
- * qu'elle est visible »). Il recoit donc la <b>premiere etape non cloturee</b>,
- * <b>verrous ignores</b> — et jamais {@code CURRENT} :
- * <ul>
- *   <li>lui passer {@code CURRENT} serait <b>circulaire</b> : {@code CURRENT}
- *       depend de {@code locked}, qui depend de l'acces ;</li>
- *   <li>lui passer une etape <b>deja deverrouillee</b> rendrait l'exemption
- *       inutile, et priverait le candidat gratuit de l'acces a sa <b>vraie</b>
- *       priorite n&deg;1.</li>
- * </ul>
+ * qu'elle est visible »). Lui passer {@code CURRENT} aurait ete circulaire —
+ * {@code CURRENT} depend de {@code locked}, qui depend de l'acces.
+ *
+ * <p>D-18 <b>revoque cette exemption</b> : travailler une competence depuis le
+ * Plan est premium, sans exception. Il n'y a donc plus rien a deverrouiller, et
+ * l'acces se lit desormais <b>tel quel</b>. L'ordre de promotion de D-1
+ * (« {@code CURRENT} = premiere etape non cloturee <b>et executable</b> »)
+ * reste valable mot pour mot ; pour un compte gratuit il ne designe simplement
+ * plus rien — {@code current == null}, {@link JourneyState#LOCKED} permanent,
+ * la carte nomme la premiere etape verrouillee et ouvre le paywall. <b>C'est
+ * l'effet voulu.</b>
+ *
+ * <p>🛑 <b>Et la contradiction #1 du depot n'est pas rouverte</b> : le cycle,
+ * les priorites, les niveaux mesures et les compteurs <b>restent servis</b>. Ce
+ * qui se ferme est l'<b>execution</b>, jamais l'affichage — un {@code locked}
+ * servi, jamais une donnee masquee.
  *
  * <h2>« Executable » veut dire FINISSABLE, pas « ouverte »</h2>
- * <p>C'est la lecture de D-1 qui rend l'arbitrage vrai. Un compte gratuit a bien
- * acces a <b>2 sujets sur 5</b> de sa premiere competence — l'etape est donc
- * ouverte — mais elle ne se clot <b>jamais</b>
- * ({@code LearningPlanStep.Progress.completed()} exige les 5, arbitrage produit
- * du 2026-08-14 : « la verification est premium, ne pas le reparer »). La
- * declarer executable aurait fige son parcours definitivement sur elle, ce que
- * D-1 existe precisement pour eviter.
+ * <p>La distinction reste vraie et reste utile : une etape d'expression sans
+ * aucun sujet publie est « ouverte » sans pouvoir se clore
+ * ({@code LearningPlanStep.Progress.completed()} refuse de declarer finie une
+ * etape vide). La laisser prendre la main figerait le parcours sur une carte
+ * sans action.
+ *
+ * <h2>Le cycle borne se LIT ici aussi (D-12)</h2>
+ * <p>Les quatre blocs, l'avancement du cycle et les issues de fin de cycle sont
+ * derives de la <b>meme</b> liste d'etapes, par {@link JourneyBlocResolver}. 🛑
+ * Ils sont batis sur <b>toutes</b> les etapes non obsoletes : un plafond
+ * d'AFFICHAGE n'est pas un budget de contenu, et un bloc derive d'une liste
+ * tronquee aurait annonce « 1 competence restante » la ou il en restait trois.
  */
 @Service
 @RequiredArgsConstructor
@@ -80,6 +107,8 @@ public class JourneyReadService {
     private final LearningPlanObservationManager observationManager;
     private final NiveauActuelEpreuveResolver mesureResolver;
     private final PlanDomainAssessmentResolver assessmentResolver;
+    private final JourneyBlocResolver blocResolver;
+    private final JourneyManager journeyManager;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
@@ -93,7 +122,8 @@ public class JourneyReadService {
      * candidat qui n'a rien commence.
      */
     public JourneyDto sansObjectif() {
-        return new JourneyDto(null, JourneyState.NEEDS_OBJECTIVE, null, List.of(), 0, null);
+        return new JourneyDto(null, JourneyState.NEEDS_OBJECTIVE, null, null,
+                null, List.of(), null);
     }
 
     /**
@@ -101,10 +131,8 @@ public class JourneyReadService {
      *
      * @param toutesLesEtapes les etapes du parcours dans l'ordre de la file,
      *                        competence et lot <b>deja charges</b>.
-     * @param expandAll       {@code true} pour rendre toutes les etapes non
-     *                        obsoletes au lieu du sous-ensemble de §14.
      */
-    public JourneyDto lire(Journey journey, List<JourneyStep> toutesLesEtapes, boolean expandAll) {
+    public JourneyDto lire(Journey journey, List<JourneyStep> toutesLesEtapes) {
         UUID userId = journey.getUser().getId();
         List<JourneyStep> ouvertes = toutesLesEtapes.stream()
                 .filter(JourneyStep::estOuverte)
@@ -113,38 +141,25 @@ public class JourneyReadService {
         Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression =
                 progressionDesCompetencesDExpression(userId, ouvertes);
 
-        // 🛑 LA PREMIERE ETAPE D'ENTRAINEMENT OUVERTE, VERROUS IGNORES : c'est
-        // elle que le freemium ouvre d'office, et c'est ce qui casse la
-        // circularite CURRENT ⇄ locked (cf. l'en-tete de classe).
-        //
-        // 🛑 **Les etapes SANS CONTENU sont sautees, exactement comme dans
-        // {@link #elire}** (correctif du 2026-09-17) : l'exemption doit tomber
-        // sur l'etape qui prendra reellement la main. Sans ce saut, une
-        // competence d'expression sans aucun sujet publie consommait
-        // l'exemption — elle n'a rien a ouvrir —, la main passait a l'etape
-        // suivante, et le compte gratuit lisait donc une etape sans y avoir
-        // acces. C'est le meme filtre qui aligne `PlanFocusResolver`, l'autre
-        // lecteur de cette premiere place.
-        UUID focusSkillId = ouvertes.stream()
-                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
-                .filter(step -> !sansContenu(step, progressionExpression))
-                .map(JourneyStep::getSkill)
-                .filter(java.util.Objects::nonNull)
-                .map(Skill::getId)
-                .findFirst()
-                .orElse(null);
-        SkillAccessService.SkillAccess access = accessService.resolve(userId, focusSkillId);
-        Map<UUID, Integer> seriesParCompetence = seriesTermineesDepuisLaCreation(userId, ouvertes);
-        // Le verrou EE/EO est le meme quel que soit le nombre d'etapes
-        // concernees : une seule lecture, et seulement si une etape le demande.
-        boolean examenDeProductionVerrouille = ouvertes.stream().anyMatch(
-                step -> step.getType() == JourneyStepType.SECTION_EXAM && estProduction(step))
-                && productionAccessService.isProductionExamLocked(userId);
+        // 🛑 PLUS AUCUNE PREMIERE ETAPE A DEVERROUILLER (D-18) : l'exemption du
+        // 2026-08-21 (« un candidat non abonne pourra travailler sa priorite 1,
+        // vu qu'elle est visible ») est REVOQUEE, donc la circularite
+        // CURRENT ⇄ locked que D-1 avait resolue n'existe plus. On lit l'acces
+        // tel qu'il est, sans rien lui souffler.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        Map<UUID, Series> seriesParCompetence = seriesDepuisLaCreation(userId, ouvertes);
+        // 🛑 LE VERROU DE PRODUCTION EST **PAR EPREUVE** depuis D-17 bis : deux
+        // gratuites nominatives (une EE, une EO) ne se ferment pas ensemble.
+        // Une lecture par epreuve reellement presente dans la file, jamais une
+        // par etape.
+        Set<EpreuveType> examensDeProductionVerrouilles =
+                examensDeProductionVerrouilles(userId, ouvertes);
+        Set<EpreuveType> blocsAvecCompetenceOuverte = blocsAvecCompetenceOuverte(ouvertes);
 
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
-            boolean locked = estVerrouillee(
-                    step, access, progressionExpression, examenDeProductionVerrouille);
+            boolean locked = estVerrouillee(step, access, progressionExpression,
+                    examensDeProductionVerrouilles, blocsAvecCompetenceOuverte);
             etats.put(step.getId(), new Etat(step,
                     statutHorsPromotion(step, toutesLesEtapes), locked,
                     progression(step, progressionExpression, seriesParCompetence)));
@@ -157,25 +172,75 @@ public class JourneyReadService {
                     etat.locked(), etat.progress()));
         }
 
+        // 🛑 LES BLOCS SONT BATIS SUR **TOUTES** LES ETAPES NON OBSOLETES : un
+        // plafond d'AFFICHAGE n'est pas un budget de contenu. Un bloc derive
+        // d'une liste deja tronquee aurait annonce « 1 competence restante » la
+        // ou il en restait trois — exactement l'incident du 2026-08-25, en plus
+        // discret. Le fenetrage de §14 a d'ailleurs disparu avec `steps` (P6) :
+        // il n'existe plus une seule liste tronquee dans cette lecture.
         List<JourneyStep> affichables = toutesLesEtapes.stream()
                 .filter(step -> etats.get(step.getId()).status() != JourneyStepStatus.OBSOLETE)
                 .toList();
-        List<JourneyStep> visibles = expandAll
-                ? affichables
-                : filtrer(affichables, courante, etats);
-        int repliees = (int) affichables.stream()
-                .filter(JourneyStep::estOuverte)
-                .filter(step -> !visibles.contains(step))
-                .count();
+        JourneyBlocResolver.Vue vue = blocResolver.lire(
+                numeroDuCycle(journey), affichables, courante,
+                step -> dto(etats.get(step.getId())), jamaisMesuree(userId));
 
-        JourneyState state = etat(ouvertes, courante);
+        JourneyState state = etat(affichables, ouvertes, courante);
         return new JourneyDto(
                 journey.getTargetLevel(),
                 state,
                 courante == null ? null : dto(etats.get(courante.getId())),
-                visibles.stream().map(step -> dto(etats.get(step.getId()))).toList(),
-                repliees,
-                suggestion(state, userId));
+                suggestion(state, userId),
+                vue.cycle(),
+                vue.blocs(),
+                nextStep(vue.cycle()));
+    }
+
+    /**
+     * <b>Le rang du cycle</b> : nombre de cycles <b>historises</b> du module,
+     * plus un. Le premier cycle vaut donc 1.
+     *
+     * <p>🛑 <b>Compte, pas persiste</b> : un compteur sur {@code journey} aurait
+     * pu diverger de l'historique reel, et c'est l'historique que la page
+     * Progression lira. Une seule requete, sur l'index
+     * {@code idx_journey_user_module_status}.
+     */
+    private int numeroDuCycle(Journey journey) {
+        // 🛑 LA REGLE DU RANG N'EST PAS ECRITE ICI (JourneyCycleRank) : la page
+        // Progression la lit aussi, et deux copies d'un meme nombre finissent
+        // par diverger. Tous les predecesseurs du cycle en cours sont
+        // historises, donc « cycles crees avant lui » = « cycles historises ».
+        return JourneyCycleRank.rang(journeyManager.compterHistorises(
+                journey.getUser().getId(), journey.getModule()));
+    }
+
+    /**
+     * « Cette epreuve n'a-t-elle <b>jamais</b> ete mesuree ? » — relaye de
+     * {@code NiveauActuelEpreuveResolver.mesure}, son <b>unique autorite</b>
+     * (arbitrage du 2026-09-16 : « il n'existe qu'UNE notion de mesuree »).
+     *
+     * <p><b>Memoise, et interroge au plus quatre fois</b> : la reponse coute
+     * plusieurs requetes, et seuls les blocs candidats a {@code A_EVALUER} la
+     * demandent.
+     */
+    private Predicate<EpreuveType> jamaisMesuree(UUID userId) {
+        Map<EpreuveType, Boolean> connues = new LinkedHashMap<>();
+        return epreuve -> connues.computeIfAbsent(
+                epreuve, cle -> !mesureResolver.mesure(userId, cle).mesuree());
+    }
+
+    /**
+     * Les issues de fin de cycle (spec §6). {@code null} tant que le cycle n'est
+     * pas termine : ces deux gestes historisent le cycle en cours.
+     *
+     * <p>🛑 <b>A la fin d'un cycle de mesure, l'actualisation est la SEULE
+     * issue</b> : enchainer un second examen blanc complet n'a aucun sens
+     * pedagogique, et le proposer ferait tourner le candidat en rond entre deux
+     * mesures sans travail entre elles.
+     */
+    private static JourneyNextStepDto nextStep(JourneyCycleDto cycle) {
+        if (!cycle.complete()) return null;
+        return new JourneyNextStepDto(!cycle.cycleDeMesure(), true);
     }
 
     // ------------------------------------------------------------ §5 bis : verrou
@@ -195,24 +260,41 @@ public class JourneyReadService {
      *       <td>la competence est verrouillee (gratuit : {@code CO-A2} /
      *           {@code CE-A2} seuls ouverts)</td>
      *       <td>{@code SkillAccessService}</td></tr>
+     *   <tr><td>{@code SECTION_EXAM}, toute epreuve</td>
+     *       <td>une competence du <b>meme bloc</b> reste ouverte</td>
+     *       <td><b>le cycle lui-meme</b> (D-15)</td></tr>
      *   <tr><td>{@code SECTION_EXAM} CO/CE</td>
-     *       <td><b>jamais</b> — slot 1 offert <b>et rejouable a volonte</b>,
+     *       <td>rien d'autre — slot 1 offert <b>et rejouable a volonte</b>,
      *           tirage aleatoire pour tout compte inscrit</td>
      *       <td>{@code AttemptService.enforceMockExamSlotAccess}</td></tr>
      *   <tr><td>{@code SECTION_EXAM} EE/EO</td>
-     *       <td>le quota d'examen blanc de production est consomme</td>
+     *       <td>la gratuite d'examen blanc <b>de cette epreuve</b> est consommee
+     *           (D-17 bis : deux gratuites nominatives, jamais un verrou
+     *           global)</td>
      *       <td>{@code ProductionAccessService}</td></tr>
      *   <tr><td>{@code DIAGNOSTIC}</td><td><b>jamais</b></td><td>—</td></tr>
      * </table>
+     *
+     * <h3>🛑 Le verrou du bloc S'AJOUTE, il ne remplace rien (D-15)</h3>
+     * <p>« L'examen d'un bloc est verrouille tant qu'une competence du meme bloc
+     * n'est pas cloturee. » Un bloc <b>sans</b> competence a donc son examen
+     * ouvert <b>immediatement</b> — c'est le cas de « Évaluer mon niveau » sur
+     * une epreuve jamais mesuree, et il ne fallait surtout pas le fermer.
+     *
+     * <p>Ce verrou-ci est <b>pedagogique</b> : il dit « finis ce que tu as
+     * prevu avant de te remesurer ». Les autres sont <b>commerciaux</b>. Les
+     * deux se cumulent, et aucun n'annule l'autre.
      */
     private boolean estVerrouillee(
             JourneyStep step,
             SkillAccessService.SkillAccess access,
             Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
-            boolean examenDeProductionVerrouille) {
+            Set<EpreuveType> examensDeProductionVerrouilles,
+            Set<EpreuveType> blocsAvecCompetenceOuverte) {
         return switch (step.getType()) {
             case DIAGNOSTIC -> false;
-            case SECTION_EXAM -> estProduction(step) && examenDeProductionVerrouille;
+            case SECTION_EXAM -> blocsAvecCompetenceOuverte.contains(step.getExamType())
+                    || examensDeProductionVerrouilles.contains(step.getExamType());
             case TRAIN_SKILL -> {
                 Skill skill = step.getSkill();
                 if (skill == null) yield false;
@@ -234,6 +316,54 @@ public class JourneyReadService {
                 yield sujets.stream().anyMatch(access::isPromptLocked);
             }
         };
+    }
+
+    /**
+     * Les epreuves de <b>production</b> dont l'examen est ferme par le freemium
+     * — <b>une par une</b> (D-17 bis).
+     *
+     * <p>🛑 <b>Deux gratuites nominatives</b> : un candidat qui a use son examen
+     * blanc EE garde son examen blanc EO. Un verrou global aurait ferme les deux
+     * des la premiere consommee, et prive le candidat de la gratuite qu'il
+     * possede encore.
+     *
+     * <p>Une lecture par epreuve <b>reellement presente</b> dans la file : sur
+     * un parcours sans etape d'examen de production, ce resolveur ne fait aucune
+     * requete.
+     */
+    private Set<EpreuveType> examensDeProductionVerrouilles(
+            UUID userId, List<JourneyStep> ouvertes) {
+        Set<EpreuveType> candidates = new LinkedHashSet<>();
+        for (JourneyStep step : ouvertes) {
+            if (step.getType() == JourneyStepType.SECTION_EXAM && estProduction(step)) {
+                candidates.add(step.getExamType());
+            }
+        }
+        if (candidates.isEmpty()) return Set.of();
+        Set<EpreuveType> verrouillees = new LinkedHashSet<>();
+        for (EpreuveType epreuve : candidates) {
+            if (productionAccessService.isProductionExamLocked(userId, epreuve)) {
+                verrouillees.add(epreuve);
+            }
+        }
+        return verrouillees;
+    }
+
+    /**
+     * Les epreuves dont une <b>competence</b> reste a travailler — celles dont
+     * l'examen est donc verrouille (D-15).
+     *
+     * <p>Une seule passe sur les etapes ouvertes, partagee par les quatre blocs :
+     * le verrou ne se recalcule pas etape par etape.
+     */
+    private static Set<EpreuveType> blocsAvecCompetenceOuverte(List<JourneyStep> ouvertes) {
+        Set<EpreuveType> epreuves = new LinkedHashSet<>();
+        for (JourneyStep step : ouvertes) {
+            if (step.getType() == JourneyStepType.TRAIN_SKILL && step.getExamType() != null) {
+                epreuves.add(step.getExamType());
+            }
+        }
+        return epreuves;
     }
 
     /**
@@ -316,21 +446,52 @@ public class JourneyReadService {
     }
 
     /**
-     * Les <b>series ciblees terminees</b> sur chaque competence de comprehension
-     * ouverte, <b>depuis la creation de son etape</b> (R8, arbitrage D-5).
+     * <b>Les series d'une competence de comprehension</b> depuis la creation de
+     * son etape : combien ont ete <b>terminees</b>, et combien ont ete
+     * <b>reussies</b>.
+     *
+     * @param terminees series jouees jusqu'au bout, reussite indifferente
+     * @param reussies  sous-ensemble des precedentes dont le verdict est
+     *                  {@code SOLID}. 🛑 Toujours {@code <= terminees} : c'est ce
+     *                  qui rend l'echappatoire de D-16 atteignable en dernier.
+     */
+    private record Series(int terminees, int reussies) {
+
+        private static final Series AUCUNE = new Series(0, 0);
+    }
+
+    /**
+     * Les <b>series ciblees</b> jouees sur chaque competence de comprehension
+     * ouverte, <b>depuis la creation de son etape</b> (R8, arbitrage D-16).
      *
      * <p>Une serie terminee ecrit <b>une observation</b> de comprehension par
      * competence touchee ({@code ComprehensionObservationService}) : les compter
      * par {@code sourceId} distinct compte donc les <b>sessions</b>, et une seule
      * requete suffit pour toutes les etapes.
      *
-     * <p>🛑 <b>Les {@code NOT_OBSERVED} comptent</b>, et c'est voulu : le quota
-     * mesure le <b>travail fourni</b>, pas la reussite — meme doctrine que
-     * {@code Progress.completed()}, qui compte les sujets « traites, pas
-     * valides ». Une serie ou trop peu de questions d'un palier sont tombees a
-     * quand meme ete jouee.
+     * <h3>🛑 « Reussie » est LUE, elle n'est jamais recalculee ici</h3>
+     * <p>Le verdict d'une serie de comprehension est <b>deja ecrit</b> :
+     * {@code ComprehensionObservationService} pose
+     * {@code learning_plan_observations.status = SOLID} des que le ratio de bonnes
+     * reponses atteint {@code learning-plan.comprehension.solid-ratio} (0.80).
+     * On relit donc ce statut — <b>aucune 8<sup>e</sup> declaration du seuil</b>,
+     * aucun second ratio, une regle une autorite. Recalculer le ratio ici aurait
+     * aussi relu un {@code evidence} textuel, ce qui est pire.
+     *
+     * <p>⚠️ <b>Un {@code NOT_OBSERVED} compte comme TERMINEE, jamais comme
+     * REUSSIE</b> : la serie a bien ete jouee (c'est du travail fourni, il
+     * alimente donc l'echappatoire), mais trop peu de questions du palier y sont
+     * tombees pour qu'elle prouve quoi que ce soit — et « non observe » reste
+     * <b>inconnu, jamais mauvais</b>.
+     *
+     * <p>🛑 <b>D-16 revoque ici la doctrine de D-5</b> (« le quota mesure le
+     * travail fourni, pas la reussite ») : une etape se clot desormais sur
+     * {@code trainSeriesQuota} series <b>reussies</b>, <b>ou</b> sur
+     * {@code trainSeriesFallbackQuota} series terminees — l'echappatoire existant
+     * pour une raison nommee, <b>un candidat faible ne doit jamais rester
+     * bloque</b> sur une etape.
      */
-    private Map<UUID, Integer> seriesTermineesDepuisLaCreation(
+    private Map<UUID, Series> seriesDepuisLaCreation(
             UUID userId, List<JourneyStep> ouvertes) {
         Map<UUID, Instant> depuis = new LinkedHashMap<>();
         for (JourneyStep step : ouvertes) {
@@ -344,7 +505,8 @@ public class JourneyReadService {
         Instant plusAncienne = depuis.values().stream().min(Instant::compareTo).orElseThrow();
         List<LearningPlanObservation> observations =
                 observationManager.findByUserAndSkillsSince(userId, depuis.keySet(), plusAncienne);
-        Map<UUID, Set<UUID>> sessionsParCompetence = new LinkedHashMap<>();
+        Map<UUID, Set<UUID>> terminees = new LinkedHashMap<>();
+        Map<UUID, Set<UUID>> reussies = new LinkedHashMap<>();
         for (LearningPlanObservation observation : observations) {
             if (observation.getSourceType() == null
                     || !observation.getSourceType().isComprehension()) {
@@ -353,13 +515,83 @@ public class JourneyReadService {
             UUID skillId = observation.getSkill().getId();
             Instant creation = depuis.get(skillId);
             if (creation == null || observation.getObservedAt().isBefore(creation)) continue;
-            sessionsParCompetence
-                    .computeIfAbsent(skillId, key -> new LinkedHashSet<>())
+            terminees.computeIfAbsent(skillId, key -> new LinkedHashSet<>())
                     .add(observation.getSourceId());
+            if (observation.getStatus() == LearningPlanSkillStatus.SOLID) {
+                reussies.computeIfAbsent(skillId, key -> new LinkedHashSet<>())
+                        .add(observation.getSourceId());
+            }
         }
-        Map<UUID, Integer> compte = new LinkedHashMap<>();
-        sessionsParCompetence.forEach((skillId, sessions) -> compte.put(skillId, sessions.size()));
+        Map<UUID, Series> compte = new LinkedHashMap<>();
+        terminees.forEach((skillId, sessions) -> compte.put(skillId, new Series(
+                sessions.size(),
+                reussies.getOrDefault(skillId, Set.of()).size())));
         return compte;
+    }
+
+    /**
+     * <b>LES ETAPES DONT LE QUOTA EST ATTEINT</b> — l'<b>autorite unique</b> de
+     * R8, partagee par la lecture (ce que l'ecran montre) et par l'ecriture (ce
+     * qui clot une etape, {@code JourneyService.onTrainingProgress}).
+     *
+     * <p>🛑 <b>Pourquoi une methode publique et pas le {@code progress} servi.</b>
+     * Jusqu'a D-16, la cloture relisait {@code progress.done >= progress.quota}
+     * de la vue servie : une seule regle, parce qu'un seul compteur. D-16 en
+     * introduit <b>deux</b> — series reussies et series terminees — et tranche
+     * que l'echappatoire <b>ne s'affiche pas</b>. Les deux lecteurs doivent donc
+     * partager la <b>fonction</b>, puisqu'ils ne peuvent plus partager le
+     * <b>nombre</b>. C'est le seul moyen qu'une etape ne se close jamais sur une
+     * regle differente de celle qui l'a calculee.
+     *
+     * @param toutesLesEtapes les etapes du parcours, competence <b>deja
+     *                        chargee</b> ; les etapes closes sont ignorees.
+     */
+    public Set<UUID> etapesAuQuota(UUID userId, List<JourneyStep> toutesLesEtapes) {
+        List<JourneyStep> ouvertes = toutesLesEtapes.stream()
+                .filter(JourneyStep::estOuverte)
+                .toList();
+        if (ouvertes.isEmpty()) return Set.of();
+        Map<UUID, SkillProgressCounter.SkillProgress> expression =
+                progressionDesCompetencesDExpression(userId, ouvertes);
+        Map<UUID, Series> series = seriesDepuisLaCreation(userId, ouvertes);
+        Set<UUID> atteintes = new LinkedHashSet<>();
+        for (JourneyStep step : ouvertes) {
+            if (quotaAtteint(step, expression, series)) atteintes.add(step.getId());
+        }
+        return atteintes;
+    }
+
+    /**
+     * Le quota de <b>cette</b> etape est-il atteint ?
+     *
+     * <table>
+     *   <tr><th>Etape</th><th>Close quand</th><th>Autorite du chiffre</th></tr>
+     *   <tr><td>{@code TRAIN_SKILL} comprehension</td>
+     *       <td>{@code trainSeriesQuota} series <b>reussies</b>, <b>ou</b>
+     *           {@code trainSeriesFallbackQuota} series <b>terminees</b></td>
+     *       <td>{@code plan/tcf-journey-config-v2.json} (D-16)</td></tr>
+     *   <tr><td>{@code TRAIN_SKILL} expression</td>
+     *       <td>tous les sujets de l'etape traites</td>
+     *       <td>{@code LearningPlanStep.PROMPTS_PAR_ETAPE}, hors configuration
+     *           (D-5)</td></tr>
+     *   <tr><td>tout le reste</td><td><b>jamais</b> — un examen ne se compte
+     *       pas</td><td>—</td></tr>
+     * </table>
+     */
+    private boolean quotaAtteint(
+            JourneyStep step,
+            Map<UUID, SkillProgressCounter.SkillProgress> expression,
+            Map<UUID, Series> series) {
+        if (step.getType() != JourneyStepType.TRAIN_SKILL) return false;
+        Skill skill = step.getSkill();
+        if (skill == null || skill.getSection() == null) return false;
+        if (skill.getSection().isComprehension()) {
+            Series compte = series.getOrDefault(skill.getId(), Series.AUCUNE);
+            return compte.reussies() >= config.trainSeriesQuota()
+                    || compte.terminees() >= config.trainSeriesFallbackQuota();
+        }
+        JourneyStepDto.JourneyProgressDto progres = progression(step, expression, series);
+        return progres != null && progres.quota() > 0 && progres.done() >= progres.quota();
     }
 
     /**
@@ -367,17 +599,39 @@ public class JourneyReadService {
      * ({@link JourneyProgressUnit}), jamais deduite par un front de la nullite de
      * {@code taskCode} : ce serait recopier une regle du referentiel dans les
      * deux fronts.
+     *
+     * <h3>🛑 En comprehension, l'ecran compte les series REUSSIES — et elles
+     * seules</h3>
+     * <p>D-16 donne deux chemins de cloture ({@code trainSeriesQuota} reussies
+     * <b>ou</b> {@code trainSeriesFallbackQuota} terminees). Le compteur servi
+     * est celui des <b>reussies</b>, sur le quota des reussies :
+     * <ul>
+     *   <li>c'est le seul objectif qu'on ait envie de donner au candidat —
+     *       afficher « 2 series ratees sur 4 » invite a <b>echouer vite</b> pour
+     *       se debarrasser d'une etape, exactement le contraire de son but ;</li>
+     *   <li>l'echappatoire est un <b>filet</b>, pas une cible : elle ne se
+     *       merite pas, elle se declenche. Un filet annonce n'en est plus un ;</li>
+     *   <li>un seul champ {@code done}/{@code quota} ne peut porter qu'<b>une</b>
+     *       echelle. Servir la plus exigeante des deux ne <b>survend jamais</b>
+     *       l'avancement : l'etape peut se clore plus tot que le compteur ne le
+     *       laisse croire, jamais plus tard.</li>
+     * </ul>
+     * <p>Consequence assumee et voulue : une etape close par l'echappatoire
+     * l'est alors que l'ecran affichait par exemple « 1/2 ». Elle apparait comme
+     * terminee, et le candidat n'a rien perdu — c'est le sens du filet.
+     * 🛑 <b>Le DTO ne change pas</b> : aucun front n'a a apprendre un second
+     * compteur pour une regle qu'on a decide de ne pas lui montrer.
      */
     private JourneyStepDto.JourneyProgressDto progression(
             JourneyStep step,
             Map<UUID, SkillProgressCounter.SkillProgress> expression,
-            Map<UUID, Integer> series) {
+            Map<UUID, Series> series) {
         if (step.getType() != JourneyStepType.TRAIN_SKILL) return null;
         Skill skill = step.getSkill();
         if (skill == null || skill.getSection() == null) return null;
         if (skill.getSection().isComprehension()) {
             return new JourneyStepDto.JourneyProgressDto(
-                    series.getOrDefault(skill.getId(), 0),
+                    series.getOrDefault(skill.getId(), Series.AUCUNE).reussies(),
                     config.trainSeriesQuota(),
                     JourneyProgressUnit.SERIES);
         }
@@ -394,62 +648,30 @@ public class JourneyReadService {
                 JourneyProgressUnit.PROMPT);
     }
 
-    // ---------------------------------------------------------- §14 : affichage
-
-    /**
-     * Ce que l'ecran montre (§14). Tout le reste se replie derriere « Voir les
-     * etapes suivantes », et rien n'est <b>supprime</b> : une etape existe ou
-     * n'existe pas, elle ne se cache pas selon l'abonnement.
-     */
-    private List<JourneyStep> filtrer(
-            List<JourneyStep> affichables, JourneyStep courante, Map<UUID, Etat> etats) {
-        Set<UUID> retenues = new LinkedHashSet<>();
-
-        // Les dernieres etapes closes : de quoi voir le chemin parcouru sans
-        // noyer l'etape en cours. L'historique complet appartient a la
-        // Progression.
-        List<JourneyStep> closes = affichables.stream()
-                .filter(step -> !step.estOuverte())
-                .toList();
-        closes.stream()
-                .skip(Math.max(0, closes.size() - config.display().recentCompletedVisible()))
-                .forEach(step -> retenues.add(step.getId()));
-
-        long positionCourante = courante == null ? Long.MAX_VALUE : courante.getPosition();
-        if (courante != null) retenues.add(courante.getId());
-
-        for (JourneyStep step : affichables) {
-            if (!step.estOuverte()) continue;
-            // 🛑 R16 — une etape VERROUILLEE placee AVANT l'etape courante reste
-            // visible, a sa place. C'est elle que le freemium doit montrer : la
-            // masquer priverait le candidat de l'information la plus utile qu'il
-            // possede, et c'est exactement ce que la contradiction #1 du depot a
-            // tranche le 2026-08-21.
-            if (step.getPosition() < positionCourante && etats.get(step.getId()).locked()) {
-                retenues.add(step.getId());
-            }
-            // Tout le lot courant, CHECKPOINT COMPRIS — jamais masque : le
-            // candidat doit voir ou son cycle de travail s'arrete.
-            if (courante != null && courante.getLot() != null && step.getLot() != null
-                    && courante.getLot().getId().equals(step.getLot().getId())) {
-                retenues.add(step.getId());
-            }
-        }
-
-        int aVenir = 0;
-        for (JourneyStep step : affichables) {
-            if (!step.estOuverte() || step.getPosition() <= positionCourante) continue;
-            if (retenues.contains(step.getId())) continue;
-            if (aVenir++ >= config.display().upcomingVisible()) break;
-            retenues.add(step.getId());
-        }
-        return affichables.stream().filter(step -> retenues.contains(step.getId())).toList();
-    }
-
     // ------------------------------------------------------------- §8 : etats
 
-    private static JourneyState etat(List<JourneyStep> ouvertes, JourneyStep courante) {
-        if (ouvertes.isEmpty()) return JourneyState.UP_TO_DATE;
+    /**
+     * <b>L'etat d'ensemble</b>, et la frontiere exacte entre les deux etats de
+     * « plus rien d'ouvert ».
+     *
+     * <ul>
+     *   <li>des etapes cloturees, plus <b>aucune</b> ouverte ⇒
+     *       {@link JourneyState#CYCLE_COMPLETED} : le cycle est termine, l'ecran
+     *       affiche « Prochaine étape » et ses deux issues (spec §6) ;</li>
+     *   <li><b>aucune etape du tout</b> ⇒ {@link JourneyState#UP_TO_DATE}, qui
+     *       garde son sens : rien n'est prevu et rien ne reste a prevoir. C'est
+     *       le « cas vide » de la spec §6 — un cycle en attente vide, promu, sur
+     *       un candidat dont les quatre epreuves sont mesurees. 🛑 Aucun second
+     *       etat n'a ete invente pour dire la meme chose.</li>
+     * </ul>
+     */
+    private static JourneyState etat(
+            List<JourneyStep> affichables, List<JourneyStep> ouvertes, JourneyStep courante) {
+        if (ouvertes.isEmpty()) {
+            return affichables.isEmpty()
+                    ? JourneyState.UP_TO_DATE
+                    : JourneyState.CYCLE_COMPLETED;
+        }
         // Des etapes restent, mais aucune n'est executable : la carte montrera la
         // premiere, verrouillee, avec son paywall (R16, D-1).
         return courante == null ? JourneyState.LOCKED : JourneyState.IN_PROGRESS;

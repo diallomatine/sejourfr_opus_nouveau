@@ -128,7 +128,7 @@ public class LotService {
     // ------------------------------------------------------------------------
 
     /**
-     * Liste les lots Civique disponibles pour un thème. Taille fixe 15.
+     * Liste les lots Civique disponibles pour un thème. Taille fixe 20.
      * Numérotation séquentielle (1..N), enrichie du dernier score du user
      * sur chaque lot quand l'attempt correspondant a été finalisé.
      */

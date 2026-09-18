@@ -24,7 +24,7 @@ public class TcfJourneyProperties {
      * La version de configuration a charger : le fichier lu est
      * {@code plan/tcf-journey-config-v{configVersion}.json}.
      */
-    private int configVersion = 1;
+    private int configVersion = 2;
 
     public int getConfigVersion() {
         return configVersion;

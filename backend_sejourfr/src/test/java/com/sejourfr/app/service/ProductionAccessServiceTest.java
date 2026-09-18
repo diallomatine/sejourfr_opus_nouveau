@@ -40,6 +40,7 @@ class ProductionAccessServiceTest {
     private AttemptManager attemptManager;
     private ProductionSubmissionManager submissionManager;
     private DiagnosticSessionManager diagnosticSessionManager;
+    private FreeExamEntitlementService freeExamEntitlementService;
     private ProductionAccessService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -51,9 +52,10 @@ class ProductionAccessServiceTest {
         attemptManager = mock(AttemptManager.class);
         submissionManager = mock(ProductionSubmissionManager.class);
         diagnosticSessionManager = mock(DiagnosticSessionManager.class);
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
         service = new ProductionAccessService(
                 subscriptionService, attemptManager, submissionManager,
-                diagnosticSessionManager);
+                diagnosticSessionManager, freeExamEntitlementService);
     }
 
     private User user(UUID id) {
@@ -251,27 +253,86 @@ class ProductionAccessServiceTest {
     }
 
     // ------------------------------------------------------------------------
-    // Quota freemium (partagé avec la voie temps réel)
+    // Freemium refondu — D-17 / D-17 bis (2026-09-18) : deux examens blancs de
+    // production offerts a vie, un par epreuve, analyse IA complete incluse.
     // ------------------------------------------------------------------------
 
     @Test
-    void quota_premium_passe_sans_lecture_de_compteur() {
+    void quota_premium_passe_sans_lire_le_ledger() {
         when(subscriptionService.hasTcf(userId)).thenReturn(true);
 
         service.enforceQuota(userId, EpreuveType.TCF_EO, attemptId);
 
-        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
+        verify(freeExamEntitlementService, never())
+                .analyseOffertePossible(any(), any(), any());
     }
 
+    /** D-17 bis — le 1er examen blanc EE d'un compte gratuit est corrige en entier. */
     @Test
-    void quota_gratuit_epuise_refuse() {
+    void premierExamenBlancDUneEpreuvePasse() {
+        Attempt exam = attempt(EpreuveType.TCF_EE);
+        exam.setSlotNumber(1);
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.findById(attemptId)).thenReturn(java.util.Optional.of(attempt(EpreuveType.TCF_EO)));
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EO)).thenReturn(1L);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(exam));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(true);
+
+        assertThatCode(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, attemptId))
+                .doesNotThrowAnyException();
+    }
+
+    /**
+     * D-17 bis — <b>le rejeu est ouvert, c'est l'ANALYSE qui est premium</b>, et
+     * le refus tombe <b>avant</b> tout appel paye : ni Whisper, ni correcteur.
+     */
+    @Test
+    void rejeuDUnExamenDontLaGratuiteEstConsommeeRefuseAvantTouteDepense() {
+        Attempt rejeu = attempt(EpreuveType.TCF_EE);
+        rejeu.setSlotNumber(2);
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(rejeu));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, attemptId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("déjà été corrigé")
+                .hasMessageContaining("accès TCF");
+    }
+
+    /**
+     * D-17 — l'<b>entrainement libre</b> EE/EO est premium sans exception :
+     * {@code FREE_TRAINING_PER_EPREUVE = 1} est <b>supprime</b>.
+     */
+    @Test
+    void entrainementLibreEstPremiumSansExceptionD17() {
+        Attempt training = attempt(EpreuveType.TCF_EO); // slot null + parent null
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(training));
 
         assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EO, attemptId))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(ProductionAccessService.ENTRAINEMENT_PREMIUM_MESSAGE);
+        verify(freeExamEntitlementService, never())
+                .analyseOffertePossible(any(), any(), any());
+    }
+
+    /**
+     * Une sous-epreuve EE/EO pre-terminee par le verrou d'un examen complet
+     * gratuit reste fermee, quel que soit le ledger : un client ne contourne pas
+     * le verrou en postant quand meme.
+     */
+    @Test
+    void uneEpreuveDejaTermineeRefuseToujours() {
+        Attempt fermee = attempt(EpreuveType.TCF_EE);
+        fermee.setSlotNumber(1);
+        fermee.setFinishedAt(Instant.now());
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(fermee));
+
+        assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, attemptId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage(ProductionAccessService.EPREUVE_TERMINEE_MESSAGE);
     }
 
     // ------------------------------------------------------------------------
@@ -300,7 +361,8 @@ class ProductionAccessServiceTest {
                 .doesNotThrowAnyException();
 
         verify(subscriptionService, never()).hasTcf(any());
-        verify(submissionManager, never()).countTrainingByUserAndEpreuve(any(), any());
+        verify(freeExamEntitlementService, never())
+                .analyseOffertePossible(any(), any(), any());
     }
 
     @Test
@@ -340,7 +402,7 @@ class ProductionAccessServiceTest {
     }
 
     // ------------------------------------------------------------------------
-    // Le MEME budget, lu sans rien consommer (cadenas du Plan)
+    // Le MEME budget, lu sans rien consommer (cadenas du Plan et du parcours)
     // ------------------------------------------------------------------------
 
     @Test
@@ -351,35 +413,90 @@ class ProductionAccessServiceTest {
         assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isFalse();
     }
 
+    /**
+     * D-17 — l'essai gratuit d'entrainement par epreuve est <b>revoque</b> :
+     * sans acces TCF, la verification en situation est <b>toujours</b>
+     * verrouillee, et la lecture dit exactement ce que l'ecriture refuserait.
+     */
     @Test
-    void tantQueLessaiGratuitResteLaVerificationEstOuverte() {
+    void sansAccesTcfLaVerificationEstToujoursVerrouilleeD17() {
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
-                .thenReturn(0L);
-
-        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isFalse();
-    }
-
-    /** La lecture dit exactement ce que l'ecriture refuserait : une seule regle. */
-    @Test
-    void lessaiGratuitConsommeVerrouilleLaVerification() {
-        when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EE))
-                .thenReturn(1L);
 
         assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EE)).isTrue();
+        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isTrue();
         assertThatThrownBy(() -> service.enforceQuota(userId, EpreuveType.TCF_EE, null))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    /** D-17 bis — deux gratuites NOMINATIVES : l'une consommee ne ferme pas l'autre. */
     @Test
-    void deuxSessionsDexamenConsommentAussiLaVerification() {
+    void lesDeuxGratuitesSontNominativesD17bis() {
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(2L);
+        when(freeExamEntitlementService.estConsomme(userId, EpreuveType.TCF_EE))
+                .thenReturn(true);
+        when(freeExamEntitlementService.estConsomme(userId, EpreuveType.TCF_EO))
+                .thenReturn(false);
 
-        assertThat(service.isTrainingLocked(userId, EpreuveType.TCF_EO)).isTrue();
+        assertThat(service.isProductionExamLocked(userId, EpreuveType.TCF_EE)).isTrue();
+        assertThat(service.isProductionExamLocked(userId, EpreuveType.TCF_EO)).isFalse();
+        // Le cadenas de l'examen blanc COMPLET n'a qu'un booleen a servir : il ne
+        // se pose que quand la production n'apporte plus RIEN.
+        assertThat(service.isFullExamProductionLocked(userId)).isFalse();
+    }
+
+    @Test
+    void lesDeuxGratuitesConsommeesFermentLaProductionDeLExamenComplet() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(freeExamEntitlementService.estConsomme(any(), any())).thenReturn(true);
+
+        assertThat(service.isFullExamProductionLocked(userId)).isTrue();
+        assertThat(service.isFullExamProductionLocked(userId, EpreuveType.TCF_EO)).isTrue();
+    }
+
+    /** CO/CE gardent leur regle : slot 1 offert ET rejouable a volonte (D-17). */
+    @Test
+    void lesEpreuvesQcmNeSontJamaisVerrouilleesParCeLedger() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+
+        assertThat(service.isProductionExamLocked(userId, EpreuveType.TCF_CO)).isFalse();
+        assertThat(service.isProductionExamLocked(userId, EpreuveType.TCF_CE)).isFalse();
+        verify(freeExamEntitlementService, never()).estConsomme(any(), any());
+    }
+
+    // ------------------------------------------------------------------------
+    // D-17 bis — le paywall de l'ORAL se presente AU DEMARRAGE
+    // ------------------------------------------------------------------------
+
+    /**
+     * Sans Whisper, un rejeu EO ne laisse <b>rien</b> a lire : aucun audio de
+     * candidat n'est conserve. Faire produire dans le vide est un mauvais
+     * geste — le refus tombe donc au demarrage.
+     */
+    @Test
+    void leRejeuOralEstRefuseAuDemarrageD17bis() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(freeExamEntitlementService.estConsomme(userId, EpreuveType.TCF_EO))
+                .thenReturn(true);
+
+        assertThatThrownBy(() ->
+                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EO))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("jamais conservé");
+    }
+
+    /**
+     * A l'ecrit, le texte reste sous les yeux du candidat : le rejeu y est
+     * <b>ouvert</b>, et c'est {@code enforceQuota} qui refusera l'analyse.
+     */
+    @Test
+    void leRejeuEcritResteOuvertAuDemarrageD17bis() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(freeExamEntitlementService.estConsomme(userId, EpreuveType.TCF_EE))
+                .thenReturn(true);
+
+        assertThatCode(() ->
+                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EE))
+                .doesNotThrowAnyException();
     }
 
     private DiagnosticSession diagnosticSession(

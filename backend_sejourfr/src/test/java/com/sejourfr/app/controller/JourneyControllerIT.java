@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,7 +42,14 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.state").value("NEEDS_OBJECTIVE"))
                 .andExpect(jsonPath("$.targetLevel").doesNotExist())
                 .andExpect(jsonPath("$.current").doesNotExist())
-                .andExpect(jsonPath("$.steps").isEmpty())
+                // Aucun parcours : aucun bloc, aucun cycle.
+                .andExpect(jsonPath("$.blocs").isEmpty())
+                .andExpect(jsonPath("$.cycle").doesNotExist())
+                // 🛑 Les deux champs de transition ont DISPARU du contrat (P6) :
+                // les fronts lisent `blocs`, et « refonte = suppression
+                // immediate de l'ancien ».
+                .andExpect(jsonPath("$.steps").doesNotExist())
+                .andExpect(jsonPath("$.hiddenUpcomingCount").doesNotExist())
                 // Une suggestion n'est pas une etape : absente est le cas normal.
                 .andExpect(jsonPath("$.suggestion").doesNotExist());
     }
@@ -64,6 +72,64 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 // 🛑 Le serveur sert des FAITS : aucune phrase, aucun libelle.
                 // « Faire votre diagnostic rapide » appartient aux fronts.
                 .andExpect(jsonPath("$.current.skillTitle").doesNotExist())
-                .andExpect(jsonPath("$.hiddenUpcomingCount").value(0));
+                // ⚠️ `hiddenUpcomingCount` valait 0 ici jusqu'au 2026-09-18 : le
+                // champ n'existe plus, et le fenetrage d'affichage avec lui.
+                .andExpect(jsonPath("$.hiddenUpcomingCount").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Le cycle borne est servi : quatre blocs dans l'ordre CO, CE, EO, EE (D-12)")
+    void leCycleBorneEstServi() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(user);
+
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk())
+                // 🛑 QUATRE blocs, toujours, dans l'ordre de
+                // TcfDomainProfileDto.ORDRE (D-9, D-20) — pas celui des maquettes.
+                .andExpect(jsonPath("$.blocs.length()").value(4))
+                .andExpect(jsonPath("$.blocs[0].examType").value("TCF_CO"))
+                .andExpect(jsonPath("$.blocs[1].examType").value("TCF_CE"))
+                .andExpect(jsonPath("$.blocs[2].examType").value("TCF_EO"))
+                .andExpect(jsonPath("$.blocs[3].examType").value("TCF_EE"))
+                // Aucune competence, aucune epreuve mesuree : il n'y a rien a
+                // travailler tant que la mesure n'a pas dit quoi.
+                .andExpect(jsonPath("$.blocs[0].status").value("A_EVALUER"))
+                .andExpect(jsonPath("$.blocs[0].competencesRestantes").value(0))
+                .andExpect(jsonPath("$.blocs[0].exam").doesNotExist())
+                // Le cycle : des NOMBRES, aucune phrase. « Cycle 1 » et
+                // « 0 etape sur 1 terminee » sont composes par les fronts.
+                .andExpect(jsonPath("$.cycle.numero").value(1))
+                .andExpect(jsonPath("$.cycle.etapesTotal").value(1))
+                .andExpect(jsonPath("$.cycle.etapesTerminees").value(0))
+                .andExpect(jsonPath("$.cycle.complete").value(false))
+                // Un cycle qui ne porte qu'un diagnostic n'est pas un cycle de
+                // mesure : il n'a justement mesure personne.
+                .andExpect(jsonPath("$.cycle.cycleDeMesure").value(false))
+                // 🛑 nextStep est null tant que le cycle n'est pas termine.
+                .andExpect(jsonPath("$.nextStep").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("POST /refresh — 409 tant que le cycle n'est pas termine")
+    void actualiserEstRefuseSurUnCycleInacheve() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(user);
+        // La lecture cree le cycle : il porte son etape DIAGNOSTIC, ouverte.
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk());
+
+        // Ce geste HISTORISE le cycle en cours : le laisser passer sur un cycle
+        // inacheve jetterait le plan que le candidat a sous les yeux.
+        mvc.perform(post("/api/me/plan/journey/refresh")
+                        .header("Authorization", auth.bearer(user)))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/me/plan/journey/measurement-cycle")
+                        .header("Authorization", auth.bearer(user)))
+                .andExpect(status().isConflict());
     }
 }

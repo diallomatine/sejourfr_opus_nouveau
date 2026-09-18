@@ -160,7 +160,8 @@ class PlanMilestoneSelectorTest {
     @Test
     @DisplayName("Un jalon verrouille reste DESIGNE, avec son cadenas")
     void unJalonVerrouilleResteDesigne() {
-        when(productionAccess.isProductionExamLocked(userId)).thenReturn(true);
+        when(productionAccess.isProductionExamLocked(userId, EpreuveType.TCF_EE))
+                .thenReturn(true);
 
         PlanRecommendedExerciseDto jalon = select(epreuvePrete(SkillSection.EE)).orElseThrow();
 

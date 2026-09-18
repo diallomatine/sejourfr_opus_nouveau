@@ -33,12 +33,14 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * <b>Ce qu'il reste a APPRENDRE</b>, contre la vraie base et le referentiel
@@ -244,54 +246,55 @@ class LearningPlanAcquisitionIT extends AbstractIntegrationTest {
     }
 
     /**
-     * 🛑 <b>Le defaut corrige le 2026-08-21</b>, de bout en bout et sur le vrai
-     * referentiel : la premiere place d'un compte <b>gratuit</b> est ouverte,
-     * <b>meme quand c'est une competence a acquerir</b>.
+     * 🛑 <b>D-18 (2026-09-18) — l'exemption du 2026-08-21 est REVOQUEE</b>, de
+     * bout en bout et sur le vrai referentiel.
      *
-     * <p>Elle n'a aucune ligne d'historique — c'est ce qui la definit — donc
-     * l'ancienne regle (« la premiere fragilite observee ») ne pouvait pas la
-     * voir : le Plan la designait, l'affichait, et le serveur refusait de la
-     * travailler. Le proprietaire : « un candidat non abonne pourra travailler sa
-     * priorite 1, vu qu'elle est visible ».
+     * <p>Ce test verifiait l'inverse : « la premiere place d'un compte gratuit
+     * est ouverte, meme quand c'est une competence a acquerir », suivant
+     * l'arbitrage du proprietaire — « un candidat non abonne pourra travailler sa
+     * priorite 1, vu qu'elle est visible ». D-18 tranche desormais que
+     * <b>travailler une competence depuis le Plan est premium, sans
+     * exception</b>.
      *
-     * <p>🛑 Et rien d'autre ne s'ouvre : les acquisitions suivantes gardent leur
-     * cadenas. C'est <b>une</b> place qui ouvre, pas une nature.
+     * <p>🛑 Ce qu'il verrouille maintenant : la premiere place est toujours
+     * <b>designee, servie et complete</b> — nature comprise, exercice
+     * recommande compris — et elle est <b>verrouillee</b>, cote DTO <b>comme</b>
+     * cote serveur. Un {@code locked} servi, jamais une donnee masquee.
      */
     @Test
-    @DisplayName("Compte gratuit : la premiere place est travaillable, meme a acquerir")
-    void laPremierePlaceAAcquerirEstOuverteAUnCompteGratuit() {
+    @DisplayName("D-18 — compte gratuit : la premiere place est servie, et verrouillee")
+    void laPremierePlaceEstServieMaisVerrouilleeAUnCompteGratuit_D18() {
         User user = profilComplet();
         flush();
 
         LearningPlanDto plan = service.get(user.getId());
 
+        // Servie, en entier.
         assertThat(plan.currentPriority().nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
+        assertThat(plan.currentPriority().skillId()).isNotNull();
+        assertThat(plan.currentPriority().recommendedExercise()).isNotNull();
+        // Et inexecutable.
         assertThat(plan.currentPriority().locked())
-                .as("designee, visible… et desormais commencable")
-                .isFalse();
+                .as("D-18 : designee et visible, mais premium")
+                .isTrue();
         assertThat(plan.currentPriority().recommendedExercise().locked())
-                .as("son exercice suit : le cadenas ne se rattrape pas au niveau du sujet")
-                .isFalse();
+                .as("son exercice suit : le cadenas ne s'arrete pas a la carte")
+                .isTrue();
         // Le verrou serveur dit la meme chose que le DTO — c'est lui qui fait foi.
-        accessService.assertCanTrain(user.getId(), plan.currentPriority().skillId());
+        assertThatThrownBy(() ->
+                accessService.assertCanTrain(user.getId(), plan.currentPriority().skillId()))
+                .isInstanceOf(AccessDeniedException.class);
 
-        // Les acquisitions suivantes restent fermees, sauf celles qui l'etaient
-        // deja par ailleurs (rang 1 de leur tache, A2 d'un domaine de
-        // comprehension) : on ouvre une place, pas une categorie.
+        // Et il n'y a plus AUCUNE exception : les autres cartes sont fermees
+        // aussi, rangs 1 et A2 de comprehension compris.
         SkillAccessService.SkillAccess acces = accessService.resolve(user.getId());
-        assertThat(plan.nextPriorities())
-                .filteredOn(carte -> !dejaOuverteParAilleurs(carte.skillId()))
-                .isNotEmpty()
-                .allSatisfy(carte -> assertThat(carte.locked()).isTrue());
         assertThat(acces.unlimited())
                 .as("le compte de reference est bien gratuit, sinon ce test ne prouve rien")
                 .isFalse();
-    }
-
-    /** Ouverte independamment du Plan : rang 1 de sa tache, ou A2 d'un domaine. */
-    private boolean dejaOuverteParAilleurs(UUID skillId) {
-        return skillManager.findFirstActiveIdPerTaskCode().containsValue(skillId)
-                || skillManager.findFirstActiveIdPerComprehensionSection().containsValue(skillId);
+        assertThat(acces.openSkillIds()).isEmpty();
+        assertThat(plan.nextPriorities())
+                .isNotEmpty()
+                .allSatisfy(carte -> assertThat(carte.locked()).isTrue());
     }
 
     /**

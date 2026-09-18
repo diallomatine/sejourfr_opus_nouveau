@@ -181,70 +181,57 @@ class SkillComprehensionIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
-    // Freemium
+    // Freemium — D-18 (2026-09-18)
     // ------------------------------------------------------------------------
 
     /**
-     * La regle retenue pour la comprehension : le rang actif le plus bas de
-     * chaque domaine — le A2 sur le contenu publie — est ouvert, B1 et B2 sont
-     * verrouilles. Elle est ici mesuree contre la vraie requete et le vrai seed,
-     * pas contre une doublure.
+     * 🛑 <b>D-18 — travailler une competence est PREMIUM, sans exception</b>, et
+     * « les rangs CO/CE sont traites dans la meme passe, coherents avec la meme
+     * regle ».
+     *
+     * <p>Ce test verifiait la regle du 2026-08-10 : « le rang actif le plus bas
+     * de chaque domaine — le A2 sur le contenu publie — est ouvert, B1 et B2
+     * sont verrouilles », ainsi que son corollaire (desactiver le A2 depuis la
+     * console ouvre le B1 au lieu de fermer le domaine). Les deux sont
+     * <b>revoques</b> : il n'y a plus de rang ouvert a faire glisser.
+     *
+     * <p>Mesure contre le vrai seed de V318 et le vrai schema : les six lignes
+     * sont bien en base, et <b>les six sont fermees</b>.
      */
     @Test
-    void aFreeAccountOpensTheLowestLevelOfEachComprehensionDomainAndNothingElse() {
+    void aFreeAccountOpensNothingAtAll_D18() {
         User user = data.user();
 
         SkillAccessService.SkillAccess access = accessService.resolve(user.getId());
 
         assertThat(access.unlimited()).isFalse();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CO-A2").orElseThrow().getId()))
-                .isFalse();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CE-A2").orElseThrow().getId()))
-                .isFalse();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CO-B1").orElseThrow().getId()))
-                .isTrue();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CO-B2").orElseThrow().getId()))
-                .isTrue();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CE-B1").orElseThrow().getId()))
-                .isTrue();
+        assertThat(access.openSkillIds()).isEmpty();
+        assertThat(access.openPromptIds()).isEmpty();
+        for (String code : new String[]{"CO-A2", "CO-B1", "CO-B2", "CE-A2", "CE-B1", "CE-B2"}) {
+            assertThat(access.isSkillLocked(skillManager.findByCode(code).orElseThrow().getId()))
+                    .as("%s est fermee a un compte gratuit (D-18)", code)
+                    .isTrue();
+        }
+        // 🛑 Et rien n'est MASQUE pour autant : les six competences restent
+        // lisibles dans le referentiel. On ferme l'execution, pas l'affichage.
+        assertThat(skillManager.findActiveBySection(SkillSection.CO))
+                .extracting(Skill::getCode)
+                .contains("CO-A2", "CO-B1", "CO-B2");
     }
 
-    /**
-     * « Rang le plus bas encore ACTIF », et non litteralement 1 : desactiver le
-     * A2 depuis la console ne doit pas fermer le domaine entier a un compte
-     * gratuit — c'est exactement la lecon deja tiree cote taches.
-     */
+    /** Un abonne TCF, lui, n'a aucun verrou sur aucun des six niveaux. */
     @Test
-    void deactivatingTheLowestLevelOpensTheNextOneInsteadOfClosingTheDomain() {
-        User user = data.user();
-        Skill coA2 = skillManager.findByCode("CO-A2").orElseThrow();
-        coA2.setActive(false);
-        skillManager.save(coA2);
+    void aTcfSubscriberOpensEveryComprehensionLevel() {
+        User subscriber = data.user();
+        data.userSubscription(subscriber, data.plan());
         em.flush();
 
-        SkillAccessService.SkillAccess access = accessService.resolve(user.getId());
+        SkillAccessService.SkillAccess access = accessService.resolve(subscriber.getId());
 
-        assertThat(access.isSkillLocked(skillManager.findByCode("CO-B1").orElseThrow().getId()))
-                .isFalse();
-        assertThat(access.isSkillLocked(skillManager.findByCode("CO-B2").orElseThrow().getId()))
-                .isTrue();
-        // L'autre domaine n'a pas bouge.
-        assertThat(access.isSkillLocked(skillManager.findByCode("CE-A2").orElseThrow().getId()))
-                .isFalse();
-    }
-
-    /**
-     * Une competence de comprehension ouverte n'ouvre aucun petit sujet : elle
-     * n'en a pas, et le verrou d'expression n'en compte donc pas un de plus.
-     * C'est la garantie que les deux familles ne se contaminent pas.
-     */
-    @Test
-    void openingAComprehensionDomainOpensNoPrompt() {
-        User user = data.user();
-
-        SkillAccessService.SkillAccess access = accessService.resolve(user.getId());
-
-        assertThat(access.openPromptIds())
-                .hasSize(SkillTaskCode.values().length * SkillAccessService.FREE_PROMPTS_PER_SKILL);
+        assertThat(access.unlimited()).isTrue();
+        for (String code : new String[]{"CO-A2", "CO-B1", "CO-B2", "CE-A2", "CE-B1", "CE-B2"}) {
+            assertThat(access.isSkillLocked(skillManager.findByCode(code).orElseThrow().getId()))
+                    .isFalse();
+        }
     }
 }

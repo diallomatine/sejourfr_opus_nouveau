@@ -1,5 +1,7 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.JourneyStatus;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,24 +22,38 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Le <b>parcours TCF</b> d'un candidat pour <b>un</b> niveau cible (R18).
+ * Un <b>cycle</b> du parcours d'un candidat, borne par {@code (candidat,
+ * module)} et par son {@link JourneyStatus}.
  *
- * <p>Cette table n'est qu'une <b>enveloppe</b> : elle porte l'identite du
- * parcours et le compteur de positions. Tout ce qui se lit a l'ecran — le statut
- * de chaque etape, le verrou, l'etape courante — se <b>derive a la lecture</b>
- * (D-7), et tout ce qui se mesure — priorites, niveau, maitrise — vit chez ses
- * autorites existantes.
+ * <p>Cette table n'est qu'une <b>enveloppe</b> : elle porte l'identite du cycle,
+ * son compteur de positions et les deux faits que rien ne permet de recalculer —
+ * son <b>statut</b> et son <b>niveau de sortie</b>. Tout ce qui se lit a
+ * l'ecran — le statut de chaque etape, le verrou, l'etape courante, « bloc
+ * termine », « cycle termine » — se <b>derive a la lecture</b> (D-7, maintenu en
+ * entier par D-14), et tout ce qui se mesure — priorites, niveau courant,
+ * maitrise — vit chez ses autorites existantes.
  *
- * <p>🛑 <b>Pas de parcours sans niveau cible</b> (arbitrage D-3). Un candidat qui
+ * <p>🛑 <b>Un seul cycle EN_COURS et un seul EN_ATTENTE par (candidat,
+ * module)</b> (D-13), tenus par deux index uniques partiels. Les
+ * {@link JourneyStatus#HISTORISE} sont libres et multiples : ils <b>sont</b>
+ * l'historique des cycles.
+ *
+ * <p>🛑 <b>Pas de cycle sans niveau cible</b> (arbitrage D-3). Un candidat qui
  * n'a pas declare sa demarche n'a <b>aucune ligne ici</b> : l'API rend
  * {@code NEEDS_OBJECTIVE} et l'ecran propose « Choisir mon objectif ». Creer un
- * parcours « par defaut » reviendrait a choisir un objectif a sa place, et a
- * batir une file sur cette supposition.
+ * cycle « par defaut » reviendrait a choisir un objectif a sa place, et a batir
+ * une file sur cette supposition.
  *
- * <p><b>Changer d'objectif ne detruit rien</b> : on bascule vers le parcours de
- * ce niveau, l'ancien est conserve tel quel, et si le nouveau n'existe pas le
- * bootstrap (R19) le reconstruit depuis les evaluations deja passees. Un
- * changement d'objectif ne force <b>jamais</b> un nouveau diagnostic.
+ * <p><b>Changer d'objectif ne detruit rien, et ne recree rien</b> : le cycle
+ * EN_COURS <b>survit</b> et son {@link #targetLevel} est mis a jour.
+ * L'historiser jetterait le plan que le candidat a sous les yeux, et un
+ * ping-pong d'objectif polluerait son historique de cycles ; les priorites
+ * d'une competence ne deviennent pas fausses parce que la cible a bouge — seul
+ * l'<b>ordre</b> des lots s'en trouve recalcule, et il est deja derive a la
+ * lecture. ⚠️ Cela <b>revoque</b> R18 « on bascule vers le parcours de ce
+ * niveau, l'ancien est conserve tel quel », qui reposait sur une unicite par
+ * niveau cible que D-13 a supprimee. Un changement d'objectif ne force toujours
+ * <b>jamais</b> un nouveau diagnostic.
  */
 @Entity
 @Table(name = "journey")
@@ -64,6 +80,64 @@ public class Journey {
     @Enumerated(EnumType.STRING)
     @Column(name = "target_level", nullable = false, length = 8)
     private TargetLevel targetLevel;
+
+    /**
+     * Le module prepare par ce cycle. Avec {@code user}, c'est la <b>cle
+     * d'unicite</b> : les deux modules se preparent en parallele, donc deux
+     * cycles en cours simultanes sont normaux — deux du <b>meme</b> module ne le
+     * sont jamais.
+     *
+     * <p>⚠️ Personne n'ecrit {@link Module#CIVIQUE} aujourd'hui : le civique
+     * sort du chantier (D-23) et son plan reste integralement derive.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "module", nullable = false, length = 16)
+    private Module module = Module.TCF;
+
+    /**
+     * 🛑 <b>Persiste, et ce n'est pas un derive</b> : c'est une memoire
+     * d'ordonnancement (D-14). Voir {@link JourneyStatus} pour l'argument
+     * complet, et pourquoi {@code JourneyStepStatus} reste derive a la lecture.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private JourneyStatus status = JourneyStatus.EN_COURS;
+
+    /**
+     * Le niveau global au demarrage du cycle : le niveau de sortie du precedent,
+     * ou celui du diagnostic pour le premier (D-12).
+     *
+     * <p>🛑 {@code null} = <b>inconnu, jamais mauvais</b>. Un cycle ouvert avant
+     * toute mesure n'a pas de niveau d'entree, et cette absence ne vaut surtout
+     * pas « le palier le plus bas ».
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "entry_level", length = 8)
+    private TargetLevel entryLevel;
+
+    /**
+     * Le niveau global <b>ecrit a l'historisation</b>, jamais recalcule ensuite
+     * (D-12).
+     *
+     * <p>C'est un <b>fait date</b> : « voila ou en etait le candidat quand ce
+     * cycle s'est ferme ». Le relire a la demande le ferait reinterpreter par le
+     * moteur du jour, et un recalibrage de seuils reecrirait retroactivement son
+     * histoire. Meme argument que {@code journey_step.resolution}, qui ne dit
+     * jamais « acquise aujourd'hui ». Reste {@code null} si le cycle se ferme
+     * sans qu'aucune epreuve n'ait ete mesuree.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exit_level", length = 8)
+    private TargetLevel exitLevel;
+
+    /**
+     * La date d'historisation. <b>Obligatoire des que le statut l'est</b>, et
+     * interdite sinon ({@code chk_journey_historisation}) : un cycle historise
+     * dont personne ne sait QUAND il s'est ferme serait impossible a ranger dans
+     * un historique.
+     */
+    @Column(name = "historise_at")
+    private Instant historiseAt;
 
     /**
      * La prochaine position libre de la file. <b>Monotone</b> : jamais

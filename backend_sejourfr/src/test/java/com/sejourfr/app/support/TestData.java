@@ -20,7 +20,9 @@ import com.sejourfr.app.entity.Conversation;
 import com.sejourfr.app.entity.EmailChangeToken;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.ExamTemplateRule;
+import com.sejourfr.app.entity.FreeEntitlementUsage;
 import com.sejourfr.app.entity.HumanCalibrationNote;
+import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Message;
@@ -53,7 +55,9 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.BillingCycle;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.MediaType;
@@ -82,6 +86,7 @@ import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
@@ -90,6 +95,7 @@ import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
+import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
@@ -112,6 +118,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.repository.FreeEntitlementUsageRepository;
 import com.sejourfr.app.repository.ProcessedExternalEventRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
 import com.sejourfr.app.repository.SkillRepository;
@@ -188,6 +195,8 @@ public class TestData {
     private final AnalyticsVisitorManager analyticsVisitorManager;
     private final AnalyticsEventManager analyticsEventManager;
     private final AnalyticsIdentityManager analyticsIdentityManager;
+    private final JourneyManager journeyManager;
+    private final FreeEntitlementUsageRepository freeEntitlementUsageRepository;
 
     private static long next() {
         return SEQ.incrementAndGet();
@@ -1201,5 +1210,64 @@ public class TestData {
             s.setFxRateToEur(BigDecimal.ONE);
         }
         return userSubscriptionManager.save(s);
+    }
+
+    // ------------------------------------------------------------------------
+    // Cycle du parcours (journey) et gratuites nominatives
+    // ------------------------------------------------------------------------
+
+    /**
+     * Un cycle de parcours TCF <b>en cours</b> pour ce niveau cible. Signature
+     * conservee pour les tests qui ne parlent que de niveau cible : le module et
+     * le statut sont ceux qu'un cycle recoit a sa creation.
+     */
+    public Journey journey(User user, TargetLevel level) {
+        return journey(user, Module.TCF, JourneyStatus.EN_COURS, level);
+    }
+
+    /**
+     * Un cycle de parcours dans l'etat demande.
+     *
+     * <p>Un cycle {@link JourneyStatus#HISTORISE} recoit sa date
+     * d'historisation : {@code chk_journey_historisation} l'exige, et un cycle
+     * historise sans date serait de toute facon impossible a ranger dans un
+     * historique.
+     */
+    public Journey journey(User user, Module module, JourneyStatus status) {
+        return journey(user, module, status, TargetLevel.B2);
+    }
+
+    public Journey journey(User user, Module module, JourneyStatus status, TargetLevel level) {
+        Journey j = new Journey();
+        j.setUser(user);
+        j.setModule(module);
+        j.setStatus(status);
+        j.setTargetLevel(level);
+        if (status == JourneyStatus.HISTORISE) j.setHistoriseAt(Instant.now());
+        return journeyManager.save(j);
+    }
+
+    /** Une gratuite deja consommee, sans session source. */
+    public FreeEntitlementUsage freeEntitlementUsage(User user, FreeEntitlementCode code) {
+        return freeEntitlementUsage(user, code, null);
+    }
+
+    /**
+     * Une gratuite deja consommee. 🛑 Passe par le <b>repository</b> et non par
+     * {@code FreeEntitlementUsageManager.consommer}, qui avale la violation
+     * d'unicite : un test qui veut voir la base refuser doit ecrire sans ce
+     * filet.
+     */
+    public FreeEntitlementUsage freeEntitlementUsage(
+            User user, FreeEntitlementCode code, Attempt source) {
+        FreeEntitlementUsage usage = new FreeEntitlementUsage();
+        usage.setUser(user);
+        usage.setCode(code);
+        usage.setSourceAttempt(source);
+        return freeEntitlementUsageRepository.save(usage);
+    }
+
+    public FreeEntitlementUsage freeEntitlementUsage() {
+        return freeEntitlementUsage(user(), FreeEntitlementCode.EXAM_BLANC_EE, null);
     }
 }

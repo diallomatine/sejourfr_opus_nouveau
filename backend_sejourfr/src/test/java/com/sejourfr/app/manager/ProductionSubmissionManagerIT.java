@@ -202,19 +202,6 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void hasFullExamProductionSubmission() {
-        User withFullExam = testData.user();
-        ProductionTask ee = task(EpreuveType.TCF_EE, (short) 1);
-        submission(fullExamChild(withFullExam), ee, withFullExam, Instant.now(), SubmissionStatut.SUBMITTED);
-
-        User trainingOnly = testData.user();
-        submission(testData.attempt(trainingOnly), ee, trainingOnly, Instant.now(), SubmissionStatut.SUBMITTED);
-
-        assertThat(manager.hasFullExamProductionSubmission(withFullExam.getId())).isTrue();
-        assertThat(manager.hasFullExamProductionSubmission(trainingOnly.getId())).isFalse();
-    }
-
-    @Test
     void findRecentByUserOrdersDescAndRespectsLimit() {
         User user = testData.user();
         Attempt attempt = testData.attempt(user);

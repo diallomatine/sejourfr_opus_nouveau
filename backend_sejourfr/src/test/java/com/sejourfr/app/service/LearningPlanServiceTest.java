@@ -129,7 +129,7 @@ class LearningPlanServiceTest {
         accessService = mock(SkillAccessService.class);
         // Le resolveur de priorites est utilise POUR DE VRAI : c'est le meme
         // ordre que consomme SkillAccessService, on ne le double pas.
-        when(accessService.resolve(eq(userId), any()))
+        when(accessService.resolve(userId))
                 .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
         // Le moteur de maitrise tourne POUR DE VRAI, sur les memes observations
         // que le resolveur de priorites : c'est ce qui garantit qu'un candidat
@@ -562,8 +562,7 @@ class LearningPlanServiceTest {
         when(observationManager.countSince(any(), any())).thenReturn(0L);
         stubExercisesForEverySkill();
         // Rien d'ouvert : la competence de la priorite est verrouillee.
-        when(accessService.resolve(eq(userId), any())).thenReturn(
-                new SkillAccessService.SkillAccess(false, Set.of(), Set.of()));
+        when(accessService.resolve(userId)).thenReturn(SkillAccessService.SkillAccess.AUCUN);
 
         var result = service.get(userId);
 
@@ -2082,10 +2081,10 @@ class LearningPlanServiceTest {
         Skill aAcquerir = skill("EO1-C9");
         when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
-        // Seule la premiere place est ouverte : c'est la fragilite.
-        when(accessService.resolve(eq(userId), any())).thenReturn(
-                new SkillAccessService.SkillAccess(
-                        false, Set.of(fragile.getSkill().getId()), Set.of()));
+        // 🛑 D-18 : un compte gratuit n'a RIEN d'ouvert — l'exemption du
+        // 2026-08-21 sur la premiere place est revoquee. La carte reste
+        // designee, avec son cadenas.
+        when(accessService.resolve(userId)).thenReturn(SkillAccessService.SkillAccess.AUCUN);
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
@@ -2100,21 +2099,20 @@ class LearningPlanServiceTest {
     }
 
     /**
-     * 🛑 <b>Le defaut corrige le 2026-08-21.</b> Sans aucune fragilite, la
-     * premiere carte du Plan est une competence <b>a acquerir</b> — jamais
-     * travaillee, donc absente de l'historique, donc invisible pour l'ancien
-     * {@code currentPrioritySkillId}. Elle etait designee, visible… et
-     * verrouillee : le Plan promettait une action qu'un compte gratuit ne
-     * pouvait pas commencer.
+     * 🛑 <b>D-18 (2026-09-18) — l'exemption du 2026-08-21 est REVOQUEE.</b> Ce
+     * test verifiait le cablage inverse : le Plan transmettait au service
+     * d'acces la competence de sa premiere place pour qu'elle soit ouverte
+     * d'office (« un candidat non abonne pourra travailler sa priorite 1, vu
+     * qu'elle est visible »). La surcharge {@code resolve(userId, focus)} est
+     * <b>supprimee</b> avec elle.
      *
-     * <p>Ce que ce test verifie ici, c'est le <b>cablage</b> : le Plan transmet
-     * au service d'acces la competence de sa premiere place, quelle que soit sa
-     * nature. Que cette competence soit alors ouverte est verifie chez
-     * {@code SkillAccessServiceTest}, et de bout en bout par
-     * {@code LearningPlanAcquisitionIT}.
+     * <p>Ce qu'il verrouille desormais : la premiere place reste <b>designee et
+     * servie</b> — code, nature, contenu — et elle est <b>verrouillee</b>. C'est
+     * exactement la frontiere de D-18 : on ferme l'<b>execution</b>, jamais
+     * l'affichage.
      */
     @Test
-    void laPremierePlaceEstTransmiseAuVerrouMemeQuandCEstUneAcquisition() {
+    void laPremierePlaceResteServieMaisVerrouillee_D18() {
         DiagnosticSession completed = new DiagnosticSession();
         completed.setId(UUID.randomUUID());
         completed.setCompletedAt(Instant.now());
@@ -2123,20 +2121,20 @@ class LearningPlanServiceTest {
         Skill aAcquerir = skill("EO1-C9");
         when(acquisitionSelector.select(anyList(), anySet(), anyMap(), any()))
                 .thenReturn(List.of(aAcquerir));
-        when(accessService.resolve(eq(userId), any())).thenReturn(
-                new SkillAccessService.SkillAccess(
-                        false, Set.of(aAcquerir.getId()), Set.of()));
+        when(accessService.resolve(userId)).thenReturn(SkillAccessService.SkillAccess.AUCUN);
         stubExercisesForEverySkill();
 
         var result = service.get(userId);
 
-        verify(accessService).resolve(userId, aAcquerir.getId());
+        // 🛑 Plus AUCUNE premiere place n'est soufflee au verrou.
+        verify(accessService).resolve(userId);
         assertThat(result.currentPriority().skillCode()).isEqualTo("EO1-C9");
         assertThat(result.currentPriority().nature())
                 .isEqualTo(PlanActionNature.A_ACQUERIR);
         assertThat(result.currentPriority().locked())
-                .as("la premiere place se travaille toujours, quelle que soit sa nature")
-                .isFalse();
+                .as("D-18 : travailler une competence depuis le Plan est premium, "
+                        + "mais la premiere place reste lisible")
+                .isTrue();
     }
 
     private static LearningPlanObservation observation(

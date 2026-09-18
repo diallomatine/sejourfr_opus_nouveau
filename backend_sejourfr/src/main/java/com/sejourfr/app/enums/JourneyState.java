@@ -38,9 +38,27 @@ public enum JourneyState {
     LOCKED,
 
     /**
-     * Plus aucune etape ouverte. L'ecran dit « Votre parcours est a jour » et,
-     * si les 4 epreuves sont mesurees, <b>suggere</b> un examen blanc complet —
-     * une suggestion, hors file, jamais une etape.
+     * <b>Le cycle est termine</b> : ses quatre blocs le sont, et il reste
+     * quelque chose a proposer (spec §6). L'ecran affiche « Prochaine étape » et
+     * la carte finale a deux actions, lues dans
+     * {@code JourneyDto.nextStep()} — jamais deduites du nombre d'etapes.
+     *
+     * <p>🛑 <b>Distinct de {@link #UP_TO_DATE}</b>, qui garde son sens : « plus
+     * rien a faire du tout ». Un cycle termine n'est pas un parcours fini —
+     * c'est un palier franchi, et le suivant attend d'etre ouvert.
+     */
+    CYCLE_COMPLETED,
+
+    /**
+     * Plus aucune etape ouverte, <b>et plus rien a proposer</b> : le cycle en
+     * attente est vide et le niveau cible est atteint partout. L'ecran dit
+     * « Votre parcours est a jour » et, si les 4 epreuves sont mesurees,
+     * <b>suggere</b> un examen blanc complet — une suggestion, hors file, jamais
+     * une etape.
+     *
+     * <p>🛑 <b>Aucun second etat n'a ete invente pour dire la meme chose</b>
+     * (spec §6, cas vide) : « Objectif atteint » et le maintien mensuel sont des
+     * libelles de front, pas une valeur de plus ici.
      */
     UP_TO_DATE
 }

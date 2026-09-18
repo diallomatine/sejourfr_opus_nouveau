@@ -1216,10 +1216,13 @@ sejourfr:
       # Zero : sur un verdict de critere on veut de la reproductibilite, pas de
       # la creativite.
       temperature: 0
-      # Analyses IA offertes a vie aux comptes gratuits. Produire, s'auto-evaluer
-      # et lire les 3 productions de reference restent gratuits et ILLIMITES sur
-      # tous les sujets : ce quota ne borne QUE l'appel au correcteur.
-      free-analyses: 3
+      # 🛑 `free-analyses: 3` (« 3 analyses IA offertes a vie ») est SUPPRIME le
+      # 2026-09-18 par l'arbitrage D-17, et il n'est PAS remplace : l'analyse IA du
+      # module Competences est premium, point. Aucun quota journalier n'a ete
+      # introduit (le premier jet de la spec proposait « 1 analyse / jour » :
+      # refuse). Ce qui reste gratuit est ailleurs : le diagnostic rapide, et un
+      # examen blanc EE + un examen blanc EO corriges en entier
+      # (free_entitlement_usage, FreeExamEntitlementService).
       # Garde-fou ANTI-ABUS (cout LLM, taille de ligne), pas une regle
       # pedagogique : les bornes recommandees d'un sujet restent indicatives et
       # ne bloquent jamais une soumission.
@@ -1447,8 +1450,17 @@ sejourfr:
   # LearningPlanStep.PROMPTS_PAR_ETAPE, deja servi aux fronts dans progress.quota)
   # et l'ordre des epreuves (il EST TcfDomainProfileDto.ORDRE). Deux copies d'un
   # chiffre deja servi finissent toujours par diverger.
+  #
+  # v2 (2026-09-18, D-16) : trainSeriesQuota compte les series REUSSIES (verdict lu
+  # sur learning_plan_observations.status = SOLID, donc sur
+  # learning-plan.comprehension.solid-ratio -- aucune 8e declaration de 0.80) et
+  # trainSeriesFallbackQuota porte l'echappatoire des series TERMINEES, pour qu'un
+  # candidat faible ne reste jamais bloque. v1 reste sur le disque et reste
+  # chargeable a l'identique (elle y porte fallback = quota = 2, ce qui EST
+  # l'ancienne regle « 2 terminees ») : le retour arriere est cette variable
+  # d'environnement, jamais une migration.
   tcf-journey:
-    config-version: ${TCF_JOURNEY_CONFIG_VERSION:1}
+    config-version: ${TCF_JOURNEY_CONFIG_VERSION:2}
 
   # ------------------------------------------------------------------ progression
   # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).

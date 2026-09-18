@@ -258,7 +258,7 @@ public class PlanFocusResolver {
         TargetLevel cible = TargetProcedure.niveauVise(
                 user.getTargetProcedure(), user.getTargetLevel());
         if (cible == null) return Optional.empty();
-        for (Skill duParcours : stepManager.findCompetencesOuvertes(user.getId(), cible)) {
+        for (Skill duParcours : stepManager.findCompetencesOuvertes(user.getId())) {
             if (duParcours == null) continue;
             Optional<Skill> dansLePool = candidats.stream()
                     .filter(candidat -> candidat != null

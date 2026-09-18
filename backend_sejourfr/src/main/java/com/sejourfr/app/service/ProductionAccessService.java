@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
@@ -30,8 +31,45 @@ import java.util.UUID;
  *   <li>{@link #assertCanSubmit} — cohérence de la SESSION : propriété,
  *       épreuve terminée, chrono, correspondance épreuve tâche ⇄ attempt, et
  *       plafond « une soumission par tâche » en session d'examen ;</li>
- *   <li>{@link #enforceQuota} — budget FREEMIUM (essais gratuits EE/EO).</li>
+ *   <li>{@link #enforceQuota} — budget FREEMIUM (les deux examens blancs de
+ *       production offerts a vie).</li>
  * </ul>
+ *
+ * <h2>🛑 Le freemium EE/EO a ete refondu le 2026-09-18 (D-17, D-17 bis)</h2>
+ * <p>Ce qui est gratuit, et <b>rien d'autre</b> : <b>un</b> examen blanc
+ * d'expression ecrite et <b>un</b> examen blanc d'expression orale, une fois a
+ * vie chacun, <b>analyse IA complete incluse</b>. Deux gratuites nominatives,
+ * lues sur un ledger persiste ({@link FreeExamEntitlementService}).
+ *
+ * <p><b>Les regles revoquees</b>, et elles l'ont ete verbatim :
+ * <ul>
+ *   <li>« <b>1 essai d'entrainement par epreuve a vie</b> »
+ *       ({@code FREE_TRAINING_PER_EPREUVE = 1}) : <b>supprime</b>. Il
+ *       contredisait « travailler EE/EO est premium » (D-17).</li>
+ *   <li>« <b>2 sessions d'examen, EE+EO confondues</b> »
+ *       ({@code countProductionExamSessions(userId) >= 2}) : <b>supprime</b>,
+ *       remplace par <b>1 par epreuve, nominatif</b>. L'ancien seuil ne savait
+ *       pas dire ou la gratuite avait ete prise, et comptait des examens
+ *       <b>demarres</b> — donc abandonnes.</li>
+ *   <li>« Refaire l'examen 1 = tolere une fois mais consomme les essais
+ *       d'entrainement restants » : <b>supprime</b>. Le rejeu est <b>ouvert</b>,
+ *       c'est l'<b>analyse</b> du second passage qui est premium.</li>
+ * </ul>
+ *
+ * <h2>🛑 Aucun appel paye ne part sur un rejeu — ni correcteur, NI WHISPER</h2>
+ * <p>{@link #enforceQuota} est appele par {@code ProductionSubmissionService}
+ * <b>avant</b> {@code submitAndEvaluate}, donc avant la transcription : c'est
+ * exactement la place ou l'idempotence de V046 coupe deja. Un rejeu ne consomme
+ * rien et ne coute rien.
+ *
+ * <h2>Le cas de l'ORAL est traite plus tot, et c'est un arbitrage</h2>
+ * <p>En EE, un rejeu sans analyse reste honnete : le texte du candidat est sous
+ * ses yeux, il peut le relire. En EO, <b>il ne resterait rien</b> — sans Whisper
+ * il n'y a ni transcription, ni note, ni trace, et l'audio d'un candidat n'est
+ * <b>jamais</b> conserve (decision consentement). Faire produire un candidat
+ * dans le vide est un mauvais geste : le paywall de l'oral se presente donc
+ * <b>au demarrage</b> ({@link #assertCanStartProductionExam}), pas apres la
+ * soumission.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,13 +82,30 @@ public class ProductionAccessService {
      */
     static final int SUBMIT_GRACE_SECONDS = DureeEpreuve.GRACE_SOUMISSION_SECONDS;
 
-    /** Essais d'entrainement par epreuve pour les comptes non-Premium (a vie). */
-    private static final int FREE_TRAINING_PER_EPREUVE = 1;
+    /**
+     * Refus d'un entrainement libre EE/EO — <b>affichable tel quel</b>.
+     *
+     * <p>🛑 Il n'y a plus d'essai gratuit d'entrainement :
+     * {@code FREE_TRAINING_PER_EPREUVE = 1} est <b>supprime</b> par D-17
+     * (« travailler EE/EO est premium, sans exception »).
+     */
+    public static final String ENTRAINEMENT_PREMIUM_MESSAGE =
+            "S'entraîner à l'expression écrite et orale demande un accès TCF. "
+                    + "Votre examen blanc offert, lui, est corrigé en entier.";
+
+    /**
+     * Refus de l'epreuve terminee. Couvre les sous-epreuves EE/EO pre-terminees
+     * d'un examen complet : un client ne contourne pas le verrou en postant
+     * quand meme.
+     */
+    static final String EPREUVE_TERMINEE_MESSAGE =
+            "Cette épreuve est terminée — soumission refusée.";
 
     private final SubscriptionService subscriptionService;
     private final AttemptManager attemptManager;
     private final ProductionSubmissionManager submissionManager;
     private final DiagnosticSessionManager diagnosticSessionManager;
+    private final FreeExamEntitlementService freeExamEntitlementService;
 
     /**
      * Toutes les gardes de session à passer avant de créer une soumission EE/EO,
@@ -187,11 +242,22 @@ public class ProductionAccessService {
     }
 
     /**
-     * Budget freemium EE/EO (règles validées 2026-06-06) — Premium TCF :
-     * illimité. Gratuit : 1 essai d'entraînement par épreuve à vie ; les
-     * soumissions d'une session d'examen blanc production ou d'un examen TCF
-     * complet ne comptent pas dans ce quota ; refaire l'examen blanc (2ᵉ
-     * session) consomme les essais d'entraînement restants.
+     * <b>Budget freemium EE/EO</b> (refondu le 2026-09-18 — D-17, D-17 bis).
+     * Acces TCF : illimite. Sans acces TCF :
+     * <ul>
+     *   <li><b>session d'examen</b> de production (slot pose, ou sous-epreuve
+     *       d'un examen complet) : la soumission passe tant que la gratuite de
+     *       <b>cette epreuve</b> est disponible, ou qu'elle a ete consommee par
+     *       <b>cet examen-la</b> — les 3 taches du freebie sont dues ;</li>
+     *   <li><b>entrainement libre</b> : <b>premium, sans exception</b>. L'essai
+     *       gratuit par epreuve est revoque (D-17) ;</li>
+     *   <li><b>sujet de diagnostic</b> : n'arrive jamais ici, la surcharge
+     *       {@link #enforceQuota(UUID, ProductionTask, UUID)} sort avant — le
+     *       diagnostic rapide est gratuit par lui-meme.</li>
+     * </ul>
+     *
+     * <p>🛑 <b>Appele AVANT le pipeline</b>, donc avant Whisper et avant le
+     * correcteur : un rejeu ne declenche aucun appel paye.
      */
     public void enforceQuota(UUID userId, EpreuveType epreuve, UUID attemptId) {
         if (subscriptionService.hasTcf(userId)) return;
@@ -203,29 +269,32 @@ public class ProductionAccessService {
                 // verrouillees d'un examen complet gratuit (pre-terminees au
                 // start) — empeche un client de contourner le verrou.
                 if (attempt.getFinishedAt() != null) {
-                    throw new AccessDeniedException(
-                            "Cette epreuve est terminee. L'expression ecrite et orale ne sont "
-                                    + "offertes qu'une fois ; passez Premium pour continuer.");
+                    throw new AccessDeniedException(EPREUVE_TERMINEE_MESSAGE);
                 }
                 if (isExamSession(attempt)) {
-                    return;
+                    if (freeExamEntitlementService.analyseOffertePossible(
+                            userId, epreuve, attempt.getId())) {
+                        return;
+                    }
+                    throw new AccessDeniedException(analyseDejaOfferteMessage(epreuve));
                 }
             }
         }
 
-        // Refaire l'examen blanc (2e session) consomme les essais restants.
-        if (examSessionsConsumedTraining(userId)) {
-            throw new AccessDeniedException(
-                    "Vos essais gratuits EE/EO ont ete utilises en refaisant l'examen blanc. "
-                            + "Passez Premium pour continuer.");
-        }
+        // Entrainement libre : il n'y a plus d'essai gratuit (D-17).
+        throw new AccessDeniedException(ENTRAINEMENT_PREMIUM_MESSAGE);
+    }
 
-        if (trainingQuotaExhausted(userId, epreuve)) {
-            throw new AccessDeniedException(
-                    "Quota gratuit atteint pour " + epreuve.getLabel() + " (" + FREE_TRAINING_PER_EPREUVE
-                            + " essai a vie). Passez Premium pour continuer."
-            );
-        }
+    /**
+     * Refus du <b>rejeu</b> d'un examen dont la gratuite est consommee — ecrit
+     * pour etre affiche tel quel par un paywall : il dit ce qui a deja ete
+     * offert avant de dire ce qui est ferme.
+     */
+    private static String analyseDejaOfferteMessage(EpreuveType epreuve) {
+        return "Votre examen blanc d'" + epreuve.getLabel().toLowerCase()
+                + " offert a déjà été corrigé en entier. "
+                + "Vous pouvez repasser l'épreuve, mais l'analyse IA d'un nouveau passage "
+                + "demande un accès TCF.";
     }
 
     /**
@@ -234,73 +303,112 @@ public class ProductionAccessService {
      *
      * <p>Sert a poser le cadenas sur la verification en situation du Plan
      * ({@code ReassessmentExerciseSelector}) sans rien tenter ni rien consommer.
-     * Il partage ses deux conditions avec {@link #enforceQuota} — deux copies
-     * auraient fini par afficher un sujet ouvert que le serveur refuse, ou
-     * l'inverse. Le sujet reste <b>designe</b> meme verrouille : savoir quoi
-     * travailler est ce que le Plan apporte.
+     * Jumelle de {@link #enforceQuota} — deux copies auraient fini par afficher
+     * un sujet ouvert que le serveur refuse, ou l'inverse. Le sujet reste
+     * <b>designe</b> meme verrouille : savoir quoi travailler est ce que le Plan
+     * apporte.
+     *
+     * <p>🛑 <b>Sans acces TCF, c'est toujours verrouille</b> (D-17) : l'essai
+     * gratuit d'entrainement par epreuve n'existe plus. Le parametre
+     * {@code epreuve} est conserve — l'appelant raisonne par epreuve, et le jour
+     * ou une gratuite d'entrainement reviendrait, elle serait nominative comme
+     * les deux autres.
      */
     @Transactional(readOnly = true)
     public boolean isTrainingLocked(UUID userId, EpreuveType epreuve) {
-        if (subscriptionService.hasTcf(userId)) return false;
-        return examSessionsConsumedTraining(userId) || trainingQuotaExhausted(userId, epreuve);
+        return !subscriptionService.hasTcf(userId);
     }
 
     /**
-     * Budget freemium des <b>sessions d'examen blanc production</b> (EE/EO, 3
-     * taches), <b>opposable</b> : 1&#x2071;&#x2ba0; session gratuite, une 2&#x1d49;
-     * toleree qui consomme les essais d'entrainement restants, au-dela premium.
+     * Demarrage d'une <b>session d'examen blanc de production</b>,
+     * <b>opposable</b>.
      *
-     * <p>Appele par {@code AttemptService.startProductionAttempt}. Il partage sa
-     * condition avec {@link #isProductionExamLocked}, sa jumelle en lecture :
-     * deux copies auraient fini par afficher au Plan un jalon ouvert que le
-     * serveur refuse — ou l'inverse.
+     * <p>🛑 <b>Le rejeu est OUVERT</b> (D-17 bis) : repasser un examen dont la
+     * gratuite est consommee n'est pas interdit, c'est son <b>analyse</b> qui
+     * est premium — et {@link #enforceQuota} la refuse avant tout appel paye.
+     *
+     * <p><b>Sauf a l'ORAL, et c'est l'arbitrage rendu.</b> Sans Whisper, un rejeu
+     * EO ne laisse <b>rien</b> a lire : ni transcription, ni note, ni trace, et
+     * l'audio d'un candidat n'est jamais conserve. Le paywall se presente donc
+     * ici, <b>au demarrage</b>, plutot que de faire produire un candidat dans le
+     * vide. A l'ecrit, le texte reste sous ses yeux : le rejeu y est honnete.
+     *
+     * <p>Appele par {@code AttemptService.startProductionAttempt}. Partage sa
+     * condition avec {@link #isProductionExamLocked}, sa jumelle en lecture.
      */
-    public void assertCanStartProductionExam(UUID userId) {
-        if (isProductionExamLocked(userId)) {
+    public void assertCanStartProductionExam(UUID userId, EpreuveType epreuve) {
+        if (epreuve != EpreuveType.TCF_EO) return;
+        if (isProductionExamLocked(userId, epreuve)) {
             throw new AccessDeniedException(
-                    "Examens blancs production réservés aux abonnés Intégral au-delà des "
-                            + "essais gratuits.");
+                    "Votre examen blanc d'expression orale offert a déjà été corrigé en entier. "
+                            + "Sans accès TCF, un nouvel enregistrement ne pourrait pas être "
+                            + "analysé — et il n'est jamais conservé. "
+                            + "L'accès TCF rouvre l'épreuve et sa correction.");
         }
     }
 
     /**
-     * La meme regle <b>en lecture</b> : « ce candidat peut-il encore demarrer un
-     * examen blanc d'epreuve ? ».
+     * La meme regle <b>en lecture</b> : « l'examen blanc de cette epreuve de
+     * production apporterait-il encore quelque chose a ce candidat ? ».
      *
      * <p>Sert a poser le cadenas du jalon d'epreuve du Plan
-     * ({@code PlanMilestoneSelector}) sans rien tenter ni rien consommer. Le
-     * jalon reste <b>designe</b> meme verrouille — savoir ou l'on en est fait
-     * partie de ce que le Plan apporte.
+     * ({@code PlanMilestoneSelector}) et de l'etape {@code SECTION_EXAM} du
+     * parcours ({@code JourneyReadService}) sans rien tenter ni rien consommer.
+     * L'etape reste <b>designee</b> meme verrouillee — savoir ou l'on en est
+     * fait partie de ce que le Plan apporte.
+     *
+     * <p>🛑 <b>Le verrou porte sur l'ANALYSE</b>, qui est ce qui donne un niveau
+     * a l'epreuve : une epreuve de production dont la gratuite est consommee ne
+     * peut plus se mesurer sans acces TCF. C'est pour cela que le cadenas se
+     * pose des que la gratuite est consommee, alors meme que le <b>demarrage</b>
+     * de l'ecrit reste possible.
+     *
+     * <p>Rend {@code false} pour CO / CE, qui gardent leur regle inchangee
+     * (« slot 1 offert <b>et rejouable a volonte</b> »,
+     * {@code AttemptService.enforceMockExamSlotAccess}).
      */
     @Transactional(readOnly = true)
-    public boolean isProductionExamLocked(UUID userId) {
+    public boolean isProductionExamLocked(UUID userId, EpreuveType epreuve) {
+        if (FreeEntitlementCode.pourExamenBlanc(epreuve) == null) return false;
         if (subscriptionService.hasTcf(userId)) return false;
-        return examSessionsConsumedTraining(userId);
+        return freeExamEntitlementService.estConsomme(userId, epreuve);
     }
 
     /**
      * Les epreuves EE/EO d'un <b>examen blanc TCF complet</b> sont-elles
-     * verrouillees pour ce candidat ?
+     * <b>toutes deux</b> verrouillees pour ce candidat ?
      *
-     * <p>Jumelle en lecture du calcul de {@code FullTcfExamService.start}, qui
-     * pre-termine les sous-attempts EE/EO d'un compte gratuit ayant deja
-     * consomme son freebie. L'examen complet reste demarrable (CO+CE), mais le
-     * jalon du Plan porte sur le <b>transfert des productions</b> : c'est cette
-     * partie-la qui est fermee, et c'est elle que le cadenas doit annoncer.
+     * <p>Jumelle en lecture du jalon « examen blanc complet » du Plan, qui n'a
+     * qu'<b>un</b> cadenas a servir pour les quatre epreuves. Il ne se pose donc
+     * que quand la partie production de l'examen n'apporte plus <b>rien</b> :
+     * tant qu'une des deux gratuites reste disponible, l'examen complet en fera
+     * profiter le candidat, et annoncer un cadenas serait faux.
+     *
+     * <p>🛑 Le verrou effectif, lui, est <b>par epreuve</b>
+     * ({@link #isFullExamProductionLocked(UUID, EpreuveType)}) : deux gratuites
+     * nominatives ne se ferment pas ensemble.
      */
     @Transactional(readOnly = true)
     public boolean isFullExamProductionLocked(UUID userId) {
-        if (subscriptionService.hasTcf(userId)) return false;
-        return submissionManager.hasFullExamProductionSubmission(userId);
+        return isFullExamProductionLocked(userId, EpreuveType.TCF_EE)
+                && isFullExamProductionLocked(userId, EpreuveType.TCF_EO);
     }
 
-    private boolean examSessionsConsumedTraining(UUID userId) {
-        return attemptManager.countProductionExamSessions(userId) >= 2;
-    }
-
-    private boolean trainingQuotaExhausted(UUID userId, EpreuveType epreuve) {
-        return submissionManager.countTrainingByUserAndEpreuve(userId, epreuve)
-                >= FREE_TRAINING_PER_EPREUVE;
+    /**
+     * Cette epreuve de production est-elle verrouillee dans un examen blanc
+     * complet ?
+     *
+     * <p>Autorite de {@code FullTcfExamService.start}, qui pre-termine la
+     * sous-epreuve correspondante. 🛑 <b>Ramene au ledger</b> : l'ancienne
+     * lecture ({@code ProductionSubmissionManager.hasFullExamProductionSubmission})
+     * devinait la gratuite a partir de l'existence d'une <b>soumission</b> —
+     * donc la consommait des le depot d'une tache, avant toute correction, et
+     * sans savoir sur quelle epreuve. Une soumission dont le correcteur echoue
+     * ne doit rien consommer (D-17).
+     */
+    @Transactional(readOnly = true)
+    public boolean isFullExamProductionLocked(UUID userId, EpreuveType epreuve) {
+        return isProductionExamLocked(userId, epreuve);
     }
 
     /**

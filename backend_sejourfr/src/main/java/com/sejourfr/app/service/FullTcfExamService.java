@@ -15,13 +15,16 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.attempt.AttemptInteractionService;
+import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -70,6 +73,7 @@ public class FullTcfExamService {
     private final AttemptInteractionService attemptInteractionService;
     private final ProductionAccessService productionAccessService;
     private final FullTcfExamResponseBuilder responseBuilder;
+    private final JourneyProductionBridge journeyProductionBridge;
 
     // ------------------------------------------------------------------------
     // Création
@@ -80,13 +84,23 @@ public class FullTcfExamService {
      * sous-attempts (CO, CE, EE, EO) en une seule transaction.
      *
      * <p><b>Freemium</b> — accessible aux comptes gratuits, pas seulement aux
-     * abonnés TCF : le PREMIER examen complet inclut l'expression écrite et
-     * orale (EE/EO) évaluées par l'IA, offertes une fois. Les examens complets
-     * suivants restent rejouables en compréhension (CO+CE) mais leurs épreuves
-     * EE/EO sont verrouillées (pré-terminées, marquées {@code production_locked}
-     * sur le parent). Une épreuve verrouillée n'a <b>pas</b> de niveau et sort
-     * du plancher global — le verrou est commercial, pas linguistique. Les
-     * abonnés TCF ont un accès illimité aux 4 épreuves.
+     * abonnés TCF : une épreuve de production y est incluse, évaluée par l'IA,
+     * tant que <b>sa</b> gratuité n'a pas été consommée. Une épreuve dont la
+     * gratuité est consommée est verrouillée (pré-terminée, marquée
+     * {@code production_locked}) ; l'examen reste jouable sur le reste. Une
+     * épreuve verrouillée n'a <b>pas</b> de niveau et sort du plancher global —
+     * le verrou est commercial, pas linguistique. Les abonnés TCF ont un accès
+     * illimité aux 4 épreuves.
+     *
+     * <p>🛑 <b>Le verrou est PAR ÉPREUVE depuis D-17 bis</b> (2026-09-18) : deux
+     * gratuités nominatives, une EE et une EO. Un candidat qui a usé son examen
+     * blanc EE garde son examen blanc EO, et l'examen complet doit le lui
+     * donner. Un verrou global aurait fermé les deux dès la première consommée.
+     *
+     * <p>🛑 <b>Et il se lit sur le LEDGER</b>, plus sur l'existence d'une
+     * soumission ({@code hasFullExamProductionSubmission}, révoqué) : une tâche
+     * déposée dont le correcteur échoue ne consomme rien, donc ne doit rien
+     * fermer.
      */
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
@@ -94,14 +108,23 @@ public class FullTcfExamService {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 
-        // EE/EO déverrouillées pour les abonnés, et pour un compte gratuit tant
-        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet. La règle
-        // vit dans ProductionAccessService, qui la sert AUSSI en lecture au
-        // jalon du Plan : deux copies auraient fini par afficher un cadenas que
-        // le serveur ne pose pas, ou l'inverse.
-        boolean productionUnlocked = !productionAccessService.isFullExamProductionLocked(userId);
+        // La règle vit dans ProductionAccessService, qui la sert AUSSI en lecture
+        // au jalon du Plan : deux copies auraient fini par afficher un cadenas
+        // que le serveur ne pose pas, ou l'inverse.
+        Set<EpreuveType> verrouillees = EnumSet.noneOf(EpreuveType.class);
+        for (EpreuveType epreuve : List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO)) {
+            if (productionAccessService.isFullExamProductionLocked(userId, epreuve)) {
+                verrouillees.add(epreuve);
+            }
+        }
+        // 🛑 Le drapeau du PARENT ne vaut que pour les DEUX épreuves fermées : il
+        // est lu comme « toute la production est verrouillée »
+        // (FullTcfExamResponseBuilder), et le poser sur une seule aurait fermé
+        // à l'écran une épreuve encore offerte. Le verrou d'une seule épreuve
+        // se porte sur SON sous-attempt.
+        boolean toutVerrouille = verrouillees.size() == 2;
 
-        Attempt parent = createParent(user, slot, !productionUnlocked);
+        Attempt parent = createParent(user, slot, toutVerrouille);
 
         // CO + CE : QCM avec questions tirées + chrono propre.
         attemptService.startModuleExamSubAttempt(user, QuestionType.CO, parent);
@@ -114,28 +137,47 @@ public class FullTcfExamService {
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
                 Module.TCF, EpreuveType.TCF_EO, parent.getId(), null, null));
 
-        // Compte gratuit ayant déjà consommé son EE/EO offerte : on pré-termine
-        // les sous-attempts EE/EO (aucune soumission possible — le garde
+        // Compte gratuit ayant déjà consommé la gratuité d'une épreuve : on
+        // pré-termine SON sous-attempt (aucune soumission possible — le garde
         // finishedAt côté ProductionSubmissionService double le verrou) ; le
-        // bilan les laissera SANS niveau (hors plancher), l'examen reste
-        // jouable en CO+CE.
-        if (!productionUnlocked) {
-            lockProductionSubAttempts(parent);
+        // bilan la laissera SANS niveau (hors plancher), l'examen reste jouable
+        // sur les autres épreuves.
+        if (!verrouillees.isEmpty()) {
+            lockProductionSubAttempts(parent, verrouillees);
         }
 
-        log.info("Full TCF exam created: parentId={} user={} productionUnlocked={}",
-                parent.getId(), userId, productionUnlocked);
+        log.info("Full TCF exam created: parentId={} user={} productionVerrouillee={}",
+                parent.getId(), userId, verrouillees);
         return responseBuilder.buildResponse(parent);
     }
 
-    /** Pré-termine les sous-attempts EE/EO d'un examen complet verrouillé. */
-    private void lockProductionSubAttempts(Attempt parent) {
+    /**
+     * Pré-termine les sous-attempts EE/EO d'un examen complet verrouillé.
+     *
+     * <p>🛑 <b>AUCUN BRANCHEMENT DU PARCOURS ICI, ET C'EST EXPLICITE</b> (D-24,
+     * point 4). Cette méthode pose {@code TERMINE} <b>sans qu'aucun examen n'ait
+     * été passé</b> : le compte est gratuit, son EE/EO offerte est consommée, et
+     * les deux épreuves sont fermées avant même que l'examen ne commence. Le
+     * signaler aurait <b>inventé une mesure</b>, et clos au passage l'étape
+     * « Évaluer mon niveau » d'une épreuve que le candidat n'a jamais ouverte.
+     * {@code JourneyProductionBridge} tient la même garde de son côté (aucune
+     * tâche corrigée ⇒ aucun signal), parce qu'un jour ces sous-attempts
+     * passeront quand même devant lui, à la complétion de l'examen.
+     */
+    private void lockProductionSubAttempts(Attempt parent, Set<EpreuveType> verrouillees) {
         Instant now = Instant.now();
         for (Attempt sub : attemptManager.findSubAttempts(parent.getId())) {
-            if ((sub.getEpreuve() == EpreuveType.TCF_EE || sub.getEpreuve() == EpreuveType.TCF_EO)
-                    && sub.getFinishedAt() == null) {
+            if (verrouillees.contains(sub.getEpreuve()) && sub.getFinishedAt() == null) {
                 sub.setFinishedAt(now);
                 sub.setStatus(AttemptStatus.TERMINE);
+                // 🛑 Le drapeau est posé sur le SOUS-ATTEMPT, pas seulement sur
+                // le parent : depuis D-17 bis les deux gratuités sont
+                // nominatives, et un drapeau porté par le seul parent ne sait
+                // pas dire LAQUELLE des deux épreuves est fermée. La colonne
+                // existe sur `attempts`, donc sur les sous-attempts aussi — rien
+                // à migrer. L'ancienne donnée (drapeau sur le seul parent) reste
+                // lue telle quelle par FullTcfExamResponseBuilder.
+                sub.setProductionLocked(true);
                 attemptManager.save(sub);
             }
         }
@@ -381,6 +423,20 @@ public class FullTcfExamService {
                 && response.status() == FullTcfExamResponse.FullTcfExamStatus.COMPLETED) {
             parent.setFinalCecrlLevel(response.finalCecrlLevel());
             attemptManager.save(parent);
+            // 🛑 TROISIEME POINT DE BRANCHEMENT DU PARCOURS (D-24, point 3).
+            // Le parent TCF_COMPLET ne passe JAMAIS par doFinish : il n'a pas de
+            // questions propres, son resultat est agrege a la lecture. Un
+            // branchement sur doFinish seul rate donc entierement l'examen
+            // complet (B-9). Ce sont ses SOUS-EPREUVES qui sont signalees —
+            // TCF_COMPLET n'est pas une epreuve du TCF IRN et ne porte aucun
+            // niveau d'epreuve.
+            //
+            // ⚠️ ICI, et une seule fois : la persistance du niveau final est le
+            // moment ou l'examen DEVIENT complet. Le faire a chaque `get()`
+            // aurait coute quatre lectures d'idempotence a chaque polling du
+            // mobile, pour rien.
+            journeyProductionBridge.onFullExamCompleted(
+                    attemptManager.findSubAttempts(parent.getId()));
         }
         return response;
     }

@@ -85,13 +85,6 @@ public class CompetenceProperties {
         private double temperature = 0;
 
         /**
-         * Analyses IA offertes a vie aux comptes gratuits. Produire,
-         * s'auto-evaluer et lire les references restent gratuits et illimites :
-         * ce quota ne borne QUE l'appel au correcteur.
-         */
-        private int freeAnalyses = 3;
-
-        /**
          * Plafond de mots accepte sur une production ecrite. C'est un garde-fou
          * ANTI-ABUS (cout LLM, taille de ligne), pas une regle pedagogique : les
          * bornes {@code recommendedMin/MaxWords} d'un sujet restent indicatives
@@ -117,9 +110,6 @@ public class CompetenceProperties {
 
         public double getTemperature() { return temperature; }
         public void setTemperature(double temperature) { this.temperature = temperature; }
-
-        public int getFreeAnalyses() { return freeAnalyses; }
-        public void setFreeAnalyses(int freeAnalyses) { this.freeAnalyses = freeAnalyses; }
 
         public int getMaxTextWords() { return maxTextWords; }
         public void setMaxTextWords(int maxTextWords) { this.maxTextWords = maxTextWords; }

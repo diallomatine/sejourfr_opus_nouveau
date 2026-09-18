@@ -8,6 +8,7 @@ import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,23 +29,29 @@ import static org.mockito.Mockito.when;
  * gratuits (cf. {@link FullTcfExamService#start}) :
  *
  * <ul>
- *   <li>l'expression écrite et orale (EE/EO) ne sont offertes qu'<b>une seule
- *       fois</b> ;</li>
- *   <li>le freebie n'est consommé que par une <b>vraie soumission</b> EE/EO
- *       dans un examen complet ({@code hasFullExamProductionSubmission}) —
- *       démarrer puis abandonner un examen sans toucher à EE/EO ne le consomme
- *       PAS, donc EE/EO restent jouables au prochain examen.</li>
+ *   <li>chaque épreuve de production est offerte <b>une seule fois à vie</b>,
+ *       et les <b>deux gratuités sont NOMINATIVES</b> — une EE, une EO
+ *       (D-17 bis, 2026-09-18). Celle qui est consommée ferme <b>sa</b>
+ *       sous-épreuve, jamais les deux ;</li>
+ *   <li>le freebie se lit sur le <b>ledger</b> {@code free_entitlement_usage},
+ *       écrit à la <b>remise de l'analyse</b> —
+ *       {@code hasFullExamProductionSubmission} est <b>révoqué</b> par D-17 : il
+ *       devinait la gratuité à partir de l'existence d'une <b>soumission</b>,
+ *       donc la consommait dès le dépôt d'une tâche, avant toute correction, et
+ *       sans savoir sur quelle épreuve.</li>
  * </ul>
  *
  * Test unitaire pur (mocks Mockito, pas de contexte Spring ni de DB) : on pilote
- * directement le verdict {@code hasFullExamProductionSubmission} et on vérifie
- * l'état des sous-épreuves EE/EO dans la réponse.
+ * directement le ledger et on vérifie l'état des sous-épreuves EE/EO dans la
+ * réponse.
  */
 class FullTcfExamServiceFreemiumTest {
 
     private AttemptManager attemptManager;
     private ProductionSubmissionManager productionSubmissionManager;
     private SubscriptionService subscriptionService;
+    private JourneyProductionBridge journeyProductionBridge;
+    private FreeExamEntitlementService freeExamEntitlementService;
     private FullTcfExamService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -56,8 +63,10 @@ class FullTcfExamServiceFreemiumTest {
         productionSubmissionManager = mock(ProductionSubmissionManager.class);
         subscriptionService = mock(SubscriptionService.class);
         AttemptService attemptService = mock(AttemptService.class);
+        journeyProductionBridge = mock(JourneyProductionBridge.class);
         TcfLevelEstimatorService levelEstimator = mock(TcfLevelEstimatorService.class);
         ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
 
         FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
                 attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
@@ -69,11 +78,12 @@ class FullTcfExamServiceFreemiumTest {
         // meme regle.
         ProductionAccessService productionAccessService = new ProductionAccessService(
                 subscriptionService, attemptManager, productionSubmissionManager,
-                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
         service = new FullTcfExamService(
                 attemptManager, userManager, attemptService,
                 mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
-                productionAccessService, responseBuilder);
+                productionAccessService, responseBuilder, journeyProductionBridge);
 
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         // Compte gratuit (pas d'abonnement TCF).
@@ -92,6 +102,19 @@ class FullTcfExamServiceFreemiumTest {
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
+    /** Les deux gratuites sont encore disponibles. */
+    private void gratuitesIntactes() {
+        when(freeExamEntitlementService.estConsomme(any(), any())).thenReturn(false);
+    }
+
+    /** Ces gratuites-la sont consommees, les autres non (D-17 bis : nominatives). */
+    private void gratuitesConsommees(EpreuveType... epreuves) {
+        when(freeExamEntitlementService.estConsomme(any(), any())).thenReturn(false);
+        for (EpreuveType epreuve : epreuves) {
+            when(freeExamEntitlementService.estConsomme(userId, epreuve)).thenReturn(true);
+        }
+    }
+
     private static Attempt sub(EpreuveType e) {
         Attempt a = new Attempt();
         a.setEpreuve(e);
@@ -106,9 +129,10 @@ class FullTcfExamServiceFreemiumTest {
     }
 
     @Test
-    void eeEoDeverrouillees_quandAucuneSoumissionAnterieure() {
-        // Aucune tâche EE/EO encore soumise en examen complet : freebie intact.
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+    void eeEoDeverrouillees_quandAucuneGratuiteConsommee() {
+        // Les deux gratuités sont intactes : les deux épreuves sont jouables et
+        // corrigées par l'IA.
+        gratuitesIntactes();
 
         FullTcfExamResponse r = service.start(userId, 1);
 
@@ -120,9 +144,9 @@ class FullTcfExamServiceFreemiumTest {
     }
 
     @Test
-    void eeEoVerrouillees_apresUneSoumissionEnExamenComplet() {
-        // Le freebie a été consommé (≥ 1 tâche EE/EO soumise dans un examen complet).
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(true);
+    void eeEoVerrouillees_quandLesDeuxGratuitesSontConsommees() {
+        // Les deux gratuités sont consommées : l'examen reste jouable en CO+CE.
+        gratuitesConsommees(EpreuveType.TCF_EE, EpreuveType.TCF_EO);
 
         FullTcfExamResponse r = service.start(userId, 1);
 
@@ -139,16 +163,58 @@ class FullTcfExamServiceFreemiumTest {
     }
 
     @Test
-    void demarrerNeCreeAucuneSoumission_doncNeConsommePasLeFreebie() {
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+    void demarrerNeConsommeJamaisLeFreebie_D17() {
+        gratuitesIntactes();
 
         service.start(userId, 1);
 
-        // start() ne persiste jamais de ProductionSubmission : le freebie n'est
-        // consommé que par une vraie soumission (submitText / submitAudio). Donc
-        // démarrer — puis abandonner — un examen sans toucher EE/EO laisse le
-        // compteur à 0 et EE/EO restent jouables au prochain examen.
+        // 🛑 D-17 : la gratuité ne s'écrit qu'à la REMISE DE L'ANALYSE. Démarrer
+        // — puis abandonner — un examen ne consomme donc RIEN, et le candidat
+        // retrouve ses deux examens offerts. Sinon « offert une fois » voudrait
+        // dire « perdu une fois ».
         verify(productionSubmissionManager, never()).save(any());
+        verify(freeExamEntitlementService, never()).consommerApresAnalyse(any());
+    }
+
+    /**
+     * 🛑 <b>D-17 bis — DEUX gratuités NOMINATIVES, pas « une au choix ».</b> Un
+     * candidat qui a usé son examen blanc EE garde son examen blanc EO, et
+     * l'examen complet doit le lui donner : un verrou global aurait fermé les
+     * deux dès la première consommée.
+     */
+    @Test
+    void uneSeuleGratuiteConsommee_neFermeQueSonEpreuve_D17bis() {
+        gratuitesConsommees(EpreuveType.TCF_EE);
+
+        FullTcfExamResponse r = service.start(userId, 1);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isTrue();
+        assertThat(subOf(r, EpreuveType.TCF_EE).finishedAt()).isNotNull();
+        // L'oral reste offert, corrigé en entier.
+        assertThat(subOf(r, EpreuveType.TCF_EO).locked()).isFalse();
+        assertThat(subOf(r, EpreuveType.TCF_EO).finishedAt()).isNull();
+    }
+
+    /**
+     * 🛑 <b>{@code lockProductionSubAttempts} ne declenche AUCUNE etape du
+     * parcours</b> (D-24, point 4, exclusion explicite).
+     *
+     * <p>Il pose {@code TERMINE} sur les EE/EO d'un examen complet gratuit
+     * <b>sans qu'aucun examen n'ait ete passe</b> : le freebie est consomme, les
+     * deux epreuves sont fermees avant meme que l'examen ne commence. Le
+     * signaler au parcours aurait <b>invente une mesure</b>, et clos au passage
+     * l'etape « Évaluer mon niveau » d'une epreuve que le candidat n'a jamais
+     * ouverte. C'est le seul des quatre points de branchement qui est exclu, et
+     * ce test est la preuve que l'exclusion tient.
+     */
+    @Test
+    void preTerminerEeEo_neDeclencheAucuneEtapeDeParcours() {
+        gratuitesConsommees(EpreuveType.TCF_EE, EpreuveType.TCF_EO);
+
+        service.start(userId, 1);
+
+        verify(journeyProductionBridge, never()).onProductionAttemptClosed(any());
+        verify(journeyProductionBridge, never()).onFullExamCompleted(any());
     }
 
     // ------------------------------------------------------------------ slots
@@ -160,7 +226,7 @@ class FullTcfExamServiceFreemiumTest {
      */
     @Test
     void slotHorsBorne_refuse() {
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+        gratuitesIntactes();
 
         assertThatThrownBy(() -> service.start(userId, 999))
                 .isInstanceOf(BusinessException.class);
@@ -172,7 +238,7 @@ class FullTcfExamServiceFreemiumTest {
 
     @Test
     void slotAuxBornes_accepte() {
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+        gratuitesIntactes();
 
         assertThat(service.start(userId, 1)).isNotNull();
         assertThat(service.start(userId, FullTcfExamService.EXAM_SLOTS)).isNotNull();
@@ -181,7 +247,7 @@ class FullTcfExamServiceFreemiumTest {
     /** Sans slot demandé, on retombe sur le slot 1 (et pas sur NULL en base). */
     @Test
     void slotAbsent_vautUn() {
-        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+        gratuitesIntactes();
 
         service.start(userId, null);
 

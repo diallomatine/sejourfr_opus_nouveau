@@ -166,20 +166,21 @@ class SkillControllerIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
-    // Verrou freemium (2026-08-10) : ce qui est ouvert a un compte gratuit
+    // Verrou freemium — D-18 (2026-09-18) : travailler une competence est
+    // PREMIUM, sans exception. Les regles du 2026-08-10 (« une competence
+    // ouverte par tache, ses 2 premiers sujets ») sont REVOQUEES.
     // ------------------------------------------------------------------------
 
+    /**
+     * 🛑 <b>D-18</b> — plus aucune competence n'est ouverte a un compte gratuit,
+     * et <b>aucune n'est masquee</b> : les 24 competences de l'epreuve sont
+     * servies, les 24 sont cadenassees. C'est la frontiere de l'arbitrage.
+     */
     @Test
-    void sansAccesTcfSeuleLaPremiereCompetenceDeChaqueTacheEstOuverte() throws Exception {
+    void sansAccesTcfAucuneCompetenceNEstOuverteEtAucuneNEstMasquee_D18() throws Exception {
         List<SkillDto> skills = list(testData.user(), "?section=EE");
 
-        // Une seule ouverte par tache, soit 3 sur les 24 de l'epreuve.
-        assertThat(skills).filteredOn(skill -> !skill.locked())
-                .hasSize(3)
-                .allMatch(skill -> skill.displayOrder() == 1);
-        assertThat(skills).filteredOn(skill -> skill.displayOrder() > 1)
-                .isNotEmpty()
-                .allMatch(SkillDto::locked);
+        assertThat(skills).isNotEmpty().allMatch(SkillDto::locked);
     }
 
     @Test
@@ -190,15 +191,19 @@ class SkillControllerIT extends AbstractIntegrationTest {
         assertThat(list(abonne, "?section=EO")).isNotEmpty().allMatch(skill -> !skill.locked());
     }
 
+    /**
+     * D-18 — <b>les 2 premiers sujets ne sont plus offerts</b> :
+     * {@code FREE_PROMPTS_PER_SKILL = 2} est supprime, il n'y a plus de
+     * competence ouverte a borner.
+     */
     @Test
-    void dansUneCompetenceOuverteLesDeuxPremiersSujetsLeSontEtPasLeTroisieme()
-            throws Exception {
+    void aucunSujetNEstOuvertMemeSurLePremierRang_D18() throws Exception {
         User user = testData.user();
-        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
-        List<SkillPrompt> prompts = promptManager.findActiveBySkillId(ouverte.getId());
+        Skill premierRang = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        List<SkillPrompt> prompts = promptManager.findActiveBySkillId(premierRang.getId());
 
-        assertThat(locked(user, prompts.get(0))).isFalse();
-        assertThat(locked(user, prompts.get(1))).isFalse();
+        assertThat(locked(user, prompts.get(0))).isTrue();
+        assertThat(locked(user, prompts.get(1))).isTrue();
         assertThat(locked(user, prompts.get(2))).isTrue();
     }
 
@@ -211,23 +216,36 @@ class SkillControllerIT extends AbstractIntegrationTest {
         assertThat(locked(user, premierSujet)).isTrue();
     }
 
+    /** Un abonne, lui, n'a aucun sujet cadenasse — c'est le pendant de D-18. */
+    @Test
+    void unAbonneTcfNaAucunSujetVerrouille() throws Exception {
+        User abonne = testData.user();
+        testData.userSubscription(abonne, testData.plan());
+        Skill skill = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).get(1);
+        List<SkillPrompt> prompts = promptManager.findActiveBySkillId(skill.getId());
+
+        assertThat(locked(abonne, prompts.get(0))).isFalse();
+        assertThat(locked(abonne, prompts.get(2))).isFalse();
+    }
+
     /**
-     * L'ecran « liste des 5 sujets » est celui ou la regle des 2 sujets doit se
-     * VOIR : sans {@code locked} sur la carte, le candidat ne decouvrait le
-     * verrou qu'en ouvrant le sujet.
+     * L'ecran « liste des 5 sujets » est celui ou le verrou doit se <b>VOIR</b> :
+     * sans {@code locked} sur la carte, le candidat ne le decouvrirait qu'en
+     * ouvrant le sujet. D-18 : la competence et ses cinq sujets sont tous
+     * servis, tous cadenasses.
      */
     @Test
-    void leDetailDUneCompetenceOuverteCadenasseLesSujetsAuDelaDesDeuxPremiers()
+    void leDetailDUneCompetenceCadenasseLaCompetenceEtTousSesSujets_D18()
             throws Exception {
         User user = testData.user();
-        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        Skill premierRang = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
 
-        mockMvc.perform(get("/api/skills/" + ouverte.getId())
+        mockMvc.perform(get("/api/skills/" + premierRang.getId())
                         .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.skill.locked").value(false))
-                .andExpect(jsonPath("$.prompts[0].locked").value(false))
-                .andExpect(jsonPath("$.prompts[1].locked").value(false))
+                .andExpect(jsonPath("$.skill.locked").value(true))
+                .andExpect(jsonPath("$.prompts[0].locked").value(true))
+                .andExpect(jsonPath("$.prompts[1].locked").value(true))
                 .andExpect(jsonPath("$.prompts[2].locked").value(true))
                 .andExpect(jsonPath("$.prompts[3].locked").value(true))
                 .andExpect(jsonPath("$.prompts[4].locked").value(true));
@@ -264,11 +282,32 @@ class SkillControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.message").value(containsString("accès TCF")));
     }
 
+    /** D-18 : c'est l'ABONNE qui produit, et lui seul. */
     @Test
-    void produireSurUnSujetOuvertResteAccepte() throws Exception {
+    void produireAvecUnAccesTcfResteAccepte() throws Exception {
+        User abonne = testData.user();
+        testData.userSubscription(abonne, testData.plan());
+        Skill skill = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        SkillPrompt sujet = promptManager.findActiveBySkillId(skill.getId()).getFirst();
+
+        mockMvc.perform(post("/api/skill-attempts")
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(abonne))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"skillPromptId\":\"" + sujet.getId()
+                                + "\",\"texte\":\"Bonjour Madame, je vous écris pour vous prévenir.\","
+                                + "\"requestAnalysis\":false}"))
+                .andExpect(status().isCreated());
+    }
+
+    /**
+     * 🛑 D-18 — le <b>premier rang</b> d'une tache n'a plus rien de special : sa
+     * production est refusee comme les autres, avec le meme 403 affichable.
+     */
+    @Test
+    void produireSurLePremierRangEstDesormaisRefuse_D18() throws Exception {
         User user = testData.user();
-        Skill ouverte = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
-        SkillPrompt sujet = promptManager.findActiveBySkillId(ouverte.getId()).getFirst();
+        Skill premierRang = skillManager.findActiveByTaskCode(SkillTaskCode.EE1).getFirst();
+        SkillPrompt sujet = promptManager.findActiveBySkillId(premierRang.getId()).getFirst();
 
         mockMvc.perform(post("/api/skill-attempts")
                         .header(HttpHeaders.AUTHORIZATION, auth.bearer(user))
@@ -276,7 +315,8 @@ class SkillControllerIT extends AbstractIntegrationTest {
                         .content("{\"skillPromptId\":\"" + sujet.getId()
                                 + "\",\"texte\":\"Bonjour Madame, je vous écris pour vous prévenir.\","
                                 + "\"requestAnalysis\":false}"))
-                .andExpect(status().isCreated());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("accès TCF")));
     }
 
     // ------------------------------------------------------------------------

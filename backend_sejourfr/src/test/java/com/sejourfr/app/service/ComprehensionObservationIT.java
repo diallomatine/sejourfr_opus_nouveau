@@ -287,19 +287,29 @@ class ComprehensionObservationIT extends AbstractIntegrationTest {
                 .isInstanceOf(com.sejourfr.app.exception.BusinessException.class);
     }
 
+    /**
+     * 🛑 <b>D-18 (2026-09-18) — travailler une competence est PREMIUM, sans
+     * exception</b>, et « les rangs CO/CE sont traites dans la meme passe ». Ce
+     * test verifiait que le A2 de chaque domaine restait jouable sans
+     * abonnement : cette ouverture est <b>revoquee</b>.
+     */
     @Test
-    @DisplayName("Le verrou freemium des competences est opposable a la serie ciblee")
-    void leVerrouFreemiumEstOpposableALaSerie() {
+    @DisplayName("D-18 — la serie ciblee est refusee sur TOUS les paliers sans acces TCF")
+    void leVerrouFreemiumEstOpposableATouteSerie_D18() {
         User user = utilisateur();
-        // Compte gratuit : seul le niveau le plus bas de chaque domaine est ouvert.
-        Skill coB2 = competence("CO-B2");
 
-        assertThatThrownBy(() -> attemptService.start(user.getId(), serie(coB2.getId())))
-                .isInstanceOf(AccessDeniedException.class);
+        for (String palier : new String[]{"CO-A2", "CO-B1", "CO-B2"}) {
+            Skill competence = competence(palier);
+            assertThatThrownBy(() -> attemptService.start(user.getId(), serie(competence.getId())))
+                    .as("%s est premium depuis D-18", palier)
+                    .isInstanceOf(AccessDeniedException.class);
+        }
 
-        // ... et le A2 du meme domaine reste jouable sans abonnement.
-        AttemptResponse offerte = attemptService.start(user.getId(), serie(competence("CO-A2").getId()));
-        assertThat(offerte.totalQuestions()).isEqualTo(20);
+        // ... et l'acces TCF les rouvre toutes, sans une seule ecriture d'ici la.
+        data.userSubscription(user, data.plan());
+        AttemptResponse ouverte = attemptService.start(
+                user.getId(), serie(competence("CO-A2").getId()));
+        assertThat(ouverte.totalQuestions()).isEqualTo(20);
     }
 
     // ------------------------------------------------------------------ compte gratuit

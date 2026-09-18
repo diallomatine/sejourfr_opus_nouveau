@@ -168,16 +168,16 @@ public class AttemptManager {
         return repository.countByUserIdAndTypeAndFinishedAtIsNotNull(userId, AttemptType.MOCK_EXAM);
     }
 
-    /** Sessions d'examen blanc production soumises du user (budget freemium). */
-    public long countProductionExamSessions(UUID userId) {
-        return repository.countProductionExamSessions(
-                userId, List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO));
-    }
-
     /**
-     * Idem, pour une <b>seule</b> épreuve. Sert au jalon du Plan à désigner le
-     * prochain slot de la grille d'examens blancs de cette épreuve — le budget
-     * freemium, lui, reste global aux deux.
+     * Sessions d'examen blanc de production <b>soumises</b> sur une epreuve.
+     *
+     * <p>Sert au jalon du Plan a designer le prochain slot de la grille
+     * d'examens blancs de cette epreuve. 🛑 <b>Ce n'est plus un budget
+     * freemium</b> : la variante « les deux epreuves confondues, seuil 2 » est
+     * <b>supprimee</b> par D-17 (2026-09-18), qui la remplace par deux gratuites
+     * nominatives persistees ({@code free_entitlement_usage}). Compter des
+     * examens <b>demarres</b> ne savait de toute facon pas distinguer un freebie
+     * consomme d'un examen abandonne.
      */
     public long countProductionExamSessions(UUID userId, EpreuveType epreuve) {
         return repository.countProductionExamSessions(userId, List.of(epreuve));

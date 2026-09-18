@@ -38,6 +38,7 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
     private DiagnosticSessionCoordinator coordinator;
     private DiagnosticSessionFailureRecorder diagnosticFailureRecorder;
     private DiagnosticExempleCibleService exempleCibleService;
+    private FreeExamEntitlementService freeExamEntitlementService;
     private ProductionPipelineAsyncRunner runner;
 
     @BeforeEach
@@ -51,10 +52,12 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         coordinator = mock(DiagnosticSessionCoordinator.class);
         diagnosticFailureRecorder = mock(DiagnosticSessionFailureRecorder.class);
         exempleCibleService = mock(DiagnosticExempleCibleService.class);
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
         runner = new ProductionPipelineAsyncRunner(
                 submissionManager, transcriptionManager, aiEvaluationService,
-                failureRecorder, versionCibleeService, diagnosticAnalysisService,
-                coordinator, diagnosticFailureRecorder, exempleCibleService);
+                failureRecorder, freeExamEntitlementService, versionCibleeService,
+                diagnosticAnalysisService, coordinator, diagnosticFailureRecorder,
+                exempleCibleService);
     }
 
     @Test
@@ -106,6 +109,79 @@ class ProductionPipelineAsyncRunnerDiagnosticTest {
         verify(coordinator, never()).onAnalysisCompleted(any());
         // Une production standard n'est pas un diagnostic : aucun avant / apres.
         verify(exempleCibleService, never()).enrichir(any());
+    }
+
+    // ====================================================================
+    // D-17 — la gratuite d'examen blanc se consomme a la REMISE DE L'ANALYSE
+    // ====================================================================
+
+    /**
+     * 🛑 <b>Le point d'ecriture, et il est unique</b> : la gratuite se consomme
+     * quand la correction est produite et persistee — la submission est
+     * {@code EVALUATED}. Ce test fixe la <b>place</b> de l'appel ; ses
+     * conditions (examen blanc, epreuve EE/EO, compte gratuit, hors diagnostic)
+     * sont verrouillees par {@code FreeExamEntitlementServiceTest}.
+     */
+    @Test
+    void laGratuiteSeConsommeQuandLAnalyseEstRendue_D17() {
+        ProductionSubmission submission = submission(false, false);
+        when(submissionManager.findByIdWithTask(submission.getId()))
+                .thenReturn(Optional.of(submission));
+        when(aiEvaluationService.evaluate(submission.getId())).thenReturn(new AiEvaluation());
+
+        runner.runPipelineAsync(submission.getId(), false).join();
+
+        verify(freeExamEntitlementService).consommerApresAnalyse(submission.getId());
+    }
+
+    /**
+     * 🛑 <b>Un echec du correcteur laisse la gratuite INTACTE</b> (D-17) : le
+     * candidat n'a recu aucune analyse, il la retrouve. Sinon « offert une fois »
+     * voudrait dire « perdu une fois ».
+     */
+    @Test
+    void unEchecDuCorrecteurNeConsommeAucuneGratuite_D17() {
+        ProductionSubmission submission = submission(false, false);
+        when(submissionManager.findByIdWithTask(submission.getId()))
+                .thenReturn(Optional.of(submission));
+        when(aiEvaluationService.evaluate(submission.getId()))
+                .thenThrow(new com.sejourfr.app.exception.AiEvaluationException("LLM indisponible"));
+
+        runner.runPipelineAsync(submission.getId(), false).join();
+
+        verify(failureRecorder).markFailed(submission.getId(), "LLM indisponible");
+        verify(freeExamEntitlementService, never()).consommerApresAnalyse(any());
+    }
+
+    /** Une correction qui ne produit rien n'est pas une analyse rendue. */
+    @Test
+    void uneCorrectionSansResultatNeConsommeAucuneGratuite_D17() {
+        ProductionSubmission submission = submission(false, false);
+        when(submissionManager.findByIdWithTask(submission.getId()))
+                .thenReturn(Optional.of(submission));
+        when(aiEvaluationService.evaluate(submission.getId())).thenReturn(null);
+
+        runner.runPipelineAsync(submission.getId(), false).join();
+
+        verify(freeExamEntitlementService, never()).consommerApresAnalyse(any());
+    }
+
+    /**
+     * Un sujet de <b>diagnostic</b> ne passe meme pas par le correcteur : il ne
+     * peut donc jamais consommer une gratuite d'examen blanc. Le diagnostic
+     * rapide est gratuit par lui-meme (D-17).
+     */
+    @Test
+    void unDiagnosticNeConsommeAucuneGratuite_D17() {
+        ProductionSubmission submission = submission(true, true);
+        when(submissionManager.findByIdWithTask(submission.getId()))
+                .thenReturn(Optional.of(submission));
+        when(diagnosticAnalysisService.analyseDiagnostic(submission.getId()))
+                .thenReturn(new DiagnosticProductionAnalysis());
+
+        runner.runPipelineAsync(submission.getId(), false).join();
+
+        verify(freeExamEntitlementService, never()).consommerApresAnalyse(any());
     }
 
     private static ProductionSubmission submission(

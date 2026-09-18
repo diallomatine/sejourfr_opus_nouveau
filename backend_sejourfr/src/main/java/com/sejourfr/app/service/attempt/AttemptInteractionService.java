@@ -27,8 +27,9 @@ import com.sejourfr.app.progression.domain.EvidenceEntryPoint;
 import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter.ReponseQcm;
-import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyProductionBridge;
+import com.sejourfr.app.util.TcfDomaine;
 import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
@@ -70,6 +71,7 @@ public class AttemptInteractionService {
     private final QuestionMapper questionMapper;
     private final ComprehensionObservationService comprehensionObservationService;
     private final JourneyService journeyService;
+    private final JourneyProductionBridge journeyProductionBridge;
 
     // ------------------------------------------------------------------------
     // Lecture
@@ -302,6 +304,15 @@ public class AttemptInteractionService {
                 attempt.setFinishedAt(Instant.now());
                 attempt.setStatus(AttemptStatus.TERMINE);
                 attemptManager.save(attempt);
+                // 🛑 SECOND POINT DE BRANCHEMENT DU PARCOURS (D-24, point 2).
+                // Cette sortie anticipee ne passe PAS par la suite de doFinish,
+                // donc pas par `porterAuParcours` : une epreuve EE/EO
+                // ABANDONNEE — une ou deux taches rendues, session close a
+                // l'echeance — n'ouvrait aucun lot, et son travail etait perdu
+                // (dette D-11 / A16). Le pont decide seul s'il y a quelque
+                // chose a signaler : il se tait quand une correction est encore
+                // en cours, et quand aucune tache n'a ete corrigee.
+                journeyProductionBridge.onProductionAttemptClosed(attempt);
             }
             return mapper.toResponse(attempt, List.of(), true);
         }
@@ -517,10 +528,21 @@ public class AttemptInteractionService {
     private void porterAuParcours(Attempt attempt, Set<UUID> competences) {
         UUID userId = attempt.getUser().getId();
         try {
-            if (attempt.getType() == AttemptType.MOCK_EXAM) {
+            // 🛑 SEULES LES QUATRE EPREUVES DU TCF IRN SONT DES EVALUATIONS.
+            // `TCF_STRUCTURE` est un module d'entrainement complementaire — pas
+            // une cinquieme epreuve — et `TCF_COMPLET` un conteneur : aucun des
+            // deux ne porte de niveau d'epreuve. Un examen blanc STRUCTURE
+            // arrivait ici en MOCK_EXAM et faisait echouer l'enregistrement de
+            // l'evaluation contre `chk_journey_assessment_exam_type`, en
+            // silence (l'exception est avalee juste en dessous). L'autorite de
+            // « est-ce une epreuve ? » est `TcfDomaine.section`, jamais une
+            // liste recopiee.
+            boolean epreuveDuTcfIrn = TcfDomaine.section(attempt.getEpreuve()) != null;
+            if (attempt.getType() == AttemptType.MOCK_EXAM && epreuveDuTcfIrn) {
                 journeyService.onAssessmentCompleted(userId, new JourneyEvaluation(
-                        attempt.getId(), natureDeLEvaluation(attempt), attempt.getEpreuve(),
-                        attempt.getFinishedAt()));
+                        attempt.getId(),
+                        JourneyProductionBridge.natureDeLEvaluation(attempt),
+                        attempt.getEpreuve(), attempt.getFinishedAt()));
             } else if (!competences.isEmpty()) {
                 journeyService.onTrainingProgress(userId, competences);
             }
@@ -530,21 +552,6 @@ public class AttemptInteractionService {
         }
     }
 
-    /**
-     * D'ou vient cet examen — l'information que {@code source_assessment_id} ne
-     * porte pas a lui seul.
-     *
-     * <p>Une section de <b>diagnostic complet</b> et une sous-epreuve d'<b>examen
-     * blanc complet</b> sont l'une et l'autre des attempts a part entiere, avec
-     * leur propre identifiant : c'est ce qui permet a une evaluation de ne mesurer
-     * qu'<b>une</b> epreuve, et donc au journal du parcours de porter sa
-     * chronologie par epreuve (R14).
-     */
-    private static JourneyAssessmentKind natureDeLEvaluation(Attempt attempt) {
-        if (attempt.getTcfDiagnostic() != null) return JourneyAssessmentKind.FULL_DIAGNOSTIC;
-        if (attempt.getParentAttempt() != null) return JourneyAssessmentKind.MOCK_EXAM;
-        return JourneyAssessmentKind.SECTION_EXAM;
-    }
 
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {
         Attempt attempt = attemptManager.findById(attemptId)

@@ -236,7 +236,8 @@ public class PlanMilestoneSelector {
         // verrouille reste designe avec son cadenas. La regle est lue chez
         // l'autorite que le serveur oppose au demarrage, jamais recopiee.
         return PlanRecommendedExerciseDto.epreuveMockExam(
-                epreuve, slot, minutes, productionAccessService.isProductionExamLocked(userId));
+                epreuve, slot, minutes,
+                productionAccessService.isProductionExamLocked(userId, epreuve));
     }
 
     /**

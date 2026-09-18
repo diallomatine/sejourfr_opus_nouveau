@@ -7,6 +7,7 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.FreeEntitlementUsageManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.PlanPinnedPriorityManager;
@@ -57,6 +58,7 @@ public class AccountDeletionService {
     private final LearningPlanObservationManager learningPlanObservationManager;
     private final PlanPinnedPriorityManager planPinnedPriorityManager;
     private final JourneyManager journeyManager;
+    private final FreeEntitlementUsageManager freeEntitlementUsageManager;
     private final UserQuestionStatusManager userQuestionStatusManager;
     private final ConversationManager conversationManager;
     private final UserFunnelEventManager userFunnelEventManager;
@@ -107,6 +109,12 @@ public class AccountDeletionService {
         // survivant serait de surcroit un parcours sans objectif, ce que
         // l'arbitrage D-3 interdit.
         journeyManager.deleteByUserId(userId);
+        // Une gratuite consommee dit « CETTE personne a eu son examen blanc
+        // offert tel jour » : c'est de la donnee nominative, elle ne survit pas
+        // a l'anonymisation. Explicite pour la meme raison que tout ce qui
+        // precede — la ligne `users` reste, donc la cascade base ne se
+        // declenche pas d'elle-meme.
+        freeEntitlementUsageManager.deleteByUserId(userId);
         diagnosticSessionManager.deleteByUserId(userId);
         attemptManager.deleteByUserId(userId);
         userQuestionStatusManager.deleteByUserId(userId);

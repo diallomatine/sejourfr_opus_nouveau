@@ -40,6 +40,11 @@ import java.util.UUID;
  * pour récupérer l'état des submissions au fur et à mesure (SUBMITTED →
  * EVALUATING → EVALUATED ou FAILED).
  *
+ * <p><b>Le freebie d'examen blanc de production se consomme ici</b>, à la
+ * remise de l'analyse et pas avant (D-17) — cf.
+ * {@link FreeExamEntitlementService#consommerApresAnalyse(UUID)}. Un pipeline
+ * qui échoue ne consomme donc rien.
+ *
  * <p><b>Robustesse</b> : tout exception est attrapée et la submission
  * passe à {@code FAILED} avec un message tronqué — le mobile peut relancer
  * via {@code POST /api/production-submissions/{id}/retry}. Aucune
@@ -55,6 +60,7 @@ public class ProductionPipelineAsyncRunner {
     private final TranscriptionManager transcriptionManager;
     private final AiEvaluationService aiEvaluationService;
     private final ProductionPipelineFailureRecorder failureRecorder;
+    private final FreeExamEntitlementService freeExamEntitlementService;
     private final ProductionVersionCibleeService versionCibleeService;
     private final DiagnosticProductionAnalysisService diagnosticAnalysisService;
     private final DiagnosticSessionCoordinator diagnosticSessionCoordinator;
@@ -132,6 +138,18 @@ public class ProductionPipelineAsyncRunner {
             }
             log.info("Pipeline async OK pour submission {} (epreuve={})",
                     submissionId, epreuve);
+            // 🛑 LA GRATUITE SE CONSOMME **ICI**, ET NULLE PART AILLEURS (D-17).
+            // C'est le point exact ou l'analyse devient disponible : la
+            // correction est produite, persistee, la submission est EVALUATED.
+            // Ni au demarrage de l'examen, ni sur la cloture de la session : un
+            // abandon, une expiration, un echec technique ou un echec du
+            // correcteur n'arrivent jamais jusqu'a cette ligne, et laissent donc
+            // le freebie INTACT — le candidat le retrouve. « Offert une fois »
+            // ne peut pas vouloir dire « perdu une fois ».
+            //
+            // Best-effort, comme tout ce qui suit dans ce runner : le service
+            // avale ses exceptions et ne degrade jamais une analyse deja rendue.
+            freeExamEntitlementService.consommerApresAnalyse(submissionId);
             // SECOND APPEL LLM, totalement separe de la correction : la reponse
             // du candidat reecrite au niveau qu'il VISE (EE seulement). Lance
             // APRES que l'evaluation est persistee et EVALUATED, et hors de

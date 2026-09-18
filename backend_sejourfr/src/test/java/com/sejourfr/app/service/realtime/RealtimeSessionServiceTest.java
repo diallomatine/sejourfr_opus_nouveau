@@ -68,13 +68,17 @@ class RealtimeSessionServiceTest {
     private User user;
     private final UUID taskId = UUID.randomUUID();
 
+    private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
+
     @BeforeEach
     void setUp() {
         // Gardes de session : collaborateur REEL (pur) pour exercer les regles
         // reellement appliquees a l'ouverture d'une session temps reel.
+        freeExamEntitlementService = org.mockito.Mockito.mock(com.sejourfr.app.service.FreeExamEntitlementService.class);
         ProductionAccessService accessService = new ProductionAccessService(
                 subscriptionService, attemptManager, productionSubmissionManager,
-                org.mockito.Mockito.mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+                org.mockito.Mockito.mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
                 accessService, userSubscriptionManager, props);

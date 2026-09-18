@@ -269,13 +269,20 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
     }
 
     /**
-     * Le verrou freemium ne masque RIEN du Plan : la priorite, ses compteurs et
-     * l'exercice recommande sont servis en entier, avec un simple {@code locked}.
-     * La competence de la priorite n&deg;1 reste ouverte meme si elle n'est pas
-     * la premiere de sa tache — sinon l'etape 1 du Plan serait inatteignable.
+     * Le verrou freemium ne masque <b>RIEN</b> du Plan : la priorite, ses
+     * compteurs et l'exercice recommande sont servis en entier, avec un simple
+     * {@code locked}.
+     *
+     * <p>🛑 <b>D-18 (2026-09-18) — la competence de la priorite n&deg;1 n'est
+     * PLUS ouverte.</b> Ce test verifiait l'exemption du 2026-08-21 (« un
+     * candidat non abonne pourra travailler sa priorite 1, vu qu'elle est
+     * visible ») ; elle est <b>revoquee</b>. Ce qu'il verrouille desormais est la
+     * frontiere exacte de D-18 : <b>tout est servi, rien n'est executable</b> —
+     * un {@code locked}, jamais une donnee absente (contradiction #1, non
+     * rouverte).
      */
     @Test
-    void sansAccesTcfLaCompetenceDeLaPrioriteResteOuverteEtLePlanResteEntier() throws Exception {
+    void sansAccesTcfLePlanResteEntierMaisRienNEstExecutable_D18() throws Exception {
         User user = data.user();
         // TestData cree la competence apres les 8 rangs seedes : elle n'est
         // donc PAS la premiere de sa tache, et n'est ouverte que par le Plan.
@@ -288,15 +295,16 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/me/plan")
                         .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
                 .andExpect(status().isOk())
+                // Tout est SERVI : le code de la competence, ses compteurs, et
+                // le sujet que le serveur designe.
                 .andExpect(jsonPath("$.currentPriority.skillCode").value(skill.getCode()))
-                .andExpect(jsonPath("$.currentPriority.locked").value(false))
                 .andExpect(jsonPath("$.currentPriority.promptCount").value(2))
-                .andExpect(jsonPath("$.observedSkills[0].locked").value(false))
-                // Ses 2 premiers sujets sont ouverts : l'exercice recommande
-                // (le rang 1, jamais tente) est donc jouable tout de suite.
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(premier.getId().toString()))
-                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(false));
+                // Et rien n'est EXECUTABLE (D-18).
+                .andExpect(jsonPath("$.currentPriority.locked").value(true))
+                .andExpect(jsonPath("$.observedSkills[0].locked").value(true))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(true));
     }
 
     /**
@@ -304,12 +312,12 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
      * visible : on pose le cadenas, on ne detourne pas le Plan vers un sujet
      * ouvert qui ne serait plus la priorite mesuree.
      *
-     * <p>Et il fixe la consequence assumee du freemium : un compte gratuit
-     * plafonne a <b>2 sur 5</b> — aucune etape n'est finissable sans
+     * <p>Et il fixe la consequence assumee du freemium : depuis D-18, un compte
+     * gratuit n'a <b>aucun</b> sujet ouvert — aucune etape n'est finissable sans
      * abonnement, alors que le Plan reste entierement visible.
      */
     @Test
-    void auDelaDesDeuxSujetsOffertsLExerciceRecommandeEstDesigneMaisVerrouille()
+    void lExerciceRecommandeEstDesigneMaisVerrouille_D18()
             throws Exception {
         User user = data.user();
         Skill skill = data.skill(SkillTaskCode.EE2);
@@ -325,7 +333,7 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/me/plan")
                         .header(HttpHeaders.AUTHORIZATION, auth.bearer(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.currentPriority.locked").value(false))
+                .andExpect(jsonPath("$.currentPriority.locked").value(true))
                 .andExpect(jsonPath("$.currentPriority.stepPromptCount").value(5))
                 .andExpect(jsonPath("$.currentPriority.stepAttemptedCount").value(2))
                 .andExpect(jsonPath("$.currentPriority.stepCompleted").value(false))
@@ -340,9 +348,10 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
      * meme designer une etape ET un exercice — sinon il reste {@code ACTIVE}
      * sans rien a faire pendant que l'ecran du diagnostic, lui, en propose un.
      *
-     * <p>Il verifie aussi le freemium sur une priorite <b>derivee</b> : la
-     * competence n'est pas la premiere de sa tache, elle n'est donc ouverte que
-     * parce que {@code SkillAccessService} suit le meme resolveur de priorites.
+     * <p>Il verifie aussi le freemium sur une priorite <b>derivee</b> : depuis
+     * D-18 elle est <b>designee et verrouillee</b>, comme une priorite
+     * explicitement mesuree. Le freemium ne fait aucune difference entre les
+     * deux.
      */
     @Test
     void sansPrioriteDesigneeLePlanDesigneQuandMemeUneEtapeOuverteEtUnExercice()
@@ -362,9 +371,9 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.currentPriority.status").value("TO_REINFORCE"))
                 .andExpect(jsonPath("$.currentPriority.recommendedExercise.skillPromptId")
                         .value(premier.getId().toString()))
-                // Une priorite derivee ouvre la competence comme une designee.
-                .andExpect(jsonPath("$.currentPriority.locked").value(false))
-                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(false));
+                // D-18 : designee, servie… et verrouillee, derivee comme designee.
+                .andExpect(jsonPath("$.currentPriority.locked").value(true))
+                .andExpect(jsonPath("$.currentPriority.recommendedExercise.locked").value(true));
     }
 
     @Test

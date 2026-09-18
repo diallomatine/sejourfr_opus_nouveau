@@ -268,14 +268,22 @@ class LearningPlanDomainSkillsIT extends AbstractIntegrationTest {
     }
 
     /**
-     * 🛑 Le cadenas vient de {@code SkillAccessService}, unique autorite : pour un
-     * compte gratuit, la premiere competence de chaque tache est ouverte, plus
-     * <b>la premiere place du Plan</b> ({@link PlanFocusResolver}) — ici une
-     * fragilite de rang 3, que le verrou par tache aurait fermee.
+     * 🛑 Le cadenas vient de {@code SkillAccessService}, unique autorite — et
+     * depuis <b>D-18</b> (2026-09-18) il se pose sur <b>tout</b> pour un compte
+     * gratuit.
+     *
+     * <p>Ce test verifiait les trois ouvertures d'office du 2026-08-10 /
+     * 2026-08-21 : la premiere competence de chaque tache, le A2 de chaque
+     * domaine de comprehension, et <b>la premiere place du Plan</b>. Les trois
+     * sont <b>revoquees</b>.
+     *
+     * <p>🛑 Ce qui ne change pas : <b>toutes</b> les competences du domaine
+     * restent servies, avec leur nature et leur statut. Le cadenas remplace
+     * l'action, jamais la donnee.
      */
     @Test
-    @DisplayName("Le cadenas suit SkillAccessService, la premiere place du Plan comprise")
-    void leCadenasSuitLeServiceDAcces() {
+    @DisplayName("D-18 — le cadenas suit SkillAccessService, et il se pose partout")
+    void leCadenasSuitLeServiceDAcces_D18() {
         User user = profilComplet();
         observation(user, seed("EE2-C3"), LearningPlanSourceType.PRODUCTION_EE,
                 LearningPlanSkillStatus.TO_REINFORCE, jours(2));
@@ -283,17 +291,14 @@ class LearningPlanDomainSkillsIT extends AbstractIntegrationTest {
 
         LearningPlanDto plan = service.get(user.getId());
 
+        // La premiere place est bien celle qu'on croit, et elle est servie.
         assertThat(plan.currentPriority().skillCode()).isEqualTo("EE2-C3");
-        assertThat(skill(plan, "EE2-C3").locked())
-                .as("la premiere place du Plan est toujours ouverte")
-                .isFalse();
-        assertThat(skill(plan, "EE2-C1").locked())
-                .as("la premiere competence de chaque tache reste ouverte")
-                .isFalse();
-        // EE2-C9, rang 4 de la tache depuis la taxonomie V3 (V319) : ni la
-        // premiere competence de sa tache, ni la premiere place du Plan.
+        // Et tout est verrouille : la premiere place, le rang 1 de la tache, le
+        // A2 d'un domaine de comprehension — plus aucune exception.
+        assertThat(skill(plan, "EE2-C3").locked()).isTrue();
+        assertThat(skill(plan, "EE2-C1").locked()).isTrue();
         assertThat(skill(plan, "EE2-C9").locked()).isTrue();
-        assertThat(skill(plan, "CO-A2").locked()).isFalse();
+        assertThat(skill(plan, "CO-A2").locked()).isTrue();
         assertThat(skill(plan, "CO-B2").locked()).isTrue();
     }
 

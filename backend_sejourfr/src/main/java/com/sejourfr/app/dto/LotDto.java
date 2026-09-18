@@ -12,7 +12,10 @@ import java.util.UUID;
  * ({@code created_at ASC, id ASC}) donc Lot 1 = même série à chaque
  * appel tant que le pool ne change pas.
  *
- * <p>Taille par niveau (TCF) : A2 = 15, B1 = 20, B2 = 25.
+ * <p>Taille d'un lot : <b>20 questions</b>, en TCF comme en civique, et pour les
+ * trois paliers ({@code LotService.LOT_SIZE_A2 / _B1 / _B2 / _CIVIQUE}). Les
+ * tailles par palier 15 / 20 / 25 ont été abandonnées ; ce javadoc les
+ * annonçait encore.
  *
  * <p>Les champs `last*` sont remplis avec le dernier attempt fini du user
  * sur ce lot (null si jamais tenté) — sert au mobile pour différencier

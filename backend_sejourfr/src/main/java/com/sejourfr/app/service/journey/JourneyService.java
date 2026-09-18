@@ -12,10 +12,13 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyLotStatus;
+import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.JourneyLotManager;
@@ -75,6 +78,21 @@ import java.util.UUID;
  * evaluations qui se terminent en meme temps — une production corrigee en
  * asynchrone pendant que le candidat finit un QCM — ajoutent donc leurs lots
  * l'une apres l'autre, et les deux entrent.
+ *
+ * <h2>Le cycle est BORNE : deux destinations, jamais une seule (D-13)</h2>
+ * <p>Un cycle amorce ne grossit plus. Une evaluation qui se termine pendant
+ * qu'il tourne fait <b>deux</b> choses distinctes :
+ * <ol>
+ *   <li>dans le cycle <b>EN COURS</b>, elle <b>clot</b> ce qu'elle a le droit de
+ *       clore — l'examen de son bloc, si et seulement si ce bloc etait pret
+ *       (R1, {@link #cloreLExamenDuBloc}) ;</li>
+ *   <li>dans le cycle <b>EN ATTENTE</b>, invisible du candidat, elle depose les
+ *       priorites <b>nouvellement</b> detectees ({@link #mettreEnAttente}).</li>
+ * </ol>
+ * <p>Le cycle en attente devient le cycle courant par une <b>transition</b>
+ * explicite, que le candidat declenche ({@link JourneyCycleService}). Rien ne
+ * se promeut tout seul : « actualiser mon plan » est un geste, pas un effet de
+ * bord.
  */
 @Service
 @RequiredArgsConstructor
@@ -106,11 +124,11 @@ public class JourneyService {
      * jamais le Plan n'a jamais de parcours.
      */
     @Transactional
-    public JourneyDto lire(UUID userId, boolean expandAll) {
+    public JourneyDto lire(UUID userId) {
         Optional<Journey> journey = getOrCreate(userId);
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
-        return readService.lire(courant, stepManager.findAll(courant.getId()), expandAll);
+        return readService.lire(courant, stepManager.findAll(courant.getId()));
     }
 
     // =====================================================================
@@ -118,10 +136,19 @@ public class JourneyService {
     // =====================================================================
 
     /**
-     * Le parcours du niveau cible courant, cree et amorce si besoin.
+     * Le <b>cycle en cours</b> du candidat sur le module TCF, cree et amorce si
+     * besoin.
+     *
+     * <p>🛑 <b>Un changement d'objectif ne cree pas un second cycle</b> (D-13) :
+     * le cycle en cours survit et son niveau cible est mis a jour. L'historiser
+     * jetterait le plan que le candidat a sous les yeux, et un ping-pong
+     * d'objectif polluerait son historique de cycles ; les priorites deja
+     * designees ne deviennent pas fausses parce que la cible a bouge — seul
+     * l'<b>ordre</b> des lots s'en trouve recalcule, et il est derive a la
+     * lecture.
      *
      * @return {@link Optional#empty()} quand le candidat n'a <b>pas declare
-     *         d'objectif</b> (arbitrage D-3). 🛑 Aucun parcours n'est alors cree :
+     *         d'objectif</b> (arbitrage D-3). 🛑 Aucun cycle n'est alors cree :
      *         en fabriquer un « par defaut » reviendrait a choisir un objectif a
      *         sa place, puis a batir une file entiere sur cette supposition.
      */
@@ -133,12 +160,22 @@ public class JourneyService {
                 user.getTargetProcedure(), user.getTargetLevel());
         if (cible == null) return Optional.empty();
 
-        Optional<Journey> existant = journeyManager.find(userId, cible);
-        if (existant.isPresent()) return existant;
+        Optional<Journey> existant =
+                journeyManager.find(userId, Module.TCF, JourneyStatus.EN_COURS);
+        if (existant.isPresent()) {
+            Journey courant = existant.get();
+            if (courant.getTargetLevel() != cible) {
+                courant.setTargetLevel(cible);
+                journeyManager.save(courant);
+            }
+            return existant;
+        }
 
         Journey journey = new Journey();
         journey.setUser(user);
         journey.setTargetLevel(cible);
+        journey.setModule(Module.TCF);
+        journey.setStatus(JourneyStatus.EN_COURS);
         journey = journeyManager.save(journey);
         amorcer(journey, user, cible);
         return Optional.of(journey);
@@ -246,21 +283,37 @@ public class JourneyService {
         // deja enregistre tout l'historique, donc une evaluation qui vient de
         // creer le parcours retombe ici sans effet : c'est exactement ce qu'on
         // veut, elle est deja dans la file.
-        if (journeyManager.dejaTraitee(journey.getId(), evaluation.sourceAssessmentId())) return;
+        //
+        // 🛑 LA CLE D'IDEMPOTENCE PORTE LE journey_id, DONC LE CYCLE QUI LA
+        // PORTE EST UN CHOIX, PAS UN DETAIL. Le garde-fou est interroge sur le
+        // cycle EN COURS, et lui seul : c'est le point d'entree du traitement,
+        // celui que tous les branchements atteignent. Le cycle EN ATTENTE
+        // enregistre l'evaluation lui AUSSI, mais seulement quand il a
+        // reellement recu des priorites — un evenement par cycle ecrit, donc,
+        // et jamais de ligne « pour memoire » : sa promotion en fera un cycle
+        // en cours, et son journal doit alors dire la verite sur ce qui l'a
+        // construit.
+        if (journeyManager.dejaTraitee(
+                userId, journey.getModule(), evaluation.sourceAssessmentId())) {
+            return;
+        }
         enregistrer(journey, evaluation);
 
         List<LearningPlanObservation> tout = observationManager.findAllByUserWithSkill(userId);
         List<LearningPlanObservation> evaluations = evaluationFilter.retenir(tout);
+        List<JourneyStep> etapes = stepManager.findAll(journey.getId());
+        // 🛑 LU AVANT TOUTE CLOTURE : l'etape DIAGNOSTIC qu'on est sur le point
+        // de fermer est precisement ce qui dit « ce cycle attend encore son
+        // amorce ». La lire apres aurait envoye en attente les priorites du
+        // diagnostic qui vient d'ouvrir le parcours.
+        boolean amorce = attendSonAmorce(etapes);
 
-        cloreLEtapeDiagnostic(journey, evaluation);
+        cloreLEtapeDiagnostic(journey, etapes, evaluation);
 
         boolean tropAncienne = false;
         if (evaluation.mesureUneEpreuve()) {
             tropAncienne = estTropAncienne(journey, evaluation);
-            if (!tropAncienne) {
-                cloreLEtapeDEvaluation(journey, evaluation);
-                cloreOuRemplacerLeLot(journey, evaluation);
-            }
+            if (!tropAncienne) cloreLExamenDuBloc(journey, etapes, evaluation);
         }
 
         if (!tropAncienne) {
@@ -269,18 +322,226 @@ public class JourneyService {
             List<JourneyLotBuilder.Lot> lots = lotBuilder.depuisEvaluation(
                     evaluation.sourceAssessmentId(), evaluations, maitrisees, cible,
                     profileService.levelProfile(userId));
-            // R11 — un diagnostic rapide ne remplace jamais un lot ouvert : il
-            // ne cree un lot que pour les epreuves qui n'en ont pas.
-            if (!evaluation.mesureUneEpreuve()) {
-                lots = lots.stream()
-                        .filter(lot -> lotManager.findOuvert(journey.getId(), lot.epreuve()).isEmpty())
-                        .toList();
+            if (amorce) {
+                creerLots(journey, filtrerLeDiagnostic(journey, lots, evaluation));
+            } else {
+                mettreEnAttente(journey, etapes, lots, evaluations, evaluation);
             }
-            creerLots(journey, lots);
         }
 
         ajouterLesEpreuvesNonMesurees(journey, userId);
         journeyManager.save(journey);
+    }
+
+    /**
+     * <b>R11 — un diagnostic rapide ne remplace jamais un lot ouvert</b> : il ne
+     * cree un lot que pour les epreuves qui n'en ont pas.
+     */
+    private List<JourneyLotBuilder.Lot> filtrerLeDiagnostic(
+            Journey destination, List<JourneyLotBuilder.Lot> lots, JourneyEvaluation evaluation) {
+        if (evaluation.mesureUneEpreuve()) return lots;
+        return lots.stream()
+                .filter(lot -> lotManager.findOuvert(destination.getId(), lot.epreuve()).isEmpty())
+                .toList();
+    }
+
+    /**
+     * <b>Ce cycle attend-il encore son amorce ?</b> — la question qui decide ou
+     * vont les priorites d'une evaluation (D-13).
+     *
+     * <p>Un cycle <b>amorce</b> est borne : il ne grossit plus, et ce qu'une
+     * evaluation detecte pendant qu'il tourne part dans le cycle EN ATTENTE. Un
+     * cycle qui <b>attend son amorce</b> ne porte <b>ni lot ni examen</b> : au
+     * mieux une etape {@code DIAGNOSTIC} (amorce C de la spec §2, « aucune
+     * evaluation, le Plan demande le diagnostic »), au pire rien du tout. La
+     * premiere evaluation qui arrive <b>est</b> son amorce, qu'elle soit le
+     * diagnostic attendu (amorce A) ou un examen passe a la place (amorce B).
+     *
+     * <p>🛑 <b>Pourquoi « aucun examen » et pas seulement « aucun lot »</b> : un
+     * <b>cycle de mesure</b> (spec §6) n'a ni lot ni etape d'entrainement, et
+     * c'est sa nature meme. Sans cette condition, le premier examen d'un cycle
+     * de mesure y aurait cree un lot d'entrainement — donc detruit, a la lecture
+     * suivante, le fait que c'etait un cycle de mesure, et prive le candidat de
+     * la mesure qu'il etait venu chercher.
+     *
+     * <p>⚠️ <b>Un cycle VIDE attend son amorce</b>, et c'est ce qui evite une
+     * boucle : apres une actualisation sans rien en attente, le cycle promu est
+     * vide. Si la premiere evaluation suivante partait encore « en attente », le
+     * candidat lirait un plan vide juste apres avoir passe un examen, et devrait
+     * actualiser une seconde fois pour voir son travail.
+     */
+    private static boolean attendSonAmorce(List<JourneyStep> etapes) {
+        for (JourneyStep step : etapes) {
+            if (step.getLot() != null) return false;
+            if (step.getType() == JourneyStepType.SECTION_EXAM) return false;
+        }
+        return true;
+    }
+
+    // =====================================================================
+    // §5 / D-13 — le cycle EN ATTENTE
+    // =====================================================================
+
+    /**
+     * <b>Les priorites detectees pendant le cycle en cours vont dans le cycle
+     * EN ATTENTE</b> (D-13, spec §5).
+     *
+     * <p>🛑 <b>Ceci revoque R2</b> — « les priorites au-dela ne sont ni stockees
+     * ni mises en attente ». Ce qui change est la <b>destination</b> de ce qui
+     * deborde, pas le plafond : {@code maxPrioritiesPerLot} reste a 3 (D-20).
+     *
+     * <h3>Ce qui n'est PAS recree, et pourquoi</h3>
+     * <ul>
+     *   <li>une competence <b>encore ouverte</b> dans le cycle en cours : elle
+     *       est deja due, la remettre en attente ferait travailler deux fois la
+     *       meme chose ;</li>
+     *   <li>une competence <b>deja cloturee</b> dans le cycle en cours — <b>sauf
+     *       regression mesuree</b>. La regle appliquee est stricte : on ne la
+     *       recree que si l'observation de <b>cette</b> evaluation la classe
+     *       {@code PRIORITY}, le signal le plus fort. Un {@code TO_REINFORCE}
+     *       sur une competence deja travaillee ne rouvre <b>rien</b> : sinon
+     *       chaque examen rendrait tout le cycle precedent a refaire, et le
+     *       candidat ne finirait jamais un cycle.</li>
+     * </ul>
+     * ⚠️ Une etape {@code SUPERSEDED} ne compte pas comme cloturee : elle n'a
+     * jamais ete travaillee, la file l'avait seulement rendue caduque.
+     *
+     * <p><b>Creation paresseuse</b> : le cycle en attente n'est cree que s'il
+     * reste vraiment quelque chose a y mettre. Aucune ligne vide d'avance.
+     */
+    private void mettreEnAttente(
+            Journey enCours,
+            List<JourneyStep> etapesDuCycleEnCours,
+            List<JourneyLotBuilder.Lot> lots,
+            List<LearningPlanObservation> evaluations,
+            JourneyEvaluation evaluation) {
+        List<JourneyLotBuilder.Lot> nouveautes = nouveautes(
+                lots, etapesDuCycleEnCours,
+                prioritairesDe(evaluations, evaluation.sourceAssessmentId()));
+        if (nouveautes.isEmpty()) return;
+
+        Journey attente = cycleEnAttente(enCours);
+        nouveautes = filtrerLeDiagnostic(attente, nouveautes, evaluation);
+        if (nouveautes.isEmpty()) return;
+
+        remplacerLesLotsEnAttente(attente, nouveautes, evaluation);
+        creerLots(attente, nouveautes);
+        enregistrer(attente, evaluation);
+        journeyManager.save(attente);
+    }
+
+    /**
+     * Le cycle <b>EN ATTENTE</b> du candidat, cree <b>paresseusement</b> (D-13).
+     *
+     * <p>🛑 <b>Invisible du candidat</b> : {@code getOrCreate} ne le rend
+     * jamais, et {@code GET /api/me/plan/journey} ne lit que le cycle en cours.
+     * Il n'a pas de niveau d'entree : celui-la s'ecrit a sa <b>promotion</b>,
+     * depuis le niveau de sortie du cycle qu'il remplace.
+     */
+    private Journey cycleEnAttente(Journey enCours) {
+        UUID userId = enCours.getUser().getId();
+        Optional<Journey> existant =
+                journeyManager.find(userId, enCours.getModule(), JourneyStatus.EN_ATTENTE);
+        if (existant.isPresent()) return existant.get();
+        Journey attente = new Journey();
+        attente.setUser(enCours.getUser());
+        attente.setModule(enCours.getModule());
+        attente.setStatus(JourneyStatus.EN_ATTENTE);
+        attente.setTargetLevel(enCours.getTargetLevel());
+        return journeyManager.save(attente);
+    }
+
+    /**
+     * Les competences que <b>cette</b> evaluation classe {@code PRIORITY} — le
+     * signal le plus fort, et le seul qui rouvre une competence deja cloturee
+     * dans le cycle en cours (D-13, « sauf regression mesuree »).
+     */
+    private static Set<UUID> prioritairesDe(
+            List<LearningPlanObservation> evaluations, UUID sourceAssessmentId) {
+        Set<UUID> prioritaires = new LinkedHashSet<>();
+        for (LearningPlanObservation observation : evaluations) {
+            if (!sourceAssessmentId.equals(observation.getSourceId())) continue;
+            if (observation.getStatus() != LearningPlanSkillStatus.PRIORITY) continue;
+            if (observation.getSkill() != null) prioritaires.add(observation.getSkill().getId());
+        }
+        return prioritaires;
+    }
+
+    /**
+     * Les lots ramenes a ce qui est reellement <b>nouveau</b> pour le candidat,
+     * rangs recalcules.
+     *
+     * <p>Un lot qui se vide entierement disparait : un lot sans priorite serait
+     * un examen de plus, sur une epreuve que ce cycle-la ne travaille pas.
+     */
+    private static List<JourneyLotBuilder.Lot> nouveautes(
+            List<JourneyLotBuilder.Lot> lots,
+            List<JourneyStep> etapesDuCycleEnCours,
+            Set<UUID> prioritaires) {
+        Map<UUID, JourneyStep> dejaDansLeCycle = new LinkedHashMap<>();
+        for (JourneyStep step : etapesDuCycleEnCours) {
+            if (step.getType() != JourneyStepType.TRAIN_SKILL || step.getSkill() == null) continue;
+            dejaDansLeCycle.putIfAbsent(step.getSkill().getId(), step);
+        }
+        List<JourneyLotBuilder.Lot> retenus = new ArrayList<>();
+        for (JourneyLotBuilder.Lot lot : lots) {
+            List<JourneyLotBuilder.Priorite> priorites = new ArrayList<>();
+            for (JourneyLotBuilder.Priorite priorite : lot.priorites()) {
+                if (aRefaire(dejaDansLeCycle.get(priorite.skill().getId()),
+                        prioritaires.contains(priorite.skill().getId()))) {
+                    priorites.add(new JourneyLotBuilder.Priorite(
+                            priorite.skill(), priorites.size()));
+                }
+            }
+            if (!priorites.isEmpty()) {
+                retenus.add(new JourneyLotBuilder.Lot(
+                        lot.epreuve(), lot.sourceAssessmentId(), List.copyOf(priorites)));
+            }
+        }
+        return List.copyOf(retenus);
+    }
+
+    private static boolean aRefaire(JourneyStep dansLeCycle, boolean regressionMesuree) {
+        if (dansLeCycle == null) return true;
+        // Encore due dans le cycle en cours : rien a remettre en attente.
+        if (dansLeCycle.estOuverte()) return false;
+        // Rendue caduque par la file, jamais travaillee : elle peut revenir.
+        if (dansLeCycle.getResolution() == JourneyStepResolution.SUPERSEDED) return true;
+        return regressionMesuree;
+    }
+
+    /**
+     * <b>Le seul emploi qui reste a {@code SUPERSEDED}</b> (portee exacte de la
+     * revocation D-15) : une evaluation plus recente <b>remplace</b> le lot
+     * qu'une plus ancienne avait mis en attente sur la meme epreuve.
+     *
+     * <p>Pourquoi c'est legitime ici, et nulle part ailleurs : un lot du cycle
+     * <b>EN ATTENTE</b> n'a jamais ete montre au candidat, donc jamais
+     * travaille. Le garder en plus du nouveau violerait R5 (« au plus un lot
+     * ouvert par epreuve »), et le garder <b>a la place</b> du nouveau ferait
+     * travailler le candidat sur une mesure perimee — « un examen fait toujours
+     * autorite ».
+     *
+     * <p>🛑 <b>Ce n'est pas le cas revoque</b> : D-15 a supprime le
+     * {@code SUPERSEDED} d'un lot du cycle <b>en cours</b> qu'un examen
+     * traversait alors que son travail restait du. Ce travail-la reste du.
+     */
+    private void remplacerLesLotsEnAttente(
+            Journey attente, List<JourneyLotBuilder.Lot> lots, JourneyEvaluation evaluation) {
+        for (JourneyLotBuilder.Lot nouveau : lots) {
+            JourneyLot perime =
+                    lotManager.findOuvert(attente.getId(), nouveau.epreuve()).orElse(null);
+            if (perime == null) continue;
+            for (JourneyStep step : stepManager.findOuvertesDuLot(perime.getId())) {
+                if (step.clore(JourneyStepResolution.SUPERSEDED,
+                        evaluation.sourceAssessmentId(), evaluation.completedAt())) {
+                    stepManager.save(step);
+                }
+            }
+            perime.clore(JourneyLotStatus.SUPERSEDED,
+                    evaluation.sourceAssessmentId(), evaluation.completedAt());
+            lotManager.save(perime);
+        }
     }
 
     /**
@@ -293,8 +554,8 @@ public class JourneyService {
      * mardi remplacerait le lot que celui de mercredi vient de creer.
      */
     private boolean estTropAncienne(Journey journey, JourneyEvaluation evaluation) {
-        Optional<Instant> derniere =
-                journeyManager.derniereMesure(journey.getId(), evaluation.examType());
+        Optional<Instant> derniere = journeyManager.derniereMesure(
+                journey.getUser().getId(), journey.getModule(), evaluation.examType());
         boolean ancienne = derniere.isPresent()
                 && evaluation.completedAt().isBefore(derniere.get());
         if (ancienne) {
@@ -310,8 +571,9 @@ public class JourneyService {
      * candidat n'a plus a faire un diagnostic dont une evaluation vient de
      * repondre a la question.
      */
-    private void cloreLEtapeDiagnostic(Journey journey, JourneyEvaluation evaluation) {
-        for (JourneyStep step : stepManager.findAll(journey.getId())) {
+    private void cloreLEtapeDiagnostic(
+            Journey journey, List<JourneyStep> etapes, JourneyEvaluation evaluation) {
+        for (JourneyStep step : etapes) {
             if (step.getType() != JourneyStepType.DIAGNOSTIC || !step.estOuverte()) continue;
             if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
                     evaluation.sourceAssessmentId(), evaluation.completedAt())) {
@@ -321,50 +583,67 @@ public class JourneyService {
     }
 
     /**
-     * L'etape « {Epreuve} — Evaluer mon niveau » ouverte de cette epreuve est
-     * close : <b>on ne demande jamais au candidat de refaire un examen qu'il
-     * vient de passer</b> (R7), meme s'il l'a lance hors du Plan.
+     * <b>R1 — un examen passe hors du plan clot l'examen de son bloc SI ET
+     * SEULEMENT SI ce bloc etait pret</b> (arbitrage <b>D-15</b>, 2026-09-18).
+     *
+     * <p>« Pret » veut dire : <b>aucune competence du meme bloc ne reste
+     * ouverte</b>. C'est exactement le verrou que la lecture applique a l'etape
+     * {@code SECTION_EXAM} — l'ecriture et la lecture posent donc la <b>meme</b>
+     * question, et un candidat ne peut pas valider par un examen une etape que
+     * son ecran lui montrait cadenassee.
+     *
+     * <table>
+     *   <tr><th>Bloc</th><th>Examen passe ailleurs</th><th>Effet</th></tr>
+     *   <tr><td>son examen seul</td><td>via Reviser</td>
+     *       <td>✅ l'etape est cloturee</td></tr>
+     *   <tr><td>3 competences dues + son examen</td><td>via Reviser</td>
+     *       <td>❌ <b>rien n'est valide</b> — l'examen compte comme
+     *           entrainement</td></tr>
+     *   <tr><td>3 competences faites + son examen</td><td>examen complet</td>
+     *       <td>✅ l'etape est cloturee</td></tr>
+     * </table>
+     *
+     * <h3>🛑 CE QUE D-15 A REVOQUE</h3>
+     * <p>La regle de la spec v2 §7.2 (2026-09-17) disait : « des etapes
+     * {@code TRAIN_SKILL} du lot sont encore en attente → les etapes non
+     * cloturees du lot <b>et son checkpoint</b> sont cloturees avec
+     * {@code resolution = SUPERSEDED}, lot → {@code SUPERSEDED} ». Elle est
+     * <b>supprimee pour ce cas precis</b> : passer un examen ne « saute » plus
+     * le travail restant, qui <b>reste du</b>. L'examen reste evidemment jouable
+     * — il ne fait simplement plus avancer le cycle, et ses priorites partent
+     * dans le cycle en attente (D-13).
+     *
+     * <p>{@link JourneyStepResolution#SUPERSEDED} reste dans l'enum et garde son
+     * autre emploi : le remplacement d'un lot <b>en attente</b> par une
+     * evaluation plus recente ({@link #remplacerLesLotsEnAttente}).
      */
-    private void cloreLEtapeDEvaluation(Journey journey, JourneyEvaluation evaluation) {
-        for (JourneyStep step : stepManager.findAll(journey.getId())) {
+    private void cloreLExamenDuBloc(
+            Journey journey, List<JourneyStep> etapes, JourneyEvaluation evaluation) {
+        EpreuveType epreuve = evaluation.examType();
+        boolean competencesDues = etapes.stream()
+                .filter(JourneyStep::estOuverte)
+                .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                        && step.getExamType() == epreuve);
+        if (competencesDues) {
+            log.info("Parcours {} : examen {} passe hors du plan, mais le bloc {} a encore des "
+                            + "competences dues — rien n'est valide (R1, D-15)",
+                    journey.getId(), evaluation.sourceAssessmentId(), epreuve);
+            return;
+        }
+        for (JourneyStep step : etapes) {
             if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
-            if (step.getPurpose() != JourneyStepPurpose.INITIAL_ASSESSMENT) continue;
-            if (evaluation.examType() != step.getExamType()) continue;
+            if (step.getExamType() != epreuve) continue;
             if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
                     evaluation.sourceAssessmentId(), evaluation.completedAt())) {
                 stepManager.save(step);
             }
         }
-    }
-
-    /**
-     * <b>R7 — un examen fait toujours autorite</b>, depuis le Plan ou ailleurs.
-     *
-     * <ul>
-     *   <li>tous les entrainements du lot sont faits ⇒ son checkpoint est
-     *       <b>satisfait</b>, meme s'il n'avait pas encore pris la main, et le lot
-     *       est {@code CLOSED} ;</li>
-     *   <li>des entrainements restent ⇒ l'examen devient la nouvelle reference :
-     *       ce qui reste, <b>checkpoint compris</b>, passe {@code SUPERSEDED},
-     *       donc invisible, et le lot est remplace.</li>
-     * </ul>
-     */
-    private void cloreOuRemplacerLeLot(Journey journey, JourneyEvaluation evaluation) {
-        JourneyLot lot = lotManager.findOuvert(journey.getId(), evaluation.examType()).orElse(null);
+        // Le lot a rempli son office : ses entrainements etaient faits, et son
+        // point d'etape vient d'etre satisfait par une mesure. Il se ferme
+        // CLOSED — jamais SUPERSEDED : rien n'a ete saute.
+        JourneyLot lot = lotManager.findOuvert(journey.getId(), epreuve).orElse(null);
         if (lot == null) return;
-        List<JourneyStep> restantes = stepManager.findOuvertesDuLot(lot.getId());
-        boolean entrainementsRestants = restantes.stream()
-                .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL);
-
-        JourneyStepResolution motif = entrainementsRestants
-                ? JourneyStepResolution.SUPERSEDED
-                : JourneyStepResolution.SATISFIED_BY_ASSESSMENT;
-        for (JourneyStep step : restantes) {
-            if (step.clore(motif, evaluation.sourceAssessmentId(), evaluation.completedAt())) {
-                stepManager.save(step);
-            }
-        }
-        lot.clore(entrainementsRestants ? JourneyLotStatus.SUPERSEDED : JourneyLotStatus.CLOSED,
+        lot.clore(JourneyLotStatus.CLOSED,
                 evaluation.sourceAssessmentId(), evaluation.completedAt());
         lotManager.save(lot);
     }
@@ -402,9 +681,18 @@ public class JourneyService {
         if (concernees.isEmpty()) return;
 
         Instant maintenant = Instant.now();
-        JourneyDto vue = readService.lire(journey, stepManager.findAll(journey.getId()), true);
-        Map<UUID, com.sejourfr.app.dto.JourneyStepDto> vues = new LinkedHashMap<>();
-        vue.steps().forEach(step -> vues.put(step.id(), step));
+        // 🛑 LE QUOTA EST LU CHEZ SON AUTORITE UNIQUE, jamais recompte ici
+        // (D-16). {@code JourneyReadService.etapesAuQuota} est la MEME fonction
+        // que celle qui alimente l'ecran — c'est ce qui garantit qu'une etape ne
+        // se clot pas sur une regle differente de celle qui l'a calculee.
+        //
+        // ⚠️ Depuis D-16, cette regle ne se lit plus dans le `progress` servi :
+        // une etape de comprehension a DEUX chemins de cloture (2 series
+        // reussies OU 4 terminees) et l'echappatoire ne s'affiche pas. Les deux
+        // lecteurs partagent donc la fonction, faute de pouvoir partager le
+        // nombre.
+        Set<UUID> auQuota = readService.etapesAuQuota(
+                userId, stepManager.findAll(journey.getId()));
 
         Map<UUID, SkillMasteryEngine.SkillMastery> maitrise = masteryResolver.bySkillIds(
                 userId, concernees.stream().map(step -> step.getSkill().getId()).toList());
@@ -415,16 +703,8 @@ public class JourneyService {
             JourneyStepResolution motif = null;
             if (etat != null && etat.transferProven()) {
                 motif = JourneyStepResolution.MASTERED;
-            } else {
-                com.sejourfr.app.dto.JourneyStepDto servie = vues.get(step.getId());
-                // Le quota est LU sur la progression servie : c'est la meme
-                // autorite que l'ecran, donc l'etape ne peut pas se clore sur un
-                // compteur different de celui que le candidat a lu.
-                if (servie != null && servie.progress() != null
-                        && servie.progress().quota() > 0
-                        && servie.progress().done() >= servie.progress().quota()) {
-                    motif = JourneyStepResolution.QUOTA_REACHED;
-                }
+            } else if (auQuota.contains(step.getId())) {
+                motif = JourneyStepResolution.QUOTA_REACHED;
             }
             if (motif != null && step.clore(motif, null, maintenant)) {
                 stepManager.save(step);
@@ -481,7 +761,7 @@ public class JourneyService {
      * mesurer » appartient a {@code PlanDomainAssessmentResolver} : la file ne
      * porte que l'epreuve, le front compose l'action.
      */
-    private void ajouterLesEpreuvesNonMesurees(Journey journey, UUID userId) {
+    void ajouterLesEpreuvesNonMesurees(Journey journey, UUID userId) {
         Set<EpreuveType> dejaPrevues = new LinkedHashSet<>();
         for (JourneyStep step : stepManager.findAll(journey.getId())) {
             if (step.getType() == JourneyStepType.SECTION_EXAM && step.estOuverte()) {
@@ -512,7 +792,7 @@ public class JourneyService {
      * l'etape courante, ne passe jamais devant un examen prevu, n'interrompt
      * jamais un autre lot.
      */
-    private void ajouter(Journey journey, JourneyStep step) {
+    void ajouter(Journey journey, JourneyStep step) {
         step.setPosition(journey.consommerPosition());
         stepManager.save(step);
         journeyManager.save(journey);

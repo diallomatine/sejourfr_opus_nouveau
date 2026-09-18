@@ -168,7 +168,7 @@ public class LearningPlanService {
                     // lui a deja un domaine mesure, donc un palier a construire.
                     targetLevelResolver.parSection(
                             userId, profil.domaines(), profil.cycle().objectiveLevel()),
-                    accessService.resolve(userId, null),
+                    accessService.resolve(userId),
                     // Aucun diagnostic : aucune etape commencee non plus. La map
                     // vide vaut « rien fait », ce qui est exact — et ne coute
                     // pas une requete de comptage.
@@ -344,8 +344,13 @@ public class LearningPlanService {
         List<Skill> pool = new ArrayList<>(fragilesExecutables);
         pool.addAll(acquisitions);
         Optional<UUID> focusSkillId = focusResolver.epingler(user, pool).map(Skill::getId);
-        SkillAccessService.SkillAccess access = accessService.resolve(
-                userId, focusSkillId.orElse(null));
+        // 🛑 D-18 : la premiere place du Plan n'ouvre plus rien. L'exemption du
+        // 2026-08-21 (« un candidat non abonne pourra travailler sa priorite 1,
+        // vu qu'elle est visible ») est REVOQUEE, donc SkillAccessService n'a
+        // plus besoin de la connaitre — sa surcharge est supprimee. La premiere
+        // place, elle, reste epinglee et servie : c'est l'EXECUTION qui se
+        // ferme, jamais l'affichage.
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
         // BASCULE DE L'ETAPE : des que l'etape est TERMINEE — ses cinq sujets
@@ -372,15 +377,14 @@ public class LearningPlanService {
         // Le perimetre de cette condition est l'ETAPE ENTIERE (les 5 sujets
         // editoriaux), pas ce que l'acces du candidat lui ouvre. C'est un
         // ARBITRAGE PRODUIT du proprietaire (2026-08-14) : la verification de
-        // progression est PREMIUM. Un compte gratuit plafonne a 2 sujets sur 5
-        // (SkillAccessService.FREE_PROMPTS_PER_SKILL), donc il ne bascule
-        // jamais — et par voie de consequence aucune de ses competences
-        // n'atteint SOLID (qui exige la preuve contextualisee que seule cette
-        // verification apporte), donc il ne voit pas non plus les jalons de
-        // PlanMilestoneSelector, dont le declencheur d'epreuve demande >= 2
-        // competences SOLID. Ces trois consequences sont VOULUES : ce n'est pas
-        // un bug freemium, ne pas retablir un comptage des sujets ouverts pour
-        // les « corriger ».
+        // progression est PREMIUM. Depuis D-18 (2026-09-18) un compte gratuit
+        // n'a AUCUN sujet ouvert, donc il ne bascule jamais — et par voie de
+        // consequence aucune de ses competences n'atteint SOLID (qui exige la
+        // preuve contextualisee que seule cette verification apporte), donc il
+        // ne voit pas non plus les jalons de PlanMilestoneSelector, dont le
+        // declencheur d'epreuve demande >= 2 competences SOLID. Ces trois
+        // consequences sont VOULUES : ce n'est pas un bug freemium, ne pas
+        // retablir un comptage des sujets ouverts pour les « corriger ».
         //
         // Elle est calculee AVANT le classement : c'est elle qui decide de la
         // NATURE d'une fragilite (A_RENFORCER ou A_VERIFIER), et la nature est

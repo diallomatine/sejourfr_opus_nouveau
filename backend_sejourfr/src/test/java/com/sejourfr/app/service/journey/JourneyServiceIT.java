@@ -1,17 +1,25 @@
 package com.sejourfr.app.service.journey;
 
+import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyStepDto;
+import com.sejourfr.app.entity.Journey;
+import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
+import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyState;
+import com.sejourfr.app.enums.JourneyStatus;
+import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.QuestionType;
@@ -19,6 +27,8 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.repository.JourneyRepository;
+import com.sejourfr.app.repository.JourneyStepRepository;
 import com.sejourfr.app.service.AccountDeletionService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -32,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,6 +75,8 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @Autowired private TestData data;
     @Autowired private SkillManager skillManager;
     @Autowired private AccountDeletionService accountDeletionService;
+    @Autowired private JourneyRepository journeys;
+    @Autowired private JourneyStepRepository journeySteps;
 
     private final List<UUID> candidats = new java.util.ArrayList<>();
 
@@ -93,12 +106,15 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         user.setTargetLevel(null);
         data.saveUser(user);
 
-        JourneyDto vue = journeyService.lire(user.getId(), false);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         assertThat(vue.state()).isEqualTo(JourneyState.NEEDS_OBJECTIVE);
         assertThat(vue.targetLevel()).isNull();
         assertThat(vue.current()).isNull();
-        assertThat(vue.steps()).isEmpty();
+        // Aucun parcours : aucun bloc, aucun cycle. Un cycle « vide » aurait
+        // laisse croire qu'un parcours existe.
+        assertThat(vue.blocs()).isEmpty();
+        assertThat(vue.cycle()).isNull();
         // 🛑 Creer un parcours « par defaut » reviendrait a choisir un objectif a
         // sa place, puis a batir une file entiere sur cette supposition.
         assertThat(journeyService.getOrCreate(user.getId())).isEmpty();
@@ -114,11 +130,11 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
 
-        assertThat(journeyService.lire(user.getId(), false).state())
+        assertThat(journeyService.lire(user.getId()).state())
                 .isEqualTo(JourneyState.NEEDS_OBJECTIVE);
 
         declarer(user, TargetProcedure.NAT);
-        JourneyDto vue = journeyService.lire(user.getId(), false);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         assertThat(vue.state()).isEqualTo(JourneyState.IN_PROGRESS);
         // 🛑 Pas de diagnostic : une evaluation exploitable existe (R19.8).
@@ -134,14 +150,18 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void sansEvaluationLeParcoursProposeLeDiagnostic() {
         User user = candidat(TargetProcedure.NAT);
 
-        JourneyDto vue = journeyService.lire(user.getId(), false);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         assertThat(vue.current()).isNotNull();
         assertThat(vue.current().type()).isEqualTo(JourneyStepType.DIAGNOSTIC);
         assertThat(vue.current().status()).isEqualTo(JourneyStepStatus.CURRENT);
         // 🛑 Aucune priorite inventee : le Plan n'apprend rien tant qu'il n'a
-        // rien mesure.
-        assertThat(typesDe(vue)).containsOnly(JourneyStepType.DIAGNOSTIC);
+        // rien mesure. ⚠️ Lu sur la FILE : une etape DIAGNOSTIC ne porte aucune
+        // epreuve, donc elle n'appartient a aucun bloc — `blocs` ne peut pas la
+        // montrer, et c'est `current` qui la sert (assertion ci-dessus).
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .extracting(JourneyStep::getType)
+                .containsOnly(JourneyStepType.DIAGNOSTIC);
     }
 
     @Test
@@ -157,9 +177,14 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 LearningPlanSourceType.PRODUCTION_EO, LearningPlanSkillStatus.PRIORITY,
                 ObservationConfidence.HIGH, null, HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId(), false);
+        JourneyDto vue = journeyService.lire(user.getId());
 
-        assertThat(typesDe(vue)).containsOnly(JourneyStepType.DIAGNOSTIC);
+        // ⚠️ Lu sur la FILE, pour la meme raison qu'en §18-32 : une etape
+        // DIAGNOSTIC n'a pas d'epreuve, donc aucun bloc ne la porte.
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.DIAGNOSTIC);
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .extracting(JourneyStep::getType)
+                .containsOnly(JourneyStepType.DIAGNOSTIC);
     }
 
     @Test
@@ -170,15 +195,21 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE2), examen, HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId(), true);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         assertThat(typesDe(vue)).doesNotContain(JourneyStepType.DIAGNOSTIC);
         // 🛑 La timeline d'un nouveau parcours commence par ce qu'il RESTE a
         // faire : inventer des etapes « deja faites » donnerait au candidat un
-        // parcours qu'il n'a pas vecu.
-        assertThat(vue.steps()).allSatisfy(step ->
+        // parcours qu'il n'a pas vecu. Lu sur la FILE, pas sur l'ecran : c'est
+        // l'absence de cloture qui se prouve, et le DTO n'en montre que le
+        // statut derive.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .isNotEmpty()
+                .allMatch(JourneyStep::estOuverte);
+        assertThat(etapesServies(vue)).allSatisfy(step ->
                 assertThat(step.status()).isIn(
                         JourneyStepStatus.CURRENT, JourneyStepStatus.UPCOMING));
+        assertThat(vue.cycle().etapesTerminees()).isZero();
     }
 
     @Test
@@ -192,7 +223,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 LearningPlanSourceType.DIAGNOSTIC_EE, LearningPlanSkillStatus.PRIORITY,
                 ObservationConfidence.HIGH, null, MAINTENANT);
 
-        JourneyDto vue = journeyService.lire(user.getId(), true);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         // R19.2 : la plus recente qui MESURE l'emporte sur un diagnostic rapide,
         // meme plus frais — une baseline n'a pas l'autorite d'une mesure.
@@ -208,25 +239,48 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         observationDExamen(user, skill(SkillTaskCode.EE2), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE3), examen, HIER);
 
-        List<JourneyStepDto> steps = journeyService.lire(user.getId(), true).steps();
+        JourneyDto vue = journeyService.lire(user.getId());
 
-        assertThat(steps).hasSize(3 + 1 + 3);
-        assertThat(steps.subList(0, 3)).allSatisfy(step ->
+        // Le bloc EE porte ses trois competences, et SON examen a part : c'est
+        // l'ecran qui l'imbrique en fin de bloc, il n'est pas une ligne de plus.
+        JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
+        assertThat(ee.steps()).hasSize(3);
+        assertThat(ee.steps()).allSatisfy(step ->
                 assertThat(step.type()).isEqualTo(JourneyStepType.TRAIN_SKILL));
         // R3 — le lot est TOUJOURS clos par un examen de son epreuve.
-        assertThat(steps.get(3).type()).isEqualTo(JourneyStepType.SECTION_EXAM);
-        assertThat(steps.get(3).purpose()).isEqualTo(JourneyStepPurpose.REASSESS);
-        assertThat(steps.get(3).examType()).isEqualTo(EpreuveType.TCF_EE);
-        // R12 — puis les epreuves non mesurees, dans l'ordre CO, CE, EO.
+        assertThat(ee.exam()).isNotNull();
+        assertThat(ee.exam().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
+        assertThat(ee.exam().purpose()).isEqualTo(JourneyStepPurpose.REASSESS);
+        assertThat(ee.exam().examType()).isEqualTo(EpreuveType.TCF_EE);
+        // R12 — les trois epreuves non mesurees portent chacune leur « Evaluer
+        // mon niveau », et rien d'autre.
+        for (EpreuveType epreuve : List.of(
+                EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EO)) {
+            JourneyBlocDto bloc = blocDe(vue, epreuve);
+            assertThat(bloc.steps()).as("bloc " + epreuve).isEmpty();
+            assertThat(bloc.exam()).as("examen du bloc " + epreuve).isNotNull();
+            assertThat(bloc.exam().purpose())
+                    .isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
+            assertThat(bloc.exam().examType()).isEqualTo(epreuve);
+        }
+        // Sept etapes en tout : 3 competences + le point d'etape EE + 3 mesures.
+        assertThat(vue.cycle().etapesTotal()).isEqualTo(3 + 1 + 3);
         // 🛑 PAS d'« Evaluer mon niveau » pour l'EE : son examen de reevaluation
         // est deja prevu, et R12 ne propose que ce qu'aucune etape ne couvre —
-        // sinon le candidat verrait deux examens EE d'affilee.
-        assertThat(steps.subList(4, 7)).allSatisfy(step -> {
-            assertThat(step.type()).isEqualTo(JourneyStepType.SECTION_EXAM);
-            assertThat(step.purpose()).isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
-        });
-        assertThat(steps.subList(4, 7).stream().map(JourneyStepDto::examType)).containsExactly(
-                EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EO);
+        // sinon le candidat verrait deux examens EE d'affilee. Lu sur la FILE :
+        // un bloc ne sert qu'UN examen, donc un doublon y serait invisible.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .filteredOn(step -> step.getExamType() == EpreuveType.TCF_EE
+                        && step.getType() == JourneyStepType.SECTION_EXAM)
+                .hasSize(1);
+        // R12 cree ses mesures dans l'ordre CO, CE, EO — un fait de la FILE, que
+        // le groupement par bloc ne prouve plus (les blocs sont TOUJOURS dans
+        // cet ordre, peuples ou non).
+        assertThat(etapes(user, JourneyStatus.EN_COURS).stream()
+                .filter(step -> step.getPurpose() == JourneyStepPurpose.INITIAL_ASSESSMENT)
+                .map(JourneyStep::getExamType))
+                .containsExactly(
+                        EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EO);
     }
 
     // =====================================================================
@@ -234,27 +288,151 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     // =====================================================================
 
     @Test
-    @DisplayName("§18-11 — examen EE hors Plan, entrainements en cours : le lot est REMPLACE")
-    void unExamenRemplaceUnLotInacheve() {
+    @DisplayName("D-15 — examen EE hors Plan, competences dues : RIEN n'est valide, aucun SUPERSEDED")
+    void unExamenNeSauteJamaisLeTravailRestant() {
         User user = candidat(TargetProcedure.NAT);
         Skill duPremierLot = skill(SkillTaskCode.EE1, 0);
-        Skill duSecondLot = skill(SkillTaskCode.EE1, 1);
+        Skill detecteeEnsuite = skill(SkillTaskCode.EE1, 1);
         observationDExamen(user, duPremierLot, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), true);
-        assertThat(codesDEntrainement(journeyService.lire(user.getId(), true)))
+        journeyService.lire(user.getId());
+        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
                 .containsExactly(duPremierLot.getCode());
 
         UUID second = UUID.randomUUID();
-        observationDExamen(user, duSecondLot, second, MAINTENANT);
+        observationDExamen(user, detecteeEnsuite, second, MAINTENANT);
         journeyService.onAssessmentCompleted(user.getId(), examenDe(second, MAINTENANT));
 
-        JourneyDto vue = journeyService.lire(user.getId(), true);
-        // 🛑 L'examen fait autorite : le lot inacheve est REMPLACE, et ses etapes
-        // deviennent OBSOLETE donc invisibles — le candidat n'a pas a lire une
-        // etape que la mesure a rendue caduque.
-        assertThat(codesDEntrainement(vue)).containsExactly(duSecondLot.getCode());
-        assertThat(vue.steps()).noneSatisfy(step ->
-                assertThat(step.status()).isEqualTo(JourneyStepStatus.OBSOLETE));
+        JourneyDto vue = journeyService.lire(user.getId());
+        // 🛑 CE QUE D-15 A REVOQUE. La regle du 2026-09-17 disait : « des etapes
+        // TRAIN_SKILL du lot sont encore en attente → les etapes non cloturees
+        // du lot ET son checkpoint sont cloturees SUPERSEDED, lot SUPERSEDED ».
+        // Passer un examen ne saute plus le travail restant : il reste DU.
+        assertThat(codesDEntrainement(vue)).containsExactly(duPremierLot.getCode());
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .noneMatch(step -> step.getResolution() == JourneyStepResolution.SUPERSEDED);
+        // Le point d'etape du lot reste ouvert : l'examen ne l'a pas satisfait,
+        // parce qu'il etait VERROUILLE au moment du passage. Meme question posee
+        // a l'ecriture et a la lecture.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM
+                        && step.getExamType() == EpreuveType.TCF_EE)
+                .allMatch(JourneyStep::estOuverte);
+        // Et la priorite nouvellement detectee n'est pas perdue : elle attend
+        // dans le cycle EN ATTENTE, invisible du candidat (D-13).
+        assertThat(codesDEntrainement(vue)).doesNotContain(detecteeEnsuite.getCode());
+        assertThat(competencesEnAttente(user)).containsExactly(detecteeEnsuite.getCode());
+    }
+
+    @Test
+    @DisplayName("D-15 — examen hors Plan sur un bloc SANS competence due : l'etape est cloturee")
+    void unExamenClotLEtapeDUnBlocPret() {
+        User user = candidat(TargetProcedure.NAT);
+        Skill competence = skill(SkillTaskCode.EE1, 0);
+        observationDExamen(user, competence, UUID.randomUUID(), HIER);
+        journeyService.lire(user.getId());
+        // La competence du bloc EE est faite : le bloc est pret, son examen est
+        // debloque.
+        cloreLEntrainement(user, competence);
+
+        // 🛑 Une epreuve REELLEMENT passee, pas un identifiant tire au hasard :
+        // sans elle, l'EE resterait « jamais mesuree » pour son autorite et R12
+        // rajouterait aussitot un « Evaluer mon niveau » — le test ne lirait
+        // plus ce qu'il croit lire.
+        UUID examen = data.epreuveProductionPassee(
+                user, EpreuveType.TCF_EE, NiveauCecrl.B1).getId();
+        observationDExamen(user, competence, examen, MAINTENANT);
+        journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
+
+        // ✅ L'etape SECTION_EXAM de l'EE est cloturee : on ne demande jamais de
+        // refaire un examen qu'on vient de passer (R7), et le bloc etait pret.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM
+                        && step.getExamType() == EpreuveType.TCF_EE)
+                .isNotEmpty()
+                .allMatch(step -> !step.estOuverte()
+                        && step.getResolution()
+                        == JourneyStepResolution.SATISFIED_BY_ASSESSMENT);
+        // Le bloc EE est termine : le cycle le lit ainsi.
+        assertThat(blocDe(journeyService.lire(user.getId()), EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.TERMINE);
+    }
+
+    @Test
+    @DisplayName("D-15 — une SOUS-EPREUVE d'examen complet clot l'etape de son bloc comme les autres")
+    void uneSousEpreuveDExamenCompletClotLEtapeDeSonBloc() {
+        User user = candidat(TargetProcedure.NAT);
+        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+        journeyService.lire(user.getId());
+
+        // Une sous-epreuve EO d'examen blanc complet : un attempt a part
+        // entiere, donc une evaluation a part entiere — et reellement passee,
+        // pour que l'EO compte comme mesuree (sinon R12 rajoute son examen).
+        UUID sousEpreuve = data.epreuveProductionPassee(
+                user, EpreuveType.TCF_EO, NiveauCecrl.B1).getId();
+        data.learningPlanObservation(user, skill(SkillTaskCode.EO1),
+                LearningPlanSourceType.MOCK_EXAM_EO, LearningPlanSkillStatus.PRIORITY,
+                ObservationConfidence.HIGH, null, MAINTENANT, sousEpreuve);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                sousEpreuve, JourneyAssessmentKind.MOCK_EXAM, EpreuveType.TCF_EO, MAINTENANT));
+
+        // Le bloc EO ne portait que son « Evaluer mon niveau » : il etait pret.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM
+                        && step.getExamType() == EpreuveType.TCF_EO)
+                .isNotEmpty()
+                .allMatch(step -> !step.estOuverte());
+    }
+
+    // =====================================================================
+    // D-13 — le cycle EN ATTENTE
+    // =====================================================================
+
+    @Test
+    @DisplayName("D-13 — une competence deja CLOTUREE n'est pas recreee sur un TO_REINFORCE")
+    void uneCompetenceClotureeNEstPasRecreeeSansRegression() {
+        User user = candidat(TargetProcedure.NAT);
+        Skill competence = skill(SkillTaskCode.EE1, 0);
+        observationDExamen(user, competence, UUID.randomUUID(), HIER);
+        journeyService.lire(user.getId());
+        cloreLEntrainement(user, competence);
+
+        UUID examen = UUID.randomUUID();
+        data.learningPlanObservation(user, competence, LearningPlanSourceType.MOCK_EXAM_EE,
+                LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM, null,
+                MAINTENANT, examen);
+        journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
+
+        // 🛑 Un TO_REINFORCE sur une competence deja travaillee ne rouvre RIEN :
+        // sinon chaque examen rendrait tout le cycle precedent a refaire, et le
+        // candidat ne finirait jamais un cycle.
+        assertThat(competencesEnAttente(user)).isEmpty();
+        // Creation paresseuse : rien a mettre en attente, aucune ligne creee.
+        assertThat(cycle(user, JourneyStatus.EN_ATTENTE)).isNull();
+    }
+
+    @Test
+    @DisplayName("D-13 — une competence deja CLOTUREE revient si l'examen la classe PRIORITY")
+    void uneRegressionMesureeRemetLaCompetenceEnAttente() {
+        User user = candidat(TargetProcedure.NAT);
+        Skill competence = skill(SkillTaskCode.EE1, 0);
+        observationDExamen(user, competence, UUID.randomUUID(), HIER);
+        journeyService.lire(user.getId());
+        cloreLEntrainement(user, competence);
+
+        UUID examen = UUID.randomUUID();
+        observationDExamen(user, competence, examen, MAINTENANT);
+        journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
+
+        // PRIORITY est le signal le plus fort : la regression est MESUREE, la
+        // competence revient — dans le cycle SUIVANT, jamais dans celui-ci
+        // (une cloture ne se reouvre jamais, D-7).
+        assertThat(competencesEnAttente(user)).containsExactly(competence.getCode());
+        // 🛑 Elle ne redevient PAS due dans le cycle en cours : une cloture ne se
+        // reouvre jamais (D-7). L'etape close reste affichee, cochee — une
+        // etape franchie ne disparait pas du parcours.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .filteredOn(JourneyStep::estOuverte)
+                .noneMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL);
     }
 
     @Test
@@ -263,15 +441,18 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, MAINTENANT);
-        journeyService.lire(user.getId(), true);
-        int avant = journeyService.lire(user.getId(), true).steps().size();
+        journeyService.lire(user.getId());
+        // 🛑 Compte sur la FILE, pas sur l'ecran : « ne dedouble ni le lot ni
+        // ses etapes » est un fait de la base, et un doublon d'examen dans un
+        // bloc ne se verrait pas dans `exam`, qui n'en sert qu'un.
+        int avant = etapes(user, JourneyStatus.EN_COURS).size();
 
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
 
         // Le bootstrap a deja enregistre cette evaluation : la rejouer ne
         // dedouble ni le lot, ni ses etapes.
-        assertThat(journeyService.lire(user.getId(), true).steps()).hasSize(avant);
+        assertThat(etapes(user, JourneyStatus.EN_COURS)).hasSize(avant);
     }
 
     @Test
@@ -280,15 +461,15 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID recente = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), recente, MAINTENANT);
-        journeyService.lire(user.getId(), true);
-        List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), true));
+        journeyService.lire(user.getId());
+        List<String> avant = codesDEntrainement(journeyService.lire(user.getId()));
 
         // Une session jouee hors ligne sur mobile, synchronisee apres coup.
         UUID tardive = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE2), tardive, HIER);
         journeyService.onAssessmentCompleted(user.getId(), examenDe(tardive, HIER));
 
-        assertThat(codesDEntrainement(journeyService.lire(user.getId(), true)))
+        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
                 .containsExactlyElementsOf(avant);
     }
 
@@ -302,13 +483,15 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 ObservationConfidence.HIGH, null, MAINTENANT, examen);
 
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
-        JourneyDto vue = journeyService.lire(user.getId(), true);
+        JourneyDto vue = journeyService.lire(user.getId());
 
         // R9 — « aucune priorite detectee » n'est pas une declaration de
         // maitrise, et ce n'est pas une anomalie : zero fragilite, zero lot.
         assertThat(codesDEntrainement(vue)).isEmpty();
-        assertThat(vue.steps()).noneSatisfy(step ->
-                assertThat(step.purpose()).isEqualTo(JourneyStepPurpose.REASSESS));
+        // Aucun point d'etape n'a ete cree : lu sur la FILE, la ou un examen de
+        // lot existerait s'il y en avait un.
+        assertThat(etapes(user, JourneyStatus.EN_COURS))
+                .noneMatch(step -> step.getPurpose() == JourneyStepPurpose.REASSESS);
     }
 
     @Test
@@ -317,8 +500,8 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
-        journeyService.lire(user.getId(), true);
-        List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), true));
+        journeyService.lire(user.getId());
+        List<String> avant = codesDEntrainement(journeyService.lire(user.getId()));
 
         UUID diagnostic = UUID.randomUUID();
         data.learningPlanObservation(user, skill(SkillTaskCode.EE2),
@@ -327,21 +510,26 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         journeyService.onAssessmentCompleted(
                 user.getId(), JourneyEvaluation.diagnosticRapide(diagnostic, MAINTENANT));
 
-        assertThat(codesDEntrainement(journeyService.lire(user.getId(), true)))
+        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
                 .containsExactlyElementsOf(avant);
     }
 
     @Test
-    @DisplayName("§18-9 — un lot d'une autre epreuve s'ajoute APRES, sans deplacer l'existant")
-    void unNouveauLotSAjouteEnFinDeFile() {
+    @DisplayName("§18-9 / D-13 — une evaluation d'une AUTRE epreuve ne deplace rien, et sa "
+            + "priorite attend le cycle suivant")
+    void uneEvaluationDUneAutreEpreuveNeDeplaceRien() {
         User user = candidat(TargetProcedure.NAT);
         UUID examenEe = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examenEe, HIER);
-        journeyService.lire(user.getId(), true);
-        long positionPremiere = journeyService.lire(user.getId(), true)
-                .steps().getFirst().position();
+        journeyService.lire(user.getId());
+        // 🛑 « Rien ne bouge devant » se lit sur la FILE : le groupement par
+        // epreuve range les etapes par bloc, il ne dit plus qui est en tete de
+        // file. C'est `position` qui porte cet ordre, et elle est monotone.
+        long positionPremiere = etapes(user, JourneyStatus.EN_COURS)
+                .getFirst().getPosition();
 
-        UUID examenEo = UUID.randomUUID();
+        UUID examenEo = data.epreuveProductionPassee(
+                user, EpreuveType.TCF_EO, NiveauCecrl.B1).getId();
         Skill deLEo = skill(SkillTaskCode.EO1);
         data.learningPlanObservation(user, deLEo,
                 LearningPlanSourceType.MOCK_EXAM_EO, LearningPlanSkillStatus.PRIORITY,
@@ -350,23 +538,29 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 new JourneyEvaluation(examenEo, JourneyAssessmentKind.SECTION_EXAM,
                         EpreuveType.TCF_EO, MAINTENANT));
 
-        List<JourneyStepDto> steps = journeyService.lire(user.getId(), true).steps();
-        // R4 — la nouvelle etape ne remplace jamais l'etape courante et ne passe
-        // jamais devant un examen deja prevu.
-        assertThat(steps.getFirst().position()).isEqualTo(positionPremiere);
-        assertThat(steps.getFirst().skillCode()).isNotNull();
-        JourneyStepDto nouvelle = steps.stream()
-                .filter(step -> deLEo.getCode().equals(step.skillCode()))
-                .findFirst().orElseThrow();
-        assertThat(nouvelle.examType()).isEqualTo(EpreuveType.TCF_EO);
-        assertThat(nouvelle.position()).isGreaterThan(positionPremiere);
+        JourneyDto vue = journeyService.lire(user.getId());
+        // R4 — rien ne bouge devant : la nouvelle priorite ne remplace jamais
+        // l'etape courante et ne passe jamais devant un examen deja prevu.
+        JourneyStep premiere = etapes(user, JourneyStatus.EN_COURS).getFirst();
+        assertThat(premiere.getPosition()).isEqualTo(positionPremiere);
+        assertThat(premiere.getSkill()).isNotNull();
+        // 🛑 CE QUE D-13 A CHANGE. Le cycle en cours est BORNE : il ne grossit
+        // plus. La priorite detectee par cet examen part dans le cycle EN
+        // ATTENTE, invisible du candidat, et deviendra son prochain cycle.
+        // ⚠️ Avant le 2026-09-18, elle s'ajoutait en fin de file du cycle en
+        // cours — un parcours qui s'allongeait indefiniment, sans jamais finir.
+        assertThat(codesDEntrainement(vue)).doesNotContain(deLEo.getCode());
+        assertThat(competencesEnAttente(user)).containsExactly(deLEo.getCode());
         // §18-12 — l'« Evaluer mon niveau » de l'EO est CLOS : on ne demande
-        // jamais de refaire un examen qu'on vient de passer (R7). Il reste
-        // AFFICHE, coche : une etape franchie ne disparait pas du parcours.
-        JourneyStepDto evaluerLEo = steps.stream()
-                .filter(step -> step.purpose() == JourneyStepPurpose.INITIAL_ASSESSMENT)
-                .filter(step -> step.examType() == EpreuveType.TCF_EO)
-                .findFirst().orElseThrow();
+        // jamais de refaire un examen qu'on vient de passer (R7), et le bloc EO
+        // ne portait aucune competence due. Il reste AFFICHE, coche : une etape
+        // franchie ne disparait pas du parcours.
+        // Le bloc EO ne porte qu'un examen : c'est celui-la, et il est servi
+        // ferme — « le dernier clos » quand il n'y a plus d'examen ouvert.
+        JourneyStepDto evaluerLEo = blocDe(vue, EpreuveType.TCF_EO).exam();
+        assertThat(evaluerLEo).isNotNull();
+        assertThat(evaluerLEo.purpose())
+                .isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
         assertThat(evaluerLEo.status())
                 .isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
     }
@@ -376,24 +570,28 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     // =====================================================================
 
     @Test
-    @DisplayName("§18-22 / §18-23 — changer d'objectif bascule sans redemander de diagnostic")
+    @DisplayName("§18-22 / §18-23 — changer d'objectif garde le cycle, sans redemander de diagnostic")
     void changerDObjectifNeForceJamaisUnDiagnostic() {
         User user = candidat(TargetProcedure.CR);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
-        JourneyDto b1 = journeyService.lire(user.getId(), true);
+        JourneyDto b1 = journeyService.lire(user.getId());
         assertThat(b1.targetLevel().name()).isEqualTo("B1");
+        UUID cycle = journeyService.getOrCreate(user.getId()).orElseThrow().getId();
 
         declarer(user, TargetProcedure.NAT);
-        JourneyDto b2 = journeyService.lire(user.getId(), true);
+        JourneyDto b2 = journeyService.lire(user.getId());
 
         assertThat(b2.targetLevel().name()).isEqualTo("B2");
-        // 🛑 Le parcours du nouveau niveau est amorce depuis l'historique : les
-        // observations ne dependent pas du niveau cible, seule leur SELECTION en
-        // depend. Aucun appel LLM, aucun diagnostic.
+        // 🛑 Le cycle EN COURS SURVIT et son niveau cible est mis a jour (D-13) :
+        // l'historiser jetterait le plan que le candidat a sous les yeux, et les
+        // priorites deja designees ne deviennent pas fausses parce que la cible
+        // a bouge — seul l'ORDRE des lots est recalcule, et il est derive.
+        assertThat(journeyService.getOrCreate(user.getId()).orElseThrow().getId())
+                .isEqualTo(cycle);
+        // Aucun appel LLM, aucun diagnostic : les observations ne dependent pas
+        // du niveau cible, seule leur SELECTION en depend.
         assertThat(typesDe(b2)).doesNotContain(JourneyStepType.DIAGNOSTIC);
         assertThat(codesDEntrainement(b2)).isNotEmpty();
-        // L'ancien parcours est CONSERVE tel quel.
-        assertThat(journeyService.getOrCreate(user.getId())).isPresent();
     }
 
     // =====================================================================
@@ -406,12 +604,11 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId(), true);
+        JourneyDto vue = journeyService.lire(user.getId());
 
-        JourneyStepDto checkpoint = vue.steps().stream()
-                .filter(step -> step.purpose() == JourneyStepPurpose.REASSESS)
-                .filter(step -> step.examType() == EpreuveType.TCF_EE)
-                .findFirst().orElseThrow();
+        JourneyStepDto checkpoint = blocDe(vue, EpreuveType.TCF_EE).exam();
+        assertThat(checkpoint).isNotNull();
+        assertThat(checkpoint.purpose()).isEqualTo(JourneyStepPurpose.REASSESS);
         // 🛑 L'EE vient d'etre mesuree — c'est elle qui a cree le lot. Elle ne
         // figure donc PAS dans `domainesAEvaluer`, qui ne liste que le
         // jamais-mesure, et la seance ne porte que la mesure indispensable.
@@ -434,19 +631,18 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId(), true);
+        JourneyDto vue = journeyService.lire(user.getId());
 
-        assertThat(vue.steps().stream()
-                .filter(step -> step.type() == JourneyStepType.TRAIN_SKILL)
+        assertThat(vue.blocs().stream()
+                .flatMap(bloc -> bloc.steps().stream())
                 .map(JourneyStepDto::assessment))
                 .isNotEmpty()
                 .containsOnlyNulls();
         // R12 — la CO n'est pas mesuree, son « Evaluer mon niveau » est dans la
         // file : sa mesure est l'examen de module, avec le type de questions que
         // `StartAttemptRequest` attend. Rien n'est compose par les fronts.
-        JourneyStepDto co = vue.steps().stream()
-                .filter(step -> step.examType() == EpreuveType.TCF_CO)
-                .findFirst().orElseThrow();
+        JourneyStepDto co = blocDe(vue, EpreuveType.TCF_CO).exam();
+        assertThat(co).isNotNull();
         assertThat(co.assessment()).isNotNull();
         assertThat(co.assessment().kind())
                 .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
@@ -505,13 +701,80 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 id, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE, quand);
     }
 
+    /** Le cycle du candidat dans cet etat, ou {@code null} s'il n'existe pas. */
+    private Journey cycle(User user, JourneyStatus status) {
+        return journeys.findByUserIdAndModuleAndStatus(user.getId(), Module.TCF, status)
+                .orElse(null);
+    }
+
+    /** Les etapes reellement en base — y compris celles que le DTO n'affiche pas. */
+    private List<JourneyStep> etapes(User user, JourneyStatus status) {
+        Journey journey = cycle(user, status);
+        return journey == null ? List.of() : journeySteps.findAllByJourney(journey.getId());
+    }
+
+    /**
+     * Les competences que le cycle EN ATTENTE porte. 🛑 Il est <b>invisible du
+     * candidat</b> : aucun endpoint ne le sert, donc un test qui veut le voir
+     * lit la base.
+     */
+    private List<String> competencesEnAttente(User user) {
+        return etapes(user, JourneyStatus.EN_ATTENTE).stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .map(step -> step.getSkill().getCode())
+                .toList();
+    }
+
+    /**
+     * Clot l'etape d'entrainement de cette competence, comme le ferait le quota
+     * atteint (R8). Ecrit directement : ce qui est teste ici est ce que
+     * l'EVALUATION suivante fait d'une etape deja close, pas le comptage du
+     * quota — celui-la est verrouille par {@code JourneyProgressionIT}.
+     */
+    private void cloreLEntrainement(User user, Skill competence) {
+        JourneyStep etape = etapes(user, JourneyStatus.EN_COURS).stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> step.getSkill() != null
+                        && step.getSkill().getId().equals(competence.getId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "Aucune etape d'entrainement pour " + competence.getCode()));
+        etape.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
+        journeySteps.saveAndFlush(etape);
+    }
+
+    private static JourneyBlocDto blocDe(JourneyDto vue, EpreuveType epreuve) {
+        return vue.blocs().stream()
+                .filter(bloc -> bloc.examType() == epreuve)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Aucun bloc " + epreuve));
+    }
+
+    /**
+     * <b>Tout ce que la vue sert</b> : les etapes de chaque bloc et son examen.
+     *
+     * <p>⚠️ Ce n'est <b>pas</b> l'ancien {@code JourneyDto.steps}, disparu en
+     * P6 : {@code JourneyBlocDto.steps} exclut l'examen, et {@code exam} n'en
+     * porte qu'<b>un</b> par bloc (l'ouvert, sinon le dernier clos). Une
+     * assertion qui a besoin de <b>toutes</b> les etapes — un doublon, un
+     * compte, un ordre de file — lit {@code etapes(user, status)}, la base.
+     */
+    private static List<JourneyStepDto> etapesServies(JourneyDto vue) {
+        return vue.blocs().stream()
+                .flatMap(bloc -> Stream.concat(
+                        bloc.steps().stream(),
+                        bloc.exam() == null ? Stream.empty() : Stream.of(bloc.exam())))
+                .toList();
+    }
+
     private static List<JourneyStepType> typesDe(JourneyDto vue) {
-        return vue.steps().stream().map(JourneyStepDto::type).distinct().toList();
+        return etapesServies(vue).stream()
+                .map(JourneyStepDto::type).distinct().toList();
     }
 
     private static List<String> codesDEntrainement(JourneyDto vue) {
-        return vue.steps().stream()
-                .filter(step -> step.type() == JourneyStepType.TRAIN_SKILL)
+        return vue.blocs().stream()
+                .flatMap(bloc -> bloc.steps().stream())
                 .map(JourneyStepDto::skillCode)
                 .toList();
     }

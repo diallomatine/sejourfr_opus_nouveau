@@ -57,6 +57,8 @@ class ProductionEvaluationServiceTest {
     private final UUID taskId = UUID.randomUUID();
     private final UUID attemptId = UUID.randomUUID();
 
+    private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
+
     @BeforeEach
     void setUp() {
         taskManager = mock(ProductionTaskManager.class);
@@ -70,9 +72,11 @@ class ProductionEvaluationServiceTest {
         subscriptionService = mock(SubscriptionService.class);
         // Gardes de session + quota : collaborateur REEL (pur), pour que les
         // regles verifiees ici soient celles qui tournent en production.
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
         ProductionAccessService accessService = new ProductionAccessService(
                 subscriptionService, attemptManager, submissionManager,
-                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class));
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
         service = new ProductionEvaluationService(
                 taskManager, submissionManager, transcriptionManager, attemptManager,
                 userManager, whisperService, pipelineRunner, accessService, props);
@@ -420,6 +424,9 @@ class ProductionEvaluationServiceTest {
     @Test
     void realtime_transcript_vide_refuse() {
         stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
+        // Abonne : depuis D-17, un entrainement libre EE/EO est premium, et le
+        // refus de quota tomberait avant celui du transcript vide.
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
         assertThatThrownBy(() -> service.evaluateRealtimeTranscript(userId, taskId, attemptId, "   ", 90))
                 .isInstanceOf(BusinessException.class);
     }
@@ -427,6 +434,7 @@ class ProductionEvaluationServiceTest {
     @Test
     void realtime_valide_persiste_submission_transcription_et_lance_le_pipeline() {
         stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
 
         service.evaluateRealtimeTranscript(userId, taskId, attemptId, "Examinateur: Bonjour\nCandidat: Bonjour", 90);
 
@@ -487,12 +495,14 @@ class ProductionEvaluationServiceTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    /**
+     * D-17 — l'entrainement libre EE/EO est premium sans exception, et la voie
+     * temps reel applique la <b>meme</b> regle : aucun appel paye ne part.
+     */
     @Test
-    void realtime_quota_gratuit_epuise_refuse() {
+    void realtime_entrainement_libre_gratuit_refuse_D17() {
         stubCommon(task(EpreuveType.TCF_EO), ownedAttempt(EpreuveType.TCF_EO));
         when(subscriptionService.hasTcf(userId)).thenReturn(false);
-        when(attemptManager.countProductionExamSessions(userId)).thenReturn(0L);
-        when(submissionManager.countTrainingByUserAndEpreuve(userId, EpreuveType.TCF_EO)).thenReturn(1L);
 
         assertThatThrownBy(() -> service.evaluateRealtimeTranscript(
                 userId, taskId, attemptId, "Candidat : bonjour", 60))

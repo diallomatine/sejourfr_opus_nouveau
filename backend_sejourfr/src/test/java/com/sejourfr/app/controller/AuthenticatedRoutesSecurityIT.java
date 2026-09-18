@@ -59,6 +59,10 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/progression"),
                 Arguments.of(HttpMethod.GET, "/api/me/plan"),
                 Arguments.of(HttpMethod.GET, "/api/me/plan/journey"),
+                // Les deux transitions de fin de cycle (spec §6). Elles
+                // historisent le cycle en cours : un anonyme n'en a jamais.
+                Arguments.of(HttpMethod.POST, "/api/me/plan/journey/refresh"),
+                Arguments.of(HttpMethod.POST, "/api/me/plan/journey/measurement-cycle"),
                 Arguments.of(HttpMethod.GET, "/api/me/questions/favorites"),
                 Arguments.of(HttpMethod.PUT, "/api/me/exam-date"),
                 // TcfDiagnosticController — le diagnostic TCF 4 épreuves

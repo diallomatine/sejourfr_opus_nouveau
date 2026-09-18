@@ -227,9 +227,17 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // annonce : le candidat gratuit lisait une etape et pouvait en
         // travailler une autre. UNE requete, jointure comprise — deux lectures
         // (le parcours, puis ses etapes) auraient coute deux.
+        // 21 depuis le 2026-09-18 (D-18) : `SkillAccessService` ne lit plus que
+        // l'ABONNEMENT. Les trois requetes qu'il payait — la premiere competence
+        // de chaque tache, le rang le plus bas de chaque domaine de
+        // comprehension, les sujets actifs des competences ouvertes — n'ont plus
+        // d'objet : travailler une competence depuis le Plan est premium, sans
+        // exception, donc il n'y a plus rien a ouvrir. 🛑 Une EGALITE, jamais un
+        // `<=` : c'est la seule facon d'attraper un N+1 ou une requete revenue
+        // par la bande.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(24);
+                .isEqualTo(21);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);

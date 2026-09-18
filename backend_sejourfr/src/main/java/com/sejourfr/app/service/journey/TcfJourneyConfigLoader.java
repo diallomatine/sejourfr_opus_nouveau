@@ -15,8 +15,9 @@ import java.io.InputStream;
  * et pour la meme raison : une configuration incomplete qui demarrerait quand
  * meme viderait des files sans que rien n'echoue.
  *
- * <p>Cinq refus volontaires : une cle inconnue, une section absente, une valeur
- * nulle sur un primitif, un plafond negatif ou nul, et un
+ * <p>Six refus volontaires : une cle inconnue, une section absente, une valeur
+ * nulle sur un primitif, un plafond negatif ou nul, une echappatoire de quota
+ * <b>inferieure</b> au quota de reussite (D-16), et un
  * {@code journeyConfigVersion} different de celui demande.
  *
  * <p>Le chargeur <b>ne corrige rien</b> et n'ecrit jamais dans le fichier.
@@ -58,16 +59,32 @@ public final class TcfJourneyConfigLoader {
         }
         positif(config.maxPrioritiesPerLot(), "maxPrioritiesPerLot", path);
         positif(config.trainSeriesQuota(), "trainSeriesQuota", path);
+        positif(config.trainSeriesFallbackQuota(), "trainSeriesFallbackQuota", path);
+        // 🛑 L'echappatoire de D-16 est un FILET, pas la regle : sous le quota de
+        // reussite, elle closerait toujours la premiere et « 2 series reussies »
+        // ne voudrait plus rien dire. Un boot rouge plutot qu'une regle
+        // silencieusement inversee.
+        if (config.trainSeriesFallbackQuota() < config.trainSeriesQuota()) {
+            throw new IllegalStateException(
+                    "trainSeriesFallbackQuota=" + config.trainSeriesFallbackQuota()
+                            + " est inferieur a trainSeriesQuota=" + config.trainSeriesQuota()
+                            + " dans " + path
+                            + " : l'echappatoire ne peut pas preceder le quota de reussite");
+        }
+        // ⚠️ `display` N'A PLUS DE LECTEUR depuis P6 (cf. TcfJourneyConfig.Display),
+        // mais les deux fichiers publies le declarent et le loader refuse une
+        // cle inconnue : il reste donc valide comme le reste du fichier. Valider
+        // ce qu'on ne lit pas coute une comparaison ; ne plus le valider
+        // laisserait passer un fichier que la version suivante pourrait relire.
         positif(config.display().upcomingVisible(), "display.upcomingVisible", path);
         if (config.display().recentCompletedVisible() < 0) {
             throw new IllegalStateException(
                     "display.recentCompletedVisible negatif dans " + path);
         }
         log.info("Configuration du parcours TCF chargee (v{}) : {} priorites par lot, "
-                        + "{} serie(s) de comprehension, timeline {} close(s) / {} a venir",
+                        + "{} serie(s) reussie(s) ou {} terminee(s) en comprehension",
                 config.journeyConfigVersion(), config.maxPrioritiesPerLot(),
-                config.trainSeriesQuota(), config.display().recentCompletedVisible(),
-                config.display().upcomingVisible());
+                config.trainSeriesQuota(), config.trainSeriesFallbackQuota());
         return config;
     }
 

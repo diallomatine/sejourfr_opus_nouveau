@@ -411,7 +411,7 @@ public class AttemptService {
 
         final boolean isExamSession = Boolean.TRUE.equals(req.exam());
         if (isExamSession) {
-            productionAccessService.assertCanStartProductionExam(userId);
+            productionAccessService.assertCanStartProductionExam(userId, req.epreuve());
         }
 
         Attempt attempt = new Attempt();

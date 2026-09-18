@@ -155,7 +155,14 @@ public class FullTcfExamResponseBuilder {
     private Sous mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
         EpreuveType e = sub.getEpreuve();
         // Le verrou ne concerne que les épreuves productives EE/EO.
-        boolean locked = parentProductionLocked
+        //
+        // 🛑 DEUX PORTEURS, ET C'EST VOULU (D-17 bis, 2026-09-18). Le drapeau du
+        // sous-attempt dit « CETTE épreuve-là est fermée » — deux gratuités
+        // nominatives ne se ferment pas ensemble. Le drapeau du parent, lui, est
+        // l'ancienne forme, posée quand les deux épreuves tombaient d'un bloc :
+        // il reste lu tel quel pour les examens antérieurs, qui sont de la
+        // donnée réelle. Un OU, jamais un remplacement.
+        boolean locked = (parentProductionLocked || sub.isProductionLocked())
                 && (e == EpreuveType.TCF_EE || e == EpreuveType.TCF_EO);
         if (locked) {
             // Épreuve VERROUILLÉE : elle n'a pas été PASSÉE, elle a été fermée

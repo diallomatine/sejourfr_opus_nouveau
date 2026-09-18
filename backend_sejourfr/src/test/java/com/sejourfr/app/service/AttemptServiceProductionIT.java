@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -202,21 +203,54 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
         assertThat(persisted.getParentAttempt().getId()).isEqualTo(parent.getId());
     }
 
+    /**
+     * 🛑 <b>D-17 bis (2026-09-18) — le REJEU d'un examen blanc est OUVERT.</b> Ce
+     * test verifiait l'ancien seuil « 2 sessions d'examen, EE+EO confondues »
+     * ({@code countProductionExamSessions >= 2}), qui refusait le demarrage : il
+     * est <b>revoque</b>. Repasser l'epreuve n'est plus interdit ; ce qui est
+     * ferme, c'est l'<b>analyse IA</b> du second passage
+     * ({@code ProductionAccessService.enforceQuota}, refus avant Whisper).
+     *
+     * <p>A l'ECRIT, le texte reste sous les yeux du candidat : le rejeu y est
+     * honnete, donc le demarrage passe, gratuite consommee ou non.
+     */
     @Test
-    void startProduction_examen_budgetGratuitDepasse_refuse() {
+    void startProduction_examenEcrit_rejeuOuvertMemeGratuiteConsommee_D17bis() {
         User user = data.user();
-        ProductionTask task = data.productionTask(EpreuveType.TCF_EE);
+        data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EE);
 
-        // 2 sessions d'examen production avec ≥ 1 soumission chacune → budget consommé.
-        for (int i = 0; i < 2; i++) {
-            AttemptResponse session = service.startProductionAttempt(
-                    user.getId(), req(EpreuveType.TCF_EE, null, true, 1));
-            Attempt attempt = attemptManager.findById(session.id()).orElseThrow();
-            data.productionSubmission(attempt, task, user);
-        }
+        AttemptResponse rejeu = service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EE, null, true, 2));
+
+        assertThat(rejeu.id()).isNotNull();
+    }
+
+    /**
+     * 🛑 <b>Sauf a l'ORAL, et c'est l'arbitrage rendu.</b> Sans Whisper, un rejeu
+     * EO ne laisse <b>rien</b> a lire : ni transcription, ni note, ni trace —
+     * l'audio d'un candidat n'est jamais conserve. Faire produire dans le vide
+     * est un mauvais geste : le paywall se presente donc au demarrage.
+     */
+    @Test
+    void startProduction_examenOral_rejeuRefuseAuDemarrage_D17bis() {
+        User user = data.user();
+        data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EO);
 
         assertThatThrownBy(() -> service.startProductionAttempt(
-                user.getId(), req(EpreuveType.TCF_EE, null, true, 1)))
-                .isInstanceOf(AccessDeniedException.class);
+                user.getId(), req(EpreuveType.TCF_EO, null, true, 2)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("jamais conservé");
+    }
+
+    /** Les deux gratuites sont NOMINATIVES : celle d'EE ne ferme pas l'oral. */
+    @Test
+    void startProduction_lesDeuxGratuitesSontNominatives_D17bis() {
+        User user = data.user();
+        data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EE);
+
+        AttemptResponse oral = service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EO, null, true, 1));
+
+        assertThat(oral.id()).isNotNull();
     }
 }
