@@ -13,6 +13,12 @@ import '../models/enums.dart';
 class AppColors {
   static const blue = Color(0xFF1E3A8C);
   static const blueDark = Color(0xFF15296B);
+
+  /// Le bleu intermediaire du degrade de hero, miroir de `--color-blue-mid`
+  /// cote web. Il n'existe que pour qu'un degrade ait le meme nombre d'arrets
+  /// des deux cotes : les deux kits sont miroirs brique pour brique, et un
+  /// degrade a deux arrets la ou le web en a trois se voit.
+  static const blueMid = Color(0xFF2A4BB0);
   static const blueLight = Color(0xFFE8ECF8);
   static const blueSoft = Color(0xFFF4F6FC);
 

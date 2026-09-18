@@ -4020,3 +4020,630 @@ class SfJourneyList extends StatelessWidget {
     );
   }
 }
+
+// =============================================================================
+// PLAN — CYCLE ET FIN DE CYCLE (maquettes du proprietaire, 2026-09-18)
+// `docs/progression/plan_cycle.html` ⇄ `docs/progression/cycle_termine.html`
+//
+// 🛑 Miroirs de `CycleProgress`, `BlocAccordion`, `ExamStepBox` et
+// `NextStepCard` cote web (`app/_components/sejour/SejourKit.tsx` +
+// `sejour.module.css`). Un motif qui bouge d'un cote bouge de l'autre dans la
+// meme passe.
+//
+// Perimetre : la zone du Plan qui commence a « Votre parcours vers le B2 »
+// (D-22). Tout ce qui est au-dessus — en-tete, bascule de module, bloc
+// objectif, « A faire maintenant » — reste l'existant.
+// =============================================================================
+
+/// **L'avancement du cycle** — le `.cycleIntro` de `plan_cycle.html`, et le
+/// `.progressBox` de `cycle_termine.html` quand il est termine.
+///
+/// 🛑 **Barre CONTINUE, et elle porte un chiffre.** C'est ce qui la distingue
+/// des deux briques voisines, qu'il ne faut surtout pas remplacer par elle :
+/// - [SfProgressMini] a un contrat qui **interdit tout chiffre** (« c'est une
+///   part parcourue, jamais une note ni un pourcentage annonce au candidat ») ;
+/// - [SfPathCard] a une barre **segmentee**, un segment par etape — elle decrit
+///   un parcours de tache, pas l'avancement d'un cycle entier.
+///
+/// Le pourcentage est **derive de [done] / [total]**, deux faits servis : ce
+/// n'est pas un etat pedagogique, seulement la lecture arithmetique du compteur
+/// que [label] ecrit deja en mots.
+///
+/// Miroir web : `CycleProgress`.
+class SfCycleProgress extends StatelessWidget {
+  const SfCycleProgress({
+    super.key,
+    required this.label,
+    required this.done,
+    required this.total,
+    this.badge,
+    this.hint,
+    this.complete = false,
+  });
+
+  /// Le compteur en mots (« 3 etapes sur 8 terminees »), **servi**.
+  final String label;
+
+  final int done;
+  final int total;
+
+  /// Le repere de cycle (« Cycle 2 »), **servi**. `null` ⇒ rien a droite.
+  final String? badge;
+
+  /// La phrase sous la barre, **servie**.
+  final String? hint;
+
+  /// L'etat 100 % : la barre se termine en vert et le pourcentage prend la
+  /// place du badge, comme dans `cycle_termine.html`.
+  ///
+  /// 🛑 **Passe, jamais deduit de `done == total`** : un cycle peut afficher
+  /// « 8 sur 8 » sans etre clos cote serveur (un examen reste a passer), et le
+  /// kit n'a pas a en decider.
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
+    final pct = complete && total <= 0 ? 100 : (ratio * 100).round();
+    return SfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppFonts.ui(size: 13.5, weight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (complete)
+                // Le cycle est clos : le chiffre prend la place du repere.
+                Text(
+                  '$pct %',
+                  style: AppFonts.label(size: 12, color: AppColors.greenDark),
+                )
+              else if (badge != null)
+                Text(
+                  badge!,
+                  style: AppFonts.ui(
+                    size: 11.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.muted,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            child: Container(
+              height: 7,
+              color: AppColors.line,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: complete ? 1.0 : ratio,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    // ⚠️ Degrade bleu → rouge : c'est la teinte de la maquette
+                    // validee. Le rouge n'y signale rien d'urgent, il ferme
+                    // l'accent tricolore de la marque — la regle « rouge = CTA
+                    // critique » porte sur les actions, pas sur cet aplat.
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: complete
+                          ? const [AppColors.blue, AppColors.green]
+                          : const [AppColors.blue, AppColors.red],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              hint!,
+              style:
+                  AppFonts.ui(size: 12, color: AppColors.muted, height: 1.45),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **L'en-tete d'un bloc d'epreuve, depliable** — le `.examGroup` de
+/// `plan_cycle.html` : repere d'epreuve, nom en clair, meta, pastille d'etat,
+/// et un corps qui s'ouvre.
+///
+/// 🛑 **L'etat d'ouverture est EXTERNE** ([open] + [onToggle]), jamais
+/// interne : l'ecran doit pouvoir n'en deplier **qu'un** — le bloc courant.
+/// C'est exactement ce que [SfPrio] ne sait pas faire (son `State` est prive),
+/// et c'est pourquoi cette brique existe au lieu d'une variante de [SfPrio].
+///
+/// 🛑 **Le nom de l'epreuve est EN CLAIR** (D-21) : « Comprehension orale »,
+/// pas « CO » seul, pas « lot », pas « step ». Le vocabulaire interne reste
+/// interne.
+///
+/// Composition attendue : une [SfJourneyList] de [SfJourneyRow] (les etapes,
+/// avec leur rail), puis un [SfExamStepBox]. Le corps ne porte donc aucun
+/// retrait de rail — c'est la liste qui a le sien.
+///
+/// Miroir web : `BlocAccordion`.
+class SfBlocAccordion extends StatelessWidget {
+  const SfBlocAccordion({
+    super.key,
+    required this.mark,
+    required this.title,
+    required this.meta,
+    required this.status,
+    required this.open,
+    required this.onToggle,
+    required this.child,
+    this.current = false,
+  });
+
+  /// Le repere court de l'epreuve (« CO »), en etiquette technique.
+  final String mark;
+
+  /// Le nom de l'epreuve **en clair**, servi.
+  final String title;
+
+  /// « 1 competence restante · puis examen », **servi**.
+  final String meta;
+
+  /// Le libelle d'etat et son ton, tous deux **servis**.
+  final ({String label, SfTone tone}) status;
+
+  final bool open;
+  final VoidCallback onToggle;
+
+  /// Le bloc courant : filet et repere accentues. **Servi**, jamais deduit.
+  final bool current;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadii.lg);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: radius,
+        // Le bloc courant se detache : filet plus marque et relief, comme
+        // `.current` dans la maquette.
+        border: current ? Border.all(color: AppColors.lineStrong) : null,
+        boxShadow: current ? AppShadows.md : AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: open,
+            child: InkWell(
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.all(15),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: current ? AppColors.blue : AppColors.blueLight,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Text(
+                        mark,
+                        style: AppFonts.label(
+                          size: 12.5,
+                          color: current ? AppColors.white : AppColors.blue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppFonts.ui(
+                              size: 14.5,
+                              weight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            meta,
+                            style: AppFonts.ui(
+                              size: 12,
+                              color: AppColors.muted,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    // La pastille SHRINKE : un libelle d'etat long deborderait
+                    // un telephone a 360 px.
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: SfPill(
+                            label: status.label, tone: status.tone),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // La seule affordance visible qu'un bloc se deplie. Le
+                    // chevron PIVOTE, il ne se remplace pas — aucun saut de
+                    // largeur a l'ouverture.
+                    AnimatedRotation(
+                      turns: open ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 160),
+                      child: const Icon(
+                        LucideIcons.chevronDown,
+                        size: 18,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Le corps est RETIRE de l'arbre quand il est replie : un lecteur
+          // d'ecran ne doit pas traverser un bloc ferme.
+          if (open)
+            Container(
+              padding: const EdgeInsets.fromLTRB(15, 6, 15, 15),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.line)),
+              ),
+              child: child,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// **L'encart d'examen imbrique en fin de bloc** — le `.examBox` de
+/// `plan_cycle.html`.
+///
+/// 🛑 **[locked] rend l'encart inerte** : ni `onTap`, ni retour au toucher. Le
+/// contenu reste **entierement lisible** — on ajoute un verrou, on ne masque
+/// rien (R16, contradiction #1 tranchee le 2026-08-21).
+///
+/// [state] porte le libelle **servi** (« Verrouille », « Disponible ») et son
+/// ton : [SfBarTone.muted] quand il n'y a rien a faire, [SfBarTone.now] quand
+/// l'examen s'ouvre.
+///
+/// Miroir web : `ExamStepBox`.
+class SfExamStepBox extends StatelessWidget {
+  const SfExamStepBox({
+    super.key,
+    required this.title,
+    required this.state,
+    required this.note,
+    required this.locked,
+    this.onTap,
+  });
+
+  /// « Examen blanc · Comprehension orale », ou la mesure d'un niveau. Servi.
+  final String title;
+
+  final ({String label, SfBarTone tone}) state;
+
+  /// La phrase de condition, **servie**.
+  final String note;
+
+  final bool locked;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadii.md);
+    final corps = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                state.label.toUpperCase(),
+                style: AppFonts.label(
+                  size: 10.5,
+                  color: _sfStatusColor(state.tone),
+                ),
+              ),
+              if (locked) ...[
+                const SizedBox(width: 6),
+                const Icon(LucideIcons.lock, size: 13, color: AppColors.muted),
+              ],
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            note,
+            style: AppFonts.ui(
+                size: 11.5, color: AppColors.muted, height: 1.45),
+          ),
+        ],
+      ),
+    );
+    final decore = Container(
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: radius,
+        border: Border.all(color: AppColors.line),
+      ),
+      child: corps,
+    );
+    if (locked || onTap == null) return decore;
+    return Material(
+      color: AppColors.blueSoft,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: AppColors.line),
+          ),
+          child: corps,
+        ),
+      ),
+    );
+  }
+}
+
+/// Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme.
+typedef SfNextStepFact = ({String value, String label});
+
+/// **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`, et
+/// 🛑 **la seule primitive du kit a DEUX actions**.
+///
+/// C'est la raison de son existence : aucune brique n'a deux emplacements
+/// d'action ([SfNowCard] en a un, [SfStickyBar] en porte une, [SfButton] est un
+/// bouton). Le choix « passer l'examen complet » / « actualiser mon plan sans
+/// examen » est un vrai choix, et le second terme ne doit pas se lire comme un
+/// renoncement — d'ou une action **discrete mais entiere** sous le CTA, pas un
+/// lien de pied.
+///
+/// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title], [text], les
+/// [facts] et les deux libelles d'action arrivent tous en parametres.
+///
+/// Miroir web : `NextStepCard`.
+class SfNextStepCard extends StatelessWidget {
+  const SfNextStepCard({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    required this.text,
+    required this.facts,
+    required this.primary,
+    this.secondary,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String text;
+
+  /// Les reperes de l'examen (3 dans la maquette). Vide ⇒ aucune grille.
+  final List<SfNextStepFact> facts;
+
+  final ({String label, VoidCallback onPressed}) primary;
+
+  /// 🛑 **Facultative, et c'est une vraie issue du produit** : a la fin d'un
+  /// cycle de mesure, « passer l'examen blanc complet » n'a plus de sens — il ne
+  /// reste qu'une action. Absente, la carte n'affiche **rien** a sa place : on
+  /// ne fabrique pas un second terme pour tenir la forme.
+  final ({String label, VoidCallback onPressed})? secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final doux = AppColors.white.withValues(alpha: 0.86);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.blueDark, AppColors.blue, AppColors.blueMid],
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
+      ),
+      child: Stack(
+        children: [
+          // L'anneau decoratif du coin, comme `.finalCard:after`.
+          Positioned(
+            right: -55,
+            top: -62,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.white.withValues(alpha: 0.06),
+                  width: 28,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                      border: Border.all(
+                        color: AppColors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Text(
+                      eyebrow.toUpperCase(),
+                      style: AppFonts.label(size: 10.5, color: doux),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: AppFonts.display(
+                    size: 21,
+                    weight: FontWeight.w700,
+                    color: AppColors.white,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  text,
+                  style:
+                      AppFonts.ui(size: 13, color: doux, height: 1.5),
+                ),
+                if (facts.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < facts.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.white.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(13),
+                              border: Border.all(
+                                color:
+                                    AppColors.white.withValues(alpha: 0.10),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  facts[i].value,
+                                  style: AppFonts.ui(
+                                    size: 12.5,
+                                    weight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  facts[i].label,
+                                  style: AppFonts.ui(
+                                    size: 10.5,
+                                    color: AppColors.white
+                                        .withValues(alpha: 0.78),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 15),
+                // Le CTA rouge est celui du kit : une seule definition de
+                // bouton principal, ici comme partout.
+                SfButton(
+                  label: primary.label,
+                  onPressed: primary.onPressed,
+                ),
+                if (secondary != null) ...[
+                  const SizedBox(height: 9),
+                  // L'action discrete : entiere, pas un lien de pied — le
+                  // second terme d'un vrai choix ne doit pas se lire comme un
+                  // renoncement.
+                  _SfNextStepSecondary(
+                    label: secondary!.label,
+                    onPressed: secondary!.onPressed,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SfNextStepSecondary extends StatelessWidget {
+  const _SfNextStepSecondary({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadii.md);
+    return Material(
+      color: AppColors.white.withValues(alpha: 0.10),
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: radius,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 46),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: AppColors.white.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(
+              size: 13,
+              weight: FontWeight.w700,
+              color: AppColors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

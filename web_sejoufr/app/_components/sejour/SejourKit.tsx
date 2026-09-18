@@ -1790,3 +1790,293 @@ export function InfoNote({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/* ==========================================================================
+   Maquettes « Plan — cycle » et « Plan — fin de cycle » (propriétaire,
+   2026-09-18 ; `docs/progression/plan_cycle.html` ⇄ `cycle_termine.html`)
+
+   🛑 Miroirs de `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox` et
+   `SfNextStepCard` côté Flutter, plus `Pill` (rattrapage web de `SfPill`). Un
+   motif qui bouge d'un côté bouge de l'autre dans la même passe.
+
+   Périmètre : la zone du Plan qui commence à « Votre parcours vers le B2 »
+   (D-22). Tout ce qui est au-dessus — en-tête, bascule de module, bloc
+   objectif, « À faire maintenant » — reste l'existant.
+   ========================================================================== */
+
+/**
+ * **Pastille d'état autonome** — fond clair, texte du même ton.
+ *
+ * 🛑 Rattrapage de parité (2026-09-18) : le mobile avait `SfPill` depuis le
+ * début, le web n'avait que des pastilles **internes** à des lignes
+ * (`MiniPlan`, `ThemeLine`). Un écran qui voulait la même pastille devait donc
+ * passer par `sejourStyles.pill` — c'est-à-dire écrire du CSS d'écran, ce que
+ * la règle du dépôt interdit sur ce périmètre.
+ *
+ * Le `label` est **servi** : cette brique ne compose et ne classe rien.
+ * Miroir Flutter : `SfPill`.
+ */
+export function Pill({ label, tone }: { label: string; tone: Tone }) {
+  return <span className={cx(styles.pill, toneClass[tone])}>{label}</span>;
+}
+
+/**
+ * **L'avancement du cycle** — le `.cycleIntro` de `plan_cycle.html`, et le
+ * `.progressBox` de `cycle_termine.html` quand il est terminé.
+ *
+ * 🛑 **Barre CONTINUE, et elle porte un chiffre.** C'est ce qui la distingue
+ * des deux briques voisines, qu'il ne faut surtout pas remplacer par elle :
+ * - `ProgressMini` a un contrat qui **interdit tout chiffre** (« c'est une part
+ *   parcourue, jamais une note ni un pourcentage annoncé au candidat ») ;
+ * - `PathCard` a une barre **segmentée**, un segment par étape — elle décrit un
+ *   parcours de tâche, pas l'avancement d'un cycle entier.
+ *
+ * Le pourcentage est **dérivé de `done` / `total`**, deux faits servis : ce
+ * n'est pas un état pédagogique, seulement la lecture arithmétique du compteur
+ * que `label` écrit déjà en mots.
+ *
+ * Miroir Flutter : `SfCycleProgress`.
+ */
+export function CycleProgress({
+  label,
+  done,
+  total,
+  badge,
+  hint,
+  complete,
+}: {
+  /** Le compteur en mots (« 3 étapes sur 8 terminées »), **servi**. */
+  label: string;
+  done: number;
+  total: number;
+  /** Le repère de cycle (« Cycle 2 »), **servi**. Absent ⇒ rien à droite. */
+  badge?: string;
+  /** La phrase sous la barre, **servie**. */
+  hint?: string;
+  /**
+   * L'état 100 % : la barre se termine en vert et le pourcentage prend la place
+   * du badge, comme dans `cycle_termine.html`.
+   *
+   * 🛑 **Passé, jamais déduit de `done === total`** : un cycle peut afficher
+   * « 8 sur 8 » sans être clos côté serveur (un examen reste à passer), et le
+   * kit n'a pas à en décider.
+   */
+  complete?: boolean;
+}) {
+  const ratio = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  const pct = complete && total <= 0 ? 100 : Math.round(ratio * 100);
+  return (
+    <Card>
+      <div className={styles.cycleTop}>
+        <b>{label}</b>
+        {complete ? (
+          <span className={styles.cyclePct}>{`${pct} %`}</span>
+        ) : badge ? (
+          <span className={styles.cycleBadge}>{badge}</span>
+        ) : null}
+      </div>
+      <div className={cx(styles.cycleBar, complete && styles.isDone)} aria-hidden>
+        <i style={{ width: `${complete ? 100 : pct}%` }} />
+      </div>
+      {hint ? <p className={styles.cycleHint}>{hint}</p> : null}
+    </Card>
+  );
+}
+
+/**
+ * **L'en-tête d'un bloc d'épreuve, dépliable** — le `.examGroup` de
+ * `plan_cycle.html` : repère d'épreuve, nom en clair, méta, pastille d'état, et
+ * un corps qui s'ouvre.
+ *
+ * 🛑 **L'état d'ouverture est EXTERNE** (`open` + `onToggle`), jamais interne :
+ * l'écran doit pouvoir n'en déplier **qu'un** — le bloc courant. C'est
+ * exactement ce que `Prio` ne sait pas faire (son `useState` est privé), et
+ * c'est pourquoi cette brique existe au lieu d'une variante de `Prio`.
+ *
+ * 🛑 **Le nom de l'épreuve est EN CLAIR** (D-21) : « Compréhension orale », pas
+ * « CO » seul, pas « lot », pas « step ». Le vocabulaire interne reste interne.
+ *
+ * ⚠️ Le corps est rendu **replié, pas démonté** (`hidden`) : il sort de l'arbre
+ * d'accessibilité et du parcours clavier, comme chez `Prio` et `HistoryRow`.
+ *
+ * Composition attendue : une `JourneyList` de `JourneyRow` (les étapes, avec
+ * leur rail), puis un `ExamStepBox`. Le corps ne porte donc aucun retrait de
+ * rail — c'est la liste qui a le sien.
+ *
+ * Miroir Flutter : `SfBlocAccordion`.
+ */
+export function BlocAccordion({
+  mark,
+  title,
+  meta,
+  status,
+  open,
+  onToggle,
+  current,
+  children,
+}: {
+  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique. */
+  mark: string;
+  /** Le nom de l'épreuve **en clair**, servi. */
+  title: string;
+  /** « 1 compétence restante · puis examen », **servi**. */
+  meta: string;
+  /** Le libellé d'état et son ton, tous deux **servis**. */
+  status: { label: string; tone: Tone };
+  open: boolean;
+  onToggle: () => void;
+  /** Le bloc courant : liseré et repère accentués. **Servi**, jamais déduit. */
+  current?: boolean;
+  children: ReactNode;
+}) {
+  const panelId = useId();
+  return (
+    <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
+      <button
+        type="button"
+        className={styles.blocHead}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className={styles.blocMark}>{mark}</span>
+        <span className={styles.blocId}>
+          <span className={styles.blocTitle}>{title}</span>
+          <span className={styles.blocMeta}>{meta}</span>
+        </span>
+        <Pill label={status.label} tone={status.tone} />
+        {/* La seule affordance visible qu'un bloc se déplie : la maquette compte
+            sur le curseur, qui n'existe pas au doigt. Le chevron PIVOTE, il ne
+            se remplace pas — aucun saut de largeur à l'ouverture. */}
+        <ChevronDown
+          size={18}
+          strokeWidth={2.5}
+          className={cx(styles.blocChevron, open && styles.chevronUp)}
+          aria-hidden
+        />
+      </button>
+      <div id={panelId} className={styles.blocBody} hidden={!open}>
+        {children}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * **L'encart d'examen imbriqué en fin de bloc** — le `.examBox` de
+ * `plan_cycle.html`.
+ *
+ * 🛑 **`locked` rend l'encart inerte** : ni bouton, ni curseur, ni `onTap`. Le
+ * contenu reste **entièrement lisible** — on ajoute un verrou, on ne masque
+ * rien (R16, contradiction #1 tranchée le 2026-08-21).
+ *
+ * `state` porte le libellé **servi** (« Verrouillé », « Disponible ») et son
+ * ton : `muted` quand il n'y a rien à faire, `now` quand l'examen s'ouvre.
+ *
+ * Miroir Flutter : `SfExamStepBox`.
+ */
+export function ExamStepBox({
+  title,
+  state,
+  note,
+  locked,
+  onClick,
+}: {
+  /** « Examen blanc · Compréhension orale », ou la mesure d'un niveau. Servi. */
+  title: string;
+  state: { label: string; tone: BarTone };
+  /** La phrase de condition, **servie**. */
+  note: string;
+  locked: boolean;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span className={styles.examBoxTop}>
+        <b>{title}</b>
+        <span className={cx(styles.examBoxState, statusToneClass[state.tone])}>
+          {state.label}
+        </span>
+        {locked ? <Lock size={13} strokeWidth={2.2} aria-hidden /> : null}
+      </span>
+      <span className={styles.examBoxNote}>{note}</span>
+    </>
+  );
+  if (locked || !onClick) {
+    return <div className={cx(styles.examBox, locked && styles.isLocked)}>{body}</div>;
+  }
+  return (
+    <button type="button" className={cx(styles.examBox, styles.isOpen)} onClick={onClick}>
+      {body}
+    </button>
+  );
+}
+
+/** Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme. */
+export type NextStepFact = { value: string; label: string };
+
+/**
+ * **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`, et
+ * 🛑 **la seule primitive du kit à DEUX actions**.
+ *
+ * C'est la raison de son existence : aucune brique n'a deux emplacements
+ * d'action (`NowCard` en a un, `Sticky` en porte une, `Cta` est un bouton). Le
+ * choix « passer l'examen complet » / « actualiser mon plan sans examen » est
+ * un vrai choix, et le second terme ne doit pas se lire comme un renoncement —
+ * d'où une action **discrète mais entière** sous le CTA, pas un lien de pied.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici** : `eyebrow`, `title`, `text`, les
+ * `facts` et les deux libellés d'action arrivent tous en props.
+ *
+ * Miroir Flutter : `SfNextStepCard`.
+ */
+export function NextStepCard({
+  eyebrow,
+  title,
+  text,
+  facts,
+  primary,
+  secondary,
+}: {
+  eyebrow: string;
+  title: string;
+  text: string;
+  /** Les repères de l'examen (3 dans la maquette). Vide ⇒ aucune grille. */
+  facts: NextStepFact[];
+  primary: { label: string; onClick: () => void };
+  /**
+   * 🛑 **Facultative, et c'est une vraie issue du produit** : à la fin d'un
+   * cycle de mesure, « passer l'examen blanc complet » n'a plus de sens — il ne
+   * reste qu'une action. Absente, la carte n'affiche **rien** à sa place : on
+   * ne fabrique pas un second terme pour tenir la forme.
+   */
+  secondary?: { label: string; onClick: () => void };
+}) {
+  return (
+    <section className={styles.nextStep}>
+      <p className={styles.nextEyebrow}>{eyebrow}</p>
+      <h3 className={styles.nextTitle}>{title}</h3>
+      <p className={styles.nextText}>{text}</p>
+      {facts.length > 0 ? (
+        <div className={styles.nextFacts}>
+          {facts.map((fact) => (
+            <div key={fact.label} className={styles.nextFact}>
+              <b>{fact.value}</b>
+              <span>{fact.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className={styles.nextActions}>
+        {/* Le CTA rouge est celui du kit : une seule définition de bouton
+            principal, ici comme partout. */}
+        <Cta onClick={primary.onClick}>{primary.label}</Cta>
+        {secondary ? (
+          <button type="button" className={styles.nextSecondary} onClick={secondary.onClick}>
+            {secondary.label}
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}

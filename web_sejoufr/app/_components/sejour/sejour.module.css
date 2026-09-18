@@ -1857,6 +1857,7 @@
   .cardHero .btn,
   .card .btn,
   .cardOk .btn,
+  .nextStep .btn,
   .sticky .btn {
     max-width: none;
   }
@@ -2943,4 +2944,424 @@
 .jDone .jBadge {
   color: var(--color-green);
   box-shadow: 0 0 0 1px var(--color-green-border);
+}
+
+/* ======================================================================
+   PLAN — CYCLE ET FIN DE CYCLE (maquettes du propriétaire, 2026-09-18)
+   `docs/progression/plan_cycle.html` ⇄ `docs/progression/cycle_termine.html`
+
+   Miroir Flutter : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox`,
+   `SfNextStepCard` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+
+   🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
+   `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
+   ce bloc doit rester vide.
+   ====================================================================== */
+
+/* ---------- L'avancement du cycle (barre CONTINUE, avec son chiffre) ---- */
+
+.cycleTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cycleTop b {
+  font-size: 13.5px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.cycleBadge {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Le cycle est clos : le chiffre prend la place du repère de cycle. */
+.cyclePct {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-green-dark);
+  white-space: nowrap;
+}
+
+.cycleBar {
+  margin-top: 10px;
+  height: 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-line);
+  overflow: hidden;
+}
+
+/* ⚠️ Dégradé bleu → rouge : c'est la teinte de la maquette validée. Le rouge
+   n'y signale rien d'urgent, il ferme l'accent tricolore de la marque — la
+   règle « rouge = CTA critique » porte sur les actions, pas sur cet aplat. */
+.cycleBar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: linear-gradient(90deg, var(--color-blue), var(--color-red));
+  transition: width var(--sf-fast) var(--sf-ease-out);
+}
+
+.cycleBar.isDone i {
+  background: linear-gradient(90deg, var(--color-blue), var(--color-green));
+}
+
+.cycleHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cycleBar i {
+    transition: none;
+  }
+}
+
+/* ---------- Le bloc d'épreuve dépliable ---------- */
+
+.blocGroup {
+  background: white;
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-border);
+  overflow: hidden;
+}
+
+/* Le bloc courant se détache : liseré plus marqué et relief, comme `.current`
+   dans la maquette. */
+.blocGroup.isCurrent {
+  box-shadow:
+    0 0 0 1px var(--color-line-strong),
+    var(--sf-shadow-lift);
+}
+
+.blocHead {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  font: inherit;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  /* La colonne de la pastille SHRINKE : un libellé d'état long déborderait un
+     téléphone à 360 px en `auto` pur. */
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, auto) 18px;
+  gap: 11px;
+  align-items: center;
+  padding: 15px;
+}
+
+.blocHead:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+
+/* Le repère d'épreuve, en mono : c'est une étiquette technique, comme
+   `.levelMark` sur l'Accueil. */
+.blocMark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.isCurrent .blocMark {
+  background: var(--color-blue);
+  color: white;
+}
+
+.blocId {
+  min-width: 0;
+}
+
+.blocTitle {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.blocMeta {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.blocChevron {
+  color: var(--color-muted);
+  transition: transform 0.16s ease;
+}
+
+.blocBody {
+  border-top: 1px solid var(--color-line);
+  padding: 6px 15px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blocChevron {
+    transition: none;
+  }
+}
+
+/* ---------- L'encart d'examen imbriqué ---------- */
+
+.examBox {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-soft);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+/* Verrouillé : inerte. Le contenu reste entièrement lisible — on ajoute un
+   verrou, on ne masque rien. */
+.examBox.isLocked {
+  cursor: default;
+}
+
+.examBox.isOpen {
+  cursor: pointer;
+  transition: background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.examBox.isOpen:hover {
+  background: var(--color-blue-light);
+}
+
+.examBox.isOpen:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.examBoxTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.examBoxTop b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.examBoxState {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.examBox svg {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+}
+
+.examBoxNote {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- La carte de fin de cycle (DEUX actions) ---------- */
+
+.nextStep {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 20px 18px 18px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-blue-dark) 0%,
+    var(--color-blue) 58%,
+    var(--color-blue-mid) 100%
+  );
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* L'anneau décoratif du coin, comme `.finalCard:after`. */
+.nextStep::after {
+  content: "";
+  position: absolute;
+  right: -55px;
+  top: -62px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 28px solid color-mix(in srgb, white 6%, transparent);
+  pointer-events: none;
+}
+
+.nextStep > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nextEyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, white 88%, transparent);
+}
+
+.nextTitle {
+  margin: 12px 0 6px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.nextText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 86%, transparent);
+}
+
+.nextFacts {
+  display: grid;
+  /* Trois colonnes dès qu'elles tiennent, une pile en dessous : à 360 px trois
+     colonnes de 96 px ne laissent plus lire les libellés. */
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.nextFact {
+  border-radius: 13px;
+  padding: 10px;
+  background: color-mix(in srgb, white 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 10%, transparent);
+  min-width: 0;
+}
+
+.nextFact b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.nextFact span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: color-mix(in srgb, white 78%, transparent);
+}
+
+.nextActions {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* L'action discrète : entière, pas un lien de pied — le second terme d'un vrai
+   choix ne doit pas se lire comme un renoncement. */
+.nextSecondary {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--sf-radius-sm);
+  background: color-mix(in srgb, white 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 20%, transparent);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.nextSecondary:hover {
+  background: color-mix(in srgb, white 18%, transparent);
+}
+
+.nextSecondary:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .examBox.isOpen,
+  .nextSecondary {
+    transition: none;
+  }
+}
+
+/* ⚠️ Palier desktop : la carte de fin de cycle respire, rien d'autre ne
+   change. Une media query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .nextStep {
+    padding: 26px 24px 22px;
+  }
+
+  .nextTitle {
+    font-size: 25px;
+  }
+
+  .nextActions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .nextActions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
