@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../api/api_exception.dart';
 import '../api/auth_repository.dart';
 import '../api/billing_repository.dart';
 import '../api/repositories.dart';
@@ -110,6 +111,22 @@ class AuthController extends StateNotifier<AuthState> {
           user = _applyStatus(user, status);
         } catch (_) {/* tolérant */}
         return AuthAuthenticated(user);
+      } on ApiException catch (e) {
+        // 🛑 UNE COUPURE RESEAU NE DECONNECTE PAS. `statusCode == 0` dit « je
+        // n'ai pas pu demander », pas « tu n'es pas toi » : effacer les jetons
+        // la-dessus jetait la session d'un candidat entre dans le metro, et lui
+        // redemandait son mot de passe au retour du reseau.
+        if (e.isNetwork) {
+          final connu = await _storage.readUser();
+          // Le dernier `user` connu suffit a rouvrir l'app ; les ecrans qui ont
+          // besoin du serveur diront eux-memes qu'ils n'ont pas pu charger. Et
+          // s'il n'y a rien de connu, on reste deconnecte SANS effacer les
+          // jetons : la prochaine ouverture avec du reseau retombera sur ses
+          // pieds.
+          return connu == null ? const AuthUnauthenticated() : AuthAuthenticated(connu);
+        }
+        await _storage.clear();
+        return const AuthUnauthenticated();
       } catch (_) {
         await _storage.clear();
         return const AuthUnauthenticated();
