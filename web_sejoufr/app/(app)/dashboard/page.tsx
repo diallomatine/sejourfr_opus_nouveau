@@ -60,6 +60,7 @@ import {
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
     CIVIQUE_LABEL,
+    DIAGNOSTIC_RAPIDE_START_HREF,
     TCF_LABEL,
     affinerPlan,
     moduleParDefaut,
@@ -522,7 +523,13 @@ function ActionPrincipale({
                 objective={diagnosticStartObjective(diagnostic.format)}
             >
                 <div className="home-now-actions">
-                    <Cta href="/diagnostic">Faire mon diagnostic</Cta>
+                    {/* 🛑 **Le bouton porte déjà la décision** (arbitrage du
+                        2026-09-12) : « Faire mon diagnostic » LANCE le
+                        diagnostic, il n'ouvre pas une page qui redemande de le
+                        lancer. Ce marqueur manquait ici — un compte neuf
+                        atterrissait sur « Quel examen préparez-vous ? » alors
+                        qu'il venait de choisir son parcours. */}
+                    <Cta href={DIAGNOSTIC_RAPIDE_START_HREF}>Faire mon diagnostic</Cta>
                     <button type="button" onClick={onDismiss} className="home-now-later">
                         Plus tard
                     </button>
@@ -547,7 +554,12 @@ function ActionPrincipale({
                 }
             >
                 <div className="home-now-actions">
-                    <Cta href="/diagnostic">
+                    {/* « Reprendre mon diagnostic » nomme le geste, donc il le
+                        pose ; « Voir l'analyse » ne lance rien et ouvre l'écran
+                        tel quel. ⚠️ Sans effet quand le candidat est déjà plus
+                        loin que la présentation : l'écran ne saute que ce qu'il
+                        y a à sauter. */}
+                    <Cta href={analyzing ? "/diagnostic" : DIAGNOSTIC_RAPIDE_START_HREF}>
                         {analyzing ? "Voir l'analyse" : "Reprendre mon diagnostic"}
                     </Cta>
                 </div>

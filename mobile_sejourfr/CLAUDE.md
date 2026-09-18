@@ -1357,7 +1357,12 @@ Deux correctifs, dans la même passe :
 - **`?demarrer=1` saute la présentation.** Le marqueur est déclaré une fois
   (`kDiagnosticDemarrageDirect`, `core/models/preparation_labels.dart`, miroir
   de `DIAGNOSTIC_START_PARAM` côté web) et posé par les **seules portes qui
-  nomment le geste** — `tcfAction` et `planIndisponible`. 🛑 **Un marqueur,
+  nomment le geste** — `tcfAction`, `planIndisponible` et **la carte de
+  l'Accueil** (`_actionTcf`), dans ses deux états « Faire » et « Reprendre ».
+  ⚠️ **L'Accueil manquait à cette liste jusqu'au 2026-09-18** : un compte neuf
+  y appuyait sur « Faire mon diagnostic » et atterrissait sur « Quel examen
+  préparez-vous ? », alors qu'il venait de choisir son parcours dans la bascule
+  juste au-dessus. « Voir l'analyse » ne le pose pas — il ne lance rien. 🛑 **Un marqueur,
   aucun identifiant** : `/diagnostic` nu garde sa présentation, qui reste
   l'écran normal pour un lien profond ou un visiteur.
   🛑 **Compte connecté uniquement**, et **une fois par montage**

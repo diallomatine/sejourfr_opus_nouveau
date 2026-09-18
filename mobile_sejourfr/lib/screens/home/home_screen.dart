@@ -295,7 +295,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ctaLocation: AnalyticsCtaLocation.hero,
                       diagnosticType: AnalyticsDiagnosticType.unknown,
                     );
-                context.push(AppRoutes.diagnostic);
+                // 🛑 **Le bouton porte déjà la décision** (arbitrage du
+                // 2026-09-12) : « Faire mon diagnostic » LANCE le diagnostic,
+                // il n'ouvre pas une page qui redemande de le lancer. Ce
+                // marqueur manquait ici — un compte neuf atterrissait sur
+                // « Quel examen préparez-vous ? » alors qu'il venait de
+                // choisir son parcours dans la bascule juste au-dessus.
+                context.push(AppRoutes.diagnosticDemarrer);
               },
             ),
             HomeSoftAction(
@@ -323,7 +329,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             : kHomeDiagResumeObjective,
         action: SfButton(
           label: analyse ? kHomeDiagAnalyzingCta : kHomeDiagResumeCta,
-          onPressed: () => context.push(AppRoutes.diagnostic),
+          // « Reprendre mon diagnostic » nomme le geste, donc il le pose ;
+          // « Voir l'analyse » ne lance rien et ouvre l'écran tel quel.
+          // ⚠️ Sans effet quand le candidat est déjà plus loin que la
+          // présentation : l'écran ne saute que ce qu'il y a à sauter.
+          onPressed: () => context.push(
+            analyse ? AppRoutes.diagnostic : AppRoutes.diagnosticDemarrer,
+          ),
         ),
       );
     }

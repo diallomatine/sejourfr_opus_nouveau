@@ -1895,7 +1895,12 @@ lancer.
 - **`?demarrer=1` saute la présentation** — `DIAGNOSTIC_START_PARAM` /
   `DIAGNOSTIC_RAPIDE_START_HREF` / `demarrageDirectDemande`
   (`lib/preparation.ts`, miroir de `kDiagnosticDemarrageDirect` côté mobile),
-  posés par `tcfAction` et `planIndisponible`. 🛑 `/diagnostic` **nu** garde sa
+  posés par `tcfAction`, `planIndisponible` et **la carte de l'Accueil**
+  (`DiagnosticDashboardCard`), dans ses deux états « Faire » et « Reprendre ».
+  ⚠️ **L'Accueil manquait à cette liste jusqu'au 2026-09-18** : un compte neuf y
+  appuyait sur « Faire mon diagnostic » et atterrissait sur « Quel examen
+  préparez-vous ? », alors qu'il venait de choisir son parcours. « Voir
+  l'analyse » ne le pose pas — il ne lance rien. 🛑 `/diagnostic` **nu** garde sa
   présentation.
   ⚠️ Le drapeau est lu sur `window.location.search` **dans l'effet**, pas par
   `useSearchParams` : ce dernier imposerait une frontière de Suspense à toute la
