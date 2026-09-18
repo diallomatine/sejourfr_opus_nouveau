@@ -2080,3 +2080,113 @@ export function NextStepCard({
     </section>
   );
 }
+
+/* ==========================================================================
+   Maquette « Ma progression — historique des cycles » (propriétaire,
+   2026-09-18 ; `docs/progression/histo_cycle.html`)
+
+   🛑 Miroirs de `SfStatGrid` et `SfHeroBanner` côté Flutter. Un motif qui
+   bouge d'un côté bouge de l'autre dans la même passe.
+   ========================================================================== */
+
+/**
+ * Une colonne de compteurs : une valeur et ce qu'elle nomme.
+ *
+ * Miroir Flutter : `SfStat`.
+ */
+export type Stat = { value: string; label: string };
+
+/**
+ * **La rangée de compteurs** — le `.stats` de `histo_cycle.html`, et le
+ * `.sf-stat-grid` des cartes d'intro.
+ *
+ * 🛑 **Le nombre de colonnes suit la liste** : un compteur que le serveur ne
+ * sert pas ne s'affiche pas plutôt que de s'inventer un zéro.
+ *
+ * 🛑 **Rien n'est compté ici.** `value` arrive déjà en texte : cette brique ne
+ * somme rien et ne classe rien.
+ *
+ * Rattrapage de parité (2026-09-18) : le mobile avait `SfStatGrid` depuis le
+ * début, le web n'avait que la classe CSS — un écran qui voulait les mêmes
+ * compteurs devait donc écrire son propre balisage, ce que la règle du dépôt
+ * interdit sur ce périmètre.
+ *
+ * Miroir Flutter : `SfStatGrid`.
+ */
+export function StatGrid({
+  stats,
+  onHero,
+  accentIndex,
+}: {
+  stats: Stat[];
+  /**
+   * Les compteurs sont posés **sur un fond de marque** (`HeroBanner`) : tuiles
+   * translucides, valeur blanche, libellé adouci. Sans lui, la rangée est nue
+   * sur fond clair, valeur bleue et texte centré.
+   */
+  onHero?: boolean;
+  /**
+   * Le compteur **accentué** de la maquette (celui du milieu). 🛑 **Passé, et
+   * c'est une décision d'ÉCRAN** : le kit n'élit pas le chiffre important.
+   */
+  accentIndex?: number;
+}) {
+  return (
+    <div className={cx(styles.statGrid, onHero && styles.isOnHero)}>
+      {stats.map((stat, index) => (
+        <div
+          key={stat.label}
+          className={cx(styles.stat, index === accentIndex && styles.isAccent)}
+        >
+          <b>{stat.value}</b>
+          <span>{stat.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * **Le bandeau de tête d'un écran d'archive** — le `.hero` de
+ * `histo_cycle.html` : fond de marque, œil-de-bœuf, titre éditorial, phrase de
+ * cadrage, puis ce que l'écran y pose (les compteurs, dans la maquette).
+ *
+ * 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
+ * lui :
+ * - `ResultHero` porte **un palier** en très gros — c'est un résultat, pas une
+ *   introduction ;
+ * - `NextStepCard` porte **deux actions** — c'est une décision à prendre.
+ *
+ * Ce bandeau, lui, n'a **aucune action** : il présente. C'est ce qui lui évite
+ * d'être une variante de l'un ou de l'autre.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici** : `eyebrow`, `title` et `text`
+ * arrivent tous en props.
+ *
+ * Miroir Flutter : `SfHeroBanner`.
+ */
+export function HeroBanner({
+  eyebrow,
+  title,
+  text,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  /** La phrase de cadrage. Absente ⇒ rien à sa place. */
+  text?: string;
+  /** Ce que l'écran pose sous la phrase. Absent ⇒ le bandeau s'arrête là. */
+  children?: ReactNode;
+}) {
+  return (
+    <section className={styles.heroBanner}>
+      <p className={styles.heroEyebrow}>
+        <i className={styles.heroDot} aria-hidden />
+        {eyebrow}
+      </p>
+      <h2 className={styles.heroTitle}>{title}</h2>
+      {text ? <p className={styles.heroText}>{text}</p> : null}
+      {children ? <div className={styles.heroBody}>{children}</div> : null}
+    </section>
+  );
+}

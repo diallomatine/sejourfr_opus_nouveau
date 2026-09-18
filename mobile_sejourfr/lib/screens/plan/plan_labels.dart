@@ -312,21 +312,6 @@ String planSeriesLabel(int? questionCount) => questionCount == null
     ? 'Série ciblée de compréhension'
     : 'Série ciblée de $questionCount questions';
 
-/* ------------------------------------------- ma progression (écran) ------- */
-
-/// Le titre de l'écran de progression du Plan.
-///
-/// 🛑 **L'objectif est NULLABLE et on n'invente jamais « B2 »** : sans démarche
-/// déclarée, l'écran s'appelle « Ma progression », sans palier. La maquette,
-/// elle, l'écrit en dur — la suivre retirerait son A2 à un dossier CSP.
-String planProgressTitle(TargetLevel? objective) => objective == null
-    ? 'Ma progression'
-    : 'Ma progression vers le ${objective.wire}';
-
-const String kPlanProgressSub = 'Domaine par domaine, niveau par niveau';
-const String kPlanProgressLevelLabel = 'NIVEAU ESTIMÉ';
-const String kPlanProgressObjectiveLabel = 'OBJECTIF';
-
 /// Ce qui s'affiche à la place du niveau global tant que rien n'est mesuré.
 /// *null = inconnu, jamais mauvais* : on n'écrit pas « A1 » par défaut.
 const String kPlanProgressNoLevel = '—';
@@ -475,17 +460,6 @@ const String kPlanEvolutionNote =
 const String kPlanEvolutionEmpty =
     'Rien n\'a bougé depuis votre dernière session. Votre programme change '
     'quand un nouveau résultat arrive.';
-
-/// Ce que le cycle construit maintenant. `startingLevel` est nullable tant que
-/// rien n'est mesuré, `objectiveLevel` tant que la démarche n'est pas déclarée.
-String planEvolutionSubtitle(PlanCycle? cycle) {
-  if (cycle == null) return 'Votre programme suit vos derniers résultats.';
-  final from = cycle.startingLevel?.displayName;
-  final target = cycle.targetLevel.wire;
-  return from == null
-      ? 'Votre programme construit votre $target.'
-      : 'Vous partez du $from ; votre programme construit votre $target.';
-}
 
 /* ------------------------------------------------------- la série ciblée    */
 

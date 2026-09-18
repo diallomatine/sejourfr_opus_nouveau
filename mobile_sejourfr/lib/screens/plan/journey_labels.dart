@@ -14,6 +14,7 @@ library;
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
+import '../../core/utils/format_date.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
 /// Le titre de l'écran : « Votre parcours vers le B2 ».
@@ -389,3 +390,140 @@ String _sectionLabel(SkillSection section) {
 
 String _tacheLabel(SkillTaskCode taskCode) =>
     'Tâche ${taskCode.wire.substring(taskCode.wire.length - 1)}';
+
+/* ==========================================================================
+   L'HISTORIQUE DES CYCLES — « Ma progression »
+   Maquette `docs/progression/histo_cycle.html` (propriétaire, 2026-09-18)
+
+   🛑 Miroir mot pour mot de la même section de `web_sejoufr/lib/journey.ts`.
+
+   ⚠️ **Le mot « cycle » est celui de la maquette validée** — même raison
+   qu'au-dessus : le propriétaire a écrit « Cycle 2 » / « TERMINÉ » lui-même.
+   `lot`, `step` et `journey` n'apparaissent nulle part (D-21).
+   ========================================================================== */
+
+/// Le titre de l'écran, et le libellé du lien qui l'ouvre.
+const String kJourneyHistoryTitle = 'Ma progression';
+
+/// Le sous-titre du lien, sur le Plan. 🛑 Il dit ce que l'écran **contient**,
+/// pas ce qu'il prétend expliquer.
+const String kJourneyHistorySub =
+    'Vos cycles terminés et les compétences travaillées';
+
+const String kJourneyHistoryEyebrow = 'Votre parcours';
+const String kJourneyHistoryHeadline = 'Tout ce que vous avez déjà travaillé';
+const String kJourneyHistoryLead =
+    'Vos anciens cycles restent ici, même lorsque votre plan évolue.';
+
+/// Les libellés des trois compteurs. 🛑 **Le nombre vient du serveur** : ces
+/// fonctions ne posent que l'accord.
+String journeyHistoryStatSkills(int n) =>
+    'compétence${n == 1 ? '' : 's'} travaillée${n == 1 ? '' : 's'}';
+
+String journeyHistoryStatExams(int n) =>
+    'examen${n == 1 ? '' : 's'} passé${n == 1 ? '' : 's'}';
+
+String journeyHistoryStatCycles(int n) =>
+    'cycle${n == 1 ? '' : 's'} terminé${n == 1 ? '' : 's'}';
+
+const String kJourneyHistorySectionTitle = 'Cycles terminés';
+const String kJourneyHistorySectionSub = 'Du plus récent au plus ancien';
+
+/// La pastille d'un cycle archivé : un cycle historisé l'est toujours.
+const String kJourneyHistoryDonePill = 'TERMINÉ';
+
+/// 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN, pas une erreur** : le bandeau et ses
+/// compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
+/// n'y a rien à lancer d'ici.
+const String kJourneyHistoryEmptyTitle = 'Aucun cycle terminé pour l\'instant';
+const String kJourneyHistoryEmptyText =
+    'Votre cycle en cours apparaîtra ici dès qu\'il sera terminé, avec les '
+    'compétences que vous y aurez travaillées et les examens que vous y aurez passés.';
+
+/// 🛑 **Un échec de chargement n'est pas « aucun cycle »** : on ne range pas
+/// une panne dans le verdict le plus bas.
+const String kJourneyHistoryError =
+    'Votre progression n\'a pas pu être chargée. Vérifiez votre connexion, puis réessayez.';
+const String kJourneyHistoryLoading = 'Chargement…';
+const String kJourneyHistoryRetry = 'Réessayer';
+
+const String kJourneyHistoryFootLead = 'Rien n\'est perdu :';
+const String kJourneyHistoryFootText =
+    ' lorsqu\'un nouveau plan est généré, vos cycles terminés et les compétences '
+    'travaillées restent visibles ici.';
+
+/// Le titre d'un cycle archivé, et le repère de sa pastille ronde.
+String journeyHistoryCycleTitle(int numero) => 'Cycle $numero';
+
+String journeyHistoryCycleMark(int numero) => '$numero';
+
+/// « 4–16 sept. 2026 · 6 compétences · 3 examens ».
+String journeyHistoryCycleMeta(JourneyHistoryCycle cycle) => [
+      formatDateRange(cycle.debut, cycle.fin),
+      '${cycle.competences} compétence${cycle.competences == 1 ? '' : 's'}',
+      '${cycle.examens} examen${cycle.examens == 1 ? '' : 's'}',
+    ].join(' · ');
+
+/// Les compétences travaillées sur une épreuve, jointes.
+///
+/// 🛑 **`null` quand la liste est vide** : une épreuve peut n'avoir reçu qu'un
+/// examen, et une ligne de sous-titre vide se lirait comme une donnée
+/// manquante.
+String? journeyHistoryBlocSkills(JourneyHistoryBloc bloc) =>
+    bloc.skillTitles.isEmpty ? null : bloc.skillTitles.join(' · ');
+
+/// Le titre de l'encart de niveau d'un cycle.
+///
+/// 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand le niveau a
+/// bougé, l'encart parle du niveau ; sinon il parle des examens.
+String journeyHistoryLevelTitle(JourneyHistoryCycle cycle) =>
+    _journeyHistoryLevelMoved(cycle) ? 'Niveau mesuré' : 'Examens réalisés';
+
+/// La pastille de l'encart de niveau.
+///
+/// 🛑 **`exitLevel` nul ne devient JAMAIS un palier** : rien n'a été mesuré, ou
+/// la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart le
+/// dit en clair, en ton [SfBarTone.muted] — `null` = inconnu, jamais mauvais.
+({String label, SfBarTone tone}) journeyHistoryLevelState(
+  JourneyHistoryCycle cycle,
+) {
+  final sortie = cycle.exitLevel;
+  if (sortie == null) {
+    return (label: 'Niveau non mesuré', tone: SfBarTone.muted);
+  }
+  return _journeyHistoryLevelMoved(cycle)
+      ? (
+          label: '${cycle.entryLevel!.wire} → ${sortie.wire}',
+          tone: SfBarTone.ok,
+        )
+      : (label: 'Niveau ${sortie.wire}', tone: SfBarTone.ok);
+}
+
+/// La phrase sous la pastille.
+///
+/// 🛑 **Les épreuves nommées sont celles qui ont REÇU un examen**
+/// (`examens > 0` sur leur bloc), jamais la liste des quatre : annoncer une
+/// épreuve qui n'a rien enregistré serait une mesure inventée.
+String journeyHistoryLevelNote(JourneyHistoryCycle cycle) {
+  final marks = [
+    for (final bloc in cycle.blocs)
+      if (bloc.examens > 0) journeyBlocMark(bloc.examType),
+  ];
+  if (cycle.exitLevel == null) {
+    return marks.isEmpty
+        ? 'Aucun examen n\'a été enregistré pendant ce cycle.'
+        : '${marks.join(' · ')} — aucun niveau global n\'a été mesuré pendant ce cycle.';
+  }
+  if (_journeyHistoryLevelMoved(cycle)) {
+    return 'Cette évolution correspond aux examens enregistrés pendant ce cycle.';
+  }
+  return marks.isEmpty
+      ? 'Ce niveau vient des examens enregistrés dans votre progression.'
+      : '${marks.join(' · ')} — résultats enregistrés dans votre progression.';
+}
+
+/// Les deux niveaux diffèrent, et les deux sont connus.
+bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle) =>
+    cycle.entryLevel != null &&
+    cycle.exitLevel != null &&
+    cycle.entryLevel != cycle.exitLevel;

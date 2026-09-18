@@ -26,6 +26,12 @@ class AppColors {
   static const redDark = Color(0xFFB5251E);
   static const redLight = Color(0xFFFDECEB);
 
+  /// Rouge **lisible sur fond bleu**. [red] pose sur le bleu France ne passe
+  /// aucun contraste, et [redLight] y disparait. C'est la teinte de la maquette
+  /// `histo_cycle.html`, reservee aux accents d'un bandeau de marque — jamais
+  /// un signal d'urgence. Miroir de `--color-red-bright`.
+  static const redBright = Color(0xFFFF6962);
+
   static const ink = Color(0xFF0F1839);
   static const ink2 = Color(0xFF1F2950);
   static const muted = Color(0xFF6B7299);

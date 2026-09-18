@@ -2306,51 +2306,122 @@ class SfEmphasis extends StatelessWidget {
 /// Une colonne de la carte de statistiques : une valeur et son libellé.
 typedef SfStat = ({String value, String label});
 
-/// La carte de statistiques en colonnes (`.sf-stat-grid`).
+/// La carte de statistiques en colonnes (`.sf-stat-grid`), et le `.stats` de
+/// `histo_cycle.html` quand elle est posée sur un fond de marque.
 ///
 /// Le nombre de colonnes suit la liste : une statistique que le serveur ne sert
 /// pas ne s'affiche pas plutôt que de s'inventer.
+///
+/// 🛑 **Rien n'est compté ici.** [SfStat.value] arrive déjà en texte : cette
+/// brique ne somme rien et ne classe rien.
+///
+/// Miroir web : `StatGrid`.
 class SfStatGrid extends StatelessWidget {
-  const SfStatGrid({super.key, required this.stats});
+  const SfStatGrid({
+    super.key,
+    required this.stats,
+    this.onHero = false,
+    this.accentIndex,
+  });
 
   final List<SfStat> stats;
+
+  /// Les compteurs sont posés **sur un fond de marque** ([SfHeroBanner]) :
+  /// tuiles translucides, valeur blanche, libellé adouci, tout calé à gauche.
+  /// Sans lui, la rangée est nue sur fond clair, valeur bleue et texte centré.
+  final bool onHero;
+
+  /// Le compteur **accentué** de la maquette (celui du milieu). 🛑 **Passé, et
+  /// c'est une décision d'ÉCRAN** : le kit n'élit pas le chiffre important.
+  final int? accentIndex;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          onHero ? CrossAxisAlignment.stretch : CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < stats.length; i++) ...[
           if (i > 0) const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              children: [
-                Text(
-                  stats[i].value,
-                  textAlign: TextAlign.center,
-                  style: AppFonts.display(
-                    size: 22,
-                    weight: FontWeight.w600,
-                    color: AppColors.blue,
-                    height: 1.1,
+            child: onHero
+                ? _SfHeroStat(stat: stats[i], accent: i == accentIndex)
+                : Column(
+                    children: [
+                      Text(
+                        stats[i].value,
+                        textAlign: TextAlign.center,
+                        style: AppFonts.display(
+                          size: 22,
+                          weight: FontWeight.w600,
+                          color: AppColors.blue,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        stats[i].label,
+                        textAlign: TextAlign.center,
+                        style: AppFonts.ui(
+                          size: 11,
+                          weight: FontWeight.w600,
+                          color: AppColors.muted,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  stats[i].label,
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 11,
-                    weight: FontWeight.w600,
-                    color: AppColors.muted,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Une tuile de compteur posée sur un fond de marque (`.hero .stat`).
+class _SfHeroStat extends StatelessWidget {
+  const _SfHeroStat({required this.stat, required this.accent});
+
+  final SfStat stat;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 72),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            stat.value,
+            style: AppFonts.ui(
+              size: 19,
+              weight: FontWeight.w700,
+              // 🛑 Le rouge clair n'est pas un signal d'urgence : c'est
+              // l'accent de marque posé sur le chiffre que l'ÉCRAN met en
+              // avant.
+              color: accent ? AppColors.redBright : AppColors.white,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            stat.label,
+            style: AppFonts.ui(
+              size: 10.5,
+              weight: FontWeight.w600,
+              color: AppColors.white.withValues(alpha: 0.70),
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -4643,6 +4714,139 @@ class _SfNextStepSecondary extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// MA PROGRESSION — HISTORIQUE DES CYCLES (maquette du proprietaire,
+// 2026-09-18) — `docs/progression/histo_cycle.html`
+//
+// 🛑 Miroir de `HeroBanner` cote web (`app/_components/sejour/SejourKit.tsx` +
+// `sejour.module.css`). Les compteurs de la maquette passent par [SfStatGrid]
+// avec `onHero: true`.
+// =============================================================================
+
+/// **Le bandeau de tete d'un ecran d'archive** — le `.hero` de
+/// `histo_cycle.html` : fond de marque, oeil-de-boeuf, titre editorial, phrase
+/// de cadrage, puis ce que l'ecran y pose (les compteurs, dans la maquette).
+///
+/// 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
+/// lui :
+/// - [SfResultHero] porte **un palier** en tres gros — c'est un resultat, pas
+///   une introduction ;
+/// - [SfNextStepCard] porte **deux actions** — c'est une decision a prendre.
+///
+/// Ce bandeau, lui, n'a **aucune action** : il presente. C'est ce qui lui evite
+/// d'etre une variante de l'un ou de l'autre.
+///
+/// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title] et [text]
+/// arrivent tous en parametres.
+///
+/// Miroir web : `HeroBanner`.
+class SfHeroBanner extends StatelessWidget {
+  const SfHeroBanner({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    this.text,
+    this.child,
+  });
+
+  final String eyebrow;
+  final String title;
+
+  /// La phrase de cadrage. `null` ⇒ rien a sa place.
+  final String? text;
+
+  /// Ce que l'ecran pose sous la phrase. `null` ⇒ le bandeau s'arrete la.
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final doux = AppColors.white.withValues(alpha: 0.80);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.blue, AppColors.blueDark],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: AppShadows.md,
+      ),
+      child: Stack(
+        children: [
+          // L'oeil-de-boeuf du coin, comme `.hero` dans la maquette.
+          Positioned(
+            right: -34,
+            top: -34,
+            child: Container(
+              width: 132,
+              height: 132,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.white.withValues(alpha: 0.06),
+                  width: 20,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.red,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        eyebrow.toUpperCase(),
+                        style: AppFonts.label(
+                          size: 11,
+                          color: AppColors.white.withValues(alpha: 0.74),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: AppFonts.display(
+                    size: 25,
+                    weight: FontWeight.w600,
+                    color: AppColors.white,
+                    height: 1.15,
+                  ),
+                ),
+                if (text != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    text!,
+                    style: AppFonts.ui(size: 14, color: doux, height: 1.5),
+                  ),
+                ],
+                if (child != null) ...[
+                  const SizedBox(height: 18),
+                  child!,
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -76,6 +76,9 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
 
   @override
   Future<Journey> measurementCycle() => throw UnimplementedError();
+
+  @override
+  Future<JourneyHistory> history() => throw UnimplementedError();
 }
 
 class _CountingLearningPlanRepository extends _FakeLearningPlanRepository {

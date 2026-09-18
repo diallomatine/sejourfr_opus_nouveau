@@ -12,6 +12,11 @@
   --color-red: #E1372F;
   --color-red-dark: #B5251E;
   --color-red-light: #FDECEB;
+  /* Rouge LISIBLE SUR FOND BLEU. `--color-red` posé sur le bleu France ne
+     passe aucun contraste, et `--color-red-light` y disparaît. C'est la teinte
+     de la maquette `histo_cycle.html`, réservée aux accents d'un bandeau de
+     marque — jamais un signal d'urgence. Miroir : `AppColors.redBright`. */
+  --color-red-bright: #FF6962;
   --color-ink: #0F1839;
   --color-ink-2: #1F2950;
   --color-muted: #6B7299;

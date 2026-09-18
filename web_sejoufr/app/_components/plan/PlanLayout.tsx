@@ -9,7 +9,7 @@ import styles from "./plan.module.css";
 
 /**
  * **Les structures partagées par les écrans SECONDAIRES du Plan**
- * (`/plan/competences`, `/plan/domaine/[x]`, `/plan/evolution`,
+ * (`/plan/competences`, `/plan/domaine/[x]`,
  * `/plan/progression`).
  *
  * Elles vivaient dans `LearningPlanView`, que la refonte du 2026-09-11 a
@@ -56,46 +56,3 @@ export function BlockHead({title, text, titleId, action}: {
   );
 }
 
-/** 🛑 `recentChanges === null` est le cas **NORMAL** : rien n'a bougé, on
- *  n'affiche rien. Aucune ligne n'est fabriquée pour remplir le bloc.
- *
- *  🛑 **Pas de transition réelle ⇒ pas de section du tout.** Le serveur sert
- *  aussi ce bloc pour une simple « nouvelle priorité », et une PREMIÈRE mesure
- *  n'est jamais une transition : le titre de la section EST la période, et
- *  l'écrire sans rien qui ait bougé dans cette période serait faux. */
-export function PlanRecentChanges({plan}: {plan: LearningPlanDto}) {
-  const changes = plan.recentChanges;
-  if (!changes) return null;
-  if (changes.transitions.length === 0) return null;
-  return (
-    <section aria-labelledby="changes-title">
-      <BlockHead
-        title={PLAN_RECENT_CHANGES_WINDOW_LABEL[changes.window]}
-        text="Ce que vos dernières productions ont changé dans votre plan."
-        titleId="changes-title"
-        action={<Link className={styles.blockAction} href="/plan/evolution">Voir le détail <ChevronRight size={15} aria-hidden /></Link>}
-      />
-      <div className={styles.changesCard}>
-        <ul className={styles.changesList}>
-          {changes.transitions.map((transition) => (
-            <li key={transition.skillId}>
-              <span className={styles.changesMark} data-up={transition.progress ? "1" : "0"} aria-hidden>
-                {transition.progress ? "+" : "−"}
-              </span>
-              <span>
-                <b>{transition.title}</b>
-                <small>{planSkillMeta(transition)} · {planTransitionLine(transition)}</small>
-              </span>
-            </li>
-          ))}
-        </ul>
-        {changes.newPriority && (
-          <div className={styles.changesPriority}>
-            <p>{PLAN_RECENT_NEW_PRIORITY}</p>
-            <b>{changes.newPriority.title}</b>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}

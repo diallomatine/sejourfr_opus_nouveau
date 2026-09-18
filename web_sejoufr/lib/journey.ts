@@ -4,6 +4,8 @@ import type {
     JourneyBlocStatus,
     JourneyCycleDto,
     JourneyDto,
+    JourneyHistoryBlocDto,
+    JourneyHistoryCycleDto,
     JourneyProgressDto,
     JourneyStepDto,
     SkillSection,
@@ -412,4 +414,181 @@ function sectionLabel(section: SkillSection): string {
 
 function tacheLabel(taskCode: SkillTaskCode): string {
     return `Tâche ${taskCode.slice(-1)}`;
+}
+
+/* ==========================================================================
+   L'HISTORIQUE DES CYCLES — « Ma progression »
+   Maquette `docs/progression/histo_cycle.html` (propriétaire, 2026-09-18)
+
+   🛑 Miroir mot pour mot de `mobile .../screens/plan/journey_labels.dart`.
+
+   ⚠️ **Le mot « cycle » est celui de la maquette validée** — même raison
+   qu'au-dessus : le propriétaire a écrit « Cycle 2 » / « TERMINÉ » lui-même.
+   `lot`, `step` et `journey` n'apparaissent nulle part (D-21).
+   ========================================================================== */
+
+/** La destination de « Voir ma progression ». 🛑 Une seule constante : un
+ *  chemin recopié dans un composant finirait par diverger du router. */
+export const JOURNEY_HISTORY_HREF = "/plan/progression";
+
+/** Le titre de l'écran, et le libellé du lien qui l'ouvre. */
+export const JOURNEY_HISTORY_TITLE = "Ma progression";
+
+export const JOURNEY_HISTORY_EYEBROW = "Votre parcours";
+export const JOURNEY_HISTORY_HEADLINE = "Tout ce que vous avez déjà travaillé";
+export const JOURNEY_HISTORY_LEAD =
+    "Vos anciens cycles restent ici, même lorsque votre plan évolue.";
+
+/** Les libellés des trois compteurs. 🛑 **Le nombre vient du serveur** : ces
+ *  fonctions ne posent que l'accord. */
+export function journeyHistoryStatSkills(n: number): string {
+    return `compétence${n === 1 ? "" : "s"} travaillée${n === 1 ? "" : "s"}`;
+}
+
+export function journeyHistoryStatExams(n: number): string {
+    return `examen${n === 1 ? "" : "s"} passé${n === 1 ? "" : "s"}`;
+}
+
+export function journeyHistoryStatCycles(n: number): string {
+    return `cycle${n === 1 ? "" : "s"} terminé${n === 1 ? "" : "s"}`;
+}
+
+export const JOURNEY_HISTORY_SECTION_TITLE = "Cycles terminés";
+export const JOURNEY_HISTORY_SECTION_SUB = "Du plus récent au plus ancien";
+
+/** La pastille d'un cycle archivé : un cycle historisé l'est toujours. */
+export const JOURNEY_HISTORY_DONE_PILL = "TERMINÉ";
+
+/**
+ * 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN, pas une erreur** : le bandeau et ses
+ * compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
+ * n'y a rien à lancer d'ici.
+ */
+export const JOURNEY_HISTORY_EMPTY_TITLE = "Aucun cycle terminé pour l'instant";
+export const JOURNEY_HISTORY_EMPTY_TEXT =
+    "Votre cycle en cours apparaîtra ici dès qu'il sera terminé, avec les "
+    + "compétences que vous y aurez travaillées et les examens que vous y aurez passés.";
+
+/** 🛑 **Un échec de chargement n'est pas « aucun cycle »** : on ne range pas
+ *  une panne dans le verdict le plus bas. */
+export const JOURNEY_HISTORY_ERROR =
+    "Votre progression n'a pas pu être chargée. Vérifiez votre connexion, puis réessayez.";
+export const JOURNEY_HISTORY_LOADING = "Chargement…";
+export const JOURNEY_HISTORY_RETRY = "Réessayer";
+
+export const JOURNEY_HISTORY_FOOT_LEAD = "Rien n'est perdu :";
+export const JOURNEY_HISTORY_FOOT_TEXT =
+    " lorsqu'un nouveau plan est généré, vos cycles terminés et les compétences "
+    + "travaillées restent visibles ici.";
+
+/** Le titre d'un cycle archivé, et le repère de sa pastille ronde. */
+export function journeyHistoryCycleTitle(numero: number): string {
+    return `Cycle ${numero}`;
+}
+
+export function journeyHistoryCycleMark(numero: number): string {
+    return String(numero);
+}
+
+/** « 4–16 sept. 2026 · 6 compétences · 3 examens ». */
+export function journeyHistoryCycleMeta(cycle: JourneyHistoryCycleDto): string {
+    return [
+        journeyHistoryDates(cycle.debut, cycle.fin),
+        `${cycle.competences} compétence${cycle.competences === 1 ? "" : "s"}`,
+        `${cycle.examens} examen${cycle.examens === 1 ? "" : "s"}`,
+    ].join(" · ");
+}
+
+/**
+ * Les compétences travaillées sur une épreuve, jointes.
+ *
+ * 🛑 **`undefined` quand la liste est vide** : une épreuve peut n'avoir reçu
+ * qu'un examen, et une ligne de sous-titre vide se lirait comme une donnée
+ * manquante.
+ */
+export function journeyHistoryBlocSkills(bloc: JourneyHistoryBlocDto): string | undefined {
+    return bloc.skillTitles.length > 0 ? bloc.skillTitles.join(" · ") : undefined;
+}
+
+/**
+ * Le titre de l'encart de niveau d'un cycle.
+ *
+ * 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand le niveau a
+ * bougé, l'encart parle du niveau ; sinon il parle des examens.
+ */
+export function journeyHistoryLevelTitle(cycle: JourneyHistoryCycleDto): string {
+    return journeyHistoryLevelMoved(cycle) ? "Niveau mesuré" : "Examens réalisés";
+}
+
+/**
+ * La pastille de l'encart de niveau.
+ *
+ * 🛑 **`exitLevel` nul ne devient JAMAIS un palier** : rien n'a été mesuré, ou
+ * la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart le
+ * dit en clair, en ton `muted` — `null` = inconnu, jamais mauvais.
+ */
+export function journeyHistoryLevelState(
+    cycle: JourneyHistoryCycleDto,
+): {label: string; tone: BarTone} {
+    if (!cycle.exitLevel) return {label: "Niveau non mesuré", tone: "muted"};
+    return journeyHistoryLevelMoved(cycle)
+        ? {label: `${cycle.entryLevel} → ${cycle.exitLevel}`, tone: "ok"}
+        : {label: `Niveau ${cycle.exitLevel}`, tone: "ok"};
+}
+
+/**
+ * La phrase sous la pastille.
+ *
+ * 🛑 **Les épreuves nommées sont celles qui ont REÇU un examen** (`examens > 0`
+ * sur leur bloc), jamais la liste des quatre : annoncer une épreuve qui n'a
+ * rien enregistré serait une mesure inventée.
+ */
+export function journeyHistoryLevelNote(cycle: JourneyHistoryCycleDto): string {
+    const marks = cycle.blocs
+        .filter((bloc) => bloc.examens > 0)
+        .map((bloc) => journeyBlocMark(bloc.examType));
+    if (!cycle.exitLevel) {
+        return marks.length > 0
+            ? `${marks.join(" · ")} — aucun niveau global n'a été mesuré pendant ce cycle.`
+            : "Aucun examen n'a été enregistré pendant ce cycle.";
+    }
+    if (journeyHistoryLevelMoved(cycle)) {
+        return "Cette évolution correspond aux examens enregistrés pendant ce cycle.";
+    }
+    return marks.length > 0
+        ? `${marks.join(" · ")} — résultats enregistrés dans votre progression.`
+        : "Ce niveau vient des examens enregistrés dans votre progression.";
+}
+
+/** Les deux niveaux diffèrent, et les deux sont connus. */
+function journeyHistoryLevelMoved(cycle: JourneyHistoryCycleDto): boolean {
+    return cycle.entryLevel !== null
+        && cycle.exitLevel !== null
+        && cycle.entryLevel !== cycle.exitLevel;
+}
+
+/**
+ * L'intervalle d'un cycle — « 4–16 sept. 2026 », « 28 août – 3 sept. 2026 »,
+ * « 18 déc. 2025 – 4 janv. 2026 ».
+ *
+ * 🛑 **Rien n'est écrit à la main** : `Intl` porte les noms de mois, comme
+ * partout ailleurs sur ce front. L'année ne se répète pas quand elle est la
+ * même des deux côtés, et le mois non plus.
+ *
+ * Miroir Flutter : `formatDateRange` (`core/utils/format_date.dart`).
+ */
+export function journeyHistoryDates(debut: string, fin: string): string {
+    const a = new Date(debut);
+    const b = new Date(fin);
+    const memeAnnee = a.getFullYear() === b.getFullYear();
+    if (memeAnnee && a.getMonth() === b.getMonth()) {
+        return `${a.getDate()}–${jourCourt(b, true)}`;
+    }
+    return `${jourCourt(a, !memeAnnee)} – ${jourCourt(b, true)}`;
+}
+
+function jourCourt(quand: Date, avecAnnee: boolean): string {
+    return quand.toLocaleDateString("fr-FR", avecAnnee
+        ? {day: "numeric", month: "short", year: "numeric"}
+        : {day: "numeric", month: "short"});
 }

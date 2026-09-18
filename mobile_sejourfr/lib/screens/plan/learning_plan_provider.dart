@@ -93,3 +93,18 @@ final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
     rethrow;
   }
 });
+
+/// **L'historique des cycles**, derriere « Voir ma progression ».
+///
+/// 🛑 **`autoDispose` et NON garde en vie** : c'est une archive qu'on ouvre,
+/// pas une source d'ecran d'accueil. La garder retiendrait une liste d'avant
+/// le cycle qu'« Actualiser mon plan » vient de fermer.
+///
+/// Il ecoute quand meme [learningPlanRevisionProvider] : historiser un cycle
+/// passe par ce signal, et l'ecran peut etre ouvert au moment ou il tombe.
+final journeyHistoryProvider =
+    FutureProvider.autoDispose<JourneyHistory>((ref) async {
+  ref.watch(compteIdProvider);
+  ref.watch(learningPlanRevisionProvider);
+  return ref.watch(learningPlanRepositoryProvider).history();
+});

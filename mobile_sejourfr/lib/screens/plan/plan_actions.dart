@@ -248,6 +248,3 @@ void openPlanAssessment(
   }
 }
 
-/// L'écran « Votre programme évolue » — le détail de ce qui a bougé.
-void openPlanEvolution(BuildContext context) =>
-    context.push(AppRoutes.planEvolution);

@@ -28,6 +28,17 @@ class LearningPlanRepository {
     return Journey.fromJson(response.data!);
   }
 
+  /// **L'historique des cycles** — l'archive derriere « Voir ma progression ».
+  ///
+  /// 🛑 **Aucun query param** : le serveur sert les cycles du candidat
+  /// authentifie, et accepter un identifiant laisserait lire l'archive d'un
+  /// tiers.
+  Future<JourneyHistory> history() async {
+    final response = await _client.dio
+        .get<Map<String, dynamic>>('/api/me/plan/journey/history');
+    return JourneyHistory.fromJson(response.data!);
+  }
+
   /// **Actualiser mon plan** — le cycle en attente devient le cycle courant
   /// (spec §6). Rend le parcours **frais**.
   ///

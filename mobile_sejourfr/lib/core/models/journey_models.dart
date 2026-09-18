@@ -525,3 +525,139 @@ SkillTaskCode? _tache(String? wire) {
   }
   return null;
 }
+
+/* =============================================================================
+   L'HISTORIQUE DES CYCLES — « Ma progression »
+   Miroir manuel de `JourneyHistoryDto` (`GET /api/me/plan/journey/history`).
+
+   🛑 **Rien n'y est recalcule cote front.** Les compteurs, les titres de
+   competence et les deux niveaux sont servis ; les phrases (« 6 competences »,
+   « Niveau mesure », les dates) se composent dans
+   `screens/plan/journey_labels.dart`, miroir de `web_sejoufr/lib/journey.ts`.
+
+   🛑 **`cycles` vide est un ETAT D'ECRAN**, pas une erreur : aucun cycle n'a
+   encore ete historise, et les compteurs du bandeau restent vrais.
+   ========================================================================== */
+
+/// Les trois compteurs du bandeau. **Servis**, jamais recomptes d'une liste.
+class JourneyHistoryStats {
+  const JourneyHistoryStats({
+    required this.competencesTravaillees,
+    required this.examensPasses,
+    required this.cyclesTermines,
+  });
+
+  final int competencesTravaillees;
+  final int examensPasses;
+  final int cyclesTermines;
+
+  factory JourneyHistoryStats.fromJson(Map<String, dynamic> json) =>
+      JourneyHistoryStats(
+        competencesTravaillees:
+            (json['competencesTravaillees'] as num?)?.toInt() ?? 0,
+        examensPasses: (json['examensPasses'] as num?)?.toInt() ?? 0,
+        cyclesTermines: (json['cyclesTermines'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Ce qu'une epreuve a recu pendant un cycle historise.
+class JourneyHistoryBloc {
+  const JourneyHistoryBloc({
+    required this.examType,
+    required this.skillTitles,
+    required this.examens,
+  });
+
+  /// L'epreuve du bloc. C'est **elle** que le candidat lit (D-21).
+  final EpreuveType examType;
+
+  /// Les titres des competences travaillees, **dans l'ordre servi**. Vide =
+  /// aucune competence n'a ete travaillee sur cette epreuve.
+  final List<String> skillTitles;
+
+  /// Les examens de cette epreuve enregistres pendant le cycle.
+  final int examens;
+
+  factory JourneyHistoryBloc.fromJson(Map<String, dynamic> json) =>
+      JourneyHistoryBloc(
+        examType: _epreuve(json['examType'] as String?) ?? EpreuveType.tcfCo,
+        skillTitles: (json['skillTitles'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        examens: (json['examens'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Un cycle **historise**.
+class JourneyHistoryCycle {
+  const JourneyHistoryCycle({
+    required this.numero,
+    required this.debut,
+    required this.fin,
+    required this.competences,
+    required this.examens,
+    required this.blocs,
+    this.entryLevel,
+    this.exitLevel,
+  });
+
+  /// Le rang du cycle, tel que le Plan l'affichait (« Cycle 2 »).
+  final int numero;
+
+  final DateTime debut;
+
+  /// La date d'historisation.
+  final DateTime fin;
+
+  final int competences;
+  final int examens;
+
+  /// Le niveau au moment ou le cycle s'est ouvert — le niveau de sortie du
+  /// precedent, ou celui du diagnostic pour le premier. `null` = **inconnu**.
+  final TargetLevel? entryLevel;
+
+  /// Le niveau **persiste a l'historisation** (D-12), jamais recalcule.
+  ///
+  /// 🛑 `null` = rien n'a ete mesure, ou la mesure est **sous l'A2**, que la
+  /// colonne ne sait pas dire (A35). Aucun front n'y met un palier a la
+  /// place : `null` = inconnu, jamais mauvais.
+  final TargetLevel? exitLevel;
+
+  /// Un bloc par epreuve touchee, **dans l'ordre servi**.
+  final List<JourneyHistoryBloc> blocs;
+
+  factory JourneyHistoryCycle.fromJson(Map<String, dynamic> json) =>
+      JourneyHistoryCycle(
+        numero: (json['numero'] as num?)?.toInt() ?? 1,
+        debut: DateTime.parse(json['debut'] as String),
+        fin: DateTime.parse(json['fin'] as String),
+        competences: (json['competences'] as num?)?.toInt() ?? 0,
+        examens: (json['examens'] as num?)?.toInt() ?? 0,
+        entryLevel:
+            TargetLevel.fromWireNullable(json['entryLevel'] as String?),
+        exitLevel: TargetLevel.fromWireNullable(json['exitLevel'] as String?),
+        blocs: (json['blocs'] as List<dynamic>? ?? const [])
+            .map((item) =>
+                JourneyHistoryBloc.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// L'archive servie.
+class JourneyHistory {
+  const JourneyHistory({required this.stats, required this.cycles});
+
+  final JourneyHistoryStats stats;
+
+  /// Du plus recent au plus ancien, **dans l'ordre servi**.
+  final List<JourneyHistoryCycle> cycles;
+
+  factory JourneyHistory.fromJson(Map<String, dynamic> json) => JourneyHistory(
+        stats: JourneyHistoryStats.fromJson(
+            json['stats'] as Map<String, dynamic>? ?? const {}),
+        cycles: (json['cycles'] as List<dynamic>? ?? const [])
+            .map((item) =>
+                JourneyHistoryCycle.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}

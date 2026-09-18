@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Clock3,
   Lock,
-  RefreshCw,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -592,10 +591,6 @@ function ProgressionDetectee({plan}: {plan: LearningPlanDto}) {
             Votre prochaine priorité devient : <b>{changes.newPriority.title}</b>
           </p>
         )}
-        <Link className={sejourStyles.link} href="/plan/evolution">
-          <RefreshCw size={15} aria-hidden /> Voir le détail
-          <ChevronRight size={15} aria-hidden />
-        </Link>
       </Card>
     </Section>
   );

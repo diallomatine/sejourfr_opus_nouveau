@@ -1,11 +1,11 @@
 import type {Metadata} from "next";
-import {PlanProgressView} from "@/app/_components/plan/PlanProgressView";
+import {PlanHistoryView} from "@/app/_components/plan/PlanHistoryView";
 
 export const metadata: Metadata = {
   title: "Ma progression — SejourFR",
-  description: "Où vous en êtes sur les quatre domaines du TCF, et à quelle distance de votre objectif.",
+  description: "Vos cycles terminés, les compétences que vous y avez travaillées et les niveaux mesurés.",
 };
 
 export default function PlanProgressPage() {
-  return <PlanProgressView />;
+  return <PlanHistoryView />;
 }

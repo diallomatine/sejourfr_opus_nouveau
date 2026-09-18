@@ -30,6 +30,26 @@ String formatLongDateTime(DateTime d) {
   return '${formatLongDate(local)} · $h:$m';
 }
 
+/// L'intervalle de deux dates — « 4–16 sept. 2026 », « 28 août – 3 sept. 2026 »,
+/// « 18 déc. 2025 – 4 janv. 2026 ».
+///
+/// 🛑 **L'année ne se répète pas** quand elle est la même des deux côtés, et le
+/// mois non plus : c'est ce qui rend l'intervalle lisible sur un téléphone.
+///
+/// Miroir web : `journeyHistoryDates` (`lib/journey.ts`).
+String formatDateRange(DateTime debut, DateTime fin) {
+  final a = debut.toLocal();
+  final b = fin.toLocal();
+  final memeAnnee = a.year == b.year;
+  if (memeAnnee && a.month == b.month) {
+    return '${a.day}\u2013${formatLongDate(b)}';
+  }
+  final gauche = memeAnnee
+      ? '${a.day} ${_monthsAbbr[a.month - 1]}'
+      : formatLongDate(a);
+  return '$gauche \u2013 ${formatLongDate(b)}';
+}
+
 /// "12/03/2026"
 String formatShortDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';

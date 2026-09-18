@@ -17,6 +17,7 @@ import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
+import '../journey_labels.dart';
 import '../plan_actions.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
@@ -512,8 +513,8 @@ class PlanTcfView extends ConsumerWidget {
             icon: LucideIcons.trendingUp,
             iconBg: AppColors.surface2,
             iconColor: AppColors.muted,
-            title: planProgressTitle(objective),
-            sub: planProfileCoverage(plan.cycle, plan.domaines.length),
+            title: kJourneyHistoryTitle,
+            sub: kJourneyHistorySub,
             onTap: () => context.push(AppRoutes.planProgress),
           ),
           ListRow(
