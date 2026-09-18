@@ -1902,23 +1902,48 @@ class SfMiniPlan extends StatelessWidget {
 }
 
 /// Pilule d'état, fond clair + texte du même ton.
+///
+/// ⚠️ **Brique partagée** : plusieurs écrans l'appellent, et sa taille par
+/// défaut est celle de la maquette. [dense] est la seule variante — une
+/// pastille plus petite pour une ligne d'en-tête serrée, où c'est le **nom de
+/// l'épreuve** qui doit garder la largeur ([SfBlocAccordion], D-21). Aucun
+/// autre appelant n'est concerné : le défaut reste `false`.
+///
+/// Miroir web : `Pill` (`.pill` / `.pill.dense`).
 class SfPill extends StatelessWidget {
-  const SfPill({super.key, required this.label, required this.tone});
+  const SfPill({
+    super.key,
+    required this.label,
+    required this.tone,
+    this.dense = false,
+  });
 
   final String label;
   final SfTone tone;
 
+  /// Variante resserrée (`.status` de `docs/progression/plan_cycle.html` :
+  /// 9,5 px, poids 900, `padding: 5px 8px`), réservée aux lignes d'en-tête où
+  /// la largeur va au titre. **Ne change pas** la pastille par défaut.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: dense ? 5 : 4,
+      ),
       decoration: BoxDecoration(
         color: tone.soft,
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Text(
         label,
-        style: AppFonts.ui(size: 11, weight: FontWeight.w700, color: tone.text),
+        style: AppFonts.ui(
+          size: dense ? 9.5 : 11,
+          weight: dense ? FontWeight.w900 : FontWeight.w700,
+          color: tone.text,
+        ),
       ),
     );
   }
@@ -4252,6 +4277,11 @@ class SfCycleProgress extends StatelessWidget {
 /// avec leur rail), puis un [SfExamStepBox]. Le corps ne porte donc aucun
 /// retrait de rail — c'est la liste qui a le sien.
 ///
+/// 🛑 **Le nom de l'epreuve ne se tronque jamais** et tient sur UNE ligne
+/// (D-21). C'est la maquette qui le garantit : sous 360 px logiques elle
+/// **masque l'etat** et l'en-tete passe a deux colonnes, plutot que de
+/// retrecir le titre. Miroir exact du `@media(max-width:360px)` web.
+///
 /// Miroir web : `BlocAccordion`.
 class SfBlocAccordion extends StatelessWidget {
   const SfBlocAccordion({
@@ -4294,9 +4324,10 @@ class SfBlocAccordion extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: radius,
-        // Le bloc courant se detache : filet plus marque et relief, comme
-        // `.current` dans la maquette.
-        border: current ? Border.all(color: AppColors.lineStrong) : null,
+        // `.examGroup` de la maquette : filet fin au repos, filet plus marque
+        // et relief plus porte sur `.current`.
+        border: Border.all(
+            color: current ? AppColors.lineStrong : AppColors.line),
         boxShadow: current ? AppShadows.md : AppShadows.card,
       ),
       child: Column(
@@ -4308,6 +4339,9 @@ class SfBlocAccordion extends StatelessWidget {
             child: InkWell(
               onTap: onToggle,
               child: Padding(
+                // Les valeurs de `.groupHead` dans
+                // `docs/progression/plan_cycle.html` : `42px 1fr auto`,
+                // `gap: 11px`, `padding: 15px`.
                 padding: const EdgeInsets.all(15),
                 child: Row(
                   children: [
@@ -4316,15 +4350,19 @@ class SfBlocAccordion extends StatelessWidget {
                       height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: current ? AppColors.blue : AppColors.blueLight,
-                        borderRadius: BorderRadius.circular(13),
+                        color: current ? AppColors.blue : AppColors.blueSoft,
+                        // La maquette dit 13 ; le token le plus proche vaut 12.
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        border: Border.all(
+                            color:
+                                current ? AppColors.blue : AppColors.line),
                       ),
                       child: Text(
                         mark,
                         style: AppFonts.label(
-                          size: 12.5,
+                          size: 12,
                           color: current ? AppColors.white : AppColors.blue,
-                        ),
+                        ).copyWith(fontWeight: FontWeight.w900),
                       ),
                     ),
                     const SizedBox(width: 11),
@@ -4334,9 +4372,11 @@ class SfBlocAccordion extends StatelessWidget {
                         children: [
                           Text(
                             title,
+                            // `.groupTitle` : 14 px, poids 850 (w800 ici), et
+                            // l'ENCRE — la maquette ne pose aucune couleur la.
                             style: AppFonts.ui(
-                              size: 14.5,
-                              weight: FontWeight.w700,
+                              size: 14,
+                              weight: FontWeight.w800,
                               height: 1.25,
                             ),
                           ),
@@ -4344,24 +4384,35 @@ class SfBlocAccordion extends StatelessWidget {
                           Text(
                             meta,
                             style: AppFonts.ui(
-                              size: 12,
+                              size: 10.5,
                               color: AppColors.muted,
-                              height: 1.35,
+                              height: 1.4,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 11),
-                    // La pastille SHRINKE : un libelle d'etat long deborderait
-                    // un telephone a 360 px.
-                    Flexible(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: SfPill(
-                            label: status.label, tone: status.tone),
-                      ),
-                    ),
+                    // 🛑 **Sous 360 px, la maquette MASQUE l'etat** et
+                    // l'en-tete passe a deux colonnes
+                    // (`@media(max-width:360px)`) : c'est ainsi qu'elle
+                    // garantit le nom de l'epreuve sur UNE ligne sur les
+                    // telephones les plus etroits. Miroir exact ici — 360 px
+                    // est un vrai telephone, pas un palier desktop.
+                    //
+                    // La pastille prend sa largeur INTRINSEQUE (`auto` dans la
+                    // grille web) : en `Flexible` elle prenait la MOITIE de
+                    // l'espace libre, ce qui coupait « Comprehension orale »
+                    // en deux lignes.
+                    // 366 et non 360 : **mesure** faite sur les vraies
+                    // metriques Hanken Grotesk, pire cas « Comprehension
+                    // ecrite » + « A EVALUER » — la colonne du titre manque
+                    // encore 0,1 px a 361 px. On elargit le palier de 6 px,
+                    // ce qu'aucune largeur de telephone reelle n'occupe.
+                    if (MediaQuery.sizeOf(context).width > 366) ...[
+                      const SizedBox(width: 11),
+                      SfPill(
+                          label: status.label, tone: status.tone, dense: true),
+                    ],
                     const SizedBox(width: 6),
                     // La seule affordance visible qu'un bloc se deplie. Le
                     // chevron PIVOTE, il ne se remplace pas — aucun saut de
@@ -4384,7 +4435,10 @@ class SfBlocAccordion extends StatelessWidget {
           // d'ecran ne doit pas traverser un bloc ferme.
           if (open)
             Container(
-              padding: const EdgeInsets.fromLTRB(15, 6, 15, 15),
+              // `.groupBody` : `4px 15px 15px`. Son 4e terme (`65px` a gauche)
+              // est le retrait du rail — ici c'est `SfJourneyList` qui porte le
+              // sien, l'ajouter le doublerait.
+              padding: const EdgeInsets.fromLTRB(15, 4, 15, 15),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.line)),
               ),
@@ -4443,7 +4497,7 @@ class SfExamStepBox extends StatelessWidget {
                 child: Text(
                   title,
                   style: AppFonts.ui(
-                    size: 12.5,
+                    size: 11.5,
                     weight: FontWeight.w700,
                     height: 1.3,
                   ),
@@ -4453,9 +4507,9 @@ class SfExamStepBox extends StatelessWidget {
               Text(
                 state.label.toUpperCase(),
                 style: AppFonts.label(
-                  size: 10.5,
+                  size: 9,
                   color: _sfStatusColor(state.tone),
-                ),
+                ).copyWith(fontWeight: FontWeight.w900),
               ),
               if (locked) ...[
                 const SizedBox(width: 6),
@@ -4467,7 +4521,7 @@ class SfExamStepBox extends StatelessWidget {
           Text(
             note,
             style: AppFonts.ui(
-                size: 11.5, color: AppColors.muted, height: 1.45),
+                size: 10, color: AppColors.muted, height: 1.4),
           ),
         ],
       ),

@@ -1814,10 +1814,27 @@ export function InfoNote({ children }: { children: ReactNode }) {
  * la règle du dépôt interdit sur ce périmètre.
  *
  * Le `label` est **servi** : cette brique ne compose et ne classe rien.
- * Miroir Flutter : `SfPill`.
+ *
+ * ⚠️ **Brique partagée** : sa taille par défaut est celle de la maquette et
+ * plusieurs écrans l'appellent. `dense` est la seule variante — la pastille
+ * plus petite d'une ligne d'en-tête serrée, où la largeur doit aller au **nom
+ * de l'épreuve** (`BlocAccordion`, D-21). Aucun autre appelant n'est touché.
+ *
+ * Miroir Flutter : `SfPill` / `SfPill(dense: true)`.
  */
-export function Pill({ label, tone }: { label: string; tone: Tone }) {
-  return <span className={cx(styles.pill, toneClass[tone])}>{label}</span>;
+export function Pill({
+  label,
+  tone,
+  dense,
+}: {
+  label: string;
+  tone: Tone;
+  /** Variante resserrée (`.status` de la maquette : 9,5 px, poids 900). */
+  dense?: boolean;
+}) {
+  return (
+    <span className={cx(styles.pill, toneClass[tone], dense && styles.dense)}>{label}</span>
+  );
 }
 
 /**
@@ -1895,6 +1912,10 @@ export function CycleProgress({
  *
  * 🛑 **Le nom de l'épreuve est EN CLAIR** (D-21) : « Compréhension orale », pas
  * « CO » seul, pas « lot », pas « step ». Le vocabulaire interne reste interne.
+ * Corollaire : il **ne se tronque jamais** et doit tenir sur une ligne. C'est
+ * la maquette qui le garantit — sous 360 px elle **masque l'état** et l'en-tête
+ * passe à deux colonnes (`.blocStatus`, `@media (max-width: 360px)`), plutôt
+ * que de rétrécir le titre. Miroir Flutter présent : 360 px est un téléphone.
  *
  * ⚠️ Le corps est rendu **replié, pas démonté** (`hidden`) : il sort de l'arbre
  * d'accessibilité et du parcours clavier, comme chez `Prio` et `HistoryRow`.
@@ -1944,7 +1965,14 @@ export function BlocAccordion({
           <span className={styles.blocTitle}>{title}</span>
           <span className={styles.blocMeta}>{meta}</span>
         </span>
-        <Pill label={status.label} tone={status.tone} />
+        {/* 🛑 Sous 360 px, la maquette MASQUE l'état et l'en-tête passe à deux
+            colonnes : c'est comme ça que le nom de l'épreuve tient sur une
+            ligne sur les téléphones les plus étroits. Le masquage est dans
+            `.blocStatus`, pas ici — un rendu conditionnel en JS n'a pas de
+            miroir dans une media query. */}
+        <span className={styles.blocStatus}>
+          <Pill label={status.label} tone={status.tone} dense />
+        </span>
         {/* La seule affordance visible qu'un bloc se déplie : la maquette compte
             sur le curseur, qui n'existe pas au doigt. Le chevron PIVOTE, il ne
             se remplace pas — aucun saut de largeur à l'ouverture. */}
