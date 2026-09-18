@@ -184,19 +184,11 @@ class SfCard extends StatelessWidget {
     required this.child,
     this.variant = SfCardVariant.plain,
     this.padding,
-    this.rule = false,
   });
 
   final Widget child;
   final SfCardVariant variant;
   final EdgeInsets? padding;
-
-  /// La **cocarde** de 3 px posée en tête de carte (maquette du propriétaire,
-  /// 2026-09-16) : bleu · blanc · rouge.
-  ///
-  /// 🛑 **Décorative et rien d'autre** : elle ne code aucun état et ne change
-  /// jamais selon une donnée. Miroir web : `Card rule="flag"`.
-  final bool rule;
 
   @override
   Widget build(BuildContext context) {
@@ -207,57 +199,19 @@ class SfCard extends StatelessWidget {
       SfCardVariant.warn => (AppColors.amberLight, AppColors.amberBorder),
       _ => (AppColors.white, null),
     };
-    final radius = BorderRadius.circular(hero ? 28 : AppRadii.xl);
-    final body = Container(
+    return Container(
       padding: padding ??
           (hero
               ? const EdgeInsets.fromLTRB(18, 22, 18, 18)
               : const EdgeInsets.fromLTRB(16, 18, 16, 18)),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: radius,
+        borderRadius: BorderRadius.circular(hero ? 28 : AppRadii.xl),
         border: border == null ? null : Border.all(color: border),
         boxShadow:
             border == null ? (hero ? AppShadows.md : AppShadows.card) : null,
       ),
       child: child,
-    );
-    if (!rule) return body;
-    return Stack(
-      children: [
-        body,
-        // 🛑 **Pleine largeur** (maquette v2) : trois bandes égales de 5 px en
-        // tête de carte, pas un filet en retrait. Il est posé PAR-DESSUS — il ne
-        // mange aucune hauteur de contenu —, découpé au rayon de la carte, et
-        // `Positioned.fill` laisse l'ombre du corps intacte (un `ClipRRect`
-        // autour du corps la rognerait).
-        Positioned.fill(
-          child: IgnorePointer(
-            child: ClipRRect(
-              borderRadius: radius,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.blue,
-                        AppColors.blue,
-                        AppColors.white,
-                        AppColors.white,
-                        AppColors.red,
-                        AppColors.red,
-                      ],
-                      stops: [0, 1 / 3, 1 / 3, 2 / 3, 2 / 3, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

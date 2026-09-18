@@ -1960,33 +1960,6 @@
    ce bloc doit rester vide.
    ========================================================================== */
 
-/* ---------- Le filet de tête d'une carte ---------- */
-
-/* 🛑 **Décoratif, et rien d'autre** : il ne code aucun état. C'est la cocarde
-   de la maquette, posée en tête de la carte « Votre niveau par épreuve ». */
-.ruleFlag {
-  position: relative;
-  overflow: hidden;
-}
-
-/* 🛑 **Le liseré est PLEINE LARGEUR** (maquette v2) : trois bandes égales de
-   5 px en tête de carte, pas un filet en retrait. La carte porte `overflow:
-   hidden`, donc il suit son rayon. */
-.ruleFlag::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 5px;
-  background: linear-gradient(
-    90deg,
-    var(--color-blue) 0 33.333%,
-    white 33.333% 66.666%,
-    var(--color-red) 66.666% 100%
-  );
-}
-
 /* ---------- « Où vous en êtes » : la liste et ses lignes ---------- */
 
 /* 🛑 **Une seule colonne** sur téléphone, comme la maquette v2 (calée sur

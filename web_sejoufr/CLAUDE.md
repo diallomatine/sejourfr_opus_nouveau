@@ -1093,9 +1093,9 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 ✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
 jour sur les maquettes du propriétaire**. ⚠️ **La 3ᵉ passe (`ou_en_vous_v2.html`)
 fait foi et RÉVOQUE la grille à deux colonnes de cartes compactes** — ce n'est
-pas un habillage, c'est la structure : une carte de tête à **liseré tricolore
-pleine largeur** (`Card rule="flag"`) portant le titre « Votre niveau par
-épreuve » et sa phrase de cadrage (`PanelHead lead`), puis **dans cet ordre** la
+pas un habillage, c'est la structure : une carte de tête portant le titre
+« Votre niveau par épreuve » et sa phrase de cadrage (`PanelHead lead`), puis
+**dans cet ordre** la
 **bande bleue d'objectif** à cocarde, compteur « 3 / 4 », pastilles et mot
 « évaluées » (`GoalBanner`), la **liste verticale** des épreuves (`LevelList` +
 `LevelRow`) et la **note de pied** (`MicroNote`, **hors maquette et conservée
@@ -1122,6 +1122,10 @@ dit ; **deux répétitions** ont disparu et les gouttières se sont serrées :
 s'efface** : la liste y passe à deux colonnes — une légende unique ne peut pas
 s'aligner sur deux échelles — et la hauteur n'y est pas une contrainte. C'est
 une **media query** sur des primitives existantes, donc **sans miroir Flutter**.
+🛑 **Le liseré tricolore est SUPPRIMÉ** (demande du propriétaire, 2026-09-18) :
+il coiffait la carte des deux parcours, il ne codait aucun état, et il n'avait
+**aucun autre lecteur**. L'option `rule` quitte donc les deux kits avec sa
+feuille, plutôt que de rester une variante que personne ne demande.
 🛑 **L'échelle s'arrête à B2** : la maquette en montrait six (C1/C2 grisés), le
 propriétaire a tranché pour la règle du dépôt en cours de passe. `A1_NON_ATTEINT`
 **n'allume aucun cran** — on ne ment jamais vers le haut.

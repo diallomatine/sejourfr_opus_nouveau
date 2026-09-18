@@ -775,9 +775,7 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
     return (
         <Section title={SITUATION_TITLE}>
             <Pad>
-                {/* 🛑 **Le liseré tricolore est décoratif** : il marque la carte
-                    de tête de la maquette, il ne code aucun état. */}
-                <Card rule="flag">
+                <Card>
                     <PanelHead lead title={SITUATION_CARD_TITLE} sub={SITUATION_CARD_LEAD}/>
                     {/* 🛑 **Le bandeau passe AU-DESSUS de la liste** (maquette) :
                         il annonce vers quoi on va avant de montrer où on en
@@ -905,7 +903,7 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
     return (
         <Section title={SITUATION_TITLE}>
             <Pad>
-                <Card rule="flag">
+                <Card>
                     <PanelHead
                         lead
                         title={SITUATION_CIVIC_CARD_TITLE}

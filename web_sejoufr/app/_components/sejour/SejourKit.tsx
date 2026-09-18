@@ -229,7 +229,6 @@ export function Card({
   children,
   variant,
   padding,
-  rule,
   className,
   style,
 }: {
@@ -237,14 +236,6 @@ export function Card({
   variant?: "soft" | "warn" | "ok" | "hero";
   /** `tight` pour une carte qui n'empile que des lignes séparées d'un filet. */
   padding?: "tight" | "rows";
-  /**
-   * La **cocarde** de 3 px posée en tête de carte (maquette du propriétaire) :
-   * bleu · blanc · rouge.
-   *
-   * 🛑 **Décorative et rien d'autre** : elle ne code aucun état et ne change
-   * jamais selon une donnée. Miroir Flutter : `SfCard.rule`.
-   */
-  rule?: "flag";
   className?: string;
   style?: CSSProperties;
 }) {
@@ -258,7 +249,6 @@ export function Card({
         variant === "ok" && styles.cardOk,
         padding === "tight" && styles.cardTight,
         padding === "rows" && styles.cardRows,
-        rule === "flag" && styles.ruleFlag,
         className,
       )}
       style={style}

@@ -478,9 +478,14 @@ seulement leur habillage : la **grille à deux colonnes de cartes compactes**
 dans une seule carte**, chaque ligne portant une **échelle CECRL**. La maquette
 v2 est plus récente, elle fait foi.
 
-Une **carte de tête** — liseré tricolore **pleine largeur** de 5 px (bleu ·
-blanc · rouge), titre « Votre niveau par épreuve », phrase de cadrage — qui
-contient, **dans cet ordre** :
+Une **carte de tête** — titre « Votre niveau par épreuve », phrase de cadrage —
+qui contient, **dans cet ordre** :
+🛑 **Le liseré tricolore est SUPPRIMÉ** (demande du propriétaire, 2026-09-18) :
+il coiffait la carte des deux parcours, il ne codait aucun état, et il n'avait
+**aucun autre lecteur**. L'option `rule` quitte donc les deux kits (`Card` ⇄
+`SfCard`) avec sa feuille, plutôt que de rester une variante que personne ne
+demande.
+
 
 1. la **bande d'objectif**, `GoalBanner` ⇄ `SfGoalBanner` : **bande bleue
    pleine**, cocarde, « Objectif actuel / Atteindre B2 partout », puis à droite
@@ -518,6 +523,10 @@ dit ; **deux répétitions** ont disparu et les gouttières se sont serrées :
 s'efface** : la liste y passe à deux colonnes — une légende unique ne peut pas
 s'aligner sur deux échelles — et la hauteur n'y est pas une contrainte. C'est
 une **media query** sur des primitives existantes, donc **sans miroir Flutter**.
+🛑 **Le liseré tricolore est SUPPRIMÉ** (demande du propriétaire, 2026-09-18) :
+il coiffait la carte des deux parcours, il ne codait aucun état, et il n'avait
+**aucun autre lecteur**. L'option `rule` quitte donc les deux kits avec sa
+feuille, plutôt que de rester une variante que personne ne demande.
 
 #### L'échelle CECRL — quatre crans, A1 → B2
 
@@ -575,14 +584,13 @@ téléphone.
 #### Le pendant CIVIQUE — même anatomie, données civiques
 
 🛑 **Arbitrage du propriétaire (2026-09-16)** : le civique adopte **la même
-anatomie** — carte à liseré tricolore, en-tête, bande de tête, liste verticale à
-pastille, statut à pastille colorée, ligne de pied. 🛑 **Adapté, jamais
+anatomie** — carte, en-tête, bande de tête, liste verticale à pastille, statut à
+pastille colorée, ligne d'action. 🛑 **Adapté, jamais
 transposé** : le civique n'a ni palier CECRL ni objectif CECRL servi, et on ne
 fabrique pas ce qui manque.
 
 | brique | TCF | civique |
 |---|---|---|
-| liseré tricolore | ✅ | ✅ |
 | en-tête titre + phrase | « Votre niveau par épreuve » | « Votre niveau par thème » |
 | bande de tête — intitulé | « Objectif actuel » | « **Votre dernier résultat** » |
 | bande de tête — valeur | « Atteindre B2 partout » (`objectif` servi) | `progresCiviqueScore` — « 28 / 40 · seuil 32 / 40 », **servi** (`historique.at(-1)`) |

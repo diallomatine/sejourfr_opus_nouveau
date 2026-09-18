@@ -503,9 +503,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final objectif = progres.tcf.objectif;
     final compte = accueilEvaluees(epreuves);
     return SfCard(
-      // 🛑 **Le liseré tricolore est décoratif** : il marque la carte de tête de
-      // la maquette, il ne code aucun état.
-      rule: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -594,7 +591,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dernier = progresCiviqueScore(progres.civique);
     final compte = accueilEvaluesCivique(themes);
     return SfCard(
-      rule: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
