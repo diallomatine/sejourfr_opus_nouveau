@@ -6,6 +6,16 @@
 @theme {
   /* Couleurs France */
   --color-blue: #1E3A8C;
+  /* 🛑 **Les deux tons ADOUCIS de la carte « Où vous en êtes »** (demande du
+     propriétaire, 2026-09-19 : « baisse l'intensité du bleu un peu, et même le
+     rouge un peu »). Cette carte empile un bandeau plein, quatre pastilles
+     pleines et douze crans d'échelle : le Bleu France y sature l'écran, alors
+     qu'il est juste sur un CTA isolé. **Les tokens de marque ne bougent pas** —
+     `--color-blue` et `--color-red` restent l'identité, et ces deux-là ne
+     servent QUE cette carte. */
+  --color-blue-muted: #3C5490;
+  --color-red-muted: #D9645C;
+
   --color-blue-dark: #15296B;
   --color-blue-light: #E8ECF8;
   --color-blue-soft: #F4F6FC;

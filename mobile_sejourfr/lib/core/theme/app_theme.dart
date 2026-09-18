@@ -14,6 +14,16 @@ class AppColors {
   static const blue = Color(0xFF1E3A8C);
   static const blueDark = Color(0xFF15296B);
 
+  /// 🛑 **Les deux tons ADOUCIS de la carte « Ou vous en etes »** (demande du
+  /// proprietaire, 2026-09-19 : « baisse l'intensite du bleu un peu, et meme le
+  /// rouge un peu »). Cette carte empile un bandeau plein, quatre pastilles
+  /// pleines et douze crans d'echelle : le Bleu France y sature l'ecran, alors
+  /// qu'il est juste sur un CTA isole. 🛑 **Les tokens de marque ne bougent
+  /// pas** — [blue] et [red] restent l'identite, et ces deux-la ne servent QUE
+  /// cette carte. Miroirs web : `--color-blue-muted` / `--color-red-muted`.
+  static const blueMuted = Color(0xFF3C5490);
+  static const redMuted = Color(0xFFD9645C);
+
   /// Le bleu intermediaire du degrade de hero, miroir de `--color-blue-mid`
   /// cote web. Il n'existe que pour qu'un degrade ait le meme nombre d'arrets
   /// des deux cotes : les deux kits sont miroirs brique pour brique, et un

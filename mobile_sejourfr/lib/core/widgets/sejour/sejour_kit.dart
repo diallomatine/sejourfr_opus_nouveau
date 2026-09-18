@@ -2791,7 +2791,7 @@ class _SfLadderBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.redLight,
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppColors.red, width: 1.5),
+          border: Border.all(color: AppColors.redMuted, width: 1.5),
         ),
       );
     }
@@ -2800,7 +2800,7 @@ class _SfLadderBar extends StatelessWidget {
       height: 7,
       decoration: BoxDecoration(
         color: rempli
-            ? AppColors.blue
+            ? AppColors.blueMuted
             : (dim ? Colors.transparent : AppColors.line),
         borderRadius: BorderRadius.circular(4),
         border: dim && !rempli ? Border.all(color: AppColors.line) : null,
@@ -2961,18 +2961,18 @@ class _SfLevelRowTop extends StatelessWidget {
             height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: measured ? AppColors.blue : AppColors.white,
+              color: measured ? AppColors.blueMuted : AppColors.white,
               borderRadius: BorderRadius.circular(AppRadii.md),
               border: measured
                   ? null
-                  : Border.all(color: AppColors.blue, width: 1.5),
+                  : Border.all(color: AppColors.blueMuted, width: 1.5),
             ),
             // Un repère d'épreuve est une étiquette technique.
             child: Text(
               mark!,
               style: AppFonts.label(
                 size: 13.5,
-                color: measured ? AppColors.white : AppColors.blue,
+                color: measured ? AppColors.white : AppColors.blueMuted,
               ),
             ),
           ),
@@ -3173,7 +3173,7 @@ class SfGoalBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.blue,
+        color: AppColors.blueMuted,
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Row(
