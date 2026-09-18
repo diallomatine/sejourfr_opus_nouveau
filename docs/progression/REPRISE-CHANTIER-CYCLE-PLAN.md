@@ -1,8 +1,17 @@
 # Reprise — chantier du CYCLE BORNÉ (Plan)
 
 > Écrit le **2026-09-18 22:10** pour qu'une coupure ne coûte rien.
-> Branche : `feature/refonte-l1-socle`. **Rien n'est commité** : ~131 fichiers modifiés
-> dans l'arbre de travail, tous intacts sur le disque.
+> Branche : `feature/refonte-l1-socle`.
+>
+> **Déjà commité (2026-09-18 22:20)** — 4 lots, chacun vérifié avant commit :
+> `d1cfa93f` kit (4 primitives + `Pill` + `blueMid`) · `53e0036a` écran Plan (blocs par
+> épreuve, cycle terminé, suppression de « Vos priorités » et de la file plate, paywall au
+> tap) · `d0229a41` bug mobile hors ligne · `6a97e532` docs (audit, D-12 → D-24, D-17 bis,
+> A27 → A40, spec, 5 documents périmés).
+>
+> **Pas encore commité** : tout le backend (~99 fichiers) — schéma V067 + ledger, moteur du
+> cycle, freemium, et ce que P7 écrit. À commiter en lots : `feat(cycle)` schéma, `feat(cycle)`
+> moteur, `refonte(freemium)`, puis P7. Tout est intact sur le disque.
 
 ## Où lire la vérité
 

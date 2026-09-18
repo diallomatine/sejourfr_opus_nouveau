@@ -4038,3 +4038,36 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
 - **Supprimés dans la même passe** : le « chemin vers l'objectif » (`cycle.path`,
   `PlanPathStep*`) et le bloc « Votre parcours — Tâche X » (`parcoursDeLaTache` / `planTaskPath`).
   🛑 **`PlanCycleDto` survit** : il porte l'en-tête « niveau actuel / objectif ».
+
+
+## Le CYCLE du Plan et « Ma progression » (2026-09-18)
+
+> Règles : `docs/regles/plan.md` § « Le CYCLE BORNÉ » · arbitrages :
+> `docs/decisions/plan-parcours-tcf.md` **D-12 → D-24, D-17 bis** · maquettes :
+> `docs/progression/plan_cycle.html`, `cycle_termine.html`, `histo_cycle.html`.
+
+⚠️ **Cette section prime sur « Le PARCOURS TCF »** pour la zone du Plan qui suit
+« Votre parcours vers le B2 ».
+
+- **Le Plan change à PARTIR de cette section** (D-22) : `SfTop`, la bascule de parcours, le
+  bloc objectif et « À faire maintenant » sont intacts, et **l'Accueil n'est pas touché**.
+- `screens/plan/widgets/plan_cycle_section.dart` : `SfCycleProgress`, un `SfBlocAccordion`
+  par bloc (**un seul déplié**), `SfJourneyRow` pour les étapes, `SfExamStepBox` pour
+  l'examen, `SfNextStepCard` et ses deux actions sur `JourneyState.cycleCompleted`
+  (`refresh()` / `measurementCycle()` de `learning_plan_repository.dart`).
+- 🛑 **`_journeySection` et `plan_groups.dart` sont SUPPRIMÉS** (la file plate et le bloc
+  « Vos priorités », qui redisait les blocs en moins précis — arbitrage du propriétaire),
+  ainsi que `steps` / `hiddenUpcomingCount` du modèle. L'aperçu de l'Accueil lit
+  `journeyEtapes()` (`journey_labels.dart`).
+- **Le tap d'une étape verrouillée ouvre le paywall**, décidé **une seule fois** dans
+  `plan_now_card.dart` (`PlanNowGeste`) — jamais dans un écran. Bouton **bleu** : le rouge
+  reste à la barre basse « Débloquer mon plan ».
+- `screens/plan/plan_history_screen.dart` rend « Ma progression » sur `AppRoutes.planProgress`
+  (`SfHeroBanner` + `SfStatGrid` + un `SfBlocAccordion` par cycle terminé, `mark` = le
+  numéro). ⚠️ **`plan_progress_screen.dart`, `plan_evolution_screen.dart` et
+  `AppRoutes.planEvolution` sont supprimés.**
+- **Primitives reçues par le kit** : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox`,
+  `SfNextStepCard`, `SfHeroBanner`, et `AppColors.blueMid` (miroir de `--color-blue-mid`,
+  pour que le dégradé ait le même nombre d'arrêts des deux côtés).
+- 🛑 `lot`, `step`, `journey` ne s'affichent **jamais** (D-21) ; « cycle » vient des
+  maquettes du propriétaire et reste.

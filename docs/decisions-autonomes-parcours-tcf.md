@@ -684,3 +684,60 @@ rester après la soumission.
 3. **`AppColors.blueMid` a été créé** (miroir de `--color-blue-mid`) pour que le dégradé de
    `NextStepCard` ait le **même nombre d'arrêts** des deux côtés. Les deux kits sont miroirs brique
    pour brique : un dégradé à deux arrêts là où le web en a trois se voit.
+
+### A41 — La gratuité se consomme à la **première** analyse rendue, pas à la troisième
+
+**La décision.** La ligne du ledger s'écrit dès que la **première** analyse d'une session
+d'examen est rendue, et porte `source_attempt_id` ; les deux tâches restantes du **même**
+attempt restent corrigées.
+
+**Motif.** N'écrire qu'après la 3ᵉ tâche laissait abandonner chaque examen sur la 2ᵉ et
+obtenir des corrections LLM **sans borne**. Un abonné ne consomme rien ; le diagnostic
+n'entre jamais dans le ledger.
+
+### A42 — Le fenêtrage d'affichage du parcours reste **chargeable** sans lecteur
+
+`TcfJourneyConfig.display` (`recentCompletedVisible`, `upcomingVisible`) a perdu son dernier
+lecteur avec `JourneyDto.steps`. Le champ **reste** dans le record : `tcf-journey-config-v1`
+et `-v2` le déclarent, et le loader refuse une clé inconnue — l'effacer rendrait
+**impossible** le retour arrière par variable d'environnement, qui est la doctrine du dépôt.
+Javadoc explicite sur place.
+
+### A43 — `trainSeriesFallbackQuota` est ajouté à la config **v1** aussi
+
+**La décision.** La v1 reçoit `trainSeriesFallbackQuota: 2`, égal à son `trainSeriesQuota`.
+
+**Motif.** Les séries réussies étant un sous-ensemble des terminées, « 2 réussies ou 2
+terminées » **est** mot pour mot l'ancienne règle de D-5. Sans cette clé, un retour arrière
+en v1 aurait **fait échouer le démarrage** (le record Java est partagé par les deux
+versions). Le loader refuse en plus une échappatoire **inférieure** au quota de réussite.
+
+### A44 — L'idempotence de l'historique : le `numero` d'un cycle a **une** règle
+
+`JourneyCycleRank` porte le rang d'un cycle (nombre d'historisés + 1) et il est **partagé**
+par `JourneyDto.cycle.numero` et `JourneyHistoryCycleDto.numero`. Deux lectures du même
+nombre ne peuvent donc pas diverger — c'est le défaut le plus cher du dépôt, et il se serait
+vu tout de suite : l'écran d'historique affiche « Cycle 2 » à côté du Plan qui dit le même.
+
+### A45 — Une étape `DIAGNOSTIC` n'appartient à aucun bloc, et deux tests le disent
+
+**Le constat.** Le retrait de `JourneyDto.steps` a rendu l'étape de diagnostic invisible de
+la timeline : elle ne porte **aucune épreuve**, donc aucun bloc ne peut la contenir. Deux
+tests de `JourneyServiceIT` (§18-32, §18-33) l'ont attrapé en passant au rouge.
+
+**La décision.** C'est le bon comportement, et les tests sont réécrits pour lire **la file**
+(la base) au lieu du DTO : ce qu'ils prouvent — « aucune priorité inventée tant que rien
+n'est mesuré » — ne dépend pas de l'écran. La carte « Faire mon diagnostic » continue d'être
+servie par `current`, qui est **le** canal de cette étape. ⚠️ Corollaire à connaître : sur un
+compte neuf, les quatre blocs sont servis **vides** (`A_EVALUER`) — les `SECTION_EXAM` ne
+naissent qu'avec une première évaluation (R12), comportement du moteur du 2026-09-17, laissé
+tel quel.
+
+### A46 — Le geste de la carte « À faire maintenant » verrouillée est **bleu**
+
+Sur un Plan gratuit, le seul bouton **rouge** doit rester « Débloquer mon plan », ancré sous
+le cycle. Le CTA de la carte (« Débloquer cet entraînement ») prend donc la variante
+**bleue**, alignée sur le jalon verrouillé qui existait déjà. ⚠️ Constaté au passage, hors
+périmètre : l'**Accueil** ne nomme jamais une étape verrouillée (règle antérieure), donc un
+compte gratuit y voit une carte générique **sans geste**. À rouvrir ou non — l'Accueil est
+hors périmètre (D-22).

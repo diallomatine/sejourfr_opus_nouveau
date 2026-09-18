@@ -180,7 +180,8 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   KIT, pas par du CSS d'écran.** Résultat du diagnostic rapide TCF, résultat du
   diagnostic TCF complet, Plan TCF (abonné / gratuit / sans diagnostic), résultat
   du diagnostic civique, Plan civique (abonné / gratuit), l'Accueil, et
-  **Réviser** (2026-09-12) : ils assemblent les primitives de
+  **Réviser** (2026-09-12), le **cycle du Plan** et **« Ma progression »**
+  (2026-09-18) : ils assemblent les primitives de
   `web_sejoufr/app/_components/sejour/SejourKit.tsx` et de
   `mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`, **miroirs l'un de
   l'autre, brique pour brique**. Un motif qui manque s'ajoute **dans les deux
@@ -308,6 +309,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | une soumission orale, Whisper, R2, `AudioEphemere`, la réécoute d'une production | `docs/regles/audio-productions.md` |
 | l'analytics, le funnel, un rate-limit par IP, `/confidentialite`, une provenance | `docs/regles/mesure-audience.md` |
 | `user_subscriptions`, un webhook store, un plan, un pass, une résiliation | `docs/regles/paiements.md` |
+| le **cycle borné** du Plan, son cycle en attente, la fin de cycle, l'historique des cycles | `docs/regles/plan.md` § « Le CYCLE BORNÉ » |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
 | le détail du mode agent, de l'hygiène d'archi ou des gabarits de test backend | `docs/regles/collaboration.md` |
 

@@ -1999,8 +1999,14 @@ niveau », et c'est le sens du produit.
 ### R2 — trois priorités par lot, et c'est un BUDGET assumé
 
 🛑 Le `CLAUDE.md` racine porte l'invariant inverse : « un plafond d'AFFICHAGE n'est jamais un
-budget PÉDAGOGIQUE ». `maxPrioritiesPerLot: 3` **en est un** — les priorités au-delà ne sont ni
-stockées ni mises en attente.
+budget PÉDAGOGIQUE ». `maxPrioritiesPerLot: 3` **en est un** — un lot ne retient que les trois
+priorités les plus graves de l'évaluation qui l'a créé.
+
+⚠️ **Amendé le 2026-09-18 (D-13).** La phrase « les priorités au-delà ne sont **ni stockées ni
+mises en attente** » est **révoquée** : ce qui dépasse le plafond part désormais dans le **cycle
+en attente**, invisible du candidat, et devient le cycle suivant à l'actualisation. **Le plafond
+lui-même ne bouge pas** (3, par épreuve) — ce qui change, c'est la **destination** de ce qui
+dépasse.
 
 **Ce n'est pas l'incident du 2026-08-25**, et la différence est ce qui rend ce choix tenable :
 là-bas un plafond de 5 actions était **partagé entre 4 domaines**, et trois domaines sur quatre
@@ -2150,3 +2156,100 @@ Un candidat sans démarche déclarée n'a **pas** de parcours (D-3) mais a bien 
 carte « À faire maintenant », et **s'ajoute** à ce que l'écran affichait déjà. ⚠️ Elle ne
 remplace jamais la carte d'action : exiger un objectif pour travailler ferait du Plan l'inverse
 de ce que D-10 vient de trancher.
+
+---
+
+## Le CYCLE BORNÉ — le parcours a un début, une fin et une suite (2026-09-18)
+
+> Spec : `docs/progression/SPEC_cycle_plan.md` · audit : `docs/audits/AUDIT_cycle_plan.md`
+> Arbitrages du propriétaire : `docs/decisions/plan-parcours-tcf.md` **D-12 → D-24, D-17 bis**
+> Décisions autonomes : `docs/decisions-autonomes-parcours-tcf.md` **A27 → A40**
+> Endpoints : `GET /api/me/plan/journey` · `POST …/journey/refresh` ·
+> `POST …/journey/measurement-cycle` · `GET …/journey/history`
+
+⚠️ **Cette section prime sur « Le PARCOURS TCF » ci-dessus** pour tout ce qui touche au
+bornage, au verrou de l'examen et à la destination des priorités. Le reste de cette
+section-là (R1, le budget de 3, l'étape exécutable, le garde-fou de la carte) est
+**inchangé** : le cycle est une couche de **bornage**, pas un second moteur.
+
+### Un bloc est une LECTURE, pas une table
+
+Un **bloc** = une épreuve. Ses étapes sont les `journey_step` du cycle qui portent cet
+`exam_type`, son examen est son `SECTION_EXAM`. 🛑 **`position` reste monotone et globale** :
+le groupement ne renumérote rien — une renumérotation ferait bouger un parcours que le
+candidat a sous les yeux. Les **quatre** blocs sont toujours servis, dans
+`TcfDomainProfileDto.ORDRE` (CO, CE, EO, EE), **non configurable** (D-9/D-20) ; un bloc sans
+étape est servi quand même. Statut dérivé : `EN_COURS` (il porte `current`) > bloc vide
+(`A_EVALUER` si l'épreuve n'a jamais été mesurée, sinon `TERMINE`) > `TERMINE` > `A_EVALUER`
+> `A_VENIR`.
+
+🛑 **Une étape `DIAGNOSTIC` n'appartient à aucun bloc** — elle ne porte pas d'épreuve. C'est
+`current` qui la sert, et c'est ce qui rend la carte « Faire mon diagnostic » exacte sur un
+compte neuf. Un test le verrouille (`JourneyServiceIT` §18-32 et §18-33, lus **sur la file**).
+
+### L'examen d'un bloc est verrouillé par SON bloc (D-15)
+
+`SECTION_EXAM` est verrouillé tant qu'une `TRAIN_SKILL` du **même** bloc est ouverte ; ce
+verrou **s'ajoute** aux trois autorités déjà lues (`SkillAccessService`,
+`ProductionAccessService`, slots). Un bloc sans compétence a son examen ouvert d'emblée.
+🛑 **Révocation** : un examen passé hors du plan alors que le bloc n'est pas fini ne clôture
+plus les étapes restantes en `SUPERSEDED` — **il ne valide rien** et compte comme
+entraînement. Le travail prévu reste dû. `SUPERSEDED` garde ses autres emplois (un lot **en
+attente**, jamais montré, remplacé par une évaluation plus récente).
+
+### Trois statuts de cycle, et un seul est persisté
+
+`journey.status` ∈ `EN_COURS` / `EN_ATTENTE` / `HISTORISE`, **un seul de chaque par
+(candidat, module)** par index uniques **partiels**. 🛑 **D-7 tient** : le statut d'une
+**étape** reste dérivé à la lecture. Celui du **cycle** est une **mémoire d'ordonnancement**
+— rien ne permet de reconstituer « historisé à cette date parce que le candidat a demandé
+une actualisation », cela dépend d'un événement. Même argument que `resolution`.
+
+Le **cycle en attente** est invisible du candidat : aucun endpoint ne le sert. Une compétence
+déjà clôturée dans le cycle en cours n'y est pas recréée, **sauf** si la nouvelle observation
+est `PRIORITY` — c'est la régression mesurée, et un `TO_REINFORCE` ne rouvre rien.
+
+### Fin de cycle : deux issues, et une seule pour un cycle de mesure
+
+`refresh` historise le cycle courant (`historise_at`, `exit_level`) et promeut le cycle en
+attente. `measurement-cycle` historise et ouvre un cycle de **mesure** : quatre blocs,
+chacun avec son seul examen, tous débloqués. 🛑 **« Cycle de mesure » est DÉRIVÉ** — aucune
+`TRAIN_SKILL` **et** au moins un `SECTION_EXAM` (A33) : la condition « au moins un examen »
+évite de refuser l'examen complet à un cycle vide ou diagnostic-seul. À sa fin, seule
+l'actualisation est proposée.
+
+`exit_level` se lit sur la **lecture Plan** (`TcfProfileService`, D-2) et reste `null` si
+rien n'est mesuré **ou** si le niveau est sous l'A2 : `null` = inconnu, jamais mauvais, et
+jamais « A2 » par défaut (A35).
+
+### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
+
+**2 séries réussies**, **ou 4 terminées** — l'échappatoire existe pour qu'un candidat faible
+ne reste **jamais bloqué**. 🛑 La réussite est **lue** sur
+`learning_plan_observations.status = SOLID`, écrit par `ComprehensionObservationService` au
+seuil `learning-plan.comprehension.solid-ratio` : **aucune huitième déclaration de 0.80**.
+`progress` sert les séries **réussies** (`done`) et `trainSeriesQuota` (`quota`) ;
+l'échappatoire ne s'affiche pas — annoncer « 2 séries ratées sur 4 » inviterait à échouer
+vite, et un filet annoncé n'en est plus un.
+
+### Ce que les fronts affichent, et ce qu'ils ne savent pas
+
+Le serveur sert `cycle` (numéro, étapes terminées / total, `complete`, `cycleDeMesure`),
+`blocs` et `nextStep` (les deux issues possibles). 🛑 **Des faits, pas des phrases** (B-11) :
+« 3 étapes sur 8 terminées », « 1 compétence restante · puis examen », « VERROUILLÉ » sont
+composés par les fronts. `JourneyDto.steps` et `hiddenUpcomingCount` **n'existent plus** —
+la file plate est remplacée par les blocs dépliables, et le fenêtrage `display.*` de
+`tcf-journey-config` **n'a plus de lecteur** (conservé pour que le retour arrière de version
+reste une variable d'environnement).
+
+🛑 **Le vocabulaire interne ne s'affiche jamais** (D-21) : `lot`, `step`, `journey`. « Cycle »,
+lui, **est le mot du propriétaire dans ses maquettes** — il reste à l'écran.
+
+### L'historique des cycles
+
+`GET /api/me/plan/journey/history` sert les cycles `HISTORISE` du module, du plus récent au
+plus ancien : dates, nombres de compétences et d'examens **clôturés**, compétences
+**groupées par épreuve** (titres de `skills.title`), et les deux niveaux lus **tels quels**.
+Les trois compteurs du bandeau portent sur **tous** les cycles, le cycle en cours compris —
+l'écran dit « tout ce que vous avez déjà travaillé ». Le cycle **en attente** n'y paraît
+jamais.

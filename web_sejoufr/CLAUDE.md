@@ -4329,3 +4329,31 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
 - **Supprimés dans la même passe** : le « chemin vers l'objectif » (`cycle.path`,
   `PlanPathStep*`) et le bloc « Votre parcours — Tâche X » (`parcoursDeLaTache` / `planTaskPath`).
   🛑 **`PlanCycleDto` survit** : il porte l'en-tête « niveau actuel / objectif ».
+
+
+## Le CYCLE du Plan et « Ma progression » (2026-09-18)
+
+> Règles : `docs/regles/plan.md` § « Le CYCLE BORNÉ » · arbitrages :
+> `docs/decisions/plan-parcours-tcf.md` **D-12 → D-24, D-17 bis** · maquettes :
+> `docs/progression/plan_cycle.html`, `cycle_termine.html`, `histo_cycle.html`.
+
+- **Le Plan change à PARTIR de « Votre parcours vers le B2 »** (D-22). L'en-tête, le
+  `ModuleToggle`, le bloc objectif et « À faire maintenant » ne bougent pas, et **l'Accueil
+  est hors périmètre** : ses suppressions prévues par la spec sont annulées.
+- `app/_components/plan/PlanCycleSection.tsx` porte la zone : `CycleProgress`, un
+  `BlocAccordion` par entrée de `blocs` (**un seul déplié**, le courant par défaut),
+  `JourneyRow` pour les étapes, `ExamStepBox` pour l'examen du bloc, puis `NextStepCard` et
+  ses deux actions quand `state === "CYCLE_COMPLETED"`.
+- 🛑 **La file plate est SUPPRIMÉE** : `JourneySection`, le « + N étapes », et les champs
+  `journey.steps` / `hiddenUpcomingCount` avec elle. L'aperçu de l'Accueil lit
+  `journeyEtapes(journey)` (`lib/journey.ts`), l'aplatissement des blocs.
+- **Les libellés vivent dans `lib/journey.ts`** (cycle, blocs, examen, fin de cycle,
+  historique), miroirs de `journey_labels.dart`. 🛑 `lot`, `step`, `journey` ne s'affichent
+  jamais ; « cycle » est le mot des maquettes du propriétaire et reste.
+- **Le tap d'une étape verrouillée ouvre le paywall**, et la décision vit **une seule fois**
+  dans `planNowCard` (`lib/plan-domain.ts`, champ `geste`) — jamais dans un écran.
+- `app/_components/plan/PlanHistoryView.tsx` rend « Ma progression » sur `/plan/progression`
+  (`HeroBanner` + `StatGrid` + un `BlocAccordion` par cycle terminé). ⚠️ **`/plan/evolution`
+  et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs liens.
+- **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) : `CycleProgress`,
+  `BlocAccordion`, `ExamStepBox`, `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`.

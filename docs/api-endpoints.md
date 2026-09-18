@@ -80,7 +80,31 @@ Cf. `exams-tcf.md`.
   l'épreuve**, relayé de `PlanDomainAssessmentResolver.pour` : 🛑 **à lire ici, jamais à
   retrouver dans `domainesAEvaluer`**, qui ne liste que les épreuves **jamais mesurées** alors
   qu'un point d'étape porte toujours sur une épreuve déjà mesurée.
-  Spec : `docs/progression/spec-plan-tcf-parcours-evaluations-v2.md`.
+  **Le cycle borné (D-12)** se superpose à la même file : `cycle` (avancement, `numero`,
+  `complete`, `cycleDeMesure`), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
+  `CO, CE, EO, EE` (`TcfDomainProfileDto.ORDRE`, non configurable) avec leur `status` dérivé
+  (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR`), leurs `steps` et leur `exam` — et
+  `nextStep`, **`null` sauf cycle terminé**. `state` gagne `CYCLE_COMPLETED` (cycle terminé,
+  écran « Prochaine étape ») ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
+  🛑 **L'examen d'un bloc est `locked` tant qu'une compétence du même bloc reste ouverte**
+  (D-15) — un bloc sans compétence a son examen ouvert immédiatement. ⚠️ `steps` et
+  `hiddenUpcomingCount` sont **servis pour la transition et disparaîtront en P6**, dans la
+  même passe que la bascule des fronts sur `blocs` : un nouveau lecteur se branche sur `blocs`,
+  qui porte **toutes** les étapes non obsolètes, sans plafond d'affichage.
+  Spec : `docs/progression/SPEC_cycle_plan.md` · arbitrages : `docs/decisions/plan-parcours-tcf.md`.
+- `POST /api/me/plan/journey/refresh` → `JourneyDto` — **« Actualiser mon plan »** (spec §6).
+  Le cycle en cours est **historisé** (`historise_at`, `exit_level` = niveau global courant, lu
+  chez `TcfProfileService.levelProfile` ; `null` si rien n'a été mesuré, **jamais 0**), le cycle
+  **en attente** devient le cycle courant (son `entry_level` = l'`exit_level` du précédent), et
+  le prochain cycle en attente reste **paresseux**. 🛑 **Aucun paramètre** : le serveur sait
+  quel est le cycle en cours du candidat. **409** si le cycle n'est pas terminé — ce geste
+  historise, il ne doit jamais jeter un plan en cours ; **422** sans démarche déclarée.
+- `POST /api/me/plan/journey/measurement-cycle` → `JourneyDto` — **« Passer l'examen blanc
+  complet »** (spec §6). Crée le **cycle de mesure** : quatre blocs, chacun ne portant que son
+  examen, tous débloqués. Le cycle en attente est **laissé tel quel**. 🛑 **Il ne démarre aucun
+  examen** : l'examen blanc complet reste lancé par `POST /api/full-tcf-exams`, son unique point
+  d'entrée. **409** si le cycle n'est pas terminé, **et** si le cycle courant est déjà un cycle
+  de mesure — enchaîner deux examens complets sans travail entre eux ne mesure rien de nouveau.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées
@@ -575,6 +599,11 @@ de niveau CECRL**. Tous ces endpoints sont **authentifiés** ; aucun n'est publi
 - `GET /api/skills/analysis-quota` → `SkillAnalysisQuotaDto
   {premium, unlimited, freeAnalysesTotal, freeAnalysesUsed, remaining}`. `remaining = -1`
   signifie **illimité** : les fronts doivent le traiter comme tel et ne jamais l'afficher brut.
+  ⚠️ **Contrat inchangé, valeurs dégénérées depuis le 2026-09-18** (D-17, suppression de
+  `free-analyses: 3`) : `freeAnalysesTotal = 0` et `remaining = 0` pour un compte gratuit,
+  `-1` pour un abonné ; seul `freeAnalysesUsed` reste un fait. L'endpoint ne dit donc plus
+  rien de plus que « cet utilisateur a-t-il l'accès TCF ». **À retirer avec ses lecteurs
+  front**, pas avant.
 - `GET /api/skill-prompts/{promptId}` → `SkillPromptDto`, le sujet complet pour l'écran de
   production. **Ne contient jamais les références.** Porte aussi `nextPromptId` (premier sujet
   `TODO` de la même compétence) et les champs `skill*` qui évitent un second appel.
@@ -619,9 +648,11 @@ gratuits et illimités. Un abonné TCF n'a aucun verrou.
 - **Le verrou est opposable** : `POST /api/skill-attempts` (JSON et multipart),
   `POST /api/skill-attempts/{id}/analyse` et `.../retry` répondent **403** sur un sujet
   verrouillé, avant tout traitement — aucune ligne créée, aucun audio uploadé.
-- **L'analyse IA reste un verrou distinct et cumulé** : **3 analyses offertes à vie**,
-  consommées **à l'acceptation** (au moment où `analysis_requested` est persisté) et non au
-  succès. Inchangé.
+- **L'analyse IA reste un verrou distinct et cumulé**, mais il n'offre plus rien :
+  🛑 depuis le **2026-09-18** (D-17), `free-analyses: 3` est **supprimé** sans remplaçant et
+  `SkillAnalysisAccessService` refuse **dès la première** analyse d'un compte sans accès TCF.
+  Aucun quota journalier n'a été introduit. *(Le compteur `analysis_requested` reste écrit à
+  l'acceptation, pas au succès — ce fait-là n'a pas bougé.)*
 - La garde des **références** (« au moins une tentative sur ce sujet ») est **inchangée** et
   indépendante de `locked`.
 
