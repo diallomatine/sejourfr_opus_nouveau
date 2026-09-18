@@ -40,14 +40,12 @@ import {
     type PlanCycleDto,
     type PlanDomainAssessmentDto,
     type PlanDomainDto,
-    type PlanDomainLevelDto,
     type PlanDomainSkillDto,
     type PlanDomainTaskDto,
     type PlanRecentChangesDto,
     type PlanSeanceAssessmentItemDto,
     type PlanSeanceItemDto,
     type PlanSkillExerciseDto,
-    type PlanMasteryTransitionDto,
     SKILL_MASTERY_STATE_LABEL,
     SKILL_SECTION_LABEL,
     type SkillMasteryState,
@@ -237,10 +235,6 @@ export function planTaskObservedLabel(tache: PlanDomainTaskDto): string {
 /** Le repère d'un palier de compréhension hors de sa fiche : ce qu'il est, et
  *  s'il bloque la suite. */
 export const PLAN_PROGRESS_BLOCKING_LEVEL = "Palier bloquant";
-
-export function planLevelRowMeta(palier: PlanDomainLevelDto): string {
-    return palier.blocking ? PLAN_PROGRESS_BLOCKING_LEVEL : `Palier ${palier.niveau}`;
-}
 
 /* ------------------------------------------------------ compléter le profil */
 
@@ -589,8 +583,10 @@ export interface PlanNowVue {
      * du verrou comme du démarrage (`usePlanAssessment`).
      */
     mesure: PlanSeanceAssessmentItemDto | null;
-    /** `null` sur la seule nature `INDISPONIBLE` : il n'y a **rien** à lancer,
-     *  et nommer la priorité du Plan désignerait une autre compétence. */
+    /** `null` sur la nature `INDISPONIBLE` — il n'y a **rien** à lancer — et
+     *  sur une étape dont l'exercice est **servi** hors des 5 priorités : dans
+     *  les deux cas, nommer la priorité du Plan désignerait une autre
+     *  compétence que celle que le bouton ouvre. */
     priority: LearningPlanPriorityDto | null;
     /** L'exercice de la priorité — celui que la carte lance **hors mesure**. */
     exercise: PlanSkillExerciseDto | null;
@@ -666,6 +662,61 @@ function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
            indisponible peut être verrouillée par ailleurs, et l'écran doit
            continuer à le dire. */
         locked: etape.locked,
+    };
+}
+
+/**
+ * **La carte d'une étape dont l'action est SERVIE mais que le Plan ne priorise
+ * pas** — hors de la fenêtre des 5 priorités.
+ *
+ * 🛑 Elle nomme **l'étape que le parcours a désignée**, exactement comme
+ * {@link carteIndisponible} et comme la ligne de la timeline : aucun repli sur
+ * `plan.currentPriority`, qui annoncerait une autre compétence que celle que le
+ * bouton ouvre (A25).
+ *
+ * 🛑 **Rien n'est inventé de ce qui n'est pas servi.** La nature d'une priorité
+ * (`A_RENFORCER` / `A_VERIFIER` / `A_ACQUERIR`) est un **fait pédagogique** que
+ * l'étape ne porte pas : la carte n'a donc ni pastille, ni constat, ni objectif,
+ * et son bouton dit « Commencer ». Elle a ce qu'elle sait : l'identité de
+ * l'étape, la nature de l'exercice, sa durée et le verrou servi.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`_carteEtapeServie`).
+ */
+function carteEtapeServie(
+    etape: JourneyStepDto,
+    exercise: PlanSkillExerciseDto,
+    free: boolean,
+): PlanNowVue {
+    const verrou = free || etape.locked || exercise.locked;
+    const sujets = etape.progress?.quota ?? 0;
+    return {
+        nature: "ETAPE",
+        geste: verrou ? "DEBLOQUER" : "LANCER",
+        mesure: null,
+        priority: null,
+        exercise,
+        section: etape.section
+            ?? (etape.examType ? PLAN_DOMAIN_SECTION[etape.examType as PlanDomainEpreuve] : null),
+        repere: null,
+        title: journeyStepTitle(etape),
+        subtitle: journeyStepSubtitle(etape) ?? "",
+        badge: null,
+        objectiveLabel: null,
+        objective: null,
+        minutesLabel: free
+            ? null
+            : sujets > 0 && exercise.kind === "MICRO_TRAINING"
+                ? `${sujets} petits sujets · ≈ ${exercise.estimatedMinutes} min chacun`
+                : `≈ ${exercise.estimatedMinutes} min`,
+        kindLabel: free
+            ? null
+            : planExerciseKindLabel(
+                exercise.kind,
+                exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
+            ),
+        lines: [],
+        cta: verrou ? PLAN_NOW_CTA_LOCKED : planNowCta(null, false, false),
+        locked: etape.locked || exercise.locked,
     };
 }
 
@@ -780,7 +831,10 @@ export interface PlanStepAction {
     /** L'exercice à lancer (`usePlanExercise`), `null` sur un examen. */
     exercise: PlanSkillExerciseDto | null;
     /** La priorité qui porte l'exercice — son état de maîtrise sert la mesure
-     *  d'audience du lanceur. `null` sur une mesure. */
+     *  d'audience du lanceur. `null` sur une mesure, et `null` aussi quand
+     *  l'exercice vient de l'étape elle-même : hors de la fenêtre des 5
+     *  priorités, il n'y a **aucune** priorité à citer, et le lancement reste
+     *  possible. */
     priority: LearningPlanPriorityDto | null;
 }
 
@@ -791,9 +845,21 @@ export function planStepAction(
     const mesure = journeyMesureDe(plan, etape);
     if (mesure) return {mesure, exercise: null, priority: null};
     const priority = journeyPriorityDe(plan, etape);
-    const exercise = priority?.recommendedExercise ?? null;
-    if (!priority || !exercise) return null;
-    return {mesure: null, exercise, priority};
+    /* 🛑 **L'exercice SERVI passe devant** (même raisonnement qu'`assessment`,
+       A24). Les priorités du Plan sont une **vue bornée** à
+       `display.prioritiesMaxActions` (= 5) ; la file, non. Un cycle de six
+       compétences ou plus avait donc des étapes dont l'action ne se trouvait
+       nulle part — c'est exactement ce que le propriétaire voyait sur
+       l'expression écrite : deux étapes nommées, aucun lien pour les lancer.
+
+       Le repli sur la priorité reste, et il est **nécessaire** : un client servi
+       par un backend antérieur au champ `exercise` continue de fonctionner. */
+    const exercise = etape.exercise ?? priority?.recommendedExercise ?? null;
+    /* 🛑 **GARDE-FOU A25 intact** : rien ne se résout ⇒ pas de bouton. Mais
+       `priority` n'en fait plus partie — elle ne sert qu'à la mesure d'audience
+       du lanceur, et une action vraie ne se refuse pas faute de statistique. */
+    if (!exercise) return null;
+    return {mesure: null, exercise, priority: priority ?? null};
 }
 
 /**
@@ -859,7 +925,16 @@ export function planNowCard(
        Plan ne priorise plus (son transfert vient d'être prouvé) et une
        compétence hors de la fenêtre d'affichage des priorités. Dans les deux
        cas, la carte nomme **cette étape-là**, sans bouton. */
-    if (etape && !duParcours && !mesure) return carteIndisponible(etape, free);
+    /* 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
+       fenêtre des 5 priorités, `duParcours` est nul alors que l'étape a bel et
+       bien une action. La carte la lance, en nommant **cette étape-là** — elle
+       ne retombe toujours pas sur `plan.currentPriority`. */
+    const exerciceServi = etape?.exercise ?? null;
+    if (etape && !duParcours && !mesure) {
+        return exerciceServi
+            ? carteEtapeServie(etape, exerciceServi, free)
+            : carteIndisponible(etape, free);
+    }
 
     const priority = duParcours ?? plan.currentPriority;
     if (!priority && !mesure) return null;
@@ -1123,8 +1198,6 @@ export function planItemReason(item: PlanSeanceItemDto): string {
 
 /* --------------------------------------------------------- ce qui a changé */
 
-export const PLAN_RECENT_NEW_PRIORITY = "Nouvelle priorité";
-
 /** Le bandeau de tête, quand quelque chose a bougé — **miroir mot pour mot du
  *  mobile** (`kPlanBannerLabel`, `planBannerText`). Il dit qu'il s'est passé
  *  quelque chose ; la section « ce qui a changé » dit quoi. */
@@ -1134,14 +1207,6 @@ export function planBannerText(changes: PlanRecentChangesDto): string {
     const moves = changes.transitions.length;
     if (moves === 0) return "une nouvelle priorité a été désignée";
     return `${moves} compétence${moves > 1 ? "s" : ""} ${moves > 1 ? "ont" : "a"} changé d'état`;
-}
-
-/** Une transition, dite au candidat. **Le sens de la marche vient du serveur**
- *  (`progress`) : aucun front ne code l'ordre des quatre états. */
-export function planTransitionLine(transition: PlanMasteryTransitionDto): string {
-    const avant = SKILL_MASTERY_STATE_LABEL[transition.before];
-    const après = SKILL_MASTERY_STATE_LABEL[transition.after];
-    return `${avant} → ${après}`;
 }
 
 /* ------------------------------------------------------------- navigation */
@@ -1165,35 +1230,6 @@ export function planSkillHref(
     return competenceHref(skill, options);
 }
 
-/**
- * **« Toutes mes compétences »** — l'index du référentiel, ouvert depuis
- * « Mes priorités ».
- *
- * Il ne crée aucun écran concurrent : chaque ligne y renvoie vers un parcours
- * **déjà livré** — les huit compétences d'une tâche (« Réviser → épreuve →
- * Compétences ») en expression, la fiche du domaine en compréhension.
- */
-export const PLAN_SKILLS_HREF = "/plan/competences";
-/**
- * Le titre de la page — et, ici seulement, **aussi le libellé de l'action** qui
- * l'ouvre depuis « Mes priorités » (`AllSkillsLink`).
- *
- * ⚠️ **Divergence VOULUE avec le mobile, arbitrée le 2026-08-21 : ne pas
- * « aligner ».** L'action s'appelle « Toutes mes compétences » ici et
- * « Tout voir » sur mobile (`kPlanPrioritiesAll`, `screens/plan/plan_labels.dart`,
- * qui porte la même note). Ce n'est pas une copie qui a dérivé : les deux
- * maquettes diffèrent réellement, et la place à l'écran non plus — la colonne du
- * web tient la forme longue, un lien de fin de section sur une largeur de
- * téléphone la tronquerait ou pousserait le compteur hors du bandeau.
- *
- * Ce qui **doit** rester identique des deux côtés, et l'est : le **titre de la
- * page d'arrivée**. Le contrat, c'est la destination ; le reste n'est qu'un
- * libellé d'action.
- */
-export const PLAN_SKILLS_TITLE = "Toutes mes compétences";
-export const PLAN_SKILLS_TEXT =
-    "Expression : 6 tâches, 8 compétences chacune, observées à partir de vos productions. "
-    + "Compréhension : trois paliers par domaine, mesurés sur vos séries de questions.";
 /** Le repère d'une compétence : son code et son domaine, plus le numéro de
  *  tâche quand elle en a un. */
 export function planSkillMeta(skill: {skillCode: string; section: SkillSection}): string {

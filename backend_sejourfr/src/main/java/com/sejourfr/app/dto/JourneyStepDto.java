@@ -96,7 +96,36 @@ public record JourneyStepDto(
          * resoluble, et les fronts retombaient sur {@code currentPriority} —
          * une <b>autre competence</b> que celle annoncee.
          */
-        PlanDomainAssessmentDto assessment
+        PlanDomainAssessmentDto assessment,
+        /**
+         * <b>Le micro-exercice que cette etape LANCE</b> — non {@code null} pour
+         * les seules etapes {@code TRAIN_SKILL} dont la competence a du contenu.
+         *
+         * <h3>🛑 Meme raisonnement qu'{@link #assessment()} (A24), meme cause</h3>
+         * <p>A18 (« le parcours designe, le Plan execute ») ne tient que si
+         * l'action se retrouve dans le Plan. Elle ne s'y retrouve <b>pas</b> :
+         * {@code LearningPlanDto.currentPriority} + {@code nextPriorities} est
+         * une <b>vue bornee</b> ({@code display.prioritiesMaxActions} = 5), la
+         * file ne l'est pas. Un cycle portant six competences ou plus avait donc
+         * des etapes sans aucune action resoluble, et le garde-fou « une ligne ne
+         * lance jamais autre chose que l'etape qu'elle annonce » les rendait
+         * <b>sans bouton</b> : un cul-de-sac. C'est ce qu'on voyait sur
+         * l'expression ecrite, servie apres l'expression orale dans le classement.
+         *
+         * <h3>Relaye, jamais compose</h3>
+         * <p>{@code RecommendedExerciseSelector} reste l'<b>unique</b> autorite
+         * du « quel sujet proposer sur cette competence ». Le parcours en devient
+         * un lecteur de plus, par son <b>lot</b>
+         * ({@code selectAll(userId, skills, access)}) appele <b>une seule fois</b>
+         * pour tout le parcours : le cout ne grandit pas avec le nombre d'etapes.
+         *
+         * <p>🛑 {@link #locked()} <b>ne se derive pas</b> de
+         * {@code exercise.locked()} : le verrou d'une etape est celui que
+         * {@code JourneyReadService} calcule (R16, §5 bis), et un sujet
+         * verrouille reste recommande — savoir quoi travailler est justement ce
+         * que le Plan apporte.
+         */
+        PlanRecommendedExerciseDto exercise
 ) {
 
     /**

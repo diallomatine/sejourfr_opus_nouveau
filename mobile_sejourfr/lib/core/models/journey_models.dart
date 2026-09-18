@@ -258,6 +258,7 @@ class JourneyStep {
     this.sourceAssessmentId,
     this.progress,
     this.assessment,
+    this.exercise,
   });
 
   final String id;
@@ -313,6 +314,25 @@ class JourneyStep {
   /// plus courant du parcours.
   final PlanDomainAssessment? assessment;
 
+  /// **Le micro-exercice que cette étape LANCE** — non `null` pour les seules
+  /// étapes [JourneyStepType.trainSkill] dont la compétence a du contenu publié.
+  ///
+  /// 🛑 **Même raisonnement que [assessment] (A24), même cause** : les priorités
+  /// du Plan (`currentPriority` + `nextPriorities`) sont une **vue bornée** à 5
+  /// lignes, la file ne l'est pas. Un cycle de six compétences ou plus avait donc
+  /// des étapes dont l'action ne se résolvait nulle part, et le garde-fou « une
+  /// ligne ne lance jamais autre chose que l'étape qu'elle annonce » les rendait
+  /// **sans bouton**.
+  ///
+  /// 🛑 **Relayé de `RecommendedExerciseSelector`**, son unique autorité — le
+  /// parcours n'en compose aucun. Et [locked] **ne s'en déduit pas** : le verrou
+  /// d'une étape reste celui que le serveur sert sur l'étape.
+  ///
+  /// `null` sur une étape d'examen (elle porte [assessment]), sur une compétence
+  /// sans sujet publié, et sur un backend antérieur au champ — d'où le repli sur
+  /// les priorités dans `planStepAction`.
+  final PlanRecommendedExercise? exercise;
+
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(
         id: json['id'] as String,
         type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
@@ -336,6 +356,10 @@ class JourneyStep {
             ? null
             : PlanDomainAssessment.fromJson(
                 json['assessment'] as Map<String, dynamic>),
+        exercise: json['exercise'] == null
+            ? null
+            : PlanRecommendedExercise.fromJson(
+                json['exercise'] as Map<String, dynamic>),
       );
 }
 

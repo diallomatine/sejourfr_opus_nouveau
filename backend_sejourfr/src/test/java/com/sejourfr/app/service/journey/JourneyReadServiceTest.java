@@ -3,6 +3,7 @@ package com.sejourfr.app.service.journey;
 import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyStepDto;
+import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -30,6 +31,7 @@ import com.sejourfr.app.service.LearningPlanStep;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
 import com.sejourfr.app.service.SkillProgressCounter;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,6 +84,7 @@ class JourneyReadServiceTest {
     @Mock private LearningPlanObservationManager observationManager;
     @Mock private NiveauActuelEpreuveResolver mesureResolver;
     @Mock private JourneyManager journeyManager;
+    @Mock private RecommendedExerciseSelector exerciseSelector;
 
     private JourneyReadService service;
     private User user;
@@ -95,7 +98,7 @@ class JourneyReadServiceTest {
         service = new JourneyReadService(
                 config, accessService, progressCounter, productionAccessService,
                 observationManager, mesureResolver, new PlanDomainAssessmentResolver(),
-                new JourneyBlocResolver(), journeyManager);
+                new JourneyBlocResolver(), journeyManager, exerciseSelector);
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
@@ -184,6 +187,94 @@ class JourneyReadServiceTest {
                 .isEqualTo(PlanDomainAssessmentKind.MODULE_MOCK_EXAM);
         assertThat(examen.assessment().epreuve()).isEqualTo(EpreuveType.TCF_CE);
         assertThat(bloc(vue, EpreuveType.TCF_EE).steps().getFirst().assessment()).isNull();
+    }
+
+    // ===================================================================== A26
+    // L'exercice d'une etape de competence est SERVI
+    // =====================================================================
+
+    /**
+     * 🛑 <b>Le cul-de-sac que ce champ ferme.</b> Les fronts cherchaient
+     * l'exercice d'une etape {@code TRAIN_SKILL} dans les <b>priorites</b> du
+     * Plan — une vue bornee a {@code display.prioritiesMaxActions} (5). Un cycle
+     * de six competences ou plus avait donc des etapes dont l'action ne se
+     * resolvait nulle part, et le garde-fou « une ligne ne lance jamais autre
+     * chose que l'etape qu'elle annonce » les rendait <b>sans bouton</b>.
+     *
+     * <p>Ce test verifie les trois faits du contrat d'un coup : l'exercice est
+     * servi sur une etape d'entrainement, il est {@code null} quand la competence
+     * n'a aucun sujet publie (le selecteur l'omet de sa map), et il est
+     * {@code null} sur une etape d'examen — qui porte {@code assessment}.
+     */
+    @Test
+    @DisplayName("A26 — l'exercice d'une etape de competence est SERVI, et lui seul")
+    void lExerciceDUneEtapeDeCompetenceEstServi() {
+        Skill avecSujet = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill sansSujet = skill("EE2-C1", SkillTaskCode.EE2);
+        JourneyStep une = trainStep(avecSujet, 1);
+        JourneyStep deux = trainStep(sansSujet, 2);
+        JourneyStep examen = examStep(EpreuveType.TCF_EE, 3);
+
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                avecSujet.getId(), progres(List.of(UUID.randomUUID())),
+                sansSujet.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+        // Le selecteur OMET une competence sans sujet actif : c'est sa regle,
+        // documentee sur `selectAll`, et c'est ce que le garde-fou attend.
+        PlanRecommendedExerciseDto exercice = PlanRecommendedExerciseDto.microTraining(
+                UUID.randomUUID(), avecSujet.getId(), avecSujet.getCode(),
+                "Raconter une experience", SkillSection.EE, 12, false);
+        when(exerciseSelector.selectAll(eq(user.getId()), anyCollection(), any()))
+                .thenReturn(Map.of(avecSujet.getId(), exercice));
+
+        JourneyDto vue = service.lire(journey, List.of(une, deux, examen));
+
+        JourneyBlocDto ee = bloc(vue, EpreuveType.TCF_EE);
+        assertThat(ee.steps().getFirst().exercise()).isSameAs(exercice);
+        assertThat(ee.steps().get(1).exercise())
+                .as("competence sans sujet publie : rien a lancer, et on ne l'invente pas")
+                .isNull();
+        assertThat(ee.exam()).isNotNull();
+        assertThat(ee.exam().exercise())
+                .as("un examen porte `assessment`, jamais un micro-exercice")
+                .isNull();
+        // 🛑 L'etape courante porte le meme exercice que sa ligne de bloc : la
+        // carte « À faire maintenant » et le cycle ne divergent jamais.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().exercise()).isSameAs(exercice);
+    }
+
+    /**
+     * 🛑 <b>UN SEUL LOT, quel que soit le nombre d'etapes.</b> Le selecteur
+     * expose une signature en lot precisement pour ca ; un appel par etape
+     * aurait rendu le prix du Plan proportionnel a la taille du cycle. Le
+     * <b>compte</b> de requetes est verrouille par {@code JourneyStepExerciseIT},
+     * contre la vraie base ; ici on verrouille la <b>forme</b> de l'appel.
+     */
+    @Test
+    @DisplayName("A26 — toutes les competences du cycle en UN seul lot, jamais un appel par etape")
+    void lesExercicesSeLisentEnUnSeulLot() {
+        Skill premiere = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill seconde = skill("EE2-C1", SkillTaskCode.EE2);
+        Skill troisieme = skill("EE3-C1", SkillTaskCode.EE3);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                premiere.getId(), progres(List.of(UUID.randomUUID())),
+                seconde.getId(), progres(List.of(UUID.randomUUID())),
+                troisieme.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+
+        service.lire(journey, List.of(
+                trainStep(premiere, 1), trainStep(seconde, 2), trainStep(troisieme, 3),
+                examStep(EpreuveType.TCF_EE, 4)));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Collection<Skill>> lot =
+                ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(exerciseSelector).selectAll(eq(user.getId()), lot.capture(), any());
+        assertThat(lot.getValue())
+                .containsExactlyInAnyOrder(premiere, seconde, troisieme);
     }
 
     // ================================================================= D-12 / D-15

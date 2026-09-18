@@ -21,9 +21,11 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
+import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
 import com.sejourfr.app.service.SkillProgressCounter;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
@@ -109,6 +111,7 @@ public class JourneyReadService {
     private final PlanDomainAssessmentResolver assessmentResolver;
     private final JourneyBlocResolver blocResolver;
     private final JourneyManager journeyManager;
+    private final RecommendedExerciseSelector exerciseSelector;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
@@ -156,6 +159,13 @@ public class JourneyReadService {
                 examensDeProductionVerrouilles(userId, ouvertes);
         Set<EpreuveType> blocsAvecCompetenceOuverte = blocsAvecCompetenceOuverte(ouvertes);
 
+        // 🛑 **L'EXERCICE DE CHAQUE ETAPE EST SERVI** (meme raisonnement qu'A24) :
+        // la liste des priorites du Plan est une vue bornee a 5, la file ne
+        // l'est pas. Un LOT unique pour tout le parcours — le cout ne grandit
+        // pas avec le nombre d'etapes.
+        Map<UUID, PlanRecommendedExerciseDto> exercices =
+                exercicesDesCompetences(userId, toutesLesEtapes, access);
+
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
             boolean locked = estVerrouillee(step, access, progressionExpression,
@@ -183,13 +193,13 @@ public class JourneyReadService {
                 .toList();
         JourneyBlocResolver.Vue vue = blocResolver.lire(
                 numeroDuCycle(journey), affichables, courante,
-                step -> dto(etats.get(step.getId())), jamaisMesuree(userId));
+                step -> dto(etats.get(step.getId()), exercices), jamaisMesuree(userId));
 
         JourneyState state = etat(affichables, ouvertes, courante);
         return new JourneyDto(
                 journey.getTargetLevel(),
                 state,
-                courante == null ? null : dto(etats.get(courante.getId())),
+                courante == null ? null : dto(etats.get(courante.getId()), exercices),
                 suggestion(state, userId),
                 vue.cycle(),
                 vue.blocs(),
@@ -702,7 +712,8 @@ public class JourneyReadService {
         return section != null && section.isProduction();
     }
 
-    private JourneyStepDto dto(Etat etat) {
+    private JourneyStepDto dto(
+            Etat etat, Map<UUID, PlanRecommendedExerciseDto> exercices) {
         JourneyStep step = etat.step();
         Skill skill = step.getSkill();
         return new JourneyStepDto(
@@ -720,7 +731,50 @@ public class JourneyReadService {
                 step.getPosition(),
                 etat.progress(),
                 etat.locked(),
-                mesureDe(step));
+                mesureDe(step),
+                exerciceDe(step, exercices));
+    }
+
+    /**
+     * <b>Le micro-exercice de chaque competence de la file</b>, indexe par
+     * competence — <b>un seul lot</b>, quel que soit le nombre d'etapes.
+     *
+     * <p>🛑 <b>Aucune regle nouvelle</b> : {@code RecommendedExerciseSelector}
+     * reste l'unique autorite du « quel sujet proposer sur cette competence »,
+     * et sa signature en lot existe <b>precisement</b> pour un appelant qui a
+     * plusieurs competences a evaluer d'affilee. Le parcours en devient le
+     * troisieme lecteur, pas une troisieme regle.
+     *
+     * <p><b>Deux requetes, pas une par etape</b> : les sujets actifs et les
+     * dernieres tentatives sont chargees en lot par le selecteur. L'{@code
+     * access} est celui deja resolu par {@link #lire}, il n'est pas recalcule.
+     * Un parcours sans etape d'entrainement ne coute <b>rien</b>.
+     */
+    private Map<UUID, PlanRecommendedExerciseDto> exercicesDesCompetences(
+            UUID userId, List<JourneyStep> etapes, SkillAccessService.SkillAccess access) {
+        Map<UUID, Skill> competences = new LinkedHashMap<>();
+        for (JourneyStep step : etapes) {
+            if (step.getType() != JourneyStepType.TRAIN_SKILL) continue;
+            Skill skill = step.getSkill();
+            if (skill != null) competences.putIfAbsent(skill.getId(), skill);
+        }
+        if (competences.isEmpty()) return Map.of();
+        return exerciseSelector.selectAll(userId, competences.values(), access);
+    }
+
+    /**
+     * L'exercice <b>servi</b> sur cette etape, ou {@code null}.
+     *
+     * <p>{@code null} sur une etape d'examen (elle porte {@link #mesureDe} a la
+     * place) et sur une competence <b>sans sujet publie</b> — le selecteur
+     * l'omet alors de sa map, et c'est le cas que le garde-fou attend : la ligne
+     * nomme l'etape, sans bouton.
+     */
+    private static PlanRecommendedExerciseDto exerciceDe(
+            JourneyStep step, Map<UUID, PlanRecommendedExerciseDto> exercices) {
+        if (step.getType() != JourneyStepType.TRAIN_SKILL) return null;
+        Skill skill = step.getSkill();
+        return skill == null ? null : exercices.get(skill.getId());
     }
 
     /**

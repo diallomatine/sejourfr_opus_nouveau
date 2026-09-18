@@ -109,8 +109,10 @@ class PlanNowCard {
   /// ([startPlanSeanceItem]).
   final PlanSeanceItem? mesure;
 
-  /// `null` sur la seule nature [PlanNowNature.indisponible] : il n'y a **rien**
-  /// à lancer, et nommer la priorité du Plan désignerait une autre compétence.
+  /// `null` sur la nature [PlanNowNature.indisponible] — il n'y a **rien** à
+  /// lancer — et sur une étape dont l'exercice est **servi** hors des 5
+  /// priorités : dans les deux cas, nommer la priorité du Plan désignerait une
+  /// autre compétence que celle que le bouton ouvre.
   final LearningPlanPriority? priority;
 
   /// L'exercice de la priorité — celui que la carte lance **hors mesure**.
@@ -134,7 +136,12 @@ class PlanNowCard {
 
   /// 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa **nature**
   /// servie, celle que le serveur a posée sur l'item de séance.
-  final String badge;
+  ///
+  /// `null` quand la carte ne classe rien : une étape dont l'action est servie
+  /// hors des priorités n'a **aucune** nature connue, et une pastille vide en
+  /// aurait dessiné une. ⚠️ Miroir du web (`PlanNowVue.badge`, nullable depuis
+  /// toujours) — le mobile portait ici une chaîne vide, donc une pastille vide.
+  final String? badge;
 
   final String? objectiveLabel;
   final String? objective;
@@ -188,7 +195,10 @@ class PlanStepAction {
   final PlanRecommendedExercise? exercise;
 
   /// La priorité qui porte l'exercice — son état de maîtrise sert la mesure
-  /// d'audience du lanceur. `null` sur une mesure.
+  /// d'audience du lanceur. `null` sur une mesure, et `null` aussi quand
+  /// l'exercice vient de l'étape elle-même : hors de la fenêtre des 5
+  /// priorités, il n'y a **aucune** priorité à citer, et le lancement reste
+  /// possible.
   final LearningPlanPriority? priority;
 }
 
@@ -196,8 +206,20 @@ PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
   final mesure = _mesureDe(plan, etape);
   if (mesure != null) return PlanStepAction(mesure: mesure);
   final priority = _priorityDe(plan, etape);
-  final exercise = priority?.recommendedExercise;
-  if (priority == null || exercise == null) return null;
+  // 🛑 **L'exercice SERVI passe devant** (même raisonnement que `assessment`,
+  // A24). Les priorités du Plan sont une **vue bornée** à
+  // `display.prioritiesMaxActions` (= 5) ; la file, non. Un cycle de six
+  // compétences ou plus avait donc des étapes dont l'action ne se trouvait nulle
+  // part — c'est exactement ce que le propriétaire voyait sur l'expression
+  // écrite : deux étapes nommées, aucun lien pour les lancer.
+  //
+  // Le repli sur la priorité reste, et il est **nécessaire** : un client servi
+  // par un backend antérieur au champ `exercise` continue de fonctionner.
+  final exercise = etape.exercise ?? priority?.recommendedExercise;
+  // 🛑 **GARDE-FOU A25 intact** : rien ne se résout ⇒ pas de bouton. Mais
+  // `priority` n'en fait plus partie — elle ne sert qu'à la mesure d'audience du
+  // lanceur, et une action vraie ne se refuse pas faute de statistique.
+  if (exercise == null) return null;
   return PlanStepAction(exercise: exercise, priority: priority);
 }
 
@@ -231,7 +253,14 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
   // fonction retombait sur `plan.currentPriority` : la carte annonçait l'étape
   // du parcours et ouvrait la compétence que le Plan priorisait ce jour-là.
   if (etape != null && duParcours == null && mesure == null) {
-    return _carteIndisponible(etape);
+    // 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
+    // fenêtre des 5 priorités, `duParcours` est nul alors que l'étape a bel et
+    // bien une action. La carte la lance, en nommant **cette étape-là** — elle
+    // ne retombe toujours pas sur `plan.currentPriority`.
+    final exerciceServi = etape.exercise;
+    return exerciceServi == null
+        ? _carteIndisponible(etape)
+        : _carteEtapeServie(etape, exerciceServi);
   }
 
   final priority = duParcours ?? plan.currentPriority;
@@ -408,6 +437,56 @@ PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
   );
 }
 
+/// **La carte d'une étape dont l'action est SERVIE mais que le Plan ne priorise
+/// pas** — hors de la fenêtre des 5 priorités.
+///
+/// 🛑 Elle nomme **l'étape que le parcours a désignée**, exactement comme
+/// [_carteIndisponible] et comme la ligne de la timeline : aucun repli sur
+/// `plan.currentPriority`, qui annoncerait une autre compétence que celle que le
+/// bouton ouvre (A25).
+///
+/// 🛑 **Rien n'est inventé de ce qui n'est pas servi.** La nature d'une priorité
+/// (`A_RENFORCER` / `A_VERIFIER` / `A_ACQUERIR`) est un **fait pédagogique** que
+/// l'étape ne porte pas : la carte n'a donc ni pastille, ni constat, ni
+/// objectif, et son bouton dit « Commencer ». Elle a ce qu'elle sait :
+/// l'identité de l'étape, la nature de l'exercice, sa durée et le verrou servi.
+///
+/// ⚠️ Miroir mot pour mot du web (`carteEtapeServie`, `lib/plan-domain.ts`).
+PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercise) {
+  final epreuve = etape.examType;
+  final verrou = etape.locked || exercise.locked;
+  final sujets = etape.progress?.quota ?? 0;
+  final minutes = exercise.estimatedMinutes;
+  return PlanNowCard(
+    nature: PlanNowNature.etape,
+    geste: verrou ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    mesure: null,
+    priority: null,
+    exercise: exercise,
+    section: etape.section,
+    icon: epreuve == null ? LucideIcons.target : planDomainIcon(epreuve),
+    title: journeyStepTitle(etape),
+    subtitle: journeyStepSubtitle(etape),
+    badge: null,
+    objectiveLabel: null,
+    objective: null,
+    minutesLabel: minutes <= 0
+        ? null
+        : sujets > 0 && exercise.kind == PlanExerciseKind.microTraining
+            ? '$sujets petits sujets · ≈ $minutes min chacun'
+            : '≈ $minutes min',
+    kindLabel: planExerciseKindLabel(
+      exercise.kind,
+      questionCount: exercise.questionCount,
+    ),
+    lines: const <String>[],
+    cta: verrou
+        ? kPlanNowLockedCta
+        : planNowCta(null, verifier: false, mesure: false),
+    locked: verrou,
+  );
+}
+
 /// **La carte d'une étape dont l'action ne se résout pas.**
 ///
 /// 🛑 Elle nomme **l'étape que le parcours a désignée**, et rien d'autre : c'est
@@ -433,7 +512,7 @@ PlanNowCard _carteIndisponible(JourneyStep etape) {
     icon: epreuve == null ? LucideIcons.target : planDomainIcon(epreuve),
     title: journeyStepTitle(etape),
     subtitle: journeyStepSubtitle(etape),
-    badge: '',
+    badge: null,
     objectiveLabel: null,
     objective: null,
     minutesLabel: null,
