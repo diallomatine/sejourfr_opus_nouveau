@@ -340,29 +340,6 @@ const String kPlanProgressTasksTitle = 'Vos tâches';
 
 /* -------------------------------------------------------------- le cycle    */
 
-/// Titre de la section « chemin ». Le palier visé est **nullable** : sans lui,
-/// Ce qu'annonce l'**état du cycle**, en une phrase. Les quatre états sont
-/// servis par le serveur et se disent au candidat, pas en jargon.
-///
-/// ⚠️ **Miroir mot pour mot du web** (`PLAN_CYCLE_STATE_TEXT`). Le mobile ne
-/// disait nulle part dans quelle phase le candidat se trouve — c'est pourtant
-/// ce qui explique pourquoi le Plan lui demande de **mesurer** plutôt que de
-/// s'entraîner.
-String planCycleStateText(PlanCycleState state) => switch (state) {
-      PlanCycleState.buildingBaseline =>
-        'Il manque des mesures : complétez votre profil pour que le plan cible '
-            'les bons paliers.',
-      PlanCycleState.training =>
-        'Votre entraînement cible les compétences qui bloquent le palier en '
-            'cours.',
-      PlanCycleState.readyForGateMock =>
-        'Le travail de ce palier est fait : il reste à le confirmer par un '
-            'examen blanc TCF complet.',
-      PlanCycleState.targetStabilization =>
-        'Votre objectif est atteint sur les domaines mesurés : on entretient '
-            'et on remesure.',
-    };
-
 /// « 2 domaines sur 4 évalués ».
 String planProfileCoverage(PlanCycle? cycle, int fallbackTotal) {
   final evaluated = cycle?.domainsEvaluated ?? 0;
@@ -473,12 +450,6 @@ const String kPlanTitle = 'Mon plan du jour';
 /// Le titre d'un compte sans accès nomme le palier visé quand il est connu.
 String planTitleFree(TargetLevel? objective) =>
     objective == null ? kPlanTitle : '$kPlanTitle ${objective.wire}';
-
-/// Ce que fait le moteur, sous le bandeau d'objectif. Miroir mot pour mot de la
-/// maquette.
-const String kPlanEngineLine =
-    'Le plan choisit la prochaine action selon vos priorités, puis réévalue '
-    'après chaque séance.';
 
 /// Le palier de repli du bandeau d'objectif. *null = inconnu, jamais mauvais* :
 /// on n'écrit ni A1 ni B2 par défaut.

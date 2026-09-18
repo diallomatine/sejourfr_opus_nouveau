@@ -124,7 +124,7 @@ class PlanTcfView extends ConsumerWidget {
   List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
         SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
-        _goalStrip(context, engineLine: false),
+        _goalStrip(context),
         SfSection(
           title: kPlanFreeFirstStepTitle,
           flush: true,
@@ -151,7 +151,7 @@ class PlanTcfView extends ConsumerWidget {
 
   /// « Niveau actuel → objectif ». Les deux paliers sont **servis** ; absents,
   /// ils s'écrivent « — » : *null = inconnu, jamais mauvais*.
-  Widget _goalStrip(BuildContext context, {bool engineLine = true}) {
+  Widget _goalStrip(BuildContext context) {
     final cycle = plan.cycle;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -169,14 +169,6 @@ class PlanTcfView extends ConsumerWidget {
               variant: SfButtonVariant.line,
               onPressed: () => context.push(AppRoutes.targetPath),
             ),
-          ],
-          if (engineLine) ...[
-            const SizedBox(height: 10),
-            const SfTiny(kPlanEngineLine),
-            if (cycle != null) ...[
-              const SizedBox(height: 6),
-              SfTiny(planCycleStateText(cycle.state)),
-            ],
           ],
         ],
       ),

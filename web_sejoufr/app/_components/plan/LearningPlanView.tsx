@@ -243,9 +243,6 @@ function TcfPlanPremium({plan, journey}: {
 
       <Pad>
         <CycleGoal cycle={plan.cycle} />
-        <p className={sejourStyles.tiny}>
-          Le plan choisit la prochaine action selon vos priorités, puis réévalue après chaque séance.
-        </p>
       </Pad>
 
       <ActionMaintenant plan={plan} journey={journey} />

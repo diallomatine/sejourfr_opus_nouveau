@@ -140,18 +140,6 @@ export function planCycleLine(cycle: PlanCycleDto): string {
     return `Niveau estimé ${from} · votre plan construit d'abord votre ${cycle.targetLevel}.`;
 }
 
-/** Ce qu'annonce l'état du cycle, en une phrase. Les quatre états sont servis
- *  par le serveur et se disent au candidat, pas en jargon. */
-export const PLAN_CYCLE_STATE_TEXT: Record<PlanCycleDto["state"], string> = {
-    BUILDING_BASELINE:
-        "Il manque des mesures : complétez votre profil pour que le plan cible les bons paliers.",
-    TRAINING: "Votre entraînement cible les compétences qui bloquent le palier en cours.",
-    READY_FOR_GATE_MOCK:
-        "Le travail de ce palier est fait : il reste à le confirmer par un examen blanc TCF complet.",
-    TARGET_STABILIZATION:
-        "Votre objectif est atteint sur les domaines mesurés : on entretient et on remesure.",
-};
-
 /* ------------------------------------------------------------------ chemin */
 
 
