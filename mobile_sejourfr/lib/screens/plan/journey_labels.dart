@@ -27,7 +27,7 @@ String journeyStepTitle(JourneyStep step) {
     case JourneyStepType.diagnostic:
       return 'Diagnostic rapide';
     case JourneyStepType.sectionExam:
-      return _epreuveLabel(step.examType);
+      return step.examType?.displayLabel ?? 'Épreuve';
     case JourneyStepType.trainSkill:
       return step.skillTitle ?? step.skillCode ?? 'Compétence';
   }
@@ -150,11 +150,26 @@ const String kJourneyLockedCaption =
     "Cette étape fait partie de l'abonnement Intégral. Votre parcours, lui, "
     'reste entier.';
 
-/// Le repli de « Voir les étapes suivantes ».
-String? journeyMoreLabel(int hidden) {
-  if (hidden <= 0) return null;
-  final s = hidden > 1 ? 's' : '';
-  return 'Voir les $hidden étape$s suivante$s';
+/// **La file entière, à plat** — les étapes de chaque bloc puis son examen,
+/// **dans l'ordre servi**.
+///
+/// 🛑 **C'est le remplaçant de `Journey.steps`**, qui a quitté le contrat le
+/// 2026-09-18 : les blocs portent *toutes* les étapes non obsolètes, sans
+/// plafond d'affichage. Un écran qui a besoin de la file la lit **ici**, une
+/// seule fois par front — l'Accueil et le Plan en dépendent tous les deux, et
+/// deux aplatissements auraient fini par ne pas donner le même ordre.
+///
+/// 🛑 **Rien n'est retrié.** L'ordre des blocs est celui du serveur (`CO, CE,
+/// EO, EE`, autorité unique), et l'examen d'un bloc est toujours sa dernière
+/// étape.
+List<JourneyStep> journeyEtapes(Journey journey) {
+  final etapes = <JourneyStep>[];
+  for (final bloc in journey.blocs) {
+    etapes.addAll(bloc.steps);
+    final exam = bloc.exam;
+    if (exam != null) etapes.add(exam);
+  }
+  return etapes;
 }
 
 /// L'étape que la carte « À faire maintenant » doit montrer (R16, D-1).
@@ -164,15 +179,200 @@ JourneyStep? journeyNowStep(Journey journey) {
   // son paywall. La masquer priverait le candidat de l'information la plus
   // utile qu'il possède.
   if (journey.state == JourneyState.locked) {
-    for (final step in journey.steps) {
+    for (final step in journeyEtapes(journey)) {
       if (step.status == JourneyStepStatus.upcoming) return step;
     }
   }
   return null;
 }
 
-String _epreuveLabel(EpreuveType? epreuve) =>
-    epreuve == null ? 'Épreuve' : epreuve.displayLabel;
+// ===========================================================================
+// LE CYCLE ET SES BLOCS — maquettes `docs/progression/plan_cycle.html` ⇄
+// `cycle_termine.html` (propriétaire, 2026-09-18)
+//
+// 🛑 Miroir mot pour mot de `web_sejoufr/lib/journey.ts`.
+//
+// ⚠️ **Le mot « cycle » est celui de la maquette validée**, et il est écrit
+// ici — une seule fois pour tout le front. D-21 interdit le vocabulaire
+// INTERNE à l'écran (`lot`, `step`, `journey`) ; le propriétaire a lui-même
+// écrit « Cycle 2 » / « Cycle terminé » dans ses deux maquettes, et c'est ce
+// qu'on rend. Le jour où il préfère « Parcours 2 », ce sont ces trois
+// fonctions qui changent, et elles seules.
+// ===========================================================================
+
+/// Le compteur du cycle, en mots. Terminé, il dit l'état plutôt que le compte.
+String journeyCycleLabel(JourneyCycle cycle) {
+  if (cycle.complete) return 'Cycle terminé';
+  final s = cycle.etapesTerminees == 1 ? '' : 's';
+  return '${cycle.etapesTerminees} étape$s sur ${cycle.etapesTotal} terminée$s';
+}
+
+/// Le repère de cycle, à droite du compteur. `null` sur un cycle terminé — la
+/// brique y met le pourcentage à sa place.
+String? journeyCycleBadge(JourneyCycle cycle) =>
+    cycle.complete ? null : 'Cycle ${cycle.numero}';
+
+/// La phrase sous la barre.
+String journeyCycleHint(JourneyCycle cycle) {
+  if (cycle.complete) {
+    return 'Toutes les compétences et tous les examens d\'épreuve prévus dans '
+        'ce cycle sont terminés.';
+  }
+  if (cycle.cycleDeMesure) {
+    return 'Passez les épreuves dans l\'ordre que vous voulez : ce cycle '
+        'mesure votre niveau, il ne demande aucun entraînement.';
+  }
+  return 'Travaillez les priorités identifiées. Le cycle reste stable '
+      'jusqu\'à sa prochaine actualisation.';
+}
+
+/// Le repère court d'une épreuve, en étiquette technique. 🛑 Une seule table.
+String journeyBlocMark(EpreuveType examType) => switch (examType) {
+      EpreuveType.tcfCo => 'CO',
+      EpreuveType.tcfCe => 'CE',
+      EpreuveType.tcfEe => 'EE',
+      EpreuveType.tcfEo => 'EO',
+      _ => 'TCF',
+    };
+
+/// Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21).
+String journeyBlocTitle(EpreuveType examType) => examType.displayLabel;
+
+/// La méta d'un bloc : ce qu'il reste à y faire.
+///
+/// 🛑 **Composée de faits servis** (`status`, `competencesRestantes`, la
+/// présence d'un examen), jamais d'un compteur recalculé.
+String journeyBlocMeta(JourneyBloc bloc) {
+  if (bloc.status == JourneyBlocStatus.termine) {
+    return bloc.steps.isEmpty
+        ? 'Niveau évalué · examen blanc terminé'
+        : 'Compétences travaillées · examen blanc terminé';
+  }
+  if (bloc.status == JourneyBlocStatus.aEvaluer) return 'Niveau à évaluer';
+  final reste = bloc.competencesRestantes;
+  if (reste > 0) {
+    final s = reste == 1 ? '' : 's';
+    final mot = '$reste compétence$s';
+    return bloc.status == JourneyBlocStatus.enCours
+        ? '$mot restante$s · puis examen'
+        : '$mot · puis examen';
+  }
+  if (bloc.exam != null) return 'Examen à passer';
+  return 'Rien à travailler pour l\'instant';
+}
+
+/// La pastille d'état d'un bloc : son libellé **et** son ton, tous deux servis
+/// au kit — qui ne classe rien.
+({String label, SfTone tone}) journeyBlocStatus(JourneyBlocStatus status) =>
+    switch (status) {
+      JourneyBlocStatus.termine => (label: 'TERMINÉ', tone: SfTone.ok),
+      JourneyBlocStatus.enCours => (label: 'EN COURS', tone: SfTone.hot),
+      JourneyBlocStatus.aEvaluer => (label: 'À ÉVALUER', tone: SfTone.warn),
+      JourneyBlocStatus.aVenir => (label: 'À VENIR', tone: SfTone.muted),
+    };
+
+/// Le titre de l'encart d'examen d'un bloc.
+///
+/// 🛑 **Deux intentions, un seul objet** : `initialAssessment` tant que
+/// l'épreuve n'a jamais été mesurée, l'examen blanc ensuite. C'est `purpose`
+/// qui tranche, jamais une déduction de l'état du bloc.
+String journeyExamTitle(JourneyStep exam) {
+  final nom = exam.examType?.displayLabel ?? 'cette épreuve';
+  return exam.purpose == JourneyStepPurpose.initialAssessment
+      ? 'Évaluer mon niveau en ${nom.toLowerCase()}'
+      : 'Examen blanc · $nom';
+}
+
+/// L'état de l'encart d'examen. Le verrou est **servi** (`locked`).
+({String label, SfBarTone tone}) journeyExamState(JourneyStep exam) {
+  if (exam.status == JourneyStepStatus.completed ||
+      exam.status == JourneyStepStatus.skipped) {
+    return (label: 'TERMINÉ', tone: SfBarTone.ok);
+  }
+  return exam.locked
+      ? (label: 'VERROUILLÉ', tone: SfBarTone.muted)
+      : (label: 'DISPONIBLE', tone: SfBarTone.now);
+}
+
+/// La phrase de condition de l'encart d'examen.
+String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
+  if (exam.status == JourneyStepStatus.completed ||
+      exam.status == JourneyStepStatus.skipped) {
+    return 'Cet examen est passé : son résultat a servi à construire vos '
+        'priorités.';
+  }
+  if (exam.locked) {
+    final reste = bloc.competencesRestantes;
+    if (reste > 0) {
+      final s = reste == 1 ? '' : 's';
+      final verbe = reste == 1 ? 'est terminée' : 'sont terminées';
+      return 'Disponible dès que les $reste compétence$s de cette épreuve '
+          '$verbe.';
+    }
+    return 'Disponible dès que les compétences de cette épreuve sont '
+        'terminées.';
+  }
+  return bloc.competencesRestantes == 0 && bloc.steps.isEmpty
+      ? 'Aucune compétence à travailler avant : l\'examen est la prochaine '
+          'action de cette épreuve.'
+      : 'Les compétences de cette épreuve sont terminées : l\'examen est la '
+          'prochaine action.';
+}
+
+/// La note de pied du cycle — la liberté d'ordre, et sa seule exception.
+const String kJourneyCycleNote =
+    'Vous pouvez travailler les compétences dans l\'ordre que vous voulez. '
+    'Les examens d\'une épreuve s\'ouvrent seulement quand ses étapes sont '
+    'terminées.';
+
+/* ----------------------------------------------------- fin de cycle (§6) --- */
+
+/// L'intertitre qui introduit la carte finale.
+const String kJourneyNextStepTitle = 'Prochaine étape';
+
+const String kJourneyNextStepEyebrow = 'Cycle terminé · mesure globale';
+const String kJourneyNextStepHeadline =
+    'Voyez maintenant où vous en êtes vraiment';
+const String kJourneyNextStepText =
+    'Vous avez travaillé toutes les priorités identifiées. Passez un TCF blanc '
+    'complet pour mesurer votre niveau global et préparer votre prochain cycle.';
+
+/// Le cas d'un **cycle de mesure** clos : enchaîner un second examen complet ne
+/// mesurerait rien de nouveau, donc la carte ne le propose pas.
+const String kJourneyNextStepTextMesure =
+    'Vos quatre épreuves viennent d\'être mesurées. Actualisez votre plan pour '
+    'recevoir les priorités que ces résultats ont identifiées.';
+
+/// Les trois repères de l'examen complet. 🛑 Aucun chiffre inventé : quatre
+/// épreuves est le format du TCF IRN, pas une donnée servie.
+const List<SfNextStepFact> kJourneyNextStepFacts = [
+  (value: '4 épreuves', label: 'TCF IRN complet'),
+  (value: 'Conditions réelles', label: 'simulation complète'),
+  (value: 'Nouveau bilan', label: 'niveau actualisé'),
+];
+
+const String kJourneyNextStepExamCta = 'Passer l\'examen blanc complet →';
+const String kJourneyNextStepRefreshCta =
+    'Actualiser mon plan sans examen complet';
+
+/// 🛑 **Le même geste, dit autrement quand il est SEUL** : « sans examen
+/// complet » n'a de sens qu'en face de l'examen complet. À la fin d'un cycle de
+/// mesure, il n'y a rien à opposer.
+const String kJourneyNextStepRefreshOnlyCta = 'Actualiser mon plan';
+
+const String kJourneyNextStepNote =
+    'L\'examen complet est recommandé, mais pas obligatoire. Vous pouvez aussi '
+    'actualiser votre plan à partir des examens déjà réalisés.';
+
+/// 🛑 **Un échec réseau se DIT** : un bouton muet laisserait croire à une panne
+/// de l'application. Aucune promesse de délai, aucun jargon.
+const String kJourneyNextStepError =
+    'Votre plan n\'a pas pu être actualisé. Vérifiez votre connexion et '
+    'réessayez.';
+
+/// Pendant l'appel : les deux actions historisent le cycle, on ne les rejoue
+/// pas par un second appui.
+const String kJourneyNextStepBusy = 'Un instant…';
 
 String _sectionLabel(SkillSection section) {
   switch (section) {

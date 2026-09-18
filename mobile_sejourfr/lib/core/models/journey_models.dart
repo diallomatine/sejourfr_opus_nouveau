@@ -131,12 +131,26 @@ enum JourneyState {
 
   inProgress('IN_PROGRESS'),
 
-  /// Des étapes restent ouvertes mais **aucune n'est exécutable** : [Journey.current]
-  /// vaut `null` et la carte montre la première étape de [Journey.steps],
+  /// Des étapes restent ouvertes mais **aucune n'est exécutable** :
+  /// [Journey.current] vaut `null` et la carte montre la première étape
   /// verrouillée, avec son paywall.
   locked('LOCKED'),
 
-  /// Plus aucune étape ouverte.
+  /// **Le cycle est terminé** : ses quatre blocs le sont, et il reste quelque
+  /// chose à proposer (spec §6). L'écran affiche « Prochaine étape » et la carte
+  /// finale à deux actions, lues dans [Journey.nextStep] — jamais déduites du
+  /// nombre d'étapes.
+  ///
+  /// 🛑 **Distinct de [upToDate]**, qui garde son sens : « plus rien à faire du
+  /// tout ». Un cycle terminé n'est pas un parcours fini — c'est un palier
+  /// franchi, et le suivant attend d'être ouvert.
+  ///
+  /// ⚠️ **Ajouté au `fromWireNullable` en même temps que le champ** : sans lui,
+  /// un cycle terminé retombait sur [needsObjective] et l'écran proposait de
+  /// choisir un objectif à un candidat qui venait de finir son plan.
+  cycleCompleted('CYCLE_COMPLETED'),
+
+  /// Plus aucune étape ouverte, **et plus rien à proposer**.
   upToDate('UP_TO_DATE');
 
   const JourneyState(this.wire);
@@ -147,6 +161,38 @@ enum JourneyState {
     if (value == null) return null;
     for (final state in JourneyState.values) {
       if (state.wire == value) return state;
+    }
+    return null;
+  }
+}
+
+/// Où en est un **bloc** du cycle — c'est-à-dire une **épreuve**.
+///
+/// 🛑 **Dérivé serveur à la lecture, jamais persisté** (D-12, D-14). Le serveur
+/// sert la nature, la phrase appartient à ce front (`journey_labels.dart`).
+enum JourneyBlocStatus {
+  /// Toutes les étapes du bloc sont clôturées.
+  termine('TERMINE'),
+
+  /// Le bloc porte l'étape **courante**. Un seul bloc à la fois.
+  enCours('EN_COURS'),
+
+  /// Aucune compétence, et l'épreuve n'a **jamais** été mesurée : son examen est
+  /// ouvert immédiatement (D-15). 🛑 Ce n'est pas « bloc vide », c'est « on ne
+  /// sait pas encore ».
+  aEvaluer('A_EVALUER'),
+
+  /// Des étapes restent, mais la main est ailleurs.
+  aVenir('A_VENIR');
+
+  const JourneyBlocStatus(this.wire);
+
+  final String wire;
+
+  static JourneyBlocStatus? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final status in JourneyBlocStatus.values) {
+      if (status.wire == value) return status;
     }
     return null;
   }
@@ -293,15 +339,123 @@ class JourneyStep {
       );
 }
 
+/// **L'avancement du cycle** : la barre continue et son repère.
+///
+/// 🛑 **Des nombres, pas des phrases** : « 3 étapes sur 8 terminées » et
+/// « Cycle 2 » se composent dans `journey_labels.dart`.
+class JourneyCycle {
+  const JourneyCycle({
+    required this.numero,
+    required this.etapesTerminees,
+    required this.etapesTotal,
+    required this.complete,
+    required this.cycleDeMesure,
+  });
+
+  /// Le rang de ce cycle : nombre de cycles historisés + 1. Le premier vaut 1.
+  final int numero;
+
+  /// Étapes clôturées, **obsolètes exclues**.
+  final int etapesTerminees;
+
+  /// Étapes du cycle, obsolètes exclues — le dénominateur de la barre.
+  final int etapesTotal;
+
+  /// Plus **aucune** étape ouverte : les quatre blocs sont terminés. C'est la
+  /// condition — et la seule — qui ouvre « Prochaine étape ».
+  final bool complete;
+
+  /// Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls.
+  final bool cycleDeMesure;
+
+  factory JourneyCycle.fromJson(Map<String, dynamic> json) => JourneyCycle(
+        numero: (json['numero'] as num?)?.toInt() ?? 1,
+        etapesTerminees: (json['etapesTerminees'] as num?)?.toInt() ?? 0,
+        etapesTotal: (json['etapesTotal'] as num?)?.toInt() ?? 0,
+        complete: json['complete'] as bool? ?? false,
+        cycleDeMesure: json['cycleDeMesure'] as bool? ?? false,
+      );
+}
+
+/// **Un bloc du cycle : une épreuve.**
+///
+/// 🛑 **Toujours QUATRE blocs, dans l'ordre servi `CO, CE, EO, EE`** — l'ordre
+/// du serveur est l'autorité, aucun front ne retrie.
+class JourneyBloc {
+  const JourneyBloc({
+    required this.examType,
+    required this.status,
+    required this.competencesRestantes,
+    required this.steps,
+    this.exam,
+  });
+
+  /// L'épreuve du bloc. C'est **elle** que le candidat lit partout (D-21).
+  final EpreuveType examType;
+
+  final JourneyBlocStatus status;
+
+  /// Étapes d'entraînement encore ouvertes. C'est ce nombre qui verrouille
+  /// l'examen du bloc (D-15).
+  final int competencesRestantes;
+
+  /// Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
+  /// figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc.
+  final List<JourneyStep> steps;
+
+  /// L'examen du bloc — l'étape ouverte s'il y en a une, sinon la dernière
+  /// clôturée. `null` quand le bloc n'en porte pas encore.
+  final JourneyStep? exam;
+
+  factory JourneyBloc.fromJson(Map<String, dynamic> json) => JourneyBloc(
+        examType: _epreuve(json['examType'] as String?) ?? EpreuveType.tcfCo,
+        status: JourneyBlocStatus.fromWireNullable(json['status'] as String?) ??
+            JourneyBlocStatus.aVenir,
+        competencesRestantes:
+            (json['competencesRestantes'] as num?)?.toInt() ?? 0,
+        steps: (json['steps'] as List<dynamic>? ?? const [])
+            .map((item) => JourneyStep.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+        exam: json['exam'] == null
+            ? null
+            : JourneyStep.fromJson(json['exam'] as Map<String, dynamic>),
+      );
+}
+
+/// **Les issues d'un cycle terminé** (spec §6) — la carte finale à deux actions.
+///
+/// 🛑 `null` tant que le cycle n'est pas terminé.
+class JourneyNextStep {
+  const JourneyNextStep({
+    required this.examenCompletPossible,
+    required this.actualisationPossible,
+  });
+
+  /// « Passer l'examen blanc complet » crée un **cycle de mesure**.
+  /// 🛑 Faux à la fin d'un cycle de mesure. ⚠️ Cette action **crée le cycle**,
+  /// elle ne démarre aucun examen.
+  final bool examenCompletPossible;
+
+  /// « Actualiser mon plan » : le cycle en attente devient le cycle courant.
+  final bool actualisationPossible;
+
+  factory JourneyNextStep.fromJson(Map<String, dynamic> json) =>
+      JourneyNextStep(
+        examenCompletPossible: json['examenCompletPossible'] as bool? ?? false,
+        actualisationPossible: json['actualisationPossible'] as bool? ?? false,
+      );
+}
+
 /// Le parcours servi.
 class Journey {
   const Journey({
     required this.state,
-    required this.steps,
-    required this.hiddenUpcomingCount,
+    required this.blocs,
     this.targetLevel,
     this.current,
     this.suggestion,
+    this.cycle,
+    this.nextStep,
   });
 
   /// `null` quand [state] vaut [JourneyState.needsObjective].
@@ -309,15 +463,22 @@ class Journey {
 
   final JourneyState state;
 
-  /// L'étape à faire maintenant. `null` dans trois cas que [state] distingue :
-  /// pas d'objectif, plus rien à faire, ou rien d'exécutable.
+  /// L'étape à faire maintenant. `null` dans quatre cas que [state] distingue :
+  /// pas d'objectif, cycle terminé, plus rien à faire, rien d'exécutable.
   final JourneyStep? current;
 
-  /// Déjà filtrées côté serveur et dans l'ordre de la file. Les étapes obsolètes
-  /// n'y sont jamais.
-  final List<JourneyStep> steps;
+  /// L'avancement du cycle borné. `null` sans parcours.
+  ///
+  /// ⚠️ **`steps` et `hiddenUpcomingCount` ont quitté ce miroir** (2026-09-18) :
+  /// la file plate est remplacée par les blocs, et le serveur retire ces deux
+  /// champs juste après. Les relire serait rouvrir un second parcours.
+  final JourneyCycle? cycle;
 
-  final int hiddenUpcomingCount;
+  /// Les quatre blocs, **dans l'ordre servi**. Vide sans parcours.
+  final List<JourneyBloc> blocs;
+
+  /// 🛑 `null` sauf cycle terminé.
+  final JourneyNextStep? nextStep;
 
   /// `null` est le cas courant.
   final JourneySuggestionType? suggestion;
@@ -329,11 +490,15 @@ class Journey {
         current: json['current'] == null
             ? null
             : JourneyStep.fromJson(json['current'] as Map<String, dynamic>),
-        steps: (json['steps'] as List<dynamic>? ?? const [])
-            .map((item) => JourneyStep.fromJson(item as Map<String, dynamic>))
+        cycle: json['cycle'] == null
+            ? null
+            : JourneyCycle.fromJson(json['cycle'] as Map<String, dynamic>),
+        blocs: (json['blocs'] as List<dynamic>? ?? const [])
+            .map((item) => JourneyBloc.fromJson(item as Map<String, dynamic>))
             .toList(growable: false),
-        hiddenUpcomingCount:
-            (json['hiddenUpcomingCount'] as num?)?.toInt() ?? 0,
+        nextStep: json['nextStep'] == null
+            ? null
+            : JourneyNextStep.fromJson(json['nextStep'] as Map<String, dynamic>),
         suggestion:
             JourneySuggestionType.fromWireNullable(json['suggestion'] as String?),
       );

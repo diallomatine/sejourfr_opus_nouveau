@@ -66,10 +66,16 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
   Future<LearningPlan> get() async => plan;
 
   /// Le parcours n'entre pas dans ce que ce test verifie (la revision du Plan) :
-  /// un appel serait un faux positif, pas une aide.
+  /// un appel serait un faux positif, pas une aide. Idem des deux gestes de fin
+  /// de cycle, qui historisent — ce test ne les declenche jamais.
   @override
-  Future<Journey> journey({bool toutesLesEtapes = false}) =>
-      throw UnimplementedError();
+  Future<Journey> journey() => throw UnimplementedError();
+
+  @override
+  Future<Journey> refresh() => throw UnimplementedError();
+
+  @override
+  Future<Journey> measurementCycle() => throw UnimplementedError();
 }
 
 class _CountingLearningPlanRepository extends _FakeLearningPlanRepository {

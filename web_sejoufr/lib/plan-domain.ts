@@ -408,6 +408,15 @@ export const PLAN_NOW_CTA_VERIFY = "Faire la vérification";
 export const PLAN_NOW_CTA_MEASURE = "Compléter la mesure";
 
 /**
+ * Ce que dit le bouton quand l'étape annoncée est **verrouillée** : il ne lance
+ * pas l'entraînement, il ouvre l'offre.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`kPlanNowLockedCta`), qui portait déjà ce
+ * libellé — le web n'en avait aucun parce qu'il n'affichait aucun bouton.
+ */
+export const PLAN_NOW_CTA_LOCKED = "Débloquer cet entraînement";
+
+/**
  * Ce que dit le bouton de la carte d'action.
  *
  * 🛑 **Rien n'est déduit d'un pourcentage** : la vérification se lit sur la
@@ -550,9 +559,30 @@ export type PlanNowNature =
      */
     | "INDISPONIBLE";
 
+/**
+ * **Le geste de la carte** — la seule autorité sur « que se passe-t-il quand on
+ * la touche ».
+ *
+ * 🛑 **Un écran ne redéduit jamais ce geste d'un `locked`.** Les six surfaces
+ * qui portent cette carte (Plan, Accueil, Réviser, web et mobile) lisent ce
+ * champ ; recalculer « verrouillé ⇒ offre » de chaque côté est exactement ce
+ * qui avait laissé le Plan muet sur une étape verrouillée pendant que le mobile
+ * y ouvrait déjà l'offre.
+ *
+ * - `LANCER` : la carte démarre ce qu'elle annonce (mesure ou exercice) ;
+ * - `DEBLOQUER` : l'étape annoncée est **fermée** — le geste ouvre le paywall
+ *   (spec §7 / D-18 : « le tap ouvre la popup *Débloquer mon plan* ») ;
+ * - `AUCUN` : rien ne se résout, la carte **nomme** l'étape et s'arrête là.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`PlanNowGeste`, `plan_now_card.dart`).
+ */
+export type PlanNowGeste = "LANCER" | "DEBLOQUER" | "AUCUN";
+
 /** L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance. */
 export interface PlanNowVue {
     nature: PlanNowNature;
+    /** 🛑 **Ce que le geste fait**, décidé ici et nulle part ailleurs. */
+    geste: PlanNowGeste;
     /**
      * **La mesure que le bouton LANCE**, `null` sinon. Elle reste servie même
      * sur un plan gratuit, où la carte ne la nomme pas : c'est elle qui décide
@@ -608,9 +638,15 @@ export interface PlanNowVue {
  * (`lib/journey.ts`), la même autorité que la timeline : la carte et la ligne
  * de la timeline disent donc mot pour mot la même chose.
  */
-function carteIndisponible(etape: JourneyStepDto): PlanNowVue {
+function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
+    /* 🛑 Un compte **sans accès** n'a rien à lancer de toute façon : le geste
+       est l'offre, même quand l'action de l'étape ne se résout pas. Sinon, une
+       étape ouverte mais sans exercice reste **sans geste** — on ne lui fait
+       pas ouvrir un paywall qui ne la débloquerait pas. */
+    const verrou = free || etape.locked;
     return {
         nature: "INDISPONIBLE",
+        geste: verrou ? "DEBLOQUER" : "AUCUN",
         mesure: null,
         priority: null,
         exercise: null,
@@ -625,7 +661,7 @@ function carteIndisponible(etape: JourneyStepDto): PlanNowVue {
         minutesLabel: null,
         kindLabel: null,
         lines: [PLAN_NOW_UNAVAILABLE_TEXT],
-        cta: PLAN_NOW_CTA_START,
+        cta: verrou ? PLAN_NOW_CTA_LOCKED : PLAN_NOW_CTA_START,
         /* Le verrou **servi** de l'étape, pas une déduction : une étape
            indisponible peut être verrouillée par ailleurs, et l'écran doit
            continuer à le dire. */
@@ -723,6 +759,44 @@ function journeyMesureDe(
 }
 
 /**
+ * **Ce qu'une ligne du cycle LANCE** — l'action de l'étape, résolue par les
+ * mêmes autorités que la carte « À faire maintenant ».
+ *
+ * 🛑 **GARDE-FOU du 2026-09-17, appliqué ligne par ligne** : une ligne ne lance
+ * **jamais** autre chose que l'étape qu'elle annonce. `null` quand rien ne se
+ * résout — l'écran nomme alors l'étape **sans bouton**, exactement comme la
+ * nature `INDISPONIBLE` de la carte.
+ *
+ * 🛑 **Aucune règle nouvelle ici** : `journeyPriorityDe` et `journeyMesureDe`
+ * sont les deux résolutions que `planNowCard` emploie déjà. Cette fonction les
+ * expose pour une étape **quelconque** du cycle, au lieu de la seule étape
+ * courante — le Plan en affiche désormais toutes.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planStepAction`, `plan_now_card.dart`).
+ */
+export interface PlanStepAction {
+    /** La mesure à lancer (`usePlanAssessment`), `null` sur une compétence. */
+    mesure: PlanSeanceAssessmentItemDto | null;
+    /** L'exercice à lancer (`usePlanExercise`), `null` sur un examen. */
+    exercise: PlanSkillExerciseDto | null;
+    /** La priorité qui porte l'exercice — son état de maîtrise sert la mesure
+     *  d'audience du lanceur. `null` sur une mesure. */
+    priority: LearningPlanPriorityDto | null;
+}
+
+export function planStepAction(
+    plan: LearningPlanDto,
+    etape: JourneyStepDto,
+): PlanStepAction | null {
+    const mesure = journeyMesureDe(plan, etape);
+    if (mesure) return {mesure, exercise: null, priority: null};
+    const priority = journeyPriorityDe(plan, etape);
+    const exercise = priority?.recommendedExercise ?? null;
+    if (!priority || !exercise) return null;
+    return {mesure: null, exercise, priority};
+}
+
+/**
  * **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
  * n'a désigné aucune priorité (l'écran affiche alors son état vide).
  *
@@ -747,8 +821,10 @@ function journeyMesureDe(
  *
  * ⚠️ `free` n'a **pas** de pendant Dart : le plan gratuit y est une carte à
  * part (`_freeStepCard`), là où le web rend les deux avec le même `NowCard`.
- * Sur un plan gratuit la carte **constate** — elle ne nomme pas la mesure, ne
- * porte ni pastille, ni méta, ni constat, et ne lance rien.
+ * Sur un plan gratuit la carte **constate** — elle ne nomme pas la mesure et ne
+ * porte ni pastille, ni méta, ni constat. Son seul geste est l'offre
+ * (`geste === "DEBLOQUER"`, spec §7 / D-18) : elle ne lance aucun
+ * entraînement.
  */
 export function planNowCard(
     plan: LearningPlanDto,
@@ -783,7 +859,7 @@ export function planNowCard(
        Plan ne priorise plus (son transfert vient d'être prouvé) et une
        compétence hors de la fenêtre d'affichage des priorités. Dans les deux
        cas, la carte nomme **cette étape-là**, sans bouton. */
-    if (etape && !duParcours && !mesure) return carteIndisponible(etape);
+    if (etape && !duParcours && !mesure) return carteIndisponible(etape, free);
 
     const priority = duParcours ?? plan.currentPriority;
     if (!priority && !mesure) return null;
@@ -794,6 +870,16 @@ export function planNowCard(
     const locked = mesure
         ? planSeanceItemLocked(mesure)
         : (priority!.locked || exercise?.locked === true);
+
+    /* 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
+       D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**. Un
+       compte sans accès y passe toujours — son Plan est un constat, et c'est
+       `JourneyState.LOCKED` permanent qui est l'effet voulu. */
+    const geste: PlanNowGeste = free || locked
+        ? "DEBLOQUER"
+        : mesure || exercise
+            ? "LANCER"
+            : "AUCUN";
 
     /* ⚠️ **`planSkillTargetLevel`, comme le mobile** (correctif de parité du
        2026-09-18) : cette carte lisait `planSkillLevel`, les paliers de
@@ -837,6 +923,7 @@ export function planNowCard(
     if (mesureCard) {
         return {
             nature: "MESURE",
+            geste,
             mesure,
             priority,
             exercise,
@@ -854,7 +941,7 @@ export function planNowCard(
             /* Sur une mesure, le constat de la priorité parlerait d'une AUTRE
                compétence que celle que le bouton ouvre. */
             lines: [PLAN_REASON_A_EVALUER],
-            cta: planNowCta(priority, false, true),
+            cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, false, true),
             locked,
         };
     }
@@ -865,6 +952,7 @@ export function planNowCard(
 
     return {
         nature: verifier ? "VERIFICATION" : "ETAPE",
+        geste,
         mesure,
         priority,
         exercise,
@@ -895,7 +983,7 @@ export function planNowCard(
                 exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
             ),
         lines: free ? [] : planNowLines(priority),
-        cta: planNowCta(priority, verifier, false),
+        cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, verifier, false),
         locked,
     };
 }
@@ -1483,183 +1571,6 @@ export function planGroupContextLine(head: PlanGroupHead): string {
     return `${planTaskBadge(head.taskNumber)} — ${head.taskTitle}`;
 }
 
-/* ----------------------------------------------------- priorités groupées */
-
-/**
- * Une ligne d'un encart de « Mes priorités ».
- *
- * ⚠️ **Elle ne vient plus forcément d'une priorité.** Un encart porte
- * **toutes** les compétences de sa tâche (ou de son palier) : celles que le
- * Plan demande de travailler **et** celles qui ont seulement été observées,
- * *solides comprises*. C'est ce qui permet à son résumé de dire « 1 priorité ·
- * 2 à renforcer · 3 solides » — et au candidat de voir qu'il a de quoi
- * travailler sans qu'une seconde section vienne redire la même chose ailleurs.
- *
- * 🛑 **Une compétence jamais observée et sans nature n'est PAS une ligne** :
- * elle n'est ni un acquis ni une action, et la compter gonflerait le résumé
- * d'un travail que le Plan ne demande pas.
- */
-export interface PlanPriorityGroupRow {
-    skillId: string;
-    skillCode: string;
-    title: string;
-    section: SkillSection;
-    /** La priorité servie quand cette ligne en est une — **elle seule** porte
-     *  `recommendedExercise` et les compteurs d'étape. `null` sur une
-     *  compétence seulement observée : rien n'y est demandé. */
-    priority: LearningPlanPriorityDto | null;
-    /** Ce que la pastille annonce, et ce que le résumé de l'encart compte. */
-    status: PlanRowStatus;
-    /** Palier porté par le référentiel — celui qu'annonce « À acquérir · B1 ».
-     *  `null` quand il n'est pas publié : on n'en invente pas. */
-    level: TargetLevel | null;
-    /** Le `locked` du serveur, jamais le rang de la ligne. 🛑 Une compétence
-     *  **solide** n'est jamais verrouillée à l'affichage : c'est une mesure du
-     *  candidat, pas une action fermée. */
-    locked: boolean;
-}
-
-export interface PlanPriorityGroup extends PlanGroupHead {
-    /** **Toutes** les lignes du groupe, jamais tronquées ici : le plafond
-     *  d'affichage vit au point d'appel, à côté du compteur qu'il alimente —
-     *  sinon le « + N autres » serait faux par construction. */
-    rows: PlanPriorityGroupRow[];
-    /** Toutes les lignes sont fermées : l'encart porte un cadenas et mène à
-     *  l'offre au lieu de se déplier. */
-    locked: boolean;
-}
-
-/** La clé d'un encart : une **tâche** en expression, un couple (domaine,
- *  palier) en compréhension. Une seule règle, partagée par les deux passes de
- *  `planPriorityGroups` — deux copies rangeraient la même compétence dans deux
- *  encarts différents. */
-function planPriorityGroupKey(
-    epreuve: PlanDomainEpreuve,
-    skillCode: string,
-    level: TargetLevel | null,
-): string {
-    const task = skillTaskCode(skillCode);
-    return task ? `task:${task}` : `level:${epreuve}:${level ?? "-"}`;
-}
-
-/** Le verrou d'affichage d'une ligne : celui du serveur, sauf sur une
- *  compétence **solide** — on floute l'action pas encore accessible, jamais le
- *  résultat mesuré. */
-function planRowLocked(locked: boolean, status: PlanRowStatus): boolean {
-    return locked && status !== "SOLIDE";
-}
-
-/**
- * Les priorités, groupées par épreuve puis par tâche — même règle que la
- * séance, mêmes en-têtes. L'ordre des priorités reste **celui du serveur**.
- *
- * **Deux passes, et une seule ouvre des encarts.** La première pose un encart
- * par tâche (ou par palier) réellement priorisée, dans l'ordre servi ; la
- * seconde y verse les autres compétences du même groupe, lues sur
- * `domaines[].skills` — la liste **complète** du référentiel, à ne pas
- * confondre avec `observedSkills`, plafonné à huit toutes épreuves confondues
- * et donc incapable de garnir un encart. Aucun encart n'est ouvert par la
- * seconde passe : « Mes priorités » listerait alors les six tâches.
- */
-export function planPriorityGroups(
-    plan: LearningPlanDto,
-    priorities: LearningPlanPriorityDto[],
-): PlanPriorityGroup[] {
-    const groups: PlanPriorityGroup[] = [];
-    const placed = new Set<string>();
-
-    for (const priority of priorities) {
-        const epreuve = planSectionEpreuve(priority.section);
-        const task = skillTaskCode(priority.skillCode);
-        const level = planSkillTargetLevel(plan, priority.skillId);
-        const key = planPriorityGroupKey(epreuve, priority.skillCode, level);
-        const context = task || !level ? null : planGroupLevelContext(level);
-
-        let group = groups.find((candidate) => candidate.key === key);
-        if (!group) {
-            group = {
-                ...planGroupHead({key, epreuve, skillCode: priority.skillCode, context}),
-                rows: [],
-                locked: true,
-            };
-            groups.push(group);
-        }
-        const status = planRowStatus(priority);
-        group.rows.push({
-            skillId: priority.skillId,
-            skillCode: priority.skillCode,
-            title: priority.title,
-            section: priority.section,
-            priority,
-            status,
-            level,
-            locked: planRowLocked(priority.locked, status),
-        });
-        placed.add(priority.skillId);
-    }
-
-    /* L'ordre du référentiel, tel que le serveur l'a servi : `domaines` est
-       déjà trié par urgence, et `skills` par tâche puis rang d'affichage. On ne
-       retrie rien. */
-    for (const domain of plan.domaines) {
-        for (const skill of domain.skills ?? []) {
-            if (placed.has(skill.skillId)) continue;
-            /* Ni observée, ni demandée : ce n'est ni un acquis ni une action. */
-            if (skill.observedAt === null && skill.nature === null) continue;
-            const key = planPriorityGroupKey(domain.epreuve, skill.skillCode, skill.targetLevel);
-            const group = groups.find((candidate) => candidate.key === key);
-            if (!group) continue;
-            const status = planRowStatus(skill);
-            group.rows.push({
-                skillId: skill.skillId,
-                skillCode: skill.skillCode,
-                title: skill.title,
-                section: skill.section,
-                priority: null,
-                status,
-                level: skill.targetLevel,
-                locked: planRowLocked(skill.locked, status),
-            });
-            placed.add(skill.skillId);
-        }
-    }
-
-    for (const group of groups) {
-        group.locked = group.rows.every((row) => row.locked);
-    }
-    return groups;
-}
-
-/** Combien de lignes un encart déroule avant de renvoyer vers la fiche de son
- *  domaine. **C'est un plafond d'AFFICHAGE**, pas une troncature des données :
- *  le groupe garde toutes ses lignes, et le « + N autres » se calcule dessus. */
-export const PLAN_PRIORITY_ROWS_VISIBLE = 6;
-
-/** **Ce qu'un encart RÉTRACTÉ laisse voir** (2026-09-13, demande du
- *  propriétaire : « les priorités s'il y en a plus d'une, fais-les comme des
- *  encarts rétractables ; on affiche juste 2 points et le reste à l'ouverture »).
- *
- *  Empilés dépliés, trois encarts de huit compétences font un écran qu'on ne
- *  finit pas de faire défiler — et la priorité n°2 n'existe plus. Deux lignes
- *  suffisent à dire de quoi parle l'encart ; le reste est à un clic.
- *
- *  🛑 **Plafond d'AFFICHAGE, jamais un filtre** : le compteur du bouton porte
- *  sur ce qui est réellement replié, et l'ouverture rend **toutes** les lignes
- *  — pas les six de {@link PLAN_PRIORITY_ROWS_VISIBLE}. */
-export const PLAN_PRIORITY_ROWS_COLLAPSED = 2;
-
-/** « Réduire » — referme un encart de priorité rétractable. Il ne compte rien,
- *  contrairement à {@link planGroupMoreLabel} : le nombre a déjà été lu à
- *  l'ouverture, et le répéter ferait croire qu'il reste quelque chose de
- *  caché. */
-export const PLAN_GROUP_LESS_LABEL = "Réduire";
-
-/** « + 3 autres compétences ». 🛑 Le nombre est **vrai**, calculé sur le
- *  contenu réel du groupe ; `0` ⇒ l'appelant n'affiche rien du tout. */
-export function planGroupMoreLabel(count: number): string {
-    return `+ ${count} autre${count > 1 ? "s" : ""} compétence${count > 1 ? "s" : ""}`;
-}
-
 /** L'épreuve d'un domaine de compétence — le pendant de `PLAN_DOMAIN_SECTION`. */
 export function planSectionEpreuve(section: SkillSection): PlanDomainEpreuve {
     switch (section) {
@@ -1686,150 +1597,6 @@ export function planSkillTargetLevel(plan: LearningPlanDto, skillId: string): Ta
     return planSkillLevel(plan, skillId);
 }
 
-/**
- * **Le statut d'affichage d'une ligne de priorité** — une vue de deux faits
- * servis, jamais un jugement neuf.
- *
- * La **nature** dit ce qu'il y a à faire ; l'**état agrégé** dit où en est la
- * compétence. Une fragilité que le moteur tient déjà pour `SOLID` se dit
- * « solide », celle qu'il tient pour la plus bloquante se dit « priorité » :
- * c'est ce qui permet à un encart fermé de résumer ses lignes — « 1 priorité ·
- * 2 à renforcer » — sans les déplier.
- *
- * 🛑 **Aucune des deux sources n'est réinterprétée** : une acquisition n'a rien
- * d'observé et reste « à acquérir » quoi qu'il arrive, une vérification reste
- * « à vérifier », une mesure reste « à évaluer ».
- *
- * ⚠️ **Miroir du mobile** (`PlanRowStatus`, `planRowStatus`) : l'ordre de
- * déclaration EST l'ordre du résumé — ce qui bloque, ce qui se répare, ce qui
- * s'apprend, ce qui se prouve, ce qui tient, ce qui manque d'être mesuré.
- */
-export type PlanRowStatus =
-    | "PRIORITE"
-    | "A_RENFORCER"
-    | "A_ACQUERIR"
-    | "A_VERIFIER"
-    | "SOLIDE"
-    | "A_EVALUER";
-
-const PLAN_ROW_STATUS_ORDER: readonly PlanRowStatus[] = [
-    "PRIORITE",
-    "A_RENFORCER",
-    "A_ACQUERIR",
-    "A_VERIFIER",
-    "SOLIDE",
-    "A_EVALUER",
-];
-
-/** Les libellés sont **empruntés**, jamais recopiés : « Priorité » et
- *  « Solide » viennent de `SKILL_MASTERY_STATE_LABEL`, les quatre autres de
- *  `PLAN_ACTION_NATURE_LABEL`. Un libellé qui bouge côté serveur bouge ici sans
- *  que personne y touche. */
-export const PLAN_ROW_STATUS_LABEL: Record<PlanRowStatus, string> = {
-    PRIORITE: SKILL_MASTERY_STATE_LABEL.PRIORITY,
-    A_RENFORCER: PLAN_ACTION_NATURE_LABEL.A_RENFORCER,
-    A_ACQUERIR: PLAN_ACTION_NATURE_LABEL.A_ACQUERIR,
-    A_VERIFIER: PLAN_ACTION_NATURE_LABEL.A_VERIFIER,
-    SOLIDE: SKILL_MASTERY_STATE_LABEL.SOLID,
-    A_EVALUER: PLAN_ACTION_NATURE_LABEL.A_EVALUER,
-};
-
-export function planRowStatus(skill: {
-    nature: PlanActionNature | null;
-    status: LearningPlanSkillStatus | null;
-    masteryState: SkillMasteryState | null;
-}): PlanRowStatus {
-    switch (skill.nature) {
-        case "A_EVALUER": return "A_EVALUER";
-        case "A_ACQUERIR": return "A_ACQUERIR";
-        case "A_VERIFIER": return "A_VERIFIER";
-        case "A_RENFORCER":
-            if (skill.masteryState === "SOLID") return "SOLIDE";
-            if (skill.masteryState === "PRIORITY") return "PRIORITE";
-            return skill.status === "PRIORITY" ? "PRIORITE" : "A_RENFORCER";
-        default:
-            /* Aucune action demandée : la ligne dit alors ce qui a été
-               **mesuré**. L'état agrégé prime sur le verdict d'une seule
-               production — c'est lui que la fiche de la compétence affiche. */
-            if (skill.masteryState === "SOLID") return "SOLIDE";
-            if (skill.masteryState === "PRIORITY") return "PRIORITE";
-            if (skill.status === "SOLID") return "SOLIDE";
-            return skill.status === "PRIORITY" ? "PRIORITE" : "A_RENFORCER";
-    }
-}
-
-/** Le libellé complet d'une pastille. « À acquérir » y **ajoute son palier
- *  cible** — c'est le seul statut qui désigne un palier à venir plutôt qu'un
- *  constat, et sans lui le candidat ne sait pas ce qu'il apprend. Sans palier
- *  servi, on ne le nomme pas. */
-export function planRowStatusLabel(status: PlanRowStatus, level: TargetLevel | null): string {
-    return status === "A_ACQUERIR" && level
-        ? `${PLAN_ROW_STATUS_LABEL[status]} · ${level}`
-        : PLAN_ROW_STATUS_LABEL[status];
-}
-
-/* Les formes comptées du résumé : « 1 priorité · 2 priorités ». Les quatre
-   natures s'écrivent déjà avec « à » et ne varient pas — leur forme comptée est
-   donc leur libellé en bas de casse, comme sur mobile. */
-function plannedStatusWord(status: PlanRowStatus, count: number): string {
-    if (status === "PRIORITE") return count > 1 ? "priorités" : "priorité";
-    if (status === "SOLIDE") return count > 1 ? "solides" : "solide";
-    return PLAN_ROW_STATUS_LABEL[status].toLowerCase();
-}
-
-/** « 1 priorité · 2 à renforcer ». **Ordre figé** par `PLAN_ROW_STATUS_ORDER` ;
- *  un statut absent ne s'écrit pas. */
-export function planRowStatusSummary(statuses: PlanRowStatus[]): string {
-    return PLAN_ROW_STATUS_ORDER
-        .map((status) => {
-            const count = statuses.filter((candidate) => candidate === status).length;
-            return count === 0 ? null : `${count} ${plannedStatusWord(status, count)}`;
-        })
-        .filter(Boolean)
-        .join(" · ");
-}
-
-/** Le résumé d'un encart de priorités, fermé : la tâche, puis ce qu'elle
- *  contient. */
-export function planPriorityGroupSummary(group: PlanPriorityGroup): string {
-    const statuses = group.rows.map((row) => row.status);
-    return [group.taskTitle, planRowStatusSummary(statuses)].filter(Boolean).join(" · ");
-}
-
-/* Les deux intertitres d'un encart de priorités ouvert. */
-export const PLAN_GROUP_ASIDE_TITLE = "Où je travaille";
-export const PLAN_GROUP_ROWS_TITLE = "Ce que je dois améliorer";
-
-/* Ce que dit une ligne de priorité sous son titre. Aucune ne nomme une faute :
-   une compétence **à acquérir** dit ce qu'elle est, une compétence de
-   compréhension dit par quoi elle se travaille. */
-export const PLAN_PRIORITY_ROW_NEW = "Nouvelle compétence de votre palier";
-export const PLAN_PRIORITY_ROW_PROMPTS = "Petits sujets ciblés";
-
-export function planPriorityRowMeta(row: PlanPriorityGroupRow): string {
-    const {priority, level} = row;
-    if (row.status === "A_ACQUERIR") {
-        return level ? `Nouvelle compétence du palier ${level}` : PLAN_PRIORITY_ROW_NEW;
-    }
-    /* 🛑 La branche se décide sur la **famille** de la compétence, jamais sur la
-       présence d'un exercice : une compétence CO/CE n'a **aucun** `skill_prompt`
-       (le contrat l'interdit), donc retomber sur les compteurs de sujets lui
-       ferait afficher « Petits sujets ciblés » — un parcours qui n'existe pas
-       pour elle. Miroir du mobile (`_PriorityRow.sub`). */
-    if (isComprehension(row.section)) {
-        const exercise = priority?.recommendedExercise ?? null;
-        return planSeriesLabel(
-            exercise && exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
-        );
-    }
-    /* Une compétence seulement observée n'a **aucun** compteur d'étape servi :
-       on dit par quoi elle se travaille, on n'invente pas de « 0 / 5 ». */
-    if (priority && priority.stepPromptCount > 0) {
-        return `${priority.stepAttemptedCount} / ${priority.stepPromptCount} petits sujets`;
-    }
-    return PLAN_PRIORITY_ROW_PROMPTS;
-}
-
 /** « Série ciblée de 20 questions » — la taille est **décidée serveur**. Sans
  *  elle, on ne l'invente pas. Miroir mot pour mot du mobile
  *  (`planSeriesLabel`). */
@@ -1837,35 +1604,6 @@ export function planSeriesLabel(questionCount: number | null): string {
     return questionCount === null
         ? "Série ciblée de compréhension"
         : `Série ciblée de ${questionCount} questions`;
-}
-
-/* Le bouton d'un encart de priorités ouvert — il vise la **première ligne non
-   solide** du groupe. Trois libellés, parce que trois actions différentes :
-   lancer une série, découvrir ce qu'on n'a jamais travaillé, ou reprendre une
-   compétence déjà observée. */
-export const PLAN_PRIORITY_CTA_SERIES = "Faire une série ciblée";
-export const PLAN_PRIORITY_CTA_DISCOVER = "Découvrir cette compétence";
-export const PLAN_PRIORITY_CTA_WORK = "Travailler cette compétence";
-export const PLAN_PRIORITY_CTA_UNLOCK = "Débloquer cette compétence";
-
-export function planPriorityGroupCta(row: PlanPriorityGroupRow): string {
-    if (row.locked) return PLAN_PRIORITY_CTA_UNLOCK;
-    if (isComprehension(row.section)) return PLAN_PRIORITY_CTA_SERIES;
-    return row.status === "A_ACQUERIR" ? PLAN_PRIORITY_CTA_DISCOVER : PLAN_PRIORITY_CTA_WORK;
-}
-
-/**
- * La ligne que vise le bouton d'un encart : la **première non solide**.
- *
- * 🛑 **Un groupe entièrement solide n'a pas de bouton** (`null`) : tout y est
- * acquis, il n'y a rien à y faire — proposer « Travailler cette compétence »
- * sur une compétence solide renverrait le candidat sur du travail déjà prouvé.
- * Les priorités venant en tête du groupe, la ligne visée en est presque
- * toujours une ; une compétence seulement observée peut la porter, et elle
- * ouvre alors simplement sa fiche.
- */
-export function planPriorityGroupAction(group: PlanPriorityGroup): PlanPriorityGroupRow | null {
-    return group.rows.find((row) => row.status !== "SOLIDE") ?? null;
 }
 
 /* -------------------------------------------------- parcours d'une tâche */

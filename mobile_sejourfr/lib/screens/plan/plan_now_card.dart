@@ -55,10 +55,32 @@ enum PlanNowNature {
   indisponible,
 }
 
+/// **Le geste de la carte** — la seule autorité sur « que se passe-t-il quand on
+/// la touche ».
+///
+/// 🛑 **Un écran ne redéduit jamais ce geste d'un `locked`.** Les six surfaces
+/// qui portent cette carte (Plan, Accueil, Réviser, web et mobile) lisent ce
+/// champ ; recalculer « verrouillé ⇒ offre » de chaque côté est exactement ce
+/// qui avait laissé le Plan web muet sur une étape verrouillée.
+///
+/// ⚠️ Miroir mot pour mot du web (`PlanNowGeste`, `lib/plan-domain.ts`).
+enum PlanNowGeste {
+  /// La carte démarre ce qu'elle annonce (mesure ou exercice).
+  lancer,
+
+  /// L'étape annoncée est **fermée** : le geste ouvre le paywall (spec §7 /
+  /// D-18 — « le tap ouvre la popup *Débloquer mon plan* »).
+  debloquer,
+
+  /// Rien ne se résout : la carte **nomme** l'étape et s'arrête là.
+  aucun,
+}
+
 /// L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance.
 class PlanNowCard {
   const PlanNowCard({
     required this.nature,
+    required this.geste,
     required this.mesure,
     required this.priority,
     required this.exercise,
@@ -77,6 +99,10 @@ class PlanNowCard {
   });
 
   final PlanNowNature nature;
+
+  /// 🛑 **Ce que le geste fait**, décidé dans [planNowCard] et nulle part
+  /// ailleurs.
+  final PlanNowGeste geste;
 
   /// **La mesure que le bouton LANCE**, `null` dès que la carte porte une étape.
   /// C'est elle qui décide du verrou comme du démarrage
@@ -135,6 +161,44 @@ class PlanNowCard {
   bool get estMesure => nature == PlanNowNature.mesure;
   bool get estVerification => nature == PlanNowNature.verification;
   bool get estIndisponible => nature == PlanNowNature.indisponible;
+  bool get estADebloquer => geste == PlanNowGeste.debloquer;
+}
+
+/// **Ce qu'une ligne du cycle LANCE** — l'action de l'étape, résolue par les
+/// mêmes autorités que la carte « À faire maintenant ».
+///
+/// 🛑 **GARDE-FOU du 2026-09-17, appliqué ligne par ligne** : une ligne ne lance
+/// **jamais** autre chose que l'étape qu'elle annonce. `null` quand rien ne se
+/// résout — l'écran nomme alors l'étape **sans bouton**, exactement comme la
+/// nature [PlanNowNature.indisponible] de la carte.
+///
+/// 🛑 **Aucune règle nouvelle ici** : [_priorityDe] et [_mesureDe] sont les deux
+/// résolutions que [planNowCard] emploie déjà. Cette fonction les expose pour
+/// une étape **quelconque** du cycle, au lieu de la seule étape courante — le
+/// Plan en affiche désormais toutes.
+///
+/// ⚠️ Miroir mot pour mot du web (`planStepAction`, `lib/plan-domain.ts`).
+class PlanStepAction {
+  const PlanStepAction({this.mesure, this.exercise, this.priority});
+
+  /// La mesure à lancer ([startPlanSeanceItem]), `null` sur une compétence.
+  final PlanSeanceItem? mesure;
+
+  /// L'exercice à lancer ([openPlanExercise]), `null` sur un examen.
+  final PlanRecommendedExercise? exercise;
+
+  /// La priorité qui porte l'exercice — son état de maîtrise sert la mesure
+  /// d'audience du lanceur. `null` sur une mesure.
+  final LearningPlanPriority? priority;
+}
+
+PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
+  final mesure = _mesureDe(plan, etape);
+  if (mesure != null) return PlanStepAction(mesure: mesure);
+  final priority = _priorityDe(plan, etape);
+  final exercise = priority?.recommendedExercise;
+  if (priority == null || exercise == null) return null;
+  return PlanStepAction(exercise: exercise, priority: priority);
 }
 
 /// **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
@@ -198,8 +262,12 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
           : '≈ $minutes min';
 
   if (mesureDomaine != null) {
+    // 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
+    // D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
+    final verrou = planSeanceItemLocked(mesure!);
     return PlanNowCard(
       nature: PlanNowNature.mesure,
+      geste: verrou ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
       mesure: mesure,
       priority: priority,
       exercise: exercise,
@@ -216,8 +284,10 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       // compétence que celle que le bouton va ouvrir : c'est le motif de la
       // mesure qui se dit.
       lines: const [kPlanReasonAEvaluer],
-      cta: planNowCta(priority, verifier: false, mesure: true),
-      locked: planSeanceItemLocked(mesure!),
+      cta: verrou
+          ? kPlanNowLockedCta
+          : planNowCta(priority, verifier: false, mesure: true),
+      locked: verrou,
     );
   }
 
@@ -228,9 +298,15 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
   final epreuve = planEpreuveOfSection(priority.section);
   final task = SkillTaskCode.fromSkillCode(priority.skillCode);
   final level = planSkillTargetLevel(plan, priority.skillId);
+  final verrou = priority.locked || (exercise?.locked ?? false);
 
   return PlanNowCard(
     nature: verifier ? PlanNowNature.verification : PlanNowNature.etape,
+    geste: verrou
+        ? PlanNowGeste.debloquer
+        : exercise == null
+            ? PlanNowGeste.aucun
+            : PlanNowGeste.lancer,
     mesure: null,
     priority: priority,
     exercise: exercise,
@@ -267,8 +343,10 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       questionCount: exercise?.questionCount,
     ),
     lines: planNowLines(priority),
-    cta: planNowCta(priority, verifier: verifier, mesure: false),
-    locked: priority.locked || (exercise?.locked ?? false),
+    cta: verrou
+        ? kPlanNowLockedCta
+        : planNowCta(priority, verifier: verifier, mesure: false),
+    locked: verrou,
   );
 }
 
@@ -344,6 +422,10 @@ PlanNowCard _carteIndisponible(JourneyStep etape) {
   final epreuve = etape.examType;
   return PlanNowCard(
     nature: PlanNowNature.indisponible,
+    // 🛑 Une étape **fermée** garde son geste, même quand son action ne se
+    // résout pas : c'est l'offre. Ouverte mais sans action, elle reste sans
+    // geste — on ne lui fait pas ouvrir un paywall qui ne la débloquerait pas.
+    geste: etape.locked ? PlanNowGeste.debloquer : PlanNowGeste.aucun,
     mesure: null,
     priority: null,
     exercise: null,
@@ -357,7 +439,7 @@ PlanNowCard _carteIndisponible(JourneyStep etape) {
     minutesLabel: null,
     kindLabel: null,
     lines: const [kPlanNowUnavailableText],
-    cta: kPlanNowStartCta,
+    cta: etape.locked ? kPlanNowLockedCta : kPlanNowStartCta,
     // Le verrou **servi** de l'étape, pas une déduction : une étape
     // indisponible peut être verrouillée par ailleurs, et l'écran doit
     // continuer à le dire.

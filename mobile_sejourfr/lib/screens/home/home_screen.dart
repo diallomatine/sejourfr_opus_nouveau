@@ -737,12 +737,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final parcours = ref.watch(journeyProvider).valueOrNull;
     final courante = parcours?.current;
     if (parcours == null || courante == null) return null;
-    final fenetre = _fenetreDuParcours(parcours.steps, courante.id);
+    // 🛑 **La file vient des BLOCS** (`journeyEtapes`, `journey_labels.dart`)
+    // depuis le 2026-09-18 : `Journey.steps` a quitté le contrat avec la refonte
+    // du Plan en cycle. **Rien ne change à l'écran** — même ordre, même fenêtre,
+    // même rendu : seule la source de la liste bouge, et elle est déclarée une
+    // seule fois pour les deux écrans qui la lisent.
+    final fenetre = _fenetreDuParcours(journeyEtapes(parcours), courante.id);
     if (fenetre.isEmpty) return null;
     return HomeMiniPlan(
       title: journeyStepTitle(courante),
       subtitle: journeyStepSubtitle(courante),
-      // 🛑 Aucun compteur : le parcours n'en sert pas, et `steps` est **déjà
+      // 🛑 Aucun compteur : le parcours n'en sert pas, et la file est **déjà
       // filtrée** par le serveur. On n'affiche pas un nombre qu'on ne sait pas.
       counter: null,
       journeySteps: [

@@ -21,7 +21,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
-import 'plan_milestone_labels.dart';
 
 /* ------------------------------------------------------------- les domaines */
 
@@ -312,99 +311,6 @@ List<String> planNowLines(LearningPlanPriority priority) {
 String planSeriesLabel(int? questionCount) => questionCount == null
     ? 'Série ciblée de compréhension'
     : 'Série ciblée de $questionCount questions';
-
-/* ------------------------------------------- les encarts « épreuve → tâche » */
-
-/// Le repère d'un encart **sans tâche** : la compréhension travaille un palier,
-/// une mesure ouvre un parcours, un jalon est un jalon. `null` quand aucun de
-/// ces trois faits n'est servi — on n'invente alors aucun repère.
-String? planGroupContextLabel({
-  String? level,
-  PlanDomainAssessment? assessment,
-  PlanMilestone? milestone,
-}) {
-  if (level != null && level.isNotEmpty) return 'Niveau $level';
-  if (assessment != null) return planAssessmentNature(assessment);
-  if (milestone != null) return kPlanMilestonePill;
-  return null;
-}
-
-/// **Le statut d'une ligne de priorité**, tel qu'il s'affiche.
-///
-/// 🛑 **Rien de neuf n'est jugé ici.** C'est une **vue** de deux faits déjà
-/// servis — la nature de l'action ([PlanActionNature]) et l'état agrégé de la
-/// compétence ([SkillMasteryState]) — assemblés pour que l'encart fermé puisse
-/// dire « 1 priorité · 2 à renforcer » d'un seul coup d'œil. Aucun libellé
-/// n'est écrit ici : ils sont **repris** des deux enums, gelés côté serveur.
-///
-/// **L'ordre de déclaration EST l'ordre du résumé** : ce qui bloque d'abord, ce
-/// qui se répare, ce qui s'apprend, ce qui se prouve, ce qui tient, ce qui
-/// manque encore d'être mesuré.
-enum PlanRowStatus {
-  priorite,
-  aRenforcer,
-  aAcquerir,
-  aVerifier,
-  solide,
-  aEvaluer;
-
-  /// Le libellé de la pastille. **Emprunté**, jamais recopié : « Priorité » et
-  /// « Solide » viennent de [SkillMasteryState], les quatre autres de
-  /// [PlanActionNature]. Un libellé qui bouge côté serveur bouge ici sans que
-  /// personne y touche.
-  String get label => switch (this) {
-        PlanRowStatus.priorite => SkillMasteryState.priority.label,
-        PlanRowStatus.aRenforcer => PlanActionNature.aRenforcer.label,
-        PlanRowStatus.aAcquerir => PlanActionNature.aAcquerir.label,
-        PlanRowStatus.aVerifier => PlanActionNature.aVerifier.label,
-        PlanRowStatus.solide => SkillMasteryState.solid.label,
-        PlanRowStatus.aEvaluer => PlanActionNature.aEvaluer.label,
-      };
-
-  /// La forme **au singulier** dans le résumé d'un encart (« 1 priorité »).
-  String get countedSingular => switch (this) {
-        PlanRowStatus.priorite => 'priorité',
-        PlanRowStatus.solide => 'solide',
-        _ => label.toLowerCase(),
-      };
-
-  /// La forme **au pluriel** (« 2 priorités »). Les quatre natures s'écrivent
-  /// déjà avec « à » : elles ne varient pas.
-  String get countedPlural => switch (this) {
-        PlanRowStatus.priorite => 'priorités',
-        PlanRowStatus.solide => 'solides',
-        _ => label.toLowerCase(),
-      };
-
-  /// Une compétence **solide** n'appelle plus d'action : c'est elle qu'on
-  /// écarte quand l'encart cherche quoi proposer.
-  bool get isActionable => this != PlanRowStatus.solide;
-}
-
-/// « 1 priorité · 2 à renforcer ». **Ordre figé** par l'ordre de déclaration de
-/// [PlanRowStatus] ; un statut absent ne s'écrit pas.
-String planStatusSummary(Iterable<PlanRowStatus> statuses) {
-  final parts = <String>[];
-  for (final status in PlanRowStatus.values) {
-    final n = statuses.where((s) => s == status).length;
-    if (n == 0) continue;
-    parts.add('$n ${n > 1 ? status.countedPlural : status.countedSingular}');
-  }
-  return parts.join(' · ');
-}
-
-/// « + 3 autres compétences » — le reste d'un encart, **compté pour de vrai**
-/// sur ce que le groupe contient. Jamais une constante recopiée d'une maquette.
-String planGroupMoreLabel(int count) =>
-    '+ $count autre${count > 1 ? 's' : ''} '
-    'compétence${count > 1 ? 's' : ''}';
-
-/// « Réduire » — referme un encart de priorité rétractable.
-///
-/// Il ne compte rien, contrairement à [planGroupMoreLabel] : le nombre a déjà
-/// été lu à l'ouverture, et le répéter à la fermeture ferait croire qu'il reste
-/// quelque chose de caché.
-const String kPlanGroupLessLabel = 'Réduire';
 
 /* ------------------------------------------- ma progression (écran) ------- */
 
@@ -710,12 +616,6 @@ const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
 
 
 
-/// Le titre de la section des priorités. Il nomme l'objectif quand il est
-/// connu, et se tait sinon.
-String planPrioritiesSectionTitle(TargetLevel? objective) => objective == null
-    ? 'Vos priorités'
-    : 'Vos priorités pour atteindre le ${objective.wire}';
-
 /// Le titre d'une carte de priorité : son domaine, et sa tâche quand il y en a
 /// une.
 String planPriorityGroupTitle({
@@ -801,6 +701,3 @@ const String kPlanDiagnosticRunningCta = 'Reprendre le diagnostic';
 const String kPlanErrorTitle = 'Votre plan n\'a pas pu être chargé';
 const String kPlanErrorRetry = 'Réessayer';
 
-/// Le titre court du bloc des priorités, pour un compte qui n'a pas encore
-/// d'objectif chiffré à l'écran.
-const String kPlanPrioritiesShort = 'Vos priorités';

@@ -4666,11 +4666,40 @@ export type JourneyState =
     | "NEEDS_OBJECTIVE"
     | "IN_PROGRESS"
     /** Des étapes restent ouvertes mais **aucune n'est exécutable** : `current`
-     *  vaut `null` et la carte montre la première étape de `steps`,
-     *  verrouillée, avec son paywall. */
+     *  vaut `null` et la carte montre la première étape verrouillée, avec son
+     *  paywall. */
     | "LOCKED"
-    /** Plus aucune étape ouverte. */
+    /**
+     * **Le cycle est terminé** : ses quatre blocs le sont, et il reste quelque
+     * chose à proposer (spec §6). L'écran affiche « Prochaine étape » et la
+     * carte finale à deux actions, lues dans `nextStep` — jamais déduites du
+     * nombre d'étapes.
+     *
+     * 🛑 **Distinct de `UP_TO_DATE`**, qui garde son sens : « plus rien à faire
+     * du tout ». Un cycle terminé n'est pas un parcours fini — c'est un palier
+     * franchi, et le suivant attend d'être ouvert.
+     */
+    | "CYCLE_COMPLETED"
+    /** Plus aucune étape ouverte, **et plus rien à proposer**. */
     | "UP_TO_DATE";
+
+/**
+ * Où en est un **bloc** du cycle — c'est-à-dire une **épreuve**.
+ *
+ * 🛑 **Dérivé serveur à la lecture, jamais persisté** (D-12, D-14). Le serveur
+ * sert la nature, la phrase appartient au front (`lib/journey.ts`).
+ */
+export type JourneyBlocStatus =
+    /** Toutes les étapes du bloc sont clôturées. */
+    | "TERMINE"
+    /** Le bloc porte l'étape **courante**. Un seul bloc à la fois. */
+    | "EN_COURS"
+    /** Aucune compétence, et l'épreuve n'a **jamais** été mesurée : son examen
+     *  est ouvert immédiatement (D-15). 🛑 Ce n'est pas « bloc vide », c'est
+     *  « on ne sait pas encore ». */
+    | "A_EVALUER"
+    /** Des étapes restent, mais la main est ailleurs. */
+    | "A_VENIR";
 
 /** Ce que le parcours **suggère** quand il n'a plus d'étape. Une suggestion
  *  n'est **pas** une étape : hors file, sans position, elle ne se clôt pas. */
@@ -4732,17 +4761,146 @@ export interface JourneyStepDto {
     assessment: PlanDomainAssessmentDto | null;
 }
 
+/**
+ * **L'avancement du cycle** : la barre continue et son repère.
+ *
+ * 🛑 **Des nombres, pas des phrases** : « 3 étapes sur 8 terminées » et
+ * « Cycle 2 » se composent dans `lib/journey.ts`.
+ */
+export interface JourneyCycleDto {
+    /** Le rang de ce cycle : nombre de cycles historisés + 1. Le premier vaut 1. */
+    numero: number;
+    /** Étapes clôturées, **obsolètes exclues**. */
+    etapesTerminees: number;
+    /** Étapes du cycle, obsolètes exclues — le dénominateur de la barre. */
+    etapesTotal: number;
+    /** Plus **aucune** étape ouverte : les quatre blocs sont terminés. C'est la
+     *  condition — et la seule — qui ouvre « Prochaine étape ». */
+    complete: boolean;
+    /** Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls. */
+    cycleDeMesure: boolean;
+}
+
+/**
+ * **Un bloc du cycle : une épreuve.**
+ *
+ * 🛑 **Toujours QUATRE blocs, dans l'ordre servi `CO, CE, EO, EE`** — l'ordre
+ * du serveur est l'autorité, aucun front ne retrie.
+ */
+export interface JourneyBlocDto {
+    /** L'épreuve du bloc. C'est **elle** que le candidat lit partout (D-21). */
+    examType: EpreuveType;
+    status: JourneyBlocStatus;
+    /** Étapes `TRAIN_SKILL` encore ouvertes. C'est ce nombre qui verrouille
+     *  l'examen du bloc (D-15). */
+    competencesRestantes: number;
+    /** Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
+     *  figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc. */
+    steps: JourneyStepDto[];
+    /** L'examen du bloc — l'étape `SECTION_EXAM` ouverte s'il y en a une, sinon
+     *  la dernière clôturée. `null` quand le bloc n'en porte pas encore. */
+    exam: JourneyStepDto | null;
+}
+
+/**
+ * **Les issues d'un cycle terminé** (spec §6) — la carte finale à deux actions.
+ *
+ * 🛑 `null` tant que le cycle n'est pas terminé.
+ */
+export interface JourneyNextStepDto {
+    /** « Passer l'examen blanc complet » crée un **cycle de mesure**.
+     *  🛑 Faux à la fin d'un cycle de mesure. ⚠️ Cette action **crée le
+     *  cycle**, elle ne démarre aucun examen. */
+    examenCompletPossible: boolean;
+    /** « Actualiser mon plan » : le cycle en attente devient le cycle courant. */
+    actualisationPossible: boolean;
+}
+
 export interface JourneyDto {
     /** `null` quand `state === "NEEDS_OBJECTIVE"`. */
     targetLevel: TargetLevel | null;
     state: JourneyState;
-    /** L'étape à faire maintenant. `null` dans trois cas que `state` distingue :
-     *  pas d'objectif, plus rien à faire, ou rien d'exécutable. */
+    /** L'étape à faire maintenant. `null` dans quatre cas que `state` distingue :
+     *  pas d'objectif, cycle terminé, plus rien à faire, rien d'exécutable. */
     current: JourneyStepDto | null;
-    /** Déjà filtrées côté serveur et dans l'ordre de la file. Les étapes
-     *  obsolètes n'y sont jamais. `?expand=all` rend tout le reste. */
-    steps: JourneyStepDto[];
-    hiddenUpcomingCount: number;
+    /** L'avancement du cycle borné. `null` sans parcours.
+     *
+     *  ⚠️ **`steps` et `hiddenUpcomingCount` ont quitté ce miroir** (2026-09-18) :
+     *  la file plate est remplacée par les blocs, et le serveur retire ces deux
+     *  champs juste après. Les lire à nouveau serait rouvrir un second parcours. */
+    cycle: JourneyCycleDto | null;
+    /** Les quatre blocs, **dans l'ordre servi**. Vide sans parcours. */
+    blocs: JourneyBlocDto[];
+    /** 🛑 `null` sauf cycle terminé. */
+    nextStep: JourneyNextStepDto | null;
     /** `null` est le cas courant. */
     suggestion: JourneySuggestionType | null;
+}
+
+/* ===========================================================================
+ * L'HISTORIQUE DES CYCLES — « Ma progression »
+ * GET /api/me/plan/journey/history
+ *
+ * Miroir manuel de `JourneyHistoryDto`. C'est l'**archive** du parcours : les
+ * cycles historisés, du plus récent au plus ancien, avec ce qui y a été
+ * travaillé et le niveau **persisté à l'historisation** (D-12).
+ *
+ * 🛑 **Rien n'y est recalculé côté front.** Les compteurs, les titres de
+ * compétence et les deux niveaux sont servis ; les phrases (« 6 compétences »,
+ * « Niveau mesuré », les dates) se composent dans `lib/journey.ts`, miroir de
+ * `screens/plan/journey_labels.dart`.
+ *
+ * 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN**, pas une erreur : aucun cycle n'a
+ * encore été historisé, et les compteurs du bandeau restent vrais.
+ * ======================================================================== */
+
+/** Les trois compteurs du bandeau. **Servis**, jamais recomptés d'une liste. */
+export interface JourneyHistoryStatsDto {
+    competencesTravaillees: number;
+    examensPasses: number;
+    cyclesTermines: number;
+}
+
+/** Ce qu'une épreuve a reçu pendant un cycle historisé. */
+export interface JourneyHistoryBlocDto {
+    /** L'épreuve du bloc. C'est **elle** que le candidat lit (D-21). */
+    examType: EpreuveType;
+    /** Les titres des compétences travaillées, **dans l'ordre servi**. Vide =
+     *  aucune compétence n'a été travaillée sur cette épreuve. */
+    skillTitles: string[];
+    /** Les examens de cette épreuve enregistrés pendant le cycle. */
+    examens: number;
+}
+
+/** Un cycle **historisé**. */
+export interface JourneyHistoryCycleDto {
+    /** Le rang du cycle, tel que le Plan l'affichait (« Cycle 2 »). */
+    numero: number;
+    /** ISO-8601. */
+    debut: string;
+    /** ISO-8601 : la date d'historisation. */
+    fin: string;
+    competences: number;
+    examens: number;
+    /**
+     * Le niveau au moment où le cycle s'est ouvert — le niveau de sortie du
+     * précédent, ou celui du diagnostic pour le premier. `null` = **inconnu**.
+     */
+    entryLevel: TargetLevel | null;
+    /**
+     * Le niveau **persisté à l'historisation** (D-12), jamais recalculé.
+     *
+     * 🛑 `null` = rien n'a été mesuré, ou la mesure est **sous l'A2**, que la
+     * colonne ne sait pas dire (A35). Aucun front n'y met un palier à la
+     * place : `null` = inconnu, jamais mauvais.
+     */
+    exitLevel: TargetLevel | null;
+    /** Un bloc par épreuve touchée, **dans l'ordre servi**. */
+    blocs: JourneyHistoryBlocDto[];
+}
+
+export interface JourneyHistoryDto {
+    stats: JourneyHistoryStatsDto;
+    /** Du plus récent au plus ancien, **dans l'ordre servi**. */
+    cycles: JourneyHistoryCycleDto[];
 }

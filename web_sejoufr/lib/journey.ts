@@ -1,4 +1,8 @@
 import type {
+    EpreuveType,
+    JourneyBlocDto,
+    JourneyBlocStatus,
+    JourneyCycleDto,
     JourneyDto,
     JourneyProgressDto,
     JourneyStepDto,
@@ -7,7 +11,13 @@ import type {
     TargetLevel,
 } from "./types";
 import {EPREUVE_PRESENTATION} from "./exam-durations";
-import type {JourneyKind, JourneyState as KitJourneyState} from "../app/_components/sejour/SejourKit";
+import type {
+    BarTone,
+    JourneyKind,
+    JourneyState as KitJourneyState,
+    NextStepFact,
+    Tone,
+} from "../app/_components/sejour/SejourKit";
 
 /**
  * **Les phrases du parcours TCF.** Le serveur sert des faits — type, purpose,
@@ -148,10 +158,26 @@ export const JOURNEY_TARGET_PATH_HREF = "/parcours";
 export const JOURNEY_LOCKED_CAPTION =
     "Cette étape fait partie de l'abonnement Intégral. Votre parcours, lui, reste entier.";
 
-/** Le repli de « Voir les étapes suivantes ». */
-export function journeyMoreLabel(hidden: number): string | undefined {
-    if (hidden <= 0) return undefined;
-    return `Voir les ${hidden} étape${hidden > 1 ? "s" : ""} suivante${hidden > 1 ? "s" : ""}`;
+/**
+ * **La file entière, à plat** — les étapes de chaque bloc puis son examen,
+ * **dans l'ordre servi**.
+ *
+ * 🛑 **C'est le remplaçant de `JourneyDto.steps`**, qui a quitté le contrat le
+ * 2026-09-18 : les blocs portent *toutes* les étapes non obsolètes, sans
+ * plafond d'affichage. Un écran qui a besoin de la file la lit **ici**, une
+ * seule fois par front — l'Accueil et le Plan en dépendent tous les deux, et
+ * deux aplatissements auraient fini par ne pas donner le même ordre.
+ *
+ * 🛑 **Rien n'est retrié.** L'ordre des blocs est celui du serveur (`CO, CE, EO,
+ * EE`, autorité unique), et l'examen d'un bloc est toujours sa dernière étape.
+ */
+export function journeyEtapes(journey: JourneyDto): JourneyStepDto[] {
+    const etapes: JourneyStepDto[] = [];
+    for (const bloc of journey.blocs) {
+        etapes.push(...bloc.steps);
+        if (bloc.exam) etapes.push(bloc.exam);
+    }
+    return etapes;
 }
 
 /** L'étape que la carte « À faire maintenant » doit montrer (R16, D-1). */
@@ -161,15 +187,212 @@ export function journeyNowStep(journey: JourneyDto): JourneyStepDto | null {
     // son paywall. La masquer priverait le candidat de l'information la plus
     // utile qu'il possède.
     if (journey.state === "LOCKED") {
-        return journey.steps.find((step) => step.status === "UPCOMING") ?? null;
+        return journeyEtapes(journey).find((step) => step.status === "UPCOMING") ?? null;
     }
     return null;
 }
 
+/* ==========================================================================
+   LE CYCLE ET SES BLOCS — maquettes `docs/progression/plan_cycle.html` ⇄
+   `cycle_termine.html` (propriétaire, 2026-09-18)
+
+   🛑 Miroir mot pour mot de `mobile .../screens/plan/journey_labels.dart`.
+
+   ⚠️ **Le mot « cycle » est celui de la maquette validée**, et il est écrit
+   ici — une seule fois pour tout le front. D-21 interdit le vocabulaire
+   INTERNE à l'écran (`lot`, `step`, `journey`) ; le propriétaire a lui-même
+   écrit « Cycle 2 » / « Cycle terminé » dans ses deux maquettes, et c'est ce
+   qu'on rend. Le jour où il préfère « Parcours 2 », ce sont ces trois
+   fonctions qui changent, et elles seules.
+   ========================================================================== */
+
+/** Le compteur du cycle, en mots. Terminé, il dit l'état plutôt que le compte. */
+export function journeyCycleLabel(cycle: JourneyCycleDto): string {
+    if (cycle.complete) return "Cycle terminé";
+    return `${cycle.etapesTerminees} étape${cycle.etapesTerminees === 1 ? "" : "s"} sur ${cycle.etapesTotal} terminée${cycle.etapesTerminees === 1 ? "" : "s"}`;
+}
+
+/** Le repère de cycle, à droite du compteur. `undefined` sur un cycle terminé —
+ *  la brique y met le pourcentage à sa place. */
+export function journeyCycleBadge(cycle: JourneyCycleDto): string | undefined {
+    return cycle.complete ? undefined : `Cycle ${cycle.numero}`;
+}
+
+/** La phrase sous la barre. */
+export function journeyCycleHint(cycle: JourneyCycleDto): string {
+    if (cycle.complete) {
+        return "Toutes les compétences et tous les examens d'épreuve prévus dans ce cycle sont terminés.";
+    }
+    if (cycle.cycleDeMesure) {
+        return "Passez les épreuves dans l'ordre que vous voulez : ce cycle mesure votre niveau, il ne demande aucun entraînement.";
+    }
+    return "Travaillez les priorités identifiées. Le cycle reste stable jusqu'à sa prochaine actualisation.";
+}
+
+/** Le repère court d'une épreuve, en étiquette technique. 🛑 Une seule table. */
+export function journeyBlocMark(examType: EpreuveType): string {
+    switch (examType) {
+        case "TCF_CO":
+            return "CO";
+        case "TCF_CE":
+            return "CE";
+        case "TCF_EE":
+            return "EE";
+        case "TCF_EO":
+            return "EO";
+        default:
+            return "TCF";
+    }
+}
+
+/** Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21). */
+export function journeyBlocTitle(examType: EpreuveType): string {
+    return epreuveNom(examType);
+}
+
+/**
+ * La méta d'un bloc : ce qu'il reste à y faire.
+ *
+ * 🛑 **Composée de faits servis** (`status`, `competencesRestantes`, la présence
+ * d'un examen), jamais d'un compteur recalculé.
+ */
+export function journeyBlocMeta(bloc: JourneyBlocDto): string {
+    if (bloc.status === "TERMINE") {
+        return bloc.steps.length === 0
+            ? "Niveau évalué · examen blanc terminé"
+            : "Compétences travaillées · examen blanc terminé";
+    }
+    if (bloc.status === "A_EVALUER") return "Niveau à évaluer";
+    const reste = bloc.competencesRestantes;
+    if (reste > 0) {
+        const mot = `${reste} compétence${reste === 1 ? "" : "s"}`;
+        return bloc.status === "EN_COURS"
+            ? `${mot} restante${reste === 1 ? "" : "s"} · puis examen`
+            : `${mot} · puis examen`;
+    }
+    if (bloc.exam) return "Examen à passer";
+    return "Rien à travailler pour l'instant";
+}
+
+/** La pastille d'état d'un bloc : son libellé **et** son ton, tous deux servis
+ *  au kit — qui ne classe rien. */
+export function journeyBlocStatus(status: JourneyBlocStatus): {label: string; tone: Tone} {
+    switch (status) {
+        case "TERMINE":
+            return {label: "TERMINÉ", tone: "ok"};
+        case "EN_COURS":
+            return {label: "EN COURS", tone: "hot"};
+        case "A_EVALUER":
+            return {label: "À ÉVALUER", tone: "warn"};
+        case "A_VENIR":
+            return {label: "À VENIR", tone: "muted"};
+    }
+}
+
+/**
+ * Le titre de l'encart d'examen d'un bloc.
+ *
+ * 🛑 **Deux intentions, un seul objet** : `INITIAL_ASSESSMENT` tant que
+ * l'épreuve n'a jamais été mesurée, l'examen blanc ensuite. C'est `purpose` qui
+ * tranche, jamais une déduction de l'état du bloc.
+ */
+export function journeyExamTitle(exam: JourneyStepDto): string {
+    const nom = exam.examType ? epreuveNom(exam.examType) : "cette épreuve";
+    return exam.purpose === "INITIAL_ASSESSMENT"
+        ? `Évaluer mon niveau en ${nom.toLowerCase()}`
+        : `Examen blanc · ${nom}`;
+}
+
+/** L'état de l'encart d'examen. Le verrou est **servi** (`locked`). */
+export function journeyExamState(exam: JourneyStepDto): {label: string; tone: BarTone} {
+    if (exam.status === "COMPLETED" || exam.status === "SKIPPED") {
+        return {label: "TERMINÉ", tone: "ok"};
+    }
+    return exam.locked
+        ? {label: "VERROUILLÉ", tone: "muted"}
+        : {label: "DISPONIBLE", tone: "now"};
+}
+
+/** La phrase de condition de l'encart d'examen. */
+export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): string {
+    if (exam.status === "COMPLETED" || exam.status === "SKIPPED") {
+        return "Cet examen est passé : son résultat a servi à construire vos priorités.";
+    }
+    if (exam.locked) {
+        const reste = bloc.competencesRestantes;
+        return reste > 0
+            ? `Disponible dès que les ${reste} compétence${reste === 1 ? "" : "s"} de cette épreuve ${reste === 1 ? "est terminée" : "sont terminées"}.`
+            : "Disponible dès que les compétences de cette épreuve sont terminées.";
+    }
+    return bloc.competencesRestantes === 0 && bloc.steps.length === 0
+        ? "Aucune compétence à travailler avant : l'examen est la prochaine action de cette épreuve."
+        : "Les compétences de cette épreuve sont terminées : l'examen est la prochaine action.";
+}
+
+/** La note de pied du cycle — la liberté d'ordre, et sa seule exception. */
+export const JOURNEY_CYCLE_NOTE =
+    "Vous pouvez travailler les compétences dans l'ordre que vous voulez. " +
+    "Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.";
+
+/* ---------------------------------------------------- fin de cycle (spec §6) */
+
+/** L'intertitre qui introduit la carte finale. */
+export const JOURNEY_NEXT_STEP_TITLE = "Prochaine étape";
+
+export const JOURNEY_NEXT_STEP_EYEBROW = "Cycle terminé · mesure globale";
+export const JOURNEY_NEXT_STEP_HEADLINE = "Voyez maintenant où vous en êtes vraiment";
+export const JOURNEY_NEXT_STEP_TEXT =
+    "Vous avez travaillé toutes les priorités identifiées. Passez un TCF blanc " +
+    "complet pour mesurer votre niveau global et préparer votre prochain cycle.";
+
+/** Le cas d'un **cycle de mesure** clos : enchaîner un second examen complet ne
+ *  mesurerait rien de nouveau, donc la carte ne le propose pas. */
+export const JOURNEY_NEXT_STEP_TEXT_MESURE =
+    "Vos quatre épreuves viennent d'être mesurées. Actualisez votre plan pour " +
+    "recevoir les priorités que ces résultats ont identifiées.";
+
+/** Les trois repères de l'examen complet. 🛑 Aucun chiffre inventé : quatre
+ *  épreuves est le format du TCF IRN, pas une donnée servie. */
+export const JOURNEY_NEXT_STEP_FACTS: NextStepFact[] = [
+    {value: "4 épreuves", label: "TCF IRN complet"},
+    {value: "Conditions réelles", label: "simulation complète"},
+    {value: "Nouveau bilan", label: "niveau actualisé"},
+];
+
+export const JOURNEY_NEXT_STEP_EXAM_CTA = "Passer l'examen blanc complet →";
+export const JOURNEY_NEXT_STEP_REFRESH_CTA = "Actualiser mon plan sans examen complet";
+
+/** 🛑 **Le même geste, dit autrement quand il est SEUL** : « sans examen
+ *  complet » n'a de sens qu'en face de l'examen complet. À la fin d'un cycle de
+ *  mesure, il n'y a rien à opposer. */
+export const JOURNEY_NEXT_STEP_REFRESH_ONLY_CTA = "Actualiser mon plan";
+export const JOURNEY_NEXT_STEP_NOTE =
+    "L'examen complet est recommandé, mais pas obligatoire. Vous pouvez aussi " +
+    "actualiser votre plan à partir des examens déjà réalisés.";
+
+/** 🛑 **Un échec réseau se DIT** : un bouton muet laisserait croire à une panne
+ *  de l'application. Aucune promesse de délai, aucun jargon. */
+export const JOURNEY_NEXT_STEP_ERROR =
+    "Votre plan n'a pas pu être actualisé. Vérifiez votre connexion et réessayez.";
+
+/** Pendant l'appel : les deux actions historisent le cycle, on ne les rejoue
+ *  pas par un second clic. */
+export const JOURNEY_NEXT_STEP_BUSY = "Un instant…";
+
 function epreuveLabel(step: JourneyStepDto): string {
-    const epreuve = step.examType;
-    if (epreuve === "TCF_CO" || epreuve === "TCF_CE" || epreuve === "TCF_EE" || epreuve === "TCF_EO") {
-        return EPREUVE_PRESENTATION[epreuve].label;
+    return step.examType ? epreuveNom(step.examType) : "Épreuve";
+}
+
+/** 🛑 **Une seule table de noms d'épreuve** : `EPREUVE_PRESENTATION`. Elle
+ *  couvre les quatre épreuves du TCF IRN et rien d'autre. */
+function epreuveNom(examType: EpreuveType): string {
+    if (
+        examType === "TCF_CO"
+        || examType === "TCF_CE"
+        || examType === "TCF_EE"
+        || examType === "TCF_EO"
+    ) {
+        return EPREUVE_PRESENTATION[examType].label;
     }
     return "Épreuve";
 }

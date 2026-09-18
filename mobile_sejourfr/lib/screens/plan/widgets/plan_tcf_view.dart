@@ -18,22 +18,23 @@ import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../plan_actions.dart';
-import '../plan_groups.dart';
-import '../journey_labels.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
 import '../plan_now_card.dart';
-import '../plan_task_path.dart';
+import 'plan_cycle_section.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
-/// maintenant, le parcours de la tâche en cours, les priorités, ce qui est
-/// acquis, ce qui a bougé.
+/// maintenant, le cycle par épreuve, ce qui est acquis, ce qui a bougé.
 ///
-/// 🛑 **Rien n'est recalculé.** Les priorités sont ordonnées serveur, le
-/// groupement « épreuve → tâche » est une vue de `domaines[]`
-/// ([planPriorityGroups]), le compteur d'étape est lu sur `domaines[].taches[]`,
-/// et chaque verrou vient d'un `locked` **servi** — jamais du rang d'une ligne.
+/// 🛑 **Le bloc « Vos priorités pour atteindre … » n'existe plus** (arbitrage du
+/// propriétaire, 2026-09-18) : il disait la même chose que les blocs d'épreuve
+/// du cycle, en moins précis — mêmes compétences, sans leur position dans le
+/// cycle, sans leur examen, et plafonné à trois groupes. Ne pas le
+/// réintroduire.
+///
+/// 🛑 **Rien n'est recalculé.** L'ordre des blocs, l'état de chaque étape et
+/// chaque verrou viennent d'un fait **servi** — jamais du rang d'une ligne.
 ///
 /// Deux mises en page, une seule lecture des données : un compte **sans accès
 /// TCF** voit son constat entier (objectif, priorités, première étape) et la
@@ -84,7 +85,7 @@ class PlanTcfView extends ConsumerWidget {
     if (!hasTcf) {
       return Column(
         children: [
-          Expanded(child: ListView(children: _free(context))),
+          Expanded(child: ListView(children: _free(context, ref))),
           SfStickyBar(
             child: SfButton(
               label: _unlockCta(objective),
@@ -118,8 +119,10 @@ class PlanTcfView extends ConsumerWidget {
         flush: true,
         child: _nowCard(context, ref),
       ),
-      ..._journeySection(context),
-      ..._prioritiesSection(free: false),
+      // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
+      // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
+      // deux issues.
+      PlanCycleSection(plan: plan, journey: journey),
       ..._doneSection(),
       ..._changesSection(changes),
       if (milestone != null) _milestoneSection(context, ref, milestone),
@@ -138,17 +141,21 @@ class PlanTcfView extends ConsumerWidget {
   ///
   /// 🛑 Il ne prend plus de `WidgetRef` — plus rien ici ne démarre quoi que ce
   /// soit, et c'est la garantie la plus solide qu'on puisse en donner.
-  List<Widget> _free(BuildContext context) => <Widget>[
+  List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
         SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
         _goalStrip(context, engineLine: false),
-        ..._prioritiesSection(free: true),
         SfSection(
           title: kPlanFreeFirstStepTitle,
           flush: true,
-          child: _freeStepCard(),
+          child: _freeStepCard(context, ref),
         ),
-        ..._journeySection(context),
+        // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
+        // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
+        // masquer priverait le candidat de l'information la plus utile qu'il
+        // possède — c'est la contradiction #1 du dépôt, tranchée le 2026-08-21.
+        // Le bouton « Débloquer mon plan » est **ancré en barre basse**.
+        PlanCycleSection(plan: plan, journey: journey),
         const SfSection(
           flush: true,
           child: SfUnlockHero(
@@ -215,9 +222,12 @@ class PlanTcfView extends ConsumerWidget {
   /// servi, donc presque jamais. Le candidat sans accès voyait la carte d'un
   /// abonné. Deux mises en page différentes, deux fonctions.
   ///
-  /// 🛑 **AUCUN geste ne part d'ici** (arbitrage du propriétaire, 2026-09-12 :
-  /// « dans le plan, on ne travaille rien si on n'est pas abonné ; on passe par
-  /// Réviser pour voir ce qu'on peut utiliser gratuitement »).
+  /// 🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** (arbitrage du propriétaire,
+  /// 2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ;
+  /// on passe par Réviser pour voir ce qu'on peut utiliser gratuitement »). Le
+  /// seul geste est l'**offre**, exigé par la spec §7 depuis D-18 : la carte
+  /// nomme la première étape verrouillée, le tap ouvre « Débloquer mon plan ».
+  /// Il ne travaille rien — il ne contredit donc pas l'arbitrage.
   ///
   /// ⚠️ Cela **révoque**, pour cette carte seulement, « ne pas coder : l'étape 1
   /// est toujours ouverte — l'app lit `locked`, toujours ». Le Plan d'un compte
@@ -227,7 +237,7 @@ class PlanTcfView extends ConsumerWidget {
   /// 🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un
   /// chemin. Ce que le serveur ouvre gratuitement reste accessible par
   /// **Réviser**, et c'est lui qui reste l'arbitre (403).
-  Widget _freeStepCard() {
+  Widget _freeStepCard(BuildContext context, WidgetRef ref) {
     final priority = plan.currentPriority;
     if (priority == null) {
       return const SfNoteCard(
@@ -279,11 +289,24 @@ class PlanTcfView extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // 🛑 **Les trois bénéfices, et c'est tout** : c'est ce que
-          // l'abonnement ouvre sur CETTE étape, et c'est la raison d'être de la
-          // carte. Le seul geste de l'écran est la barre basse, « Débloquer mon
-          // plan ».
+          // 🛑 **Les trois bénéfices** : c'est ce que l'abonnement ouvre sur
+          // CETTE étape, et c'est la raison d'être de la carte.
           for (final label in kPlanFreeStepLocks) SfLockItem(label: label),
+          const SizedBox(height: 12),
+          // 🛑 **Le tap ouvre le paywall EXISTANT** (spec §7 / D-18), avec le
+          // contexte du Plan — aucune modale nouvelle. En **bleu** : le seul
+          // bouton rouge de cet écran reste « Débloquer mon plan », en barre
+          // basse.
+          SfButton(
+            label: kPlanNowLockedCta,
+            variant: SfButtonVariant.blue,
+            onPressed: () => unawaited(showTcfLockPaywall(
+              context,
+              ref: ref,
+              ctaLocation: AnalyticsCtaLocation.lockedPlan,
+              origin: PaywallOrigin.plan,
+            )),
+          ),
         ],
       ),
     );
@@ -327,229 +350,44 @@ class PlanTcfView extends ConsumerWidget {
       objectiveLabel: carte.objectiveLabel,
       objective: carte.objective,
       meta: meta,
-      // 🛑 **Aucun bouton sur une étape dont l'action ne se résout pas.** Il ne
-      // lançait rien, et la version d'avant lançait pire : la compétence que le
-      // Plan priorisait ce jour-là, pendant que la carte en annonçait une autre.
-      action: carte.estIndisponible
-          ? null
-          : SfButton(
-              label: carte.locked ? kPlanNowLockedCta : carte.cta,
-              onPressed: mesure != null
-                  // Le lanceur de mesure est une AUTORITÉ EXISTANTE
-                  // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne réécrit
-                  // aucun aiguillage ici, le mobile lit et exécute.
-                  ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
-                  : exercise == null
-                      ? null
-                      : () => unawaited(openPlanExercise(
-                            context,
-                            ref,
-                            exercise,
-                            masteryBefore: carte.priority?.masteryState,
-                          )),
-            ),
+      // 🛑 **Le geste vient de [planNowCard], il ne se redéduit pas ici.**
+      // `aucun` ⇒ aucun bouton : l'action ne se résout pas, et la version
+      // d'avant lançait pire — la compétence que le Plan priorisait ce jour-là,
+      // pendant que la carte en annonçait une autre. `debloquer` ⇒ le paywall
+      // **existant** du Plan, avec son contexte (spec §7 / D-18).
+      action: switch (carte.geste) {
+        PlanNowGeste.aucun => null,
+        PlanNowGeste.debloquer => SfButton(
+            label: carte.cta,
+            variant: SfButtonVariant.blue,
+            onPressed: () => unawaited(showTcfLockPaywall(
+              context,
+              ref: ref,
+              ctaLocation: AnalyticsCtaLocation.lockedPlan,
+              origin: PaywallOrigin.plan,
+            )),
+          ),
+        PlanNowGeste.lancer => SfButton(
+            label: carte.cta,
+            onPressed: mesure != null
+                // Le lanceur de mesure est une AUTORITÉ EXISTANTE
+                // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne
+                // réécrit aucun aiguillage ici, le mobile lit et exécute.
+                ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
+                : exercise == null
+                    ? null
+                    : () => unawaited(openPlanExercise(
+                          context,
+                          ref,
+                          exercise,
+                          masteryBefore: carte.priority?.masteryState,
+                        )),
+          ),
+      },
       // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
       // la série. Concaténées, la seconde se lisait comme la suite de la
       // première phrase.
       caption: carte.lines.isEmpty ? null : carte.lines.join('\n'),
-    );
-  }
-
-  /// **La file d'étapes**, telle que le serveur l'a construite (spec §12-14).
-  ///
-  /// 🛑 **Rien n'est décidé ici** : ni l'ordre (c'est la position, et elle ne se
-  /// recalcule pas), ni le statut, ni le verrou, ni ce qui est affiché — le
-  /// serveur a déjà coupé selon §14. L'écran ne fait que peindre.
-  ///
-  /// 🛑 **Une étape verrouillée reste à sa place**, avec son cadenas : le Plan
-  /// reste intégralement visible, sans accès comme avec (contradiction #1,
-  /// tranchée le 2026-08-21). C'est pourquoi la **même** section sert les deux
-  /// variantes de l'écran — un parcours amputé pour un compte gratuit serait un
-  /// second parcours.
-  List<Widget> _journeySection(BuildContext context) {
-    final parcours = journey;
-    if (parcours == null) return const <Widget>[];
-
-    // 🛑 **Aucun objectif déclaré ⇒ aucun parcours en base** (arbitrage D-3).
-    // Ce n'est pas un parcours vide : c'est l'absence de parcours, et le
-    // distinguer évite de féliciter un candidat qui n'a rien commencé.
-    if (parcours.state == JourneyState.needsObjective) {
-      return <Widget>[
-        SfSection(
-          title: kJourneyNeedsObjectiveTitle,
-          child: SfStack(
-            children: [
-              const SfCard(
-                child: Text(kJourneyNeedsObjectiveText),
-              ),
-              SfButton(
-                label: kJourneyNeedsObjectiveCta,
-                onPressed: () => context.push(AppRoutes.targetPath),
-              ),
-            ],
-          ),
-        ),
-      ];
-    }
-
-    // Plus rien d'ouvert. 🛑 La **suggestion** est hors file : elle n'a pas de
-    // position, elle ne se clôt pas, et l'ignorer ne laisse rien « en attente ».
-    if (parcours.state == JourneyState.upToDate) {
-      return <Widget>[
-        SfSection(
-          title: kJourneyUpToDateTitle,
-          child: SfCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  kJourneyUpToDateText,
-                  style: AppFonts.ui(size: 14, color: AppColors.inkSoft),
-                ),
-                if (parcours.suggestion == JourneySuggestionType.mockExam) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    kJourneySuggestionMockExam,
-                    style: AppFonts.ui(size: 12, color: AppColors.muted),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ];
-    }
-
-    if (parcours.steps.isEmpty) return const <Widget>[];
-    final more = journeyMoreLabel(parcours.hiddenUpcomingCount);
-    return <Widget>[
-      SfSection(
-        title: journeyTitle(parcours.targetLevel),
-        flush: true,
-        child: SfCard(
-          child: SfJourneyList(
-            children: [
-              for (final step in parcours.steps)
-                SfJourneyRow(
-                  title: journeyStepTitle(step),
-                  subtitle: journeyStepSubtitle(step),
-                  state: journeyKitState(step),
-                  kind: journeyKind(step),
-                  badge: journeyBadge(step),
-                  locked: step.locked,
-                ),
-            ],
-          ),
-        ),
-      ),
-      // 🛑 Le compte des étapes repliées est **servi** : le déduire de la
-      // longueur de la liste donnerait un nombre faux dès que le filtrage
-      // d'affichage retient une étape verrouillée hors fenêtre.
-      if (more != null) ...[
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child:
-              Text(more, style: AppFonts.ui(size: 12, color: AppColors.muted)),
-        ),
-      ],
-      // 🛑 Des étapes restent, mais **aucune n'est exécutable** : on le dit au
-      // lieu de laisser une file sans étape courante, qui se lirait comme un
-      // parcours en panne.
-      if (parcours.state == JourneyState.locked) ...[
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            kJourneyLockedCaption,
-            style: AppFonts.ui(size: 12, color: AppColors.muted),
-          ),
-        ),
-      ],
-    ];
-  }
-
-  List<Widget> _prioritiesSection({required bool free}) {
-    final groups = planPriorityGroups(plan);
-    if (groups.isEmpty) return const <Widget>[];
-    final shown = groups.take(3).toList(growable: false);
-    // 🛑 RÉTRACTABLES DÈS QU'IL Y EN A PLUS D'UN (2026-09-13, demande du
-    // propriétaire). Une priorité seule n'a aucune raison de se replier : elle
-    // EST l'écran. À partir de deux, trois encarts de huit compétences empilés
-    // dépliés poussent la priorité n°2 hors de vue.
-    final repliables = shown.length > 1;
-    return <Widget>[
-      SfSection(
-        // Un compte sans accès ne lit pas encore un objectif chiffré : son
-        // bloc s'appelle simplement « Vos priorités », comme la maquette.
-        title:
-            free ? kPlanPrioritiesShort : planPrioritiesSectionTitle(objective),
-        child: SfStack(
-          children: [
-            for (var i = 0; i < shown.length; i++)
-              _priorityCard(shown[i], i + 1, free: free, repliable: repliables),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  Widget _priorityCard(
-    PlanPriorityGroup group,
-    int rank, {
-    required bool free,
-    bool repliable = false,
-  }) {
-    final dto = group.task == null ? null : _taskDto(group.task!);
-    final statuses = planStatusSummary(group.rows.map((row) => row.status));
-    // Un compte sans accès ne voit aucune ligne : il n'y a donc rien à replier,
-    // et le bouton n'apparaît pas.
-    final replie = repliable && !free && group.foldedCount > 0;
-    final visibles = replie ? group.collapsedRows : group.visibleRows;
-    return SfPrio(
-      rank: rank,
-      tag: planPriorityRankTag(rank),
-      title: planPriorityGroupTitle(
-        epreuve: group.epreuve,
-        task: group.task,
-        context: group.context,
-      ),
-      text: dto != null
-          ? planTaskObservedLabel(dto)
-          : (statuses.isEmpty ? null : statuses),
-      // 🛑 Le compteur du bouton porte sur ce qui est RÉELLEMENT replié —
-      // jamais une constante, jamais le `hiddenCount` d'un autre plafond.
-      moreLabel: replie ? planGroupMoreLabel(group.foldedCount) : null,
-      lessLabel: replie ? kPlanGroupLessLabel : null,
-      details: replie
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final row in group.foldedRows)
-                  SfSkillRow(label: row.title, state: _rowState(row)),
-              ],
-            )
-          : null,
-      child: free
-          ? null
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (dto != null && dto.totalSkills > 0)
-                  SfProgressMini(
-                    ratio: dto.observedSkills / dto.totalSkills,
-                    semanticsLabel: planTaskObservedLabel(dto),
-                  ),
-                for (final row in visibles)
-                  SfSkillRow(label: row.title, state: _rowState(row)),
-                // Encart rétractable : le reste est derrière le bouton, pas
-                // derrière une ligne de texte inerte.
-                if (!replie && group.hiddenCount > 0) ...[
-                  const SizedBox(height: 6),
-                  SfTiny(planGroupMoreLabel(group.hiddenCount)),
-                ],
-              ],
-            ),
     );
   }
 
@@ -699,25 +537,6 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  /* ------------------------------------------------------------ lecture --- */
-
-  /// 🛑 **La coche d'une ligne de priorité se lit sur le STATUT SERVI de la
-  /// ligne, et sur rien d'autre** — miroir strict de `PriorityCard` côté web
-  /// (`LearningPlanView.tsx` : `row.status === "SOLIDE" ? "done" : "todo"`).
-  ///
-  /// Elle croisait aussi `plan.completedSteps` — la liste des **étapes
-  /// franchies**, qui sert la carte « Déjà travaillé et validé » : deux règles
-  /// pour la même coche, donc deux encarts de priorités différents pour le même
-  /// candidat selon le front. Une étape franchie n'est pas un statut de ligne,
-  /// et le serveur publie déjà celui-ci.
-  SfStepState _rowState(PlanPriorityGroupRow row) {
-    if (row.skillId == plan.currentPriority?.skillId) return SfStepState.now;
-    return row.status == PlanRowStatus.solide
-        ? SfStepState.done
-        : SfStepState.todo;
-  }
-
-  PlanDomainTask? _taskDto(SkillTaskCode task) => planTaskDto(plan, task);
 }
 
 /// Le geste de la barre basse : il nomme le palier visé quand il est connu,

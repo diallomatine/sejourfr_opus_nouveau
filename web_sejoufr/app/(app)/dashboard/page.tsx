@@ -33,6 +33,7 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
     JOURNEY_TARGET_PATH_HREF,
     journeyBadge,
+    journeyEtapes,
     journeyKind,
     journeyKitState,
     journeyStepSubtitle,
@@ -1041,7 +1042,12 @@ function VotrePlan({civique, journey, cible}: {
 
     const courante = journey?.current ?? null;
     if (!journey || !courante) return null;
-    const fenetre = apercuJourneySteps(journey.steps, courante.id);
+    /* 🛑 **La file vient des BLOCS** (`journeyEtapes`, `lib/journey.ts`) depuis
+       le 2026-09-18 : `JourneyDto.steps` a quitté le contrat avec la refonte du
+       Plan en cycle. **Rien ne change à l'écran** — même ordre, même fenêtre,
+       même rendu : seule la source de la liste bouge, et elle est déclarée une
+       seule fois pour les deux écrans qui la lisent. */
+    const fenetre = apercuJourneySteps(journeyEtapes(journey), courante.id);
     if (fenetre.length === 0) return null;
     return (
         <PlanApercu

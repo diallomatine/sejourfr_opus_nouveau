@@ -1,17 +1,6 @@
 import '../../core/models/diagnostic_models.dart';
-import '../../core/models/skill_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
-
-/// La tâche **servie** portant ce code, cherchée dans les domaines publiés.
-PlanDomainTask? planTaskDto(LearningPlan plan, SkillTaskCode task) {
-  for (final domain in plan.domaines) {
-    for (final candidate in domain.taches) {
-      if (candidate.taskCode == task.wire) return candidate;
-    }
-  }
-  return null;
-}
 
 /// L'**apparence** d'un état d'étape dans le kit. Elle ne décide rien : l'état
 /// arrive **servi** (`PlanDomainSkill.stepState`), cette table dit seulement

@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState, type ReactNode} from "react";
+import {useEffect, useState, type ReactNode} from "react";
 import {
-  Check,
   ChevronRight,
-  Circle,
   Clock3,
   Lock,
   RefreshCw,
@@ -18,41 +16,16 @@ import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
 import {
-  planGroupMoreLabel,
-  PLAN_GROUP_LESS_LABEL,
-  PLAN_PRIORITY_ROWS_COLLAPSED,
-  PLAN_PRIORITY_ROWS_VISIBLE,
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
   PLAN_SKILLS_HREF,
   PLAN_SKILLS_TITLE,
   PLAN_STARTING,
-  planActivePriorities,
   planNowCard,
-  planPriorityGroups,
-  planRowStatusSummary,
   planTaskBadge,
   planTransitionLine,
-  type PlanPriorityGroup,
 } from "@/lib/plan-domain";
-import {
-  JOURNEY_LOCKED_CAPTION,
-  JOURNEY_NEEDS_OBJECTIVE_CTA,
-  JOURNEY_NEEDS_OBJECTIVE_TEXT,
-  JOURNEY_NEEDS_OBJECTIVE_TITLE,
-  JOURNEY_SUGGESTION_MOCK_EXAM,
-  JOURNEY_TARGET_PATH_HREF,
-  JOURNEY_UP_TO_DATE_TEXT,
-  JOURNEY_UP_TO_DATE_TITLE,
-  journeyBadge,
-  journeyKind,
-  journeyKitState,
-  journeyMoreLabel,
-  journeyStepSubtitle,
-  journeyStepTitle,
-  journeyTitle,
-} from "@/lib/journey";
 import {
   affinerPlan,
   DIAGNOSTIC_RAPIDE_HREF,
@@ -76,16 +49,9 @@ import {
   GoalStrip,
   LockItem,
   LockList,
-  JourneyList,
-  JourneyRow,
-  LockRow,
   NowCard,
   Pad,
-  Prio,
-  ProgressMini,
   Section,
-  SkillList,
-  SkillRow,
   Stack,
   Top,
   sejourStyles,
@@ -96,15 +62,21 @@ import {PlanGate} from "./PlanGate";
 import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
 import {AffinerPlanCard} from "./AffinerPlanCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
+import {PlanCycleSection} from "./PlanCycleSection";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /**
  * **Le Plan TCF** — refonte du 2026-09-11 sur le kit `sejour/`.
  *
  * Deux écrans, un seul contrat de données (`GET /api/me/plan`) : l'**abonné**
- * lit son parcours (à faire maintenant → parcours de la tâche → priorités →
- * déjà validé → progression détectée), le **gratuit** lit ce que son diagnostic
- * a produit et ce qu'un pass ouvrirait.
+ * lit son parcours (à faire maintenant → le cycle par épreuve → déjà validé →
+ * progression détectée), le **gratuit** lit le même cycle, cadenassé, et ce
+ * qu'un pass ouvrirait.
+ *
+ * 🛑 **Le bloc « Vos priorités pour atteindre … » n'existe plus** (arbitrage du
+ * propriétaire, 2026-09-18) : il disait la même chose que les blocs d'épreuve
+ * du cycle, en moins précis — mêmes compétences, sans leur position dans le
+ * cycle, sans leur examen, et plafonné à trois groupes. Ne pas le réintroduire.
  *
  * 🛑 **Rien n'est dérivé ici.** L'ordre des priorités, la nature de l'action,
  * l'état de chaque compétence, la couverture d'une tâche et le verrou arrivent
@@ -121,14 +93,13 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * (`deskPair`, `deskGrid`) qui ne déclarent rien sous 960 px.
  *
  * - **abonné** (`SejourApp wide`, 1080 px) : en-tête, objectif en pleine
- *   largeur, puis `deskPair` « À faire maintenant » | « Votre parcours », puis
- *   les priorités en `deskGrid` (1 → 2 → 3 colonnes), puis `deskPair`
+ *   largeur, le cycle en pleine largeur, puis `deskPair`
  *   « Déjà travaillé et validé » | « Progression détectée » ;
  * - **gratuit** (`SejourApp sticky`, 980 px) : la maquette n'y met **aucune**
- *   paire — seules les priorités passent en grille. 🛑 C'est voulu : sur cet
- *   écran, « Débloquer mon plan » doit rester la seule action dominante, et
- *   mettre deux blocs côte à côte au-dessus d'elle remplirait l'espace de
- *   choses à faire au lieu de mener au déblocage.
+ *   paire. 🛑 C'est voulu : sur cet écran, « Débloquer mon plan » doit rester
+ *   la seule action dominante, et mettre deux blocs côte à côte au-dessus
+ *   d'elle remplirait l'espace de choses à faire au lieu de mener au
+ *   déblocage.
  */
 
 /* ------------------------------------------------------------------ racine */
@@ -311,7 +282,6 @@ function TcfPlanPremium({plan, journey, affiner}: {
   affiner: ReactNode;
 }) {
   const objective = plan.cycle.objectiveLevel;
-  const groups = usePriorityGroups(plan);
   const completed = plan.completedSteps ?? [];
 
   return (
@@ -328,40 +298,13 @@ function TcfPlanPremium({plan, journey, affiner}: {
         </p>
       </Pad>
 
-      {/* La paire de tête de la maquette. 🛑 Si l'un des deux manque — pas de
-          priorité servie, pas de parcours — l'autre prend toute la rangée : la
-          règle est dans le kit (`:only-child`), pas ici. */}
-      <div className={sejourStyles.deskPair}>
-        <ActionMaintenant plan={plan} journey={journey} />
+      <ActionMaintenant plan={plan} journey={journey} />
 
-        {/* 🛑 **La timeline du PARCOURS remplace le chemin vers l'objectif**
-            (arbitrage D-4) : le palier reste dans l'en-tête, et l'écran ne
-            montre plus qu'une seule file — celle que les évaluations ont
-            construite. */}
-        <JourneySection journey={journey} />
-      </div>
-
-      {groups.length > 0 && (
-        <Section title={objective ? `Vos priorités pour atteindre ${objective}` : "Vos priorités"}>
-          <Pad>
-            <Stack className={sejourStyles.deskGrid}>
-              {groups.map((group, index) => (
-                <PriorityCard
-                  key={group.key}
-                  group={group}
-                  rank={rankOf(index)}
-                  currentSkillId={plan.currentPriority?.skillId ?? null}
-                  detailed
-                  foldable={groups.length > 1}
-                />
-              ))}
-            </Stack>
-            <Link className={sejourStyles.link} href={PLAN_SKILLS_HREF}>
-              {PLAN_SKILLS_TITLE} <ChevronRight size={15} aria-hidden />
-            </Link>
-          </Pad>
-        </Section>
-      )}
+      {/* 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
+          bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
+          deux issues. Il prend **toute la largeur** — quatre accordéons dans une
+          demi-colonne de tableau de bord ne se lisent plus. */}
+      <PlanCycleSection journey={journey} plan={plan} />
 
       {/* La seconde paire de la maquette. Les deux blocs disparaissent d'eux-
           mêmes quand ils n'ont rien à dire (`recentChanges === null` est le cas
@@ -409,7 +352,6 @@ function TcfPlanFree({plan, journey, affiner}: {
   affiner: ReactNode;
 }) {
   const objective = plan.cycle.objectiveLevel;
-  const groups = usePriorityGroups(plan);
   return (
     <>
       <Top
@@ -421,30 +363,14 @@ function TcfPlanFree({plan, journey, affiner}: {
         <CycleGoal cycle={plan.cycle} />
       </Pad>
 
-      {groups.length > 0 && (
-        <Section title="Vos priorités">
-          <Pad>
-            <Stack className={sejourStyles.deskGrid}>
-              {groups.map((group, index) => (
-                <PriorityCard
-                  key={group.key}
-                  group={group}
-                  rank={rankOf(index)}
-                  currentSkillId={plan.currentPriority?.skillId ?? null}
-                />
-              ))}
-            </Stack>
-          </Pad>
-        </Section>
-      )}
-
       <ActionMaintenant plan={plan} journey={journey} free />
 
-      {/* 🛑 **Le parcours reste ENTIER, même sans accès** : ses étapes sont
-          affichées à leur place, avec leur cadenas. Le masquer priverait le
-          candidat de l'information la plus utile qu'il possède — c'est la
-          contradiction #1 du dépôt, tranchée le 2026-08-21. */}
-      <JourneySection journey={journey} />
+      {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
+          toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
+          masquer priverait le candidat de l'information la plus utile qu'il
+          possède — c'est la contradiction #1 du dépôt, tranchée le 2026-08-21.
+          Le bouton « Débloquer mon plan » est **juste en dessous**. */}
+      <PlanCycleSection journey={journey} plan={plan} />
 
       <PlanPaywall
         module="INTEGRAL"
@@ -506,6 +432,13 @@ function ActionMaintenant({plan, journey, free}: {
 }) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
+  /* 🛑 **Le paywall d'une étape VERROUILLÉE** (spec §7 / D-18) : la carte nomme
+     l'étape fermée, et le geste ouvre l'offre. C'est le paywall **existant** du
+     Plan, avec son contexte (`origin="plan"`, `LOCKED_PLAN`) — aucune modale
+     nouvelle, aucun libellé nouveau. Il est distinct des deux paywalls des
+     lanceurs, qui répondent à un **403** ; celui-ci répond à un `locked` servi,
+     avant tout appel. */
+  const [unlockOpen, setUnlockOpen] = useState(false);
 
   /* 🛑 **L'identité de la carte est décidée par `planNowCard`, pas ici** — la
      même autorité que l'Accueil (`ActionPrincipale`) et que les deux cartes du
@@ -516,6 +449,11 @@ function ActionMaintenant({plan, journey, free}: {
 
   const {mesure, exercise, lines} = vue;
   const actionLocked = vue.locked;
+  /* 🛑 **Le geste vient de `planNowCard`, il ne se redéduit pas ici.** Les six
+     surfaces qui portent cette carte lisent le même champ ; recalculer
+     « verrouillé ⇒ offre » de chaque côté est ce qui avait laissé cette carte
+     muette pendant que le mobile ouvrait déjà l'offre. */
+  const debloquer = vue.geste === "DEBLOQUER";
 
   const busy = starting || assessments.starting !== null;
   const startNext = () => {
@@ -535,9 +473,12 @@ function ActionMaintenant({plan, journey, free}: {
      « Votre première étape est prête » nomme l'étape et montre les **trois
      bénéfices verrouillés** — c'est sa raison d'être.
 
-     🛑 **AUCUN geste ne part d'ici** (arbitrage du propriétaire, 2026-09-12 :
-     « dans le plan, on ne travaille rien si on n'est pas abonné ; on passe par
-     Réviser pour voir ce qu'on peut utiliser gratuitement »). */
+     🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** (arbitrage du propriétaire,
+     2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ;
+     on passe par Réviser pour voir ce qu'on peut utiliser gratuitement »). Le
+     seul geste est l'**offre**, exigé par la spec §7 depuis D-18 : la carte
+     nomme la première étape verrouillée, le tap ouvre « Débloquer mon plan ».
+     Il ne travaille rien — il ne contredit donc pas l'arbitrage. */
   return (
     <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
       <Pad>
@@ -565,11 +506,21 @@ function ActionMaintenant({plan, journey, free}: {
               <LockItem icon={Lock} label="Suivi de cette compétence" />
             </LockList>
           )}
+          {/* 🛑 **Le bouton dit ce que le geste FAIT**, et son libellé vient
+              lui aussi de `planNowCard` : « Débloquer cet entraînement » sur un
+              verrou, l'action sinon. En **bleu** sur le verrou — sur un Plan
+              gratuit, le seul bouton rouge de la page reste « Débloquer mon
+              plan », ancré sous le cycle. */}
+          {debloquer && (
+            <Cta variant="blue" onClick={() => setUnlockOpen(true)}>
+              {vue.cta}
+            </Cta>
+          )}
           {/* 🛑 **Aucun bouton sur une étape dont l'action ne se résout pas.**
               Il ne lançait rien, et la version d'avant lançait pire : la
               compétence que le Plan priorisait ce jour-là, pendant que la carte
               en annonçait une autre. */}
-          {!free && !actionLocked && vue.nature !== "INDISPONIBLE" && (
+          {vue.geste === "LANCER" && (
             <Cta onClick={startNext} disabled={busy}>
               {busy ? PLAN_STARTING : vue.cta}
             </Cta>
@@ -588,165 +539,13 @@ function ActionMaintenant({plan, journey, free}: {
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"
-        open={paywallOpen || assessments.paywallOpen}
-        onClose={() => { closePaywall(); assessments.closePaywall(); }}
+        open={paywallOpen || assessments.paywallOpen || unlockOpen}
+        onClose={() => {
+          closePaywall();
+          assessments.closePaywall();
+          setUnlockOpen(false);
+        }}
       />
-    </Section>
-  );
-}
-
-/* -------------------------------------------------------- vos priorités */
-
-/** Les priorités, **groupées par épreuve puis par tâche** — le groupement vit
- *  dans `lib/plan-domain.ts` et l'ordre reste celui du serveur. Le rang vient
- *  de cet ordre, jamais d'un champ. */
-function usePriorityGroups(plan: LearningPlanDto): PlanPriorityGroup[] {
-  return useMemo(
-    () => planPriorityGroups(plan, planActivePriorities(plan)).slice(0, 3),
-    [plan],
-  );
-}
-
-function rankOf(index: number): 1 | 2 | 3 {
-  return index === 0 ? 1 : index === 1 ? 2 : 3;
-}
-
-function PriorityCard({group, rank, currentSkillId, detailed, foldable}: {
-  group: PlanPriorityGroup;
-  rank: 1 | 2 | 3;
-  currentSkillId: string | null;
-  /** L'abonné déroule les compétences de la tâche ; le plan gratuit s'arrête au
-   *  repère et au compte — il ne nomme aucune ligne verrouillée. */
-  detailed?: boolean;
-  /** 🛑 Rétractable dès qu'il y a plus d'une priorité à l'écran. Une priorité
-   *  seule n'a aucune raison de se replier : elle EST l'écran. */
-  foldable?: boolean;
-}) {
-  const rows = group.rows;
-  const solid = rows.filter((row) => row.status === "SOLIDE").length;
-  const visible = rows.slice(0, PLAN_PRIORITY_ROWS_VISIBLE);
-  // Un plan gratuit ne nomme aucune ligne : il n'y a rien à replier.
-  const folded = detailed && foldable ? rows.slice(PLAN_PRIORITY_ROWS_COLLAPSED) : [];
-  const shown = folded.length > 0 ? rows.slice(0, PLAN_PRIORITY_ROWS_COLLAPSED) : visible;
-
-  const skillRow = (row: PlanPriorityGroup["rows"][number]) => (
-    <SkillRow
-      key={row.skillId}
-      label={row.title}
-      state={row.skillId === currentSkillId ? "now" : row.status === "SOLIDE" ? "done" : "todo"}
-    />
-  );
-
-  return (
-    <Prio
-      rank={rank}
-      tag={`Priorité ${rank}`}
-      title={groupTitle(group)}
-      text={planRowStatusSummary(rows.map((row) => row.status))}
-      // 🛑 Le compteur du bouton porte sur ce qui est RÉELLEMENT replié —
-      // jamais une constante, jamais le « + N autres » d'un autre plafond.
-      moreLabel={folded.length > 0 ? planGroupMoreLabel(folded.length) : undefined}
-      lessLabel={folded.length > 0 ? PLAN_GROUP_LESS_LABEL : undefined}
-      details={folded.length > 0 ? <SkillList>{folded.map(skillRow)}</SkillList> : undefined}
-    >
-      {rows.length > 0 && (
-        <ProgressMini
-          ratio={solid / rows.length}
-          label={`${solid} compétence${solid > 1 ? "s" : ""} solide${solid > 1 ? "s" : ""} sur ${rows.length}`}
-        />
-      )}
-      {detailed && shown.length > 0 && <SkillList>{shown.map(skillRow)}</SkillList>}
-    </Prio>
-  );
-}
-
-function groupTitle(group: PlanPriorityGroup): string {
-  if (group.taskNumber !== null) return `${group.label} — ${planTaskBadge(group.taskNumber)}`;
-  return group.context ? `${group.label} — ${group.context}` : group.label;
-}
-
-/* --------------------------------------------------------- parcours TCF */
-
-/**
- * **La file d'étapes**, telle que le serveur l'a construite (spec §12-14).
- *
- * 🛑 **Rien n'est décidé ici** : ni l'ordre (c'est la position, et elle ne se
- * recalcule pas), ni le statut, ni le verrou, ni ce qui est affiché — le
- * serveur a déjà coupé selon §14. L'écran ne fait que peindre.
- *
- * 🛑 **Une étape verrouillée reste à sa place**, avec son cadenas : le Plan
- * reste intégralement visible (contradiction #1, tranchée le 2026-08-21).
- *
- * `null` est un cas normal — parcours pas encore chargé, ou backend antérieur à
- * l'endpoint : la section disparaît, elle n'affiche jamais un squelette.
- */
-function JourneySection({journey}: {journey: JourneyDto | null}) {
-  if (!journey) return null;
-
-  /* 🛑 **Aucun objectif déclaré ⇒ aucun parcours en base** (arbitrage D-3).
-     Ce n'est pas un parcours vide : c'est l'absence de parcours, et le
-     distinguer évite de féliciter un candidat qui n'a rien commencé. */
-  if (journey.state === "NEEDS_OBJECTIVE") {
-    return (
-      <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
-        <Pad>
-          <Stack>
-            <Card>
-              <p className={sejourStyles.sub}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-            </Card>
-            <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
-          </Stack>
-        </Pad>
-      </Section>
-    );
-  }
-
-  /* Plus rien d'ouvert. 🛑 La **suggestion** est hors file : elle n'a pas de
-     position, elle ne se clôt pas, et l'ignorer ne laisse rien « en attente ». */
-  if (journey.state === "UP_TO_DATE") {
-    return (
-      <Section title={JOURNEY_UP_TO_DATE_TITLE}>
-        <Pad>
-          <Card>
-            <p className={sejourStyles.sub}>{JOURNEY_UP_TO_DATE_TEXT}</p>
-            {journey.suggestion === "MOCK_EXAM" && (
-              <p className={sejourStyles.tiny}>{JOURNEY_SUGGESTION_MOCK_EXAM}</p>
-            )}
-          </Card>
-        </Pad>
-      </Section>
-    );
-  }
-
-  if (journey.steps.length === 0) return null;
-  const more = journeyMoreLabel(journey.hiddenUpcomingCount);
-  return (
-    <Section title={journeyTitle(journey.targetLevel)} flush>
-      <Card padding="rows">
-        <JourneyList>
-          {journey.steps.map((step) => (
-            <JourneyRow
-              key={step.id}
-              title={journeyStepTitle(step)}
-              subtitle={journeyStepSubtitle(step)}
-              state={journeyKitState(step)}
-              kind={journeyKind(step)}
-              badge={journeyBadge(step)}
-              locked={step.locked}
-            />
-          ))}
-        </JourneyList>
-      </Card>
-      {/* 🛑 Le compte des étapes repliées est **servi** : le déduire de la
-          longueur de `steps` donnerait un nombre faux dès que le filtrage
-          d'affichage retient une étape verrouillée hors fenêtre. */}
-      {more && <p className={sejourStyles.tiny}>{more}</p>}
-      {/* 🛑 Des étapes restent, mais **aucune n'est exécutable** : on le dit au
-          lieu de laisser une file sans étape courante, qui se lirait comme un
-          parcours en panne. */}
-      {journey.state === "LOCKED" && (
-        <p className={sejourStyles.tiny}>{JOURNEY_LOCKED_CAPTION}</p>
-      )}
     </Section>
   );
 }

@@ -58,6 +58,7 @@ import type {
   TokenResponse,
   UserStatsResponse,
     JourneyDto,
+    JourneyHistoryDto,
 } from "./types";
 import {detectTrafficSource} from "./traffic-source";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
@@ -916,20 +917,20 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
  * pas le sien.
  *
  * 🛑 **Pas de cache.** Une seule réponse alimente la carte « À faire
- * maintenant » et la timeline, sur les trois écrans qui les affichent : servir
+ * maintenant » et le cycle, sur les trois écrans qui les affichent : servir
  * deux instantanés différents au même instant rouvrirait exactement la
  * contradiction corrigée le 2026-09-16.
  *
- * @param expandAll toutes les étapes non obsolètes au lieu du sous-ensemble
- *                  d'affichage — ce que demande « Voir les étapes suivantes ».
+ * ⚠️ **Plus de `?expand=all`** (2026-09-18) : il ne concernait que la file
+ * plate `steps`, remplacée par les blocs — qui portent **toujours** toutes les
+ * étapes, sans plafond d'affichage donc sans repli à déplier.
  */
-function fetchJourney(expandAll = false): Promise<JourneyDto> {
-    return apiFetch<JourneyDto>(
-        expandAll ? "/api/me/plan/journey?expand=all" : "/api/me/plan/journey",
-        {auth: true});
+function fetchJourney(): Promise<JourneyDto> {
+    return apiFetch<JourneyDto>("/api/me/plan/journey", {auth: true});
 }
 
 const JOURNEY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey`;
+const JOURNEY_HISTORY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey-history`;
 
 export const journeyApi = {
     get: fetchJourney,
@@ -947,8 +948,63 @@ export const journeyApi = {
 
     cacheKey: JOURNEY_CACHE_KEY,
 
+    /**
+     * **L'historique des cycles** — l'archive derrière « Voir ma progression ».
+     *
+     * 🛑 **Aucun query param** : le serveur sert les cycles du candidat
+     * authentifié, et accepter un identifiant laisserait lire l'archive d'un
+     * tiers.
+     *
+     * 🛑 **Mis en cache sous le PRÉFIXE du Plan**, comme le parcours : un cycle
+     * historisé par « Actualiser mon plan » purge les deux ensemble, donc
+     * l'archive ne peut pas rester en retard d'un cycle sur l'écran qui vient
+     * de le fermer.
+     */
+    history(): Promise<JourneyHistoryDto> {
+        return cached(JOURNEY_HISTORY_CACHE_KEY, () =>
+            apiFetch<JourneyHistoryDto>("/api/me/plan/journey/history", {auth: true}));
+    },
+
+    historyCacheKey: JOURNEY_HISTORY_CACHE_KEY,
+
     peekCached(): JourneyDto | undefined {
         return peekCached<JourneyDto>(JOURNEY_CACHE_KEY);
+    },
+
+    /**
+     * **Actualiser mon plan** — le cycle en attente devient le cycle courant
+     * (spec §6). Rend le parcours **frais**.
+     *
+     * 🛑 **Aucun corps, aucun query param** : le serveur sait quel est le cycle
+     * en cours du candidat, et accepter un identifiant laisserait historiser
+     * celui d'un autre. **409** si le cycle n'est pas terminé.
+     *
+     * 🛑 **Une écriture de MESURE** : elle change le Plan, la préparation et les
+     * progrès autant que le parcours, d'où la purge groupée.
+     */
+    async refresh(): Promise<JourneyDto> {
+        const journey = await apiFetch<JourneyDto>(
+            "/api/me/plan/journey/refresh",
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        return journey;
+    },
+
+    /**
+     * **Passer l'examen blanc complet** — crée le **cycle de mesure**.
+     *
+     * 🛑 **Il ne démarre aucun examen** : l'examen blanc complet reste lancé par
+     * `fullTcfExamApi.start`, son unique point d'entrée. **409** si le cycle
+     * n'est pas terminé, ou s'il est déjà un cycle de mesure.
+     */
+    async measurementCycle(): Promise<JourneyDto> {
+        const journey = await apiFetch<JourneyDto>(
+            "/api/me/plan/journey/measurement-cycle",
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        return journey;
     },
 };
 
