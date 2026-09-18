@@ -371,15 +371,6 @@ String planProfileCoverage(PlanCycle? cycle, int fallbackTotal) {
       'évalué${evaluated > 1 ? 's' : ''}';
 }
 
-/* ------------------------------------------- toutes mes compétences (page) */
-
-const String kPlanAllSkillsTitle = 'Toutes mes compétences';
-const String kPlanAllSkillsSub = 'Expression et compréhension';
-const String kPlanComprehensionTitle = 'Compréhension';
-const String kPlanAllSkillsEmpty =
-    'Votre plan ne suit encore aucun domaine : il se remplit à votre premier '
-    'résultat.';
-
 /// **Le parcours réel** qu'ouvre une mesure, nommé tel quel — une *description*,
 /// jamais un geste. Aucun contenu n'est créé : les deux natures existent déjà.
 ///
@@ -437,17 +428,6 @@ String planAssessmentItemTitle(PlanDomainAssessment assessment) =>
 const String kPlanReasonAEvaluer =
     'Une de vos productions n\'a pas pu être analysée : votre séance commence '
     'par la mesurer, sinon tout ce qui suit avance à l\'aveugle.';
-
-/* ------------------------------------------------------- ce qui a changé    */
-
-const String kPlanChangesDetail = 'Voir le détail';
-const String kPlanChangesNewPriority = 'NOUVELLE PRIORITÉ';
-/// « Priorité → En consolidation ». `before == null` veut dire « jamais
-/// observée » : on le dit, on n'invente pas d'état de départ.
-String planTransitionLabel(PlanMasteryTransition transition) {
-  final before = transition.before?.label ?? 'Jamais observée';
-  return '$before → ${transition.after.label}';
-}
 
 /* ---------------------------------------------- « votre programme évolue »  */
 
@@ -604,22 +584,6 @@ String planPriorityGroupTitle({
 
 String planPriorityRankTag(int rank) => 'Priorité $rank';
 
-const String kPlanDoneTitle = 'Déjà travaillé et validé';
-
-/// La ligne cochée d'une étape franchie : la compétence et son repère.
-String planDoneRowLabel(LearningPlanCompletedStep step) =>
-    '${step.title} — ${planSkillMeta(step.skillCode, step.section)}';
-
-const String kPlanChangesTitle = 'Progression détectée';
-
-/// La phrase sous le titre de l'encart vert : ce que le plan fait ensuite.
-/// `null` quand aucune nouvelle priorité n'a été désignée — on n'annonce alors
-/// aucune suite.
-String? planChangesNext(PlanRecentChanges changes) {
-  final next = changes.newPriority;
-  return next == null ? null : 'Prochaine action : ${next.title}.';
-}
-
 /* ----------------------------------------------- le plan d'un compte libre  */
 
 const String kPlanFreeFirstStepTitle = 'Votre première étape est prête';
@@ -648,8 +612,6 @@ const String kPlanUnlockCaption = 'Accès Intégral · paiement unique';
 
 /* ---------------------------------------------- les accès secondaires ----- */
 
-const String kPlanExamsTitle = 'Mes examens blancs';
-const String kPlanExamsSub = 'TCF et civique';
 const String kPlanDiagnosticTitle = 'Mon diagnostic';
 const String kPlanDiagnosticSub = 'Résultat de départ et priorités initiales';
 

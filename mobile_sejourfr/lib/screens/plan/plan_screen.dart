@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
@@ -19,7 +18,6 @@ import '../../core/router/app_router.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/utils/parcours_affiche.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/affiner_plan_card.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/widgets/diagnostic_result.dart';
@@ -209,12 +207,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
             ),
             prep: modulePrep,
           ),
-        // 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage
-        // du 2026-09-12, tenu). Ce qui change le 2026-09-13 : il devient le
-        // SEUL appel à compléter son profil — « Compléter mon profil » et ses
-        // cartes d'épreuve ont été supprimés, et leur emplacement lui revient.
-        // La carte disparaît d'elle-même à 4 / 4 : c'est `affinerPlan` qui rend
-        // `null`, sur des faits servis.
+        // 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
+        // propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours »
+        // a été supprimée du Plan, comme le lien « Revoir mon diagnostic
+        // rapide ». Le complet reste appelé depuis l'Accueil, qui garde son
+        // `affinerPlan`. Ne pas les réintroduire sur cet écran.
         LearningPlanState.active => PlanTcfView(
             plan: value,
             // 🛑 Le parcours est **observé**, jamais attendu : son absence ne
@@ -222,42 +219,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
             // à l'endpoint garde un écran entier.
             journey: ref.watch(journeyProvider).valueOrNull,
             objective: objective,
-            affiner: _affiner(modulePrep),
-            trailing: _trailing(modulePrep),
           ),
       },
     );
-  }
-
-  /// **L'invitation au diagnostic complet**, à l'emplacement de l'ancien
-  /// « Compléter mon profil ». Miroir de `LearningPlanView` côté web.
-  ///
-  /// 🛑 L'abonnement se **lit** (`user.hasTcf`), il ne se devine pas : il ne
-  /// décide ici que d'une formulation, jamais d'un verrou — ceux-là arrivent
-  /// servis, ligne par ligne.
-  Widget? _affiner(ModulePreparation? prep) {
-    if (prep == null) return null;
-    final auth = ref.read(authControllerProvider);
-    final info = affinerPlan(
-      prep,
-      accueil: false,
-      abonne: auth is AuthAuthenticated && auth.user.hasTcf,
-    );
-    if (info == null) return null;
-    return Padding(
-      padding: const EdgeInsets.only(top: sfSectionGap),
-      child: AffinerPlanCard(info: info),
-    );
-  }
-
-  /// Ce qui se pose **après** le contenu du Plan : le lien discret vers le
-  /// rapport du diagnostic rapide.
-  List<Widget> _trailing(ModulePreparation? prep) {
-    if (prep == null) return const <Widget>[];
-    return <Widget>[
-      // 🛑 Servi ou rien : sans rapide clos, il n'y a aucun rapport à revoir.
-      if (prep.estimationSessionId != null) const RevoirEstimationLink(),
-    ];
   }
 
   @override

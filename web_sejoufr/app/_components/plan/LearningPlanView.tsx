@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useState, type ReactNode} from "react";
+import {useEffect, useState} from "react";
 import {
   ChevronRight,
   Clock3,
@@ -13,28 +13,17 @@ import {ApiException, journeyApi, learningPlanApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
-import {productionSectionLabel, skillTaskNumber} from "@/lib/diagnostic";
 import {
   PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
-  PLAN_SKILLS_HREF,
-  PLAN_SKILLS_TITLE,
   PLAN_STARTING,
   planNowCard,
-  planTaskBadge,
-  planTransitionLine,
 } from "@/lib/plan-domain";
-import {
-  affinerPlan,
-  DIAGNOSTIC_RAPIDE_HREF,
-  PLAN_REVOIR_ESTIMATION,
-  planIndisponibleDepuisEtat,
-} from "@/lib/preparation";
+import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
   canAccessModule,
   type JourneyDto,
-  type LearningPlanCompletedStepDto,
   type LearningPlanDto,
   type ModulePreparation,
   type PlanCycleDto,
@@ -44,7 +33,6 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
   Card,
   Cta,
-  DoneRow,
   GoalStrip,
   LockItem,
   LockList,
@@ -59,7 +47,6 @@ import {
 import {PlanBlur, planNowIcon} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
 import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
-import {AffinerPlanCard} from "./AffinerPlanCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
@@ -68,14 +55,20 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * **Le Plan TCF** — refonte du 2026-09-11 sur le kit `sejour/`.
  *
  * Deux écrans, un seul contrat de données (`GET /api/me/plan`) : l'**abonné**
- * lit son parcours (à faire maintenant → le cycle par épreuve → déjà validé →
- * progression détectée), le **gratuit** lit le même cycle, cadenassé, et ce
- * qu'un pass ouvrirait.
+ * lit son parcours (à faire maintenant → le cycle par épreuve), le **gratuit**
+ * lit le même cycle, cadenassé, et ce qu'un pass ouvrirait.
  *
  * 🛑 **Le bloc « Vos priorités pour atteindre … » n'existe plus** (arbitrage du
  * propriétaire, 2026-09-18) : il disait la même chose que les blocs d'épreuve
  * du cycle, en moins précis — mêmes compétences, sans leur position dans le
  * cycle, sans leur examen, et plafonné à trois groupes. Ne pas le réintroduire.
+ *
+ * 🛑 **Le bas de l'écran a été VIDÉ** (arbitrage du propriétaire, 2026-09-19) :
+ * « Déjà travaillé et validé », « Progression détectée », la carte du
+ * diagnostic complet en cours, « Toutes mes compétences », « Mes examens
+ * blancs » et « Revoir mon diagnostic rapide » ont été supprimés. Sous le
+ * cycle il ne reste que « Ma progression » et « Mon diagnostic ». Ne pas les
+ * réintroduire.
  *
  * 🛑 **Rien n'est dérivé ici.** L'ordre des priorités, la nature de l'action,
  * l'état de chaque compétence, la couverture d'une tâche et le verrou arrivent
@@ -92,8 +85,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * (`deskPair`, `deskGrid`) qui ne déclarent rien sous 960 px.
  *
  * - **abonné** (`SejourApp wide`, 1080 px) : en-tête, objectif en pleine
- *   largeur, le cycle en pleine largeur, puis `deskPair`
- *   « Déjà travaillé et validé » | « Progression détectée » ;
+ *   largeur, puis le cycle en pleine largeur ;
  * - **gratuit** (`SejourApp sticky`, 980 px) : la maquette n'y met **aucune**
  *   paire. 🛑 C'est voulu : sur cet écran, « Débloquer mon plan » doit rester
  *   la seule action dominante, et mettre deux blocs côte à côte au-dessus
@@ -197,55 +189,15 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     );
   }
 
-  /* 🛑 **Le diagnostic complet n'est qu'une façon d'AFFINER** (arbitrage du
-     2026-09-12, tenu). Ce qui change le 2026-09-13 : il devient le SEUL appel
-     à compléter son profil — « Compléter mon profil » et ses cartes d'épreuve
-     ont été supprimés, et leur emplacement revient à cette carte.
-
-     🛑 **Une seule occurrence du CTA par écran.** La carte descend donc DANS
-     la vue (l'emplacement de l'ancien bloc chez l'abonné, après le paywall
-     chez un compte gratuit) au lieu d'être posée une seconde fois ici. Elle
-     disparaît d'elle-même à 4 / 4 : c'est `affinerPlan` qui rend `null`, sur
-     des faits servis. */
+  /* 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
+     propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours » a été
+     supprimée du Plan. Le complet reste appelé depuis l'Accueil, qui garde son
+     `affinerPlan`. Ne pas la réintroduire sur cet écran. */
   const abonne = canAccessModule(user, "TCF");
-  const affiner = prep ? affinerPlan(prep, {surface: "plan", abonne}) : null;
-  const affinerCard = affiner ? <AffinerPlanCard info={affiner} /> : null;
 
-  return (
-    <>
-      {abonne
-        ? <TcfPlanPremium plan={plan} journey={journey} affiner={affinerCard} />
-        : <TcfPlanFree plan={plan} journey={journey} affiner={affinerCard} />}
-      {prep?.estimationSessionId && <RevoirEstimation />}
-    </>
-  );
-}
-
-/**
- * **Revoir mon diagnostic rapide** — le retour vers le rapport d'origine.
- *
- * 🛑 **Un lien, en bas de page, et rien d'autre** (arbitrage du propriétaire,
- * 2026-09-12). Pas une carte, pas un bouton plein : il ne doit concurrencer ni
- * « Débloquer mon plan » pour un compte gratuit, ni « À faire maintenant » pour
- * un abonné. Le Plan sert à avancer ; le rapport sert seulement à revenir
- * comprendre d'où viennent les premières priorités.
- *
- * 🛑 Il n'existe que si `estimationSessionId` est **servi** : un candidat venu
- * par le diagnostic complet n'a pas de rapide, donc rien à revoir, et on
- * n'invente pas un rapport. Aucun écran n'est recréé — `/diagnostic` sert déjà
- * ce rapport dès que la session est close.
- */
-function RevoirEstimation() {
-  return (
-    <Section>
-      <Pad>
-        <Link className={sejourStyles.link} href={DIAGNOSTIC_RAPIDE_HREF}>
-          {PLAN_REVOIR_ESTIMATION}
-          <ChevronRight size={15} aria-hidden />
-        </Link>
-      </Pad>
-    </Section>
-  );
+  return abonne
+    ? <TcfPlanPremium plan={plan} journey={journey} />
+    : <TcfPlanFree plan={plan} journey={journey} />;
 }
 
 function PlanMessage({title, text, cta, href, alert}: {
@@ -275,13 +227,11 @@ function PlanMessage({title, text, cta, href, alert}: {
 
 /* ----------------------------------------------------------------- abonné */
 
-function TcfPlanPremium({plan, journey, affiner}: {
+function TcfPlanPremium({plan, journey}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  affiner: ReactNode;
 }) {
   const objective = plan.cycle.objectiveLevel;
-  const completed = plan.completedSteps ?? [];
 
   return (
     <>
@@ -305,33 +255,9 @@ function TcfPlanPremium({plan, journey, affiner}: {
           demi-colonne de tableau de bord ne se lisent plus. */}
       <PlanCycleSection journey={journey} plan={plan} />
 
-      {/* La seconde paire de la maquette. Les deux blocs disparaissent d'eux-
-          mêmes quand ils n'ont rien à dire (`recentChanges === null` est le cas
-          NORMAL) : le survivant prend la rangée entière. */}
-      <div className={sejourStyles.deskPair}>
-        {completed.length > 0 && (
-          <Section title="Déjà travaillé et validé">
-            <Pad>
-              <Card padding="rows">
-                {completed.map((step) => (
-                  <DoneRow key={step.skillId} label={completedLabel(step)} />
-                ))}
-              </Card>
-            </Pad>
-          </Section>
-        )}
-
-        <ProgressionDetectee plan={plan} />
-      </div>
-
-      {/* ⚠️ Blocs conservés hors maquette : ils portent une information qu'elle
-          ne couvre pas — un examen blanc mérité et le chemin des paliers quand
-          ce n'est pas lui qui sert de parcours. */}
+      {/* ⚠️ Bloc conservé hors maquette : il porte une information qu'elle ne
+          couvre pas — un examen blanc mérité. */}
       {plan.milestone && <PlanMilestoneCard milestone={plan.milestone} />}
-
-      {/* 🛑 L'emplacement de l'ancien « Compléter mon profil » : c'est ici que
-          se complète un profil, et il n'y a plus qu'une façon de le faire. */}
-      {affiner}
 
       <AllerPlusLoin />
 
@@ -345,10 +271,9 @@ function TcfPlanPremium({plan, journey, affiner}: {
 
 /* ---------------------------------------------------------------- gratuit */
 
-function TcfPlanFree({plan, journey, affiner}: {
+function TcfPlanFree({plan, journey}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  affiner: ReactNode;
 }) {
   const objective = plan.cycle.objectiveLevel;
   return (
@@ -376,11 +301,6 @@ function TcfPlanFree({plan, journey, affiner}: {
         benefits={PLAN_PREMIUM_BENEFITS}
         cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
       />
-
-      {/* 🛑 APRÈS le paywall, et c'est délibéré : sur un Plan gratuit, le seul
-          bouton ROUGE de la page reste « Débloquer mon plan ». Le diagnostic
-          complet, lui, porte le bleu plein — visible, jamais concurrent. */}
-      {affiner}
     </>
   );
 }
@@ -549,63 +469,20 @@ function ActionMaintenant({plan, journey, free}: {
   );
 }
 
-/* ------------------------------------------------------------ déjà validé */
-
-function completedLabel(step: LearningPlanCompletedStepDto): string {
-  const task = skillTaskNumber(step.skillCode);
-  const domaine = productionSectionLabel(step.section);
-  return task
-    ? `${step.title} — ${domaine}, ${planTaskBadge(task)}`
-    : `${step.title} — ${domaine}`;
-}
-
-/* -------------------------------------------------- progression détectée */
-
-/**
- * 🛑 **`recentChanges === null` est le cas NORMAL** : le bloc disparaît, il ne
- * s'affiche pas vide. Le sens de la marche vient de `progress`, calculé
- * serveur — aucun front ne code l'ordre des quatre états.
- */
-function ProgressionDetectee({plan}: {plan: LearningPlanDto}) {
-  const changes = plan.recentChanges;
-  if (!changes) return null;
-  if (changes.transitions.length === 0 && !changes.newPriority) return null;
-
-  const monte = changes.transitions.some((transition) => transition.progress);
-  const titre = changes.transitions.length === 0
-    ? "Votre plan a changé"
-    : monte ? "Progression détectée" : "Réévaluation";
-
-  return (
-    <Section flush>
-      <Card variant="ok">
-        <p className={sejourStyles.label}>{titre}</p>
-        {changes.transitions.map((transition) => (
-          <DoneRow
-            key={transition.skillId}
-            label={`${transition.title} · ${planTransitionLine(transition)}`}
-          />
-        ))}
-        {changes.newPriority && (
-          <p className={sejourStyles.insight}>
-            Votre prochaine priorité devient : <b>{changes.newPriority.title}</b>
-          </p>
-        )}
-      </Card>
-    </Section>
-  );
-}
-
 /* ------------------------------------------------------- aller plus loin */
 
 /** Les écrans adossés au Plan ne sont accessibles que d'ici : la barre latérale
  *  ne les porte pas.
  *
- *  Les trois accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
+ *  🛑 **Deux accès, et deux seulement** (arbitrage du propriétaire,
+ *  2026-09-19) : « Toutes mes compétences » et « Mes examens blancs » ont été
+ *  retirés — le premier avec son écran, le second parce que l'onglet Examens
+ *  de la barre de navigation y mène déjà. Ne pas les réintroduire.
+ *
+ *  Les deux accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
 function AllerPlusLoin() {
   const rows: Array<{href: string; label: string}> = [
-    {href: PLAN_SKILLS_HREF, label: PLAN_SKILLS_TITLE},
     {href: PLAN_PROGRESS_HREF, label: PLAN_PROGRESS_TITLE_SHORT},
     {href: "/diagnostic", label: "Mon diagnostic"},
   ];

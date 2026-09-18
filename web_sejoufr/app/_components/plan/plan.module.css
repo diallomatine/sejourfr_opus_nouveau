@@ -1,8 +1,7 @@
 /* ============================================================================
-   Les écrans SECONDAIRES du Plan : « Toutes mes compétences »
-   (`/plan/competences`), la fiche d'un domaine (`/plan/domaine/[domaine]`),
-   « Votre programme évolue » (`/plan/evolution`) et « Ma progression »
-   (`/plan/progression`).
+   Les écrans SECONDAIRES du Plan : la fiche d'un domaine
+   (`/plan/domaine/[domaine]`), « Votre programme évolue » (`/plan/evolution`)
+   et « Ma progression » (`/plan/progression`).
 
    ⚠️ **L'écran `/plan` lui-même n'est plus ici** : il est passé sur le kit
    `app/_components/sejour/` le 2026-09-11, avec ses deux onglets TCF et

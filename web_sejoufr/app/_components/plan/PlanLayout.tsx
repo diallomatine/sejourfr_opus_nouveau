@@ -3,14 +3,11 @@
 import Link from "next/link";
 import {ChevronRight} from "lucide-react";
 import type {ReactNode} from "react";
-import {PLAN_RECENT_NEW_PRIORITY, planSkillMeta, planTransitionLine} from "@/lib/plan-domain";
-import {type LearningPlanDto, PLAN_RECENT_CHANGES_WINDOW_LABEL} from "@/lib/types";
 import styles from "./plan.module.css";
 
 /**
  * **Les structures partagées par les écrans SECONDAIRES du Plan**
- * (`/plan/competences`, `/plan/domaine/[x]`,
- * `/plan/progression`).
+ * (`/plan/domaine/[x]`, `/plan/progression`).
  *
  * Elles vivaient dans `LearningPlanView`, que la refonte du 2026-09-11 a
  * basculé sur le kit `sejour/` : les quatre écrans qui les importaient n'ont

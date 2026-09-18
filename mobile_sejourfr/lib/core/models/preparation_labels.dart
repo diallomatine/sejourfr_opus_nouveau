@@ -287,14 +287,6 @@ const String kDiagnosticCompletRoute = '/diagnostic-tcf';
 const String kDiagnosticCompletCtaStart = 'Faire le diagnostic complet';
 const String kDiagnosticCompletCtaResume = 'Continuer le diagnostic';
 
-/// Le retour vers le rapport du diagnostic **rapide**.
-///
-/// 🛑 **Un lien, jamais un bouton, jamais une carte**, et posé en bas de page :
-/// le Plan sert à avancer, le rapport sert seulement à revenir comprendre d'où
-/// viennent les premières priorités. Il ne doit concurrencer ni « Débloquer mon
-/// plan » (compte gratuit) ni « À faire maintenant » (abonné).
-const String kPlanRevoirEstimation = 'Revoir mon diagnostic rapide';
-
 /// Miroir mot pour mot de `affinerPlan` (`web_sejoufr/lib/preparation.ts`).
 AffinerPlan? affinerPlan(
   ModulePreparation m, {

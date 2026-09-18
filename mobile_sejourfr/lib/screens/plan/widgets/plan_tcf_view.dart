@@ -26,7 +26,14 @@ import '../plan_now_card.dart';
 import 'plan_cycle_section.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
-/// maintenant, le cycle par épreuve, ce qui est acquis, ce qui a bougé.
+/// maintenant, le cycle par épreuve.
+///
+/// 🛑 **Le bas de l'écran a été VIDÉ** (arbitrage du propriétaire,
+/// 2026-09-19) : « Déjà travaillé et validé », « Progression détectée », la
+/// carte du diagnostic complet en cours, « Toutes mes compétences », « Mes
+/// examens blancs » et « Revoir mon diagnostic rapide » ont été supprimés.
+/// Sous le cycle il ne reste que « Ma progression » et « Mon diagnostic ». Ne
+/// pas les réintroduire.
 ///
 /// 🛑 **Le bloc « Vos priorités pour atteindre … » n'existe plus** (arbitrage du
 /// propriétaire, 2026-09-18) : il disait la même chose que les blocs d'épreuve
@@ -46,8 +53,6 @@ class PlanTcfView extends ConsumerWidget {
     required this.plan,
     this.journey,
     required this.objective,
-    this.affiner,
-    this.trailing = const <Widget>[],
   });
 
   final LearningPlan plan;
@@ -58,25 +63,6 @@ class PlanTcfView extends ConsumerWidget {
   /// l'endpoint : la timeline disparaît, elle n'affiche jamais un squelette.
   final Journey? journey;
   final TargetLevel? objective;
-
-  /// **L'invitation au diagnostic complet**, posée à l'emplacement de l'ancien
-  /// « Compléter mon profil » (supprimé le 2026-09-13).
-  ///
-  /// 🛑 **Une seule occurrence par écran.** C'est désormais le SEUL appel à
-  /// compléter son profil : les cartes d'épreuve et leurs CTA « Passer l'examen
-  /// blanc » / « Faire une production » ont disparu avec la section. Servi ou
-  /// rien — à 4 / 4 l'autorité `affinerPlan` rend `null` et l'hôte passe `null`.
-  final Widget? affiner;
-
-  /// Ce qui se pose **après** le contenu du Plan, dans le MÊME défilement —
-  /// aujourd'hui le lien « Revoir mon diagnostic rapide ».
-  ///
-  /// 🛑 Un slot, pas un widget imposé : ce que le Plan **est** ne dépend pas de
-  /// ce qui l'accompagne, et deux listes qui recopieraient la même carte
-  /// auraient fini par en montrer deux versions. Même motif que les slots
-  /// `leading`/`trailing` de `DiagnosticResultView`, pour la même raison : cette
-  /// vue **EST** la `ListView`, imbriquer deux scrollables était le risque.
-  final List<Widget> trailing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,7 +94,6 @@ class PlanTcfView extends ConsumerWidget {
   /* ------------------------------------------------------------- abonné --- */
 
   List<Widget> _premium(BuildContext context, WidgetRef ref) {
-    final changes = plan.recentChanges;
     final milestone = plan.milestone;
 
     return <Widget>[
@@ -124,14 +109,8 @@ class PlanTcfView extends ConsumerWidget {
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
       // deux issues.
       PlanCycleSection(plan: plan, journey: journey),
-      ..._doneSection(),
-      ..._changesSection(changes),
       if (milestone != null) _milestoneSection(context, ref, milestone),
-      // 🛑 L'emplacement de l'ancien « Compléter mon profil » : c'est ici que
-      // se complète un profil, et il n'y a plus qu'une façon de le faire.
-      if (affiner != null) affiner!,
       _links(context),
-      ...trailing,
       const SizedBox(height: 28),
     ];
   }
@@ -165,12 +144,6 @@ class PlanTcfView extends ConsumerWidget {
             checks: kPlanUnlockHeroChecks,
           ),
         ),
-        // 🛑 APRÈS le hero d'abonnement, et c'est délibéré : sur un Plan
-        // gratuit, le seul bouton ROUGE reste « Débloquer mon plan », en barre
-        // basse. Le diagnostic complet porte le bleu plein — visible, jamais
-        // concurrent.
-        if (affiner != null) affiner!,
-        ...trailing,
         const SizedBox(height: 24),
       ];
 
@@ -392,64 +365,6 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  List<Widget> _doneSection() {
-    if (plan.completedSteps.isEmpty) return const <Widget>[];
-    return <Widget>[
-      SfSection(
-        title: kPlanDoneTitle,
-        flush: true,
-        child: SfCard(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final step in plan.completedSteps)
-                SfCheckRow(label: planDoneRowLabel(step), large: true),
-            ],
-          ),
-        ),
-      ),
-    ];
-  }
-
-  /// L'encart vert. 🛑 **`recentChanges == null` est le cas normal** : le bloc
-  /// disparaît, il ne s'affiche pas vide. Seules les transitions que le serveur
-  /// dit **positives** (`progress`) y entrent — une régression n'est pas une
-  /// progression détectée.
-  List<Widget> _changesSection(PlanRecentChanges? changes) {
-    if (changes == null || changes.isEmpty) return const <Widget>[];
-    final progress = changes.transitions
-        .where((transition) => transition.progress)
-        .toList(growable: false);
-    final next = planChangesNext(changes);
-    if (progress.isEmpty && next == null) return const <Widget>[];
-    return <Widget>[
-      SfSection(
-        flush: true,
-        child: SfCard(
-          variant: SfCardVariant.ok,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SfLabel(kPlanChangesTitle, color: AppColors.greenDark),
-              const SizedBox(height: 4),
-              for (final transition in progress)
-                SfCheckRow(
-                  label:
-                      '${transition.title} — ${planTransitionLabel(transition)}',
-                  large: true,
-                ),
-              if (next != null) ...[
-                const SizedBox(height: 8),
-                SfInsight(next),
-              ],
-            ],
-          ),
-        ),
-      ),
-    ];
-  }
-
   /// Le **jalon** : un examen blanc que le serveur juge mérité. Il n'a aucun
   /// équivalent dans la maquette, et il porte une information qu'elle ne couvre
   /// pas — d'où sa place, en fin d'écran.
@@ -493,22 +408,17 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  /// Les accès secondaires du Plan. La maquette n'en montre aucun : ils restent
-  /// parce que ce sont les **seules** portes vers le référentiel complet, la
-  /// progression par domaine et le diagnostic.
+  /// Les accès secondaires du Plan.
+  ///
+  /// 🛑 **Deux accès, et deux seulement** (arbitrage du propriétaire,
+  /// 2026-09-19) : « Toutes mes compétences » et « Mes examens blancs » ont été
+  /// retirés — le premier avec son écran, le second parce que l'onglet Examens
+  /// de la barre de navigation y mène déjà. Ne pas les réintroduire.
   Widget _links(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
       child: ListGroup(
         children: [
-          ListRow(
-            icon: LucideIcons.layoutGrid,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
-            title: kPlanAllSkillsTitle,
-            sub: kPlanAllSkillsSub,
-            onTap: () => context.push(AppRoutes.planSkills),
-          ),
           ListRow(
             icon: LucideIcons.trendingUp,
             iconBg: AppColors.surface2,
@@ -516,14 +426,6 @@ class PlanTcfView extends ConsumerWidget {
             title: kJourneyHistoryTitle,
             sub: kJourneyHistorySub,
             onTap: () => context.push(AppRoutes.planProgress),
-          ),
-          ListRow(
-            icon: LucideIcons.graduationCap,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
-            title: kPlanExamsTitle,
-            sub: kPlanExamsSub,
-            onTap: () => context.go(AppRoutes.examens),
           ),
           ListRow(
             icon: LucideIcons.clipboardCheck,

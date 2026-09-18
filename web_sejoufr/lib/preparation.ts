@@ -84,16 +84,6 @@ export const DIAGNOSTIC_COMPLET_HREF = "/diagnostic-tcf";
 export const DIAGNOSTIC_COMPLET_CTA_START = "Faire le diagnostic complet";
 export const DIAGNOSTIC_COMPLET_CTA_RESUME = "Continuer le diagnostic";
 
-/**
- * Le retour vers le rapport du diagnostic **rapide**.
- *
- * 🛑 **Un lien, jamais un bouton, jamais une carte**, et posé en bas de page :
- * le Plan sert à avancer, le rapport sert seulement à revenir comprendre d'où
- * viennent les premières priorités. Il ne doit concurrencer ni « Débloquer mon
- * plan » (compte gratuit) ni « À faire maintenant » (abonné).
- */
-export const PLAN_REVOIR_ESTIMATION = "Revoir mon diagnostic rapide";
-
 export const TCF_LABEL = "TCF IRN";
 export const CIVIQUE_LABEL = "Examen civique";
 
