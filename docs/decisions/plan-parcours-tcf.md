@@ -1301,3 +1301,36 @@ pourquoi — avant de proposer quoi que ce soit de payant.
 
 **Ce que ça préserve de D-28** : dans les deux cas, l'entraînement et le cycle restent **sans
 filtre**. Seule la composition de l'**examen blanc** dépend du résultat.
+
+#### D-41 — **Précision de D-29** : P8.2 est scindée, et P8.A garde sa place
+
+⚠️ **Ce n'est pas une révocation de D-29.** « Avant le cycle » est **tenu** : P8.2a n'est pas le
+cycle, c'est le **référentiel que la conformité consomme**.
+
+**L'ordre arrêté** :
+
+**P8.1** (rangement) → **P8.2a** (la table des 16 **seule** : schéma, seed, garde-fous, rattachement
+des 46) → **P8.A** (conformité du tirage) → **P8.2b** (retrait du filtre de mention, suppression de
+`CivicDotation` et de `questions-min-par-notion`) → **P8.3** et la suite.
+
+**Le motif, verbatim** :
+
+> Le motif n'est pas une préférence d'ordonnancement, c'est une **dépendance à sens unique** : P8.A
+> doit être écrit et testé **avant** que le retrait du filtre change les résultats de tirage. Si les
+> deux passent ensemble, un examen qui devient conforme **et** un pool qui double d'un coup, on ne
+> sait plus attribuer un écart de mesure à l'un ou à l'autre. P8.2a fournit à P8.A la seule chose
+> dont il a besoin — **la table et ses quotas** — et rien de plus.
+
+🛑 **Deux conséquences à vérifier en ouvrant P8.2a** :
+
+1. **La table doit pouvoir être seedée et testée sans que le filtre de mention bouge.** Si l'un des
+   **trois garde-fous de D-38** exige le retrait du filtre pour tenir, **le dire avant d'écrire la
+   migration** — ce serait le signe que la séparation ne tient pas, et on reviendrait au **quota en
+   code**.
+2. **Le rattachement des 46 notions internes aux 16 unités se fait en P8.2a**, pas plus tard. P8.A en
+   a besoin pour contraindre le tirage.
+
+**Ce que P8.2b garde, et elle seule** : les 4 points de lecture du filtre
+(`CivicPlanRepository` × 3, `CivicDiagnosticComposer`, `AttemptService.resolveDifficulty`), la
+suppression de `CivicDotation` + `CivicDotationTest`, le retrait de `questions-min-par-notion`, le
+champ `dotation` du DTO et ses **2 miroirs front**.
