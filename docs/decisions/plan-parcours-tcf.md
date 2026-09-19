@@ -1334,3 +1334,72 @@ des 46) → **P8.A** (conformité du tirage) → **P8.2b** (retrait du filtre de
 (`CivicPlanRepository` × 3, `CivicDiagnosticComposer`, `AttemptService.resolveDifficulty`), la
 suppression de `CivicDotation` + `CivicDotationTest`, le retrait de `questions-min-par-notion`, le
 champ `dotation` du DTO et ses **2 miroirs front**.
+
+#### D-42 — **Résolution de D-28** : Q-F30 est close, le retrait du filtre est **confirmé**
+
+**Le résultat mesuré** (annexe Q-F30 partie 1 de `AUDIT_cycle_plan_civique_v2.md`) : les listes
+publiques CSP et CR ne se recouvrent qu'à **9,0 %** en appariement strict (33 énoncés communs sur
+190 et 209), **24,2 %** en incluant les quasi-appariements. T4 Histoire est à **zéro** commun sur
+47 et 49. NAT est resté inaccessible (403 Cloudflare, Ray ID `a3d80c56ef04063a`).
+
+**La décision, verbatim** :
+
+> Q-F30 est close. **Le retrait du filtre est confirmé.**
+>
+> Le 9 % ne décide rien […]. Ce qui décide, c'est ce que l'appariement a mis au jour : **les
+> 14 notions officielles sont présentes dans les deux listes, aucune absente**. La divergence est
+> **rédactionnelle, pas programmatique**. Deux façons de demander la même chose ne font pas deux
+> programmes.
+
+**Les trois motifs, dans l'ordre, verbatim** :
+
+> 1. Le filtre **ne filtrerait pas les listes du ministère** — il filtrerait **notre** corpus, par une
+>    étiquette assignée à l'écriture. Et la mesure de l'audit v2 §4.2 est sans appel : **aucune des
+>    976 questions n'est exclusive d'une démarche**. L'étiquette ne porte pas de programme, elle porte
+>    une **campagne de rédaction**.
+> 2. Garder le filtre **rend un examen conforme impossible pour CSP et pour NAT**. Entre une fidélité
+>    cosmétique à un artefact de publication et un examen blanc qui simule l'examen réel, le choix est
+>    fait — c'est le principe posé en **D-25**.
+> 3. La voie « un candidat CSP doit retrouver ses questions révisées » **ne tient pas** : nos énoncés
+>    ne sont pas ceux du ministère. Un candidat qui a révisé la liste CSP ne les retrouvera chez nous
+>    **dans aucun scénario**.
+
+#### Ce que ça clôt dans D-28
+
+**Phrase résolue, citée verbatim.** Origine : **D-28** de ce journal, tableau des deux issues :
+
+> « **Divergence réelle** | Le filtre revient **pour la seule composition de l'examen blanc**, jamais
+> pour l'entraînement ni pour le cycle, et le rapport dit exactement quelles questions écrire par
+> mention. »
+
+🛑 **Cette branche ne s'ouvre pas.** La divergence mesurée est **d'énoncé**, pas de programme ; la
+condition qui l'aurait déclenchée n'est pas remplie. **D-27 s'applique sans réserve et sans
+exception** : le filtre part de l'entraînement, du cycle **et** de la composition de l'examen blanc.
+
+#### NAT n'est plus une condition
+
+> « **N'attends pas NAT.** Si CSP et CR montrent déjà un programme identique sous des énoncés
+> réécrits, NAT ne renversera pas le raisonnement — et même s'il divergeait, **l'arrêté a déjà tranché
+> avec son annexe I unique**. Récupère quand même le PDF à la main quand tu pourras : il sert comme
+> **entrée de contenu, pas comme condition**. Non bloquant. »
+
+#### La partie 2 de Q-F30 reste fermée
+
+> « Le rattachement fin aux 16 unités **ne sert plus la décision**. On la rouvrira si un besoin de
+> **couverture éditoriale** apparaît, pas avant. »
+
+⚠️ **À ne pas confondre** : le **rattachement des 46 notions internes aux 16 unités** reste dû, et il
+se fait en **P8.2a** (**D-41**) — c'est une autre chose que le rattachement des **énoncés publics du
+ministère**, qui est la partie 2 fermée ici.
+
+#### Une exigence de forme, née du 191 / 209
+
+> « Un point sur le 191/209 contre le « ≈ 212 / ≈ 205 » de l'audit v2. Merci de l'avoir signalé plutôt
+> que de l'absorber. Fais une passe de relecture du v2 pour **marquer explicitement tout chiffre qui
+> ne vient pas d'un `SELECT` ou d'une mesure reproductible**. Les chiffres SQL sont solides, mais un
+> rapport où les deux natures se ressemblent **invite à fonder une décision sur une estimation**. Ce
+> n'est pas une phase, c'est une **annotation**. »
+
+🛑 **Règle générale qui en découle, pour tout rapport à venir** : un chiffre annoncé porte la **nature
+de sa provenance**. Un comptage produit par un modèle de lecture n'est **pas** une mesure et ne doit
+jamais se présenter comme telle. Appliqué au v2 par une légende et des marques en ligne.

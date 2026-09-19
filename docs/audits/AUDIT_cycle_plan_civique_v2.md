@@ -14,6 +14,27 @@ INTV2527907A), articles 1 à 3 et annexe I — **vérifié sur Légifrance**, vo
 
 ---
 
+## 🛑 Légende — la nature de chaque chiffre (annotation du 2026-09-19, D-42)
+
+Un chiffre annoncé porte **la nature de sa provenance**. Ce rapport en mêle cinq ; les confondre,
+c'est risquer de fonder une décision sur une estimation. Toute valeur non marquée dans le corps du
+texte est ⟦SQL⟧.
+
+| Marque | Nature | Reproductible ? |
+|---|---|---|
+| ⟦SQL⟧ | Requête `SELECT` sur `sejourfr_db` | ✅ oui — gabarits en **annexe B** |
+| ⟦JORF⟧ | Source réglementaire, vérifiée sur Légifrance | ✅ oui — liens en **annexe C** |
+| ⟦PARSE⟧ | Parsing déterministe d'une page publique | ✅ oui — `scripts/qf30-recouvrement/` |
+| ⟦CODE⟧ | Lecture de code, `wc -l`, `grep` — chemin et ligne cités | ✅ oui |
+| 🔶⟦EST⟧ | **Estimation ou ordre de grandeur. PAS une mesure.** | ❌ **non** |
+
+🛑 **Un chiffre ⟦EST⟧ ne fonde aucune décision.** Il sert à dire « gros ou petit », jamais « donc
+il faut ». Cette légende existe parce qu'un comptage annoncé « ≈ 212 / ≈ 205 » au §5.2 — produit par
+un **modèle de lecture**, pas par une mesure — s'est révélé valoir **191 / 209** au parsing réel
+(annexe Q-F30 §5). Les ordres de grandeur tenaient ; les nombres, non.
+
+---
+
 ## 1. Synthèse
 
 1. **Le contre-audit a raison sur le fond, et sur sept de ses huit prémisses** : l'arrêté est
@@ -37,7 +58,8 @@ INTV2527907A), articles 1 à 3 et annexe I — **vérifié sur Légifrance**, vo
    (Laïcité : 1 question pour 2 exigées ; mises en situation Principes : 1 pour 6) et pour
    **NAT** (mises en situation Principes : 5 pour 6). **Seul CR** y arrive.
 8. ⚠️ **Une nuance que §3.5 impose au contre-audit** : le ministère publie des **listes
-   officielles de questions DISTINCTES par mention** (une CSP, une CR, un PDF naturalisation).
+   officielles de questions DISTINCTES par mention** (une CSP ⟦PARSE⟧ **191**, une CR ⟦PARSE⟧ **209**,
+   un PDF naturalisation **inaccessible**).
    Le **programme** est unique ; la **banque de questions**, telle que publiée, ne l'est pas.
    Prémisse n° 3 (« ni trois pools de questions ») est donc à **nuancer, pas à écarter** — et
    c'est au propriétaire de trancher, pas à l'audit.
@@ -52,7 +74,7 @@ INTV2527907A), articles 1 à 3 et annexe I — **vérifié sur Légifrance**, vo
 
 ## 2. §3.1 — Conformité du tirage de l'examen blanc global
 
-### 2.1 Ce que l'arrêté exige
+### 2.1 Ce que l'arrêté exige ⟦JORF⟧
 
 | Thématique | Total | Notions officielles et quotas |
 |---|---|---|
@@ -66,7 +88,7 @@ INTV2527907A), articles 1 à 3 et annexe I — **vérifié sur Légifrance**, vo
 Et la phrase qui fait règle (art. 3) : « Chaque candidat devra répondre à un **nombre équivalent
 de questions par thématique et notion**. »
 
-### 2.2 Les trois chemins de composition — la règle réelle, pas l'intention
+### 2.2 Les trois chemins de composition — la règle réelle, pas l'intention ⟦CODE⟧
 
 | Chemin | Où | Règle réellement appliquée |
 |---|---|---|
@@ -87,7 +109,7 @@ de questions par thématique et notion**. »
 avec `findRandomExcluding(module, null, null, null, …)`. Un stock faible **désactive
 silencieusement** toutes les règles du template.
 
-### 2.3 Mesure sur les 33 examens à 40 questions déjà passés
+### 2.3 Mesure sur les 33 examens à 40 questions déjà passés ⟦SQL⟧
 
 **Classement par chemin réel**
 
@@ -151,7 +173,7 @@ Un examen n'a même couvert que **3** thématiques sur 5.
 partage officiel. C'est le **seul** endroit du dépôt qui tient le ratio, et il le tient parce
 qu'il est **déclaré**, pas déduit d'un tirage.
 
-### 2.5 ✅ Un examen conforme est-il tirable du stock actuel ?
+### 2.5 ✅ Un examen conforme est-il tirable du stock actuel ? ⟦SQL⟧
 
 **Oui, sans produire une seule question — à condition de retirer le filtre de mention.**
 
@@ -183,11 +205,11 @@ produit.
 
 | Travail | Coût |
 |---|---|
-| Une autorité de la répartition officielle — du **code**, comme `CivicExamFormat` : 5 thématiques × leurs notions × leurs quotas + le placement des 12 MES | ~120 lignes + tests |
+| Une autorité de la répartition officielle — du **code**, comme `CivicExamFormat` : 5 thématiques × leurs notions × leurs quotas + le placement des 12 MES | 🔶⟦EST⟧ ~120 lignes + tests |
 | Faire du **quota par notion** une contrainte du tirage : `civic_notion_id` dans la requête de composition | 1 requête, 1 service |
 | Exprimer un quota par notion en **template** : colonne `notion_id` sur `exam_template_rules` (ou retirer les templates du chemin de l'examen officiel) | 1 migration **ou** 0, selon l'arbitrage |
 | Reprendre les **20 templates civiques** (5 règles à 8 → règles conformes, ou dépublication) | données |
-| Encadrer le **fallback** de `pickQuestionsForTemplate` : un examen officiel ne doit pas pouvoir compléter hors règles **en silence** | ~20 lignes |
+| Encadrer le **fallback** de `pickQuestionsForTemplate` : un examen officiel ne doit pas pouvoir compléter hors règles **en silence** | 🔶⟦EST⟧ ~20 lignes |
 | Questions à produire | **0** |
 
 ⛔ **Arrêt ici sur ce point**, conformément au brief : chantier à part, prioritaire, arbitré
@@ -197,7 +219,7 @@ séparément.
 
 ## 3. §3.2 — Correspondance 46 notions internes → 14 notions officielles
 
-### 3.1 Méthode et statut
+### 3.1 Méthode et statut — ⚠️ la correspondance est **arbitrée**, pas mesurée
 
 La correspondance a été construite à partir du `label` **et** de la `description` de chaque
 notion — les descriptions de `V058__referentiel_civique_valide.sql` sont explicites sur ce qui
@@ -212,9 +234,9 @@ ni en migration, ni en doc, ni en commentaire. `V058` dit que le référentiel a
 éditoriale**, et les deux peuvent coexister — l'une pour écrire les questions, l'autre pour
 tirer l'examen et mesurer le candidat.
 
-### 3.2 Dotation par notion officielle — la mesure qui remplace le « 1 sur 138 » de la v1
+### 3.2 Dotation par notion officielle — la mesure qui remplace le « 1 sur 138 » de la v1 ⟦SQL⟧
 
-| Notion officielle | Notions internes | Questions | CSP | CR | NAT | **R2 (≥ 20)** |
+| Notion officielle *(rattachement arbitré)* | Notions internes | Questions ⟦SQL⟧ | CSP | CR | NAT | **R2 (≥ 20)** |
 |---|---|---|---|---|---|---|
 | I2 Organisation de la République | 6 | **143** | 41 | 63 | 39 | ✅ |
 | D1 Droits fondamentaux | 8 | **119** | 21 | 62 | 36 | ✅ |
@@ -292,7 +314,7 @@ un arrêté. Ne pas leur donner la même forme.
 
 ## 4. §3.3 — Le sort de `questions.difficulty`
 
-### 4.1 Recensement exhaustif des points qui filtrent sur la mention
+### 4.1 Recensement exhaustif des points qui filtrent sur la mention ⟦CODE⟧
 
 **A. Filtre CIVIQUE dur (`:mention` non nul, jamais désactivable) — 4 points**
 
@@ -334,7 +356,7 @@ L'entraînement libre par thème **ignore déjà la mention**, là où le plan, 
 examens l'appliquent. Le filtre n'est donc **pas** une règle du module : c'est une règle de
 **trois chemins sur quatre**.
 
-### 4.2 Aucune question n'est réellement spécifique à une démarche
+### 4.2 Aucune question n'est réellement spécifique à une démarche ⟦SQL⟧
 
 | Mesure | Résultat |
 |---|---|
@@ -406,7 +428,7 @@ le trancher.
 
 ## 5. §3.5 — Les questions officielles publiques *(constat seul, rien à importer)*
 
-### 5.1 Ce qui est vérifié
+### 5.1 Ce qui est vérifié ⟦JORF⟧
 
 **L'arrêté, sur Légifrance** — confirmé mot pour mot :
 
@@ -426,8 +448,8 @@ Le ministère publie effectivement la banque, **mais par mention** :
 
 | Ressource | URL | Forme | Volume |
 |---|---|---|---|
-| Liste officielle — **mention CSP** | `formation-civique.interieur.gouv.fr/examen-civique/liste-officielle-des-questions-de-connaissance-csp/` | page HTML, questions en liste, **par thématique** | **≈ 212** : Principes 47 · Institutions 49 · Droits 40 · Histoire 43 · Société 33 |
-| Liste officielle — **mention CR** | `…/liste-officielle-des-questions-de-connaissance-cr/` | idem | **≈ 205** : ≈ 40 · 50 · 35 · 40 · 40 |
+| Liste officielle — **mention CSP** | `formation-civique.interieur.gouv.fr/examen-civique/liste-officielle-des-questions-de-connaissance-csp/` | page HTML, questions en liste, **par thématique** | 🔶⟦EST⟧ **≈ 212** · ⚠️ valeur réelle ⟦PARSE⟧ : **191** (annexe Q-F30) |
+| Liste officielle — **mention CR** | `…/liste-officielle-des-questions-de-connaissance-cr/` | idem | 🔶⟦EST⟧ **≈ 205** · ⚠️ valeur réelle ⟦PARSE⟧ : **209** (annexe Q-F30) |
 | Questions — **nationalité française** | `immigration.interieur.gouv.fr/documentation/examen-civique/questions-de-connaissance-pour-lexamen-civique-nationalite-francaise.html` → PDF `…-20251212.pdf` | **PDF**, daté du **2025-12-12** | non mesuré (page en **403** depuis cet environnement) |
 | Informations générales | `formation-civique.interieur.gouv.fr/examen-civique/informations-générales-sur-lexamen-civique/` | page | confirme **28 connaissances + 12 mises en situation** |
 
@@ -452,9 +474,9 @@ Le ministère publie effectivement la banque, **mais par mention** :
 
 | | Volume | Nature |
 |---|---|---|
-| Banque publique par mention | ≈ 212 (CSP) + ≈ 205 (CR) + le PDF NAT | énoncés **sans réponses fournies** sur les pages consultées — la réponse reste à produire et à vérifier |
-| Stock SejourFR actuel, connaissances | **800** | déjà écrit, tagué à 98 % |
-| Recouvrement | **non mesuré** | mesurable seulement après extraction, hors périmètre |
+| Banque publique par mention | ⟦PARSE⟧ **191** (CSP) + **209** (CR) + le PDF NAT, **inaccessible** | énoncés **sans réponses fournies** — la réponse reste à produire et à vérifier |
+| Stock SejourFR actuel, connaissances | ⟦SQL⟧ **800** | déjà écrit, tagué à 98 % |
+| Recouvrement | ✅ **mesuré** — ⟦PARSE⟧ **9,0 %** strict, **24,2 %** avec les quasi | annexe **Q-F30 partie 1** |
 
 **Trois lectures possibles**, dans l'ordre de coût :
 
@@ -472,7 +494,7 @@ Le ministère publie effectivement la banque, **mais par mention** :
 
 ## 6. §3.4 — Les mises en situation hors périmètre officiel
 
-### 6.1 Les comptes, confirmés
+### 6.1 Les comptes, confirmés ⟦SQL⟧
 
 | Thématique | MES actives | Autorisée par l'arrêté ? | Quota officiel |
 |---|---|---|---|
@@ -573,10 +595,10 @@ question qu'avant mais **posée sur 14 lignes stables au lieu de 46 mouvantes**.
 | Besoin | Volume | Pourquoi |
 |---|---|---|
 | **P2 Laïcité** | **+11 questions** (9 → 20) | La seule notion officielle sous le seuil de R2 |
-| *(si le filtre de mention est conservé)* | **≈ 340** | Pour amener les 45 couples (14 notions × 3 mentions) à 20 — **et même alors, la conformité CSP resterait impossible** faute de mises en situation en Principes |
+| *(si le filtre de mention est conservé)* | 🔶⟦EST⟧ **≈ 340** | Pour amener les 45 couples (14 notions × 3 mentions) à 20 — **et même alors, la conformité CSP resterait impossible** faute de mises en situation en Principes |
 | Rattachement de `vs_urgences_secours` | **0** | Un arbitrage, pas du contenu |
 
-**À comparer à la v1 : ≈ 1 480 questions → 11.** C'est la mesure de la valeur du contre-audit.
+**À comparer à la v1 : 🔶⟦EST⟧ ≈ 1 480 questions → 11 ⟦SQL⟧.** C'est la mesure de la valeur du contre-audit.
 
 ---
 
@@ -661,7 +683,7 @@ Q-F14, Q-F17, Q-F19, Q-F20.**
 | **Q-F24** | Les **14 notions officielles** vivent-elles dans une **table de référence** (libellé, ordre, quota officiel, thématique) plutôt qu'en simple colonne de rattachement sur `civic_notions` (§3.5) ? | **Oui recommandé** — le tirage conforme, le cycle et l'écran ont besoin du même objet |
 | **Q-F25** | `CivicDotation` et `questions-min-par-notion: 5` sont-ils **supprimés** une fois le filtre retiré, puisqu'ils ne discriminent plus rien (§4.3, §7.3) ? | **Oui recommandé** — « refonte = suppression immédiate de l'ancien » |
 | **Q-F26** | Les **108 mises en situation hors périmètre** restent-elles du **contenu d'entraînement**, simplement exclues des examens blancs (§6.2-A) ? | **Oui recommandé** — ni retypage, ni reclassement |
-| **Q-F27** | Produit-on les **11 questions de Laïcité** qui manquent (9 → 20) ? | **Oui recommandé** — le seul contenu que cet audit identifie comme nécessaire |
+| **Q-F27** | Produit-on les **11 questions de Laïcité** qui manquent (9 → 20 ⟦SQL⟧) ? | **Oui recommandé** — le seul contenu que cet audit identifie comme nécessaire |
 | **Q-F28** | `vs_urgences_secours` (15 q.) est-elle rattachée à **S2 Accès aux soins**, ou conservée hors examen ? | Arbitrage |
 | **Q-F29** | Les **11 templates « Focus » mono-thème à 40 Q** sont-ils **dépubliés**, étant structurellement non conformes (E-15) ? | Arbitrage — ils ne peuvent plus s'appeler « examen blanc » |
 | **Q-F30** | Lance-t-on le **contrôle de couverture** contre les listes publiques du ministère (§5.3, lecture 1) — sans import ? | Arbitrage. **0 € d'appel LLM**, c'est de l'extraction et du rattachement |
@@ -783,7 +805,7 @@ le compte de questions taguées.
 
 ---
 
-## Annexe B — Requêtes de mesure
+## Annexe B — Requêtes de mesure ⟦SQL⟧
 
 Filtre de référence : `module = 'CIVIQUE' AND is_active = true AND status = 'ACTIVE'`.
 La vue de correspondance qui sous-tend §3 et §7 :
@@ -828,7 +850,7 @@ SELECT q.off14, q.exige, s.tous,
 FROM quota q JOIN stock s USING (off14) ORDER BY 1;
 ```
 
-## Annexe C — Sources réglementaires
+## Annexe C — Sources réglementaires ⟦JORF⟧
 
 - [Arrêté du 10 octobre 2025 relatif au programme, aux épreuves et aux modalités d'organisation de l'examen civique — Légifrance](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000052381620)
 - [Informations générales sur l'examen civique — Formation civique, ministère de l'Intérieur](https://formation-civique.interieur.gouv.fr/examen-civique/informations-g%C3%A9n%C3%A9rales-sur-lexamen-civique/)
@@ -888,7 +910,11 @@ P8.2.
 1. la table est **seedée par migration et n'est pas éditable en admin** — aucun endpoint, aucun
    écran, aucun `AdminCivicUniteController` ;
 2. un **`CHECK` ou un test normatif** vérifie que la somme des 16 quotas vaut **40** et que les
-   mises en situation totalisent **12** ;
+   mises en situation totalisent **12**. 🛑 **Vérifié : ce sera un TEST, pas un `CHECK`.** Postgres
+   refuse une sous-requête en contrainte de vérification (`ERROR: cannot use subquery in check
+   constraint`), et un `CHECK` est **par ligne** : il ne peut pas sommer 16 lignes. Un trigger serait
+   disproportionné sur une table seedée une fois et jamais éditée. D-38 autorisait explicitement les
+   deux — c'est la seconde branche ;
 3. un **test verrouille les 16 lignes et leurs quotas**, l'arrêté cité en commentaire.
 
 > **Clause de repli (D-38, verbatim)** : « Si ces trois garde-fous ne tiennent pas, reviens vers moi

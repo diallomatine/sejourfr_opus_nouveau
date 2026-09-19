@@ -34,10 +34,15 @@ que `CivicExamFormat`, `DureeEpreuve` et `TargetProcedure` (**D-25**, **D-29**).
 | Les totaux par thématique — **11 / 6 / 11 / 8 / 4** | 🛑 **Nulle part.** Ils se **dérivent** par somme des quotas d'unité. Les déclarer en ferait une 2ᵉ copie, et un jour l'une des deux aurait tort. |
 
 🛑 **Trois garde-fous, parce qu'on met de la loi dans une table** (**D-38**) : elle est **seedée par
-migration et n'est pas éditable en admin** ; un `CHECK` ou un test normatif vérifie que la somme des
-16 quotas vaut **40** et que les mises en situation totalisent **12** ; un test **verrouille les
-16 lignes et leurs quotas**, l'arrêté cité en commentaire. Si ces trois garde-fous ne tiennent pas,
-**remonter avant d'écrire la migration** — le quota repassera en code.
+migration et n'est pas éditable en admin** ; un **test normatif** vérifie que la somme des 16 quotas
+vaut **40** et que les mises en situation totalisent **12** ; un test **verrouille les 16 lignes et
+leurs quotas**, l'arrêté cité en commentaire.
+
+✅ **Vérifié avant migration (D-41)** : les trois tiennent **sans que le filtre de mention bouge** —
+aucun ne lit `questions.difficulty`. La séparation P8.2a / P8.2b est donc valide.
+⚠️ **Une précision technique** : le 2ᵉ garde-fou est un **test**, pas un `CHECK`. Postgres refuse une
+sous-requête en contrainte (`cannot use subquery in check constraint`) et un `CHECK` est par ligne —
+il ne peut pas sommer 16 lignes. D-38 autorisait les deux ; c'est la seconde branche.
 
 ⚠️ **Conséquence sur l'ordre des phases** : P8.A **dépend de la table**, qui est donc livrée
 séparément en **P8.2a**, juste avant elle (**D-41**, cf. §6).
