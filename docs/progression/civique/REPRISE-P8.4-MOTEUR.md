@@ -212,7 +212,7 @@ quand même** pour l'examen de thème **et** pour l'examen global : les deux pas
 |---|---|
 | **R1** | un examen de thème hors plan clôt l'étape **si le bloc était débloqué**. ✅ Le thème est **déjà persisté** : `attempts.lot_theme_id` |
 | **R3** | ✅ **gratuit** : `JourneyEvaluationFilter` lit déjà `CIVIQUE_SERIE → false` / `CIVIQUE_EXAMEN → true` |
-| **Déblocage** | ✅ **fait au point 3** : le verrou lit désormais `blocCode()`, donc **D-15 se transpose mot pour mot** (A63 — il levait un NPE sur un examen de thème) |
+| **Déblocage** | ✅ **fait au point 3**, et **dit par un test** : `JourneyReadServiceTest.lExamenDUneThematiqueEstVerrouilleParSesUnites` — nommé sur la **règle** (D-15), pas sur le mécanisme. Le verrou lit `blocCode()` (A63 : il levait un NPE sur un examen de thème) |
 | **Cycle en attente** · **fin de cycle** · **historisation** | `JourneyCycleService` (232 l.) — structurel, peu couplé à l'épreuve. ⚠️ Vérifier `exit_level` → **`exit_score`** côté civique |
 
 ### 9. Ce qui NE doit PAS bouger
@@ -236,6 +236,9 @@ quand même** pour l'examen de thème **et** pour l'examen global : les deux pas
    colonne devenue nullable a besoin d'un **jumeau partiel** sur la colonne civique.
 4. **Un `CHECK` ne peut pas agréger** (`cannot use subquery in check constraint`) ni **traverser
    vers la table parente**. D'où la forme `(A IS NOT NULL) <> (B IS NOT NULL)`.
+0. 🛑 **`getExamType()` hors d'un chemin TCF = une panne en attente** — `DETTE-A1`, avec son
+   inventaire (9 appels, aucun NPE restant, **2 trous muets annotés**). Toute nouvelle lecture de
+   l'axe passe par **`blocCode()`**, ou dit en une ligne qu'elle est TCF.
 5. **`porterAuParcours` avale ses exceptions** : une contrainte oubliée échoue **en silence**.
    Vérifier en base, pas au vert des tests. 🛑 C'est **`DETTE-M1`** (`docs/decisions/plan-parcours-tcf.md`),
    nommée parce que c'est la 2ᵉ occurrence — **à traiter dans cette passe moteur**.

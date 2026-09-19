@@ -375,6 +375,34 @@ class JourneyReadServiceTest {
     }
 
     @Test
+    @DisplayName("D-15 — l'examen d'une THEMATIQUE est verrouille tant qu'une unite y reste "
+            + "ouverte, exactement comme une epreuve")
+    void lExamenDUneThematiqueEstVerrouilleParSesUnites() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme principes = theme("CIV_PRINCIPES", "Principes et valeurs de la Republique");
+        Theme droits = theme("CIV_DROITS", "Droits et devoirs");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(principes, droits));
+
+        JourneyStep unite = etapeCivique(JourneyStepType.TRAIN_SKILL, droits, 1);
+        JourneyStep examenDroits = etapeCivique(JourneyStepType.SECTION_EXAM, droits, 2);
+        JourneyStep examenPrincipes = etapeCivique(JourneyStepType.SECTION_EXAM, principes, 3);
+
+        JourneyDto vue = service.lire(
+                journey, List.of(unite, examenDroits, examenPrincipes));
+
+        // 🛑 LA REGLE, PAS LE MECANISME. D-15 dit : « l'examen d'un bloc est
+        // verrouille tant qu'une unite du meme bloc reste ouverte ». Elle est
+        // ecrite UNE fois et vaut pour les deux modules parce que la cle du
+        // verrou est le CODE DE BLOC (D-47), jamais l'epreuve.
+        assertThat(vue.blocs().get(1).exam().locked()).isTrue();
+        // Le bloc voisin n'a aucune unite due : son examen reste ouvert. Un
+        // verrou global aurait ferme les cinq.
+        assertThat(vue.blocs().getFirst().exam().locked()).isFalse();
+    }
+
+    @Test
     @DisplayName("Cycle termine : CYCLE_COMPLETED, et nextStep offre les deux issues")
     void unCycleTermineOuvreLEcranProchaineEtape() {
         Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
@@ -700,6 +728,25 @@ class JourneyReadServiceTest {
         assertThat(vue.blocs().getFirst().exam()).isNull();
         assertThat(vue.blocs().get(1).exam()).isNotNull();
         assertThat(vue.blocs().get(1).bloc().code()).isEqualTo("CIV_DROITS");
+    }
+
+    /**
+     * Une etape civique : son bloc est une <b>thematique</b>, et elle ne porte
+     * <b>aucun</b> {@code EpreuveType} — c'est precisement ce qui faisait lever
+     * le verrou de bloc avant A63.
+     */
+    private JourneyStep etapeCivique(JourneyStepType type, Theme thematique, long position) {
+        JourneyStep step = new JourneyStep();
+        step.setId(UUID.randomUUID());
+        step.setJourney(journey);
+        step.setType(type);
+        if (type == JourneyStepType.SECTION_EXAM) {
+            step.setPurpose(JourneyStepPurpose.REASSESS);
+        }
+        step.poserBloc(thematique);
+        step.setPosition(position);
+        step.setCreatedAt(Instant.now().minusSeconds(3_600));
+        return step;
     }
 
     private static Theme theme(String code, String nom) {

@@ -155,6 +155,12 @@ public class JourneyHistoryService {
             EpreuveType epreuve = etape.getExamType();
             // Une etape DIAGNOSTIC ne porte pas d'epreuve : elle mesure le
             // candidat, pas une epreuve. Elle n'appartient a aucun bloc.
+            //
+            // ⚠️ AXE : CHEMIN TCF (DETTE-A1). Une etape CIVIQUE tombe ici aussi
+            // dans ce `continue` — son bloc est une thematique, pas une epreuve.
+            // Ce n'est pas un NPE, c'est un TROU MUET : l'historique civique
+            // serait vide. Il se comble en P8.9, en lisant `blocCode()`.
+            // ⛔ P8.9 est BLOQUEE (template non fourni) : ne rien concevoir ici.
             if (epreuve == null || !titres.containsKey(epreuve)) continue;
             if (etape.getType() == JourneyStepType.SECTION_EXAM) {
                 examens.merge(epreuve, 1, Integer::sum);

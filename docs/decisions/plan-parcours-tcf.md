@@ -2238,3 +2238,43 @@ d'écriture change.
 
 `./mvnw verify` → **2 984 + 1 397, 0 échec** ; 259 classes `*Test` et 148 `*IT` ont toutes produit
 leur rapport. **Aucun front touché** : `assessment_kind` n'est servi dans aucun DTO.
+
+---
+
+### DETTE-A1 (2026-09-19) — 🛑 **`getExamType()` hors d'un chemin TCF est une panne en attente**
+
+**Nommée par le propriétaire** à la deuxième occurrence, sur le modèle de `DETTE-P1` :
+
+> « Deux pannes par `EpreuveType` nul, ce n'est plus un accident, c'est un **motif**. Et le second
+> n'est sorti que parce qu'un test civique existait. »
+
+**Les deux occurrences, datées :**
+
+| # | Point de lecture | Symptôme | État |
+|---|---|---|---|
+| 1 | `journey_assessment_event` — `chk_journey_assessment_exam_type` borné aux 4 valeurs TCF | ⚠️ échec **silencieux** : `porterAuParcours` avale l'exception ⇒ « le cycle ne se remplit jamais » | ✅ `V071` (D-51) |
+| 2 | `JourneyReadService.estVerrouillee` — `Set.contains(step.getExamType())` | 🛑 **NPE** dans le chemin de **lecture** du Plan : `Set.of().contains(null)` lève | ✅ A63 — la clé est le **code de bloc** |
+
+**La règle, et son seuil.** Tout appel à `getExamType()` est soit dans un chemin **explicitement
+TCF**, et il le **dit en une ligne** à l'endroit même — exigence de lisibilité de **D-48**,
+transposée à l'axe —, soit il doit lire `blocCode()`. **Un troisième site non annoté ouvre le
+chantier**, comme la 3ᵉ occurrence de `DETTE-P1`.
+
+#### L'inventaire, fait pendant que le motif est frais — ⟦CODE⟧ **9 appels, 3 fichiers**
+
+| Fichier · ligne | Verdict |
+|---|---|
+| `JourneyReadService` ×2 (verrou de production) | ✅ **null-safe**, garde explicite ajoutée en A63 |
+| `JourneyReadService` (`examensDeProductionVerrouilles`) | ✅ null-safe par `TcfDomaine.section(null) → null` |
+| `JourneyReadService.estProduction` | ✅ idem |
+| `JourneyReadService.mesureDe` | ⚠️ **trou muet**, annoté : `pour(null) → null`, donc un examen de thème arrive **sans action**. Se comble en **P8.7** |
+| `JourneyService` ×2 (comparaisons `== / !=`) | ✅ null-safe, et un `null` ne vaut aucune épreuve |
+| `JourneyService.ajouterLesEpreuvesNonMesurees` | ✅ null-safe (`LinkedHashSet`, pas `EnumSet`) — annoté « chemin TCF assumé » |
+| `JourneyHistoryService` | ⚠️ **trou muet**, annoté : une étape civique tombe dans le `continue` ⇒ **historique civique vide**. Se comble en **P8.9**, ⛔ bloquée |
+
+🛑 **Aucun NPE ne subsiste.** Restent **deux trous muets**, tous deux dans des chemins TCF que le
+civique n'atteint pas encore, tous deux **annotés à la ligne** avec la phase qui les comble.
+
+⚠️ **Le signal à surveiller** : un `getExamType()` qui apparaît **sans sa ligne d'annotation**. Si
+son chemin est vraiment TCF, la ligne coûte dix secondes ; sinon, c'est `blocCode()` qu'il fallait
+écrire.

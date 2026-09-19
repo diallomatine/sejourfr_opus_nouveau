@@ -859,6 +859,10 @@ public class JourneyReadService {
      */
     private PlanDomainAssessmentDto mesureDe(JourneyStep step) {
         if (step.getType() != JourneyStepType.SECTION_EXAM) return null;
+        // ⚠️ AXE : CHEMIN TCF (DETTE-A1). `pour(null)` rend `null`, donc un
+        // examen de theme civique arrive SANS action a l'ecran. Pas un NPE, un
+        // trou muet : l'action d'un examen de theme se sert en P8.7, avec les
+        // ecrans. `CivicExamFormat` en porte deja le format (20 questions).
         return assessmentResolver.pour(step.getExamType());
     }
 }

@@ -841,6 +841,10 @@ public class JourneyService {
      * porte que l'epreuve, le front compose l'action.
      */
     void ajouterLesEpreuvesNonMesurees(Journey journey, UUID userId) {
+        // ⚠️ AXE : CHEMIN TCF ASSUME (DETTE-A1). Cette amorce pose les epreuves
+        // non mesurees du TCF ; un `null` civique entre sans dommage dans le
+        // LinkedHashSet et ne correspondra a aucune des quatre. L'amorce
+        // civique est un autre chemin (P8.4 point 4), au grain de l'unite.
         Set<EpreuveType> dejaPrevues = new LinkedHashSet<>();
         for (JourneyStep step : stepManager.findAll(journey.getId())) {
             if (step.getType() == JourneyStepType.SECTION_EXAM && step.estOuverte()) {
