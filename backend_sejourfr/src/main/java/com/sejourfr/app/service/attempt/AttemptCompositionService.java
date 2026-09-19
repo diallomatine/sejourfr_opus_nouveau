@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
 import com.sejourfr.app.manager.ThemeManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AttemptCompositionService {
 
+
     // Composition d'un examen module TCF QCM : 8 A2 + 9 B1 + 8 B2 = 25 questions
     // progressives. Cf. StartAttemptRequest doc + AttemptService.startModuleExam.
     private static final int MODULE_EXAM_A2 = 8;
@@ -45,6 +47,7 @@ public class AttemptCompositionService {
     public static final int MODULE_EXAM_TOTAL = MODULE_EXAM_A2 + MODULE_EXAM_B1 + MODULE_EXAM_B2;
 
     private final QuestionManager questionManager;
+    private final CivicExamCompositionService civicExamComposition;
     private final ThemeManager themeManager;
 
     /**
@@ -134,42 +137,19 @@ public class AttemptCompositionService {
     }
 
     /**
-     * Composition d'un examen civique complet (40 Q hors template) :
-     * stratifiée sur les thèmes officiels (size / nbThèmes questions par
-     * thème, ex. 8 × 5), complétée par un tirage global si un pool de thème
-     * est trop petit pour la difficulté visée, puis mélangée. Garantit que
-     * l'examen couvre tous les thèmes — comme l'examen réel et les templates.
+     * 🛑 <b>SUPPRIMEE</b> — la composition d'un examen civique complet vit
+     * desormais dans {@code CivicExamCompositionService.composerExamenConforme()}
+     * (P8.A, D-29).
+     *
+     * <p>Ce qu'elle faisait, et pourquoi c'etait faux : {@code perTheme =
+     * max(1, size / nbThemes)}, soit <b>8 / 8 / 8 / 8 / 8</b>, la ou l'arrete du
+     * 10 octobre 2025 exige <b>11 / 6 / 11 / 8 / 4</b>. Elle passait
+     * {@code questionType} a {@code null}, donc elle ne tenait ni les 12 mises en
+     * situation ni leur placement. Et elle prenait {@code difficulty} et
+     * {@code size} en parametres — les deux libertes que l'arrete ne donne pas.
+     *
+     * <p>Mesure sur les 33 examens de 40 questions deja passes : <b>0 conforme</b>.
      */
-    public List<Question> composeCiviqueFullExam(Difficulty difficulty, int size) {
-        List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
-        List<Question> picked = new ArrayList<>(size);
-        Set<UUID> pickedIds = new HashSet<>();
-
-        if (!themes.isEmpty()) {
-            int perTheme = Math.max(1, size / themes.size());
-            for (Theme theme : themes) {
-                if (picked.size() >= size) break;
-                List<Question> qs = questionManager.findRandom(
-                        Module.CIVIQUE, theme.getId(), difficulty, null,
-                        Math.min(perTheme, size - picked.size()));
-                for (Question q : qs) {
-                    if (pickedIds.add(q.getId())) picked.add(q);
-                }
-            }
-        }
-
-        if (picked.size() < size) {
-            List<Question> extra = questionManager.findRandomExcluding(
-                    Module.CIVIQUE, null, difficulty, null, pickedIds, size - picked.size());
-            for (Question q : extra) {
-                if (pickedIds.add(q.getId())) picked.add(q);
-            }
-        }
-
-        // Remélange : sans ça l'examen enchaînerait les questions thème par thème.
-        Collections.shuffle(picked);
-        return picked;
-    }
 
     /**
      * Pioche les questions d'un ExamTemplate en suivant ses regles.
@@ -180,6 +160,35 @@ public class AttemptCompositionService {
      *                      rejouer redonne toujours la meme serie.
      */
     public List<Question> pickQuestionsForTemplate(ExamTemplate template, boolean deterministic) {
+        // ════════════════════════════════════════════════════════════════════
+        // 🛑 UN TEMPLATE CIVIQUE SANS REGLES EST UNE FICHE D'OFFRE, PAS UNE
+        //    RECETTE — sa composition vient du programme officiel (D-45, option B)
+        // ════════════════════════════════════════════════════════════════════
+        // `civique-decouverte` est gratuit et affiche, et c'est une promesse
+        // PUBLIQUE. Ses 5 regles a 8 questions par theme etaient non conformes
+        // (l'arrete exige 11/6/11/8/4), et les rendre conformes aurait demande une
+        // colonne d'unite sur `exam_template_rules` -- donc la loi ecrite a DEUX
+        // endroits. On lui a donc RETIRE ses regles et garde sa ligne : le slug,
+        // `is_free`, les libelles et les chiffres affiches sont de l'OFFRE ; seules
+        // les regles etaient de la composition.
+        //
+        // 🛑 LE GARDE VERIFIE LE MODULE, ET CE N'EST PAS UNE PRECAUTION DE STYLE.
+        // Un template TCF sans regles est une ERREUR DE SAISIE, pas une intention :
+        // le TCF a sa composition stratifiee par epreuve, et il ne doit JAMAIS
+        // retomber silencieusement sur un « format officiel » qui n'existe pas chez
+        // lui. Il echoue donc bruyamment, au meme titre que le fallback ci-dessous.
+        if (template.getRules() == null || template.getRules().isEmpty()) {
+            if (template.getModule() != Module.CIVIQUE) {
+                throw new IllegalStateException(
+                        "Template « " + template.getSlug() + " » (module " + template.getModule()
+                                + ") n'a AUCUNE regle de composition. Seul un template CIVIQUE peut "
+                                + "s'en passer -- sa composition vient alors du programme officiel. "
+                                + "Un template TCF sans regle est une erreur de saisie : le TCF a sa "
+                                + "composition stratifiee par epreuve.");
+            }
+            return civicExamComposition.composerExamenConforme();
+        }
+
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();
 
@@ -215,18 +224,28 @@ public class AttemptCompositionService {
             }
         }
 
-        // Fallback : si les regles n'ont pas comble totalQuestions (stock faible),
-        // on complete sans contrainte autre que le module, en evitant les doublons.
+        // ════════════════════════════════════════════════════════════════════
+        // 🛑 LE FALLBACK EST ENCADRE : IL NE COMPLETE PLUS EN SILENCE (D-29 § 3)
+        // ════════════════════════════════════════════════════════════════════
+        // C'est le defaut le plus grave releve par l'audit du 2026-09-19, parce
+        // qu'il rendait TOUTE REGLE FUTURE INOPERANTE SANS LE DIRE : si les regles
+        // ne remplissaient pas `totalQuestions`, il completait par un tirage libre
+        // dans le module, `themeId`/`difficulty`/`questionType` tous a `null`.
+        // Un stock faible desactivait donc silencieusement le template entier --
+        // et c'est ce qui a produit, dans les mesures, un examen « 40 questions »
+        // dont 38 venaient d'une seule thematique.
+        //
+        // Desormais : un examen dont les regles ne sont pas satisfaites ECHOUE.
+        // On le DIT, on ne rend pas un examen presque conforme.
         int missing = template.getTotalQuestions() - picked.size();
         if (missing > 0) {
-            List<Question> extra = deterministic
-                    ? questionManager.findOrderedExcluding(
-                            template.getModule(), null, null, null, exclude, missing)
-                    : questionManager.findRandomExcluding(
-                            template.getModule(), null, null, null, exclude, missing);
-            for (Question q : extra) {
-                if (picked.add(q)) exclude.add(q.getId());
-            }
+            throw new IllegalStateException(
+                    "Examen blanc « " + template.getSlug() + " » non composable : ses regles "
+                            + "fournissent " + picked.size() + " question(s) sur les "
+                            + template.getTotalQuestions() + " annoncees, il en manque " + missing
+                            + ". 🛑 Le completement hors regles est INTERDIT (D-29) : il rendait "
+                            + "toute regle inoperante sans le dire. Il manque du contenu, ou une "
+                            + "regle vise un pool vide -- ce n'est pas au tirage de le masquer.");
         }
         List<Question> result = new ArrayList<>(picked);
         if (template.getModule() == Module.TCF) {
