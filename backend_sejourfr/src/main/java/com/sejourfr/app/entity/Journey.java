@@ -3,6 +3,7 @@ package com.sejourfr.app.entity;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -129,6 +130,43 @@ public class Journey {
     @Enumerated(EnumType.STRING)
     @Column(name = "exit_level", length = 8)
     private TargetLevel exitLevel;
+
+    /**
+     * L'objectif d'un cycle <b>CIVIQUE</b> : la demarche visee.
+     *
+     * <p>🛑 <b>C'est un OBJECTIF, jamais un pool de questions.</b> L'arrete du
+     * 10 octobre 2025 pose <b>un</b> programme pour toutes les mentions, sur une
+     * seule annexe I (D-27, D-42) : la mention dit ce que le candidat vise -- la
+     * demarche et son seuil --, elle ne filtre rien.
+     *
+     * <p>🛑 <b>Exclusif de {@link #targetLevel}</b> ({@code chk_journey_objectif}) :
+     * un cycle a UN objectif, du type de son module. Ni les deux, ni aucun -- « pas
+     * de parcours sans niveau cible » (D-3) vaut pour les deux modules.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_procedure", length = 16)
+    private TargetProcedure targetProcedure;
+
+    /**
+     * Score civique a l'entree du cycle, sur le format de l'epreuve.
+     *
+     * <p>🛑 <b>Colonne NEUVE, et pas une reinterpretation de {@link #entryLevel}</b>
+     * (D-32) : un score n'est pas un niveau. Les deux coexistent, chacune pour son
+     * module.
+     *
+     * <p>🛑 <b>Aucun plafond en base</b>, et c'est voulu : le maximum est
+     * {@code CivicExamFormat.QUESTIONS}, qui est son autorite unique. Un
+     * {@code BETWEEN 0 AND 40} en aurait fait une 2<sup>e</sup> copie -- un
+     * changement de l'arrete demanderait alors une migration la ou il doit
+     * demander une ligne de code. Le plafond est verifie par un <b>test
+     * normatif</b>, qui le lit chez {@code CivicExamFormat}.
+     */
+    @Column(name = "entry_score")
+    private Short entryScore;
+
+    /** Score civique persiste a l'historisation. Meme regle qu'{@link #entryScore}. */
+    @Column(name = "exit_score")
+    private Short exitScore;
 
     /**
      * La date d'historisation. <b>Obligatoire des que le statut l'est</b>, et

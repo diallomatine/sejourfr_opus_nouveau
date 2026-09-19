@@ -53,6 +53,21 @@ public class JourneyLot {
     @Column(name = "exam_type", nullable = false, length = 20)
     private EpreuveType examType;
 
+    /**
+     * La <b>thematique</b> du bloc, pour un cycle <b>CIVIQUE</b> — l'equivalent
+     * d'{@link #examType} cote TCF.
+     *
+     * <p>🛑 <b>Exclusif d'{@link #examType}</b> ({@code chk_journey_lot_bloc}).
+     * Le CHECK ne peut pas lire le module, qui vit sur {@code journey} : la forme
+     * « exactement une des deux » est la seule qui tienne en base.
+     *
+     * <p>FK reelle vers {@code themes} : un bloc range sous une thematique
+     * inexistante serait une trace fausse (D-32 Q-F6).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "theme_id")
+    private Theme theme;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private JourneyLotStatus status = JourneyLotStatus.OPEN;

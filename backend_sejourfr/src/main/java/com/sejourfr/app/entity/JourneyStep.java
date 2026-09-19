@@ -108,6 +108,28 @@ public class JourneyStep {
     @JoinColumn(name = "skill_id")
     private Skill skill;
 
+    /** La <b>thematique</b> du bloc, pour une etape civique. Exclusive d'{@code examType}. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "theme_id")
+    private Theme theme;
+
+    /**
+     * L'<b>unite travaillable</b> d'une etape civique : une des <b>16 unites du
+     * programme officiel</b> (V068).
+     *
+     * <p>🛑 <b>C'est l'obligation de D-47 en base.</b> Le bloc du cycle se
+     * rattache a l'<b>unite</b>, jamais a {@code questions.theme_id} : cote
+     * PROGRAMME dans la regle <b>PROGRAMME ≠ CORPUS</b> (D-48).
+     *
+     * <p>🛑 <b>Exclusive de {@link #skill}</b>
+     * ({@code chk_journey_step_train_skill}) : une etape d'entrainement porte
+     * <b>exactement une</b> unite travaillable — une competence TCF ou une unite
+     * officielle civique.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "official_unit_id")
+    private CivicOfficialUnit officialUnit;
+
     /**
      * Rang de cette priorite <b>dans son lot</b> (0, 1, 2), derive a la creation
      * depuis l'ordre de {@code LearningPlanPriorityResolver.actionable()}.
