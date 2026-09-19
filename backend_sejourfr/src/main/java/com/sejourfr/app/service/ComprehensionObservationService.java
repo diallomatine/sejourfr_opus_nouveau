@@ -13,6 +13,7 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.util.StatutObservation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -295,12 +296,14 @@ public class ComprehensionObservationService {
         }
     }
 
+    /**
+     * 🛑 La regle vit dans {@link StatutObservation} depuis sa 2e occurrence
+     * (le pendant civique en a besoin a l'identique) : deux copies d'un seuil
+     * finissent toujours par diverger.
+     */
     private static LearningPlanSkillStatus statut(
             Compte compte, LearningPlanProperties.Comprehension config) {
-        double ratio = compte.ratio();
-        if (ratio >= config.getSolidRatio()) return LearningPlanSkillStatus.SOLID;
-        if (ratio >= config.getReinforceRatio()) return LearningPlanSkillStatus.TO_REINFORCE;
-        return LearningPlanSkillStatus.PRIORITY;
+        return StatutObservation.selonRatio(compte.ratio(), config);
     }
 
     /** Cle de ventilation : un domaine et un palier, exactement ce qui identifie une competence. */

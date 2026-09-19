@@ -29,6 +29,17 @@ public class LearningPlanObservationManager {
                 userId, skillId, sourceType, sourceId);
     }
 
+    /**
+     * Le jumeau civique de {@link #findBySource} : l'idempotence d'une
+     * observation civique se lit sur son <b>unite officielle</b> (D-48), jamais
+     * sur une competence — elle n'en a pas.
+     */
+    public Optional<LearningPlanObservation> findBySourceEtUnite(
+            UUID userId, UUID uniteId, LearningPlanSourceType sourceType, UUID sourceId) {
+        return repository.findByUserIdAndOfficialUnitIdAndSourceTypeAndSourceId(
+                userId, uniteId, sourceType, sourceId);
+    }
+
     /** Historique borne de plusieurs competences, en UNE requete quel que soit leur nombre. */
     public List<LearningPlanObservation> findByUserAndSkillsSince(
             UUID userId, Collection<UUID> skillIds, Instant after) {

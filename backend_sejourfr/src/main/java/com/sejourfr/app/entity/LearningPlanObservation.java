@@ -116,6 +116,8 @@ public class LearningPlanObservation {
     public void setUser(User user) { this.user = user; }
     public Skill getSkill() { return skill; }
     public void setSkill(Skill skill) { this.skill = skill; }
+    public CivicOfficialUnit getOfficialUnit() { return officialUnit; }
+    public void setOfficialUnit(CivicOfficialUnit officialUnit) { this.officialUnit = officialUnit; }
     public LearningPlanSourceType getSourceType() { return sourceType; }
     public void setSourceType(LearningPlanSourceType sourceType) { this.sourceType = sourceType; }
     public UUID getSourceId() { return sourceId; }

@@ -321,6 +321,41 @@ public class CivicExamCompositionService {
      * compter le corpus ENTIER, tagues et non tagues (cf. D-47, les trois
      * surfaces remontees).
      */
+    /**
+     * <b>L'unite officielle dont releve cette question</b> — l'autorite du
+     * PROGRAMME (D-48), jamais {@code theme_id}.
+     *
+     * <p>Deux chemins, et un seul par question :
+     * <ul>
+     *   <li>une <b>connaissance taguee</b> porte sa notion, qui porte son
+     *       unite ;</li>
+     *   <li>une <b>mise en situation</b> ne porte JAMAIS de notion (D-35) : elle
+     *       releve de l'unite de mises en situation de SON theme — et la, son
+     *       {@code theme_id} <b>est</b> l'autorite, parce que l'unite MES se
+     *       rejoint par le theme.</li>
+     * </ul>
+     *
+     * <p>🛑 {@code null} dit « <b>hors programme</b> », jamais « Principes » :
+     * une connaissance non taguee n'est dans aucune unite, et une mise en
+     * situation hors Principes / Droits non plus — l'arrete ne leur donne de
+     * quota que dans ces deux thematiques (D-29).
+     */
+    public CivicOfficialUnit uniteOfficielle(Question question) {
+        if (question.getCivicNotion() != null
+                && question.getCivicNotion().getOfficialUnit() != null) {
+            return question.getCivicNotion().getOfficialUnit();
+        }
+        if (question.getQuestionType() == QuestionType.MISE_SITUATION
+                && question.getTheme() != null) {
+            return unitesParCode().values().stream()
+                    .filter(unite -> unite.getQuestionType() == QuestionType.MISE_SITUATION)
+                    .filter(unite -> unite.getThemeCode().equals(question.getTheme().getCode()))
+                    .findFirst()
+                    .orElse(null);
+        }
+        return null;
+    }
+
     public String thematiqueOfficielle(Question question) {
         if (question.getCivicNotion() != null
                 && question.getCivicNotion().getOfficialUnit() != null) {

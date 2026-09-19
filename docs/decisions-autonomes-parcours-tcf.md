@@ -1061,3 +1061,39 @@ de la classe.
 d'épreuves : elle parle de ce qu'une file **met en attente**. ⚠️ Le **nom** de la classe est
 trompeur maintenant qu'elle sert les deux modules — à renommer le jour où on y touchera pour une
 autre raison, pas pour celle-là seule.
+
+---
+
+# 2026-09-19 — P8.4, point 5 : l'écrivain d'observation civique (A68 → A70)
+
+### A68 — Le statut par ratio est **extrait** à sa 2ᵉ occurrence
+
+`StatutObservation.selonRatio(ratio, config)` (`util/`), appelée par
+`ComprehensionObservationService` **et** par `CivicObservationService`.
+
+**Motif.** La règle — `≥ solid-ratio ⇒ SOLID`, `≥ reinforce-ratio ⇒ TO_REINFORCE`, sinon
+`PRIORITY` — allait être recopiée. C'est la règle du dépôt : **2ᵉ occurrence ⇒ on extrait**. Les
+seuils restent **lus** dans `learning-plan.comprehension` : aucun 9ᵉ seuil n'est déclaré, et
+recalibrer relit tout l'historique sans migration.
+
+### A69 — Une source **TCF** passée à l'écrivain civique **lève**
+
+**Motif.** Ce n'est pas une donnée, c'est un **branchement faux**. Laisser passer écrirait une
+observation civique sous une source de compréhension, et `JourneyEvaluationFilter` — qui déduit de
+la source qu'une série **n'évalue pas** (R3) — dirait n'importe quoi. Même raisonnement que
+`SkillMasteryEngine`, qui lève plutôt que d'inventer un poids (**A50**).
+
+### A70 — L'unité d'une question est résolue **chez l'autorité qui la connaît déjà**
+
+`CivicExamCompositionService.uniteOfficielle(Question)`, posée **à côté** de
+`thematiqueOfficielle(Question)`.
+
+**Motif.** La règle « de quelle unité relève cette question » existait déjà à moitié : la
+composition d'examen la connaît, avec ses deux chemins — la notion pour une connaissance, **le
+thème** pour une mise en situation, qui n'a jamais de notion (D-35). En écrire une seconde version
+dans l'écrivain d'observation aurait fait diverger le **tirage** et la **mesure** : un examen aurait
+pu tirer une question sur une unité que l'observation aurait rangée ailleurs.
+
+⚠️ **L'écrivain ne résout rien lui-même** : il reçoit des `ReponseCivique(uniteId, …)`, des
+**valeurs**, parce qu'il écrit en `REQUIRES_NEW` et que rien de détaché ne doit traverser cette
+frontière. C'est l'appelant — le branchement, point 7 — qui appelle l'autorité.

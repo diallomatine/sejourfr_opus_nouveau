@@ -25,6 +25,15 @@ public interface LearningPlanObservationRepository extends JpaRepository<Learnin
             """)
     List<LearningPlanObservation> findAllByUserWithSkill(@Param("userId") UUID userId);
 
+    /**
+     * Le jumeau civique : l'idempotence se lit sur l'<b>unite</b>, jamais sur la
+     * competence — une observation civique n'a pas de {@code skill_id}
+     * ({@code chk_learning_plan_observation_unite}).
+     */
+    Optional<LearningPlanObservation> findByUserIdAndOfficialUnitIdAndSourceTypeAndSourceId(
+            UUID userId, UUID officialUnitId,
+            com.sejourfr.app.enums.LearningPlanSourceType sourceType, UUID sourceId);
+
     Optional<LearningPlanObservation> findByUserIdAndSkillIdAndSourceTypeAndSourceId(
             UUID userId, UUID skillId,
             com.sejourfr.app.enums.LearningPlanSourceType sourceType, UUID sourceId);

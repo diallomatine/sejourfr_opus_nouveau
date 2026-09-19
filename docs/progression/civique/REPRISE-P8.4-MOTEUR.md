@@ -12,7 +12,7 @@
 | Phase | État |
 |---|---|
 | P8.0 → P8.3, P8.A | ✅ **livrées**, `verify` vert |
-| **P8.4** | 🔶 **1 → 4 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs, **l'amorce et les priorités**) — **5 à 9 restent** |
+| **P8.4** | 🔶 **1 → 5 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs, l'amorce et les priorités, **l'écrivain d'observation**) — **6 à 9 restent** |
 | P8.5 → P8.9, doc | ⬜ pas commencées |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle
@@ -164,10 +164,13 @@ création échoue tant qu'il n'y a rien à poser) **ou explicite** (le cycle dit
 amorce, comme `attendSonAmorce()` côté TCF). Une ligne muette qui a l'air d'un cycle et n'en est pas
 un ne survit pas à cette passe.
 
-### 5. L'écrivain d'observation civique — **le cœur de D-49**
+### 5. L'écrivain d'observation civique — **le cœur de D-49** ✅ FAIT
 
-**En place** : la table, les deux sources, l'index jumeau.
-**Manque** : le service.
+**Livré** : `CivicObservationService` (A68 → A70), 7 tests dans `CivicObservationServiceIT`.
+⚠️ **Il n'a pas encore d'appelant** : c'est le point 7 (le branchement) qui l'appellera, en
+résolvant l'unité chez `CivicExamCompositionService.uniteOfficielle(Question)`.
+
+**Ce qu'il fait** (pour mémoire) :
 
 **À imiter** : `ComprehensionObservationService.record(...)` (`~l.162`), qui rend
 `Set<UUID>` — les compétences réellement observées. Le pendant civique rend les **unités**
