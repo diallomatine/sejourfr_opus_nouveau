@@ -999,3 +999,65 @@ verrou de production TCF garde sa clé d'épreuve avec un test de nullité expli
 qu'une unité du bloc reste ouverte » — sans qu'une seule ligne ne sache de quel module il s'agit.
 ⚠️ C'est la **deuxième fois** dans ce chantier qu'un `EpreuveType` nul aurait produit une panne
 silencieuse ou brutale ; la réponse est toujours la même : lire l'axe **à la source**.
+
+---
+
+# 2026-09-19 — P8.4, point 4 : les priorités civiques (A64 → A67)
+
+### A64 — 🛑 Une **boucle de dépendances Spring**, supprimée plutôt que cachée
+
+**Le fait.** Faire lire au cycle l'ordre du plan dérivé (D-36) a refermé une boucle, et le contexte
+Spring a **refusé de démarrer** :
+
+```
+CivicPlanService → AttemptService → AttemptInteractionService → JourneyService → CivicPlanService
+```
+
+**La décision.** `CivicPlanService` n'appelle plus `attemptService.readAttempt(...)` — qui ne fait
+que **déléguer** — mais le **mapper** directement, avec le manager qu'il possédait déjà.
+
+**Motif.** Un `@Lazy` l'aurait **cachée** ; appeler le mapper la **supprime**. Et c'est aussi ce que
+la convention de couches demande : *un service n'appelle pas un autre service pour mapper*. Le
+correctif tient en trois lignes et **retire** une dépendance au lieu d'en ajouter une.
+
+⚠️ **Ce que ça dit du découpage** : `CivicPlanService` **calcule** un plan **et** démarre une série.
+Les deux ne relèvent pas de la même couche. Ce n'est pas urgent — la boucle est fermée —, mais si
+une seconde dépendance d'action y entre, c'est le signal d'extraire un `CivicSerieService`.
+
+### A65 — L'amorce civique : **deux cas sur trois**, et le troisième est remonté
+
+**Livrés** (spec §2) : *diagnostic fait* ⇒ les thématiques prioritaires sont **peuplées** de leurs
+unités, les autres passent en « Évaluer mon niveau » · *rien de fait* ⇒ **les cinq** en « Évaluer
+mon niveau ».
+
+🛑 **A60 est fermée** : un cycle civique n'est plus jamais vide. Le pire cas est **cinq examens à
+passer**.
+
+⚠️ **Le 3ᵉ cas est INATTEIGNABLE aujourd'hui** — « examen de thème passé sans diagnostic ⇒ ce thème
+peuplé ». `CivicPlanService` ne construit **aucun plan** sans diagnostic terminé : sans plan, il
+n'existe **aucune cible** à poser, donc rien avec quoi « peupler ». Ce cas retombe **volontairement**
+sur « les cinq à évaluer », et R1 fermera l'étape du thème déjà passé quand son examen sera
+journalisé. **À arbitrer** : soit le plan devient constructible depuis un examen seul, soit ce cas
+de la spec disparaît.
+
+### A66 — Une cible au grain **THÈME** ne devient pas une priorité
+
+**Le problème.** Le plan dérivé travaille au grain **notion** ou **thème**, selon le tagging du
+thème. Une cible au grain THÈME ne désigne **aucune notion**, donc aucune **unité officielle**.
+
+**La décision.** Elle est **ignorée** comme priorité ; sa thématique retombe alors sur « Évaluer mon
+niveau ».
+
+**Motif.** Le cycle ne peut pas nommer une unité qu'il ne connaît pas, et **inventer** — « toutes les
+unités du thème » — fabriquerait un travail que rien n'a désigné. Une absence de mesure se répond
+par une **mesure**, pas par une supposition : *null = inconnu, jamais mauvais*.
+
+### A67 — La **borne de 3 priorités par lot** est lue chez la même autorité que le TCF
+
+`TcfJourneyConfig.maxPrioritiesPerLot` (D-20), y compris pour un lot civique — malgré le nom `Tcf`
+de la classe.
+
+**Motif.** Une seconde valeur ferait **deux règles** là où il n'y en a qu'une, et D-20 ne parle pas
+d'épreuves : elle parle de ce qu'une file **met en attente**. ⚠️ Le **nom** de la classe est
+trompeur maintenant qu'elle sert les deux modules — à renommer le jour où on y touchera pour une
+autre raison, pas pour celle-là seule.

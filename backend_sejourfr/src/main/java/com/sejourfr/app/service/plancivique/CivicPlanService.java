@@ -28,7 +28,7 @@ import com.sejourfr.app.manager.CivicPlanManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
-import com.sejourfr.app.service.AttemptService;
+import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticViewService;
 import lombok.RequiredArgsConstructor;
@@ -95,7 +95,7 @@ public class CivicPlanService {
     private final CivicChangementsResolver changementsResolver;
     private final CivicPrioriteScorer scorer;
     private final SubscriptionService subscriptionService;
-    private final AttemptService attemptService;
+    private final AttemptMapper attemptMapper;
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final QuestionManager questionManager;
@@ -139,6 +139,46 @@ public class CivicPlanService {
                     List.of(), grain(Map.of()), null, calcul.maintenant());
         }
         return mettreEnForme(calcul);
+    }
+
+    /**
+     * <b>L'ordre du plan derive, SANS plafond d'affichage</b> — pour le cycle.
+     *
+     * <p>🛑 <b>Le cycle NE RECLASSE RIEN</b> (D-36 : il se superpose au plan
+     * derive). Il lit <b>cet</b> ordre, celui de {@link CivicPrioriteScorer}, et
+     * le projette sur les unites officielles. Un second ordre — « mieux adapte
+     * au cycle » — aurait fait dire deux choses differentes au meme candidat
+     * selon l'ecran qu'il regarde.
+     *
+     * <p>🛑 <b>Et il lit {@code proposables}, pas {@code priorites}</b> : les
+     * deux ont la meme tete, mais {@code priorites} est <b>plafonnee a
+     * l'affichage</b> (trois). Batir un cycle dessus reviendrait a servir un
+     * plafond d'ecran comme un budget pedagogique — le defaut qui a prive trois
+     * domaines sur quatre de toute action cote TCF (2026-08-25).
+     *
+     * @return l'evaluation source et les cibles dans l'ordre. <b>Vide</b> quand
+     *         aucun diagnostic n'est termine : le plan n'existe pas encore, et
+     *         il n'y a donc rien a projeter.
+     */
+    @Transactional(readOnly = true)
+    public OrdreDuPlan ordrePourLeCycle(UUID userId) {
+        Calcul calcul = calculer(userId);
+        if (!calcul.disponible()) return OrdreDuPlan.VIDE;
+        return new OrdreDuPlan(
+                calcul.resultat().sessionId(), proposables(calcul.cibles()));
+    }
+
+    /**
+     * @param sourceAssessmentId le diagnostic qui a produit cet ordre — ce que
+     *                           le lot du cycle journalise comme sa source.
+     * @param cibles             dans l'ordre du plan, sans plafond.
+     */
+    public record OrdreDuPlan(UUID sourceAssessmentId, List<CivicPlanDto.Cible> cibles) {
+        static final OrdreDuPlan VIDE = new OrdreDuPlan(null, List.of());
+
+        public boolean estVide() {
+            return cibles.isEmpty();
+        }
     }
 
     private Calcul calculer(UUID userId) {
@@ -520,7 +560,20 @@ public class CivicPlanService {
                 attempt.getId(), userId, grain, cibleId, questions.size());
         // Lu DANS la transaction : l'attempt vient d'etre ecrit, ses questions
         // aussi, et le mapper touche des associations paresseuses.
-        return attemptService.readAttempt(attempt);
+        //
+        // 🛑 LE MAPPER, PAS `AttemptService`. Ce service passait par
+        // `attemptService.readAttempt(...)`, qui ne fait que deleguer a
+        // `AttemptInteractionService` -- lequel depend de `JourneyService`. Le
+        // jour ou le cycle civique a eu besoin de LIRE l'ordre du plan derive
+        // (D-36), la boucle s'est refermee et le contexte Spring a refuse de
+        // demarrer : CivicPlan -> Attempt -> AttemptInteraction -> Journey ->
+        // CivicPlan. Un `@Lazy` l'aurait CACHEE ; appeler le mapper la SUPPRIME,
+        // et c'est aussi ce que la convention de couches demande -- un service
+        // n'appelle pas un autre service pour mapper.
+        // `revealCorrect = false` : l'attempt vient de naitre, rien n'est fini.
+        List<AttemptQuestion> lignes =
+                attemptQuestionManager.findByAttemptOrderedByPosition(attempt.getId());
+        return attemptMapper.toResponse(attempt, lignes, false);
     }
 
     // ------------------------------------------------------------------------

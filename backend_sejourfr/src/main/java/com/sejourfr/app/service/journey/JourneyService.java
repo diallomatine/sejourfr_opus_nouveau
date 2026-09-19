@@ -3,6 +3,10 @@ package com.sejourfr.app.service.journey;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
+import com.sejourfr.app.dto.CivicPlanDto;
+import com.sejourfr.app.entity.CivicNotion;
+import com.sejourfr.app.entity.CivicOfficialUnit;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyAssessmentEvent;
 import com.sejourfr.app.entity.JourneyLot;
@@ -28,8 +32,11 @@ import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
+import com.sejourfr.app.manager.CivicNotionManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.TcfProfileService;
+import com.sejourfr.app.service.plancivique.CivicPlanService;
 import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * <b>Le parcours TCF</b> : la couche d'orchestration qui range en file ce que les
@@ -110,6 +118,14 @@ public class JourneyService {
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
     private final UserManager userManager;
+    // 🛑 LA MEME BORNE QUE COTE TCF (D-20, `maxPrioritiesPerLot`) : une seconde
+    // valeur pour le civique ferait deux regles la ou il n'y en a qu'une.
+    private final TcfJourneyConfig config;
+    // ⚠️ Cote civique : l'ordre des priorites est LU chez le plan derive (D-36),
+    // les unites chez le referentiel (D-48), les thematiques chez `themes`.
+    private final CivicPlanService civicPlanService;
+    private final CivicNotionManager notionManager;
+    private final ThemeManager themeManager;
 
     // =====================================================================
     // Lecture
@@ -250,7 +266,148 @@ public class JourneyService {
         journey.poserObjectif(mention);
         journey.setModule(Module.CIVIQUE);
         journey.setStatus(JourneyStatus.EN_COURS);
-        return Optional.of(journeyManager.save(journey));
+        journey = journeyManager.save(journey);
+        amorcerCivique(journey, user);
+        return Optional.of(journey);
+    }
+
+    /**
+     * <b>L'amorce d'un cycle civique</b> (spec §2, transposee sans ecart).
+     *
+     * <ul>
+     *   <li><b>Diagnostic fait</b> ⇒ les thematiques prioritaires sont
+     *       <b>peuplees</b> de leurs unites, les autres passent en « Évaluer mon
+     *       niveau » ;</li>
+     *   <li><b>rien de fait</b> ⇒ <b>les cinq</b> thematiques en « Évaluer mon
+     *       niveau ».</li>
+     * </ul>
+     *
+     * <p>🛑 <b>UN CYCLE CIVIQUE N'EST DONC JAMAIS VIDE</b> — c'est ce qui ferme
+     * A60. Le pire cas est cinq examens a passer, pas une ligne muette qui a
+     * l'air d'un cycle sans en etre un.
+     *
+     * <p>🛑 <b>L'ordre des priorites est LU, jamais recalcule</b>
+     * ({@code CivicPlanService.ordrePourLeCycle}, D-36). Le cycle projette cet
+     * ordre sur les <b>unites officielles</b> (D-48) et s'arrete la.
+     *
+     * <p>⚠️ <b>Le 3e cas de la spec n'est pas servi, et c'est remonte</b> :
+     * « examen de theme passe sans diagnostic ⇒ ce theme peuple ». Il est
+     * <b>inatteignable</b> aujourd'hui, parce que {@code CivicPlanService} ne
+     * construit aucun plan sans diagnostic termine : sans plan, il n'existe
+     * aucune cible a poser, donc rien avec quoi « peupler ». Ce cas retombe
+     * volontairement sur « les cinq a evaluer » — et R1 fermera l'etape du
+     * theme deja passe quand son examen sera journalise.
+     */
+    private void amorcerCivique(Journey journey, User user) {
+        CivicPlanService.OrdreDuPlan ordre = civicPlanService.ordrePourLeCycle(user.getId());
+        creerLotsCiviques(journey, ordre);
+        ajouterLesThematiquesNonPeuplees(journey);
+    }
+
+    /**
+     * Les unites prioritaires, <b>groupees par thematique</b>, chacune avec son
+     * lot et son examen de cloture.
+     *
+     * <p>🛑 <b>Le grain est l'UNITE OFFICIELLE</b> (D-48) : une cible du plan
+     * derive est une <b>notion</b>, et plusieurs notions tombent dans la meme
+     * unite. On garde alors le <b>meilleur rang</b> — la premiere rencontree,
+     * puisque la liste arrive deja ordonnee.
+     *
+     * <p>⚠️ <b>Une cible au grain THEME ne devient pas une priorite</b> : elle
+     * dit « on ne sait pas quelle notion », et le cycle ne peut pas nommer une
+     * unite qu'il ne connait pas. Sa thematique retombe alors sur « Évaluer mon
+     * niveau », ce qui est exactement la bonne reponse a une absence de mesure —
+     * <b>{@code null} = inconnu, jamais mauvais</b>.
+     */
+    private void creerLotsCiviques(Journey journey, CivicPlanService.OrdreDuPlan ordre) {
+        if (ordre.estVide()) return;
+
+        Map<UUID, CivicOfficialUnit> unitesParNotion = notionManager.findAllOrdonnees().stream()
+                .filter(notion -> notion.getOfficialUnit() != null)
+                .collect(Collectors.toMap(
+                        CivicNotion::getId, CivicNotion::getOfficialUnit, (a, b) -> a));
+
+        // LinkedHashMap : l'ordre des thematiques est celui de la premiere
+        // priorite rencontree -- donc l'ordre du plan derive, pas un tri de plus.
+        Map<UUID, List<CivicOfficialUnit>> parThematique = new LinkedHashMap<>();
+        Map<UUID, Theme> thematiques = new LinkedHashMap<>();
+        Set<UUID> dejaPrises = new LinkedHashSet<>();
+        for (CivicPlanDto.Cible cible : ordre.cibles()) {
+            CivicOfficialUnit unite = unitesParNotion.get(cible.id());
+            if (unite == null) continue;
+            if (!dejaPrises.add(unite.getId())) continue;
+            Theme thematique = themeManager.findById(cible.themeId()).orElse(null);
+            if (thematique == null) continue;
+            List<CivicOfficialUnit> unites = parThematique
+                    .computeIfAbsent(thematique.getId(), cle -> new ArrayList<>());
+            // D-20 — au plus trois priorites par lot, et c'est la MEME borne que
+            // cote TCF : une seconde valeur ferait deux regles la ou il n'y en a
+            // qu'une.
+            if (unites.size() >= config.maxPrioritiesPerLot()) continue;
+            unites.add(unite);
+            thematiques.put(thematique.getId(), thematique);
+        }
+
+        parThematique.forEach((themeId, unites) -> {
+            Theme thematique = thematiques.get(themeId);
+            JourneyLot lot = new JourneyLot();
+            lot.setJourney(journey);
+            lot.poserBloc(thematique);
+            lot.setStatus(JourneyLotStatus.OPEN);
+            lot.setSourceAssessmentId(ordre.sourceAssessmentId());
+            JourneyLot enregistre = lotManager.save(lot);
+
+            int rang = 1;
+            for (CivicOfficialUnit unite : unites) {
+                JourneyStep step = new JourneyStep();
+                step.setJourney(journey);
+                step.setLot(enregistre);
+                step.setType(JourneyStepType.TRAIN_SKILL);
+                step.poserBloc(thematique);
+                step.poserUnite(unite);
+                step.setSeverityRank(rang++);
+                step.setSourceAssessmentId(ordre.sourceAssessmentId());
+                ajouter(journey, step);
+            }
+
+            // R3 — un lot est TOUJOURS clos par l'examen de son bloc. Ici c'est
+            // l'examen de la thematique (20 questions, `CivicExamFormat`).
+            JourneyStep checkpoint = new JourneyStep();
+            checkpoint.setJourney(journey);
+            checkpoint.setLot(enregistre);
+            checkpoint.setType(JourneyStepType.SECTION_EXAM);
+            checkpoint.setPurpose(JourneyStepPurpose.REASSESS);
+            checkpoint.poserBloc(thematique);
+            checkpoint.setSourceAssessmentId(ordre.sourceAssessmentId());
+            ajouter(journey, checkpoint);
+        });
+    }
+
+    /**
+     * <b>« Évaluer mon niveau » sur les thematiques que rien ne peuple</b> —
+     * pendant civique de {@code ajouterLesEpreuvesNonMesurees} (R12).
+     *
+     * <p>🛑 <b>Les CINQ thematiques sont couvertes</b>, toujours : le cycle
+     * civique porte tout le programme de l'arrete, pas seulement ce que le
+     * diagnostic a pointe.
+     */
+    private void ajouterLesThematiquesNonPeuplees(Journey journey) {
+        Set<String> dejaPrevues = stepManager.findAll(journey.getId()).stream()
+                .filter(step -> step.blocCode() != null)
+                .map(JourneyStep::blocCode)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        for (Theme thematique : themeManager
+                .findByModuleOrderedByDisplayOrder(Module.CIVIQUE)) {
+            if (dejaPrevues.contains(thematique.getCode())) continue;
+            JourneyStep mesure = new JourneyStep();
+            mesure.setJourney(journey);
+            mesure.setType(JourneyStepType.SECTION_EXAM);
+            // « Évaluer mon niveau » : cette thematique n'a jamais ete mesuree.
+            mesure.setPurpose(JourneyStepPurpose.INITIAL_ASSESSMENT);
+            mesure.poserBloc(thematique);
+            ajouter(journey, mesure);
+        }
     }
 
     /**

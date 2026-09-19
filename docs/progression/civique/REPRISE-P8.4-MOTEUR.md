@@ -12,7 +12,7 @@
 | Phase | État |
 |---|---|
 | P8.0 → P8.3, P8.A | ✅ **livrées**, `verify` vert |
-| **P8.4** | 🔶 **1, 2, 2 bis et 3 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs) — **4 à 9 restent** |
+| **P8.4** | 🔶 **1 → 4 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs, **l'amorce et les priorités**) — **5 à 9 restent** |
 | P8.5 → P8.9, doc | ⬜ pas commencées |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle
@@ -153,7 +153,12 @@ dériver des **unités officielles** de ces thématiques.
 `CivicPrioriteScorer`. S'il ne convient pas, **le remonter** — ne pas en créer un second au motif
 qu'il serait meilleur (D-36 : le cycle se superpose au plan dérivé).
 
-🛑 **Et ce point doit fermer A60** : depuis le point 2, un cycle civique naît **vide**. C'est un
+✅ **FAIT (A65)** : `JourneyService.amorcerCivique` — les thématiques prioritaires sont peuplées
+d'unités officielles, les autres passent en « Évaluer mon niveau ». Preuve : `AmorceCiviqueIT`.
+⚠️ Le **3ᵉ cas de la spec** (« examen de thème passé sans diagnostic ») est **remonté** : il est
+inatteignable tant que le plan dérivé exige un diagnostic.
+
+🛑 **Et ce point devait fermer A60** : depuis le point 2, un cycle civique naît **vide**. C'est un
 **état de transition**, pas un comportement. Ici, un cycle sans priorité devient **impossible** (la
 création échoue tant qu'il n'y a rien à poser) **ou explicite** (le cycle dit qu'il attend son
 amorce, comme `attendSonAmorce()` côté TCF). Une ligne muette qui a l'air d'un cycle et n'en est pas
