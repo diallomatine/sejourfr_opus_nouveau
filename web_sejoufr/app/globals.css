@@ -6,16 +6,6 @@
 @theme {
   /* Couleurs France */
   --color-blue: #1E3A8C;
-  /* 🛑 **Les deux tons ADOUCIS de la carte « Où vous en êtes »** (demande du
-     propriétaire, 2026-09-19 : « baisse l'intensité du bleu un peu, et même le
-     rouge un peu »). Cette carte empile un bandeau plein, quatre pastilles
-     pleines et douze crans d'échelle : le Bleu France y sature l'écran, alors
-     qu'il est juste sur un CTA isolé. **Les tokens de marque ne bougent pas** —
-     `--color-blue` et `--color-red` restent l'identité, et ces deux-là ne
-     servent QUE cette carte. */
-  --color-blue-muted: #3C5490;
-  --color-red-muted: #D9645C;
-
   --color-blue-dark: #15296B;
   --color-blue-light: #E8ECF8;
   --color-blue-soft: #F4F6FC;
@@ -94,6 +84,18 @@
    exposées au markup — elles n'ont de sens que pour le kit.
    ============================================================================ */
 :root {
+  /* 🛑 **Les deux tons ADOUCIS de la carte « Où vous en êtes »** (demande du
+     propriétaire, 2026-09-19 : « baisse l'intensité du bleu un peu, et même le
+     rouge un peu »). Les tokens de marque ne bougent pas : `--color-blue` et
+     `--color-red` restent l'identité, et ces deux-là ne servent QUE cette
+     carte. Miroirs Flutter : `AppColors.blueMuted` / `AppColors.redMuted`.
+
+     ⚠️ **Ils sont ICI et non dans `@theme`**, comme les autres variables du
+     kit : `@theme` génère une utility par entrée, et ces deux teintes n'ont de
+     sens que pour le kit — pas pour le markup. */
+  --color-blue-muted: #3C5490;
+  --color-red-muted: #D9645C;
+
   --sf-radius-xs: 8px;
   --sf-radius-sm: 12px;
   --sf-radius-md: 16px;
