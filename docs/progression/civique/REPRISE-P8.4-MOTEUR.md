@@ -15,8 +15,11 @@
 | **P8.4** | 🔶 **le contrat servi est fait** (`6e90faf7`), **le moteur ne l'est pas** |
 | P8.5 → P8.9, doc | ⬜ pas commencées |
 
-**Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-49**, et la règle
-générale **D-48** (`PROGRAMME ≠ CORPUS`), qui se lit seule.
+**Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle
+générale **D-48** (`PROGRAMME ≠ CORPUS`) qui se lit seule, et les dettes **DETTE-M1** / **DETTE-P1**.
+🛑 **D-50 tranche les écrans** — et deux de ses points se préparent **dans cette passe** : l'objectif
+servi (point 2 bis) et le fait que « À faire maintenant » lira le **cycle**, plus le plan dérivé.
+**Mesure des écarts d'écran** : `docs/audits/AUDIT_plan_civique_ecran_et_moteur.md` (clos).
 **Cadre fonctionnel** : `docs/progression/civique/SPEC_cycle_plan_civique.md`.
 
 ---
@@ -101,6 +104,19 @@ ne se dérive **pas** de `niveauVise`, qui ne parle que de français.
 
 **Décision à prendre** : `getOrCreate(userId)` devient `getOrCreate(userId, Module)`, ou deux
 méthodes. ⚠️ Vérifier **tous les appelants** avant de choisir : `grep -rn "getOrCreate" src/main`.
+
+### 2 bis. 🛑 L'**objectif servi** — à faire DANS cette passe (D-50)
+
+**En place** : `journey.target_procedure` (V069) et `chk_journey_objectif`.
+**Manque** : le contrat. ⟦CODE⟧ `JourneyDto.targetLevel` est un `TargetLevel` — **le dernier champ
+typé TCF** du contrat de cycle, et un cycle civique ne peut pas s'y exprimer.
+
+**La forme est arbitrée** (D-50) : un **objectif servi** `{ kind, code, label }`, **patron du bloc
+servi** (D-47). Il ne dépend pas du moteur, seulement de V069 — d'où sa place ici.
+
+⚠️ Il commande la **bande objectif** de l'écran, dont le texte est tranché : « Objectif :
+naturalisation · **seuil 32/40** ». 🛑 **Jamais de score d'entrée** : `entry_score` existe en base et
+ne s'affiche pas là — il se lirait comme un niveau acquis alors que c'est un résultat d'examen blanc.
 
 ### 3. `JourneyBlocResolver` — l'axe est un enum en dur
 

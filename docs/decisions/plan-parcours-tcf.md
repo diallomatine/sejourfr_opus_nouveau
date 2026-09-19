@@ -2065,3 +2065,100 @@ dernier échec si l'on veut pouvoir l'interroger.
 🛑 **À traiter dans la passe moteur, pas avant.** Le corollaire s'applique dès maintenant :
 **toute** contrainte civique ajoutée à `journey_assessment_event` se vérifie **en base**, pas au
 vert des tests.
+
+---
+
+### D-50 (2026-09-19) — **Les écrans du Plan civique** : quatre arbitrages, trois validations
+
+> **Déclencheur** : trois captures de l'écran Plan civique et la demande — « on doit avoir les mêmes
+> écrans des 2 côtés ; la partie TCF ne touche pas ». Mesure et écarts :
+> `docs/audits/AUDIT_plan_civique_ecran_et_moteur.md`. 🛑 **L'audit est clos, il ne s'étend pas.**
+
+**Le constat que l'arbitrage retient** (mot du propriétaire) :
+
+> « Les quatre sections ne sont pas des ajouts, ce sont des **retards** — le civique porte encore ce
+> que le TCF a retiré les 18 et 19, avec le défaut que j'avais moi-même diagnostiqué. »
+
+#### 1. La bande objectif — **« Objectif : naturalisation · seuil 32/40 »**
+
+🛑 **Pas de score d'entrée.** « L'arrêté ne définit rien de tel, et un « 29/40 » en bandeau se lit
+comme un **niveau acquis** alors que c'est un **résultat d'examen blanc**. » Le score reste dans
+« Où vous en êtes ».
+
+⇒ La bande porte la **mention visée** et le **seuil**, deux faits du référentiel. `entry_score`
+existe en base (V069) et **ne s'affiche pas ici**.
+
+#### 2. « À faire maintenant » **bascule sur le cycle**
+
+« Une seule réponse alimente la carte et la timeline, comme côté TCF. Réintroduire la contradiction
+Accueil/Plan qu'on a supprimée le 16 septembre serait absurde. »
+
+⇒ La carte cesse de lire le plan **dérivé** (`CivicPlan.prochaine`) et lit l'**étape servie du
+cycle**. ⚠️ **Effet assumé** : elle peut nommer **autre chose** qu'aujourd'hui pour le même candidat.
+C'est le prix d'une autorité unique, et il est payé une fois.
+
+#### 3. « À revoir bientôt » **reste** ; les trois autres partent
+
+« C'est le seul affichage du **Leitner**, et **D-49** a posé deux autorités exactement pour ça : le
+cycle dit le **parcours accompli**, le Leitner l'**état présent**. La supprimer perdrait un fait
+vrai. »
+
+⇒ **Partent** : « Vos priorités », « Déjà travaillé et validé », « Progression détectée » — avec le
+motif **déjà écrit côté TCF** (elles redisent les blocs en moins précis, et sous un plafond
+d'affichage). **Reste** : « À revoir bientôt ».
+
+#### 4. Le grain affiché : **les unités officielles** (D-48 s'applique)
+
+« Le candidat verra **16 au lieu de 46**, et c'est un **gain** — l'arrêté contre une taxonomie
+reconstruite depuis le corpus. »
+
+🛑 **Mais la formulation est SERVIE, pas comptée côté front** : « 5 unités à travailler » arrive du
+serveur, **comme le bloc et le label**. Aucun front ne compte des unités pour en faire une phrase.
+
+#### Les trois décisions techniques, validées telles quelles
+
+| | Décision |
+|---|---|
+| **Endpoint** | `GET /api/me/plan/journey?module=…` — **un** contrat, pas deux |
+| **Vue** | une `PlanCycleSection` **commune** aux deux modules, des deux côtés |
+| **Nom** | `JourneyBlocDto.competencesRestantes` → un nom générique ; une thématique ne compte pas des compétences |
+
+#### L'objectif servi — **pendant P8.4**, pas après
+
+`{ kind, code, label }`, **patron du bloc servi** (D-47). Il ne dépend pas du moteur : il dépend de
+V069, déjà livrée. `JourneyDto.targetLevel` est le **dernier champ typé TCF** du contrat.
+
+#### Ordre confirmé
+
+**P8.4** → **P8.5** → **P8.6** → **les deux écrans en UNE passe** → l'**historique des cycles**,
+« transposé du TCF **sans divergence non écrite** ».
+
+---
+
+### DETTE-P1 (2026-09-19) — 🛑 **la parité web ⇄ mobile est une exigence que RIEN ne mesure**
+
+**Nommée par le propriétaire** à la deuxième occurrence : « aucun audit ne les avait vues. Deux
+occurrences, donc ça mérite d'être suivi comme un **motif**, pas traité comme deux accidents. »
+
+**Les deux écarts, datés, trouvés en mesurant — jamais par une relecture :**
+
+| # | Écart | Trouvé | État |
+|---|---|---|---|
+| 1 | La **durée de l'examen civique** écrite en dur dans chaque front. Le web lisait `civiqueTemplate?.durationSeconds ?? 2400` — **40 minutes**, là où l'arrêté en fixe **45**. | P8.1 / P8.A, 2026-09-19 | ✅ **corrigé** (`c2304fef`) : deux miroirs gelés, les chiffres lus chez `CivicExamFormat` |
+| 2 | La **carte de contexte du Plan civique** n'affiche pas les mêmes faits : mobile « 4 thèmes à renforcer / 17 notions à consolider », web « 17 à consolider / 3 à revoir bientôt ». | Audit des écrans, 2026-09-19 | ⚠️ **ouvert** — disparaît en P8.7 avec la refonte de l'écran (D-50) |
+
+**Le motif commun, et c'est lui la dette.** Un même fait s'écrit **deux fois**, à la main, dans deux
+langages, et **rien ne compare les deux copies** : ni test (les fronts n'en prennent pas de
+nouveaux), ni type partagé, ni script. La règle de parité du `CLAUDE.md` racine est une **consigne**,
+et le dépôt sait depuis longtemps que « ce qui tient la qualité, ce sont les contraintes dures, pas
+les consignes ».
+
+**Ce qui existe déjà et qui montre la forme de la réponse** : `scripts/verifier-contrat-front-progression.mjs`
+vérifie **un** contrat de front. C'est le précédent ; il n'a jamais été étendu.
+
+**Ce que ça ne veut PAS dire.** ⛔ Pas de nouveaux tests sur les fronts — l'invariant tient. La piste
+est un **script de vérification** hors test, ou un fait **servi** de plus (ce que D-50 §4 fait déjà
+pour la phrase des unités : servie, donc impossible à diverger).
+
+⚠️ **Le signal à surveiller** : un fait affiché des deux côtés qui n'a **pas** d'autorité serveur et
+qui n'est **pas** dans un miroir gelé. Une troisième occurrence transforme la dette en chantier.
