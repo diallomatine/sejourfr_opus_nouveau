@@ -29,10 +29,12 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.service.attempt.AttemptCompositionService;
+import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
 import com.sejourfr.app.service.attempt.AttemptInteractionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -100,9 +102,11 @@ public class AttemptService {
     private final ComprehensionSeriesComposer seriesComposer;
     private final UserManager userManager;
     private final ExamTemplateManager examTemplateManager;
+    private final ThemeManager themeManager;
     private final SubscriptionService subscriptionService;
     private final LotService lotService;
     private final AttemptCompositionService compositionService;
+    private final CivicExamCompositionService civicExamComposition;
     private final AttemptInteractionService interactionService;
     private final ProductionAccessService productionAccessService;
     private final SkillManager skillManager;
@@ -218,17 +222,44 @@ public class AttemptService {
                 themeId = req.themeId();
             }
             var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
-            Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
             boolean civiqueFullExam = req.type() == AttemptType.MOCK_EXAM
                     && req.module() == Module.CIVIQUE
                     && themeId == null;
-            questions = civiqueFullExam
-                    // Examen civique complet : composition stratifiée sur les
-                    // thèmes (8 Q × 5 thèmes), comme les templates. Le tirage
-                    // aléatoire global pouvait concentrer l'examen sur 1-2
-                    // thèmes selon le pool de la difficulté visée.
-                    ? compositionService.composeCiviqueFullExam(effectiveDifficulty, size)
-                    : questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
+            // 🛑 L'EXAMEN CIVIQUE COMPLET NE FILTRE PLUS PAR MENTION (D-42, D-45).
+            // L'arrêté du 10 octobre 2025 pose UN programme pour TOUTES les
+            // mentions, sur une SEULE annexe I. Et la mesure l'impose autant que
+            // le texte : avec le filtre, un examen conforme était IMPOSSIBLE pour
+            // CSP (Laïcité 1 question pour 2 exigées, mises en situation de
+            // Principes 1 pour 6) et pour NAT (5 pour 6). Seul CR y parvenait.
+            //
+            // ⚠️ Le filtre reste en place partout ailleurs jusqu'à P8.2b — le
+            // plan, le diagnostic et la série ciblée. C'est voulu : P8.A doit
+            // être mesurable seul (D-45).
+            Difficulty effectiveDifficulty = civiqueFullExam
+                    ? null
+                    : resolveDifficulty(user, req.module(), req.difficulty());
+            if (civiqueFullExam) {
+                // Examen civique complet : composition CONFORME à l'arrêté —
+                // 11/6/11/8/4 par thématique, le quota par unité officielle,
+                // et 12 mises en situation placées en Principes (6) et
+                // Droits et devoirs (6) seulement.
+                questions = civicExamComposition.composerExamenConforme();
+            } else if (civicThemeExam) {
+                // 🛑 L'EXAMEN DE THÈME TIRE PAR UNITÉ, PAS PAR `theme_id` (D-47).
+                // Il respecte les proportions officielles internes de sa
+                // thématique (D-31), donc les mises en situation seulement là où
+                // l'examen réel en pose. Tirer par `theme_id` ramenait des
+                // questions que l'arrêté range dans une AUTRE thématique.
+                questions = civicExamComposition.composerExamenDeTheme(
+                        themeManager.findById(themeId)
+                                .orElseThrow(() -> new NotFoundException(
+                                        "Thème introuvable : " + themeId))
+                                .getCode());
+            } else {
+                questions = questionManager.findRandom(
+                        req.module(), themeId, effectiveDifficulty, qType, size);
+            }
+
         }
 
         if (questions.isEmpty()) {

@@ -231,4 +231,23 @@ public class QuestionManager {
     public void deleteById(UUID id) {
         repository.deleteById(id);
     }
+
+    /**
+     * Les questions de CONNAISSANCE d'une <b>unite officielle</b> (P8.A).
+     *
+     * <p>🛑 {@code difficulty} vaut {@code null} sur le chemin d'examen conforme
+     * (D-45) : l'arrete pose UN programme pour toutes les mentions.
+     */
+    public List<Question> findRandomByOfficialUnitExcluding(
+            UUID unitId, Difficulty difficulty, Collection<UUID> excludeIds, int size) {
+        return repository.findRandomByOfficialUnitExcluding(
+                unitId, difficulty, excludeIds, PageRequest.of(0, size));
+    }
+
+    /** Les MISES EN SITUATION d'une thematique (P8.A) : elles n'ont pas de notion. */
+    public List<Question> findRandomMisesEnSituationExcluding(
+            String themeCode, Difficulty difficulty, Collection<UUID> excludeIds, int size) {
+        return repository.findRandomMisesEnSituationExcluding(
+                themeCode, difficulty, excludeIds, PageRequest.of(0, size));
+    }
 }

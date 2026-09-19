@@ -20,6 +20,11 @@ import {isCompleteExamResult} from "@/lib/exam-levels";
 import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {ApiException, attemptApi, dashboardApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
+import {
+    CIVIQUE_EXAM_DUREE_MINUTES,
+    CIVIQUE_EXAM_QUESTIONS,
+    CIVIQUE_EXAM_SEUIL,
+} from "@/lib/civique-examen";
 import {handleStartFailure} from "@/lib/start-failure";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -310,9 +315,15 @@ function ExamsConnectedHome() {
         {value: civiqueScoreLabel(mostRecent(civique)), label: "Dernier examen"},
         {value: civiqueProgress != null ? `${civiqueProgress}%` : "—", label: "Progression"},
     ];
-    const civTotalQ = civiqueTemplate?.totalQuestions ?? 40;
-    const civMin = Math.round((civiqueTemplate?.durationSeconds ?? 2400) / 60);
-    const civPass = civiqueTemplate?.passingScore ?? 32;
+    /* 🛑 LE FORMAT VIENT DE LA LOI, PAS DU TEMPLATE (2026-09-19).
+       Ces trois valeurs se lisaient sur `civiqueTemplate?.X ?? littéral` — et le
+       repli de durée valait `2400`, soit 40 minutes, là où l'arrêté du
+       10 octobre 2025 en fixe 45. Un template est une FICHE D'OFFRE (slug,
+       gratuité, libellés) ; il n'est pas l'autorité du format. Miroir gelé :
+       `lib/civique-examen.ts` ⇄ `mobile/core/utils/civique_examen.dart`. */
+    const civTotalQ = CIVIQUE_EXAM_QUESTIONS;
+    const civMin = CIVIQUE_EXAM_DUREE_MINUTES;
+    const civPass = CIVIQUE_EXAM_SEUIL;
     const civiqueTips = [
         "Conditions réelles",
         `${civMin} minutes`,
@@ -402,15 +413,15 @@ function ExamsConnectedHome() {
                 facts={[
                     {
                         label: "questions · 5 catégories",
-                        value: String(civiqueTemplate?.totalQuestions ?? 40),
+                        value: String(CIVIQUE_EXAM_QUESTIONS),
                     },
                     {
                         label: "en conditions réelles",
-                        value: `${Math.round((civiqueTemplate?.durationSeconds ?? 2400) / 60)} min`,
+                        value: `${CIVIQUE_EXAM_DUREE_MINUTES} min`,
                     },
                     {
                         label: "seuil de réussite",
-                        value: `${civiqueTemplate?.passingScore ?? 32}/${civiqueTemplate?.totalQuestions ?? 40}`,
+                        value: `${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`,
                         highlight: true,
                     },
                 ]}

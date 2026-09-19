@@ -375,4 +375,137 @@ public interface QuestionRepository
             @Param("difficulty") Difficulty difficulty,
             @Param("questionType") QuestionType questionType
     );
+
+    // ========================================================================
+    // Le tirage CONFORME d'un examen civique — par UNITE OFFICIELLE (P8.A)
+    // ========================================================================
+    // Arrete du 10 octobre 2025, annexe I : « Chaque candidat devra repondre a
+    // un NOMBRE EQUIVALENT DE QUESTIONS PAR THEMATIQUE ET NOTION ». Le tirage
+    // doit donc savoir viser une unite, ce qu'aucune requete ci-dessus ne sait
+    // faire -- elles ne connaissent que le theme, le type et la difficulte.
+    //
+    // 🛑 DEUX REQUETES, ET NON UNE AVEC UN BRANCHEMENT. Les deux familles
+    // d'unites ne se rejoignent pas par le meme chemin :
+    //   * une unite de CONNAISSANCE se rejoint par la NOTION de la question
+    //     (`questions.civic_notion_id` -> `civic_notions.official_unit_id`) ;
+    //   * une unite de MISE_SITUATION se rejoint par le THEME, parce qu'une mise
+    //     en situation ne porte JAMAIS de notion (D-35) et n'en portera pas.
+    // Un `CASE` dans le `WHERE` aurait cache cette asymetrie au lieu de la dire.
+    //
+    // 🛑 LES DEUX FILTRENT `status` EN PLUS DE `active`. C'est le defaut que les
+    // quatre requetes de `CivicPlanRepository` portaient : un brouillon entrait
+    // dans le tirage.
+
+    /**
+     * Les questions de CONNAISSANCE d'une unite officielle, tirage aleatoire.
+     *
+     * <p>🛑 <b>{@code difficulty} reste parametrable et vaut {@code null} sur le
+     * chemin d'examen</b> (D-45) : un examen conforme se tire sur le programme
+     * entier, pas sur une mention. Le parametre survit parce que l'admin et les
+     * mesures s'en servent, jamais la composition officielle.
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
+              AND q.civicNotion.officialUnit.id = :unitId
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND q.id NOT IN :excludeIds
+            ORDER BY function('random')
+            """)
+    List<Question> findRandomByOfficialUnitExcludingInternal(
+            @Param("unitId") UUID unitId,
+            @Param("difficulty") Difficulty difficulty,
+            @Param("excludeIds") Collection<UUID> excludeIds,
+            Pageable pageable
+    );
+
+    /**
+     * Les MISES EN SITUATION d'une thematique, tirage aleatoire.
+     *
+     * <p>🛑 Une mise en situation ne porte <b>aucune</b> notion : elle se rejoint
+     * par son theme, et l'arrete n'en place que dans <b>deux</b> thematiques —
+     * « Principes et valeurs » (6) et « Droits et devoirs » (6). C'est l'unite
+     * officielle qui dit lesquelles ; cette requete ne fait qu'obeir.
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
+              AND q.theme.code = :themeCode
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND q.id NOT IN :excludeIds
+            ORDER BY function('random')
+            """)
+    List<Question> findRandomMisesEnSituationExcludingInternal(
+            @Param("themeCode") String themeCode,
+            @Param("difficulty") Difficulty difficulty,
+            @Param("excludeIds") Collection<UUID> excludeIds,
+            Pageable pageable
+    );
+
+    // 🛑 UNE COLLECTION D'EXCLUSION VIDE NE PASSE PAS EN JPQL. `q.id NOT IN ()`
+    // est invalide et ne rend RIEN -- mesure faite : la 1re unite tiree rendait
+    // 0 question, donc l'examen entier levait. Le depot a deja cet idiome
+    // (`findRandomExcluding` ci-dessus) : on le suit au lieu d'inventer un
+    // sentinelle. C'est verbeux et c'est explicite, dans cet ordre de priorite.
+
+    /** Variante sans exclusion de {@link #findRandomByOfficialUnitExcludingInternal}. */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
+              AND q.civicNotion.officialUnit.id = :unitId
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+            ORDER BY function('random')
+            """)
+    List<Question> findRandomByOfficialUnit(
+            @Param("unitId") UUID unitId,
+            @Param("difficulty") Difficulty difficulty,
+            Pageable pageable
+    );
+
+    /** Variante sans exclusion de {@link #findRandomMisesEnSituationExcludingInternal}. */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
+              AND q.theme.code = :themeCode
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+            ORDER BY function('random')
+            """)
+    List<Question> findRandomMisesEnSituation(
+            @Param("themeCode") String themeCode,
+            @Param("difficulty") Difficulty difficulty,
+            Pageable pageable
+    );
+
+    default List<Question> findRandomByOfficialUnitExcluding(
+            UUID unitId, Difficulty difficulty,
+            Collection<UUID> excludeIds, Pageable pageable
+    ) {
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return findRandomByOfficialUnit(unitId, difficulty, pageable);
+        }
+        return findRandomByOfficialUnitExcludingInternal(unitId, difficulty, excludeIds, pageable);
+    }
+
+    default List<Question> findRandomMisesEnSituationExcluding(
+            String themeCode, Difficulty difficulty,
+            Collection<UUID> excludeIds, Pageable pageable
+    ) {
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return findRandomMisesEnSituation(themeCode, difficulty, pageable);
+        }
+        return findRandomMisesEnSituationExcludingInternal(
+                themeCode, difficulty, excludeIds, pageable);
+    }
 }

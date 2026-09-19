@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/utils/civique_examen.dart';
 
 /// Bottom sheet de briefing affichée avant le démarrage d'un examen blanc
 /// civique **global** (40 Q tous thèmes, 45 min, seuil 32/40). Branchée
@@ -21,15 +22,18 @@ Future<void> showCiviqueExamBriefingSheet(
       rows: const [
         _BriefRowData(
           icon: LucideIcons.circleHelp,
-          text: '40 questions tirées sur les 5 thèmes officiels.',
+          text: '${CivicExamFormat.questions} questions tirées sur les '
+              '5 thèmes officiels.',
         ),
         _BriefRowData(
           icon: LucideIcons.timer,
-          text: '45 minutes chrono, pas de retour en arrière.',
+          text: '${CivicExamFormat.dureeMinutes} minutes chrono, pas de '
+              'retour en arrière.',
         ),
         _BriefRowData(
           icon: LucideIcons.circleCheck,
-          text: 'Seuil de réussite : 32 / 40 bonnes réponses.',
+          text: 'Seuil de réussite : ${CivicExamFormat.seuil} / '
+              '${CivicExamFormat.questions} bonnes réponses.',
         ),
       ],
       onStart: () {
