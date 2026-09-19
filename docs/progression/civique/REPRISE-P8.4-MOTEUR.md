@@ -224,6 +224,13 @@ quand même** pour l'examen de thème **et** pour l'examen global : les deux pas
    **jamais** — or `chk_journey_objectif` interdit les deux à la fois. Aucun test existant ne peut
    donc voir les câblages du point 2 : **la fabrique vient avant le moteur**, sinon le premier test
    civique échouera sur la contrainte et non sur la logique visée.
+8. 🛑 **Une migration ne s'applique JAMAIS à la main sur la base de dev.** V068, V069 et V115 y
+   avaient été passées directement : le premier démarrage du backend a échoué sur
+   `42P07 relation "civic_official_units" already exists`, Flyway ne les connaissant pas. `verify`
+   restait vert — Zonky part d'une base vide, donc **seul un boot** pouvait le voir. Régularisé le
+   2026-09-19 (3 lignes inscrites dans `flyway_schema_history` après vérification objet par objet,
+   puis V070/V296/V297/V298 appliquées par Flyway). ⚠️ **Pour V071 : écrire le fichier, puis
+   démarrer l'application.** C'est la même famille que `DETTE-T1`.
 
 ---
 
