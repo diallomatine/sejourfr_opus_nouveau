@@ -1,13 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/repositories.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/progress_models.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
@@ -32,35 +30,21 @@ import 'progres_labels.dart';
 ///
 /// 🛑 **Le bloc 5 est un LIEN**, pas une seconde liste : les écrans
 /// d'historique existent.
-class ProgresMouvement extends ConsumerStatefulWidget {
+class ProgresMouvement extends ConsumerWidget {
   const ProgresMouvement({super.key});
 
   @override
-  ConsumerState<ProgresMouvement> createState() => _ProgresMouvementState();
-}
-
-class _ProgresMouvementState extends ConsumerState<ProgresMouvement> {
-  Progress? _progres;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final progres = await ref.read(progressRepositoryProvider).progres();
-      if (mounted) setState(() => _progres = progres);
-    } catch (_) {
-      // Best-effort : le reste de l'écran (maîtrise par catégorie) n'a pas à
-      // disparaître parce qu'un bloc de mouvement manque.
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final progres = _progres;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 🛑 **La MÊME lecture que le reste de l'écran** (2026-09-19) :
+    // `progressProvider` est gardé en vie pour la session et lié au compte.
+    // Ce bloc faisait sa propre requête en `initState` — un second
+    // `GET /api/me/progress` à chaque ouverture, et deux états qui pouvaient
+    // diverger sur le même écran. Le web lisait déjà `progressApi.get()`, qui
+    // est mis en cache : c'est un rattrapage de parité.
+    //
+    // Best-effort conservé : une lecture en échec fait disparaître le bloc, le
+    // reste de l'écran n'a pas à tomber avec lui.
+    final progres = ref.watch(progressProvider).valueOrNull;
     if (progres == null) return const SizedBox.shrink();
 
     final tcf = progres.tcf;

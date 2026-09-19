@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { ProgresMouvement } from "@/app/_components/progres/ProgresMouvement";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3,
   BookOpen,
   Gavel,
   Globe,
@@ -14,25 +13,80 @@ import {
   Mic,
   Minus,
   PenLine,
+  Plus,
   Scale,
   SpellCheck,
   TrendingDown,
   TrendingUp,
   Users,
-  Waves,
+  BarChart3,
 } from "lucide-react";
 import { CategoryBarLine } from "@/app/_components/ReinforceRow";
 import { ProgressDonut } from "@/app/_components/hub/ModuleHubParts";
-import { PlanDomainsSummary } from "@/app/_components/plan/PlanDomainsSummary";
-import { dashboardApi } from "@/lib/api";
+import {
+  Card,
+  ChartNote,
+  ChartTitle,
+  EpreuveStatList,
+  EpreuveStatRow,
+  FilterChips,
+  GoalHero,
+  LevelChart,
+  LevelStrip,
+  Pad,
+  PanelHead,
+  SejourApp,
+  Stack,
+  Top,
+  sejourStyles,
+} from "@/app/_components/sejour/SejourKit";
+import { dashboardApi, progressApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { categoryBadge, categoryHref, moduleAverage, successHint } from "@/lib/dashboard";
-import { niveauActuelEpreuve, suiviNiveauLabel } from "@/lib/progres";
+import {
+  accueilEpreuveStatut,
+  accueilEpreuveTon,
+  accueilEvaluees,
+  PROGRESSION_COURBE_SUB,
+  PROGRESSION_COURBE_TITLE,
+  PROGRESSION_COURBE_VIDE_TITLE,
+  PROGRESSION_EPREUVES_SUB,
+  PROGRESSION_EPREUVES_TITLE,
+  PROGRESSION_EYEBROW,
+  PROGRESSION_HERO_LABEL,
+  PROGRESSION_HERO_META,
+  PROGRESSION_LEAD,
+  PROGRESSION_NIVEAU_ACTUEL_LABEL,
+  PROGRESSION_SANS_EXAMEN_TEXT,
+  PROGRESSION_TITLE,
+  PROGRESSION_VOIR_LABEL,
+  SUIVI_SANS_EXAMEN_LABEL,
+  niveauActuelEpreuve,
+  progresCourbe,
+  progresEvolutionFleche,
+  progresEvolutionTrendTone,
+  progressionCourbeVideText,
+  progressionDerniereMesure,
+  progressionMark,
+  progressionMesureesLabel,
+  progressionMesureesPart,
+  progressionMesureesPourcent,
+  progressionNom,
+  progressionObjectifPill,
+  progressionPalier,
+  progressionPalierCaption,
+  progressionResultatsHref,
+  progressionSerieLabel,
+  suiviNiveauLabel,
+} from "@/lib/progres";
 import {
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
-  estimatedTcfLevelScopeLabel,
+  type EpreuveType,
+  type EvaluationQualifianteDto,
   niveauCecrlLabel,
+  type ProgressDto,
+  type ProgressEpreuveDto,
   type TcfDomainProfileDto,
 } from "@/lib/types";
 
@@ -65,16 +119,41 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 /**
- * /statistiques — « Ma progression » (maquette sejour_fr.html) : 3 cards
- * donut (maîtrise globale / TCF avec niveau estimé / civique) + une section
- * par parcours listant chaque catégorie (icône, nb d'examens + record,
- * barre de réussite, tendance dernier vs avant-dernier examen, badge).
- * Chaque ligne ouvre l'entraînement de la catégorie.
+ * **« Votre progression »** — la progression **globale**, ouverte depuis le
+ * Profil.
+ *
+ * ⚠️ **À ne pas confondre avec `/plan/progression`** (« Ma progression »,
+ * l'historique des cycles) ni avec `/historique/epreuve/{domaine}` (« Vos
+ * résultats » d'une épreuve). Cette page-ci répond à « où en est mon niveau,
+ * épreuve par épreuve ».
+ *
+ * 🛑 **La partie TCF est refaite sur le template du propriétaire**
+ * (`docs/progression/ecran_progression_normal.html`, première partie) : le
+ * bandeau d'objectif et sa bande de paliers, « Votre évolution » à onglets, et
+ * « Vos épreuves ». Le **parcours civique** reste en dessous, inchangé : le
+ * template ne le couvre pas.
+ *
+ * 🛑 **Rien n'est classé ici.** Paliers, tendances et mots d'état arrivent
+ * **servis** — `GET /api/me/progress` pour les 4 épreuves (le palier vient de
+ * `TcfProfileService.levelProfileAccueil`, **l'autorité d'affichage**, la même
+ * que l'Accueil, le Profil, le Diagnostic et Réviser) et
+ * `GET /api/me/progress/tcf/{epreuve}/historique` pour la série d'examens
+ * qualifiants. Les dérivations vivent dans `lib/progres.ts`, miroir mot pour
+ * mot de `screens/progres/progres_labels.dart`.
+ *
+ * 🛑 **Miroir de `ProgresScreen` côté mobile**, bloc pour bloc.
  */
 export default function StatistiquesPage() {
   const { user, status } = useAuth();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [progres, setProgres] = useState<ProgressDto | null>(null);
+  /** La série servie de chaque épreuve, la plus récente d'abord. */
+  const [histos, setHistos] = useState<Partial<Record<EpreuveType, EvaluationQualifianteDto[]>>>({});
   const [loading, setLoading] = useState(true);
+  const [onglet, setOnglet] = useState<EpreuveType>("TCF_CO");
+  /** Le point choisi, **dans l'ordre servi**. `null` ⇒ la mesure la plus récente. */
+  const [point, setPoint] = useState<number | null>(null);
+  const courbeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (status !== "authenticated" || !user) return;
@@ -89,10 +168,51 @@ export default function StatistiquesPage() {
       .catch(() => {
         if (!cancelled) setLoading(false);
       });
+    /* 🛑 **Le palier d'une épreuve vient de `progressApi`**, l'autorité
+       d'affichage — jamais d'un second calcul. La lecture est mise en cache par
+       le client, que l'Accueil vient de remplir. */
+    progressApi
+      .get()
+      .then((p) => {
+        if (!cancelled) setProgres(p);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [status, user]);
+
+  /* 🛑 **La série d'une épreuve est SERVIE** : une lecture par épreuve publiée,
+     mises en cache par le client. Une bascule d'onglet ne coûte donc aucun
+     appel, et c'est le même total que visiter les quatre onglets un à un. */
+  const epreuves: ProgressEpreuveDto[] = useMemo(
+    () => progres?.tcf.epreuves ?? [],
+    [progres],
+  );
+
+  useEffect(() => {
+    if (epreuves.length === 0) return;
+    let cancelled = false;
+    for (const e of epreuves) {
+      progressApi
+        .historique(e.epreuve)
+        .then((h) => {
+          if (cancelled) return;
+          setHistos((prev) => ({ ...prev, [e.epreuve]: h.evaluations }));
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [epreuves]);
+
+  /** Le tap d'une ligne sélectionne l'onglet et ramène la courbe sous les yeux. */
+  const choisirEpreuve = useCallback((epreuve: EpreuveType) => {
+    setOnglet(epreuve);
+    setPoint(null);
+    courbeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
 
   if (status === "loading" || (loading && status === "authenticated")) {
     return (
@@ -117,79 +237,185 @@ export default function StatistiquesPage() {
     );
   }
 
-  const tcfAvg = summary ? moduleAverage(summary.tcf) : null;
   const civiqueAvg = summary ? moduleAverage(summary.civique) : null;
   const globalAvg = summary?.globalSuccessPercent ?? null;
 
+  const objectif = progres?.tcf.objectif ?? null;
+  const compte = accueilEvaluees(epreuves);
+  const valeur = progressionMesureesLabel(compte);
+  /* 🛑 **Un onglet par épreuve SERVIE**, jamais sur une épreuve que le serveur
+     ne publie pas. */
+  const courant = epreuves.some((e) => e.epreuve === onglet)
+    ? onglet
+    : epreuves[0]?.epreuve ?? onglet;
+  const situation = epreuves.find((e) => e.epreuve === courant) ?? null;
+  const servies = histos[courant] ?? [];
+  const { ladder, points } = progresCourbe(servies, objectif);
+  const choisi = point == null || point >= servies.length ? 0 : point;
+  const mesure = servies[choisi] ?? null;
+  const resultatsHref = progressionResultatsHref(courant);
+
   return (
-    <main className="prog">
-      <header className="prog-head">
-        <div className="prog-eyebrow">
-          <BarChart3 size={16} aria-hidden />
-          <span>Suivi</span>
+    <SejourApp wide>
+      <Top
+        kicker={PROGRESSION_EYEBROW}
+        title={PROGRESSION_TITLE}
+        lead={PROGRESSION_LEAD}
+      />
+
+      {/* ------------------------------------------------- TCF (le template) */}
+      {epreuves.length > 0 && (
+        <Pad>
+          <Stack>
+            <GoalHero
+              label={PROGRESSION_HERO_LABEL}
+              /* 🛑 Sans les deux nombres servis, on n'annonce **aucun
+                 chiffre** : le bandeau garde son intitulé et sa bande. */
+              value={valeur}
+              pill={progressionObjectifPill(objectif)}
+              ratio={progressionMesureesPart(compte)}
+              metaLabel={valeur ? PROGRESSION_HERO_META : null}
+              metaValue={progressionMesureesPourcent(compte)}
+            >
+              <LevelStrip
+                items={epreuves.map((epreuve) => ({
+                  mark: progressionMark(epreuve.epreuve),
+                  level: progressionPalier(epreuve),
+                  /* 🛑 La flèche **lit** le sens servi (`evolution`), elle ne
+                     le déduit d'aucune série de paliers. */
+                  trend: progresEvolutionFleche(epreuve.evolution),
+                  trendTone: progresEvolutionTrendTone(epreuve.evolution),
+                  /* 🛑 Le mot est celui de l'ACCUEIL, la seule dérivation du
+                     dépôt pour cet état servi. Le template en proposait trois à
+                     lui (« En progrès » / « Stable » / « À évaluer ») : un
+                     second vocabulaire d'état aurait fait dire deux mots
+                     différents du même fait sur deux écrans que le candidat
+                     voit à la suite. */
+                  caption: accueilEpreuveStatut(epreuve),
+                }))}
+              />
+            </GoalHero>
+
+            <section ref={courbeRef} className="prog-sec">
+              <PanelHead title={PROGRESSION_COURBE_TITLE} sub={PROGRESSION_COURBE_SUB} />
+              <Card>
+                <FilterChips
+                  options={epreuves.map((e) => ({
+                    id: e.epreuve,
+                    label: progressionMark(e.epreuve),
+                  }))}
+                  value={courant}
+                  onChange={choisirEpreuve}
+                />
+                <ChartTitle
+                  name={progressionNom(courant)}
+                  /* 🛑 Le palier vient de l'autorité d'affichage servie, « — »
+                     compris : jamais « A1 » pour une absence de mesure. */
+                  level={situation ? progressionPalier(situation) : "—"}
+                  caption={PROGRESSION_NIVEAU_ACTUEL_LABEL}
+                />
+                {/* 🛑 **Pas de courbe sans point** : un panneau vide
+                    raconterait une absence comme un incident. */}
+                {points.length > 0 ? (
+                  <LevelChart
+                    ladder={ladder}
+                    points={points}
+                    /* Les points sont chronologiques, la liste servie ne l'est
+                       pas : l'index se retourne. */
+                    activeIndex={servies.length - 1 - choisi}
+                    onSelect={(i) => setPoint(servies.length - 1 - i)}
+                  />
+                ) : (
+                  <div className="prog-chart-empty">
+                    <span className="prog-chart-empty-ico" aria-hidden>
+                      <Plus size={22} strokeWidth={2} />
+                    </span>
+                    <strong>{PROGRESSION_COURBE_VIDE_TITLE}</strong>
+                    <span>{progressionCourbeVideText(courant)}</span>
+                  </div>
+                )}
+                {/* 🛑 **Aucun score n'est servi** par l'historique : on affiche
+                    ce qui l'est (la provenance, la date, le palier) et rien de
+                    plus. Le « x / 25 bonnes réponses » du template n'existe
+                    pas ici. */}
+                <ChartNote
+                  title={progressionDerniereMesure(mesure) ?? SUIVI_SANS_EXAMEN_LABEL}
+                  text={mesure ? suiviNiveauLabel(mesure.niveau) : PROGRESSION_SANS_EXAMEN_TEXT}
+                  actionLabel={mesure ? PROGRESSION_VOIR_LABEL : null}
+                  href={mesure ? resultatsHref : null}
+                />
+              </Card>
+            </section>
+
+            <section className="prog-sec">
+              <PanelHead
+                title={PROGRESSION_EPREUVES_TITLE}
+                sub={PROGRESSION_EPREUVES_SUB}
+              />
+              <EpreuveStatList>
+                {epreuves.map((epreuve) => (
+                  <EpreuveStatRow
+                    key={epreuve.epreuve}
+                    mark={progressionMark(epreuve.epreuve)}
+                    title={progressionNom(epreuve.epreuve)}
+                    pill={accueilEpreuveStatut(epreuve)}
+                    pillTone={accueilEpreuveTon(epreuve)}
+                    /* 🛑 **La série vient de l'historique SERVI**, dans l'ordre
+                       servi : on la lit du plus ancien au plus récent, rien n'y
+                       est interprété. */
+                    desc={
+                      progressionSerieLabel(histos[epreuve.epreuve] ?? [])
+                      ?? SUIVI_SANS_EXAMEN_LABEL
+                    }
+                    level={progressionPalier(epreuve)}
+                    levelCaption={progressionPalierCaption(epreuve)}
+                    measured={epreuve.niveau !== null}
+                    selected={epreuve.epreuve === courant}
+                    onClick={() => choisirEpreuve(epreuve.epreuve)}
+                  />
+                ))}
+              </EpreuveStatList>
+            </section>
+          </Stack>
+        </Pad>
+      )}
+
+      {/* ------------------------- Le parcours CIVIQUE — inchangé, en dessous */}
+      <Pad>
+        <div className="prog-civ">
+          {/* 🛑 **Ce qui a BOUGÉ** (T28, `30_` §7) : il couvre les DEUX
+              parcours, donc il reste ici. */}
+          <ProgresMouvement />
+
+          <section className="prog-donuts" aria-label="Vue d'ensemble">
+            <DonutCard
+              label="Maîtrise globale"
+              percent={globalAvg}
+              headline={successHint(globalAvg)}
+              chip="Tous parcours confondus"
+              chipTone="neutral"
+            />
+            <DonutCard
+              label="Examen civique"
+              percent={civiqueAvg}
+              headline={successHint(civiqueAvg)}
+              chip={`${summary?.civique.length ?? 5} catégories`}
+              chipTone="red"
+            />
+          </section>
+
+          <ModuleProgressSection
+            icon={<Lightbulb size={18} strokeWidth={2} />}
+            title="Examen civique"
+            categories={summary?.civique ?? []}
+            examOutOf={20}
+            profil={summary?.tcfDomainProfile ?? null}
+          />
         </div>
-        <h1>Ma progression</h1>
-        <p>Votre maîtrise par parcours et par catégorie, au fil de vos entraînements.</p>
-      </header>
-
-      <section className="prog-donuts" aria-label="Vue d'ensemble">
-        <DonutCard
-          label="Maîtrise globale"
-          percent={globalAvg}
-          headline={successHint(globalAvg)}
-          chip="Tous parcours confondus"
-          chipTone="neutral"
-        />
-        <DonutCard
-          label="TCF IRN"
-          percent={tcfAvg}
-          headline={
-            summary?.estimatedTcfLevel
-              ? `Niveau estimé ${niveauCecrlLabel(summary.estimatedTcfLevel)}`
-              : successHint(tcfAvg)
-          }
-          /* Un niveau qui ne porte pas sur les 4 épreuves le dit ici. */
-          hint={estimatedTcfLevelScopeLabel(summary)}
-          chip={`${summary?.tcf.length ?? 5} catégories`}
-          chipTone="blue"
-        />
-        <DonutCard
-          label="Examen civique"
-          percent={civiqueAvg}
-          headline={successHint(civiqueAvg)}
-          chip={`${summary?.civique.length ?? 5} catégories`}
-          chipTone="red"
-        />
-      </section>
-
-      {/* 🛑 **Ce qui a BOUGÉ** (T28, `30_` §7), greffé ici plutôt que sur une
-          troisième page « progression » : le dépôt en a déjà deux, et elles
-          répondent à « où j'en suis ». Ce bloc répond à « qu'est-ce qui a
-          bougé ». */}
-      <ProgresMouvement />
-
-      {/* Les 4 domaines du TCF, dans l'ordre d'urgence décidé par le serveur :
-          un pourcentage global ne dit pas OÙ le candidat bloque, une épreuve
-          jamais mesurée si. */}
-      <PlanDomainsSummary />
-
-      <ModuleProgressSection
-        icon={<Waves size={18} strokeWidth={2} />}
-        title="TCF IRN"
-        categories={summary?.tcf ?? []}
-        examOutOf={25}
-        profil={summary?.tcfDomainProfile ?? null}
-      />
-      <ModuleProgressSection
-        icon={<Lightbulb size={18} strokeWidth={2} />}
-        title="Examen civique"
-        categories={summary?.civique ?? []}
-        examOutOf={20}
-        profil={summary?.tcfDomainProfile ?? null}
-      />
+      </Pad>
 
       <style>{styles}</style>
-    </main>
+    </SejourApp>
   );
 }
 
@@ -204,8 +430,7 @@ function DonutCard({
   label: string;
   percent: number | null;
   headline: string;
-  /** Précision facultative sous le titre (périmètre d'un niveau estimé
-   *  partiel). Absente ⇒ la carte garde exactement sa forme d'origine. */
+  /** Précision facultative sous le titre. */
   hint?: string | null;
   chip: string;
   chipTone: "neutral" | "blue" | "red";
@@ -239,8 +464,8 @@ function ModuleProgressSection({
   /**
    * L'autorité d'affichage du niveau d'une épreuve, servie par le **même**
    * appel que les catégories (`GET /api/me/dashboard`) — aucun appel de plus.
-   * Il est passé aux **deux** sections, et c'est sans effet sur la civique :
-   * aucune de ses catégories n'y figure, donc aucune ligne n'y gagne de palier.
+   * Sans effet sur la section civique : aucune de ses catégories n'y figure,
+   * donc aucune ligne n'y gagne de palier.
    */
   profil: TcfDomainProfileDto | null;
 }) {
@@ -270,10 +495,8 @@ function ModuleProgressSection({
  * niveau de **n'importe quelle** soumission, entraînements compris.
  * → `docs/decisions/diagnostic.md`, 2026-09-16.
  *
- * 🛑 **Seules les 4 épreuves TCF ont un palier.** Un thème civique et
- * `TCF_STRUCTURE` rendent `null` : la ligne retombe alors sur ce qu'elle sait
- * **compter** (examens passés, record, tendance, maîtrise), jamais sur un
- * palier fabriqué.
+ * 🛑 **Seules les 4 épreuves TCF ont un palier.** Un thème civique rend
+ * `null` : la ligne retombe alors sur ce qu'elle sait **compter**.
  */
 function CategoryRow({
   cat,
@@ -341,40 +564,44 @@ function CategoryRow({
 }
 
 const styles = `
-  .prog {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 30px 40px 80px;
-  }
+  /* 🛑 La partie TCF n'a AUCUN CSS d'écran : elle est entièrement en kit. Ce
+     qui suit habille le parcours CIVIQUE, laissé inchangé, plus la section
+     d'une carte de kit et l'état vide de la courbe. */
 
-  /* ===== header ===== */
-  .prog-head { margin-bottom: 22px; }
-  .prog-eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 700;
-    letter-spacing: 0.04em; text-transform: uppercase;
+  .prog-sec { display: grid; gap: 10px; }
+
+  /* L'etat vide de la courbe : le rendu sans mesure du template. */
+  .prog-chart-empty {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    padding: 24px 12px;
+    text-align: center;
+  }
+  .prog-chart-empty-ico {
+    display: grid; place-items: center;
+    width: 52px; height: 52px;
+    border-radius: var(--sf-radius-lg);
+    background: var(--color-paper-2);
     color: var(--color-blue);
-    margin-bottom: 8px;
   }
-  .prog-head h1 {
-    margin: 0 0 8px;
-    font-family: var(--font-sans);
-    font-size: clamp(24px, 4vw, 32px);
-    font-weight: 800; letter-spacing: -0.02em;
-    color: var(--color-ink); line-height: 1.1;
+  .prog-chart-empty strong {
+    margin-top: 5px;
+    font-size: 13px; font-weight: 800;
+    color: var(--color-ink);
   }
-  .prog-head p {
-    margin: 0;
+  .prog-chart-empty span {
+    font-size: 11.5px; line-height: 1.4;
     color: var(--color-muted);
-    font-size: 15.5px; line-height: 1.5;
   }
 
-  /* ===== donut cards ===== */
+  /* ===== le parcours civique ===== */
+  .prog-civ { display: grid; gap: 22px; margin-top: 22px; }
+
   .prog-donuts {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
-    margin-bottom: 22px;
   }
   .prog-donut-card {
     background: #fff;
@@ -398,7 +625,6 @@ const styles = `
     color: var(--color-ink);
     margin-bottom: 7px;
   }
-  /* Périmètre d'un niveau estimé partiel : une précision, pas une alerte. */
   .prog-donut-hint {
     display: block;
     font-family: var(--font-sans);
@@ -417,13 +643,11 @@ const styles = `
   .prog-chip-blue { background: var(--color-blue-light); color: var(--color-blue); }
   .prog-chip-red { background: var(--color-red-light); color: var(--color-red); }
 
-  /* ===== sections module ===== */
   .prog-module {
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 18px;
     padding: 0 0 8px;
-    margin-bottom: 22px;
     overflow: hidden;
   }
   .prog-module-head {
@@ -499,6 +723,7 @@ const styles = `
   .prog-badge-none { background: var(--color-line-2); color: var(--color-muted); }
 
   /* ===== états ===== */
+  .prog { max-width: 1180px; margin: 0 auto; padding: 30px 40px 80px; }
   .prog-empty {
     min-height: 60vh;
     display: flex; align-items: center; justify-content: center;
@@ -517,15 +742,14 @@ const styles = `
   /* ===== responsive ===== */
   @media (max-width: 1000px) {
     .prog-donuts { grid-template-columns: 1fr; }
-    .prog-row {
-      grid-template-columns: 38px 1fr 28px 110px;
-    }
+    .prog-row { grid-template-columns: 38px 1fr 28px 110px; }
     .prog-row-bar { grid-column: 2 / -1; grid-row: 2; }
   }
   @media (max-width: 768px) {
-    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
     .prog { padding: 64px 18px 48px; }
     .prog-badge { display: none; }
     .prog-row { grid-template-columns: 38px 1fr 28px; gap: 10px; }
+    .prog-module { border-radius: 14px; }
+    .prog-module-head, .prog-row { padding-left: 14px; padding-right: 14px; }
   }
 `;

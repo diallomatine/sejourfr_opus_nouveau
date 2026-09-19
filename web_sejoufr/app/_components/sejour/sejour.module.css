@@ -3799,3 +3799,428 @@
     font-size: 30px;
   }
 }
+
+/* ============================================================================
+   L'ÉCRAN « VOTRE PROGRESSION » (template `docs/progression/
+   ecran_progression_normal.html`, 2026-09-19)
+
+   Le bandeau d'objectif et sa bande de paliers, la tête et le pied de la carte
+   à courbe, la liste des épreuves. Miroirs Flutter : `SfGoalHero`,
+   `SfLevelStrip`, `SfChartTitle`, `SfChartNote`, `SfEpreuveStatRow` /
+   `SfEpreuveStatList`.
+   ========================================================================== */
+
+/* La phrase de cadrage de l'en-tête (`Top lead`). */
+.topLead {
+  margin: 8px 0 0;
+  max-width: 44ch;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- Le bandeau d'objectif ---------- */
+
+.goalHero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 20px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-blue-dark) 0%,
+    var(--color-blue) 62%,
+    var(--color-blue-mid) 100%
+  );
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* L'œil-de-bœuf du coin (`.hero:after` du template). */
+.goalHero::after {
+  content: "";
+  position: absolute;
+  right: -68px;
+  top: -86px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 34px solid color-mix(in srgb, white 5%, transparent);
+  pointer-events: none;
+}
+
+.goalHero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.goalHeroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.goalHeroId {
+  min-width: 0;
+}
+
+.goalHeroLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, white 82%, var(--color-blue));
+}
+
+.goalHeroValue {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.goalHeroPill {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 12%, transparent);
+  border: 1px solid color-mix(in srgb, white 15%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.goalHeroRail {
+  display: block;
+  height: 7px;
+  margin: 18px 0 0;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 18%, transparent);
+  overflow: hidden;
+}
+
+.goalHeroRail i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: white;
+}
+
+.goalHeroMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: color-mix(in srgb, white 82%, var(--color-blue));
+}
+
+.goalHeroMeta b {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: white;
+}
+
+.goalHeroBody {
+  margin-top: 12px;
+}
+
+/* ---------- La bande des paliers ---------- */
+
+/* 🛑 **Autant de colonnes que de tuiles servies** : `repeat(auto-fit)` suit la
+   liste, aucun « 4 » n'est écrit ici. */
+.levelStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.levelStripTile {
+  min-width: 0;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: color-mix(in srgb, white 10%, transparent);
+  border: 1px solid color-mix(in srgb, white 8%, transparent);
+}
+
+.levelStripMark {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, white 80%, var(--color-blue));
+}
+
+.levelStripValue {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.levelStripValue i {
+  font-style: normal;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Le ton d'une flèche : trois teintes **lisibles sur le bleu**, jamais les
+   teintes pleines du produit. */
+.trendUp { color: var(--color-green-bright); }
+.trendFlat { color: var(--color-amber); }
+.trendDown { color: var(--color-red-bright); }
+
+.levelStripCaption {
+  display: block;
+  margin-top: 3px;
+  font-size: 9.5px;
+  line-height: 1.25;
+  color: color-mix(in srgb, white 84%, var(--color-blue));
+}
+
+/* ---------- La tête d'une carte à courbe ---------- */
+
+.chartTitle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chartName {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.chartLevel {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--color-ink);
+  text-align: right;
+}
+
+.chartLevel small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-muted-2);
+}
+
+/* ---------- Le pied d'une carte à courbe ---------- */
+
+.chartNote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+  padding: 10px 11px;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-line-2);
+}
+
+.chartNoteBody {
+  min-width: 0;
+}
+
+.chartNoteBody b {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--color-ink);
+}
+
+.chartNoteBody span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.chartNoteLink {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: var(--sf-radius-xs);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+
+.chartNoteLink:hover {
+  background: var(--color-blue-light);
+}
+
+/* ---------- La liste des épreuves ---------- */
+
+.statList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--sf-radius-xl);
+  background: white;
+  box-shadow: var(--sf-shadow-border);
+}
+
+.statList > li + li {
+  border-top: 1px solid var(--color-line-2);
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  padding: 13px 14px;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background var(--sf-quick);
+}
+
+.statRow:hover,
+.statRow.isOn {
+  background: var(--color-blue-soft);
+}
+
+.statRow:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+
+.statMark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-blue);
+}
+
+.statMark.isNa {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.statId {
+  min-width: 0;
+}
+
+.statName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+/* La pastille reprend la teinte du ton servi, fond compris : `currentColor`
+   évite une seconde table de fonds clairs. */
+.statPill {
+  flex: 0 0 auto;
+  font-style: normal;
+  padding: 3px 6px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, currentColor 13%, white);
+  font-size: 9.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statDesc {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-muted-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statLevel {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--color-ink);
+  text-align: right;
+}
+
+.statLevel.isNa {
+  color: var(--color-muted-2);
+}
+
+.statLevel small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-muted-2);
+}
+
+.statChevron {
+  flex: 0 0 auto;
+  color: var(--color-muted-2);
+}
+
+/* ⚠️ Palier desktop : les deux blocs respirent, rien d'autre ne change. Une
+   media query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .goalHero {
+    padding: 26px 24px;
+  }
+
+  .goalHeroValue {
+    font-size: 31px;
+  }
+
+  .statRow {
+    padding: 15px 20px;
+  }
+}

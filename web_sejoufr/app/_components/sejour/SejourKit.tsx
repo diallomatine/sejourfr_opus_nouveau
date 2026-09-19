@@ -20,6 +20,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Circle,
   CircleDot,
   Info,
@@ -159,12 +160,21 @@ export function Top({
   onBack,
   kicker,
   title,
+  lead,
   badge,
 }: {
   backTo?: string;
   onBack?: () => void;
   kicker?: string;
   title: string;
+  /**
+   * La phrase de cadrage sous le titre (`.hero-copy` de la maquette).
+   *
+   * 🛑 Une **variante** de l'en-tête, pas une primitive de plus : un écran qui
+   * s'annonce en trois lignes — œil-de-bœuf, titre, phrase — est le même motif
+   * que celui qui s'annonce en deux. Miroir Flutter : `SfTop.lead`.
+   */
+  lead?: string;
   badge?: string;
 }) {
   const slot = useContext(TopSlotContext);
@@ -189,6 +199,7 @@ export function Top({
         <div className={styles.topText}>
           {kicker ? <p className={styles.kicker}>{kicker}</p> : null}
           <h1 className={styles.title}>{title}</h1>
+          {lead ? <p className={styles.topLead}>{lead}</p> : null}
           {badge ? <span className={styles.badge}>{badge}</span> : null}
         </div>
       </header>
@@ -2314,4 +2325,317 @@ export function HeroBanner({
       {children ? <div className={styles.heroBody}>{children}</div> : null}
     </section>
   );
+}
+
+/* ============================================================================
+   L'ÉCRAN « VOTRE PROGRESSION » (template `docs/progression/
+   ecran_progression_normal.html`, 2026-09-19)
+
+   Les cinq briques de sa PREMIÈRE partie : le bandeau d'objectif et sa bande de
+   paliers, la tête et le pied de la carte à courbe, et la ligne d'une épreuve.
+
+   🛑 **Aucune ne classe quoi que ce soit.** Palier, mot d'état, ton, flèche,
+   part parcourue : tout arrive **composé** de faits servis (`lib/progres.ts`).
+   Miroirs Flutter : `SfGoalHero`, `SfLevelStrip`, `SfChartTitle`,
+   `SfChartNote`, `SfEpreuveStatRow` / `SfEpreuveStatList`.
+   ========================================================================== */
+
+/**
+ * **Le bandeau d'objectif d'un écran de progression** — le `.hero` du
+ * template : œil-de-bœuf, intitulé + valeur en gros, pastille d'objectif à
+ * droite, rail, ligne de mesure, puis ce que l'écran y pose (la bande des
+ * paliers).
+ *
+ * 🛑 **Distinct des trois héros voisins**, qu'il ne faut pas remplacer par lui :
+ * - `ResultHero` porte **un palier** en très gros — c'est un résultat ;
+ * - `HeroBanner` **présente** un écran d'archive, sans aucun chiffre ;
+ * - `GoalBanner` est une bande **compacte**, posée DANS une carte.
+ *
+ * Celui-ci porte un **avancement** : un compteur, un rail et sa lecture en
+ * pourcentage.
+ *
+ * 🛑 `ratio` est une **part passée**, jamais dérivée ici, et le pourcentage est
+ * **écrit par l'appelant** (`metaValue`) : le kit ne convertit aucun nombre.
+ * Absents tous les deux ⇒ ni rail ni chiffre, le rendu exact d'une donnée non
+ * servie.
+ *
+ * Miroir Flutter : `SfGoalHero`.
+ */
+export function GoalHero({
+  label,
+  value,
+  pill,
+  ratio,
+  metaLabel,
+  metaValue,
+  children,
+}: {
+  /** « Vers votre objectif ». */
+  label: string;
+  /**
+   * « 2 épreuves sur 4 ». **Composé par l'appelant.** `null` quand le serveur
+   * ne sert pas de quoi l'écrire : le bandeau garde son intitulé et sa bande de
+   * paliers, mais **n'annonce aucun chiffre**.
+   */
+  value?: string | null;
+  /** « Objectif B1 ». `null` sans démarche déclarée. */
+  pill?: string | null;
+  /** Part parcourue (0-1). `null` ⇒ pas de rail. */
+  ratio?: number | null;
+  metaLabel?: string | null;
+  /** Le pourcentage, **déjà écrit**. `null` ⇒ aucun chiffre annoncé. */
+  metaValue?: string | null;
+  /** La bande des paliers. Absente ⇒ le bandeau s'arrête là. */
+  children?: ReactNode;
+}) {
+  const rail = ratio == null ? null : Math.min(Math.max(ratio, 0), 1);
+  return (
+    <section className={styles.goalHero}>
+      <div className={styles.goalHeroTop}>
+        <div className={styles.goalHeroId}>
+          <p className={styles.goalHeroLabel}>{label}</p>
+          {value ? <p className={styles.goalHeroValue}>{value}</p> : null}
+        </div>
+        {pill ? <span className={styles.goalHeroPill}>{pill}</span> : null}
+      </div>
+      {rail != null ? (
+        <span className={styles.goalHeroRail} aria-hidden>
+          <i style={{ width: `${rail * 100}%` }} />
+        </span>
+      ) : null}
+      {metaLabel || metaValue ? (
+        <p className={styles.goalHeroMeta}>
+          <span>{metaLabel}</span>
+          {metaValue ? <b>{metaValue}</b> : null}
+        </p>
+      ) : null}
+      {children ? <div className={styles.goalHeroBody}>{children}</div> : null}
+    </section>
+  );
+}
+
+/**
+ * Le ton d'une **flèche de tendance**, posée sur un fond de marque.
+ *
+ * 🛑 **Il se passe, il ne se dérive d'aucun nombre** : l'appelant le tient du
+ * sens d'évolution **servi** (`NiveauEvolution`).
+ *
+ * ⚠️ **Ce n'est pas un doublon de `BarTone`** : celui-là teinte un état
+ * pédagogique sur fond clair (cinq valeurs, dont « non mesuré »), celui-ci dit
+ * un **sens** sur fond sombre (trois valeurs). Miroir Flutter : `SfTrendTone`.
+ */
+export type TrendTone = "up" | "flat" | "down";
+
+const trendToneClass: Record<TrendTone, string> = {
+  up: styles.trendUp,
+  flat: styles.trendFlat,
+  down: styles.trendDown,
+};
+
+/**
+ * Un palier de la bande d'un bandeau d'objectif.
+ *
+ * 🛑 Tout est **composé par l'appelant**, `trend` compris : le kit ne sait ni ce
+ * qu'est un palier, ni ce qu'une flèche signifie. Miroir Flutter :
+ * `SfLevelStripItem`.
+ */
+export type LevelStripItem = {
+  /** Repère court (« CO »). */
+  mark: string;
+  /** Le palier, ou le mot d'une absence de mesure (« — »). */
+  level: string;
+  /**
+   * Le **glyphe** de tendance. `null` quand l'évolution est inconnue — surtout
+   * pas un signe de stabilité, qui déguiserait une absence de mesure en bonne
+   * nouvelle.
+   */
+  trend?: string | null;
+  trendTone?: TrendTone;
+  /** L'état en un mot. `null` = rien à dire. */
+  caption?: string | null;
+};
+
+/**
+ * **La bande des paliers** d'un bandeau d'objectif — la `.level-strip` du
+ * template : une tuile par épreuve, sur le fond de marque du bandeau.
+ *
+ * 🛑 **Autant de tuiles qu'on lui en donne** : le nombre vient de la liste
+ * servie, jamais d'un « 4 » écrit ici. Miroir Flutter : `SfLevelStrip`.
+ */
+export function LevelStrip({ items }: { items: LevelStripItem[] }) {
+  return (
+    <ul className={styles.levelStrip}>
+      {items.map((item) => (
+        <li key={item.mark} className={styles.levelStripTile}>
+          <span className={styles.levelStripMark}>{item.mark}</span>
+          <span className={styles.levelStripValue}>
+            {item.level}
+            {item.trend ? (
+              <i className={trendToneClass[item.trendTone ?? "flat"]} aria-hidden>
+                {item.trend}
+              </i>
+            ) : null}
+          </span>
+          {item.caption ? (
+            <span className={styles.levelStripCaption}>{item.caption}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * **La tête d'une carte à courbe** — le `.chart-title` du template : le nom de
+ * l'épreuve à gauche, son palier en gros à droite et son intitulé sous lui.
+ *
+ * 🛑 **Rien n'est dérivé** : les trois chaînes arrivent composées, « — »
+ * compris. Miroir Flutter : `SfChartTitle`.
+ */
+export function ChartTitle({
+  name,
+  level,
+  caption,
+}: {
+  name: string;
+  level: string;
+  caption: string;
+}) {
+  return (
+    <div className={styles.chartTitle}>
+      <span className={styles.chartName}>{name}</span>
+      <span className={styles.chartLevel}>
+        {level}
+        <small>{caption}</small>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * **Le pied d'une carte à courbe** — le `.chart-note` du template : ce que dit
+ * la dernière mesure, et le lien qui l'ouvre.
+ *
+ * 🛑 **Distinct d'`InfoNote`**, l'encart ambre qui dit la *portée* d'une liste :
+ * celui-ci porte une **donnée** et une **action**. `actionLabel` et `href` vont
+ * ensemble : sans action, le pied reste un simple constat.
+ *
+ * Miroir Flutter : `SfChartNote`.
+ */
+export function ChartNote({
+  title,
+  text,
+  actionLabel,
+  href,
+}: {
+  title: string;
+  text?: string | null;
+  actionLabel?: string | null;
+  href?: string | null;
+}) {
+  return (
+    <div className={styles.chartNote}>
+      <span className={styles.chartNoteBody}>
+        <b>{title}</b>
+        {text ? <span>{text}</span> : null}
+      </span>
+      {actionLabel && href ? (
+        <Link href={href} className={styles.chartNoteLink}>
+          {actionLabel}
+          <ArrowRight size={13} strokeWidth={2.6} aria-hidden />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * **La ligne d'une épreuve sur un écran de progression** — l'`.exam-row` du
+ * template : repère court en tuile, nom + pastille de tendance, une phrase
+ * d'évolution, le palier à droite avec son intitulé, un chevron.
+ *
+ * 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
+ * - `LevelRow` porte une **échelle CECRL** et une ligne d'action — c'est la
+ *   ligne de l'Accueil, qui dit *quoi faire* ;
+ * - `EpreuveRow` porte un **anneau de couverture** — c'est la ligne de Réviser,
+ *   qui dit *où s'entraîner* ;
+ * - `ExamRow` porte un état de passage.
+ *
+ * Celle-ci dit **un palier et une tendance**, et rien d'autre.
+ *
+ * 🛑 `desc`, `pill`, `pillTone` et `level` arrivent **composés** : la brique ne
+ * classe rien et ne compare aucun palier. Miroir Flutter : `SfEpreuveStatRow`.
+ */
+export function EpreuveStatRow({
+  mark,
+  title,
+  pill,
+  pillTone,
+  desc,
+  level,
+  levelCaption,
+  measured,
+  selected,
+  onClick,
+}: {
+  mark: string;
+  title: string;
+  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
+  pill?: string | null;
+  pillTone?: BarTone;
+  /** La phrase d'évolution. `null` ⇒ rien à sa place. */
+  desc?: string | null;
+  /** Le palier servi, ou « — » quand rien n'est mesuré. 🛑 Jamais « A1 ». */
+  level: string;
+  /** L'intitulé sous le palier (« actuel » / « niveau »). */
+  levelCaption: string;
+  /**
+   * Y a-t-il une mesure derrière `level` ?
+   *
+   * 🛑 **Passé, jamais deviné du texte** : comparer une chaîne pour décider
+   * d'une couleur ferait dépendre l'apparence d'un libellé reformulable.
+   */
+  measured: boolean;
+  /** La ligne est-elle celle que la courbe affiche ? */
+  selected?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cx(styles.statRow, selected && styles.isOn)}
+      >
+        <span className={cx(styles.statMark, !measured && styles.isNa)}>{mark}</span>
+        <span className={styles.statId}>
+          <span className={styles.statName}>
+            {title}
+            {pill ? (
+              <i className={cx(styles.statPill, statusToneClass[pillTone ?? "muted"])}>
+                {pill}
+              </i>
+            ) : null}
+          </span>
+          {desc ? <span className={styles.statDesc}>{desc}</span> : null}
+        </span>
+        <span className={cx(styles.statLevel, !measured && styles.isNa)}>
+          {level}
+          <small>{levelCaption}</small>
+        </span>
+        <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.statChevron} />
+      </button>
+    </li>
+  );
+}
+
+/**
+ * **La liste des épreuves** — l'`.exam-list` du template : une carte unique,
+ * ses lignes séparées d'un filet.
+ *
+ * ⚠️ **Elle n'est pas `LevelList`** : celle-là empile des lignes autonomes,
+ * celle-ci les réunit dans un seul encart. Miroir Flutter : `SfEpreuveStatList`.
+ */
+export function EpreuveStatList({ children }: { children: ReactNode }) {
+  return <ul className={styles.statList}>{children}</ul>;
 }

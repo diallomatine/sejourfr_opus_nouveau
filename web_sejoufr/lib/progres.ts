@@ -16,9 +16,23 @@
  *   à battre et sans rien à perdre. Un compteur qu'on peut casser transforme
  *   une mesure en dette.
  */
-import type {BarTone, LadderStep} from "@/app/_components/sejour/SejourKit";
-import {cecrlIndex, niveauCecrlLabel, niveauCecrlShort} from "./types";
 import type {
+    BarTone,
+    ChartPoint,
+    LadderStep,
+    TrendTone,
+} from "@/app/_components/sejour/SejourKit";
+import {EPREUVE_PRESENTATION} from "./exam-durations";
+import {PLAN_DOMAIN_SECTION, planDomainSlug} from "./plan-domain";
+import {
+    cecrlIndex,
+    niveauCecrlLabel,
+    niveauCecrlShort,
+    SOURCE_EVALUATION_LABEL,
+} from "./types";
+import type {
+    EpreuveType,
+    EvaluationQualifianteDto,
     NiveauCecrl,
     NiveauEvolution,
     ProgressActiviteDto,
@@ -117,20 +131,41 @@ export function progresNiveauLabel(tcf: ProgressTcfDto): string | null {
  * invendable : c'est précisément ce qu'une réévaluation promet de mesurer.
  */
 export function progresEvolutionLabel(epreuve: ProgressEpreuveDto): string | null {
-    switch (epreuve.evolution) {
-        case "HAUSSE":
-            return epreuve.niveauInitial
-                ? `↑ depuis ${niveauCecrlLabel(epreuve.niveauInitial)}`
-                : "↑";
-        case "BAISSE":
-            return epreuve.niveauInitial
-                ? `↓ depuis ${niveauCecrlLabel(epreuve.niveauInitial)}`
-                : "↓";
-        case "STABLE":
-            return "=";
-        case "INCONNUE":
-            return null;
-    }
+    const fleche = progresEvolutionFleche(epreuve.evolution);
+    if (!fleche) return null;
+    if (!epreuve.niveauInitial || epreuve.evolution === "STABLE") return fleche;
+    return `${fleche} depuis ${niveauCecrlLabel(epreuve.niveauInitial)}`;
+}
+
+/**
+ * Le **glyphe seul** du marqueur d'évolution — la flèche de la bande des
+ * paliers, où la phrase entière ne tient pas.
+ *
+ * 🛑 **Une seule table de flèches** : `progresEvolutionLabel` en dérive. Deux
+ * jeux de signes finiraient par ne plus dire la même chose du même fait servi,
+ * sur deux blocs du même écran.
+ *
+ * 🛑 **`INCONNUE` ne rend rien** — surtout pas le signe de la stabilité.
+ *
+ * Miroir mobile : `progresEvolutionFleche`.
+ */
+export function progresEvolutionFleche(evolution: NiveauEvolution): string | null {
+    if (evolution === "HAUSSE") return "↑";
+    if (evolution === "BAISSE") return "↓";
+    if (evolution === "STABLE") return "=";
+    return null;
+}
+
+/**
+ * Le ton de la flèche, pour le kit.
+ *
+ * 🛑 Il **lit** le sens servi, il ne le déduit d'aucune série de paliers.
+ * Miroir mobile : `progresEvolutionTrendTone`.
+ */
+export function progresEvolutionTrendTone(evolution: NiveauEvolution): TrendTone {
+    if (evolution === "HAUSSE") return "up";
+    if (evolution === "BAISSE") return "down";
+    return "flat";
 }
 
 /** Le ton du marqueur. `INCONNUE` et `STABLE` restent **neutres**. */
@@ -593,3 +628,273 @@ export function progresCiviqueScore(civique: ProgressCiviqueDto): string | null 
 
 /** Où mènent les rapports (bloc 5). 🛑 L'existant, jamais une seconde liste. */
 export const PROGRES_HISTORIQUE_HREF = "/historique";
+
+/* ===========================================================================
+ * L'ÉCRAN « VOTRE PROGRESSION » — la progression GLOBALE (`/statistiques`)
+ * (template `docs/progression/ecran_progression_normal.html`, 2026-09-19)
+ * =========================================================================== */
+
+/**
+ * 🛑 **À ne pas confondre avec `PROGRES_TITLE`** (« Ce qui a bougé », le bloc
+ * de mouvement) ni avec « Ma progression » (`/plan/progression`, l'historique
+ * des cycles). Celui-ci est le titre de l'écran lui-même.
+ */
+export const PROGRESSION_EYEBROW = "TCF IRN";
+export const PROGRESSION_TITLE = "Votre progression";
+export const PROGRESSION_LEAD = "Suivez votre niveau réel, examen après examen.";
+
+/* ------------------------------------------------- le bandeau d'objectif -- */
+
+export const PROGRESSION_HERO_LABEL = "Vers votre objectif";
+export const PROGRESSION_HERO_META = "Niveau mesuré par vos examens";
+
+/** Les quatre épreuves nommées par l'unique table du web. */
+type ProgressionEpreuve = keyof typeof EPREUVE_PRESENTATION;
+
+/**
+ * L'épreuve, quand c'en est une des quatre du TCF. `null` sur le civique, la
+ * structure de la langue ou un conteneur d'examen — on n'invente alors ni nom
+ * ni repère. Miroir mobile : `planDomainSection`.
+ */
+export function progressionEpreuve(epreuve: EpreuveType): ProgressionEpreuve | null {
+    return Object.hasOwn(EPREUVE_PRESENTATION, epreuve)
+        ? (epreuve as ProgressionEpreuve)
+        : null;
+}
+
+/**
+ * Le nom d'une épreuve. 🛑 **Une seule table** : `EPREUVE_PRESENTATION`, celle
+ * que le bloc de mouvement emploie déjà. Miroir mobile :
+ * `EpreuveType.displayLabel`.
+ */
+export function progressionNom(epreuve: EpreuveType): string {
+    const domaine = progressionEpreuve(epreuve);
+    return domaine ? EPREUVE_PRESENTATION[domaine].label : epreuve;
+}
+
+/**
+ * Le repère court d'une épreuve (« CO »). 🛑 `PLAN_DOMAIN_SECTION`, l'autorité
+ * déjà en place — jamais un second découpage du code servi.
+ */
+export function progressionMark(epreuve: EpreuveType): string {
+    const domaine = progressionEpreuve(epreuve);
+    return domaine ? PLAN_DOMAIN_SECTION[domaine] : epreuve;
+}
+
+/** « Vos résultats » d'une épreuve — l'écran existant, jamais un nouveau. */
+export function progressionResultatsHref(epreuve: EpreuveType): string | null {
+    const domaine = progressionEpreuve(epreuve);
+    return domaine ? `/historique/epreuve/${planDomainSlug(domaine)}` : null;
+}
+
+/**
+ * « Objectif B1 ». `null` sans démarche déclarée.
+ *
+ * 🛑 `niveauCecrlShort` et jamais un troncage maison : `A1_NON_ATTEINT` se rend
+ * « &lt;A1 ».
+ */
+export function progressionObjectifPill(objectif: NiveauCecrl | null): string | null {
+    return objectif ? `Objectif ${niveauCecrlShort(objectif)}` : null;
+}
+
+/** Les deux nombres du compteur, tels que `accueilEvaluees` les sert. */
+type Compte = {faites: number; total: number} | null;
+
+/**
+ * « 2 épreuves sur 4 ».
+ *
+ * 🛑 **De l'arithmétique d'AFFICHAGE, jamais une classification** : les deux
+ * nombres sont servis (`accueilEvaluees` ne fait que compter la présence d'un
+ * palier), et le total est la liste servie elle-même — aucun « 4 » n'est écrit
+ * ici. `null` quand le serveur n'en publie aucune : on n'annonce alors aucun
+ * chiffre. Miroir mobile : `progressionMesureesLabel`.
+ */
+export function progressionMesureesLabel(compte: Compte): string | null {
+    if (!compte || compte.total <= 0) return null;
+    const n = compte.faites;
+    return `${n} épreuve${n > 1 ? "s" : ""} sur ${compte.total}`;
+}
+
+/**
+ * La part parcourue du rail. `null` ⇒ pas de rail.
+ *
+ * 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — règle que
+ * le dépôt interdit et qui tient toujours : c'est la part des épreuves
+ * **mesurées**, la lecture du compteur que `progressionMesureesLabel` écrit
+ * déjà en mots.
+ */
+export function progressionMesureesPart(compte: Compte): number | null {
+    return !compte || compte.total <= 0 ? null : compte.faites / compte.total;
+}
+
+/** « 50 % ». `null` quand l'un des deux nombres n'est pas servi. */
+export function progressionMesureesPourcent(compte: Compte): string | null {
+    const part = progressionMesureesPart(compte);
+    return part == null ? null : `${Math.round(part * 100)} %`;
+}
+
+/**
+ * Le palier d'une épreuve sur la bande et sur sa ligne.
+ *
+ * 🛑 **« — » et jamais « A1 »** : `null` = inconnu, jamais mauvais.
+ */
+export function progressionPalier(epreuve: ProgressEpreuveDto): string {
+    return epreuve.niveau ? niveauCecrlShort(epreuve.niveau) : "—";
+}
+
+/* ------------------------------------------------------ « Votre évolution » */
+
+export const PROGRESSION_COURBE_TITLE = "Votre évolution";
+export const PROGRESSION_COURBE_SUB = "Basée uniquement sur vos examens";
+export const PROGRESSION_NIVEAU_ACTUEL_LABEL = "Niveau actuel";
+
+/** Le lien du pied de la courbe, vers « Vos résultats » de l'épreuve. */
+export const PROGRESSION_VOIR_LABEL = "Voir";
+
+export const PROGRESSION_COURBE_VIDE_TITLE = "Aucune mesure pour l'instant";
+
+/**
+ * Le pied de la courbe quand rien n'a encore été mesuré. 🛑 Le titre est
+ * `SUIVI_SANS_EXAMEN_LABEL`, le mot déjà en place pour « aucun examen
+ * qualifiant » sur un écran de suivi : on n'en écrit pas un second.
+ */
+export const PROGRESSION_SANS_EXAMEN_TEXT =
+    "Passez une épreuve complète pour mesurer votre niveau.";
+
+/**
+ * 🛑 **Elle nomme l'épreuve** : le template écrit « une épreuve complète
+ * d'expression orale », donc la phrase suit l'onglet ouvert.
+ */
+export function progressionCourbeVideText(epreuve: EpreuveType): string {
+    return `Une épreuve complète de ${progressionNom(epreuve).toLowerCase()} `
+        + "fera apparaître votre évolution ici.";
+}
+
+/**
+ * Le pied « Examen blanc · 15 sept. » — provenance **servie** et date servie.
+ *
+ * 🛑 `null` quand rien n'a été mesuré. Une date absente n'est pas inventée : la
+ * provenance seule se suffit. Miroir mobile : `progressionDerniereMesure`.
+ */
+export function progressionDerniereMesure(
+    derniere: EvaluationQualifianteDto | null,
+): string | null {
+    if (!derniere) return null;
+    const jour = jourLong(derniere.mesureA);
+    const source = SOURCE_EVALUATION_LABEL[derniere.source];
+    return jour ? `${source} · ${jour}` : source;
+}
+
+/* --------------------------------------------------------- « Vos épreuves » */
+
+export const PROGRESSION_EPREUVES_TITLE = "Vos épreuves";
+export const PROGRESSION_EPREUVES_SUB = "Niveau + tendance récente";
+
+/**
+ * L'intitulé sous le palier d'une ligne : « actuel » quand il y a une mesure,
+ * « niveau » quand il n'y en a pas — comme le template.
+ */
+export function progressionPalierCaption(epreuve: ProgressEpreuveDto): string {
+    return epreuve.niveau ? "actuel" : "niveau";
+}
+
+/**
+ * La suite des paliers d'une épreuve — « A2 → B1 → B1 ».
+ *
+ * 🛑 **Rien n'est interprété et rien n'est retrié** : les paliers arrivent
+ * **servis** (`GET /api/me/progress/tcf/{epreuve}/historique`) et on les lit du
+ * plus ancien au plus récent, le sens de lecture que la courbe emploie déjà.
+ * Aucun palier n'est comparé à un autre : la tendance, elle, est servie
+ * (`evolution`) et se lit ailleurs sur la même ligne.
+ *
+ * `null` quand l'historique est vide — l'appelant dit alors ce qui **manque à
+ * compter** (`SUIVI_SANS_EXAMEN_LABEL`), jamais un palier inventé.
+ *
+ * Miroir mobile : `progressionSerieLabel`.
+ */
+export function progressionSerieLabel(
+    servies: EvaluationQualifianteDto[],
+): string | null {
+    if (servies.length === 0) return null;
+    return [...servies].reverse().map((e) => niveauCecrlShort(e.niveau)).join(" → ");
+}
+
+/* ===========================================================================
+ * LA COURBE D'UNE ÉPREUVE — échelle, points et dates
+ *
+ * 🛑 **Extrait à sa 2ᵉ surface** (2026-09-19) : « Vos résultats »
+ * (`EpreuveHistoriqueView`) et « Votre progression » (`/statistiques`)
+ * dessinent la MÊME courbe à partir de la MÊME liste servie. Deux copies
+ * auraient fini par ne plus situer un palier à la même hauteur.
+ * =========================================================================== */
+
+/**
+ * L'échelle de paliers du profil TCF IRN, du plus bas au plus haut.
+ *
+ * 🛑 **Indexée par `cecrlIndex`**, l'autorité déjà en place : C1 et C2 y sont
+ * rabattus sur B2, comme partout ailleurs dans le produit.
+ */
+const ECHELLE = ["<A1", "A1", "A2", "B1", "B2"] as const;
+
+/** Sa position dans `ECHELLE` (0 = « <A1 »). */
+function rang(niveau: NiveauCecrl | null): number {
+    return cecrlIndex(niveau) + 1;
+}
+
+/**
+ * L'échelle **affichée**, du haut vers le bas.
+ *
+ * 🛑 **Elle suit les données servies**, elle ne les rabat pas : une mesure en
+ * dessous de A2 ouvre l'échelle vers le bas. La fenêtre minimale est A2 → B2,
+ * celle de la maquette — trois lignes, l'amplitude utile du TCF IRN.
+ */
+export function echelleAffichee(rangs: number[]): string[] {
+    const bas = Math.min(2, ...rangs);
+    const haut = Math.max(4, ...rangs);
+    const ladder: string[] = [];
+    for (let i = haut; i >= bas; i -= 1) ladder.push(ECHELLE[i]);
+    return ladder;
+}
+
+/** « 14 sept. 2026 ». `null` quand le serveur n'a pas de date. */
+export function jourLong(iso: string | null): string | null {
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString("fr-FR", {
+        day: "numeric", month: "short", year: "numeric",
+    });
+}
+
+/** « 14 sept. » — l'abscisse de la courbe, où l'année ne tient pas. */
+export function jourCourt(iso: string | null): string {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("fr-FR", {day: "numeric", month: "short"});
+}
+
+/**
+ * **La courbe d'une épreuve, prête pour le kit** : son échelle et ses points.
+ *
+ * 🛑 `servies` arrive dans l'**ordre servi** (la plus récente d'abord) et n'est
+ * pas retriée : on la lit à l'envers parce qu'une courbe se lit du plus ancien
+ * au plus récent. Aucune interpolation, aucune moyenne — un point par
+ * évaluation servie.
+ *
+ * Miroir mobile : `progresCourbe`.
+ */
+export function progresCourbe(
+    servies: EvaluationQualifianteDto[],
+    objectif: NiveauCecrl | null,
+): {ladder: string[]; points: ChartPoint[]} {
+    const chronologie = [...servies].reverse();
+    const rangs = chronologie.map((e) => rang(e.niveau));
+    if (objectif) rangs.push(rang(objectif));
+    const ladder = echelleAffichee(rangs);
+    const haut = ECHELLE.indexOf(ladder[0] as (typeof ECHELLE)[number]);
+    return {
+        ladder,
+        points: chronologie.map((e) => ({
+            date: jourCourt(e.mesureA),
+            level: niveauCecrlShort(e.niveau),
+            row: haut - rang(e.niveau),
+        })),
+    };
+}

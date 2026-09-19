@@ -96,6 +96,16 @@
   --color-blue-muted: #3C5490;
   --color-red-muted: #D9645C;
 
+  /* Vert **posé sur un fond foncé** : la flèche « en progrès » de la bande de
+     paliers d'un bandeau de marque. `--color-green` y devient sombre et se
+     noie, `--color-green-light` y vire au blanc. Pendant de
+     `--color-red-bright`, et miroir de `AppColors.greenBright`.
+
+     ⚠️ **Ici et non dans `@theme`** : Tailwind v4 élague toute variable de
+     thème qu'aucune classe utilitaire n'emploie — un bandeau en avait déjà fait
+     les frais. */
+  --color-green-bright: #6DE0B1;
+
   --sf-radius-xs: 8px;
   --sf-radius-sm: 12px;
   --sf-radius-md: 16px;

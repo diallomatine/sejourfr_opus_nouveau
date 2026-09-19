@@ -27,10 +27,9 @@ import {
     Stack,
     Top,
     sejourStyles,
-    type ChartPoint,
 } from "@/app/_components/sejour/SejourKit";
-import {progresEvolutionLabel} from "@/lib/progres";
-import {SOURCE_EVALUATION_LABEL, cecrlIndex, niveauCecrlShort} from "@/lib/types";
+import {jourLong, progresCourbe, progresEvolutionLabel} from "@/lib/progres";
+import {SOURCE_EVALUATION_LABEL, niveauCecrlShort} from "@/lib/types";
 import type {
     EpreuveHistoriqueDto,
     EvaluationQualifianteDto,
@@ -140,52 +139,6 @@ export const HISTORIQUE_PORTEE_TEXT =
 /** Le lien vers le hub des historiques. */
 export const HISTORIQUE_TOUS_LABEL = "Tous mes résultats";
 
-/* ------------------------------------------------------------- l'échelle -- */
-
-/**
- * L'échelle de paliers du profil TCF IRN, du plus bas au plus haut.
- *
- * 🛑 **Indexée par `cecrlIndex`**, l'autorité déjà en place : C1 et C2 y sont
- * rabattus sur B2, comme partout ailleurs dans le produit.
- */
-const ECHELLE = ["<A1", "A1", "A2", "B1", "B2"] as const;
-
-/** Sa position dans `ECHELLE` (0 = « <A1 »). */
-function rang(niveau: NiveauCecrl | null): number {
-    return cecrlIndex(niveau) + 1;
-}
-
-/**
- * L'échelle **affichée**, du haut vers le bas.
- *
- * 🛑 **Elle suit les données servies**, elle ne les rabat pas : une mesure en
- * dessous de A2 ouvre l'échelle vers le bas. La fenêtre minimale est A2 → B2,
- * celle de la maquette — trois lignes, l'amplitude utile du TCF IRN.
- */
-function echelleAffichee(rangs: number[]): string[] {
-    const bas = Math.min(2, ...rangs);
-    const haut = Math.max(4, ...rangs);
-    const ladder: string[] = [];
-    for (let i = haut; i >= bas; i -= 1) ladder.push(ECHELLE[i]);
-    return ladder;
-}
-
-/* --------------------------------------------------------------- dates --- */
-
-/** « 14 sept. 2026 ». `null` quand le serveur n'a pas de date. */
-function jourLong(iso: string | null): string | null {
-    if (!iso) return null;
-    return new Date(iso).toLocaleDateString("fr-FR", {
-        day: "numeric", month: "short", year: "numeric",
-    });
-}
-
-/** « 14 sept. » — l'abscisse de la courbe, où l'année ne tient pas. */
-function jourCourt(iso: string | null): string {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("fr-FR", {day: "numeric", month: "short"});
-}
-
 /* ----------------------------------------------------------------- vue --- */
 
 /**
@@ -264,26 +217,13 @@ export function EpreuveHistoriqueView() {
         return progres.tcf.epreuves.find((e) => e.epreuve === epreuve) ?? null;
     }, [progres, epreuve]);
 
-    /** Du plus ancien au plus récent : une courbe se lit dans ce sens. */
-    const chronologie = useMemo(
-        () => [...evaluations].reverse(),
-        [evaluations],
+    /* 🛑 **L'échelle et les points viennent de `progresCourbe`**, partagée avec
+       « Votre progression » : deux copies auraient fini par ne plus situer un
+       palier à la même hauteur pour la même liste servie. */
+    const {ladder, points} = useMemo(
+        () => progresCourbe(evaluations, progres?.tcf.objectif ?? null),
+        [evaluations, progres],
     );
-
-    const ladder = useMemo(() => {
-        const rangs = chronologie.map((e) => rang(e.niveau));
-        if (progres?.tcf.objectif) rangs.push(rang(progres.tcf.objectif));
-        return echelleAffichee(rangs);
-    }, [chronologie, progres]);
-
-    const points: ChartPoint[] = useMemo(() => {
-        const haut = ECHELLE.indexOf(ladder[0] as (typeof ECHELLE)[number]);
-        return chronologie.map((e) => ({
-            date: jourCourt(e.mesureA),
-            level: niveauCecrlShort(e.niveau),
-            row: haut - rang(e.niveau),
-        }));
-    }, [chronologie, ladder]);
 
     // Une clé de domaine inconnue ne fabrique pas d'épreuve.
     if (!epreuve) {

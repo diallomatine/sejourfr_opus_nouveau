@@ -128,49 +128,6 @@ const String kHistoriquePorteeText =
 /// pouvoir rejoindre le reste sans repasser par l'Accueil.
 const String kHistoriqueTousLabel = 'Tous mes résultats';
 
-/* -------------------------------------------------------------- échelle -- */
-
-/// L'échelle **affichée**, du haut vers le bas.
-///
-/// 🛑 **Elle suit les données servies**, elle ne les rabat pas : une mesure en
-/// dessous de A2 ouvre l'échelle vers le bas. La fenêtre minimale est A2 → B2,
-/// celle de la maquette — trois lignes, l'amplitude utile du TCF IRN.
-///
-/// Miroir web : `echelleAffichee`.
-List<String> echelleAffichee(List<int> rangs) {
-  var bas = 2;
-  var haut = 4;
-  for (final r in rangs) {
-    if (r < bas) bas = r;
-    if (r > haut) haut = r;
-  }
-  return [
-    for (var i = haut; i >= bas; i--) kTcfPaliers[i].shortName,
-  ];
-}
-
-/* ---------------------------------------------------------------- dates -- */
-
-const List<String> _kMois = [
-  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-];
-
-/// « 14 sept. 2026 ». `null` quand le serveur n'a pas de date — on n'en
-/// invente pas.
-String? jourLong(DateTime? quand) {
-  if (quand == null) return null;
-  final local = quand.toLocal();
-  return '${local.day} ${_kMois[local.month - 1]} ${local.year}';
-}
-
-/// « 14 sept. » — l'abscisse de la courbe, où l'année ne tient pas.
-String jourCourt(DateTime? quand) {
-  if (quand == null) return '—';
-  final local = quand.toLocal();
-  return '${local.day} ${_kMois[local.month - 1]}';
-}
-
 /* ------------------------------------------------------------------ vue -- */
 
 /// **« D'où sort mon niveau ? »** — l'écran ouvert depuis une carte d'épreuve
@@ -218,24 +175,12 @@ class _EpreuveHistoriqueScreenState
     final objectif = progres?.tcf.objectif;
 
     final evaluations = async.valueOrNull?.evaluations ?? const [];
-    // Du plus ancien au plus récent : une courbe se lit dans ce sens.
-    final chronologie = evaluations.reversed.toList(growable: false);
-    final rangs = [
-      for (final e in chronologie) e.niveau.tcfPalierIndex,
-      if (objectif != null) objectif.tcfPalierIndex,
-    ];
-    final ladder = echelleAffichee(rangs);
-    final haut = ladder.isEmpty
-        ? 4
-        : kTcfPaliers.indexWhere((p) => p.shortName == ladder.first);
-    final points = [
-      for (final e in chronologie)
-        SfChartPoint(
-          date: jourCourt(e.mesureA),
-          level: e.niveau.shortName,
-          row: haut - e.niveau.tcfPalierIndex,
-        ),
-    ];
+    // 🛑 **L'échelle et les points viennent de `progresCourbe`**, partagée avec
+    // « Votre progression » : deux copies auraient fini par ne plus situer un
+    // palier à la même hauteur pour la même liste servie.
+    final courbe = progresCourbe(evaluations, objectif);
+    final ladder = courbe.ladder;
+    final points = courbe.points;
 
     return Scaffold(
       backgroundColor: AppColors.bg,

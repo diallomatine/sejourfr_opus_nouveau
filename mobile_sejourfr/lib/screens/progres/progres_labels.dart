@@ -2,6 +2,7 @@ import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/epreuve_historique_models.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
@@ -86,16 +87,43 @@ String? progresNiveauLabel(ProgressTcf tcf) {
 /// 🛑 **`baisse` se dit.** La masquer rendrait la mesure de progression
 /// invendable.
 String? progresEvolutionLabel(ProgressEpreuve epreuve) {
+  final fleche = progresEvolutionFleche(epreuve.evolution);
+  if (fleche == null) return null;
   final initial = epreuve.niveauInitial;
-  return switch (epreuve.evolution) {
-    NiveauEvolution.hausse =>
-      initial == null ? '↑' : '↑ depuis ${initial.displayName}',
-    NiveauEvolution.baisse =>
-      initial == null ? '↓' : '↓ depuis ${initial.displayName}',
-    NiveauEvolution.stable => '=',
-    NiveauEvolution.inconnue => null,
-  };
+  if (initial == null || epreuve.evolution == NiveauEvolution.stable) {
+    return fleche;
+  }
+  return '$fleche depuis ${initial.displayName}';
 }
+
+/// Le **glyphe seul** du marqueur d'évolution — la flèche de la bande des
+/// paliers, où la phrase entière ne tient pas.
+///
+/// 🛑 **Une seule table de flèches** : [progresEvolutionLabel] en dérive. Deux
+/// jeux de signes finiraient par ne plus dire la même chose du même fait servi,
+/// sur deux blocs du même écran.
+///
+/// 🛑 **`inconnue` ne rend rien** — surtout pas le signe de la stabilité.
+///
+/// Miroir web : `progresEvolutionFleche`.
+String? progresEvolutionFleche(NiveauEvolution evolution) =>
+    switch (evolution) {
+      NiveauEvolution.hausse => '↑',
+      NiveauEvolution.baisse => '↓',
+      NiveauEvolution.stable => '=',
+      NiveauEvolution.inconnue => null,
+    };
+
+/// Le ton de la flèche, pour le kit.
+///
+/// 🛑 Il **lit** le sens servi, il ne le déduit d'aucune série de paliers.
+/// Miroir web : `progresEvolutionTrendTone`.
+SfTrendTone progresEvolutionTrendTone(NiveauEvolution evolution) =>
+    switch (evolution) {
+      NiveauEvolution.hausse => SfTrendTone.up,
+      NiveauEvolution.baisse => SfTrendTone.down,
+      NiveauEvolution.stable || NiveauEvolution.inconnue => SfTrendTone.flat,
+    };
 
 /// Le ton du marqueur. `inconnue` et `stable` restent **neutres**.
 enum ProgresEvolutionTone { up, down, flat }
@@ -525,4 +553,208 @@ String? progresCiviqueScore(ProgressCivique civique) {
   final dernier = civique.historique.last;
   return '${dernier.bonnes} / ${dernier.posees} · '
       'seuil ${dernier.seuil} / ${dernier.format}';
+}
+
+/* ===========================================================================
+ * L'ÉCRAN « VOTRE PROGRESSION » — la progression GLOBALE, ouverte du Profil
+ * (template `docs/progression/ecran_progression_normal.html`, 2026-09-19)
+ * =========================================================================== */
+
+/// 🛑 **À ne pas confondre avec [kProgresTitle]** (« Ce qui a bougé », le bloc
+/// de mouvement) ni avec « Ma progression » (`/plan/progression`, l'historique
+/// des cycles). Celui-ci est le titre de l'écran lui-même.
+const String kProgressionEyebrow = 'TCF IRN';
+const String kProgressionTitle = 'Votre progression';
+const String kProgressionLead =
+    'Suivez votre niveau réel, examen après examen.';
+
+/* ------------------------------------------------- le bandeau d'objectif -- */
+
+const String kProgressionHeroLabel = 'Vers votre objectif';
+const String kProgressionHeroMeta = 'Niveau mesuré par vos examens';
+
+/// « Objectif B1 ». `null` sans démarche déclarée.
+///
+/// 🛑 [NiveauCecrl.shortName] et jamais un troncage maison : `A1_NON_ATTEINT`
+/// se rend « <A1 ».
+String? progressionObjectifPill(NiveauCecrl? objectif) =>
+    objectif == null ? null : 'Objectif ${objectif.shortName}';
+
+/// « 2 épreuves sur 4 ».
+///
+/// 🛑 **De l'arithmétique d'AFFICHAGE, jamais une classification** : les deux
+/// nombres sont servis ([accueilEvaluees] ne fait que compter la présence d'un
+/// palier), et le total est la liste servie elle-même — aucun « 4 » n'est écrit
+/// ici. `null` quand le serveur n'en publie aucune : on n'annonce alors aucun
+/// chiffre. Miroir web : `progressionMesureesLabel`.
+String? progressionMesureesLabel(({int faites, int total})? compte) {
+  if (compte == null || compte.total <= 0) return null;
+  final n = compte.faites;
+  return '$n épreuve${n > 1 ? 's' : ''} sur ${compte.total}';
+}
+
+/// La part parcourue du rail. `null` ⇒ pas de rail.
+///
+/// 🛑 **Ce n'est PAS un pourcentage de progression vers un palier** — règle que
+/// le dépôt interdit et qui tient toujours : c'est la part des épreuves
+/// **mesurées**, la lecture du compteur que [progressionMesureesLabel] écrit
+/// déjà en mots. Miroir web : `progressionMesureesPart`.
+double? progressionMesureesPart(({int faites, int total})? compte) =>
+    compte == null || compte.total <= 0
+        ? null
+        : compte.faites / compte.total;
+
+/// « 50 % ». `null` quand l'un des deux nombres n'est pas servi.
+/// Miroir web : `progressionMesureesPourcent`.
+String? progressionMesureesPourcent(({int faites, int total})? compte) {
+  final part = progressionMesureesPart(compte);
+  return part == null ? null : '${(part * 100).round()} %';
+}
+
+/// Le palier d'une épreuve sur la bande et sur sa ligne.
+///
+/// 🛑 **« — » et jamais « A1 »** : `null` = inconnu, jamais mauvais.
+/// Miroir web : `progressionPalier`.
+String progressionPalier(ProgressEpreuve epreuve) =>
+    epreuve.niveau?.shortName ?? '—';
+
+/* -------------------------------------------------------- « Votre évolution » */
+
+const String kProgressionCourbeTitle = 'Votre évolution';
+const String kProgressionCourbeSub = 'Basée uniquement sur vos examens';
+const String kProgressionNiveauActuelLabel = 'Niveau actuel';
+
+/// Le lien du pied de la courbe, vers « Vos résultats » de l'épreuve.
+const String kProgressionVoirLabel = 'Voir';
+
+const String kProgressionCourbeVideTitle = 'Aucune mesure pour l\'instant';
+
+/// Le pied de la courbe quand rien n'a encore été mesuré. 🛑 Le titre est
+/// [kSuiviSansExamenLabel], le mot déjà en place pour « aucun examen
+/// qualifiant » sur un écran de suivi : on n'en écrit pas un second.
+const String kProgressionSansExamenText =
+    'Passez une épreuve complète pour mesurer votre niveau.';
+
+/// 🛑 **Elle nomme l'épreuve** : le template écrit « une épreuve complète
+/// d'expression orale », donc la phrase suit l'onglet ouvert.
+String progressionCourbeVideText(EpreuveType epreuve) =>
+    'Une épreuve complète de ${epreuve.displayLabel.toLowerCase()} fera '
+    'apparaître votre évolution ici.';
+
+/// Le pied « Examen blanc · 15 sept. » — provenance **servie** et date servie.
+///
+/// 🛑 `null` quand rien n'a été mesuré. Une date absente n'est pas inventée :
+/// la provenance seule se suffit. Miroir web : `progressionDerniereMesure`.
+String? progressionDerniereMesure(EvaluationQualifiante? derniere) {
+  if (derniere == null) return null;
+  final jour = jourLong(derniere.mesureA);
+  return jour == null ? derniere.source.label : '${derniere.source.label} · $jour';
+}
+
+/* ----------------------------------------------------------- « Vos épreuves » */
+
+const String kProgressionEpreuvesTitle = 'Vos épreuves';
+const String kProgressionEpreuvesSub = 'Niveau + tendance récente';
+
+/// L'intitulé sous le palier d'une ligne : « actuel » quand il y a une mesure,
+/// « niveau » quand il n'y en a pas — comme le template.
+String progressionPalierCaption(ProgressEpreuve epreuve) =>
+    epreuve.niveau == null ? 'niveau' : 'actuel';
+
+/// La suite des paliers d'une épreuve — « A2 → B1 → B1 ».
+///
+/// 🛑 **Rien n'est interprété et rien n'est retrié** : les paliers arrivent
+/// **servis** (`GET /api/me/progress/tcf/{epreuve}/historique`) et on les lit
+/// du plus ancien au plus récent, le sens de lecture que la courbe emploie
+/// déjà. Aucun palier n'est comparé à un autre : la tendance, elle, est servie
+/// (`evolution`) et se lit ailleurs sur la même ligne.
+///
+/// `null` quand l'historique est vide — l'appelant dit alors ce qui **manque à
+/// compter** ([kSuiviSansExamenLabel]), jamais un palier inventé.
+///
+/// Miroir web : `progressionSerieLabel`.
+String? progressionSerieLabel(List<EvaluationQualifiante> servies) {
+  if (servies.isEmpty) return null;
+  return servies.reversed.map((e) => e.niveau.shortName).join(' → ');
+}
+
+/* ===========================================================================
+ * LA COURBE D'UNE ÉPREUVE — échelle, points et dates
+ *
+ * 🛑 **Extrait à sa 2ᵉ surface** (2026-09-19) : « Vos résultats »
+ * (`epreuve_historique_screen`) et « Votre progression » (`progres_screen`)
+ * dessinent la MÊME courbe à partir de la MÊME liste servie. Deux copies
+ * auraient fini par ne plus situer un palier à la même hauteur.
+ * =========================================================================== */
+
+const List<String> _kMois = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+/// « 14 sept. 2026 ». `null` quand le serveur n'a pas de date — on n'en
+/// invente pas.
+String? jourLong(DateTime? quand) {
+  if (quand == null) return null;
+  final local = quand.toLocal();
+  return '${local.day} ${_kMois[local.month - 1]} ${local.year}';
+}
+
+/// « 14 sept. » — l'abscisse de la courbe, où l'année ne tient pas.
+String jourCourt(DateTime? quand) {
+  if (quand == null) return '—';
+  final local = quand.toLocal();
+  return '${local.day} ${_kMois[local.month - 1]}';
+}
+
+/// L'échelle **affichée**, du haut vers le bas.
+///
+/// 🛑 **Elle suit les données servies**, elle ne les rabat pas : une mesure en
+/// dessous de A2 ouvre l'échelle vers le bas. La fenêtre minimale est A2 → B2,
+/// celle de la maquette — trois lignes, l'amplitude utile du TCF IRN.
+///
+/// Miroir web : `echelleAffichee`.
+List<String> echelleAffichee(List<int> rangs) {
+  var bas = 2;
+  var haut = 4;
+  for (final r in rangs) {
+    if (r < bas) bas = r;
+    if (r > haut) haut = r;
+  }
+  return [
+    for (var i = haut; i >= bas; i--) kTcfPaliers[i].shortName,
+  ];
+}
+
+/// **La courbe d'une épreuve, prête pour le kit** : son échelle et ses points.
+///
+/// 🛑 [servies] arrive dans l'**ordre servi** (la plus récente d'abord) et
+/// n'est pas retriée : on la lit à l'envers parce qu'une courbe se lit du plus
+/// ancien au plus récent. Aucune interpolation, aucune moyenne — un point par
+/// évaluation servie.
+///
+/// Miroir web : `progresCourbe`.
+({List<String> ladder, List<SfChartPoint> points}) progresCourbe(
+  List<EvaluationQualifiante> servies,
+  NiveauCecrl? objectif,
+) {
+  final chronologie = servies.reversed.toList(growable: false);
+  final ladder = echelleAffichee([
+    for (final e in chronologie) e.niveau.tcfPalierIndex,
+    if (objectif != null) objectif.tcfPalierIndex,
+  ]);
+  final haut = ladder.isEmpty
+      ? 4
+      : kTcfPaliers.indexWhere((p) => p.shortName == ladder.first);
+  return (
+    ladder: ladder,
+    points: [
+      for (final e in chronologie)
+        SfChartPoint(
+          date: jourCourt(e.mesureA),
+          level: e.niveau.shortName,
+          row: haut - e.niveau.tcfPalierIndex,
+        ),
+    ],
+  );
 }
