@@ -34,9 +34,17 @@ public record JourneyEvaluation(
         UUID sourceAssessmentId,
         JourneyAssessmentKind kind,
         EpreuveType examType,
+        UUID themeId,
         Instant completedAt
 ) {
 
+    /**
+     * 🛑 <b>Le MIROIR EXACT de {@code chk_journey_assessment_mesure}</b> (V071,
+     * D-51) : chaque nature porte <b>exactement</b> l'axe qu'elle mesure. Le
+     * verifier ici plutot qu'au flush fait echouer l'appel <b>a la ligne
+     * fautive</b>, et pas dans un {@code catch} trois couches plus haut — c'est
+     * precisement la panne que {@code DETTE-M1} nomme.
+     */
     public JourneyEvaluation {
         if (sourceAssessmentId == null) {
             throw new IllegalArgumentException("Une evaluation porte toujours son identifiant.");
@@ -45,12 +53,32 @@ public record JourneyEvaluation(
             throw new IllegalArgumentException(
                     "Une evaluation terminee porte toujours sa date de fin (R14).");
         }
-        boolean rapide = kind == JourneyAssessmentKind.QUICK_DIAGNOSTIC;
-        if (rapide != (examType == null)) {
+        boolean axeAttendu = switch (kind) {
+            // Les deux diagnostics et l'examen civique COMPLET ne mesurent aucun
+            // axe : les premiers produisent des priorites (R11), le dernier est
+            // un fait GLOBAL -- il mesure le programme entier.
+            case QUICK_DIAGNOSTIC, CIVIC_DIAGNOSTIC, CIVIC_EXAM ->
+                    examType == null && themeId == null;
+            case CIVIC_THEME_EXAM -> examType == null && themeId != null;
+            case FULL_DIAGNOSTIC, SECTION_EXAM, MOCK_EXAM ->
+                    examType != null && themeId == null;
+        };
+        if (!axeAttendu) {
             throw new IllegalArgumentException(
-                    "Seul le diagnostic rapide ne mesure aucune epreuve (R11) : "
-                            + kind + " / " + examType);
+                    "Cette nature ne porte pas l'axe qu'elle mesure : "
+                            + kind + " / epreuve=" + examType + " / theme=" + themeId);
         }
+    }
+
+    /**
+     * Le constructeur <b>TCF</b>, conserve tel quel : ses appelants ne
+     * connaissent pas de thematique, et leur faire ecrire {@code null} a chaque
+     * fois n'apprendrait rien a personne.
+     */
+    public JourneyEvaluation(
+            UUID sourceAssessmentId, JourneyAssessmentKind kind,
+            EpreuveType examType, Instant completedAt) {
+        this(sourceAssessmentId, kind, examType, null, completedAt);
     }
 
     /** Le diagnostic rapide ne mesure aucune epreuve, et lui seul (R11). */
@@ -58,8 +86,36 @@ public record JourneyEvaluation(
         return examType != null;
     }
 
+    /** Cette evaluation mesure-t-elle UNE thematique civique ? */
+    public boolean mesureUneThematique() {
+        return themeId != null;
+    }
+
     public static JourneyEvaluation diagnosticRapide(UUID sessionId, Instant completedAt) {
         return new JourneyEvaluation(
                 sessionId, JourneyAssessmentKind.QUICK_DIAGNOSTIC, null, completedAt);
+    }
+
+    /** Le diagnostic <b>civique</b> : aucun axe, comme son pendant TCF. */
+    public static JourneyEvaluation diagnosticCivique(UUID sessionId, Instant completedAt) {
+        return new JourneyEvaluation(
+                sessionId, JourneyAssessmentKind.CIVIC_DIAGNOSTIC, null, null, completedAt);
+    }
+
+    /** Un examen de <b>theme</b> : son axe est sa thematique. */
+    public static JourneyEvaluation examenDeTheme(
+            UUID attemptId, UUID themeId, Instant completedAt) {
+        return new JourneyEvaluation(
+                attemptId, JourneyAssessmentKind.CIVIC_THEME_EXAM, null, themeId, completedAt);
+    }
+
+    /**
+     * L'examen civique <b>complet</b> : un fait GLOBAL, aucun axe. Les clotures
+     * de bloc qu'il provoque (R1) sont des {@link #examenDeTheme} distinctes --
+     * <b>six lignes pour un seul attempt</b> (D-51).
+     */
+    public static JourneyEvaluation examenCivique(UUID attemptId, Instant completedAt) {
+        return new JourneyEvaluation(
+                attemptId, JourneyAssessmentKind.CIVIC_EXAM, null, null, completedAt);
     }
 }

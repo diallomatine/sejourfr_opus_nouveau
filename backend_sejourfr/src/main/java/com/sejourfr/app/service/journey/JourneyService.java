@@ -15,6 +15,7 @@ import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyLotStatus;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
@@ -411,6 +412,98 @@ public class JourneyService {
     }
 
     /**
+     * <b>Ce qu'un EXAMEN civique apprend au cycle</b> — le journal (D-51) et
+     * <b>R1</b>.
+     *
+     * <h3>🛑 Un examen COMPLET ecrit SIX lignes</h3>
+     * <p>Une {@code CIVIC_EXAM} <b>globale</b> — il mesure le programme entier —,
+     * plus une {@code CIVIC_THEME_EXAM} par thematique dont le bloc etait
+     * <b>debloque</b>. Motif (D-51) : le <b>cycle de mesure</b> est fait de cinq
+     * blocs qui ne contiennent QUE leur examen, tous debloques, et c'est
+     * precisement l'examen complet qui doit les cloturer. Sans ces lignes, il
+     * n'aurait aucun moyen de se fermer.
+     *
+     * <h3>🛑 R1 — passee, pas reussie</h3>
+     * <p>Une etape d'examen se clot <b>en etant passee</b>, jamais en etant
+     * reussie, ni au TCF ni au civique : l'examen <b>mesure</b>, il ne
+     * sanctionne pas. Et il ne clot que les blocs <b>debloques</b> — une unite
+     * encore ouverte dans le bloc, et rien n'est valide (D-15).
+     */
+    private void traiterLEvaluationCivique(Journey journey, JourneyEvaluation evaluation) {
+        enregistrer(journey, evaluation);
+        if (evaluation.kind() == JourneyAssessmentKind.CIVIC_DIAGNOSTIC) {
+            // Le diagnostic civique ne mesure aucune thematique : il a deja
+            // AMORCE le cycle (spec §2), il n'a rien a cloturer.
+            journeyManager.save(journey);
+            return;
+        }
+
+        List<JourneyStep> etapes = stepManager.findAll(journey.getId());
+        List<Theme> cibles = evaluation.mesureUneThematique()
+                ? themeManager.findById(evaluation.themeId()).map(List::of).orElse(List.of())
+                : themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+
+        for (Theme thematique : cibles) {
+            if (!cloreLExamenDuBlocCivique(journey, etapes, thematique, evaluation)) continue;
+            // 🛑 LA LIGNE PAR THEMATIQUE N'EST ECRITE QUE POUR UN EXAMEN
+            // COMPLET : pour un examen de theme, l'evaluation elle-meme EST la
+            // `CIVIC_THEME_EXAM`, et la reecrire violerait
+            // `uq_journey_assessment_event_par_theme`.
+            if (evaluation.kind() == JourneyAssessmentKind.CIVIC_EXAM) {
+                enregistrer(journey, evaluation.sourceAssessmentId(),
+                        JourneyAssessmentKind.CIVIC_THEME_EXAM, null,
+                        thematique.getId(), evaluation.completedAt());
+            }
+        }
+        journeyManager.save(journey);
+    }
+
+    /**
+     * Clot l'examen d'<b>un</b> bloc civique, s'il etait debloque.
+     *
+     * @return {@code true} si le bloc etait debloque — donc si cette thematique
+     *         a bien ete <b>validee</b> par cet examen.
+     */
+    private boolean cloreLExamenDuBlocCivique(
+            Journey journey, List<JourneyStep> etapes, Theme thematique,
+            JourneyEvaluation evaluation) {
+
+        String bloc = thematique.getCode();
+        boolean unitesDues = etapes.stream()
+                .filter(JourneyStep::estOuverte)
+                .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                        && bloc.equals(step.blocCode()));
+        if (unitesDues) {
+            log.info("Cycle {} : examen civique {} passe, mais le bloc {} a encore des unites "
+                            + "dues — rien n'est valide (R1, D-15)",
+                    journey.getId(), evaluation.sourceAssessmentId(), bloc);
+            return false;
+        }
+
+        boolean cloture = false;
+        for (JourneyStep step : etapes) {
+            if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
+            if (!bloc.equals(step.blocCode())) continue;
+            if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
+                    evaluation.sourceAssessmentId(), evaluation.completedAt())) {
+                stepManager.save(step);
+                cloture = true;
+            }
+        }
+        if (!cloture) return false;
+
+        // Le lot a rempli son office : ses unites etaient faites, et son point
+        // d'etape vient d'etre satisfait par une mesure. CLOSED, jamais
+        // SUPERSEDED -- rien n'a ete saute.
+        lotManager.findOuvertParTheme(journey.getId(), thematique.getId()).ifPresent(lot -> {
+            lot.clore(JourneyLotStatus.CLOSED,
+                    evaluation.sourceAssessmentId(), evaluation.completedAt());
+            lotManager.save(lot);
+        });
+        return true;
+    }
+
+    /**
      * <b>Ce qu'une serie civique fait avancer</b> — le pendant civique de
      * {@link #onTrainingProgress}.
      *
@@ -577,6 +670,10 @@ public class JourneyService {
         // construit.
         if (journeyManager.dejaTraitee(
                 userId, journey.getModule(), evaluation.sourceAssessmentId())) {
+            return;
+        }
+        if (journey.getModule() == Module.CIVIQUE) {
+            traiterLEvaluationCivique(journey, evaluation);
             return;
         }
         enregistrer(journey, evaluation);
@@ -1093,12 +1190,27 @@ public class JourneyService {
     // =====================================================================
 
     private void enregistrer(Journey journey, JourneyEvaluation evaluation) {
+        enregistrer(journey, evaluation.sourceAssessmentId(), evaluation.kind(),
+                evaluation.examType(), evaluation.themeId(), evaluation.completedAt());
+    }
+
+    /**
+     * Une ligne du journal. 🛑 <b>L'axe est EXACTEMENT celui de la nature</b>
+     * ({@code chk_journey_assessment_mesure}, V071) : l'invariant de
+     * {@link JourneyEvaluation} l'a deja verifie a la ligne fautive.
+     */
+    private void enregistrer(
+            Journey journey, UUID sourceAssessmentId, JourneyAssessmentKind kind,
+            EpreuveType epreuve, UUID themeId, Instant completedAt) {
         JourneyAssessmentEvent event = new JourneyAssessmentEvent();
         event.setJourney(journey);
-        event.setSourceAssessmentId(evaluation.sourceAssessmentId());
-        event.setAssessmentKind(evaluation.kind());
-        event.setExamType(evaluation.examType());
-        event.setCompletedAt(evaluation.completedAt());
+        event.setSourceAssessmentId(sourceAssessmentId);
+        event.setAssessmentKind(kind);
+        event.setExamType(epreuve);
+        if (themeId != null) {
+            event.setTheme(themeManager.findById(themeId).orElse(null));
+        }
+        event.setCompletedAt(completedAt);
         journeyManager.enregistrer(event);
     }
 
@@ -1124,7 +1236,7 @@ public class JourneyService {
             parSource.put(source, baseline
                     ? JourneyEvaluation.diagnosticRapide(source, observation.getObservedAt())
                     : new JourneyEvaluation(source,
-                            com.sejourfr.app.enums.JourneyAssessmentKind.SECTION_EXAM,
+                            JourneyAssessmentKind.SECTION_EXAM,
                             TcfDomaine.epreuve(skill.getSection()), observation.getObservedAt()));
         }
         parSource.values().forEach(evaluation -> enregistrer(journey, evaluation));

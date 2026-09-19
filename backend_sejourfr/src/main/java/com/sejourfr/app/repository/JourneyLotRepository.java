@@ -23,6 +23,14 @@ public interface JourneyLotRepository extends JpaRepository<JourneyLot, UUID> {
     Optional<JourneyLot> findByJourneyIdAndExamTypeAndStatus(
             UUID journeyId, EpreuveType examType, JourneyLotStatus status);
 
+    /**
+     * Le jumeau civique : le lot ouvert d'une <b>thematique</b>. R5 transposee —
+     * {@code uq_journey_lot_open_par_theme} (V069) garantit qu'il n'y en a
+     * jamais deux.
+     */
+    Optional<JourneyLot> findByJourneyIdAndThemeIdAndStatus(
+            UUID journeyId, UUID themeId, JourneyLotStatus status);
+
     @Query("""
             SELECT l FROM JourneyLot l
             WHERE l.journey.id = :journeyId AND l.status = :status

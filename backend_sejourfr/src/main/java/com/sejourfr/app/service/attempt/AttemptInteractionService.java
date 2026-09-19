@@ -553,15 +553,17 @@ public class AttemptInteractionService {
             if (source == LearningPlanSourceType.CIVIQUE_SERIE) {
                 journeyService.onTrainingProgressCivique(userId, unites);
             } else {
-                // ⚠️ L'EXAMEN CIVIQUE N'EST PAS ENCORE PORTE AU CYCLE (P8.4
-                // point 7, suite) : il lui faut son JOURNAL -- V071 attend ses
-                // trois natures CIVIC_* -- et R1, qui clot l'etape d'examen d'un
-                // bloc DEBLOQUE. Les observations, elles, sont bien ecrites
-                // ci-dessus. On le DIT plutot que de ne rien faire en silence :
-                // c'est exactement la panne que DETTE-M1 nomme.
-                log.info("Examen civique {} : observations ecrites sur {} unite(s) ; "
-                        + "le cycle ne le traite pas encore (P8.4 point 7).",
-                        attempt.getId(), unites.size());
+                // 🛑 DEUX EXAMENS, DEUX NATURES, et c'est `lot_theme_id` qui les
+                // distingue -- il est pose a la creation de l'attempt, donc
+                // DEJA PERSISTE (R1, spec §2). Un examen de theme mesure SA
+                // thematique ; l'examen complet est un fait GLOBAL et clot
+                // chaque bloc debloque (D-51).
+                journeyService.onAssessmentCompleted(userId,
+                        attempt.getLotThemeId() != null
+                                ? JourneyEvaluation.examenDeTheme(attempt.getId(),
+                                        attempt.getLotThemeId(), attempt.getFinishedAt())
+                                : JourneyEvaluation.examenCivique(
+                                        attempt.getId(), attempt.getFinishedAt()));
             }
         } catch (RuntimeException echec) {
             log.warn("Observations civiques non enregistrees pour la session {} : {}",

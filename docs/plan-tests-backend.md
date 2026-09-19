@@ -8,6 +8,33 @@ Couvrir **toutes** les couches du backend (managers, services, controllers + dro
 mappers, specifications) par des tests automatisés, puis assainir l'architecture des gros
 services **sous filet de tests** (refacto sans régression).
 
+## 🛑 Un test ne dépend jamais d'un choix du moteur qu'il ne fixe pas lui-même
+
+**Règle générale, née d'un cas mesuré le 2026-09-20.**
+
+`CivicPlanServiceIT.serieCibleeAbonne` vérifiait qu'une série ciblée porte
+`cible.questionsSerie()` questions. Il prenait la cible dans
+`plan.priorites().getFirst()` — **le choix du moteur**, qu'il ne fixait pas. Il était vert parce
+que la cible que le classement mettait en tête avait assez de questions dans la mention du
+candidat. Le jour où un branchement sans rapport a changé l'ordre du classement, la première cible
+est devenue une notion à **8 questions CSP sur 26 actives**, et le test est passé au rouge — en
+révélant un vrai défaut (`DETTE-C1`) qui dormait depuis des semaines.
+
+**Ce que le test aurait dû faire** : soit **fixer** la cible (la désigner explicitement), soit
+comparer à ce que la règle **permet** (`min(quota, stock réellement servable)`), jamais à un nombre
+qui dépend d'une décision prise ailleurs.
+
+**Deux questions à se poser devant un test :**
+
+1. *« Ce que j'assertionne dépend-il d'un choix que je n'ai pas fixé ? »* — un ordre, un premier
+   élément, un tirage, un classement. Si oui : le fixer, ou assertionner la **règle** plutôt que le
+   **résultat**.
+2. *« Si le moteur change d'avis demain, ce test dira-t-il quelque chose de vrai ? »* — s'il devient
+   rouge sans qu'aucune règle n'ait bougé, il mesurait une coïncidence.
+
+⚠️ Un tel test ne **ment** pas : il **dort**. Et il se réveille au pire moment — pendant une passe
+qui parle d'autre chose, en accusant le changement en cours d'un défaut bien plus ancien.
+
 ## Décisions structurantes
 
 | Sujet | Choix | Pourquoi |

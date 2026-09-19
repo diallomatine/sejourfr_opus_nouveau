@@ -113,6 +113,9 @@ verrouillent le comportement. Avant un refactor d'un bloc non couvert : écrire 
   donc toute contrainte est vérifiée et `ddl-auto: validate` valide le mapping.
 - Un nouvel endpoint admin s'ajoute à la **matrice de droits**
   (`AdminRoutes`/`AuthenticatedRoutes`/`PublicRoutesSecurityIT`).
+- 🛑 **Un test ne dépend jamais d'un choix du moteur qu'il ne fixe pas lui-même** — un ordre, un
+  premier élément, un tirage. Il ne ment pas : il **dort**, et il se réveille pendant une passe qui
+  parle d'autre chose. On fixe le choix, ou on assertionne la **règle** plutôt que le **résultat**.
 - Détail, gabarits par couche et pièges (seed Flyway, `save()` qui ne flushe pas, ordre `id ASC`
   Postgres ≠ `Comparator<UUID>`, `UnfinishedStubbing`) : `docs/plan-tests-backend.md`.
 

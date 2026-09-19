@@ -267,6 +267,96 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
+    // Point 7 — R1 : l'examen clot ce qui etait DEBLOQUE, et le journal le dit
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("R1 — l'examen COMPLET clot les cinq blocs debloques, et ecrit SIX lignes")
+    void lExamenCompletClotLesBlocsDebloques() {
+        // Sans diagnostic : les cinq blocs ne portent QUE leur examen, tous
+        // debloques -- c'est exactement la forme du cycle de mesure.
+        User user = candidatCivique();
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        UUID examen = UUID.randomUUID();
+
+        journeyService.onAssessmentCompleted(user.getId(),
+                JourneyEvaluation.examenCivique(examen, Instant.now()));
+
+        // 🛑 PASSEE, PAS REUSSIE : aucune note n'entre ici. L'examen mesure.
+        assertThat(etapes(cycle)).allSatisfy(etape ->
+                assertThat(etape.closedAt()).isNotNull());
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey_step
+                WHERE journey_id = ? AND resolution = 'SATISFIED_BY_ASSESSMENT'
+                """, Integer.class, cycle.getId())).isEqualTo(5);
+
+        // SIX lignes pour UN attempt : une globale sans axe, cinq par
+        // thematique (D-51).
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey_assessment_event
+                WHERE journey_id = ? AND source_assessment_id = ?
+                """, Integer.class, cycle.getId(), examen)).isEqualTo(6);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey_assessment_event
+                WHERE source_assessment_id = ? AND assessment_kind = 'CIVIC_EXAM'
+                  AND theme_id IS NULL
+                """, Integer.class, examen)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey_assessment_event
+                WHERE source_assessment_id = ? AND assessment_kind = 'CIVIC_THEME_EXAM'
+                  AND theme_id IS NOT NULL
+                """, Integer.class, examen)).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("🛑 R1 / D-15 — un bloc qui a encore une unite due n'est PAS valide")
+    void unBlocAvecUneUniteDueNEstPasValide() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        String blocPeuple = etapes(cycle).stream()
+                .filter(e -> e.type().equals("TRAIN_SKILL"))
+                .map(Etape::thematique)
+                .findFirst()
+                .orElseThrow();
+        UUID theme = jdbc.queryForObject(
+                "SELECT id FROM themes WHERE code = ?", UUID.class, blocPeuple);
+
+        journeyService.onAssessmentCompleted(user.getId(),
+                JourneyEvaluation.examenDeTheme(UUID.randomUUID(), theme, Instant.now()));
+
+        // L'examen est JOURNALISE -- il a bien eu lieu --, mais il ne valide
+        // rien : une unite du bloc reste ouverte.
+        assertThat(etapes(cycle)).filteredOn(e -> e.thematique().equals(blocPeuple))
+                .allSatisfy(etape -> assertThat(etape.closedAt()).isNull());
+    }
+
+    @Test
+    @DisplayName("R1 — un examen de theme clot SON bloc, et lui seul")
+    void lExamenDeThemeClotSonBlocEtLuiSeul() {
+        User user = candidatCivique();
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        Etape premier = etapes(cycle).getFirst();
+        UUID theme = jdbc.queryForObject(
+                "SELECT id FROM themes WHERE code = ?", UUID.class, premier.thematique());
+
+        journeyService.onAssessmentCompleted(user.getId(),
+                JourneyEvaluation.examenDeTheme(UUID.randomUUID(), theme, Instant.now()));
+
+        List<Etape> apres = etapes(cycle);
+        assertThat(apres).filteredOn(e -> e.thematique().equals(premier.thematique()))
+                .allSatisfy(e -> assertThat(e.closedAt()).isNotNull());
+        // Les quatre autres blocs n'ont pas bouge : un examen de theme ne
+        // valide que SA thematique.
+        assertThat(apres).filteredOn(e -> !e.thematique().equals(premier.thematique()))
+                .allSatisfy(e -> assertThat(e.closedAt()).isNull());
+    }
+
+    // ------------------------------------------------------------------------
 
     /**
      * Une etape du cycle, <b>lue en base</b>.
@@ -276,12 +366,12 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
      * {@code LazyInitializationException}. On lit donc les colonnes.
      */
     private record Etape(String type, String purpose, UUID lotId, UUID skillId,
-                         String thematique, String unite) {}
+                         String thematique, String unite, java.sql.Timestamp closedAt) {}
 
     private List<Etape> etapes(Journey cycle) {
         return jdbc.query("""
                 SELECT s.type, s.purpose, s.lot_id, s.skill_id, t.code AS theme_code,
-                       u.code AS unite_code
+                       u.code AS unite_code, s.closed_at
                 FROM journey_step s
                 LEFT JOIN themes t ON t.id = s.theme_id
                 LEFT JOIN civic_official_units u ON u.id = s.official_unit_id
@@ -292,7 +382,8 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
                         rs.getString("type"), rs.getString("purpose"),
                         rs.getObject("lot_id", UUID.class),
                         rs.getObject("skill_id", UUID.class),
-                        rs.getString("theme_code"), rs.getString("unite_code")),
+                        rs.getString("theme_code"), rs.getString("unite_code"),
+                        rs.getTimestamp("closed_at")),
                 cycle.getId());
     }
 

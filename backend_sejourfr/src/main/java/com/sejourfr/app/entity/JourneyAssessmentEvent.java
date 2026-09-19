@@ -91,6 +91,21 @@ public class JourneyAssessmentEvent {
     private EpreuveType examType;
 
     /**
+     * L'<b>axe civique</b> : la thematique que cette evaluation a mesuree.
+     *
+     * <p>🛑 <b>Exclusif de {@link #examType}</b>, et lie a la nature par
+     * {@code chk_journey_assessment_mesure} (V071) : aucun axe pour les deux
+     * diagnostics et pour l'examen civique COMPLET -- qui est un fait global --,
+     * la thematique pour un examen de theme, l'epreuve pour tout le TCF.
+     *
+     * <p>⚠️ Un examen complet ecrit donc <b>six</b> lignes : une globale sans
+     * axe, plus une par thematique dont le bloc etait debloque (R1, D-51).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "theme_id")
+    private Theme theme;
+
+    /**
      * Quand l'evaluation s'est <b>terminee</b> — la date qui fait l'ordre des
      * evenements (R14). 🛑 A ne pas confondre avec {@link #processedAt} : une
      * evaluation de mardi synchronisee jeudi porte mardi, et c'est mardi qui

@@ -23,6 +23,12 @@ public class JourneyLotManager {
                 journeyId, examType, JourneyLotStatus.OPEN);
     }
 
+    /** Le lot ouvert d'une <b>thematique</b> civique. R5, transposee. */
+    public Optional<JourneyLot> findOuvertParTheme(UUID journeyId, UUID themeId) {
+        return repository.findByJourneyIdAndThemeIdAndStatus(
+                journeyId, themeId, JourneyLotStatus.OPEN);
+    }
+
     public List<JourneyLot> findOuverts(UUID journeyId) {
         return repository.findByJourneyIdAndStatus(journeyId, JourneyLotStatus.OPEN);
     }

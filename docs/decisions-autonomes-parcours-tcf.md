@@ -1097,3 +1097,51 @@ pu tirer une question sur une unité que l'observation aurait rangée ailleurs.
 ⚠️ **L'écrivain ne résout rien lui-même** : il reçoit des `ReponseCivique(uniteId, …)`, des
 **valeurs**, parce qu'il écrit en `REQUIRES_NEW` et que rien de détaché ne doit traverser cette
 frontière. C'est l'appelant — le branchement, point 7 — qui appelle l'autorité.
+
+---
+
+# 2026-09-20 — P8.4, points 6 et 7 : R2 par unité, et l'examen porté au cycle (A71 → A74)
+
+### A71 — Une seule carte de séries, **deux clés de lecture**
+
+`seriesDepuisLaCreation` rend une `Map<UUID, Series>` dont la clé est la **compétence** TCF **ou**
+l'**unité** officielle, et `auQuota(Series)` porte la formule de D-16 **une seule fois**.
+
+**Motif.** « Seule la clé de lecture change » — R2 ne bouge pas d'un mot. Deux méthodes jumelles
+auraient fait deux copies de « 2 réussies ou 4 terminées », et c'est le défaut le plus cher du
+dépôt.
+
+**Pourquoi une seule carte est sûre.** Une étape porte **exactement un** des deux identifiants
+(`chk_journey_step_train_skill`), et elle relit **sa** clé. Les deux espaces d'identifiants ne se
+rencontrent jamais. ⚠️ C'est l'inverse du choix d'**A52** (index jumeaux plutôt qu'un `COALESCE`) —
+et pour une raison : là c'était **la base** qui devait garantir l'unicité sur deux espaces, ici
+c'est une lecture en mémoire où chaque étape désigne sa propre entrée.
+
+### A72 — `JourneyEvaluation` garde son constructeur **TCF** à quatre arguments
+
+Le composant `themeId` s'ajoute à la fin ; un constructeur compact à 4 arguments délègue avec
+`themeId = null`.
+
+**Motif.** 13 appels TCF n'ont aucune thématique à déclarer. Leur faire écrire `null` n'aurait rien
+appris à personne, et aurait rendu la revue de ce commit illisible. L'invariant, lui, est le
+**miroir exact** de `chk_journey_assessment_mesure` (V071) : il échoue **à la ligne fautive**, pas
+trois couches plus haut dans un `catch`.
+
+### A73 — L'examen complet écrit ses **cinq** lignes de thématique, l'examen de thème **non**
+
+Pour une `CIVIC_EXAM`, chaque bloc validé reçoit **en plus** une ligne `CIVIC_THEME_EXAM`. Pour une
+`CIVIC_THEME_EXAM`, rien n'est réécrit : **l'évaluation elle-même est cette ligne**.
+
+**Motif.** La réécrire violerait `uq_journey_assessment_event_par_theme` — et ce serait la même
+mesure comptée deux fois. ⚠️ Effet à connaître : les cinq lignes ne sont écrites **que pour les
+blocs débloqués**. Un examen complet passé alors que deux blocs ont encore des unités dues écrit
+donc **quatre** lignes, pas six — le journal dit ce qui a été **validé**, pas ce qui a été passé.
+
+### A74 — `lot_theme_id` distingue les deux examens, et rien d'autre
+
+`attempt.getLotThemeId() != null` ⇒ examen de thème ; sinon ⇒ examen complet.
+
+**Motif.** Il est posé **à la création de l'attempt** et **déjà persisté** — la spec §2 le notait
+comme le fait qui rend R1 faisable. Relire le template d'examen ou recompter les questions par
+thématique aurait fabriqué une **seconde** définition de « quel examen est-ce », qui aurait pu
+diverger de la première.
