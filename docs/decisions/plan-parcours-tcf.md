@@ -2278,3 +2278,52 @@ civique n'atteint pas encore, tous deux **annotés à la ligne** avec la phase q
 ⚠️ **Le signal à surveiller** : un `getExamType()` qui apparaît **sans sa ligne d'annotation**. Si
 son chemin est vraiment TCF, la ligne coûte dix secondes ; sinon, c'est `blocCode()` qu'il fallait
 écrire.
+
+---
+
+### D-52 (2026-09-19) — **Le cas B de l'amorce : on corrige la SPEC, pas le code**
+
+**Remonté pendant P8.4 point 4.** La spec §2 promettait : « examen de thème passé sans diagnostic →
+**ce thème peuplé** + les autres à évaluer ». Le code ne le fait pas, et ne doit pas le faire.
+
+**Pourquoi c'était inatteignable.** `CivicPlanService` ne construit **aucun plan** sans diagnostic
+terminé : sans plan, il n'existe **aucune cible** à poser — donc rien avec quoi « peupler ».
+
+**L'arbitrage.**
+
+> « **Ne rends pas le plan constructible depuis un examen seul** — ce serait créer une **seconde
+> porte d'entrée** vers `CivicPlanService`, et il en a déjà trop. »
+
+> « Ce que la spec voulait dire, c'est qu'un candidat qui a déjà passé un examen de thème ne doit pas
+> se voir proposer de **le repasser** comme première action. Ton comportement actuel y répond : les
+> cinq blocs en « Évaluer mon niveau », et **R1 ferme l'étape** du thème déjà passé dès que son
+> examen est journalisé. **Le résultat visible est le bon** — l'étape apparaît cochée, pas à
+> refaire. »
+
+> « La seule différence, c'est que le bloc n'est pas *peuplé*. Et c'est **correct** : un examen de
+> thème seul ne dit pas quelles unités travailler avec la même finesse que le diagnostic. **Mieux
+> vaut un bloc mesuré et vide qu'un bloc peuplé de priorités devinées.** »
+
+⇒ **La spec est corrigée** (§2), le code reste. ✅ Fait.
+
+#### ⚠️ C'est le **3ᵉ** endroit où la spec civique s'est révélée plus optimiste que le contenu ou le code ne le permettait
+
+| # | Promesse de la spec | Ce que la mesure a dit | Corrigé par |
+|---|---|---|---|
+| 1 | §3.1 — les mises en situation « ne sont pas une unité travaillable » | l'arrêté leur donne un **quota** au même niveau qu'une notion | **D-35** (Q-F12 révisée) |
+| 2 | **R2** applicable tel quel au grain des notions | impossible au grain 46 × 3 mentions ; applicable au grain **officiel**, et **Laïcité (9 q.)** échoue encore | **D-26 / D-35** (Q-F27 : 11 questions) |
+| 3 | §2 — « examen de thème sans diagnostic → ce thème **peuplé** » | aucun plan sans diagnostic ⇒ **rien à peupler** | **D-52** (ci-dessus) |
+
+🛑 **Le motif est constant** : la spec décrit ce que le produit **devrait** pouvoir faire, le contenu
+et le code disent ce qu'il **peut**. Devant un écart, on **mesure d'abord**, puis on corrige **celui
+des deux qui a tort** — et c'est trois fois sur trois la spec.
+
+#### 🛑 Un seuil, pas une tâche — `CivicPlanService`
+
+Il **calcule** un plan **et** démarre une série : deux couches dans une classe. La boucle de
+dépendances Spring de A64 en était le premier symptôme (supprimée en appelant le mapper, pas en la
+cachant derrière un `@Lazy`).
+
+⚠️ **Le seuil** : si une **seconde dépendance d'action** entre dans `CivicPlanService`, on extrait
+un `CivicSerieService`. Pas avant — la boucle est fermée, et un refactor préventif coûterait plus
+qu'il ne rapporte.

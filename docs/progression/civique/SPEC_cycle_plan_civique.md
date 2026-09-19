@@ -98,9 +98,23 @@ celle-là. Elles ne portent **aucune** notion de connaissance (**D-26**, **D-35*
 Reprendre **à l'identique**, sans réinterprétation. 🛑 Et depuis **D-26**, c'est vrai **sans écart** :
 le contenu porte R2 au grain officiel, il n'y a plus rien à réinventer.
 
-- **Amorces de cycle** (§2 de la spec TCF) : diagnostic fait → bloc(s) peuplé(s) + les autres thèmes
-  en « Évaluer mon niveau » ; examen de thème passé sans diagnostic → ce thème peuplé + les autres à
-  évaluer ; rien de fait → les 5 blocs en « Évaluer mon niveau ».
+- **Amorces de cycle** (§2 de la spec TCF), **corrigées le 2026-09-19** (D-52) :
+  - **diagnostic fait** → les thématiques prioritaires sont **peuplées** de leurs unités, les autres
+    passent en « Évaluer mon niveau » ;
+  - **rien de fait** → les **5** blocs en « Évaluer mon niveau » ;
+  - 🛑 **examen de thème passé sans diagnostic** → **les 5 blocs en « Évaluer mon niveau »**, et
+    **R1 ferme l'étape du thème déjà passé** dès que son examen est journalisé. Le bloc est donc
+    **mesuré**, pas *peuplé*.
+
+    ⚠️ **Le premier jet disait « ce thème peuplé », et c'était trop optimiste.** Le plan dérivé
+    n'existe pas sans diagnostic terminé : sans plan, aucune cible, donc **rien avec quoi peupler**.
+    Et rendre le plan constructible depuis un examen seul aurait ouvert une **seconde porte
+    d'entrée** vers `CivicPlanService`, qui en a déjà trop.
+
+    🛑 **Ce que la règle voulait dire est tenu** : un candidat qui a déjà passé un examen de thème ne
+    se voit pas proposer de le repasser comme première action — l'étape apparaît **cochée**. Ce qui
+    change est qu'un examen de thème seul ne dit **pas** quelles unités travailler avec la finesse
+    du diagnostic : **mieux vaut un bloc mesuré et vide qu'un bloc peuplé de priorités devinées.**
 - **R1** : un examen de thème passé hors du plan valide l'étape **si et seulement si** l'étape était
   débloquée (aucune unité restante dans le bloc). L'examen global valide de la même façon chaque
   thème dont le bloc était débloqué. ✅ **Faisable** : le thème d'un examen est **déjà persisté**
