@@ -11,7 +11,7 @@ grammaire visuelle. Ce document ne décrit que ce qui change.
 > est ancienne, documentée et testée (**D-25**).
 
 > Les arbitrages qui ont mis ce document en conformité sont consignés verbatim dans
-> `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-37**, 2026-09-19 — à partir de
+> `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-41**, 2026-09-19 — à partir de
 > `docs/audits/AUDIT_cycle_plan_civique_v2.md` et de `docs/audits/REPONSES_AUDIT_civique_v2.md`.
 > Chaque règle ci-dessous porte la référence de la décision qui la tient.
 
@@ -39,7 +39,8 @@ migration et n'est pas éditable en admin** ; un `CHECK` ou un test normatif vé
 16 lignes et leurs quotas**, l'arrêté cité en commentaire. Si ces trois garde-fous ne tiennent pas,
 **remonter avant d'écrire la migration** — le quota repassera en code.
 
-⚠️ **Conséquence sur l'ordre des phases** : P8.A **dépend de la table**, donc de P8.2 (cf. §6).
+⚠️ **Conséquence sur l'ordre des phases** : P8.A **dépend de la table**, qui est donc livrée
+séparément en **P8.2a**, juste avant elle (**D-41**, cf. §6).
 
 | Thématique | Total | Unités officielles et quotas par examen |
 |---|---|---|
@@ -305,16 +306,24 @@ n'est pas une question de conception, mais une mesure et un template :
 
 ## 6. Ordre des phases
 
-**P8.0** (arbitrages, fait) → **Q-F30** (contrôle de couverture) → **P8.1** (rangement : le format de
-thème rejoint `CivicExamFormat`, les documents périmés) → **P8.2** (référentiel officiel : table des
-16 unités, retrait du filtre) → **P8.A** (conformité de l'examen blanc) → **P8.3** (schéma du cycle)
-→ **P8.4** (moteur) → **P8.5** (freemium) → **P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les
-11 questions de Laïcité). **P8.9** (historique des cycles) : ⛔ **bloquée**.
+**P8.0** (arbitrages, fait) → **Q-F30** partie 1 (le recouvrement seul) → **P8.1** (rangement : le
+format de thème rejoint `CivicExamFormat`, les documents périmés) → **P8.2a** (la table des 16
+**seule** : schéma, seed, garde-fous, rattachement des 46) → **P8.A** (conformité du tirage) →
+**P8.2b** (retrait du filtre de mention, suppression de `CivicDotation` et de
+`questions-min-par-notion`) → **P8.3** (schéma du cycle) → **P8.4** (moteur) → **P8.5** (freemium) →
+**P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les 11 questions de Laïcité). **P8.9** (historique
+des cycles) : ⛔ **bloquée**.
 
-⚠️ **P8.A a glissé derrière P8.2**, et ce n'est pas un recul de priorité. **D-38** met le quota par
-unité **dans la table** : P8.A ne peut plus s'écrire avant que la table existe. La conformité de
-l'examen blanc reste le **premier chantier de code** ; elle a désormais une dépendance, et P8.1 comme
-P8.2 sont les deux passes qui la préparent. **Point remonté au propriétaire**, pas arbitré seul.
+🛑 **P8.2 est scindée, et P8.A garde sa place** (**D-41**). Le motif est une **dépendance à sens
+unique** : P8.A doit être écrit et testé **avant** que le retrait du filtre change les résultats de
+tirage. Si les deux passaient ensemble — un examen qui devient conforme **et** un pool qui double
+d'un coup — on ne saurait plus attribuer un écart de mesure à l'un ou à l'autre. P8.2a fournit à
+P8.A **la table et ses quotas**, et rien de plus.
+
+⚠️ **À vérifier en ouvrant P8.2a** : si l'un des trois garde-fous de **D-38** exige le retrait du
+filtre pour tenir, **le dire avant d'écrire la migration** — la séparation ne tiendrait pas, et le
+quota repasserait en code. Et le **rattachement des 46 notions se fait en P8.2a**, pas plus tard :
+P8.A en a besoin pour contraindre le tirage.
 
 Périmètre de fichiers de **P8.A** et de **P8.2** : annexe P8.0 de
 `docs/audits/AUDIT_cycle_plan_civique_v2.md`.

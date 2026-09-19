@@ -1127,15 +1127,23 @@ arbitrées (**D-35**, P8.8), et elles ne dépendent pas de ce contrôle.
 ## F. Ordre des phases — révisé par D-38
 
 **P8.0** (fait) → **Q-F30** partie 1 (le recouvrement seul, D-40) → **P8.1** (rangement) →
-**P8.2** (référentiel officiel : la table des 16 et ses 3 garde-fous, retrait du filtre) →
-**P8.A** (conformité de l'examen blanc) → **P8.3** (schéma du cycle) → **P8.4** (moteur) →
-**P8.5** (freemium) → **P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les 11 questions de Laïcité).
-**P8.9** : ⛔ bloquée.
+**P8.2a** (la table des 16 **seule** : schéma, seed, garde-fous, rattachement des 46) →
+**P8.A** (conformité du tirage) → **P8.2b** (retrait du filtre, suppression de `CivicDotation` et de
+`questions-min-par-notion`) → **P8.3** (schéma du cycle) → **P8.4** (moteur) → **P8.5** (freemium) →
+**P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les 11 questions de Laïcité). **P8.9** : ⛔ bloquée.
 
-🔺 **P8.A a glissé derrière P8.2, et c'est une conséquence de D-38, pas un changement de priorité.**
-Le quota par unité vivant dans la table, la composition conforme ne peut pas s'écrire avant que la
-table existe. La conformité de l'examen blanc reste le **premier chantier de code** ; P8.1 et P8.2
-sont les deux passes qui la préparent. **Point remonté, pas arbitré seul.**
+🛑 **P8.2 est scindée, P8.A garde sa place** (**D-41**, précision de D-29 — pas une révocation :
+« avant le cycle » est tenu, P8.2a n'est pas le cycle). **Dépendance à sens unique** : P8.A doit être
+écrit et testé **avant** que le retrait du filtre change les résultats de tirage — sinon un examen
+qui devient conforme et un pool qui double d'un coup rendent tout écart de mesure inattribuable.
+
+**Ce que §C.1 à §C.3 deviennent** : le référentiel (table + seed + garde-fous + rattachement des 46)
+part en **P8.2a** ; le retrait du filtre (§C.2), les suppressions (§C.3) et les miroirs front (§C.4)
+partent en **P8.2b**, **après** P8.A.
+
+⚠️ **À vérifier en ouvrant P8.2a** : la table doit pouvoir être seedée et testée **sans que le filtre
+bouge**. Si l'un des trois garde-fous de D-38 exige le retrait du filtre pour tenir, **le dire avant
+d'écrire la migration** — la séparation ne tiendrait pas, et le quota repasserait en code.
 
 ---
 
@@ -1148,3 +1156,158 @@ sont les deux passes qui la préparent. **Point remonté, pas arbitré seul.**
 > **(4)** le plan du contrôle de couverture (§E), **sans extraction** — désormais en **deux parties**,
 > la seconde conditionnelle.
 > **Ni Q-F30 ni P8.A ne sont ouvertes.** J'attends le go.
+
+---
+---
+
+# Annexe Q-F30 partie 1 (2026-09-19) — le recouvrement des listes publiques
+
+Exécution de **D-28** et **D-40**. ⛔ **Un seul tableau, puis STOP.** Aucun rattachement aux
+16 unités, aucun appel LLM, aucun import.
+
+Artefacts reproductibles : `scripts/qf30-recouvrement/` — `extraire.py`, `recouvrement.py`,
+`tsv/CSP.tsv`, `tsv/CR.tsv`.
+
+---
+
+## 1. Ce qui a pu être extrait, et ce qui n'a pas pu
+
+| Liste | Statut | Énoncés |
+|---|---|---|
+| **CSP** | ✅ extraite — HTTP 200, 37 820 o | **191** (190 distincts, 1 doublon interne) |
+| **CR** | ✅ extraite — HTTP 200, 40 495 o | **209** (209 distincts) |
+| **NAT** | 🛑 **INDISPONIBLE** | — |
+
+### 🛑 Le chiffre d'échec sur NAT, comme demandé
+
+| Tentative | Résultat |
+|---|---|
+| `immigration.interieur.gouv.fr/documentation/examen-civique/…-nationalite-francaise.html` | **HTTP 403**, 5 527 o — **Cloudflare**, « Sorry, you have been blocked ». Ray ID `a3d80c56ef04063a` |
+| Le PDF direct `…/examen-civique-naturalisation-questions-de-connaissance-20251212.pdf` | **HTTP 403**, même page Cloudflare (`content_type: text/html`) |
+| 3 slugs candidats sur `formation-civique.interieur.gouv.fr` (`…-nat`, `…-naturalisation`, `…`) | **HTTP 404** × 3 |
+| 🛑 **Le `sitemap.xml` de `formation-civique.interieur.gouv.fr`** | Il ne déclare que **deux** listes : `…-csp/` et `…-cr/`. **Il n'existe pas de liste NAT sur ce site.** |
+
+**Ce n'est pas un échec de méthode, c'est un accès refusé** : la liste NAT existe (le PDF est daté du
+2025-12-12) mais vit sur un domaine protégé par Cloudflare, qui bloque tout client non navigateur.
+⛔ **Aucun contournement tenté**, et aucun n'est proposé.
+
+**Pour l'obtenir** : téléchargement manuel depuis un navigateur, puis dépôt du PDF ; le parsing
+suivra le même patron. Mesure du temps : quelques minutes, à votre main.
+
+---
+
+## 2. 🛑 Le tableau — recouvrement CSP ⇄ CR
+
+| Mesure | Valeur |
+|---|---|
+| Énoncés distincts | CSP **190** · CR **209** |
+| **Communs** (appariement strict, clé normalisée) | **33** |
+| Exclusifs CSP | **157** |
+| Exclusifs CR | **176** |
+| **Jaccard** | 33 / 366 = **9,0 %** |
+| Part de CSP couverte par CR | **17,4 %** |
+| Part de CR couverte par CSP | **15,8 %** |
+| Quasi-appariements supplémentaires (tokens ≥ 0,60) | **13** |
+| **Recouvrement strict + quasi** | **46** — soit **24,2 %** de CSP et **22,0 %** de CR |
+
+**Par thématique** (appariement strict)
+
+| | CSP | CR | communs | excl. CSP | excl. CR |
+|---|---|---|---|---|---|
+| **T1** Principes et valeurs | 37 | 40 | **9** | 28 | 31 |
+| **T2** Système institutionnel | 46 | 50 | **18** | 28 | 32 |
+| **T3** Droits et devoirs | 30 | 38 | **5** | 25 | 33 |
+| **T4** Histoire, géographie, culture | 47 | 49 | 🛑 **0** | 47 | 49 |
+| **T5** Vivre dans la société française | 30 | 32 | **1** | 29 | 31 |
+
+Contrôles de cohérence : **0** énoncé commun rangé dans une thématique différente entre les deux
+listes ; le doublon interne de CSP est *« Pour qui l'école est elle obligatoire ? »*.
+
+**Réponse littérale à la question de D-28** : les deux listes accessibles **ne se recouvrent pas** —
+**9 % en strict, 24 % en incluant les quasi-appariements**.
+
+---
+
+## 3. ⚠️ Mais le chiffre ne se lit pas seul — ce que la mesure a révélé en passant
+
+🛑 **Les énoncés divergent ; le programme, non.** C'est sorti de l'appariement lui-même, pas d'une
+analyse supplémentaire.
+
+**Les quasi-appariements montrent une variation DÉLIBÉRÉE, pas deux programmes** :
+
+| CSP | CR |
+|---|---|
+| « Quelle chaîne de montagnes est située entre la France et **l'Italie** ? » | « …entre la France et **l'Espagne** ? » |
+| « Quel numéro d'urgence permet d'appeler **les pompiers** ? » | « …**la police** ? » |
+| « Qui était une **chanteuse** française célèbre ? » | « Qui était une **écrivaine** française célèbre ? » |
+| « **Qu'est-ce que** la liberté d'expression ? » | « **Que garantit** la liberté d'expression ? » |
+
+**T4, la thématique à 0 commun, le dit encore mieux** — mêmes notions, énoncés entièrement
+réécrits :
+
+| CSP | CR |
+|---|---|
+| « En quelle année a débuté la Révolution française ? » | « Quel roi de France a été exécuté pendant la Révolution française ? » |
+| « Qui était Napoléon Ier ? » | « En quelle année Napoléon Ier est-il devenu empereur ? » |
+| « **Qu'est-ce que** la Shoah ? » | « **Pourquoi** la Shoah est-elle étudiée à l'école ? » |
+| « Quel pays **ou région du monde** a été colonisé par la France ? » | « Quel pays a été colonisé par la France ? » |
+
+**Contre-épreuve — les notions du programme sont présentes dans les DEUX listes, 14 sur 14** (compte
+par mots-clés sur les énoncés, aucun rattachement fin) :
+
+| Notion (proxy mots-clés) | CSP | CR | | Notion | CSP | CR |
+|---|---|---|---|---|---|---|
+| Laïcité | 4 | 7 | | Périodes et personnages | 23 | 19 |
+| Devise et symboles | 11 | 13 | | Territoires et géographie | 12 | 12 |
+| Vote et démocratie | 11 | 9 | | Patrimoine | 1 | 4 |
+| Constitution et pouvoirs | 7 | 5 | | S'installer | 1 | 4 |
+| Institutions européennes | 7 | 14 | | Accès aux soins | 7 | 2 |
+| Droits fondamentaux | 3 | 5 | | Travailler | 6 | 5 |
+| Devoirs et obligations | 8 | 8 | | Autorité parentale et école | 12 | 17 |
+
+🛑 **Aucune notion n'est absente d'une liste.** Les volumes varient (CR insiste sur l'Europe et
+l'école, CSP sur l'accès aux soins et les personnages) mais les **14 notions officielles sont
+couvertes des deux côtés** — ce que l'arrêté imposait déjà : **une seule annexe I**.
+
+---
+
+## 4. Ce que ça implique, et ce que je ne tranche pas
+
+**Le binaire de D-28 ne se résout pas net**, et c'est le fait que je remonte :
+
+| Lecture de D-28 | Ce que la mesure dit |
+|---|---|
+| « Recouvrement large ⇒ retrait du filtre confirmé » | ❌ **Non** : 9 % en strict, 24 % avec les quasi. Les listes ne se recouvrent pas. |
+| « Divergence réelle ⇒ le filtre revient pour la composition de l'examen blanc » | ⚠️ **La divergence est réelle au niveau de l'ÉNONCÉ, nulle au niveau du PROGRAMME.** Les deux listes posent des questions différentes sur les mêmes 14 notions. |
+
+**Ce que ça veut dire pour la décision, sans la prendre** : un filtre par mention sur la composition
+de l'examen blanc n'aurait de sens que si le **programme** différait. Il ne diffère pas. Ce qui
+diffère, c'est le **jeu d'énoncés** que le ministère publie par mention — ce qui se lit aussi comme
+un choix de **variantes** (ne pas donner la même liste à réviser à deux publics), pas comme deux
+référentiels.
+
+⛔ **Je ne tranche pas.** Trois voies, et c'est votre arbitrage :
+
+1. **Retrait du filtre confirmé** — le programme est unique, donc la composition l'est aussi. La
+   divergence d'énoncés est une variation éditoriale du ministère, pas une règle.
+2. **Filtre conservé pour la composition** — si la divergence d'énoncés doit être reproduite, parce
+   qu'un candidat CSP révise la liste CSP et doit retrouver ses questions.
+3. **Attendre NAT** — si la troisième liste fait apparaître, elle, une divergence de **programme**,
+   la question change de nature. Coût : un téléchargement manuel.
+
+⚠️ **Et quel que soit le choix, D-28 le rappelle** : l'entraînement et le cycle restent **sans
+filtre**. Seule la composition de l'examen blanc est concernée.
+
+---
+
+## 5. ⛔ STOP
+
+**La partie 2 n'est pas lancée** (rattachement aux 16 unités, couverture du stock SejourFR). Elle
+attend votre lecture du tableau du §2 et de la nuance du §3.
+
+**Ce qui ne dépend pas de ce contrôle**, et reste acquis : les **11 questions de Laïcité** (**D-35**,
+P8.8). Le compte de 9 vient du stock SejourFR, pas des listes publiques.
+
+**Écart de méthode à signaler** : l'audit v2 §5.2 annonçait « CSP ≈ 212, CR ≈ 205 » sur la foi d'un
+comptage par modèle de lecture. Le parsing réel donne **191** et **209**. Les ordres de grandeur
+tenaient, les nombres non — un comptage annoncé par un résumé n'est pas une mesure.
