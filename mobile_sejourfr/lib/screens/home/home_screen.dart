@@ -596,7 +596,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               caption: kAccueilEvaluesCaptionCivique,
             ),
           ],
+          // 🛑 **La légende s'écrit UNE fois**, exactement comme en TCF : les
+          // trois crans d'une ligne civique n'ont aucun libellé sous eux. Et
+          // **aucun cran d'objectif** — `goalIndex` reste nul, le civique n'en
+          // sert pas.
           const SizedBox(height: 12),
+          SfLadderLegend(labels: accueilEchelleLegendeCivique()),
+          const SizedBox(height: 6),
           SfLevelList(
             children: [
               for (var rang = 0; rang < themes.length; rang++)
@@ -629,20 +635,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ? kNonMesureLabel
           : theme.etat.label,
       tone: civicThemeBarTone(theme.etat),
+      // 🛑 **À DROITE, à la place du palier** (2026-09-19) : la ligne civique
+      // n'a aucun palier CECRL servi, donc sa colonne de droite restait vide
+      // pendant que son état se lisait en petit sous l'intitulé. Seule la
+      // POSITION change — le mot et le ton restent servis.
+      statusRight: true,
       // 🛑 **Aucun palier CECRL en civique** : le civique se mesure en thèmes,
-      // jamais en paliers. La pastille de droite disparaît.
+      // jamais en paliers. La pastille de droite porte le statut.
       level: null,
       measured: theme.etat != CivicThemeState.nonEvalue,
-      // 🛑 **Pas d'échelle CECRL non plus** — mais la jauge d'état, elle, est
-      // servie : `civicThemeBarTone` et `civicThemeJauge` restent les autorités
-      // déjà en place pour cet enum.
-      scale: SfProgressMini(
-        ratio: civicThemeJauge(theme.etat),
-        tone: civicThemeBarTone(theme.etat),
-        semanticsLabel: theme.etat.label,
+      // 🛑 **Le même cran segmenté que le TCF**, sur la seule donnée servie
+      // pour un thème : son `etat`. Les crans sont les valeurs MESURÉES de
+      // `CivicThemeState` (`accueilEchelonsCivique`) — aucun palier CECRL,
+      // aucun objectif.
+      scale: SfLevelLadder(
+        steps: accueilEchelonsCivique(theme.etat),
+        label: accueilEchelleLabelCivique(theme.etat),
+        dim: theme.etat == CivicThemeState.nonEvalue,
       ),
       cta: kHomeSituationCivicCta,
-      onTap: () => _ouvrirPlan(context, civique: true),
+      // 🛑 **L'historique des examens blancs du thème**, la page qui existe
+      // déjà — adresse déclarée une seule fois (`civiqueThemeExamsPath`),
+      // partagée avec le hero du détail de thème.
+      onTap: () =>
+          context.push(AppRoutes.civiqueThemeExamsPath(theme.themeId)),
     );
   }
 

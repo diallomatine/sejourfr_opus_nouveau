@@ -184,18 +184,14 @@ SfBarTone civicThemeBarTone(CivicThemeState etat) =>
       CivicCibleTone.muted => SfBarTone.muted,
     };
 
-/// Le remplissage de la jauge d'un thème.
-///
-/// 🛑 **Ce n'est pas un pourcentage de maîtrise** — le civique se mesure en
-/// points sur 40 et en cibles tenues, jamais en barres, et aucun chiffre n'est
-/// affiché. C'est le codage visuel de l'état **servi**, à quatre positions
-/// fixes. 🛑 `NON_EVALUE` vaut 0 comme « jamais mesuré », pas comme « raté ».
-double civicThemeJauge(CivicThemeState etat) => switch (etat) {
-      CivicThemeState.nonEvalue => 0,
-      CivicThemeState.faible => 0.3,
-      CivicThemeState.aRenforcer => 0.6,
-      CivicThemeState.solide => 1,
-    };
+/* ⚠️ **`civicThemeJauge` est SUPPRIMÉE** (2026-09-19). Elle rendait le
+   remplissage d'une jauge continue à quatre positions fixes (0 · 0,3 · 0,6 · 1)
+   pour la ligne de thème de l'Accueil. Cette ligne rend désormais son état avec
+   le **même cran segmenté que l'échelle TCF**, et les crans sont les valeurs
+   mesurées de l'enum servi — `accueilEchelonsCivique`
+   (`screens/progres/progres_labels.dart`). Son dernier lecteur et sa primitive
+   (`SfProgressMini`) partent dans la même passe. Miroir web : `civicBarJauge`,
+   supprimée aussi. */
 
 const String kCivicPlanThemesTitle = 'Thèmes à travailler';
 

@@ -26,11 +26,13 @@ import {EPREUVE_PRESENTATION} from "./exam-durations";
 import {PLAN_DOMAIN_SECTION, planDomainSlug} from "./plan-domain";
 import {
     cecrlIndex,
+    CIVIC_THEME_STATE_LABEL,
     niveauCecrlLabel,
     niveauCecrlShort,
     SOURCE_EVALUATION_LABEL,
 } from "./types";
 import type {
+    CivicThemeState,
     EpreuveType,
     EvaluationQualifianteDto,
     NiveauCecrl,
@@ -565,6 +567,87 @@ export function accueilEvaluesCivique(
  * Miroir mobile : `kAccueilEvaluesCaptionCivique`.
  */
 export const ACCUEIL_EVALUES_CAPTION_CIVIQUE = "évalués";
+
+/* ----------------------------------------- L'échelle d'un thème civique --- */
+
+/**
+ * **Les crans d'un thème civique** — les états **mesurés** de `CivicThemeState`,
+ * du plus fragile au plus tenu.
+ *
+ * 🛑 **Ce n'est ni une échelle CECRL, ni un objectif, ni un palier** : le
+ * civique n'en sert aucun (`docs/regles/progression.md`, arbitrage du
+ * 2026-09-16). C'est l'**enum servi lui-même**, posé à plat : le nombre de
+ * crans est le nombre d'états que le moteur civique peut rendre, moins
+ * `NON_EVALUE` — qui n'est pas un cran mais une absence de mesure.
+ *
+ * 🛑 **Aucun nombre n'entre ici.** Le front ne classe pas un ratio en état : il
+ * reçoit `etat` servi et lit son rang dans cette table.
+ *
+ * Miroir mobile : `kAccueilEchelleCivique`.
+ */
+export const ACCUEIL_ECHELLE_CIVIQUE: readonly CivicThemeState[] = [
+    "FAIBLE",
+    "A_RENFORCER",
+    "SOLIDE",
+];
+
+/** Le rang d'un état **servi** sur cette échelle. `-1` = aucune mesure. */
+function civicEtatRang(etat: CivicThemeState): number {
+    return ACCUEIL_ECHELLE_CIVIQUE.indexOf(etat);
+}
+
+/**
+ * Les crans d'un thème, **composés** pour le kit — le même `LevelLadder` que
+ * les quatre épreuves du TCF.
+ *
+ * ⚠️ **Il remplace la jauge continue** (`ProgressMini`, supprimée le
+ * 2026-09-19, demande du propriétaire) : « afficher le cran de la même manière
+ * que le TCF ». Le codage visuel ne change pas de sens — les quatre positions
+ * fixes de l'ancienne jauge (0 · 0,3 · 0,6 · 1) étaient déjà les quatre états
+ * servis, ce sont maintenant des segments.
+ *
+ * 🛑 **Aucun cran d'objectif** : `goal` est toujours faux et aucun cran ne passe
+ * en `target`. Le civique ne sert pas d'objectif, et en peindre un serait
+ * inventer une cible que personne n'a posée.
+ *
+ * Miroir mobile : `accueilEchelonsCivique`.
+ */
+export function accueilEchelonsCivique(etat: CivicThemeState): LadderStep[] {
+    const atteint = civicEtatRang(etat);
+    return ACCUEIL_ECHELLE_CIVIQUE.map((valeur, rang) => ({
+        label: CIVIC_THEME_STATE_LABEL[valeur],
+        state: rang <= atteint ? "done" : "empty",
+        current: rang === atteint,
+        goal: false,
+    }));
+}
+
+/**
+ * **Les états de l'échelle civique**, pour la légende rendue une seule fois
+ * au-dessus de la liste — le pendant de `accueilEchelleLegende`.
+ *
+ * 🛑 **La même table que les crans** (`ACCUEIL_ECHELLE_CIVIQUE`), et les mêmes
+ * libellés **gelés** que la pastille de droite (`CIVIC_THEME_STATE_LABEL`) :
+ * deux listes finiraient par ne plus se superposer.
+ *
+ * Miroir mobile : `accueilEchelleLegendeCivique`.
+ */
+export function accueilEchelleLegendeCivique(): string[] {
+    return ACCUEIL_ECHELLE_CIVIQUE.map((etat) => CIVIC_THEME_STATE_LABEL[etat]);
+}
+
+/**
+ * Ce que l'échelle d'un thème dit à un lecteur d'écran — elle est rendue en
+ * `role="img"`, ses libellés sont décoratifs.
+ *
+ * 🛑 **Le libellé servi, jamais une phrase de plus** : « Non évalué » se dit
+ * tel quel, et surtout pas « faible ».
+ *
+ * Miroir mobile : `accueilEchelleLabelCivique`.
+ */
+export function accueilEchelleLabelCivique(etat: CivicThemeState): string {
+    return CIVIC_THEME_STATE_LABEL[etat];
+}
 
 /**
  * « 4 compétences maîtrisées sur 11 travaillées ».

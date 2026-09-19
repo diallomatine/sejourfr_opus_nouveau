@@ -10,6 +10,24 @@ export function themeSlug(code: string): string {
 }
 
 /**
+ * **L'historique des examens blancs d'un thème civique** — 10 créneaux de
+ * 20 questions, la page qui existe déjà.
+ *
+ * 🛑 **Un seul endroit décide de cette adresse.** Elle s'écrivait à la main
+ * dans `lib/dashboard.ts`, dans l'en-tête de la page de séries et, depuis le
+ * 2026-09-19, sur la ligne de thème de l'Accueil : la 3ᵉ occurrence était de la
+ * dette. Miroir mobile : `AppRoutes.civiqueThemeExamsPath`.
+ *
+ * ⚠️ Elle prend le **segment d'URL**, pas le code : l'appelant passe
+ * `themeSlug(code)` quand il tient un code, et son `ref` hérité (un UUID de
+ * retour de session) quand il n'a que ça — c'est `resolveThemeRef` qui résout
+ * les deux, et cette fonction n'a pas à choisir pour lui.
+ */
+export function civicThemeExamsHref(ref: string): string {
+  return `/entrainement/civique/${ref}/examens`;
+}
+
+/**
  * Résout le segment d'URL d'un thème : slug (nouvelles URLs) ou UUID
  * (héritage — retours de session, anciens liens).
  */

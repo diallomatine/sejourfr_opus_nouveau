@@ -775,41 +775,13 @@ export function Prio({
  */
 export type BarTone = Tone | "now";
 
-const barToneClass: Record<BarTone, string> = {
-  ok: styles.barOk,
-  now: styles.barNow,
-  warn: styles.barWarn,
-  hot: styles.barHot,
-  muted: styles.barMuted,
-};
-
-/**
- * Barre de progression fine d'une priorité (compétences validées).
- *
- * 🛑 **Aucun chiffre n'est rendu** : c'est une part parcourue, jamais une note
- * ni un pourcentage annoncé au candidat. Le `%` ne sert qu'à poser la largeur.
- */
-export function ProgressMini({
-  ratio,
-  label,
-  tone = "now",
-}: {
-  ratio: number;
-  label?: string;
-  /** Défaut `now` : c'est le bleu que la brique rendait avant. */
-  tone?: BarTone;
-}) {
-  const pct = Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
-  /* `<span>` et non `<div>` : la jauge est rendue **dans** une ligne d'épreuve
-     (`LevelRow`), donc à l'intérieur d'un lien — un `<div>` y serait un nœud de
-     flux dans du contenu phrasé. `display: block` lui garde exactement le même
-     rendu chez ses appelants d'origine. */
-  return (
-    <span className={cx(styles.progressMini, barToneClass[tone])} aria-label={label}>
-      <span style={{ width: `${pct}%` }} />
-    </span>
-  );
-}
+/* ⚠️ **`ProgressMini` est supprimée** (2026-09-19) : la jauge continue ne
+   servait plus qu'à la ligne civique de « Où vous en êtes », qui rend désormais
+   son état servi avec le **même traité segmenté que l'échelle TCF**
+   (`LevelLadder`). Refonte = suppression de l'ancien : sa palette de
+   remplissage (`.barOk`…`.barMuted`) part avec elle, et `BarTone` reste — il
+   teinte encore la pastille de statut de `LevelRow`. Miroir Flutter :
+   `SfProgressMini`, supprimée dans la même passe. */
 
 /** Sous-ligne d'une priorité : une compétence et son état. */
 export function SkillRow({ label, state }: { label: string; state: StepState }) {
@@ -1323,8 +1295,9 @@ export function PassCard({
 /* ========================================================================== */
 
 /**
- * Le ton d'une **pastille de statut** — le même contrat que celui d'une jauge,
- * mais posé sur du texte : `barToneClass` ne teinte qu'un enfant de barre.
+ * Le ton d'une **pastille de statut** — le même contrat de tons que le reste du
+ * kit, mais posé sur du texte : le rouge plein y est trop clair et `muted-2`
+ * trop pâle, d'où une table à part. Miroir Flutter : `_sfStatusColor`.
  */
 const statusToneClass: Record<BarTone, string> = {
   ok: styles.toneOk,
@@ -1366,6 +1339,12 @@ export type LadderStep = {
  * 🛑 **Rendue en `role="img"`** avec un `aria-label` composé par l'appelant :
  * les libellés sont `aria-hidden`, un lecteur d'écran n'a pas à épeler quatre
  * crans pour comprendre « Niveau B1, objectif B2 ».
+ *
+ * ⚠️ **Elle sert aussi la ligne CIVIQUE** depuis le 2026-09-19 (« afficher le
+ * cran de la même manière que le TCF ») : trois crans au lieu de quatre, les
+ * états **mesurés** de `CivicThemeState` (`accueilEchelonsCivique`), et **aucun
+ * cran d'objectif** — le civique n'en sert pas. La piste compte ses colonnes sur
+ * les crans reçus, elle n'en présume aucun nombre.
  *
  * Miroir Flutter : `SfLevelLadder`.
  */
@@ -1465,6 +1444,12 @@ export function LadderLegend({
  * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
  * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`).
  *
+ * ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, le statut est
+ * sous l'intitulé et la droite porte le **palier CECRL** ; en civique, il n'y a
+ * aucun palier servi et c'est le **statut** qui prend la droite (`statusRight`).
+ * Les crans de l'échelle viennent de l'appelant dans les deux cas — le kit ne
+ * sait pas ce qu'ils comptent.
+ *
  * Miroir Flutter : `SfLevelRow`.
  */
 export function LevelRow({
@@ -1472,6 +1457,7 @@ export function LevelRow({
   title,
   status,
   tone,
+  statusRight,
   level,
   measured,
   scale,
@@ -1488,6 +1474,17 @@ export function LevelRow({
   status: string | null;
   /** Le ton de la pastille de statut. */
   tone: BarTone;
+  /**
+   * **La variante civique** : le statut se rend à DROITE, à la place qu'occupe
+   * le palier en TCF, au lieu de la sous-ligne de l'intitulé.
+   *
+   * 🛑 **Une position, pas une seconde anatomie** : c'est la même pastille, le
+   * même mot servi et le même ton — une ligne civique n'a aucun palier CECRL, sa
+   * colonne de droite était donc vide. La ligne TCF, elle, garde son statut à
+   * gauche et son palier à droite : `statusRight` et `level` ne se rencontrent
+   * jamais. Miroir Flutter : `SfLevelRow.statusRight`.
+   */
+  statusRight?: boolean;
   /**
    * Le palier servi, ou le mot d'une absence de mesure. `null` retire la
    * pastille : le civique n'a aucun palier CECRL servi.
@@ -1516,10 +1513,17 @@ export function LevelRow({
         {mark ? <span className={styles.levelMark}>{mark}</span> : null}
         <span className={styles.levelRowId}>
           <span className={styles.levelRowName}>{title}</span>
-          {status ? (
+          {status && !statusRight ? (
             <span className={cx(styles.levelRowStatus, statusToneClass[tone])}>{status}</span>
           ) : null}
         </span>
+        {status && statusRight ? (
+          <span
+            className={cx(styles.levelRowStatus, styles.isRight, statusToneClass[tone])}
+          >
+            {status}
+          </span>
+        ) : null}
         {level ? (
           <span className={cx(styles.levelChip, !measured && styles.isNa)}>{level}</span>
         ) : null}
@@ -1951,8 +1955,7 @@ export function Pill({
  *
  * 🛑 **Barre CONTINUE, et elle porte un chiffre.** C'est ce qui la distingue
  * des deux briques voisines, qu'il ne faut surtout pas remplacer par elle :
- * - `ProgressMini` a un contrat qui **interdit tout chiffre** (« c'est une part
- *   parcourue, jamais une note ni un pourcentage annoncé au candidat ») ;
+ * - `LevelLadder` a des **crans**, et aucun chiffre : elle situe un état servi ;
  * - `PathCard` a une barre **segmentée**, un segment par étape — elle décrit un
  *   parcours de tâche, pas l'avancement d'un cycle entier.
  *
@@ -2555,8 +2558,9 @@ export function ChartNote({
  * d'évolution, le palier à droite avec son intitulé, un chevron.
  *
  * 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
- * - `LevelRow` porte une **échelle CECRL** et une ligne d'action — c'est la
- *   ligne de l'Accueil, qui dit *quoi faire* ;
+ * - `LevelRow` porte une **échelle à crans** et une ligne d'action — c'est la
+ *   ligne de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, états de
+ *   thème servis en civique) ;
  * - `EpreuveRow` porte un **anneau de couverture** — c'est la ligne de Réviser,
  *   qui dit *où s'entraîner* ;
  * - `ExamRow` porte un état de passage.

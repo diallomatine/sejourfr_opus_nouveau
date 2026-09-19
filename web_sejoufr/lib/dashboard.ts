@@ -1,7 +1,7 @@
 // Helpers partagés entre /dashboard et /recommandations (catégories du
 // GET /api/me/dashboard).
 
-import { themeSlug } from "./themes";
+import { civicThemeExamsHref, themeSlug } from "./themes";
 import type { DashboardCategoryStat } from "./types";
 
 /** Route d'entraînement d'une catégorie (CTA "Réviser"). */
@@ -39,7 +39,7 @@ export function categoryExamsHref(cat: DashboardCategoryStat): string {
       return "/entrainement/tcf/eo/examens";
     default:
       return cat.themeId
-        ? `/entrainement/civique/${themeSlug(cat.code)}/examens`
+        ? civicThemeExamsHref(themeSlug(cat.code))
         : "/examens-blancs";
   }
 }

@@ -1280,52 +1280,13 @@ class _SfPrioState extends State<SfPrio> {
 /// mesuré. Miroir web : `BarTone` (`SejourKit.tsx`).
 enum SfBarTone { ok, now, warn, hot, muted }
 
-Color _sfBarColor(SfBarTone tone) => switch (tone) {
-      SfBarTone.ok => AppColors.green,
-      SfBarTone.now => AppColors.blue,
-      SfBarTone.warn => AppColors.amberDark,
-      SfBarTone.hot => AppColors.red,
-      SfBarTone.muted => AppColors.muted2,
-    };
-
-/// Barre fine de progression d'une priorité (compétences validées).
-///
-/// 🛑 **Aucun chiffre n'est rendu** : c'est une part parcourue, jamais une
-/// note ni un pourcentage annoncé au candidat.
-class SfProgressMini extends StatelessWidget {
-  const SfProgressMini({
-    super.key,
-    required this.ratio,
-    this.semanticsLabel,
-    this.tone = SfBarTone.now,
-  });
-
-  final double ratio;
-  final String? semanticsLabel;
-
-  /// Défaut [SfBarTone.now] : c'est le bleu que la brique rendait avant, donc
-  /// aucun appelant existant ne change d'aspect.
-  final SfBarTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: semanticsLabel,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: ratio.clamp(0.0, 1.0),
-            minHeight: 6,
-            backgroundColor: AppColors.line,
-            valueColor: AlwaysStoppedAnimation(_sfBarColor(tone)),
-          ),
-        ),
-      ),
-    );
-  }
-}
+/* ⚠️ **`SfProgressMini` est supprimée** (2026-09-19), avec sa table de
+   couleurs `_sfBarColor` : la jauge continue ne servait plus qu'à la ligne
+   civique de « Où vous en êtes », qui rend désormais son état servi avec le
+   **même traité segmenté que l'échelle TCF** ([SfLevelLadder]). Refonte =
+   suppression de l'ancien. [SfBarTone] reste — il teinte encore la pastille de
+   statut de [SfLevelRow]. Miroir web : `ProgressMini`, supprimée dans la même
+   passe. */
 
 /// Sous-ligne d'une priorité : une compétence et son état.
 class SfSkillRow extends StatelessWidget {
@@ -2696,6 +2657,12 @@ enum SfLadderState { done, target, empty }
 /// B1, objectif B2 ») et ses libellés sont exclus — un lecteur d'écran n'a pas
 /// à épeler quatre crans. Pendant du `role="img"` + `aria-hidden` du web.
 ///
+/// ⚠️ **Elle sert aussi la ligne CIVIQUE** depuis le 2026-09-19 (« afficher le
+/// cran de la même manière que le TCF ») : trois crans au lieu de quatre, les
+/// états **mesurés** de `CivicThemeState` (`accueilEchelonsCivique`), et
+/// **aucun cran d'objectif** — le civique n'en sert pas. La rangée s'adapte au
+/// nombre de crans reçus.
+///
 /// Miroir web : `LevelLadder`.
 class SfLevelLadder extends StatelessWidget {
   const SfLevelLadder({
@@ -2844,6 +2811,12 @@ Color _sfStatusColor(SfBarTone tone) => switch (tone) {
 /// pastille mono, intitulé, statut à pastille colorée, palier à droite, puis
 /// l'échelle et une ligne de pied « action · objectif ».
 ///
+/// ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, le statut est
+/// sous l'intitulé et la droite porte le **palier CECRL** ; en civique, il n'y
+/// a aucun palier servi et c'est le **statut** qui prend la droite
+/// ([statusRight]). Les segments de l'échelle viennent de l'appelant dans les
+/// deux cas — le kit ne sait pas ce qu'ils comptent.
+///
 /// 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
 /// `accueilEpreuve*` (`screens/progres/progres_labels.dart`).
 ///
@@ -2860,6 +2833,7 @@ class SfLevelRow extends StatelessWidget {
     required this.measured,
     required this.cta,
     required this.onTap,
+    this.statusRight = false,
     this.scale,
     this.ctaPrimary = false,
     this.busy = false,
@@ -2875,6 +2849,16 @@ class SfLevelRow extends StatelessWidget {
 
   /// Le ton de la pastille de statut.
   final SfBarTone tone;
+
+  /// **La variante civique** : le statut se rend à DROITE, à la place qu'occupe
+  /// le palier en TCF, au lieu de la sous-ligne de l'intitulé.
+  ///
+  /// 🛑 **Une position, pas une seconde anatomie** : c'est la même pastille, le
+  /// même mot servi et le même ton — une ligne civique n'a aucun palier CECRL,
+  /// sa colonne de droite était donc vide. La ligne TCF, elle, garde son statut
+  /// à gauche et son palier à droite : [statusRight] et [level] ne se
+  /// rencontrent jamais. Miroir web : `LevelRow.statusRight`.
+  final bool statusRight;
 
   /// Le palier servi, ou le mot d'une absence de mesure. `null` retire la
   /// pastille : le civique n'a aucun palier CECRL servi.
@@ -2934,6 +2918,7 @@ class SfLevelRow extends StatelessWidget {
                 title: title,
                 status: status,
                 tone: tone,
+                statusRight: statusRight,
                 level: level,
                 measured: measured,
               ),
@@ -2960,6 +2945,7 @@ class _SfLevelRowTop extends StatelessWidget {
     required this.title,
     required this.status,
     required this.tone,
+    required this.statusRight,
     required this.level,
     required this.measured,
   });
@@ -2968,8 +2954,44 @@ class _SfLevelRowTop extends StatelessWidget {
   final String title;
   final String? status;
   final SfBarTone tone;
+  final bool statusRight;
   final String? level;
   final bool measured;
+
+  /// La pastille de statut, **une seule fois écrite**, rendue à l'une ou
+  /// l'autre position. La couleur n'est jamais le seul porteur du sens : le mot
+  /// servi la redit.
+  ///
+  /// Sous l'intitulé, elle occupe la largeur restante et peut passer à la
+  /// ligne ; à droite, elle prend sa largeur propre et c'est l'intitulé qui se
+  /// resserre — le pendant de `flex: 0 0 auto` + `white-space: nowrap` côté web.
+  Widget _statut({required bool sousLIntitule}) {
+    final texte = Text(
+      status!,
+      maxLines: sousLIntitule ? 2 : 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.ui(
+        size: 12.5,
+        weight: FontWeight.w600,
+        color: _sfStatusColor(tone),
+      ),
+    );
+    return Row(
+      mainAxisSize: sousLIntitule ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: _sfStatusColor(tone),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        if (sousLIntitule) Flexible(child: texte) else texte,
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3010,39 +3032,20 @@ class _SfLevelRowTop extends StatelessWidget {
                   height: 1.2,
                 ),
               ),
-              if (status != null) ...[
+              if (status != null && !statusRight) ...[
                 const SizedBox(height: 3),
-                Row(
-                  children: [
-                    // La pastille prend le ton **servi**, et le mot le redit :
-                    // la couleur n'est jamais le seul porteur du sens.
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: _sfStatusColor(tone),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        status!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(
-                          size: 12.5,
-                          weight: FontWeight.w600,
-                          color: _sfStatusColor(tone),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _statut(sousLIntitule: true),
               ],
             ],
           ),
         ),
+        // 🛑 **La MÊME pastille, à la place du palier** : seule la position
+        // change. Elle n'est jamais rendue en même temps que [level] — une
+        // ligne TCF garde son statut à gauche.
+        if (status != null && statusRight) ...[
+          const SizedBox(width: 10),
+          _statut(sousLIntitule: false),
+        ],
         if (level != null) ...[
           const SizedBox(width: 10),
           // 🛑 Non mesuré : pastille neutre et petite. Le bleu est réservé à un
@@ -5818,8 +5821,9 @@ Color _sfStatusSoft(SfBarTone tone) => Color.alphaBlend(
 /// d'evolution, le palier a droite avec son intitule, un chevron.
 ///
 /// 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
-/// - [SfLevelRow] porte une **echelle CECRL** et une ligne d'action — c'est la
-///   ligne de l'Accueil, qui dit *quoi faire* ;
+/// - [SfLevelRow] porte une **echelle a crans** et une ligne d'action — c'est la
+///   ligne de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, etats de
+///   theme servis en civique) ;
 /// - [SfEpreuveRow] porte un **anneau de couverture** et un pictogramme — c'est
 ///   la ligne de Reviser, qui dit *ou s'entrainer* ;
 /// - [SfExamRow] porte un etat de passage.

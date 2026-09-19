@@ -1271,33 +1271,6 @@
   padding-top: 0;
 }
 
-/* ---------- Progression fine (barre de compétences) ---------- */
-
-.progressMini {
-  display: block;
-  height: 6px;
-  background: var(--color-line);
-  border-radius: 99px;
-  overflow: hidden;
-  margin-top: 10px;
-}
-
-.progressMini span {
-  display: block;
-  height: 100%;
-  background: var(--color-blue);
-  border-radius: 99px;
-}
-
-/* Le ton du remplissage — la palette des segments de parcours, pas une
-   nouvelle. 🛑 Le ton vient d'un état SERVI, jamais d'un seuil sur un nombre.
-   Miroir Flutter : `_sfBarColor` (`sejour_kit.dart`). */
-.barOk span { background: var(--color-green); }
-.barNow span { background: var(--color-blue); }
-.barWarn span { background: var(--color-amber-dark); }
-.barHot span { background: var(--color-red); }
-.barMuted span { background: var(--color-muted-2); }
-
 .skillMini {
   margin-top: 10px;
   display: grid;
@@ -2030,8 +2003,9 @@
 }
 
 /* La légende porte déjà l'espace au-dessus d'elle : la liste se contente de
-   s'en détacher. Sans ce sélecteur, la carte CIVIQUE — qui n'a pas d'échelle
-   CECRL, donc pas de légende — collerait sa liste sous son bandeau. */
+   s'en détacher. Sans ce sélecteur, une liste SANS légende collerait sous son
+   bandeau. ⚠️ La carte civique en a une depuis le 2026-09-19 (les trois états
+   servis de ses crans) : les deux parcours passent donc par cette règle. */
 .ladderLegend + .levelList {
   margin-top: 6px;
 }
@@ -2146,6 +2120,20 @@
   background: currentColor;
 }
 
+/* 🛑 **La MÊME pastille, à la place du palier** (2026-09-19, arbitrage du
+   propriétaire) : la ligne civique n'a aucun palier CECRL servi, donc sa
+   colonne de droite était vide et son état se lisait en petit sous
+   l'intitulé. Elle prend la position qu'occupe le palier en TCF — seule la
+   position change, le mot, le ton et la pastille restent ceux du statut servi.
+   ⚠️ La ligne TCF n'y touche pas : elle garde son statut à gauche et son
+   palier à droite. */
+.levelRowStatus.isRight {
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
 .toneOk { color: var(--color-green); }
 .toneNow { color: var(--color-blue); }
 .toneWarn { color: var(--color-amber-dark); }
@@ -2232,9 +2220,15 @@
   margin-top: 9px;
 }
 
+/* 🛑 **Autant de colonnes qu'on lui passe de crans, à largeur égale** : la
+   piste comptait `repeat(4, …)` en dur, ce qui laissait une colonne vide sous
+   une échelle de trois crans. `grid-auto-flow: column` lit le nombre de crans
+   dans les enfants — le rendu du TCF (quatre crans) est inchangé, et l'échelle
+   civique (trois états servis) tombe juste. */
 .ladderTrack {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
 }
 
@@ -2272,7 +2266,8 @@
    échelles — et où la hauteur n'est pas une contrainte. */
 .ladderLabels {
   display: none;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
   margin-top: 5px;
 }
@@ -2301,7 +2296,8 @@
    50 px — donc 50 px suffisent ici pour tomber exactement sous les crans. */
 .ladderLegend {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
   margin: 12px 0 0;
   padding-left: 50px;

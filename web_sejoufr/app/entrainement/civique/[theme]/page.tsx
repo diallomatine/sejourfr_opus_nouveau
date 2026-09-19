@@ -15,7 +15,7 @@ import {
 import { handleStartFailure } from "@/lib/start-failure";
 import { loadFailureMessage } from "@/lib/load-failure";
 import { useAuth } from "@/lib/auth-context";
-import { themeSlug, resolveThemeRef } from "@/lib/themes";
+import { civicThemeExamsHref, themeSlug, resolveThemeRef } from "@/lib/themes";
 import {
   canAccessModule,
   type LotDto,
@@ -163,7 +163,7 @@ export default function CiviqueThemeSeriesPage() {
         title="Séries d'entraînement"
         subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
         action={
-          <Link href={`/entrainement/civique/${slug}/examens`} className={detail.headBtn}>
+          <Link href={civicThemeExamsHref(slug)} className={detail.headBtn}>
             <Target size={17} strokeWidth={1.7} aria-hidden />
             Examens blancs
           </Link>

@@ -139,7 +139,7 @@ class _CiviqueThemeDetailScreenState
   void _openExamsPage(ThemeDto theme) {
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
     context.push(
-      AppRoutes.civiqueThemeExams.replaceFirst(':themeId', theme.id),
+      AppRoutes.civiqueThemeExamsPath(theme.id),
     );
   }
 

@@ -17,7 +17,6 @@ import {
     NowCard,
     Pad,
     PanelHead,
-    ProgressMini,
     Section,
     SejourApp,
     sejourStyles,
@@ -29,16 +28,20 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
     JOURNEY_TARGET_PATH_HREF,
 } from "@/lib/journey";
-import {civicBarJauge, civicBarTone} from "@/lib/civic-diagnostic";
+import {civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPlanRaison} from "@/lib/civic-plan";
+import {civicThemeExamsHref, themeSlug} from "@/lib/themes";
 import {
     ACCUEIL_EVALUEES_CAPTION,
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
     NON_MESURE_LABEL,
     accueilEchelleLabel,
+    accueilEchelleLabelCivique,
     accueilEchelleLegende,
+    accueilEchelleLegendeCivique,
     accueilEchelleRangObjectif,
     accueilEchelons,
+    accueilEchelonsCivique,
     accueilEpreuveBadge,
     accueilEpreuveCta,
     accueilEpreuveOuvreLExercice,
@@ -182,8 +185,13 @@ const SITUATION_CIVIC_CARD_TITLE = "Votre niveau par thème";
 const SITUATION_CIVIC_CARD_LEAD =
     "Mis à jour après vos séries et votre diagnostic.";
 
-/** 🛑 Elle ne démarre rien : le Plan civique porte le seul lanceur de série. */
-const SITUATION_CIVIC_CTA = "Travailler ce thème";
+/**
+ * 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
+ * propriétaire, 2026-09-19) : la ligne d'un thème ouvre **l'historique de ses
+ * examens blancs**, la page qui existe déjà — pendant exact du « Voir mes
+ * résultats » d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
+ */
+const SITUATION_CIVIC_CTA = "Voir mes résultats";
 
 /**
  * L'intitulé de la bande de tête civique.
@@ -857,6 +865,12 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                             caption={ACCUEIL_EVALUES_CAPTION_CIVIQUE}
                         />
                     )}
+                    {/* 🛑 **La légende s'écrit UNE fois**, exactement comme en
+                        TCF : les trois crans d'une ligne civique n'ont aucun
+                        libellé sous eux sur téléphone. Et **aucun cran
+                        d'objectif** — `goalIndex` est `null`, le civique n'en
+                        sert pas. */}
+                    <LadderLegend labels={accueilEchelleLegendeCivique()} goalIndex={null}/>
                     <LevelList>
                         {themes.map((t, rang) => (
                             <LevelRow
@@ -878,24 +892,38 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                     ? NON_MESURE_LABEL
                                     : CIVIC_THEME_STATE_LABEL[t.etat]}
                                 tone={civicBarTone(t.etat)}
+                                /* 🛑 **À DROITE, à la place du palier**
+                                   (2026-09-19) : la ligne civique n'a aucun
+                                   palier CECRL servi, donc sa colonne de droite
+                                   restait vide pendant que son état se lisait en
+                                   petit sous l'intitulé. Seule la POSITION
+                                   change — le mot et le ton restent servis. */
+                                statusRight
                                 /* 🛑 **Aucun palier CECRL en civique** : le
                                    civique se mesure en thèmes, jamais en
-                                   paliers. La pastille de droite disparaît. */
+                                   paliers. La pastille de droite porte le
+                                   statut. */
                                 level={null}
                                 measured={t.etat !== "NON_EVALUE"}
-                                /* 🛑 **Pas d'échelle CECRL non plus** — mais la
-                                   jauge d'état, elle, est servie : `civicBarTone`
-                                   et `civicBarJauge` restent les autorités déjà
-                                   en place pour cet enum. */
+                                /* 🛑 **Le même cran segmenté que le TCF**, sur
+                                   la seule donnée servie pour un thème : son
+                                   `etat`. Les crans sont les valeurs MESURÉES de
+                                   `CivicThemeState` (`accueilEchelonsCivique`) —
+                                   aucun palier CECRL, aucun objectif. */
                                 scale={
-                                    <ProgressMini
-                                        ratio={civicBarJauge(t.etat)}
-                                        tone={civicBarTone(t.etat)}
-                                        label={CIVIC_THEME_STATE_LABEL[t.etat]}
+                                    <LevelLadder
+                                        steps={accueilEchelonsCivique(t.etat)}
+                                        label={accueilEchelleLabelCivique(t.etat)}
+                                        dim={t.etat === "NON_EVALUE"}
                                     />
                                 }
                                 cta={SITUATION_CIVIC_CTA}
-                                href={planHref("CIVIQUE")}
+                                /* 🛑 **L'historique des examens blancs du
+                                   thème**, la page qui existe déjà — adresse
+                                   déclarée une seule fois
+                                   (`civicThemeExamsHref`), partagée avec le hub
+                                   de thème et `categoryExamsHref`. */
+                                href={civicThemeExamsHref(themeSlug(t.code))}
                             />
                         ))}
                     </LevelList>

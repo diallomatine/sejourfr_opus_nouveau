@@ -504,6 +504,74 @@ const String kAccueilEvalueesCaption = 'évaluées';
 /// Miroir web : `ACCUEIL_EVALUES_CAPTION_CIVIQUE`.
 const String kAccueilEvaluesCaptionCivique = 'évalués';
 
+/* ---------------------------------------- L'échelle d'un thème civique --- */
+
+/// **Les crans d'un thème civique** — les états **mesurés** de
+/// [CivicThemeState], du plus fragile au plus tenu.
+///
+/// 🛑 **Ce n'est ni une échelle CECRL, ni un objectif, ni un palier** : le
+/// civique n'en sert aucun (`docs/regles/progression.md`, arbitrage du
+/// 2026-09-16). C'est l'**enum servi lui-même**, posé à plat : le nombre de
+/// crans est le nombre d'états que le moteur civique peut rendre, moins
+/// `nonEvalue` — qui n'est pas un cran mais une absence de mesure.
+///
+/// 🛑 **Aucun nombre n'entre ici.** Le front ne classe pas un ratio en état : il
+/// reçoit `etat` servi et lit son rang dans cette table.
+///
+/// Miroir web : `ACCUEIL_ECHELLE_CIVIQUE`.
+const List<CivicThemeState> kAccueilEchelleCivique = [
+  CivicThemeState.faible,
+  CivicThemeState.aRenforcer,
+  CivicThemeState.solide,
+];
+
+/// Les crans d'un thème, **composés** pour le kit — le même [SfLevelLadder] que
+/// les quatre épreuves du TCF.
+///
+/// ⚠️ **Il remplace la jauge continue** (`SfProgressMini`, supprimée le
+/// 2026-09-19, demande du propriétaire) : « afficher le cran de la même manière
+/// que le TCF ». Le codage visuel ne change pas de sens — les quatre positions
+/// fixes de l'ancienne jauge (0 · 0,3 · 0,6 · 1) étaient déjà les quatre états
+/// servis, ce sont maintenant des segments.
+///
+/// 🛑 **Aucun cran d'objectif** : `goal` est toujours faux et aucun cran ne
+/// passe en [SfLadderState.target]. Le civique ne sert pas d'objectif, et en
+/// peindre un serait inventer une cible que personne n'a posée.
+///
+/// Miroir web : `accueilEchelonsCivique`.
+List<SfLadderStep> accueilEchelonsCivique(CivicThemeState etat) {
+  final atteint = kAccueilEchelleCivique.indexOf(etat);
+  return [
+    for (var rang = 0; rang < kAccueilEchelleCivique.length; rang++)
+      SfLadderStep(
+        label: kAccueilEchelleCivique[rang].label,
+        state: rang <= atteint ? SfLadderState.done : SfLadderState.empty,
+        current: rang == atteint,
+        goal: false,
+      ),
+  ];
+}
+
+/// **Les états de l'échelle civique**, pour la légende rendue une seule fois
+/// au-dessus de la liste — le pendant de [accueilEchelleLegende].
+///
+/// 🛑 **La même table que les crans** ([kAccueilEchelleCivique]), et les mêmes
+/// libellés **gelés** que la pastille de droite ([CivicThemeState.label]) : deux
+/// listes finiraient par ne plus se superposer.
+///
+/// Miroir web : `accueilEchelleLegendeCivique`.
+List<String> accueilEchelleLegendeCivique() =>
+    [for (final etat in kAccueilEchelleCivique) etat.label];
+
+/// Ce que l'échelle d'un thème dit à un lecteur d'écran — elle est rendue en
+/// image, ses libellés sont décoratifs.
+///
+/// 🛑 **Le libellé servi, jamais une phrase de plus** : « Non évalué » se dit
+/// tel quel, et surtout pas « faible ».
+///
+/// Miroir web : `accueilEchelleLabelCivique`.
+String accueilEchelleLabelCivique(CivicThemeState etat) => etat.label;
+
 /// « 4 compétences maîtrisées sur 11 travaillées ».
 ///
 /// `null` quand rien n'a jamais été observé : « 0 sur 0 » ne dit rien.

@@ -94,8 +94,16 @@ class AppRoutes {
   static const civiqueExamsBlanc = '/civique/examens-blancs';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
   // Page « Examens blancs » d'un thème civique (10 slots de 20 Q / 20 min /
-  // seuil 16). Pushé depuis le hero rouge du détail thème.
+  // seuil 16). Pushée depuis le hero rouge du détail thème et, depuis le
+  // 2026-09-19, depuis la ligne d'un thème sur l'Accueil (« Voir mes
+  // résultats »).
   static const civiqueThemeExams = '/civique/theme/:themeId/examens';
+
+  /// 🛑 **Un seul endroit substitue `:themeId`.** Le `replaceFirst` s'écrivait
+  /// à la main chez chaque appelant ; à la 2ᵉ surface, on extrait. Miroir web :
+  /// `civicThemeExamsHref` (`lib/themes.ts`).
+  static String civiqueThemeExamsPath(String themeId) =>
+      '/civique/theme/$themeId/examens';
   static const tcf = '/tcf';
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';

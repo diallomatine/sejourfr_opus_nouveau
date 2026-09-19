@@ -59,9 +59,14 @@ const String kHomeSituationCivicCardTitle = 'Votre niveau par thème';
 const String kHomeSituationCivicCardLead =
     'Mis à jour après vos séries et votre diagnostic.';
 
-/// Ce que propose une carte de thème civique. 🛑 Elle ne démarre rien : le Plan
-/// civique porte le seul lanceur de série.
-const String kHomeSituationCivicCta = 'Travailler ce thème';
+/// Ce que propose la ligne d'un thème civique.
+///
+/// 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
+/// propriétaire, 2026-09-19) : elle ouvre **l'historique des examens blancs du
+/// thème**, la page qui existe déjà — pendant exact du « Voir mes résultats »
+/// d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
+/// Miroir web : `SITUATION_CIVIC_CTA`.
+const String kHomeSituationCivicCta = 'Voir mes résultats';
 
 /// L'intitulé de la bande de tête civique.
 ///
