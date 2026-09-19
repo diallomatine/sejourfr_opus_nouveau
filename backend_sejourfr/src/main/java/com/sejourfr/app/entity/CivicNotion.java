@@ -76,6 +76,25 @@ public class CivicNotion {
     @JoinColumn(name = "merged_into_id")
     private CivicNotion mergedInto;
 
+    /**
+     * L'<b>unite du programme officiel</b> dont cette notion editoriale releve
+     * (V068, arrete du 10 octobre 2025 annexe I).
+     *
+     * <p>🛑 <b>Correspondance ARBITREE, pas mesuree</b> : construite a partir du
+     * {@link #label} et de la {@link #description} de chaque notion — les
+     * descriptions de V058 nomment leurs frontieres, ce qui permet de trancher.
+     * Le detail, avec les neuf rattachements discutables, vit dans
+     * {@code docs/audits/AUDIT_cycle_plan_civique_v2.md} annexe A.
+     *
+     * <p>🛑 <b>Une notion ACTIVE en porte toujours une</b>
+     * ({@code chk_civic_notion_rattachee}) : une notion active sans unite serait
+     * une notion hors programme. {@code null} sur une notion <b>desactivee</b>,
+     * qui n'est plus au programme et n'a rien a rattacher.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "official_unit_id")
+    private CivicOfficialUnit officialUnit;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 }
