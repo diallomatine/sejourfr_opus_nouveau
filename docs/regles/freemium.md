@@ -266,3 +266,27 @@ l'ouverture publique / montée en trafic**, pas avant :
 
 Plus tard encore (vrai volume) : rétention via **partitionnement par date** ou
 archivage des `TERMINE` anciens — surtout pas de suppression d'historique user.
+
+---
+
+## ⚠️ DETTE-F1 — trois mécanismes de gratuité, aucun endroit qui les lise ensemble
+
+**Nommée et datée le 2026-09-19.** Détail complet, périmètres et points d'entrée :
+`docs/decisions/plan-parcours-tcf.md` → **DETTE-F1**, à la suite de **D-46**.
+
+🛑 **À lire avant de reprendre ce fichier.** La gratuité du dépôt passe par **trois** mécanismes
+distincts, et aucune page ne les nomme ensemble :
+
+| # | Mécanisme | Périmètre | Autorité |
+|---|---|---|---|
+| 1 | `lotNumero = 1` | les **14 séries** d'entraînement, **sans compte**, illimitées, **déterministes** | **D-46** |
+| 2 | `template.isFree()` | les **examens blancs QCM** (`civique-decouverte`, slot 1 TCF) | **D-33**, spec TCF §7 |
+| 3 | `free_entitlement_usage` | les **examens blancs de production** : 1 EE + 1 EO **nominatifs, à vie** | **D-17**, **D-17 bis** |
+
+**Le signal à surveiller** : toute nouvelle gratuité qui ne se range dans aucune des trois lignes est
+un **4ᵉ mécanisme** — il s'arbitre, il ne se code pas. C'est l'ignorance mutuelle de ce genre qui a
+produit les 4 implémentations ad hoc de « première fois gratuite » que D-17 a dû rassembler.
+
+**Et la règle de gratuité complète** (les 14 séries par niveau et par thématique, le diagnostic, les
+deux droits EE/EO nominatifs) est consignée en **D-46** — elle ne vivait jusque-là que dans un
+échange, et ce fichier ne la contenait pas.

@@ -12,6 +12,34 @@ Références : `docs/progression/civique/SPEC_cycle_plan_civique.md`,
 
 ---
 
+## 🔻 AVERTISSEMENT AJOUTÉ LE 2026-09-19 — les mesures de tagging de ce rapport ne sont **pas reproductibles**
+
+🛑 **Toutes les mesures de tagging ci-dessous sont vraies de la base locale de l'auteur, et fausses
+d'une base neuve.** Elles portent sur `questions.civic_notion_id`, et la campagne du 2026-09-11 a
+posé ces tags **par script** — **aucune migration ne les reproduit**.
+
+| | Base locale | **Base neuve** (Zonky, toutes migrations Flyway) |
+|---|---|---|
+| Questions civiques | 1 016 | **1 005** |
+| **Taguées** | **783** actives | 🛑 **1** |
+| `question_notion_suggestions` | 981 | 🛑 **0** |
+
+**Ce qui est donc à relire avec cette réserve** : §1.2 (couverture globale), §1.3 (couverture par
+thématique, les 97-98,6 % et la bascule au grain NOTION), §1.4 (par mention), §1.6 (la dotation par
+notion × mention, le « 1 couple sur 138 »), §1.10 (les 981 suggestions), §1.11 (la cohérence), §1.12
+(la conclusion sur R2).
+
+**Ce qui reste valide** : tout ce qui ne compte pas de tags — les 176 mises en situation (jamais
+taguées), les formats 20/16 et 40/32, les 11 examens de thème, les constatations de code, les
+contraintes de schéma, et les 46 notions elles-mêmes (seedées par V051/V058, donc reproductibles).
+
+🛑 **Corrigé par `DETTE-T1`** (`docs/decisions/plan-parcours-tcf.md`) : deux migrations rendent le
+tagging reproductible. Cet avertissement se retire quand elles sont livrées, **et pas avant**.
+La légende complète des natures de chiffre vit dans `AUDIT_cycle_plan_civique_v2.md`.
+
+
+---
+
 ## 0. Ce qu'il faut retenir en dix lignes
 
 1. **Le tagging est fait, et il est bon** : 98 % des questions de **connaissance** portent leur

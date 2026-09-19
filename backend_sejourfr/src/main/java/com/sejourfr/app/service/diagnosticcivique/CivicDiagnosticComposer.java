@@ -59,6 +59,14 @@ public class CivicDiagnosticComposer {
      * @param mention la demarche du candidat ({@code CSP} / {@code CR} /
      *                {@code NAT})
      */
+    /*
+     * 🛑 D-48 — COTE CORPUS, et deux raisons s'additionnent.
+     * (1) Le plancher `min-par-theme` tire des CONNAISSANCES par theme : les 17
+     *     non taguees n'ont aucune unite officielle et deviendraient
+     *     indrainables.
+     * (2) D-29 exigence 5 : « le diagnostic civique est preserve tel quel ».
+     * Le diagnostic mesure donc le CORPUS par `theme_id`, pas le programme.
+     */
     public List<Question> composer(Difficulty mention) {
         // 🛑 `CivicExamFormat.QUESTIONS` EST la somme du partage, pas une
         // troisieme valeur : `assertionsDeFormat()` verrouille

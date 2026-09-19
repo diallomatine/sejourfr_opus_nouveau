@@ -23,6 +23,7 @@ texte est ⟦SQL⟧.
 | Marque | Nature | Reproductible ? |
 |---|---|---|
 | ⟦SQL⟧ | Requête `SELECT` sur `sejourfr_db` | ✅ oui — gabarits en **annexe B** |
+| 🔻⟦SQL-LOCAL⟧ | Requête `SELECT` sur `sejourfr_db`, mais sur un **état que les migrations ne reproduisent pas**. Vrai de cette machine, **faux d'une base neuve**. | ❌ **non** |
 | ⟦JORF⟧ | Source réglementaire, vérifiée sur Légifrance | ✅ oui — liens en **annexe C** |
 | ⟦PARSE⟧ | Parsing déterministe d'une page publique | ✅ oui — `scripts/qf30-recouvrement/` |
 | ⟦CODE⟧ | Lecture de code, `wc -l`, `grep` — chemin et ligne cités | ✅ oui |
@@ -32,6 +33,25 @@ texte est ⟦SQL⟧.
 il faut ». Cette légende existe parce qu'un comptage annoncé « ≈ 212 / ≈ 205 » au §5.2 — produit par
 un **modèle de lecture**, pas par une mesure — s'est révélé valoir **191 / 209** au parsing réel
 (annexe Q-F30 §5). Les ordres de grandeur tenaient ; les nombres, non.
+
+🔻 **Et un chiffre ⟦SQL-LOCAL⟧ n'en fonde pas davantage, ce qui est plus grave encore.** Il *ressemble*
+à une mesure reproductible — c'est bien un `SELECT`, il est exact, il se rejoue — mais sur une
+**base neuve il vaut autre chose**. Mesuré le 2026-09-19 : le tagging civique de la campagne du
+2026-09-11 a été posé **par script**, et **aucune migration ne le reproduit**.
+
+| | Base locale | **Base neuve** (Zonky, toutes migrations) |
+|---|---|---|
+| Questions civiques | 1 016 | **1 005** |
+| **Taguées** | **783** actives | 🛑 **1** |
+| `question_notion_suggestions` | 981 | 🛑 **0** |
+
+**Toutes les mesures de tagging de ce rapport et du v1 étaient donc ⟦SQL-LOCAL⟧ et portaient
+⟦SQL⟧** — 97-98,6 % par thème, le grain NOTION des cinq thèmes, les 783 rattachées, et par ricochet
+la faisabilité du tirage conforme. C'est exactement le défaut que la correction 191/209 annonçait, en
+plus grave : deux natures sous un même marqueur.
+🛑 **Corrigé par la décision de migrer les tags** (voir `DETTE-T1` dans
+`docs/decisions/plan-parcours-tcf.md`). Les marques 🔻⟦SQL-LOCAL⟧ de ce rapport **redeviendront
+⟦SQL⟧** quand les deux migrations seront livrées, et **pas avant**.
 
 ---
 
@@ -173,7 +193,11 @@ Un examen n'a même couvert que **3** thématiques sur 5.
 partage officiel. C'est le **seul** endroit du dépôt qui tient le ratio, et il le tient parce
 qu'il est **déclaré**, pas déduit d'un tirage.
 
-### 2.5 ✅ Un examen conforme est-il tirable du stock actuel ? ⟦SQL⟧
+### 2.5 ✅ Un examen conforme est-il tirable du stock actuel ? 🔻⟦SQL-LOCAL⟧
+
+🛑 **🔻⟦SQL-LOCAL⟧** : la faisabilité se lit sur le **stock tagué**. Sur une base neuve, **aucune**
+unité ne fournit son quota — le tirage conforme lèverait sur chaque examen. Redevient ⟦SQL⟧ avec
+`DETTE-T1`.
 
 **Oui, sans produire une seule question — à condition de retirer le filtre de mention.**
 
@@ -234,7 +258,11 @@ ni en migration, ni en doc, ni en commentaire. `V058` dit que le référentiel a
 éditoriale**, et les deux peuvent coexister — l'une pour écrire les questions, l'autre pour
 tirer l'examen et mesurer le candidat.
 
-### 3.2 Dotation par notion officielle — la mesure qui remplace le « 1 sur 138 » de la v1 ⟦SQL⟧
+### 3.2 Dotation par notion officielle — la mesure qui remplace le « 1 sur 138 » de la v1 🔻⟦SQL-LOCAL⟧
+
+🛑 **Toute cette section est 🔻⟦SQL-LOCAL⟧** : elle compte des questions **taguées**, et le tagging
+n'est pas reproduit par les migrations. Sur une base neuve, chacun de ces nombres vaut **0 ou 1**.
+Redevient ⟦SQL⟧ quand les migrations de tags sont livrées (`DETTE-T1`).
 
 | Notion officielle *(rattachement arbitré)* | Notions internes | Questions ⟦SQL⟧ | CSP | CR | NAT | **R2 (≥ 20)** |
 |---|---|---|---|---|---|---|
@@ -356,7 +384,7 @@ L'entraînement libre par thème **ignore déjà la mention**, là où le plan, 
 examens l'appliquent. Le filtre n'est donc **pas** une règle du module : c'est une règle de
 **trois chemins sur quatre**.
 
-### 4.2 Aucune question n'est réellement spécifique à une démarche ⟦SQL⟧
+### 4.2 Aucune question n'est réellement spécifique à une démarche ⟦SQL⟧ *(porte sur les énoncés, pas sur les tags : reproductible)*
 
 | Mesure | Résultat |
 |---|---|
@@ -494,7 +522,7 @@ Le ministère publie effectivement la banque, **mais par mention** :
 
 ## 6. §3.4 — Les mises en situation hors périmètre officiel
 
-### 6.1 Les comptes, confirmés ⟦SQL⟧
+### 6.1 Les comptes, confirmés ⟦SQL⟧ *(les mises en situation ne sont pas taguées : ce compte-ci EST reproductible)*
 
 | Thématique | MES actives | Autorisée par l'arrêté ? | Quota officiel |
 |---|---|---|---|

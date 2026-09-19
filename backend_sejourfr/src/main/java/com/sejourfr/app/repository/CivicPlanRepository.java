@@ -69,6 +69,11 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
      * NOTION ({@code 20_} §3.3). 🛑 <b>Par theme, jamais globalement</b> : un
      * theme tague a 90 % n'a pas a attendre celui qui est a 10 %.
      *
+     * <p>🛑 <b>D-48 — cote CORPUS, et le remplacement est IMPOSSIBLE ici.</b> Ce
+     * taux a pour denominateur les questions <b>non taguees</b> ; or une question
+     * non taguee n'a <b>aucune</b> unite officielle. Passer a l'unite rendrait ce
+     * taux trivialement egal a 100 %.
+     *
      * <p>🛑 <b>SEULES LES QUESTIONS DE CONNAISSANCE COMPTENT — c'est une REGLE,
      * pas un reglage.</b> Les connaissances se rattachent a des <b>notions</b> ;
      * les 176 <b>mises en situation</b> relevent d'un axe pedagogique distinct
@@ -130,6 +135,10 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
      * <p>🛑 <b>Meme raison qu'au grain notion : aucun filtre de type.</b> Une
      * serie ciblee sur un theme tire aussi bien une mise en situation qu'une
      * connaissance — la dotation doit refleter le tirage, pas la couverture.
+     *
+     * <p>🛑 <b>D-48 — cote CORPUS.</b> Elle compte <b>tout</b> le corpus d'un
+     * theme, types confondus et non taguees comprises. C'est la dotation du mode
+     * degrade, pas une mesure du programme.
      */
     @Query(value = """
             SELECT q.theme_id, COUNT(*)
@@ -157,6 +166,10 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
      *
      * <p>{@code random()} departage a l'interieur d'un rang : deux series
      * consecutives sur la meme cible ne redonnent pas la meme liste.
+     *
+     * <p>🛑 <b>D-48 — cote CORPUS.</b> Au grain THEME elle tire par
+     * {@code theme_id}, non par unite : c'est le mode <b>degrade</b>, qui doit
+     * pouvoir servir une question pas encore taguee.
      */
     @Query(value = """
             SELECT q.id

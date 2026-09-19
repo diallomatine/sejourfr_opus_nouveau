@@ -133,6 +133,12 @@ public class LotService {
      * sur chaque lot quand l'attempt correspondant a été finalisé.
      */
     @Transactional(readOnly = true)
+    /*
+     * 🛑 D-48 — COTE CORPUS. Ces lots comptent TOUT le corpus d'un theme, types
+     * confondus et non taguees comprises -- une unite officielle n'existe pas pour
+     * elles. Et c'est la SURFACE GRATUITE de D-46 : la serie 1 d'une thematique,
+     * accessible sans compte. La changer changerait ce qu'un visiteur recoit.
+     */
     public List<LotDto> listCivique(UUID userId, UUID themeId) {
         validateCiviqueInputs(themeId);
         int lotSize = LOT_SIZE_CIVIQUE;

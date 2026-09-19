@@ -1523,3 +1523,500 @@ Et le commentaire dit ce que « corriger » coûterait : rattacher de force l'é
 des questions sur la discrimination dans le quota « Devise et symboles », et le tirage conforme
 tirerait 3 questions de symboles dans ce pool. C'est l'erreur que ce test existe pour rendre
 impossible.
+
+#### D-45 — **Précision de D-41** : P8.A retire le filtre sur la **seule composition d'examen**
+
+**La décision, verbatim** :
+
+> P8.A retire le filtre sur la seule composition d'examen, P8.2b retire tout le reste.
+>
+> Ton raisonnement est meilleur que ma consigne. J'ai demandé l'attributabilité en supposant qu'on
+> pouvait séparer « l'examen devient conforme » de « son pool double ». Tu montres que c'est
+> **impossible en principe** pour CSP et NAT, pas seulement inconfortable — sans le second, le
+> premier n'existe pas. Ce qui reste séparable, c'est l'effet sur **le plan et le diagnostic**, et
+> c'est exactement ce que ton découpage préserve.
+
+**La mesure qui l'a imposé**, contre la table des 16 (unités en défaut pour un tirage conforme) :
+
+| Scénario | Unités en défaut |
+|---|---|
+| **Sans filtre de mention** | **0** ✅ |
+| Avec filtre, **CR** | 0 ✅ |
+| Avec filtre, **NAT** | **1** — `P3_MISES_EN_SITUATION` : **5** disponibles pour **6** exigées |
+| Avec filtre, **CSP** | **2** — `P2_LAICITE` : **1** pour **2** · `P3_MISES_EN_SITUATION` : **1** pour **6** |
+
+🛑 **Pourquoi l'ordre de D-41 n'était pas exécutable.** L'exigence 3 de **D-29** veut qu'un tirage
+qui ne peut pas satisfaire ses règles **échoue bruyamment plutôt que de se dégrader**. C'est le bon
+comportement — et c'est ce qui casse : entre P8.A et P8.2b, un examen blanc **CSP ou NAT lèverait**,
+systématiquement. Seul CR passerait. Ce n'est pas un effet de bord évitable par du code : la
+conformité **exige** le pool complet.
+
+**Le découpage retenu** :
+
+| Phase | Retire le filtre de… |
+|---|---|
+| **P8.A** | la **composition de l'examen blanc**, et elle seule (`AttemptService.resolveDifficulty` sur le chemin d'examen) |
+| **P8.2b** | le **plan** (`CivicPlanRepository` × 3, la série ciblée), le **diagnostic** (`CivicDiagnosticComposer`), plus la suppression de `CivicDotation`, de `questions-min-par-notion`, du champ `dotation` du DTO et de ses **2 miroirs front** |
+
+**Ce qui reste attributable, et qui justifie de garder P8.2b séparée** : l'effet sur le **plan et le
+diagnostic** — combien de notions deviennent servables, ce que la disparition de `NON_APPLICABLE`
+change à l'écran, et ce que le grain officiel change au Plan. Ça, on peut le mesurer seul, et on le
+mesurera seul.
+
+**Trois voies écartées** : inverser P8.A et P8.2b (perd l'attributabilité sur le plan **aussi**,
+tout bouge d'un coup) · livrer le composeur sans le brancher (du code mort entre deux passes) ·
+fusionner les deux commits (même perte que l'inversion, et un commit illisible).
+
+#### La conséquence sur les 9 templates MIX, tranchée
+
+> « Ils ne peuvent pas devenir conformes sans que `exam_template_rules` gagne une colonne d'unité —
+> donc une migration de schéma, plus la réécriture de **45 règles**, pour finir avec la loi écrite à
+> deux endroits. La composition dynamique, elle, lit `civic_official_units` directement : **une
+> autorité, pas deux**. Donc **dépublication**, et la composition dynamique devient le **seul chemin
+> d'examen blanc**. »
+
+⚠️ **Sauf le sort de `civique-decouverte`**, qui est une question d'**offre** et non de composition :
+remonté au propriétaire avant V296, non arbitré.
+
+---
+
+### D-46 — **La règle de gratuité, dans son entier** (arbitrée en conversation, jamais consignée)
+
+⚠️ **Cette règle vivait uniquement dans un échange.** Elle n'était dans aucun document — ni brief, ni
+spec, ni `docs/regles/freemium.md`. Consignée le **2026-09-19** pour qu'elle cesse d'être une
+tradition orale. C'est la raison d'être de ce journal.
+
+| Périmètre | Gratuit |
+|---|---|
+| **CO, par niveau** (A2, B1, B2) | **1 série**, accessible **sans compte** |
+| **CE, par niveau** | **1 série**, sans compte |
+| **Structure de la langue, par niveau** | **1 série**, sans compte |
+| **Chaque thématique civique** (les 5) | **1 série**, sans compte |
+| Diagnostic rapide | Offert |
+| Examen blanc **EE** | Offert, **1 à vie** |
+| Examen blanc **EO** | Offert, **1 à vie** |
+
+🛑 **Deux droits NOMINATIFS sur les productions** — un en EE, un en EO — et **non un seul au choix**.
+**Ceci clôt la question laissée ouverte en Q-F11** côté TCF.
+
+🛑 **La granularité est PAR NIVEAU, pas par épreuve**, sur les trois familles TCF. « 1 série gratuite
+en CO » et « 1 série gratuite par niveau de CO » ne sont pas la même règle : la seconde ouvre
+**9 séries** TCF, la première 3. C'est la seconde.
+
+⚠️ **`structure_langue` entre dans cette règle**, et dans **aucun périmètre de P8**. Mesuré :
+`TCF_STRUCTURE` est un thème de `module = TCF`, **687** questions actives (269 A2 · 209 B1 · 209 B2),
+`question_type = STRUCTURE`, **zéro** rattachement civique. Le `CLAUDE.md` racine le dit et la base
+le confirme : le TCF IRN a **quatre** épreuves, et Structure est un **module d'entraînement
+complémentaire SejourFR**, jamais une cinquième. P8.A ne le touche pas.
+
+#### Les trois vérifications demandées — ⟦CODE⟧ + ⟦SQL⟧, sans rien corriger
+
+**V1 — L'accès sans compte est-il réellement ouvert sur les quatre familles, ou seulement sur le
+tunnel invité du diagnostic ?**
+
+✅ **Réellement ouvert, sur les quatre.** `/api/public/**` est `permitAll`
+(`security/SecurityConfig.java:100`), et `PublicAttemptController` (`/api/public/attempts/demo`)
+mène à `AttemptService.startGuest…` → **`startGuestLot`**, qui traite les deux modules :
+
+| Module | Ce que la branche exige | Résultat |
+|---|---|---|
+| `CIVIQUE` | `themeId` **obligatoire** (`BusinessException` sinon) | série 1 de **la thématique** demandée |
+| `TCF` | `difficulty` **obligatoire** (A2/B1/B2) + `questionType` | série 1 de **(épreuve × niveau)** |
+
+Le verrou est `lotNumero != 1 ⇒ AccessDeniedException` — « Seule la série 1 est offerte sans compte ».
+
+✅ **Et il n'y a aucun quota — effet CONNU ET ACCEPTÉ, pas une dette** (arbitrage du 2026-09-19).
+`AttemptRepository:94` consigne que le quota par IP (`countByClientIp…AndStartedAtAfter`) a été
+**supprimé le 2026-05-17**, « la démo est désormais illimitée ». La série 1 est donc **rejouable sans
+limite et sans compte**.
+
+> **Verbatim** : « C'est conforme à la lettre de la règle, et c'est le bon calcul — une série d'essai
+> illimitée mais **figée sur le même pool** ne remplace pas un abonnement, **elle le vend**. Le quota
+> par IP supprimé en mai **ne se rouvre pas**. »
+
+🛑 Ce qui rend le calcul juste, et qu'il ne faut donc pas casser par inadvertance : le tirage guest est
+**déterministe** (`findLotQuestions(…, 1, size)`, même fenêtre que les comptes via `LotService`).
+Rejouer redonne **les mêmes questions**. Rendre ce tirage aléatoire ouvrirait la banque entière à un
+visiteur anonyme — ce ne serait plus le même arbitrage.
+
+**V2 — La granularité en CO, CE et Structure : une série par niveau, ou une pour l'épreuve entière ?**
+
+✅ **Par niveau**, et le code le tient par sa signature :
+`findLotQuestions(module, questionType, difficulty, 1, size)` et
+`resolveLotSize(module, questionType, difficulty, 1)` — la série est clavetée sur **les trois**
+dimensions. Une série gratuite par **(épreuve × niveau)**.
+
+**La surface gratuite réelle, comptée** : **9 séries TCF** (3 CO + 3 CE + 3 Structure, tous les pools
+entre **134** et **269** questions) + **5 séries civiques** (une par thématique) = **14 séries
+accessibles sans compte**.
+
+⚠️ **Ce que l'audit TCF signalait n'était PAS cette règle**, et la confusion valait d'être levée :
+`FREE_PROMPTS_PER_SKILL = 2` et « l'ouverture du premier rang CO et CE » portaient sur le
+**travail de compétence depuis le Plan**, pas sur les séries d'entraînement. Les deux ont été
+**supprimés** par **D-18** (le Plan est premium sans exception). La gratuité des séries est un
+mécanisme **distinct**, porté par `lotNumero = 1`, et **elle n'a pas été touchée**.
+
+**V3 — Deux droits nominatifs, ou un budget commun de 2 ?**
+
+✅ **Deux droits nominatifs. La question est déjà close, et le budget commun a déjà disparu.**
+
+| Ce que le brief craignait | L'état réel |
+|---|---|
+| « Le dépôt applique un seuil de 2 sessions EE+EO confondues » | 🛑 **Révoqué par D-17 bis, supprimé en P4.** `ProductionAccessService:50` en garde la trace : « 2 sessions d'examen, EE+EO confondues (`countProductionExamSessions(userId) >= 2`) : **supprimé** ». |
+| Le risque : « consommer les deux en EE et n'avoir droit à rien en EO » | ✅ **Impossible.** Le verrou est `isProductionExamLocked(userId, epreuve)` → `estConsomme(userId, epreuve)` → `free_entitlement_usage`, avec `UNIQUE (user_id, code)` et `chk_free_entitlement_code CHECK (code IN ('EXAM_BLANC_EE','EXAM_BLANC_EO'))`. **Une ligne par épreuve, jamais un compteur.** |
+
+⚠️ **`countProductionExamSessions` survit, mais ne compte plus de budget** : sa signature a gagné une
+épreuve (`(userId, epreuve)`) et son seul appelant est `PlanMilestoneSelector:226`, qui **désigne le
+prochain slot** de la grille. Ce n'est plus du freemium.
+
+---
+
+### DETTE-F1 (2026-09-19) — **trois mécanismes de gratuité, aucun endroit qui les lise ensemble**
+
+**Statut : dette nommée et datée. Non ouverte, non planifiée.** À traiter quand
+`docs/regles/freemium.md` sera repris.
+
+> **Motif, verbatim** : « Ils ne se contredisent pas aujourd'hui, mais rien ne garantit qu'ils
+> resteront cohérents, parce qu'**aucun endroit ne les lit ensemble**. […] Une dette écrite est une
+> dette ; une dette connue de toi seul **disparaît à la fin de la session**. »
+
+**Les trois mécanismes, leur périmètre et leur point d'entrée** :
+
+| # | Mécanisme | Périmètre | Point d'entrée | Autorité |
+|---|---|---|---|---|
+| 1 | **`lotNumero = 1`** | Les **14 séries** d'entraînement : CO / CE / Structure × A2-B1-B2, et les 5 thématiques civiques. **Sans compte, illimité, déterministe.** | `AttemptService.startGuestLot` + le garde `lotNumero != 1 ⇒ 403`. Côté compte : `LotService` | **D-46** |
+| 2 | **`template.isFree()`** | Les **examens blancs QCM**. Civique : `civique-decouverte` gratuit et **tous ses slots rejouables** ; les autres premium. TCF : le **slot 1** offert et rejouable | `AttemptService.startFromTemplate` (l'accès) · `enforceMockExamSlotAccess` (le slot, TCF seul après P8.5) | **D-33** (civique) · spec TCF §7 (TCF) |
+| 3 | **`free_entitlement_usage`** (le ledger) | Les **examens blancs de production** : 1 EE + 1 EO, **nominatifs, à vie**. Consommés à la **remise de l'analyse** | `FreeExamEntitlementService` · `ProductionAccessService.isProductionExamLocked` | **D-17**, **D-17 bis**, **D-46** |
+
+**Ce qui n'est couvert par aucun des trois, et qui est premium sans exception** : tout travail de
+compétence depuis le Plan (**D-18**), et l'analyse IA au-delà du freebie (**D-17**).
+
+**Pourquoi c'est une dette et non un défaut** : les trois ont des raisons d'être distinctes — un
+pool figé qui vend l'abonnement, une vitrine d'examen, un droit nominatif qui borne une dépense LLM.
+Les fusionner serait une erreur. Ce qui manque est un **endroit qui les nomme ensemble**, pour qu'un
+quatrième mécanisme ne naisse pas par ignorance des trois premiers. C'est exactement ce qui a produit
+les **4 implémentations ad hoc de « première fois gratuite »** que **D-17** a dû rassembler.
+
+⚠️ **Le signal à surveiller** : toute nouvelle gratuité qui ne se range dans aucune des trois lignes
+du tableau. Si elle n'y entre pas, c'est un 4ᵉ mécanisme — et il faut l'arbitrer, pas le coder.
+
+---
+
+### DETTE-T1 (2026-09-19) — 🛑 **le tagging civique n'était pas reproductible**, et c'est du référentiel
+
+**Découvert en écrivant le test de conformité de P8.A**, qui refusait de composer un examen : la
+première unité officielle rendait **0 question**.
+
+| | Base locale | **Base neuve** (Zonky, toutes migrations Flyway) |
+|---|---|---|
+| Questions civiques | 1 016 | **1 005** |
+| **Taguées** | **783** actives | 🛑 **1** |
+| `question_notion_suggestions` | 981 | 🛑 **0** |
+
+**La cause, et ce n'est pas un bug.** La campagne du 2026-09-11 a posé ses tags **par script**
+(`scripts/pre-tagging/`), directement en base. **V293** est la seule migration qui pose des tags —
+**366** — et elle les **lit** dans `question_notion_suggestions`, vide sur une base neuve. Son garde
+le dit noir sur blanc, et il est correct :
+
+> « Sur une base neuve la campagne n'a jamais tourné et **il n'y a rien à poser** »
+> (`IF candidates <> 0 AND candidates <> 366`)
+
+Elle réussit donc **en ne faisant rien**. C'est une migration qui **suppose** un état qu'elle ne crée
+pas.
+
+**Ce que ça invalidait** : toutes les mesures de tagging des audits v1 et v2 — les 97-98,6 % par
+thème, le grain NOTION des cinq thèmes, les 783 rattachées, le « 1 couple sur 138 », et par ricochet
+la faisabilité du tirage conforme. Elles portaient le marqueur **⟦SQL⟧**, qui promettait la
+reproductibilité. D'où la **6ᵉ nature de chiffre**, 🔻⟦SQL-LOCAL⟧, et la passe d'annotation des deux
+rapports.
+
+**Ce que ça n'invalidait pas** : V068 / V115 (les 16 unités **et** les 46 rattachements sont seedés
+par migration — vérifié dans les deux bases), `CivicExamFormat`, l'arrêté, et le raisonnement de D-25
+à D-45.
+
+#### La décision — voie 1, migration de tags explicite
+
+> **Verbatim** : « Sans hésitation, et pour une raison qui dépasse P8.A : ces 783 tags sont le produit
+> d'un travail humain de relecture qui n'existe nulle part ailleurs. **Ce n'est pas de la donnée
+> d'exploitation, c'est du référentiel** — au même titre que les 16 unités, qui sont bien en
+> migration, elles. »
+
+**Deux voies écartées, et pourquoi** : rejouer les suggestions puis V293 ne poserait que **366** des
+783 — donc perdrait les **417 validés à la main**, précisément la partie la plus coûteuse à refaire ;
+accepter la divergence laisserait le travail sur **une seule machine**.
+
+**Deux migrations distinctes** :
+
+| Migration | Contenu | Motif de la séparation |
+|---|---|---|
+| **les tags** | **815** couples `(question_id, notion_code)` | c'est **la décision** |
+| **les suggestions** | **971** lignes de `question_notion_suggestions` | c'est **ce qui l'a produite** — quel modèle, quelle confiance, quel prompt, et ce qu'un humain en a fait. V293 n'en a plus besoin ; ce n'est pas une raison de les perdre |
+
+#### 🛑 Les trois pièges de portabilité, mesurés avant d'écrire une ligne
+
+1. **`civic_notions.id` est en `gen_random_uuid()`** (V051) : il **diffère d'une base à l'autre**. La
+   migration joint donc sur `civic_notions.code`, jamais sur l'UUID. `questions.id`, lui, est
+   **explicite** en migration (`f3000000-…`) — il est stable.
+2. **8 questions civiques locales viennent de `db/migration-dev/V900__seed_dev.sql`** (ids
+   `c000000X-…`), dont **5 taguées** et **10 portant des suggestions**. Ce sont des données de
+   **développement** : elles n'existent pas en production, et une migration qui les cite serait
+   silencieusement partielle. **Exclues.** C'est ce qui explique 815 et 971 au lieu de 823 et 981.
+3. **`reviewed_by` pointe `aaaaaaaa-…-0001`** (`admin@sejourfr.fr`) sur **548** lignes — un compte du
+   **seed dev**, absent d'une base neuve, dont la FK ferait échouer la migration. Émis à **NULL**, et
+   la raison est de fond : *qui* a relu est une donnée de la machine ; *que* ce soit relu et par
+   quelle **autorité** (`review_source`) est une donnée du référentiel. On garde la seconde.
+
+#### Le générateur, et sa vérification
+
+`scripts/pre-tagging/generer-migrations-tags.sh` — émet les deux SQL dans `out/`, **jamais dans
+`db/migration/`** : y déposer un fichier est un geste humain, après relecture.
+
+**Vérifié deux fois, et c'est la vérification qui compte, pas le script :**
+
+| Test | Résultat |
+|---|---|
+| À blanc sur la base locale (déjà taguée) | **0 posées, 815 déjà en place** — le garde final passe, donc la jointure sur `code` résout exactement les tags existants. ✅ **Idempotent.** |
+| Sur une base **neuve** (Zonky, toutes migrations) | **1 taguée → 815**, dont **778** connaissances actives, et **971** suggestions insérées. ✅ |
+
+**778 est exactement** le nombre de connaissances actives taguées de la base locale hors seed dev :
+le référentiel devient **identique**. Et le garde n'a pas tiré, donc les **3 questions** que la base
+locale a en plus (hors seed dev) ne sont pas taguées.
+
+⚠️ **Un artefact de test à ne pas prendre pour un bug** : `ScriptUtils` de Spring ne comprend pas les
+blocs `DO $$` (« unterminated dollar quote ») et les découpe sur `;`. **Flyway les gère** — V293 en
+utilise un. La vérification a donc exécuté le fichier d'un seul bloc via JDBC.
+
+#### 🛑 Ce qui est suspendu jusqu'à l'arbitrage
+
+- **Rien ne part en prod.** Si la production a été déployée depuis les migrations, elle a **1 question
+  taguée sur 1 005** : le plan civique y tourne au **grain thème** pour tous les candidats, et le
+  tirage conforme de P8.A **lèverait sur chaque examen**. Vérification en cours côté propriétaire ;
+  **le cas défavorable est le cas par défaut**.
+- **P8.A est écrite et compile, non commitée.** Seul son test ne peut pas passer, et pour cette
+  raison-là.
+- 🛑 **Le test de conformité ne taguera jamais ses propres fixtures.** Un test qui compose son propre
+  corpus ne mesure rien du produit. Une fois les migrations livrées, il mesure le **vrai** référentiel.
+
+---
+
+### D-47 — 🛑 **L'unité officielle est l'autorité du « thème » côté civique** (voie A)
+
+**Le problème, découvert par le test de conformité de P8.A** : le tirage par unité satisfaisait tous
+les quotas de l'arrêté, et pourtant `CIV_PRINCIPES` sortait à **13 questions pour 11 attendues**.
+
+**La cause.** Trois notions internes que l'arrêté range **hors** de « Principes » portent des
+questions dont notre `questions.theme_id` dit `CIV_PRINCIPES`. Dans l'arrêté les deux lectures
+coïncident — la somme des quotas d'une thématique **fait** son total. Chez nous, non.
+
+**La décision, verbatim** :
+
+> **Voie A**, et pour la raison exacte que tu donnes : l'arrêté fait de l'unité son grain de mesure,
+> et notre `theme_id` sur ces 22 questions vient du corpus — **même provenance que les 46 notions,
+> qu'on a déjà écartées comme autorité**. On applique la même logique au même endroit.
+
+**Deux voies écartées, et nommées** :
+
+| Voie | Pourquoi non |
+|---|---|
+| **B** — contraindre le tirage aux deux (pour I1, ne tirer que du thème Institutions) | 🛑 Rend **8 questions relues indrainables**, et I1 tomberait de 33 à 25 questions |
+| **C** — corriger `theme_id` sur les 22 questions | 🛑 « Réécrire `theme_id` reviendrait à affirmer que **l'égalité n'est pas un principe de la République**. Elle l'est. **C'est notre classement qui est trop étroit, pas le contenu qui est mal rangé.** » |
+
+**`theme_id` reste en base, inchangé** : il garde son rôle côté TCF et comme **classement
+éditorial**. On ne le supprime pas — **on cesse de le lire comme autorité côté civique**.
+
+#### L'exigence de portée : l'unité est l'autorité PARTOUT où l'on compose ou mesure le programme
+
+> « Si l'unité devient l'autorité, elle l'est **partout dans le module civique**, pas seulement à
+> l'affichage du résultat. Sinon on recrée **deux définitions du mot « thème »** dans le même module,
+> et c'est exactement le défaut « une règle, une autorité » qu'on passe le chantier à supprimer. »
+
+| Point d'entrée | État |
+|---|---|
+| Composition de l'**examen global** | ✅ `CivicExamCompositionService.composerExamenConforme()` — tire par unité |
+| Composition de l'**examen de thème** | ✅ `composerExamenDeTheme(themeCode)` — tire par les unités de la thématique, aux **plus forts restes** |
+| **Affichage** du thème d'une question | ✅ `thematiqueOfficielle(Question)` — l'unité, puis le thème pour une mise en situation, puis `null` |
+| Rattachement au **bloc du cycle** | ➡️ **P8.4**, le moteur n'est pas écrit. Obligation reportée, à honorer là |
+
+🛑 **La règle d'arrondi de l'examen de thème, parce qu'elle n'était pas évidente.** Les quotas d'une
+thématique ne divisent pas 20 : « Principes » vaut 3 + 2 + 6 = 11, donc 5,45 / 3,64 / 10,91.
+**Méthode des plus forts restes** — plancher, puis le reste aux plus grandes parties décimales, à
+égalité dans l'ordre de l'annexe I. C'est la seule qui garantisse **à la fois** la somme exacte et
+l'ordre des proportions ; l'arrondi naïf donne 21 questions en « Histoire ». Résultat : Principes
+5/4/11, Institutions 10/7/3, Droits 4/5/11, Histoire 8/7/5, Société 5/5/5/5.
+
+#### 🛑 La LIMITE de la voie A, mesurée — trois surfaces où le remplacement est **impossible**
+
+> « Vérifie chaque point d'entrée qui lit `questions.theme_id` côté civique, et **remonte ceux où le
+> remplacement n'est pas évident**. »
+
+**Inventaire : 11 points de lecture.** Trois groupes ne peuvent **pas** passer à l'unité, et la
+raison est la même partout — **l'unité est inconnue précisément pour les questions qu'ils doivent
+compter** :
+
+| Surface | Point d'entrée | Pourquoi l'unité ne peut pas |
+|---|---|---|
+| **La bascule du grain** | `CivicPlanRepository.taggageParTheme()` | Elle compte les connaissances **taguées sur le total**. Une question non taguée n'a **aucune** unité : le dénominateur disparaîtrait, et le taux serait trivialement 100 %. |
+| **Le diagnostic** | `CivicDiagnosticComposer`, plancher `min-par-theme: 4` | Tire des connaissances par thème. Les **17 non taguées** deviendraient indrainables. ⚠️ Et **D-29 exigence 5** protège le diagnostic. |
+| **Les lots gratuits** | `LotService.listCivique(themeId)` + `countActiveMatching` | Comptent **tout** le corpus d'un thème, types confondus. C'est la **surface gratuite de D-46** : la série 1 d'une thématique, sans compte. |
+
+🛑 **La règle générale qui en sort, et elle vaut au-delà du civique** : **l'unité officielle est
+l'autorité là où l'on COMPOSE ou MESURE le programme ; `theme_id` le reste là où l'on compte le
+CORPUS**, tagué et non tagué confondus. Ce n'est pas deux définitions du mot « thème » : c'est un
+**programme** et un **corpus**, qui ne se recouvrent pas — 193 questions actives sont dans le corpus
+et hors du programme (176 mises en situation + 17 connaissances non taguées).
+
+⚠️ **À trancher quand le tagging sera complet** (les 17 en P8.8) : les trois surfaces pourront alors
+basculer, puisque tout le corpus aura une unité. **Non fait, non planifié.**
+
+#### Les huit tests mis à jour, et ce qu'ils disent
+
+Tous rendus rouges par un changement voulu — le corpus est désormais **tagué en migration**
+(DETTE-T1). 🛑 **Aucun n'a été supprimé** : le **mode dégradé par thème existe toujours en code** et
+doit rester couvert, pour le jour où une thématique neuve arrive non taguée. Ce qui change est que
+leur **précondition devient explicite** (`remettreLeCorpusANonTague()`) au lieu d'accidentelle — ce
+qu'elle aurait toujours dû être.
+
+| Test | Correctif |
+|---|---|
+| `CivicPlanServiceIT` (5) · `CivicPlanNotionParcoursIT` (1) | précondition explicite |
+| `CivicNotionServiceIT` (2) | idem + suppression des suggestions. ⚠️ Le commentaire « la table est créée VIDE et rien ne la remplit sans une décision du propriétaire » est **périmé** : la décision a été prise |
+| `ProgressServiceIT.compteursCiviquesNonTronques` | `grainNotion` attendait `false`, vaut `true`. **Assertion corrigée, pas précondition** : le compteur se mesure **mieux** au grain notion |
+| `AttemptExpirationIT` (3) · `AttemptServiceMockExamIT` (2) · `TestData.examTemplate()` | fixtures s'appuyant sur un thème hors programme ou un template TCF sans règles |
+
+🛑 **Et le garde `module = CIVIQUE` a payé dès sa première exécution** : il a trouvé **trois**
+fabriques de template TCF **sans règles** — `TestData.examTemplate()`, le helper local
+d'`AttemptServiceMockExamIT`, et par ricochet `AttemptServiceGuestIT` — dont les tests passaient
+**parce que le fallback complétait librement en silence**. Une fabrique qui produit un objet invalide
+faisait passer pour un succès un chemin de dégradation.
+
+✅ **Vérifié en base réelle, comme demandé** : **4** templates sans règles existent
+(`officiel-civique-40q`, `officiel-tcf-a2/b1/b2-30q`, seed V110), **tous non publiés et 0 attempt**.
+`startFromTemplate` et `startGuestDemo` refusent d'abord sur `!isPublished()`. **Aucun examen TCF ne
+se composait librement en production.**
+
+---
+
+#### Annexe D-47 — les 22 questions dont le `theme_id` contredit l'annexe I
+
+| Notion interne | `theme_id` actuel | Unité officielle | Thématique de l'unité | Questions |
+|---|---|---|---|---|
+| `pv_egalite_non_discrimination` | `CIV_PRINCIPES` | `D1_DROITS_FONDAMENTAUX` | Droits et devoirs | **9** |
+| `pv_libertes_ddhc` | `CIV_PRINCIPES` | `D1_DROITS_FONDAMENTAUX` | Droits et devoirs | **5** |
+| `pv_republique_democratie` | `CIV_PRINCIPES` | `I1_DEMOCRATIE_VOTE` | Système institutionnel | **8** |
+
+**Effet sur le compte des connaissances actives** (⟦SQL⟧, après V296/V297) :
+
+| Thématique | Par `theme_id` | Par l'unité | Δ |
+|---|---|---|---|
+| `CIV_PRINCIPES` | 68 | **46** | **−22** |
+| `CIV_DROITS_DEVOIRS` | 163 | **177** | +14 |
+| `CIV_INSTITUTIONS` | 200 | **208** | +8 |
+| `CIV_HISTOIRE_GEO` | 189 | 189 | 0 |
+| `CIV_SOCIETE` | 163 | 163 | 0 |
+
+⚠️ **Les trois sortent toutes de `CIV_PRINCIPES`, et ce n'est pas un hasard** : l'annexe I ne donne à
+cette thématique que **deux** notions de connaissance — « Devise et symboles » et « Laïcité » — là où
+la taxonomie interne en a rangé **cinq**. Les trois en trop sont des **droits** et de la
+**démocratie**, que le texte range ailleurs.
+
+---
+---
+
+# 🛑 RÈGLE GÉNÉRALE — **PROGRAMME ≠ CORPUS** (D-48, 2026-09-19)
+
+> **Cette section se lit seule.** Elle ne suppose pas la lecture du journal.
+> Elle est née du module civique, mais elle ne lui est pas propre.
+
+## L'énoncé
+
+> **L'unité officielle du programme est l'autorité là où l'on COMPOSE ou MESURE le programme.**
+> **Le classement éditorial du corpus (`questions.theme_id`) reste l'autorité là où l'on COMPTE le
+> corpus.**
+
+Ce ne sont **pas** deux définitions du même mot. Ce sont **deux objets** :
+
+| | Le **PROGRAMME** | Le **CORPUS** |
+|---|---|---|
+| Ce que c'est | ce qu'un candidat doit savoir, fixé par un texte | ce que nous avons écrit |
+| Autorité côté civique | `civic_official_units` (16 lignes, arrêté du 10 octobre 2025) | `questions.theme_id`, `civic_notions` (46) |
+| Qui le fait bouger | le législateur | nous |
+| Il sert à | **tirer** un examen conforme, **mesurer** un candidat | **écrire**, **relire**, **compter ce qu'on a** |
+
+## Pourquoi ils ne se recouvrent pas — le chiffre qui l'impose
+
+⟦SQL⟧ **193 questions civiques actives sont dans le corpus et hors du programme** :
+
+- **176 mises en situation**, qui ne portent aucune notion et n'en porteront pas ;
+- **17 connaissances non taguées**, reliquat de revue (P8.8).
+
+Et **22 questions** sont dans les deux, mais **pas au même endroit** : leur `theme_id` dit
+« Principes et valeurs », l'annexe I les range sous « Droits fondamentaux » (14) ou « Démocratie et
+droit de vote » (8). Détail : annexe de **D-47**.
+
+## La conséquence, et c'est elle qui rend la règle nécessaire
+
+🛑 **L'unité ne peut pas devenir l'autorité là où il faut compter des questions NON TAGUÉES** —
+parce qu'une question non taguée n'a **aucune** unité. Ce n'est pas une préférence, c'est une
+impossibilité :
+
+- un **taux de tagging** dont le dénominateur exclut les non taguées vaut trivialement 100 % ;
+- un **tirage** par unité rend les non taguées indrainables ;
+- un **compte de corpus** par unité ignore 193 questions actives.
+
+## Comment on applique la règle
+
+**Une seule question à se poser** devant un point de lecture :
+
+> *« Est-ce que je compose ou je mesure le PROGRAMME — ou est-ce que je compte ce que NOUS avons ? »*
+
+| Si… | Alors l'autorité est |
+|---|---|
+| je tire les questions d'un examen | **l'unité** |
+| je dis de quelle thématique relève une question, à l'écran | **l'unité** |
+| je rattache une étape de cycle à un bloc | **l'unité** |
+| je mesure la couverture du programme | **l'unité** |
+| je compte combien de questions un thème possède | **`theme_id`** |
+| je calcule un taux de tagging | **`theme_id`** (le dénominateur en dépend) |
+| je compose un lot d'entraînement sur tout un thème | **`theme_id`** |
+| je tire le plancher par thème d'un diagnostic | **`theme_id`** |
+
+## 🛑 L'exigence de lisibilité — chaque point de lecture le DIT
+
+> « Que **chaque point de lecture de `theme_id` côté civique dise en une ligne de quel côté il
+> tombe**. Sans ça, la distinction se perd au premier développeur qui arrive, et on retrouve deux
+> définitions du mot « thème » **par accumulation plutôt que par décision**. »
+
+**Appliqué aux 11 points**, chacun annoté en une ligne dans le code :
+
+| # | Point de lecture | Côté | Ligne posée |
+|---|---|---|---|
+| 1 | `CivicExamCompositionService.composerExamenConforme` | **PROGRAMME** | tire par unité |
+| 2 | `CivicExamCompositionService.composerExamenDeTheme` | **PROGRAMME** | tire par les unités de la thématique |
+| 3 | `CivicExamCompositionService.thematiqueOfficielle` | **PROGRAMME** | l'autorité à l'affichage |
+| 4 | `QuestionRepository.findRandomByOfficialUnit*` | **PROGRAMME** | la requête par unité |
+| 5 | `QuestionRepository.findRandomMisesEnSituation*` | **PROGRAMME** | une MES se rejoint par son thème, qui **est** son unité |
+| 6 | `CivicPlanRepository.taggageParTheme` | **CORPUS** | 🛑 le dénominateur exige les non taguées |
+| 7 | `CivicPlanRepository.questionsParTheme` | **CORPUS** | dotation du grain THÈME, types confondus |
+| 8 | `CivicPlanRepository.tirageSerieCiblee` (`themeId`) | **CORPUS** | mode dégradé par thème |
+| 9 | `CivicPlanRepository.reponses` → `CivicReponse.themeId` | **CORPUS** | grain de repli du plan |
+| 10 | `CivicDiagnosticComposer` (plancher `min-par-theme`) | **CORPUS** | + **D-29 exigence 5** protège le diagnostic |
+| 11 | `LotService.listCivique` / `countActiveMatching` | **CORPUS** | 🛑 c'est la **surface gratuite de D-46** |
+
+⚠️ **Le signal à surveiller** : un nouveau point de lecture qui ne se range **dans aucune des deux
+colonnes**. Il ne se code pas, il s'arbitre — comme une 4ᵉ gratuité dans `DETTE-F1`.
+
+## Ce qui reste ouvert, et qui n'est pas planifié
+
+Quand les **17 connaissances non taguées** seront taguées (P8.8), les points **6, 7, 8, 10 et 11**
+*pourront* basculer vers l'unité, puisque tout le corpus aura alors une unité — sauf les
+**176 mises en situation**, qui n'en auront jamais au sens de la notion. La distinction PROGRAMME /
+CORPUS **ne disparaîtra donc pas**, elle se déplacera. **À trancher à ce moment-là, pas avant.**
+
+## Portée hors civique
+
+La règle est écrite en termes civiques parce que c'est là qu'elle est née, mais sa forme est
+générale : **dès qu'un référentiel externe (une loi, une norme, un référentiel d'examen) coexiste
+avec un classement interne, les deux sont des autorités distinctes sur des questions distinctes.**
+Côté TCF le cas existe déjà, résolu autrement : `TCF_STRUCTURE` est du **corpus** SejourFR et n'est
+dans **aucun** programme — le backend l'exclut de l'examen blanc, du Plan et du diagnostic, et les
+fronts le rangent sous « Renforcer mon français ».
