@@ -90,6 +90,15 @@ public class JourneyEvaluationFilter {
             // En comprehension, la source ne distingue pas l'examen de la serie
             // ciblee — c'est la session qui le dit.
             case TCF_CO, TCF_CE -> examens.contains(observation.getSourceId());
+            // 🛑 CIVIQUE : LA SOURCE SUFFIT, et c'est voulu (D-49). Contrairement
+            // a la comprehension TCF, ou il faut relire la session pour savoir si
+            // c'etait un examen, le civique porte la distinction DANS son
+            // `source_type` -- `CIVIQUE_SERIE` pour une serie ciblee du Plan,
+            // `CIVIQUE_EXAMEN` pour un examen de theme ou global. C'est ce qui
+            // rend R3 lisible sans requete : l'entrainement n'alimente jamais le
+            // cycle en attente, seuls les examens le font.
+            case CIVIQUE_SERIE -> false;
+            case CIVIQUE_EXAMEN -> true;
         };
     }
 

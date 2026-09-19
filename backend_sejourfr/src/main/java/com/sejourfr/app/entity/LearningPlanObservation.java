@@ -40,6 +40,23 @@ public class LearningPlanObservation {
     @JoinColumn(name = "skill_id", nullable = false)
     private Skill skill;
 
+    /**
+     * L'<b>unite du programme officiel civique</b> observee (V068).
+     *
+     * <p>🛑 <b>Exclusive de {@link #skill}</b>
+     * ({@code chk_learning_plan_observation_unite}).
+     *
+     * <p>🛑 <b>La granularite est l'UNITE (16), jamais la notion interne (46).</b>
+     * Une unite regroupe jusqu'a 8 notions : elle peut donc etre <b>cloturee</b>
+     * alors qu'une de ses notions est en <b>boite 1</b>. Ce n'est pas une
+     * incoherence, c'est la separation de D-49 -- cette table repond « cette
+     * ETAPE est-elle clôturee ? », {@code CivicLeitnerResolver} repond « ou le
+     * candidat EN EST-IL ? ».
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "official_unit_id")
+    private CivicOfficialUnit officialUnit;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, length = 24)
     private LearningPlanSourceType sourceType;

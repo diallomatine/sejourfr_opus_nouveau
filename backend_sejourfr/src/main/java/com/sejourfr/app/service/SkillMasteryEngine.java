@@ -385,6 +385,19 @@ public class SkillMasteryEngine {
             case PRODUCTION_EE, PRODUCTION_EO -> config.getWeightProduction();
             case MOCK_EXAM_EE, MOCK_EXAM_EO -> config.getWeightMockExam();
             case TCF_CO, TCF_CE -> config.getWeightComprehension();
+            // 🛑 CE MOTEUR EST TCF-ONLY, ET UNE OBSERVATION CIVIQUE NE DOIT JAMAIS
+            // L'ATTEINDRE. Elle porte une `official_unit_id` et pas de `skill_id`
+            // (V070, chk_learning_plan_observation_unite), donc elle n'entre dans
+            // aucune des lectures par competence de ce moteur. Arriver ici
+            // signifierait qu'un appelant a melange les deux autorites de D-49 --
+            // ce moteur pese des PREUVES DE COMPETENCE, le Leitner dit l'etat
+            // present d'une notion civique. On leve : un poids invente ici
+            // fausserait une maitrise sans que rien ne le dise.
+            case CIVIQUE_SERIE, CIVIQUE_EXAMEN -> throw new IllegalArgumentException(
+                    "Observation civique (" + source + ") dans SkillMasteryEngine : ce moteur "
+                            + "pese des competences TCF. Une unite officielle civique releve de "
+                            + "CivicLeitnerResolver pour son etat, et de l'observation pour la "
+                            + "cloture d'etape (D-49).");
         };
     }
 

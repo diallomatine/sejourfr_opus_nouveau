@@ -24,7 +24,29 @@ public enum LearningPlanSourceType {
     /** Resultat determine d'une session QCM de comprehension ORALE, ventile par niveau. */
     TCF_CO,
     /** Resultat determine d'une session QCM de comprehension ECRITE, ventile par niveau. */
-    TCF_CE;
+    TCF_CE,
+
+    /**
+     * Une <b>serie ciblee</b> du Plan civique, sur une unite officielle.
+     *
+     * <p>🛑 <b>C'est elle qui alimente R2</b> : deux series {@code SOLID}, ou
+     * quatre terminees, clôturent l'etape du cycle (D-16 transpose, D-49).
+     *
+     * <p>🛑 <b>Elle n'alimente JAMAIS le cycle en attente</b> (R3) : un
+     * entrainement fait avancer ou clôturer une etape existante, il n'en cree
+     * aucune. C'est {@link #CIVIQUE_EXAMEN} qui mesure.
+     */
+    CIVIQUE_SERIE,
+
+    /**
+     * Un <b>examen civique</b> — de theme ou global — sur une unite officielle.
+     *
+     * <p>🛑 <b>Il MESURE</b>, donc il peut clôturer une etape <b>et</b> reinjecter
+     * une regression dans le cycle en attente (R1, D-13). C'est ce qui le distingue
+     * de {@link #CIVIQUE_SERIE}, et pourquoi il fallait deux sources et non une :
+     * sans la distinction, R3 serait indistinguable a la lecture.
+     */
+    CIVIQUE_EXAMEN;
 
     /**
      * Preuve <b>en situation</b> : une production complete, examen blanc compris,
@@ -66,6 +88,25 @@ public enum LearningPlanSourceType {
 
     /** Micro-entrainement cible : il fait progresser, il ne confirme jamais seul. */
     public boolean isTargeted() {
-        return this == SKILL_TRAINING;
+        return this == SKILL_TRAINING || this == CIVIQUE_SERIE;
+    }
+
+    /**
+     * Observation <b>civique</b> : elle porte une {@code official_unit_id}, jamais
+     * un {@code skill_id} ({@code chk_learning_plan_observation_unite}).
+     */
+    public boolean isCivique() {
+        return this == CIVIQUE_SERIE || this == CIVIQUE_EXAMEN;
+    }
+
+    /**
+     * Cette source <b>mesure</b>-t-elle, au sens de R1 et R3 ?
+     *
+     * <p>🛑 Seule une source qui mesure peut <b>creer</b> une etape ou reinjecter
+     * une regression dans le cycle en attente. Un entrainement ne fait
+     * qu'<b>avancer</b> ce qui existe.
+     */
+    public boolean mesure() {
+        return !isTargeted();
     }
 }
