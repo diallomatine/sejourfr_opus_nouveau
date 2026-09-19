@@ -58,19 +58,6 @@ class AttemptServiceGuestIT extends AbstractIntegrationTest {
                 null, null, null, null, moduleExamType, slot, null);
     }
 
-    private ExamTemplate paidPublished() {
-        ExamTemplate t = new ExamTemplate();
-        t.setSlug("guest-paid-" + System.nanoTime());
-        t.setModule(Module.TCF);
-        t.setName("Payant");
-        t.setDurationSeconds(5400);
-        t.setTotalQuestions(20);
-        t.setPassingScore(12);
-        t.setFree(false);
-        t.setPublished(true);
-        t.setPosition(0);
-        return templateManager.save(t);
-    }
 
     @Test
     void guestDemoTraining_serieDeterministe_userNull_ipPosee() {
@@ -108,7 +95,7 @@ class AttemptServiceGuestIT extends AbstractIntegrationTest {
 
     @Test
     void guestDemoMockExam_templatePayant_refuse() {
-        ExamTemplate t = paidPublished();
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
 
         assertThatThrownBy(() -> service.startGuestDemo(
                 req(AttemptType.MOCK_EXAM, Module.TCF, t.getId(), null, null, null, null, null), IP))

@@ -240,7 +240,15 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         // Tout est faux : rien n'est tenu, et un thème n'est de toute façon
         // jamais annoncé maîtrisé (L10).
         assertThat(civique.maitrisees()).isZero();
-        assertThat(civique.grainNotion()).isFalse();
+        // 🛑 `grainNotion` est VRAI depuis V296/V297 (2026-09-19). L'assertion
+        // attendait `false` -- vrai quand le corpus n'était pas tagué, et il ne
+        // l'était pas parce que la campagne du 2026-09-11 vivait hors migration
+        // (DETTE-T1). Les cinq thèmes sont tagués à 100 % sur une base neuve.
+        // ⚠️ Ce test ne porte pas sur le grain : il vérifie que les compteurs ne
+        // sont pas tronqués au plafond d'affichage de 3. On corrige l'assertion
+        // plutôt que de remettre le corpus à non tagué, parce que le compteur se
+        // mesure MIEUX au grain notion -- c'est là qu'il y a le plus de cibles.
+        assertThat(civique.grainNotion()).isTrue();
     }
 
     /**

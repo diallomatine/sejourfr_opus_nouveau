@@ -119,6 +119,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
     @DisplayName("🛑 DE BOUT EN BOUT au grain NOTION : le diagnostic pointe, le plan sert, "
             + "la série cible, la maîtrise sort des priorités et revient à l'échéance")
     void laChaineEntiereAuGrainNotion() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         testData.userSubscription(user, testData.plan());
         // La mention est servie meme sans diagnostic : c'est la seule autorite.
@@ -630,4 +631,26 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                 .toList();
     }
 
+
+    /**
+     * 🛑 <b>Remet le corpus civique a l'etat NON TAGUE</b>, dans la transaction
+     * du test (annulee a la sortie).
+     *
+     * <p>Pourquoi ce helper existe (2026-09-19). Les tests de ce fichier
+     * verifient le <b>mode degrade par theme</b> : la bascule NOTION/THEME, le
+     * grain courant, « un theme n'est jamais maitrise ». Ils supposaient donc un
+     * corpus <b>non tague</b> -- et ils l'obtenaient <b>par accident</b>, parce
+     * que le tagging de la campagne du 2026-09-11 n'etait dans <b>aucune
+     * migration</b> (DETTE-T1). V296/V297 l'y ont mis : les cinq themes sont
+     * desormais tagues a 100 % sur une base neuve, et ces tests tombaient.
+     *
+     * <p>🛑 <b>On ne supprime pas ces tests, et on ne les reecrit pas non plus.</b>
+     * Le mode degrade <b>existe toujours en code</b> et doit rester couvert : il
+     * sert le jour ou une thematique neuve arrive avec des questions non taguees.
+     * Ce qui change, c'est que leur precondition devient <b>explicite</b> au lieu
+     * d'accidentelle -- ce qu'elle aurait toujours du etre.
+     */
+    private void remettreLeCorpusANonTague() {
+        jdbc.update("UPDATE questions SET civic_notion_id = NULL WHERE module = 'CIVIQUE'");
+    }
 }

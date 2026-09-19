@@ -13,6 +13,8 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.manager.ThemeManager;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +42,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AttemptExpirationIT extends AbstractIntegrationTest {
 
     @Autowired AttemptService service;
+    @Autowired ThemeManager themeManager;
+    @Autowired JdbcTemplate jdbc;
     @Autowired AttemptManager attemptManager;
     @Autowired AttemptQuestionManager attemptQuestionManager;
     @Autowired TestData data;
@@ -63,12 +67,20 @@ class AttemptExpirationIT extends AbstractIntegrationTest {
                 .filter(Choice::isCorrect).map(Choice::getId).findFirst().orElseThrow();
     }
 
+    /**
+     * 🛑 Une THEMATIQUE OFFICIELLE (2026-09-19). Ce test porte sur l'expiration
+     * d'un attempt, pas sur sa composition -- mais il la traverse : un examen de
+     * theme civique se compose desormais par les UNITES de sa thematique (D-47),
+     * donc un theme de fixture hors annexe I n'a aucun examen possible.
+     *
+     * <p>On prend « Principes et valeurs de la Republique » et le corpus seede :
+     * le test n'a jamais eu besoin de ses 25 questions a lui, il avait besoin
+     * d'assez de questions pour remplir un examen de theme.
+     */
     private Theme themeAvecQuestions() {
-        Theme theme = data.theme(Module.CIVIQUE, "exp-" + System.nanoTime(), "Expiration");
-        for (int i = 0; i < 25; i++) {
-            data.question(theme);
-        }
-        return theme;
+        UUID id = jdbc.queryForObject(
+                "SELECT id FROM themes WHERE code = 'CIV_PRINCIPES'", UUID.class);
+        return themeManager.findById(id).orElseThrow();
     }
 
     @Test

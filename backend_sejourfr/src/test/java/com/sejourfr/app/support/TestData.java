@@ -54,6 +54,7 @@ import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.BillingCycle;
+import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.enums.EpreuveType;
@@ -553,17 +554,78 @@ public class TestData {
     // ExamTemplate (+ ExamTemplateRule, persisté en cascade)
     // ------------------------------------------------------------------------
 
+    /**
+     * Un {@code ExamTemplate} TCF <b>valide</b> : publie, gratuit, et surtout
+     * <b>muni d'une regle qui remplit ses 20 questions</b>.
+     *
+     * <p>🛑 <b>La regle n'est pas decorative</b> (2026-09-19). Cette fabrique
+     * rendait un template TCF <b>sans aucune regle</b>, et les tests passaient
+     * parce que {@code pickQuestionsForTemplate} <b>completait librement en
+     * silence</b> jusqu'a {@code totalQuestions}. C'est exactement le defaut que
+     * D-29 a fait lever : depuis, un template TCF sans regle <b>echoue</b>, et le
+     * garde a trouve cette fabrique des sa premiere execution. Une fabrique qui
+     * produit un objet invalide est un piege -- elle faisait passer pour un succes
+     * un chemin de degradation.
+     *
+     * <p>⚠️ Verifie en base reelle au meme moment : 4 templates sans regle
+     * existent ({@code officiel-*}, seed V110), <b>tous non publies et 0 attempt</b>.
+     * Aucun examen ne se composait librement en production.
+     */
+    /** Le cas courant : un template TCF publié, gratuit, valide. */
     public ExamTemplate examTemplate() {
+        return examTemplate(Module.TCF, true, true);
+    }
+
+    /**
+     * Un {@code ExamTemplate} <b>valide pour son module</b>.
+     *
+     * <p>🛑 <b>UNE SEULE FABRIQUE, et c'est le correctif de fond</b> (2026-09-19).
+     * Elle a vécu en <b>cinq</b> exemplaires : celui-ci et <b>quatre helpers
+     * locaux</b> — {@code AttemptServiceMockExamIT.template},
+     * {@code AttemptServiceGuestIT.paidPublished}, {@code ExamServiceIT.unpublished}
+     * et {@code publishedCivique} — tous produisant un template <b>sans règle de
+     * composition</b>. C'est la 2ᵉ occurrence qui aurait dû déclencher
+     * l'extraction ; il y en avait cinq.
+     *
+     * <p>🛑 <b>Pourquoi ça comptait.</b> Un template TCF sans règle passait
+     * silencieusement par le fallback libre de {@code pickQuestionsForTemplate},
+     * qui complétait jusqu'à {@code totalQuestions} sans contrainte. Les tests
+     * verdissaient <b>sur un chemin de dégradation</b>, et tout ce qui s'appuyait
+     * dessus était vicié. Depuis D-29 ce fallback lève ; le garde a trouvé les
+     * fabriques dès sa première exécution.
+     *
+     * <p>🛑 <b>La règle par module est celle de D-45 (option B)</b>, et la
+     * fabrique l'encode plutôt que de la répéter :
+     * <ul>
+     *   <li><b>TCF</b> : une règle qui remplit {@code totalQuestions}. Un template
+     *       TCF sans règle est une <b>erreur de saisie</b> — le TCF a sa
+     *       composition stratifiée par épreuve ;</li>
+     *   <li><b>CIVIQUE</b> : <b>aucune règle</b>, et c'est légitime — sa
+     *       composition vient du <b>programme officiel</b> (arrêté du 10 octobre
+     *       2025). Le format suit {@code CivicExamFormat}, pas des nombres de
+     *       test : 40 questions, seuil 32, 45 min.</li>
+     * </ul>
+     */
+    public ExamTemplate examTemplate(Module module, boolean free, boolean published) {
+        boolean civique = module == Module.CIVIQUE;
         ExamTemplate t = new ExamTemplate();
         t.setSlug("exam-template-" + next());
-        t.setModule(Module.TCF);
-        t.setName("Examen blanc de test");
-        t.setDurationSeconds(5400);
-        t.setTotalQuestions(20);
-        t.setPassingScore(12);
-        t.setFree(true);
-        t.setPublished(true);
+        t.setModule(module);
+        t.setName(civique ? "Examen civique de test" : "Examen blanc de test");
+        t.setDurationSeconds(civique ? CivicExamFormat.DUREE_SECONDES : 5400);
+        t.setTotalQuestions(civique ? CivicExamFormat.QUESTIONS : 20);
+        t.setPassingScore(civique ? CivicExamFormat.SEUIL_REUSSITE : 12);
+        t.setFree(free);
+        t.setPublished(published);
         t.setPosition(0);
+        if (!civique) {
+            ExamTemplateRule regle = new ExamTemplateRule();
+            regle.setExamTemplate(t);
+            regle.setQuestionType(QuestionType.CO);
+            regle.setQuestionCount(t.getTotalQuestions());
+            regle.setPosition(0);
+            t.getRules().add(regle);
+        }
         return examTemplateManager.save(t);
     }
 

@@ -108,6 +108,13 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Le tag se pose, se lit par mention, et s'efface")
     void leTagSePoseSeLitEtSEfface() {
+        // 🛑 Le corpus part NON TAGUE (2026-09-19). Ce test compte les questions
+        // d'une notion apres en avoir tague UNE : il attendait donc 1, et
+        // `pv_laicite` en porte 9 depuis que V297 a mis la campagne du
+        // 2026-09-11 en migration (DETTE-T1). Ce qu'il verifie -- le tag se pose,
+        // se lit par mention, s'efface -- n'a pas change ; sa precondition
+        // devient explicite au lieu d'accidentelle.
+        remettreLeCorpusANonTague();
         Question question = data.question();
         entityManager.flush();
         entityManager.clear();
@@ -165,15 +172,18 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("La file de tagging rend ce qu'il reste, et le compte diminue quand on tague")
     void fileDeTagging() {
+        // 🛑 PRECONDITION EXPLICITE : ce test verifie le MECANISME de la file --
+        // ce qu'il reste a taguer, et que le compte diminue quand on tague. Il
+        // lui faut donc un corpus vierge, et il le dit au lieu de compter
+        // dessus : le depot est tague en migration depuis V296/V297 (DETTE-T1),
+        // et une file sans suggestion est l'etat de CE TEST, plus celui du depot.
+        remettreLeCorpusANonTague();
+        jdbc.update("DELETE FROM question_notion_suggestions");
+
         var avant = service.fileDeTagging(null, false, false, 25, 0);
 
-        // Le catalogue civique seedé n'est pas tagué : c'est exactement le
-        // chantier que cet outil sert à mener.
         assertThat(avant.resteATaguer()).isPositive();
         assertThat(avant.questions()).isNotEmpty();
-        // 🛑 Aucune suggestion : la table est créée VIDE et rien ne la remplit
-        // sans une décision du propriétaire. Une file sans suggestion est
-        // l'état NORMAL, pas une panne.
         assertThat(avant.questions()).allSatisfy(q -> {
             assertThat(q.notionCode()).isNull();
             assertThat(q.suggestions()).isEmpty();
@@ -219,5 +229,16 @@ class CivicNotionServiceIT extends AbstractIntegrationTest {
                          LEFT JOIN civic_notions n ON n.id = q.civic_notion_id
                 WHERE q.id = ?
                 """, String.class, questionId);
+    }
+
+    /**
+     * 🛑 Remet le corpus civique a l'etat NON TAGUE, dans la transaction du test.
+     *
+     * <p>Le tagging de la campagne du 2026-09-11 vit desormais en migration
+     * (V296/V297, DETTE-T1). Les tests qui comptent des tags a partir de zero
+     * doivent donc le dire, au lieu de compter sur un corpus vierge par accident.
+     */
+    private void remettreLeCorpusANonTague() {
+        jdbc.update("UPDATE questions SET civic_notion_id = NULL WHERE module = 'CIVIQUE'");
     }
 }

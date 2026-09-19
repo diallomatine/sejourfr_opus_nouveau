@@ -111,6 +111,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("🛑 Au lancement, le plan travaille par THÈME — c'est le mode prévu, pas une panne")
     void modeDegradeParTheme() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         diagnosticTermine(user);
 
@@ -134,6 +135,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @DisplayName("🛑 Les cinq thèmes de l'écran Réviser sont servis, et leurs compteurs "
             + "ne sortent PAS des listes plafonnées")
     void lesCinqLignesDeThemeSontServies() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         diagnosticTermine(user);
 
@@ -194,6 +196,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("🛑 Un thème n'est JAMAIS annoncé maîtrisé, même avec une série de bonnes réponses")
     void unThemeNestJamaisMaitrise() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         CivicDiagnosticSession session = diagnosticService.ouvrir(user.getId());
         entityManager.flush();
@@ -272,6 +275,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("🛑 Le grain bascule PAR THÈME dès que son tagging franchit le seuil")
     void bascuceDuGrainParTheme() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         diagnosticTermine(user);
 
@@ -297,6 +301,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
     @DisplayName("🛑 LA BASCULE NE COMPTE QUE LES CONNAISSANCE : un thème 100 % tagué "
             + "bascule même avec ses mises en situation non taguées")
     void laBasculeNeCompteQueLesConnaissances() {
+        remettreLeCorpusANonTague();
         User user = testData.user();
         diagnosticTermine(user);
 
@@ -528,5 +533,27 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         deplacerVersNotion(themeCode, mention, notions.get(0), 4, 1);
         CivicPlanDto aCinq = service.plan(user.getId());
         assertThat(proposables(aCinq)).isEqualTo(proposables(aZero) + 1);
+    }
+
+    /**
+     * 🛑 <b>Remet le corpus civique a l'etat NON TAGUE</b>, dans la transaction
+     * du test (annulee a la sortie).
+     *
+     * <p>Pourquoi ce helper existe (2026-09-19). Les tests de ce fichier
+     * verifient le <b>mode degrade par theme</b> : la bascule NOTION/THEME, le
+     * grain courant, « un theme n'est jamais maitrise ». Ils supposaient donc un
+     * corpus <b>non tague</b> -- et ils l'obtenaient <b>par accident</b>, parce
+     * que le tagging de la campagne du 2026-09-11 n'etait dans <b>aucune
+     * migration</b> (DETTE-T1). V296/V297 l'y ont mis : les cinq themes sont
+     * desormais tagues a 100 % sur une base neuve, et ces tests tombaient.
+     *
+     * <p>🛑 <b>On ne supprime pas ces tests, et on ne les reecrit pas non plus.</b>
+     * Le mode degrade <b>existe toujours en code</b> et doit rester couvert : il
+     * sert le jour ou une thematique neuve arrive avec des questions non taguees.
+     * Ce qui change, c'est que leur precondition devient <b>explicite</b> au lieu
+     * d'accidentelle -- ce qu'elle aurait toujours du etre.
+     */
+    private void remettreLeCorpusANonTague() {
+        jdbc.update("UPDATE questions SET civic_notion_id = NULL WHERE module = 'CIVIQUE'");
     }
 }

@@ -24,38 +24,12 @@ class ExamServiceIT extends AbstractIntegrationTest {
     @Autowired TestData data;
     @Autowired ExamTemplateManager templateManager;
 
-    private ExamTemplate unpublished(Module module) {
-        ExamTemplate t = new ExamTemplate();
-        t.setSlug("unpub-" + System.nanoTime());
-        t.setModule(module);
-        t.setName("Brouillon");
-        t.setDurationSeconds(3600);
-        t.setTotalQuestions(20);
-        t.setPassingScore(12);
-        t.setFree(true);
-        t.setPublished(false);
-        t.setPosition(0);
-        return templateManager.save(t);
-    }
 
-    private ExamTemplate publishedCivique() {
-        ExamTemplate t = new ExamTemplate();
-        t.setSlug("civ-pub-" + System.nanoTime());
-        t.setModule(Module.CIVIQUE);
-        t.setName("Examen civique publié");
-        t.setDurationSeconds(2700);
-        t.setTotalQuestions(40);
-        t.setPassingScore(32);
-        t.setFree(true);
-        t.setPublished(true);
-        t.setPosition(0);
-        return templateManager.save(t);
-    }
 
     @Test
     void listPublished_sansFiltre_inclutLesTemplatesPublies_excludLesBrouillons() {
         ExamTemplate published = data.examTemplate(); // TCF, publié
-        ExamTemplate draft = unpublished(Module.TCF);
+        ExamTemplate draft = data.examTemplate(Module.TCF, true, false);
 
         List<ExamTemplateSummaryResponse> all = service.listPublished(null);
 
@@ -66,7 +40,7 @@ class ExamServiceIT extends AbstractIntegrationTest {
     @Test
     void listPublished_filtreParModule() {
         ExamTemplate tcf = data.examTemplate();         // TCF
-        ExamTemplate civ = publishedCivique();          // CIVIQUE
+        ExamTemplate civ = data.examTemplate(Module.CIVIQUE, true, true);          // CIVIQUE
 
         List<ExamTemplateSummaryResponse> tcfOnly = service.listPublished(Module.TCF);
 
@@ -91,7 +65,7 @@ class ExamServiceIT extends AbstractIntegrationTest {
 
     @Test
     void getPublishedBySlug_brouillon_lanceNotFound() {
-        ExamTemplate draft = unpublished(Module.TCF);
+        ExamTemplate draft = data.examTemplate(Module.TCF, true, false);
 
         assertThatThrownBy(() -> service.getPublishedBySlug(draft.getSlug()))
                 .isInstanceOf(EntityNotFoundException.class);

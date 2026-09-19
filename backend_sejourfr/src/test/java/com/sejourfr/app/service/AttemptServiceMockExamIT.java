@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ExamTemplate;
+import com.sejourfr.app.entity.ExamTemplateRule;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
@@ -36,6 +37,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     @Autowired TestData data;
     @Autowired AttemptManager attemptManager;
     @Autowired ExamTemplateManager templateManager;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private void makePremium(User user) {
         data.userSubscription(user, data.plan());
@@ -47,19 +49,6 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
                 null, null, null, null, moduleExamType, slot, null);
     }
 
-    private ExamTemplate template(Module module, boolean free, boolean published) {
-        ExamTemplate t = new ExamTemplate();
-        t.setSlug("tpl-" + System.nanoTime());
-        t.setModule(module);
-        t.setName("Examen blanc");
-        t.setDurationSeconds(5400);
-        t.setTotalQuestions(20);
-        t.setPassingScore(12);
-        t.setFree(free);
-        t.setPublished(published);
-        t.setPosition(0);
-        return templateManager.save(t);
-    }
 
     @Test
     void civiqueFullMockExam_config40Questions_2700s_seuil32() {
@@ -80,18 +69,35 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
 
     @Test
     void civiqueThemeExam_config20Questions_1200s_seuil16_scopeTheme() {
+        // 🛑 SUR UNE THÉMATIQUE OFFICIELLE, et plus sur un thème de fixture
+        // (D-47). L'examen de thème se compose désormais par les UNITÉS de sa
+        // thématique, aux proportions de l'annexe I : un thème hors programme
+        // n'a aucune unité, donc aucun examen — et c'est le bon refus. La
+        // fixture créait un thème « exam-theme » avec 25 questions, ce qui ne
+        // testait que le tirage libre par `theme_id`.
         User user = data.user();
-        Theme theme = data.theme(Module.CIVIQUE, "exam-theme", "Examen thème");
-        for (int i = 0; i < 25; i++) {
-            data.question(theme);
-        }
+        UUID themeId = jdbc.queryForObject(
+                "SELECT id FROM themes WHERE code = 'CIV_PRINCIPES'", UUID.class);
 
-        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, theme.getId(), null, null, null));
+        AttemptResponse r = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeId, null, null, null));
 
         assertThat(r.totalQuestions()).isEqualTo(20);
         assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
         assertThat(r.passThreshold()).isEqualTo(16);
-        assertThat(r.themeId()).isEqualTo(theme.getId());
+        assertThat(r.themeId()).isEqualTo(themeId);
+    }
+
+    @Test
+    void civiqueThemeExam_themeHorsProgramme_estRefuse() {
+        // Le pendant du précédent : un thème qui n'est pas dans l'annexe I n'a
+        // aucune unité officielle, donc aucun examen de thème possible.
+        User user = data.user();
+        Theme horsProgramme = data.theme(Module.CIVIQUE, "exam-theme", "Hors programme");
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, horsProgramme.getId(), null, null, null)))
+                .hasMessageContaining("Thematique civique inconnue du programme");
     }
 
     @Test
@@ -341,7 +347,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     @Test
     void startFromTemplate_nonPublie_refuse() {
         User user = data.user();
-        ExamTemplate t = template(Module.TCF, true, false);
+        ExamTemplate t = data.examTemplate(Module.TCF, true, false);
 
         assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
                 .isInstanceOf(AccessDeniedException.class);
@@ -350,7 +356,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     @Test
     void startFromTemplate_payant_compteGratuit_refuse() {
         User user = data.user();
-        ExamTemplate t = template(Module.TCF, false, true);
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
 
         assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
                 .isInstanceOf(AccessDeniedException.class);
@@ -360,7 +366,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     void startFromTemplate_payant_premium_ok() {
         User user = data.user();
         makePremium(user);
-        ExamTemplate t = template(Module.TCF, false, true);
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
 
         AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null));
 
