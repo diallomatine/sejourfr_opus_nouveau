@@ -2162,3 +2162,79 @@ pour la phrase des unités : servie, donc impossible à diverger).
 
 ⚠️ **Le signal à surveiller** : un fait affiché des deux côtés qui n'a **pas** d'autorité serveur et
 qui n'est **pas** dans un miroir gelé. Une troisième occurrence transforme la dette en chantier.
+
+---
+
+### D-51 (2026-09-19) — **Le journal des évaluations accueille le civique** (V071)
+
+> Forme montrée **avant écriture**, comme pour V069 et V070, puis corrigée par le propriétaire sur
+> un point. Migration : `00_schema/V071__journal_evaluations_civiques.sql`.
+
+#### Ce que la table refusait
+
+`journey_assessment_event` rejetait **toute** évaluation civique par
+`chk_journey_assessment_epreuve_mesuree` : *« seul le diagnostic rapide ne mesure rien »*. Or un
+examen civique ne mesure aucune **épreuve**. ⚠️ Et l'échec aurait été **silencieux** (`DETTE-M1`).
+
+#### Trois natures, et leur axe exact
+
+| Nature | Axe | Pourquoi une valeur à part |
+|---|---|---|
+| `CIVIC_DIAGNOSTIC` | **aucun** | son id vient de `civic_diagnostic_sessions`, **pas** de `diagnostic_sessions` |
+| `CIVIC_THEME_EXAM` | **sa thématique** | — |
+| `CIVIC_EXAM` | 🛑 **aucun** | l'examen complet est un **fait global** : il mesure le programme entier et met à jour `exit_score` |
+
+**Motif retenu pour les trois valeurs** (propriétaire) : « deux tables de diagnostic différentes, et
+surtout un examen de thème indistinguable d'une des cinq lignes d'un examen complet. Même axe, même
+forme, **deux faits différents**, et c'est l'historique du candidat qui les affiche. »
+
+#### 🛑 Un examen complet écrit **SIX** lignes
+
+Une `CIVIC_EXAM` globale, **plus** une `CIVIC_THEME_EXAM` par thématique dont le bloc était
+débloqué.
+
+**Correction du propriétaire sur ma forme** : j'avais mis `CIVIC_EXAM → theme_id IS NOT NULL`, ce
+qui rendait le fait global **inécrivable**. Corrigé : `exam_type IS NULL AND theme_id IS NULL`.
+
+**Et le motif de fond, qui avait invalidé ma première proposition** (« l'examen complet ne clôt
+aucune étape ») :
+
+> « Le **cycle de mesure** est fait de **cinq blocs ne contenant que leur examen, tous débloqués**,
+> et c'est précisément l'examen complet qui doit les clôturer. »
+
+🛑 **Une étape d'examen se clôture en étant PASSÉE, pas en étant RÉUSSIE** — ni au TCF ni au
+civique. « L'examen mesure, il ne sanctionne pas. » Aucun seuil par thématique n'entre donc ici, et
+l'arrêté n'en définit aucun : ses 80 % portent sur les 40 questions.
+
+#### La clé : **deux index partiels**, pas une contrainte à trois colonnes
+
+`UNIQUE (journey_id, source_assessment_id, theme_id)` ne garantirait **rien** pour les événements
+sans axe — Postgres traite deux `NULL` comme **distincts**, donc les diagnostics pourraient se
+dupliquer et R14 tomberait **là où il tient aujourd'hui**. La formulation est retenue telle quelle,
+et elle est écrite dans la migration :
+
+> 🛑 **La garantie de V066 n'est pas desserrée, elle est bornée au côté sans axe.**
+
+Tout le TCF a `theme_id` NULL — le `CHECK` l'impose —, donc sa clé reste **exactement**
+`(journey_id, source_assessment_id)`, bit pour bit.
+
+#### ⚠️ Le garde d'idempotence ne bouge pas — et le couplage est **testé**
+
+`JourneyService` sort par `dejaTraitee(userId, module, sourceAssessmentId)`, **sans axe**. Il reste
+juste **tant que les six lignes s'écrivent dans la même passe**.
+
+**Exigence du propriétaire, et elle est le vrai apport de cet échange** :
+
+> « Un garde qui reste correct *tant que* est un garde qui **tombera en silence** le jour où
+> quelqu'un changera ça, et tu ne seras pas là. Écris la note au-dessus, oui — et **ajoute un test**
+> qui fige l'écriture en une seule passe. **Ce qui n'est pas testé n'est pas garanti**, c'est ce que
+> `DETTE-P1` dit de la parité. »
+
+⇒ `JournalCiviqueSchemaIT.lesSixLignesDoiventSEcrireDansLaMemePasse` : dès la **première** ligne
+écrite, le garde répond « déjà traitée ». Le couplage est visible, et il casse si la stratégie
+d'écriture change.
+
+#### Vérification
+
+`./mvnw verify` → **2 984 + 1 397, 0 échec** ; 259 classes `*Test` et 148 `*IT` ont toutes produit
+leur rapport. **Aucun front touché** : `assessment_kind` n'est servi dans aucun DTO.

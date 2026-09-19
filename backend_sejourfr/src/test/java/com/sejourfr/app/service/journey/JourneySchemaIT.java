@@ -371,11 +371,18 @@ class JourneySchemaIT extends AbstractIntegrationTest {
                 event(journey, evaluation, JourneyAssessmentKind.SECTION_EXAM,
                         EpreuveType.TCF_CO, Instant.now())))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasMessageContaining("uq_journey_assessment_event");
+                // ⚠️ V071 a remplace la contrainte UNIQUE de V066 par DEUX index
+                // partiels jumeaux, pour qu'un examen civique complet puisse
+                // ecrire six lignes sur un seul attempt. La garantie TCF n'est
+                // pas desserree, elle est BORNEE AU COTE SANS AXE : tout le TCF
+                // a `theme_id` NULL, donc sa cle reste exactement
+                // `(journey_id, source_assessment_id)`. C'est ce que dit ce
+                // test, et le nom de l'index le rappelle.
+                .hasMessageContaining("uq_journey_assessment_event_sans_axe");
     }
 
     @Test
-    @DisplayName("Seul le diagnostic RAPIDE ne mesure aucune epreuve (R11)")
+    @DisplayName("Cote TCF, seul le diagnostic RAPIDE ne mesure aucune epreuve (R11)")
     void seulLeDiagnosticRapideNeMesureRien() {
         Journey journey = journeys.saveAndFlush(journey(data.user(), TargetLevel.B2));
         events.saveAndFlush(event(journey, UUID.randomUUID(),
@@ -383,11 +390,17 @@ class JourneySchemaIT extends AbstractIntegrationTest {
 
         // Un examen qui ne dirait pas quelle epreuve il mesure priverait R14 de
         // son repere : c'est exactement le trou que ce CHECK ferme.
+        //
+        // ⚠️ V071 a remplace `chk_journey_assessment_epreuve_mesuree` par
+        // `chk_journey_assessment_mesure`, qui donne a CHAQUE nature sa regle
+        // exacte au lieu d'une equivalence a deux termes. La regle TCF verifiee
+        // ici est INCHANGEE ; ce qui a change, c'est que trois natures civiques
+        // ont desormais la leur (voir JournalCiviqueSchemaIT).
         assertThatThrownBy(() -> events.saveAndFlush(
                 event(journey, UUID.randomUUID(), JourneyAssessmentKind.SECTION_EXAM,
                         null, Instant.now())))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasMessageContaining("chk_journey_assessment_epreuve_mesuree");
+                .hasMessageContaining("chk_journey_assessment_mesure");
     }
 
     @Test
