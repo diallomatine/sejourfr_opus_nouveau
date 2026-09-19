@@ -3,11 +3,8 @@ package com.sejourfr.app.service.journey;
 import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyStepDto;
-import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.dto.JourneyBlocRefDto;
-import com.sejourfr.app.enums.JourneyBlocKind;
-import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyStepType;
 import org.springframework.stereotype.Component;
@@ -37,12 +34,20 @@ import java.util.function.Predicate;
  * lecture, et un predicat « cette epreuve a-t-elle deja ete mesuree ? » dont
  * l'unique autorite est {@code NiveauActuelEpreuveResolver}.
  *
- * <h2>Quatre blocs, toujours, dans l'ordre du TCF</h2>
- * <p>L'ordre est {@link TcfDomainProfileDto#ORDRE} — <b>CO, CE, EO, EE</b>,
- * autorite unique et <b>non configurable</b> (D-9, D-20). ⚠️ L'ordre des
- * maquettes est illustratif et ne fait pas regle. Un bloc sans etape est servi
- * quand meme : le cycle couvre les quatre epreuves, pas seulement celles que la
- * file a deja peuplees.
+ * <h2>🛑 L'AXE EST RECU, IL N'EST PLUS UN ENUM</h2>
+ * <p>Ce composant recevait {@code TcfDomainProfileDto.ORDRE} en dur — quatre
+ * epreuves. L'axe d'un cycle civique est <b>les cinq thematiques</b>, qui sont
+ * une <b>donnee</b> de {@code themes} et non des valeurs d'enum : il se lit dans
+ * l'ordre de {@code display_order}. L'appelant fournit donc l'axe, deja ordonne,
+ * sous la forme de {@link JourneyBlocRefDto} — le <b>bloc servi</b> (D-47).
+ *
+ * <p>🛑 {@code TcfDomainProfileDto.ORDRE} reste l'autorite <b>TCF</b> — CO, CE,
+ * EO, EE, non configurable (D-9, D-20). On ne la touche pas : on lui ajoute un
+ * axe a cote, et c'est {@code JourneyReadService} qui choisit selon le module.
+ * ⚠️ L'ordre des maquettes est illustratif et ne fait pas regle.
+ *
+ * <p>Un bloc <b>sans etape est servi quand meme</b> : le cycle couvre tout son
+ * axe, pas seulement ce que la file a deja peuple.
  */
 @Component
 public class JourneyBlocResolver {
@@ -53,38 +58,48 @@ public class JourneyBlocResolver {
     /**
      * @param numeroDuCycle  rang du cycle : nombre de cycles historises + 1,
      *                       compte par le manager, jamais ici.
+     * @param axe            les blocs du module, <b>deja ordonnes</b> : les
+     *                       quatre epreuves cote TCF, les cinq thematiques cote
+     *                       civique. 🛑 Ce composant ne le fabrique pas et ne le
+     *                       trie pas — il ne saurait pas de quel module il
+     *                       parle, et c'est exactement le but.
      * @param affichables    les etapes du cycle, <b>obsoletes deja exclues</b>,
      *                       dans l'ordre de la file.
      * @param courante       l'etape {@code CURRENT}, ou {@code null}.
      * @param dto            le mapping d'une etape vers son contrat servi.
-     * @param jamaisMesuree  « cette epreuve n'a jamais ete mesuree » — relaye de
-     *                       {@code NiveauActuelEpreuveResolver.mesure}. 🛑 Il
-     *                       n'est interroge que pour les blocs qui peuvent etre
-     *                       {@code A_EVALUER} : la question coute des requetes,
-     *                       et un bloc qui porte du travail n'en a pas besoin.
+     * @param jamaisMesure   « ce bloc n'a jamais ete mesure » — cote TCF,
+     *                       relaye de {@code NiveauActuelEpreuveResolver.mesure},
+     *                       son <b>unique autorite</b>. 🛑 Il n'est interroge que
+     *                       pour les blocs qui peuvent etre {@code A_EVALUER} :
+     *                       la question coute des requetes, et un bloc qui porte
+     *                       du travail n'en a pas besoin.
      */
     public Vue lire(
             int numeroDuCycle,
+            List<JourneyBlocRefDto> axe,
             List<JourneyStep> affichables,
             JourneyStep courante,
             Function<JourneyStep, JourneyStepDto> dto,
-            Predicate<EpreuveType> jamaisMesuree) {
+            Predicate<JourneyBlocRefDto> jamaisMesure) {
 
-        Map<EpreuveType, List<JourneyStep>> parEpreuve = new LinkedHashMap<>();
-        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
-            parEpreuve.put(epreuve, new ArrayList<>());
+        Map<String, List<JourneyStep>> parBloc = new LinkedHashMap<>();
+        for (JourneyBlocRefDto ref : axe) {
+            parBloc.put(ref.code(), new ArrayList<>());
         }
         for (JourneyStep step : affichables) {
-            List<JourneyStep> bloc = parEpreuve.get(step.getExamType());
-            // Une etape DIAGNOSTIC ne porte pas d'epreuve : elle mesure le
-            // candidat, pas une epreuve (R11). Elle compte dans l'avancement du
-            // cycle, mais elle n'appartient a aucun bloc.
+            // 🛑 `blocCode()` lit l'axe A LA SOURCE (D-47) : l'epreuve cote TCF,
+            // la thematique cote civique, et ce code ne sait pas lequel.
+            List<JourneyStep> bloc = parBloc.get(step.blocCode());
+            // Une etape DIAGNOSTIC n'appartient a aucun bloc : elle mesure le
+            // candidat, pas une epreuve ni une thematique (R11, A45). Elle
+            // compte dans l'avancement du cycle, et nulle part ailleurs.
             if (bloc != null) bloc.add(step);
         }
 
-        List<JourneyBlocDto> blocs = new ArrayList<>(TcfDomainProfileDto.ORDRE.size());
-        parEpreuve.forEach((epreuve, etapes) ->
-                blocs.add(bloc(epreuve, etapes, courante, dto, jamaisMesuree)));
+        List<JourneyBlocDto> blocs = new ArrayList<>(axe.size());
+        for (JourneyBlocRefDto ref : axe) {
+            blocs.add(bloc(ref, parBloc.get(ref.code()), courante, dto, jamaisMesure));
+        }
 
         int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
         boolean complete = affichables.stream().allMatch(step -> !step.estOuverte());
@@ -136,11 +151,11 @@ public class JourneyBlocResolver {
      * </ol>
      */
     private static JourneyBlocDto bloc(
-            EpreuveType epreuve,
+            JourneyBlocRefDto ref,
             List<JourneyStep> etapes,
             JourneyStep courante,
             Function<JourneyStep, JourneyStepDto> dto,
-            Predicate<EpreuveType> jamaisMesuree) {
+            Predicate<JourneyBlocRefDto> jamaisMesure) {
 
         boolean porteLaMain = courante != null && etapes.stream()
                 .anyMatch(step -> step.getId().equals(courante.getId()));
@@ -156,12 +171,12 @@ public class JourneyBlocResolver {
         if (porteLaMain) {
             status = JourneyBlocStatus.EN_COURS;
         } else if (etapes.isEmpty()) {
-            status = jamaisMesuree.test(epreuve)
+            status = jamaisMesure.test(ref)
                     ? JourneyBlocStatus.A_EVALUER
                     : JourneyBlocStatus.TERMINE;
         } else if (toutesCloses) {
             status = JourneyBlocStatus.TERMINE;
-        } else if (sansCompetence && jamaisMesuree.test(epreuve)) {
+        } else if (sansCompetence && jamaisMesure.test(ref)) {
             status = JourneyBlocStatus.A_EVALUER;
         } else {
             status = JourneyBlocStatus.A_VENIR;
@@ -173,9 +188,7 @@ public class JourneyBlocResolver {
                 .toList();
         JourneyStep examen = examenDuBloc(etapes);
         return new JourneyBlocDto(
-                new JourneyBlocRefDto(
-                        JourneyBlocKind.EPREUVE, epreuve.name(), epreuve.getLabel()),
-                status, restantes, steps, examen == null ? null : dto.apply(examen));
+                ref, status, restantes, steps, examen == null ? null : dto.apply(examen));
     }
 
     /**

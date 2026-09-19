@@ -273,7 +273,7 @@ String journeyHistoryBlocTitle(EpreuveType examType) => examType.displayLabel;
 
 /// La méta d'un bloc : ce qu'il reste à y faire.
 ///
-/// 🛑 **Composée de faits servis** (`status`, `competencesRestantes`, la
+/// 🛑 **Composée de faits servis** (`status`, `etapesRestantes`, la
 /// présence d'un examen), jamais d'un compteur recalculé.
 String journeyBlocMeta(JourneyBloc bloc) {
   if (bloc.status == JourneyBlocStatus.termine) {
@@ -282,7 +282,7 @@ String journeyBlocMeta(JourneyBloc bloc) {
         : 'Compétences travaillées · examen blanc terminé';
   }
   if (bloc.status == JourneyBlocStatus.aEvaluer) return 'Niveau à évaluer';
-  final reste = bloc.competencesRestantes;
+  final reste = bloc.etapesRestantes;
   if (reste > 0) {
     final s = reste == 1 ? '' : 's';
     final mot = '$reste compétence$s';
@@ -336,7 +336,7 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
         'priorités.';
   }
   if (exam.locked) {
-    final reste = bloc.competencesRestantes;
+    final reste = bloc.etapesRestantes;
     // 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
     // 1 competence … est terminee » se lisait comme une panne de gabarit.
     if (reste == 1) {
@@ -349,7 +349,7 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
     return 'Disponible dès que les compétences de cette épreuve sont '
         'terminées.';
   }
-  return bloc.competencesRestantes == 0 && bloc.steps.isEmpty
+  return bloc.etapesRestantes == 0 && bloc.steps.isEmpty
       ? 'Aucune compétence à travailler avant : l\'examen est la prochaine '
           'action de cette épreuve.'
       : 'Les compétences de cette épreuve sont terminées : l\'examen est la '

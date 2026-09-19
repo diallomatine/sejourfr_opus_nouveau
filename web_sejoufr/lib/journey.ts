@@ -292,7 +292,7 @@ export function journeyBlocTitle(bloc: JourneyBlocRefDto): string {
 /**
  * La méta d'un bloc : ce qu'il reste à y faire.
  *
- * 🛑 **Composée de faits servis** (`status`, `competencesRestantes`, la présence
+ * 🛑 **Composée de faits servis** (`status`, `etapesRestantes`, la présence
  * d'un examen), jamais d'un compteur recalculé.
  */
 export function journeyBlocMeta(bloc: JourneyBlocDto): string {
@@ -302,7 +302,7 @@ export function journeyBlocMeta(bloc: JourneyBlocDto): string {
             : "Compétences travaillées · examen blanc terminé";
     }
     if (bloc.status === "A_EVALUER") return "Niveau à évaluer";
-    const reste = bloc.competencesRestantes;
+    const reste = bloc.etapesRestantes;
     if (reste > 0) {
         const mot = `${reste} compétence${reste === 1 ? "" : "s"}`;
         return bloc.status === "EN_COURS"
@@ -361,7 +361,7 @@ export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): str
         return "Cet examen est passé : son résultat a servi à construire vos priorités.";
     }
     if (exam.locked) {
-        const reste = bloc.competencesRestantes;
+        const reste = bloc.etapesRestantes;
         /* 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
            1 compétence … est terminée » se lisait comme une panne de gabarit. */
         if (reste === 1) return "Disponible dès que la compétence de cette épreuve est terminée.";
@@ -369,7 +369,7 @@ export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): str
             ? `Disponible dès que les ${reste} compétences de cette épreuve sont terminées.`
             : "Disponible dès que les compétences de cette épreuve sont terminées.";
     }
-    return bloc.competencesRestantes === 0 && bloc.steps.length === 0
+    return bloc.etapesRestantes === 0 && bloc.steps.length === 0
         ? "Aucune compétence à travailler avant : l'examen est la prochaine action de cette épreuve."
         : "Les compétences de cette épreuve sont terminées : l'examen est la prochaine action.";
 }

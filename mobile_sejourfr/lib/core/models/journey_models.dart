@@ -467,7 +467,7 @@ class JourneyBloc {
   const JourneyBloc({
     required this.bloc,
     required this.status,
-    required this.competencesRestantes,
+    required this.etapesRestantes,
     required this.steps,
     this.exam,
   });
@@ -480,7 +480,12 @@ class JourneyBloc {
 
   /// Étapes d'entraînement encore ouvertes. C'est ce nombre qui verrouille
   /// l'examen du bloc (D-15).
-  final int competencesRestantes;
+  /// Étapes de travail encore ouvertes dans ce bloc.
+  ///
+  /// ⚠️ Nommé `competencesRestantes` jusqu'au 2026-09-19 (D-50) : une thématique
+  /// civique ne compte pas des *compétences*. Le champ était juste, son nom
+  /// mentait de l'autre côté.
+  final int etapesRestantes;
 
   /// Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
   /// figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc.
@@ -494,8 +499,8 @@ class JourneyBloc {
         bloc: JourneyBlocRef.fromJson(json['bloc'] as Map<String, dynamic>),
         status: JourneyBlocStatus.fromWireNullable(json['status'] as String?) ??
             JourneyBlocStatus.aVenir,
-        competencesRestantes:
-            (json['competencesRestantes'] as num?)?.toInt() ?? 0,
+        etapesRestantes:
+            (json['etapesRestantes'] as num?)?.toInt() ?? 0,
         steps: (json['steps'] as List<dynamic>? ?? const [])
             .map((item) => JourneyStep.fromJson(item as Map<String, dynamic>))
             .toList(growable: false),

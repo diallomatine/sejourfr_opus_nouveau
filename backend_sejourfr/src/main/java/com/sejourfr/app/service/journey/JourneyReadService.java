@@ -1,6 +1,7 @@
 package com.sejourfr.app.service.journey;
 
 import com.sejourfr.app.dto.JourneyBlocDto;
+import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyNextStepDto;
@@ -12,14 +13,17 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
+import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.JourneySuggestionType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
@@ -112,6 +116,7 @@ public class JourneyReadService {
     private final JourneyBlocResolver blocResolver;
     private final JourneyManager journeyManager;
     private final RecommendedExerciseSelector exerciseSelector;
+    private final ThemeManager themeManager;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
@@ -157,7 +162,7 @@ public class JourneyReadService {
         // par etape.
         Set<EpreuveType> examensDeProductionVerrouilles =
                 examensDeProductionVerrouilles(userId, ouvertes);
-        Set<EpreuveType> blocsAvecCompetenceOuverte = blocsAvecCompetenceOuverte(ouvertes);
+        Set<String> blocsAvecTravailOuvert = blocsAvecTravailOuvert(ouvertes);
 
         // 🛑 **L'EXERCICE DE CHAQUE ETAPE EST SERVI** (meme raisonnement qu'A24) :
         // la liste des priorites du Plan est une vue bornee a 5, la file ne
@@ -169,7 +174,7 @@ public class JourneyReadService {
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
             boolean locked = estVerrouillee(step, access, progressionExpression,
-                    examensDeProductionVerrouilles, blocsAvecCompetenceOuverte);
+                    examensDeProductionVerrouilles, blocsAvecTravailOuvert);
             etats.put(step.getId(), new Etat(step,
                     statutHorsPromotion(step, toutesLesEtapes), locked,
                     progression(step, progressionExpression, seriesParCompetence)));
@@ -192,8 +197,9 @@ public class JourneyReadService {
                 .filter(step -> etats.get(step.getId()).status() != JourneyStepStatus.OBSOLETE)
                 .toList();
         JourneyBlocResolver.Vue vue = blocResolver.lire(
-                numeroDuCycle(journey), affichables, courante,
-                step -> dto(etats.get(step.getId()), exercices), jamaisMesuree(userId));
+                numeroDuCycle(journey), axe(journey.getModule()), affichables, courante,
+                step -> dto(etats.get(step.getId()), exercices),
+                jamaisMesure(userId, journey.getModule()));
 
         JourneyState state = etat(affichables, ouvertes, courante);
         return new JourneyDto(
@@ -225,18 +231,60 @@ public class JourneyReadService {
     }
 
     /**
-     * « Cette epreuve n'a-t-elle <b>jamais</b> ete mesuree ? » — relaye de
-     * {@code NiveauActuelEpreuveResolver.mesure}, son <b>unique autorite</b>
-     * (arbitrage du 2026-09-16 : « il n'existe qu'UNE notion de mesuree »).
+     * « Ce bloc n'a-t-il <b>jamais</b> ete mesure ? »
      *
-     * <p><b>Memoise, et interroge au plus quatre fois</b> : la reponse coute
-     * plusieurs requetes, et seuls les blocs candidats a {@code A_EVALUER} la
-     * demandent.
+     * <p>Cote <b>TCF</b> : relaye de {@code NiveauActuelEpreuveResolver.mesure},
+     * son <b>unique autorite</b> (arbitrage du 2026-09-16 : « il n'existe qu'UNE
+     * notion de mesuree »). <b>Memoise, et interroge au plus quatre fois</b> :
+     * la reponse coute plusieurs requetes, et seuls les blocs candidats a
+     * {@code A_EVALUER} la demandent.
+     *
+     * <p>Cote <b>CIVIQUE</b> : <b>toujours vrai</b>, et c'est un <b>etat de
+     * transition assume</b>, pas un verdict invente.
+     *
+     * <p>🛑 <b>Pourquoi c'est VRAI aujourd'hui, et pourquoi ca doit changer.</b>
+     * L'autorite du cycle sur « c'est mesure » est l'<b>observation</b> (D-49 :
+     * l'observation clot l'etape du cycle, le Leitner dit la condition
+     * presente). Or <b>rien n'ecrit encore d'observation civique</b> — c'est le
+     * point 5 de P8.4. Repondre « deja mesure » rendrait donc un bloc
+     * {@code TERMINE} <b>sans que rien n'ait ete mesure</b> : le plus mauvais
+     * des deux mensonges. Une thematique qu'on n'a jamais mesuree est
+     * {@code A_EVALUER}, ce qui est litteralement vrai.
+     *
+     * <p>⚠️ <b>A brancher au point 5</b>, sur la lecture des observations
+     * civiques par unite officielle. Aucun ecran ne lit ceci d'ici la : le Plan
+     * civique sert son plan derive jusqu'a P8.7 (D-50).
      */
-    private Predicate<EpreuveType> jamaisMesuree(UUID userId) {
-        Map<EpreuveType, Boolean> connues = new LinkedHashMap<>();
-        return epreuve -> connues.computeIfAbsent(
-                epreuve, cle -> !mesureResolver.mesure(userId, cle).mesuree());
+    private Predicate<JourneyBlocRefDto> jamaisMesure(UUID userId, Module module) {
+        if (module == Module.CIVIQUE) return bloc -> true;
+        Map<String, Boolean> connues = new LinkedHashMap<>();
+        return bloc -> connues.computeIfAbsent(
+                bloc.code(),
+                code -> !mesureResolver.mesure(userId, EpreuveType.valueOf(code)).mesuree());
+    }
+
+    /**
+     * <b>L'axe du cycle</b> : ses blocs, deja ordonnes, quel que soit le module.
+     *
+     * <p>🛑 <b>Deux autorites, et aucune ne se derive de l'autre.</b> Cote TCF,
+     * {@code TcfDomainProfileDto.ORDRE} — CO, CE, EO, EE, non configurable
+     * (D-9, D-20). Cote civique, l'ordre d'affichage des <b>thematiques</b>, qui
+     * est une <b>donnee</b> de {@code themes} : l'arrete en pose cinq, leur
+     * ordre est editorial, et aucun enum ne peut le connaitre.
+     *
+     * <p>Un bloc sans etape est servi quand meme — le cycle couvre tout son axe.
+     */
+    private List<JourneyBlocRefDto> axe(Module module) {
+        if (module == Module.CIVIQUE) {
+            return themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE).stream()
+                    .map(theme -> new JourneyBlocRefDto(
+                            JourneyBlocKind.THEMATIQUE, theme.getCode(), theme.getName()))
+                    .toList();
+        }
+        return TcfDomainProfileDto.ORDRE.stream()
+                .map(epreuve -> new JourneyBlocRefDto(
+                        JourneyBlocKind.EPREUVE, epreuve.name(), epreuve.getLabel()))
+                .toList();
     }
 
     /**
@@ -300,11 +348,16 @@ public class JourneyReadService {
             SkillAccessService.SkillAccess access,
             Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
             Set<EpreuveType> examensDeProductionVerrouilles,
-            Set<EpreuveType> blocsAvecCompetenceOuverte) {
+            Set<String> blocsAvecTravailOuvert) {
         return switch (step.getType()) {
             case DIAGNOSTIC -> false;
-            case SECTION_EXAM -> blocsAvecCompetenceOuverte.contains(step.getExamType())
-                    || examensDeProductionVerrouilles.contains(step.getExamType());
+            // 🛑 LA CLE EST LE BLOC, PAS L'EPREUVE (D-47). Un examen de theme
+            // civique n'a pas d'`exam_type` : `Set.contains(null)` LEVE sur un
+            // Set.of() immuable — un NullPointerException dans le chemin de
+            // LECTURE du Plan, decouvert par le premier test civique.
+            case SECTION_EXAM -> blocsAvecTravailOuvert.contains(step.blocCode())
+                    || (step.getExamType() != null
+                            && examensDeProductionVerrouilles.contains(step.getExamType()));
             case TRAIN_SKILL -> {
                 Skill skill = step.getSkill();
                 if (skill == null) yield false;
@@ -366,14 +419,19 @@ public class JourneyReadService {
      * <p>Une seule passe sur les etapes ouvertes, partagee par les quatre blocs :
      * le verrou ne se recalcule pas etape par etape.
      */
-    private static Set<EpreuveType> blocsAvecCompetenceOuverte(List<JourneyStep> ouvertes) {
-        Set<EpreuveType> epreuves = new LinkedHashSet<>();
+    private static Set<String> blocsAvecTravailOuvert(List<JourneyStep> ouvertes) {
+        Set<String> blocs = new LinkedHashSet<>();
         for (JourneyStep step : ouvertes) {
-            if (step.getType() == JourneyStepType.TRAIN_SKILL && step.getExamType() != null) {
-                epreuves.add(step.getExamType());
+            // `blocCode()` lit l'axe a la source : l'epreuve cote TCF, la
+            // thematique cote civique. D-15 se transpose alors MOT POUR MOT --
+            // « l'examen du bloc est verrouille tant qu'une unite du bloc reste
+            // ouverte » -- sans qu'une seule ligne ne sache de quel module il
+            // s'agit.
+            if (step.getType() == JourneyStepType.TRAIN_SKILL && step.blocCode() != null) {
+                blocs.add(step.blocCode());
             }
         }
-        return epreuves;
+        return blocs;
     }
 
     /**

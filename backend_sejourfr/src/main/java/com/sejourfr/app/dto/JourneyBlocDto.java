@@ -36,7 +36,7 @@ import java.util.List;
  *                             module -- un front qui branche finit par afficher
  *                             autre chose que son jumeau.
  * @param status               derive a la lecture, jamais persiste.
- * @param competencesRestantes etapes {@code TRAIN_SKILL} encore ouvertes dans ce
+ * @param etapesRestantes etapes {@code TRAIN_SKILL} encore ouvertes dans ce
  *                             bloc. C'est ce nombre qui verrouille l'examen
  *                             (D-15) : tant qu'il n'est pas nul, l'examen du
  *                             bloc n'est pas passable <b>au sens du cycle</b>.
@@ -53,7 +53,7 @@ import java.util.List;
 public record JourneyBlocDto(
         JourneyBlocRefDto bloc,
         JourneyBlocStatus status,
-        int competencesRestantes,
+        int etapesRestantes,
         List<JourneyStepDto> steps,
         JourneyStepDto exam
 ) {}

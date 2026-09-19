@@ -947,3 +947,55 @@ lit toujours son plan dérivé jusqu'à P8.7.
 création échoue tant qu'il n'y a rien à poser, soit le cycle porte un état qui **dit** qu'il attend
 son amorce — comme `attendSonAmorce()` le fait déjà côté TCF. Ce qu'il ne doit pas rester, c'est une
 ligne muette qui a l'air d'un cycle et n'en est pas un.
+
+---
+
+# 2026-09-19 — P8.4, point 3 : l'axe des blocs (A61 → A63)
+
+### A61 — L'axe est **reçu**, pas déduit d'un module
+
+`JourneyBlocResolver.lire(...)` prend la **liste ordonnée des blocs**
+(`List<JourneyBlocRefDto>`) et groupe par `step.blocCode()`. Il ne reçoit **pas** le module.
+
+**Motif.** Lui passer le module aurait mis un `if` dans le composant qui, justement, ne doit plus
+savoir de quel module il parle — c'est tout l'acquis de D-47. `JourneyReadService` choisit l'axe :
+`TcfDomainProfileDto.ORDRE` reste l'autorité **TCF** (D-9, D-20, **intacte**), et côté civique
+l'ordre vient de `themes.display_order`, une **donnée** qu'aucun enum ne peut connaître.
+
+**Si l'arbitrage était autre** : un second resolver civique. Ce serait deux copies de « statut d'un
+bloc », et le dépôt sait ce que coûtent deux copies d'une règle.
+
+### A62 — Côté civique, « jamais mesuré » rend **vrai**, et c'est écrit comme un état de transition
+
+**Le problème.** Le statut d'un bloc vide se décide sur « ce bloc a-t-il déjà été mesuré ? ». Côté
+TCF, l'autorité est `NiveauActuelEpreuveResolver`. Côté civique, l'autorité du cycle est
+l'**observation** (D-49) — et **rien n'en écrit encore** (point 5).
+
+**La décision.** Le prédicat civique rend **vrai** : toutes les thématiques sont `A_EVALUER`.
+
+**Motif.** Répondre « déjà mesuré » rendrait un bloc `TERMINE` **sans que rien n'ait été mesuré** —
+le plus coûteux des deux mensonges, et exactement la famille V040/V041/V042. « Jamais mesurée » est
+**littéralement vrai** aujourd'hui.
+
+⚠️ **À brancher au point 5** sur la lecture des observations civiques par unité. Le javadoc de
+`jamaisMesure` le dit, et un test fige les cinq `A_EVALUER` — il passera au rouge le jour où le
+comportement changera sans qu'on le veuille.
+
+### A63 — 🛑 Le verrou de bloc (**D-15**) devient une clé de **bloc**, et il levait un NPE
+
+**Trouvé par le premier test civique**, pas par une relecture :
+
+```java
+case SECTION_EXAM -> blocsAvecCompetenceOuverte.contains(step.getExamType())
+```
+
+Un examen de thème n'a **pas** d'`exam_type`. Or `Set.of().contains(null)` **lève un
+`NullPointerException`** — dans le chemin de **lecture** du Plan.
+
+**La décision.** `blocsAvecTravailOuvert` porte des **codes de bloc** (`step.blocCode()`), et le
+verrou de production TCF garde sa clé d'épreuve avec un test de nullité explicite.
+
+**Ce que ça donne.** **D-15 se transpose mot pour mot** — « l'examen du bloc est verrouillé tant
+qu'une unité du bloc reste ouverte » — sans qu'une seule ligne ne sache de quel module il s'agit.
+⚠️ C'est la **deuxième fois** dans ce chantier qu'un `EpreuveType` nul aurait produit une panne
+silencieuse ou brutale ; la réponse est toujours la même : lire l'axe **à la source**.

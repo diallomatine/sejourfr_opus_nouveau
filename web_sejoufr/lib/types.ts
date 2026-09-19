@@ -4841,7 +4841,12 @@ export interface JourneyBlocDto {
     status: JourneyBlocStatus;
     /** Étapes `TRAIN_SKILL` encore ouvertes. C'est ce nombre qui verrouille
      *  l'examen du bloc (D-15). */
-    competencesRestantes: number;
+    /** Étapes de travail encore ouvertes dans ce bloc.
+     *
+     *  ⚠️ Nommé `competencesRestantes` jusqu'au 2026-09-19 (D-50) : une
+     *  thématique civique ne compte pas des *compétences*. Le champ était juste,
+     *  son nom mentait de l'autre côté. */
+    etapesRestantes: number;
     /** Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
      *  figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc. */
     steps: JourneyStepDto[];

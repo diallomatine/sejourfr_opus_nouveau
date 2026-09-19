@@ -8,9 +8,11 @@ import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
+import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
@@ -25,7 +27,9 @@ import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.JourneyManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.service.LearningPlanStep;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
@@ -85,6 +89,7 @@ class JourneyReadServiceTest {
     @Mock private NiveauActuelEpreuveResolver mesureResolver;
     @Mock private JourneyManager journeyManager;
     @Mock private RecommendedExerciseSelector exerciseSelector;
+    @Mock private ThemeManager themeManager;
 
     private JourneyReadService service;
     private User user;
@@ -98,7 +103,7 @@ class JourneyReadServiceTest {
         service = new JourneyReadService(
                 config, accessService, progressCounter, productionAccessService,
                 observationManager, mesureResolver, new PlanDomainAssessmentResolver(),
-                new JourneyBlocResolver(), journeyManager, exerciseSelector);
+                new JourneyBlocResolver(), journeyManager, exerciseSelector, themeManager);
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
@@ -306,7 +311,7 @@ class JourneyReadServiceTest {
         assertThat(ee.steps()).extracting(JourneyStepDto::skillCode)
                 .containsExactly(competence.getCode());
         assertThat(ee.exam()).isNotNull();
-        assertThat(ee.competencesRestantes()).isEqualTo(1);
+        assertThat(ee.etapesRestantes()).isEqualTo(1);
         // Un bloc sans etape est servi quand meme : le cycle couvre les quatre
         // epreuves, pas seulement celles que la file a peuplees.
         assertThat(bloc(vue, EpreuveType.TCF_CE).steps()).isEmpty();
@@ -335,7 +340,7 @@ class JourneyReadServiceTest {
         // Aucune competence dans ce bloc et epreuve jamais mesuree : il n'y a
         // rien a travailler tant que la mesure n'a pas dit quoi.
         assertThat(co.status()).isEqualTo(JourneyBlocStatus.A_EVALUER);
-        assertThat(co.competencesRestantes()).isZero();
+        assertThat(co.etapesRestantes()).isZero();
         // 🛑 Son examen est ouvert IMMEDIATEMENT (D-15) : le verrou du bloc ne
         // se pose que sur une competence restante, et il n'y en a aucune.
         assertThat(co.exam()).isNotNull();
@@ -629,6 +634,81 @@ class JourneyReadServiceTest {
         return new SkillProgressCounter.SkillProgress(
                 sujets.size(), 0, 0, 0,
                 new LearningPlanStep.Progress(sujets, 0, 0));
+    }
+
+    // =====================================================================
+    // D-50 / P8.4 point 3 — L'AXE DES BLOCS N'EST PLUS UN ENUM
+    // =====================================================================
+
+    @Test
+    @DisplayName("Cycle CIVIQUE : l'axe est les cinq thematiques, dans l'ordre d'affichage")
+    void lAxeCiviqueEstCeluiDesThematiques() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(
+                        theme("CIV_PRINCIPES", "Principes et valeurs de la Republique"),
+                        theme("CIV_INSTITUTIONS", "Systeme institutionnel et politique"),
+                        theme("CIV_DROITS", "Droits et devoirs"),
+                        theme("CIV_HISTOIRE", "Histoire et geographie"),
+                        theme("CIV_SOCIETE", "Societe francaise")));
+
+        JourneyDto vue = service.lire(journey, List.of());
+
+        // 🛑 CINQ blocs, pas quatre, et dans l'ordre SERVI : l'ordre des
+        // thematiques est une DONNEE (`themes.display_order`), pas un enum.
+        assertThat(vue.blocs()).hasSize(5);
+        assertThat(vue.blocs().stream().map(b -> b.bloc().code()))
+                .containsExactly("CIV_PRINCIPES", "CIV_INSTITUTIONS", "CIV_DROITS",
+                        "CIV_HISTOIRE", "CIV_SOCIETE");
+        // Le bloc est SERVI : sa nature et son libelle arrivent du serveur.
+        assertThat(vue.blocs().getFirst().bloc().kind())
+                .isEqualTo(JourneyBlocKind.THEMATIQUE);
+        assertThat(vue.blocs().getFirst().bloc().label())
+                .isEqualTo("Principes et valeurs de la Republique");
+        // ⚠️ ETAT DE TRANSITION : rien n'ecrit encore d'observation civique
+        // (P8.4 point 5), donc aucune thematique n'a ete mesuree. `A_EVALUER`
+        // est litteralement vrai ; `TERMINE` aurait ete un verdict invente.
+        assertThat(vue.blocs()).allSatisfy(bloc ->
+                assertThat(bloc.status()).isEqualTo(JourneyBlocStatus.A_EVALUER));
+        // 🛑 Et `TcfDomainProfileDto.ORDRE` n'a pas bouge : aucun bloc TCF ici.
+        assertThat(vue.blocs().stream().map(b -> b.bloc().code()))
+                .noneMatch(code -> code.startsWith("TCF_"));
+    }
+
+    @Test
+    @DisplayName("Cycle CIVIQUE : une etape tombe dans le bloc de SA thematique")
+    void uneEtapeCiviqueTombeDansSonBloc() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme principes = theme("CIV_PRINCIPES", "Principes et valeurs de la Republique");
+        Theme droits = theme("CIV_DROITS", "Droits et devoirs");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(principes, droits));
+
+        JourneyStep examen = new JourneyStep();
+        examen.setId(UUID.randomUUID());
+        examen.setJourney(journey);
+        examen.setType(JourneyStepType.SECTION_EXAM);
+        examen.setPurpose(JourneyStepPurpose.REASSESS);
+        examen.poserBloc(droits);
+        examen.setPosition(1L);
+        examen.setCreatedAt(Instant.now().minusSeconds(3_600));
+
+        JourneyDto vue = service.lire(journey, List.of(examen));
+
+        assertThat(vue.blocs().getFirst().exam()).isNull();
+        assertThat(vue.blocs().get(1).exam()).isNotNull();
+        assertThat(vue.blocs().get(1).bloc().code()).isEqualTo("CIV_DROITS");
+    }
+
+    private static Theme theme(String code, String nom) {
+        Theme theme = new Theme();
+        theme.setId(UUID.randomUUID());
+        theme.setModule(Module.CIVIQUE);
+        theme.setCode(code);
+        theme.setName(nom);
+        return theme;
     }
 
     private JourneyStep trainStep(Skill skill, long position) {

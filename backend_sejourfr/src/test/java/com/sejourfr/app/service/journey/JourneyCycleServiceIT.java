@@ -190,7 +190,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
             // Tous debloques : le verrou du bloc (D-15) ne se pose que sur une
             // competence restante, et il n'y en a aucune.
             assertThat(bloc.exam().locked()).isFalse();
-            assertThat(bloc.competencesRestantes()).isZero();
+            assertThat(bloc.etapesRestantes()).isZero();
         });
         assertThat(mesure.blocs()).extracting(bloc -> bloc.bloc().code())
                 .containsExactlyElementsOf(

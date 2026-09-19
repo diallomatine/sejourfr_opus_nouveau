@@ -12,7 +12,7 @@
 | Phase | État |
 |---|---|
 | P8.0 → P8.3, P8.A | ✅ **livrées**, `verify` vert |
-| **P8.4** | 🔶 **1, 2 et 2 bis faits** (`V071`, `getOrCreate` par module, l'objectif servi) — **3 à 9 restent** |
+| **P8.4** | 🔶 **1, 2, 2 bis et 3 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs) — **4 à 9 restent** |
 | P8.5 → P8.9, doc | ⬜ pas commencées |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle
@@ -212,7 +212,7 @@ quand même** pour l'examen de thème **et** pour l'examen global : les deux pas
 |---|---|
 | **R1** | un examen de thème hors plan clôt l'étape **si le bloc était débloqué**. ✅ Le thème est **déjà persisté** : `attempts.lot_theme_id` |
 | **R3** | ✅ **gratuit** : `JourneyEvaluationFilter` lit déjà `CIVIQUE_SERIE → false` / `CIVIQUE_EXAMEN → true` |
-| **Déblocage** | **D-15 mot pour mot** : l'examen du bloc verrouillé tant qu'une unité du bloc reste ouverte |
+| **Déblocage** | ✅ **fait au point 3** : le verrou lit désormais `blocCode()`, donc **D-15 se transpose mot pour mot** (A63 — il levait un NPE sur un examen de thème) |
 | **Cycle en attente** · **fin de cycle** · **historisation** | `JourneyCycleService` (232 l.) — structurel, peu couplé à l'épreuve. ⚠️ Vérifier `exit_level` → **`exit_score`** côté civique |
 
 ### 9. Ce qui NE doit PAS bouger

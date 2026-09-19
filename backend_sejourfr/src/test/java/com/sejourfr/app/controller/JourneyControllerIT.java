@@ -104,7 +104,7 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 // Aucune competence, aucune epreuve mesuree : il n'y a rien a
                 // travailler tant que la mesure n'a pas dit quoi.
                 .andExpect(jsonPath("$.blocs[0].status").value("A_EVALUER"))
-                .andExpect(jsonPath("$.blocs[0].competencesRestantes").value(0))
+                .andExpect(jsonPath("$.blocs[0].etapesRestantes").value(0))
                 .andExpect(jsonPath("$.blocs[0].exam").doesNotExist())
                 // Le cycle : des NOMBRES, aucune phrase. « Cycle 1 » et
                 // « 0 etape sur 1 terminee » sont composes par les fronts.
