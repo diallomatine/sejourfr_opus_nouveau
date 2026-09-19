@@ -153,6 +153,12 @@ dériver des **unités officielles** de ces thématiques.
 `CivicPrioriteScorer`. S'il ne convient pas, **le remonter** — ne pas en créer un second au motif
 qu'il serait meilleur (D-36 : le cycle se superpose au plan dérivé).
 
+🛑 **Et ce point doit fermer A60** : depuis le point 2, un cycle civique naît **vide**. C'est un
+**état de transition**, pas un comportement. Ici, un cycle sans priorité devient **impossible** (la
+création échoue tant qu'il n'y a rien à poser) **ou explicite** (le cycle dit qu'il attend son
+amorce, comme `attendSonAmorce()` côté TCF). Une ligne muette qui a l'air d'un cycle et n'en est pas
+un ne survit pas à cette passe.
+
 ### 5. L'écrivain d'observation civique — **le cœur de D-49**
 
 **En place** : la table, les deux sources, l'index jumeau.

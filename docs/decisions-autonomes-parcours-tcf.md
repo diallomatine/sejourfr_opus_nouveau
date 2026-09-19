@@ -900,9 +900,23 @@ qui garantit qu'une mention et un palier s'affichent **par le même chemin**. Le
 **mot pour mot** celles que les deux fronts affichent déjà (`MENTION_LABEL` ⇄ `mentionLabel`), et
 `TargetProcedureTest` les fige — la technique de `SkillLabelsTest`.
 
+🛑 **Le motif décisif, ajouté par le propriétaire (2026-09-19), et il prime sur le mien.** Ce
+libellé n'est pas une chaîne d'interface : c'est une **notion administrative**. « Naturalisation »,
+« carte de résident », « carte de séjour pluriannuelle » sont les **trois mentions de l'article 1 de
+l'arrêté**. Le jour où l'administration en renomme une, **la vérité change à un endroit, pas à
+trois**.
+
+> « Ta gêne était juste — trois chaînes en quatrième copie, c'est un coût réel — mais elle se résout
+> par la question habituelle : **est-ce que l'arrêté le dit ?** Ici oui. »
+
+⇒ La question à se poser devant un libellé candidat au service n'est donc pas « est-ce que ça évite
+une copie ? » mais « **est-ce que le référentiel le nomme ?** ». Si oui, il est servi ; sinon, il
+reste au front.
+
 **Si l'arbitrage était autre** (« le front garde son libellé, on ne sert que le code ») : supprimer
-`getLabel()` et lire le code dans les deux miroirs existants. Le coût de ce choix-ci est une
-quatrième copie de trois chaînes ; son bénéfice est qu'aucun écran de cycle ne fabrique un mot.
+`getLabel()` et lire le code dans les deux miroirs existants. ⚠️ Mais ce serait laisser une **notion
+de l'arrêté** vivre en deux copies front sans autorité — exactement ce que D-48 refuse pour le
+programme.
 
 ### A59 — La **tournure** du titre se choisit sur la nature de l'objectif
 
@@ -924,3 +938,12 @@ l'**unité officielle** (D-48) : c'est le point suivant de P8.4, avec son ordre 
 `CivicPrioriteScorer` (D-36, tranché par le propriétaire : **lire** l'ordre existant, le remonter
 s'il ne convient pas, ne pas en créer un second). ⚠️ Aucun écran ne montre ce vide : le Plan civique
 lit toujours son plan dérivé jusqu'à P8.7.
+
+🛑 **C'est un ÉTAT DE TRANSITION, pas un comportement** (précision du propriétaire, 2026-09-19).
+
+> « Un cycle vide qu'aucun écran ne montre est **invisible tant qu'il n'existe qu'en test**. »
+
+⇒ **Au point 4, un cycle civique sans priorité doit devenir impossible ou explicite** : soit la
+création échoue tant qu'il n'y a rien à poser, soit le cycle porte un état qui **dit** qu'il attend
+son amorce — comme `attendSonAmorce()` le fait déjà côté TCF. Ce qu'il ne doit pas rester, c'est une
+ligne muette qui a l'air d'un cycle et n'en est pas un.
