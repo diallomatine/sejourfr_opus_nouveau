@@ -250,7 +250,7 @@ export default function StatistiquesPage() {
     : epreuves[0]?.epreuve ?? onglet;
   const situation = epreuves.find((e) => e.epreuve === courant) ?? null;
   const servies = histos[courant] ?? [];
-  const { ladder, points } = progresCourbe(servies, objectif);
+  const { rungs, points } = progresCourbe(servies, objectif);
   const choisi = point == null || point >= servies.length ? 0 : point;
   const mesure = servies[choisi] ?? null;
   const resultatsHref = progressionResultatsHref(courant);
@@ -318,7 +318,7 @@ export default function StatistiquesPage() {
                     raconterait une absence comme un incident. */}
                 {points.length > 0 ? (
                   <LevelChart
-                    ladder={ladder}
+                    rungs={rungs}
                     points={points}
                     /* Les points sont chronologiques, la liste servie ne l'est
                        pas : l'index se retourne. */

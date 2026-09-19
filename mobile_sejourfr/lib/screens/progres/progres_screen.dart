@@ -425,7 +425,7 @@ class _Courbe extends StatelessWidget {
             _CourbeVide(epreuve: courant)
           else
             SfLevelChart(
-              ladder: courbe.ladder,
+              rungs: courbe.rungs,
               points: points,
               // Les points sont chronologiques, la liste servie ne l'est pas :
               // l'index se retourne, exactement comme sur « Vos résultats ».

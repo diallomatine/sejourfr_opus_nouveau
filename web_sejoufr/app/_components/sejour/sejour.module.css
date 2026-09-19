@@ -2634,6 +2634,21 @@
   background: var(--color-line-2);
 }
 
+/* 🛑 **Le seuil se LIT sur la courbe.** C'est l'information utile d'un examen
+   civique : savoir où passe la barre. Un pointillé ambre, la famille « la barre
+   à franchir » du kit — jamais du rouge, qui dirait « raté », ni du vert, qui
+   dirait « acquis ». Miroir Flutter : `SfChartRung.seuil`. */
+.chartGrid.isSeuil {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--color-amber);
+}
+
+.chartYLabel.isSeuil {
+  font-weight: 800;
+  color: var(--color-amber-dark);
+}
+
 .chartLine {
   position: absolute;
   inset: 0;

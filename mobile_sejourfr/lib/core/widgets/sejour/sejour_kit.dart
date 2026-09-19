@@ -3524,42 +3524,71 @@ class SfResultHero extends StatelessWidget {
   }
 }
 
-/// Un point de la courbe : sa date, son palier, et sa ligne dans l'échelle.
+/// **Un cran de l'échelle verticale** — un repère de l'axe, avec sa hauteur.
+///
+/// 🛑 **[at] est SERVI par l'appelant**, jamais déduit d'un rang : c'est ce qui
+/// permet à la même brique de porter une échelle **régulière** (les paliers
+/// CECRL du TCF, régulièrement espacés) et une échelle **de valeurs** (les
+/// scores d'un thème civique, où `16 / 20` ne tombe pas au milieu de `0` et
+/// `20`). Une échelle régulière posée sur des valeurs irrégulières mentirait
+/// sur la position du seuil.
+///
+/// Miroir web : `ChartRung`.
+class SfChartRung {
+  const SfChartRung({
+    required this.label,
+    required this.at,
+    this.seuil = false,
+  });
+
+  /// Le libellé du cran sur l'axe (« B2 », « 16 »).
+  final String label;
+
+  /// Sa hauteur dans le cadre : `0` = tout en haut, `1` = tout en bas.
+  final double at;
+
+  /// Le cran est un **seuil à franchir** : trait pointillé accentué et libellé
+  /// ambre. 🛑 Ce n'est **pas un verdict** — il dit où est la barre, pas si
+  /// elle est passée.
+  final bool seuil;
+}
+
+/// Un point de la courbe : sa date, sa valeur, et sa hauteur dans l'échelle.
 class SfChartPoint {
   const SfChartPoint({
     required this.date,
     required this.level,
-    required this.row,
+    required this.at,
   });
 
   /// Abscisse lisible (« 11 sept. »).
   final String date;
 
-  /// Le palier, tel qu'il s'écrit sur la pastille.
+  /// La valeur, telle qu'elle s'écrit sur la pastille (« B1 », « 17 / 20 »).
   final String level;
 
-  /// Index dans l'échelle, 0 = le palier le plus haut. **Passé, jamais deviné.**
-  final int row;
+  /// Sa hauteur dans le cadre, `0` = tout en haut. **Passée, jamais devinée.**
+  final double at;
 }
 
-/// **La courbe d'évolution** d'une épreuve.
+/// **La courbe d'évolution** d'une épreuve TCF ou d'un thème civique.
 ///
-/// 🛑 **Aucune interpolation, aucune moyenne** : un point par évaluation
-/// **servie**, posé sur l'échelle de paliers que l'appelant lui donne. L'axe ne
-/// porte aucun chiffre — seulement des paliers.
+/// 🛑 **Aucune interpolation, aucune moyenne** : un point par mesure **servie**,
+/// posé sur l'échelle que l'appelant lui donne — [rungs] porte les libellés ET
+/// leurs hauteurs, la brique ne classe rien et n'espace rien d'elle-même.
 ///
 /// Miroir web : `LevelChart`.
 class SfLevelChart extends StatelessWidget {
   const SfLevelChart({
     super.key,
-    required this.ladder,
+    required this.rungs,
     required this.points,
     required this.activeIndex,
     required this.onSelect,
   });
 
-  /// Du plus haut au plus bas (« B2 », « B1 », « A2 »).
-  final List<String> ladder;
+  /// Du plus haut au plus bas (« B2 », « B1 », « A2 » / « 20 », « 16 », « 0 »).
+  final List<SfChartRung> rungs;
 
   /// Du plus ancien au plus récent.
   final List<SfChartPoint> points;
@@ -3573,9 +3602,7 @@ class SfLevelChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = math.max(ladder.length - 1, 1);
     final cols = math.max(points.length - 1, 1);
-    double yOf(int row) => ladder.length > 1 ? row / rows : 0.5;
     double xOf(int i) => points.length > 1 ? i / cols : 0.5;
 
     return SizedBox(
@@ -3585,15 +3612,21 @@ class SfLevelChart extends StatelessWidget {
           final plotWidth = math.max(constraints.maxWidth - _axis, 1.0);
           return Stack(
             children: [
-              for (var i = 0; i < ladder.length; i++)
+              for (final rung in rungs)
                 Positioned(
                   left: 0,
-                  top: yOf(i) * _plotHeight - 6,
+                  top: rung.at * _plotHeight - 6,
                   child: SizedBox(
                     width: _axis - 6,
                     child: Text(
-                      ladder[i],
-                      style: AppFonts.label(size: 10, color: AppColors.muted),
+                      rung.label,
+                      style: AppFonts.label(
+                        size: 10,
+                        color:
+                            rung.seuil ? AppColors.amberDark : AppColors.muted,
+                      ).copyWith(
+                        fontWeight: rung.seuil ? FontWeight.w800 : null,
+                      ),
                     ),
                   ),
                 ),
@@ -3608,20 +3641,22 @@ class SfLevelChart extends StatelessWidget {
                     CustomPaint(
                       size: Size(plotWidth, _plotHeight),
                       painter: _SfChartPainter(
-                        rows: [for (var i = 0; i < ladder.length; i++) yOf(i)],
+                        rows: [
+                          for (final rung in rungs)
+                            (at: rung.at, seuil: rung.seuil),
+                        ],
                         line: [
                           for (var i = 0; i < points.length; i++)
-                            Offset(xOf(i), yOf(points[i].row)),
+                            Offset(xOf(i), points[i].at),
                         ],
                       ),
                     ),
                     for (var i = 0; i < points.length; i++)
                       Positioned(
                         left: xOf(i) * plotWidth - 14,
-                        top: yOf(points[i].row) * _plotHeight - 14,
+                        top: points[i].at * _plotHeight - 14,
                         child: Semantics(
-                          label:
-                              '${points[i].date} : niveau ${points[i].level}',
+                          label: '${points[i].date} : ${points[i].level}',
                           button: true,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
@@ -3691,20 +3726,39 @@ class SfLevelChart extends StatelessWidget {
 class _SfChartPainter extends CustomPainter {
   const _SfChartPainter({required this.rows, required this.line});
 
-  /// Ordonnées relatives (0-1) des lignes de repère.
-  final List<double> rows;
+  /// Ordonnées relatives (0-1) des lignes de repère, et lesquelles sont un
+  /// **seuil** — la seule information utile d'un examen civique.
+  final List<({double at, bool seuil})> rows;
 
   /// Les points, en coordonnées relatives (0-1).
   final List<Offset> line;
+
+  /// Le pointillé du seuil : 6 px de trait, 5 px de vide. Miroir du
+  /// `border-top: 2px dashed` de `.chartGrid.isSeuil` côté web.
+  static const double _dash = 6;
+  static const double _gap = 5;
 
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
       ..color = AppColors.line2
       ..strokeWidth = 1;
+    final seuil = Paint()
+      ..color = AppColors.amber
+      ..strokeWidth = 2;
     for (final r in rows) {
-      final y = r * size.height;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+      final y = r.at * size.height;
+      if (!r.seuil) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+        continue;
+      }
+      for (var x = 0.0; x < size.width; x += _dash + _gap) {
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(math.min(x + _dash, size.width), y),
+          seuil,
+        );
+      }
     }
     if (line.length < 2) return;
     final stroke = Paint()

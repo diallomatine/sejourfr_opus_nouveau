@@ -654,11 +654,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         dim: theme.etat == CivicThemeState.nonEvalue,
       ),
       cta: kHomeSituationCivicCta,
-      // 🛑 **L'historique des examens blancs du thème**, la page qui existe
-      // déjà — adresse déclarée une seule fois (`civiqueThemeExamsPath`),
-      // partagée avec le hero du détail de thème.
+      // 🛑 **« Vos résultats » du thème**, le pendant civique de l'écran de
+      // résultats d'une épreuve TCF (2026-09-19). ⚠️ Elle ouvrait la **grille
+      // des 10 examens blancs** : c'est là qu'on PASSE un examen, pas là qu'on
+      // lit ses résultats — le lien de pied du nouvel écran y mène.
       onTap: () =>
-          context.push(AppRoutes.civiqueThemeExamsPath(theme.themeId)),
+          context.push(AppRoutes.themeHistoriquePath(theme.themeId)),
     );
   }
 

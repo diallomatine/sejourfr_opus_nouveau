@@ -179,7 +179,7 @@ class _EpreuveHistoriqueScreenState
     // « Votre progression » : deux copies auraient fini par ne plus situer un
     // palier à la même hauteur pour la même liste servie.
     final courbe = progresCourbe(evaluations, objectif);
-    final ladder = courbe.ladder;
+    final rungs = courbe.rungs;
     final points = courbe.points;
 
     return Scaffold(
@@ -225,7 +225,7 @@ class _EpreuveHistoriqueScreenState
                           ),
                           const SizedBox(height: 12),
                           SfLevelChart(
-                            ladder: ladder,
+                            rungs: rungs,
                             points: points,
                             activeIndex: _choisi == null
                                 ? points.length - 1

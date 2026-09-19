@@ -1705,55 +1705,86 @@ export function ResultHero({
   );
 }
 
-/** Un point de la courbe : sa date, son palier, et sa ligne dans l'échelle. */
+/**
+ * **Un cran de l'échelle verticale** — un repère de l'axe, avec sa hauteur.
+ *
+ * 🛑 **`at` est SERVI par l'appelant**, jamais déduit d'un rang : c'est ce qui
+ * permet à la même brique de porter une échelle **régulière** (les paliers
+ * CECRL du TCF, régulièrement espacés) et une échelle **de valeurs** (les
+ * scores d'un thème civique, où `16 / 20` ne tombe pas au milieu de `0` et
+ * `20`). Une échelle régulière posée sur des valeurs irrégulières mentirait sur
+ * la position du seuil.
+ */
+export type ChartRung = {
+  /** Le libellé du cran sur l'axe (« B2 », « 16 »). */
+  label: string;
+  /** Sa hauteur dans le cadre : `0` = tout en haut, `1` = tout en bas. */
+  at: number;
+  /**
+   * Le cran est un **seuil à franchir** : trait pointillé accentué et libellé
+   * ambre. 🛑 Ce n'est **pas un verdict** — il dit où est la barre, pas si elle
+   * est passée.
+   */
+  seuil?: boolean;
+};
+
+/** Un point de la courbe : sa date, sa valeur, et sa hauteur dans l'échelle. */
 export type ChartPoint = {
   /** Abscisse lisible (« 11 sept. »). */
   date: string;
-  /** Le palier, tel qu'il s'écrit sur la pastille. */
+  /** La valeur, telle qu'elle s'écrit sur la pastille (« B1 », « 17 / 20 »). */
   level: string;
-  /** Index dans `ladder`, 0 = le palier le plus haut. **Passé, jamais deviné.** */
-  row: number;
+  /** Sa hauteur dans le cadre, `0` = tout en haut. **Passée, jamais devinée.** */
+  at: number;
 };
 
 /**
- * **La courbe d'évolution** d'une épreuve.
+ * **La courbe d'évolution** d'une épreuve TCF ou d'un thème civique.
  *
- * 🛑 **Aucune interpolation, aucune moyenne** : un point par évaluation
- * **servie**, posé sur l'échelle de paliers que l'appelant lui donne. L'axe ne
- * porte aucun chiffre — seulement des paliers.
+ * 🛑 **Aucune interpolation, aucune moyenne** : un point par mesure **servie**,
+ * posé sur l'échelle que l'appelant lui donne — `rungs` porte les libellés ET
+ * leurs hauteurs, la brique ne classe rien et n'espace rien d'elle-même.
  *
  * Miroir Flutter : `SfLevelChart`.
  */
 export function LevelChart({
-  ladder,
+  rungs,
   points,
   activeIndex,
   onSelect,
 }: {
-  /** Du plus haut au plus bas (« B2 », « B1 », « A2 »). */
-  ladder: string[];
+  /** Du plus haut au plus bas (« B2 », « B1 », « A2 » / « 20 », « 16 », « 0 »). */
+  rungs: ChartRung[];
   /** Du plus ancien au plus récent. */
   points: ChartPoint[];
   activeIndex: number;
   onSelect: (index: number) => void;
 }) {
-  const rows = Math.max(ladder.length - 1, 1);
   const cols = Math.max(points.length - 1, 1);
-  const y = (row: number) => (ladder.length > 1 ? (row / rows) * 100 : 50);
+  const y = (at: number) => at * 100;
   const x = (i: number) => (points.length > 1 ? (i / cols) * 100 : 50);
 
   return (
     <div className={styles.chart}>
       <div className={styles.chartYAxis} aria-hidden>
-        {ladder.map((lvl, i) => (
-          <span key={lvl} className={styles.chartYLabel} style={{ top: `${y(i)}%` }}>
-            {lvl}
+        {rungs.map((r) => (
+          <span
+            key={r.label}
+            className={cx(styles.chartYLabel, r.seuil && styles.isSeuil)}
+            style={{ top: `${y(r.at)}%` }}
+          >
+            {r.label}
           </span>
         ))}
       </div>
       <div className={styles.chartPlot}>
-        {ladder.map((lvl, i) => (
-          <span key={lvl} className={styles.chartGrid} style={{ top: `${y(i)}%` }} aria-hidden />
+        {rungs.map((r) => (
+          <span
+            key={r.label}
+            className={cx(styles.chartGrid, r.seuil && styles.isSeuil)}
+            style={{ top: `${y(r.at)}%` }}
+            aria-hidden
+          />
         ))}
         {points.length > 1 ? (
           <svg
@@ -1763,7 +1794,7 @@ export function LevelChart({
             aria-hidden
           >
             <polyline
-              points={points.map((p, i) => `${x(i)},${y(p.row)}`).join(" ")}
+              points={points.map((p, i) => `${x(i)},${y(p.at)}`).join(" ")}
               fill="none"
               stroke="var(--color-blue)"
               strokeWidth="3"
@@ -1778,8 +1809,8 @@ export function LevelChart({
             key={`p-${i}`}
             type="button"
             className={cx(styles.chartDot, i === activeIndex && styles.isOn)}
-            style={{ left: `${x(i)}%`, top: `${y(p.row)}%` }}
-            aria-label={`${p.date} : niveau ${p.level}`}
+            style={{ left: `${x(i)}%`, top: `${y(p.at)}%` }}
+            aria-label={`${p.date} : ${p.level}`}
             aria-pressed={i === activeIndex}
             onClick={() => onSelect(i)}
           />

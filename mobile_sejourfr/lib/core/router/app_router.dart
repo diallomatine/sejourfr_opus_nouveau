@@ -39,6 +39,7 @@ import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
+import '../../screens/progres/theme_historique_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -238,6 +239,16 @@ class AppRoutes {
 
   static String epreuveHistoriquePath(String domainKey) =>
       '/historiques/epreuve/$domainKey';
+
+  /// **« Où j'en suis sur ce thème ? »** — les examens blancs d'UN thème
+  /// civique. 🛑 À ne pas confondre avec [civiqueThemeExams], la grille où l'on
+  /// **passe** un examen : ici on **lit** ses résultats. Le `themeId` est
+  /// l'identifiant **servi** sur la ligne de thème de l'Accueil — aucun
+  /// identifiant n'est inventé.
+  static const themeHistorique = '/historiques/theme/:themeId';
+
+  static String themeHistoriquePath(String themeId) =>
+      '/historiques/theme/$themeId';
 
   // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
   static const monEntrainement = '/mon-entrainement';
@@ -507,6 +518,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           // des historiques plutôt que d'inventer un domaine.
           if (epreuve == null) return const MesHistoriquesScreen();
           return EpreuveHistoriqueScreen(epreuve: epreuve);
+        },
+      ),
+      // 🛑 **Hors shell**, comme les autres écrans d'historique : elle est
+      // poussée depuis l'Accueil, et la déclarer dans le ShellRoute
+      // provoquerait une collision de clé de page.
+      GoRoute(
+        path: AppRoutes.themeHistorique,
+        builder: (_, state) {
+          final themeId = state.pathParameters['themeId'] ?? '';
+          // Un identifiant vide ne fabrique pas de thème : on retombe sur le
+          // hub des historiques plutôt que d'ouvrir un écran sans sujet.
+          if (themeId.isEmpty) return const MesHistoriquesScreen();
+          return ThemeHistoriqueScreen(themeId: themeId);
         },
       ),
       GoRoute(

@@ -19,6 +19,7 @@
 import type {
     BarTone,
     ChartPoint,
+    ChartRung,
     LadderStep,
     TrendTone,
 } from "@/app/_components/sejour/SejourKit";
@@ -966,18 +967,198 @@ export function jourCourt(iso: string | null): string {
 export function progresCourbe(
     servies: EvaluationQualifianteDto[],
     objectif: NiveauCecrl | null,
-): {ladder: string[]; points: ChartPoint[]} {
+): {rungs: ChartRung[]; points: ChartPoint[]} {
     const chronologie = [...servies].reverse();
     const rangs = chronologie.map((e) => rang(e.niveau));
     if (objectif) rangs.push(rang(objectif));
     const ladder = echelleAffichee(rangs);
     const haut = ECHELLE.indexOf(ladder[0] as (typeof ECHELLE)[number]);
+    /* 🛑 **Les paliers CECRL sont RÉGULIÈREMENT espacés**, et c'est cette
+       fonction — pas la brique — qui le dit : un cran par palier, à hauteur
+       égale. La brique reçoit des hauteurs, elle n'en invente aucune, ce qui la
+       rend réutilisable par une échelle de valeurs (`civiqueThemeCourbe`). */
+    const crans = Math.max(ladder.length - 1, 1);
+    const hauteur = (r: number) => (ladder.length > 1 ? (haut - r) / crans : 0.5);
     return {
-        ladder,
+        rungs: ladder.map((label, i) => ({
+            label,
+            at: ladder.length > 1 ? i / crans : 0.5,
+        })),
         points: chronologie.map((e) => ({
             date: jourCourt(e.mesureA),
             level: niveauCecrlShort(e.niveau),
-            row: haut - rang(e.niveau),
+            at: hauteur(rang(e.niveau)),
+        })),
+    };
+}
+
+/* ===========================================================================
+ * « VOS RÉSULTATS » D'UN THÈME CIVIQUE — l'écran ouvert depuis l'Accueil
+ *
+ * 🛑 **Aucun palier, aucun objectif CECRL** : le civique se mesure en thèmes et
+ * en scores face à un seuil, jamais en paliers (`docs/regles/progression.md`).
+ * Ce qui est servi, et rien de plus : l'`etat` du thème (`CivicThemeState`,
+ * rendu par `CIVIC_THEME_STATE_LABEL`) et ses examens blancs, avec pour chacun
+ * son score, son total de questions et son seuil de réussite.
+ *
+ * Miroirs mobile : les mêmes noms dans `progres_labels.dart`.
+ * =========================================================================== */
+
+export const THEME_RESULTATS_TITLE = "Vos résultats";
+
+/** Le héros : le dernier score servi, face au seuil servi avec lui. */
+export const THEME_RESULTATS_HERO_LABEL = "Dernier résultat";
+export const THEME_RESULTATS_SEUIL_LABEL = "Seuil de réussite";
+
+/**
+ * Ce qui compte dans cet écran, dit au candidat plutôt que deviné par lui.
+ *
+ * 🛑 **Formulée pour rester vraie quand la liste est vide**, et pour ne rien
+ * promettre que le serveur ne serve : les séries d'entraînement et le
+ * diagnostic civique sont exclus par la requête elle-même
+ * (`AttemptRepository.findByUserFiltered`).
+ */
+export const THEME_RESULTATS_LEAD =
+    "Vos examens blancs sur ce thème, et votre score face au seuil de réussite. "
+    + "Vos séries d'entraînement et votre diagnostic n'y figurent pas.";
+
+/* ------------------------------------------------------------- la courbe -- */
+
+export const THEME_RESULTATS_COURBE_TITLE = "Votre évolution";
+export const THEME_RESULTATS_COURBE_SUB = "Touchez un point pour voir l'examen.";
+
+/** La phrase qui remplace la courbe quand un seul examen a été passé. */
+export const THEME_RESULTATS_COURBE_UN_POINT =
+    "Un seul examen pour l'instant : la courbe se dessinera au prochain.";
+
+/* --------------------------------------------------------- l'historique -- */
+
+export const THEME_RESULTATS_LISTE_TITLE = "Historique";
+
+/** « 3 examens blancs ». 🛑 On compte des lignes servies, rien d'autre. */
+export function themeResultatsCountLabel(n: number): string {
+    return `${n} examen${n > 1 ? "s" : ""} blanc${n > 1 ? "s" : ""}`;
+}
+
+/**
+ * 🛑 **Une absence de mesure se DIT** — jamais un `0 / 20`, jamais un état
+ * pédagogique inventé.
+ */
+export const THEME_RESULTATS_VIDE = "Pas encore d'examen sur ce thème.";
+export const THEME_RESULTATS_VIDE_AIDE =
+    "Votre premier examen blanc de ce thème apparaîtra ici dès qu'il sera terminé.";
+
+export const THEME_RESULTATS_ERREUR =
+    "Vos résultats n'ont pas pu être chargés. Réessayez dans un instant.";
+
+/** « Examen blanc 3 » — le slot servi, rien de plus. */
+export function themeResultatsExamenTitle(slot: number | null): string {
+    return slot == null ? "Examen blanc" : `Examen blanc ${slot}`;
+}
+
+/** « 17 / 20 » — deux nombres servis, mis côte à côte. */
+export function themeResultatsScore(score: number, total: number): string {
+    return `${score} / ${total}`;
+}
+
+/** « Seuil de réussite : 16 / 20. » — le seuil SERVI avec cet examen-là. */
+export function themeResultatsSeuilDetail(seuil: number, total: number): string {
+    return `Seuil de réussite : ${seuil} / ${total}.`;
+}
+
+/**
+ * Le score comparé au seuil, **deux nombres servis** — pas un état pédagogique
+ * ni un palier. C'est l'information utile d'un examen civique, et la même
+ * comparaison que `ExamReport` et la grille d'examens font déjà.
+ *
+ * `null` quand aucun seuil n'est servi (attempt antérieur au champ) : on ne
+ * conclut rien sans la barre.
+ */
+export function themeResultatsVerdict(
+    score: number,
+    seuil: number | null,
+): string | null {
+    if (seuil == null) return null;
+    return score >= seuil ? "Au-dessus du seuil." : "Sous le seuil de réussite.";
+}
+
+/**
+ * Le repli d'une ligne dont le serveur ne sert **aucun** seuil (attempt
+ * antérieur au champ). 🛑 On dit l'absence, on n'invente pas la barre.
+ */
+export const THEME_RESULTATS_SANS_SEUIL =
+    "Cet examen ne porte pas de seuil de réussite.";
+
+/** Ce que la liste compte, et ce qu'elle ne compte pas. */
+export const THEME_RESULTATS_PORTEE_TITLE = "Ce qui compte ici :";
+export const THEME_RESULTATS_PORTEE_TEXT =
+    " vos examens blancs de ce thème et leur seuil de réussite. Un thème civique "
+    + "n'a aucun niveau CECRL — c'est votre score face au seuil qui compte.";
+
+/** Le lien de pied : c'est là qu'on PASSE un examen, pas qu'on le relit. */
+export const THEME_RESULTATS_EXAMENS_LABEL = "Passer un examen blanc";
+
+/* ------------------------------------------------------ l'échelle servie -- */
+
+/** Un examen blanc de thème, réduit aux trois nombres dont la courbe a besoin. */
+export type ThemeMesure = {
+    /** ISO servi, ou `null` — `jourCourt` en fait « — ». */
+    date: string | null;
+    score: number;
+    total: number;
+    /** `null` quand le serveur n'a pas de seuil sur cet attempt. */
+    seuil: number | null;
+};
+
+/**
+ * **La courbe d'un thème civique, prête pour le kit** : son échelle et ses
+ * points, sur la MÊME brique que le TCF (`LevelChart`).
+ *
+ * 🛑 **L'échelle est SERVIE, pas fabriquée** : le maximum est le
+ * `totalQuestions` des examens servis, le seuil leur `passThreshold`. Les deux
+ * nombres du format de thème (20 / 16) ne sont écrits nulle part ici — ils
+ * viennent de `AttemptService`, avec chaque examen.
+ *
+ * 🛑 **Les crans portent leur hauteur RÉELLE** : `16` se pose à 20 % du haut
+ * d'un cadre `0 → 20`, pas au milieu. C'est exactement pourquoi `ChartRung`
+ * prend un `at` plutôt qu'un rang.
+ *
+ * 🛑 **Le seuil n'est dessiné que s'il est le MÊME sur tous les examens
+ * servis** : deux seuils différents sur une même courbe ne se lisent pas, et en
+ * choisir un serait une invention.
+ *
+ * 🛑 `mesures` arrive dans l'**ordre servi** (la plus récente d'abord, `ORDER BY
+ * a.startedAt DESC`) et n'est pas retriée : on la lit à l'envers parce qu'une
+ * courbe se lit du plus ancien au plus récent. Aucune interpolation, aucune
+ * moyenne — un point par examen servi, donc **un seul examen ⇒ un seul point**.
+ *
+ * Miroir mobile : `civiqueThemeCourbe`.
+ */
+export function civiqueThemeCourbe(
+    mesures: ThemeMesure[],
+): {rungs: ChartRung[]; points: ChartPoint[]} {
+    if (mesures.length === 0) return {rungs: [], points: []};
+    const chronologie = [...mesures].reverse();
+    const max = Math.max(...chronologie.map((m) => m.total));
+    if (max <= 0) return {rungs: [], points: []};
+    const seuils = [...new Set(
+        chronologie.map((m) => m.seuil).filter((s): s is number => s != null),
+    )];
+    const seuil = seuils.length === 1 && seuils[0] > 0 && seuils[0] < max
+        ? seuils[0]
+        : null;
+    return {
+        rungs: [
+            {label: String(max), at: 0},
+            ...(seuil == null
+                ? []
+                : [{label: String(seuil), at: (max - seuil) / max, seuil: true}]),
+            {label: "0", at: 1},
+        ],
+        points: chronologie.map((m) => ({
+            date: jourCourt(m.date),
+            level: themeResultatsScore(m.score, m.total),
+            at: Math.min(Math.max((max - m.score) / max, 0), 1),
         })),
     };
 }

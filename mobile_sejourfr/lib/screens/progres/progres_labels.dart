@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
@@ -802,7 +804,7 @@ List<String> echelleAffichee(List<int> rangs) {
 /// évaluation servie.
 ///
 /// Miroir web : `progresCourbe`.
-({List<String> ladder, List<SfChartPoint> points}) progresCourbe(
+({List<SfChartRung> rungs, List<SfChartPoint> points}) progresCourbe(
   List<EvaluationQualifiante> servies,
   NiveauCecrl? objectif,
 ) {
@@ -814,14 +816,201 @@ List<String> echelleAffichee(List<int> rangs) {
   final haut = ladder.isEmpty
       ? 4
       : kTcfPaliers.indexWhere((p) => p.shortName == ladder.first);
+  // 🛑 **Les paliers CECRL sont RÉGULIÈREMENT espacés**, et c'est cette
+  // fonction — pas la brique — qui le dit : un cran par palier, à hauteur
+  // égale. La brique reçoit des hauteurs, elle n'en invente aucune, ce qui la
+  // rend réutilisable par une échelle de valeurs (`civiqueThemeCourbe`).
+  final crans = math.max(ladder.length - 1, 1);
+  double hauteur(int rang) => ladder.length > 1 ? (haut - rang) / crans : 0.5;
   return (
-    ladder: ladder,
+    rungs: [
+      for (var i = 0; i < ladder.length; i++)
+        SfChartRung(
+          label: ladder[i],
+          at: ladder.length > 1 ? i / crans : 0.5,
+        ),
+    ],
     points: [
       for (final e in chronologie)
         SfChartPoint(
           date: jourCourt(e.mesureA),
           level: e.niveau.shortName,
-          row: haut - e.niveau.tcfPalierIndex,
+          at: hauteur(e.niveau.tcfPalierIndex),
+        ),
+    ],
+  );
+}
+
+/* ===========================================================================
+ * « VOS RÉSULTATS » D'UN THÈME CIVIQUE — l'écran ouvert depuis l'Accueil
+ *
+ * 🛑 **Aucun palier, aucun objectif CECRL** : le civique se mesure en thèmes et
+ * en scores face à un seuil, jamais en paliers (`docs/regles/progression.md`).
+ * Ce qui est servi, et rien de plus : l'`etat` du thème (`CivicThemeState`,
+ * rendu par `CivicThemeState.label`) et ses examens blancs, avec pour chacun
+ * son score, son total de questions et son seuil de réussite.
+ *
+ * Miroirs web : les mêmes noms dans `lib/progres.ts`.
+ * =========================================================================== */
+
+const String kThemeResultatsTitle = 'Vos résultats';
+
+/// Le héros : le dernier score servi, face au seuil servi avec lui.
+const String kThemeResultatsHeroLabel = 'Dernier résultat';
+const String kThemeResultatsSeuilLabel = 'Seuil de réussite';
+
+/// Ce qui compte dans cet écran, dit au candidat plutôt que deviné par lui.
+///
+/// 🛑 **Formulée pour rester vraie quand la liste est vide**, et pour ne rien
+/// promettre que le serveur ne serve : les séries d'entraînement et le
+/// diagnostic civique sont exclus par la requête elle-même
+/// (`AttemptRepository.findByUserFiltered`).
+const String kThemeResultatsLead =
+    'Vos examens blancs sur ce thème, et votre score face au seuil de '
+    'réussite. Vos séries d\'entraînement et votre diagnostic n\'y figurent '
+    'pas.';
+
+/* -------------------------------------------------------------- courbe --- */
+
+const String kThemeResultatsCourbeTitle = 'Votre évolution';
+const String kThemeResultatsCourbeSub = 'Touchez un point pour voir l\'examen.';
+
+/// La phrase qui remplace la courbe quand un seul examen a été passé.
+const String kThemeResultatsCourbeUnPoint =
+    'Un seul examen pour l\'instant : la courbe se dessinera au prochain.';
+
+/* ---------------------------------------------------------- historique --- */
+
+const String kThemeResultatsListeTitle = 'Historique';
+
+/// « 3 examens blancs ». 🛑 On compte des lignes servies, rien d'autre.
+String themeResultatsCountLabel(int n) =>
+    '$n examen${n > 1 ? 's' : ''} blanc${n > 1 ? 's' : ''}';
+
+/// 🛑 **Une absence de mesure se DIT** — jamais un `0 / 20`, jamais un état
+/// pédagogique inventé.
+const String kThemeResultatsVide = 'Pas encore d\'examen sur ce thème.';
+const String kThemeResultatsVideAide =
+    'Votre premier examen blanc de ce thème apparaîtra ici dès qu\'il sera '
+    'terminé.';
+
+const String kThemeResultatsErreur =
+    'Vos résultats n\'ont pas pu être chargés. Réessayez dans un instant.';
+
+/// « Examen blanc 3 » — le slot servi, rien de plus.
+String themeResultatsExamenTitle(int? slot) =>
+    slot == null ? 'Examen blanc' : 'Examen blanc $slot';
+
+/// « 17 / 20 » — deux nombres servis, mis côte à côte.
+String themeResultatsScore(int score, int total) => '$score / $total';
+
+/// « Seuil de réussite : 16 / 20. » — le seuil SERVI avec cet examen-là.
+String themeResultatsSeuilDetail(int seuil, int total) =>
+    'Seuil de réussite : $seuil / $total.';
+
+/// Le score comparé au seuil, **deux nombres servis** — pas un état pédagogique
+/// ni un palier. C'est l'information utile d'un examen civique, et la même
+/// comparaison que `ExamReportScreen` et la grille d'examens font déjà.
+///
+/// `null` quand aucun seuil n'est servi (attempt antérieur au champ) : on ne
+/// conclut rien sans la barre.
+String? themeResultatsVerdict(int score, int? seuil) {
+  if (seuil == null) return null;
+  return score >= seuil ? 'Au-dessus du seuil.' : 'Sous le seuil de réussite.';
+}
+
+/// Le repli d'une ligne dont le serveur ne sert **aucun** seuil (attempt
+/// antérieur au champ). 🛑 On dit l'absence, on n'invente pas la barre.
+const String kThemeResultatsSansSeuil =
+    'Cet examen ne porte pas de seuil de réussite.';
+
+/// Ce que la liste compte, et ce qu'elle ne compte pas.
+const String kThemeResultatsPorteeTitle = 'Ce qui compte ici :';
+const String kThemeResultatsPorteeText =
+    ' vos examens blancs de ce thème et leur seuil de réussite. Un thème '
+    'civique n\'a aucun niveau CECRL — c\'est votre score face au seuil qui '
+    'compte.';
+
+/// Le lien de pied : c'est là qu'on PASSE un examen, pas qu'on le relit.
+const String kThemeResultatsExamensLabel = 'Passer un examen blanc';
+
+/* ------------------------------------------------------ échelle servie --- */
+
+/// Un examen blanc de thème, réduit aux trois nombres dont la courbe a besoin.
+class ThemeMesure {
+  const ThemeMesure({
+    required this.date,
+    required this.score,
+    required this.total,
+    required this.seuil,
+  });
+
+  /// Date servie, ou `null` — [jourCourt] en fait « — ».
+  final DateTime? date;
+  final int score;
+  final int total;
+
+  /// `null` quand le serveur n'a pas de seuil sur cet attempt.
+  final int? seuil;
+}
+
+/// **La courbe d'un thème civique, prête pour le kit** : son échelle et ses
+/// points, sur la MÊME brique que le TCF ([SfLevelChart]).
+///
+/// 🛑 **L'échelle est SERVIE, pas fabriquée** : le maximum est le
+/// `totalQuestions` des examens servis, le seuil leur `passThreshold`. Les deux
+/// nombres du format de thème (20 / 16) ne sont écrits nulle part ici — ils
+/// viennent de `AttemptService`, avec chaque examen.
+///
+/// 🛑 **Les crans portent leur hauteur RÉELLE** : `16` se pose à 20 % du haut
+/// d'un cadre `0 → 20`, pas au milieu. C'est exactement pourquoi [SfChartRung]
+/// prend un `at` plutôt qu'un rang.
+///
+/// 🛑 **Le seuil n'est dessiné que s'il est le MÊME sur tous les examens
+/// servis** : deux seuils différents sur une même courbe ne se lisent pas, et
+/// en choisir un serait une invention.
+///
+/// 🛑 [mesures] arrive dans l'**ordre servi** (la plus récente d'abord,
+/// `ORDER BY a.startedAt DESC`) et n'est pas retriée : on la lit à l'envers
+/// parce qu'une courbe se lit du plus ancien au plus récent. Aucune
+/// interpolation, aucune moyenne — un point par examen servi, donc **un seul
+/// examen ⇒ un seul point**.
+///
+/// Miroir web : `civiqueThemeCourbe`.
+({List<SfChartRung> rungs, List<SfChartPoint> points}) civiqueThemeCourbe(
+  List<ThemeMesure> mesures,
+) {
+  if (mesures.isEmpty) return (rungs: const [], points: const []);
+  final chronologie = mesures.reversed.toList(growable: false);
+  var max = 0;
+  for (final m in chronologie) {
+    if (m.total > max) max = m.total;
+  }
+  if (max <= 0) return (rungs: const [], points: const []);
+  final seuils = <int>{
+    for (final m in chronologie)
+      if (m.seuil != null) m.seuil!,
+  };
+  final seuil = seuils.length == 1 && seuils.first > 0 && seuils.first < max
+      ? seuils.first
+      : null;
+  return (
+    rungs: [
+      SfChartRung(label: '$max', at: 0),
+      if (seuil != null)
+        SfChartRung(
+          label: '$seuil',
+          at: (max - seuil) / max,
+          seuil: true,
+        ),
+      const SfChartRung(label: '0', at: 1),
+    ],
+    points: [
+      for (final m in chronologie)
+        SfChartPoint(
+          date: jourCourt(m.date),
+          level: themeResultatsScore(m.score, m.total),
+          at: ((max - m.score) / max).clamp(0.0, 1.0),
         ),
     ],
   );

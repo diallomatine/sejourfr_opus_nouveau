@@ -30,7 +30,7 @@ import {
 } from "@/lib/journey";
 import {civicBarTone} from "@/lib/civic-diagnostic";
 import {civicPlanRaison} from "@/lib/civic-plan";
-import {civicThemeExamsHref, themeSlug} from "@/lib/themes";
+import {themeHistoriqueHref, themeSlug} from "@/lib/themes";
 import {
     ACCUEIL_EVALUEES_CAPTION,
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
@@ -918,12 +918,13 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                     />
                                 }
                                 cta={SITUATION_CIVIC_CTA}
-                                /* 🛑 **L'historique des examens blancs du
-                                   thème**, la page qui existe déjà — adresse
-                                   déclarée une seule fois
-                                   (`civicThemeExamsHref`), partagée avec le hub
-                                   de thème et `categoryExamsHref`. */
-                                href={civicThemeExamsHref(themeSlug(t.code))}
+                                /* 🛑 **« Vos résultats » du thème**, le pendant
+                                   civique de l'écran de résultats d'une épreuve
+                                   TCF (2026-09-19). ⚠️ Elle ouvrait la **grille
+                                   des examens blancs** : c'est là qu'on PASSE un
+                                   examen, pas là qu'on lit ses résultats — le
+                                   lien de pied du nouvel écran y mène. */
+                                href={themeHistoriqueHref(themeSlug(t.code))}
                             />
                         ))}
                     </LevelList>

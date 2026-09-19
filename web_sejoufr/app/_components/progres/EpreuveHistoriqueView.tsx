@@ -220,7 +220,7 @@ export function EpreuveHistoriqueView() {
     /* 🛑 **L'échelle et les points viennent de `progresCourbe`**, partagée avec
        « Votre progression » : deux copies auraient fini par ne plus situer un
        palier à la même hauteur pour la même liste servie. */
-    const {ladder, points} = useMemo(
+    const {rungs, points} = useMemo(
         () => progresCourbe(evaluations, progres?.tcf.objectif ?? null),
         [evaluations, progres],
     );
@@ -277,7 +277,7 @@ export function EpreuveHistoriqueView() {
                                 sub={points.length > 1 ? HISTORIQUE_COURBE_SUB : null}
                             />
                             <LevelChart
-                                ladder={ladder}
+                                rungs={rungs}
                                 points={points}
                                 activeIndex={choisi === null
                                     ? points.length - 1
