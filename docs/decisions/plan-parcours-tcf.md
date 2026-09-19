@@ -1403,3 +1403,123 @@ ministère**, qui est la partie 2 fermée ici.
 🛑 **Règle générale qui en découle, pour tout rapport à venir** : un chiffre annoncé porte la **nature
 de sa provenance**. Un comptage produit par un modèle de lecture n'est **pas** une mesure et ne doit
 jamais se présenter comme telle. Appliqué au v2 par une légende et des marques en ligne.
+
+#### D-43 — **E-19 est une décision, pas une dette** : aucune fabrique de création de notion
+
+**Ce que l'audit v1 demandait** (E-19) : « Pas de fabrique de test `civicNotion(...)` ; les IT les
+créent à la main (≥ 2 occurrences). **Extraire dans `TestData`.** »
+
+🛑 **Non implémentée, et la prémisse était fausse.** Mesure faite en ouvrant P8.1 : **aucun test ne
+crée de notion**. `grep -rn "new CivicNotion()" src/test/` ne rend **rien**. Les IT civiques
+**lisent le référentiel seedé** par V051 / V058 en JDBC — ce qui est exactement ce qu'un module
+piloté par un référentiel doit faire.
+
+**Pourquoi la fabrique demandée serait NUISIBLE, et pas seulement inutile.** Une
+`TestData.civicNotion(theme, code, label)` laisserait un test **inventer une notion hors arrêté**,
+donc hors des 16 unités officielles. Avec `chk_civic_notion_rattachee` (V115), elle échouerait de
+toute façon si elle ne déclarait pas son unité — et si elle en déclarait une, elle ferait passer
+pour du programme quelque chose que le texte ne contient pas. C'est contre le garde-fou 1 de
+**D-38** (« une valeur d'arrêté ne se modifie pas depuis une interface »), transposé aux tests.
+
+**Ce qui est réellement dupliqué, et qui reste à extraire le jour où ça sert** : un helper de
+**LECTURE** sur le référentiel seedé. `SELECT id FROM civic_notions WHERE code = ?` vit dans
+**3 fichiers** (`CivicTaggingVerdictIT`, `SuggestionParCampagneIT`, `CivicNotionServiceIT`), et le
+motif « prendre N notions d'un thème puis désactiver le reste » dans **2** (`CivicPlanServiceIT`
+×2, `CivicPlanNotionParcoursIT`). ⚠️ Il n'a **pas** été extrait en P8.2a : la table des 16 n'en a
+pas eu besoin, et un helper sans appelant est du code mort (règle du dépôt). Il s'extraira au
+**premier appelant réel**, probablement en P8.4.
+
+🛑 **E-19 ne doit plus remonter comme une dette à combler.** C'est une décision, avec son motif.
+
+---
+
+#### D-44 — **Précision de D-29** : le partage 28 / 12 est de la loi **partout**, y compris dans le diagnostic
+
+**La décision, verbatim** :
+
+> Les deux 28/12 : **fusionne-les.** Ta distinction se défend sur le papier, mais elle ne tient pas
+> à l'épreuve : le jour où quelqu'un change le YAML, le diagnostic **cessera de simuler l'examen
+> légal et rien ne l'en empêchera**. Le partage 28/12 est de la loi partout où il apparaît, y
+> compris dans le diagnostic.
+>
+> D-29 protégeait le **comportement** du diagnostic — il est le seul endroit du dépôt qui tienne le
+> ratio officiel — **pas l'endroit où le nombre est écrit**. Le faire lire `CivicExamFormat`
+> **renforce** cette protection au lieu de l'affaiblir.
+>
+> Si la clé YAML doit rester pour une raison que je ne vois pas — un `config-version` qui la pilote
+> réellement, un test qui la fait varier — dis-le et on la garde. Sinon **elle disparaît, elle ne
+> devient pas un alias**.
+
+**L'échappatoire a été vérifiée, et elle n'existe pas.** Quatre mesures avant de trancher :
+
+| Question | Mesure |
+|---|---|
+| `config_version` pilote-t-il ce partage ? | ❌ **Non.** Il est **écrit** sur `civic_diagnostic_sessions` (`CivicDiagnosticService:156`) et **jamais relu** pour réinterpréter un résultat civique. Le seul `getConfigVersion()` qui branche quelque chose est du côté TCF (`TcfJourneyConfigProvider`, `PlanConfigProvider`), et il charge un **fichier**, pas ce bloc. |
+| Un test fait-il varier les deux valeurs ? | ❌ **Non.** Aucun. |
+| Un profil surcharge-t-il le bloc `civic-diagnostic` ? | ❌ **Non.** Une seule déclaration, dans `application.yaml`. Ni `application-dev`, ni les ressources de test. |
+| Qui les lisait ? | **Un seul appelant** : `CivicDiagnosticComposer`, au moment de la composition. |
+
+🛑 **Elles ne pilotaient rien.** Elles offraient seulement à quelqu'un la possibilité de faire
+cesser le diagnostic de simuler l'examen légal, sans que rien ne l'en empêche. **Supprimées, pas
+aliasées.**
+
+**Ce que la fusion change, exactement** :
+
+| Avant | Après |
+|---|---|
+| `sejourfr.civic-diagnostic.connaissances: 28` · `mises-en-situation: 12` | **supprimées** de `application.yaml` **et** de `CivicDiagnosticProperties` |
+| `props.getConnaissances()` / `props.getMisesEnSituation()` | `CivicExamFormat.CONNAISSANCES` / `MISES_EN_SITUATION` |
+| `props.getConnaissances() + props.getMisesEnSituation()` | `CivicExamFormat.QUESTIONS` — 🛑 **la somme est la loi, pas une addition à refaire** : `assertionsDeFormat()` verrouille déjà `CONNAISSANCES + MISES_EN_SITUATION == QUESTIONS` |
+
+**Ce que D-29 protégeait, et qui est maintenu — renforcé, même** : le **comportement** du
+diagnostic est inchangé, à la question près. Il tire toujours 28 connaissances et 12 mises en
+situation, avec son plancher `min-par-theme: 4` et son mode dégradé tracé. Il reste « le seul
+endroit du dépôt qui tient le partage officiel » — et désormais il ne peut plus cesser de le tenir
+par un changement de YAML.
+
+**Ce que `configVersion` justifie encore, et qui ne bouge pas** : `seuils.solide: 0.80`,
+`seuils.faible: 0.55` et `min-par-theme: 4`. Ceux-là changent le **sens d'un résultat** à la
+relecture ; ce sont des conventions de mesure, pas la loi. La distinction que D-44 refuse pour le
+partage, elle la garde pour les seuils — et c'est la même règle, appliquée correctement : est-ce
+que l'arrêté le dit ?
+
+---
+
+#### Une exigence de forme sur le garde-fou 2 de D-38
+
+> « Une seule exigence : que ce test **échoue bruyamment et explicitement** si la somme s'écarte de
+> 40 ou les mises en situation de 12 — **message nommant l'arrêté**, pas un `assertEquals` nu.
+> C'est le seul rempart restant. »
+
+**Appliqué, et vérifié en cassant le seed exprès.** `CivicOfficialUnitSeedIT` porte une constante
+`ARRETE` qui nomme le texte, dit que ce n'est pas un réglage, indique quoi faire avant de toucher
+au seed, et rappelle pourquoi aucun `CHECK` ne peut tenir la règle. Le message réel, sur un quota
+de Laïcité porté de 2 à 3 :
+
+> *La somme des 16 quotas de `civic_official_units` doit valoir 40 questions, elle vaut 41. Arrêté
+> du 10 octobre 2025 […] NOR INTV2527907A, annexe I. 🛑 Ce n'est pas un réglage produit : c'est la
+> loi. Si un quota doit changer, c'est que l'arrêté a changé — vérifier le texte sur Légifrance
+> AVANT de toucher au seed de V115, et consigner la décision. 🛑 Aucun `CHECK` ne peut tenir cette
+> règle […]. CE TEST EST LE SEUL REMPART.*
+
+Les quatre assertions du lot le portent : le compte des 16, la somme, les mises en situation, et
+les totaux par thématique.
+
+---
+
+#### Les trois rattachements qui traversent leur thème sont **documentés comme légitimes**
+
+> « Ajoute en commentaire du test pourquoi ces trois traversent leur thème, sinon un futur
+> relecteur les prendra pour un bug à corriger. »
+
+**Appliqué.** `CivicOfficialUnitSeedIT.rattachementCoherentAvecLeTheme` ouvre sur un avis au
+relecteur : l'annexe I ne donne à « Principes et valeurs » que **deux** notions de connaissance
+(Devise et symboles, Laïcité), là où la taxonomie interne en a rangé **cinq** — parce qu'elle a été
+construite à partir du corpus, pas de l'arrêté. Les trois en trop sont des **droits** (égalité,
+libertés de la DDHC) et de la **démocratie** (la République comme régime), que le texte range
+ailleurs.
+
+Et le commentaire dit ce que « corriger » coûterait : rattacher de force l'égalité à P1 mettrait
+des questions sur la discrimination dans le quota « Devise et symboles », et le tirage conforme
+tirerait 3 questions de symboles dans ce pool. C'est l'erreur que ce test existe pour rendre
+impossible.

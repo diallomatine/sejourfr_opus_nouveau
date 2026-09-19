@@ -64,7 +64,10 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
                 ORDER BY theme_code, display_order
                 """);
 
-        assertThat(rows).hasSize(UNITES);
+        assertThat(rows)
+                .as("Le programme compte %d unités : 14 notions de connaissance + 2 unités "
+                        + "de mises en situation. %s", UNITES, ARRETE)
+                .hasSize(UNITES);
         // ⚠️ `exam_quota` est un `smallint` : `queryForList` le rend en Integer,
         // pas en Short. Le miroir JPA, lui, le lit en `short` -- deux couches,
         // deux types, et c'est normal.
@@ -98,6 +101,21 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
     // Garde-fou 2 — la somme, que le DDL ne peut pas tenir
     // ------------------------------------------------------------------------
 
+    /**
+     * L'arrêté, cité pour le lecteur du message d'échec : c'est le seul rempart
+     * qui reste, il doit dire POURQUOI il refuse, pas seulement QUOI.
+     */
+    private static final String ARRETE =
+            "Arrêté du 10 octobre 2025 relatif au programme, aux épreuves et aux modalités "
+            + "d'organisation de l'examen civique (JORF n° 0240 du 12 octobre 2025, "
+            + "NOR INTV2527907A), annexe I. "
+            + "🛑 Ce n'est pas un réglage produit : c'est la loi. Si un quota doit changer, "
+            + "c'est que l'arrêté a changé — vérifier le texte sur Légifrance AVANT de "
+            + "toucher au seed de V115, et consigner la décision. "
+            + "🛑 Aucun CHECK ne peut tenir cette règle : Postgres refuse une sous-requête "
+            + "en contrainte, et un CHECK est par ligne — il ne peut pas sommer 16 lignes "
+            + "(D-38). CE TEST EST LE SEUL REMPART.";
+
     @Test
     @DisplayName("🛑 La somme des 16 quotas vaut 40 — et les mises en situation en font 12")
     void laSommeVaut40() {
@@ -108,9 +126,27 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
                 WHERE question_type = 'MISE_SITUATION'
                 """, Integer.class);
 
-        assertThat(total).isEqualTo(CivicExamFormat.QUESTIONS);
-        assertThat(mes).isEqualTo(CivicExamFormat.MISES_EN_SITUATION);
-        assertThat(total - mes).isEqualTo(CivicExamFormat.CONNAISSANCES);
+        assertThat(total)
+                .as("La somme des 16 quotas de `civic_official_units` doit valoir %d "
+                        + "questions, elle vaut %s. %s",
+                        CivicExamFormat.QUESTIONS, total, ARRETE)
+                .isEqualTo(CivicExamFormat.QUESTIONS);
+
+        assertThat(mes)
+                .as("Les quotas de MISE_SITUATION doivent totaliser %d (6 en « Principes et "
+                        + "valeurs », 6 en « Droits et devoirs », AUCUNE ailleurs), ils "
+                        + "totalisent %s. %s",
+                        CivicExamFormat.MISES_EN_SITUATION, mes, ARRETE)
+                .isEqualTo(CivicExamFormat.MISES_EN_SITUATION);
+
+        assertThat(total - mes)
+                .as("Le reste doit être les %d questions de connaissance du partage officiel. "
+                        + "%s", CivicExamFormat.CONNAISSANCES, ARRETE)
+                .isEqualTo(CivicExamFormat.CONNAISSANCES);
+
+        // 🛑 Et le partage lui-même : si CivicExamFormat dérive, ce test le dit
+        // avant que la base ne soit mise en cause.
+        CivicExamFormat.assertionsDeFormat();
     }
 
     @Test
@@ -125,6 +161,8 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
                 """);
 
         assertThat(parTheme)
+                .as("Les totaux par thématique doivent valoir 11 / 6 / 11 / 8 / 4 "
+                        + "(Principes / Institutions / Droits / Histoire / Société). %s", ARRETE)
                 .extracting("theme_code", "total")
                 .containsExactly(
                         tuple("CIV_DROITS_DEVOIRS", 11L),
@@ -143,7 +181,10 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
                 """, String.class);
 
         // 🛑 L'arrêté n'en place AUCUNE dans les trois autres thématiques.
-        assertThat(themes).containsExactly("CIV_DROITS_DEVOIRS", "CIV_PRINCIPES");
+        assertThat(themes)
+                .as("Les mises en situation ne vivent que dans « Principes et valeurs » et "
+                        + "« Droits et devoirs ». %s", ARRETE)
+                .containsExactly("CIV_DROITS_DEVOIRS", "CIV_PRINCIPES");
     }
 
     // ------------------------------------------------------------------------
@@ -208,6 +249,29 @@ class CivicOfficialUnitSeedIT extends AbstractIntegrationTest {
                 ORDER BY n.code
                 """);
 
+        // ════════════════════════════════════════════════════════════════════
+        // 🛑 AVIS AU RELECTEUR : LES TROIS LIGNES CI-DESSOUS NE SONT PAS UN BUG.
+        // ════════════════════════════════════════════════════════════════════
+        // Il est tentant de « corriger » une notion de CIV_PRINCIPES rattachée à
+        // une unité de CIV_INSTITUTIONS ou de CIV_DROITS_DEVOIRS. Ne le faites
+        // pas : ce sont des rattachements LÉGITIMES, et la raison est
+        // structurelle, pas accidentelle.
+        //
+        // L'annexe I de l'arrêté ne donne à « Principes et valeurs de la
+        // République » que DEUX notions de connaissance — « Devise et symboles »
+        // et « Laïcité » — plus son unité de mises en situation. La taxonomie
+        // interne, elle, y a rangé CINQ notions, parce qu'elle a été construite
+        // à partir du corpus réel (V058) et non de l'arrêté. Les trois en trop
+        // ne sont pas des principes au sens du texte : ce sont des DROITS
+        // (égalité, libertés de la DDHC) et de la DÉMOCRATIE (la République
+        // comme régime), que l'arrêté range explicitement ailleurs.
+        //
+        // Les rattacher de force à P1 ou P2 mettrait des questions sur l'égalité
+        // dans le quota « Devise et symboles » : le tirage conforme tirerait
+        // alors 3 questions de symboles dans un pool qui parle de
+        // discrimination. C'est exactement le genre d'erreur que ce test existe
+        // pour rendre impossible.
+        //
         // ⚠️ CE TEST TOLÈRE LES CHEVAUCHEMENTS, ET C'EST VOULU. La taxonomie
         // interne et l'annexe I ne découpent pas au même endroit : TROIS notions
         // sont rattachées à une unité d'un AUTRE thème, chacune sur la foi de sa

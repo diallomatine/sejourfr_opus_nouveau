@@ -33,28 +33,28 @@ public class CivicDiagnosticProperties {
      */
     private int configVersion = 1;
 
-    /**
-     * Questions de CONNAISSANCE tirees.
+    /*
+     * 🛑 `connaissances: 28` ET `mises-en-situation: 12` ONT DISPARU D'ICI
+     * (D-44, 2026-09-19), et ne sont pas remplacees par un alias.
      *
-     * <p>🛑 <b>28 + 12 = 40, le format de l'examen reel</b> (arbitrage du
-     * proprietaire, 2026-09-10). 20_ §4.2 proposait 17 + 7 = 24 ; le compte a
-     * ete aligne sur l'epreuve pour que le resultat soit <b>directement</b>
-     * comparable au seuil de 32. Avec 24 questions il fallait projeter, et une
-     * projection se discute ; avec 40, le score EST le resultat.
+     * Le partage 28 / 12 est de la LOI : arrete du 10 octobre 2025, annexe I.
+     * Il est lu chez son autorite unique, `CivicExamFormat.CONNAISSANCES` et
+     * `CivicExamFormat.MISES_EN_SITUATION`.
      *
-     * <p>Le ratio des mises en situation reste celui de l'examen (12 sur 40),
-     * que 20_ §4.2 citait deja comme reference.
+     * POURQUOI LE `configVersion` NE LES JUSTIFIAIT PAS. L'argument etait qu'un
+     * resultat date se relit avec la configuration qui l'a produit. Mesure faite
+     * avant de trancher : `config_version` est bien ECRIT sur
+     * `civic_diagnostic_sessions`, mais il n'est JAMAIS RELU pour reinterpreter
+     * un resultat civique ; aucun test ne fait varier ces deux valeurs ; et
+     * aucun profil ne surcharge le bloc `civic-diagnostic`. Elles ne pilotaient
+     * rien -- elles offraient seulement a quelqu'un la possibilite de faire
+     * cesser le diagnostic de simuler l'examen legal, sans que rien ne l'en
+     * empeche.
+     *
+     * CE QUE `configVersion` JUSTIFIE ENCORE, et qui reste ci-dessous : les
+     * seuils (`solide`, `faible`) et `min-par-theme`, qui changent le SENS d'un
+     * resultat a la relecture. Eux sont des conventions de mesure, pas la loi.
      */
-    private int connaissances = 28;
-
-    /**
-     * Mises en situation tirees (20_ §4.2 : 7, soit ~29 %).
-     *
-     * <p>Le ratio n'est pas decoratif : il reprend celui de l'examen reel
-     * (12 sur 40). Une mise en situation demande d'appliquer une regle a un cas
-     * concret — c'est une competence distincte, et l'ecran la compte a part.
-     */
-    private int misesEnSituation = 12;
 
     /**
      * Minimum de questions de connaissance par theme (20_ §4.2).

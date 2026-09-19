@@ -1090,14 +1090,14 @@ sejourfr:
     # 🛑 A incrementer des qu'un reglage ci-dessous change le SENS d'un
     # resultat. Un diagnostic se relit avec la configuration QUI L'A PRODUIT.
     config-version: 1
-    # 🛑 28 + 12 = 40, LE FORMAT DE L'EXAMEN REEL (arbitrage du 2026-09-10).
-    # 20_ §4.2 proposait 17 + 7 = 24 ; le compte a ete aligne sur l'epreuve pour
-    # que le resultat soit DIRECTEMENT comparable au seuil de 32. Avec 24
-    # questions il fallait projeter, et une projection se discute ; avec 40, le
-    # score EST le resultat.
-    # Le ratio des mises en situation reste celui de l'examen (12 sur 40).
-    connaissances: 28
-    mises-en-situation: 12
+    # 🛑 `connaissances` ET `mises-en-situation` ONT DISPARU D'ICI (D-44,
+    # 2026-09-19), et ne sont pas remplacees par un alias. Le partage 28 / 12 est
+    # de la LOI -- arrete du 10 octobre 2025, annexe I -- et il est lu chez son
+    # autorite unique : CivicExamFormat.CONNAISSANCES / MISES_EN_SITUATION.
+    # Mesure faite avant de trancher : `config_version` est ecrit sur la session
+    # mais JAMAIS RELU cote civique, aucun test ne faisait varier ces valeurs, et
+    # aucun profil ne surchargeait ce bloc. Elles ne pilotaient rien -- elles
+    # offraient seulement de faire cesser le diagnostic de simuler l'examen legal.
     # 🛑 Contrainte explicite de 20_ §4.2 : « ne jamais evaluer un theme sur une
     # seule question ». Un theme juge sur une reponse produirait un etat qui ne
     # veut rien dire -- et c'est cet etat qui decide ensuite du plan.

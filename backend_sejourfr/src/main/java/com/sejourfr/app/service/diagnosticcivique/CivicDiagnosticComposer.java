@@ -3,6 +3,7 @@ package com.sejourfr.app.service.diagnosticcivique;
 import com.sejourfr.app.config.CivicDiagnosticProperties;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
@@ -59,9 +60,13 @@ public class CivicDiagnosticComposer {
      *                {@code NAT})
      */
     public List<Question> composer(Difficulty mention) {
+        // 🛑 `CivicExamFormat.QUESTIONS` EST la somme du partage, pas une
+        // troisieme valeur : `assertionsDeFormat()` verrouille
+        // CONNAISSANCES + MISES_EN_SITUATION == QUESTIONS. L'ecrire ainsi evite
+        // de redire une addition que la loi a deja faite.
         Set<UUID> pris = new HashSet<>();
         List<Question> questions = new ArrayList<>(
-                props.getConnaissances() + props.getMisesEnSituation());
+                CivicExamFormat.QUESTIONS);
 
         // --- 1. Le plancher par theme d'abord. Il passe AVANT le complement :
         // remplir au hasard puis esperer que chaque theme soit servi laisserait
@@ -74,7 +79,7 @@ public class CivicDiagnosticComposer {
         }
 
         // --- 2. Le complement de connaissances, tous themes confondus.
-        int manque = props.getConnaissances() - questions.size();
+        int manque = CivicExamFormat.CONNAISSANCES - questions.size();
         if (manque > 0) {
             ajouter(questions, pris, questionManager.findRandomExcluding(
                     Module.CIVIQUE, null, mention, QuestionType.CONNAISSANCE, pris, manque));
@@ -84,15 +89,15 @@ public class CivicDiagnosticComposer {
         // les compter separement a l'arrivee.
         ajouter(questions, pris, questionManager.findRandomExcluding(
                 Module.CIVIQUE, null, mention, QuestionType.MISE_SITUATION, pris,
-                props.getMisesEnSituation()));
+                CivicExamFormat.MISES_EN_SITUATION));
 
-        if (questions.size() < props.getConnaissances() + props.getMisesEnSituation()) {
+        if (questions.size() < CivicExamFormat.QUESTIONS) {
             // Mode degrade assume : on le TRACE, on ne bloque pas. Le candidat
             // aura un diagnostic plus court, et les themes non servis diront
             // « non evalue » plutot qu'un verdict invente.
             log.warn("Diagnostic civique sous-dote pour la mention {} : {} questions sur {}",
                     mention, questions.size(),
-                    props.getConnaissances() + props.getMisesEnSituation());
+                    CivicExamFormat.QUESTIONS);
         }
 
         // Sans ce remelange, le candidat enchainerait les themes dans l'ordre,
