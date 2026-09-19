@@ -742,3 +742,562 @@ qu'à désigner le prochain slot de la grille, plus de budget freemium.
 - L'**EE et l'EO du diagnostic**, totalement offertes : elles n'atteignent jamais le ledger
   (garde `isDiagnostic` dans `FreeExamEntitlementService`).
 - Aucun **quota journalier** n'a été introduit ; `dailyQuota` n'existe toujours pas.
+
+---
+
+## 2026-09-19 — Module CIVIQUE : **13 arbitrages** (D-25 → D-37), l'arrêté contre le produit
+
+**Contexte.** L'audit `docs/audits/AUDIT_cycle_plan_civique.md` (v1) concluait que R2 était
+inapplicable au civique faute de contenu : **1 couple (notion × mention) sur 138** portait les
+~20 questions qu'exige « 2 séries réussies », et combler le déficit demandait **≈ 1 480 questions**.
+Le propriétaire a produit un **contre-audit** (`docs/progression/civique/BRIEF_contre_audit_civique.md`)
+opposant à ce raisonnement le **texte officiel** : l'arrêté du 10 octobre 2025 relatif au programme,
+aux épreuves et aux modalités d'organisation de l'examen civique (JORF n° 0240 du 12 octobre 2025,
+NOR **INTV2527907A**).
+
+`docs/audits/AUDIT_cycle_plan_civique_v2.md` a vérifié le texte sur Légifrance et repris les mesures.
+Trois résultats commandent les arbitrages ci-dessous :
+
+1. **Au grain des notions officielles, sans filtre de mention, R2 est applicable** : 13 unités sur 14
+   portent ≥ 20 questions. Il en manque **11**, toutes sur « Laïcité ».
+2. 🛑 **L'examen blanc global n'est conforme à l'arrêté sur aucun axe.** **0 examen sur 33** déjà
+   passés respecte la répartition officielle ; les mises en situation sortent à **7,7 par examen au
+   lieu de 12**, et **58 %** de celles tirées l'étaient dans une thématique où l'examen réel n'en pose
+   aucune.
+3. 🛑 **Avec le filtre de mention, un examen conforme est IMPOSSIBLE** pour CSP (Laïcité : 1 question
+   pour 2 exigées ; mises en situation Principes : 1 pour 6) et pour NAT (mises en situation
+   Principes : 5 pour 6). Seul CR y parvient.
+
+Réponses du propriétaire : `docs/audits/REPONSES_AUDIT_civique_v2.md`, 2026-09-19.
+
+---
+
+### D-25 — **L'arrêté du 10 octobre 2025 est la source de vérité du module civique**
+
+**La décision, verbatim** :
+
+> L'arrêté du 10 octobre 2025 est la source de vérité du module civique. Là où le produit diverge du
+> texte, c'est le produit qui a tort, y compris quand la divergence est ancienne, documentée et
+> testée.
+
+**Ce que le texte fixe, et qui n'est donc ni configurable ni négociable** (art. 1 à 3 + annexe I) :
+
+| Thématique | Total | Unités officielles et quotas |
+|---|---|---|
+| Principes et valeurs de la République | **11** | Devise et symboles **3** · Laïcité **2** · *Mises en situation* **6** |
+| Système institutionnel et politique | **6** | Démocratie et droit de vote **3** · Organisation de la République **2** · Institutions européennes **1** |
+| Droits et devoirs | **11** | Droits fondamentaux **2** · Obligations et devoirs **3** · *Mises en situation* **6** |
+| Histoire, géographie et culture | **8** | Périodes et personnages **3** · Territoires et géographie **3** · Patrimoine **2** |
+| Vivre dans la société française | **4** | S'installer **1** · Accès aux soins **1** · Travailler **1** · Autorité parentale et système éducatif **1** |
+
+**40 questions** = 28 connaissances + 12 mises en situation. **Pour toutes les mentions**, et sur
+**une seule** annexe I. Durée 45 min, seuil 80 %. Art. 3 : « Chaque candidat devra répondre à un
+**nombre équivalent de questions par thématique et notion**. »
+
+#### 🛑 Révocation — la phrase de V058
+
+**Phrase révoquée, citée verbatim.** Origine :
+`backend_sejourfr/src/main/resources/db/migration/00_schema/V058__referentiel_civique_valide.sql`,
+en-tête, section « CE QUE LE CORPUS IMPOSE, ET QUI N'EST PAS NÉGOCIABLE PAR LA TAXONOMIE » :
+
+> « CSP, CR et NAT ne sont pas trois niveaux du même programme : ce sont trois programmes
+> différents. Le CR ne contient AUCUNE question sur le gouvernement, le NAT AUCUNE sur l'école ni
+> sur la santé, le CSP AUCUNE sur Napoléon, l'Europe, les écrivains ou la DDHC. Sur ces 46 notions,
+> 12 seulement portent 5 questions dans les trois mentions. Ce n'est pas un défaut de découpage. »
+
+**Pourquoi elle est fausse** : le raisonnement est **circulaire**. Le corpus a été **écrit** par
+mention, puis on a déduit du corpus que le programme l'était. V058 le dit lui-même quelques lignes
+plus haut — « le référentiel a été reconstruit **à partir du corpus réel** plutôt que déduit ». Et la
+mesure le confirme : sur **976** questions actives, **15** seulement (1,5 %) citent une démarche dans
+leur énoncé, et **aucune n'est exclusive d'une démarche** — « S'installer et résider en France »,
+qui couvre les démarches d'accès à la nationalité, est au programme **pour toutes les mentions**.
+
+**Ce qui est révoqué avec elle** :
+
+> « D'où l'état NON_APPLICABLE, servi par le plan […] : « zéro question dans cette mention » n'est
+> pas « notion mal faite », c'est « pas pour ce candidat ». »
+
+**Ce que V058 conserve** : les 46 notions, leurs descriptions et leurs frontières restent **valides
+et utiles**. Ce n'est pas un mauvais référentiel, c'est un référentiel d'une **autre nature** : une
+taxonomie **éditoriale**, faite pour écrire et relire des questions. Voir D-26.
+
+⚠️ **Une migration livrée ne se réécrit pas** : V058 reste en base telle quelle. La révocation vit
+ici et dans `docs/regles/domaine.md`, **jamais** en `UPDATE` de son commentaire.
+
+**Ce qui est à nommer partout désormais** : l'arrêté du 10 octobre 2025 (NOR INTV2527907A) est cité
+comme **source du référentiel** dans `docs/regles/domaine.md` et dans la migration qui créera la
+table des unités officielles. L'audit v2 a relevé qu'il **n'était cité nulle part dans le dépôt**.
+
+---
+
+### D-26 — Le cycle civique compte au grain des **16 unités officielles**
+
+- **L'unité travaillable du cycle est l'unité officielle de l'annexe I**, pas la notion interne.
+- 🛑 **16 lignes, pas 14.** Dans la répartition officielle, « Mises en situation » figure **au même
+  niveau qu'une notion**, avec son propre quota, dans deux thématiques : Principes (6) et Droits et
+  devoirs (6). Le cycle en fait donc une unité travaillable à part entière, **dans ces deux blocs
+  seulement**. 14 notions de connaissance + 2 unités de mises en situation = **16**.
+- **Les 46 notions internes restent la granularité du plan dérivé** — choisir *quoi* faire
+  travailler. Le **cycle** compte au grain officiel. Deux rôles distincts et nommés : l'officielle
+  **mesure**, l'interne **écrit**.
+- **Une table de référence**, pas une colonne (Q-F24) : libellé, thématique, ordre, **quota officiel
+  par examen**. Le tirage conforme (D-29), le cycle et l'écran lisent **le même objet**. Le
+  rattachement des 46 notions internes s'y fait par **FK**.
+- **Conséquence sur R2** : 13 unités sur 14 portent ≥ 20 questions ; « 2 séries réussies de 10 »
+  s'applique **sans réécriture**. Le déficit de la v1 était l'effet cumulé de deux découpages dont
+  **aucun n'est officiel** — une taxonomie de travail à 46 entrées et un filtre de mention.
+- **Conséquence sur le moteur** : 🛑 **D-15 s'applique mot pour mot** (« l'examen d'un bloc est
+  verrouillé tant qu'une unité du même bloc n'est pas clôturée »). R1, R2, R3, le cycle en attente,
+  la fin de cycle et l'historisation se transposent **tels quels**. Le cycle civique est le **même
+  moteur** que le TCF, à l'axe des blocs près : la **thématique** au lieu de l'épreuve.
+
+#### Ce que ça rend caduc
+
+- **L'option α de l'audit v1** (« le bloc de thème se clôt sur son seul examen, faute de contenu »).
+  Elle était un **repli subi** et la v1 la signalait elle-même comme un écart à « le moteur civique
+  ne réinvente aucune règle ». Il n'y a plus d'écart à signaler.
+- **Les deux options de Q1 de la v1** — généraliser `skills` ou rendre l'observation polymorphe — sont
+  caduques **dans leur motif** : voir D-32.
+- **Phrase révoquée, citée verbatim.** Origine : `docs/progression/civique/SPEC_cycle_plan_civique.md`
+  §1, ligne « `Skill` (compétence) » :
+  > « **Notion civique** (`civic_notions`) | 40 notions. »
+
+  Ni 40, ni les 46 réellement actives : l'unité du cycle est une des **16** unités officielles.
+
+---
+
+### D-27 — La mention ne filtre plus le contenu ; `difficulty` devient une métadonnée éditoriale
+
+- **Le filtre `q.difficulty = :mention` est retiré de la lecture** côté civique (option **B** du §4.4
+  de l'audit v2) : l'entraînement, le diagnostic et le cycle ne filtrent plus.
+- **La colonne reste en base**, intacte, comme **métadonnée éditoriale** : elle dit de quelle campagne
+  vient une question, et l'admin continue de la voir. 🛑 Aucune migration de données, aucun `DROP` :
+  le retour arrière est **un changement de variable de code**, pas une migration.
+- **Le civique s'aligne sur le régime TCF**, où `AttemptService.resolveDifficulty` dit déjà « le TCF
+  n'est jamais filtré par niveau : le test est unique pour tous ». C'est exactement ce que l'arrêté
+  prescrit : un programme, une épreuve, pour toutes les mentions.
+- ⚠️ **Le filtre n'était déjà pas une règle du module** : `LotService` (l. 139, 173) passe `null` en
+  `difficulty` — les **lots d'entraînement civiques ignorent la mention depuis toujours**. Le filtre
+  ne vivait que sur trois chemins sur quatre.
+- **La mention reste l'objectif d'un cycle**, jamais son pool : la démarche visée et le seuil. Voir
+  D-32.
+
+#### 🛑 Ce qui est supprimé avec le filtre, et pas laissé vide
+
+« Refonte = suppression immédiate de l'ancien. » Sans filtre de mention, ces deux règles ne
+discriminent plus rien : **0 couple** tombe sous le seuil, et `NON_APPLICABLE` devient **impossible**.
+Une règle morte qui donne l'illusion d'un garde-fou est pire que pas de garde-fou.
+
+| Supprimé | Où il vit |
+|---|---|
+| `CivicDotation` (enum entier, 68 l., + `CivicDotationTest`) | `service/plancivique/CivicDotation.java` |
+| `questions-min-par-notion: 5` | `application.yaml` + `CivicPlanProperties.questionsMinParNotion` |
+| `estServable()` et ses appels | `CivicPlanService` (5 filtres), `CivicPlanDto.Cible.dotation` |
+
+**Phrase révoquée, citée verbatim.** Origine : javadoc de `CivicDotation` :
+
+> « **Trois états, pas deux — et la différence est ÉDITORIALE.** Le référentiel validé (V058) l'a
+> mesurée question par question : CSP, CR et NAT ne sont pas trois niveaux du même programme, ce sont
+> **trois programmes différents**. »
+
+**Phrase révoquée, citée verbatim.** Origine : javadoc de
+`CivicPlanProperties.questionsMinParNotion` :
+
+> « 🛑 **Compte PAR MENTION.** Une notion peut être pleinement dotée pour un candidat NAT et vide pour
+> un CSP : rendre un verdict global effacerait exactement cette nuance. »
+
+**Ce qui est conservé** : `questions-par-serie: 10` (tenable sur les 16 unités, minimum 9) et
+`seuil-tagging: 0.80` (franchi partout, 97–98,6 % ; garde-fou du **plan dérivé**, dont le cycle ne
+dépend pas). ⚠️ Défaut à corriger avec : `tirageSerieCiblee` a un `LIMIT` et **ne complète pas** —
+une unité à 9 questions rend une série de 9, en silence.
+
+---
+
+### D-28 — Le **contrôle de couverture** précède P8.A, et il tranche une question
+
+- **Q-F30 est lancé avant P8.A.** Zéro appel LLM : extraction des listes publiques du ministère et
+  rattachement aux 16 unités officielles.
+- **Ce qu'il doit établir, en une question** : les trois listes publiques (CSP ≈ 212, CR ≈ 205, NAT en
+  PDF) se recouvrent-elles largement, ou portent-elles des contenus réellement distincts ?
+
+| Résultat | Conséquence |
+|---|---|
+| **Recouvrement large** | Le retrait du filtre (D-27) est confirmé **définitivement**, y compris pour la composition des examens blancs. |
+| **Divergence réelle** | Le filtre revient **pour la seule composition de l'examen blanc**, jamais pour l'entraînement ni pour le cycle, et le rapport dit exactement quelles questions écrire par mention. |
+
+🛑 **Dans les deux cas, l'entraînement et le cycle restent sans filtre.** R2 en dépend, et rien dans
+l'arrêté ne justifie de restreindre ce qu'un candidat peut **travailler**.
+
+- **Ce qui a motivé cette prudence** : l'audit v2 a établi que le ministère publie **trois listes
+  distinctes par mention**. Le **programme** est unique — une seule annexe I, 40 questions pour toutes
+  les mentions — mais la **banque publiée** ne l'est pas. C'est le seul argument sérieux contre D-27,
+  et il se mesure au lieu de se supposer.
+- **Livrable** : couverture du stock SejourFR par unité officielle **et** par liste publique, taux de
+  recouvrement entre les trois listes, et la liste des unités où le stock ne couvre pas le programme.
+  Plan détaillé : annexe P8.0 de `AUDIT_cycle_plan_civique_v2.md`.
+- ⛔ **Aucun import.** Les énoncés publics n'ont pas leurs réponses ; un import serait du travail
+  éditorial déguisé en migration.
+
+---
+
+### D-29 — **L'examen blanc doit simuler l'examen réel** : chantier séparé et prioritaire (P8.A)
+
+**La décision, verbatim** :
+
+> L'examen blanc doit simuler l'examen réel. Un examen blanc qui tire 8/8/8/8/8 au lieu de
+> 11/6/11/8/4 ne prépare pas au bon examen, quelle que soit la qualité de ses questions. C'est la
+> promesse centrale du produit, et elle n'est aujourd'hui pas tenue sur un seul des 33 examens passés.
+
+**P8.A passe AVANT le cycle.** Le tirage devient une **contrainte dure** sur **trois axes** :
+
+1. **11 / 6 / 11 / 8 / 4** par thématique ;
+2. le **quota par unité officielle** à l'intérieur de chaque thématique (3/2, 3/2/1, 2/3, 3/3/2,
+   1/1/1/1) ;
+3. **12 mises en situation, placées uniquement en Principes (6) et Droits et devoirs (6)**.
+
+**Les cinq exigences de la phase** :
+
+1. **Une autorité unique de la répartition officielle, en code**, au même titre que
+   `CivicExamFormat` : les 5 thématiques, leurs unités, leurs quotas, le placement des 12 mises en
+   situation. 🛑 **Aucune de ces valeurs n'est un réglage.**
+2. **Le quota par unité devient une contrainte du tirage**, pas une consigne — le rattachement à
+   l'unité officielle entre dans la requête de composition. (Ordre de préférence du dépôt : le schéma
+   avant la consigne.)
+3. 🛑 **Le fallback de `pickQuestionsForTemplate` est encadré.** Un examen officiel ne doit **jamais**
+   pouvoir compléter hors règles en silence : si les règles ne peuvent pas être satisfaites, l'examen
+   **échoue bruyamment**, il ne se dégrade pas. **C'est le défaut le plus grave de l'audit**, parce
+   qu'il rend toute règle future inopérante sans le dire.
+4. **Le format de l'examen de thème** (20 Q / seuil 16 / 20 min) applique les **proportions
+   officielles internes** à la thématique. Il ne peut pas être conforme à l'examen réel — ce n'est pas
+   son objet — mais il doit en respecter la **structure**. Voir D-31.
+5. 🛑 **Le diagnostic civique est préservé tel quel.** Sa configuration `connaissances: 28` +
+   `mises-en-situation: 12` est le **seul** endroit du dépôt qui tient le partage officiel, et il le
+   tient parce qu'il est **déclaré**, pas déduit d'un tirage. **Ne pas y toucher.**
+
+**Ce que P8.A ne coûte pas** : **aucune question à produire**. L'audit v2 a mesuré qu'un examen
+parfaitement conforme est tirable du stock actuel, les 14 quotas et les 12 mises en situation
+couverts — **à condition** que le filtre de mention soit retiré (D-27).
+
+---
+
+### D-30 — Les 11 templates « Focus » mono-thème sont **dépubliés**
+
+- Un template qui tire **40 questions d'une seule thématique** est **structurellement non conforme** :
+  il ne peut pas s'appeler « examen blanc ».
+- **Ce qu'ils offraient — travailler un thème — est exactement ce que le cycle fournit.** Il n'y a
+  rien à remplacer.
+- Les 11 : `civique-csp-institutions`, `civique-csp-histoire`, `civique-csp-societe`,
+  `civique-cr-institutions`, `civique-cr-droits`, `civique-cr-histoire`, `civique-cr-societe`,
+  `civique-nat-institutions`, `civique-nat-droits`, `civique-nat-histoire`, `civique-principes`.
+- ⚠️ Leur matrice était de toute façon **incomplète** : 5 cases manquantes sur 15 (CSP sans Droits ni
+  Principes, CR sans Principes, NAT sans Société ni Principes).
+- **Q-F20 devient sans objet** : ils ne sont pas laissés en dette, ils partent.
+
+---
+
+### D-31 — L'examen de thème respecte la **structure** officielle, pas le format officiel
+
+- **20 questions / seuil 16 / 20 min** est un **format SejourFR**, jamais un format officiel.
+  Confirmé en base (11 attempts) et en code.
+- Il applique les **proportions officielles internes** à sa thématique. Conséquence directe (Q-F21) :
+  🛑 **un examen de thème ne contient de mises en situation que dans les thématiques où l'examen réel
+  en pose** — Principes et Droits et devoirs. Aucune ailleurs.
+- **Le format déménage en P8.1** (Q-F17) : 20 / 16 / 20 min rejoignent `CivicExamFormat`, et
+  `AttemptService` perd ses **6** constantes privées (`CIVIQUE_EXAM_SIZE`, `CIVIQUE_EXAM_TIME`,
+  `CIVIQUE_EXAM_THRESHOLD`, `CIVIQUE_THEME_EXAM_SIZE`, `CIVIQUE_THEME_EXAM_TIME`,
+  `CIVIQUE_THEME_EXAM_THRESHOLD`).
+- ⚠️ **Motif** : `CivicExamFormat` dit de lui-même « c'est du code, pas un réglage […] même traitement
+  que `DureeEpreuve` et `TargetProcedure` », mais 40 et 32 y vivaient **en double** de
+  `AttemptService` (l. 63, 65) — et `exam_templates` en portait une **3ᵉ** copie. Le cycle en aurait
+  fait une 4ᵉ.
+
+---
+
+### D-32 — Le schéma du cycle civique
+
+| # | Décision |
+|---|---|
+| **Q-F4** | `journey` reçoit **`target_procedure`**. La mention ne filtre plus le contenu, mais elle reste l'**objectif** d'un cycle civique : la démarche visée et le seuil. |
+| **Q-F5** | **`entry_score` / `exit_score`**, colonnes neuves. 🛑 **Aucune réinterprétation des colonnes CECRL** : un score n'est pas un niveau. `entry_level` / `exit_level` restent TCF. |
+| **Q-F6** | Le bloc désigne sa thématique par une **FK `theme_id`**. Un thème est une donnée de `themes`, pas une valeur d'enum. |
+| **Q-F7** | **Résolue par D-26.** `journey_step` et `learning_plan_observations` pointent l'**unité officielle**, dans sa table de référence de 16 lignes. **Ni `skills` généralisée, ni `civic_notions` polymorphe.** |
+
+**Pourquoi Q-F7 se résout ainsi** : les deux options de l'audit v1 cherchaient où loger **46 notions
+mouvantes**. L'unité est désormais une **table de 16 lignes stables, adossées à un arrêté**. Elle n'a
+ni à envahir `skills` (dont `chk_skills_section` et les 4 colonnes `NOT NULL` n'ont aucun sens
+civique), ni à rendre `civic_notions` polymorphe.
+
+**Les contraintes à lever, telles que l'audit v1 les a inventoriées** : **S-1** et **S-2**
+(`chk_journey_target_level`, `chk_journey_entry_level`, `chk_journey_exit_level` — bornés CECRL),
+**S-3** et **S-4** (`chk_journey_lot_exam_type`, `chk_journey_step_exam_type` — 4 valeurs TCF),
+**S-5** et **S-10** (`journey_step.skill_id` FK + `chk_journey_step_train_skill` +
+`uq_journey_step_lot_skill`), **S-8** (`chk_learning_plan_observation_source` — 9 valeurs, aucune
+civique). **S-6** (`chk_skills_section`) et **S-9** (`chk_free_entitlement_code`) **ne sont plus
+concernées** : la première par D-32-Q-F7, la seconde par D-33.
+
+**Ce qui est déjà acquis et ne bouge pas** : `journey.module` admet déjà `CIVIQUE`
+(`chk_journey_module`), `journey.status` et ses deux index **partiels** `uq_journey_en_cours` /
+`uq_journey_en_attente` sont sur `(user_id, module)` — rien à migrer.
+
+⚠️ **`E-4` s'aggrave et doit être traité** : `JourneyService.getOrCreate` est câblé `Module.TCF`
+(l. 164, 177) **et** sort à sec si `TargetProcedure.niveauVise(...)` rend `null`. Un candidat
+purement civique — CSP déclaré, aucun `target_level` CECRL — n'obtiendrait **jamais** de cycle. C'est
+le cas d'usage majoritaire du module.
+
+---
+
+### D-33 — Freemium civique : **pas de ledger**, règle simplifiée
+
+Le ledger « 1 examen de thème offert à vie » est **abandonné**. Il transposait au QCM une règle écrite
+pour les **productions IA**, qui n'a pas lieu d'être ici : **un QCM ne coûte aucun appel LLM.**
+
+| Élément | Régime |
+|---|---|
+| Diagnostic civique | **Gratuit** |
+| `civique-decouverte` (40 Q, seuil 32) | **Gratuit**, comme aujourd'hui — promesse déjà publiée et affichée, elle est tenue. ⚠️ **À rendre conforme en P8.A** comme les autres. |
+| Examens de thème | **Premium** |
+| Autres examens blancs globaux | **Premium** |
+| Travailler une unité depuis le Plan | **Premium** |
+
+- **Q-F9 : oui.** `enforceMockExamSlotAccess` est **retiré du chemin civique** — il est remplacé par la
+  règle ci-dessus, et **deux verrous sur le même bouton** sont exactement le patron qu'on cherche à
+  éviter (c'est ce qui a produit les 4 implémentations ad hoc de « première fois gratuite » que D-17 a
+  dû rassembler).
+- **Q-F8 et Q-F11 : sans objet.** Aucun code de gratuité civique n'est créé ;
+  `chk_free_entitlement_code` n'est **pas** touché, et `FreeExamEntitlementService` reste ce qu'il
+  est — le service des deux gratuités **de production**.
+- ✅ **Le Plan civique est déjà conforme à D-18** : `CivicPlanService.demarrerSerie` oppose un **403**
+  sans `hasCivique`. Rien à révoquer de ce côté, contrairement au TCF où il a fallu fermer
+  `SkillAccessService`.
+
+#### 🛑 Révocation — la spec civique §3.3
+
+**Phrases révoquées, citées verbatim.** Origine :
+`docs/progression/civique/SPEC_cycle_plan_civique.md` §3.3 « Freemium civique » :
+
+> « 1 examen blanc de thème, **une fois à vie**, au choix du candidat | ✅ »
+>
+> « Même règle de consommation que le TCF : le droit n'est consommé qu'à l'**examen terminé et
+> corrigé**. Abandon ou expiration ne consomment rien. Même ledger `free_entitlement_usage`. »
+
+**Motif** : « la même règle que le TCF » désignait la règle des **productions** (D-17 / D-17 bis), pas
+celle des QCM. Le TCF laisse ses examens QCM CO/CE sous `enforceMockExamSlotAccess` — « slot 1 offert
+**et rejouable** ». La spec civique croyait reprendre une règle QCM et appliquait une règle LLM.
+
+⚠️ **À surveiller, sans agir maintenant** : un examen complet gratuit et rejouable sans limite peut
+cannibaliser l'abonnement. On ne le restreint pas — la promesse est **publique** — mais l'usage réel
+doit être **mesuré** avant d'ouvrir le sujet.
+
+---
+
+### D-34 — Un changement de mention **ne détruit pas** le cycle : **A27 s'applique**
+
+- **A27 s'applique tel quel** : « Changer d'objectif ne détruit pas le cycle : son niveau cible est
+  mis à jour. » Ici, c'est la **mention** qui est mise à jour.
+- **Pourquoi** : la mention ne filtrant plus le contenu (D-27), **le travail fourni reste valide**.
+  Historiser détruirait un cycle que rien n'invalide.
+- ⚠️ **Mais le changement reste sans trace** : `users.target_procedure` est **écrasé**, sans table
+  d'audit, sans colonne, sans trigger. **Consigner la bascule d'objectif sur le cycle** — c'est
+  désormais la **seule** occasion de l'écrire.
+
+#### 🛑 Révocation — la spec civique §5.6
+
+**Phrase révoquée, citée verbatim.** Origine :
+`docs/progression/civique/SPEC_cycle_plan_civique.md` §5 point 6 :
+
+> « **Mention** — un changement de mention (CSP → NAT) en cours de cycle : on historise et on repart
+> sur un cycle neuf, ou on conserve le cycle et on change seulement le pool ? Recommandation :
+> **historiser**. »
+
+**Motif** : la recommandation d'historisation reposait sur « changer de mention, c'est changer de
+programme » — la conclusion de V058, révoquée par D-25. Le conflit **C-4** que l'audit v1 relevait
+entre cette recommandation et A27 **disparaît** : il n'y a plus deux règles, il n'y en a qu'une.
+
+---
+
+### D-35 — Le contenu : ce qui est produit, et ce qui ne l'est pas
+
+| # | Décision |
+|---|---|
+| **Q-F27** | **Les 11 questions de « Laïcité » manquantes sont produites** (9 → 20). C'est le **seul** contenu que l'audit identifie comme nécessaire, et il débloque la **dernière** unité où R2 échoue. |
+| **Q-F28** | `vs_urgences_secours` (15 q.) → **S2 Accès aux soins**. 🛑 **Ce n'est pas un arbitrage** : l'annexe I range explicitement « les numéros d'urgence » sous « L'accès aux soins ». |
+| **Q-F26** | **Les 108 mises en situation hors Principes et Droits restent du contenu d'entraînement**, simplement **exclues des examens blancs**. Ni retypage, ni reclassement. |
+| **Q-F12** | **Révisée.** Les mises en situation restent **sans notion de connaissance**, mais elles **deviennent une unité travaillable à part entière** dans les blocs Principes et Droits et devoirs — l'arrêté leur donne un quota au même niveau qu'une notion. Elles clôturent **leur propre étape**, et uniquement celle-là. |
+| **Q-F14** | **Les 17 questions de connaissance non taguées sont taguées à la main.** Aucun appel LLM. |
+
+**Pourquoi pas de retypage (Q-F26)** : une mise en situation **n'est pas** une question de
+connaissance — elle décrit une situation et demande la bonne conduite. Les retyper fausserait le
+diagnostic (`connaissances: 28` / `mises-en-situation: 12`) et dégraderait le stock. Et les reclasser
+vers Principes ou Droits serait une **trace fausse** : une mise en situation « vous arrivez aux
+urgences sans carte Vitale » ne devient pas un cas de laïcité parce qu'on change son `theme_id`.
+**Ce qui est faux, c'est qu'un examen blanc puisse les tirer** — la correction est dans le tirage
+(D-29), pas dans les données.
+
+#### 🛑 Révocation — la spec civique §3.1
+
+**Phrase révoquée, citée verbatim.** Origine :
+`docs/progression/civique/SPEC_cycle_plan_civique.md` §3.1 « Les mises en situation » :
+
+> « 12 des 40 questions de l'examen sont des mises en situation, **réparties sur les thèmes** — ce
+> n'est **pas** une thématique. »
+
+**Motif** : l'arrêté les place **6 en Principes et 6 en Droits et devoirs, zéro ailleurs**. Et les
+deux options que la spec proposait tombent toutes les deux : l'**option A** (« un type de question
+présent dans **chaque** bloc ») est fausse — il n'y en a pas dans 3 blocs sur 5 ; l'**option B** (« un
+6ᵉ bloc transversal ») est fausse aussi — elles appartiennent à **deux** blocs nommés. La bonne
+réponse n'était dans aucune des deux : ce sont **deux unités de deux blocs**, et c'est D-26.
+
+---
+
+### D-36 — **D-23 est levée** sur le périmètre civique ; « le plan civique reste dérivé » est maintenu
+
+**Phrase partiellement révoquée, citée verbatim.** Origine : **D-23** de ce fichier, 2026-09-18,
+tableau « Périmètre : ce qui sort du chantier », ligne « Civique » :
+
+> « **Sort du chantier.** Le moteur est livré **TCF d'abord**. Le plan civique reste dérivé (Leitner).
+> La spec §10.3 est sans objet pour cette livraison. »
+
+| Fragment | Statut |
+|---|---|
+| « Sort du chantier » | 🛑 **Levé.** La condition « TCF d'abord » est **remplie** : le chantier TCF est livré le 2026-09-19 (7 commits, `./mvnw verify` 3 048 + 1 345, 0 échec). P8 s'ouvre. |
+| « Le moteur est livré TCF d'abord » | ✅ **Tenu**, et c'est ce qui autorise la levée. |
+| « **Le plan civique reste dérivé (Leitner)** » | ✅ **MAINTENU, et c'est normatif.** Le cycle **se superpose** au plan dérivé (D-12 transposé), il ne le remplace pas. |
+
+**Ce que le maintien implique, et qui n'est pas négociable** : `CivicLeitner`,
+`CivicLeitnerResolver`, `CivicMaitrise`, `CivicPrioriteScorer`, `CivicChangementsResolver`,
+`CivicEtapeEtat` **restent**. Ils produisent six choses que rien d'autre ne produit — l'état de
+maîtrise servi (dont les deux fronts tiennent un miroir de libellés **gelés**), l'échéance de revue,
+les 5 crans de parcours, l'ordre servi du plan, le **tagging rétroactif** (toute réponse déjà donnée
+compte le jour où sa question reçoit sa notion) et l'**absence de job quotidien**.
+
+⚠️ **Seul `CivicDotation` part** (D-27), parce que c'est le seul dont la raison d'être était le filtre
+de mention.
+
+---
+
+### D-37 — Ce qui n'est **pas** rouvert au passage
+
+- **Le diagnostic civique** : préservé tel quel, configuration comprise (D-29, exigence 5).
+- **Les 46 notions internes et leurs descriptions** : valides, utiles, conservées (D-25, D-26).
+- **V058 en base** : une migration livrée ne se réécrit pas. La révocation vit dans ce journal et dans
+  `docs/regles/domaine.md`.
+- **La contradiction #1 du dépôt** : on floute l'**action**, jamais le **résultat mesuré**. Scores,
+  états et compteurs civiques restent lisibles pour un compte gratuit.
+- **`FreeExamEntitlementService` et `chk_free_entitlement_code`** : intouchés (D-33).
+- **`seuil-tagging: 0.80`** et **`questions-par-serie: 10`** : conservés (D-27).
+- **Les plafonds d'affichage** `priorites-visibles: 3` / `revisions-visibles: 3` : inchangés, et
+  jamais lus comme un budget de calcul.
+- **La page « historique des cycles »** : ⛔ **toujours bloquée**, template non fourni. Ne rien
+  concevoir. Travail autorisé en amont, et seulement après les écrans : étendre
+  `GET /api/me/plan/journey/history` au module civique — le contrat est arrêté et les deux fronts
+  codent déjà dessus.
+- **Aucun nouveau test sur les fronts** : l'invariant du `CLAUDE.md` racine s'applique.
+
+---
+
+### Ordre des phases arrêté
+
+**P8.0** (cette passe) → **Q-F30** (contrôle de couverture, D-28) → **P8.A** (conformité de l'examen
+blanc, D-29) → **P8.1** (rangement) → **P8.2** (référentiel officiel) → **P8.3** (schéma du cycle) →
+**P8.4** (moteur) → **P8.5** (freemium) → **P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les
+11 questions de Laïcité). **P8.9** (historique des cycles) : ⛔ bloquée.
+
+---
+
+### Compléments d'arbitrage — P8.0 validée, 3 points tranchés (D-38 → D-40), 2026-09-19
+
+La livraison de P8.0 laissait trois points en suspens. Le propriétaire les a tranchés dans la même
+journée. Consignés ici plutôt qu'en amendement de D-26 / D-29 / D-30 / D-28 : **ce journal
+s'ajoute, il ne se réécrit pas**.
+
+#### D-38 — Le quota par unité vit dans la **table des 16**, pas dans `CivicExamFormat`
+
+**La décision, verbatim** :
+
+> Le quota par unité vit dans la table des 16, pas dans `CivicExamFormat`. Une seule autorité, comme
+> convenu en Q-F24 : le tirage, le cycle et l'écran lisent le même objet. `CivicExamFormat` ne garde
+> que ce qui n'est pas par unité — 40 questions, seuil 32, 45 min, le partage 28/12.
+>
+> Les totaux par thématique (11/6/11/8/4) sont dérivés par **somme des quotas d'unité**, jamais
+> déclarés une seconde fois.
+
+**Ce que ça tranche** : l'annexe P8.0 §B.1 signalait que `CivicExamFormat` **et** la table étaient
+tous deux candidats, et qu'**une seule** devait porter le quota. C'est la table.
+
+| Porte le quota par unité | Ne le porte pas |
+|---|---|
+| **La table des 16 unités officielles** (`quota_examen`) | `CivicExamFormat` : 40 questions, seuil 32, 45 min, partage 28 / 12 |
+
+🛑 **Les totaux par thématique ne sont déclarés nulle part.** 11 / 6 / 11 / 8 / 4 se **dérivent** par
+somme des quotas d'unité. Les déclarer aussi en ferait une 2ᵉ copie — et un jour, l'une des deux
+aurait tort.
+
+**Les trois garde-fous, parce qu'on met de la loi dans une table** :
+
+1. 🛑 **La table est seedée par migration et n'est PAS éditable en admin.** Aucun endpoint, aucun
+   écran, aucun `AdminCivicUniteController`. Une valeur d'arrêté ne se modifie pas depuis une
+   interface.
+2. 🛑 **Un `CHECK` ou un test normatif vérifie que la somme des 16 quotas vaut 40**, et que les
+   quotas de mises en situation totalisent **12**.
+3. 🛑 **Un test verrouille les 16 lignes et leurs quotas**, avec **l'arrêté cité en commentaire**.
+
+> **Clause de repli, verbatim** : « Si ces trois garde-fous ne tiennent pas, reviens vers moi **avant
+> d'écrire la migration** — on remettra le quota en code. »
+
+⚠️ **Conséquence pour P8.A** : la phase **dépend** de la table, donc de **P8.2**. Si l'ordre des
+phases doit bouger pour ça, c'est un point à remonter, pas à arbitrer seul.
+
+#### D-39 — Ne jamais supprimer une ligne référencée par un `attempt` — **règle générale**
+
+**La décision, verbatim** :
+
+> Dépublication des Focus confirmée. Ne jamais supprimer une ligne référencée par un attempt. C'est
+> la **règle générale**, pas une exception pour ce cas.
+
+- **D-30 est confirmée** : les 11 templates « Focus » passent `is_published = false`, leurs lignes
+  restent.
+- 🛑 **Et la portée est élargie** : ce n'est pas un contournement de FK sur ce cas précis, c'est un
+  **invariant du dépôt**. Un `attempt` est l'historique d'un candidat et la source de vérité du
+  freemium ; ce qu'il référence ne peut pas disparaître sous lui. Vaut pour `exam_templates`,
+  `questions`, `themes`, `civic_notions` et la table des 16.
+- **Ce qui est déjà cohérent avec cette règle** : `civic_notions.merged_into_id` (« une notion qui
+  fusionne n'est jamais SUPPRIMÉE », V051) et `questions.is_active` (jamais de `DELETE`).
+  `GuestAttemptPurgeJob` fait exception dans l'autre sens et le dit : « un attempt rattaché à un
+  compte est l'historique du candidat […] il ne doit pouvoir être emporté par aucune passe de purge,
+  même sur une liste d'ids fausse ».
+- 🛑 **La bonne mécanique est donc toujours la désactivation**, jamais le `DELETE` : `is_published`,
+  `is_active`, ou une colonne de retrait dédiée.
+
+#### D-40 — Q-F30 : le **recouvrement d'abord**, le rattachement seulement s'il sert
+
+**La décision, verbatim** :
+
+> Pas d'appel LLM, et l'étape 3 n'est probablement pas nécessaire. La question décisive de Q-F30
+> est : les trois listes publiques se recouvrent-elles, ou portent-elles des contenus distincts ?
+> Elle se répond par comparaison des énoncés entre les trois listes, **sans rattacher quoi que ce
+> soit aux 16 unités**. Inverse donc l'ordre :
+>
+> - d'abord le **recouvrement** entre CSP, CR et NAT — c'est ce qui décide si l'examen blanc se
+>   compose par mention ;
+> - ensuite seulement, **et seulement si c'est utile**, la couverture du stock SejourFR par unité.
+>
+> Le rattachement fin au grain de l'unité est le poste coûteux que tu as identifié ; il ne doit pas
+> être payé pour répondre à une question qui n'en a pas besoin. Si le recouvrement se mesure mal par
+> comparaison directe, **remonte le problème avec un chiffre** avant de proposer un LLM.
+
+**Le nouvel ordre de Q-F30** :
+
+| # | Étape | Conditionnelle ? |
+|---|---|---|
+| 1 | Extraire les 3 listes (énoncé, thématique de publication, liste d'origine) | non |
+| 2 | **Mesurer le recouvrement** entre CSP, CR et NAT par comparaison directe des énoncés | non — **c'est le livrable décisif** |
+| **STOP** | Le résultat décide si l'examen blanc se compose par mention (D-28) | — |
+| 3 | Couverture du stock SejourFR par unité officielle | ⚠️ **seulement si elle sert encore** |
+
+🛑 **Ce qui est interdit** : payer le rattachement fin aux 16 unités pour répondre à une question qui
+n'en a pas besoin. Et 🛑 **aucun appel LLM**, ni à l'étape 2, ni à l'étape 3 : si la comparaison
+directe échoue, on **remonte le problème avec un chiffre** — combien d'énoncés ne s'apparient pas, et
+pourquoi — avant de proposer quoi que ce soit de payant.
+
+**Ce que ça préserve de D-28** : dans les deux cas, l'entraînement et le cycle restent **sans
+filtre**. Seule la composition de l'**examen blanc** dépend du résultat.
