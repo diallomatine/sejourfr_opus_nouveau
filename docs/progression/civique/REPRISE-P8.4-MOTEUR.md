@@ -57,7 +57,9 @@ chk_journey_assessment_epreuve_mesuree  CHECK ((assessment_kind = 'QUICK_DIAGNOS
 Un examen civique porte `EpreuveType.CIVIQUE` ou une thématique — les deux `CHECK` le rejettent.
 ⚠️ **Et l'échec serait SILENCIEUX** : `porterAuParcours` avale l'exception
 (`AttemptInteractionService`, `catch (RuntimeException echec) { log.warn(...) }`). Le même piège a
-déjà mordu une fois, avec `TCF_STRUCTURE` — le commentaire sur place le raconte.
+déjà mordu une fois, avec `TCF_STRUCTURE` — le commentaire sur place le raconte. 🛑 2ᵉ occurrence,
+donc **dette nommée** : `DETTE-M1` dans `docs/decisions/plan-parcours-tcf.md`, **à traiter dans cette
+passe** — au minimum rendre l'échec détectable autrement que par l'absence de cycle.
 
 **Forme probable**, à valider : `theme_id` sur `journey_assessment_event`, `exam_type` nullable, un
 `CHECK` d'exclusivité — **exactement le patron de V069**. Plus l'adaptation de
@@ -66,23 +68,36 @@ rapide » et vaudrait faux pour un examen civique.
 
 🛑 **Prochain numéro libre : `V071`** (`00_schema/`). Contenu civique : `V299` (`200_civique/`).
 
-### 2. `JourneyService.getOrCreate` — câblé `Module.TCF`
+### 2. `JourneyService.getOrCreate` — câblé `Module.TCF`, et son objectif est un `TargetLevel`
 
 **En place** : rien de civique.
 **Manque** :
 
 ```java
-// JourneyService, ~l.156-182
-journeyManager.find(userId, Module.TCF, JourneyStatus.EN_COURS)   // ← en dur
-journey.setModule(Module.TCF);                                     // ← en dur
-TargetLevel cible = TargetProcedure.niveauVise(...);
-if (cible == null) return Optional.empty();                        // ← sort à sec
+// JourneyService.getOrCreate, ~l.156-182
+TargetLevel cible = TargetProcedure.niveauVise(
+        user.getTargetProcedure(), user.getTargetLevel());
+if (cible == null) return Optional.empty();                        // ← D-3, correct
+journeyManager.find(userId, Module.TCF, JourneyStatus.EN_COURS)     // ← 🛑 en dur
+journey.setTargetLevel(cible);                                     // ← 🛑 inutilisable tel quel
+journey.setModule(Module.TCF);                                     // ← 🛑 en dur
 ```
 
-🛑 **Le troisième point est le piège** : un candidat **purement civique** (CSP déclaré, aucun
-`target_level`) n'obtient **jamais** de cycle. C'est le cas d'usage majoritaire du module.
-L'objectif civique est `target_procedure`, et `chk_journey_objectif` (V069) exige **exactement un**
-des deux.
+⚠️ **CORRECTION du 2026-09-19** — la première écriture de cette note disait qu'un candidat
+**purement civique** (CSP déclaré, aucun `target_level`) « sortait à sec ». **C'est faux**, et la
+lecture exacte change ce que la passe moteur doit écrire :
+
+- `TargetProcedure.niveauVise(CSP, null)` rend **`A2`**, pas `null` — c'est le **plancher** de la
+  procédure (`TargetProcedure.java`, ~l.98-103). `cible == null` n'arrive donc que si le candidat
+  n'a **ni** procédure **ni** niveau déclaré : c'est **D-3**, et c'est le bon comportement.
+- Le vrai défaut est ailleurs : ce candidat obtient un cycle **`Module.TCF` à `A2`**, amorcé sur ses
+  observations TCF — défendable en soi (déclarer CSP implique l'A2) — et **jamais** de cycle
+  civique, puisque les deux `Module.TCF` sont en dur.
+
+🛑 **Le piège réel, et il est de forme** : `chk_journey_objectif` (V069) exige **exactement un** de
+`target_level` / `target_procedure`. Un cycle civique porte donc `target_procedure` et **laisse
+`target_level` NULL** — la ligne `setTargetLevel(cible)` ne se réutilise pas, et l'objectif civique
+ne se dérive **pas** de `niveauVise`, qui ne parle que de français.
 
 **Décision à prendre** : `getOrCreate(userId)` devient `getOrCreate(userId, Module)`, ou deux
 méthodes. ⚠️ Vérifier **tous les appelants** avant de choisir : `grep -rn "getOrCreate" src/main`.
@@ -116,9 +131,11 @@ sur l'enum. L'appelant (`JourneyReadService`) la fournit selon le module.
 civique** : `CivicDiagnosticResultDto.priorites()` donne des thématiques faibles, et il faut en
 dériver des **unités officielles** de ces thématiques.
 
-⚠️ **Point non tranché** : quelles unités d'une thématique faible deviennent priorités, et dans
-quel ordre ? Le plan dérivé a déjà un ordre (`CivicPrioriteScorer`) — **le lire** plutôt que d'en
-créer un second (D-36 : le cycle se superpose).
+⚠️ **Point non tranché** : quelles unités d'une thématique faible deviennent priorités ?
+
+✅ **Tranché par avance sur l'ORDRE** (propriétaire, 2026-09-19) : **lire l'ordre existant** de
+`CivicPrioriteScorer`. S'il ne convient pas, **le remonter** — ne pas en créer un second au motif
+qu'il serait meilleur (D-36 : le cycle se superpose au plan dérivé).
 
 ### 5. L'écrivain d'observation civique — **le cœur de D-49**
 
@@ -198,9 +215,15 @@ quand même** pour l'examen de thème **et** pour l'examen global : les deux pas
 4. **Un `CHECK` ne peut pas agréger** (`cannot use subquery in check constraint`) ni **traverser
    vers la table parente**. D'où la forme `(A IS NOT NULL) <> (B IS NOT NULL)`.
 5. **`porterAuParcours` avale ses exceptions** : une contrainte oubliée échoue **en silence**.
-   Vérifier en base, pas au vert des tests.
+   Vérifier en base, pas au vert des tests. 🛑 C'est **`DETTE-M1`** (`docs/decisions/plan-parcours-tcf.md`),
+   nommée parce que c'est la 2ᵉ occurrence — **à traiter dans cette passe moteur**.
 6. **Les tests du plan civique supposent un corpus non tagué** : `remettreLeCorpusANonTague()`
    existe dans `CivicPlanServiceIT` et `CivicPlanNotionParcoursIT`.
+7. 🛑 **Aucune fixture ne sait construire un cycle civique.** `TestData.journey(...)` pose
+   **toujours** un `TargetLevel` (`TestData.java` ~l.1286-1307) et `setTargetProcedure` n'y apparaît
+   **jamais** — or `chk_journey_objectif` interdit les deux à la fois. Aucun test existant ne peut
+   donc voir les câblages du point 2 : **la fabrique vient avant le moteur**, sinon le premier test
+   civique échouera sur la contrainte et non sur la logique visée.
 
 ---
 
@@ -210,8 +233,10 @@ Un **parcours civique joué de bout en bout côté serveur** : amorce, blocs, ex
 cycle, historisation. C'est un IT, pas une capture d'écran — les écrans se jugent à l'œil, donc en
 P8.7.
 
-**Plus** la liste des décisions prises seul, à consigner à la suite de **A46** dans
-`docs/decisions-autonomes-parcours-tcf.md`. ⚠️ Les **8 de la passe précédente** y sont encore à
-écrire : le bloc servi, le label servi, `journeyBlocMark` vide pour une thématique,
-`SkillMasteryEngine` qui lève, les deux sources civiques, l'index jumeau, une violation par test,
-et le test de S-8 qui change de sens.
+**Plus** la liste des décisions prises seul, à consigner à la suite de la dernière entrée de
+`docs/decisions-autonomes-parcours-tcf.md`.
+
+✅ Les **8 des deux premières lancées y sont écrites** : **A47 → A54** (le bloc servi, le label
+servi, `journeyBlocMark` vide pour une thématique, `SkillMasteryEngine` qui lève, les deux sources
+civiques, les index jumeaux, une violation par test, le test de S-8 qui change de sens). La passe
+moteur reprend donc la numérotation à **A55**.

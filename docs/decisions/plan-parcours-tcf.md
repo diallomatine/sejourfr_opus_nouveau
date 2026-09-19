@@ -2020,3 +2020,48 @@ avec un classement interne, les deux sont des autorités distinctes sur des ques
 Côté TCF le cas existe déjà, résolu autrement : `TCF_STRUCTURE` est du **corpus** SejourFR et n'est
 dans **aucun** programme — le backend l'exclut de l'examen blanc, du Plan et du diagnostic, et les
 fronts le rangent sous « Renforcer mon français ».
+
+---
+
+# 2026-09-19 — Fin de la lancée 2 : une dette nommée, et où reprendre
+
+## 🛑 Où lire l'état du moteur civique
+
+**`docs/progression/civique/REPRISE-P8.4-MOTEUR.md`** — écrit à contexte frais après le commit
+`6e90faf7`. Ce n'est **pas un plan** : pour chacun des 9 points restants de P8.4, il dit ce qui est
+**déjà en place** et ce qui **manque**, avec le fichier et la ligne, plus les 7 pièges déjà payés.
+**Son point 1 est un arrêt** : une migration `V071` est nécessaire avant toute ligne de moteur.
+
+Les décisions prises seul pendant les deux lancées sont consignées en **A47 → A54**
+(`docs/decisions-autonomes-parcours-tcf.md`).
+
+---
+
+### DETTE-M1 (2026-09-19) — 🛑 **un échec avalé sur un chemin dont la panne est invisible en aval**
+
+**Nommée par le propriétaire**, sur la 2ᵉ occurrence du même piège.
+
+**Le fait.** `AttemptInteractionService` (~l. 485-500) enveloppe l'écriture des observations **et**
+`porterAuParcours(...)` dans un `try` dont le `catch (RuntimeException)` ne fait que
+`log.warn(...)`. Quand une contrainte de base rejette l'évaluation — ce que
+`chk_journey_assessment_exam_type` et `chk_journey_assessment_epreuve_mesuree` feront pour toute
+évaluation civique tant que `V071` n'existe pas —, le symptôme n'est **pas** une erreur : c'est
+« le cycle ne se remplit jamais ». Aucun test rouge, aucune alerte, aucune trace côté candidat.
+
+**Pourquoi le `catch` est là, et pourquoi il reste pour l'instant.** `porterAuParcours` est appelé
+depuis un chemin **candidat** : une soumission de réponse ne doit pas échouer parce que le parcours
+n'a pas pu se mettre à jour. Le `catch` protège la bonne chose. Ce n'est pas lui le défaut.
+
+**Le défaut.** *Un `catch` qui journalise en `warn` sur un chemin dont l'échec est invisible en aval
+n'est pas de la robustesse — c'est une panne différée.* Le même piège a déjà mordu une fois, avec
+`TCF_STRUCTURE` (le commentaire sur place le raconte). Deux occurrences ⇒ ce n'est plus un accident.
+
+**Ce qu'il faut au minimum**, sans toucher au `catch` : que l'échec soit **détectable autrement que
+par l'absence de cycle**. Une piste, à instruire dans la passe moteur : distinguer l'échec
+*attendu* (rien à porter) de l'échec *anormal* (une contrainte a refusé), et faire du second un
+signal lisible — `log.error` avec la contrainte nommée au minimum, un compteur ou une colonne de
+dernier échec si l'on veut pouvoir l'interroger.
+
+🛑 **À traiter dans la passe moteur, pas avant.** Le corollaire s'applique dès maintenant :
+**toute** contrainte civique ajoutée à `journey_assessment_event` se vérifie **en base**, pas au
+vert des tests.

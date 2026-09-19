@@ -741,3 +741,115 @@ le cycle. Le CTA de la carte (« Débloquer cet entraînement ») prend donc la 
 périmètre : l'**Accueil** ne nomme jamais une étape verrouillée (règle antérieure), donc un
 compte gratuit y voit une carte générique **sans geste**. À rouvrir ou non — l'Accueil est
 hors périmètre (D-22).
+
+---
+
+# 2026-09-19 — Chantier du CYCLE CIVIQUE : décisions prises en autonomie (A47 → A54)
+
+> Arbitrages du propriétaire : `docs/decisions/plan-parcours-tcf.md` **D-25 → D-49**, plus la règle
+> générale **D-48**. Ce qui suit est ce que **personne n'a tranché** et qu'il a fallu décider pour
+> livrer la lancée 1 (P8.0 → P8.2a, P8.A) et la lancée 2 (P8.3, contrat servi de P8.4).
+>
+> ⚠️ **Le moteur du cycle civique n'est PAS livré.** État de ce qui reste :
+> `docs/progression/civique/REPRISE-P8.4-MOTEUR.md`.
+
+### A47 — Le bloc du cycle devient **servi**, plutôt qu'`examType` + un branchement par front
+
+**Le problème.** `JourneyStepDto` et `JourneyBlocDto` portaient `examType: EpreuveType`, lu par les
+deux fronts. Un bloc civique n'a pas d'`EpreuveType` : sa nature est une **thématique**, qui est une
+**donnée** de `themes` et non une valeur d'enum.
+
+**La décision.** Un objet servi `JourneyBlocRefDto { kind, code, label }` — `kind` ∈
+`{EPREUVE, THEMATIQUE}` — remplace `examType` sur les deux DTO.
+
+**Motif.** La voie écartée était `examType` **+** `themeCode`, chaque front branchant sur le module.
+C'est exactement le geste que la doctrine du dépôt interdit : « aucun front ne classe », « l'état,
+son libellé et son ton arrivent servis ». Deux fronts qui branchent finissent par afficher deux
+choses différentes, et la parité D-21 (transposée par D-47) devient invérifiable.
+
+**Si l'arbitrage était autre** : le champ à rétablir est un `examType` nullable **plus** un
+`themeCode` nullable, et les deux fronts reprennent une table de libellés. Le changement est borné —
+`JourneyBlocRefDto` a **un** producteur (`JourneyBlocResolver`) et les accesseurs d'entité.
+
+### A48 — Le **libellé** du bloc est servi, et c'est la nouveauté
+
+`label` arrive du serveur. Les miroirs gelés (`lib/tcf-epreuves.ts` ⇄ `core/utils/tcf_epreuves.dart`,
+`EpreuveType.displayLabel`) **restent** pour leurs autres emplois : l'écran du cycle, lui, lit ce
+label-ci. C'est ce qui garantit qu'une thématique civique et une épreuve TCF s'affichent par le
+**même chemin** — un nom de thématique est une donnée éditable en base, qu'aucun front ne peut
+connaître à la compilation.
+
+### A49 — Une thématique **n'a pas d'initiale**, et `journeyBlocMark` rend une chaîne vide
+
+**Le constat.** L'initiale à deux lettres (`CO`, `CE`, `EE`, `EO`) n'existe que pour une épreuve.
+« Principes et valeurs de la République » ne se réduit pas à deux lettres.
+
+**La décision.** `journeyBlocMark(bloc)` rend `""` pour un bloc `THEMATIQUE`, et c'est au **kit** de
+savoir afficher un en-tête de bloc sans initiale.
+
+**Motif.** En inventer une (« PR », « HG ») serait un libellé **fabriqué par le front**, invisible de
+l'admin et impossible à corriger sans livrer les deux apps. ⚠️ **Conséquence assumée** : la brique
+d'en-tête sans initiale **manque dans les deux kits** — c'est P8.6, et jusque-là aucun écran ne rend
+un bloc civique.
+
+### A50 — `SkillMasteryEngine.poidsSource` **lève** sur une source civique, il n'invente pas un poids
+
+**Le problème.** L'ajout de `CIVIQUE_SERIE` / `CIVIQUE_EXAMEN` à `LearningPlanSourceType` a rendu le
+`switch` des poids non exhaustif.
+
+**La décision.** Il **lève** (`IllegalArgumentException`), plutôt que de rendre un poids par défaut.
+
+**Motif.** Le moteur de maîtrise mesure des **compétences TCF** ; une observation civique porte une
+**unité officielle** et aucun `skill_id`. Un poids inventé produirait une maîtrise de compétence à
+partir d'une mesure qui ne la concerne pas — la famille de bugs de V040/V041/V042 (« une absence de
+mesure devient un verdict »). Lever fait du passage accidentel un échec **bruyant** au premier test.
+
+**Si l'arbitrage était autre** : ce n'est pas le poids qu'il faudrait changer, c'est le fait qu'une
+observation civique n'entre pas dans ce moteur — donc `docs/regles/plan.md`, pas cette ligne.
+
+### A51 — **Deux** sources civiques, pas une seule avec un drapeau
+
+`LearningPlanSourceType` reçoit `CIVIQUE_SERIE` **et** `CIVIQUE_EXAMEN`.
+
+**Motif.** La distinction est déjà **opposable** : `JourneyEvaluationFilter` lit
+`CIVIQUE_SERIE → false` / `CIVIQUE_EXAMEN → true` (R3 — une série gratuite n'évalue pas). Une seule
+valeur plus un booléen ailleurs mettrait cette règle à deux endroits, et `isCivique()` / `mesure()`
+la rendent lisible d'une ligne. Le coût est un `switch` de plus à compléter, et c'est **voulu** :
+c'est lui qui a fait apparaître A50.
+
+### A52 — Tout index unique portant une colonne devenue **nullable** reçoit un **jumeau partiel**
+
+**Le problème.** Postgres traite deux `NULL` comme **distincts** dans un index unique. Rendre
+`skill_id` nullable (V070) ou ajouter `theme_id` à côté d'`exam_type` (V069) désarme donc
+silencieusement l'unicité sur la moitié civique : deux observations de la **même** unité, ou deux
+lots ouverts sur la **même** thématique, passeraient.
+
+**La décision.** Trois index jumeaux partiels : `uq_learning_plan_observation_source_unite` (V070),
+`uq_journey_lot_open_par_theme` et `uq_journey_step_lot_unite` (V069).
+
+**Motif.** L'alternative — un `COALESCE(skill_id, official_unit_id)` dans un index d'expression —
+fusionnerait deux espaces d'identifiants distincts, et une collision d'UUID entre les deux tables
+serait un bug indétectable. Deux index disent ce qu'ils gardent.
+
+### A53 — **Une violation de contrainte par méthode de test**, jamais deux
+
+Un statement en échec **aborte** la transaction Postgres (`25P02`) : le second `assertThatThrownBy`
+d'une même méthode échoue alors sur « current transaction is aborted », **pas** sur la contrainte
+visée — un test qui passe pour la mauvaise raison. Les tests de schéma civique comptent donc
+**12 méthodes** là où 8 auraient suffi à couvrir les cas. ⚠️ À connaître avant de « regrouper les
+assertions » dans un `*SchemaIT`.
+
+### A54 — Le test de **S-8** change de SENS plutôt que d'être supprimé
+
+**Le constat.** `CycleCiviqueSchemaIT` vérifiait l'**absence** de `official_unit_id` sur
+`learning_plan_observations` : V069 refusait de la poser parce que ç'aurait **pré-décidé E-2**, et
+qu'une colonne morte dans une migration livrée est définitive.
+
+**La décision.** L'arbitrage a eu lieu (**D-49**), V070 a posé la colonne, et le test **inverse son
+assertion** au lieu de disparaître : il fige que S-8 est **levé**, et son commentaire dit dans quel
+**ordre** (arbitrage, puis migration).
+
+**Motif.** Un test supprimé n'apprend plus rien ; celui-ci porte la seule chose qu'un relecteur
+voudra vérifier ici — que la colonne n'a pas précédé la décision. C'est aussi ce que le propriétaire
+a appelé « la meilleure décision de cette passe » : sortir `learning_plan_observations` du périmètre
+de V069, **reporté et non oublié**, la note vivant dans l'en-tête de V069.
