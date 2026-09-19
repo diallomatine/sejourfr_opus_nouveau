@@ -203,8 +203,11 @@ public class CivicPlanService {
         // 🛑 Charges UNE fois, pas une fois par theme. Ce sont des lectures de
         // catalogue : les repeter par theme multiplierait le cout par cinq sans
         // rien changer au resultat.
-        Map<UUID, Long> dotationNotions = planManager.questionsParNotion(mention);
-        Map<UUID, Long> dotationThemes = planManager.questionsParTheme(mention);
+        // ⚠️ P8.2b : plus de filtre de mention. Ces comptes restent utiles au
+        // GRAIN du plan derive (combien une cible peut servir), mais ils ne
+        // DECIDENT plus rien -- `CivicDotation` a disparu avec le filtre.
+        Map<UUID, Long> stockParNotion = planManager.questionsParNotion();
+        Map<UUID, Long> stockParTheme = planManager.questionsParTheme();
         List<CivicNotion> notions = notionManager.findAllOrdonnees();
         Map<UUID, List<CivicReponse>> reponsesParNotion = grouperParNotion(reponses);
 
@@ -220,7 +223,7 @@ public class CivicPlanService {
 
             if (grainDuTheme(taggage.get(theme.getId())) == CivicPlanGrain.NOTION) {
                 List<CivicPlanDto.Cible> duTheme = ciblesNotions(theme, etatDuTheme,
-                        notions, dotationNotions, reponsesParNotion, maintenant, abonne);
+                        notions, stockParNotion, reponsesParNotion, maintenant, abonne);
                 cibles.addAll(duTheme);
                 for (CivicPlanDto.Cible cible : duTheme) {
                     reponsesParCible.put(cible.id(),
@@ -228,7 +231,7 @@ public class CivicPlanService {
                 }
             } else {
                 CivicPlanDto.Cible cible = cibleTheme(theme, etatDuTheme,
-                        pointeParLeDiagnostic, dotationThemes, reponses, maintenant, abonne);
+                        pointeParLeDiagnostic, stockParTheme, reponses, maintenant, abonne);
                 cibles.add(cible);
                 reponsesParCible.put(cible.id(), reponses.stream()
                         .filter(r -> theme.getId().equals(r.themeId()))
@@ -263,22 +266,19 @@ public class CivicPlanService {
         List<CivicPlanDto.Cible> aRevoir = cibles.stream()
                 .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
                 .filter(CivicPlanDto.Cible::aRevoir)
-                .filter(c -> c.dotation().estServable())
                 .sorted(Comparator.comparing(
                         CivicPlanDto.Cible::prochaineRevue,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .limit(props.getRevisionsVisibles())
                 .toList();
 
-        // 🛑 `solides` se filtre par dotation comme `priorites` et `aRevoir`.
-        // Une cible maitrisee puis devenue non servable — le candidat change de
-        // `targetProcedure`, et la notion n'a plus de question dans sa nouvelle
-        // mention — s'affichait comme un acquis. Le plan annoncait donc un
-        // acquis sur un point qu'il ne sait plus enseigner.
+        // ⚠️ Le filtre par dotation a disparu avec P8.2b, et le cas qu'il
+        // protegeait AUSSI : « une cible maitrisee puis devenue non servable
+        // parce que le candidat change de mention » ne peut plus exister --
+        // la mention ne filtre plus rien.
         List<CivicPlanDto.Cible> solides = cibles.stream()
                 .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
                 .filter(c -> !c.aRevoir())
-                .filter(c -> c.dotation().estServable())
                 .toList();
 
         CivicPlanDto.Cible prochaine = prochaine(proposables);
@@ -291,7 +291,6 @@ public class CivicPlanService {
         // le candidat lisait un progres sur un point qu'il ne peut pas
         // travailler, et sur lequel il ne peut pas revenir.
         List<CivicPlanDto.Cible> servables = cibles.stream()
-                .filter(c -> c.dotation().estServable())
                 .toList();
         CivicPlanDto.Changements changements = changementsResolver
                 .resoudre(servables, calcul.reponsesParCible(), prochaine,
@@ -329,7 +328,6 @@ public class CivicPlanService {
      */
     private static List<CivicPlanDto.Cible> proposables(List<CivicPlanDto.Cible> cibles) {
         return cibles.stream()
-                .filter(c -> c.dotation().estServable())
                 .filter(c -> c.maitrise() != CivicMaitrise.MAITRISEE)
                 .toList();
     }
@@ -362,7 +360,6 @@ public class CivicPlanService {
             Calcul calcul, CivicPlanDto.Cible prochaine) {
         Map<UUID, List<CivicPlanDto.Cible>> parTheme = new LinkedHashMap<>();
         for (CivicPlanDto.Cible cible : calcul.cibles()) {
-            if (!cible.dotation().estServable()) continue;
             parTheme.computeIfAbsent(cible.themeId(), k -> new ArrayList<>()).add(cible);
         }
 
@@ -515,19 +512,18 @@ public class CivicPlanService {
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException(
                         "Cette cible ne fait pas partie de votre plan."));
-        if (!cible.dotation().estServable()) {
-            throw new BusinessException(
-                    "Aucune question disponible sur ce point pour votre démarche.");
-        }
+        // ⚠️ P8.2b : le pre-controle de dotation a disparu avec `CivicDotation`.
+        // Le tirage vide juste en dessous DIT la meme chose, et il la dit sur ce
+        // que la base contient VRAIMENT -- pas sur un compte fait ailleurs.
 
         UUID notionId = cible.grain() == CivicPlanGrain.NOTION ? cibleId : null;
         UUID themeId = cible.grain() == CivicPlanGrain.THEME ? cibleId : null;
         List<UUID> ids = planManager.tirageSerieCiblee(
-                userId, mention, notionId, themeId, props.getQuestionsParSerie());
+                userId, notionId, themeId, props.getQuestionsParSerie());
         if (ids.isEmpty()) {
-            // 🛑 Le plan ne propose jamais une cible qui ne soit pas SERVABLE :
-            // arriver ici veut dire que le catalogue a bouge entre l'affichage
-            // et le clic. On le DIT, on ne rend pas une serie vide.
+            // Arriver ici veut dire que le catalogue a bouge entre l'affichage
+            // et le clic -- ou qu'une cible n'a plus aucune question. On le DIT,
+            // on ne rend jamais une serie vide.
             throw new BusinessException(
                     "Aucune question disponible sur ce point pour votre démarche.");
         }
@@ -606,21 +602,16 @@ public class CivicPlanService {
             CivicEtatCible etat = leitnerResolver.resoudre(
                     parNotion.getOrDefault(notion.getId(), List.of()),
                     CivicPrioriteScorer.FENETRE_REPETEE, maintenant);
-            // 🛑 UNE SEULE derivation, chez l'enum : le plan ne recompare pas
-            // un compte a un seuil.
-            CivicDotation dotation = CivicDotation.depuis(
-                    questionsParNotion.getOrDefault(notion.getId(), 0L),
-                    props.getQuestionsMinParNotion());
-
             // 🛑 Au grain notion, le diagnostic n'a rien pointe : il mesure des
             // THEMES. Le signal du diagnostic passe donc par le poids du theme,
             // et pas une seconde fois par un « pointee par le diagnostic » qui
             // le compterait deux fois pour toutes les notions d'un theme faible.
-            int score = scorer.score(etat, etatDuTheme, false, dotation, maintenant);
+            int score = scorer.score(etat, etatDuTheme, false, maintenant);
 
             out.add(cible(notion.getId(), notion.getCode(), notion.getLabel(),
                     CivicPlanGrain.NOTION, theme, etatDuTheme, etat, score,
-                    dotation, abonne, maintenant));
+                    questionsParNotion.getOrDefault(notion.getId(), 0L),
+                    abonne, maintenant));
         }
         return out;
     }
@@ -646,24 +637,27 @@ public class CivicPlanService {
         // peut qu'ABAISSER.
         etat = rabattre(etat);
 
-        // 🛑 Le seuil du grain THEME reste `questionsParSerie`, pas
-        // `questionsMinParNotion` : ce qu'on proposerait la, c'est une serie
-        // entiere, et une cible qui ne peut pas la remplir n'est pas servable.
-        CivicDotation dotation = CivicDotation.depuis(
-                questionsParTheme.getOrDefault(theme.getId(), 0L),
-                props.getQuestionsParSerie());
-        int score = scorer.score(
-                etat, etatDuTheme, pointeParLeDiagnostic, dotation, maintenant);
+        int score = scorer.score(etat, etatDuTheme, pointeParLeDiagnostic, maintenant);
 
         return cible(theme.getId(), theme.getCode(), theme.getName(),
                 CivicPlanGrain.THEME, theme, etatDuTheme, etat, score,
-                dotation, abonne, maintenant);
+                questionsParTheme.getOrDefault(theme.getId(), 0L),
+                abonne, maintenant);
     }
 
+    /**
+     * @param stock le nombre de questions que cette cible peut REELLEMENT
+     *              servir. 🛑 Il <b>borne</b> la serie : depuis P8.2b, la taille
+     *              annoncee est {@code min(questionsParSerie, stock)} et non
+     *              plus le quota nu. Le plan ne promet donc plus une serie de 10
+     *              sur une cible qui n'en a que 8 ({@code DETTE-C1}).
+     */
     private CivicPlanDto.Cible cible(
             UUID id, String code, String label, CivicPlanGrain grain,
             Theme theme, CivicThemeState etatDuTheme, CivicEtatCible etat,
-            int score, CivicDotation dotation, boolean abonne, Instant maintenant) {
+            int score, long stock, boolean abonne, Instant maintenant) {
+
+        int questionsSerie = (int) Math.min(props.getQuestionsParSerie(), stock);
 
         return new CivicPlanDto.Cible(
                 id, code, label, grain,
@@ -675,9 +669,9 @@ public class CivicPlanService {
                 etat.reponses(), etat.correctes(),
                 etat.erreursRecentes(), etat.derniereErreur(), etat.prochaineRevue(),
                 etat.aRevoir(maintenant),
-                score, dotation,
-                props.getQuestionsParSerie(),
-                props.getQuestionsParSerie() * props.getSecondesParQuestion(),
+                score,
+                questionsSerie,
+                questionsSerie * props.getSecondesParQuestion(),
                 // 🛑 Le verrou porte sur l'ACTION, jamais sur le constat : les
                 // priorites restent entierement lisibles pour un compte gratuit
                 // (20_ §6, variante non abonne).

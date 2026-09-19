@@ -2366,3 +2366,47 @@ ne se fait pas dans une passe qui parle d'autre chose.
 🛑 **Et la leçon de méthode** : ce test passait **par chance**, parce qu'il dépendait de la cible que
 le plan classait première. Un test dont le résultat dépend d'un **choix du moteur** qu'il ne fixe pas
 lui-même est un test qui dormira jusqu'au jour où le moteur changera d'avis.
+
+---
+
+### D-53 (2026-09-20) — **P8.2b : le filtre de mention est retiré**, et `DETTE-C1` se ferme
+
+**Remontée dans l'ordre par le propriétaire** : « un filtre qu'on a décidé de retirer le 19 n'a pas
+de raison de survivre trois phases de plus — chaque passe qui passe dessus doit le contourner. »
+
+#### Ce qui disparaît
+
+| Objet | Sort |
+|---|---|
+| `q.difficulty = :mention` dans les **3 requêtes** du plan (dotation notion, dotation thème, tirage de série) | **retiré** |
+| `CivicDotation` (enum + son test + le champ **servi**) | **supprimé** |
+| `questions-min-par-notion: 5` (yaml + POJO) | **supprimé** |
+| Le malus **−10** du scorer | **supprimé** |
+| 6 tests qui figeaient ces règles | **supprimés**, avec le motif écrit sur place |
+
+🛑 **Aucune migration** : `difficulty` reste en base comme **métadonnée éditoriale** — elle dit de
+quelle campagne vient une question, et l'admin continue de la voir. Le retour arrière est un
+changement de code, pas un `DROP`.
+
+#### Ce qui change pour le candidat
+
+**`DETTE-C1` est fermée**, et pas en déplaçant le problème : `questionsSerie` vaut désormais
+`min(questionsParSerie, stock réel de la cible)`. Le plan ne peut plus **promettre dix questions et
+en servir huit** — la borne est posée **à la source**, là où le nombre est fabriqué.
+
+⚠️ **Une notion « hors programme » n'existe plus.** Le cas mesuré par V058 — « Devenir français » :
+10 questions en NAT, zéro en CSP — était le cœur de `NON_APPLICABLE`. Sans filtre, ces 10 questions
+sont jouables par tout le monde. C'est exactement ce que D-27 a tranché : **le clivage était dans
+l'étiquetage, pas dans le contenu** (15 questions sur 976 citent une démarche, **aucune n'est
+exclusive**).
+
+#### ⚠️ Deux tests dormaient, et le même défaut les a réveillés
+
+En plus de `serieCibleeAbonne` (`DETTE-C1`), **deux autres** assertions de
+`CivicPlanNotionParcoursIT` lisaient `plan.priorites()` — **plafonnée à trois**. Avec plus de cibles
+en lice, la cible attendue est sortie du trio et les tests sont passés au rouge **sans qu'aucune
+règle n'ait bougé**.
+
+⇒ Ils lisent désormais la liste **non plafonnée** (`ordrePourLeCycle`), et la règle générale est
+écrite dans `docs/plan-tests-backend.md` : **un test ne dépend jamais d'un choix du moteur qu'il ne
+fixe pas lui-même**. Trois occurrences en deux jours, toutes dans le même fichier de plan civique.

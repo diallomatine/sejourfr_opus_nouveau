@@ -52,33 +52,6 @@ enum CivicMaitrise {
       .firstWhere((e) => e.wire == value, orElse: () => CivicMaitrise.nonEvaluee);
 }
 
-/// Ce que le catalogue offre sur une cible, **pour la mention du candidat**.
-///
-/// 🛑 **Trois états, pas deux**, et la différence est éditoriale : CSP, CR et
-/// NAT ne sont pas trois niveaux du même programme, ce sont trois programmes
-/// différents. [nonApplicable] (zéro question) dit que la notion **n'est pas au
-/// programme de cette démarche** ; [contenuInsuffisant] (1 à 4) qu'elle y est
-/// mais qu'il manque de la matière.
-///
-/// 🛑 **Servi, jamais dérivé** — aucun front ne compare un compte à un seuil, et
-/// aucun ne fabrique un libellé pour ces états : si un écran doit un jour les
-/// **dire**, la phrase arrive servie.
-enum CivicDotation {
-  servable('SERVABLE'),
-  contenuInsuffisant('CONTENU_INSUFFISANT'),
-  nonApplicable('NON_APPLICABLE');
-
-  const CivicDotation(this.wire);
-
-  final String wire;
-
-  /// Une cible **servie** est, par construction, servable : le plan écarte les
-  /// deux autres états. Un fil inconnu se lit donc ainsi, plutôt que d'inventer
-  /// un manque sur une cible que le serveur a bel et bien proposée.
-  static CivicDotation fromWire(String value) => CivicDotation.values
-      .firstWhere((e) => e.wire == value, orElse: () => CivicDotation.servable);
-}
-
 /// Le **grain** auquel le plan travaille (`20_` §3.3).
 ///
 /// 🛑 Il se **mesure**, il ne se décrète pas. Tant que les questions ne sont pas
@@ -174,7 +147,6 @@ class CivicPlanCible {
     required this.erreursRecentes,
     required this.aRevoir,
     required this.score,
-    required this.dotation,
     required this.questionsSerie,
     required this.dureeEstimeeSec,
     required this.locked,
@@ -213,7 +185,6 @@ class CivicPlanCible {
   /// Servi pour l'admin et les tests — **jamais montré au candidat**.
   final int score;
   /// 🛑 Seule une cible `servable` est servie en priorité ou en révision.
-  final CivicDotation dotation;
   final int questionsSerie;
   final int dureeEstimeeSec;
 
@@ -242,7 +213,6 @@ class CivicPlanCible {
         prochaineRevue: DateTime.tryParse(json['prochaineRevue'] as String? ?? ''),
         aRevoir: json['aRevoir'] as bool? ?? false,
         score: (json['score'] as num?)?.toInt() ?? 0,
-        dotation: CivicDotation.fromWire(json['dotation'] as String? ?? 'SERVABLE'),
         questionsSerie: (json['questionsSerie'] as num?)?.toInt() ?? 0,
         dureeEstimeeSec: (json['dureeEstimeeSec'] as num?)?.toInt() ?? 0,
         locked: json['locked'] as bool? ?? false,

@@ -127,17 +127,17 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         Fixture fx = monterUnThemeAuGrainNotion(user);
 
         // --------------------------------------------------------------------
-        // 1. Les trois dotations sont bien montées, et c'est la BASE qui le dit
+        // 1. ⚠️ LES DOTATIONS ONT DISPARU AVEC P8.2b (2026-09-20)
         // --------------------------------------------------------------------
-        assertThat(dotation(fx.servable(), mention)).isEqualTo(CivicDotation.SERVABLE);
-        assertThat(dotation(fx.jamaisVue(), mention)).isEqualTo(CivicDotation.SERVABLE);
-        assertThat(dotation(fx.insuffisante(), mention))
-                .isEqualTo(CivicDotation.CONTENU_INSUFFISANT);
-        assertThat(dotation(fx.horsProgramme(), mention))
-                .isEqualTo(CivicDotation.NON_APPLICABLE);
-        // 🛑 `NON_APPLICABLE` n'est pas « vide » : la notion EXISTE, ailleurs.
-        // C'est le cas mesuré par V058 (« Devenir français » : 10 questions en
-        // NAT, zéro en CSP), et c'est ce qui la distingue d'un manque.
+        // Ce bloc vérifiait `SERVABLE` / `CONTENU_INSUFFISANT` / `NON_APPLICABLE`
+        // — trois crans qui n'existent plus : sans filtre de mention, AUCUN
+        // couple ne tombe sous le seuil, et `NON_APPLICABLE` était devenu
+        // impossible (D-27). Une règle morte qui donne l'illusion d'un
+        // garde-fou est pire que pas de garde-fou.
+        //
+        // 🛑 Ce que la notion « hors programme » mesurait reste vrai et reste
+        // testé : elle EXISTE, avec des questions — simplement, elles sont
+        // désormais toutes jouables, quelle que soit la démarche.
         assertThat(questionsToutesMentions(fx.horsProgramme())).isPositive();
 
         // --------------------------------------------------------------------
@@ -150,7 +150,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         // basculé ne fait pas un plan « par notion ».
         assertThat(plan.grain().courant()).isEqualTo(CivicPlanGrain.THEME);
 
-        List<CivicPlanDto.Cible> toutes = servies(plan);
+        List<CivicPlanDto.Cible> toutes = servies(user.getId(), plan);
         assertThat(toutes).isNotEmpty();
         // 🛑 La bascule n'a pas vidé le plan : les autres thèmes travaillent
         // toujours, dans le MÊME plan et au MÊME moment.
@@ -164,9 +164,16 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         });
 
         // --------------------------------------------------------------------
-        // 3. 🛑 L'INVARIANT : ni CONTENU_INSUFFISANT ni NON_APPLICABLE, nulle part
+        // 3. ⚠️ L'INVARIANT A CHANGÉ DE SENS AVEC P8.2b (2026-09-20)
         // --------------------------------------------------------------------
-        seulLeServableEstServi(plan, fx);
+        // Il disait « ni CONTENU_INSUFFISANT ni NON_APPLICABLE, nulle part ».
+        // Sans filtre de mention, ces deux crans n'existent plus : une notion
+        // à 3 questions dans la démarche du candidat en a d'autres ailleurs, et
+        // elles sont désormais toutes jouables (D-27, D-42).
+        //
+        // 🛑 Ce qui est vérifié maintenant est plus fort : TOUTE cible du thème
+        // au grain notion est servie, et aucune n'est écartée en silence.
+        toutesLesNotionsSontServies(servies(user.getId(), plan), fx);
 
         // --------------------------------------------------------------------
         // 4. Le diagnostic a pointé le thème ; le plan sert une NOTION en tête
@@ -185,7 +192,12 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         // La notion jamais vue est proposée elle aussi — « à acquérir » n'est
         // pas « à renforcer », et une notion qu'on n'a pas mesurée reste du
         // programme.
-        assertThat(plan.priorites()).anyMatch(c -> c.id().equals(fx.jamaisVue()));
+        //
+        // 🛑 Lu sur la liste NON PLAFONNÉE : `priorites` en montre trois, et
+        // depuis P8.2b il y a plus de cibles en lice. Assertionner sur les trois
+        // premières ferait dépendre ce test du CLASSEMENT — un choix du moteur
+        // que ce test ne fixe pas (règle de `docs/plan-tests-backend.md`).
+        assertThat(servies(user.getId(), plan)).anyMatch(c -> c.id().equals(fx.jamaisVue()));
         parcoursCoherent(prochaine, false);
 
         // --------------------------------------------------------------------
@@ -203,8 +215,11 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                 .isLessThan(plan.priorites().size() + plan.autresPriorites());
 
         // --------------------------------------------------------------------
-        // 6. La série ciblée tire DANS la notion, et dans la mention
+        // 6. La série ciblée tire DANS la notion — ⚠️ et PLUS dans la mention
         // --------------------------------------------------------------------
+        // P8.2b : le tirage ne filtre plus par démarche (D-27, D-42). Ce que le
+        // test tient est donc la SEULE règle qui reste — la série tire dans la
+        // notion, et nulle part ailleurs.
         AttemptResponse serie = service.demarrerSerie(
                 user.getId(), fx.servable(), CivicPlanGrain.NOTION);
         entityManager.flush();
@@ -214,17 +229,21 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         assertThat(serie.type().name()).isEqualTo("TRAINING");
         for (UUID questionId : tirees) {
             Map<String, Object> q = jdbc.queryForMap(
-                    "SELECT civic_notion_id, difficulty FROM questions WHERE id = ?", questionId);
+                    "SELECT civic_notion_id FROM questions WHERE id = ?", questionId);
             assertThat(q.get("civic_notion_id")).isEqualTo(fx.servable());
-            assertThat(q.get("difficulty")).isEqualTo(mention);
         }
 
-        // 🛑 Et une notion hors programme ne « rend pas une série vide » : elle
-        // refuse, en le disant. Un tirage vide silencieux enverrait le candidat
-        // dans un runner sans question.
-        assertThatThrownBy(() -> service.demarrerSerie(
-                user.getId(), fx.horsProgramme(), CivicPlanGrain.NOTION))
-                .isInstanceOf(BusinessException.class);
+        // ⚠️ P8.2b : la notion « hors programme » N'EST PLUS refusée. Elle
+        // n'avait aucune question DANS LA MENTION, elle en a ailleurs — et la
+        // mention ne filtre plus rien (D-27, D-42). Sa série part donc, plus
+        // courte si son stock est plus court.
+        //
+        // 🛑 Ce qui reste vrai, et qui était le vrai sujet : une série ne part
+        // JAMAIS vide. `lesTroisInvariantsDeSurete` tient le cas d'une cible
+        // sans aucune question — elle refuse, en le disant.
+        assertThat(service.demarrerSerie(
+                user.getId(), fx.horsProgramme(), CivicPlanGrain.NOTION).questions())
+                .isNotEmpty();
 
         // --------------------------------------------------------------------
         // 7. Tout juste : la maîtrise monte, la cible SORT des priorités
@@ -234,7 +253,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         CivicPlanDto apres = service.plan(user.getId());
-        CivicPlanDto.Cible acquise = trouver(apres, fx.servable());
+        CivicPlanDto.Cible acquise = trouver(user.getId(), apres, fx.servable());
         assertThat(acquise).isNotNull();
         assertThat(acquise.maitrise()).isEqualTo(CivicMaitrise.MAITRISEE);
         assertThat(acquise.boite()).isEqualTo(CivicLeitner.DERNIERE);
@@ -248,7 +267,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         // qui vient d'être acquis.
         assertThat(apres.prochaine()).isNotNull();
         assertThat(apres.prochaine().id()).isNotEqualTo(fx.servable());
-        seulLeServableEstServi(apres, fx);
+        toutesLesNotionsSontServies(servies(user.getId(), apres), fx);
 
         // Ce qui a bougé est DIT, et le progrès est dérivé serveur.
         assertThat(apres.changements()).isNotNull();
@@ -269,14 +288,14 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         vieillirLHistorique(user, JOURS_DE_VIEILLISSEMENT);
         CivicPlanDto aLEcheance = service.plan(user.getId());
 
-        CivicPlanDto.Cible aReviser = trouver(aLEcheance, fx.servable());
+        CivicPlanDto.Cible aReviser = trouver(user.getId(), aLEcheance, fx.servable());
         assertThat(aReviser).isNotNull();
         assertThat(aReviser.aRevoir()).isTrue();
         assertThat(aLEcheance.aRevoir()).anyMatch(c -> c.id().equals(fx.servable()));
         // 🛑 Une révision n'est JAMAIS une priorité rouge : elle reste acquise.
         assertThat(aReviser.maitrise()).isEqualTo(CivicMaitrise.MAITRISEE);
         assertThat(aLEcheance.priorites()).noneMatch(c -> c.id().equals(fx.servable()));
-        seulLeServableEstServi(aLEcheance, fx);
+        toutesLesNotionsSontServies(servies(user.getId(), aLEcheance), fx);
     }
 
     @Test
@@ -292,7 +311,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         repondre(montee.id(), q -> true, SERIE_A);
         entityManager.flush();
         entityManager.clear();
-        assertThat(trouver(service.plan(user.getId()), fx.servable()).boite())
+        assertThat(trouver(user.getId(), service.plan(user.getId()), fx.servable()).boite())
                 .isEqualTo(CivicLeitner.DERNIERE);
 
         // Une seule erreur, après cinq bonnes réponses d'affilée.
@@ -303,7 +322,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        CivicPlanDto.Cible cible = trouver(service.plan(user.getId()), fx.servable());
+        CivicPlanDto.Cible cible = trouver(user.getId(), service.plan(user.getId()), fx.servable());
         assertThat(cible.boite()).isEqualTo(CivicLeitner.PREMIERE);
         assertThat(cible.maitrise()).isEqualTo(CivicMaitrise.A_TRAVAILLER);
         // ⚠️ Le parcours RECULE avec la boîte — c'est voulu, c'est exactement ce
@@ -338,13 +357,10 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         repondre(attempt, id -> true, SERIE_A);
         CivicPlanDto plan = service.plan(user.getId());
 
-        // ---- 1. `solides` ne liste que du servable, comme `priorites` et
-        // `aRevoir`. Une cible maitrisee puis devenue non servable — le
-        // candidat change de demarche et sa notion n'a plus de question dans
-        // sa nouvelle mention — s'affichait comme un acquis : le plan
-        // annoncait un acquis sur un point qu'il ne sait plus enseigner.
-        assertThat(plan.solides())
-                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
+        // ---- 1. ⚠️ Le filtre par dotation a disparu avec P8.2b, et le cas
+        // qu'il protégeait aussi : « une cible maîtrisée puis devenue non
+        // servable parce que le candidat change de démarche » ne peut plus
+        // exister — la mention ne filtre plus rien.
 
         // ---- 2. « Progression detectee » ne nomme jamais une cible non
         // servable. Elle peut pourtant en avoir l'historique : c'est
@@ -369,29 +385,42 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                 .as("le serveur corrige un grain faux au lieu de tirer dans le vide")
                 .isNotNull();
 
-        // Et une cible non servable est REFUSEE, quel que soit le grain annonce.
+        // ⚠️ P8.2b : ces deux cibles NE SONT PLUS REFUSEES. La notion « hors
+        // programme » n'avait aucune question DANS LA MENTION ; elle en a
+        // ailleurs, et la mention ne filtre plus rien. La serie part donc, plus
+        // courte si le stock est plus court -- `questionsSerie` le dit
+        // d'avance, et c'est ce qui ferme DETTE-C1.
+        assertThat(service.demarrerSerie(
+                user.getId(), fx.horsProgramme(), CivicPlanGrain.THEME).questions())
+                .as("une cible qui a des questions les sert, quelle que soit la demarche")
+                .isNotEmpty();
+
+        // 🛑 CE QUI EST TOUJOURS REFUSE : une cible SANS AUCUNE question. Le
+        // tirage vide le DIT, il ne rend jamais une serie creuse.
+        jdbc.update("UPDATE questions SET is_active = false WHERE civic_notion_id = ?",
+                fx.insuffisante());
+        entityManager.flush();
+        entityManager.clear();
         assertThatThrownBy(() -> service.demarrerSerie(
                 user.getId(), fx.insuffisante(), CivicPlanGrain.NOTION))
                 .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> service.demarrerSerie(
-                user.getId(), fx.horsProgramme(), CivicPlanGrain.THEME))
-                .isInstanceOf(BusinessException.class);
     }
 
-    private static void seulLeServableEstServi(CivicPlanDto plan, Fixture fx) {
-        List<UUID> interdites = List.of(fx.insuffisante(), fx.horsProgramme());
-        assertThat(plan.priorites()).noneMatch(c -> interdites.contains(c.id()));
-        assertThat(plan.aRevoir()).noneMatch(c -> interdites.contains(c.id()));
-        assertThat(plan.solides()).noneMatch(c -> interdites.contains(c.id()));
-        if (plan.prochaine() != null) {
-            assertThat(interdites).doesNotContain(plan.prochaine().id());
-        }
-        // Et la règle vaut pour TOUT ce qui est servi, pas seulement pour le
-        // montage de ce test : aucune liste ne porte une dotation autre.
-        assertThat(plan.priorites())
-                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
-        assertThat(plan.aRevoir())
-                .allSatisfy(c -> assertThat(c.dotation()).isEqualTo(CivicDotation.SERVABLE));
+    /**
+     * 🛑 <b>Toutes les notions du thème sont servies</b> — celle qui a peu de
+     * questions dans la démarche du candidat comme les autres.
+     *
+     * <p>Cette méthode s'appelait {@code seulLeServableEstServi} et vérifiait
+     * l'inverse. P8.2b a retiré le filtre de mention : il n'y a plus de cible
+     * « non servable », donc plus rien à écarter.
+     */
+    private static void toutesLesNotionsSontServies(
+            List<CivicPlanDto.Cible> servies, Fixture fx) {
+        List<UUID> attendues = List.of(
+                fx.servable(), fx.jamaisVue(), fx.insuffisante(), fx.horsProgramme());
+        assertThat(servies.stream().map(CivicPlanDto.Cible::id).toList())
+                .as("aucune notion n'est écartée en silence")
+                .containsAll(attendues);
     }
 
     /**
@@ -578,16 +607,6 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         entityManager.clear();
     }
 
-    /** La dotation, relue en base et dérivée par l'<b>unique</b> autorité. */
-    private CivicDotation dotation(UUID notionId, String mention) {
-        Long n = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM questions
-                WHERE module = 'CIVIQUE' AND is_active = true
-                  AND civic_notion_id = ? AND difficulty = CAST(? AS varchar)
-                """, Long.class, notionId, mention);
-        return CivicDotation.depuis(n == null ? 0L : n, 5);
-    }
-
     private long questionsToutesMentions(UUID notionId) {
         Long n = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM questions
@@ -617,16 +636,26 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
     }
 
     /** Une cible, où qu'elle soit servie. */
-    private static CivicPlanDto.Cible trouver(CivicPlanDto plan, UUID cibleId) {
-        return servies(plan).stream()
+    private CivicPlanDto.Cible trouver(UUID userId, CivicPlanDto plan, UUID cibleId) {
+        return servies(userId, plan).stream()
                 .filter(c -> c.id().equals(cibleId))
                 .findFirst()
                 .orElse(null);
     }
 
-    private static List<CivicPlanDto.Cible> servies(CivicPlanDto plan) {
+    /**
+     * Toutes les cibles servies, <b>sans plafond d'affichage</b>.
+     *
+     * <p>🛑 Elle lisait {@code plan.priorites()}, plafonnee a TROIS. Un test qui
+     * assertionne sur « ce que le plan montre » depend alors du <b>classement</b>
+     * — un choix du moteur qu'il ne fixe pas lui-meme —, et il dort jusqu'au
+     * jour ou ce classement change. C'est exactement ce qui est arrive le
+     * 2026-09-20 (regle ecrite dans {@code docs/plan-tests-backend.md}).
+     */
+    private List<CivicPlanDto.Cible> servies(UUID userId, CivicPlanDto plan) {
         return java.util.stream.Stream.of(
-                        plan.priorites(), plan.aRevoir(), plan.solides())
+                        service.ordrePourLeCycle(userId).cibles(),
+                        plan.aRevoir(), plan.solides())
                 .flatMap(List::stream)
                 .toList();
     }

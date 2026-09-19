@@ -3,7 +3,6 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.PlanRecentChangesWindow;
-import com.sejourfr.app.service.plancivique.CivicDotation;
 import com.sejourfr.app.service.plancivique.CivicEtapeEtat;
 import com.sejourfr.app.service.plancivique.CivicMaitrise;
 import com.sejourfr.app.service.plancivique.CivicPlanGrain;
@@ -296,7 +295,12 @@ public record CivicPlanDto(
             Instant prochaineRevue,
             boolean aRevoir,
             int score,
-            CivicDotation dotation,
+            /**
+             * 🛑 <b>Borne par le stock reel</b> depuis P8.2b :
+             * {@code min(questionsParSerie, questions de la cible)}. Le plan ne
+             * promet plus dix questions sur une cible qui n'en a que huit
+             * ({@code DETTE-C1}).
+             */
             int questionsSerie,
             int dureeEstimeeSec,
             boolean locked

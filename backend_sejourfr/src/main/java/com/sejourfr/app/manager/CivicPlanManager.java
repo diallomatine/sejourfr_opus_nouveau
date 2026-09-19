@@ -44,14 +44,17 @@ public class CivicPlanManager {
         return out;
     }
 
-    /** Questions jouables par notion, pour CETTE mention. */
-    public Map<UUID, Long> questionsParNotion(Difficulty mention) {
-        return compter(repository.questionsParNotion(mention.name()));
+    /**
+     * Questions jouables par notion. 🛑 <b>Sans filtre de mention</b> (P8.2b,
+     * D-27) : un programme, une epreuve, pour toutes les demarches.
+     */
+    public Map<UUID, Long> questionsParNotion() {
+        return compter(repository.questionsParNotion());
     }
 
-    /** Questions jouables par theme, pour CETTE mention. */
-    public Map<UUID, Long> questionsParTheme(Difficulty mention) {
-        return compter(repository.questionsParTheme(mention.name()));
+    /** Questions jouables par theme. Meme regle : aucun filtre de mention. */
+    public Map<UUID, Long> questionsParTheme() {
+        return compter(repository.questionsParTheme());
     }
 
     private static Map<UUID, Long> compter(List<Object[]> rows) {
@@ -68,9 +71,8 @@ public class CivicPlanManager {
      * plan (rate d'abord, jamais vu ensuite) : ne pas le retrier ici.
      */
     public List<UUID> tirageSerieCiblee(
-            UUID userId, Difficulty mention, UUID notionId, UUID themeId, int taille) {
-        return repository.tirageSerieCiblee(
-                userId, mention.name(), notionId, themeId, taille);
+            UUID userId, UUID notionId, UUID themeId, int taille) {
+        return repository.tirageSerieCiblee(userId, notionId, themeId, taille);
     }
 
     /** Postgres rend un {@code Timestamp} sur une projection native. */

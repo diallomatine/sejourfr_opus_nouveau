@@ -1134,7 +1134,6 @@ sejourfr:
     # 🛑 5 partout (arbitrage proprietaire) : une notion a 4 questions est trop
     # fragile pour devenir une unite de parcours adaptatif. Le « < 4 » de 20_
     # §3.4 est annule par 50_ §6.1.
-    questions-min-par-notion: 5
     # 🛑 Plafonds d'AFFICHAGE, jamais des budgets de calcul. Le moteur classe
     # TOUTES les cibles et le DTO compte le reste (« + 6 autres notions »).
     priorites-visibles: 3

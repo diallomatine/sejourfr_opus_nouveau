@@ -103,11 +103,14 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
     List<Object[]> taggageParTheme();
 
     /**
-     * Combien de questions <b>jouables</b> par notion pour une mention donnee.
+     * Combien de questions <b>jouables</b> par notion.
      *
-     * <p>🛑 <b>Par mention</b>, jamais un total global : une notion peut etre
-     * pleinement dotee pour un candidat NAT et vide pour un CSP, et c'est
-     * exactement ce que {@code 20_} §3.4 appelle {@code insufficient_content}.
+     * <p>🛑 <b>SANS filtre de mention</b> depuis P8.2b (D-27, D-42) : l'arrete
+     * prescrit UN programme et UNE epreuve pour toutes les mentions. Le clivage
+     * etait dans l'<b>etiquetage</b>, pas dans le contenu — sur 976 questions
+     * actives, 15 citent une demarche et <b>aucune n'est exclusive</b> d'une
+     * demarche. La colonne {@code difficulty} reste en base comme <b>metadonnee
+     * editoriale</b> : elle dit de quelle campagne vient une question.
      *
      * <p>🛑 <b>Ici, PAS de filtre sur {@code question_type}</b> — contrairement
      * a {@link #taggageParTheme()}, et pour une raison precise : ce compte est
@@ -124,10 +127,9 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
               AND q.is_active = true
               AND q.status = 'ACTIVE'
               AND q.civic_notion_id IS NOT NULL
-              AND q.difficulty = CAST(:mention AS varchar)
             GROUP BY q.civic_notion_id
             """, nativeQuery = true)
-    List<Object[]> questionsParNotion(@Param("mention") String mention);
+    List<Object[]> questionsParNotion();
 
     /**
      * Meme compte, au grain theme : de quoi savoir si une serie est jouable.
@@ -146,10 +148,9 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
               AND q.status = 'ACTIVE'
-              AND q.difficulty = CAST(:mention AS varchar)
             GROUP BY q.theme_id
             """, nativeQuery = true)
-    List<Object[]> questionsParTheme(@Param("mention") String mention);
+    List<Object[]> questionsParTheme();
 
     /**
      * Le tirage d'une <b>serie ciblee</b> ({@code 20_} §6 bloc 2).
@@ -188,7 +189,6 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
               AND q.status = 'ACTIVE'
-              AND q.difficulty = CAST(:mention AS varchar)
               AND (CAST(:notionId AS uuid) IS NULL OR q.civic_notion_id = CAST(:notionId AS uuid))
               AND (CAST(:themeId AS uuid) IS NULL OR q.theme_id = CAST(:themeId AS uuid))
             ORDER BY CASE
@@ -200,7 +200,6 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             LIMIT :taille
             """, nativeQuery = true)
     List<UUID> tirageSerieCiblee(@Param("userId") UUID userId,
-                                 @Param("mention") String mention,
                                  @Param("notionId") UUID notionId,
                                  @Param("themeId") UUID themeId,
                                  @Param("taille") int taille);

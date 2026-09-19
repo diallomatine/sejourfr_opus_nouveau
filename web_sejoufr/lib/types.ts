@@ -4274,21 +4274,6 @@ export const CIVIC_MAITRISE_LABEL: Record<CivicMaitrise, string> = {
  */
 export type CivicPlanGrain = "THEME" | "NOTION";
 
-/**
- * Ce que le catalogue offre sur une cible, **pour la mention du candidat**.
- *
- * 🛑 **Trois états, pas deux**, et la différence est éditoriale : CSP, CR et NAT
- * ne sont pas trois niveaux du même programme, ce sont trois programmes
- * différents. `NON_APPLICABLE` (zéro question) dit que la notion **n'est pas au
- * programme de cette démarche** ; `CONTENU_INSUFFISANT` (1 à 4) qu'elle y est
- * mais qu'il manque de la matière.
- *
- * 🛑 **Servi, jamais dérivé** — aucun front ne compare un compte à un seuil, et
- * aucun ne fabrique un libellé pour ces états : si un écran doit un jour les
- * **dire**, la phrase arrive servie.
- */
-export type CivicDotation = "SERVABLE" | "CONTENU_INSUFFISANT" | "NON_APPLICABLE";
-
 /** L'état du tagging, et ce qu'il autorise. */
 export interface CivicPlanGrainDto {
     /** `NOTION` seulement quand **tous** les thèmes ont basculé. */
@@ -4350,8 +4335,8 @@ export interface CivicPlanCibleDto {
     aRevoir: boolean;
     /** Servi pour l'admin et les tests — **jamais montré au candidat**. */
     score: number;
-    /** 🛑 Seule une cible `SERVABLE` est servie en priorité ou en révision. */
-    dotation: CivicDotation;
+    /** 🛑 **Borné par le stock réel** depuis P8.2b : le plan ne promet plus dix
+     *  questions sur une cible qui n'en a que huit. */
     questionsSerie: number;
     dureeEstimeeSec: number;
     /** 🛑 Le verrou porte sur la **série**, jamais sur le constat. */
