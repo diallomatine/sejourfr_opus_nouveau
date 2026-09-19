@@ -101,9 +101,9 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         Journey attente = data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE);
         Skill competence = skill(SkillTaskCode.EE1, 1);
         entrainement(attente, competence);
-        assertThat(journeyService.lire(user.getId()).cycle().numero()).isEqualTo(1);
+        assertThat(journeyService.lire(user.getId(), Module.TCF).cycle().numero()).isEqualTo(1);
 
-        JourneyDto apres = cycleService.actualiser(user.getId());
+        JourneyDto apres = cycleService.actualiser(user.getId(), Module.TCF);
 
         Journey historise = journeys.findById(termine.getId()).orElseThrow();
         assertThat(historise.getStatus()).isEqualTo(JourneyStatus.HISTORISE);
@@ -134,7 +134,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         User user = candidat();
         Journey termine = cycleTermine(user);
 
-        cycleService.actualiser(user.getId());
+        cycleService.actualiser(user.getId(), Module.TCF);
 
         // 🛑 null = INCONNU, jamais mauvais. Un cycle ferme sans qu'aucune
         // epreuve n'ait ete mesuree n'a pas de niveau de sortie — et surtout pas
@@ -155,7 +155,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // IllegalStateException ⇒ 409 CONFLICT (convention du
         // GlobalExceptionHandler) : ce geste historise, il ne doit jamais jeter
         // un plan en cours.
-        assertThatThrownBy(() -> cycleService.actualiser(user.getId()))
+        assertThatThrownBy(() -> cycleService.actualiser(user.getId(), Module.TCF))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(journeys.findById(enCours.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.EN_COURS);
@@ -176,7 +176,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         Journey attente = data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE);
         entrainement(attente, skill(SkillTaskCode.EE1, 1));
 
-        JourneyDto mesure = cycleService.creerCycleDeMesure(user.getId());
+        JourneyDto mesure = cycleService.creerCycleDeMesure(user.getId(), Module.TCF);
 
         assertThat(journeys.findById(precedent.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.HISTORISE);
@@ -202,12 +202,12 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
     void unCycleDeMesureTermineNOffreQueLActualisation() {
         User user = abonne();
         cycleTermine(user);
-        cycleService.creerCycleDeMesure(user.getId());
+        cycleService.creerCycleDeMesure(user.getId(), Module.TCF);
         Journey mesure = journeys.findByUserIdAndModuleAndStatus(
                 user.getId(), Module.TCF, JourneyStatus.EN_COURS).orElseThrow();
         cloreToutesLesEtapes(mesure);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(vue.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
         assertThat(vue.cycle().complete()).isTrue();
@@ -220,7 +220,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
         assertThat(vue.nextStep().examenCompletPossible()).isFalse();
         // Et le serveur le refuse, il ne se contente pas de ne pas le proposer.
-        assertThatThrownBy(() -> cycleService.creerCycleDeMesure(user.getId()))
+        assertThatThrownBy(() -> cycleService.creerCycleDeMesure(user.getId(), Module.TCF))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -231,7 +231,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         Journey precedent = cycleTermine(user);
         UUID evaluation = UUID.randomUUID();
         evenementTraite(precedent, evaluation, EpreuveType.TCF_EE);
-        cycleService.actualiser(user.getId());
+        cycleService.actualiser(user.getId(), Module.TCF);
 
         // Le rejeu arrive APRES la promotion : le cycle courant n'est plus celui
         // qui avait journalise cette evaluation.
@@ -246,7 +246,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // 🛑 La question « l'a-t-on deja traitee ? » est posee au CANDIDAT, pas
         // au cycle : la cle d'unicite porte le journey_id, mais une lecture
         // bornee au cycle courant aurait refabrique un lot deja honore.
-        assertThat(competencesServies(journeyService.lire(user.getId())))
+        assertThat(competencesServies(journeyService.lire(user.getId(), Module.TCF)))
                 .doesNotContain(competence.getCode());
     }
 

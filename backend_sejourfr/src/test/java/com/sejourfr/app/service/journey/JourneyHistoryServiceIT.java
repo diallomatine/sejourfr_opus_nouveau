@@ -125,7 +125,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         cycleHistorise(user, jours(29), jours(10), TargetLevel.A2, TargetLevel.B1);
 
         // Le cycle EN COURS, lu par le Plan : il vient APRES les deux fermes.
-        int numeroDuPlan = journeyService.lire(user.getId()).cycle().numero();
+        int numeroDuPlan = journeyService.lire(user.getId(), Module.TCF).cycle().numero();
         List<Integer> numerosDeLHistorique = historyService.lire(user.getId()).cycles()
                 .stream().map(JourneyHistoryCycleDto::numero).toList();
 

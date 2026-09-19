@@ -99,7 +99,7 @@ class JourneyStepExerciseIT extends AbstractIntegrationTest {
         User user = abonne();
         peupler(user, 3, 3, 2);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
         LearningPlanDto plan = planService.get(user.getId());
         List<String> servies = prioritesServies(plan);
         List<JourneyStepDto> competences = etapesDeCompetence(vue);
@@ -145,8 +145,8 @@ class JourneyStepExerciseIT extends AbstractIntegrationTest {
         User grand = abonne();
         peupler(grand, 3, 3, 2);
 
-        assertThat(etapesDeCompetence(journeyService.lire(petit.getId()))).hasSize(3);
-        assertThat(etapesDeCompetence(journeyService.lire(grand.getId()))).hasSize(8);
+        assertThat(etapesDeCompetence(journeyService.lire(petit.getId(), Module.TCF))).hasSize(3);
+        assertThat(etapesDeCompetence(journeyService.lire(grand.getId(), Module.TCF))).hasSize(8);
 
         assertThat(requetes(grand))
                 .as("le lot d'exercices est UNIQUE : le prix ne suit pas la taille du cycle")
@@ -161,7 +161,7 @@ class JourneyStepExerciseIT extends AbstractIntegrationTest {
                 .unwrap(SessionFactory.class).getStatistics();
         statistics.setStatisticsEnabled(true);
         statistics.clear();
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         return statistics.getPrepareStatementCount();
     }
 

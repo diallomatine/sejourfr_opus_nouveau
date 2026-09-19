@@ -17,10 +17,19 @@ import '../../core/models/skill_models.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
-/// Le titre de l'écran : « Votre parcours vers le B2 ».
-String journeyTitle(TargetLevel? targetLevel) => targetLevel == null
-    ? 'Votre parcours'
-    : 'Votre parcours vers le ${targetLevel.wire}';
+/// Le titre de la section de cycle : « Votre parcours vers le B2 », « Votre
+/// parcours — Naturalisation ».
+///
+/// 🛑 **La tournure se choisit sur le [JourneyObjectifKind], jamais sur le
+/// module** (D-50). Un palier se dit « vers le B2 » ; une démarche ne se dit pas
+/// « vers le Naturalisation ». Le **libellé**, lui, arrive servi — aucun front
+/// ne fabrique le mot du candidat. Miroir de `journeyTitle` (`lib/journey.ts`).
+String journeyTitle(JourneyObjectifRef? objectif) {
+  if (objectif == null) return 'Votre parcours';
+  return objectif.kind == JourneyObjectifKind.niveau
+      ? 'Votre parcours vers le ${objectif.label}'
+      : 'Votre parcours — ${objectif.label}';
+}
 
 /// Ce que porte la première ligne d'une étape.
 String journeyStepTitle(JourneyStep step) {

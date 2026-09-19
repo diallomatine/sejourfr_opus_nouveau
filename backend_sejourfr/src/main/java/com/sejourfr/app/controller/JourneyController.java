@@ -2,6 +2,7 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyHistoryDto;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.journey.JourneyCycleService;
 import com.sejourfr.app.service.journey.JourneyHistoryService;
@@ -45,7 +46,11 @@ public class JourneyController {
      */
     @GetMapping
     public JourneyDto get() {
-        return journeyService.lire(currentUser.getId());
+        // ⚠️ MODULE EN DUR, et c'est le SEUL endroit qui reste. Le toggle
+        // TCF / Examen civique vit deja dans l'URL cote front ; l'endpoint
+        // gagnera son `?module=` avec les ecrans (D-50, P8.7). Une ligne a
+        // changer, ici, quand ce jour vient.
+        return journeyService.lire(currentUser.getId(), Module.TCF);
     }
 
     /**
@@ -78,7 +83,7 @@ public class JourneyController {
      */
     @PostMapping("/refresh")
     public JourneyDto refresh() {
-        return cycleService.actualiser(currentUser.getId());
+        return cycleService.actualiser(currentUser.getId(), Module.TCF);
     }
 
     /**
@@ -94,6 +99,6 @@ public class JourneyController {
      */
     @PostMapping("/measurement-cycle")
     public JourneyDto measurementCycle() {
-        return cycleService.creerCycleDeMesure(currentUser.getId());
+        return cycleService.creerCycleDeMesure(currentUser.getId(), Module.TCF);
     }
 }

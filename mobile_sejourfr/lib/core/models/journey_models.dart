@@ -529,20 +529,71 @@ class JourneyNextStep {
       );
 }
 
+/// La nature de l'objectif d'un cycle. Miroir de `JourneyObjectifKind`.
+enum JourneyObjectifKind {
+  niveau('NIVEAU'),
+  procedure('PROCEDURE');
+
+  const JourneyObjectifKind(this.wire);
+  final String wire;
+
+  static JourneyObjectifKind fromWire(String? value) =>
+      JourneyObjectifKind.values.firstWhere((e) => e.wire == value,
+          orElse: () => JourneyObjectifKind.niveau);
+}
+
+/// **L'objectif d'un cycle, servi** — ce vers quoi le candidat travaille.
+///
+/// 🛑 **Miroir mot pour mot de `web_sejoufr/lib/types.ts`
+/// (`JourneyObjectifRefDto`).**
+///
+/// 🛑 **Le patron du bloc servi** ([JourneyBlocRef], D-47), appliqué au dernier
+/// champ du contrat qui était encore typé TCF : `targetLevel` ne pouvait pas
+/// porter l'objectif d'un cycle civique, qui est une **mention**.
+///
+/// L'écran lit [kind] pour choisir sa **tournure**, **jamais pour brancher sur
+/// le module**. Le [label] arrive servi : c'est le mot du livret.
+class JourneyObjectifRef {
+  const JourneyObjectifRef({
+    required this.kind,
+    required this.code,
+    required this.label,
+  });
+
+  final JourneyObjectifKind kind;
+
+  /// L'identifiant stable — `B2`, `NAT`. Une **clé**, jamais un affichage.
+  final String code;
+
+  /// Ce que le **candidat lit** — « B2 », « Naturalisation ».
+  final String label;
+
+  factory JourneyObjectifRef.fromJson(Map<String, dynamic> json) =>
+      JourneyObjectifRef(
+        kind: JourneyObjectifKind.fromWire(json['kind'] as String?),
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+      );
+
+  static JourneyObjectifRef? fromJsonNullable(Object? json) =>
+      json is Map<String, dynamic> ? JourneyObjectifRef.fromJson(json) : null;
+}
+
 /// Le parcours servi.
 class Journey {
   const Journey({
     required this.state,
     required this.blocs,
-    this.targetLevel,
+    this.objectif,
     this.current,
     this.suggestion,
     this.cycle,
     this.nextStep,
   });
 
-  /// `null` quand [state] vaut [JourneyState.needsObjective].
-  final TargetLevel? targetLevel;
+  /// **L'objectif du cycle, servi.** `null` quand [state] vaut
+  /// [JourneyState.needsObjective].
+  final JourneyObjectifRef? objectif;
 
   final JourneyState state;
 
@@ -567,7 +618,7 @@ class Journey {
   final JourneySuggestionType? suggestion;
 
   factory Journey.fromJson(Map<String, dynamic> json) => Journey(
-        targetLevel: TargetLevel.fromWireNullable(json['targetLevel'] as String?),
+        objectif: JourneyObjectifRef.fromJsonNullable(json['objectif']),
         state: JourneyState.fromWireNullable(json['state'] as String?) ??
             JourneyState.needsObjective,
         current: json['current'] == null

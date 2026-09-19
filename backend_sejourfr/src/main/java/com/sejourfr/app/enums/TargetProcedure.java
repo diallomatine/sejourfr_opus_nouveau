@@ -41,6 +41,33 @@ public enum TargetProcedure {
     }
 
     /**
+     * <b>La démarche telle qu'on la nomme AU CANDIDAT</b>, dans les mots du
+     * livret.
+     *
+     * <p>🛑 Ce libellé est <b>servi</b> — {@code JourneyObjectifRefDto.label} —
+     * pour que l'objectif d'un cycle civique et celui d'un cycle TCF
+     * s'affichent par le <b>même chemin</b>, sans qu'un front ait à brancher.
+     * Même geste que {@code EpreuveType.getLabel()}.
+     *
+     * <p>⚠️ <b>Les trois chaînes sont gelées</b> : ce sont mot pour mot celles
+     * que les deux fronts affichent déjà — {@code MENTION_LABEL}
+     * ({@code web_sejoufr/lib/civic-diagnostic.ts}) et {@code mentionLabel}
+     * ({@code mobile_sejourfr/lib/core/models/enums.dart}). En changer une ici
+     * sans changer les deux miroirs ferait dire deux choses au même écran.
+     * {@code TargetProcedureTest} les fige.
+     *
+     * <p>⚠️ Volontairement <b>distinct</b> du libellé de profil (« Naturalisation
+     * française ») : deux surfaces, deux formulations, toutes deux gelées.
+     */
+    public String getLabel() {
+        return switch (this) {
+            case CSP -> "Carte de séjour pluriannuelle";
+            case CR -> "Carte de résident";
+            case NAT -> "Naturalisation";
+        };
+    }
+
+    /**
      * La <b>mention civique</b> sur laquelle le candidat est mesuré : le
      * périmètre de programme que sa démarche lui demande de connaître.
      *

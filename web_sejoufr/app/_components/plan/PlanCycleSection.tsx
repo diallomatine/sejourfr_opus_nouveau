@@ -198,7 +198,7 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
 
     return (
         <>
-            <Section title={journeyTitle(journey.targetLevel)}>
+            <Section title={journeyTitle(journey.objectif)}>
                 <Pad>
                     <Stack>
                         <CycleProgress

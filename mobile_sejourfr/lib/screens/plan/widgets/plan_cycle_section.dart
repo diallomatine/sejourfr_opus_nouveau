@@ -156,7 +156,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SfSection(
-          title: journeyTitle(parcours.targetLevel),
+          title: journeyTitle(parcours.objectif),
           child: SfStack(
             children: [
               SfCycleProgress(

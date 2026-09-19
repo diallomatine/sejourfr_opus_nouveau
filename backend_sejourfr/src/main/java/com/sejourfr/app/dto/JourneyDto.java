@@ -2,7 +2,6 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneySuggestionType;
-import com.sejourfr.app.enums.TargetLevel;
 
 import java.util.List;
 
@@ -30,8 +29,19 @@ import java.util.List;
  * plafond d'affichage — donc sans compteur de repli.
  */
 public record JourneyDto(
-        /** {@code null} quand {@code state == NEEDS_OBJECTIVE} : il n'y a pas de parcours. */
-        TargetLevel targetLevel,
+        /**
+         * <b>L'objectif du cycle, servi</b> — un palier CECRL cote TCF, une
+         * mention cote civique, et l'ecran ne branche pas (D-50).
+         *
+         * <p>⚠️ <b>Remplace {@code targetLevel}</b>, qui etait le dernier champ
+         * type TCF de ce contrat : un cycle civique ne pouvait pas s'y
+         * exprimer. « Refonte = suppression immediate de l'ancien » — les deux
+         * fronts lisent {@code objectif} dans la meme passe.
+         *
+         * <p>{@code null} quand {@code state == NEEDS_OBJECTIVE} : il n'y a pas
+         * de parcours.
+         */
+        JourneyObjectifRefDto objectif,
         JourneyState state,
         /**
          * L'etape a faire maintenant : la premiere ouverte <b>et executable</b>

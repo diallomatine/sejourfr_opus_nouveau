@@ -56,5 +56,21 @@ public enum JourneyAssessmentKind {
      * {@link #CIVIC_THEME_EXAM} distinctes, une par thematique debloquee --
      * <b>six lignes pour un seul attempt</b>.
      */
-    CIVIC_EXAM
+    CIVIC_EXAM;
+
+    /**
+     * <b>Le module dont cette evaluation releve</b> — donc le cycle qu'elle
+     * alimente.
+     *
+     * <p>🛑 <b>La nature porte deja le module</b>, il ne se redemande pas a
+     * l'appelant : un branchement qui passerait le module a cote de la nature
+     * pourrait les faire mentir l'un sur l'autre — un examen de theme classe
+     * TCF n'alimenterait aucun cycle, en silence.
+     */
+    public Module module() {
+        return switch (this) {
+            case CIVIC_DIAGNOSTIC, CIVIC_THEME_EXAM, CIVIC_EXAM -> Module.CIVIQUE;
+            case QUICK_DIAGNOSTIC, FULL_DIAGNOSTIC, SECTION_EXAM, MOCK_EXAM -> Module.TCF;
+        };
+    }
 }

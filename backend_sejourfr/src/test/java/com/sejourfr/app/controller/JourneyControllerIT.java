@@ -55,7 +55,7 @@ class JourneyControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Sans evaluation : le parcours propose le diagnostic, et sert son niveau cible")
+    @DisplayName("Sans evaluation : le parcours propose le diagnostic, et sert son OBJECTIF")
     void sansEvaluationLeParcoursProposeLeDiagnostic() throws Exception {
         User user = data.user();
         user.setTargetProcedure(TargetProcedure.NAT);
@@ -65,7 +65,14 @@ class JourneyControllerIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.targetLevel").value("B2"))
+                // ⚠️ `targetLevel` a ete REMPLACE par `objectif` (D-50) : un
+                // cycle civique ne pouvait pas s'exprimer dans un TargetLevel.
+                // Le contrat sert la NATURE, le CODE et le LIBELLE -- l'ecran
+                // choisit sa tournure sur la nature, jamais sur le module.
+                .andExpect(jsonPath("$.targetLevel").doesNotExist())
+                .andExpect(jsonPath("$.objectif.kind").value("NIVEAU"))
+                .andExpect(jsonPath("$.objectif.code").value("B2"))
+                .andExpect(jsonPath("$.objectif.label").value("B2"))
                 .andExpect(jsonPath("$.current.type").value("DIAGNOSTIC"))
                 .andExpect(jsonPath("$.current.status").value("CURRENT"))
                 .andExpect(jsonPath("$.current.locked").value(false))

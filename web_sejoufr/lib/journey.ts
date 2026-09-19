@@ -7,6 +7,7 @@ import type {
     JourneyDto,
     JourneyHistoryBlocDto,
     JourneyHistoryCycleDto,
+    JourneyObjectifRefDto,
     JourneyProgressDto,
     JourneyStepDto,
     SkillSection,
@@ -36,9 +37,20 @@ import type {
  * que le serveur.
  */
 
-/** Le titre de l'écran : « Votre parcours vers le B2 ». */
-export function journeyTitle(targetLevel: TargetLevel | null): string {
-    return targetLevel ? `Votre parcours vers le ${targetLevel}` : "Votre parcours";
+/**
+ * Le titre de la section de cycle : « Votre parcours vers le B2 », « Votre
+ * parcours — Naturalisation ».
+ *
+ * 🛑 **La tournure se choisit sur `kind`, jamais sur le module** (D-50). Un
+ * palier se dit « vers le B2 » ; une démarche ne se dit pas « vers le
+ * Naturalisation ». Le **libellé**, lui, arrive servi — aucun front ne fabrique
+ * le mot du candidat.
+ */
+export function journeyTitle(objectif: JourneyObjectifRefDto | null): string {
+    if (!objectif) return "Votre parcours";
+    return objectif.kind === "NIVEAU"
+        ? `Votre parcours vers le ${objectif.label}`
+        : `Votre parcours — ${objectif.label}`;
 }
 
 /** Ce que porte la première ligne d'une étape. */

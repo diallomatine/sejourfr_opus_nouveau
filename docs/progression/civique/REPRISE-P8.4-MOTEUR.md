@@ -12,7 +12,7 @@
 | Phase | État |
 |---|---|
 | P8.0 → P8.3, P8.A | ✅ **livrées**, `verify` vert |
-| **P8.4** | 🔶 **le contrat servi est fait** (`6e90faf7`), **le moteur ne l'est pas** |
+| **P8.4** | 🔶 **1, 2 et 2 bis faits** (`V071`, `getOrCreate` par module, l'objectif servi) — **3 à 9 restent** |
 | P8.5 → P8.9, doc | ⬜ pas commencées |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle

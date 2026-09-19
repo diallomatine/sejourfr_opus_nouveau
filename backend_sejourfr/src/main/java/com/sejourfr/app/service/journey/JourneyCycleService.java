@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepType;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.JourneyManager;
@@ -87,8 +88,8 @@ public class JourneyCycleService {
      * n'a ete invente pour dire la meme chose.
      */
     @Transactional
-    public JourneyDto actualiser(UUID userId) {
-        Journey enCours = cycleTermine(userId);
+    public JourneyDto actualiser(UUID userId, Module module) {
+        Journey enCours = cycleTermine(userId, module);
         TargetLevel sortie = historiser(enCours, userId);
 
         Journey promu = journeyManager
@@ -105,7 +106,7 @@ public class JourneyCycleService {
 
         log.info("Cycle {} historise (sortie={}), cycle {} promu en cours",
                 enCours.getId(), sortie, suivant.getId());
-        return journeyService.lire(userId);
+        return journeyService.lire(userId, module);
     }
 
     /**
@@ -123,8 +124,19 @@ public class JourneyCycleService {
      * (D-13).
      */
     @Transactional
-    public JourneyDto creerCycleDeMesure(UUID userId) {
-        Journey enCours = cycleTermine(userId);
+    public JourneyDto creerCycleDeMesure(UUID userId, Module module) {
+        // 🛑 GARDE EXPLICITE SUR LE MODULE, et il echoue BRUYAMMENT. Le cycle de
+        // mesure civique est fait de CINQ blocs de thematique ne contenant que
+        // leur examen (R1) ; la boucle ci-dessous en pose QUATRE, sur les
+        // epreuves TCF. Laisser passer un module civique ici fabriquerait un
+        // cycle de mesure TCF dans un parcours civique -- le genre de silence
+        // que ce depot paie cher.
+        if (module != Module.TCF) {
+            throw new UnsupportedOperationException(
+                    "Le cycle de mesure civique n'est pas encore construit (P8.4) : "
+                            + "cinq blocs de thematique, pas quatre epreuves.");
+        }
+        Journey enCours = cycleTermine(userId, module);
         if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
             // Enchainer deux examens complets sans travail entre eux ne mesure
             // rien de nouveau — c'est le « cas particulier » de la spec §6.
@@ -153,7 +165,7 @@ public class JourneyCycleService {
 
         log.info("Cycle {} historise (sortie={}), cycle de mesure {} ouvert",
                 enCours.getId(), sortie, mesure.getId());
-        return journeyService.lire(userId);
+        return journeyService.lire(userId, module);
     }
 
     // ------------------------------------------------------------------ outils
@@ -167,8 +179,8 @@ public class JourneyCycleService {
      * actualise doit attendre son tour, pas ecrire dans un cycle qu'on
      * historise.
      */
-    private Journey cycleTermine(UUID userId) {
-        Journey enCours = journeyService.getOrCreate(userId)
+    private Journey cycleTermine(UUID userId, Module module) {
+        Journey enCours = journeyService.getOrCreate(userId, module)
                 .flatMap(journey -> journeyManager.findForUpdate(journey.getId()))
                 .orElseThrow(() -> new BusinessException(
                         "Aucun parcours : declarez d'abord votre objectif."));

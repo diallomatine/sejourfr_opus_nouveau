@@ -30,6 +30,36 @@ class TargetProcedureTest {
         TargetProcedure.CR, TargetLevel.B1,
         TargetProcedure.NAT, TargetLevel.B2);
 
+    /**
+     * Le libellé servi, écrit une fois de plus à la main — <b>mot pour mot</b>
+     * celui des deux fronts : {@code MENTION_LABEL}
+     * ({@code web_sejoufr/lib/civic-diagnostic.ts}) et {@code mentionLabel}
+     * ({@code mobile_sejourfr/lib/core/models/enums.dart}).
+     */
+    private static final Map<TargetProcedure, String> LIBELLES = Map.of(
+        TargetProcedure.CSP, "Carte de séjour pluriannuelle",
+        TargetProcedure.CR, "Carte de résident",
+        TargetProcedure.NAT, "Naturalisation");
+
+    @Test
+    void chaqueDemarcheSeNommeCommeDansLeLivret() {
+        assertThat(TargetProcedure.CSP.getLabel()).isEqualTo("Carte de séjour pluriannuelle");
+        assertThat(TargetProcedure.CR.getLabel()).isEqualTo("Carte de résident");
+        assertThat(TargetProcedure.NAT.getLabel()).isEqualTo("Naturalisation");
+    }
+
+    @Test
+    void aucuneDemarcheNEstSansLibelle() {
+        // 🛑 Ce libellé est SERVI (`JourneyObjectifRefDto.label`, D-50) : une
+        // démarche sans mot du candidat ferait afficher « Votre parcours —  »,
+        // et l'écran ne peut pas le rattraper puisqu'il ne fabrique plus rien.
+        for (TargetProcedure demarche : TargetProcedure.values()) {
+            assertThat(demarche.getLabel())
+                .as("%s doit porter le mot du livret", demarche)
+                .isEqualTo(LIBELLES.get(demarche));
+        }
+    }
+
     @Test
     void chaqueDemarcheExigeSonPalier() {
         assertThat(TargetProcedure.CSP.getRequiredTcfLevel()).isEqualTo(TargetLevel.A2);

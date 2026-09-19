@@ -124,8 +124,8 @@ public class JourneyService {
      * jamais le Plan n'a jamais de parcours.
      */
     @Transactional
-    public JourneyDto lire(UUID userId) {
-        Optional<Journey> journey = getOrCreate(userId);
+    public JourneyDto lire(UUID userId, Module module) {
+        Optional<Journey> journey = getOrCreate(userId, module);
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         return readService.lire(courant, stepManager.findAll(courant.getId()));
@@ -136,8 +136,16 @@ public class JourneyService {
     // =====================================================================
 
     /**
-     * Le <b>cycle en cours</b> du candidat sur le module TCF, cree et amorce si
-     * besoin.
+     * Le <b>cycle en cours</b> du candidat <b>sur ce module</b>, cree si besoin.
+     *
+     * <p>🛑 <b>Le module est un PARAMETRE, il ne se devine pas.</b> Il etait en
+     * dur (D-50) : {@code find(userId, Module.TCF, ...)} et
+     * {@code setModule(Module.TCF)}. Un candidat civique obtenait donc un cycle
+     * TCF et jamais le sien. Chaque module a son objectif, sa creation et son
+     * amorce — d'ou deux chemins, et non un {@code if} au milieu d'un seul.
+     *
+     * <p>D-13 tient pour les deux : <b>un seul cycle EN_COURS par (candidat,
+     * module)</b>, garanti par un index partiel depuis V067.
      *
      * <p>🛑 <b>Un changement d'objectif ne cree pas un second cycle</b> (D-13) :
      * le cycle en cours survit et son niveau cible est mis a jour. L'historiser
@@ -147,25 +155,40 @@ public class JourneyService {
      * l'<b>ordre</b> des lots s'en trouve recalcule, et il est derive a la
      * lecture.
      *
+     * @param module le module dont on veut le cycle. 🛑 Jamais deduit d'un
+     *               etat du candidat : un abonne peut preparer les deux.
      * @return {@link Optional#empty()} quand le candidat n'a <b>pas declare
-     *         d'objectif</b> (arbitrage D-3). 🛑 Aucun cycle n'est alors cree :
+     *         l'objectif de CE module</b> (arbitrage D-3, transpose) — un
+     *         palier cote TCF, une mention cote civique. 🛑 Aucun cycle n'est
+     *         alors cree :
      *         en fabriquer un « par defaut » reviendrait a choisir un objectif a
      *         sa place, puis a batir une file entiere sur cette supposition.
      */
     @Transactional
-    public Optional<Journey> getOrCreate(UUID userId) {
+    public Optional<Journey> getOrCreate(UUID userId, Module module) {
         User user = userManager.findById(userId).orElse(null);
         if (user == null) return Optional.empty();
+        return switch (module) {
+            case TCF -> cycleTcf(user);
+            case CIVIQUE -> cycleCivique(user);
+        };
+    }
+
+    /**
+     * Le cycle <b>TCF</b> : son objectif est un palier CECRL, lu chez
+     * {@code TargetProcedure.niveauVise()} et jamais recalcule ici.
+     */
+    private Optional<Journey> cycleTcf(User user) {
         TargetLevel cible = TargetProcedure.niveauVise(
                 user.getTargetProcedure(), user.getTargetLevel());
         if (cible == null) return Optional.empty();
 
         Optional<Journey> existant =
-                journeyManager.find(userId, Module.TCF, JourneyStatus.EN_COURS);
+                journeyManager.find(user.getId(), Module.TCF, JourneyStatus.EN_COURS);
         if (existant.isPresent()) {
             Journey courant = existant.get();
             if (courant.getTargetLevel() != cible) {
-                courant.setTargetLevel(cible);
+                courant.poserObjectif(cible);
                 journeyManager.save(courant);
             }
             return existant;
@@ -173,12 +196,61 @@ public class JourneyService {
 
         Journey journey = new Journey();
         journey.setUser(user);
-        journey.setTargetLevel(cible);
+        journey.poserObjectif(cible);
         journey.setModule(Module.TCF);
         journey.setStatus(JourneyStatus.EN_COURS);
         journey = journeyManager.save(journey);
         amorcer(journey, user, cible);
         return Optional.of(journey);
+    }
+
+    /**
+     * Le cycle <b>CIVIQUE</b> : son objectif est une <b>mention</b>.
+     *
+     * <p>🛑 <b>L'objectif civique NE SE DERIVE PAS de {@code niveauVise()}</b>,
+     * et c'est le piege de ce point. {@code niveauVise(CSP, null)} rend
+     * {@code A2} — le <b>plancher de francais</b> de la demarche —, jamais
+     * {@code null} : un candidat purement civique ne « sort » donc pas a sec, il
+     * obtenait un cycle <b>TCF</b> et <b>jamais</b> de cycle civique. Ce que dit
+     * la mention, c'est la demarche visee ; ce que dit {@code niveauVise}, c'est
+     * le francais qu'elle exige. Deux questions, deux reponses.
+     *
+     * <p>🛑 <b>{@code target_level} reste NUL</b> : {@code chk_journey_objectif}
+     * (V069) exige exactement un objectif, et {@code poserObjectif} garantit
+     * l'exclusivite a la source plutot qu'au flush.
+     *
+     * <p>⚠️ <b>Aucune amorce ici, et c'est un manque assume, pas un oubli.</b>
+     * Les priorites civiques viennent du <b>diagnostic civique</b> et se posent
+     * au grain de l'<b>unite officielle</b> (D-48) : c'est le point suivant de
+     * P8.4, avec son ordre lu chez {@code CivicPrioriteScorer} (D-36). D'ici la
+     * un cycle civique naitra <b>vide</b> — ce qu'aucun ecran ne montre encore,
+     * le Plan civique lisant toujours son plan derive (D-50, P8.7).
+     */
+    private Optional<Journey> cycleCivique(User user) {
+        TargetProcedure mention = user.getTargetProcedure();
+        if (mention == null) return Optional.empty();
+
+        Optional<Journey> existant =
+                journeyManager.find(user.getId(), Module.CIVIQUE, JourneyStatus.EN_COURS);
+        if (existant.isPresent()) {
+            Journey courant = existant.get();
+            // D-34 : changer de mention ne detruit pas le cycle — A27 s'applique
+            // telle quelle, le cycle survit avec le MEME id et son objectif est
+            // mis a jour. Historiser jetterait le plan que le candidat a sous
+            // les yeux.
+            if (courant.getTargetProcedure() != mention) {
+                courant.poserObjectif(mention);
+                journeyManager.save(courant);
+            }
+            return existant;
+        }
+
+        Journey journey = new Journey();
+        journey.setUser(user);
+        journey.poserObjectif(mention);
+        journey.setModule(Module.CIVIQUE);
+        journey.setStatus(JourneyStatus.EN_COURS);
+        return Optional.of(journeyManager.save(journey));
     }
 
     /**
@@ -274,7 +346,10 @@ public class JourneyService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAssessmentCompleted(UUID userId, JourneyEvaluation evaluation) {
-        Optional<Journey> trouve = getOrCreate(userId);
+        // 🛑 Le module vient de la NATURE de l'evaluation, jamais d'un parametre
+        // a cote : les deux pourraient alors se contredire, et une evaluation
+        // civique classee TCF n'alimenterait aucun cycle -- en silence.
+        Optional<Journey> trouve = getOrCreate(userId, evaluation.kind().module());
         if (trouve.isEmpty()) return;
         Journey journey = journeyManager.findForUpdate(trouve.get().getId()).orElse(null);
         if (journey == null) return;
@@ -664,7 +739,11 @@ public class JourneyService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onTrainingProgress(UUID userId, Collection<UUID> skillIds) {
         if (skillIds == null || skillIds.isEmpty()) return;
-        Optional<Journey> trouve = getOrCreate(userId);
+        // Des `Skill` : c'est le TCF, et rien d'autre. Le pendant civique
+        // travaille des UNITES OFFICIELLES (D-48) et aura son propre point
+        // d'entree -- `SkillMasteryEngine` LEVE deja sur une source civique
+        // (A50) plutot que d'inventer un poids.
+        Optional<Journey> trouve = getOrCreate(userId, Module.TCF);
         if (trouve.isEmpty()) return;
         Journey journey = journeyManager.findForUpdate(trouve.get().getId()).orElse(null);
         if (journey == null) return;

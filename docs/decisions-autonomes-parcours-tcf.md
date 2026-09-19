@@ -853,3 +853,74 @@ assertion** au lieu de disparaître : il fige que S-8 est **levé**, et son comm
 voudra vérifier ici — que la colonne n'a pas précédé la décision. C'est aussi ce que le propriétaire
 a appelé « la meilleure décision de cette passe » : sortir `learning_plan_observations` du périmètre
 de V069, **reporté et non oublié**, la note vivant dans l'en-tête de V069.
+
+---
+
+# 2026-09-19 — P8.4, points 2 et 2 bis : décisions prises en autonomie (A55 → A60)
+
+> Arbitrages : **D-50** (les écrans, l'objectif servi) et **D-51** (V071). Ce qui suit est ce que
+> personne n'a tranché et qu'il a fallu décider pour livrer `getOrCreate` par module et l'objectif
+> servi.
+
+### A55 — `getOrCreate` devient **deux chemins**, pas un `if` au milieu d'un seul
+
+`getOrCreate(userId, module)` dispatche vers `cycleTcf(user)` ou `cycleCivique(user)`.
+
+**Motif.** Les deux ne partagent presque rien : l'objectif n'a pas le même type, ne se lit pas au
+même endroit (`niveauVise()` d'un côté, la mention déclarée de l'autre) et l'amorce n'est pas la
+même. Un `if` au milieu d'une méthode unique aurait mélangé deux règles dont **aucune ligne** n'est
+commune, et le `switch` sur le module **échoue à la compilation** le jour où un troisième module
+apparaît.
+
+### A56 — Le module d'une évaluation vient de **sa nature**, jamais d'un paramètre à côté
+
+`JourneyAssessmentKind.module()` : les trois `CIVIC_*` rendent `CIVIQUE`, les quatre autres `TCF`.
+`onAssessmentCompleted` s'en sert au lieu de recevoir un module.
+
+**Motif.** Deux paramètres qui disent la même chose finissent par se contredire — et le symptôme
+serait **muet** : une évaluation civique classée TCF n'alimenterait aucun cycle, sans erreur.
+
+### A57 — Un **garde bruyant** sur le cycle de mesure d'un module non TCF
+
+`creerCycleDeMesure` lève un `UnsupportedOperationException` explicite si le module n'est pas TCF.
+
+**Motif.** Sa boucle pose **quatre** étapes d'examen sur les épreuves TCF ; le cycle de mesure
+civique en veut **cinq**, de thématique (R1, D-51). Laisser passer fabriquerait un cycle de mesure
+TCF **dans un parcours civique**. Le garde est inatteignable aujourd'hui — le contrôleur passe
+`Module.TCF` —, et c'est exactement pourquoi il doit être bruyant : il ne se déclenchera que le jour
+où quelqu'un câblera l'endpoint civique sans faire le travail.
+
+### A58 — Le **libellé d'une mention** devient une autorité **serveur**, gelée par test
+
+`TargetProcedure.getLabel()` rend « Carte de séjour pluriannuelle », « Carte de résident »,
+« Naturalisation ».
+
+**Motif.** `JourneyObjectifRefDto.label` est **servi** (D-50), comme celui du bloc (A48) : c'est ce
+qui garantit qu'une mention et un palier s'affichent **par le même chemin**. Les trois chaînes sont
+**mot pour mot** celles que les deux fronts affichent déjà (`MENTION_LABEL` ⇄ `mentionLabel`), et
+`TargetProcedureTest` les fige — la technique de `SkillLabelsTest`.
+
+**Si l'arbitrage était autre** (« le front garde son libellé, on ne sert que le code ») : supprimer
+`getLabel()` et lire le code dans les deux miroirs existants. Le coût de ce choix-ci est une
+quatrième copie de trois chaînes ; son bénéfice est qu'aucun écran de cycle ne fabrique un mot.
+
+### A59 — La **tournure** du titre se choisit sur la nature de l'objectif
+
+« Votre parcours vers le **B2** » pour un palier, « Votre parcours — **Naturalisation** » pour une
+mention.
+
+**Motif.** « Votre parcours vers le Naturalisation » ne se dit pas. Le front branche donc sur
+`kind` — un fait **servi** —, jamais sur le module : c'est le même geste que `journeyBlocMark`, qui
+rend une chaîne vide pour une thématique (A49). ⚠️ **La phrase civique est mon choix** : D-50 a fixé
+le texte de la **bande objectif** (« Objectif : naturalisation · seuil 32/40 »), pas celui du titre
+de section.
+
+### A60 — Un cycle civique naît **vide**, et c'est un manque **assumé**
+
+`cycleCivique` crée la ligne et n'amorce rien.
+
+**Motif.** Les priorités civiques viennent du **diagnostic civique** et se posent au grain de
+l'**unité officielle** (D-48) : c'est le point suivant de P8.4, avec son ordre lu chez
+`CivicPrioriteScorer` (D-36, tranché par le propriétaire : **lire** l'ordre existant, le remonter
+s'il ne convient pas, ne pas en créer un second). ⚠️ Aucun écran ne montre ce vide : le Plan civique
+lit toujours son plan dérivé jusqu'à P8.7.

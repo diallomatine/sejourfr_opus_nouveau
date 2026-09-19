@@ -1,5 +1,7 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.dto.JourneyObjectifRefDto;
+import com.sejourfr.app.enums.JourneyObjectifKind;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
@@ -72,14 +74,20 @@ public class Journey {
     private User user;
 
     /**
-     * Le niveau vise par ce parcours. <b>Jamais {@code null}</b> (D-3).
+     * Le niveau vise par ce parcours — l'objectif d'un cycle <b>TCF</b>.
+     *
+     * <p>🛑 <b>{@code null} sur un cycle CIVIQUE</b>, dont l'objectif est une
+     * mention ({@link #targetProcedure}). V069 a leve le {@code NOT NULL} de
+     * V066 et pose {@code chk_journey_objectif} : <b>exactement un</b> des deux.
+     * « Pas de parcours sans objectif » (D-3) vaut toujours — c'est la
+     * contrainte qui le dit maintenant, pas la nullabilite d'une colonne.
      *
      * <p>🛑 Il est <b>lu</b> chez {@code TargetProcedure.niveauVise(procedure,
      * declare)} au moment de la creation, jamais recalcule ici : la table des
      * paliers a deja vecu en six copies dans ce depot.
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_level", nullable = false, length = 8)
+    @Column(name = "target_level", length = 8)
     private TargetLevel targetLevel;
 
     /**
@@ -205,6 +213,54 @@ public class Journey {
     @PreUpdate
     void preUpdate() {
         updatedAt = Instant.now();
+    }
+
+    // ------------------------------------------------------------------------
+    // L'OBJECTIF, LU SANS SAVOIR DE QUEL MODULE ON PARLE
+    // ------------------------------------------------------------------------
+    // 🛑 Meme geste que `blocRef()` / `poserBloc()` sur JourneyStep et
+    // JourneyLot (D-47, A47) : les appelants lisent `objectifRef()` et ne
+    // savent plus si c'est un palier CECRL ou une mention. C'est ce qui a permis
+    // de traiter les 57 occurrences d'EpreuveType a la source plutot qu'en 57
+    // branchements, et le raisonnement vaut ici mot pour mot.
+
+    /**
+     * L'objectif de ce cycle, tel qu'il se sert.
+     *
+     * <p>{@code null} n'arrive pas sur une ligne valide : la base exige
+     * exactement un des deux objectifs. Le rendre quand meme evite qu'une
+     * lecture defensive invente un objectif par defaut.
+     */
+    public JourneyObjectifRefDto objectifRef() {
+        if (targetLevel != null) {
+            return new JourneyObjectifRefDto(
+                    JourneyObjectifKind.NIVEAU, targetLevel.name(), targetLevel.name());
+        }
+        if (targetProcedure != null) {
+            return new JourneyObjectifRefDto(
+                    JourneyObjectifKind.PROCEDURE,
+                    targetProcedure.name(),
+                    targetProcedure.getLabel());
+        }
+        return null;
+    }
+
+    /**
+     * Pose l'objectif TCF, en garantissant l'exclusivite que la base impose.
+     *
+     * <p>🛑 Deux setters nus laisseraient poser les deux, et
+     * {@code chk_journey_objectif} ne refuserait qu'au flush — loin de la ligne
+     * fautive.
+     */
+    public void poserObjectif(TargetLevel niveau) {
+        this.targetLevel = niveau;
+        this.targetProcedure = null;
+    }
+
+    /** Pose l'objectif civique. Voir {@link #poserObjectif(TargetLevel)}. */
+    public void poserObjectif(TargetProcedure mention) {
+        this.targetProcedure = mention;
+        this.targetLevel = null;
     }
 
     /** Reserve la position suivante. Appele sous le verrou du parcours (R14). */

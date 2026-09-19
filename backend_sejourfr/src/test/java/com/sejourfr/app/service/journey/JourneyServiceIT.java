@@ -2,6 +2,7 @@ package com.sejourfr.app.service.journey;
 
 import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyDto;
+import com.sejourfr.app.dto.JourneyObjectifRefDto;
 import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
@@ -12,6 +13,7 @@ import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyStatus;
+import com.sejourfr.app.enums.JourneyObjectifKind;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepStatus;
@@ -25,6 +27,7 @@ import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.repository.JourneyRepository;
@@ -106,10 +109,10 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         user.setTargetLevel(null);
         data.saveUser(user);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(vue.state()).isEqualTo(JourneyState.NEEDS_OBJECTIVE);
-        assertThat(vue.targetLevel()).isNull();
+        assertThat(vue.objectif()).isNull();
         assertThat(vue.current()).isNull();
         // Aucun parcours : aucun bloc, aucun cycle. Un cycle « vide » aurait
         // laisse croire qu'un parcours existe.
@@ -117,7 +120,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         assertThat(vue.cycle()).isNull();
         // 🛑 Creer un parcours « par defaut » reviendrait a choisir un objectif a
         // sa place, puis a batir une file entiere sur cette supposition.
-        assertThat(journeyService.getOrCreate(user.getId())).isEmpty();
+        assertThat(journeyService.getOrCreate(user.getId(), Module.TCF)).isEmpty();
     }
 
     @Test
@@ -130,11 +133,11 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
 
-        assertThat(journeyService.lire(user.getId()).state())
+        assertThat(journeyService.lire(user.getId(), Module.TCF).state())
                 .isEqualTo(JourneyState.NEEDS_OBJECTIVE);
 
         declarer(user, TargetProcedure.NAT);
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(vue.state()).isEqualTo(JourneyState.IN_PROGRESS);
         // 🛑 Pas de diagnostic : une evaluation exploitable existe (R19.8).
@@ -150,7 +153,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void sansEvaluationLeParcoursProposeLeDiagnostic() {
         User user = candidat(TargetProcedure.NAT);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(vue.current()).isNotNull();
         assertThat(vue.current().type()).isEqualTo(JourneyStepType.DIAGNOSTIC);
@@ -177,7 +180,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 LearningPlanSourceType.PRODUCTION_EO, LearningPlanSkillStatus.PRIORITY,
                 ObservationConfidence.HIGH, null, HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         // ⚠️ Lu sur la FILE, pour la meme raison qu'en §18-32 : une etape
         // DIAGNOSTIC n'a pas d'epreuve, donc aucun bloc ne la porte.
@@ -195,7 +198,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE2), examen, HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(typesDe(vue)).doesNotContain(JourneyStepType.DIAGNOSTIC);
         // 🛑 La timeline d'un nouveau parcours commence par ce qu'il RESTE a
@@ -223,7 +226,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 LearningPlanSourceType.DIAGNOSTIC_EE, LearningPlanSkillStatus.PRIORITY,
                 ObservationConfidence.HIGH, null, MAINTENANT);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         // R19.2 : la plus recente qui MESURE l'emporte sur un diagnostic rapide,
         // meme plus frais — une baseline n'a pas l'autorite d'une mesure.
@@ -239,7 +242,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         observationDExamen(user, skill(SkillTaskCode.EE2), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE3), examen, HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         // Le bloc EE porte ses trois competences, et SON examen a part : c'est
         // l'ecran qui l'imbrique en fin de bloc, il n'est pas une ligne de plus.
@@ -294,15 +297,15 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         Skill duPremierLot = skill(SkillTaskCode.EE1, 0);
         Skill detecteeEnsuite = skill(SkillTaskCode.EE1, 1);
         observationDExamen(user, duPremierLot, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId());
-        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
+        journeyService.lire(user.getId(), Module.TCF);
+        assertThat(codesDEntrainement(journeyService.lire(user.getId(), Module.TCF)))
                 .containsExactly(duPremierLot.getCode());
 
         UUID second = UUID.randomUUID();
         observationDExamen(user, detecteeEnsuite, second, MAINTENANT);
         journeyService.onAssessmentCompleted(user.getId(), examenDe(second, MAINTENANT));
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
         // 🛑 CE QUE D-15 A REVOQUE. La regle du 2026-09-17 disait : « des etapes
         // TRAIN_SKILL du lot sont encore en attente → les etapes non cloturees
         // du lot ET son checkpoint sont cloturees SUPERSEDED, lot SUPERSEDED ».
@@ -329,7 +332,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
         observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         // La competence du bloc EE est faite : le bloc est pret, son examen est
         // debloque.
         cloreLEntrainement(user, competence);
@@ -353,7 +356,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                         && step.getResolution()
                         == JourneyStepResolution.SATISFIED_BY_ASSESSMENT);
         // Le bloc EE est termine : le cycle le lit ainsi.
-        assertThat(blocDe(journeyService.lire(user.getId()), EpreuveType.TCF_EE).status())
+        assertThat(blocDe(journeyService.lire(user.getId(), Module.TCF), EpreuveType.TCF_EE).status())
                 .isEqualTo(JourneyBlocStatus.TERMINE);
     }
 
@@ -362,7 +365,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void uneSousEpreuveDExamenCompletClotLEtapeDeSonBloc() {
         User user = candidat(TargetProcedure.NAT);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
 
         // Une sous-epreuve EO d'examen blanc complet : un attempt a part
         // entiere, donc une evaluation a part entiere — et reellement passee,
@@ -393,7 +396,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
         observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         cloreLEntrainement(user, competence);
 
         UUID examen = UUID.randomUUID();
@@ -416,7 +419,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
         observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         cloreLEntrainement(user, competence);
 
         UUID examen = UUID.randomUUID();
@@ -441,7 +444,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, MAINTENANT);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         // 🛑 Compte sur la FILE, pas sur l'ecran : « ne dedouble ni le lot ni
         // ses etapes » est un fait de la base, et un doublon d'examen dans un
         // bloc ne se verrait pas dans `exam`, qui n'en sert qu'un.
@@ -461,15 +464,15 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID recente = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), recente, MAINTENANT);
-        journeyService.lire(user.getId());
-        List<String> avant = codesDEntrainement(journeyService.lire(user.getId()));
+        journeyService.lire(user.getId(), Module.TCF);
+        List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), Module.TCF));
 
         // Une session jouee hors ligne sur mobile, synchronisee apres coup.
         UUID tardive = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE2), tardive, HIER);
         journeyService.onAssessmentCompleted(user.getId(), examenDe(tardive, HIER));
 
-        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
+        assertThat(codesDEntrainement(journeyService.lire(user.getId(), Module.TCF)))
                 .containsExactlyElementsOf(avant);
     }
 
@@ -483,7 +486,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 ObservationConfidence.HIGH, null, MAINTENANT, examen);
 
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         // R9 — « aucune priorite detectee » n'est pas une declaration de
         // maitrise, et ce n'est pas une anomalie : zero fragilite, zero lot.
@@ -500,8 +503,8 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
-        journeyService.lire(user.getId());
-        List<String> avant = codesDEntrainement(journeyService.lire(user.getId()));
+        journeyService.lire(user.getId(), Module.TCF);
+        List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), Module.TCF));
 
         UUID diagnostic = UUID.randomUUID();
         data.learningPlanObservation(user, skill(SkillTaskCode.EE2),
@@ -510,7 +513,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         journeyService.onAssessmentCompleted(
                 user.getId(), JourneyEvaluation.diagnosticRapide(diagnostic, MAINTENANT));
 
-        assertThat(codesDEntrainement(journeyService.lire(user.getId())))
+        assertThat(codesDEntrainement(journeyService.lire(user.getId(), Module.TCF)))
                 .containsExactlyElementsOf(avant);
     }
 
@@ -521,7 +524,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examenEe = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examenEe, HIER);
-        journeyService.lire(user.getId());
+        journeyService.lire(user.getId(), Module.TCF);
         // 🛑 « Rien ne bouge devant » se lit sur la FILE : le groupement par
         // epreuve range les etapes par bloc, il ne dit plus qui est en tete de
         // file. C'est `position` qui porte cet ordre, et elle est monotone.
@@ -538,7 +541,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                 new JourneyEvaluation(examenEo, JourneyAssessmentKind.SECTION_EXAM,
                         EpreuveType.TCF_EO, MAINTENANT));
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
         // R4 — rien ne bouge devant : la nouvelle priorite ne remplace jamais
         // l'etape courante et ne passe jamais devant un examen deja prevu.
         JourneyStep premiere = etapes(user, JourneyStatus.EN_COURS).getFirst();
@@ -574,19 +577,19 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void changerDObjectifNeForceJamaisUnDiagnostic() {
         User user = candidat(TargetProcedure.CR);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
-        JourneyDto b1 = journeyService.lire(user.getId());
-        assertThat(b1.targetLevel().name()).isEqualTo("B1");
-        UUID cycle = journeyService.getOrCreate(user.getId()).orElseThrow().getId();
+        JourneyDto b1 = journeyService.lire(user.getId(), Module.TCF);
+        assertThat(b1.objectif().code()).isEqualTo("B1");
+        UUID cycle = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow().getId();
 
         declarer(user, TargetProcedure.NAT);
-        JourneyDto b2 = journeyService.lire(user.getId());
+        JourneyDto b2 = journeyService.lire(user.getId(), Module.TCF);
 
-        assertThat(b2.targetLevel().name()).isEqualTo("B2");
+        assertThat(b2.objectif().code()).isEqualTo("B2");
         // 🛑 Le cycle EN COURS SURVIT et son niveau cible est mis a jour (D-13) :
         // l'historiser jetterait le plan que le candidat a sous les yeux, et les
         // priorites deja designees ne deviennent pas fausses parce que la cible
         // a bouge — seul l'ORDRE des lots est recalcule, et il est derive.
-        assertThat(journeyService.getOrCreate(user.getId()).orElseThrow().getId())
+        assertThat(journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow().getId())
                 .isEqualTo(cycle);
         // Aucun appel LLM, aucun diagnostic : les observations ne dependent pas
         // du niveau cible, seule leur SELECTION en depend.
@@ -604,7 +607,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         JourneyStepDto checkpoint = blocDe(vue, EpreuveType.TCF_EE).exam();
         assertThat(checkpoint).isNotNull();
@@ -631,7 +634,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
 
-        JourneyDto vue = journeyService.lire(user.getId());
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
         assertThat(vue.blocs().stream()
                 .flatMap(bloc -> bloc.steps().stream())
@@ -650,6 +653,98 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------- fabriques
+
+    // =====================================================================
+    // D-50 — LE CYCLE CIVIQUE : son module, son objectif, et les deux ensemble
+    // =====================================================================
+
+    @Test
+    @DisplayName("§18-46 — un cycle CIVIQUE porte sa MENTION, et aucun palier")
+    void leCycleCiviquePorteSaMention() {
+        User user = candidat(TargetProcedure.NAT);
+
+        Journey civique = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        assertThat(civique.getModule()).isEqualTo(Module.CIVIQUE);
+        assertThat(civique.getTargetProcedure()).isEqualTo(TargetProcedure.NAT);
+        // 🛑 `chk_journey_objectif` (V069) exige EXACTEMENT un objectif : le
+        // palier reste nul, et `poserObjectif` le garantit a la source.
+        assertThat(civique.getTargetLevel()).isNull();
+    }
+
+    @Test
+    @DisplayName("§18-47 — 🛑 le meme candidat a DEUX cycles distincts, un par module")
+    void unCycleParModuleEtIlsNeSeConfondentPas() {
+        User user = candidat(TargetProcedure.CSP);
+
+        Journey tcf = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow();
+        Journey civique = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        // ⚠️ LE PIEGE QUE CE TEST FERME. `getOrCreate` etait cable `Module.TCF` :
+        // un candidat civique obtenait le cycle TCF — cree, lui, parce que
+        // `niveauVise(CSP, null)` rend A2 par PLANCHER et jamais null — et
+        // n'avait JAMAIS de cycle civique. Deux questions, deux reponses : la
+        // mention dit la demarche visee, le palier dit le francais qu'elle exige.
+        assertThat(civique.getId()).isNotEqualTo(tcf.getId());
+        assertThat(tcf.getTargetLevel()).isEqualTo(TargetLevel.A2);
+        assertThat(tcf.getTargetProcedure()).isNull();
+        assertThat(civique.getTargetProcedure()).isEqualTo(TargetProcedure.CSP);
+    }
+
+    @Test
+    @DisplayName("§18-48 — changer de mention garde le MEME cycle civique (D-34)")
+    void changerDeMentionGardeLeCycleCivique() {
+        User user = candidat(TargetProcedure.CR);
+        UUID cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow().getId();
+
+        declarer(user, TargetProcedure.NAT);
+        Journey apres = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        // A27, transposee : le cycle SURVIT avec le meme id et son objectif est
+        // mis a jour. L'historiser jetterait le plan que le candidat a sous les
+        // yeux, et un ping-pong de mention remplirait son historique de cycles
+        // fantomes.
+        assertThat(apres.getId()).isEqualTo(cycle);
+        assertThat(apres.getTargetProcedure()).isEqualTo(TargetProcedure.NAT);
+    }
+
+    @Test
+    @DisplayName("§18-49 — aucune mention declaree : AUCUN cycle civique (D-3 transpose)")
+    void sansMentionAucunCycleCivique() {
+        User user = nouveauCandidat();
+        user.setTargetProcedure(null);
+        user.setTargetLevel(TargetLevel.B2);
+        data.saveUser(user);
+
+        // 🛑 Un palier declare n'ouvre PAS un cycle civique : ce serait choisir
+        // une demarche a la place du candidat. L'objectif civique ne se derive
+        // pas de `niveauVise`, qui ne parle que de francais.
+        assertThat(journeyService.getOrCreate(user.getId(), Module.CIVIQUE)).isEmpty();
+        assertThat(journeyService.getOrCreate(user.getId(), Module.TCF)).isPresent();
+    }
+
+    @Test
+    @DisplayName("§18-50 — l'objectif est SERVI : sa nature, son code, son libelle")
+    void lObjectifEstServi() {
+        User user = candidat(TargetProcedure.NAT);
+
+        Journey tcf = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow();
+        Journey civique = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        assertThat(tcf.objectifRef())
+                .isEqualTo(new JourneyObjectifRefDto(JourneyObjectifKind.NIVEAU, "B2", "B2"));
+        // 🛑 Le LIBELLE est servi, comme celui du bloc (A48) : c'est le mot du
+        // livret, et aucun front ne le fabrique.
+        assertThat(civique.objectifRef()).isEqualTo(new JourneyObjectifRefDto(
+                JourneyObjectifKind.PROCEDURE, "NAT", "Naturalisation"));
+    }
+
+    // =====================================================================
 
     private User candidat(TargetProcedure procedure) {
         return declarer(nouveauCandidat(), procedure);

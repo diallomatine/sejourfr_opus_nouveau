@@ -197,7 +197,7 @@ public class JourneyReadService {
 
         JourneyState state = etat(affichables, ouvertes, courante);
         return new JourneyDto(
-                journey.getTargetLevel(),
+                journey.objectifRef(),
                 state,
                 courante == null ? null : dto(etats.get(courante.getId()), exercices),
                 suggestion(state, userId),

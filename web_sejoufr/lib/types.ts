@@ -4864,9 +4864,32 @@ export interface JourneyNextStepDto {
     actualisationPossible: boolean;
 }
 
+/** La nature de l'objectif d'un cycle. Miroir de `JourneyObjectifKind`. */
+export type JourneyObjectifKind = "NIVEAU" | "PROCEDURE";
+
+/**
+ * **L'objectif d'un cycle, servi** — ce vers quoi le candidat travaille.
+ *
+ * 🛑 **Le patron du bloc servi** (`JourneyBlocRefDto`, D-47), appliqué au
+ * dernier champ du contrat qui était encore typé TCF. `targetLevel:
+ * TargetLevel` ne pouvait pas porter l'objectif d'un cycle civique, qui est une
+ * **mention**.
+ *
+ * Le front lit `kind` pour choisir sa **tournure** — « vers le B2 » / « —
+ * Naturalisation » —, **jamais pour brancher sur le module**. Le `label` arrive
+ * servi : c'est le mot du livret, le même des deux côtés.
+ */
+export interface JourneyObjectifRefDto {
+    kind: JourneyObjectifKind;
+    /** L'identifiant stable — `B2`, `NAT`. Une **clé**, jamais un affichage. */
+    code: string;
+    /** Ce que le **candidat lit** — « B2 », « Naturalisation ». */
+    label: string;
+}
+
 export interface JourneyDto {
-    /** `null` quand `state === "NEEDS_OBJECTIVE"`. */
-    targetLevel: TargetLevel | null;
+    /** **L'objectif du cycle, servi.** `null` quand `state === "NEEDS_OBJECTIVE"`. */
+    objectif: JourneyObjectifRefDto | null;
     state: JourneyState;
     /** L'étape à faire maintenant. `null` dans quatre cas que `state` distingue :
      *  pas d'objectif, cycle terminé, plus rien à faire, rien d'exécutable. */
