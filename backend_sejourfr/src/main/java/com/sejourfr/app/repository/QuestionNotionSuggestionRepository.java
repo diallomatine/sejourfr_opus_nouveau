@@ -17,11 +17,18 @@ import java.util.UUID;
  * {@code questions.civic_notion_id}, pose par un humain. « Le job propose, un
  * humain valide » ({@code 50_} §6.1.3).
  *
- * <p>🛑 <b>Cette table est creee VIDE</b> et rien dans le depot ne la
- * remplit : la remplir coute un appel LLM paye pour 1 016 questions, et c'est
- * une decision du proprietaire. Les ecritures ci-dessous ne posent QUE des
- * verdicts de relecture ; aucune ne cree de suggestion, et aucune ne touche
- * {@code questions.civic_notion_id}.
+ * <p>🛑 <b>Aucune ecriture de ce depot ne cree de suggestion.</b> Les methodes
+ * ci-dessous ne posent QUE des <b>verdicts de relecture</b>, et aucune ne touche
+ * {@code questions.civic_notion_id}. Remplir cette table coute un appel LLM paye,
+ * et c'est une decision du proprietaire -- prise une fois, pour la campagne du
+ * 2026-09-11, dont les <b>971 lignes</b> sont desormais seedees par
+ * {@code V296__suggestions_campagne_civique.sql}.
+ *
+ * <p>⚠️ La version precedente de ce javadoc disait « cette table est creee VIDE
+ * et rien dans le depot ne la remplit ». C'etait vrai jusqu'au 2026-09-19 et
+ * <b>ce n'est plus vrai</b> : V296 la remplit, parce que la tracabilite de la
+ * campagne est du referentiel (DETTE-T1). Ce qui reste vrai est ce qui precede --
+ * aucun <b>code</b> ne cree de suggestion.
  */
 @Repository
 public interface QuestionNotionSuggestionRepository
