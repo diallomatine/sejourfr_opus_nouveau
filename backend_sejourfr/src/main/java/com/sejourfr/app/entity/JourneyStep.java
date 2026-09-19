@@ -1,5 +1,7 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.dto.JourneyBlocRefDto;
+import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepResolution;
@@ -196,5 +198,101 @@ public class JourneyStep {
         this.resolution = motif;
         this.resolvedByAssessmentId = parEvaluation;
         return true;
+    }
+
+    // ------------------------------------------------------------------------
+    // LE BLOC, LU SANS SAVOIR DE QUEL MODULE ON PARLE
+    // ------------------------------------------------------------------------
+    // 🛑 C'est ici que l'axe du bloc devient uniforme, et c'est le correctif « a
+    // la source » : le moteur portait `EpreuveType` en 57 endroits, et chacun
+    // aurait du apprendre a lire un theme EN PLUS. Une occurrence manquee ne se
+    // decouvre que trois phases plus tard. Les appelants lisent desormais
+    // `blocRef()`, et ne savent plus si c'est une epreuve ou une thematique.
+
+    /**
+     * Le bloc de cette ligne, tel qu'il se sert — {@code null} pour une etape
+     * {@code DIAGNOSTIC}, qui n'appartient a aucun bloc (R11, A45).
+     */
+    public JourneyBlocRefDto blocRef() {
+        if (examType != null) {
+            return new JourneyBlocRefDto(
+                    JourneyBlocKind.EPREUVE, examType.name(), examType.getLabel());
+        }
+        if (theme != null) {
+            return new JourneyBlocRefDto(
+                    JourneyBlocKind.THEMATIQUE, theme.getCode(), theme.getName());
+        }
+        return null;
+    }
+
+    /** Le code du bloc, ou {@code null}. La cle de groupement du moteur. */
+    public String blocCode() {
+        JourneyBlocRefDto ref = blocRef();
+        return ref == null ? null : ref.code();
+    }
+
+    /** Cette ligne porte-t-elle un bloc ? Faux pour une etape {@code DIAGNOSTIC}. */
+    public boolean aUnBloc() {
+        return examType != null || theme != null;
+    }
+
+    /**
+     * Pose le bloc, en garantissant l'exclusivite que la base impose.
+     *
+     * <p>🛑 Deux setters nus laisseraient poser les deux, et le {@code CHECK} ne
+     * refuserait qu'au flush — loin de la ligne fautive.
+     */
+    public void poserBloc(EpreuveType epreuve) {
+        this.examType = epreuve;
+        this.theme = null;
+    }
+
+    /** Pose le bloc sur une thematique civique. Voir {@link #poserBloc(EpreuveType)}. */
+    public void poserBloc(Theme thematique) {
+        this.theme = thematique;
+        this.examType = null;
+    }
+
+    // ------------------------------------------------------------------------
+    // L'UNITE TRAVAILLABLE, meme principe
+    // ------------------------------------------------------------------------
+
+    /** Cette etape porte-t-elle une unite travaillable ? */
+    public boolean aUneUnite() {
+        return skill != null || officialUnit != null;
+    }
+
+    /**
+     * Le <b>libelle</b> de l'unite travaillable, tel qu'il se sert — le titre
+     * d'une competence TCF, ou celui d'une unite officielle civique.
+     *
+     * <p>🛑 Servi, jamais fabrique par un front (D-21).
+     */
+    public String uniteLabel() {
+        if (skill != null) return skill.getTitle();
+        if (officialUnit != null) return officialUnit.getLabel();
+        return null;
+    }
+
+    /** L'identifiant de l'unite travaillable, quel que soit son type. */
+    public java.util.UUID uniteId() {
+        if (skill != null) return skill.getId();
+        if (officialUnit != null) return officialUnit.getId();
+        return null;
+    }
+
+    /**
+     * Pose l'unite travaillable, en garantissant l'exclusivite de la base
+     * ({@code chk_journey_step_train_skill}).
+     */
+    public void poserUnite(Skill competence) {
+        this.skill = competence;
+        this.officialUnit = null;
+    }
+
+    /** Pose l'unite travaillable sur une unite officielle civique. */
+    public void poserUnite(CivicOfficialUnit unite) {
+        this.officialUnit = unite;
+        this.skill = null;
     }
 }

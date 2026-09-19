@@ -46,6 +46,7 @@ import {
     journeyHistoryStatCycles,
     journeyHistoryStatExams,
     journeyHistoryStatSkills,
+    journeyHistoryBlocTitle,
 } from "@/lib/journey";
 import type {JourneyHistoryCycleDto, JourneyHistoryDto} from "@/lib/types";
 
@@ -224,7 +225,7 @@ function CycleTermine({cycle, open, onToggle}: {
                     <JourneyRow
                         key={bloc.examType}
                         state="done"
-                        title={journeyBlocTitle(bloc.examType)}
+                        title={journeyHistoryBlocTitle(bloc.examType)}
                         subtitle={journeyHistoryBlocSkills(bloc)}
                     />
                 ))}

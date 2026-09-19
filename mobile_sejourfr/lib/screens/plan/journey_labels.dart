@@ -28,7 +28,8 @@ String journeyStepTitle(JourneyStep step) {
     case JourneyStepType.diagnostic:
       return 'Diagnostic rapide';
     case JourneyStepType.sectionExam:
-      return step.examType?.displayLabel ?? 'Épreuve';
+      // 🛑 Servi (D-47) : vaut pour une épreuve TCF comme pour une thématique.
+      return step.bloc?.label ?? 'Épreuve';
     case JourneyStepType.trainSkill:
       return step.skillTitle ?? step.skillCode ?? 'Compétence';
   }
@@ -227,17 +228,39 @@ String journeyCycleHint(JourneyCycle cycle) {
       'jusqu\'à sa prochaine actualisation.';
 }
 
-/// Le repère court d'une épreuve, en étiquette technique. 🛑 Une seule table.
-String journeyBlocMark(EpreuveType examType) => switch (examType) {
-      EpreuveType.tcfCo => 'CO',
-      EpreuveType.tcfCe => 'CE',
-      EpreuveType.tcfEe => 'EE',
-      EpreuveType.tcfEo => 'EO',
-      _ => 'TCF',
-    };
+/// Le repère court d'un bloc, en étiquette technique. 🛑 Une seule table.
+///
+/// 🛑 **L'INITIALE À DEUX LETTRES N'EXISTE QUE POUR UNE ÉPREUVE** (D-47). Une
+/// thématique civique n'en a pas — « Principes et valeurs de la République » ne
+/// se réduit pas à deux lettres, et en inventer une serait un libellé fabriqué
+/// par le front, ce que la doctrine interdit. On rend donc une chaîne vide, et
+/// c'est au kit de savoir afficher un en-tête de bloc **sans** initiale. La
+/// brique manque encore des deux côtés : c'est P8.6.
+String journeyBlocMark(JourneyBlocRef bloc) {
+  if (!bloc.estEpreuve) return '';
+  return switch (bloc.code) {
+    'TCF_CO' => 'CO',
+    'TCF_CE' => 'CE',
+    'TCF_EE' => 'EE',
+    'TCF_EO' => 'EO',
+    _ => 'TCF',
+  };
+}
 
-/// Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21).
-String journeyBlocTitle(EpreuveType examType) => examType.displayLabel;
+/// Le nom du bloc **en clair** — ce que le candidat lit (D-21).
+///
+/// 🛑 **Servi** (D-47). Il se lisait dans `EpreuveType.displayLabel`, un miroir
+/// gelé côté front — qui reste pour ses autres emplois. Une thématique civique
+/// n'y a aucune entrée, et lui en ajouter une aurait fait de ce miroir une
+/// seconde autorité sur un nom que le serveur connaît déjà.
+String journeyBlocTitle(JourneyBlocRef bloc) => bloc.label;
+
+/// Le titre d'un bloc de l'HISTORIQUE, qui est encore TCF-only.
+///
+/// ⚠️ `JourneyHistoryBloc` porte toujours `examType` et pas le bloc servi : il
+/// passera au bloc en **P8.9**, avec l'historique civique. D'ici là, un seul
+/// appelant à changer ce jour-là.
+String journeyHistoryBlocTitle(EpreuveType examType) => examType.displayLabel;
 
 /// La méta d'un bloc : ce qu'il reste à y faire.
 ///
@@ -278,7 +301,8 @@ String journeyBlocMeta(JourneyBloc bloc) {
 /// l'épreuve n'a jamais été mesurée, l'examen blanc ensuite. C'est `purpose`
 /// qui tranche, jamais une déduction de l'état du bloc.
 String journeyExamTitle(JourneyStep exam) {
-  final nom = exam.examType?.displayLabel ?? 'cette épreuve';
+  // 🛑 Servi (D-47) : vaut pour une épreuve TCF comme pour une thématique.
+  final nom = exam.bloc?.label ?? 'cette épreuve';
   return exam.purpose == JourneyStepPurpose.initialAssessment
       ? 'Évaluer mon niveau en ${nom.toLowerCase()}'
       : 'Examen blanc · $nom';
@@ -517,7 +541,9 @@ String journeyHistoryLevelTitle(JourneyHistoryCycle cycle) =>
 String journeyHistoryLevelNote(JourneyHistoryCycle cycle) {
   final marks = [
     for (final bloc in cycle.blocs)
-      if (bloc.examens > 0) journeyBlocMark(bloc.examType),
+      // ⚠️ L'HISTORIQUE EST ENCORE TCF-ONLY : `JourneyHistoryBloc` porte
+      // toujours `examType`. Il passera au bloc servi en P8.9.
+      if (bloc.examens > 0) _initialeEpreuve(bloc.examType),
   ];
   if (cycle.exitLevel == null) {
     return marks.isEmpty
@@ -537,3 +563,15 @@ bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle) =>
     cycle.entryLevel != null &&
     cycle.exitLevel != null &&
     cycle.entryLevel != cycle.exitLevel;
+
+/// L'initiale d'une épreuve TCF, pour le seul historique.
+///
+/// ⚠️ Existe parce que `journeyBlocMark` attend désormais un bloc **servi**, et
+/// que l'historique n'y est pas encore passé (P8.9).
+String _initialeEpreuve(EpreuveType examType) => switch (examType) {
+      EpreuveType.tcfCo => 'CO',
+      EpreuveType.tcfCe => 'CE',
+      EpreuveType.tcfEe => 'EE',
+      EpreuveType.tcfEo => 'EO',
+      _ => 'TCF',
+    };

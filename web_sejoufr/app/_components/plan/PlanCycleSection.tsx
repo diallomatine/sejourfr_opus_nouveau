@@ -166,7 +166,7 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
        qu'il a touché un en-tête, c'est **son** choix qui vaut — y compris
        « tout replié ». */
     const [choix, setChoix] = useState<{key: string | null} | null>(null);
-    const ouvert = choix ? choix.key : courant?.examType ?? null;
+    const ouvert = choix ? choix.key : courant?.bloc?.code ?? null;
 
     const exercises = usePlanExercise();
     const assessments = usePlanAssessment();
@@ -218,16 +218,16 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
                             celles que la file n'a pas encore peuplées. */}
                         {journey.blocs.map((bloc) => (
                             <BlocAccordion
-                                key={bloc.examType}
-                                mark={journeyBlocMark(bloc.examType)}
-                                title={journeyBlocTitle(bloc.examType)}
+                                key={bloc.bloc.code}
+                                mark={journeyBlocMark(bloc.bloc)}
+                                title={journeyBlocTitle(bloc.bloc)}
                                 meta={journeyBlocMeta(bloc)}
                                 status={journeyBlocStatus(bloc.status)}
                                 current={bloc.status === "EN_COURS"}
-                                open={ouvert === bloc.examType}
+                                open={ouvert === bloc.bloc.code}
                                 onToggle={() =>
                                     setChoix({
-                                        key: ouvert === bloc.examType ? null : bloc.examType,
+                                        key: ouvert === bloc.bloc.code ? null : bloc.bloc.code,
                                     })
                                 }
                             >

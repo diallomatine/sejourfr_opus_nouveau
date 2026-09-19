@@ -1,6 +1,5 @@
 package com.sejourfr.app.dto;
 
-import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 
 import java.util.List;
@@ -18,13 +17,24 @@ import java.util.List;
  * Un bloc sans etape est servi quand meme : le candidat doit voir ses quatre
  * epreuves, pas celles que la file a deja peuplees.
  *
- * <p>🛑 <b>Des faits, pas des phrases</b> (B-11) : « Compréhension orale »,
- * « 1 compétence restante · puis examen », « VERROUILLÉ » appartiennent aux
- * fronts et a leurs libelles miroirs ({@code lib/tcf-epreuves.ts} ⇄
- * {@code core/utils/tcf_epreuves.dart}).
+ * <p>🛑 <b>Des faits, pas des phrases</b> (B-11) : « 1 compétence restante · puis
+ * examen » et « VERROUILLÉ » appartiennent aux fronts.
  *
- * @param examType             l'epreuve du bloc. C'est <b>elle</b> que le
- *                             candidat lit partout (D-21).
+ * <p>⚠️ <b>Une exception, depuis 2026-09-19 : le LIBELLE DU BLOC est servi</b>
+ * ({@link JourneyBlocRefDto}). Il fallait choisir entre servir le libelle et
+ * faire brancher chaque front sur le module pour choisir sa table de miroirs --
+ * une epreuve TCF cote enum, une thematique civique cote donnee. Servir est la
+ * doctrine du depot ; brancher l'aurait contournee. Les miroirs
+ * ({@code lib/tcf-epreuves.ts} ⇄ {@code core/utils/tcf_epreuves.dart}) restent
+ * pour leurs autres emplois.
+ *
+ * @param bloc                 le bloc, <b>servi</b> : sa nature (epreuve TCF ou
+ *                             thematique civique), son code et son <b>libelle</b>.
+ *                             C'est <b>lui</b> que le candidat lit partout (D-21,
+ *                             transpose par D-47). 🛑 Le front affiche
+ *                             {@code bloc.label} et ne branche <b>jamais</b> sur le
+ *                             module -- un front qui branche finit par afficher
+ *                             autre chose que son jumeau.
  * @param status               derive a la lecture, jamais persiste.
  * @param competencesRestantes etapes {@code TRAIN_SKILL} encore ouvertes dans ce
  *                             bloc. C'est ce nombre qui verrouille l'examen
@@ -41,7 +51,7 @@ import java.util.List;
  *                             pas encore.
  */
 public record JourneyBlocDto(
-        EpreuveType examType,
+        JourneyBlocRefDto bloc,
         JourneyBlocStatus status,
         int competencesRestantes,
         List<JourneyStepDto> steps,

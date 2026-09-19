@@ -212,20 +212,25 @@ class CycleCiviqueSchemaIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 `learning_plan_observations` n'est PAS touchée : S-8 est reporté en P8.4 (E-2)")
-    void s8EstReporteEtPasOublie() {
-        // Ce test existe pour qu'un relecteur ne prenne pas l'absence de colonne
-        // pour un oubli. Ajouter `official_unit_id` ici aurait PRÉ-DÉCIDÉ E-2 --
-        // la question « qui fait foi quand l'observation civique et
-        // CivicLeitnerResolver divergent ? » --, et une colonne morte dans une
-        // migration livrée est définitive.
+    @DisplayName("S-8 a été levé par V070, APRÈS l'arbitrage E-2 — et dans cet ordre")
+    void s8LeveApresLArbitrage() {
+        // ⚠️ CE TEST A CHANGÉ DE SENS, ET C'EST VOULU (2026-09-19). Il vérifiait
+        // d'abord l'ABSENCE de `official_unit_id` : V069 refusait de l'ajouter,
+        // parce que ç'aurait PRÉ-DÉCIDÉ E-2 -- « qui fait foi quand l'observation
+        // civique et CivicLeitnerResolver divergent ? » -- et qu'une colonne morte
+        // dans une migration livrée est définitive.
+        //
+        // L'arbitrage a eu lieu (D-49 : deux autorités, deux questions), et V070 a
+        // posé la colonne. Le test fige donc désormais que S-8 est LEVÉ, et son
+        // historique dit dans quel ORDRE -- ce qui est la seule chose qu'un
+        // relecteur pourrait vouloir vérifier ici.
         Integer colonne = jdbc.queryForObject("""
                 SELECT count(*) FROM information_schema.columns
                 WHERE table_name = 'learning_plan_observations' AND column_name = 'official_unit_id'
                 """, Integer.class);
         assertThat(colonne)
-                .as("S-8 est un point d'arrêt assumé, pas un manque de V069")
-                .isZero();
+                .as("V070 lève S-8, après l'arbitrage E-2 et pas avant")
+                .isEqualTo(1);
     }
 
     // ------------------------------------------------------------------------

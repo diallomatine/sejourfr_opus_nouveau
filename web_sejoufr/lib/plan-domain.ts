@@ -635,7 +635,12 @@ function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
         priority: null,
         exercise: null,
         section: etape.section
-            ?? (etape.examType ? PLAN_DOMAIN_SECTION[etape.examType as PlanDomainEpreuve] : null),
+            /* 🛑 Le bloc est servi (D-47) : sa `code` porte l'épreuve quand
+               c'en est une. Une thématique civique n'a pas de section TCF, et
+               `PLAN_DOMAIN_SECTION` ne lui répondra jamais — c'est voulu. */
+            ?? (etape.bloc?.kind === "EPREUVE"
+                ? PLAN_DOMAIN_SECTION[etape.bloc.code as PlanDomainEpreuve] ?? null
+                : null),
         repere: null,
         title: journeyStepTitle(etape),
         subtitle: journeyStepSubtitle(etape) ?? "",
@@ -684,7 +689,12 @@ function carteEtapeServie(
         priority: null,
         exercise,
         section: etape.section
-            ?? (etape.examType ? PLAN_DOMAIN_SECTION[etape.examType as PlanDomainEpreuve] : null),
+            /* 🛑 Le bloc est servi (D-47) : sa `code` porte l'épreuve quand
+               c'en est une. Une thématique civique n'a pas de section TCF, et
+               `PLAN_DOMAIN_SECTION` ne lui répondra jamais — c'est voulu. */
+            ?? (etape.bloc?.kind === "EPREUVE"
+                ? PLAN_DOMAIN_SECTION[etape.bloc.code as PlanDomainEpreuve] ?? null
+                : null),
         repere: null,
         title: journeyStepTitle(etape),
         subtitle: journeyStepSubtitle(etape) ?? "",
@@ -762,10 +772,14 @@ function journeyMesureDe(
     plan: LearningPlanDto,
     etape: JourneyStepDto,
 ): PlanSeanceAssessmentItemDto | null {
-    if (etape.type !== "SECTION_EXAM" || !etape.examType) return null;
+    /* 🛑 La séance du Plan est TCF : ses `assessment.epreuve` sont des épreuves.
+       Un bloc civique n'y a aucun équivalent, donc on sort — et c'est correct,
+       pas un trou : le cycle civique a son propre écran (P8.7). */
+    if (etape.type !== "SECTION_EXAM" || etape.bloc?.kind !== "EPREUVE") return null;
+    const epreuve = etape.bloc.code;
     const dansLaSeance = plan.seance.items.find(
         (item): item is PlanSeanceAssessmentItemDto =>
-            item.exercise === null && item.assessment.epreuve === etape.examType,
+            item.exercise === null && item.assessment.epreuve === epreuve,
     );
     if (dansLaSeance) return dansLaSeance;
     const assessment = etape.assessment;

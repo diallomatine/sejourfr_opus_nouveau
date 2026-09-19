@@ -5,6 +5,8 @@ import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.entity.JourneyStep;
+import com.sejourfr.app.dto.JourneyBlocRefDto;
+import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyStepType;
@@ -171,7 +173,9 @@ public class JourneyBlocResolver {
                 .toList();
         JourneyStep examen = examenDuBloc(etapes);
         return new JourneyBlocDto(
-                epreuve, status, restantes, steps, examen == null ? null : dto.apply(examen));
+                new JourneyBlocRefDto(
+                        JourneyBlocKind.EPREUVE, epreuve.name(), epreuve.getLabel()),
+                status, restantes, steps, examen == null ? null : dto.apply(examen));
     }
 
     /**

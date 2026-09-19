@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
 import 'journey_labels.dart';
@@ -410,11 +411,15 @@ LearningPlanPriority? _priorityDe(LearningPlan plan, JourneyStep etape) {
 /// nommer une épreuve que la séance du jour n'a pas retenue — la séance est une
 /// vue bornée, la file ne l'est pas.
 PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
-  if (etape.type != JourneyStepType.sectionExam || etape.examType == null) {
+  // 🛑 La séance du Plan est TCF : ses `assessment.epreuve` sont des épreuves.
+  // Un bloc civique n'y a aucun équivalent — le cycle civique a son propre
+  // écran (P8.7). On sort, et c'est correct, pas un trou.
+  if (etape.type != JourneyStepType.sectionExam ||
+      etape.bloc?.kind != JourneyBlocKind.epreuve) {
     return null;
   }
   for (final item in plan.seance.items) {
-    if (item.assessment?.epreuve == etape.examType) return item;
+    if (item.assessment?.epreuve.name == _epreuveDuBloc(etape)?.name) return item;
   }
   final assessment = etape.assessment;
   if (assessment == null) return null;
@@ -453,7 +458,7 @@ PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
 ///
 /// ⚠️ Miroir mot pour mot du web (`carteEtapeServie`, `lib/plan-domain.ts`).
 PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercise) {
-  final epreuve = etape.examType;
+  final epreuve = _epreuveDuBloc(etape);
   final verrou = etape.locked || exercise.locked;
   final sujets = etape.progress?.quota ?? 0;
   final minutes = exercise.estimatedMinutes;
@@ -498,7 +503,7 @@ PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercis
 /// (`journey_labels.dart`), la même autorité que la timeline : la carte et la
 /// ligne de la timeline disent donc mot pour mot la même chose.
 PlanNowCard _carteIndisponible(JourneyStep etape) {
-  final epreuve = etape.examType;
+  final epreuve = _epreuveDuBloc(etape);
   return PlanNowCard(
     nature: PlanNowNature.indisponible,
     // 🛑 Une étape **fermée** garde son geste, même quand son action ne se
@@ -524,4 +529,16 @@ PlanNowCard _carteIndisponible(JourneyStep etape) {
     // continuer à le dire.
     locked: etape.locked,
   );
+}
+
+/// L'`EpreuveType` d'une étape, quand son bloc **est** une épreuve.
+///
+/// 🛑 `null` pour une étape civique : son bloc est une thématique, et aucune
+/// `EpreuveType` ne lui correspond (D-47, D-48 côté PROGRAMME).
+EpreuveType? _epreuveDuBloc(JourneyStep etape) {
+  final bloc = etape.bloc;
+  if (bloc == null || !bloc.estEpreuve) return null;
+  // 🛑 Rapprochement par `wire`, l'autorité du code d'épreuve — pas par un
+  // bricolage sur `name`, qui marcherait par coïncidence.
+  return EpreuveType.values.where((e) => e.wire == bloc.code).firstOrNull;
 }

@@ -186,14 +186,15 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         assertThat(mesure.cycle().cycleDeMesure()).isTrue();
         assertThat(mesure.cycle().etapesTotal()).isEqualTo(TcfDomainProfileDto.ORDRE.size());
         assertThat(mesure.blocs()).allSatisfy(bloc -> {
-            assertThat(bloc.exam()).as("examen du bloc " + bloc.examType()).isNotNull();
+            assertThat(bloc.exam()).as("examen du bloc " + bloc.bloc().label()).isNotNull();
             // Tous debloques : le verrou du bloc (D-15) ne se pose que sur une
             // competence restante, et il n'y en a aucune.
             assertThat(bloc.exam().locked()).isFalse();
             assertThat(bloc.competencesRestantes()).isZero();
         });
-        assertThat(mesure.blocs()).extracting(bloc -> bloc.examType())
-                .containsExactlyElementsOf(TcfDomainProfileDto.ORDRE);
+        assertThat(mesure.blocs()).extracting(bloc -> bloc.bloc().code())
+                .containsExactlyElementsOf(
+                        TcfDomainProfileDto.ORDRE.stream().map(Enum::name).toList());
     }
 
     @Test

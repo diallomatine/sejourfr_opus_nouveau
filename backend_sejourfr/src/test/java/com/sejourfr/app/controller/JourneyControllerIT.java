@@ -90,10 +90,10 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 // 🛑 QUATRE blocs, toujours, dans l'ordre de
                 // TcfDomainProfileDto.ORDRE (D-9, D-20) — pas celui des maquettes.
                 .andExpect(jsonPath("$.blocs.length()").value(4))
-                .andExpect(jsonPath("$.blocs[0].examType").value("TCF_CO"))
-                .andExpect(jsonPath("$.blocs[1].examType").value("TCF_CE"))
-                .andExpect(jsonPath("$.blocs[2].examType").value("TCF_EO"))
-                .andExpect(jsonPath("$.blocs[3].examType").value("TCF_EE"))
+                .andExpect(jsonPath("$.blocs[0].bloc.code").value("TCF_CO"))
+                .andExpect(jsonPath("$.blocs[1].bloc.code").value("TCF_CE"))
+                .andExpect(jsonPath("$.blocs[2].bloc.code").value("TCF_EO"))
+                .andExpect(jsonPath("$.blocs[3].bloc.code").value("TCF_EE"))
                 // Aucune competence, aucune epreuve mesuree : il n'y a rien a
                 // travailler tant que la mesure n'a pas dit quoi.
                 .andExpect(jsonPath("$.blocs[0].status").value("A_EVALUER"))

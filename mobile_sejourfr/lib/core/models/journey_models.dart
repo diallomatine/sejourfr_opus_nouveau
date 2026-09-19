@@ -240,6 +240,63 @@ class JourneyProgress {
       );
 }
 
+
+/// La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`.
+enum JourneyBlocKind {
+  epreuve('EPREUVE'),
+  thematique('THEMATIQUE');
+
+  const JourneyBlocKind(this.wire);
+  final String wire;
+
+  static JourneyBlocKind fromWire(String? value) => JourneyBlocKind.values
+      .firstWhere((e) => e.wire == value, orElse: () => JourneyBlocKind.epreuve);
+}
+
+/// Le **bloc** d'une étape ou d'un lot, **servi**.
+///
+/// 🛑 **Miroir mot pour mot de `web_sejoufr/lib/types.ts` (`JourneyBlocRefDto`).**
+///
+/// 🛑 **Un seul contrat pour les deux modules** (2026-09-19, D-47). Le contrat
+/// précédent portait `examType: EpreuveType`, qu'un bloc civique ne peut pas
+/// remplir. L'alternative — `examType` + `themeCode`, et **chaque front branche
+/// sur le module** — a été écartée : un front qui branche finit par afficher
+/// autre chose que son jumeau.
+///
+/// 🛑 **Le [label] est SERVI.** Les libellés d'épreuve vivaient dans
+/// `core/utils/tcf_epreuves.dart` et dans `EpreuveType.displayLabel`, qui
+/// restent pour leurs autres emplois. L'écran du cycle lit ce [label]-ci, et
+/// c'est ce qui garantit qu'une thématique civique et une épreuve TCF
+/// s'affichent **par le même chemin**.
+class JourneyBlocRef {
+  const JourneyBlocRef({
+    required this.kind,
+    required this.code,
+    required this.label,
+  });
+
+  final JourneyBlocKind kind;
+
+  /// L'identifiant stable — `TCF_CO`, `CIV_PRINCIPES`. Une **clé**, jamais un
+  /// affichage.
+  final String code;
+
+  /// Ce que le **candidat lit** — « Compréhension orale », « Principes et
+  /// valeurs de la République ».
+  final String label;
+
+  bool get estEpreuve => kind == JourneyBlocKind.epreuve;
+
+  factory JourneyBlocRef.fromJson(Map<String, dynamic> json) => JourneyBlocRef(
+        kind: JourneyBlocKind.fromWire(json['kind'] as String?),
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+      );
+
+  static JourneyBlocRef? fromJsonNullable(Object? json) =>
+      json is Map<String, dynamic> ? JourneyBlocRef.fromJson(json) : null;
+}
+
 /// Une étape de la file.
 class JourneyStep {
   const JourneyStep({
@@ -249,7 +306,7 @@ class JourneyStep {
     required this.position,
     required this.locked,
     this.purpose,
-    this.examType,
+    this.bloc,
     this.section,
     this.taskCode,
     this.skillCode,
@@ -269,8 +326,9 @@ class JourneyStep {
 
   final JourneyStepStatus status;
 
-  /// `null` pour une étape [JourneyStepType.diagnostic] seulement.
-  final EpreuveType? examType;
+  /// Le bloc **servi**. `null` pour une étape [JourneyStepType.diagnostic]
+  /// seulement — elle n'appartient à aucun bloc (R11, A45).
+  final JourneyBlocRef? bloc;
 
   /// Le domaine de la compétence. `null` hors [JourneyStepType.trainSkill].
   final SkillSection? section;
@@ -340,7 +398,7 @@ class JourneyStep {
         purpose: JourneyStepPurpose.fromWireNullable(json['purpose'] as String?),
         status: JourneyStepStatus.fromWireNullable(json['status'] as String?) ??
             JourneyStepStatus.upcoming,
-        examType: _epreuve(json['examType'] as String?),
+        bloc: JourneyBlocRef.fromJsonNullable(json['bloc']),
         section: SkillSection.fromWireNullable(json['section'] as String?),
         taskCode: _tache(json['taskCode'] as String?),
         skillCode: json['skillCode'] as String?,
@@ -407,15 +465,16 @@ class JourneyCycle {
 /// du serveur est l'autorité, aucun front ne retrie.
 class JourneyBloc {
   const JourneyBloc({
-    required this.examType,
+    required this.bloc,
     required this.status,
     required this.competencesRestantes,
     required this.steps,
     this.exam,
   });
 
-  /// L'épreuve du bloc. C'est **elle** que le candidat lit partout (D-21).
-  final EpreuveType examType;
+  /// Le bloc **servi** — sa nature, son code et son **libellé**. C'est **lui**
+  /// que le candidat lit partout (D-21, transposé par D-47).
+  final JourneyBlocRef bloc;
 
   final JourneyBlocStatus status;
 
@@ -432,7 +491,7 @@ class JourneyBloc {
   final JourneyStep? exam;
 
   factory JourneyBloc.fromJson(Map<String, dynamic> json) => JourneyBloc(
-        examType: _epreuve(json['examType'] as String?) ?? EpreuveType.tcfCo,
+        bloc: JourneyBlocRef.fromJson(json['bloc'] as Map<String, dynamic>),
         status: JourneyBlocStatus.fromWireNullable(json['status'] as String?) ??
             JourneyBlocStatus.aVenir,
         competencesRestantes:

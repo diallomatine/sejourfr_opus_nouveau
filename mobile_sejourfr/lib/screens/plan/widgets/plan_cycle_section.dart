@@ -70,7 +70,9 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// qu'il a touché un en-tête, c'est **son** choix qui vaut — y compris « tout
   /// replié » ([_choix] à `null`).
   bool _aChoisi = false;
-  EpreuveType? _choix;
+  /// Le CODE du bloc ouvert, jamais un `EpreuveType` : le bloc est servi
+  /// et sa clé vaut pour une épreuve TCF comme pour une thématique (D-47).
+  String? _choix;
 
   /// Une action de fin de cycle est en vol : les deux historisent le cycle, on
   /// ne les rejoue pas par un second appui.
@@ -145,7 +147,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
         break;
       }
     }
-    final ouvert = _aChoisi ? _choix : courant?.examType;
+    final ouvert = _aChoisi ? _choix : courant?.bloc.code;
 
     final termine = parcours.state == JourneyState.cycleCompleted;
     final nextStep = parcours.nextStep;
@@ -173,15 +175,15 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
               // encore peuplées.
               for (final bloc in parcours.blocs)
                 SfBlocAccordion(
-                  mark: journeyBlocMark(bloc.examType),
-                  title: journeyBlocTitle(bloc.examType),
+                  mark: journeyBlocMark(bloc.bloc),
+                  title: journeyBlocTitle(bloc.bloc),
                   meta: journeyBlocMeta(bloc),
                   status: journeyBlocStatus(bloc.status),
                   current: bloc.status == JourneyBlocStatus.enCours,
-                  open: ouvert == bloc.examType,
+                  open: ouvert == bloc.bloc.code,
                   onToggle: () => setState(() {
                     _aChoisi = true;
-                    _choix = ouvert == bloc.examType ? null : bloc.examType;
+                    _choix = ouvert == bloc.bloc.code ? null : bloc.bloc.code;
                   }),
                   child: _corpsDuBloc(bloc),
                 ),

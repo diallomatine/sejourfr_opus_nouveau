@@ -4719,8 +4719,9 @@ export interface JourneyStepDto {
     /** Non `null` pour les seules étapes `SECTION_EXAM`. */
     purpose: JourneyStepPurpose | null;
     status: JourneyStepStatus;
-    /** `null` pour une étape `DIAGNOSTIC` seulement. */
-    examType: EpreuveType | null;
+    /** Le bloc **servi**. `null` pour une étape `DIAGNOSTIC` seulement — elle
+     *  n'appartient à aucun bloc (R11, A45). */
+    bloc: JourneyBlocRefDto | null;
     /** Le domaine de la compétence. `null` hors `TRAIN_SKILL`. */
     section: SkillSection | null;
     /** 🛑 **`null` = compétence de COMPRÉHENSION** : CO/CE n'ont ni tâche ni
@@ -4801,6 +4802,32 @@ export interface JourneyCycleDto {
     cycleDeMesure: boolean;
 }
 
+/** La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`. */
+export type JourneyBlocKind = "EPREUVE" | "THEMATIQUE";
+
+/**
+ * Le **bloc** d'une étape ou d'un lot, **servi**.
+ *
+ * 🛑 **Un seul contrat pour les deux modules** (2026-09-19, D-47). Le contrat
+ * précédent portait `examType: EpreuveType`, qu'un bloc civique ne peut pas
+ * remplir. L'alternative — `examType` + `themeCode`, et **chaque front branche
+ * sur le module** — a été écartée : un front qui branche finit par afficher autre
+ * chose que son jumeau.
+ *
+ * 🛑 **Le `label` est SERVI.** C'est la nouveauté : les libellés d'épreuve
+ * vivaient dans `lib/tcf-epreuves.ts` (et son miroir Dart), qui reste pour ses
+ * autres emplois. L'écran du cycle lit ce `label`-ci, et c'est ce qui garantit
+ * qu'une thématique civique et une épreuve TCF s'affichent **par le même
+ * chemin**.
+ */
+export interface JourneyBlocRefDto {
+    kind: JourneyBlocKind;
+    /** L'identifiant stable — `TCF_CO`, `CIV_PRINCIPES`. Une **clé**, jamais un affichage. */
+    code: string;
+    /** Ce que le **candidat lit** — « Compréhension orale », « Principes et valeurs de la République ». */
+    label: string;
+}
+
 /**
  * **Un bloc du cycle : une épreuve.**
  *
@@ -4808,8 +4835,9 @@ export interface JourneyCycleDto {
  * du serveur est l'autorité, aucun front ne retrie.
  */
 export interface JourneyBlocDto {
-    /** L'épreuve du bloc. C'est **elle** que le candidat lit partout (D-21). */
-    examType: EpreuveType;
+    /** Le bloc **servi** — sa nature, son code et son **libellé**. C'est **lui**
+     *  que le candidat lit partout (D-21, transposé par D-47). */
+    bloc: JourneyBlocRefDto;
     status: JourneyBlocStatus;
     /** Étapes `TRAIN_SKILL` encore ouvertes. C'est ce nombre qui verrouille
      *  l'examen du bloc (D-15). */

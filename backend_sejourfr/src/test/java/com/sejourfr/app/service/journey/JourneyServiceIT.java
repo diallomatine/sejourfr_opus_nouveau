@@ -251,7 +251,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         assertThat(ee.exam()).isNotNull();
         assertThat(ee.exam().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
         assertThat(ee.exam().purpose()).isEqualTo(JourneyStepPurpose.REASSESS);
-        assertThat(ee.exam().examType()).isEqualTo(EpreuveType.TCF_EE);
+        assertThat(ee.exam().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
         // R12 — les trois epreuves non mesurees portent chacune leur « Evaluer
         // mon niveau », et rien d'autre.
         for (EpreuveType epreuve : List.of(
@@ -261,7 +261,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
             assertThat(bloc.exam()).as("examen du bloc " + epreuve).isNotNull();
             assertThat(bloc.exam().purpose())
                     .isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
-            assertThat(bloc.exam().examType()).isEqualTo(epreuve);
+            assertThat(bloc.exam().bloc().code()).isEqualTo(epreuve.name());
         }
         // Sept etapes en tout : 3 competences + le point d'etape EE + 3 mesures.
         assertThat(vue.cycle().etapesTotal()).isEqualTo(3 + 1 + 3);
@@ -745,7 +745,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
 
     private static JourneyBlocDto blocDe(JourneyDto vue, EpreuveType epreuve) {
         return vue.blocs().stream()
-                .filter(bloc -> bloc.examType() == epreuve)
+                .filter(bloc -> epreuve.name().equals(bloc.bloc().code()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Aucun bloc " + epreuve));
     }

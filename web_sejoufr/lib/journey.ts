@@ -1,4 +1,5 @@
 import type {
+    JourneyBlocRefDto,
     EpreuveType,
     JourneyBlocDto,
     JourneyBlocStatus,
@@ -232,8 +233,16 @@ export function journeyCycleHint(cycle: JourneyCycleDto): string {
 }
 
 /** Le repère court d'une épreuve, en étiquette technique. 🛑 Une seule table. */
-export function journeyBlocMark(examType: EpreuveType): string {
-    switch (examType) {
+export function journeyBlocMark(bloc: JourneyBlocRefDto): string {
+    /* 🛑 L'INITIALE À DEUX LETTRES N'EXISTE QUE POUR UNE ÉPREUVE (D-47).
+       Une thématique civique n'en a pas — « Principes et valeurs de la
+       République » ne se réduit pas à deux lettres, et en inventer une
+       (« PR » ?) serait un libellé fabriqué par le front, ce que la doctrine
+       interdit. On rend donc `null`, et c'est au kit de savoir afficher un
+       en-tête de bloc SANS initiale. La brique manque encore des deux côtés :
+       c'est P8.6. */
+    if (bloc.kind !== "EPREUVE") return "";
+    switch (bloc.code) {
         case "TCF_CO":
             return "CO";
         case "TCF_CE":
@@ -248,8 +257,24 @@ export function journeyBlocMark(examType: EpreuveType): string {
 }
 
 /** Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21). */
-export function journeyBlocTitle(examType: EpreuveType): string {
+/**
+ * Le titre d'un bloc de l'HISTORIQUE, qui est encore TCF-only.
+ *
+ * ⚠️ `JourneyHistoryBlocDto` porte toujours `examType` et pas le bloc servi : il
+ * passera au bloc en **P8.9**, avec l'historique civique. D'ici là ce helper
+ * existe pour que l'écran d'historique ne dépende pas de `epreuveNom`, privée
+ * ici — et pour que le jour du passage, il n'y ait **qu'un** appelant à changer.
+ */
+export function journeyHistoryBlocTitle(examType: EpreuveType): string {
     return epreuveNom(examType);
+}
+
+export function journeyBlocTitle(bloc: JourneyBlocRefDto): string {
+    /* 🛑 LE LIBELLÉ EST SERVI (D-47). Il se lisait dans `epreuveNom()`, un miroir
+       gelé côté front — qui reste pour ses autres emplois. Une thématique
+       civique n'y a aucune entrée, et lui en ajouter une aurait fait de ce
+       miroir une seconde autorité sur un nom que le serveur connaît déjà. */
+    return bloc.label;
 }
 
 /**
@@ -299,7 +324,10 @@ export function journeyBlocStatus(status: JourneyBlocStatus): {label: string; to
  * tranche, jamais une déduction de l'état du bloc.
  */
 export function journeyExamTitle(exam: JourneyStepDto): string {
-    const nom = exam.examType ? epreuveNom(exam.examType) : "cette épreuve";
+    /* 🛑 LE NOM DU BLOC EST SERVI (D-47) : il vient de `bloc.label`, et il vaut
+       aussi bien « Compréhension orale » qu'une thématique civique. Il se lisait
+       dans `epreuveNom()`, qui ne connaît que les quatre épreuves du TCF. */
+    const nom = exam.bloc ? exam.bloc.label : "cette épreuve";
     return exam.purpose === "INITIAL_ASSESSMENT"
         ? `Évaluer mon niveau en ${nom.toLowerCase()}`
         : `Examen blanc · ${nom}`;
@@ -394,7 +422,8 @@ export const JOURNEY_NEXT_STEP_ERROR =
 export const JOURNEY_NEXT_STEP_BUSY = "Un instant…";
 
 function epreuveLabel(step: JourneyStepDto): string {
-    return step.examType ? epreuveNom(step.examType) : "Épreuve";
+    /* 🛑 Servi (D-47). Vaut pour une épreuve TCF comme pour une thématique. */
+    return step.bloc ? step.bloc.label : "Épreuve";
 }
 
 /** 🛑 **Une seule table de noms d'épreuve** : `EPREUVE_PRESENTATION`. Elle
@@ -555,10 +584,22 @@ export function journeyHistoryLevelState(
  * sur leur bloc), jamais la liste des quatre : annoncer une épreuve qui n'a
  * rien enregistré serait une mesure inventée.
  */
+/** 🛑 L'initiale d'une épreuve TCF, pour le seul historique — voir `journeyHistoryLevelNote`. */
+const EPREUVE_INITIALE: Record<string, string> = {
+    TCF_CO: "CO",
+    TCF_CE: "CE",
+    TCF_EE: "EE",
+    TCF_EO: "EO",
+};
+
 export function journeyHistoryLevelNote(cycle: JourneyHistoryCycleDto): string {
     const marks = cycle.blocs
         .filter((bloc) => bloc.examens > 0)
-        .map((bloc) => journeyBlocMark(bloc.examType));
+        /* ⚠️ L'HISTORIQUE EST ENCORE TCF-ONLY : `JourneyHistoryBlocDto` porte
+           toujours `examType`, pas le bloc servi. Il passera au bloc en P8.9,
+           avec l'historique civique. D'ici là on lit l'initiale depuis l'enum,
+           sans passer par `journeyBlocMark`, qui attend un bloc servi. */
+        .map((bloc) => EPREUVE_INITIALE[bloc.examType] ?? "TCF");
     if (!cycle.exitLevel) {
         return marks.length > 0
             ? `${marks.join(" · ")} — aucun niveau global n'a été mesuré pendant ce cycle.`

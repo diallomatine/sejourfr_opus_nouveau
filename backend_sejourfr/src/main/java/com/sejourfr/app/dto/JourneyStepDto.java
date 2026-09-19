@@ -17,7 +17,7 @@ import java.util.UUID;
  * <p>C'est la doctrine de tout l'existant — {@code PlanPathStepKind},
  * {@code PlanDomainAssessmentKind}, {@code PlanChangeDto},
  * {@code PreparationEtape} le disent chacun explicitement. Sont donc servis
- * {@link #type()}, {@link #purpose()}, {@link #examType()}, {@link #section()},
+ * {@link #type()}, {@link #purpose()}, {@link #bloc()}, {@link #section()},
  * {@link #taskCode()}, {@link #skillCode()}, {@link #skillTitle()},
  * {@link #progress()}, {@link #locked()} et {@link #position()}.
  *
@@ -43,7 +43,7 @@ public record JourneyStepDto(
          */
         JourneyStepStatus status,
         /** {@code null} pour une etape {@code DIAGNOSTIC} seulement. */
-        EpreuveType examType,
+        JourneyBlocRefDto bloc,
         /** Le domaine de la competence. {@code null} hors {@code TRAIN_SKILL}. */
         SkillSection section,
         /**

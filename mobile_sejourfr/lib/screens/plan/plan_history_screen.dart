@@ -215,7 +215,7 @@ class _CycleTermine extends StatelessWidget {
           for (final bloc in cycle.blocs)
             SfJourneyRow(
               state: SfJourneyState.done,
-              title: journeyBlocTitle(bloc.examType),
+              title: journeyHistoryBlocTitle(bloc.examType),
               subtitle: journeyHistoryBlocSkills(bloc),
             ),
         ],

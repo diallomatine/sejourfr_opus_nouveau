@@ -295,9 +295,11 @@ class JourneyReadServiceTest {
 
         // 🛑 Quatre blocs, TOUJOURS, et dans l'ordre de TcfDomainProfileDto.ORDRE
         // (D-9, D-20). L'ordre des maquettes est illustratif.
-        assertThat(vue.blocs()).extracting(JourneyBlocDto::examType).containsExactly(
-                EpreuveType.TCF_CO, EpreuveType.TCF_CE,
-                EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        // 🛑 Le bloc est SERVI depuis 2026-09-19 : on lit son `code`, pas un
+        // `EpreuveType` (D-47). Le code d'une epreuve EST son nom d'enum.
+        assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code()).containsExactly(
+                EpreuveType.TCF_CO.name(), EpreuveType.TCF_CE.name(),
+                EpreuveType.TCF_EO.name(), EpreuveType.TCF_EE.name());
         // L'examen d'un bloc est servi A PART : l'ecran l'imbrique en fin de
         // bloc, il n'est pas une ligne d'etape de plus.
         JourneyBlocDto ee = bloc(vue, EpreuveType.TCF_EE);
@@ -616,7 +618,7 @@ class JourneyReadServiceTest {
 
     private static JourneyBlocDto bloc(JourneyDto vue, EpreuveType epreuve) {
         return vue.blocs().stream()
-                .filter(bloc -> bloc.examType() == epreuve)
+                .filter(bloc -> epreuve.name().equals(bloc.bloc().code()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Aucun bloc " + epreuve));
     }

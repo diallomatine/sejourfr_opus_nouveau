@@ -721,11 +721,16 @@ public class JourneyReadService {
                 step.getType(),
                 step.getPurpose(),
                 etat.status(),
-                step.getExamType(),
+                // 🛑 LE BLOC EST SERVI, nature + code + libelle (D-47) : le front
+                // affiche `bloc.label` et ne branche jamais sur le module.
+                step.blocRef(),
                 skill == null ? null : skill.getSection(),
                 skill == null ? null : skill.getTaskCode(),
+                // 🛑 Le CODE et le TITRE viennent de l'unite travaillable, quelle
+                // qu'elle soit : une competence TCF ou une unite officielle
+                // civique. `uniteLabel()` porte cette uniformite a la source.
                 skill == null ? null : skill.getCode(),
-                skill == null ? null : skill.getTitle(),
+                step.uniteLabel(),
                 step.getLot() == null ? null : step.getLot().getId(),
                 step.getSourceAssessmentId(),
                 step.getPosition(),
