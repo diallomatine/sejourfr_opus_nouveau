@@ -15,6 +15,7 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
@@ -192,13 +193,16 @@ public class MeService {
                 .orElse(null);
 
         // Thèmes "consolidés" : un thème dont au moins un examen thématique
-        // (themeId non null) a été passé à ≥ 16/20 (seuil officiel des
-        // examens thèmes-scopés, cf. AttemptService.CIVIQUE_THEME_EXAM_THRESHOLD).
+        // (themeId non null) a été passé au seuil de l'examen de thème.
+        //
+        // 🛑 Le seuil est LU chez son autorité (CivicExamFormat.SEUIL_REUSSITE_THEME),
+        // plus recopié en littéral : il a vécu ici en `16` et dans AttemptService
+        // en constante privée, et deux copies d'un seuil finissent par diverger.
         final Set<UUID> themesConsolidated = new HashSet<>();
         for (final Attempt a : mockExams) {
             if (a.getFinishedAt() == null || a.getLotThemeId() == null) continue;
             final Integer score = a.getScore();
-            if (score != null && score >= 16) {
+            if (score != null && score >= CivicExamFormat.SEUIL_REUSSITE_THEME) {
                 themesConsolidated.add(a.getLotThemeId());
             }
         }

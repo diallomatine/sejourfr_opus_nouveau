@@ -206,10 +206,10 @@ public record CivicPlanDto(
      * L'etat du tagging, et ce qu'il autorise.
      *
      * <p>🛑 <b>Le grain se MESURE, il ne se decrete pas</b> ({@code 20_} §3.3).
-     * Au lancement de L10, 0 question civique sur 1 016 est taguee : les cinq
-     * themes sont donc au grain {@code THEME}. C'est le mode <b>prevu</b> par la
-     * spec (phase 1), et l'ecran le dit — il ne fait pas semblant de travailler
-     * par notion.
+     * Au 2026-09-19, les cinq themes sont tagues a <b>97 — 98,6 %</b> : ils sont
+     * donc tous au grain {@code NOTION}. Le mode {@code THEME} reste servi pour
+     * un theme neuf, et l'ecran le dit — il ne fait jamais semblant de
+     * travailler par notion.
      *
      * @param courant         {@code NOTION} seulement quand <b>tous</b> les
      *                        themes ont bascule. Le plan ne se dit pas plus

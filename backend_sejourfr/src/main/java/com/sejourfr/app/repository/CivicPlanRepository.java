@@ -20,6 +20,14 @@ import java.util.UUID;
  * requetes sont natives et ne portent que sur des projections. Aucune n'ecrit.
  */
 @Repository
+/*
+ * 🛑 LES QUATRE REQUETES FILTRENT `is_active` **ET** `status` (corrige le 2026-09-19).
+ * Elles ne filtraient que `is_active`. Inoffensif au moment du correctif -- le
+ * module civique ne porte aucune question `DRAFT` ni `ARCHIVED` -- mais faux au
+ * premier brouillon : un enonce en cours d'ecriture serait entre dans la
+ * dotation, dans le taggage et dans le tirage d'une serie. Le `status` est le
+ * verrou de validation editoriale ; `is_active` est le verrou de retrait.
+ */
 public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
 
     /**
@@ -83,6 +91,7 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
                      JOIN themes t ON t.id = q.theme_id
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
+              AND q.status = 'ACTIVE'
               AND q.question_type = 'CONNAISSANCE'
             GROUP BY t.id
             """, nativeQuery = true)
@@ -108,6 +117,7 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             FROM questions q
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
+              AND q.status = 'ACTIVE'
               AND q.civic_notion_id IS NOT NULL
               AND q.difficulty = CAST(:mention AS varchar)
             GROUP BY q.civic_notion_id
@@ -126,6 +136,7 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
             FROM questions q
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
+              AND q.status = 'ACTIVE'
               AND q.difficulty = CAST(:mention AS varchar)
             GROUP BY q.theme_id
             """, nativeQuery = true)
@@ -163,6 +174,7 @@ public interface CivicPlanRepository extends JpaRepository<CivicNotion, UUID> {
                      ) derniere ON true
             WHERE q.module = 'CIVIQUE'
               AND q.is_active = true
+              AND q.status = 'ACTIVE'
               AND q.difficulty = CAST(:mention AS varchar)
               AND (CAST(:notionId AS uuid) IS NULL OR q.civic_notion_id = CAST(:notionId AS uuid))
               AND (CAST(:themeId AS uuid) IS NULL OR q.theme_id = CAST(:themeId AS uuid))

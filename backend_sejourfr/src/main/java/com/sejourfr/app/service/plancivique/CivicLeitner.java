@@ -16,9 +16,10 @@ import java.util.List;
  *
  * <ul>
  *   <li><b>le tagging rétroactif</b> — le jour où une question reçoit sa notion,
- *       <i>toutes</i> les réponses déjà données comptent pour elle. Une boîte
- *       persistée serait née vide et le serait restée : au lancement,
- *       0 question sur 1 016 est taguée ;</li>
+ *       <i>toutes</i> les réponses déjà données comptent pour elle. C'est ce qui
+ *       a payé : la campagne du 2026-09-11 a tagué <b>783</b> questions d'un
+ *       coup, et tout l'historique a compté le jour même. Une boîte persistée
+ *       serait née vide et le serait restée ;</li>
  *   <li><b>aucun job quotidien</b> — {@code 20_} §5.4 en prévoit un pour les
  *       échéances franchies. Une échéance calculée à la lecture est franchie
  *       toute seule.</li>

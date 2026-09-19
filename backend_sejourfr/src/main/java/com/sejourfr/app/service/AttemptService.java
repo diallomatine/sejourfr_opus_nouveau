@@ -13,6 +13,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
@@ -60,16 +61,12 @@ public class AttemptService {
 
     // Fallback historique pour MOCK_EXAM sans ExamTemplate. Quand un template
     // est branche, ces valeurs viennent du template (durationSeconds, totalQuestions, passingScore).
-    private static final int CIVIQUE_EXAM_SIZE = 40;
-    private static final int CIVIQUE_EXAM_TIME = 45 * 60;
-    private static final int CIVIQUE_EXAM_THRESHOLD = 32;
-
-    // Examen civique scopé à un thème (lancé depuis l'onglet Examens du
-    // détail thème). 20 questions du thème en 20 min, seuil 16/20.
-    private static final int CIVIQUE_THEME_EXAM_SIZE = 20;
-    private static final int CIVIQUE_THEME_EXAM_TIME = 20 * 60;
-    private static final int CIVIQUE_THEME_EXAM_THRESHOLD = 16;
-
+    //
+    // 🛑 LES FORMATS CIVIQUES NE SONT PLUS DECLARES ICI (D-31, 2026-09-19).
+    // 40 / 32 / 45 min y vivaient en DOUBLE de CivicExamFormat, dont le javadoc
+    // dit pourtant « c'est du code, pas un reglage » ; et le format de theme
+    // (20 / 16 / 20 min) n'avait aucune autorite du tout -- MeService en avait
+    // recopie le seuil en litteral. Une regle, une autorite : CivicExamFormat.
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
 
@@ -174,13 +171,13 @@ public class AttemptService {
                     civicThemeExam ? "de thème " : "");
             if (req.module() == Module.CIVIQUE) {
                 if (civicThemeExam) {
-                    size = CIVIQUE_THEME_EXAM_SIZE;
-                    timeLimit = CIVIQUE_THEME_EXAM_TIME;
-                    threshold = CIVIQUE_THEME_EXAM_THRESHOLD;
+                    size = CivicExamFormat.QUESTIONS_THEME;
+                    timeLimit = CivicExamFormat.DUREE_THEME_SECONDES;
+                    threshold = CivicExamFormat.SEUIL_REUSSITE_THEME;
                 } else {
-                    size = CIVIQUE_EXAM_SIZE;
-                    timeLimit = CIVIQUE_EXAM_TIME;
-                    threshold = CIVIQUE_EXAM_THRESHOLD;
+                    size = CivicExamFormat.QUESTIONS;
+                    timeLimit = CivicExamFormat.DUREE_SECONDES;
+                    threshold = CivicExamFormat.SEUIL_REUSSITE;
                 }
             } else {
                 size = TCF_EXAM_SIZE;
@@ -582,9 +579,9 @@ public class AttemptService {
                 return startGuestModuleExam(req, clientIp);
             } else {
                 if (req.module() == Module.CIVIQUE) {
-                    size = CIVIQUE_EXAM_SIZE;
-                    timeLimit = CIVIQUE_EXAM_TIME;
-                    threshold = CIVIQUE_EXAM_THRESHOLD;
+                    size = CivicExamFormat.QUESTIONS;
+                    timeLimit = CivicExamFormat.DUREE_SECONDES;
+                    threshold = CivicExamFormat.SEUIL_REUSSITE;
                 } else {
                     size = TCF_EXAM_SIZE;
                     timeLimit = TCF_EXAM_TIME;

@@ -16,9 +16,10 @@ import java.util.List;
  *
  * <ul>
  *   <li>🛑 <b>Le tagging est rétroactif.</b> Le jour où une question reçoit sa
- *       notion, les réponses déjà données comptent pour elle. Au lancement de ce
- *       lot, 0 question sur 1 016 est taguée : une table de progression serait
- *       née vide et le serait restée pour tout l'historique.</li>
+ *       notion, les réponses déjà données comptent pour elle. La campagne du
+ *       2026-09-11 a tagué <b>783</b> questions d'un coup : une table de
+ *       progression serait née vide et le serait restée pour tout
+ *       l'historique.</li>
  *   <li>🛑 <b>Recalibrer ne demande aucune migration</b> — changer un intervalle
  *       relit tout l'historique au prochain appel.</li>
  *   <li>Aucun job quotidien : une échéance calculée à la lecture se franchit

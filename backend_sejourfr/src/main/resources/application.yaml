@@ -70,7 +70,7 @@ management:
 
 sejourfr:
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.11:3000
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.1041:3000
   # URLs publiques qui servent a construire les liens des emails (bienvenue,
   # reinitialisation de mot de passe, confirmation de changement d'email) et les
   # success/cancel URLs Stripe. Declarees ICI, dans le fichier de base, et pas
@@ -159,7 +159,7 @@ sejourfr:
     provider: local
     local:
       root: ./var/uploads
-      public-base-url: http://192.168.1.1:8080/files
+      public-base-url: http://192.168.1.104:8080/files
     max-file-size-bytes: 26214400
     allowed-image-types: image/png,image/jpeg,image/webp
     allowed-audio-types: audio/mpeg,audio/mp3,audio/ogg,audio/wav
@@ -1123,8 +1123,10 @@ sejourfr:
     # domaines `sit_*` (50_ §6.2) et ne recoivent pas de notion. Les compter
     # plafonnait trois themes sur cinq a 77,9 / 77,9 / 79,0 % -- ils n'auraient
     # JAMAIS franchi ce seuil, meme entierement tagues.
-    # 🛑 Au lancement de L10, 0 question sur 1 016 est taguee -- les cinq themes
-    # sont donc au grain THEME, ce qui est le mode PREVU par la spec (phase 1).
+    # ⚠️ ETAT REEL AU 2026-09-19 : la campagne du 2026-09-11 a porte les cinq
+    # themes a 97 - 98,6 % de leurs questions de connaissance. LES CINQ SONT AU
+    # GRAIN NOTION. Le commentaire precedent (« 0 question sur 1 016 est taguee,
+    # les cinq themes sont donc au grain THEME ») decrivait le 2026-09-10.
     seuil-tagging: 0.80
     # 50_ §6.1 : >= 5 questions dans la mention = notion pleinement utilisable ;
     # 1 a 4 = visible en revision libre, JAMAIS proposee en priorite. Compte PAR

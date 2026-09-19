@@ -57,15 +57,19 @@ import java.util.UUID;
  * {@code civic_plan_item}, ni {@code user_civic_notion_progress} — les trois
  * tables que {@code 20_} §10 prevoyait. L'etat Leitner se <b>replie</b> sur
  * l'historique des reponses a chaque lecture ({@link CivicLeitnerResolver}), ce
- * qui rapporte le <b>tagging retroactif</b> : au lancement de ce lot, 0 question
- * sur 1 016 est taguee, et une table de progression serait nee vide pour tout
- * l'historique deja produit.
+ * qui a rapporte le <b>tagging retroactif</b> : la campagne du 2026-09-11 a
+ * tague 783 questions d'un coup, et <b>toutes</b> les reponses deja donnees ont
+ * compte pour leur notion le jour meme. Une table de progression serait nee vide
+ * et le serait restee.
  *
  * <p>🛑 <b>2. Le grain se mesure, thème par thème.</b> Tant qu'un theme n'a pas
  * franchi le seuil de tagging, le plan y travaille <b>par theme</b> — le mode
  * degrade que {@code 20_} §3.3 prevoit noir sur blanc, pas une panne. Attendre
  * le tagging complet pour offrir quoi que ce soit priverait le candidat de ce
  * qui est deja mesurable.
+ *
+ * <p>⚠️ <b>Au 2026-09-19, les cinq themes sont au grain NOTION</b> (97 — 98,6 %).
+ * Le mode degrade n'est plus emprunte ; il reste code pour un theme neuf.
  *
  * <p>🛑 <b>3. Un theme n'est jamais « maitrise ».</b> Une notion se tient sur
  * quelques questions ; un theme en porte deux cents. Repondre juste quatre fois

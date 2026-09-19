@@ -27,9 +27,15 @@ public class CivicPlanProperties {
      * plan y travaille <b>par notion</b> (20_ §3.3).
      *
      * <p>🛑 <b>La bascule est PAR THEME</b>, jamais globale : un theme tague a
-     * 90 % n'attend pas celui qui est a 10 %. Au lancement de ce lot, 0 question
-     * sur 1 016 est taguee — les cinq themes sont donc au grain THEME, ce qui
-     * est le mode PREVU par la spec (§3.3 phase 1), pas une panne.
+     * 90 % n'attend pas celui qui est a 10 %.
+     *
+     * <p>⚠️ <b>Etat reel au 2026-09-19</b> : la campagne de tagging du 2026-09-11
+     * a porte les cinq themes a <b>97 — 98,6 %</b> de leurs questions de
+     * connaissance. <b>Les cinq sont au grain NOTION.</b> Le commentaire
+     * precedent (« au lancement de ce lot, 0 question sur 1 016 est taguee — les
+     * cinq themes sont donc au grain THEME ») decrivait l'etat du 2026-09-10 et
+     * n'a plus cours. Le mode degrade par theme reste code, et c'est voulu : il
+     * sert si un theme neuf arrive.
      *
      * <p>🛑 <b>Le denominateur ne compte que les questions de CONNAISSANCE</b>
      * ({@code CivicPlanRepository.taggageParTheme()}). Les mises en situation

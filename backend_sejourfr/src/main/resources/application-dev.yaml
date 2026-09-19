@@ -43,7 +43,7 @@ logging:
 sejourfr:
   cors:
     # Web Next.js (3000) + Admin Vite (5173)
-    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.11:3000
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.1041:3000
   stripe:
     # Clés test Stripe : à définir DANS l'environnement (~/.zshrc ou .env
     # ignoré par git), JAMAIS en clair dans ce fichier — sinon GitHub
@@ -95,7 +95,7 @@ sejourfr:
   storage:
     local:
       root: /Users/diallomatine/Desktop/Nouveu_Projets/sejour_storage
-      public-base-url: http://192.168.1.1:8080/files
+      public-base-url: http://192.168.1.104:8080/files
   mail:
     from: ${MAIL_FROM}
   contact:
