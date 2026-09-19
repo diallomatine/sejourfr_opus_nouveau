@@ -2327,3 +2327,42 @@ cachant derrière un `@Lazy`).
 ⚠️ **Le seuil** : si une **seconde dépendance d'action** entre dans `CivicPlanService`, on extrait
 un `CivicSerieService`. Pas avant — la boucle est fermée, et un refactor préventif coûterait plus
 qu'il ne rapporte.
+
+---
+
+### DETTE-C1 (2026-09-20) — ⚠️ **la DOTATION ne compte pas ce que le TIRAGE tire**
+
+**Trouvée en branchant l'écrivain d'observation** (P8.4 points 6-7), pas par une relecture : le
+branchement a changé **quelle cible** le plan classe première, et un test vert **par chance** est
+passé au rouge.
+
+**Le fait, mesuré** ⟦SQL⟧ sur la notion « Les guerres du XXᵉ siècle et la décolonisation » :
+
+| Total actives | CSP | CR | NAT |
+|---|---|---|---|
+| **26** | **8** | 9 | 9 |
+
+- Le **plan** annonce `questionsSerie = 10` et `dotation = SERVABLE` — il compte la **notion
+  entière** ;
+- le **tirage** (`tirageSerieCiblee`) filtre encore `q.difficulty = :mention` — il n'en trouve
+  que **8**.
+
+⇒ Une cible peut **annoncer 10 et n'en servir que 8**. Le candidat reçoit une série plus courte que
+ce que l'écran lui a promis.
+
+🛑 **Ce n'est pas un défaut nouveau, et il a déjà été tranché** : **P8.2b** supprime le filtre de
+mention (« la mention ne filtre plus le contenu », **D-27**, **D-42**) et avec lui `CivicDotation`.
+**La phase n'a pas été faite** — l'ordre arrêté était P8.2a → P8.A → **P8.2b** → P8.3 → P8.4, et
+P8.2b a été sautée.
+
+⚠️ **Ce que j'ai fait, et ce que je n'ai pas fait.** Le test `CivicPlanServiceIT.serieCibleeAbonne`
+compare désormais la taille servie à `min(questionsSerie, stock dans la mention)`, avec le chiffre
+mesuré et le renvoi à P8.2b écrits sur place. **Je n'ai pas touché au filtre** : c'est P8.2b, et elle
+ne se fait pas dans une passe qui parle d'autre chose.
+
+⇒ **Quand P8.2b tombera**, les deux nombres se rejoindront et cette borne redeviendra une
+**égalité** — le test le dit à l'endroit où il faudra le changer.
+
+🛑 **Et la leçon de méthode** : ce test passait **par chance**, parce qu'il dépendait de la cible que
+le plan classait première. Un test dont le résultat dépend d'un **choix du moteur** qu'il ne fixe pas
+lui-même est un test qui dormira jusqu'au jour où le moteur changera d'avis.

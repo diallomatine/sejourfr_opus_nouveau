@@ -7,11 +7,13 @@ import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepType;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.CivicNotionManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.service.AccountDeletionService;
+import com.sejourfr.app.service.CivicObservationService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.service.plancivique.CivicPlanService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -25,9 +27,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -65,6 +69,8 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     @Autowired private TestData data;
     @Autowired private EntityManager entityManager;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private CivicObservationService observationService;
+    @Autowired private TcfJourneyConfig config;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -182,6 +188,82 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
         // l'arbitrage interdit : lire l'ordre existant, ne pas en creer un
         // second au motif qu'il serait meilleur.
         assertThat(premiere.unite()).isEqualTo(attendue);
+    }
+
+    // ------------------------------------------------------------------------
+    // Point 6 — R2 au grain de l'unite, et la cloture qui en decoule
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("R2 — une unite se clot sur le quota de series REUSSIES, lu chez son autorite")
+    void uneUniteSeClotSurSonQuota() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+
+        Etape aTravailler = etapes(cycle).stream()
+                .filter(e -> e.type().equals("TRAIN_SKILL"))
+                .findFirst()
+                .orElseThrow();
+        UUID unite = uniteParCode(aTravailler.unite());
+
+        // Autant de series REUSSIES que le quota en demande -- lu chez son
+        // autorite, jamais ecrit ici : si D-16 rebouge, ce test suit.
+        for (int i = 0; i < config.trainSeriesQuota(); i++) {
+            observationService.record(user.getId(), UUID.randomUUID(),
+                    LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(),
+                    reussite(unite));
+        }
+        journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
+
+        // 🛑 La MEME fonction que celle qui affiche l'avancement
+        // (`etapesAuQuota`) : une etape ne se clot jamais sur une regle
+        // differente de celle qui l'a calculee.
+        // ⚠️ Un statut d'etape ne se PERSISTE pas : la base porte la date de
+        // cloture et son MOTIF, le statut se derive a la lecture.
+        Map<String, Object> close = jdbc.queryForMap("""
+                SELECT closed_at, resolution FROM journey_step
+                WHERE journey_id = ? AND official_unit_id = ?
+                """, cycle.getId(), unite);
+        assertThat(close.get("closed_at")).isNotNull();
+        assertThat(close.get("resolution")).isEqualTo("QUOTA_REACHED");
+    }
+
+    @Test
+    @DisplayName("Une seule serie reussie ne clot rien : le quota n'est pas atteint")
+    void uneSerieNeSuffitPas() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        Etape aTravailler = etapes(cycle).stream()
+                .filter(e -> e.type().equals("TRAIN_SKILL"))
+                .findFirst()
+                .orElseThrow();
+        UUID unite = uniteParCode(aTravailler.unite());
+
+        observationService.record(user.getId(), UUID.randomUUID(),
+                LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(), reussite(unite));
+        journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
+
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey_step
+                WHERE journey_id = ? AND official_unit_id = ? AND closed_at IS NULL
+                """, Integer.class, cycle.getId(), unite))
+                .as("l'etape reste ouverte tant que le quota n'est pas atteint")
+                .isEqualTo(1);
+    }
+
+    private List<CivicObservationService.ReponseCivique> reussite(UUID unite) {
+        return java.util.stream.IntStream.range(0, 10)
+                .mapToObj(i -> new CivicObservationService.ReponseCivique(unite, true, true))
+                .toList();
+    }
+
+    private UUID uniteParCode(String code) {
+        return jdbc.queryForObject(
+                "SELECT id FROM civic_official_units WHERE code = ?", UUID.class, code);
     }
 
     // ------------------------------------------------------------------------

@@ -62,6 +62,30 @@ public interface LearningPlanObservationRepository extends JpaRepository<Learnin
             @Param("after") Instant after);
 
     /**
+     * Le <b>jumeau civique</b> : l'historique borne de plusieurs <b>unites
+     * officielles</b>, en UNE requete quel que soit leur nombre.
+     *
+     * <p>🛑 <b>Meme regle, autre cle de lecture</b> (D-48). R2 — « 2 series
+     * reussies ou 4 terminees » (D-16) — ne change pas d'un mot ; ce qui change
+     * est ce qu'on compte : une <b>unite</b> au lieu d'une competence.
+     *
+     * <p>{@code (user_id, official_unit_id, observed_at DESC)} est exactement
+     * {@code idx_learning_plan_user_unite_recent}, pose par V070.
+     */
+    @Query("""
+            SELECT o FROM LearningPlanObservation o
+            JOIN FETCH o.officialUnit
+            WHERE o.user.id = :userId
+              AND o.officialUnit.id IN :uniteIds
+              AND o.observedAt >= :after
+            ORDER BY o.observedAt DESC
+            """)
+    List<LearningPlanObservation> findByUserAndUnitesSince(
+            @Param("userId") UUID userId,
+            @Param("uniteIds") Collection<UUID> uniteIds,
+            @Param("after") Instant after);
+
+    /**
      * La trajectoire d'UNE competence : ses observations probantes, la plus
      * recente d'abord, bornees en nombre.
      *

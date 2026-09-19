@@ -40,6 +40,13 @@ public class LearningPlanObservationManager {
                 userId, uniteId, sourceType, sourceId);
     }
 
+    /** Le jumeau civique : historique borne de plusieurs UNITES officielles (D-48). */
+    public List<LearningPlanObservation> findByUserAndUnitesSince(
+            UUID userId, Collection<UUID> uniteIds, Instant after) {
+        if (uniteIds.isEmpty()) return List.of();
+        return repository.findByUserAndUnitesSince(userId, uniteIds, after);
+    }
+
     /** Historique borne de plusieurs competences, en UNE requete quel que soit leur nombre. */
     public List<LearningPlanObservation> findByUserAndSkillsSince(
             UUID userId, Collection<UUID> skillIds, Instant after) {

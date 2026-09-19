@@ -24,6 +24,8 @@ import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.mapper.QuestionMapper;
 import com.sejourfr.app.service.ComprehensionObservationService;
 import com.sejourfr.app.service.journey.JourneyProductionBridge;
+import com.sejourfr.app.service.CivicObservationService;
+import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
 import com.sejourfr.app.service.journey.JourneyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +69,10 @@ class AttemptInteractionServiceExplicationTest {
                 mock(AttemptManager.class), attemptQuestionManager, answerManager,
                 mock(AttemptScoringService.class), mock(ReceptiveEvidenceAdapter.class),
                 mock(AttemptMapper.class), questionMapper,
-                mock(ComprehensionObservationService.class), mock(JourneyService.class),
+                mock(ComprehensionObservationService.class),
+                mock(CivicObservationService.class),
+                mock(CivicExamCompositionService.class),
+                mock(JourneyService.class),
                 mock(JourneyProductionBridge.class));
         when(answerManager.save(any(Answer.class))).thenAnswer(inv -> inv.getArgument(0));
     }

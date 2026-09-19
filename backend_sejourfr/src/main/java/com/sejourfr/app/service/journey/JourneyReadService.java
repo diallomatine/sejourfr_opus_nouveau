@@ -20,6 +20,7 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.JourneySuggestionType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
@@ -561,40 +562,70 @@ public class JourneyReadService {
      */
     private Map<UUID, Series> seriesDepuisLaCreation(
             UUID userId, List<JourneyStep> ouvertes) {
-        Map<UUID, Instant> depuis = new LinkedHashMap<>();
+        // 🛑 UNE SEULE CARTE, DEUX CLES DE LECTURE (D-48). La regle R2 ne change
+        // pas d'un mot ; ce qui change est ce qu'on COMPTE : une competence TCF
+        // ou une unite officielle civique. Les deux espaces d'identifiants ne se
+        // melangent jamais -- une etape porte exactement l'un des deux
+        // (`chk_journey_step_train_skill`), et elle relit SA propre cle.
+        Map<UUID, Instant> depuisCompetence = new LinkedHashMap<>();
+        Map<UUID, Instant> depuisUnite = new LinkedHashMap<>();
         for (JourneyStep step : ouvertes) {
             Skill skill = step.getSkill();
             if (skill != null && skill.getSection() != null
                     && skill.getSection().isComprehension()) {
-                depuis.put(skill.getId(), step.getCreatedAt());
+                depuisCompetence.put(skill.getId(), step.getCreatedAt());
+            } else if (skill == null && step.uniteId() != null) {
+                depuisUnite.put(step.uniteId(), step.getCreatedAt());
             }
         }
-        if (depuis.isEmpty()) return Map.of();
-        Instant plusAncienne = depuis.values().stream().min(Instant::compareTo).orElseThrow();
-        List<LearningPlanObservation> observations =
-                observationManager.findByUserAndSkillsSince(userId, depuis.keySet(), plusAncienne);
+        if (depuisCompetence.isEmpty() && depuisUnite.isEmpty()) return Map.of();
+
+        List<LearningPlanObservation> observations = new ArrayList<>();
+        if (!depuisCompetence.isEmpty()) {
+            observations.addAll(observationManager.findByUserAndSkillsSince(
+                    userId, depuisCompetence.keySet(), plusAncienne(depuisCompetence)));
+        }
+        if (!depuisUnite.isEmpty()) {
+            observations.addAll(observationManager.findByUserAndUnitesSince(
+                    userId, depuisUnite.keySet(), plusAncienne(depuisUnite)));
+        }
+
         Map<UUID, Set<UUID>> terminees = new LinkedHashMap<>();
         Map<UUID, Set<UUID>> reussies = new LinkedHashMap<>();
         for (LearningPlanObservation observation : observations) {
-            if (observation.getSourceType() == null
-                    || !observation.getSourceType().isComprehension()) {
+            LearningPlanSourceType source = observation.getSourceType();
+            if (source == null) continue;
+            // La cle de CETTE observation, et la date de creation de l'etape qui
+            // la concerne. Une source qui ne mesure ni comprehension ni civique
+            // (une production) n'entre pas dans R2.
+            UUID cle;
+            Instant creation;
+            if (source.isComprehension() && observation.getSkill() != null) {
+                cle = observation.getSkill().getId();
+                creation = depuisCompetence.get(cle);
+            } else if (source.isCivique() && observation.getOfficialUnit() != null) {
+                cle = observation.getOfficialUnit().getId();
+                creation = depuisUnite.get(cle);
+            } else {
                 continue;
             }
-            UUID skillId = observation.getSkill().getId();
-            Instant creation = depuis.get(skillId);
             if (creation == null || observation.getObservedAt().isBefore(creation)) continue;
-            terminees.computeIfAbsent(skillId, key -> new LinkedHashSet<>())
+            terminees.computeIfAbsent(cle, key -> new LinkedHashSet<>())
                     .add(observation.getSourceId());
             if (observation.getStatus() == LearningPlanSkillStatus.SOLID) {
-                reussies.computeIfAbsent(skillId, key -> new LinkedHashSet<>())
+                reussies.computeIfAbsent(cle, key -> new LinkedHashSet<>())
                         .add(observation.getSourceId());
             }
         }
         Map<UUID, Series> compte = new LinkedHashMap<>();
-        terminees.forEach((skillId, sessions) -> compte.put(skillId, new Series(
+        terminees.forEach((cle, sessions) -> compte.put(cle, new Series(
                 sessions.size(),
-                reussies.getOrDefault(skillId, Set.of()).size())));
+                reussies.getOrDefault(cle, Set.of()).size())));
         return compte;
+    }
+
+    private static Instant plusAncienne(Map<UUID, Instant> depuis) {
+        return depuis.values().stream().min(Instant::compareTo).orElseThrow();
     }
 
     /**
@@ -652,14 +683,33 @@ public class JourneyReadService {
             Map<UUID, Series> series) {
         if (step.getType() != JourneyStepType.TRAIN_SKILL) return false;
         Skill skill = step.getSkill();
+        // 🛑 CIVIQUE : LA MEME FORMULE, SUR L'UNITE (D-48). R2 dit « 2 series
+        // reussies OU 4 terminees » (D-16) -- une seule formule, ecrite une
+        // seule fois. Seule la cle de lecture change, et c'est pour ca que ce
+        // `if` rend la MEME expression que la branche de comprehension.
+        if (skill == null && step.uniteId() != null) {
+            return auQuota(series.getOrDefault(step.uniteId(), Series.AUCUNE));
+        }
         if (skill == null || skill.getSection() == null) return false;
         if (skill.getSection().isComprehension()) {
-            Series compte = series.getOrDefault(skill.getId(), Series.AUCUNE);
-            return compte.reussies() >= config.trainSeriesQuota()
-                    || compte.terminees() >= config.trainSeriesFallbackQuota();
+            return auQuota(series.getOrDefault(skill.getId(), Series.AUCUNE));
         }
         JourneyStepDto.JourneyProgressDto progres = progression(step, expression, series);
         return progres != null && progres.quota() > 0 && progres.done() >= progres.quota();
+    }
+
+    /**
+     * <b>R2 / D-16, ecrite UNE fois</b> : {@code trainSeriesQuota} series
+     * <b>reussies</b>, <b>ou</b> {@code trainSeriesFallbackQuota} series
+     * <b>terminees</b> — l'echappatoire, pour qu'un candidat faible ne reste
+     * jamais bloque.
+     *
+     * <p>🛑 Elle vaut pour une <b>competence</b> TCF comme pour une <b>unite</b>
+     * officielle civique : deux cles de lecture, une seule regle.
+     */
+    private boolean auQuota(Series compte) {
+        return compte.reussies() >= config.trainSeriesQuota()
+                || compte.terminees() >= config.trainSeriesFallbackQuota();
     }
 
     /**

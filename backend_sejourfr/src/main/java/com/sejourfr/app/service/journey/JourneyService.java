@@ -411,6 +411,56 @@ public class JourneyService {
     }
 
     /**
+     * <b>Ce qu'une serie civique fait avancer</b> — le pendant civique de
+     * {@link #onTrainingProgress}.
+     *
+     * <p>🛑 <b>La MEME regle, sur l'UNITE</b> (D-48) : le quota est lu chez son
+     * autorite unique, {@code JourneyReadService.etapesAuQuota}, qui compte
+     * desormais aussi par unite officielle. Une etape civique ne se clot donc
+     * jamais sur une regle differente de celle qui l'affiche.
+     *
+     * <p>🛑 <b>R1 : aucune etape concernee ⇒ RIEN.</b> Une serie qui revele une
+     * faiblesse nouvelle ne l'ajoute pas au cycle ; elle y entrera si une
+     * <b>evaluation</b> la designe.
+     *
+     * <p>⚠️ <b>Aucune notion de « maitrise transferee » ici</b>, contrairement au
+     * TCF : {@code SkillMasteryEngine} <b>leve</b> sur une source civique (A50),
+     * et il a raison — une unite officielle n'est pas une competence, et aucun
+     * poids n'a ete defini pour elle. Le seul motif de cloture civique est donc
+     * le quota (R2).
+     *
+     * @param uniteIds les unites <b>reellement observees</b>, rendues par
+     *                 {@code CivicObservationService.record}.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onTrainingProgressCivique(UUID userId, Collection<UUID> uniteIds) {
+        if (uniteIds == null || uniteIds.isEmpty()) return;
+        Optional<Journey> trouve = getOrCreate(userId, Module.CIVIQUE);
+        if (trouve.isEmpty()) return;
+        Journey journey = journeyManager.findForUpdate(trouve.get().getId()).orElse(null);
+        if (journey == null) return;
+
+        List<JourneyStep> concernees = stepManager.findAll(journey.getId()).stream()
+                .filter(JourneyStep::estOuverte)
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> step.uniteId() != null && uniteIds.contains(step.uniteId()))
+                .toList();
+        if (concernees.isEmpty()) return;
+
+        Instant maintenant = Instant.now();
+        Set<UUID> auQuota = readService.etapesAuQuota(
+                userId, stepManager.findAll(journey.getId()));
+
+        for (JourneyStep step : concernees) {
+            if (auQuota.contains(step.getId())
+                    && step.clore(JourneyStepResolution.QUOTA_REACHED, null, maintenant)) {
+                stepManager.save(step);
+            }
+        }
+        journeyManager.save(journey);
+    }
+
+    /**
      * <b>R19 — le bootstrap.</b> Il ne rejoue pas l'historique etape par etape :
      * il reconstruit directement l'etat a partir d'une <b>evaluation de
      * reference par epreuve</b>.

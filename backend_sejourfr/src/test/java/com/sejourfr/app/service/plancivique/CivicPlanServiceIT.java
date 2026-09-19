@@ -254,7 +254,27 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
                 service.demarrerSerie(user.getId(), cible.id(), CivicPlanGrain.THEME);
         entityManager.flush();
 
-        assertThat(attempt.questions()).hasSize(cible.questionsSerie());
+        // 🛑 CE QUE LE TIRAGE PEUT REELLEMENT SERVIR, et pas ce que la cible
+        // annonce -- les deux ne coincident pas encore, et c'est MESURE :
+        // « Les guerres du XXᵉ siecle » porte 26 questions actives, dont 8 en
+        // CSP, 9 en CR et 9 en NAT. La DOTATION compte la notion entiere ;
+        // le TIRAGE, lui, filtre encore par mention (`q.difficulty`). Une cible
+        // peut donc annoncer 10 et n'en servir que 8.
+        //
+        // ⚠️ C'est exactement ce que **P8.2b** supprime -- « la mention ne
+        // filtre plus le contenu » (D-27, D-42) --, et cette phase n'est pas
+        // faite. Ce test disait `hasSize(cible.questionsSerie())` et passait
+        // PAR CHANCE : il dependait de la cible que le plan classait premiere.
+        // Quand P8.2b tombera, les deux nombres se rejoindront et cette borne
+        // redeviendra une egalite.
+        Integer servables = jdbc.queryForObject("""
+                SELECT count(*) FROM questions q
+                WHERE q.civic_notion_id = ? AND q.is_active AND q.status = 'ACTIVE'
+                  AND q.difficulty = ?
+                """, Integer.class, cible.id(), plan.mention().name());
+        assertThat(attempt.questions())
+                .hasSize(Math.min(cible.questionsSerie(), servables));
+        assertThat(attempt.questions()).isNotEmpty();
         // 🛑 C'est un TRAINING : le candidat le joue dans le runner existant, et
         // il ne consomme aucun slot d'examen blanc.
         assertThat(attempt.type().name()).isEqualTo("TRAINING");

@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Question;
@@ -14,6 +15,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
@@ -32,6 +34,9 @@ import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import com.sejourfr.app.util.TcfDomaine;
 import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService;
+import com.sejourfr.app.service.CivicObservationService;
+import com.sejourfr.app.service.CivicObservationService.ReponseCivique;
+import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -70,6 +75,11 @@ public class AttemptInteractionService {
     private final AttemptMapper mapper;
     private final QuestionMapper questionMapper;
     private final ComprehensionObservationService comprehensionObservationService;
+    private final CivicObservationService civicObservationService;
+    // 🛑 L'autorite de « de quelle unite releve cette question » -- la meme que
+    // celle qui COMPOSE les examens. Une seconde version ferait ranger une
+    // question dans deux unites selon qu'on la tire ou qu'on la mesure.
+    private final CivicExamCompositionService civicCompositionService;
     private final JourneyService journeyService;
     private final JourneyProductionBridge journeyProductionBridge;
 
@@ -368,6 +378,7 @@ public class AttemptInteractionService {
 
         attemptManager.save(attempt);
         recordComprehension(attempt, aqs);
+        recordCivique(attempt, aqs);
         recordProgression(attempt, aqs);
         return mapper.toResponse(attempt, aqs, true);
     }
@@ -498,6 +509,70 @@ public class AttemptInteractionService {
             log.warn("Observations CO/CE non enregistrees pour la session {} : {}",
                     attempt.getId(), echec.toString());
         }
+    }
+
+    /**
+     * Ce que cette session apprend au <b>cycle civique</b>, par <b>unite
+     * officielle</b> (D-48, D-49).
+     *
+     * <p>🛑 <b>L'unite est resolue chez son autorite unique</b> —
+     * {@code CivicExamCompositionService.uniteOfficielle} —, celle qui compose
+     * deja les examens. Une seconde version ici aurait fait ranger une question
+     * dans deux unites differentes selon qu'on la <b>tire</b> ou qu'on la
+     * <b>mesure</b> : des verdicts faux, sans jamais lever.
+     *
+     * <p>🛑 <b>La SOURCE distingue la serie de l'examen</b>, et c'est opposable :
+     * {@code JourneyEvaluationFilter} en deduit qu'une serie <b>n'evalue pas</b>
+     * (R3), donc qu'elle n'alimente jamais le cycle en attente.
+     *
+     * <p><b>Best-effort</b>, comme la comprehension : le producteur ecrit dans sa
+     * propre transaction, et son echec n'emporte ni la correction ni la reponse
+     * HTTP. ⚠️ C'est aussi {@code DETTE-M1} : l'echec est <b>avale</b>, donc
+     * toute contrainte ajoutee ici se verifie <b>en base</b>, pas au vert des
+     * tests.
+     */
+    private void recordCivique(Attempt attempt, List<AttemptQuestion> aqs) {
+        if (attempt.getModule() != Module.CIVIQUE || attempt.getUser() == null || aqs.isEmpty()) {
+            return;
+        }
+        UUID userId = attempt.getUser().getId();
+        try {
+            LearningPlanSourceType source = attempt.getType() == AttemptType.MOCK_EXAM
+                    ? LearningPlanSourceType.CIVIQUE_EXAMEN
+                    : LearningPlanSourceType.CIVIQUE_SERIE;
+            List<ReponseCivique> reponses = aqs.stream()
+                    .map(aq -> new ReponseCivique(
+                            uniteDe(aq),
+                            aq.getAnswer() != null,
+                            aq.getAnswer() != null
+                                    && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
+                    .toList();
+            Set<UUID> unites = civicObservationService.record(
+                    userId, attempt.getId(), source, attempt.getFinishedAt(), reponses);
+
+            if (source == LearningPlanSourceType.CIVIQUE_SERIE) {
+                journeyService.onTrainingProgressCivique(userId, unites);
+            } else {
+                // ⚠️ L'EXAMEN CIVIQUE N'EST PAS ENCORE PORTE AU CYCLE (P8.4
+                // point 7, suite) : il lui faut son JOURNAL -- V071 attend ses
+                // trois natures CIVIC_* -- et R1, qui clot l'etape d'examen d'un
+                // bloc DEBLOQUE. Les observations, elles, sont bien ecrites
+                // ci-dessus. On le DIT plutot que de ne rien faire en silence :
+                // c'est exactement la panne que DETTE-M1 nomme.
+                log.info("Examen civique {} : observations ecrites sur {} unite(s) ; "
+                        + "le cycle ne le traite pas encore (P8.4 point 7).",
+                        attempt.getId(), unites.size());
+            }
+        } catch (RuntimeException echec) {
+            log.warn("Observations civiques non enregistrees pour la session {} : {}",
+                    attempt.getId(), echec.toString());
+        }
+    }
+
+    /** L'unite officielle de cette question, ou {@code null} hors programme. */
+    private UUID uniteDe(AttemptQuestion aq) {
+        CivicOfficialUnit unite = civicCompositionService.uniteOfficielle(aq.getQuestion());
+        return unite == null ? null : unite.getId();
     }
 
     /**
