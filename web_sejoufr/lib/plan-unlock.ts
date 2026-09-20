@@ -25,6 +25,7 @@
  * `mobile_sejourfr/lib/screens/plan/plan_unlock_labels.dart` : un libellé qui
  * bouge, ce sont deux fichiers dans la même passe.
  */
+import type {Module} from "./types";
 import type {PassModule} from "./passes";
 import {formatPassPrice} from "./passes";
 
@@ -50,6 +51,18 @@ export function planRetourHref(module: PlanUnlockModule): string {
  */
 export function planUnlockPassModule(module: PlanUnlockModule): PassModule {
   return module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL";
+}
+
+/**
+ * **L'accès que cet écran attend** — celui qu'il faut avoir pour qu'il n'ait
+ * plus lieu d'être.
+ *
+ * ⚠️ À ne pas confondre avec `planUnlockPassModule` : on ACHÈTE le TCF avec le
+ * pass Intégral, mais l'accès qui s'ouvre est `hasTcf`. Deux questions
+ * différentes, deux tables. Miroir mobile : `planUnlockAccessModule`.
+ */
+export function planUnlockAccessModule(module: PlanUnlockModule): Module {
+  return module === "CIVIQUE" ? "CIVIQUE" : "TCF";
 }
 
 /** La page de choix du pass, avec le module mis en avant. */

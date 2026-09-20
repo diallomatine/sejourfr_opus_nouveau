@@ -1,3 +1,4 @@
+import '../../core/models/enums.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -33,6 +34,15 @@ PlanModuleTarget planUnlockPassModule(PlanUnlockModule module) =>
     module == PlanUnlockModule.civique
         ? PlanModuleTarget.civique
         : PlanModuleTarget.integral;
+
+/// **L'accès que cet écran attend** — celui qu'il faut avoir pour qu'il n'ait
+/// plus lieu d'être.
+///
+/// ⚠️ À ne pas confondre avec [planUnlockPassModule] : on ACHÈTE le TCF avec le
+/// pass Intégral, mais l'accès qui s'ouvre est `hasTcf`. Deux questions
+/// différentes, deux tables.
+AppModule planUnlockAccessModule(PlanUnlockModule module) =>
+    module == PlanUnlockModule.civique ? AppModule.civique : AppModule.tcf;
 
 /* ------------------------------------------------------------- les mots -- */
 

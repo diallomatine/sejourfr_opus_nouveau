@@ -36,6 +36,8 @@ import {billingApi, civicDiagnosticApi, learningPlanApi, tcfDiagnosticApi} from 
 import {track} from "@/lib/analytics";
 import {retourOuRepli} from "@/lib/retour";
 import {passFromPrice} from "@/lib/passes";
+import {useAuth} from "@/lib/auth-context";
+import {canAccessModule} from "@/lib/types";
 import {
     PLAN_UNLOCK_CHECKS_CIVIQUE,
     PLAN_UNLOCK_CTA,
@@ -51,6 +53,7 @@ import {
     planUnlockChecksTcf,
     planUnlockGoalPill,
     planUnlockLead,
+    planUnlockAccessModule,
     planUnlockPassModule,
     planUnlockPaywallHref,
     planUnlockPriceLine,
@@ -226,6 +229,7 @@ type Etat =
 
 export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     const router = useRouter();
+    const {user} = useAuth();
     const [etat, setEtat] = useState<Etat>({kind: "chargement"});
     const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
 
@@ -296,6 +300,20 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     useEffect(() => {
         if (etat.kind === "sansDiagnostic") router.replace(paywallHref);
     }, [etat.kind, paywallHref, router]);
+
+    /* 🛑 **CET ÉCRAN N'EXISTE QUE TANT QUE L'ACCÈS MANQUE.** Dès qu'il arrive —
+       un paiement revenu de Stripe, un pass restauré, un accès lu à froid — il
+       n'a plus rien à proposer : il s'efface au profit du Plan, qui est
+       désormais ouvert. Sans ça, revenir ici après avoir payé y retrouve
+       « Débloquer mon plan ».
+
+       `replace`, jamais `push` : on ne laisse pas dans l'historique un écran
+       qui se refermerait aussitôt. Miroir mobile : le `ref.listen` sur
+       `accesModuleProvider` de `plan_unlock_screen.dart`. */
+    const ouvert = canAccessModule(user, planUnlockAccessModule(module));
+    useEffect(() => {
+        if (ouvert) router.replace(planRetourHref(module));
+    }, [ouvert, module, router]);
 
     /* 🛑 **Jamais un `back()` nu** : cet écran s'ouvre depuis le Plan, mais un
        lien partagé ou un nouvel onglet n'a pas d'historique — la croix ne

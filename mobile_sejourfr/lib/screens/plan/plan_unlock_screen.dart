@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/repositories.dart';
 import '../../core/router/app_router.dart';
@@ -280,6 +281,21 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
   @override
   Widget build(BuildContext context) {
     final module = widget.module;
+
+    // 🛑 **CET ÉCRAN N'EXISTE QUE TANT QUE L'ACCÈS MANQUE.** Il est poussé par
+    // le Plan pour proposer le déblocage, et il pousse lui-même l'offre par
+    // dessus : quand l'achat est vérifié, la feuille se ferme et le candidat
+    // retombait ICI, devant « Débloquer mon plan » — alors qu'il venait de
+    // payer. Il se retire donc de lui-même dès que l'accès arrive.
+    //
+    // ⚠️ `accesModuleProvider` observe l'`AuthController`, que
+    // `refreshSubscriptionStatus` met à jour à la vérification du reçu : le
+    // retrait suit le paiement, sans rien savoir du chemin d'achat.
+    ref.listen<bool>(accesModuleProvider(planUnlockAccessModule(module)),
+        (_, ouvert) {
+      if (ouvert && mounted) _retour();
+    });
+
     final m = _matiere;
     final prix = planUnlockPriceLine(
       passFromPrice(
