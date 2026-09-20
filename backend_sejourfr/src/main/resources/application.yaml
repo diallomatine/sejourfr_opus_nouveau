@@ -1138,9 +1138,13 @@ sejourfr:
     # TOUTES les cibles et le DTO compte le reste (« + 6 autres notions »).
     priorites-visibles: 3
     revisions-visibles: 3
-    # 20_ §6 bloc 2 : « 10 questions ciblees · ~6 min ». La duree se DERIVE de
+    # 20 questions ciblees depuis le 2026-09-20 (arbitrage du proprietaire :
+    # « passer aussi a 20 », sans restriction -- donc 20 PARTOUT dans le
+    # civique, series du plan derive comprises). La duree annoncee se DERIVE de
     # ces deux valeurs -- raccourcir la serie raccourcit la promesse.
-    questions-par-serie: 10
+    # 🛑 C'est aussi le DENOMINATEUR du seuil de reussite d'une serie d'etape :
+    # learning-plan.comprehension.solid-ratio x 20 = 16 (JourneySerieVerdict).
+    questions-par-serie: 20
     secondes-par-question: 36
 
   tcf-diagnostic:
@@ -1452,16 +1456,28 @@ sejourfr:
   # et l'ordre des epreuves (il EST TcfDomainProfileDto.ORDRE). Deux copies d'un
   # chiffre deja servi finissent toujours par diverger.
   #
-  # v2 (2026-09-18, D-16) : trainSeriesQuota compte les series REUSSIES (verdict lu
-  # sur learning_plan_observations.status = SOLID, donc sur
-  # learning-plan.comprehension.solid-ratio -- aucune 8e declaration de 0.80) et
-  # trainSeriesFallbackQuota porte l'echappatoire des series TERMINEES, pour qu'un
-  # candidat faible ne reste jamais bloque. v1 reste sur le disque et reste
-  # chargeable a l'identique (elle y porte fallback = quota = 2, ce qui EST
-  # l'ancienne regle « 2 terminees ») : le retour arriere est cette variable
-  # d'environnement, jamais une migration.
+  # v3 (2026-09-20, arbitrage du proprietaire) :
+  #   · trainSeriesFallbackQuota DISPARAIT -- LE FILET DES 4 SERIES TERMINEES EST
+  #     SUPPRIME. Une cle absente veut dire « aucune echappatoire », jamais
+  #     « zero suffit ». Consequence assumee et validee : un candidat qui ne
+  #     passe jamais 16/20 reste sur sa competence (ce que le filet de D-16
+  #     evitait, et l'arbitrage a ete rendu contre) ;
+  #   · finDeCycleExamenRatio: 0.80 -- l'examen qui CLOT LE CYCLE s'ouvre a 80 %
+  #     des etapes terminees. Il ne touche PAS l'examen d'epreuve d'un bloc, qui
+  #     garde son verrou (D-15). Regle annoncee comme NON FIGEE : elle vit ici et
+  #     pas dans le Java precisement pour cela.
+  # 🛑 « Reussie » a desormais UNE autorite, JourneySerieVerdict : 16 bonnes
+  # reponses sur les 20 de la serie, lues sur l'attempt. Le 16 se DERIVE de
+  # learning-plan.comprehension.solid-ratio x la taille de la serie -- aucune 8e
+  # declaration de 0.80.
+  #
+  # v2 (2026-09-18, D-16) et v1 restent sur le disque et restent chargeables A
+  # L'IDENTIQUE : elles portent trainSeriesFallbackQuota (4 et 2) et ignorent
+  # finDeCycleExamenRatio, dont l'absence dit « le cycle entier », l'ancienne
+  # regle. Le retour arriere est cette variable d'environnement, jamais une
+  # migration.
   tcf-journey:
-    config-version: ${TCF_JOURNEY_CONFIG_VERSION:2}
+    config-version: ${TCF_JOURNEY_CONFIG_VERSION:3}
 
   # ------------------------------------------------------------------ progression
   # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).

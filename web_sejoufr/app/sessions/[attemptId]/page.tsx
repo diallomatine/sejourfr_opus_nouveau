@@ -515,13 +515,35 @@ function SessionRunnerInner({ params }: PageProps) {
 
   if (phase === "running" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
+    /* 🛑 **LE RÉGIME DE PASSATION EST SERVI** (`AttemptResponse.mode`,
+       2026-09-20), et c'est LUI qui décide de ce qui se passe pendant la
+       session : aucune correction affichée, audio CO joué une seule fois,
+       retour arrière fermé.
+
+       ⚠️ **Il ne se déduit plus du `type`** : une série lancée depuis une carte
+       d'étape du Plan est un `TRAINING` — freemium, historique et observations
+       inchangés — **posé en `EXAMEN`**. C'est aussi la valeur que le serveur
+       oppose (il ne renvoie la correction qu'en `ENTRAINEMENT`), donc l'écran
+       et le refus ne peuvent pas diverger.
+
+       ⚠️ **Non-régression** : `MOCK_EXAM` est servi `EXAMEN`, donc tout examen
+       blanc — de module, civique, d'un `ExamTemplate`, sous-épreuve d'un examen
+       complet — se comporte **exactement** comme avant. Ce qui reste sur le
+       `type`, et doit y rester, c'est ce que la session **est** : la sortie
+       destructive (`quitMode`), le chrono, l'œil-de-bœuf et l'écran de
+       résultat. */
+    const isExamMode = attempt.mode === "EXAMEN";
     const isGuest = sessionMode === "guest";
     // Un lot = batch fixe déterministe : pas d'extension, même pour un
     // premium. Les guests jouent la série 1 dans ce même mode.
     const isLot = lotNumero != null && !isExam;
-    // En training auth premium : extension auto. En guest : pas d'extension
-    // (un seul batch de 20Q par démo). En exam / lot : pas d'extension.
-    const canExtend = !isExam && isPremium && !isGuest && !isLot;
+    /* En training auth premium : extension auto. En guest : pas d'extension
+       (un seul batch de 20Q par démo). En lot : pas d'extension.
+       🛑 **Et jamais en régime d'EXAMEN** : une série d'étape se joue sur un
+       nombre de questions fixe, dont dépend son seuil de réussite — l'étendre
+       fausserait la mesure. `EXAMEN` couvre `MOCK_EXAM`, donc rien ne change
+       pour les examens blancs. */
+    const canExtend = !isExamMode && isPremium && !isGuest && !isLot;
     const firstThemeId = attempt.questions[0]?.question.themeId;
     const allSameTheme =
       firstThemeId !== undefined &&
@@ -537,7 +559,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return (
       <QuestionRunner
         initialAttempt={attempt}
-        mode={isExam ? "exam" : "training"}
+        mode={isExamMode ? "exam" : "training"}
         infinite={canExtend}
         extensionParams={
           canExtend

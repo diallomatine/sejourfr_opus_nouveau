@@ -14,6 +14,8 @@ import com.sejourfr.app.manager.AnalyticsIdentityManager;
 import com.sejourfr.app.manager.AnalyticsVisitorManager;
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.JourneyStep;
+import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Conversation;
@@ -97,6 +99,7 @@ import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.JourneyManager;
+import com.sejourfr.app.manager.JourneyStepSeriesManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
@@ -197,6 +200,7 @@ public class TestData {
     private final AnalyticsEventManager analyticsEventManager;
     private final AnalyticsIdentityManager analyticsIdentityManager;
     private final JourneyManager journeyManager;
+    private final JourneyStepSeriesManager journeyStepSeriesManager;
     private final FreeEntitlementUsageRepository freeEntitlementUsageRepository;
 
     private static long next() {
@@ -333,6 +337,37 @@ public class TestData {
 
     public Attempt attempt() {
         return attempt(user());
+    }
+
+    /**
+     * <b>Un ESSAI de serie sur une carte d'etape</b> (V072) — ce que
+     * {@code JourneyStepDetailService.demarrer} ecrit, joue jusqu'au bout.
+     *
+     * <p>🛑 <b>Le verdict n'est PAS pose ici</b> : on ecrit le <b>score</b> de
+     * l'attempt, et « reussie » se relit ({@code JourneySerieVerdict}). Poser un
+     * booleen aurait fait mentir le test le jour ou le seuil bouge.
+     *
+     * @param score bonnes reponses de la session, ou {@code null} pour une
+     *              session encore <b>en cours</b> (ni jouee, ni reussie)
+     */
+    public JourneyStepSeries serieDEtape(
+            JourneyStep step, int index, User user, Module module, Integer score) {
+        Attempt a = new Attempt();
+        a.setUser(user);
+        a.setType(AttemptType.TRAINING);
+        // 🛑 Le REGIME d'une serie d'etape : aucune correction pendant la
+        // passation, audio de CO joue une seule fois.
+        a.setMode(AttemptMode.EXAMEN);
+        a.setModule(module);
+        a.setEpreuve(module == Module.CIVIQUE ? EpreuveType.CIVIQUE : EpreuveType.TCF_CO);
+        a.setStatus(AttemptStatus.EN_COURS);
+        a.setStartedAt(Instant.now());
+        if (score != null) {
+            a.setScore(score);
+            a.setStatus(AttemptStatus.TERMINE);
+            a.setFinishedAt(Instant.now());
+        }
+        return journeyStepSeriesManager.lier(step, index, attemptManager.save(a));
     }
 
     /** Reecrit une session modifiee par le test (type, epreuve, cloture). */

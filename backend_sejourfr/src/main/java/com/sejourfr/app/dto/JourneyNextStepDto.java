@@ -4,9 +4,11 @@ package com.sejourfr.app.dto;
  * <b>Les issues d'un cycle termine</b> (spec §6) — la carte finale a deux
  * actions.
  *
- * <p>🛑 <b>{@code null} tant que le cycle n'est pas termine</b> : ces deux
- * gestes historisent le cycle en cours, et les proposer plus tot reviendrait a
- * offrir de jeter un plan que le candidat n'a pas fini.
+ * <p>⚠️ <b>Servi des 80 % depuis le 2026-09-20</b>, et non plus au cycle entier :
+ * c'est l'<b>examen de fin de cycle</b> qui se debloque tot
+ * ({@code finDeCycleExamenRatio}, configuration versionnee). {@code null} en
+ * dessous de cette part. 🛑 <b>L'actualisation, elle, garde sa regle</b> — voir
+ * {@link #actualisationPossible()}.
  *
  * <p>🛑 <b>Deux booleens, aucune phrase</b> (B-11) : « Passer l'examen blanc
  * complet », « Actualiser mon plan sans examen complet » et « Objectif
@@ -22,11 +24,17 @@ package com.sejourfr.app.dto;
  *                              demarre aucun examen : l'examen reste lance par
  *                              {@code /api/full-tcf-exams}.
  * @param actualisationPossible « Actualiser mon plan » : le cycle en attente
- *                              devient le cycle courant. Toujours vrai quand le
- *                              cycle est termine — y compris quand le cycle en
- *                              attente est <b>vide</b>, cas ou l'etat servi
- *                              reste celui du « plus rien a faire »
+ *                              devient le cycle courant. Vrai quand le cycle est
+ *                              <b>termine</b>, et alors toujours — y compris
+ *                              quand le cycle en attente est <b>vide</b>, cas ou
+ *                              l'etat servi reste celui du « plus rien a faire »
  *                              ({@code UP_TO_DATE}).
+ *                              <p>🛑 <b>Faux entre 80 % et 100 %</b> (2026-09-20) :
+ *                              ce geste <b>historise</b> le cycle et promeut le
+ *                              suivant. L'offrir avant la fin jetterait du
+ *                              travail que le candidat n'a pas demande a
+ *                              abandonner. Seul l'examen de fin de cycle se
+ *                              debloque tot.</p>
  */
 public record JourneyNextStepDto(
         boolean examenCompletPossible,

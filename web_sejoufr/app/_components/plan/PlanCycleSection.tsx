@@ -5,7 +5,6 @@ import {useRouter} from "next/navigation";
 import {attemptApi, fullTcfExamApi, journeyApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
 import {planHref, type ParcoursModule} from "@/lib/module-switch";
-import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {planSkillTargetLevelDeCode, planStepAction} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
@@ -46,6 +45,8 @@ import {
     journeyKitState,
     journeyCycleStepSubtitle,
     journeyCycleStepTitle,
+    journeyEtapeASeries,
+    journeyEtapeHref,
     journeyTitle,
 } from "@/lib/journey";
 import type {
@@ -218,21 +219,29 @@ function CycleBody({journey, plan, module}: {
        🛑 **Une étape verrouillée ne lance rien depuis le Plan** : le Plan d'un
        compte sans accès est un constat, le déblocage passe par le bouton ancré
        en bas du cycle. */
-    /* Le geste civique vit dans le même hook que l'écran Réviser et le Plan
-       dérivé : la même unité ne peut pas s'ouvrir de deux façons. */
-    const serieCivique = useCivicUniteSerie();
-
     const actionDe = useCallback(
         (etape: JourneyStepDto): (() => void) | undefined => {
             if (etape.locked || busy) return undefined;
-            /* 🛑 **L'action d'une étape CIVIQUE est la série sur son UNITÉ**
-               (D-48, P8.7) : le Plan TCF n'a rien à en dire, et le lui demander
-               aurait rendu `null` — donc une ligne sans geste. */
-            if (module === "CIVIQUE") {
-                const unite = etape.unite;
-                if (!unite || etape.type !== "TRAIN_SKILL") return undefined;
-                return () => void serieCivique.start(unite.code);
+            /* 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
+               (demande du propriétaire, 2026-09-20). Compréhension CO/CE et
+               civique : le candidat voit d'abord ce que l'étape demande — la
+               compétence ou l'unité travaillée, le seuil, ses deux séries — puis
+               choisit la série qu'il lance.
+
+               ⚠️ **Révoque** le lancement direct depuis la ligne du cycle : la
+               série ciblée partait de `planStepAction` côté TCF et de
+               `useCivicUniteSerie` côté civique, et le hook a quitté cet écran
+               avec elle (ses autres appelants le gardent).
+
+               ⚠️ **Les étapes d'EXPRESSION ne sont PAS concernées** : elles
+               portent une tâche et gardent leur chemin vers leurs petits sujets. */
+            if (journeyEtapeASeries(etape)) {
+                return () => routerCycle.push(journeyEtapeHref(etape.id, module));
             }
+            /* 🛑 **Le Plan TCF n'a rien à dire d'une étape civique** (A86) : hors
+               étape de séries, une ligne civique n'a pas de geste — l'examen d'un
+               bloc se lance depuis son propre encart. */
+            if (module === "CIVIQUE") return undefined;
             if (!plan) return undefined;
             const action = planStepAction(plan, etape);
             if (!action) return undefined;
@@ -248,7 +257,7 @@ function CycleBody({journey, plan, module}: {
             if (exercise.locked) return undefined;
             return () => void exercises.start(exercise);
         },
-        [assessments, busy, exercises, module, plan, serieCivique],
+        [assessments, busy, exercises, module, plan, routerCycle],
     );
 
     /**
@@ -361,14 +370,9 @@ function CycleBody({journey, plan, module}: {
                             <p className={sejourStyles.tiny}>{journeyLockedCaption(module)}</p>
                         )}
 
-                        {/* 🛑 **Le civique a son lanceur, il doit avoir sa
-                            voix** : `useCivicUniteSerie` porte son erreur et son
-                            403 comme les deux lanceurs du Plan, et l'écran ne
-                            les lisait pas — une série d'unité refusée n'ouvrait
-                            rien et ne disait rien. */}
-                        {(exercises.error ?? assessments.error ?? serieCivique.erreur) && (
+                        {(exercises.error ?? assessments.error) && (
                             <p className={sejourStyles.tiny} role="alert">
-                                {exercises.error ?? assessments.error ?? serieCivique.erreur}
+                                {exercises.error ?? assessments.error}
                             </p>
                         )}
                     </Stack>
@@ -389,15 +393,10 @@ function CycleBody({journey, plan, module}: {
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module={passOffre}
-                open={
-                    exercises.paywallOpen
-                    || assessments.paywallOpen
-                    || serieCivique.paywall
-                }
+                open={exercises.paywallOpen || assessments.paywallOpen}
                 onClose={() => {
                     exercises.closePaywall();
                     assessments.closePaywall();
-                    serieCivique.setPaywall(false);
                 }}
             />
         </>

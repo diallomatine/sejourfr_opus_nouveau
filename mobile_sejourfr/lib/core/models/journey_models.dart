@@ -852,3 +852,190 @@ class JourneyHistory {
             .toList(growable: false),
       );
 }
+
+/* ===========================================================================
+ * LE DÉTAIL D'UNE ÉTAPE DE SÉRIES — l'écran intermédiaire du Plan
+ * GET  /api/me/plan/journey/steps/{stepId}
+ * POST /api/me/plan/journey/steps/{stepId}/series/{index}
+ *
+ * Miroir manuel de `JourneyStepDetailDto`. C'est ce qui s'ouvre quand on touche
+ * une étape d'entraînement de **compréhension** (CO/CE) ou une étape
+ * **civique** dans le cycle du Plan : la compétence ou l'unité travaillée, son
+ * avancement, et ses séries une par une.
+ *
+ * 🛑 **Les étapes d'EXPRESSION (EE/EO) n'entrent pas ici** : elles gardent leur
+ * chemin vers leurs petits sujets.
+ *
+ * 🛑 **Aucune phrase n'est servie.** « À faire », « Verrouillée », « Réussie »,
+ * « À refaire », « Après la série 1 », l'encart de validation et le pied de
+ * page se composent dans `screens/plan/journey_etape_labels.dart`, miroir de
+ * `web_sejoufr/lib/journey-etape.ts`.
+ * ======================================================================== */
+
+/// L'unité travaillée, **avec sa description**.
+///
+/// ⚠️ **Une extension de [JourneyUniteRef], pas un second contrat** : le code et
+/// le libellé sont ceux que le cycle sert déjà, et le détail y ajoute la phrase
+/// du référentiel que l'écran met sous le titre.
+class JourneyUniteDetail {
+  const JourneyUniteDetail({
+    required this.code,
+    required this.label,
+    this.description,
+  });
+
+  /// `CO-B1`, `P2_LAICITE` — une **clé**, jamais un affichage.
+  final String code;
+
+  /// Ce que le **candidat lit**.
+  final String label;
+
+  /// La phrase du référentiel sous le titre. `null` = aucune description.
+  final String? description;
+
+  factory JourneyUniteDetail.fromJson(Map<String, dynamic> json) =>
+      JourneyUniteDetail(
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        description: json['description'] as String?,
+      );
+}
+
+/// **Une série de l'étape.**
+///
+/// 🛑 **L'état se lit sur [locked] et [validee], jamais en comparant
+/// [dernierScore] à `seuilReussite`.** Un front qui classerait un nombre en état
+/// pédagogique désignerait tôt ou tard autre chose que le serveur — c'est la
+/// règle « aucun front ne classe un nombre » du dépôt.
+class JourneySerie {
+  const JourneySerie({
+    required this.index,
+    required this.locked,
+    required this.validee,
+    this.dernierScore,
+    this.dernierAttemptId,
+    this.dernierEssaiAt,
+  });
+
+  /// 1, 2 — le rang **servi**, et la clé du démarrage.
+  final int index;
+
+  /// La série précédente n'est pas réussie. **Servi**, jamais déduit d'un rang.
+  final bool locked;
+
+  /// Réussie **au moins une fois** — et c'est DÉFINITIF : une série refaite et
+  /// ratée reste validée, seule la carte change de dernier score.
+  final bool validee;
+
+  /// Sur `questionsParSerie`. `null` = **jamais jouée**, jamais zéro.
+  final int? dernierScore;
+
+  /// De quoi rouvrir le corrigé de la dernière passation. `null` si jamais jouée.
+  final String? dernierAttemptId;
+
+  final DateTime? dernierEssaiAt;
+
+  factory JourneySerie.fromJson(Map<String, dynamic> json) => JourneySerie(
+        index: (json['index'] as num?)?.toInt() ?? 1,
+        locked: json['locked'] as bool? ?? false,
+        validee: json['validee'] as bool? ?? false,
+        dernierScore: (json['dernierScore'] as num?)?.toInt(),
+        dernierAttemptId: json['dernierAttemptId'] as String?,
+        dernierEssaiAt: json['dernierEssaiAt'] == null
+            ? null
+            : DateTime.tryParse(json['dernierEssaiAt'] as String),
+      );
+}
+
+/// L'étape d'entraînement, dépliée.
+class JourneyStepDetail {
+  const JourneyStepDetail({
+    required this.stepId,
+    required this.type,
+    required this.bloc,
+    required this.unite,
+    required this.priorite,
+    required this.quota,
+    required this.validees,
+    required this.questionsParSerie,
+    required this.seuilReussite,
+    required this.locked,
+    required this.series,
+    this.section,
+    this.objectif,
+    this.dureeEstimeeMin,
+  });
+
+  final String stepId;
+  final JourneyStepType type;
+
+  /// « Compréhension orale » / la thématique civique — le titre de l'écran.
+  final JourneyBlocRef bloc;
+
+  /// La compétence TCF ou l'unité officielle civique travaillée.
+  final JourneyUniteDetail unite;
+
+  /// `null` en civique.
+  final SkillSection? section;
+
+  /// **Ce vers quoi le candidat travaille, servi avec son libellé** — un palier
+  /// (« B2 ») ou une **mention** (« Naturalisation »).
+  ///
+  /// 🛑 **On lit `label`, jamais `code`, et on ne branche jamais sur le
+  /// module** : c'est le patron [JourneyBlocRef] (D-47), et c'est exactement ce
+  /// que ce type existe pour éviter. Seule la **tournure** se choisit sur
+  /// `kind`, comme dans `journeyTitle`.
+  ///
+  /// `null` si aucun objectif n'est déclaré.
+  final JourneyObjectifRef? objectif;
+
+  /// La pastille « Priorité ». **Servi.**
+  final bool priorite;
+
+  /// Le nombre de séries à réussir.
+  final int quota;
+
+  /// Les séries déjà réussies, sur [quota].
+  ///
+  /// 🛑 **SERVI, jamais recompté depuis [series]** : c'est le **même** nombre
+  /// que le moteur compare au quota pour clore l'étape, donc l'écran ne peut
+  /// pas annoncer « 1 sur 2 » sur une étape que le serveur vient de clore.
+  final int validees;
+
+  final int questionsParSerie;
+
+  /// 🛑 **SERVI, jamais écrit dans un front** : c'est le seuil de réussite.
+  final int seuilReussite;
+
+  /// En minutes. `null` = inconnu — l'écran n'affiche alors aucune durée.
+  final int? dureeEstimeeMin;
+
+  /// Le verrou **freemium** de l'étape. L'écran reste entier et lisible.
+  final bool locked;
+
+  /// Les séries, **dans l'ordre servi**.
+  final List<JourneySerie> series;
+
+  factory JourneyStepDetail.fromJson(Map<String, dynamic> json) =>
+      JourneyStepDetail(
+        stepId: json['stepId'] as String? ?? '',
+        type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
+            JourneyStepType.trainSkill,
+        bloc: JourneyBlocRef.fromJson(
+            json['bloc'] as Map<String, dynamic>? ?? const {}),
+        unite: JourneyUniteDetail.fromJson(
+            json['unite'] as Map<String, dynamic>? ?? const {}),
+        section: SkillSection.fromWireNullable(json['section'] as String?),
+        objectif: JourneyObjectifRef.fromJsonNullable(json['objectif']),
+        priorite: json['priorite'] as bool? ?? false,
+        quota: (json['quota'] as num?)?.toInt() ?? 0,
+        validees: (json['validees'] as num?)?.toInt() ?? 0,
+        questionsParSerie: (json['questionsParSerie'] as num?)?.toInt() ?? 0,
+        seuilReussite: (json['seuilReussite'] as num?)?.toInt() ?? 0,
+        dureeEstimeeMin: (json['dureeEstimeeMin'] as num?)?.toInt(),
+        locked: json['locked'] as bool? ?? false,
+        series: (json['series'] as List<dynamic>? ?? const [])
+            .map((item) => JourneySerie.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}

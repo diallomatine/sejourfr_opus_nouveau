@@ -14,6 +14,7 @@ import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.JourneyManager;
+import com.sejourfr.app.manager.JourneyStepSeriesManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.MediaManager;
 import com.sejourfr.app.manager.MessageManager;
@@ -94,6 +95,7 @@ public class TestSupportConfig {
                              AnalyticsEventManager analyticsEventManager,
                              AnalyticsIdentityManager analyticsIdentityManager,
                              JourneyManager journeyManager,
+                             JourneyStepSeriesManager journeyStepSeriesManager,
                              FreeEntitlementUsageRepository freeEntitlementUsageRepository) {
         return new TestData(userManager, themeManager, passwordEncoder,
                 mediaManager, passageManager, questionManager, attemptManager,
@@ -110,7 +112,7 @@ public class TestSupportConfig {
                 diagnosticSessionManager, diagnosticProductionAnalysisManager,
                 userFunnelEventManager,
                 analyticsVisitorManager, analyticsEventManager, analyticsIdentityManager,
-                journeyManager, freeEntitlementUsageRepository);
+                journeyManager, journeyStepSeriesManager, freeEntitlementUsageRepository);
     }
 
     @Bean

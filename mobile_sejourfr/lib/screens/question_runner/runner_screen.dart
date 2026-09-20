@@ -158,7 +158,23 @@ class _RunnerView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final question = state.current.question;
     final isExam = state.activeAttempt.isMockExam;
-    final isTraining = state.activeAttempt.type == AttemptType.training;
+    /* 🛑 **LE RÉGIME DE PASSATION EST SERVI** (`AttemptResponse.mode`,
+       2026-09-20), et c'est LUI qui décide de ce qui se passe pendant la
+       session : correction affichée ou non, audio CO rejouable ou non, retour
+       arrière ouvert ou fermé.
+
+       ⚠️ **Il ne se déduit plus du type** : une série lancée depuis une carte
+       d'étape du Plan est un `TRAINING` — freemium, historique et observations
+       inchangés — **posée en `EXAMEN`**. C'est aussi la valeur que le serveur
+       oppose (il ne renvoie la correction qu'en `ENTRAINEMENT`), donc l'écran
+       et le refus ne peuvent pas diverger.
+
+       ⚠️ **Non-régression** : `MOCK_EXAM` est servi `EXAMEN` et `REVIEW`
+       `REVISION`, donc lots, séries de « Réviser », examens blancs et
+       sous-épreuves d'examen complet se comportent exactement comme avant. Ce
+       qui reste sur le **type** — et doit y rester — c'est ce que la session
+       **est** : la sortie destructive, le chrono et l'écran de résultat. */
+    final estEntrainement = state.activeAttempt.estEntrainement;
     final selected = state.answersByQuestion[state.current.id] ?? const [];
 
     final isFavorite =
@@ -176,7 +192,7 @@ class _RunnerView extends ConsumerWidget {
         if (didPop || !isExam) return;
         await _confirmQuit(context, ref);
       },
-      child: _buildScaffold(context, ref, question, isExam, isTraining,
+      child: _buildScaffold(context, ref, question, isExam, estEntrainement,
           selected, isFavorite),
     );
   }
@@ -195,7 +211,8 @@ class _RunnerView extends ConsumerWidget {
     WidgetRef ref,
     QuestionDto question,
     bool isExam,
-    bool isTraining,
+    /// 🛑 Le **régime**, pas le type : voir le commentaire de `build`.
+    bool estEntrainement,
     List<String> selected,
     bool isFavorite,
   ) {
@@ -252,8 +269,8 @@ class _RunnerView extends ConsumerWidget {
                       // unique, pas de pause possible — conditions du TCF réel.
                       child: QuestionMediaView(
                         media: question.media!,
-                        examMode: state.activeAttempt.isModuleExam,
-                        maxPlays: state.activeAttempt.isModuleExam ? 1 : null,
+                        examMode: state.activeAttempt.estExamen,
+                        maxPlays: state.activeAttempt.estExamen ? 1 : null,
                       ),
                     ),
                   // CO_IMAGE : l'image (media) est au-dessus, l'audio qui énonce
@@ -265,8 +282,8 @@ class _RunnerView extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 14),
                       child: QuestionMediaView(
                         media: question.audioMedia!,
-                        examMode: state.activeAttempt.isModuleExam,
-                        maxPlays: state.activeAttempt.isModuleExam ? 1 : null,
+                        examMode: state.activeAttempt.estExamen,
+                        maxPlays: state.activeAttempt.estExamen ? 1 : null,
                       ),
                     ),
                   if (question.passageText != null) ...[
@@ -288,7 +305,7 @@ class _RunnerView extends ConsumerWidget {
                     return List.generate(choices.length, (i) {
                       final c = choices[i];
                       final isSelected = selected.contains(c.id);
-                      final showCorr = state.hasResult && isTraining;
+                      final showCorr = state.hasResult && estEntrainement;
                       final isCorrect =
                           state.lastResult?.correctChoiceIds.contains(c.id);
                       return Padding(
@@ -309,7 +326,7 @@ class _RunnerView extends ConsumerWidget {
                       );
                     });
                   }(),
-                  if (state.hasResult && isTraining) ...[
+                  if (state.hasResult && estEntrainement) ...[
                     const SizedBox(height: 20),
                     ExplanationBox(
                       correct: state.lastResult!.correct,
@@ -670,15 +687,17 @@ class _BottomBar extends ConsumerWidget {
     final ctrl = ref.read(runnerControllerProvider(attemptId).notifier);
     final selected = state.answersByQuestion[state.current.id] ?? const [];
     final hasSelection = selected.isNotEmpty;
-    final isTraining = state.activeAttempt.type == AttemptType.training;
+    // 🛑 **Le RÉGIME, pas le type** (cf. `_RunnerView.build`) : c'est lui qui
+    // dit si le candidat valide pour voir la correction, ou s'il enchaîne.
+    final estEntrainement = state.activeAttempt.estEntrainement;
     final isInfinite = state.isInfiniteTraining;
-    final showValidate = isTraining && !state.hasResult;
+    final showValidate = estEntrainement && !state.hasResult;
     final isLast = state.isLast;
     final waiting = state.submitting || state.extending;
-    // Pas de "Précédent" en mode examen blanc (MOCK_EXAM) — conditions du
-    // TCF réel : on ne revient pas en arrière. Idem en entraînement infini
-    // (avancement linéaire). Seul un training borné (lot) garde l'option.
-    final canGoBack = isTraining && !isInfinite && state.currentIndex > 0;
+    // Pas de "Précédent" en régime d'**examen** — conditions du TCF réel : on
+    // ne revient pas en arrière. Idem en entraînement infini (avancement
+    // linéaire). Seul un entraînement borné (lot) garde l'option.
+    final canGoBack = estEntrainement && !isInfinite && state.currentIndex > 0;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -727,7 +746,7 @@ class _BottomBar extends ConsumerWidget {
                                 // cliqué "Valider" pour voir la correction,
                                 // donc la réponse est déjà soumise (mirror
                                 // de la logique du bouton "Suivant").
-                                if (!isTraining && hasSelection) {
+                                if (!estEntrainement && hasSelection) {
                                   final ok = await ctrl.submitCurrent();
                                   // Soumission échouée (réseau) : on reste sur
                                   // la question, l'erreur s'affiche, pas de
@@ -744,10 +763,10 @@ class _BottomBar extends ConsumerWidget {
                     : AppButton(
                         label: 'Suivant',
                         variant: AppButtonVariant.primary,
-                        onPressed: ((!hasSelection && isTraining) || waiting)
+                        onPressed: ((!hasSelection && estEntrainement) || waiting)
                             ? null
                             : () async {
-                                if (!isTraining && hasSelection) {
+                                if (!estEntrainement && hasSelection) {
                                   final ok = await ctrl.submitCurrent();
                                   // Échec réseau : on ne passe pas à la suite,
                                   // sinon la réponse de cette question serait
@@ -867,6 +886,17 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     context.pushReplacement(
       '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
       '?moduleKey=$moduleKey&level=$level',
+    );
+    return;
+  }
+
+  // Contexte d'une **série d'étape** du Plan (cf. `PlanEtapeScreen._lancer`) —
+  // même montage que les lots : `pushReplacement` pour que le rapport puisse
+  // dépiler vers l'écran de l'étape, qui reste monté dessous. 🛑 **Aucun écran
+  // de rapport n'est créé** : on pousse celui des séries de « Réviser ».
+  if (from == 'planEtape') {
+    context.pushReplacement(
+      AppRoutes.examReport.replaceFirst(':attemptId', attempt.id),
     );
     return;
   }

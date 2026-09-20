@@ -8,7 +8,8 @@ import type { MediaResponse } from "@/lib/types";
  *   - si `inlineSvg` est défini → rend le SVG tel quel (capture TCF dessinée)
  *   - sinon → image / audio / vidéo selon le type
  *
- * `examAudio` : lecteur audio en conditions d'examen (CO en MOCK_EXAM) —
+ * `examAudio` : lecteur audio en conditions d'examen (CO en régime `EXAMEN`,
+ * `AttemptResponse.mode` — plus `type === "MOCK_EXAM"` depuis le 2026-09-20) —
  * lancement automatique, une seule écoute, pas de pause ni de réécoute.
  * En entraînement (défaut), le lecteur natif reste libre.
  *

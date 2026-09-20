@@ -1,3 +1,4 @@
+import '../models/attempt_models.dart';
 import '../models/diagnostic_models.dart';
 import '../models/enums.dart';
 import '../models/journey_models.dart';
@@ -33,6 +34,31 @@ class LearningPlanRepository {
       queryParameters: {'module': module.wire},
     );
     return Journey.fromJson(response.data!);
+  }
+
+  /// **Le détail d'une étape de séries** — l'écran intermédiaire du Plan.
+  ///
+  /// 🛑 **Aucun query param, aucun module** : le `stepId` désigne une étape du
+  /// parcours du candidat authentifié, et le serveur sait à quel module elle
+  /// appartient. Un module en paramètre aurait été une seconde autorité.
+  Future<JourneyStepDetail> stepDetail(String stepId) async {
+    final response = await _client.dio.get<Map<String, dynamic>>(
+      '/api/me/plan/journey/steps/$stepId',
+    );
+    return JourneyStepDetail.fromJson(response.data!);
+  }
+
+  /// **Démarrer une série de l'étape.**
+  ///
+  /// 🛑 **L'index est SERVI** ([JourneySerie.index]) : on le repasse tel quel,
+  /// on ne le compte pas. Le serveur oppose le verrou — **403** sur une série
+  /// fermée comme sur une étape sans accès —, et ce refus ouvre l'offre, jamais
+  /// un message technique.
+  Future<Attempt> startSerie(String stepId, int index) async {
+    final response = await _client.dio.post<Map<String, dynamic>>(
+      '/api/me/plan/journey/steps/$stepId/series/$index',
+    );
+    return Attempt.fromJson(response.data!);
   }
 
   /// **L'historique des cycles** — l'archive derriere « Voir ma progression ».

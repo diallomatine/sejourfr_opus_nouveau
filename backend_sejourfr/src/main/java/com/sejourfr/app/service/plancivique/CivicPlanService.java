@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.CivicNotion;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.CivicThemeState;
@@ -586,6 +587,21 @@ public class CivicPlanService {
      */
     @Transactional
     public AttemptResponse demarrerSerieSurUnite(UUID userId, String uniteCode) {
+        return demarrerSerieSurUnite(userId, uniteCode, AttemptMode.ENTRAINEMENT);
+    }
+
+    /**
+     * La <b>meme</b> serie, dans le regime de passation demande.
+     *
+     * <p>🛑 <b>Une seule composition, deux appelants</b> : le Plan civique
+     * (correction immediate) et la <b>carte d'etape du cycle</b>
+     * ({@link AttemptMode#EXAMEN} — aucune correction pendant la passation).
+     * Dupliquer le tirage pour changer un enum aurait fait deux series qui
+     * n'ont pas le meme contenu sous le meme nom.
+     */
+    @Transactional
+    public AttemptResponse demarrerSerieSurUnite(
+            UUID userId, String uniteCode, AttemptMode mode) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         if (!subscriptionService.hasCivique(userId)) {
@@ -604,11 +620,13 @@ public class CivicPlanService {
                         "Cette unite ne fait pas partie du programme."));
 
         int taille = props.getQuestionsParSerie();
-        List<Question> questions = unite.getQuestionType() == QuestionType.MISE_SITUATION
-                ? questionManager.findRandomMisesEnSituationExcluding(
-                        unite.getThemeCode(), null, List.of(), taille)
-                : questionManager.findRandomByOfficialUnitExcluding(
-                        unite.getId(), null, List.of(), taille);
+        List<Question> questions = new ArrayList<>(
+                unite.getQuestionType() == QuestionType.MISE_SITUATION
+                        ? questionManager.findRandomMisesEnSituationExcluding(
+                                unite.getThemeCode(), null, List.of(), taille)
+                        : questionManager.findRandomByOfficialUnitExcluding(
+                                unite.getId(), null, List.of(), taille));
+        completerParLaThematique(questions, unite, taille);
         if (questions.isEmpty()) {
             // 🛑 On le DIT, on ne rend jamais une serie vide : un runner sans
             // question est pire qu'un refus.
@@ -616,7 +634,7 @@ public class CivicPlanService {
                     "Aucune question disponible sur cette unité pour l'instant.");
         }
 
-        Attempt attempt = nouvelleSerie(user, questions);
+        Attempt attempt = nouvelleSerie(user, questions, mode);
         log.info("Serie civique sur unite : attempt={} user={} unite={} questions={}",
                 attempt.getId(), userId, unite.getCode(), questions.size());
         List<AttemptQuestion> lignes =
@@ -625,15 +643,52 @@ public class CivicPlanService {
     }
 
     /**
+     * <b>Completer une serie trop mince par les questions de la MEME
+     * THEMATIQUE</b> (2026-09-20).
+     *
+     * <p>🛑 <b>Priorite absolue aux questions de l'unite</b> : le complement
+     * n'intervient qu'apres, et n'entame jamais la place des questions de
+     * l'unite. Il existe parce qu'une unite officielle peut porter moins de 20
+     * questions — servir une serie de 12 la ou l'ecran a annonce 20, et ou le
+     * seuil de reussite est calcule sur 20, aurait rendu la carte
+     * <b>impossible a valider</b>.
+     *
+     * <p>Les questions deja tirees sont exclues : une serie ne montre jamais
+     * deux fois la meme question. Le tirage reste <b>aleatoire</b>, donc varie
+     * d'un essai a l'autre — c'est ce qui fait qu'un « refaire » n'est pas un
+     * rejeu a l'identique.
+     *
+     * <p>Une thematique introuvable ne fait rien echouer : la serie reste celle
+     * de l'unite, plus courte, ce qui est exactement ce qui se passait avant.
+     */
+    private void completerParLaThematique(
+            List<Question> questions, CivicOfficialUnit unite, int taille) {
+        int manquant = taille - questions.size();
+        if (manquant <= 0) return;
+        Theme thematique = themeManager.findByCode(unite.getThemeCode()).orElse(null);
+        if (thematique == null) return;
+        List<UUID> dejaTirees = questions.stream().map(Question::getId).toList();
+        questions.addAll(questionManager.findRandomExcluding(
+                Module.CIVIQUE, thematique.getId(), null, null, dejaTirees, manquant));
+    }
+
+    /**
      * L'attempt d'une serie ciblee, quel que soit son grain. Extrait a sa
      * 2e occurrence : deux copies auraient pu diverger sur le type, le module ou
      * l'ordre des questions.
+     *
+     * @param mode le <b>regime de passation</b> : {@code ENTRAINEMENT} (le Plan,
+     *             correction immediate) ou {@code EXAMEN} (une carte d'etape du
+     *             cycle, aucune correction). Pose ici, a la creation, parce que
+     *             c'est lui que {@code AttemptResponse.mode} sert et que
+     *             {@code doSubmitAnswer} oppose.
      */
-    private Attempt nouvelleSerie(User user, List<Question> questions) {
+    private Attempt nouvelleSerie(User user, List<Question> questions, AttemptMode mode) {
         Instant now = Instant.now();
         Attempt attempt = new Attempt();
         attempt.setUser(user);
         attempt.setType(AttemptType.TRAINING);
+        attempt.setMode(mode);
         attempt.setModule(Module.CIVIQUE);
         attempt.setStatus(AttemptStatus.EN_COURS);
         attempt.setTotalQuestions(questions.size());

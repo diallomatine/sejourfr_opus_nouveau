@@ -1,15 +1,19 @@
 package com.sejourfr.app.controller;
 
+import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyHistoryDto;
+import com.sejourfr.app.dto.JourneyStepDetailDto;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.journey.JourneyCycleService;
 import com.sejourfr.app.service.journey.JourneyHistoryService;
 import com.sejourfr.app.service.journey.JourneyService;
+import com.sejourfr.app.service.journey.JourneyStepDetailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,6 +40,7 @@ public class JourneyController {
     private final JourneyService journeyService;
     private final JourneyCycleService cycleService;
     private final JourneyHistoryService historyService;
+    private final JourneyStepDetailService stepDetailService;
     private final CurrentUser currentUser;
 
     /**
@@ -76,6 +81,43 @@ public class JourneyController {
     @GetMapping("/history")
     public JourneyHistoryDto history(@RequestParam(required = false) Module module) {
         return historyService.lire(currentUser.getId(), module == null ? Module.TCF : module);
+    }
+
+    /**
+     * <b>L'ecran d'ETAPE</b> — les series a reussir pour valider une competence
+     * de comprehension (CO/CE) ou une unite officielle civique.
+     *
+     * <p>🛑 <b>Aucun {@code ?module=}</b>, et c'est le point : l'etape porte son
+     * module. Le demander au client aurait ouvert la porte a une demande qui
+     * contredit l'etape, et duplique cote fronts une question que le serveur
+     * seul sait trancher.
+     *
+     * <p><b>404</b> si l'etape n'existe pas <b>ou</b> n'appartient pas au
+     * candidat — repondre 403 confirmerait l'existence du cycle d'un tiers.
+     * <b>422</b> si l'etape ne se travaille pas par series (expression, examen).
+     */
+    @GetMapping("/steps/{stepId}")
+    public JourneyStepDetailDto step(@PathVariable java.util.UUID stepId) {
+        return stepDetailService.lire(currentUser.getId(), stepId);
+    }
+
+    /**
+     * <b>Lancer (ou refaire) une serie</b> de cette etape.
+     *
+     * <p>Rend le <b>meme</b> {@code AttemptResponse} que tous les autres
+     * lancements : les fronts atterrissent sur {@code /sessions/{attemptId}}
+     * sans rien apprendre de neuf. 🛑 {@code AttemptResponse.mode} vaut
+     * {@code EXAMEN} — aucune correction pendant la passation, audio de CO joue
+     * une seule fois.
+     *
+     * <p><b>403</b> si l'etape est verrouillee (freemium) ou si la serie l'est
+     * (la precedente n'est pas <b>reussie</b>) ; <b>422</b> si l'index sort du
+     * quota ou si la banque ne peut rien servir.
+     */
+    @PostMapping("/steps/{stepId}/series/{index}")
+    public AttemptResponse demarrerSerie(
+            @PathVariable java.util.UUID stepId, @PathVariable int index) {
+        return stepDetailService.demarrer(currentUser.getId(), stepId, index);
     }
 
     /**

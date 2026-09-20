@@ -17,7 +17,6 @@ import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../../module_detail/tcf_full_exams_screen.dart'
     show fullExamsHistoryProvider;
-import '../civic_serie_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
@@ -349,14 +348,26 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// « Débloquer mon plan », ancrée sous le cycle.
   VoidCallback? _actionDe(JourneyStep etape) {
     if (etape.locked) return null;
-    // 🛑 **L'action d'une étape CIVIQUE est la série sur son UNITÉ** (D-48,
-    // P8.7). Sans unité servie, ou sur un examen de bloc, rien ne s'ouvre
-    // d'ICI : l'examen se lance depuis son propre encart.
-    if (widget.module == AppModule.civique) {
-      final unite = etape.unite;
-      if (unite == null || etape.type != JourneyStepType.trainSkill) return null;
-      return () => unawaited(startCivicUniteSerie(context, ref, unite.code));
+    // 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
+    // (demande du propriétaire, 2026-09-20). Compréhension CO/CE et civique :
+    // le candidat voit d'abord ce que l'étape demande — la compétence ou
+    // l'unité travaillée, le seuil, ses deux séries — puis choisit la série
+    // qu'il lance.
+    //
+    // ⚠️ **Révoque** le lancement direct depuis la ligne du cycle : la série
+    // ciblée partait de [planStepAction] côté TCF et de `startCivicUniteSerie`
+    // côté civique, et ce lanceur a quitté cet écran avec elle (ses autres
+    // appelants le gardent).
+    //
+    // ⚠️ **Les étapes d'EXPRESSION ne sont PAS concernées** : elles portent une
+    // tâche et gardent leur chemin vers leurs petits sujets.
+    if (journeyEtapeASeries(etape)) {
+      return () => context.push(AppRoutes.planEtapePath(etape.id));
     }
+    // 🛑 **Le Plan TCF n'a rien à dire d'une étape civique** (A86) : hors étape
+    // de séries, une ligne civique n'a pas de geste — l'examen d'un bloc se
+    // lance depuis son propre encart.
+    if (widget.module == AppModule.civique) return null;
     final plan = widget.plan;
     if (plan == null) return null;
     final action = planStepAction(plan, etape);

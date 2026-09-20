@@ -139,17 +139,14 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     }
 
     /**
-     * 🛑 <b>D-16 (2026-09-18) — 2 series REUSSIES closent l'etape.</b> Ce test
-     * comptait des series <b>terminees</b> quelle que soit leur reussite (D-5,
-     * « le quota mesure le travail fourni ») : cette semantique est
-     * <b>revoquee</b>. « Reussie » se lit sur le verdict deja pose par
-     * {@code ComprehensionObservationService} —
-     * {@code learning_plan_observations.status = SOLID}, donc sur
-     * {@code learning-plan.comprehension.solid-ratio}, sans nouvelle
-     * declaration du seuil.
+     * 🛑 <b>2 series REUSSIES closent l'etape</b>, et « reussie » est
+     * <b>litterale</b> depuis le 2026-09-20 : 16 bonnes reponses sur les 20 de
+     * la serie, lues sur l'attempt ({@code JourneySerieVerdict}). Le seuil se
+     * derive de {@code learning-plan.comprehension.solid-ratio} x la taille de
+     * la serie — aucune nouvelle declaration de 0,80.
      */
     @Test
-    @DisplayName("D-16 — comprehension : 2 series REUSSIES closent l'etape, comptees en SERIES")
+    @DisplayName("Comprehension : 2 series REUSSIES (16/20) closent l'etape, comptees en SERIES")
     void deuxSeriesReussiesClosentLEtapeDeComprehension() {
         User user = abonne();
         Skill skill = comprehension(SkillSection.CO);
@@ -168,19 +165,19 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         assertThat(etape.progress().quota()).isEqualTo(config.trainSeriesQuota());
         assertThat(etape.progress().done()).isZero();
 
-        // Une premiere serie reussie : le compteur servi avance, le quota n'est
-        // pas atteint. ⚠️ On LIT avant de brancher la cloture : le moteur de
-        // maitrise peut conclure au transfert des la premiere serie reussie et
-        // clore l'etape en MASTERED — c'est une autre regle, verrouillee
+        // Une premiere carte reussie (16/20) : le compteur servi avance, le quota
+        // n'est pas atteint. ⚠️ On LIT avant de brancher la cloture : le moteur
+        // de maitrise peut conclure au transfert des la premiere serie reussie
+        // et clore l'etape en MASTERED — c'est une autre regle, verrouillee
         // ailleurs, et ce test-ci porte sur le QUOTA.
-        serie(user, skill, LearningPlanSourceType.TCF_CO, LearningPlanSkillStatus.SOLID);
+        serie(user, skill, 1, 16);
         JourneyStepDto apresUne = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
         assertThat(apresUne.progress().done()).isEqualTo(1);
         assertThat(apresUne.status()).isNotIn(
                 JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
 
         // La seconde atteint le quota : l'etape se clot.
-        serie(user, skill, LearningPlanSourceType.TCF_CO, LearningPlanSkillStatus.SOLID);
+        serie(user, skill, 2, 20);
         journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
 
         assertThat(etapeDe(journeyService.lire(user.getId(), Module.TCF), skill).status())
@@ -188,17 +185,17 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     }
 
     /**
-     * 🛑 <b>D-16 — l'echappatoire : 4 series TERMINEES closent l'etape quelle que
-     * soit leur reussite.</b> Elle existe pour une raison nommee : <b>un
-     * candidat faible ne doit jamais rester bloque</b> sur une etape.
+     * 🛑 <b>LE FILET DES 4 SERIES TERMINEES EST SUPPRIME</b> (2026-09-20,
+     * arbitrage du proprietaire, revoque D-16 sur ce point).
      *
-     * <p>Et le {@code progress} servi n'en dit rien : il compte les series
-     * <b>reussies</b> — ici zero. Afficher « 3 series ratees sur 4 » inviterait
-     * a echouer vite pour se debarrasser d'une etape.
+     * <p><b>Consequence assumee et validee</b> : un candidat qui ne passe jamais
+     * le seuil <b>reste sur sa competence</b>. C'etait exactement ce que le filet
+     * evitait ; l'arbitrage a ete rendu contre, en connaissance de cause. Ce
+     * test-ci est la preuve, de bout en bout, que la suppression est effective.
      */
     @Test
-    @DisplayName("D-16 — l'echappatoire de 4 series terminees clot une etape jamais reussie")
-    void quatreSeriesTermineesClosentLEtapeSansAucuneReussite() {
+    @DisplayName("PLUS DE FILET — quatre series ratees ne closent plus l'etape")
+    void quatreSeriesRateesNeClosentPlusLEtape() {
         User user = abonne();
         Skill skill = comprehension(SkillSection.CO);
         UUID examen = examenBlanc(user, EpreuveType.TCF_CO);
@@ -207,25 +204,23 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
                 examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, HIER));
 
-        // Une serie de moins que l'echappatoire : rien n'est clos.
-        for (int i = 0; i < config.trainSeriesFallbackQuota() - 1; i++) {
-            serie(user, skill, LearningPlanSourceType.TCF_CO,
-                    LearningPlanSkillStatus.PRIORITY);
+        // 🛑 La configuration livree ne declare PLUS d'echappatoire : son absence
+        // est la regle, pas un oubli.
+        assertThat(config.trainSeriesFallbackQuota()).isNull();
+
+        // Quatre essais sur la premiere carte, tous sous le seuil (15/20 compris,
+        // le cas limite).
+        for (int score : new int[] {4, 11, 15, 2}) {
+            serie(user, skill, 1, score);
         }
         journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
-        JourneyStepDto avant = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
-        assertThat(avant.status()).isNotIn(
+
+        JourneyStepDto apres = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(apres.status()).isNotIn(
                 JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
-        assertThat(avant.progress().done())
+        assertThat(apres.progress().done())
                 .as("le progress servi compte les REUSSIES : aucune ici")
                 .isZero();
-
-        // La derniere declenche l'echappatoire.
-        serie(user, skill, LearningPlanSourceType.TCF_CO, LearningPlanSkillStatus.PRIORITY);
-        journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
-
-        assertThat(etapeDe(journeyService.lire(user.getId(), Module.TCF), skill).status())
-                .isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
     }
 
     @Test
@@ -238,11 +233,9 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
                 LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null, HIER, examen);
         journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
                 examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CE, HIER));
-        // L'echappatoire de D-16 : 4 series terminees, aucune reussie.
-        for (int i = 0; i < config.trainSeriesFallbackQuota(); i++) {
-            serie(user, skill, LearningPlanSourceType.TCF_CE,
-                    LearningPlanSkillStatus.TO_REINFORCE);
-        }
+        // Les deux cartes reussies : l'etape se clot sur son quota.
+        serie(user, skill, 1, 17);
+        serie(user, skill, 2, 16);
         journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
         JourneyStepDto close = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
         assertThat(close.status()).isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
@@ -430,10 +423,28 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
      * {@code ComprehensionObservationService} l'ecrit : une observation par
      * (competence, session), et le <b>verdict deja pose</b> dans {@code status}.
      */
-    private void serie(User user, Skill skill,
-                       LearningPlanSourceType source, LearningPlanSkillStatus verdict) {
-        data.learningPlanObservation(user, skill, source, verdict,
-                ObservationConfidence.MEDIUM, null, Instant.now(), UUID.randomUUID());
+    /**
+     * <b>Un ESSAI de serie sur une carte de l'etape</b> (V072) — ce que
+     * {@code JourneyStepDetailService.demarrer} ecrit.
+     *
+     * <p>🛑 <b>On ecrit un SCORE, jamais un verdict.</b> « Reussie » se relit
+     * ({@code JourneySerieVerdict} : 16 bonnes reponses sur les 20 de la serie),
+     * et c'est la meme fonction que celle qui clot l'etape.
+     */
+    private void serie(User user, Skill skill, int carte, int score) {
+        data.serieDEtape(etapeEnBase(user, skill), carte, user, Module.TCF, score);
+    }
+
+    /** L'etape OUVERTE de cette competence, en base. */
+    private com.sejourfr.app.entity.JourneyStep etapeEnBase(User user, Skill skill) {
+        return journeyService.getOrCreate(user.getId(), Module.TCF)
+                .map(journey -> journeySteps.findAllByJourney(journey.getId()).stream()
+                        .filter(step -> step.getSkill() != null
+                                && step.getSkill().getId().equals(skill.getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                                "Aucune etape pour " + skill.getCode())))
+                .orElseThrow(() -> new AssertionError("Aucun parcours"));
     }
 
     /**

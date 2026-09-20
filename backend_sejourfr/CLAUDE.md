@@ -36,7 +36,7 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   achèvements : un `*Resolver` calcule à la lecture. Recalibrer un poids relit alors tout
   l'historique au prochain appel, **sans migration ni job**. Patrons de référence :
   `SkillStatusResolver`, `SituationDansNiveau`, `SkillMasteryResolver`, `PlanCycleResolver`.
-  ⚠️ **Deux exceptions, et elles sont assumées.** Toutes deux persistent une **décision prise
+  ⚠️ **Trois exceptions, et elles sont assumées.** Toutes trois persistent une **décision prise
   à un instant**, que rien ne permet de recalculer après coup :
   1. la **première place du Plan** (`plan_pinned_priorities`, V065) — l'étape en cours pouvait
      être à 0/5, donc ne se lisait nulle part. ⚠️ Elle est devenue le **repli** le 2026-09-17 :
@@ -47,8 +47,16 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
      évaluations, et le journal des évaluations traitées est ce qui rend le traitement
      idempotent. 🛑 **Seules la structure et la clôture d'une étape y sont persistées** : le
      statut d'affichage, le verrou et l'état de maîtrise restent **dérivés à la lecture** — un
-     abonnement souscrit change donc l'écran sans une seule écriture.
-  → `docs/regles/plan.md`, `docs/decisions/plan-parcours-tcf.md`
+     abonnement souscrit change donc l'écran sans une seule écriture ;
+  3. le **lien d'une série d'étape** (`journey_step_series`, V072, 2026-09-20) — « le candidat
+     a lancé la série n°2 de **cette** étape » ne se lit nulle part sur l'attempt, qui porte
+     20 questions et rien d'autre. 🛑 **Le LIEN seulement, jamais le verdict** : « réussie » se
+     relit sur l'attempt (`JourneySerieVerdict` : 16 bonnes réponses sur 20, dérivé de
+     `learning-plan.comprehension.solid-ratio` × la taille de la série), « validée » se relit
+     comme « il existe un essai réussi sur cette carte ». **Aucune unicité** sur
+     `(step_id, series_index)` : refaire **ajoute** une ligne.
+  → `docs/regles/plan.md`, `docs/decisions/plan-parcours-tcf.md`,
+  `docs/decisions-autonomes-parcours-tcf.md`
 - **Une règle = une autorité, et on l'appelle.** Jamais une copie. À la 2ᵉ occurrence, on
   **extrait** dans `util/` ou un resolver dédié (`TexteNormalise`, `CoutAppelLlm`,
   `FenetreMesure`, `ProductionValidityService`, `EvaluationProductionSegments`). Le défaut le
@@ -80,6 +88,12 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   contrôle serveur déterministe ; (4) **en dernier** une consigne de prompt, qui n'est qu'un vœu.
 - **Un verrou d'accès est opposable serveur** (403/422), et sa **jumelle en lecture** sert le
   `locked` des DTO — jamais une seconde implémentation de la règle.
+- 🛑 **Le RÉGIME DE PASSATION d'une session est servi, jamais déduit.** `AttemptResponse.mode`
+  (`AttemptMode`, la colonne `attempts.mode`) dit si le candidat voit les corrections pendant
+  qu'il joue et si l'audio de CO se rejoue. C'est la **même valeur** que celle que
+  `AttemptInteractionService.doSubmitAnswer` oppose : l'écran et le refus ne peuvent pas
+  diverger. ⚠️ `type` ne suffit plus — une **série d'étape du Plan** est un `TRAINING`
+  (freemium, historique, observations inchangés) posé en `EXAMEN`. → `docs/regles/qcm.md`
 - **Best-effort veut dire best-effort** : un enrichissement (observation de Plan, second appel
   LLM, funnel, analytics) tourne **hors transaction**, avale ses exceptions, et **ne dégrade
   jamais** l'opération principale. Ne pas ajouter de transaction englobante autour d'un runner

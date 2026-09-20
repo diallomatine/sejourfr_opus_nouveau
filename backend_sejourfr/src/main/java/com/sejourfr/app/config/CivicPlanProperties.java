@@ -63,13 +63,21 @@ public class CivicPlanProperties {
     private int revisionsVisibles = 3;
 
     /**
-     * Questions d'une serie ciblee (20_ §6 bloc 2 : « 10 questions ciblees »).
+     * Questions d'une serie ciblee — <b>20 depuis le 2026-09-20</b> (arbitrage
+     * du proprietaire : « passer aussi a 20 », sans restriction, donc partout
+     * dans le civique — les series du plan derive comprises, pas seulement
+     * celles du cycle).
      *
      * <p>La duree annoncee s'en <b>derive</b> ({@link #secondesParQuestion}) :
      * raccourcir la serie raccourcit la promesse, sans qu'aucun ecran n'ait a
      * etre touche.
+     *
+     * <p>🛑 <b>C'est aussi le denominateur du seuil de reussite</b> d'une serie
+     * d'etape du cycle : {@code learning-plan.comprehension.solid-ratio} x 20
+     * = 16 ({@code JourneySerieVerdict}). Le baisser baisse le seuil, l'ecran et
+     * la cloture <b>ensemble</b> — il n'y a pas de « 16 » ecrit ailleurs.
      */
-    private int questionsParSerie = 10;
+    private int questionsParSerie = 20;
 
     /**
      * Secondes par question, pour l'ordre de grandeur annonce (« ~6 min »).

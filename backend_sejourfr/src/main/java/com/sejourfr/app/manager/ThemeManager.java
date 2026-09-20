@@ -35,6 +35,11 @@ public class ThemeManager {
         return repository.findByModuleOrderByDisplayOrderAsc(module);
     }
 
+    /** Le theme portant ce code stable ({@code CIV_PRINCIPES}, ...). */
+    public Optional<Theme> findByCode(String code) {
+        return repository.findByCode(code);
+    }
+
     public boolean existsByCode(String code) {
         return repository.existsByCode(code);
     }

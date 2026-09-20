@@ -105,7 +105,12 @@ const sfSectionGap = 22.0;
 
 /// Titre de section, aligné sur les marges d'écran.
 class SfSectionTitle extends StatelessWidget {
-  const SfSectionTitle(this.text, {super.key, this.flush = false});
+  const SfSectionTitle(
+    this.text, {
+    super.key,
+    this.flush = false,
+    this.mono = false,
+  });
 
   final String text;
 
@@ -113,13 +118,22 @@ class SfSectionTitle extends StatelessWidget {
   /// pas la marge latérale.
   final bool flush;
 
+  /// L'intertitre en **petites capitales** (« À FAIRE »).
+  ///
+  /// 🛑 **Une variante, pas une primitive de plus** : c'est le même titre de
+  /// section, dans le registre technique que le kit emploie déjà pour ses
+  /// œils-de-bœuf. Miroir web : `Section mono`.
+  final bool mono;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(flush ? 0 : 16, 0, flush ? 0 : 16, 10),
       child: Text(
         text,
-        style: AppFonts.display(size: 16, weight: FontWeight.w700),
+        style: mono
+            ? AppFonts.label(size: 11, color: AppColors.muted)
+            : AppFonts.display(size: 16, weight: FontWeight.w700),
       ),
     );
   }
@@ -127,12 +141,20 @@ class SfSectionTitle extends StatelessWidget {
 
 /// Une section : un titre optionnel puis son contenu, avec l'espace au-dessus.
 class SfSection extends StatelessWidget {
-  const SfSection(
-      {super.key, this.title, required this.child, this.flush = false});
+  const SfSection({
+    super.key,
+    this.title,
+    required this.child,
+    this.flush = false,
+    this.mono = false,
+  });
 
   final String? title;
   final Widget child;
   final bool flush;
+
+  /// Le titre en petites capitales. Voir [SfSectionTitle.mono].
+  final bool mono;
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +164,7 @@ class SfSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (title != null) SfSectionTitle(title!, flush: flush),
+          if (title != null) SfSectionTitle(title!, flush: flush, mono: mono),
           child,
         ],
       ),
@@ -1817,7 +1839,8 @@ class SfMiniPlan extends StatelessWidget {
                 if (rows[i].pill != null) ...[
                   const SizedBox(width: 10),
                   SfPill(
-                      label: rows[i].pill!, tone: rows[i].tone ?? SfTone.warn),
+                      label: rows[i].pill!,
+                      tone: (rows[i].tone ?? SfTone.warn).asBarTone),
                 ],
               ],
             ),
@@ -1836,6 +1859,38 @@ class SfMiniPlan extends StatelessWidget {
 /// autre appelant n'est concerné : le défaut reste `false`.
 ///
 /// Miroir web : `Pill` (`.pill` / `.pill.dense`).
+/// Le même ton, lu sur l'échelle qui porte aussi le bleu.
+///
+/// ⚠️ [SfTone] est un **sous-ensemble** de [SfBarTone] : la conversion ne perd
+/// rien, elle évite seulement de recopier un `switch` à chaque appel.
+extension SfToneAsBar on SfTone {
+  SfBarTone get asBarTone => switch (this) {
+        SfTone.ok => SfBarTone.ok,
+        SfTone.warn => SfBarTone.warn,
+        SfTone.hot => SfBarTone.hot,
+        SfTone.muted => SfBarTone.muted,
+      };
+}
+
+/// Les fonds clairs de la pastille. ⚠️ Distinctes de [_sfStatusSoft], qui
+/// n'aplatit qu'un ton de texte : ici l'aplat et le texte sont les tokens
+/// exacts du kit, miroir des règles `.pill.ok` … `.pill.pillNow` du web.
+Color _sfPillSoft(SfBarTone tone) => switch (tone) {
+      SfBarTone.ok => AppColors.greenLight,
+      SfBarTone.now => AppColors.blueLight,
+      SfBarTone.warn => AppColors.amberLight,
+      SfBarTone.hot => AppColors.redLight,
+      SfBarTone.muted => AppColors.surface3,
+    };
+
+Color _sfPillText(SfBarTone tone) => switch (tone) {
+      SfBarTone.ok => AppColors.greenDark,
+      SfBarTone.now => AppColors.blueDark,
+      SfBarTone.warn => AppColors.amberDark,
+      SfBarTone.hot => AppColors.redDark,
+      SfBarTone.muted => AppColors.muted,
+    };
+
 class SfPill extends StatelessWidget {
   const SfPill({
     super.key,
@@ -1845,7 +1900,12 @@ class SfPill extends StatelessWidget {
   });
 
   final String label;
-  final SfTone tone;
+
+  /// ⚠️ **[SfBarTone], pas [SfTone]** (2026-09-20) : la pastille a besoin du
+  /// bleu ([SfBarTone.now]) pour le repère de domaine d'une étape
+  /// (« CO · B2 »). Les appelants existants passent un ton qui existe dans les
+  /// deux échelles.
+  final SfBarTone tone;
 
   /// Variante resserrée (`.status` de `docs/progression/plan_cycle.html` :
   /// 9,5 px, poids 900, `padding: 5px 8px`), réservée aux lignes d'en-tête où
@@ -1860,7 +1920,7 @@ class SfPill extends StatelessWidget {
         vertical: dense ? 5 : 4,
       ),
       decoration: BoxDecoration(
-        color: tone.soft,
+        color: _sfPillSoft(tone),
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Text(
@@ -1868,7 +1928,7 @@ class SfPill extends StatelessWidget {
         style: AppFonts.ui(
           size: dense ? 9.5 : 11,
           weight: dense ? FontWeight.w900 : FontWeight.w700,
-          color: tone.text,
+          color: _sfPillText(tone),
         ),
       ),
     );
@@ -3927,26 +3987,46 @@ class SfHistoryRow extends StatelessWidget {
 /// compte, et ce qu'elle ne compte pas.
 ///
 /// Miroir web : `InfoNote`.
+/// La nature d'un [SfInfoNote].
+///
+/// 🛑 **[check] n'est pas une couleur de plus** : c'est l'encart de
+/// **validation** — il énonce la condition à remplir, pas une réserve, et
+/// l'ambre du défaut se lirait comme un avertissement. Miroir web :
+/// `InfoNote variant="check"`.
+enum SfInfoNoteVariant { info, check }
+
 class SfInfoNote extends StatelessWidget {
-  const SfInfoNote({super.key, required this.child});
+  const SfInfoNote({
+    super.key,
+    required this.child,
+    this.variant = SfInfoNoteVariant.info,
+  });
 
   final Widget child;
+  final SfInfoNoteVariant variant;
 
   @override
   Widget build(BuildContext context) {
+    final check = variant == SfInfoNoteVariant.check;
     return Container(
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
-        color: AppColors.amberLight,
+        color: check ? AppColors.blueLight : AppColors.amberLight,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.amberBorder),
+        border: Border.all(
+          color: check ? AppColors.blueLight : AppColors.amberBorder,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 1),
-            child: Icon(LucideIcons.info, size: 14, color: AppColors.amberDark),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              check ? LucideIcons.check : LucideIcons.info,
+              size: 14,
+              color: check ? AppColors.blue : AppColors.amberDark,
+            ),
           ),
           const SizedBox(width: 9),
           Expanded(child: child),
@@ -4829,7 +4909,9 @@ class SfBlocAccordion extends StatelessWidget {
                     if (MediaQuery.sizeOf(context).width > 366) ...[
                       const SizedBox(width: 11),
                       SfPill(
-                          label: status.label, tone: status.tone, dense: true),
+                          label: status.label,
+                          tone: status.tone.asBarTone,
+                          dense: true),
                     ],
                     const SizedBox(width: 6),
                     // La seule affordance visible qu'un bloc se deplie. Le
@@ -6059,6 +6141,343 @@ class SfEpreuveStatList extends StatelessWidget {
                 ),
               ),
             children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
+//
+// L'écran intermédiaire qui s'ouvre depuis le cycle du Plan sur une étape
+// d'entraînement de compréhension (CO/CE) ou une étape civique : le domaine et
+// la priorité en pastilles, la compétence en titre, l'avancement, puis une
+// carte par série.
+//
+// 🛑 Miroirs de `SerieProgress` et `SerieCard` côté web. Un motif qui bouge
+// d'un côté bouge de l'autre dans la même passe.
+// =============================================================================
+
+/// **L'avancement d'une étape de séries** — le gros compteur à gauche, le seuil
+/// à droite, et la barre en dessous.
+///
+/// 🛑 **Elle n'est pas [SfCycleProgress]**, et il ne faut pas les confondre :
+/// celle-là compte les **étapes d'un cycle** (un compteur en mots, un repère de
+/// cycle) ; celle-ci compte les **séries d'une étape**, met son chiffre en
+/// évidence et porte, en face, le seuil à tenir sur chacune. Deux échelles,
+/// deux lectures.
+///
+/// 🛑 **Aucune phrase n'est composée ici** : [count], [note] et [noteSub]
+/// arrivent en props, tous trois posés sur des faits servis (`quota`,
+/// `seuilReussite`, `questionsParSerie`).
+///
+/// Miroir web : `SerieProgress`.
+class SfSerieProgress extends StatelessWidget {
+  const SfSerieProgress({
+    super.key,
+    required this.count,
+    required this.note,
+    required this.noteSub,
+    required this.done,
+    required this.total,
+  });
+
+  /// « 0/2 séries », composé par l'appelant.
+  final String count;
+
+  /// « 16/20 minimum ».
+  final String note;
+
+  /// « sur chacune ».
+  final String noteSub;
+
+  /// Les séries **validées** — un décompte de booléens servis.
+  final int done;
+
+  /// Le quota **servi**.
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
+    return SfCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  count,
+                  style: AppFonts.ui(
+                    size: 24,
+                    weight: FontWeight.w800,
+                    color: AppColors.blue,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    note,
+                    style:
+                        AppFonts.ui(size: 13, weight: FontWeight.w700),
+                  ),
+                  Text(
+                    noteSub,
+                    style: AppFonts.ui(size: 11.5, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            child: Container(
+              height: 7,
+              color: AppColors.line,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: ratio,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(color: AppColors.blue),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// **La carte d'une série** — repère carré, titre, méta, badge d'état, puis le
+/// bouton pleine largeur et, si la série a déjà été jouée, l'accès à son
+/// corrigé.
+///
+/// 🛑 **Le kit ne décide d'aucun état.** [state], l'inertie du bouton et la
+/// présence de [linkLabel] sont posés par l'appelant à partir de `locked` et
+/// `validee`, **servis** — jamais d'une comparaison entre un score et un seuil.
+///
+/// 🛑 **[locked] grise la carte, il ne la masque pas** : le repère, le titre, la
+/// méta et le bouton restent lisibles (R16 — on floute l'action, jamais le
+/// résultat). Le bouton porte alors la condition (« Après la série 1 ») et ne
+/// répond pas.
+///
+/// Miroir web : `SerieCard`.
+class SfSerieCard extends StatelessWidget {
+  const SfSerieCard({
+    super.key,
+    required this.mark,
+    required this.title,
+    required this.questions,
+    required this.state,
+    required this.locked,
+    required this.actionLabel,
+    this.duree,
+    this.score,
+    this.onAction,
+    this.linkLabel,
+    this.onLink,
+  });
+
+  /// Le chiffre du carré — l'`index` **servi**, mis en texte par l'appelant.
+  final String mark;
+
+  /// « Série 1 ».
+  final String title;
+
+  /// « 16 min ». `null` quand la durée n'est pas servie : rien à sa place.
+  final String? duree;
+
+  /// « 20 questions ».
+  final String questions;
+
+  /// Le badge d'état et son ton, **composés** par l'appelant.
+  final ({String label, SfBarTone tone}) state;
+
+  /// « Dernier score : 17/20 ». `null` tant que la série n'a pas été jouée.
+  final String? score;
+
+  final bool locked;
+
+  /// Le bouton pleine largeur. Sans [onAction], il est inerte.
+  final String actionLabel;
+  final VoidCallback? onAction;
+
+  /// Le second accès d'une série jouée : son corrigé.
+  final String? linkLabel;
+  final VoidCallback? onLink;
+
+  @override
+  Widget build(BuildContext context) {
+    final inerte = onAction == null;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: locked ? AppColors.surface3 : AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: locked ? null : AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: locked ? AppColors.line : AppColors.blueLight,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Text(
+                  mark,
+                  style: AppFonts.label(
+                    size: 13,
+                    color: locked ? AppColors.muted : AppColors.blueDark,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppFonts.ui(size: 15, weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (duree != null) ...[
+                          const Icon(LucideIcons.clock,
+                              size: 13, color: AppColors.muted),
+                          const SizedBox(width: 5),
+                          Text(
+                            duree!,
+                            style: AppFonts.ui(
+                                size: 12, color: AppColors.muted),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        const Icon(LucideIcons.listChecks,
+                            size: 13, color: AppColors.muted),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            questions,
+                            style: AppFonts.ui(
+                                size: 12, color: AppColors.muted),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    state.label.toUpperCase(),
+                    style: AppFonts.ui(
+                      size: 10,
+                      weight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: _sfStatusColor(state.tone),
+                    ),
+                  ),
+                  if (locked) ...[
+                    const SizedBox(width: 5),
+                    const Icon(LucideIcons.lock,
+                        size: 12, color: AppColors.muted),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          if (score != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              score!,
+              style: AppFonts.ui(
+                  size: 12.5, weight: FontWeight.w600, color: AppColors.ink2),
+            ),
+          ],
+          const SizedBox(height: 12),
+          // 🛑 Un bouton fermé est GRIS, pas un bouton d'action pâli : il porte
+          // la condition qui l'ouvrira, et rien ne doit inviter à le presser.
+          Material(
+            color: inerte ? AppColors.line : AppColors.blue,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            child: InkWell(
+              onTap: onAction,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 46),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        actionLabel,
+                        textAlign: TextAlign.center,
+                        style: AppFonts.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          color: inerte ? AppColors.muted : AppColors.white,
+                        ),
+                      ),
+                    ),
+                    if (!inerte) ...[
+                      const SizedBox(width: 8),
+                      const Icon(LucideIcons.arrowRight,
+                          size: 18, color: AppColors.white),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (linkLabel != null && onLink != null) ...[
+            const SizedBox(height: 9),
+            InkWell(
+              onTap: onLink,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      linkLabel!,
+                      style: AppFonts.ui(
+                        size: 13,
+                        weight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(LucideIcons.chevronRight,
+                        size: 15, color: AppColors.blue),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),

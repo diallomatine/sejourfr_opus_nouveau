@@ -84,8 +84,15 @@ class RunnerState {
   /// Mode entraînement infini : on continue à charger des batches.
   /// Désactivé quand `fixedBatch` est true (cas des lots TCF qui ont une
   /// taille fixe ; on s'arrête à la dernière question, on ne rallonge pas).
+  /// 🛑 **Et jamais en régime d'EXAMEN** (2026-09-20) : une série d'étape du
+  /// Plan reste un `TRAINING`, mais elle se joue sur un nombre de questions
+  /// **fixe**, dont dépend son seuil de réussite — l'étendre fausserait la
+  /// mesure. `EXAMEN` couvre `MOCK_EXAM`, donc rien ne change pour les examens
+  /// blancs, ni pour les lots (`fixedBatch`).
   bool get isInfiniteTraining =>
-      !fixedBatch && activeAttempt.type == AttemptType.training;
+      !fixedBatch &&
+      activeAttempt.type == AttemptType.training &&
+      activeAttempt.estEntrainement;
 
   /// En examen, `isLast` signale la dernière question du batch.
   /// En entraînement infini, n'est vrai que si on a épuisé la base.

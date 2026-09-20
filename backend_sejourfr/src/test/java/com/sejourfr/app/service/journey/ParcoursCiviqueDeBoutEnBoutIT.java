@@ -62,6 +62,8 @@ class ParcoursCiviqueDeBoutEnBoutIT extends AbstractIntegrationTest {
     @Autowired private CivicObservationService observationService;
     @Autowired private CivicDiagnosticService diagnosticService;
     @Autowired private TcfJourneyConfig config;
+    @Autowired private JourneySerieVerdict verdict;
+    @Autowired private com.sejourfr.app.manager.JourneyStepManager stepManager;
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private TestData data;
     @Autowired private EntityManager entityManager;
@@ -112,10 +114,7 @@ class ParcoursCiviqueDeBoutEnBoutIT extends AbstractIntegrationTest {
         // LE TRAVAIL : deux séries réussies par unité closent chaque étape.
         // ------------------------------------------------------------------
         for (UUID unite : unites) {
-            for (int i = 0; i < config.trainSeriesQuota(); i++) {
-                observationService.record(user.getId(), UUID.randomUUID(),
-                        LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(), serieReussie(unite));
-            }
+            toutesLesCartesReussies(user, cycle, unite);
             journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
         }
         assertThat(unitesOuvertes(cycle, bloc))
@@ -141,10 +140,7 @@ class ParcoursCiviqueDeBoutEnBoutIT extends AbstractIntegrationTest {
         // complet puisse clore quoi que ce soit. C'est la règle, pas un détour
         // de test — et c'est ce qui rend ce parcours réaliste.
         for (UUID unite : toutesLesUnitesOuvertes(cycle)) {
-            for (int i = 0; i < config.trainSeriesQuota(); i++) {
-                observationService.record(user.getId(), UUID.randomUUID(),
-                        LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(), serieReussie(unite));
-            }
+            toutesLesCartesReussies(user, cycle, unite);
             journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
         }
         assertThat(toutesLesUnitesOuvertes(cycle)).isEmpty();
@@ -300,4 +296,24 @@ class ParcoursCiviqueDeBoutEnBoutIT extends AbstractIntegrationTest {
         entityManager.clear();
         return session;
     }
+
+    /**
+     * <b>Les deux cartes de l'etape d'une unite, reussies</b> — ce que
+     * {@code JourneyStepDetailService} ecrit quand le candidat joue ses series.
+     *
+     * <p>🛑 On pose un <b>score</b>, jamais un verdict : « reussie » se relit
+     * ({@code JourneySerieVerdict}), et c'est la meme fonction que celle qui
+     * clot l'etape.
+     */
+    private void toutesLesCartesReussies(User user, Journey cycle, UUID unite) {
+        com.sejourfr.app.entity.JourneyStep etape = stepManager.findAll(cycle.getId()).stream()
+                .filter(step -> unite.equals(step.uniteId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Aucune etape pour l'unite " + unite));
+        int seuil = verdict.seuilReussite(Module.CIVIQUE);
+        for (int carte = 1; carte <= config.trainSeriesQuota(); carte++) {
+            data.serieDEtape(etape, carte, user, Module.CIVIQUE, seuil);
+        }
+    }
+
 }

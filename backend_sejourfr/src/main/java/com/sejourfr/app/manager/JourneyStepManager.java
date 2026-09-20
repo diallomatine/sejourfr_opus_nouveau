@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -36,6 +37,14 @@ public class JourneyStepManager {
     public List<JourneyStep> findCloturesDesCycles(Collection<UUID> journeyIds) {
         if (journeyIds.isEmpty()) return List.of();
         return repository.findCloturesDesCycles(journeyIds);
+    }
+
+    /**
+     * Une etape et tout ce que l'ecran d'etape lit — parcours, candidat,
+     * competence, unite officielle, thematique. <b>Une requete.</b>
+     */
+    public Optional<JourneyStep> findDetail(UUID stepId) {
+        return repository.findDetail(stepId);
     }
 
     /** Les etapes encore ouvertes d'un lot (R7). */

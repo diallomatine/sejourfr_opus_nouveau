@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -78,6 +79,26 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
             ORDER BY s.position ASC
             """)
     List<JourneyStep> findCloturesDesCycles(@Param("journeyIds") Collection<UUID> journeyIds);
+
+    /**
+     * <b>Une etape, avec tout ce que l'ecran d'etape affiche</b> — son parcours
+     * (donc son candidat, son module et son objectif), sa competence, son unite
+     * officielle et sa thematique.
+     *
+     * <p>🛑 <b>Les quatre {@code JOIN FETCH} sont le point</b> : sans eux,
+     * l'ecran d'etape payait quatre requetes de plus pour quatre {@code LAZY}
+     * qu'il lit tous. Le cout d'un endpoint se verrouille par une egalite.
+     */
+    @Query("""
+            SELECT s FROM JourneyStep s
+            JOIN FETCH s.journey j
+            JOIN FETCH j.user
+            LEFT JOIN FETCH s.skill
+            LEFT JOIN FETCH s.officialUnit
+            LEFT JOIN FETCH s.theme
+            WHERE s.id = :stepId
+            """)
+    Optional<JourneyStep> findDetail(@Param("stepId") UUID stepId);
 
     /**
      * Les etapes <b>ouvertes</b> d'un lot. Sert R7 : « tous les entrainements de

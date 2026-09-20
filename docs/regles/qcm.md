@@ -278,3 +278,41 @@ actives** (CE 395, CO 20, STRUCTURE 24 — le civique n'utilise aucune lettre).
   1-based et consécutif — **0 question réordonnée**. D'où **aucune migration** de
   normalisation : elle toucherait zéro ligne, et le dépôt interdit par ailleurs de
   réordonner un `display_order` pour rattraper un défaut d'affichage.
+
+---
+
+## Une série d'étape est un QCM qui NE CORRIGE PAS pendant la passation (2026-09-20)
+
+> Règle complète : `docs/regles/plan.md` § « **L'ÉCRAN D'ÉTAPE** ».
+
+Le niveau QCM, le score 100-499 et l'ordre des propositions **ne bougent pas**. Ce qui change
+est le **régime de passation** d'un type de session, et il est désormais **servi**.
+
+🛑 **`AttemptResponse.mode` (`AttemptMode`) dit si le candidat voit les corrections pendant
+qu'il joue** — jamais `type`, jamais une route, jamais un paramètre d'URL.
+
+| `mode` | Pendant la session | Audio (CO) |
+|---|---|---|
+| `ENTRAINEMENT` | correction immédiate après chaque réponse | réécoutable |
+| `EXAMEN` | **aucune** correction : ni bonne réponse, ni explication | **joué une seule fois** |
+| `REVISION` | aucune correction | réécoutable |
+
+Une **série lancée depuis une carte d'étape du Plan** reste un `AttemptType.TRAINING` — pour ne
+rien changer au freemium ni à l'historique — posée en `EXAMEN`. Le comportement de toutes les
+autres sessions est **inchangé** (`TRAINING→ENTRAINEMENT`, `MOCK_EXAM→EXAMEN`,
+`REVIEW→REVISION`, dérivés par `Attempt.prePersist`).
+
+🛑 **Le serveur oppose la même valeur** : `AttemptInteractionService.doSubmitAnswer` ne renvoie
+la correction (bonne réponse + explication) qu'en `ENTRAINEMENT`. L'écran et le refus ne peuvent
+pas diverger.
+
+⚠️ **Le résultat corrigé reste consultable APRÈS coup** : `GET /api/attempts/{id}` révèle les
+corrections dès que la session est terminée, exactement comme pour une série de « Réviser ».
+
+### Le « 16/20 » d'une série n'est pas un verdict de niveau
+
+Le seuil de réussite d'une série d'étape est **16 bonnes réponses sur 20**, lues sur l'attempt
+(`JourneySerieVerdict`). 🛑 Il se **dérive** de `learning-plan.comprehension.solid-ratio` × la
+taille de la série — **aucune huitième déclaration de 0,80**, et **aucun palier CECRL** n'en
+sort : c'est un seuil de **progression du Plan**, pas une mesure de niveau. Le niveau, lui,
+continue de se lire strate par strate (§ ci-dessus).

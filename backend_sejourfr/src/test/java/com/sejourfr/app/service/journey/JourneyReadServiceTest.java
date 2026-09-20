@@ -7,7 +7,10 @@ import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
-import com.sejourfr.app.entity.LearningPlanObservation;
+import com.sejourfr.app.config.CivicPlanProperties;
+import com.sejourfr.app.config.LearningPlanProperties;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
@@ -30,6 +33,7 @@ import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.JourneyManager;
+import com.sejourfr.app.manager.JourneyStepSeriesManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.service.LearningPlanStep;
@@ -87,7 +91,7 @@ class JourneyReadServiceTest {
     @Mock private SkillAccessService accessService;
     @Mock private SkillProgressCounter progressCounter;
     @Mock private ProductionAccessService productionAccessService;
-    @Mock private LearningPlanObservationManager observationManager;
+    @Mock private JourneyStepSeriesManager stepSeriesManager;
     @Mock private NiveauActuelEpreuveResolver mesureResolver;
     @Mock private JourneyManager journeyManager;
     @Mock private RecommendedExerciseSelector exerciseSelector;
@@ -100,14 +104,20 @@ class JourneyReadServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 🛑 v3 : AUCUNE echappatoire (le filet des 4 series terminees est
+        // supprime), et l'examen de fin de cycle a 80 %.
         TcfJourneyConfig config = new TcfJourneyConfig(
-                1, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, 4,
+                3, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, null, 0.80,
                 new TcfJourneyConfig.Display(3, 5));
+        // 🛑 Le verdict est le VRAI, pas un mock : « 16/20 » se derive de
+        // learning-plan.comprehension.solid-ratio x la taille de la serie, et
+        // ce test verrouille precisement ce calcul-la.
         service = new JourneyReadService(
                 config, accessService, progressCounter, productionAccessService,
-                observationManager, mesureResolver, new PlanDomainAssessmentResolver(),
+                mesureResolver, new PlanDomainAssessmentResolver(),
                 new JourneyBlocResolver(), journeyManager, exerciseSelector, themeManager,
-                subscriptionService);
+                subscriptionService, stepSeriesManager,
+                new JourneySerieVerdict(new LearningPlanProperties(), new CivicPlanProperties()));
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
@@ -185,8 +195,6 @@ class JourneyReadServiceTest {
         JourneyStep checkpoint = examStep(EpreuveType.TCF_CE, 2);
 
         when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of());
-        when(observationManager.findByUserAndSkillsSince(eq(user.getId()), any(), any()))
-                .thenReturn(List.of());
         when(accessService.resolve(user.getId()))
                 .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
 
@@ -1381,6 +1389,76 @@ class JourneyReadServiceTest {
         assertThat(vue.nextStep().examenCompletPossible()).isTrue();
     }
 
+    /**
+     * 🛑 <b>L'EXAMEN DE FIN DE CYCLE S'OUVRE A 80 %</b> (2026-09-20, arbitrage du
+     * proprietaire), et <b>lui seul</b> : « Actualiser mon plan » historise le
+     * cycle et promeut le suivant, l'offrir a 80 % jetterait du travail que le
+     * candidat n'a pas demande a abandonner.
+     *
+     * <p>La part vit en configuration versionnee parce que la regle est annoncee
+     * comme <b>non figee</b>. Le test lit donc le ratio chez sa source, jamais
+     * un 0,80 recopie ici.
+     */
+    @Test
+    @DisplayName("80 % des etapes terminees ouvrent l'examen de fin de cycle, pas l'actualisation")
+    void lExamenDeFinDeCycleSOuvreAQuatreVingtPourCent() {
+        // Cinq etapes, quatre closes : 80 % exactement.
+        List<JourneyStep> etapes = new java.util.ArrayList<>();
+        long position = 1;
+        for (EpreuveType epreuve : com.sejourfr.app.dto.TcfDomainProfileDto.ORDRE) {
+            JourneyStep examen = examStep(epreuve, position++);
+            examen.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT, UUID.randomUUID(),
+                    Instant.now());
+            etapes.add(examen);
+        }
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        etapes.add(trainStep(competence, position));
+        abonneAvecSujets(competence);
+
+        JourneyDto vue = service.lire(journey, etapes);
+
+        assertThat(vue.cycle().etapesTerminees()).isEqualTo(4);
+        assertThat(vue.cycle().etapesTotal()).isEqualTo(5);
+        assertThat(vue.cycle().complete())
+                .as("« Cycle entierement travaille » reste un fait a 100 %")
+                .isFalse();
+        assertThat(vue.nextStep()).isNotNull();
+        assertThat(vue.nextStep().examenCompletPossible())
+                .as("l'examen qui CLOT le cycle s'ouvre a 80 %")
+                .isTrue();
+        assertThat(vue.nextStep().actualisationPossible())
+                .as("actualiser historise : cela attend le cycle entier")
+                .isFalse();
+    }
+
+    /**
+     * En dessous de la part exigee, rien n'est offert : {@code nextStep} reste
+     * {@code null}, exactement comme avant v3.
+     */
+    @Test
+    @DisplayName("En dessous de la part exigee, aucune issue n'est offerte")
+    void sousLaPartExigeeAucuneIssue() {
+        List<JourneyStep> etapes = new java.util.ArrayList<>();
+        long position = 1;
+        for (EpreuveType epreuve : com.sejourfr.app.dto.TcfDomainProfileDto.ORDRE) {
+            JourneyStep examen = examStep(epreuve, position++);
+            if (position <= 4) {
+                examen.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
+                        UUID.randomUUID(), Instant.now());
+            }
+            etapes.add(examen);
+        }
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        etapes.add(trainStep(competence, position));
+        abonneAvecSujets(competence);
+
+        JourneyDto vue = service.lire(journey, etapes);
+
+        // 3 sur 5 = 60 %.
+        assertThat(vue.cycle().etapesTerminees()).isEqualTo(3);
+        assertThat(vue.nextStep()).isNull();
+    }
+
     @Test
     @DisplayName("Cycle de mesure termine : la SEULE issue offerte est l'actualisation")
     void unCycleDeMesureTermineNOffreQueLActualisation() {
@@ -1407,28 +1485,25 @@ class JourneyReadServiceTest {
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
     }
 
-    // ================================================================== D-16
-    // Le quota d'une etape de comprehension : 2 series REUSSIES, ou 4 TERMINEES
+    // ============================================== LE QUOTA D'UNE ETAPE DE SERIE
+    // 2 CARTES REUSSIES, et plus aucune echappatoire (2026-09-20).
+    // « Reussie » = 16 bonnes reponses sur les 20 de la serie, lues sur l'attempt.
     // =====================================================================
 
     /**
-     * 🛑 <b>D-16 revoque la doctrine de D-5</b> (« le quota mesure le travail
-     * fourni, pas la reussite ») : deux series <b>reussies</b> closent l'etape.
-     *
-     * <p>« Reussie » est <b>lu</b> chez l'autorite qui rend deja ce verdict —
-     * {@code learning_plan_observations.status = SOLID}, pose par
-     * {@code ComprehensionObservationService} depuis
-     * {@code learning-plan.comprehension.solid-ratio} (0.80). 🛑 Aucune
-     * 8<sup>e</sup> declaration de ce seuil ici.
+     * 🛑 <b>Le « 16/20 » est LITTERAL</b> — et il n'est ecrit nulle part. Le
+     * seuil se derive de {@code learning-plan.comprehension.solid-ratio} (0,80)
+     * et de la taille de la serie (20). Ce test instancie le <b>vrai</b>
+     * {@link JourneySerieVerdict} : si quelqu'un ecrivait un 16 en dur, il ne
+     * bougerait plus quand le ratio bouge, et ce test ne le verrait pas — c'est
+     * pourquoi le cas limite (15 / 16) est verrouille juste en dessous.
      */
     @Test
-    @DisplayName("D-16 — 2 series REUSSIES closent l'etape de comprehension")
-    void deuxSeriesReussiesClosentLEtape() {
+    @DisplayName("2 cartes REUSSIES (16/20) closent l'etape")
+    void deuxCartesReussiesClosentLEtape() {
         Skill palier = comprehension("CO-B1");
         JourneyStep etape = comprehensionStep(palier, 1);
-        observations(palier,
-                serie(palier, LearningPlanSkillStatus.SOLID),
-                serie(palier, LearningPlanSkillStatus.SOLID));
+        essais(essai(etape, 1, 16), essai(etape, 2, 20));
         abonne();
 
         assertThat(service.etapesAuQuota(user.getId(), List.of(etape)))
@@ -1436,81 +1511,111 @@ class JourneyReadServiceTest {
     }
 
     /**
-     * Une reussie et une ratee : le quota de <b>reussite</b> n'est pas atteint,
-     * et l'echappatoire (4 terminees) non plus. L'etape reste ouverte — c'est
-     * exactement ce que l'ancienne regle (2 terminees) closait a tort.
+     * Le cas limite, des deux cotes : <b>15/20 ne suffit pas, 16/20 suffit</b>.
+     * C'est ce test-la qui attrape un arrondi a l'envers ou un {@code >} devenu
+     * {@code >=}.
      */
     @Test
-    @DisplayName("D-16 — 1 reussie + 1 ratee ne closent RIEN")
+    @DisplayName("Le seuil est litteral : 15/20 ne vaut rien, 16/20 vaut une reussite")
+    void leSeuilEstLitteral() {
+        Skill palier = comprehension("CO-B1");
+        JourneyStep quinze = comprehensionStep(palier, 1);
+        abonne();
+
+        essais(essai(quinze, 1, 15), essai(quinze, 2, 15));
+        assertThat(service.etapesAuQuota(user.getId(), List.of(quinze)))
+                .as("deux fois 15/20 : rien n'est reussi")
+                .isEmpty();
+
+        essais(essai(quinze, 1, 16), essai(quinze, 2, 16));
+        assertThat(service.etapesAuQuota(user.getId(), List.of(quinze)))
+                .as("deux fois 16/20 : l'etape est close")
+                .containsExactly(quinze.getId());
+    }
+
+    /**
+     * Une reussie et une ratee : le quota n'est pas atteint. L'etape reste
+     * ouverte, et <b>elle le restera</b> tant que la seconde carte n'est pas
+     * reussie.
+     */
+    @Test
+    @DisplayName("1 reussie + 1 ratee ne closent RIEN")
     void uneReussieEtUneRateeNeClosentRien() {
         Skill palier = comprehension("CO-B1");
         JourneyStep etape = comprehensionStep(palier, 1);
-        observations(palier,
-                serie(palier, LearningPlanSkillStatus.SOLID),
-                serie(palier, LearningPlanSkillStatus.PRIORITY));
+        essais(essai(etape, 1, 18), essai(etape, 2, 9));
         abonne();
 
         assertThat(service.etapesAuQuota(user.getId(), List.of(etape))).isEmpty();
     }
 
     /**
-     * 🛑 <b>L'echappatoire existe pour une raison nommee : un candidat faible ne
-     * doit JAMAIS rester bloque sur une etape.</b> Quatre series terminees, pas
-     * une reussie, et l'etape se clot quand meme.
+     * 🛑 <b>LE FILET DES 4 SERIES TERMINEES EST SUPPRIME</b> (2026-09-20,
+     * arbitrage du proprietaire — revoque D-16 sur ce point).
      *
-     * <p>Un {@code NOT_OBSERVED} y compte comme <b>terminee</b> — la serie a bien
-     * ete jouee — mais jamais comme <b>reussie</b> : « non observe » reste
-     * inconnu, jamais mauvais.
+     * <p><b>Consequence assumee et validee</b> : un candidat qui ne passe jamais
+     * le seuil <b>reste sur sa competence</b>. C'etait exactement ce que le filet
+     * evitait (« un candidat faible ne doit jamais rester bloque ») ; l'arbitrage
+     * a ete rendu contre, en connaissance de cause. Ce test est la preuve que la
+     * suppression est effective, et non un oubli.
      */
     @Test
-    @DisplayName("D-16 — 4 series TERMINEES toutes ratees closent quand meme l'etape")
-    void quatreSeriesTermineesClosentLEtapeMemeSansAucuneReussite() {
+    @DisplayName("PLUS DE FILET — quatre series ratees ne closent plus rien")
+    void quatreSeriesRateesNeClosentPlusRien() {
         Skill palier = comprehension("CE-A2");
         JourneyStep etape = comprehensionStep(palier, 1);
-        observations(palier,
-                serie(palier, LearningPlanSkillStatus.PRIORITY),
-                serie(palier, LearningPlanSkillStatus.TO_REINFORCE),
-                serie(palier, LearningPlanSkillStatus.NOT_OBSERVED),
-                serie(palier, LearningPlanSkillStatus.PRIORITY));
+        essais(essai(etape, 1, 4), essai(etape, 1, 11),
+                essai(etape, 1, 15), essai(etape, 1, 2));
+        abonne();
+
+        assertThat(service.etapesAuQuota(user.getId(), List.of(etape))).isEmpty();
+    }
+
+    /**
+     * 🛑 <b>Une carte reussie une fois l'est DEFINITIVEMENT.</b> Refaire la serie
+     * et la rater ne la devalide pas — le travail acquis reste acquis —, mais le
+     * score servi est bien celui du <b>dernier</b> essai : c'est ce que le
+     * candidat vient de faire, et le lui cacher serait mentir.
+     */
+    @Test
+    @DisplayName("Validee reste validee apres un echec, et le score servi est le DERNIER")
+    void valideeResteValideeApresUnEchec() {
+        Skill palier = comprehension("CO-A2");
+        JourneyStep etape = comprehensionStep(palier, 1);
+        essais(essai(etape, 1, 17), essai(etape, 1, 3), essai(etape, 2, 16));
         abonne();
 
         assertThat(service.etapesAuQuota(user.getId(), List.of(etape)))
+                .as("la carte 1 reste validee malgre son 3/20")
                 .containsExactly(etape.getId());
     }
 
+    /**
+     * Une session <b>en cours</b> n'est ni jouee ni reussie : {@code score} n'est
+     * ecrit qu'a la finalisation, et un zero serait un mensonge. 🛑 {@code null}
+     * = inconnu, jamais mauvais.
+     */
     @Test
-    @DisplayName("D-16 — 3 series terminees sans reussite ne closent PAS encore")
-    void troisSeriesTermineesNeClosentPasEncore() {
-        Skill palier = comprehension("CE-A2");
+    @DisplayName("Une serie non terminee ne compte pas")
+    void uneSerieEnCoursNeCompteJamais() {
+        Skill palier = comprehension("CO-B2");
         JourneyStep etape = comprehensionStep(palier, 1);
-        observations(palier,
-                serie(palier, LearningPlanSkillStatus.PRIORITY),
-                serie(palier, LearningPlanSkillStatus.PRIORITY),
-                serie(palier, LearningPlanSkillStatus.TO_REINFORCE));
+        essais(essai(etape, 1, 20), essai(etape, 2, null));
         abonne();
 
         assertThat(service.etapesAuQuota(user.getId(), List.of(etape))).isEmpty();
     }
 
     /**
-     * Le {@code progress} servi compte les series <b>REUSSIES</b>, sur le quota
-     * des reussies — <b>l'echappatoire ne s'affiche pas</b>.
-     *
-     * <p>Motif : afficher « 2 series ratees sur 4 » inviterait a <b>echouer
-     * vite</b> pour se debarrasser d'une etape, exactement le contraire de son
-     * but ; et un filet annonce n'en est plus un. Un seul champ
-     * {@code done}/{@code quota} ne peut porter qu'une echelle, et servir la plus
-     * exigeante ne <b>survend jamais</b> l'avancement.
+     * Le {@code progress} servi compte les cartes <b>REUSSIES</b>, sur le quota
+     * des reussies — c'est exactement ce que l'ecran d'etape montre.
      */
     @Test
-    @DisplayName("D-16 — le progress servi compte les REUSSIES, l'echappatoire reste invisible")
+    @DisplayName("Le progress servi compte les cartes REUSSIES")
     void leProgressServiCompteLesReussies() {
         Skill palier = comprehension("CO-A2");
         JourneyStep etape = comprehensionStep(palier, 1);
-        observations(palier,
-                serie(palier, LearningPlanSkillStatus.SOLID),
-                serie(palier, LearningPlanSkillStatus.PRIORITY),
-                serie(palier, LearningPlanSkillStatus.PRIORITY));
+        essais(essai(etape, 1, 19), essai(etape, 2, 12), essai(etape, 2, 10));
         abonne();
 
         JourneyStepDto servie = bloc(service.lire(journey, List.of(etape)),
@@ -1518,29 +1623,37 @@ class JourneyReadServiceTest {
 
         assertThat(servie.progress().unit()).isEqualTo(JourneyProgressUnit.SERIES);
         assertThat(servie.progress().done())
-                .as("une seule serie reussie sur les trois jouees")
+                .as("une seule carte reussie sur les trois essais")
                 .isEqualTo(1);
         assertThat(servie.progress().quota()).isEqualTo(2);
     }
 
-    /**
-     * Une serie jouee <b>avant</b> la creation de l'etape ne compte pas : le
-     * quota part de la creation de l'etape (R8).
-     */
-    @Test
-    @DisplayName("D-16 — une serie anterieure a l'etape ne compte dans aucun des deux compteurs")
-    void uneSerieAnterieureALEtapeNeCompteJamais() {
-        Skill palier = comprehension("CO-B2");
-        JourneyStep etape = comprehensionStep(palier, 1);
-        LearningPlanObservation avant = serie(palier, LearningPlanSkillStatus.SOLID);
-        avant.setObservedAt(etape.getCreatedAt().minusSeconds(60));
-        observations(palier, avant, serie(palier, LearningPlanSkillStatus.SOLID));
-        abonne();
+    private void essais(JourneyStepSeries... series) {
+        when(stepSeriesManager.findDesEtapes(anyCollection())).thenReturn(List.of(series));
+    }
 
-        assertThat(service.etapesAuQuota(user.getId(), List.of(etape))).isEmpty();
-        JourneyStepDto servie = bloc(service.lire(journey, List.of(etape)),
-                EpreuveType.TCF_CO).steps().getFirst();
-        assertThat(servie.progress().done()).isEqualTo(1);
+    /**
+     * Un essai de carte, tel que {@code JourneyStepDetailService} l'ecrit : le
+     * LIEN vers l'attempt, et rien d'autre. Le verdict se relit sur l'attempt.
+     *
+     * @param score bonnes reponses, ou {@code null} pour une session encore en
+     *              cours (ni jouee, ni reussie)
+     */
+    private JourneyStepSeries essai(JourneyStep etape, int index, Integer score) {
+        Attempt attempt = new Attempt();
+        attempt.setId(UUID.randomUUID());
+        attempt.setModule(Module.TCF);
+        if (score != null) {
+            attempt.setScore(score);
+            attempt.setFinishedAt(Instant.now());
+        }
+        JourneyStepSeries lien = new JourneyStepSeries();
+        lien.setId(UUID.randomUUID());
+        lien.setStep(etape);
+        lien.setSeriesIndex((short) index);
+        lien.setAttempt(attempt);
+        lien.setCreatedAt(Instant.now());
+        return lien;
     }
 
     /** Un abonne, sans aucun sujet d'expression a compter. */
@@ -1548,32 +1661,6 @@ class JourneyReadServiceTest {
         when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of());
         when(accessService.resolve(user.getId()))
                 .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
-    }
-
-    private void observations(Skill palier, LearningPlanObservation... series) {
-        when(observationManager.findByUserAndSkillsSince(eq(user.getId()), any(), any()))
-                .thenReturn(List.of(series));
-    }
-
-    /**
-     * Une serie ciblee terminee, telle que {@code ComprehensionObservationService}
-     * l'ecrit : une observation par (competence, session), {@code sourceId} =
-     * l'attempt, et le <b>verdict deja pose</b> dans {@code status}.
-     */
-    private LearningPlanObservation serie(Skill palier, LearningPlanSkillStatus statut) {
-        LearningPlanObservation observation = new LearningPlanObservation();
-        observation.setId(UUID.randomUUID());
-        observation.setUser(user);
-        observation.setSkill(palier);
-        observation.setSourceType(palier.getSection() == SkillSection.CO
-                ? LearningPlanSourceType.TCF_CO : LearningPlanSourceType.TCF_CE);
-        UUID session = UUID.randomUUID();
-        observation.setSourceId(session);
-        observation.setSubjectId(session);
-        observation.setStatus(statut);
-        observation.setObserved(statut != LearningPlanSkillStatus.NOT_OBSERVED);
-        observation.setObservedAt(Instant.now());
-        return observation;
     }
 
     private JourneyStep comprehensionStep(Skill palier, long position) {

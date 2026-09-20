@@ -23,7 +23,9 @@ import {
   ChevronRight,
   Circle,
   CircleDot,
+  Clock,
   Info,
+  ListChecks,
   Lock,
   Minus,
   Target,
@@ -252,16 +254,33 @@ export function Section({
   title,
   children,
   flush,
+  mono,
 }: {
   title?: string;
   children: ReactNode;
   /** Titre aligné sur le contenu au lieu des marges d'écran. */
   flush?: boolean;
+  /**
+   * L'intertitre en **petites capitales mono** (« À FAIRE »).
+   *
+   * 🛑 **Une variante, pas une primitive de plus** : c'est le même titre de
+   * section, dans le registre technique que le kit emploie déjà pour ses
+   * œils-de-bœuf. Miroir Flutter : `SfSection(mono: true)`.
+   */
+  mono?: boolean;
 }) {
   return (
     <section className={cx(styles.section, flush && styles.pad)}>
       {title ? (
-        <h2 className={cx(styles.sectionH, flush && styles.sectionHFlush)}>{title}</h2>
+        <h2
+          className={cx(
+            styles.sectionH,
+            flush && styles.sectionHFlush,
+            mono && styles.sectionHMono,
+          )}
+        >
+          {title}
+        </h2>
       ) : null}
       {children}
     </section>
@@ -1928,11 +1947,30 @@ export function HistoryRow({
  *
  * Miroir Flutter : `SfInfoNote`.
  */
-export function InfoNote({ children }: { children: ReactNode }) {
+export function InfoNote({
+  children,
+  variant,
+}: {
+  children: ReactNode;
+  /**
+   * **`check`** : l'encart de **validation** — fond bleu clair, coche à la
+   * place du « i ». Il ne signale rien à surveiller, il énonce la condition à
+   * remplir ; l'ambre du défaut se lirait comme une réserve.
+   *
+   * 🛑 **Une variante, pas une primitive de plus.** Miroir Flutter :
+   * `SfInfoNote(variant: SfInfoNoteVariant.check)`.
+   */
+  variant?: "check";
+}) {
+  const check = variant === "check";
   return (
-    <div className={styles.infoNote}>
+    <div className={cx(styles.infoNote, check && styles.isCheck)}>
       <span className={styles.infoNoteIco} aria-hidden>
-        <Info size={14} strokeWidth={2.4} />
+        {check ? (
+          <Check size={14} strokeWidth={2.8} />
+        ) : (
+          <Info size={14} strokeWidth={2.4} />
+        )}
       </span>
       <span>{children}</span>
     </div>
@@ -1976,14 +2014,32 @@ export function Pill({
   dense,
 }: {
   label: string;
-  tone: Tone;
+  /**
+   * ⚠️ **`BarTone`, pas `Tone`** (2026-09-20) : la pastille a besoin du bleu
+   * (`now`) pour le repère de domaine d'une étape (« CO · B2 »), et la feuille
+   * de style portait déjà `.pill.now` sans qu'aucun chemin ne l'atteigne. Les
+   * appelants existants passent un `Tone`, qui est un sous-ensemble.
+   */
+  tone: BarTone;
   /** Variante resserrée (`.status` de la maquette : 9,5 px, poids 900). */
   dense?: boolean;
 }) {
   return (
-    <span className={cx(styles.pill, toneClass[tone], dense && styles.dense)}>{label}</span>
+    <span className={cx(styles.pill, pillToneClass[tone], dense && styles.dense)}>
+      {label}
+    </span>
   );
 }
+
+/** Les fonds clairs de la pastille. ⚠️ Distinct de `statusToneClass`, qui ne
+ *  teinte qu'un **texte** : ici le ton porte aussi l'aplat. */
+const pillToneClass: Record<BarTone, string> = {
+  ok: styles.ok,
+  now: styles.pillNow,
+  warn: styles.warn,
+  hot: styles.hot,
+  muted: styles.muted,
+};
 
 /**
  * **L'avancement du cycle** — le `.cycleIntro` de `plan_cycle.html`, et le
@@ -2683,4 +2739,157 @@ export function EpreuveStatRow({
  */
 export function EpreuveStatList({ children }: { children: ReactNode }) {
   return <ul className={styles.statList}>{children}</ul>;
+}
+
+/* ==========================================================================
+   Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
+
+   L'écran intermédiaire qui s'ouvre depuis le cycle du Plan sur une étape
+   d'entraînement de compréhension (CO/CE) ou une étape civique : le domaine et
+   la priorité en pastilles, la compétence en titre, l'avancement, puis une
+   carte par série.
+
+   🛑 Miroirs de `SfSerieProgress` et `SfSerieCard` côté Flutter. Un motif qui
+   bouge d'un côté bouge de l'autre dans la même passe.
+   ========================================================================== */
+
+/**
+ * **L'avancement d'une étape de séries** — le gros compteur à gauche, le seuil
+ * à droite, et la barre en dessous.
+ *
+ * 🛑 **Elle n'est pas `CycleProgress`**, et il ne faut pas les confondre :
+ * celle-là compte les **étapes d'un cycle** (un compteur en mots, un repère de
+ * cycle) ; celle-ci compte les **séries d'une étape**, met son chiffre en
+ * évidence et porte, en face, le seuil à tenir sur chacune. Deux échelles, deux
+ * lectures.
+ *
+ * 🛑 **Aucune phrase n'est composée ici** : `count`, `note` et `noteSub`
+ * arrivent en props, tous trois posés sur des faits servis
+ * (`quota`, `seuilReussite`, `questionsParSerie`).
+ *
+ * Miroir Flutter : `SfSerieProgress`.
+ */
+export function SerieProgress({
+  count,
+  note,
+  noteSub,
+  done,
+  total,
+}: {
+  /** « 0/2 séries », composé par l'appelant. */
+  count: string;
+  /** « 16/20 minimum ». */
+  note: string;
+  /** « sur chacune ». */
+  noteSub: string;
+  /** Les séries **validées** — un décompte de booléens servis. */
+  done: number;
+  /** Le quota **servi**. */
+  total: number;
+}) {
+  const ratio = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  return (
+    <Card>
+      <div className={styles.serieProgTop}>
+        <b className={styles.serieProgCount}>{count}</b>
+        <span className={styles.serieProgNote}>
+          <b>{note}</b>
+          <small>{noteSub}</small>
+        </span>
+      </div>
+      <div className={styles.serieProgBar} aria-hidden>
+        <i style={{ width: `${Math.round(ratio * 100)}%` }} />
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * **La carte d'une série** — repère carré, titre, méta, badge d'état, puis le
+ * bouton pleine largeur et, si la série a déjà été jouée, l'accès à son
+ * corrigé.
+ *
+ * 🛑 **Le kit ne décide d'aucun état.** `state`, `action.disabled` et la
+ * présence de `link` sont posés par l'appelant à partir de `locked` et
+ * `validee`, **servis** — jamais d'une comparaison entre un score et un seuil.
+ *
+ * 🛑 **`locked` grise la carte, il ne la masque pas** : le repère, le titre, la
+ * méta et le bouton restent lisibles (R16 — on floute l'action, jamais le
+ * résultat). Le bouton porte alors la condition (« Après la série 1 ») et ne
+ * répond pas.
+ *
+ * Miroir Flutter : `SfSerieCard`.
+ */
+export function SerieCard({
+  mark,
+  title,
+  duree,
+  questions,
+  state,
+  score,
+  locked,
+  action,
+  link,
+}: {
+  /** Le chiffre du carré — l'`index` **servi**, mis en texte par l'appelant. */
+  mark: string;
+  /** « Série 1 ». */
+  title: string;
+  /** « 16 min ». `null` quand la durée n'est pas servie : rien à sa place. */
+  duree: string | null;
+  /** « 20 questions ». */
+  questions: string;
+  /** Le badge d'état et son ton, **composés** par l'appelant. */
+  state: { label: string; tone: BarTone };
+  /** « Dernier score : 17/20 ». `null` tant que la série n'a pas été jouée. */
+  score: string | null;
+  locked: boolean;
+  /** Le bouton pleine largeur. Sans `onClick`, il est inerte. */
+  action: { label: string; onClick?: () => void; disabled?: boolean };
+  /** Le second accès d'une série jouée : son corrigé. */
+  link?: { label: string; href: string };
+}) {
+  const inerte = action.disabled || !action.onClick;
+  return (
+    <div className={cx(styles.serieCard, locked && styles.isLocked)}>
+      <div className={styles.serieCardTop}>
+        <span className={cx(styles.serieMark, locked && styles.isLocked)}>{mark}</span>
+        <span className={styles.serieCardText}>
+          <b>{title}</b>
+          <span className={styles.serieMeta}>
+            {duree ? (
+              <span>
+                <Clock size={13} strokeWidth={2.2} aria-hidden />
+                {duree}
+              </span>
+            ) : null}
+            <span>
+              <ListChecks size={13} strokeWidth={2.2} aria-hidden />
+              {questions}
+            </span>
+          </span>
+        </span>
+        <span className={cx(styles.serieState, statusToneClass[state.tone])}>
+          {state.label}
+          {locked ? <Lock size={12} strokeWidth={2.2} aria-hidden /> : null}
+        </span>
+      </div>
+      {score ? <p className={styles.serieScore}>{score}</p> : null}
+      <button
+        type="button"
+        className={cx(styles.serieBtn, inerte && styles.isOff)}
+        onClick={action.onClick}
+        disabled={inerte}
+      >
+        {action.label}
+        {inerte ? null : <ArrowRight size={18} strokeWidth={2} aria-hidden />}
+      </button>
+      {link ? (
+        <Link href={link.href} className={styles.serieLink}>
+          {link.label}
+          <ChevronRight size={15} strokeWidth={2.2} aria-hidden />
+        </Link>
+      ) : null}
+    </div>
+  );
 }

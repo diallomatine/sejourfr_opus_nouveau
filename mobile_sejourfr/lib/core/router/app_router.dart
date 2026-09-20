@@ -45,6 +45,7 @@ import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_domain_screen.dart';
+import '../../screens/plan/plan_etape_screen.dart';
 import '../../screens/plan/plan_labels.dart';
 import '../../screens/plan/plan_history_screen.dart';
 import '../../screens/plan/plan_screen.dart';
@@ -209,6 +210,14 @@ class AppRoutes {
   /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
   /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
   static const planSerieResult = '/plan/serie/:attemptId';
+
+  /// **Le détail d'une étape de séries** — l'écran intermédiaire du Plan
+  /// (2026-09-20). Une étape d'entraînement de compréhension (CO/CE) ou une
+  /// étape civique ouvre CET écran depuis la ligne du cycle, au lieu de lancer
+  /// la série. 🛑 Les étapes d'**expression** ne passent pas par ici.
+  static const planEtape = '/plan/etape/:stepId';
+
+  static String planEtapePath(String stepId) => '/plan/etape/$stepId';
 
   /// « Ma progression vers le … » — les quatre domaines du TCF sur le chemin de
   /// l'objectif. 🛑 **À ne pas confondre avec [progress]**, l'écran de
@@ -678,6 +687,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: state.uri.queryParameters['module'] == 'CIVIQUE'
               ? PlanUnlockModule.civique
               : PlanUnlockModule.tcf,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.planEtape,
+        builder: (_, state) => PlanEtapeScreen(
+          stepId: state.pathParameters['stepId']!,
         ),
       ),
       GoRoute(

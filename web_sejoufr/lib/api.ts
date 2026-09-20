@@ -60,6 +60,7 @@ import type {
   UserStatsResponse,
     JourneyDto,
     JourneyHistoryDto,
+    JourneyStepDetailDto,
 } from "./types";
 import {detectTrafficSource} from "./traffic-source";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
@@ -947,6 +948,12 @@ function journeyHistoryCacheKey(module: ParcoursModule): string {
         : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`;
 }
 
+/** La clé du détail d'UNE étape. Sous le préfixe du Plan : une série finie la
+ *  purge avec le cycle, jamais l'une sans l'autre. */
+function journeyStepCacheKey(stepId: string): string {
+    return `${LEARNING_PLAN_CACHE_PREFIX}journey-step-${stepId}`;
+}
+
 export const journeyApi = {
     get: fetchJourney,
 
@@ -1032,6 +1039,47 @@ export const journeyApi = {
         );
         invalidateDiagnosticAndPlan();
         return journey;
+    },
+
+    /**
+     * **Le détail d'une étape de séries** — l'écran intermédiaire du Plan.
+     *
+     * 🛑 **Aucun query param, aucun module** : le `stepId` désigne une étape du
+     * parcours du candidat authentifié, et le serveur sait à quel module elle
+     * appartient. Un module en paramètre aurait été une seconde autorité.
+     *
+     * 🛑 **Mis en cache sous le PRÉFIXE du Plan**, comme le cycle : une série
+     * finie purge les deux ensemble, donc l'écran ne peut pas rester sur des
+     * séries d'avant la passation.
+     */
+    stepDetail(stepId: string): Promise<JourneyStepDetailDto> {
+        return cached(
+            journeyStepCacheKey(stepId),
+            () => apiFetch<JourneyStepDetailDto>(
+                `/api/me/plan/journey/steps/${stepId}`, {auth: true}),
+        );
+    },
+
+    stepCacheKeyFor: journeyStepCacheKey,
+
+    /**
+     * **Démarrer une série de l'étape.**
+     *
+     * 🛑 **L'index est SERVI** (`JourneySerieDto.index`) : on le repasse tel
+     * quel, on ne le compte pas. Le serveur oppose le verrou — **403** sur une
+     * série fermée comme sur une étape sans accès —, et ce refus ouvre l'offre,
+     * jamais un message technique.
+     *
+     * 🛑 **Une écriture de MESURE** : la série change le Plan, le parcours et
+     * le détail de l'étape, d'où la purge groupée.
+     */
+    async startSerie(stepId: string, index: number): Promise<AttemptResponse> {
+        const attempt = await apiFetch<AttemptResponse>(
+            `/api/me/plan/journey/steps/${stepId}/series/${index}`,
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        return attempt;
     },
 };
 

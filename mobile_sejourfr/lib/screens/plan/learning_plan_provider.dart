@@ -143,3 +143,20 @@ final journeyHistoryProvider =
   ref.watch(learningPlanRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).history(module: module);
 });
+
+/// **Le détail d'une étape de séries**, derrière une ligne du cycle.
+///
+/// 🛑 **`autoDispose` et NON gardé en vie** : c'est un écran qu'on ouvre, pas
+/// une source d'accueil. Le garder retiendrait des séries d'avant la passation
+/// qu'on vient de faire.
+///
+/// Il écoute [learningPlanRevisionProvider] : une série terminée passe par ce
+/// signal, et l'écran est encore monté sous le runner quand il tombe — c'est ce
+/// qui repeint les cartes au retour, sans tiré-pour-rafraîchir.
+final journeyStepProvider =
+    FutureProvider.autoDispose.family<JourneyStepDetail, String>(
+        (ref, stepId) async {
+  ref.watch(compteIdProvider);
+  ref.watch(learningPlanRevisionProvider);
+  return ref.watch(learningPlanRepositoryProvider).stepDetail(stepId);
+});

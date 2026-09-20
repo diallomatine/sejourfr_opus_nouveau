@@ -17,6 +17,23 @@ export type QuestionType =
     | "CE"
     | "STRUCTURE";
 export type AttemptType = "TRAINING" | "MOCK_EXAM" | "REVIEW";
+
+/**
+ * **Le RÉGIME DE PASSATION d'une session** — *comment* elle se joue, par
+ * opposition à `AttemptType`, qui dit ce qu'elle **est** (et décide du freemium,
+ * de l'historique et des observations).
+ *
+ * 🛑 **Ce n'est plus un miroir du type** (2026-09-20). Une **série lancée depuis
+ * une carte d'étape du Plan** est un `TRAINING` — pour ne rien changer au
+ * freemium ni à l'historique — **posé en `EXAMEN`** : aucune correction pendant
+ * la passation, et l'audio de compréhension orale ne se joue qu'**une fois**.
+ *
+ * 🛑 **C'est la MÊME valeur que le serveur oppose** : il ne renvoie la
+ * correction qu'en `ENTRAINEMENT`. Un front qui déduirait le régime d'une
+ * route, d'un `?from=` ou du `type` finirait par montrer autre chose que ce que
+ * le serveur répond.
+ */
+export type AttemptMode = "ENTRAINEMENT" | "EXAMEN" | "REVISION";
 /**
  * Granularite fine d'un attempt. CIVIQUE = examen civique. TCF_CO/CE/STRUCTURE
  * = QCM TCF. TCF_EO/TCF_EE/TCF_COMPLET = productions evaluees par IA — pas
@@ -268,6 +285,14 @@ export interface AttemptQuestionResponse {
 export interface AttemptResponse {
     id: string;
     type: AttemptType;
+    /**
+     * **Le régime de passation** — le seul fait qui dise si le candidat voit les
+     * corrections pendant qu'il joue, et si l'audio CO se rejoue.
+     *
+     * 🛑 **Lu, jamais déduit** : ni du `type`, ni d'une route, ni d'un paramètre
+     * d'URL.
+     */
+    mode: AttemptMode;
     module: Module;
     examTemplateId: string | null;
     examTemplateSlug: string | null;
@@ -5011,4 +5036,105 @@ export interface JourneyHistoryDto {
     stats: JourneyHistoryStatsDto;
     /** Du plus récent au plus ancien, **dans l'ordre servi**. */
     cycles: JourneyHistoryCycleDto[];
+}
+
+/* ===========================================================================
+ * LE DÉTAIL D'UNE ÉTAPE DE SÉRIES — l'écran intermédiaire du Plan
+ * GET  /api/me/plan/journey/steps/{stepId}
+ * POST /api/me/plan/journey/steps/{stepId}/series/{index}
+ *
+ * Miroir manuel de `JourneyStepDetailDto`. C'est ce qui s'ouvre quand on touche
+ * une étape d'entraînement de **compréhension** (CO/CE) ou une étape
+ * **civique** dans le cycle du Plan : la compétence ou l'unité travaillée, son
+ * avancement, et ses séries une par une.
+ *
+ * 🛑 **Les étapes d'EXPRESSION (EE/EO) n'entrent pas ici** : elles gardent leur
+ * chemin vers leurs petits sujets.
+ *
+ * 🛑 **Aucune phrase n'est servie.** « À faire », « Verrouillée », « Réussie »,
+ * « À refaire », « Après la série 1 », l'encart de validation et le pied de
+ * page se composent dans `lib/journey-etape.ts`, miroir de
+ * `screens/plan/journey_etape_labels.dart`.
+ * ======================================================================== */
+
+/**
+ * **Une série de l'étape.**
+ *
+ * 🛑 **L'état se lit sur `locked` et `validee`, jamais en comparant
+ * `dernierScore` à `seuilReussite`.** Un front qui classerait un nombre en état
+ * pédagogique désignerait tôt ou tard autre chose que le serveur — c'est la
+ * règle « aucun front ne classe un nombre » du dépôt.
+ */
+export interface JourneySerieDto {
+    /** 1, 2 — le rang **servi**, et la clé du démarrage. */
+    index: number;
+    /** La série précédente n'est pas réussie. **Servi**, jamais déduit d'un rang. */
+    locked: boolean;
+    /** Réussie **au moins une fois** — et c'est DÉFINITIF : une série refaite et
+     *  ratée reste validée, seule la carte change de dernier score. */
+    validee: boolean;
+    /** Sur `questionsParSerie`. `null` = **jamais jouée**, jamais zéro. */
+    dernierScore: number | null;
+    /** De quoi rouvrir le corrigé de la dernière passation. `null` si jamais jouée. */
+    dernierAttemptId: string | null;
+    /** ISO-8601. `null` si jamais jouée. */
+    dernierEssaiAt: string | null;
+}
+
+/**
+ * L'unité travaillée, **avec sa description**.
+ *
+ * ⚠️ **Une extension de `JourneyUniteRefDto`, pas un second contrat** : le code
+ * et le libellé sont ceux que le cycle sert déjà, et le détail y ajoute la
+ * phrase du référentiel que l'écran met sous le titre.
+ */
+export interface JourneyUniteDetailDto extends JourneyUniteRefDto {
+    /** La phrase du référentiel sous le titre. `null` = aucune description. */
+    description: string | null;
+}
+
+/** L'étape d'entraînement, dépliée. */
+export interface JourneyStepDetailDto {
+    stepId: string;
+    type: JourneyStepType;
+    /** « Compréhension orale » / la thématique civique — le titre de l'écran. */
+    bloc: JourneyBlocRefDto;
+    /** La compétence TCF ou l'unité officielle civique travaillée. */
+    unite: JourneyUniteDetailDto;
+    /** `null` en civique. */
+    section: SkillSection | null;
+    /**
+     * **Ce vers quoi le candidat travaille, servi avec son libellé** — un palier
+     * (« B2 ») ou une **mention** (« Naturalisation »).
+     *
+     * 🛑 **On lit `label`, jamais `code`, et on ne branche jamais sur le
+     * module** : c'est le patron `JourneyBlocRefDto` (D-47), et c'est
+     * exactement ce que ce type existe pour éviter. Seule la **tournure** se
+     * choisit sur `kind`, comme dans `journeyTitle`.
+     *
+     * `null` si aucun objectif n'est déclaré.
+     */
+    objectif: JourneyObjectifRefDto | null;
+    /** La pastille « Priorité ». **Servi.** */
+    priorite: boolean;
+    /** Le nombre de séries à réussir. */
+    quota: number;
+    /**
+     * Les séries déjà réussies, sur `quota`.
+     *
+     * 🛑 **SERVI, jamais recompté depuis `series`** : c'est le **même** nombre
+     * que le moteur compare au quota pour clore l'étape, donc l'écran ne peut
+     * pas annoncer « 1 sur 2 » sur une étape que le serveur vient de clore. Le
+     * recompter aurait fait exister une seconde addition de la même chose.
+     */
+    validees: number;
+    questionsParSerie: number;
+    /** 🛑 **SERVI, jamais écrit dans un front** : c'est le seuil de réussite. */
+    seuilReussite: number;
+    /** En minutes. `null` = inconnu — l'écran n'affiche alors aucune durée. */
+    dureeEstimeeMin: number | null;
+    /** Le verrou **freemium** de l'étape. L'écran reste entier et lisible. */
+    locked: boolean;
+    /** Les séries, **dans l'ordre servi**. */
+    series: JourneySerieDto[];
 }

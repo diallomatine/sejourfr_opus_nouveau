@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
@@ -231,9 +232,14 @@ public class AttemptInteractionService {
         aq.setAnswer(answer);
         attemptQuestionManager.save(aq);
 
-        // En entrainement : on renvoie la correction. En examen blanc : on
-        // confirme juste l'enregistrement.
-        if (attempt.getType() == AttemptType.TRAINING) {
+        // 🛑 LE REGIME DE PASSATION DECIDE, PAS LE TYPE (2026-09-20).
+        // `mode` est la MEME valeur que celle servie dans AttemptResponse.mode :
+        // l'ecran et ce refus ne peuvent donc pas diverger. Le comportement
+        // historique est inchange (TRAINING -> ENTRAINEMENT, MOCK_EXAM ->
+        // EXAMEN, REVIEW -> REVISION, derives par Attempt.prePersist) ; ce qui
+        // s'y ajoute est la SERIE D'ETAPE : un TRAINING pose en mode EXAMEN,
+        // donc sans aucune correction pendant la passation.
+        if (attempt.regime() == AttemptMode.ENTRAINEMENT) {
             // Les lettres citées par l'explication suivent l'ordre AFFICHÉ, pas le
             // display_order de la base : même graine que le runner (AttemptQuestion.id),
             // donc mêmes lettres que les propositions sous les yeux du candidat.

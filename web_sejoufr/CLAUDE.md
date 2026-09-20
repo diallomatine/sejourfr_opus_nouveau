@@ -4463,3 +4463,109 @@ la tête d'une tâche EE/EO.
   `--color-blue-light`, et l'encart de consigne sur `--color-blue-soft` avec la
   **contrainte** (« 30-60 mots ») en gros bleu. Le bleu n'est plus qu'un accent ;
   aucune valeur hexadécimale n'entre dans `.taskBanner*`.
+
+## L'écran d'une ÉTAPE DE SÉRIES — le Plan ne lance plus la série (2026-09-20)
+
+> Demande du propriétaire, sur trois captures de maquette. Miroir mobile posé dans
+> la même passe (`screens/plan/plan_etape_screen.dart`).
+
+⚠️ **Cette section RÉVOQUE le lancement direct depuis la ligne du cycle** pour les
+étapes de **compréhension (CO/CE)** et les étapes **civiques**. Elle prime sur
+« Le CYCLE du Plan » pour ce geste-là, et sur rien d'autre.
+
+- **Route** : `/plan/etape/[stepId]` (`app/(app)/plan/etape/[stepId]/page.tsx` →
+  `app/_components/plan/PlanEtapeView.tsx`). Le préfixe `/plan` est déjà dans
+  `APP_GROUP_PREFIXES` — rien à ajouter. Le parcours voyage en **`?module=`**, le
+  seul mécanisme de sélection du web ; le TCF garde l'adresse nue.
+- **Contrat servi** : `GET /api/me/plan/journey/steps/{stepId}` →
+  `JourneyStepDetailDto` (`lib/types.ts`), et
+  `POST …/steps/{stepId}/series/{index}` → `AttemptResponse`. Les deux vivent dans
+  `journeyApi` (`lib/api.ts`), le détail **mis en cache sous le préfixe du Plan** :
+  une série finie le purge avec le cycle.
+- 🛑 **`dernierScore` n'est JAMAIS comparé à `seuilReussite`.** L'état d'une série
+  se lit sur **`locked`** (la précédente n'est pas réussie) et **`validee`**
+  (réussie au moins une fois — **définitif** : refaite et ratée, elle reste
+  validée). Le score est **affiché**, jamais jugé.
+- 🛑 **`seuilReussite`, `quota`, `validees`, `questionsParSerie` et
+  `dureeEstimeeMin` sont SERVIS** : aucun « 16/20 », aucun « 2 séries » n'est
+  écrit dans un front, et **`validees` ne se recompte pas** depuis `series` —
+  c'est le compteur que le moteur compare au quota pour clore l'étape, donc deux
+  additions auraient fini par se contredire.
+- 🛑 **`objectif` est un `JourneyObjectifRefDto`**, pas un `TargetLevel` : on lit
+  **`label`** (« B2 », « Naturalisation »), jamais `code`, et **on ne branche
+  jamais sur le module**. Seule la **tournure** se choisit sur `kind`, comme
+  `journeyTitle` le fait déjà. C'est ce qui donne au civique son en-tête
+  « Plan — Naturalisation ».
+- **Quelle étape y mène** : `journeyEtapeASeries(step)` (`lib/journey.ts`), sur
+  `type === "TRAIN_SKILL" && taskCode === null`. ⚠️ `progress.unit` serait plus
+  explicite mais **n'est pas servi** sur une étape civique
+  (`JourneyReadService.progression` rend `null` sans compétence) : s'y fier aurait
+  laissé tout le civique de côté. ⚠️ **Les étapes d'EXPRESSION ne sont pas
+  concernées** — elles gardent leur chemin vers leurs petits sujets.
+- **Libellés purs** : `lib/journey-etape.ts`, **miroir mot pour mot** de
+  `screens/plan/journey_etape_labels.dart`. Aucune phrase de cet écran n'est
+  servie — « À faire », « Verrouillée », « Réussie », « À refaire », « Après la
+  série 1 », l'encart de validation et le pied de page s'y composent.
+- 🛑 **Deux verrous, deux lectures.** `JourneySerieDto.locked` est **pédagogique**
+  (le bouton devient **gris** et porte la condition) ; `JourneyStepDetailDto.locked`
+  est **commercial** (le bouton reste vivant et ouvre le paywall — le même 403 que
+  le serveur opposerait). Dans les deux cas **l'écran reste entier et lisible**
+  (R16, D-18) : on floute l'action, jamais le résultat.
+- **Le corrigé d'une série jouée réutilise le chemin EXISTANT** :
+  `/sessions/{dernierAttemptId}?lot={index}` — le rapport des séries de
+  « Réviser ». **Aucun écran de rapport n'est écrit.**
+- **Le retour** : `Top backTo={planHref(module)}` (une adresse fixe se partage) ;
+  après une série, le « Retour » de `/sessions/[id]` dépile naturellement **sur cet
+  écran**, pas sur le Plan.
+- **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) :
+  **`SerieProgress`** (le compteur en gros, le seuil en face, la barre) et
+  **`SerieCard`** (repère carré, méta, badge, bouton pleine largeur, accès au
+  corrigé). **Variantes** : `Section mono` (l'intertitre « À FAIRE » en petites
+  capitales) et `InfoNote variant="check"` (l'encart de validation, bleu clair +
+  coche — l'ambre du défaut se lirait comme une réserve). **`Pill` prend désormais
+  un `BarTone`** : elle avait besoin du bleu (`now`) pour la pastille « CO · B2 »,
+  et la règle `.pill.now` existait sans qu'aucun chemin ne l'atteigne — renommée
+  `.pill.pillNow`, parce que `.now` est par ailleurs la carte « À faire
+  maintenant ».
+- **Supprimé dans la foulée** : `PlanCycleSection` n'importe plus
+  `useCivicUniteSerie` (ni son erreur, ni son paywall). 🛑 **Le hook reste** — le
+  panneau civique et Réviser l'emploient toujours.
+- ⚠️ **`section` reste `null` en civique** — une unité officielle n'a pas de
+  domaine — donc l'écran civique n'a **pas** de pastille « CO · B2 ». Il a bien
+  son sous-titre, lui, depuis que l'objectif est servi avec son libellé. Idem
+  pour `unite.description`, **`null` en civique** (la table des unités
+  officielles n'a pas la colonne) : `PanelHead` n'affiche alors rien — jamais un
+  bloc vide, jamais une phrase fabriquée.
+
+### Le RÉGIME DE PASSATION est servi — `AttemptResponse.mode` (2026-09-20)
+
+🛑 **Un front ne déduit plus d'un `type` si le candidat voit les corrections.**
+`AttemptResponse.mode` (`AttemptMode` = `ENTRAINEMENT | EXAMEN | REVISION`,
+`lib/types.ts`) porte **le régime de passation**, là où `type` dit ce que la
+session **est** (et décide du freemium, de l'historique et des observations).
+
+- **Pourquoi** : une **série lancée depuis une carte d'étape du Plan** est un
+  `TRAINING` — pour ne rien changer au freemium ni à l'historique — **posé en
+  `EXAMEN`**. Le `type` ne sait donc plus répondre.
+- 🛑 **C'est la MÊME valeur que le serveur oppose** : il ne renvoie la
+  correction qu'en `ENTRAINEMENT`. L'écran et le refus ne peuvent pas diverger —
+  d'où l'interdiction absolue de dériver le régime d'une route, d'un `?from=` ou
+  d'un paramètre d'URL.
+- **Ce qui est passé sur `mode`** (`app/sessions/[attemptId]/page.tsx`) : la
+  prop `mode` de `QuestionRunner` — donc, d'un coup, `showCorrection`, l'audio CO
+  à **écoute unique** (`examCoAudio` → `MediaView examAudio`), le **retour
+  arrière fermé** (`canGoPrevious`), la soumission silencieuse sur « Suivant » et
+  l'obligation de choisir avant d'avancer. Et **`canExtend`**, qui lisait
+  `!isExam` : une série d'étape se joue sur un nombre de questions fixe, dont
+  dépend son seuil — l'étendre fausserait la mesure.
+- **Ce qui RESTE sur le `type`, et doit y rester** : `quitMode` (quitter un
+  examen le **termine** ; quitter un entraînement n'a jamais rien coûté), le
+  chrono (`timeLimitSeconds`), l'œil-de-bœuf, `tcfExamSections`, les chemins de
+  retour et **l'écran de résultat** (`ExamReport` ⇄ `TrainingResultCard`). Ce
+  sont des questions sur ce que la session *est*, pas sur la façon dont elle se
+  joue.
+- ⚠️ **Non-régression** : `TRAINING → ENTRAINEMENT`, `MOCK_EXAM → EXAMEN`,
+  `REVIEW → REVISION`. Les lots, les séries de « Réviser », les examens blancs de
+  module, civiques, de `ExamTemplate` et les sous-épreuves d'un examen complet se
+  comportent **exactement** comme avant — `EXAMEN` est un **sur-ensemble** de
+  `MOCK_EXAM`. Seul le `TRAINING` d'une étape du Plan change, et c'est le but.

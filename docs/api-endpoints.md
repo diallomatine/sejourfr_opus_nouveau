@@ -92,6 +92,27 @@ Cf. `exams-tcf.md`.
   même passe que la bascule des fronts sur `blocs` : un nouveau lecteur se branche sur `blocs`,
   qui porte **toutes** les étapes non obsolètes, sans plafond d'affichage.
   Spec : `docs/progression/SPEC_cycle_plan.md` · arbitrages : `docs/decisions/plan-parcours-tcf.md`.
+- `GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` — **l'écran d'ÉTAPE**
+  (2026-09-20) : les **2 séries à réussir** d'une compétence de compréhension (CO/CE) ou d'une
+  unité officielle civique, leur état, leur score. Sert `bloc`, `unite` *(code, label,
+  description — **nulle en civique**)*, `section`, `objectif` *(kind, code, label : un palier
+  **ou** une mention)*, `priorite`, `quota` (2), `validees`, `questionsParSerie` (20),
+  `seuilReussite` (16), `dureeEstimeeMin`, `locked` (freemium) et `series[]`
+  (`index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`, `dernierEssaiAt`).
+  🛑 **`validee` et `validees` sont SERVIS** : sans eux un front comparerait `dernierScore` à
+  `seuilReussite`, donc classerait un nombre en état pédagogique. 🛑 **Aucune phrase servie** —
+  « À faire » / « Verrouillée » / « Réussie » / « À refaire » se composent des fronts.
+  🛑 **Aucun `?module=`** : l'étape porte son module. **404** si elle n'existe pas ou n'est pas
+  celle du candidat ; **422** si elle ne se travaille pas par séries (expression, examen).
+  → `docs/regles/plan.md` § « L'ÉCRAN D'ÉTAPE ».
+- `POST /api/me/plan/journey/steps/{stepId}/series/{index}` → `AttemptResponse` — **lancer (ou
+  refaire) la série `index`** de cette étape. Le même DTO que tous les autres lancements : les
+  fronts atterrissent sur `/sessions/{attemptId}`. 🛑 **`mode` vaut `EXAMEN`** — aucune
+  correction pendant la passation, audio de CO joué une seule fois. **403** si l'étape est
+  verrouillée (freemium) **ou** si la série l'est (la précédente n'est pas **réussie**) ;
+  **422** si l'index sort du quota ou si la banque ne peut rien servir. 🛑 **Un seul endpoint
+  pour les deux modules** : il résout TCF vs civique depuis l'étape et **délègue** la
+  composition aux autorités existantes.
 - `POST /api/me/plan/journey/refresh` → `JourneyDto` — **« Actualiser mon plan »** (spec §6).
   Le cycle en cours est **historisé** (`historise_at`, `exit_level` = niveau global courant, lu
   chez `TcfProfileService.levelProfile` ; `null` si rien n'a été mesuré, **jamais 0**), le cycle
@@ -103,8 +124,12 @@ Cf. `exams-tcf.md`.
   complet »** (spec §6). Crée le **cycle de mesure** : quatre blocs, chacun ne portant que son
   examen, tous débloqués. Le cycle en attente est **laissé tel quel**. 🛑 **Il ne démarre aucun
   examen** : l'examen blanc complet reste lancé par `POST /api/full-tcf-exams`, son unique point
-  d'entrée. **409** si le cycle n'est pas terminé, **et** si le cycle courant est déjà un cycle
-  de mesure — enchaîner deux examens complets sans travail entre eux ne mesure rien de nouveau.
+  d'entrée. ⚠️ **Depuis le 2026-09-20 il s'ouvre à 80 % des étapes du cycle terminées**
+  (`finDeCycleExamenRatio`, configuration versionnée v3), et non plus au cycle entier — c'est
+  la **même autorité** que `nextStep.examenCompletPossible`. **409** en dessous de cette part,
+  **et** si le cycle courant est déjà un cycle de mesure — enchaîner deux examens complets sans
+  travail entre eux ne mesure rien de nouveau. 🛑 « Actualiser mon plan » garde sa règle (le
+  cycle entier) : ce geste-là historise.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées

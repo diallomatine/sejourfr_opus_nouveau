@@ -145,6 +145,32 @@ SfJourneyKind journeyKind(JourneyStep step) =>
         ? SfJourneyKind.exam
         : SfJourneyKind.step;
 
+/* ==========================================================================
+   L'ÉCRAN D'UNE ÉTAPE DE SÉRIES (2026-09-20)
+
+   🛑 **Une étape de COMPRÉHENSION ou CIVIQUE ne lance plus sa série depuis le
+   cycle** : elle ouvre l'écran qui la déplie — sa compétence, son avancement,
+   ses deux séries. Les libellés de cet écran vivent dans
+   `journey_etape_labels.dart` (miroir de `lib/journey-etape.ts`) ; ce qui vit
+   ICI, c'est **quelle étape y mène**, parce que c'est une lecture du parcours.
+   ========================================================================== */
+
+/// **Cette étape se travaille-t-elle par SÉRIES ?**
+///
+/// 🛑 **Le discriminant est `taskCode`**, le seul fait servi qui sépare les deux
+/// grains d'une étape `TRAIN_SKILL` (cf. [JourneyStep.taskCode] : « `null` =
+/// compétence de COMPRÉHENSION ») — et une étape civique n'en porte pas non
+/// plus. `progress.unit` serait plus explicite, mais il n'est **pas servi** sur
+/// une étape civique (`JourneyReadService.progression` rend `null` sans
+/// compétence), donc s'appuyer dessus aurait laissé tout le civique de côté.
+///
+/// ⚠️ **Les étapes d'EXPRESSION (EE/EO) restent en dehors** : elles portent une
+/// tâche, et leur chemin vers leurs petits sujets ne change pas.
+///
+/// 🛑 Miroir mot pour mot de `journeyEtapeASeries` (`web .../lib/journey.ts`).
+bool journeyEtapeASeries(JourneyStep step) =>
+    step.type == JourneyStepType.trainSkill && step.taskCode == null;
+
 /// L'avancement, dans **l'unité servie**.
 ///
 /// 🛑 L'unité ne se déduit **jamais** de la nullité de `taskCode` : ce serait

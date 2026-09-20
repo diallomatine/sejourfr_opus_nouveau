@@ -58,6 +58,10 @@ public class AttemptMapper {
         return new AttemptResponse(
                 attempt.getId(),
                 attempt.getType(),
+                // 🛑 LE REGIME DE PASSATION EST SERVI (2026-09-20) : une serie
+                // lancee depuis une carte d'etape est un TRAINING qui se joue
+                // SANS correction. Aucun front ne peut le deduire du type.
+                attempt.regime(),
                 attempt.getModule(),
                 templateId,
                 templateSlug,

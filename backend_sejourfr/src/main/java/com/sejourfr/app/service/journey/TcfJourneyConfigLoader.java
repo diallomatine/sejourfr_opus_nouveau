@@ -15,12 +15,22 @@ import java.io.InputStream;
  * et pour la meme raison : une configuration incomplete qui demarrerait quand
  * meme viderait des files sans que rien n'echoue.
  *
- * <p>Six refus volontaires : une cle inconnue, une section absente, une valeur
- * nulle sur un primitif, un plafond negatif ou nul, une echappatoire de quota
- * <b>inferieure</b> au quota de reussite (D-16), et un
- * {@code journeyConfigVersion} different de celui demande.
+ * <p>Refus volontaires : une cle inconnue, une section absente, une valeur nulle
+ * sur un primitif, un plafond negatif ou nul, une echappatoire de quota
+ * <b>presente mais inferieure</b> au quota de reussite, un ratio de fin de cycle
+ * <b>present mais hors de</b> {@code ]0 ; 1]}, et un {@code journeyConfigVersion}
+ * different de celui demande.
  *
- * <p>Le chargeur <b>ne corrige rien</b> et n'ecrit jamais dans le fichier.
+ * <h2>🛑 Deux cles OPTIONNELLES, et leur absence est une REGLE</h2>
+ * <ul>
+ *   <li>{@code trainSeriesFallbackQuota} absent ⇒ <b>aucune echappatoire</b> :
+ *       seule la reussite clot une etape (v3, 2026-09-20) ;</li>
+ *   <li>{@code finDeCycleExamenRatio} absent ⇒ <b>aucun deblocage anticipe</b> :
+ *       l'examen de fin de cycle attend le cycle entier (regle d'avant v3).</li>
+ * </ul>
+ * <p>C'est ce qui rend v1 et v2 chargeables <b>a l'identique</b> sans les
+ * reecrire. Le chargeur ne <b>corrige rien</b>, n'invente aucun defaut et
+ * n'ecrit jamais dans le fichier.
  */
 @Slf4j
 public final class TcfJourneyConfigLoader {
@@ -59,32 +69,51 @@ public final class TcfJourneyConfigLoader {
         }
         positif(config.maxPrioritiesPerLot(), "maxPrioritiesPerLot", path);
         positif(config.trainSeriesQuota(), "trainSeriesQuota", path);
-        positif(config.trainSeriesFallbackQuota(), "trainSeriesFallbackQuota", path);
-        // 🛑 L'echappatoire de D-16 est un FILET, pas la regle : sous le quota de
-        // reussite, elle closerait toujours la premiere et « 2 series reussies »
-        // ne voudrait plus rien dire. Un boot rouge plutot qu'une regle
-        // silencieusement inversee.
-        if (config.trainSeriesFallbackQuota() < config.trainSeriesQuota()) {
-            throw new IllegalStateException(
-                    "trainSeriesFallbackQuota=" + config.trainSeriesFallbackQuota()
-                            + " est inferieur a trainSeriesQuota=" + config.trainSeriesQuota()
-                            + " dans " + path
-                            + " : l'echappatoire ne peut pas preceder le quota de reussite");
+        // 🛑 ABSENTE = « AUCUNE ECHAPPATOIRE », jamais « zero serie suffit ».
+        // C'est une regle, pas un oubli : le proprietaire a supprime le filet le
+        // 2026-09-20. Presente, elle reste un FILET -- donc jamais sous le quota
+        // de reussite, sinon elle closerait toujours la premiere et « 2 series
+        // reussies » ne voudrait plus rien dire.
+        if (config.trainSeriesFallbackQuota() != null) {
+            positif(config.trainSeriesFallbackQuota(), "trainSeriesFallbackQuota", path);
+            if (config.trainSeriesFallbackQuota() < config.trainSeriesQuota()) {
+                throw new IllegalStateException(
+                        "trainSeriesFallbackQuota=" + config.trainSeriesFallbackQuota()
+                                + " est inferieur a trainSeriesQuota=" + config.trainSeriesQuota()
+                                + " dans " + path
+                                + " : l'echappatoire ne peut pas preceder le quota de reussite");
+            }
+        }
+        // 🛑 ABSENT = « LE CYCLE ENTIER » (la regle d'avant v3). Present, c'est
+        // une PART : au-dela de 1 elle serait inatteignable, a 0 ou moins elle
+        // ouvrirait l'examen de fin de cycle sur un cycle intact.
+        if (config.finDeCycleExamenRatio() != null) {
+            double ratio = config.finDeCycleExamenRatio();
+            if (ratio <= 0 || ratio > 1) {
+                throw new IllegalStateException(
+                        "finDeCycleExamenRatio=" + ratio + " dans " + path
+                                + " : une part se situe dans ]0 ; 1]");
+            }
         }
         // ⚠️ `display` N'A PLUS DE LECTEUR depuis P6 (cf. TcfJourneyConfig.Display),
-        // mais les deux fichiers publies le declarent et le loader refuse une
-        // cle inconnue : il reste donc valide comme le reste du fichier. Valider
-        // ce qu'on ne lit pas coute une comparaison ; ne plus le valider
-        // laisserait passer un fichier que la version suivante pourrait relire.
+        // mais les fichiers publies le declarent et le loader refuse une cle
+        // inconnue : il reste donc valide comme le reste du fichier. Valider ce
+        // qu'on ne lit pas coute une comparaison ; ne plus le valider laisserait
+        // passer un fichier que la version suivante pourrait relire.
         positif(config.display().upcomingVisible(), "display.upcomingVisible", path);
         if (config.display().recentCompletedVisible() < 0) {
             throw new IllegalStateException(
                     "display.recentCompletedVisible negatif dans " + path);
         }
         log.info("Configuration du parcours TCF chargee (v{}) : {} priorites par lot, "
-                        + "{} serie(s) reussie(s) ou {} terminee(s) en comprehension",
+                        + "{} serie(s) reussie(s) pour clore une etape, echappatoire={}, "
+                        + "examen de fin de cycle a {}",
                 config.journeyConfigVersion(), config.maxPrioritiesPerLot(),
-                config.trainSeriesQuota(), config.trainSeriesFallbackQuota());
+                config.trainSeriesQuota(),
+                config.trainSeriesFallbackQuota() == null
+                        ? "aucune" : config.trainSeriesFallbackQuota() + " terminee(s)",
+                config.finDeCycleExamenRatio() == null
+                        ? "cycle entier" : (int) (config.finDeCycleExamenRatio() * 100) + " %");
         return config;
     }
 

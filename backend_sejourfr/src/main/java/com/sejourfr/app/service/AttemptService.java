@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.Difficulty;
@@ -90,7 +91,7 @@ public class AttemptService {
      * c'est le denominateur du seuil de reussite (16/20), et le laisser choisir
      * au client ferait varier ce que « reussi » veut dire.
      */
-    static final int COMPREHENSION_SERIES_SIZE = 20;
+    public static final int COMPREHENSION_SERIES_SIZE = 20;
 
     // Les durées d'épreuve vivent TOUTES dans DureeEpreuve (CO 20 min, CE
     // 35 min partout — y compris en examen complet, STRUCTURE 20 min, EE
@@ -127,7 +128,7 @@ public class AttemptService {
         // branche la plus specifique — le domaine, le niveau et la taille sont
         // DERIVES de la competence, jamais recus du client.
         if (req.skillId() != null) {
-            return startComprehensionSeries(user, req.skillId());
+            return startComprehensionSeries(user, req.skillId(), AttemptMode.ENTRAINEMENT);
         }
 
         // Branche template : si un examTemplateId est fourni, c'est lui qui pilote
@@ -336,7 +337,26 @@ public class AttemptService {
      * gratuit n'a que le niveau le plus bas de chaque domaine, et le refus est
      * serveur, jamais client.
      */
-    private AttemptResponse startComprehensionSeries(User user, UUID skillId) {
+    /**
+     * <b>La serie ciblee d'une CARTE D'ETAPE du parcours</b> (2026-09-20) — la
+     * <b>meme</b> composition, jouee <b>sans correction</b>.
+     *
+     * <p>🛑 <b>Elle ne recopie rien</b> : c'est {@link #startComprehensionSeries}
+     * avec un {@link AttemptMode} different. Le verrou freemium
+     * ({@code SkillAccessService.assertCanTrain}), le tirage, la taille et le
+     * refus « banque vide » restent ceux de l'autorite unique. Le verrou de
+     * <b>carte</b> (« la serie 2 se debloque apres la reussite de la 1 ») est
+     * pose par-dessus, par {@code JourneyStepDetailService} : il releve du
+     * parcours, pas de la composition.
+     */
+    public AttemptResponse demarrerSerieDeCarte(UUID userId, UUID skillId) {
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
+        return startComprehensionSeries(user, skillId, AttemptMode.EXAMEN);
+    }
+
+    private AttemptResponse startComprehensionSeries(
+            User user, UUID skillId, AttemptMode mode) {
         Skill skill = skillManager.findActiveById(skillId)
                 .orElseThrow(() -> new NotFoundException("Compétence introuvable : " + skillId));
         if (skill.getSection() == null || !skill.getSection().isComprehension()) {
@@ -383,6 +403,12 @@ public class AttemptService {
         Attempt attempt = new Attempt();
         attempt.setUser(user);
         attempt.setType(AttemptType.TRAINING);
+        // 🛑 LE REGIME DE PASSATION EST POSE A LA CREATION, jamais deduit plus
+        // tard : c'est lui que `AttemptResponse.mode` sert et que
+        // `doSubmitAnswer` oppose. Une serie lancee depuis une carte d'etape est
+        // un TRAINING (freemium, historique, observations inchanges) joue en
+        // EXAMEN -- aucune correction, audio une seule fois.
+        attempt.setMode(mode);
         attempt.setModule(Module.TCF);
         attempt.setTotalQuestions(questions.size());
         attempt.setStartedAt(Instant.now());

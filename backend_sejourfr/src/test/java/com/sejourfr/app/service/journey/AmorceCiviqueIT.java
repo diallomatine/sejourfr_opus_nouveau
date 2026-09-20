@@ -71,6 +71,7 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private CivicObservationService observationService;
     @Autowired private TcfJourneyConfig config;
+    @Autowired private JourneySerieVerdict verdict;
     @Autowired private JourneyCycleService cycleService;
 
     private final List<UUID> candidats = new ArrayList<>();
@@ -209,13 +210,12 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
                 .orElseThrow();
         UUID unite = uniteParCode(aTravailler.unite());
 
-        // Autant de series REUSSIES que le quota en demande -- lu chez son
-        // autorite, jamais ecrit ici : si D-16 rebouge, ce test suit.
-        for (int i = 0; i < config.trainSeriesQuota(); i++) {
-            observationService.record(user.getId(), UUID.randomUUID(),
-                    LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(),
-                    reussite(unite));
-        }
+        // Autant de CARTES reussies que le quota en demande -- lu chez son
+        // autorite, jamais ecrit ici : si le quota rebouge, ce test suit.
+        // 🛑 On ecrit un SCORE sur l'attempt, jamais un verdict : « reussie » se
+        // relit (JourneySerieVerdict), et c'est la meme fonction que celle qui
+        // clot l'etape.
+        toutesLesCartesReussies(user, cycle, unite);
         journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
 
         // 🛑 La MEME fonction que celle qui affiche l'avancement
@@ -244,8 +244,9 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
                 .orElseThrow();
         UUID unite = uniteParCode(aTravailler.unite());
 
-        observationService.record(user.getId(), UUID.randomUUID(),
-                LearningPlanSourceType.CIVIQUE_SERIE, Instant.now(), reussite(unite));
+        // Une seule carte reussie sur les deux.
+        data.serieDEtape(etapeDeLUnite(cycle, unite), 1, user, Module.CIVIQUE,
+                verdict.seuilReussite(Module.CIVIQUE));
         journeyService.onTrainingProgressCivique(user.getId(), Set.of(unite));
 
         assertThat(jdbc.queryForObject("""
@@ -527,4 +528,24 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
         entityManager.clear();
         return session;
     }
+
+    /**
+     * Toutes les cartes de l'etape de cette unite, reussies — un essai par carte,
+     * au seuil exact.
+     */
+    private void toutesLesCartesReussies(User user, Journey cycle, UUID unite) {
+        com.sejourfr.app.entity.JourneyStep etape = etapeDeLUnite(cycle, unite);
+        int seuil = verdict.seuilReussite(Module.CIVIQUE);
+        for (int carte = 1; carte <= config.trainSeriesQuota(); carte++) {
+            data.serieDEtape(etape, carte, user, Module.CIVIQUE, seuil);
+        }
+    }
+
+    private com.sejourfr.app.entity.JourneyStep etapeDeLUnite(Journey cycle, UUID unite) {
+        return stepManager.findAll(cycle.getId()).stream()
+                .filter(step -> unite.equals(step.uniteId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Aucune etape pour l'unite " + unite));
+    }
+
 }

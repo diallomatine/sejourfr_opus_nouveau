@@ -161,6 +161,18 @@
   margin: 0 0 10px;
 }
 
+/* L'intertitre en petites capitales mono (« À FAIRE »). Variante de
+   `.sectionH`, pas une seconde règle de titre. Miroir Flutter :
+   `SfSectionTitle(mono: true)`. */
+.sectionHMono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
 .tiny {
   font-size: 12.5px;
   line-height: 1.45;
@@ -897,7 +909,12 @@
   color: var(--color-green-dark);
 }
 
-.pill.now {
+/* ⚠️ **Renommée `.pillNow`** (2026-09-20) : la règle s'appelait `.pill.now` et
+   n'était atteinte par aucun chemin — `toneClass` ne portait pas `now`, et
+   `.now` est par ailleurs la carte « À faire maintenant », dont le rayon et le
+   fond auraient gagné sur ceux de la pastille. Refonte = suppression de
+   l'ancien nom. */
+.pill.pillNow {
   background: var(--color-blue-light);
   color: var(--color-blue-dark);
 }
@@ -2774,6 +2791,19 @@
   color: var(--color-amber-dark);
 }
 
+/* L'encart de **validation** : il énonce une condition à remplir, pas une
+   réserve — d'où le bleu et la coche. Miroir Flutter :
+   `SfInfoNote(variant: SfInfoNoteVariant.check)`. */
+.infoNote.isCheck {
+  background: var(--color-blue-light);
+  border-color: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.isCheck .infoNoteIco {
+  color: var(--color-blue);
+}
+
 /* ---------- Palier desktop (960 px) — la borne du kit, pas une de plus ---- */
 
 @media (min-width: 960px) {
@@ -4187,5 +4217,232 @@
 
   .statRow {
     padding: 15px 20px;
+  }
+}
+
+/* ==========================================================================
+   Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
+   Miroirs Flutter : `SfSerieProgress`, `SfSerieCard`.
+   ========================================================================== */
+
+.serieProgTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Le compteur des séries validées : c'est le chiffre que le candidat vient
+   chercher, donc le seul gros de la carte. */
+.serieProgCount {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--color-blue);
+}
+
+.serieProgNote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  min-width: 0;
+}
+
+.serieProgNote b {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--color-ink);
+}
+
+.serieProgNote small {
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.serieProgBar {
+  margin-top: 12px;
+  height: 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-line);
+  overflow: hidden;
+}
+
+.serieProgBar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue);
+  transition: width var(--sf-fast) var(--sf-ease-out);
+}
+
+/* ---------- La carte d'une série ---------- */
+
+.serieCard {
+  padding: 14px 14px 14px;
+  border-radius: var(--sf-radius-xl);
+  background: white;
+  box-shadow: var(--sf-shadow-border);
+}
+
+/* 🛑 Verrouillée = atténuée, JAMAIS masquée (R16). */
+.serieCard.isLocked {
+  background: var(--color-paper-2);
+  box-shadow: var(--sf-shadow-border);
+}
+
+.serieCardTop {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.serieMark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.serieMark.isLocked {
+  background: var(--color-line);
+  color: var(--color-muted);
+}
+
+.serieCardText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.serieCardText b {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+}
+
+.serieMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.serieMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.serieState {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.serieScore {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--color-ink-2);
+}
+
+.serieBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-blue);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.serieBtn:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+}
+
+.serieBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.serieBtn:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+/* 🛑 Un bouton fermé est GRIS, pas un bouton d'action pâli : il porte la
+   condition qui l'ouvrira, et rien ne doit inviter à le presser. */
+.serieBtn.isOff {
+  background: var(--color-line);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.serieLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 9px;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+
+.serieLink:hover {
+  text-decoration: underline;
+}
+
+/* ⚠️ Palier desktop : la carte respire, rien d'autre ne change. Une media
+   query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .serieCard {
+    padding: 16px 18px;
+  }
+
+  .serieProgCount {
+    font-size: 28px;
+  }
+
+  .serieBtn {
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }

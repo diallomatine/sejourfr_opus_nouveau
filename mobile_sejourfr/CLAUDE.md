@@ -4187,3 +4187,117 @@ dans ce fichier.
   son compteur « 3/8 compétences acquises » par ligne — il **mesure** la tâche, il n'est pas
   une porte —, mais sa ligne ouvre maintenant les **sujets**.
 
+
+## L'écran d'une ÉTAPE DE SÉRIES — le Plan ne lance plus la série (2026-09-20)
+
+> Demande du propriétaire, sur trois captures de maquette. Miroir web posé dans la
+> même passe (`app/(app)/plan/etape/[stepId]`, `PlanEtapeView`).
+
+⚠️ **Cette section RÉVOQUE le lancement direct depuis la ligne du cycle** pour les
+étapes de **compréhension (CO/CE)** et les étapes **civiques**. Elle prime sur
+« Le CYCLE du Plan » pour ce geste-là, et sur rien d'autre.
+
+- **Écran** : `screens/plan/plan_etape_screen.dart` (`PlanEtapeScreen`), route
+  `AppRoutes.planEtape` = `/plan/etape/:stepId` (`planEtapePath`). Monté sur le
+  **kit** ; le parcours n'y voyage pas — l'écran est poussé depuis le cycle, qui a
+  déjà fait le choix.
+- **Contrat servi** : `LearningPlanRepository.stepDetail(stepId)`
+  (`GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetail`) et
+  `startSerie(stepId, index)` (`POST …/series/{index}` → `Attempt`). Lecture par
+  **`journeyStepProvider`** (`autoDispose.family`, qui observe
+  `learningPlanRevisionProvider`) : la série finie émet le signal, l'écran resté
+  monté sous le runner se repeint au retour — sans tiré-pour-rafraîchir.
+- 🛑 **`dernierScore` n'est JAMAIS comparé à `seuilReussite`.** L'état d'une série
+  se lit sur **`locked`** (la précédente n'est pas réussie) et **`validee`**
+  (réussie au moins une fois — **définitif** : refaite et ratée, elle reste
+  validée). Le score est **affiché**, jamais jugé.
+- 🛑 **`seuilReussite`, `quota`, `validees`, `questionsParSerie` et
+  `dureeEstimeeMin` sont SERVIS** : aucun « 16/20 », aucun « 2 séries » n'est
+  écrit dans un front, et **`validees` ne se recompte pas** depuis `series` —
+  c'est le compteur que le moteur compare au quota pour clore l'étape.
+- 🛑 **`objectif` est un `JourneyObjectifRef`**, pas un `TargetLevel` : on lit
+  **`label`** (« B2 », « Naturalisation »), jamais `code`, et **on ne branche
+  jamais sur le module**. Seule la **tournure** se choisit sur `kind`, comme
+  `journeyTitle` le fait déjà. C'est ce qui donne au civique son en-tête
+  « Plan — Naturalisation ».
+- **Quelle étape y mène** : `journeyEtapeASeries(step)` (`journey_labels.dart`),
+  sur `type == trainSkill && taskCode == null`. ⚠️ `progress.unit` serait plus
+  explicite mais **n'est pas servi** sur une étape civique
+  (`JourneyReadService.progression` rend `null` sans compétence). ⚠️ **Les étapes
+  d'EXPRESSION ne sont pas concernées** — elles gardent leur chemin vers leurs
+  petits sujets.
+- **Libellés purs** : `screens/plan/journey_etape_labels.dart`, **miroir mot pour
+  mot** de `web_sejoufr/lib/journey-etape.ts`.
+- 🛑 **Deux verrous, deux lectures.** `JourneySerie.locked` est **pédagogique** (le
+  bouton devient **gris** et porte la condition) ; `JourneyStepDetail.locked` est
+  **commercial** (le bouton reste vivant et ouvre `showPaywallSheet` — le même 403
+  que le serveur opposerait). Dans les deux cas **l'écran reste entier et lisible**
+  (R16, D-18).
+- **Le corrigé d'une série jouée réutilise le chemin EXISTANT** :
+  `AppRoutes.examReport` — celui qu'ouvrent déjà les lots de « Réviser »
+  (`tcf_level_lots_screen`, `civique_theme_detail_screen`). **Aucun écran de rapport
+  n'est écrit.**
+- **Le retour, et il n'est jamais un `pop()` nu** :
+  `retourOuRepli(context, repli: AppRoutes.plan)`. Après une série, le runner
+  lancé avec **`?from=planEtape`** pousse le rapport en `pushReplacement`
+  (`runner_screen._navigateToResult`) : la flèche du rapport dépile donc **sur cet
+  écran**, pas sur le Plan — exactement le montage des lots.
+- **Primitives ajoutées au kit** (miroirs web dans la même passe) :
+  **`SfSerieProgress`** et **`SfSerieCard`**. **Variantes** : `SfSection(mono:)` /
+  `SfSectionTitle(mono:)` (l'intertitre « À FAIRE ») et
+  `SfInfoNote(variant: SfInfoNoteVariant.check)` (l'encart de validation, bleu clair
+  + coche). **`SfPill.tone` prend désormais un `SfBarTone`** — elle avait besoin du
+  bleu (`now`) pour la pastille « CO · B2 » ; l'extension `SfToneAsBar` convertit
+  les appelants internes sans recopier de `switch`, et `_sfPillSoft` / `_sfPillText`
+  gardent **exactement** les tokens d'avant (ce ne sont pas les tons aplatis de
+  `_sfStatusSoft`).
+- **Supprimé dans la foulée** : `plan_cycle_section.dart` n'importe plus
+  `civic_serie_launcher.dart`. 🛑 **Le lanceur reste** — `civic_plan_view` et
+  `reviser_screen` l'emploient toujours.
+- ⚠️ **`test/learning_plan_revision_test.dart` mis à jour** (les deux nouvelles
+  méthodes du repository), pas un test neuf.
+- ⚠️ **`section` reste `null` en civique** — une unité officielle n'a pas de
+  domaine — donc l'écran civique n'a **pas** de pastille « CO · B2 ». Il a bien son
+  sous-titre, lui, depuis que l'objectif est servi avec son libellé. Idem pour
+  `unite.description`, **`null` en civique** (la table des unités officielles n'a
+  pas la colonne) : `SfPanelHead` n'affiche alors rien — jamais un bloc vide,
+  jamais une phrase fabriquée.
+
+### Le RÉGIME DE PASSATION est servi — `Attempt.mode` (2026-09-20)
+
+🛑 **Un front ne déduit plus d'un `type` si le candidat voit les corrections.**
+`AttemptResponse.mode` (`AttemptMode` = `entrainement | examen | revision`,
+`core/models/attempt_models.dart`) porte **le régime de passation**, là où
+`AttemptType` dit ce que la session **est** (et décide du freemium, de
+l'historique et des observations).
+
+- **Pourquoi** : une **série lancée depuis une carte d'étape du Plan** est un
+  `TRAINING` — pour ne rien changer au freemium ni à l'historique — **posée en
+  `EXAMEN`**. Le type ne sait donc plus répondre.
+- 🛑 **C'est la MÊME valeur que le serveur oppose** : il ne renvoie la correction
+  qu'en `ENTRAINEMENT`. D'où l'interdiction absolue de dériver le régime d'une
+  route, d'un `?from=` ou d'un paramètre de requête.
+- **Ce qui est passé sur `mode`** (`runner_screen.dart`, `runner_controller.dart`)
+  — partout où l'écran lisait `type == AttemptType.training` : `showCorr` et
+  l'`ExplanationBox`, le bouton « Valider », le **retour arrière**
+  (`canGoBack`), la soumission silencieuse sur « Suivant » / « Terminer », et
+  `RunnerState.isInfiniteTraining` (une série d'étape a un nombre de questions
+  fixe, dont dépend son seuil : l'étendre fausserait la mesure).
+- **L'audio de compréhension orale** passe de `isModuleExam`
+  (`moduleExamQuestionType != null`) à **`estExamen`** : une écoute unique,
+  auto-play, pas de pause. ⚠️ **Élargissement assumé** : les examens issus d'un
+  `ExamTemplate` (diagnostic CO+CE) y entrent désormais — c'est ce que le **web**
+  fait depuis toujours (`mode === "exam" && questionType === "CO"`), donc cette
+  passe **referme un écart de parité** au lieu d'en ouvrir un.
+- **Ce qui RESTE sur le `type`, et doit y rester** : `canPop` et la confirmation
+  de sortie destructive, l'affichage du chrono, l'œil-de-bœuf « Examen blanc /
+  Entraînement », l'aiguillage de fin de session et l'écran de résultat. Ce sont
+  des questions sur ce que la session *est*.
+- ⚠️ **Non-régression** : `TRAINING → ENTRAINEMENT`, `MOCK_EXAM → EXAMEN`,
+  `REVIEW → REVISION`. `EXAMEN` est un **sur-ensemble** de `isMockExam`, donc les
+  lots, les séries de « Réviser », les examens blancs et les sous-épreuves d'un
+  examen complet se comportent exactement comme avant.
+- **Repli** : `AttemptMode.repliDepuisType` reprend **exactement** la table de
+  `Attempt.prePersist` côté serveur — un client servi par un backend antérieur au
+  champ garde le comportement d'avant. 🛑 **Ce n'est pas une déduction**, c'est la
+  valeur que le serveur aurait posée lui-même.

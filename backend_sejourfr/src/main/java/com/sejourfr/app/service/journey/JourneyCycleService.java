@@ -75,6 +75,9 @@ public class JourneyCycleService {
     private final JourneyStepManager stepManager;
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
+    // 🛑 La MEME autorite que `nextStep.examenCompletPossible` : le bouton servi
+    // et ce refus serveur ne peuvent pas dire deux choses differentes.
+    private final TcfJourneyConfig config;
 
     /**
      * <b>Actualiser mon plan</b> (spec §6).
@@ -130,7 +133,7 @@ public class JourneyCycleService {
      */
     @Transactional
     public JourneyDto creerCycleDeMesure(UUID userId, Module module) {
-        Journey enCours = cycleTermine(userId, module);
+        Journey enCours = cycleOuvertALExamenDeFinDeCycle(userId, module);
         if (module == Module.CIVIQUE) return creerLeCycleDeMesureCivique(userId, enCours);
         if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
             // Enchainer deux examens complets sans travail entre eux ne mesure
@@ -280,10 +283,7 @@ public class JourneyCycleService {
      * historise.
      */
     private Journey cycleTermine(UUID userId, Module module) {
-        Journey enCours = journeyService.getOrCreate(userId, module)
-                .flatMap(journey -> journeyManager.findForUpdate(journey.getId()))
-                .orElseThrow(() -> new BusinessException(
-                        "Aucun parcours : declarez d'abord votre objectif."));
+        Journey enCours = verrouille(userId, module);
         boolean ouvertes = stepManager.findAll(enCours.getId()).stream()
                 .anyMatch(JourneyStep::estOuverte);
         if (ouvertes) {
@@ -291,6 +291,55 @@ public class JourneyCycleService {
                     "Votre parcours n'est pas termine : il reste des etapes a faire.");
         }
         return enCours;
+    }
+
+    /**
+     * Le cycle en cours, <b>verrouille</b>, et <b>assez avance pour son examen
+     * de fin de cycle</b> — sinon le geste est refuse.
+     *
+     * <h3>🛑 Ce n'est plus « termine » depuis le 2026-09-20</h3>
+     * <p>Arbitrage du proprietaire : l'examen qui <b>clot le cycle</b> se
+     * debloque a <b>80 %</b> des etapes terminees. La part vit dans
+     * {@code plan/tcf-journey-config-v3.json} — elle est annoncee comme appelee
+     * a bouger, donc elle n'a rien a faire dans le Java. Les versions
+     * anterieures ne la portent pas et continuent d'exiger le cycle entier : un
+     * retour arriere reste une variable d'environnement.
+     *
+     * <p>🛑 <b>La regle est lue chez son autorite unique</b>
+     * ({@code TcfJourneyConfig.examenDeFinDeCycleOuvert}), la meme qui decide de
+     * {@code nextStep.examenCompletPossible}. Le bouton servi et le refus
+     * serveur ne peuvent donc pas diverger — c'est la « jumelle en lecture » du
+     * verrou, jamais une seconde implementation.
+     *
+     * <p>🛑 <b>Elle ne touche PAS l'examen d'un bloc</b>, qui garde son verrou a
+     * lui (D-15 : tant qu'une competence du meme bloc est ouverte).
+     *
+     * <p>⚠️ <b>Consequence assumee</b> : entre 80 % et 100 %, ce geste historise
+     * un cycle qui porte encore des etapes ouvertes. C'est un cas que le depot
+     * connait deja et documente ({@code JourneyStepRepository}, « un cycle
+     * historise peut tres bien en porter : il a ete ferme par un geste, pas par
+     * l'achevement de tout »), et les etapes restantes ne sont <b>pas</b>
+     * comptees comme travaillees dans l'historique.
+     */
+    private Journey cycleOuvertALExamenDeFinDeCycle(UUID userId, Module module) {
+        Journey enCours = verrouille(userId, module);
+        List<JourneyStep> affichables = nonObsoletes(enCours);
+        int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
+        boolean complete = terminees == affichables.size();
+        if (!config.examenDeFinDeCycleOuvert(terminees, affichables.size(), complete)) {
+            throw new IllegalStateException(
+                    "Votre parcours n'est pas assez avance : terminez vos etapes "
+                            + "avant de passer l'examen blanc complet.");
+        }
+        return enCours;
+    }
+
+    /** Le cycle en cours du module, sous verrou pessimiste (R14). */
+    private Journey verrouille(UUID userId, Module module) {
+        return journeyService.getOrCreate(userId, module)
+                .flatMap(journey -> journeyManager.findForUpdate(journey.getId()))
+                .orElseThrow(() -> new BusinessException(
+                        "Aucun parcours : declarez d'abord votre objectif."));
     }
 
     /**

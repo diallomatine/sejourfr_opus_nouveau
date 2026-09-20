@@ -22,8 +22,14 @@ package com.sejourfr.app.dto;
  * @param etapesTotal     etapes du cycle, obsoletes exclues — le denominateur
  *                        de la barre.
  * @param complete        plus <b>aucune</b> etape ouverte : les quatre blocs
- *                        sont termines. C'est la condition — et la seule — qui
- *                        ouvre l'ecran « Prochaine étape » (spec §6).
+ *                        sont termines. C'est le fait dont l'ecran tire
+ *                        « <b>Cycle entierement travaille</b> ».
+ *                        <p>⚠️ <b>Ce n'est plus la seule condition qui ouvre
+ *                        l'ecran « Prochaine étape »</b> (2026-09-20) :
+ *                        l'<b>examen de fin de cycle</b> se debloque des
+ *                        {@code finDeCycleExamenRatio} des etapes terminees
+ *                        (80 % en v3). L'<b>actualisation</b>, elle, attend
+ *                        toujours ce {@code complete}-ci.</p>
  * @param cycleDeMesure   ce cycle ne porte <b>aucune</b> etape d'entrainement :
  *                        c'est un cycle d'examens seuls. 🛑 <b>Derive, pas une
  *                        colonne</b> : a la fin d'un tel cycle, proposer un

@@ -2699,3 +2699,230 @@ travail, jamais une information mesurée.**
 **Si l'arbitrage était autre** (« un écran gratuit ne porte qu'un seul geste ») : il suffirait
 de remettre le `free ?` autour des deux rendus — mais un candidat sans accès ne pourrait plus
 relire le diagnostic qu'il vient de passer.
+
+---
+
+# L'ÉCRAN D'ÉTAPE et ses deux séries (2026-09-20) — A146 → A155
+
+> Règles **arbitrées et fermées par le propriétaire** : une compétence CO/CE (et une unité
+> civique) se valide par **2 séries réussies** ; une série = **20 questions**, réussie à
+> **16/20** ; **le filet des 4 séries terminées est supprimé** ; la série 2 ne se débloque
+> qu'après **réussite** de la série 1 ; une série réussie une fois est **définitivement
+> validée** ; **aucune correction pendant la série**, audio joué une fois ; **civique à 20
+> questions** ; examen de **fin de cycle à 80 %**.
+>
+> Migration : `V072__journey_step_series.sql`. Règle : `docs/regles/plan.md`.
+> Endpoints : `GET /api/me/plan/journey/steps/{stepId}` · `POST …/series/{index}`.
+
+### A146 — 🛑 Le filet des 4 séries terminées est **supprimé**, et la conséquence est écrite ici
+
+**Arbitrage du propriétaire, verbatim** : « **LE FILET DES 4 SÉRIES TERMINÉES EST SUPPRIMÉ**
+(`trainSeriesFallbackQuota`). Plus aucune clôture automatique après des échecs. »
+
+🛑 **Ce que ça révoque.** D-16 (2026-09-18) avait introduit cette échappatoire pour une raison
+**nommée** : « un candidat faible ne doit **jamais** rester bloqué sur une étape ». Cette phrase
+est **révoquée**.
+
+⚠️ **La conséquence, assumée et validée** : **un candidat qui ne passe jamais 16/20 reste sur sa
+compétence, indéfiniment.** Son cycle ne se termine pas, son examen de fin de cycle n'arrive
+pas par ce chemin-là. C'était exactement ce que le filet évitait ; l'arbitrage a été rendu
+contre, en connaissance de cause.
+
+**Deux amortisseurs existent, et ils ne sont pas le filet** : (1) l'examen de fin de cycle
+s'ouvre désormais à **80 %** des étapes, donc une seule compétence bloquante ne ferme plus la
+sortie d'un cycle qui en porte cinq (A150) ; (2) le complément par thème garantit qu'une série
+fait bien 20 questions, donc que 16/20 reste **atteignable** même sur une unité mince (A152).
+
+**Si l'arbitrage était autre** : reposer `TCF_JOURNEY_CONFIG_VERSION=2`. v2 est sur le disque,
+chargeable à l'identique, et y porte `trainSeriesFallbackQuota = 4`. Rien d'autre à faire —
+c'est une variable d'environnement, jamais une migration.
+
+### A147 — 🛑 « Réussie » change d'AUTORITÉ, et de ce qu'elle COMPTE
+
+**Avant** : le verdict d'une série se lisait sur `learning_plan_observations.status = SOLID`,
+calculé sur les **seules questions du palier visé** tombées dans la série — et pouvant sortir
+`NOT_OBSERVED` sur une série pourtant jouée en entier. Et on comptait **toutes** les séries
+jouées sur la compétence depuis la création de l'étape, d'où qu'elles viennent.
+
+**Maintenant** : `JourneySerieVerdict` — **16 bonnes réponses sur les 20 de la série**, lues sur
+l'attempt —, et on compte les essais **lancés depuis les cartes de cette étape**
+(`journey_step_series`).
+
+🛑 **Le 16 n'est écrit nulle part.** Il se dérive de `learning-plan.comprehension.solid-ratio`
+(0,80) × la **taille de la série** (`AttemptService.COMPREHENSION_SERIES_SIZE` côté TCF,
+`civic-plan.questions-par-serie` côté civique). Changer le ratio change le seuil servi, l'écran
+et la clôture **ensemble**. C'était l'exigence explicite du propriétaire : « ne crée pas pour
+autant une 8ᵉ déclaration de 0,80 ».
+
+⚠️ **Le seuil porte sur la taille NOMINALE, pas sur ce qui a été tiré** (lecture la plus
+stricte). Une banque trop mince peut rendre 18 questions ; le seuil reste **16**, pas
+`ceil(0,8 × 18) = 15`. C'est le chiffre **servi au candidat avant qu'il ne commence**, et un
+seuil qui varierait avec le tirage ferait dire deux choses différentes à deux essais de la
+même carte.
+
+⚠️ **Conséquence de l'ensemble à signaler** : une série ciblée lancée **ailleurs** (le plan
+dérivé, « Réviser ») reste un entraînement utile qui alimente la maîtrise, mais **ne valide
+plus aucune carte**. Sinon l'écran d'étape afficherait « 0 sur 2 » sur une étape que le moteur
+s'apprêterait à clore. C'est la contrepartie directe de l'écran intermédiaire.
+
+### A148 — 🛑 `journey_step_series` est la **troisième** exception à « un dérivé se relit »
+
+Le dépôt persiste très peu : `plan_pinned_priorities` (V065) et le parcours (V066) étaient les
+deux seules exceptions. Cette table est la troisième, **avec exactement le même critère** :
+elle persiste une **décision prise à un instant** que rien ne permet de recalculer après coup.
+
+« Le candidat a lancé la série n°2 de **cette** étape » ne se lit nulle part sur l'attempt — il
+porte 20 questions de compréhension, et c'est tout. Le rattacher après coup exigerait de
+**deviner** (par la date, par la compétence, par le niveau), et les trois devinettes se trompent
+dès qu'on travaille la même compétence depuis deux endroits ou qu'on refait une carte validée.
+
+🛑 **On persiste le LIEN, jamais le verdict** : pas de colonne `reussie`, pas de `validee`, pas
+de `score`. « Réussie » se relit sur l'attempt, « validée » se relit comme « il existe un essai
+réussi sur cette carte ». Figer le verdict le ferait diverger le jour où le ratio bouge.
+
+🛑 **Aucune unicité sur `(step_id, series_index)`** : « refaire » **ajoute** une ligne. C'est ce
+qui donne le dernier score et l'historique sans rien écraser. L'unicité porte sur `attempt_id` :
+un double appel aurait sinon collé la même session sur les deux cartes et validé les deux.
+
+### A149 — 🛑 **`validee` est SERVI**, et `validees` aussi — parce qu'un front ne compare pas
+
+Sans `validee`, un front comparerait `dernierScore` à `seuilReussite` : il **classerait un
+nombre en état pédagogique**, ce que le dépôt interdit. Le front affiche le score et lit l'état.
+
+**Ajouté après remontée de l'agent front** : `validees` (le nombre de cartes réussies) est servi
+lui aussi. Le front le recomptait (`series.filter(s => s.validee).length`). Ce n'était pas une
+faute — compter des booléens servis n'est pas classer un nombre —, mais c'est **la même
+addition que celle que le moteur fait pour clore l'étape**. La servir supprime la possibilité
+que l'écran annonce « 1 sur 2 » sur une étape que le serveur vient de clore.
+
+🛑 **Aucune phrase servie.** Pas de `statusLabel`, pas de `subtitle` : « À faire »,
+« Verrouillée », « Réussie », « À refaire » se composent des fronts à partir de `locked`,
+`validee` et de la nullité de `dernierScore`.
+
+### A150 — L'examen de **fin de cycle** s'ouvre à 80 %, et **lui seul**
+
+`nextStep.examenCompletPossible` et le refus serveur de `POST …/measurement-cycle` lisent la
+**même** autorité (`TcfJourneyConfig.examenDeFinDeCycleOuvert`) : le bouton servi et le refus ne
+peuvent pas diverger.
+
+🛑 **`actualisationPossible` garde sa règle** (cycle entier). Décision autonome, lecture la plus
+stricte : le propriétaire a dit « **examen** de fin de cycle », et « Actualiser mon plan »
+**historise** le cycle et promeut le suivant — l'offrir à 80 % jetterait du travail que le
+candidat n'a pas demandé à abandonner.
+
+🛑 **`cycle.complete` ne bouge pas** : il reste le fait « plus aucune étape ouverte », celui dont
+l'écran tire « Cycle entièrement travaillé ». Le serveur sert le fait, le front la phrase.
+
+⚠️ **Conséquence assumée** : entre 80 % et 100 %, ce geste historise un cycle qui porte encore
+des étapes ouvertes. Le dépôt connaît déjà ce cas et le documente (`JourneyStepRepository` :
+« un cycle historisé peut très bien en porter — il a été fermé par un geste, pas par
+l'achèvement de tout »), et les étapes restantes ne comptent **pas** comme travaillées dans
+l'historique.
+
+**Si l'arbitrage était autre** : le ratio vit dans `plan/tcf-journey-config-v3.json`, annoncé
+**non figé** par le propriétaire. Une nouvelle version du fichier suffit.
+
+### A151 — 🛑 Une clé **absente** est une règle, et c'est ce qui sauve v1 et v2
+
+Le loader refusait `fallbackQuota < quota`. v3 devait dire « **pas de filet** » sans que ce soit
+un bricolage, et **sans réécrire v1 ni v2** (un contrat livré ne se réécrit pas).
+
+**Retenu** : `Integer trainSeriesFallbackQuota` et `Double finDeCycleExamenRatio`, tous deux
+**optionnels**, et leur **absence** porte une règle nommée — « aucune échappatoire », « aucun
+déblocage anticipé ». Le loader valide ce qui est présent et n'invente aucun défaut.
+
+🛑 **Et aucun nombre de repli dans le Java**, ce que la doctrine interdit (`TcfJourneyConfig` :
+« pas de défaut, pas de constante de repli, pas de `?:` »). C'est possible parce que les deux
+absences se traduisent par un **fait déjà calculé**, pas par un chiffre :
+`examenDeFinDeCycleOuvert(...)` retombe sur `complete`, et `quotaDeSerieAtteint(...)` sur la
+seule réussite. Trois versions sont verrouillées par test (v1, v2, v3), sur la **règle** et pas
+seulement sur la clé.
+
+### A152 — Le **complément par thème** est civique, et le TCF n'en avait pas besoin
+
+Le propriétaire : « s'il n'y en a pas 20 (**surtout en civique**), compléter avec les questions
+du même thème ». Mesuré sur la base locale : l'unité officielle la plus mince du programme porte
+**20** questions de connaissance, plusieurs sont juste au-dessus — une désactivation éditoriale
+suffit à passer dessous.
+
+🛑 **Priorité absolue aux questions de l'unité** : le complément n'intervient qu'après, sans
+jamais entamer leur place, et reste **dans la thématique de l'unité**.
+
+**Côté TCF, rien n'a été ajouté** : `findLeastRecentlySeen` tire déjà 20 questions du **même
+domaine et du même palier**, et le compositeur par blueprint le fait avant lui. Ajouter un
+complément « hors palier » aurait changé ce que la série mesure — les observations de
+compréhension ventilent par niveau **réel** des questions.
+
+⚠️ **Pourquoi ce complément n'est pas cosmétique** : le seuil est calculé sur **20** (A147). Une
+série de 5 questions rendrait la carte **impossible à valider**, et depuis A146 rien ne
+débloquerait le candidat.
+
+### A153 — 🛑 **`AttemptMode` porte le régime de passation**, et il est SERVI
+
+Le fait « cette session ne montre pas les corrections » devait être **servi**, jamais déduit
+d'une route ou d'un paramètre d'URL. La forme la **moins dupliquante** existait déjà :
+`attempts.mode` (`AttemptMode`), colonne `NOT NULL` depuis toujours, dérivée du type par
+`Attempt.prePersist` et lue par **personne**.
+
+Elle devient le porteur de la question, et `AttemptResponse.mode` la sert :
+
+| `mode` | Pendant la session | Audio (CO) |
+|---|---|---|
+| `ENTRAINEMENT` | correction immédiate après chaque réponse | réécoutable |
+| `EXAMEN` | **aucune** correction : ni bonne réponse, ni explication | **joué une seule fois** |
+| `REVISION` | aucune correction | réécoutable |
+
+🛑 **La même valeur est opposée** : `AttemptInteractionService.doSubmitAnswer` ne renvoie la
+correction qu'en `ENTRAINEMENT`. L'écran et le refus ne peuvent pas diverger. Le comportement
+historique est **inchangé** (`TRAINING→ENTRAINEMENT`, `MOCK_EXAM→EXAMEN`, `REVIEW→REVISION`) ;
+ce qui s'y ajoute est la **série d'étape** : un `TRAINING` (freemium, historique et observations
+inchangés) posé en `EXAMEN`.
+
+⚠️ **`Attempt.regime()`** rend `mode`, ou ce que `prePersist` poserait quand l'objet n'est pas
+encore persisté. Une seule table de dérivation : une session ne se comporte pas autrement selon
+qu'elle a déjà touché la base.
+
+**Alternative écartée** : deux booléens `correctionImmediate` / `ecouteUnique`. Ils co-varient
+toujours, et le mobile aurait alors porté **trois** façons de répondre à la même question (les
+deux nouveaux + `moduleExamQuestionType != null`).
+
+### A154 — Ce que l'écran d'étape sert **en plus** du contrat, et pourquoi
+
+- **`bloc` et `objectif` servis avec leur libellé** dans les **deux** modules (patron D-47/A47) :
+  un `TargetLevel` aurait privé l'écran civique de son « Plan — Naturalisation ». C'est
+  `Journey.objectifRef()`, relayé tel quel.
+- **`JourneyUniteDetailDto (code, label, description)`**, un record **à part** de
+  `JourneyUniteRefDto` : celui-là est servi sur la file **entière**, et y ajouter une description
+  la ferait voyager sur toutes les étapes de tous les cycles pour un seul écran qui la lit.
+  ⚠️ **`description` est `null` en civique** : `civic_official_units` **ne porte pas** la colonne,
+  et aucune migration n'était autorisée dans cette passe. L'écran n'affiche alors rien.
+- **`dureeEstimeeMin` dérivée**, jamais posée : côté TCF de la **donnée officielle**
+  (`DureeEpreuve` ÷ `MODULE_EXAM_TOTAL` × 20, soit 20 min / 25 questions × 20 = **16 min** en CO),
+  côté civique de `civic-plan.secondes-par-question`. `null` si non calculable.
+- **`priorite` = `severity_rank != null`** — « cette étape vient d'une priorité détectée par une
+  évaluation ». ⚠️ **Décision autonome à confirmer** : les deux modules numérotent leurs rangs
+  différemment (0-based en TCF, 1-based en civique), donc « rang 1 » n'était pas lisible comme
+  un critère. En pratique toute `TRAIN_SKILL` de lot en porte un, donc le drapeau vaut presque
+  toujours `true`.
+- **Le verrou de l'étape et celui de la carte sont DEUX champs** : l'un dit « vous n'avez pas
+  accès », l'autre « réussissez d'abord la précédente ». Les fondre aurait empêché l'écran de
+  dire lequel s'applique.
+- **404 (jamais 403) sur l'étape d'un autre candidat** : répondre « interdit » confirmerait
+  l'existence du cycle d'un tiers.
+- **422 sur une étape qui ne se travaille pas par séries** (expression, examen) : l'écran n'a pas
+  de cartes à montrer, et servir un contrat vide aurait laissé croire le contraire.
+
+### A155 — `civic-plan.questions-par-serie` passe à 20 **partout**
+
+Le propriétaire a dit « passer aussi à 20 » **sans restreindre**. Lecture la plus stricte : 20
+partout dans le civique, **y compris les séries du plan dérivé** (`demarrerSerie`), pas seulement
+celles du cycle.
+
+⚠️ **Deux surfaces bougent en conséquence, et c'est voulu** : la taille annoncée d'une cible du
+plan civique (`CivicPlanDto.Cible.questionsSerie`, toujours `min(20, stock)`) et sa durée
+annoncée, qui s'en dérive (36 s × 20 = **12 min** au lieu de 6). Aucun écran n'a à être touché :
+les deux chiffres sont servis.
+
+**Si l'arbitrage était autre** (« 20 seulement pour les séries d'étape ») : il faudrait une
+seconde clé de taille, donc **deux** dénominateurs pour un même seuil de réussite. C'est
+exactement ce que le dépôt paie le plus cher, et c'est pourquoi la lecture large a été retenue.

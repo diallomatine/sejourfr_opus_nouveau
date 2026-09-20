@@ -159,6 +159,49 @@ export function journeyKind(step: JourneyStepDto): JourneyKind {
     return step.type === "SECTION_EXAM" ? "exam" : "step";
 }
 
+/* ==========================================================================
+   L'ÉCRAN D'UNE ÉTAPE DE SÉRIES (2026-09-20)
+
+   🛑 **Une étape de COMPRÉHENSION ou CIVIQUE ne lance plus sa série depuis le
+   cycle** : elle ouvre l'écran qui la déplie — sa compétence, son avancement,
+   ses deux séries. Les libellés de cet écran vivent dans `lib/journey-etape.ts`
+   (miroir de `journey_etape_labels.dart`) ; ce qui vit ICI, c'est **quelle
+   étape y mène**, parce que c'est une lecture du parcours.
+   ========================================================================== */
+
+/** L'adresse de l'écran d'une étape. 🛑 Une seule constante : un chemin recopié
+ *  dans un composant finirait par diverger du router. */
+export const JOURNEY_ETAPE_HREF = "/plan/etape";
+
+/**
+ * **Où mène une étape de séries**, module compris.
+ *
+ * 🛑 **`?module=` est le seul mécanisme de sélection de module du web** : le
+ * cycle sait dans quel parcours il est, l'écran d'étape le lit pour savoir où
+ * son retour remonte. Le TCF garde l'adresse nue.
+ */
+export function journeyEtapeHref(stepId: string, module: ParcoursModule): string {
+    const base = `${JOURNEY_ETAPE_HREF}/${stepId}`;
+    return module === "TCF" ? base : `${base}?module=${module}`;
+}
+
+/**
+ * **Cette étape se travaille-t-elle par SÉRIES ?**
+ *
+ * 🛑 **Le discriminant est `taskCode`**, le seul fait servi qui sépare les deux
+ * grains d'une étape `TRAIN_SKILL` (cf. `JourneyStepDto.taskCode` : « `null` =
+ * compétence de COMPRÉHENSION ») — et une étape civique n'en porte pas non
+ * plus. `progress.unit` serait plus explicite, mais il n'est **pas servi** sur
+ * une étape civique (`JourneyReadService.progression` rend `null` sans
+ * compétence), donc s'appuyer dessus aurait laissé tout le civique de côté.
+ *
+ * ⚠️ **Les étapes d'EXPRESSION (EE/EO) restent en dehors** : elles portent une
+ * tâche, et leur chemin vers leurs petits sujets ne change pas.
+ */
+export function journeyEtapeASeries(step: JourneyStepDto): boolean {
+    return step.type === "TRAIN_SKILL" && step.taskCode === null;
+}
+
 /**
  * L'avancement, dans **l'unité servie**.
  *

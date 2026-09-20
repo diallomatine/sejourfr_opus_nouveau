@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sejourfr_mobile/core/models/attempt_models.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/core/models/journey_models.dart';
 import 'package:sejourfr_mobile/core/api/learning_plan_repository.dart';
@@ -86,6 +87,16 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
 
   @override
   Future<JourneyHistory> history({AppModule module = AppModule.tcf}) =>
+      throw UnimplementedError();
+
+  /// Le detail d'une etape et le demarrage d'une serie n'entrent pas non plus
+  /// dans ce que ce test verifie.
+  @override
+  Future<JourneyStepDetail> stepDetail(String stepId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Attempt> startSerie(String stepId, int index) =>
       throw UnimplementedError();
 }
 

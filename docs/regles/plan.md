@@ -2024,20 +2024,23 @@ modèle** (nouvelle valeur de `lotSelectionStrategy`).
 | Famille | Quota | Autorité **lue** |
 |---|---|---|
 | EE / EO | les **5 sujets de l'étape** traités | `LearningPlanStep.Progress.completed()` |
-| CO / CE | **2 séries réussies**, **ou** **4 séries terminées** depuis la création de l'étape | `trainSeriesQuota` / `trainSeriesFallbackQuota` (config v2) |
+| CO / CE | **2 séries réussies** — ⚠️ **le filet des 4 séries terminées est SUPPRIMÉ** (2026-09-20) | `trainSeriesQuota` (config v3) + `JourneySerieVerdict` |
 
 🛑 **D-16 (2026-09-18) révoque la ligne CO/CE précédente**, verbatim : « CO / CE — **2 séries
 ciblées** terminées depuis la création de l'étape », et avec elle la doctrine de D-5 inscrite
-dans le code (« le quota mesure le **travail fourni**, pas la réussite »). **L'échappatoire des
-4 séries terminées existe pour une raison nommée : un candidat faible ne doit jamais rester
-bloqué sur une étape.**
+dans le code (« le quota mesure le **travail fourni**, pas la réussite »).
 
-🛑 **« Réussie » est LUE, jamais recalculée** : le verdict d'une série de compréhension est déjà
-écrit — `ComprehensionObservationService` pose `learning_plan_observations.status = SOLID` dès
-que le ratio atteint `learning-plan.comprehension.solid-ratio` (0.80). On relit ce statut, donc
-**aucune 8ᵉ déclaration du seuil**, aucun second ratio. ⚠️ Un `NOT_OBSERVED` compte comme
-**terminée** (la série a été jouée) et **jamais** comme réussie — « non observé » reste
-**inconnu, jamais mauvais**.
+⚠️ **Et le 2026-09-20 révoque la SUITE de D-16 sur ce point** : *« l'échappatoire des 4 séries
+terminées existe pour une raison nommée : un candidat faible ne doit jamais rester bloqué sur
+une étape »* est **révoqué**, le filet est **supprimé**. La conséquence est assumée et validée
+par le propriétaire. → § « **L'ÉCRAN D'ÉTAPE** » en fin de fichier, qui prime sur ce paragraphe.
+
+🛑 **« Réussie » a changé d'autorité le 2026-09-20.** Jusque-là elle se lisait sur
+`learning_plan_observations.status = SOLID`, un statut calculé sur les **seules questions du
+palier visé** tombées dans la série. C'est désormais **littéral** : 16 bonnes réponses sur les
+20 de la série, lues sur l'attempt (`JourneySerieVerdict`). Le 16 reste **dérivé** de
+`learning-plan.comprehension.solid-ratio` × la taille de la série — **aucune 8ᵉ déclaration du
+seuil**.
 
 🛑 **Deux nombres, deux clés** : `trainSeriesQuota` garde son nom et compte les séries
 **réussies** ; `trainSeriesFallbackQuota` porte l'échappatoire. Un seul nombre pour deux sens
@@ -2224,13 +2227,10 @@ jamais « A2 » par défaut (A35).
 
 ### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
 
-**2 séries réussies**, **ou 4 terminées** — l'échappatoire existe pour qu'un candidat faible
-ne reste **jamais bloqué**. 🛑 La réussite est **lue** sur
-`learning_plan_observations.status = SOLID`, écrit par `ComprehensionObservationService` au
-seuil `learning-plan.comprehension.solid-ratio` : **aucune huitième déclaration de 0.80**.
-`progress` sert les séries **réussies** (`done`) et `trainSeriesQuota` (`quota`) ;
-l'échappatoire ne s'affiche pas — annoncer « 2 séries ratées sur 4 » inviterait à échouer
-vite, et un filet annoncé n'en est plus un.
+⚠️ **Amendé le 2026-09-20** : **2 séries réussies**, et **plus aucune échappatoire** — le filet
+des 4 séries terminées est **supprimé**. `progress` sert les séries **réussies** (`done`) et
+`trainSeriesQuota` (`quota`), inchangé. Détail et conséquences : § « **L'ÉCRAN D'ÉTAPE** » en
+fin de fichier.
 
 ### Ce que les fronts affichent, et ce qu'ils ne savent pas
 
@@ -2253,3 +2253,165 @@ plus ancien : dates, nombres de compétences et d'examens **clôturés**, compé
 Les trois compteurs du bandeau portent sur **tous** les cycles, le cycle en cours compris —
 l'écran dit « tout ce que vous avez déjà travaillé ». Le cycle **en attente** n'y paraît
 jamais.
+
+---
+
+## L'ÉCRAN D'ÉTAPE — deux séries à réussir, et plus aucun filet (2026-09-20)
+
+> Règles **arbitrées et fermées par le propriétaire**.
+> Décisions autonomes : `docs/decisions-autonomes-parcours-tcf.md` **A146 → A155**.
+> Migration : `V072__journey_step_series.sql`. Configuration : `plan/tcf-journey-config-v3.json`.
+> Endpoints : `GET /api/me/plan/journey/steps/{stepId}` · `POST …/steps/{stepId}/series/{index}`.
+
+⚠️ **Cette section prime** sur « R8 » et sur « Le quota d'une étape de compréhension » plus haut,
+pour tout ce qui touche à la clôture d'une étape de **séries** et au déblocage de l'examen de
+**fin de cycle**. Le reste (R1, le budget de 3, l'étape exécutable, le verrou de bloc) est
+inchangé.
+
+### Ce qui change, en une phrase
+
+Une étape `TRAIN_SKILL` de **compréhension** (CO/CE) et une étape **civique** ne lancent plus
+une série directement : elles ouvrent un **écran d'étape** qui montre les **2 séries à
+réussir**, leur état, leur score, et permet de les lancer ou de les **refaire**.
+
+### Les sept règles
+
+1. Une compétence CO/CE (et une unité civique) se valide par **2 séries RÉUSSIES**.
+2. Une série = **20 questions**, réussie à **16/20 minimum**.
+3. 🛑 **Le filet des 4 séries terminées est SUPPRIMÉ.** Plus aucune clôture automatique après
+   des échecs. ⚠️ **Conséquence assumée et validée** : un candidat qui ne passe jamais 16/20
+   **reste sur sa compétence**. C'était exactement ce que le filet de D-16 évitait ;
+   l'arbitrage a été rendu contre, en connaissance de cause.
+4. **La série 2 ne se débloque qu'après RÉUSSITE de la série 1** — pas « faite » : réussie.
+5. **Dès qu'une série est réussie une fois, elle est définitivement validée.** La refaire et la
+   rater ne la dévalide pas. La carte affiche toujours le **dernier** score.
+6. Le **résultat complet et corrigé** d'une série jouée reste consultable, comme les séries de
+   « Réviser » (`GET /api/attempts/{id}` révèle les corrections une fois la session terminée).
+7. **Pendant la série : AUCUNE correction affichée** — ni bonne réponse, ni explication. En CO,
+   **l'audio ne se joue qu'une seule fois**. C'est le comportement des examens blancs, appliqué
+   à une série d'entraînement.
+
+### « Réussie » est LITTÉRALE, et elle a UNE autorité
+
+🛑 **`JourneySerieVerdict`** : **16 bonnes réponses sur les 20 de la série**, lues sur
+l'attempt. La **lecture** (l'écran, `validee`, `progress.done`) et l'**écriture** (la clôture,
+`JourneyReadService.etapesAuQuota` → `JourneyService.onTrainingProgress`) partagent cette
+**fonction** — une étape ne se clôt jamais sur une règle différente de celle qui l'affiche.
+
+🛑 **Le 16 n'est écrit nulle part.** Il se dérive de `learning-plan.comprehension.solid-ratio`
+(0,80) × la **taille de la série** : `AttemptService.COMPREHENSION_SERIES_SIZE` (TCF) ou
+`civic-plan.questions-par-serie` (civique). Changer le ratio change le seuil servi, l'écran et
+la clôture **ensemble**.
+
+⚠️ **Le seuil porte sur la taille NOMINALE**, pas sur ce qui a été tiré : une série de 18
+questions se réussit toujours à 16, pas à 15. C'est le chiffre **servi avant de commencer**.
+
+⚠️ **Ce qu'on compte a changé d'ensemble** : les essais **lancés depuis les cartes de cette
+étape** (`journey_step_series`), et eux seuls. Une série ciblée lancée ailleurs (plan dérivé,
+« Réviser ») reste un entraînement utile qui alimente la maîtrise, mais **ne valide aucune
+carte**.
+
+### `journey_step_series` — le LIEN est persisté, jamais le verdict
+
+C'est la **troisième** exception assumée à « un dérivé se relit » (avec `plan_pinned_priorities`
+V065 et le parcours V066), et elle a le **même critère** : « le candidat a lancé la série n°2 de
+**cette** étape » est une décision prise à un instant, que rien ne permet de recalculer.
+
+- pas de colonne `reussie`, `validee` ni `score` — tout se relit sur l'attempt ;
+- **aucune unicité** sur `(step_id, series_index)` : « refaire » **ajoute** une ligne, ce qui
+  donne le dernier score et l'historique sans rien écraser ;
+- unicité sur `attempt_id` : une session appartient à **une** carte.
+
+### Ce qui est SERVI, et ce que les fronts composent
+
+`GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` :
+`stepId`, `type`, `bloc`, `unite` *(code, label, description — `description` nulle en civique)*,
+`section`, `objectif` *(kind, code, label : un palier **ou** une mention)*, `priorite`, `quota`,
+`validees`, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`, `locked`, `series[]`.
+
+`JourneySerieDto` : `index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`,
+`dernierEssaiAt`.
+
+🛑 **`validee` et `validees` sont SERVIS.** Sans eux, un front comparerait `dernierScore` à
+`seuilReussite` — il **classerait un nombre en état pédagogique**, ce que le dépôt interdit.
+
+🛑 **Aucune phrase servie.** « À faire », « Verrouillée », « Réussie », « À refaire » se
+composent des fronts à partir de `locked`, `validee` et de la nullité de `dernierScore`.
+
+🛑 **Deux verrous distincts** : `JourneyStepDetailDto.locked` est le verrou **freemium** de
+l'étape ; `JourneySerieDto.locked` dit « réussissez d'abord la précédente ». Les fondre aurait
+empêché l'écran de dire lequel s'applique.
+
+`POST …/steps/{stepId}/series/{index}` → `AttemptResponse` (le même DTO que tous les
+lancements). **403** si l'étape ou la carte est verrouillée, **422** si l'index sort du quota ou
+si la banque ne peut rien servir, **404** sur l'étape d'un autre candidat.
+
+🛑 **Un seul endpoint pour les deux modules** : il résout TCF vs civique depuis l'étape
+(compétence XOR unité officielle) et **délègue** la composition à
+`AttemptService.demarrerSerieDeCarte` / `CivicPlanService.demarrerSerieSurUnite`.
+
+### « Pas de correction / audio une fois » est SERVI — `AttemptResponse.mode`
+
+🛑 La session reste un **`AttemptType.TRAINING`** (freemium, historique et observations
+inchangés) mais elle est posée en **`AttemptMode.EXAMEN`** :
+
+| `mode` | Pendant la session | Audio (CO) |
+|---|---|---|
+| `ENTRAINEMENT` | correction immédiate après chaque réponse | réécoutable |
+| `EXAMEN` | **aucune** correction : ni bonne réponse, ni explication | **joué une seule fois** |
+| `REVISION` | aucune correction | réécoutable |
+
+`attempts.mode` existait déjà (`NOT NULL`, dérivée du type, **lue par personne**) : elle devient
+le porteur de ce fait plutôt qu'un second champ. **La même valeur est opposée** —
+`AttemptInteractionService.doSubmitAnswer` ne renvoie la correction qu'en `ENTRAINEMENT`. Aucun
+front ne déduit ce fait d'une route ni d'un paramètre d'URL.
+
+### Composition d'une série
+
+**Priorité absolue aux questions de la compétence / de l'unité visée.** S'il n'y en a pas 20 —
+surtout en civique, où une unité officielle peut être mince — on **complète avec les questions
+de la même thématique**. Le tirage est **aléatoire**, donc **varie à chaque essai** : « refaire »
+n'est pas un rejeu à l'identique.
+
+⚠️ **Côté TCF rien n'a été ajouté** : le tirage existant sert déjà 20 questions du même domaine
+et du même palier. Compléter hors palier aurait changé ce que la série mesure.
+
+### L'examen de FIN DE CYCLE se débloque à 80 %
+
+🛑 **Les 80 % portent sur l'examen qui CLÔT LE CYCLE** (`POST …/journey/measurement-cycle` et
+`nextStep.examenCompletPossible`), **jamais** sur l'examen d'épreuve à l'intérieur d'un bloc,
+qui garde son verrou (D-15).
+
+- `examenCompletPossible` devient vrai dès **80 %** des étapes du cycle terminées ;
+- `actualisationPossible` **garde sa règle** : le cycle entier. Ce geste historise et promeut le
+  suivant — l'offrir à 80 % jetterait du travail que le candidat n'a pas demandé à abandonner ;
+- `cycle.complete` **ne bouge pas** : c'est le fait « plus aucune étape ouverte », celui dont
+  l'écran tire « **Cycle entièrement travaillé** ». Le serveur sert le fait, le front la phrase.
+
+⚠️ **Règle NON FIGÉE**, annoncée comme appelée à bouger : la part vit dans
+`plan/tcf-journey-config-v3.json` (`finDeCycleExamenRatio`), **pas dans le Java**.
+
+### La configuration v3, et pourquoi v1 et v2 restent chargeables
+
+`TCF_JOURNEY_CONFIG_VERSION` vaut **3** par défaut. v3 **omet** `trainSeriesFallbackQuota` et
+**ajoute** `finDeCycleExamenRatio: 0.80`.
+
+🛑 **Une clé absente est une RÈGLE**, jamais un zéro silencieux : pas d'échappatoire, pas de
+déblocage anticipé. C'est ce qui permet à v1 (`fallback = 2`) et v2 (`fallback = 4`) de rester
+chargeables **à l'identique** sans être réécrites — un contrat livré ne se réécrit pas.
+
+🛑 **Et aucun nombre de repli dans le Java** : les deux absences se traduisent par un fait déjà
+calculé (`complete` pour le cycle, la seule réussite pour le quota), pas par une constante.
+
+**Le retour arrière est une variable d'environnement** : `TCF_JOURNEY_CONFIG_VERSION=2` rend le
+filet, jamais une migration.
+
+### Civique : 20 questions PARTOUT
+
+`civic-plan.questions-par-serie` passe de 10 à **20**. Lecture la plus stricte de « passer aussi
+à 20 », sans restriction : **toutes** les séries civiques, y compris celles du **plan dérivé**.
+
+⚠️ **Deux surfaces bougent en conséquence, et c'est voulu** : la taille annoncée d'une cible du
+plan civique (`CivicPlanDto.Cible.questionsSerie`, toujours `min(20, stock)`) et sa durée
+annoncée, qui s'en dérive (**12 min** au lieu de 6). Les deux sont **servies** : aucun écran n'a
+à être touché.

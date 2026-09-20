@@ -36,7 +36,7 @@ class JourneyLotBuilderTest {
     private static final Instant T0 = Instant.parse("2026-09-17T10:00:00Z");
 
     private final JourneyLotBuilder builder = new JourneyLotBuilder(
-            new TcfJourneyConfig(1, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, 4,
+            new TcfJourneyConfig(3, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, null, 0.80,
                     new TcfJourneyConfig.Display(3, 5)));
 
     // ------------------------------------------------------------------ R2

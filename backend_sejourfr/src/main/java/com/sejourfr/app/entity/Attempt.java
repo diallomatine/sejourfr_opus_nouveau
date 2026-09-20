@@ -215,6 +215,20 @@ public class Attempt {
         if (epreuve == null) epreuve = deriveEpreuveFromModule(module);
     }
 
+    /**
+     * <b>Le REGIME DE PASSATION effectif</b> — l'unique lecture de {@code mode}.
+     *
+     * <p>🛑 {@code attempts.mode} est {@code NOT NULL} en base et pose par
+     * {@link #prePersist()} ; sur un objet <b>pas encore persiste</b>, il peut
+     * etre {@code null}. On rend alors <b>exactement</b> ce que
+     * {@code prePersist} poserait : une seule table de derivation, donc aucune
+     * chance qu'un attempt se comporte autrement selon qu'il a deja touche la
+     * base ou non.
+     */
+    public AttemptMode regime() {
+        return mode != null ? mode : deriveModeFromType(type);
+    }
+
     private static AttemptMode deriveModeFromType(AttemptType t) {
         if (t == null) return AttemptMode.ENTRAINEMENT;
         return switch (t) {

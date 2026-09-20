@@ -11,6 +11,56 @@ enum AttemptType {
   final String wire;
 }
 
+/// **Le RÉGIME DE PASSATION d'une session** — *comment* elle se joue, par
+/// opposition à [AttemptType], qui dit ce qu'elle **est** (et décide du
+/// freemium, de l'historique et des observations).
+///
+/// 🛑 **Ce n'est plus un miroir du type** (2026-09-20). Une **série lancée
+/// depuis une carte d'étape du Plan** est un [AttemptType.training] — pour ne
+/// rien changer au freemium ni à l'historique — **posée en [examen]** : aucune
+/// correction pendant la passation, et l'audio de compréhension orale ne se
+/// joue qu'**une fois**.
+///
+/// 🛑 **C'est la MÊME valeur que le serveur oppose** : il ne renvoie la
+/// correction qu'en [entrainement]. Un front qui déduirait le régime d'une
+/// route, d'un `?from=` ou du type finirait par montrer autre chose que ce que
+/// le serveur répond.
+///
+/// Miroir de `AttemptMode` (`web_sejoufr/lib/types.ts`).
+enum AttemptMode {
+  /// Correction immédiate après chaque réponse ; audio réécoutable.
+  entrainement('ENTRAINEMENT'),
+
+  /// **Aucune correction pendant la passation** — ni bonne réponse, ni
+  /// explication — et l'audio de CO ne se joue qu'**une seule fois**.
+  examen('EXAMEN'),
+
+  /// Session de révision : pas de correction en cours de session.
+  revision('REVISION');
+
+  const AttemptMode(this.wire);
+  final String wire;
+
+  static AttemptMode? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final mode in AttemptMode.values) {
+      if (mode.wire == value) return mode;
+    }
+    return null;
+  }
+
+  /// Le repli d'un client servi par un backend **antérieur au champ** —
+  /// exactement la table de `Attempt.prePersist` côté serveur, pour qu'une
+  /// session ne se comporte pas autrement selon qu'elle porte le champ ou non.
+  /// 🛑 **Ce n'est pas une déduction** : c'est la valeur que le serveur aurait
+  /// posée lui-même.
+  static AttemptMode repliDepuisType(AttemptType type) => switch (type) {
+        AttemptType.mockExam => AttemptMode.examen,
+        AttemptType.review => AttemptMode.revision,
+        AttemptType.training => AttemptMode.entrainement,
+      };
+}
+
 /// Demande de création d'un attempt.
 ///
 /// Si [examTemplateId] est fourni, le backend ignore les autres filtres et
@@ -125,6 +175,7 @@ class Attempt {
   Attempt({
     required this.id,
     required this.type,
+    required this.mode,
     required this.module,
     required this.totalQuestions,
     required this.startedAt,
@@ -146,6 +197,14 @@ class Attempt {
 
   final String id;
   final AttemptType type;
+
+  /// **Le régime de passation** — le seul fait qui dise si le candidat voit les
+  /// corrections pendant qu'il joue, et si l'audio CO se rejoue.
+  ///
+  /// 🛑 **Lu, jamais déduit** : ni du [type], ni d'une route, ni d'un paramètre
+  /// de requête.
+  final AttemptMode mode;
+
   final AppModule module;
   final int totalQuestions;
   final DateTime startedAt;
@@ -182,6 +241,13 @@ class Attempt {
   final List<AttemptEpreuveResult> epreuveResults;
 
   bool get isMockExam => type == AttemptType.mockExam;
+
+  /// 🛑 **Le régime, jamais le type.** `EXAMEN` couvre tout [isMockExam] **et**
+  /// les séries d'étape du Plan, qui restent des `TRAINING`.
+  bool get estExamen => mode == AttemptMode.examen;
+
+  /// Le seul régime où la correction s'affiche pendant la passation.
+  bool get estEntrainement => mode == AttemptMode.entrainement;
   bool get isFinished => finishedAt != null;
   bool get isTcf => module == AppModule.tcf;
   bool get isModuleExam => moduleExamQuestionType != null;
@@ -190,6 +256,11 @@ class Attempt {
         id: json['id'] as String,
         type: AttemptType.values
             .firstWhere((e) => e.wire == json['type'] as String),
+        mode: AttemptMode.fromWireNullable(json['mode'] as String?) ??
+            AttemptMode.repliDepuisType(
+              AttemptType.values
+                  .firstWhere((e) => e.wire == json['type'] as String),
+            ),
         module: AppModule.fromWire(json['module'] as String),
         examTemplateId: json['examTemplateId'] as String?,
         examTemplateSlug: json['examTemplateSlug'] as String?,

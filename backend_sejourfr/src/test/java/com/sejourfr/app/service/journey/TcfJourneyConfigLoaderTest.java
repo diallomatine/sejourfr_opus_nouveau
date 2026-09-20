@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TcfJourneyConfigLoaderTest {
 
     /** La version reellement servie en production, defaut de {@code application.yaml}. */
-    private static final int VERSION_LIVREE = 2;
+    private static final int VERSION_LIVREE = 3;
 
     @Test
     @DisplayName("La version livree se charge et porte toutes ses valeurs")
@@ -32,7 +32,10 @@ class TcfJourneyConfigLoaderTest {
         assertThat(config.journeyConfigVersion()).isEqualTo(VERSION_LIVREE);
         assertThat(config.maxPrioritiesPerLot()).isPositive();
         assertThat(config.trainSeriesQuota()).isPositive();
-        assertThat(config.trainSeriesFallbackQuota()).isPositive();
+        // 🛑 v3 n'a PLUS d'echappatoire : la cle est absente, et son absence est
+        // une regle, pas un oubli.
+        assertThat(config.trainSeriesFallbackQuota()).isNull();
+        assertThat(config.finDeCycleExamenRatio()).isEqualTo(0.80);
         assertThat(config.lotSelectionStrategy())
                 .isEqualTo(JourneyLotSelectionStrategy.TOP_SEVERITY);
         assertThat(config.display().recentCompletedVisible()).isNotNegative();
@@ -42,9 +45,9 @@ class TcfJourneyConfigLoaderTest {
     /**
      * 🛑 <b>Le defaut du YAML et la version reellement livree ne peuvent pas
      * diverger.</b> Sans ce verrou, bumper le fichier sans bumper
-     * {@code application.yaml} aurait fait tourner la production sur l'ancienne
-     * semantique de {@code trainSeriesQuota} — « series terminees » au lieu de
-     * « series reussies » — sans que rien n'echoue.
+     * {@code application.yaml} aurait fait tourner la production avec le filet
+     * des 4 series terminees, que le proprietaire a supprime — sans que rien
+     * n'echoue.
      */
     @Test
     @DisplayName("Le defaut de application.yaml pointe la version livree")
@@ -53,20 +56,73 @@ class TcfJourneyConfigLoaderTest {
     }
 
     /**
-     * R2 — le lot retient <b>3</b> priorites par epreuve. D-16 clot une etape de
-     * comprehension apres <b>2</b> series <b>reussies</b>, ou <b>4</b> series
-     * <b>terminees</b>. Ces trois chiffres sont ceux que le proprietaire a
-     * tranches : les verrouiller ici evite qu'un reglage d'affichage les deplace
-     * par ricochet.
+     * Les valeurs que le proprietaire a tranchees : <b>3</b> priorites par
+     * epreuve (R2), <b>2</b> series reussies pour clore une etape, <b>aucune</b>
+     * echappatoire, et l'examen de fin de cycle a <b>80 %</b>. Les verrouiller
+     * ici evite qu'un reglage d'affichage les deplace par ricochet.
      */
     @Test
-    @DisplayName("Les trois valeurs arbitrees sont celles de D-16 et D-20")
-    void lesTroisValeursArbitreesSontCellesDesArbitrages() {
+    @DisplayName("Les valeurs arbitrees de v3 : 3 / 2 / aucun filet / 80 %")
+    void lesValeursArbitreesSontCellesDesArbitrages() {
         TcfJourneyConfig config = TcfJourneyConfigLoader.load(VERSION_LIVREE);
 
         assertThat(config.maxPrioritiesPerLot()).isEqualTo(3);
         assertThat(config.trainSeriesQuota()).isEqualTo(2);
-        assertThat(config.trainSeriesFallbackQuota()).isEqualTo(4);
+        assertThat(config.trainSeriesFallbackQuota()).isNull();
+        assertThat(config.finDeCycleExamenRatio()).isEqualTo(0.80);
+    }
+
+    /**
+     * 🛑 <b>LE FILET EST SUPPRIME, et ca se verifie sur la REGLE, pas sur la
+     * cle.</b> Quatre series jouees, aucune reussie : l'etape ne se clot pas.
+     * C'est la consequence assumee et validee par le proprietaire — un candidat
+     * qui ne passe jamais le seuil reste sur sa competence.
+     */
+    @Test
+    @DisplayName("v3 — quatre series jouees sans reussite ne closent RIEN")
+    void v3NOffrePlusAucuneEchappatoire() {
+        TcfJourneyConfig v3 = TcfJourneyConfigLoader.load(3);
+
+        assertThat(v3.quotaDeSerieAtteint(0, 4)).isFalse();
+        assertThat(v3.quotaDeSerieAtteint(1, 9)).isFalse();
+        assertThat(v3.quotaDeSerieAtteint(2, 2)).isTrue();
+    }
+
+    /**
+     * 🛑 <b>v2 garde SON filet</b> : la regle se lit dans la configuration
+     * chargee, jamais dans le Java. C'est ce qui fait du retour arriere une
+     * variable d'environnement.
+     */
+    @Test
+    @DisplayName("v2 garde son echappatoire de 4 series terminees")
+    void v2GardeSonEchappatoire() {
+        TcfJourneyConfig v2 = TcfJourneyConfigLoader.load(2);
+
+        assertThat(v2.trainSeriesFallbackQuota()).isEqualTo(4);
+        assertThat(v2.quotaDeSerieAtteint(0, 4)).isTrue();
+        assertThat(v2.quotaDeSerieAtteint(0, 3)).isFalse();
+    }
+
+    /**
+     * L'examen qui <b>clot le cycle</b> s'ouvre a 80 % des etapes terminees
+     * (v3), et au cycle entier pour les versions qui ne portent pas la cle.
+     *
+     * <p>Un cycle <b>vide</b> n'ouvre rien par le ratio (0 sur 0 n'est pas 80 %)
+     * mais reste couvert par {@code complete}, qui est vrai pour lui.
+     */
+    @Test
+    @DisplayName("L'examen de fin de cycle : 80 % en v3, cycle entier avant")
+    void lExamenDeFinDeCycleSuitLaVersionChargee() {
+        TcfJourneyConfig v3 = TcfJourneyConfigLoader.load(3);
+        assertThat(v3.examenDeFinDeCycleOuvert(7, 10, false)).isFalse();
+        assertThat(v3.examenDeFinDeCycleOuvert(8, 10, false)).isTrue();
+        assertThat(v3.examenDeFinDeCycleOuvert(10, 10, true)).isTrue();
+        assertThat(v3.examenDeFinDeCycleOuvert(0, 0, true)).isTrue();
+
+        TcfJourneyConfig v2 = TcfJourneyConfigLoader.load(2);
+        assertThat(v2.finDeCycleExamenRatio()).isNull();
+        assertThat(v2.examenDeFinDeCycleOuvert(9, 10, false)).isFalse();
+        assertThat(v2.examenDeFinDeCycleOuvert(10, 10, true)).isTrue();
     }
 
     /**
@@ -85,6 +141,9 @@ class TcfJourneyConfigLoaderTest {
         assertThat(v1.journeyConfigVersion()).isEqualTo(1);
         assertThat(v1.trainSeriesQuota()).isEqualTo(2);
         assertThat(v1.trainSeriesFallbackQuota()).isEqualTo(v1.trainSeriesQuota());
+        assertThat(v1.finDeCycleExamenRatio())
+                .as("v1 ne porte pas la cle : l'examen de fin de cycle attend le cycle entier")
+                .isNull();
     }
 
     /** Une version absente ne demarre pas en silence sur des valeurs par defaut. */
