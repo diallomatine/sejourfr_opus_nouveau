@@ -98,12 +98,23 @@ export function journeyStepSubtitle(step: JourneyStepDto): string | undefined {
  * `journeyStepSubtitle` continue de porter l'épreuve : sans elle, ces surfaces
  * deviendraient muettes sur le domaine travaillé.
  */
-export function journeyCycleStepTitle(step: JourneyStepDto): string {
-    /* 🛑 `taskCode` nul = compétence de COMPRÉHENSION (ou unité civique) : il
-       n'y a **pas** de tâche à promouvoir, et on ne lui en invente pas une. La
-       ligne garde alors son intitulé en titre. */
-    if (step.type === "TRAIN_SKILL" && step.taskCode) return tacheLabel(step.taskCode);
-    return journeyStepTitle(step);
+export function journeyCycleStepTitle(
+    step: JourneyStepDto,
+    niveau?: string | null,
+): string {
+    if (step.type !== "TRAIN_SKILL") return journeyStepTitle(step);
+    /* 🛑 `taskCode` nul = compétence de COMPRÉHENSION : il n'y a **pas** de
+       tâche à promouvoir, et on ne lui en invente pas une. Elle porte en
+       revanche un **palier**, et c'est lui qui la situe — « B1 · Comprendre
+       l'implicite… » (demande du propriétaire, 2026-09-20).
+
+       ⚠️ **Ce palier vient du PLAN** (`planSkillTargetLevel`), un fait servi
+       sur la compétence, et l'appelant le passe. `JourneyStepDto` n'en porte
+       aucun : le dériver ici en ferait une seconde autorité. `null` — pas de
+       plan, compétence absente, étape civique — ⇒ la ligne garde son seul
+       intitulé, jamais un palier inventé. */
+    if (step.taskCode) return tacheLabel(step.taskCode);
+    return niveau ? `${niveau} · ${journeyStepTitle(step)}` : journeyStepTitle(step);
 }
 
 /** La seconde ligne d'une étape **dans le cycle**. Voir {@link journeyCycleStepTitle}. */

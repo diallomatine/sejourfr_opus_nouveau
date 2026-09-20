@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/models/skill_models.dart';
 import '../../../core/theme/app_theme.dart';
-import '../expression_labels.dart';
 import '../production_catalog.dart';
 import '../tcf_production_module.dart';
 import 'production_common.dart';
@@ -38,8 +36,6 @@ class TaskBanner extends ConsumerWidget {
   final int tache;
   final VoidCallback onBack;
 
-  SkillSection get _section => module.isEo ? SkillSection.eo : SkillSection.ee;
-
   /// Contrainte réelle de la tâche (longueur à l'écrit, durée à l'oral), lue
   /// sur son premier sujet publié. `null` quand l'API ne la porte pas : on
   /// n'invente jamais une consigne de longueur — les bornes vivent dans
@@ -53,14 +49,11 @@ class TaskBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final meta = productionTaskMeta(module, tache);
-    // 🛑 Le palier de la TÂCHE, lu sur le miroir gelé de l'enum backend —
-    // aucun appel de plus. Il portait le palier de la **démarche du candidat**,
-    // ce qui n'a rien à faire sur une tâche. C'est notre palier PÉDAGOGIQUE :
-    // le libellé dit « Niveau visé », jamais « Palier » ni « Objectif ».
-    final level = SkillTaskCode.values
-        .firstWhere((t) => t.section == _section && t.tacheNumero == tache)
-        .targetLevel
-        .wire;
+    // ⚠️ **Plus de pastille de niveau ici** (demande du propriétaire,
+    // 2026-09-20) : `SkillTaskCode.targetLevel` est notre palier PÉDAGOGIQUE
+    // interne — le vrai TCF ne rattache aucun niveau CECRL à une tâche, et
+    // aucun moteur du produit ne s'en sert. C'est **l'affichage** qui part ;
+    // l'enum reste, elle sert encore l'admin et les tests.
     final constraint =
         _constraint(ref.watch(productionCatalogProvider(module.epreuve)).valueOrNull);
 
@@ -114,21 +107,6 @@ class TaskBanner extends ConsumerWidget {
                       style: AppFonts.display(size: 21, height: 1.18),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Pastille « NIVEAU VISÉ B1 » : le mot « visé » est porté par le
-              // libellé partagé, sans lui le palier se lirait comme une règle
-              // officielle du TCF IRN.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.blueLight,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-                child: Text(
-                  niveauViseBadge(level).toUpperCase(),
-                  style: AppFonts.label(size: 10.5, color: AppColors.blue),
                 ),
               ),
             ],

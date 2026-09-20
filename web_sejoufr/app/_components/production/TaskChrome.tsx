@@ -7,7 +7,6 @@ import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
 import {loadTaskProgress, skillsProgressKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {productionTaskSubtitle, productionTaskTitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
-import {niveauViseBadge} from "@/lib/expression";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionConfig} from "./config";
 import {constraintOf} from "./parcours";
@@ -41,12 +40,10 @@ export function taskToneClass(tacheNumero: number): string {
  * (`CompetencesList`) garde cette même tête, elle n'est plus qu'atteinte
  * autrement.
  *
- * 🛑 **La pastille dit « Niveau visé », et porte le palier de la TÂCHE.**
- * Elle affichait le palier de la **démarche du candidat**, ce qui n'a rien à
- * faire sur une tâche ; la maquette, elle, écrit « OBJECTIF B2 » sur la
- * Tâche 1, qui est une tâche A2 — deux façons différentes de laisser croire
- * qu'une tâche vaut un niveau. Et `SkillTaskCode.targetLevel` n'est **pas** un
- * référentiel officiel : c'est notre palier pédagogique, d'où « visé ».
+ * ⚠️ **Plus de pastille de niveau** (demande du propriétaire, 2026-09-20) :
+ * `SkillTaskCode.targetLevel` est notre palier PÉDAGOGIQUE interne — le vrai
+ * TCF ne rattache aucun niveau CECRL à une tâche, et aucun moteur du produit
+ * ne s'en sert. C'est **l'affichage** qui part ; le champ reste servi.
  */
 export function TaskChrome({
   config,
@@ -62,15 +59,6 @@ export function TaskChrome({
   const tasksQuery = useCachedData(ready ? productionTasksKey(config.epreuve) : null, () =>
     loadEpreuveTasks(productionApi, config.epreuve),
   );
-  /* Le palier de la TÂCHE, servi par `SkillTaskProgressDto.targetLevel` — même
-     clé de cache que l'écran des compétences, donc aucun appel de plus. */
-  const progressQuery = useCachedData(ready ? skillsProgressKey(section) : null, () =>
-    loadTaskProgress(skillApi, section),
-  );
-  const niveauVise =
-    progressQuery.data?.find((t) => t.taskCode === skillTaskCodeOf(section, taskNumero))
-      ?.targetLevel ?? null;
-
   const constraint = constraintOf(tasksQuery.data, taskNumero, config.mode === "audio");
 
   return (
@@ -84,9 +72,6 @@ export function TaskChrome({
             {productionTaskTitle(config.epreuve, taskNumero)}
           </h1>
         </div>
-        {niveauVise && (
-          <span className={s.taskBannerLevel}>{niveauViseBadge(niveauVise)}</span>
-        )}
       </div>
       <div className={s.taskBannerBrief}>
         <span className={s.taskBannerLabel}>Consigne</span>

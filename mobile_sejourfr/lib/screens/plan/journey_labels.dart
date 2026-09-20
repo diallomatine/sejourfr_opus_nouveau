@@ -86,15 +86,22 @@ String? journeyStepSubtitle(JourneyStep step) {
 /// épreuve, le bouton de fin d'étape — la ligne est **seule**, et
 /// [journeyStepSubtitle] continue de porter l'épreuve : sans elle, ces surfaces
 /// deviendraient muettes sur le domaine travaillé.
-String journeyCycleStepTitle(JourneyStep step) {
-  // 🛑 `taskCode` nul = compétence de COMPRÉHENSION (ou unité civique) : il n'y
-  // a **pas** de tâche à promouvoir, et on ne lui en invente pas une. La ligne
-  // garde alors son intitulé en titre.
+String journeyCycleStepTitle(JourneyStep step, [String? niveau]) {
+  if (step.type != JourneyStepType.trainSkill) return journeyStepTitle(step);
+  // 🛑 `taskCode` nul = compétence de COMPRÉHENSION : il n'y a **pas** de tâche
+  // à promouvoir, et on ne lui en invente pas une. Elle porte en revanche un
+  // **palier**, et c'est lui qui la situe — « B1 · Comprendre l'implicite… »
+  // (demande du propriétaire, 2026-09-20).
+  //
+  // ⚠️ **Ce palier vient du PLAN** (`planSkillTargetLevelDeCode`), un fait
+  // servi sur la compétence, et l'appelant le passe. [JourneyStep] n'en porte
+  // aucun : le dériver ici en ferait une seconde autorité. `null` — pas de
+  // plan, compétence absente, étape civique — ⇒ la ligne garde son seul
+  // intitulé, jamais un palier inventé.
   final taskCode = step.taskCode;
-  if (step.type == JourneyStepType.trainSkill && taskCode != null) {
-    return _tacheLabel(taskCode);
-  }
-  return journeyStepTitle(step);
+  if (taskCode != null) return _tacheLabel(taskCode);
+  final titre = journeyStepTitle(step);
+  return niveau == null ? titre : '$niveau · $titre';
 }
 
 /// La seconde ligne d'une étape **dans le cycle**. Voir [journeyCycleStepTitle].

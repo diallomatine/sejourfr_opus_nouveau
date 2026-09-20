@@ -200,7 +200,6 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
             ProductionProgressStrip(
               current: widget.taskIndex + 1,
               total: session!.totalTasks,
-              niveau: task.niveauCible,
             ),
             Expanded(
               child: SingleChildScrollView(

@@ -1701,6 +1701,29 @@ export function planSectionEpreuve(section: SkillSection): PlanDomainEpreuve {
  * avec repli sur les paliers de compréhension. `null` quand rien ne le publie :
  * *null = inconnu, jamais mauvais*, et aucun palier n'est fabriqué.
  */
+/**
+ * **Le palier d'une compétence, retrouvé par son CODE.**
+ *
+ * 🛑 Le rapprochement se fait sur `skillCode` — c'est ce que sert le parcours
+ * (`JourneyStepDto.skillCode`), et c'est déjà la clé de `journeyPriorityDe`.
+ * `null` est un cas **normal** : compétence hors des domaines servis, ou étape
+ * civique. On n'invente alors aucun palier.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planSkillTargetLevelDeCode`).
+ */
+export function planSkillTargetLevelDeCode(
+    plan: LearningPlanDto,
+    skillCode: string | null,
+): TargetLevel | null {
+    if (!skillCode) return null;
+    for (const domain of plan.domaines) {
+        for (const skill of domain.skills ?? []) {
+            if (skill.skillCode === skillCode) return skill.targetLevel;
+        }
+    }
+    return null;
+}
+
 export function planSkillTargetLevel(plan: LearningPlanDto, skillId: string): TargetLevel | null {
     for (const domain of plan.domaines) {
         for (const skill of domain.skills ?? []) {

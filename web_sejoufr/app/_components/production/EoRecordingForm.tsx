@@ -682,7 +682,6 @@ export function EoRecordingForm({
               <Target size={12} strokeWidth={2.4} aria-hidden />
               {consigneLabel ?? `Tâche ${task.tacheNumero}`}
             </span>
-            <span className={s.stepTag}>Niveau visé {task.niveauCible}</span>
           </div>
 
           {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}

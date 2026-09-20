@@ -171,6 +171,24 @@ TargetLevel? planSkillLevel(LearningPlan plan, String skillId) {
   return null;
 }
 
+/// **Le palier d'une compétence, retrouvé par son CODE.**
+///
+/// 🛑 Le rapprochement se fait sur `skillCode` — c'est ce que sert le parcours
+/// ([JourneyStep.skillCode]), et c'est déjà la clé de `_priorityDe`. `null` est
+/// un cas **normal** : compétence hors des domaines servis, ou étape civique.
+/// On n'invente alors aucun palier.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillTargetLevelDeCode`).
+TargetLevel? planSkillTargetLevelDeCode(LearningPlan plan, String? skillCode) {
+  if (skillCode == null) return null;
+  for (final domain in plan.domaines) {
+    for (final skill in domain.skills) {
+      if (skill.skillCode == skillCode) return skill.targetLevel;
+    }
+  }
+  return null;
+}
+
 /// Le palier que le référentiel porte sur une compétence.
 ///
 /// Lu sur `domaines[].skills[]` — la liste **uniforme** des quatre domaines —,

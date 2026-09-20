@@ -6,7 +6,7 @@ import {attemptApi, fullTcfExamApi, journeyApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
 import {planHref, type ParcoursModule} from "@/lib/module-switch";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
-import {planStepAction} from "@/lib/plan-domain";
+import {planSkillTargetLevelDeCode, planStepAction} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
     JOURNEY_CYCLE_NOTE,
@@ -265,6 +265,19 @@ function CycleBody({journey, plan, module}: {
      * cycle est celui d'un examen de bloc, et il garde son encart muet : sa
      * phrase servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
      */
+    /* 🛑 **Le palier vient du PLAN**, un fait servi sur la compétence
+       (`PlanDomainSkillDto.targetLevel`) — `JourneyStepDto` n'en porte aucun,
+       et le dériver ici en ferait une seconde autorité. `null` en civique
+       (pas de plan TCF, pas de CECRL) et sur une tâche d'expression, qui porte
+       son rang et non un palier. */
+    const niveauDe = useCallback(
+        (etape: JourneyStepDto): string | null =>
+            plan && !etape.taskCode
+                ? planSkillTargetLevelDeCode(plan, etape.skillCode)
+                : null,
+        [plan],
+    );
+
     const gesteDe = useCallback(
         (etape: JourneyStepDto): {label: string; onClick: () => void} | undefined => {
             if (etape.locked) {
@@ -330,7 +343,12 @@ function CycleBody({journey, plan, module}: {
                                     })
                                 }
                             >
-                                <BlocBody bloc={bloc} actionDe={actionDe} gesteDe={gesteDe} />
+                                <BlocBody
+                                    bloc={bloc}
+                                    actionDe={actionDe}
+                                    gesteDe={gesteDe}
+                                    niveauDe={niveauDe}
+                                />
                             </BlocAccordion>
                         ))}
 
@@ -396,6 +414,7 @@ function BlocBody({
     bloc,
     actionDe,
     gesteDe,
+    niveauDe,
 }: {
     bloc: JourneyBlocDto;
     /** Le lancement d'une étape **ouverte** — c'est tout ce dont l'encart
@@ -404,6 +423,10 @@ function BlocBody({
     actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
     /** Le geste d'une **ligne d'étape** : son action, ou l'offre. */
     gesteDe: (etape: JourneyStepDto) => {label: string; onClick: () => void} | undefined;
+    /** Le palier d'une compétence de **compréhension**, lu sur le Plan. `null`
+     *  partout ailleurs — une tâche d'expression porte son rang, pas un
+     *  palier, et le civique n'a pas de CECRL. */
+    niveauDe: (etape: JourneyStepDto) => string | null;
 }) {
     /* 🛑 **Toutes les étapes du bloc, y compris celles déjà closes** : le
        serveur sert les `COMPLETED` (seules les OBSOLETE sont exclues), et c'est
@@ -440,7 +463,7 @@ function BlocBody({
                            titre, l'intitulé dessous, et **pas d'épreuve** —
                            l'en-tête du bloc la nomme déjà. Les autres lectures
                            de `journeyStep*` la gardent (cf. `lib/journey.ts`). */
-                        title={journeyCycleStepTitle(step)}
+                        title={journeyCycleStepTitle(step, niveauDe(step))}
                         subtitle={journeyCycleStepSubtitle(step)}
                         state={journeyKitState(step)}
                         kind={journeyKind(step)}

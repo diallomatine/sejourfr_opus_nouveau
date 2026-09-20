@@ -588,7 +588,6 @@ class _Content extends StatelessWidget {
         ProductionProgressStrip(
           current: taskIndex + 1,
           total: session.totalTasks,
-          niveau: task.niveauCible,
           // En entraînement libre le bandeau n'affiche que ce sous-titre :
           // le répéter dupliquerait le titre de la ConsigneCard juste en
           // dessous. On garde alors le libellé de mode par défaut.
@@ -616,10 +615,6 @@ class _Content extends StatelessWidget {
                 requirements: [
                   if (task.motsMin != null && task.motsMax != null)
                     '${task.motsMin}-${task.motsMax} mots',
-                  // « visé » en toutes lettres : ce palier est celui de la
-                  // variante jouée, pas une caractéristique officielle de la
-                  // tâche au TCF IRN. Miroir web : EeWritingForm.
-                  'Niveau visé ${task.niveauCible}',
                 ],
               ),
               // Repère de rythme, **indicatif et jamais bloquant** : le seul

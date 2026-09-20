@@ -21,6 +21,7 @@ import '../civic_serie_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
+import '../plan_labels.dart';
 import '../plan_now_card.dart';
 
 /// **Le cycle du Plan** — tout ce que l'écran affiche à partir du titre
@@ -280,7 +281,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       // 🛑 **La composition du CYCLE** : « Tâche 3 » en titre, l'intitulé
       // dessous, et **pas d'épreuve** — l'en-tête du bloc la nomme déjà. Les
       // autres lectures de `journeyStep*` la gardent (cf. `journey_labels.dart`).
-      title: journeyCycleStepTitle(step),
+      title: journeyCycleStepTitle(step, _niveauDe(step)),
       subtitle: journeyCycleStepSubtitle(step),
       state: journeyKitState(step),
       kind: journeyKind(step),
@@ -307,6 +308,17 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   void _versEcranDeDeblocage(BuildContext context) => context.push(
         AppRoutes.planUnlockPath(civique: widget.module == AppModule.civique),
       );
+
+  /// 🛑 **Le palier vient du PLAN**, un fait servi sur la compétence
+  /// (`PlanDomainSkill.targetLevel`) — [JourneyStep] n'en porte aucun, et le
+  /// dériver ici en ferait une seconde autorité. `null` en civique (pas de plan
+  /// TCF, pas de CECRL) et sur une tâche d'expression, qui porte son rang et
+  /// non un palier.
+  String? _niveauDe(JourneyStep etape) {
+    final plan = widget.plan;
+    if (plan == null || etape.taskCode != null) return null;
+    return planSkillTargetLevelDeCode(plan, etape.skillCode)?.wire;
+  }
 
   ({String label, VoidCallback onTap})? _gesteDe(JourneyStep etape) {
     if (etape.locked) {

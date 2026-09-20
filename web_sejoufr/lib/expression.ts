@@ -112,23 +112,6 @@ export function tacheBadge(skills: readonly SkillDto[]): string | null {
     return skills.some((s) => s.attemptedCount > 0) ? EXPRESSION_EN_COURS : null;
 }
 
-/**
- * « NIVEAU VISÉ B1 » — le palier **pédagogique** de la tâche, dit comme tel.
- *
- * 🛑 **Deux formulations écartées, et pour deux raisons différentes.**
- * - La maquette porte « OBJECTIF B2 » sur la Tâche 1, qui est une tâche A2 :
- *   posé là, il laisse croire que la réussir vaut B2. L'objectif personnel vit
- *   sur l'écran **global** de l'épreuve, pas sur une tâche.
- * - « PALIER A2 » a été écarté à son tour (2026-09-13) : il se lit comme un
- *   palier **officiel** du TCF IRN, or France Éducation international ne
- *   rattache aucun niveau CECRL à une tâche.
- *
- * « Niveau visé » est la formule que `docs/notation-ia-eo-ee.md` impose déjà aux
- * écrans de production, et elle dit exactement ce que c'est.
- */
-export function niveauViseBadge(targetLevel: string): string {
-    return `Niveau visé ${targetLevel}`;
-}
 
 /* ------------------------------------------------- Une fiche de compétence */
 
