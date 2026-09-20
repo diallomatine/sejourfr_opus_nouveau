@@ -2584,3 +2584,47 @@ changerait un écran sans rapport — c'est une passe à part.
 **Si l'arbitrage était autre** (« l'écran d'épreuve garde son historique ») : il suffirait de
 remettre la section, mais elle redirait ce que la page « Examens blancs » liste déjà, une
 tuile plus loin.
+
+---
+
+## A151 — Une étape d'expression s'ouvre sur ses 5 sujets, et nomme la suivante (2026-09-20)
+
+> Propriétaire : « depuis le plan, quand on clique sur une étape d'expression écrite ou orale,
+> et même dans à faire maintenant, on doit ouvrir cette page avec les 5 sujets à travailler,
+> comme ça la personne voit les sujets qu'elle travaille, et une fois fini on le redirige vers
+> l'étape suivante du plan. »
+
+### Ce que ça a révélé : deux lanceurs, deux destinations
+
+La règle existait **déjà**, mais dans un seul des deux lanceurs. `openPlanSeanceItem` /
+`startItem` — la **ligne** de séance — ouvrait la fiche scopée à l'étape ; `openPlanExercise` /
+`start` — le **bouton**, donc les lignes du cycle et « À faire maintenant » — sautait au sujet.
+La même compétence menait à deux écrans selon l'endroit où on la touchait, et c'était écrit
+noir sur blanc dans les deux docstrings, chacune décrivant sa moitié comme voulue.
+
+⚠️ **Révoque** « le bouton principal démarre l'entraînement, il n'ouvre pas une fiche ».
+
+🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est une tâche de production qui
+ne fait pas partie des cinq — l'y envoyer laisserait le candidat sans aucun moyen de la faire.
+
+### La fin d'étape : un bouton, pas une redirection
+
+**Arbitré par le propriétaire** parmi trois formes. La carte « Étape terminée » reste, et son
+bouton **nomme et ouvre la suivante** (« Continuer : Parler de son quotidien »).
+
+🛑 **Le point qui décide de tout** : le serveur ne clôt une étape qu'à l'arrivée des
+**évaluations**, qui sont asynchrones. Entre le 5ᵉ sujet rendu et la clôture, `journey.current`
+désigne **encore celle-ci**. `journeyEtapeSuivante(journey, skillCodeCourant)` compare donc sur
+`skillCode` et rend `null` tant que rien n'a bougé — la carte retombe alors sur « Revenir à mon
+plan ». **On ne promet jamais une étape qui n'existe pas encore.**
+
+C'est aussi ce qui écartait la **redirection automatique** : elle aurait arraché le candidat à
+son rapport de correction, et n'aurait eu nulle part où aller dans le cas le plus fréquent.
+
+🛑 **L'action de la suivante vient de `planStepAction`**, et part par les **mêmes lanceurs** que
+le Plan : le tap fait exactement ce que ferait la même étape tapée depuis le Plan. Aucun second
+chemin n'est écrit dans l'écran de compétence.
+
+**Si l'arbitrage était autre** (« redirection automatique ») : il faudrait attendre la clôture
+serveur avant de naviguer, donc un état d'attente sur un écran que le candidat est en train de
+lire — c'est ce qu'on a écarté.

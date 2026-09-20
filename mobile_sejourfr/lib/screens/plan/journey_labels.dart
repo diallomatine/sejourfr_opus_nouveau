@@ -461,6 +461,33 @@ String _sectionLabel(SkillSection section) {
 String _tacheLabel(SkillTaskCode taskCode) =>
     'Tâche ${taskCode.wire.substring(taskCode.wire.length - 1)}';
 
+/// **L'étape que le cycle propose APRÈS celle qu'on regarde.**
+///
+/// Sert la fin d'une étape d'expression : les cinq sujets faits, l'écran nomme
+/// la suivante au lieu de renvoyer le candidat au Plan pour qu'il la cherche.
+///
+/// 🛑 **On ne propose jamais l'étape qu'on vient de finir.** Le serveur ne clôt
+/// une étape qu'à l'arrivée des **évaluations**, qui sont asynchrones : entre
+/// le 5ᵉ sujet rendu et la clôture, `current` désigne encore celle-ci. On
+/// compare donc sur `skillCode` et on rend `null` tant qu'elle n'a pas bougé —
+/// l'écran retombe alors sur « Revenir à mon plan ». **Ne jamais promettre une
+/// étape qui n'existe pas encore.**
+///
+/// Miroir web : `journeyEtapeSuivante` (`lib/journey.ts`).
+JourneyStep? journeyEtapeSuivante(Journey? journey, String? skillCodeCourant) {
+  if (journey == null) return null;
+  final step = journeyNowStep(journey);
+  if (step == null || step.type != JourneyStepType.trainSkill) return null;
+  if (skillCodeCourant != null && step.skillCode == skillCodeCourant) {
+    return null;
+  }
+  return step;
+}
+
+/// « Continuer : Parler de son quotidien ». Le nom vient du parcours.
+String journeyEtapeSuivanteCta(JourneyStep step) =>
+    'Continuer : ${journeyStepTitle(step)}';
+
 /* ==========================================================================
    L'HISTORIQUE DES CYCLES — « Ma progression »
    Maquette `docs/progression/histo_cycle.html` (propriétaire, 2026-09-18)

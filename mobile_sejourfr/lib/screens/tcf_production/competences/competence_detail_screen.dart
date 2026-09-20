@@ -16,7 +16,11 @@ import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/progress_dots.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../../../core/models/journey_models.dart';
+import '../../plan/journey_labels.dart';
 import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_actions.dart';
+import '../../plan/plan_now_card.dart';
 import '../../plan/plan_step_labels.dart';
 import '../widgets/exam_filter_chips.dart';
 import '../tcf_production_module.dart';
@@ -243,6 +247,27 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
     ];
   }
 
+  /// 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
+  /// mesure passe devant, l'exercice sinon. `null` quand rien ne se résout —
+  /// la carte retombe alors sur « Revenir à mon plan ».
+  VoidCallback? _actionDe(JourneyStep? suivante) {
+    if (suivante == null) return null;
+    final plan = ref.read(learningPlanProvider).valueOrNull;
+    if (plan == null) return null;
+    final action = planStepAction(plan, suivante);
+    if (action == null) return null;
+    final mesure = action.mesure;
+    if (mesure != null) {
+      return () => unawaited(startPlanSeanceItem(context, ref, mesure));
+    }
+    return () => unawaited(openPlanExercise(
+          context,
+          ref,
+          action.exercise!,
+          masteryBefore: action.priority?.masteryState,
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(skillDetailProvider(widget.skillId));
@@ -374,6 +399,13 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
     // ici — « Vérifier ma progression » vit sur le Plan, qui seul sait si le
     // moteur de maîtrise est prêt. On y ramène.
     final stepDone = scoped && step!.stepCompleted;
+    // 🛑 Le parcours, lu au **même endroit** que le Plan : c'est lui qui
+    // désigne l'étape suivante quand celle-ci se termine.
+    final suivante = stepDone
+        ? journeyEtapeSuivante(
+            ref.watch(journeyProvider).valueOrNull, detail.skill.code)
+        : null;
+    final suivanteAction = _actionDe(suivante);
     final next = _next(detail, step);
 
     // Les compteurs affichés viennent du **serveur** en mode étape
@@ -403,9 +435,18 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
           ),
           const SizedBox(height: 14),
           if (stepDone)
+            // 🛑 **On nomme la suivante, on ne la devine pas** : elle vient du
+            // parcours, et son action de `planStepAction` — donc le tap fait
+            // exactement ce que ferait la même étape tapée depuis le Plan.
+            // Tant que le serveur n'a pas clos celle-ci (les évaluations sont
+            // asynchrones), il n'y a pas de suivante et on retombe sur le
+            // Plan : on ne promet jamais une étape qui n'existe pas encore.
             _StepDoneCard(
               total: step.stepPromptCount,
-              onOpenPlan: () => context.go('/plan'),
+              cta: suivante == null
+                  ? kPlanStepDoneCta
+                  : journeyEtapeSuivanteCta(suivante),
+              onAction: suivanteAction ?? () => context.go('/plan'),
             )
           else
             _NextPromptCard(
@@ -609,10 +650,18 @@ class _NextPromptCard extends StatelessWidget {
 /// L'étape est allée au bout : on ne propose pas un sujet de plus, on renvoie
 /// là où la suite se décide.
 class _StepDoneCard extends StatelessWidget {
-  const _StepDoneCard({required this.total, required this.onOpenPlan});
+  const _StepDoneCard({
+    required this.total,
+    required this.cta,
+    required this.onAction,
+  });
 
   final int total;
-  final VoidCallback onOpenPlan;
+
+  /// Ce que le bouton **dit** : le nom de l'étape suivante quand le cycle en
+  /// désigne une, « Revenir à mon plan » sinon.
+  final String cta;
+  final VoidCallback onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -650,10 +699,10 @@ class _StepDoneCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           AppButton(
-            label: kPlanStepDoneCta,
+            label: cta,
             icon: LucideIcons.arrowRight,
             variant: AppButtonVariant.soft,
-            onPressed: onOpenPlan,
+            onPressed: onAction,
           ),
         ],
       ),

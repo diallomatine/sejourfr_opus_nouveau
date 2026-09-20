@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
-import {useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {
   ArrowRight,
   Check,
@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
-import {learningPlanApi, skillApi} from "@/lib/api";
+import {journeyApi, learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {cached} from "@/lib/data-cache";
 import {
@@ -44,6 +44,7 @@ import {useCachedData} from "@/lib/use-cached-data";
 import {
   SKILL_DIFFICULTY_LABEL,
   SKILL_PROMPT_STATUS_LABEL,
+  type JourneyDto,
   type SkillPromptSummaryDto,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -64,6 +65,15 @@ import {
   SkillNotice,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
+import {
+  journeyEtapeSuivante,
+  journeyEtapeSuivanteCta,
+} from "@/lib/journey";
+import {planStepAction} from "@/lib/plan-domain";
+import {
+  usePlanAssessment,
+  usePlanExercise,
+} from "@/app/_components/plan/use-plan-exercise";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
 type Filter = "all" | "todo" | "done";
@@ -134,6 +144,16 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
     () => learningPlanApi.getCached(),
     {errorMessage: "Impossible de charger votre plan."},
   );
+  /* 🛑 Le parcours, lu au **même endroit** que le Plan : c'est lui qui désigne
+     l'étape suivante quand celle-ci se termine, et n'en lire qu'un rouvrirait
+     l'écart entre ce que le Plan annonce et ce que cet écran propose. */
+  const journeyQuery = useCachedData<JourneyDto>(
+    fromPlan && status === "authenticated" ? journeyApi.cacheKey : null,
+    () => journeyApi.getCached(),
+  );
+  /* Les mêmes lanceurs que le Plan, jamais un second chemin. */
+  const exercise = usePlanExercise();
+  const assessment = usePlanAssessment();
   const step = fromPlan ? planStepFor(planQuery.data, skillId) : null;
   /* Tant que le Plan n'est pas revenu, on ne sait pas encore si l'écran est
      celui d'une étape : afficher la fiche complète en attendant la ferait
@@ -228,6 +248,18 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
      Tout verrouillé ⇒ ni l'un ni l'autre, et le CTA bascule sur l'offre. */
   const reprenable = prompts.find((p) => !p.locked);
   const stepDone = scoped && step.stepCompleted;
+  const suivante = stepDone
+    ? journeyEtapeSuivante(journeyQuery.data ?? null, skill?.code ?? null)
+    : null;
+  /* 🛑 Les mêmes lanceurs que le Plan, jamais un second chemin. */
+  const suivanteAction = useMemo(() => {
+    const plan = planQuery.data;
+    if (!suivante || !plan) return null;
+    const action = planStepAction(plan, suivante);
+    if (!action) return null;
+    if (action.mesure) return () => void assessment.start(action.mesure!.assessment);
+    return () => void exercise.start(action.exercise!);
+  }, [assessment, exercise, planQuery.data, suivante]);
   /* Le sujet que l'étape propose de faire : **celui que le serveur a désigné**
      (`recommendedExercise.skillPromptId`), jamais un « premier sujet non
      validé » recalculé ici — le Plan désignerait alors un autre sujet que cet
@@ -447,9 +479,27 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
             {stepDone && (
               <SkillNotice title={PLAN_STEP_DONE_TITLE}>
                 <p>{planStepDoneText(step.stepPromptCount)}</p>
-                <Link href="/plan" className={s.headLink}>
-                  {PLAN_STEP_DONE_CTA} →
-                </Link>
+                {/* 🛑 **On nomme la suivante, on ne la devine pas** : elle
+                    vient du parcours, et son action de `planStepAction` — donc
+                    le clic fait exactement ce que ferait la même étape cliquée
+                    depuis le Plan. Tant que le serveur n'a pas clos celle-ci
+                    (les évaluations sont asynchrones), il n'y a pas de suivante
+                    et on retombe sur le Plan : on ne promet jamais une étape
+                    qui n'existe pas encore. */}
+                {suivanteAction ? (
+                  <button
+                    type="button"
+                    className={s.headLink}
+                    disabled={exercise.starting || assessment.starting !== null}
+                    onClick={suivanteAction}
+                  >
+                    {journeyEtapeSuivanteCta(suivante!)} →
+                  </button>
+                ) : (
+                  <Link href="/plan" className={s.headLink}>
+                    {PLAN_STEP_DONE_CTA} →
+                  </Link>
+                )}
               </SkillNotice>
             )}
 
