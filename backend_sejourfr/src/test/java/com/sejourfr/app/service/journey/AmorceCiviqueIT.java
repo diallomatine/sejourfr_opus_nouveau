@@ -71,6 +71,7 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private CivicObservationService observationService;
     @Autowired private TcfJourneyConfig config;
+    @Autowired private JourneyCycleService cycleService;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -354,6 +355,107 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
         // valide que SA thematique.
         assertThat(apres).filteredOn(e -> !e.thematique().equals(premier.thematique()))
                 .allSatisfy(e -> assertThat(e.closedAt()).isNull());
+    }
+
+    // ------------------------------------------------------------------------
+    // Point 8 — fin de cycle : historisation, score de sortie, cycle de mesure
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Actualiser : le cycle est HISTORISE et le suivant est RE-AMORCE (pas d'attente)")
+    void actualiserHistoriseEtReamorce() {
+        User user = candidatCivique();
+        Journey premier = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        // Un examen complet clot les cinq blocs : le cycle est termine.
+        journeyService.onAssessmentCompleted(user.getId(),
+                JourneyEvaluation.examenCivique(UUID.randomUUID(), Instant.now()));
+
+        cycleService.actualiser(user.getId(), Module.CIVIQUE);
+
+        assertThat(statut(premier.getId())).isEqualTo("HISTORISE");
+        Journey suivant = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        assertThat(suivant.getId()).isNotEqualTo(premier.getId());
+        // 🛑 Le cycle suivant est AMORCE, pas vide : cinq blocs a evaluer.
+        assertThat(etapes(suivant)).hasSize(5);
+        // 🛑 Et il n'y a AUCUN cycle en attente civique : les priorites sont
+        // derivees (D-36), il n'y a rien a stocker.
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM journey
+                WHERE user_id = ? AND module = 'CIVIQUE' AND status = 'EN_ATTENTE'
+                """, Integer.class, user.getId())).isZero();
+    }
+
+    @Test
+    @DisplayName("🛑 Le score de sortie est celui du dernier examen COMPLET, et null sans examen")
+    void leScoreDeSortieEstCeluiDeLExamenComplet() {
+        User user = candidatCivique();
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        UUID examen = examenCompletPasse(user, 29);
+
+        journeyService.onAssessmentCompleted(user.getId(),
+                JourneyEvaluation.examenCivique(examen, Instant.now()));
+        cycleService.actualiser(user.getId(), Module.CIVIQUE);
+
+        // 🛑 RECOPIE, jamais recalcule : c'est le score que le candidat a vu a
+        // la fin de cet examen.
+        assertThat(jdbc.queryForObject(
+                "SELECT exit_score FROM journey WHERE id = ?", Integer.class, cycle.getId()))
+                .isEqualTo(29);
+        // Et il devient le score d'ENTREE du suivant : le meme fait, vu des
+        // deux cotes.
+        assertThat(jdbc.queryForObject("""
+                SELECT entry_score FROM journey
+                WHERE user_id = ? AND status = 'EN_COURS' AND module = 'CIVIQUE'
+                """, Integer.class, user.getId())).isEqualTo(29);
+    }
+
+    @Test
+    @DisplayName("Le cycle de mesure civique : CINQ blocs, un examen chacun, tous debloques")
+    void leCycleDeMesureCiviqueACinqBlocs() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        // Tout est fait : les unites par le quota, les examens par un examen
+        // complet.
+        jdbc.update("""
+                UPDATE journey_step SET closed_at = now(), resolution = 'QUOTA_REACHED'
+                WHERE journey_id = ? AND closed_at IS NULL
+                """, cycle.getId());
+
+        cycleService.creerCycleDeMesure(user.getId(), Module.CIVIQUE);
+
+        Journey mesure = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        List<Etape> etapes = etapes(mesure);
+        assertThat(etapes).hasSize(5);
+        assertThat(etapes).allSatisfy(etape -> {
+            assertThat(etape.type()).isEqualTo("SECTION_EXAM");
+            // « Verifier mes progres », jamais « evaluer mon niveau » : un
+            // cycle de mesure ne s'ouvre qu'apres un cycle entier.
+            assertThat(etape.purpose()).isEqualTo("REASSESS");
+            assertThat(etape.unite()).isNull();
+        });
+    }
+
+    private String statut(UUID journeyId) {
+        return jdbc.queryForObject(
+                "SELECT status FROM journey WHERE id = ?", String.class, journeyId);
+    }
+
+    /** Un examen civique complet TERMINE, avec son score. */
+    private UUID examenCompletPasse(User user, int score) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO attempts (id, user_id, type, mode, module, epreuve, status,
+                                      total_questions, score, started_at, finished_at)
+                VALUES (?, ?, 'MOCK_EXAM', 'EXAMEN', 'CIVIQUE', 'CIVIQUE', 'TERMINE', 40, ?,
+                        now(), now())
+                """, id, user.getId(), score);
+        return id;
     }
 
     // ------------------------------------------------------------------------

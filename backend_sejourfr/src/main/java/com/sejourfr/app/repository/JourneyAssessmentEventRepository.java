@@ -44,6 +44,28 @@ public interface JourneyAssessmentEventRepository
             @Param("sourceAssessmentId") UUID sourceAssessmentId);
 
     /**
+     * <b>Le score du dernier examen civique COMPLET</b> journalise par ce cycle.
+     *
+     * <p>🛑 Le journal porte l'identite de l'evaluation ; le SCORE vit sur
+     * l'attempt. On le relit la ou il a ete ecrit, plutot que de le recopier
+     * dans le journal -- une seconde copie aurait pu diverger de la premiere.
+     *
+     * <p>{@code null} quand aucun examen complet n'a ete passe pendant ce
+     * cycle : <b>inconnu, jamais zero</b>.
+     */
+    @Query(value = """
+            SELECT a.score
+            FROM journey_assessment_event e
+                     JOIN attempts a ON a.id = e.source_assessment_id
+            WHERE e.journey_id = :journeyId
+              AND e.assessment_kind = 'CIVIC_EXAM'
+              AND a.score IS NOT NULL
+            ORDER BY e.completed_at DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Integer dernierScoreDExamenComplet(@Param("journeyId") UUID journeyId);
+
+    /**
      * La date de fin de la <b>derniere</b> evaluation deja traitee qui mesurait
      * cette epreuve — le repere exact de R14.
      *

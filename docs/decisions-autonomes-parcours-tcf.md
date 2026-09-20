@@ -1190,3 +1190,60 @@ est **fabriqué** — un seul endroit, et tout ce qui le lit devient juste.
 **Motif.** C'est D-27 appliqué, pas un effet de bord : **un seul programme, une seule banque**. Le
 nommer maintenant évite qu'il se redécouvre plus tard comme une régression — un test l'assertait,
 il a été retourné avec son motif sur place.
+
+---
+
+# 2026-09-20 — P8.4, point 8 : la fin de cycle civique (A78 → A80)
+
+### A78 — 🛑 **Il n'y a pas de cycle EN ATTENTE civique**, et c'est une conséquence de D-36
+
+**Le raisonnement.** Côté TCF, le cycle en attente existe parce que les priorités naissent
+d'**évaluations datées** : celles qui arrivent pendant qu'un cycle est en cours doivent être mises
+quelque part, sinon elles se perdent. Côté civique, les priorités sont **dérivées** — le plan les
+recalcule à chaque lecture. **Il n'y a rien à stocker.**
+
+**La décision.** `actualiser` civique **historise** puis **ré-amorce** : le cycle suivant se construit
+sur le plan **tel qu'il est au moment où on l'ouvre**, ce qui est plus juste qu'une liste figée des
+semaines plus tôt.
+
+⚠️ **Conséquence assumée** : `JourneyStatus.EN_ATTENTE` n'existe jamais côté civique. L'index
+partiel de V067 l'**autorise**, il ne l'exige pas — un test le fige.
+
+**Si l'arbitrage était autre** : il faudrait une raison de figer des priorités dérivées, et je n'en
+vois pas — sinon reproduire la structure TCF pour la symétrie, ce qui est le mauvais motif.
+
+### A79 — Le **score de sortie** est un fait déjà vu, recopié
+
+`exit_score` = le score du **dernier examen civique COMPLET** journalisé par ce cycle, lu sur
+`attempts.score` via le journal. `null` quand il n'y en a pas.
+
+**Motif.** Le candidat a **déjà vu ce score** à la fin de cet examen : le cycle le **recopie**, il ne
+le recalcule pas, ne le pondère pas et n'en fabrique pas un second. C'est pourquoi ce n'est pas un
+verdict nouveau — et donc pas un arrêt.
+
+⚠️ **Un examen de thème ne compte pas** : 20 questions, pas les 40 de l'arrêté. Mélanger les deux
+échelles ferait un chiffre qui ne veut rien dire. Et **`null` = inconnu, jamais zéro** : un cycle de
+travail sans examen complet n'a pas un score de zéro.
+
+🛑 **Le score n'est pas recopié dans le journal** : il vit sur l'attempt, on le relit là où il a été
+écrit. Une seconde copie aurait pu diverger de la première.
+
+### A80 — Le cycle de mesure civique : **cinq** blocs, tous en `REASSESS`
+
+**Motif du `REASSESS`.** Un cycle de mesure ne s'ouvre qu'à la **fin d'un cycle entier** : tout a été
+travaillé ou mesuré. Le geste est « **vérifier mes progrès** », jamais « évaluer mon niveau ».
+
+⚠️ **Aucune unité n'y est posée**, et c'est la définition même du cycle de mesure —
+`JourneyBlocResolver.cycleDeMesure` le reconnaît à l'absence de `TRAIN_SKILL`. Les cinq examens sont
+donc ouverts d'emblée : **D-15 n'a rien à verrouiller**, et ils se passent thème par thème.
+
+🛑 **Et le garde bruyant d'A57 a disparu en étant HONORÉ**, pas contourné : il disait « cinq blocs de
+thématique, pas quatre épreuves ». C'est exactement ce qui est écrit maintenant.
+
+### A81 — `nouveauCycle` **pose** l'objectif, il ne le copie pas champ par champ
+
+`poserObjectif(procedure)` ou `poserObjectif(niveau)` selon ce que porte le précédent.
+
+**Motif.** `setTargetLevel(precedent.getTargetLevel())` sur un cycle civique aurait posé `null` sur
+les **deux** objectifs — une ligne que `chk_journey_objectif` refuse **au flush**, loin de la ligne
+fautive. L'exclusivité se garantit à la source (même geste que `poserBloc`).

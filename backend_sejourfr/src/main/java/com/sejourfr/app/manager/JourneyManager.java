@@ -89,6 +89,15 @@ public class JourneyManager {
      * <b>candidat</b> et non au cycle (cf. le javadoc du repository : depuis
      * D-13 il en porte plusieurs).
      */
+    /**
+     * Le score du dernier examen civique complet de ce cycle, ou {@code null}.
+     * 🛑 <b>Inconnu, jamais zero</b> : un cycle de travail n'a pas de score.
+     */
+    public Short dernierScoreDExamenComplet(UUID journeyId) {
+        Integer score = eventRepository.dernierScoreDExamenComplet(journeyId);
+        return score == null ? null : score.shortValue();
+    }
+
     public boolean dejaTraitee(UUID userId, Module module, UUID sourceAssessmentId) {
         return eventRepository.dejaTraiteeParUnCycle(userId, module, sourceAssessmentId);
     }

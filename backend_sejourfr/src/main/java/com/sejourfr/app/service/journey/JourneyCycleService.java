@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
@@ -14,6 +15,7 @@ import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.attempt.AttemptScoringService;
@@ -68,6 +70,7 @@ import java.util.UUID;
 public class JourneyCycleService {
 
     private final JourneyService journeyService;
+    private final ThemeManager themeManager;
     private final JourneyManager journeyManager;
     private final JourneyStepManager stepManager;
     private final TcfProfileService profileService;
@@ -90,6 +93,8 @@ public class JourneyCycleService {
     @Transactional
     public JourneyDto actualiser(UUID userId, Module module) {
         Journey enCours = cycleTermine(userId, module);
+        if (module == Module.CIVIQUE) return actualiserLeCycleCivique(userId, enCours);
+
         TargetLevel sortie = historiser(enCours, userId);
 
         Journey promu = journeyManager
@@ -125,18 +130,8 @@ public class JourneyCycleService {
      */
     @Transactional
     public JourneyDto creerCycleDeMesure(UUID userId, Module module) {
-        // 🛑 GARDE EXPLICITE SUR LE MODULE, et il echoue BRUYAMMENT. Le cycle de
-        // mesure civique est fait de CINQ blocs de thematique ne contenant que
-        // leur examen (R1) ; la boucle ci-dessous en pose QUATRE, sur les
-        // epreuves TCF. Laisser passer un module civique ici fabriquerait un
-        // cycle de mesure TCF dans un parcours civique -- le genre de silence
-        // que ce depot paie cher.
-        if (module != Module.TCF) {
-            throw new UnsupportedOperationException(
-                    "Le cycle de mesure civique n'est pas encore construit (P8.4) : "
-                            + "cinq blocs de thematique, pas quatre epreuves.");
-        }
         Journey enCours = cycleTermine(userId, module);
+        if (module == Module.CIVIQUE) return creerLeCycleDeMesureCivique(userId, enCours);
         if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
             // Enchainer deux examens complets sans travail entre eux ne mesure
             // rien de nouveau — c'est le « cas particulier » de la spec §6.
@@ -166,6 +161,111 @@ public class JourneyCycleService {
         log.info("Cycle {} historise (sortie={}), cycle de mesure {} ouvert",
                 enCours.getId(), sortie, mesure.getId());
         return journeyService.lire(userId, module);
+    }
+
+    /**
+     * <b>Le cycle de mesure CIVIQUE</b> : cinq blocs de thématique, un examen
+     * chacun, <b>tous débloqués</b> (spec §2, « Fin de cycle »).
+     *
+     * <p>🛑 <b>Cinq, pas quatre.</b> C'est toute la raison du garde qui vivait
+     * ici avant : la boucle TCF pose les quatre épreuves, et la poser sur un
+     * cycle civique aurait fabriqué un cycle de mesure TCF dans un parcours
+     * civique.
+     *
+     * <p>🛑 <b>{@code REASSESS} sur les cinq</b> : un cycle de mesure ne s'ouvre
+     * qu'à la fin d'un cycle entier — tout a été travaillé ou mesuré. Le geste
+     * est « <b>vérifier mes progrès</b> », jamais « évaluer mon niveau ».
+     *
+     * <p>⚠️ <b>Aucune unité n'est posée</b>, et c'est la définition même du
+     * cycle de mesure : {@code JourneyBlocResolver.cycleDeMesure} le reconnaît à
+     * l'absence de {@code TRAIN_SKILL}. Les cinq examens sont donc ouverts
+     * d'emblée (D-15 n'a rien à verrouiller), et passables thème par thème.
+     */
+    private JourneyDto creerLeCycleDeMesureCivique(UUID userId, Journey enCours) {
+        if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
+            throw new IllegalStateException(
+                    "Ce cycle est deja un cycle de mesure : actualisez votre plan.");
+        }
+        Short sortie = historiserLeCycleCivique(enCours);
+
+        Journey neuf = nouveauCycle(enCours);
+        neuf.setStatus(JourneyStatus.EN_COURS);
+        neuf.setEntryScore(sortie);
+        Journey mesure = journeyManager.saveEtFlush(neuf);
+
+        for (Theme thematique : themeManager
+                .findByModuleOrderedByDisplayOrder(Module.CIVIQUE)) {
+            JourneyStep step = new JourneyStep();
+            step.setJourney(mesure);
+            step.setType(JourneyStepType.SECTION_EXAM);
+            step.setPurpose(JourneyStepPurpose.REASSESS);
+            step.poserBloc(thematique);
+            journeyService.ajouter(mesure, step);
+        }
+
+        log.info("Cycle civique {} historise (sortie={}), cycle de mesure {} ouvert",
+                enCours.getId(), sortie, mesure.getId());
+        return journeyService.lire(userId, Module.CIVIQUE);
+    }
+
+    /**
+     * <b>Actualiser un cycle CIVIQUE</b> — historiser, puis <b>ré-amorcer</b>.
+     *
+     * <h3>🛑 Il n'y a PAS de cycle en attente civique, et c'est une conséquence
+     * de D-36</h3>
+     * <p>Côté TCF, le cycle en attente existe parce que les priorités naissent
+     * d'<b>évaluations datées</b> : celles qui arrivent pendant qu'un cycle est
+     * en cours doivent être mises quelque part, sinon elles se perdent.
+     *
+     * <p>Côté civique, les priorités sont <b>dérivées</b> — le plan les
+     * recalcule à chaque lecture depuis les réponses. Il n'y a donc rien à
+     * stocker : le cycle suivant s'amorce sur le plan <b>tel qu'il est au moment
+     * où on l'ouvre</b>, ce qui est plus juste qu'une liste figée des semaines
+     * plus tôt.
+     *
+     * <p>⚠️ Conséquence assumée : {@code JourneyStatus.EN_ATTENTE} n'existe
+     * jamais côté civique. L'index partiel de V067 l'autorise — il ne l'exige
+     * pas.
+     */
+    private JourneyDto actualiserLeCycleCivique(UUID userId, Journey enCours) {
+        Short sortie = historiserLeCycleCivique(enCours);
+
+        Journey suivant = nouveauCycle(enCours);
+        suivant.setStatus(JourneyStatus.EN_COURS);
+        // Le score de sortie devient le score d'ENTREE du suivant : c'est d'ou
+        // le candidat repart, et c'est le meme fait vu des deux cotes.
+        suivant.setEntryScore(sortie);
+        suivant = journeyManager.saveEtFlush(suivant);
+        journeyService.amorcerCycleCivique(suivant, enCours.getUser());
+
+        log.info("Cycle civique {} historise (sortie={}), cycle {} ouvert",
+                enCours.getId(), sortie, suivant.getId());
+        return journeyService.lire(userId, Module.CIVIQUE);
+    }
+
+    /**
+     * <b>Le score de sortie d'un cycle civique</b> : celui du <b>dernier examen
+     * complet</b> passé pendant ce cycle.
+     *
+     * <p>🛑 <b>C'est un FAIT DEJA VU, pas un verdict nouveau</b> — le candidat a
+     * vu ce score à la fin de cet examen. Le cycle ne le recalcule pas, ne le
+     * pondère pas et n'en fabrique pas un second : il le <b>recopie</b>.
+     *
+     * <p>🛑 <b>{@code null} quand aucun examen complet n'a été passé</b>, et
+     * c'est le cas normal d'un cycle de travail. <b>{@code null} = inconnu,
+     * jamais mauvais</b> : un cycle sans mesure n'a pas un score de zéro.
+     *
+     * <p>⚠️ Un examen de <b>thème</b> ne compte pas : il porte 20 questions, pas
+     * les 40 de l'arrêté. Mélanger les deux échelles ferait un chiffre qui ne
+     * veut rien dire.
+     */
+    private Short historiserLeCycleCivique(Journey enCours) {
+        Short sortie = journeyManager.dernierScoreDExamenComplet(enCours.getId());
+        enCours.setStatus(JourneyStatus.HISTORISE);
+        enCours.setHistoriseAt(Instant.now());
+        enCours.setExitScore(sortie);
+        journeyManager.saveEtFlush(enCours);
+        return sortie;
     }
 
     // ------------------------------------------------------------------ outils
@@ -231,7 +331,15 @@ public class JourneyCycleService {
         Journey cycle = new Journey();
         cycle.setUser(precedent.getUser());
         cycle.setModule(precedent.getModule());
-        cycle.setTargetLevel(precedent.getTargetLevel());
+        // 🛑 L'OBJECTIF SE POSE, il ne se copie pas champ par champ :
+        // `chk_journey_objectif` (V069) exige EXACTEMENT un des deux, et un
+        // `setTargetLevel(null)` sur un cycle civique aurait produit une ligne
+        // sans objectif -- refusee au flush, loin d'ici.
+        if (precedent.getTargetProcedure() != null) {
+            cycle.poserObjectif(precedent.getTargetProcedure());
+        } else {
+            cycle.poserObjectif(precedent.getTargetLevel());
+        }
         return cycle;
     }
 

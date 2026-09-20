@@ -299,6 +299,15 @@ public class JourneyService {
      * volontairement sur « les cinq a evaluer » — et R1 fermera l'etape du
      * theme deja passe quand son examen sera journalise.
      */
+    /**
+     * L'amorce civique, <b>reutilisable</b> : {@code JourneyCycleService} s'en
+     * sert pour ouvrir le cycle suivant apres une historisation — il n'y a pas
+     * de cycle en attente civique (les priorites sont derivees, D-36).
+     */
+    void amorcerCycleCivique(Journey journey, User user) {
+        amorcerCivique(journey, user);
+    }
+
     private void amorcerCivique(Journey journey, User user) {
         CivicPlanService.OrdreDuPlan ordre = civicPlanService.ordrePourLeCycle(user.getId());
         creerLotsCiviques(journey, ordre);
