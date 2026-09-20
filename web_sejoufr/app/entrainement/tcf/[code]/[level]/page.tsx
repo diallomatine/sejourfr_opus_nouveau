@@ -17,9 +17,15 @@ import {
   ComplementaryNotice,
   DetailShell,
   SerieCard,
+  SerieFilterRow,
   SeriesProgressCard,
 } from "@/app/_components/hub/DetailParts";
 import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
+import {
+  SERIE_FILTRE_VIDE,
+  serieFiltrer,
+  type SerieFiltre,
+} from "@/lib/serie-filtre";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const TCF_QCM = {
@@ -147,6 +153,11 @@ export default function TcfLevelSeriesPage() {
   }
 
   const doneCount = useMemo(() => lots.filter((l) => l.lastScore != null).length, [lots]);
+  /* 🛑 **Un état d'écran, pas une préférence** : le filtre se remet à
+     « Toutes » à chaque ouverture. Le mémoriser cacherait des séries sans que
+     le candidat se souvienne de l'avoir demandé. */
+  const [filtre, setFiltre] = useState<SerieFiltre>("TOUS");
+  const visibles = useMemo(() => serieFiltrer(lots, filtre), [lots, filtre]);
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!valid) {
@@ -194,8 +205,14 @@ export default function TcfLevelSeriesPage() {
         ) : (
           <>
             <SeriesProgressCard done={doneCount} total={lots.length} />
+            <SerieFilterRow lots={lots} filtre={filtre} onChange={setFiltre} />
+            {/* 🛑 Un filtre qui ne rend rien le **dit** : une liste vide sans un
+                mot se lit comme une panne. */}
+            {visibles.length === 0 && (
+              <p className={detail.empty}>{SERIE_FILTRE_VIDE}</p>
+            )}
             <div className={detail.serieGrid}>
-              {lots.map((lot) => (
+              {visibles.map((lot) => (
                 <SerieCard
                   key={lot.numero}
                   lot={lot}

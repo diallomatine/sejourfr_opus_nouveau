@@ -25,7 +25,17 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
-import { DetailShell, SerieCard, SeriesProgressCard } from "@/app/_components/hub/DetailParts";
+import {
+  DetailShell,
+  SerieCard,
+  SerieFilterRow,
+  SeriesProgressCard,
+} from "@/app/_components/hub/DetailParts";
+import {
+  SERIE_FILTRE_VIDE,
+  serieFiltrer,
+  type SerieFiltre,
+} from "@/lib/serie-filtre";
 import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -136,6 +146,11 @@ export default function CiviqueThemeSeriesPage() {
   }
 
   const doneCount = useMemo(() => lots.filter((l) => l.lastScore != null).length, [lots]);
+  /* 🛑 **Un état d'écran, pas une préférence** : le filtre se remet à
+     « Toutes » à chaque ouverture. Le mémoriser cacherait des séries sans que
+     le candidat se souvienne de l'avoir demandé. */
+  const [filtre, setFiltre] = useState<SerieFiltre>("TOUS");
+  const visibles = useMemo(() => serieFiltrer(lots, filtre), [lots, filtre]);
   const slug = theme ? themeSlug(theme.code) : themeRef;
 
   if (status === "loading") return <div className={ds.gate} />;
@@ -181,8 +196,14 @@ export default function CiviqueThemeSeriesPage() {
         ) : (
           <>
             <SeriesProgressCard done={doneCount} total={lots.length} />
+            <SerieFilterRow lots={lots} filtre={filtre} onChange={setFiltre} />
+            {/* 🛑 Un filtre qui ne rend rien le **dit** : une liste vide sans un
+                mot se lit comme une panne. */}
+            {visibles.length === 0 && (
+              <p className={detail.empty}>{SERIE_FILTRE_VIDE}</p>
+            )}
             <div className={detail.serieGrid}>
-              {lots.map((lot) => (
+              {visibles.map((lot) => (
                 <SerieCard
                   key={lot.numero}
                   lot={lot}

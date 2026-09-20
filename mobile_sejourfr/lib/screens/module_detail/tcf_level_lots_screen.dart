@@ -10,6 +10,8 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/lot_models.dart';
 import '../../core/providers/lots_provider.dart';
+import '../tcf_production/widgets/exam_filter_chips.dart';
+import 'serie_filtre.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
@@ -167,6 +169,11 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
     }
   }
 
+  /// 🛑 **Un état d'écran, pas une préférence** : le filtre se remet à
+  /// « Toutes » à chaque ouverture. Le mémoriser cacherait des séries sans que
+  /// le candidat se souvienne de l'avoir demandé.
+  SerieFiltre _filtre = SerieFiltre.tous;
+
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
@@ -214,9 +221,29 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                             return _Empty(
                                 accent: meta.accent, level: widget.level);
                           }
+                          final visibles = serieFiltrer(lots, _filtre);
                           return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              for (final lot in lots) ...[
+                              ExamFilterChips(
+                                active: SerieFiltre.values.indexOf(_filtre),
+                                labels: serieFiltreLabels(lots),
+                                accent: meta.accent,
+                                onChanged: (i) => setState(
+                                    () => _filtre = SerieFiltre.values[i]),
+                              ),
+                              const SizedBox(height: 14),
+                              // 🛑 Un filtre qui ne rend rien le **dit** : une
+                              // liste vide sans un mot se lit comme une panne.
+                              if (visibles.isEmpty)
+                                AppCard(
+                                  child: Text(
+                                    kSerieFiltreVide,
+                                    style: AppFonts.ui(
+                                        size: 13, color: AppColors.muted),
+                                  ),
+                                ),
+                              for (final lot in visibles) ...[
                                 SerieCard(
                                   lot: lot,
                                   accent: meta.accent,

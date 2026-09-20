@@ -12,6 +12,8 @@ import '../../core/models/enums.dart';
 import '../../core/models/lot_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/providers/lots_provider.dart';
+import '../tcf_production/widgets/exam_filter_chips.dart';
+import 'serie_filtre.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
@@ -50,6 +52,11 @@ class _CiviqueThemeDetailScreenState
     extends ConsumerState<CiviqueThemeDetailScreen> {
   bool _starting = false;
   bool _showAllLots = false;
+
+  /// 🛑 **Un état d'écran, pas une préférence** : le filtre se remet à
+  /// « Toutes » à chaque ouverture. Le mémoriser cacherait des séries sans que
+  /// le candidat se souvienne de l'avoir demandé.
+  SerieFiltre _filtre = SerieFiltre.tous;
 
   bool _isPremium() {
     final auth = ref.read(authControllerProvider);
@@ -293,9 +300,16 @@ class _CiviqueThemeDetailScreenState
                       lots: lots,
                       isPremium: isPremium,
                       showAll: _showAllLots,
+                      filtre: _filtre,
                       onTap: (lot) => _onLotTap(theme, lot),
                       onToggleShowAll: () =>
                           setState(() => _showAllLots = true),
+                      // Changer de filtre replie la liste : le plafond
+                      // d'affichage repart de zéro sur un autre sous-ensemble.
+                      onFiltre: (f) => setState(() {
+                        _filtre = f;
+                        _showAllLots = false;
+                      }),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -345,15 +359,19 @@ class _LotsList extends StatelessWidget {
     required this.lots,
     required this.isPremium,
     required this.showAll,
+    required this.filtre,
     required this.onTap,
     required this.onToggleShowAll,
+    required this.onFiltre,
   });
 
   final List<LotDto> lots;
   final bool isPremium;
   final bool showAll;
+  final SerieFiltre filtre;
   final ValueChanged<LotDto> onTap;
   final VoidCallback onToggleShowAll;
+  final ValueChanged<SerieFiltre> onFiltre;
 
   @override
   Widget build(BuildContext context) {
@@ -366,10 +384,31 @@ class _LotsList extends StatelessWidget {
         ),
       );
     }
-    final visible = showAll ? lots : lots.take(_civiqueLotsInlineCap).toList();
-    final hiddenCount = lots.length - visible.length;
+    // 🛑 **Le filtre s'applique AVANT le plafond d'affichage** : plafonner
+    // d'abord montrerait « 6 séries » dont certaines ne passent pas le filtre,
+    // et « Voir les séries 7 à 20 » compterait des lignes invisibles.
+    final retenues = serieFiltrer(lots, filtre);
+    final visible =
+        showAll ? retenues : retenues.take(_civiqueLotsInlineCap).toList();
+    final hiddenCount = retenues.length - visible.length;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        ExamFilterChips(
+          active: SerieFiltre.values.indexOf(filtre),
+          labels: serieFiltreLabels(lots),
+          onChanged: (i) => onFiltre(SerieFiltre.values[i]),
+        ),
+        const SizedBox(height: 14),
+        // 🛑 Un filtre qui ne rend rien le **dit** : une liste vide sans un mot
+        // se lit comme une panne.
+        if (retenues.isEmpty)
+          AppCard(
+            child: Text(
+              kSerieFiltreVide,
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
+            ),
+          ),
         for (final lot in visible) ...[
           SerieCard(
             lot: lot,
@@ -384,7 +423,7 @@ class _LotsList extends StatelessWidget {
           TextButton.icon(
             onPressed: onToggleShowAll,
             icon: Text(
-              'Voir les séries ${visible.length + 1} à ${lots.length}',
+              'Voir les séries ${visible.length + 1} à ${retenues.length}',
               style: AppFonts.ui(
                 size: 13,
                 weight: FontWeight.w700,

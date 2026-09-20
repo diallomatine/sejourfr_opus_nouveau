@@ -18,6 +18,11 @@ import {
   TCF_COMPLEMENTAIRE_NOTE,
   TCF_COMPLEMENTAIRE_NOTE_TITLE,
 } from "@/lib/tcf-epreuves";
+import {
+  SERIE_FILTRES,
+  serieFiltreLabels,
+  type SerieFiltre,
+} from "@/lib/serie-filtre";
 import { ProgressDonut } from "./ModuleHubParts";
 import styles from "./detail.module.css";
 
@@ -554,5 +559,40 @@ export function ExamCard({
         )}
       </div>
     </article>
+  );
+}
+
+/**
+ * **Les trois puces de filtre d'une liste de séries** — Toutes / À faire /
+ * Faites.
+ *
+ * 🛑 **Elle ne décide rien** : les libellés et le tri viennent de
+ * `lib/serie-filtre.ts`, la même autorité que le mobile. Miroir de
+ * `ExamFilterChips` côté Flutter.
+ */
+export function SerieFilterRow({
+  lots,
+  filtre,
+  onChange,
+}: {
+  lots: readonly LotDto[];
+  filtre: SerieFiltre;
+  onChange: (f: SerieFiltre) => void;
+}) {
+  const labels = serieFiltreLabels(lots);
+  return (
+    <div className={styles.filterRow} role="group" aria-label="Filtrer les séries">
+      {SERIE_FILTRES.map((f, i) => (
+        <button
+          key={f}
+          type="button"
+          className={`${styles.filterChip} ${f === filtre ? styles.filterChipOn : ""}`}
+          aria-pressed={f === filtre}
+          onClick={() => onChange(f)}
+        >
+          {labels[i]}
+        </button>
+      ))}
+    </div>
   );
 }
