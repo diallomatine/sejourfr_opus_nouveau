@@ -84,6 +84,7 @@ export function PlanEpreuveReco({
     return (
         <>
             <PlanRecoCard
+                pad={false}
                 icon={icon}
                 label={REVISER_RESUME_LABEL}
                 title={carte.title}

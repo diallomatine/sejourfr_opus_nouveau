@@ -25,6 +25,7 @@ class PlanRecoCard extends StatelessWidget {
     required this.icon,
     required this.variant,
     required this.onContinue,
+    this.pad = true,
     required this.label,
     required this.cta,
   });
@@ -46,10 +47,17 @@ class PlanRecoCard extends StatelessWidget {
   final SfButtonVariant variant;
   final VoidCallback onContinue;
 
+  /// 🛑 **La gouttière de l'écran, quand il n'en a pas déjà une.** Réviser rend
+  /// ses blocs à plat et compte dessus ; une liste qui porte **son** padding la
+  /// doublerait, et la carte serait plus étroite que ce qui la suit.
+  final bool pad;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: pad
+          ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
+          : EdgeInsets.zero,
       child: SfCard(
         variant: SfCardVariant.hero,
         child: Column(

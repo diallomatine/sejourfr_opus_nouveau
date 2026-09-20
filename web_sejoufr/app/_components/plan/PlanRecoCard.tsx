@@ -32,6 +32,7 @@ export function PlanRecoCard({
     busy,
     error,
     tone,
+    pad = true,
 }: {
     /** Le pictogramme de ce qu'on reprend, **servi par l'écran** : lui seul
      *  sait de quoi il parle — le domaine, le thème, l'épreuve. */
@@ -45,29 +46,39 @@ export function PlanRecoCard({
     busy?: boolean;
     error?: string | null;
     tone: "primary" | "blue";
+    /** 🛑 **La gouttière de l'écran, quand il n'en a pas déjà une.** Réviser
+     *  rend ses blocs à plat et compte dessus ; un écran qui porte **son**
+     *  padding la doublerait, et la carte serait plus étroite que ce qui la
+     *  suit. */
+    pad?: boolean;
 }) {
-    return (
-        <Pad className={styles.wrap}>
-            <Card variant="hero" className={styles.card}>
-                <p className={sejourStyles.label}>{label}</p>
-                <div className={styles.head}>
-                    <span className={styles.ico} aria-hidden>
-                        {icon}
-                    </span>
-                    <span>
-                        <b>{title}</b>
-                        {subtitle ? <span>{subtitle}</span> : null}
-                    </span>
-                </div>
-                <Cta href={href} onClick={onClick} variant={tone} disabled={busy}>
-                    {cta}
-                </Cta>
-                {error ? (
-                    <p className={sejourStyles.tiny} role="alert">
-                        {error}
-                    </p>
-                ) : null}
-            </Card>
-        </Pad>
+    const carte = (
+        <Card variant="hero" className={styles.card}>
+            <p className={sejourStyles.label}>{label}</p>
+            <div className={styles.head}>
+                <span className={styles.ico} aria-hidden>
+                    {icon}
+                </span>
+                <span>
+                    <b>{title}</b>
+                    {subtitle ? <span>{subtitle}</span> : null}
+                </span>
+            </div>
+            <Cta href={href} onClick={onClick} variant={tone} disabled={busy}>
+                {cta}
+            </Cta>
+            {error ? (
+                <p className={sejourStyles.tiny} role="alert">
+                    {error}
+                </p>
+            ) : null}
+        </Card>
+    );
+    /* 🛑 La carte porte **sa** marge basse et **aucune** marge latérale quand
+       l'écran a déjà la sienne. */
+    return pad ? (
+        <Pad className={styles.wrap}>{carte}</Pad>
+    ) : (
+        <div className={styles.flush}>{carte}</div>
     );
 }

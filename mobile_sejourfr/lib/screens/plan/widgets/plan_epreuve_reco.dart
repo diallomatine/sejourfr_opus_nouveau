@@ -56,19 +56,25 @@ class PlanEpreuveReco extends ConsumerWidget {
       free: !auth.user.hasTcf,
     );
     if (carte == null) return const SizedBox.shrink();
-    return PlanRecoCard(
-      label: kReviserResumeLabel,
-      title: carte.title,
-      subtitle: carte.subtitle,
-      cta: carte.cta,
-      icon: icon,
-      variant: variant,
-      // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un geste
-      // d'achat passe par l'écran de transition (A145), jamais par le paywall
-      // d'un coup.
-      onContinue: carte.geste == PlanNowGeste.debloquer
-          ? () => context.push(AppRoutes.planUnlockPath(civique: false))
-          : () => _lancer(context, ref, carte),
+    // 🛑 La carte porte **sa** marge basse et **aucune** marge latérale : les
+    // deux écrans qui la montent ont déjà la gouttière de leur liste.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: PlanRecoCard(
+        pad: false,
+        label: kReviserResumeLabel,
+        title: carte.title,
+        subtitle: carte.subtitle,
+        cta: carte.cta,
+        icon: icon,
+        variant: variant,
+        // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
+        // geste d'achat passe par l'écran de transition (A145), jamais par le
+        // paywall d'un coup.
+        onContinue: carte.geste == PlanNowGeste.debloquer
+            ? () => context.push(AppRoutes.planUnlockPath(civique: false))
+            : () => _lancer(context, ref, carte),
+      ),
     );
   }
 

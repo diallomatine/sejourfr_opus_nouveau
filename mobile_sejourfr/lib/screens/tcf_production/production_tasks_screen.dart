@@ -102,7 +102,6 @@ class ProductionTasksScreen extends ConsumerWidget {
                       blocCode: module.epreuve.wire,
                       icon: module.isEo ? LucideIcons.mic : LucideIcons.penLine,
                     ),
-                    if (carte != null) const SizedBox(height: 20),
                     Text(
                       'Les $_taches tâches',
                       style: AppFonts.ui(size: 17, weight: FontWeight.w800),
