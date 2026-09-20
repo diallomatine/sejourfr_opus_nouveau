@@ -1,6 +1,5 @@
 package com.sejourfr.app.dto;
 
-import com.sejourfr.app.enums.EpreuveType;
 
 import java.util.List;
 
@@ -35,7 +34,18 @@ import java.util.List;
  *                    epreuve dans ce cycle.
  */
 public record JourneyHistoryBlocDto(
-        EpreuveType examType,
+        /**
+         * <b>Le bloc, servi</b> — epreuve TCF ou thematique civique (D-47).
+         *
+         * <p>⚠️ <b>Remplace {@code examType}</b>, qui etait le dernier champ
+         * type TCF de l'historique : un cycle civique n'a pas d'epreuve. Les
+         * deux fronts lisent {@code bloc.label}, comme partout ailleurs.
+         */
+        JourneyBlocRefDto bloc,
+        /**
+         * Les <b>unites travaillees</b> de ce bloc, dans l'ordre ou le candidat
+         * les a faites : competences TCF ou unites officielles civiques.
+         */
         List<String> skillTitles,
         int examens
 ) {}

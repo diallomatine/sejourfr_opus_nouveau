@@ -254,26 +254,18 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
                 service.demarrerSerie(user.getId(), cible.id(), CivicPlanGrain.THEME);
         entityManager.flush();
 
-        // 🛑 CE QUE LE TIRAGE PEUT REELLEMENT SERVIR, et pas ce que la cible
-        // annonce -- les deux ne coincident pas encore, et c'est MESURE :
-        // « Les guerres du XXᵉ siecle » porte 26 questions actives, dont 8 en
-        // CSP, 9 en CR et 9 en NAT. La DOTATION compte la notion entiere ;
-        // le TIRAGE, lui, filtre encore par mention (`q.difficulty`). Une cible
-        // peut donc annoncer 10 et n'en servir que 8.
+        // ✅ L'ÉGALITÉ EST REVENUE, ET C'EST P8.2b QUI L'A RENDUE (2026-09-20).
         //
-        // ⚠️ C'est exactement ce que **P8.2b** supprime -- « la mention ne
-        // filtre plus le contenu » (D-27, D-42) --, et cette phase n'est pas
-        // faite. Ce test disait `hasSize(cible.questionsSerie())` et passait
-        // PAR CHANCE : il dependait de la cible que le plan classait premiere.
-        // Quand P8.2b tombera, les deux nombres se rejoindront et cette borne
-        // redeviendra une egalite.
-        Integer servables = jdbc.queryForObject("""
-                SELECT count(*) FROM questions q
-                WHERE q.civic_notion_id = ? AND q.is_active AND q.status = 'ACTIVE'
-                  AND q.difficulty = ?
-                """, Integer.class, cible.id(), plan.mention().name());
-        assertThat(attempt.questions())
-                .hasSize(Math.min(cible.questionsSerie(), servables));
+        // Ce test a porté quelques heures une borne temporaire,
+        // `min(questionsSerie, stock dans la mention)`, parce que la dotation
+        // comptait la notion entière quand le tirage filtrait encore par
+        // démarche : le plan annonçait 10 et n'en servait que 8 (`DETTE-C1`).
+        //
+        // Le filtre est parti (D-27, D-42) et `questionsSerie` vaut désormais
+        // `min(questionsParSerie, stock réel)` -- borné À LA SOURCE. Les deux
+        // nombres se rejoignent, exactement comme le commentaire de la borne
+        // l'annonçait.
+        assertThat(attempt.questions()).hasSize(cible.questionsSerie());
         assertThat(attempt.questions()).isNotEmpty();
         // 🛑 C'est un TRAINING : le candidat le joue dans le runner existant, et
         // il ne consomme aucun slot d'examen blanc.

@@ -307,6 +307,7 @@ class JourneyStep {
     required this.locked,
     this.purpose,
     this.bloc,
+    this.unite,
     this.section,
     this.taskCode,
     this.skillCode,
@@ -329,6 +330,10 @@ class JourneyStep {
   /// Le bloc **servi**. `null` pour une étape [JourneyStepType.diagnostic]
   /// seulement — elle n'appartient à aucun bloc (R11, A45).
   final JourneyBlocRef? bloc;
+
+  /// **L'unité travaillable, servie** — compétence TCF ou unité officielle
+  /// civique, et l'écran ne branche pas (D-50). `null` hors `TRAIN_SKILL`.
+  final JourneyUniteRef? unite;
 
   /// Le domaine de la compétence. `null` hors [JourneyStepType.trainSkill].
   final SkillSection? section;
@@ -399,6 +404,7 @@ class JourneyStep {
         status: JourneyStepStatus.fromWireNullable(json['status'] as String?) ??
             JourneyStepStatus.upcoming,
         bloc: JourneyBlocRef.fromJsonNullable(json['bloc']),
+        unite: JourneyUniteRef.fromJsonNullable(json['unite']),
         section: SkillSection.fromWireNullable(json['section'] as String?),
         taskCode: _tache(json['taskCode'] as String?),
         skillCode: json['skillCode'] as String?,
@@ -468,6 +474,7 @@ class JourneyBloc {
     required this.bloc,
     required this.status,
     required this.etapesRestantes,
+    required this.meta,
     required this.steps,
     this.exam,
   });
@@ -487,6 +494,15 @@ class JourneyBloc {
   /// mentait de l'autre côté.
   final int etapesRestantes;
 
+  /// **La phrase d'état du bloc, SERVIE** — « 3 unités restantes · puis
+  /// examen ».
+  ///
+  /// 🛑 Servie parce que le MOT dépend du grain du module (D-50 §4) :
+  /// « compétence » côté TCF, « unité » côté civique. Un front qui le
+  /// choisirait le choisirait **seul** — c'est le motif de `DETTE-P1`, dont la
+  /// 3ᵉ occurrence a ouvert le chantier.
+  final String meta;
+
   /// Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
   /// figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc.
   final List<JourneyStep> steps;
@@ -501,6 +517,7 @@ class JourneyBloc {
             JourneyBlocStatus.aVenir,
         etapesRestantes:
             (json['etapesRestantes'] as num?)?.toInt() ?? 0,
+        meta: json['meta'] as String? ?? '',
         steps: (json['steps'] as List<dynamic>? ?? const [])
             .map((item) => JourneyStep.fromJson(item as Map<String, dynamic>))
             .toList(growable: false),
@@ -532,6 +549,30 @@ class JourneyNextStep {
         examenCompletPossible: json['examenCompletPossible'] as bool? ?? false,
         actualisationPossible: json['actualisationPossible'] as bool? ?? false,
       );
+}
+
+/// **L'unité travaillable d'une étape, servie.**
+///
+/// 🛑 **Miroir mot pour mot de `JourneyUniteRefDto`** (`lib/types.ts`). Le
+/// patron du bloc servi : une compétence TCF et une unité officielle civique
+/// s'affichent par le **même chemin**. `skillCode` / `skillTitle` restent pour
+/// ce qu'ils portent d'autre (la séance, l'exercice recommandé).
+class JourneyUniteRef {
+  const JourneyUniteRef({required this.code, required this.label});
+
+  /// `EE1-C1`, `P2_LAICITE` — une **clé**, jamais un affichage.
+  final String code;
+
+  /// Ce que le **candidat lit**.
+  final String label;
+
+  factory JourneyUniteRef.fromJson(Map<String, dynamic> json) => JourneyUniteRef(
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+      );
+
+  static JourneyUniteRef? fromJsonNullable(Object? json) =>
+      json is Map<String, dynamic> ? JourneyUniteRef.fromJson(json) : null;
 }
 
 /// La nature de l'objectif d'un cycle. Miroir de `JourneyObjectifKind`.
@@ -643,17 +684,6 @@ class Journey {
       );
 }
 
-/// 🛑 **Une valeur inconnue rend `null`, jamais une exception ni un repli
-/// arbitraire.** Un front qui planterait sur une épreuve ajoutée côté serveur
-/// serait pire qu'un front qui l'ignore ; et lui inventer une épreuve la
-/// rangerait dans le mauvais domaine.
-EpreuveType? _epreuve(String? wire) {
-  if (wire == null) return null;
-  for (final epreuve in EpreuveType.values) {
-    if (epreuve.wire == wire) return epreuve;
-  }
-  return null;
-}
 
 /// Idem pour la tâche : `null` veut dire **compétence de compréhension**, un
 /// fait ordinaire — jamais une erreur de lecture.
@@ -699,27 +729,30 @@ class JourneyHistoryStats {
       );
 }
 
-/// Ce qu'une epreuve a recu pendant un cycle historise.
+/// Ce qu'un bloc a recu pendant un cycle historise.
 class JourneyHistoryBloc {
   const JourneyHistoryBloc({
-    required this.examType,
+    required this.bloc,
     required this.skillTitles,
     required this.examens,
   });
 
-  /// L'epreuve du bloc. C'est **elle** que le candidat lit (D-21).
-  final EpreuveType examType;
+  /// **Le bloc, servi** — epreuve TCF ou thematique civique (D-47).
+  /// ⚠️ Remplace `examType`, dernier champ type TCF de l'historique.
+  final JourneyBlocRef bloc;
 
-  /// Les titres des competences travaillees, **dans l'ordre servi**. Vide =
-  /// aucune competence n'a ete travaillee sur cette epreuve.
+  /// Les unites travaillees, **dans l'ordre servi** : competences TCF ou
+  /// unites officielles civiques.
   final List<String> skillTitles;
 
-  /// Les examens de cette epreuve enregistres pendant le cycle.
+  /// Les examens de ce bloc enregistres pendant le cycle.
   final int examens;
 
   factory JourneyHistoryBloc.fromJson(Map<String, dynamic> json) =>
       JourneyHistoryBloc(
-        examType: _epreuve(json['examType'] as String?) ?? EpreuveType.tcfCo,
+        bloc: JourneyBlocRef.fromJsonNullable(json['bloc']) ??
+            const JourneyBlocRef(
+                kind: JourneyBlocKind.epreuve, code: '', label: ''),
         skillTitles: (json['skillTitles'] as List<dynamic>? ?? const [])
             .map((item) => item as String)
             .toList(growable: false),
@@ -738,6 +771,8 @@ class JourneyHistoryCycle {
     required this.blocs,
     this.entryLevel,
     this.exitLevel,
+    this.entryScore,
+    this.exitScore,
   });
 
   /// Le rang du cycle, tel que le Plan l'affichait (« Cycle 2 »).
@@ -762,6 +797,13 @@ class JourneyHistoryCycle {
   /// place : `null` = inconnu, jamais mauvais.
   final TargetLevel? exitLevel;
 
+  /// **Le score d'entrée — CIVIQUE**, sur 40. `null` côté TCF, et `null` côté
+  /// civique sans examen complet : **inconnu, jamais zéro**.
+  final int? entryScore;
+
+  /// **Le score de sortie — CIVIQUE**. Même règle.
+  final int? exitScore;
+
   /// Un bloc par epreuve touchee, **dans l'ordre servi**.
   final List<JourneyHistoryBloc> blocs;
 
@@ -775,6 +817,8 @@ class JourneyHistoryCycle {
         entryLevel:
             TargetLevel.fromWireNullable(json['entryLevel'] as String?),
         exitLevel: TargetLevel.fromWireNullable(json['exitLevel'] as String?),
+        entryScore: (json['entryScore'] as num?)?.toInt(),
+        exitScore: (json['exitScore'] as num?)?.toInt(),
         blocs: (json['blocs'] as List<dynamic>? ?? const [])
             .map((item) =>
                 JourneyHistoryBloc.fromJson(item as Map<String, dynamic>))

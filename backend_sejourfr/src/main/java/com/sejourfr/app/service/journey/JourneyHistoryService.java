@@ -1,6 +1,7 @@
 package com.sejourfr.app.service.journey;
 
 import com.sejourfr.app.dto.JourneyHistoryBlocDto;
+import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.dto.JourneyHistoryCycleDto;
 import com.sejourfr.app.dto.JourneyHistoryDto;
 import com.sejourfr.app.dto.JourneyHistoryStatsDto;
@@ -10,10 +11,12 @@ import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyStatus;
+import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
+import com.sejourfr.app.manager.ThemeManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +63,7 @@ import java.util.UUID;
 public class JourneyHistoryService {
 
     private final JourneyManager journeyManager;
+    private final ThemeManager themeManager;
     private final JourneyStepManager stepManager;
 
     /**
@@ -74,10 +78,10 @@ public class JourneyHistoryService {
      * « rien encore ».
      */
     @Transactional(readOnly = true)
-    public JourneyHistoryDto lire(UUID userId) {
+    public JourneyHistoryDto lire(UUID userId, Module module) {
         // Requete 1 : les cycles, du plus ancien au plus recent — c'est l'ordre
         // qui DEFINIT le rang (JourneyCycleRank), pas celui de l'affichage.
-        List<Journey> parCreation = journeyManager.racontables(userId, Module.TCF);
+        List<Journey> parCreation = journeyManager.racontables(userId, module);
 
         // Requete 2 : toutes leurs etapes closes, en un lot. Zero cycle, zero
         // requete.
@@ -115,7 +119,12 @@ public class JourneyHistoryService {
                     examens,
                     cycle.getEntryLevel(),
                     cycle.getExitLevel(),
-                    blocs(etapes)));
+                    // 🛑 Les DEUX mesures, et une seule remplie : un cycle TCF
+                    // porte des paliers, un cycle civique des scores sur 40.
+                    // `null` = inconnu de ce module, jamais zero.
+                    cycle.getEntryScore(),
+                    cycle.getExitScore(),
+                    blocs(axe(module), etapes)));
         }
 
         // L'affichage va du plus RECENT au plus ancien (maquette). Le tri se
@@ -131,7 +140,25 @@ public class JourneyHistoryService {
     }
 
     /**
-     * Les competences travaillees, <b>groupees par epreuve</b>, dans l'ordre
+     * <b>L'axe de l'historique</b> — les memes blocs que le cycle, dans le meme
+     * ordre. 🛑 {@code TcfDomainProfileDto.ORDRE} cote TCF (D-9, D-20), l'ordre
+     * d'affichage des thematiques cote civique : une <b>donnee</b>, pas un enum.
+     */
+    private List<JourneyBlocRefDto> axe(Module module) {
+        if (module == Module.CIVIQUE) {
+            return themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE).stream()
+                    .map(theme -> new JourneyBlocRefDto(
+                            JourneyBlocKind.THEMATIQUE, theme.getCode(), theme.getName()))
+                    .toList();
+        }
+        return TcfDomainProfileDto.ORDRE.stream()
+                .map(epreuve -> new JourneyBlocRefDto(
+                        JourneyBlocKind.EPREUVE, epreuve.name(), epreuve.getLabel()))
+                .toList();
+    }
+
+    /**
+     * Les unites travaillees, <b>groupees par bloc</b>, dans l'ordre
      * {@code TcfDomainProfileDto.ORDRE} (CO, CE, EO, EE) — autorite unique et
      * non configurable (D-9, D-20).
      *
@@ -141,40 +168,42 @@ public class JourneyHistoryService {
      * epreuve qui n'a recu aucune competence ne sont comptes que par
      * {@code JourneyHistoryCycleDto.examens}.
      */
-    private static List<JourneyHistoryBlocDto> blocs(List<JourneyStep> etapesCloses) {
-        Map<EpreuveType, List<String>> titres = new LinkedHashMap<>();
-        Map<EpreuveType, Integer> examens = new LinkedHashMap<>();
-        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
-            titres.put(epreuve, new ArrayList<>());
-            examens.put(epreuve, 0);
+    private static List<JourneyHistoryBlocDto> blocs(
+            List<JourneyBlocRefDto> axe, List<JourneyStep> etapesCloses) {
+        Map<String, List<String>> titres = new LinkedHashMap<>();
+        Map<String, Integer> examens = new LinkedHashMap<>();
+        Map<String, JourneyBlocRefDto> refs = new LinkedHashMap<>();
+        for (JourneyBlocRefDto bloc : axe) {
+            titres.put(bloc.code(), new ArrayList<>());
+            examens.put(bloc.code(), 0);
+            refs.put(bloc.code(), bloc);
         }
 
         // Les etapes arrivent dans l'ordre de la file : les titres d'un bloc
         // sortent donc dans l'ordre ou le candidat les a travailles.
         for (JourneyStep etape : etapesCloses) {
-            EpreuveType epreuve = etape.getExamType();
-            // Une etape DIAGNOSTIC ne porte pas d'epreuve : elle mesure le
-            // candidat, pas une epreuve. Elle n'appartient a aucun bloc.
-            //
-            // ⚠️ AXE : CHEMIN TCF (DETTE-A1). Une etape CIVIQUE tombe ici aussi
-            // dans ce `continue` — son bloc est une thematique, pas une epreuve.
-            // Ce n'est pas un NPE, c'est un TROU MUET : l'historique civique
-            // serait vide. Il se comble en P8.9, en lisant `blocCode()`.
-            // ⛔ P8.9 est BLOQUEE (template non fourni) : ne rien concevoir ici.
-            if (epreuve == null || !titres.containsKey(epreuve)) continue;
+            // ✅ AXE : `blocCode()` (DETTE-A1 refermee ici). Une etape DIAGNOSTIC
+            // ne porte aucun bloc -- elle mesure le candidat (R11, A45) -- et
+            // tombe dans ce `continue` ; une etape CIVIQUE, elle, trouve
+            // desormais sa thematique.
+            String bloc = etape.blocCode();
+            if (bloc == null || !titres.containsKey(bloc)) continue;
             if (etape.getType() == JourneyStepType.SECTION_EXAM) {
-                examens.merge(epreuve, 1, Integer::sum);
+                examens.merge(bloc, 1, Integer::sum);
             } else if (etape.getType() == JourneyStepType.TRAIN_SKILL) {
-                Skill competence = etape.getSkill();
-                if (competence != null) titres.get(epreuve).add(competence.getTitle());
+                // 🛑 L'unite travaillable, quelle qu'elle soit : une competence
+                // TCF ou une unite officielle civique. `uniteLabel()` porte
+                // cette uniformite a la source.
+                String titre = etape.uniteLabel();
+                if (titre != null) titres.get(bloc).add(titre);
             }
         }
 
         List<JourneyHistoryBlocDto> blocs = new ArrayList<>();
-        titres.forEach((epreuve, codes) -> {
-            if (codes.isEmpty()) return;
+        titres.forEach((code, unites) -> {
+            if (unites.isEmpty()) return;
             blocs.add(new JourneyHistoryBlocDto(
-                    epreuve, List.copyOf(codes), examens.get(epreuve)));
+                    refs.get(code), List.copyOf(unites), examens.get(code)));
         });
         return List.copyOf(blocs);
     }

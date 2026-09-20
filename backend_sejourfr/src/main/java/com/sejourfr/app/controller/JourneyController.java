@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -38,19 +39,20 @@ public class JourneyController {
     private final CurrentUser currentUser;
 
     /**
-     * <p>🛑 <b>Aucun parametre.</b> L'ancien {@code ?expand=all} a disparu avec
+     * <p>🛑 <b>{@code ?module=} depuis P8.7</b> : le cycle existe pour les DEUX
+     * modules, et le toggle « TCF IRN / Examen civique » vit deja dans l'URL
+     * cote front — <b>une seule autorite de selection</b> (spec §4). Absent, il
+     * vaut {@code TCF} : un client anterieur continue de marcher.
+     *
+     * <p>🛑 <b>Aucun autre parametre.</b> L'ancien {@code ?expand=all} a disparu avec
      * {@code JourneyDto.steps} (P6, 2026-09-18) : il ne servait qu'a contourner
      * le fenetrage d'affichage de §14, et {@code blocs} porte <b>toujours</b>
      * toutes les etapes non obsoletes. Un client ancien qui l'envoie encore est
      * servi normalement — un parametre inconnu n'a jamais ete une erreur ici.
      */
     @GetMapping
-    public JourneyDto get() {
-        // ⚠️ MODULE EN DUR, et c'est le SEUL endroit qui reste. Le toggle
-        // TCF / Examen civique vit deja dans l'URL cote front ; l'endpoint
-        // gagnera son `?module=` avec les ecrans (D-50, P8.7). Une ligne a
-        // changer, ici, quand ce jour vient.
-        return journeyService.lire(currentUser.getId(), Module.TCF);
+    public JourneyDto get(@RequestParam(required = false) Module module) {
+        return journeyService.lire(currentUser.getId(), module == null ? Module.TCF : module);
     }
 
     /**
@@ -66,8 +68,8 @@ public class JourneyController {
      * d'un autre.
      */
     @GetMapping("/history")
-    public JourneyHistoryDto history() {
-        return historyService.lire(currentUser.getId());
+    public JourneyHistoryDto history(@RequestParam(required = false) Module module) {
+        return historyService.lire(currentUser.getId(), module == null ? Module.TCF : module);
     }
 
     /**
@@ -82,8 +84,9 @@ public class JourneyController {
      * historise, et il ne doit jamais jeter un plan en cours.
      */
     @PostMapping("/refresh")
-    public JourneyDto refresh() {
-        return cycleService.actualiser(currentUser.getId(), Module.TCF);
+    public JourneyDto refresh(@RequestParam(required = false) Module module) {
+        return cycleService.actualiser(
+                currentUser.getId(), module == null ? Module.TCF : module);
     }
 
     /**
@@ -98,7 +101,8 @@ public class JourneyController {
      * complets sans travail entre eux ne mesure rien de nouveau.
      */
     @PostMapping("/measurement-cycle")
-    public JourneyDto measurementCycle() {
-        return cycleService.creerCycleDeMesure(currentUser.getId(), Module.TCF);
+    public JourneyDto measurementCycle(@RequestParam(required = false) Module module) {
+        return cycleService.creerCycleDeMesure(
+                currentUser.getId(), module == null ? Module.TCF : module);
     }
 }

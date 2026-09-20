@@ -57,7 +57,9 @@ export function journeyTitle(objectif: JourneyObjectifRefDto | null): string {
 export function journeyStepTitle(step: JourneyStepDto): string {
     if (step.type === "DIAGNOSTIC") return "Diagnostic rapide";
     if (step.type === "SECTION_EXAM") return epreuveLabel(step);
-    return step.skillTitle ?? step.skillCode ?? "Compétence";
+    /* 🛑 L'UNITÉ EST SERVIE (D-50) : compétence TCF ou unité officielle
+       civique, même chemin. `skillTitle` reste pour ce qu'il porte d'autre. */
+    return step.unite?.label ?? step.skillTitle ?? step.skillCode ?? "À travailler";
 }
 
 /**
@@ -270,15 +272,14 @@ export function journeyBlocMark(bloc: JourneyBlocRefDto): string {
 
 /** Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21). */
 /**
- * Le titre d'un bloc de l'HISTORIQUE, qui est encore TCF-only.
+ * Le titre d'un bloc de l'HISTORIQUE.
  *
- * ⚠️ `JourneyHistoryBlocDto` porte toujours `examType` et pas le bloc servi : il
- * passera au bloc en **P8.9**, avec l'historique civique. D'ici là ce helper
- * existe pour que l'écran d'historique ne dépende pas de `epreuveNom`, privée
- * ici — et pour que le jour du passage, il n'y ait **qu'un** appelant à changer.
+ * ✅ **Le passage annoncé a eu lieu** (P8.9, 2026-09-20) :
+ * `JourneyHistoryBlocDto` porte le **bloc servi**, plus `examType`. Il n'y a
+ * bien eu **qu'un** appelant à changer — c'était le but de ce helper.
  */
-export function journeyHistoryBlocTitle(examType: EpreuveType): string {
-    return epreuveNom(examType);
+export function journeyHistoryBlocTitle(bloc: JourneyHistoryBlocDto): string {
+    return bloc.bloc.label;
 }
 
 export function journeyBlocTitle(bloc: JourneyBlocRefDto): string {
@@ -289,29 +290,12 @@ export function journeyBlocTitle(bloc: JourneyBlocRefDto): string {
     return bloc.label;
 }
 
-/**
- * La méta d'un bloc : ce qu'il reste à y faire.
- *
- * 🛑 **Composée de faits servis** (`status`, `etapesRestantes`, la présence
- * d'un examen), jamais d'un compteur recalculé.
- */
-export function journeyBlocMeta(bloc: JourneyBlocDto): string {
-    if (bloc.status === "TERMINE") {
-        return bloc.steps.length === 0
-            ? "Niveau évalué · examen blanc terminé"
-            : "Compétences travaillées · examen blanc terminé";
-    }
-    if (bloc.status === "A_EVALUER") return "Niveau à évaluer";
-    const reste = bloc.etapesRestantes;
-    if (reste > 0) {
-        const mot = `${reste} compétence${reste === 1 ? "" : "s"}`;
-        return bloc.status === "EN_COURS"
-            ? `${mot} restante${reste === 1 ? "" : "s"} · puis examen`
-            : `${mot} · puis examen`;
-    }
-    if (bloc.exam) return "Examen à passer";
-    return "Rien à travailler pour l'instant";
-}
+/* ⚠️ `journeyBlocMeta` A ÉTÉ SUPPRIMÉE (P8.7, chantier `DETTE-P1`).
+   Elle composait « 3 compétences restantes · puis examen » à la main, ICI et
+   dans son jumeau Flutter — deux copies d'une phrase dont le MOT dépend du
+   grain du module (« compétence » / « unité »). Le serveur la sert désormais :
+   `bloc.meta`. Un fait de moins à tenir des deux côtés. */
+
 
 /** La pastille d'état d'un bloc : son libellé **et** son ton, tous deux servis
  *  au kit — qui ne classe rien. */
@@ -607,11 +591,11 @@ const EPREUVE_INITIALE: Record<string, string> = {
 export function journeyHistoryLevelNote(cycle: JourneyHistoryCycleDto): string {
     const marks = cycle.blocs
         .filter((bloc) => bloc.examens > 0)
-        /* ⚠️ L'HISTORIQUE EST ENCORE TCF-ONLY : `JourneyHistoryBlocDto` porte
-           toujours `examType`, pas le bloc servi. Il passera au bloc en P8.9,
-           avec l'historique civique. D'ici là on lit l'initiale depuis l'enum,
-           sans passer par `journeyBlocMark`, qui attend un bloc servi. */
-        .map((bloc) => EPREUVE_INITIALE[bloc.examType] ?? "TCF");
+        /* ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
+           initiale pour une épreuve, et une chaîne VIDE pour une thématique —
+           qui n'en a pas (A49). Les vides sont écartés juste après. */
+        .map((bloc) => journeyBlocMark(bloc.bloc))
+        .filter((mark) => mark.length > 0);
     if (!cycle.exitLevel) {
         return marks.length > 0
             ? `${marks.join(" · ")} — aucun niveau global n'a été mesuré pendant ce cycle.`

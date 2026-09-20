@@ -4725,6 +4725,16 @@ class SfBlocAccordion extends StatelessWidget {
   });
 
   /// Le repere court de l'epreuve (« CO »), en etiquette technique.
+  ///
+  /// 🛑 **Vide pour une THEMATIQUE civique** : l'initiale a deux lettres
+  /// n'existe que pour une epreuve. « Principes et valeurs de la Republique »
+  /// ne se reduit pas a deux lettres, et en inventer une serait un libelle
+  /// **fabrique par le front** (A49). La pastille DISPARAIT alors, et **rien ne
+  /// la remplace** — un carre vide, un numero de rang ou une icone choisie ici
+  /// seraient toutes des inventions. Le titre prend la largeur, ce dont un nom
+  /// de thematique a justement besoin.
+  ///
+  /// ⚠️ Miroir de `BlocAccordion` (`mark` vide ⇒ `.blocHeadSansMarque`).
   final String mark;
 
   /// Le nom de l'epreuve **en clair**, servi.
@@ -4773,27 +4783,29 @@ class SfBlocAccordion extends StatelessWidget {
                 padding: const EdgeInsets.all(15),
                 child: Row(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: current ? AppColors.blue : AppColors.blueSoft,
-                        // La maquette dit 13 ; le token le plus proche vaut 12.
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                        border: Border.all(
-                            color:
-                                current ? AppColors.blue : AppColors.line),
+                    if (mark.isNotEmpty) ...[
+                      Container(
+                        width: 42,
+                        height: 42,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: current ? AppColors.blue : AppColors.blueSoft,
+                          // La maquette dit 13 ; le token le plus proche vaut 12.
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                          border: Border.all(
+                              color:
+                                  current ? AppColors.blue : AppColors.line),
+                        ),
+                        child: Text(
+                          mark,
+                          style: AppFonts.label(
+                            size: 12,
+                            color: current ? AppColors.white : AppColors.blue,
+                          ).copyWith(fontWeight: FontWeight.w900),
+                        ),
                       ),
-                      child: Text(
-                        mark,
-                        style: AppFonts.label(
-                          size: 12,
-                          color: current ? AppColors.white : AppColors.blue,
-                        ).copyWith(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                    const SizedBox(width: 11),
+                      const SizedBox(width: 11),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

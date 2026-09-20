@@ -48,7 +48,17 @@ public record JourneyHistoryCycleDto(
         Instant fin,
         int competences,
         int examens,
+        /** Le palier d'entree — <b>TCF</b>. {@code null} cote civique. */
         TargetLevel entryLevel,
+        /** Le palier de sortie — <b>TCF</b>. {@code null} cote civique. */
         TargetLevel exitLevel,
+        /**
+         * Le score d'entree — <b>CIVIQUE</b>, sur 40. {@code null} cote TCF,
+         * et {@code null} cote civique quand aucun examen complet n'a ete passe
+         * (A79) : <b>inconnu, jamais zero</b>.
+         */
+        Short entryScore,
+        /** Le score de sortie — <b>CIVIQUE</b>. Meme regle. */
+        Short exitScore,
         List<JourneyHistoryBlocDto> blocs
 ) {}

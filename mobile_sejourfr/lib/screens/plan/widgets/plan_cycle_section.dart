@@ -177,7 +177,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
                 SfBlocAccordion(
                   mark: journeyBlocMark(bloc.bloc),
                   title: journeyBlocTitle(bloc.bloc),
-                  meta: journeyBlocMeta(bloc),
+                  meta: bloc.meta,
                   status: journeyBlocStatus(bloc.status),
                   current: bloc.status == JourneyBlocStatus.enCours,
                   open: ouvert == bloc.bloc.code,

@@ -3464,6 +3464,20 @@
   .blocHead {
     grid-template-columns: 42px minmax(0, 1fr) 18px;
   }
+
+  .blocHeadSansMarque {
+    grid-template-columns: minmax(0, 1fr) 18px;
+  }
+}
+
+/* 🛑 UN BLOC SANS REPÈRE — le cas d'une THÉMATIQUE civique (P8.6).
+   L'initiale à deux lettres n'existe que pour une épreuve : « Principes et
+   valeurs de la République » ne se réduit pas à deux lettres, et en inventer
+   une serait un libellé fabriqué par le front (A49). La colonne du repère
+   DISPARAÎT — on n'affiche pas un carré vide, et on ne met rien à la place :
+   le titre prend la largeur, ce dont un nom de thématique a justement besoin. */
+.blocHeadSansMarque {
+  grid-template-columns: minmax(0, 1fr) auto 18px;
 }
 
 .blocChevron {

@@ -78,7 +78,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
     void sansCycleFermeToutEstVideEtAZero() {
         User user = candidat();
 
-        JourneyHistoryDto vue = historyService.lire(user.getId());
+        JourneyHistoryDto vue = historyService.lire(user.getId(), Module.TCF);
 
         // 🛑 L'ecran sait dire « rien encore » ; il ne sait pas dire « inconnu ».
         assertThat(vue.cycles()).isNotNull().isEmpty();
@@ -99,7 +99,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         Journey premier = cycleHistorise(user, jours(40), jours(30), null, TargetLevel.A2);
         Journey second = cycleHistorise(user, jours(29), jours(10), TargetLevel.A2, TargetLevel.B1);
 
-        JourneyHistoryDto vue = historyService.lire(user.getId());
+        JourneyHistoryDto vue = historyService.lire(user.getId(), Module.TCF);
 
         // L'ORDRE servi est celui de la maquette : le plus recent d'abord. Aucun
         // front ne retrie — il lirait autre chose que ce que le serveur a decide.
@@ -126,7 +126,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
 
         // Le cycle EN COURS, lu par le Plan : il vient APRES les deux fermes.
         int numeroDuPlan = journeyService.lire(user.getId(), Module.TCF).cycle().numero();
-        List<Integer> numerosDeLHistorique = historyService.lire(user.getId()).cycles()
+        List<Integer> numerosDeLHistorique = historyService.lire(user.getId(), Module.TCF).cycles()
                 .stream().map(JourneyHistoryCycleDto::numero).toList();
 
         // 🛑 Deux lectures d'un meme nombre ne doivent pas pouvoir diverger : le
@@ -159,12 +159,13 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         // L'EO n'a recu qu'un examen : aucune competence travaillee.
         examen(cycle, EpreuveType.TCF_EO, true);
 
-        JourneyHistoryCycleDto vue = historyService.lire(user.getId()).cycles().getFirst();
+        JourneyHistoryCycleDto vue = historyService.lire(user.getId(), Module.TCF).cycles().getFirst();
 
         // 🛑 L'ordre est TcfDomainProfileDto.ORDRE (CO, CE, EO, EE), pas l'ordre
         // de la file : c'est une lecture par epreuve, non configurable.
-        assertThat(vue.blocs()).extracting(JourneyHistoryBlocDto::examType)
-                .containsExactly(EpreuveType.TCF_CO, EpreuveType.TCF_EE);
+        // ⚠️ Le bloc est SERVI depuis P8.9 : on lit son CODE, plus un enum.
+        assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code())
+                .containsExactly(EpreuveType.TCF_CO.name(), EpreuveType.TCF_EE.name());
         // Dans un bloc, les titres suivent l'ordre de la FILE : celui dans lequel
         // le candidat a travaille.
         assertThat(vue.blocs().getFirst().skillTitles())
@@ -196,7 +197,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         entrainement(cycle, jamaisFaite, EpreuveType.TCF_EE, false);
         examen(cycle, EpreuveType.TCF_EE, false);
 
-        JourneyHistoryCycleDto vue = historyService.lire(user.getId()).cycles().getFirst();
+        JourneyHistoryCycleDto vue = historyService.lire(user.getId(), Module.TCF).cycles().getFirst();
 
         assertThat(vue.competences()).isEqualTo(1);
         assertThat(vue.examens()).isZero();
@@ -215,7 +216,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         entrainement(cycle, faite, EpreuveType.TCF_EE, true);
         etape(cycle, caduque, EpreuveType.TCF_EE, JourneyStepResolution.SUPERSEDED);
 
-        JourneyHistoryCycleDto vue = historyService.lire(user.getId()).cycles().getFirst();
+        JourneyHistoryCycleDto vue = historyService.lire(user.getId(), Module.TCF).cycles().getFirst();
 
         // Une etape rendue caduque par une evaluation plus recente est OBSOLETE :
         // invisible du Plan, exclue de `etapesTerminees`, donc exclue d'ici.
@@ -235,7 +236,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
                 cycle(user, JourneyStatus.EN_ATTENTE, jours(5), null, null, null));
         entrainement(attente, expression(SkillTaskCode.EE3), EpreuveType.TCF_EE, true);
 
-        JourneyHistoryDto vue = historyService.lire(user.getId());
+        JourneyHistoryDto vue = historyService.lire(user.getId(), Module.TCF);
 
         // Il est invisible du candidat par construction (D-13) : le servir
         // raconterait un cycle qui n'a pas encore commence pour lui — et
@@ -262,7 +263,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         entrainement(courant, expression(SkillTaskCode.EE2), EpreuveType.TCF_EE, true);
         entrainement(courant, expression(SkillTaskCode.EE3), EpreuveType.TCF_EE, false);
 
-        JourneyHistoryDto vue = historyService.lire(user.getId());
+        JourneyHistoryDto vue = historyService.lire(user.getId(), Module.TCF);
 
         // 🛑 L'ecran dit « tout ce que vous avez DEJA travaille », pas « dans vos
         // cycles clos ». Exclure le cycle en cours ferait reculer le compteur au
@@ -325,7 +326,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
                 .unwrap(SessionFactory.class).getStatistics();
         statistics.setStatisticsEnabled(true);
         statistics.clear();
-        historyService.lire(user.getId());
+        historyService.lire(user.getId(), Module.TCF);
         return statistics.getPrepareStatementCount();
     }
 

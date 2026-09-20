@@ -4711,6 +4711,9 @@ export interface JourneyStepDto {
     /** Le bloc **servi**. `null` pour une étape `DIAGNOSTIC` seulement — elle
      *  n'appartient à aucun bloc (R11, A45). */
     bloc: JourneyBlocRefDto | null;
+    /** **L'unité travaillable, servie** — compétence TCF ou unité officielle
+     *  civique, et l'écran ne branche pas (D-50). `null` hors `TRAIN_SKILL`. */
+    unite: JourneyUniteRefDto | null;
     /** Le domaine de la compétence. `null` hors `TRAIN_SKILL`. */
     section: SkillSection | null;
     /** 🛑 **`null` = compétence de COMPRÉHENSION** : CO/CE n'ont ni tâche ni
@@ -4809,6 +4812,20 @@ export type JourneyBlocKind = "EPREUVE" | "THEMATIQUE";
  * qu'une thématique civique et une épreuve TCF s'affichent **par le même
  * chemin**.
  */
+/**
+ * **L'unité travaillable d'une étape, servie.**
+ *
+ * 🛑 Le patron du bloc servi : une compétence TCF et une unité officielle
+ * civique s'affichent par le **même chemin**. `skillCode` / `skillTitle`
+ * restent pour ce qu'ils portent d'autre (la séance, l'exercice).
+ */
+export interface JourneyUniteRefDto {
+    /** `EE1-C1`, `P2_LAICITE` — une **clé**, jamais un affichage. */
+    code: string;
+    /** Ce que le **candidat lit**. */
+    label: string;
+}
+
 export interface JourneyBlocRefDto {
     kind: JourneyBlocKind;
     /** L'identifiant stable — `TCF_CO`, `CIV_PRINCIPES`. Une **clé**, jamais un affichage. */
@@ -4836,6 +4853,12 @@ export interface JourneyBlocDto {
      *  thématique civique ne compte pas des *compétences*. Le champ était juste,
      *  son nom mentait de l'autre côté. */
     etapesRestantes: number;
+    /** **La phrase d'état du bloc, SERVIE** — « 3 unités restantes · puis
+     *  examen ». 🛑 Servie parce que le MOT dépend du grain du module
+     *  (D-50 §4) : « compétence » côté TCF, « unité » côté civique. Un front
+     *  qui le choisirait le choisirait **seul** — c'est le motif de
+     *  `DETTE-P1`. */
+    meta: string;
     /** Les étapes d'entraînement du bloc, dans l'ordre de la file. L'examen n'y
      *  figure pas : il est servi à part, l'écran l'imbriquant en fin de bloc. */
     steps: JourneyStepDto[];
@@ -4926,14 +4949,15 @@ export interface JourneyHistoryStatsDto {
     cyclesTermines: number;
 }
 
-/** Ce qu'une épreuve a reçu pendant un cycle historisé. */
+/** Ce qu'un bloc a reçu pendant un cycle historisé. */
 export interface JourneyHistoryBlocDto {
-    /** L'épreuve du bloc. C'est **elle** que le candidat lit (D-21). */
-    examType: EpreuveType;
-    /** Les titres des compétences travaillées, **dans l'ordre servi**. Vide =
-     *  aucune compétence n'a été travaillée sur cette épreuve. */
+    /** **Le bloc, servi** — épreuve TCF ou thématique civique (D-47).
+     *  ⚠️ Remplace `examType`, dernier champ typé TCF de l'historique. */
+    bloc: JourneyBlocRefDto;
+    /** Les unités travaillées, **dans l'ordre servi** : compétences TCF ou
+     *  unités officielles civiques. */
     skillTitles: string[];
-    /** Les examens de cette épreuve enregistrés pendant le cycle. */
+    /** Les examens de ce bloc enregistrés pendant le cycle. */
     examens: number;
 }
 
@@ -4962,6 +4986,11 @@ export interface JourneyHistoryCycleDto {
     exitLevel: TargetLevel | null;
     /** Un bloc par épreuve touchée, **dans l'ordre servi**. */
     blocs: JourneyHistoryBlocDto[];
+    /** **Le score d'entrée — CIVIQUE**, sur 40. `null` côté TCF, et `null`
+     *  côté civique sans examen complet : **inconnu, jamais zéro**. */
+    entryScore: number | null;
+    /** **Le score de sortie — CIVIQUE**. Même règle. */
+    exitScore: number | null;
 }
 
 export interface JourneyHistoryDto {

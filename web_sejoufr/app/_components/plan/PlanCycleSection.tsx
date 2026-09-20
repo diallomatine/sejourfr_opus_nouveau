@@ -30,7 +30,6 @@ import {
     JOURNEY_UP_TO_DATE_TITLE,
     journeyBadge,
     journeyBlocMark,
-    journeyBlocMeta,
     journeyBlocStatus,
     journeyBlocTitle,
     journeyCycleBadge,
@@ -221,7 +220,7 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
                                 key={bloc.bloc.code}
                                 mark={journeyBlocMark(bloc.bloc)}
                                 title={journeyBlocTitle(bloc.bloc)}
-                                meta={journeyBlocMeta(bloc)}
+                                meta={bloc.meta}
                                 status={journeyBlocStatus(bloc.status)}
                                 current={bloc.status === "EN_COURS"}
                                 open={ouvert === bloc.bloc.code}

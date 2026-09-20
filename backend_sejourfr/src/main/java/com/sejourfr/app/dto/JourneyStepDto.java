@@ -44,6 +44,16 @@ public record JourneyStepDto(
         JourneyStepStatus status,
         /** {@code null} pour une etape {@code DIAGNOSTIC} seulement. */
         JourneyBlocRefDto bloc,
+        /**
+         * <b>L'unite travaillable, servie</b> — competence TCF ou unite
+         * officielle civique, et l'ecran ne branche pas (D-50).
+         *
+         * <p>🛑 {@code null} hors {@code TRAIN_SKILL}. ⚠️ {@code skillCode} et
+         * {@code skillTitle} restent servis pour ce qu'ils portent d'autre (la
+         * seance, l'exercice recommande) ; le <b>titre de la ligne</b> se lit
+         * ici.
+         */
+        JourneyUniteRefDto unite,
         /** Le domaine de la competence. {@code null} hors {@code TRAIN_SKILL}. */
         SkillSection section,
         /**

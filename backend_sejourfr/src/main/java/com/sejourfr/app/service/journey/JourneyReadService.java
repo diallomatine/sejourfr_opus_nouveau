@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyNextStepDto;
 import com.sejourfr.app.dto.JourneyStepDto;
+import com.sejourfr.app.dto.JourneyUniteRefDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -820,6 +821,20 @@ public class JourneyReadService {
         return section != null && section.isProduction();
     }
 
+    /**
+     * L'unite travaillable de cette etape, servie. {@code null} hors
+     * {@code TRAIN_SKILL} — un examen ne travaille aucune unite.
+     */
+    private static JourneyUniteRefDto uniteRef(JourneyStep step) {
+        if (step.getType() != JourneyStepType.TRAIN_SKILL) return null;
+        Skill skill = step.getSkill();
+        if (skill != null) {
+            return new JourneyUniteRefDto(skill.getCode(), step.uniteLabel());
+        }
+        return step.getOfficialUnit() == null ? null : new JourneyUniteRefDto(
+                step.getOfficialUnit().getCode(), step.uniteLabel());
+    }
+
     private JourneyStepDto dto(
             Etat etat, Map<UUID, PlanRecommendedExerciseDto> exercices) {
         JourneyStep step = etat.step();
@@ -832,6 +847,9 @@ public class JourneyReadService {
                 // 🛑 LE BLOC EST SERVI, nature + code + libelle (D-47) : le front
                 // affiche `bloc.label` et ne branche jamais sur le module.
                 step.blocRef(),
+                // 🛑 L'UNITE TRAVAILLABLE EST SERVIE, elle aussi : competence
+                // TCF ou unite officielle civique, meme chemin d'affichage.
+                uniteRef(step),
                 skill == null ? null : skill.getSection(),
                 skill == null ? null : skill.getTaskCode(),
                 // 🛑 Le CODE et le TITRE viennent de l'unite travaillable, quelle

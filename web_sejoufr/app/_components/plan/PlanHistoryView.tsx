@@ -223,9 +223,9 @@ function CycleTermine({cycle, open, onToggle}: {
             >
                 {cycle.blocs.map((bloc) => (
                     <JourneyRow
-                        key={bloc.examType}
+                        key={bloc.bloc.code}
                         state="done"
-                        title={journeyHistoryBlocTitle(bloc.examType)}
+                        title={journeyHistoryBlocTitle(bloc)}
                         subtitle={journeyHistoryBlocSkills(bloc)}
                     />
                 ))}

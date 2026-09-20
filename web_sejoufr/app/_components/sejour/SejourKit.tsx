@@ -2078,7 +2078,12 @@ export function BlocAccordion({
   current,
   children,
 }: {
-  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique. */
+  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique.
+   *
+   *  🛑 **Vide pour une THÉMATIQUE civique** : l'initiale à deux lettres
+   *  n'existe que pour une épreuve. La colonne disparaît alors, et **rien ne la
+   *  remplace** — un carré vide, un numéro de rang ou une icône choisie ici
+   *  seraient tous des inventions du front (A49). */
   mark: string;
   /** Le nom de l'épreuve **en clair**, servi. */
   title: string;
@@ -2097,12 +2102,12 @@ export function BlocAccordion({
     <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
       <button
         type="button"
-        className={styles.blocHead}
+        className={cx(styles.blocHead, !mark && styles.blocHeadSansMarque)}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={onToggle}
       >
-        <span className={styles.blocMark}>{mark}</span>
+        {mark && <span className={styles.blocMark}>{mark}</span>}
         <span className={styles.blocId}>
           <span className={styles.blocTitle}>{title}</span>
           <span className={styles.blocMeta}>{meta}</span>

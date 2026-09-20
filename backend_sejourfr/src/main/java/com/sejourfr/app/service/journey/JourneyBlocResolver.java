@@ -187,8 +187,14 @@ public class JourneyBlocResolver {
                 .map(dto)
                 .toList();
         JourneyStep examen = examenDuBloc(etapes);
+        JourneyStepDto examenServi = examen == null ? null : dto.apply(examen);
         return new JourneyBlocDto(
-                ref, status, restantes, steps, examen == null ? null : dto.apply(examen));
+                ref, status, restantes,
+                // 🛑 LA PHRASE EST SERVIE (D-50 §4) : le mot depend du grain du
+                // module, et un front qui le choisirait le choisirait seul.
+                JourneyBlocMeta.pour(ref, status, restantes, !steps.isEmpty(),
+                        examenServi != null && !examenServi.locked()),
+                steps, examenServi);
     }
 
     /**

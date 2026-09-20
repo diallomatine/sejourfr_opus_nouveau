@@ -54,6 +54,22 @@ public record JourneyBlocDto(
         JourneyBlocRefDto bloc,
         JourneyBlocStatus status,
         int etapesRestantes,
+        /**
+         * <b>La phrase d'etat du bloc, SERVIE</b> — « 3 unites restantes · puis
+         * examen », « Niveau a evaluer ».
+         *
+         * <p>🛑 <b>Servie parce que le MOT depend du grain du module</b>
+         * (D-50 §4) : « competence » cote TCF, « unite » cote civique. Un front
+         * qui choisirait ce mot le choisirait <b>seul</b>, et son jumeau
+         * pourrait en choisir un autre — c'est exactement le motif de
+         * {@code DETTE-P1}, dont la 3e occurrence a ouvert le chantier.
+         *
+         * <p>⚠️ <b>C'est une exception assumee</b> a « le serveur sert des
+         * faits, les phrases appartiennent aux fronts ». Elle est bornee a
+         * CETTE phrase, et elle a un motif : le mot n'est pas une formulation
+         * d'ecran, c'est le <b>nom du grain</b>, qui appartient au referentiel.
+         */
+        String meta,
         List<JourneyStepDto> steps,
         JourneyStepDto exam
 ) {}

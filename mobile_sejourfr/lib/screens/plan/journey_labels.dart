@@ -11,7 +11,6 @@
 /// que le serveur.
 library;
 
-import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/utils/format_date.dart';
@@ -40,7 +39,9 @@ String journeyStepTitle(JourneyStep step) {
       // 🛑 Servi (D-47) : vaut pour une épreuve TCF comme pour une thématique.
       return step.bloc?.label ?? 'Épreuve';
     case JourneyStepType.trainSkill:
-      return step.skillTitle ?? step.skillCode ?? 'Compétence';
+      // 🛑 L'UNITÉ EST SERVIE (D-50) : compétence TCF ou unité officielle
+      // civique, même chemin. `skillTitle` reste pour ce qu'il porte d'autre.
+      return step.unite?.label ?? step.skillTitle ?? step.skillCode ?? 'À travailler';
   }
 }
 
@@ -264,35 +265,19 @@ String journeyBlocMark(JourneyBlocRef bloc) {
 /// seconde autorité sur un nom que le serveur connaît déjà.
 String journeyBlocTitle(JourneyBlocRef bloc) => bloc.label;
 
-/// Le titre d'un bloc de l'HISTORIQUE, qui est encore TCF-only.
+/// Le titre d'un bloc de l'HISTORIQUE.
 ///
-/// ⚠️ `JourneyHistoryBloc` porte toujours `examType` et pas le bloc servi : il
-/// passera au bloc en **P8.9**, avec l'historique civique. D'ici là, un seul
-/// appelant à changer ce jour-là.
-String journeyHistoryBlocTitle(EpreuveType examType) => examType.displayLabel;
+/// ✅ **Le passage annoncé a eu lieu** (P8.9, 2026-09-20) : `JourneyHistoryBloc`
+/// porte le **bloc servi**, plus `examType`. Il n'y a bien eu **qu'un** appelant
+/// à changer — c'était le but de ce helper.
+String journeyHistoryBlocTitle(JourneyHistoryBloc bloc) => bloc.bloc.label;
 
-/// La méta d'un bloc : ce qu'il reste à y faire.
-///
-/// 🛑 **Composée de faits servis** (`status`, `etapesRestantes`, la
-/// présence d'un examen), jamais d'un compteur recalculé.
-String journeyBlocMeta(JourneyBloc bloc) {
-  if (bloc.status == JourneyBlocStatus.termine) {
-    return bloc.steps.isEmpty
-        ? 'Niveau évalué · examen blanc terminé'
-        : 'Compétences travaillées · examen blanc terminé';
-  }
-  if (bloc.status == JourneyBlocStatus.aEvaluer) return 'Niveau à évaluer';
-  final reste = bloc.etapesRestantes;
-  if (reste > 0) {
-    final s = reste == 1 ? '' : 's';
-    final mot = '$reste compétence$s';
-    return bloc.status == JourneyBlocStatus.enCours
-        ? '$mot restante$s · puis examen'
-        : '$mot · puis examen';
-  }
-  if (bloc.exam != null) return 'Examen à passer';
-  return 'Rien à travailler pour l\'instant';
-}
+// ⚠️ `journeyBlocMeta` A ÉTÉ SUPPRIMÉE (P8.7, chantier `DETTE-P1`).
+// Elle composait « 3 compétences restantes · puis examen » à la main, ICI et
+// dans son jumeau TypeScript — deux copies d'une phrase dont le MOT dépend du
+// grain du module (« compétence » / « unité »). Le serveur la sert désormais :
+// `bloc.meta`. Un fait de moins à tenir des deux côtés.
+
 
 /// La pastille d'état d'un bloc : son libellé **et** son ton, tous deux servis
 /// au kit — qui ne classe rien.
@@ -550,9 +535,11 @@ String journeyHistoryLevelTitle(JourneyHistoryCycle cycle) =>
 String journeyHistoryLevelNote(JourneyHistoryCycle cycle) {
   final marks = [
     for (final bloc in cycle.blocs)
-      // ⚠️ L'HISTORIQUE EST ENCORE TCF-ONLY : `JourneyHistoryBloc` porte
-      // toujours `examType`. Il passera au bloc servi en P8.9.
-      if (bloc.examens > 0) _initialeEpreuve(bloc.examType),
+      // ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
+      // initiale pour une épreuve, et une chaîne VIDE pour une thématique —
+      // qui n'en a pas (A49). Les vides sont écartés juste après.
+      if (bloc.examens > 0 && journeyBlocMark(bloc.bloc).isNotEmpty)
+        journeyBlocMark(bloc.bloc),
   ];
   if (cycle.exitLevel == null) {
     return marks.isEmpty
@@ -573,14 +560,8 @@ bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle) =>
     cycle.exitLevel != null &&
     cycle.entryLevel != cycle.exitLevel;
 
-/// L'initiale d'une épreuve TCF, pour le seul historique.
-///
-/// ⚠️ Existe parce que `journeyBlocMark` attend désormais un bloc **servi**, et
-/// que l'historique n'y est pas encore passé (P8.9).
-String _initialeEpreuve(EpreuveType examType) => switch (examType) {
-      EpreuveType.tcfCo => 'CO',
-      EpreuveType.tcfCe => 'CE',
-      EpreuveType.tcfEe => 'EE',
-      EpreuveType.tcfEo => 'EO',
-      _ => 'TCF',
-    };
+// ⚠️ `_initialeEpreuve` A ÉTÉ SUPPRIMÉE (P8.9, 2026-09-20) : l'historique lit
+// désormais le bloc SERVI, donc `journeyBlocMark` — qui rend une chaîne vide
+// pour une thématique. Deux tables d'initiales pour un même besoin, c'était une
+// copie de trop.
+
