@@ -1928,3 +1928,75 @@ plan {objectif} » ; et le libellé **existait déjà**, donc aucune chaîne neu
 La ligne web « Cet entraînement fait partie du pass Intégral. Votre plan, lui, reste entier. »
 (`LearningPlanView`) **n'a aucun miroir mobile**, et ne l'a jamais eu. Soit on l'ajoute à
 `plan_labels.dart`, soit on la retire du web — une ligne dans les deux cas. **Non décidé.**
+
+# 2026-09-20 — D-57, seconde moitié : `CURRENT` s'élit dans le bloc meneur (A115 → A118)
+
+### A115 — L'extraction va dans `JourneyBlocResolver`, en `public static`
+
+`meneurParLeTravail(axe, étapes)` est sortie de `meneur(...)`, qui la **délègue** désormais au lieu
+de la recopier. C'est le seul endroit qui sait déjà grouper les étapes par bloc (D-47) ; la mettre
+ailleurs aurait créé une **2ᵉ copie** de « quelle étape appartient à quel bloc ».
+
+**Si l'arbitrage était autre** : un `JourneyMeneurResolver` dédié — une classe de plus, et A110 à
+réécrire.
+
+### A116 — 🛑 L'absence de circularité est garantie par la SIGNATURE, pas par la discipline
+
+`meneurParLeTravail` **ne reçoit pas** `courante` : elle ne **peut pas** en dépendre. Le graphe est
+un DAG — `travail → meneur → CURRENT → (seulement si meneur est null) repli du badge sur le porteur
+de CURRENT` — et les deux branches sont **exclusives** : quand le meneur par le travail existe,
+`meneur(...)` retourne **avant** de lire `courante`.
+
+⚠️ C'est la garantie qu'il faut préserver telle quelle. Passer `courante` à cette fonction « pour
+simplifier » refermerait la boucle, et le symptôme serait muet.
+
+### A117 — Une étape `DIAGNOSTIC` n'est éligible que s'il n'y a **pas** de meneur
+
+Lecture stricte de « parmi les étapes du bloc meneur, **et d'elles seules** » : une étape
+`DIAGNOSTIC` n'appartient à aucun bloc (R11, **A45**).
+
+**Inatteignable par construction**, et c'est ce qui rend la décision sûre : un cycle qui attend son
+amorce ne porte **ni lot ni examen** (`attendSonAmorce`), donc aucun meneur ; et la première
+évaluation qui crée des lots **clôt** l'étape de diagnostic dans la même passe.
+
+**Si l'arbitrage était autre** : ajouter `|| step.blocCode() == null` au filtre — mais le badge
+dirait alors « EE en cours » pendant que la carte dirait « passe le diagnostic ».
+
+### A118 — `blocsAvecTravailOuvert` (D-15) n'est **pas** fusionné avec `meneurParLeTravail`
+
+Même prédicat, **deux questions différentes** — verrouiller *chaque* examen (D-15) contre désigner
+*un* bloc (D-57) — et **deux listes d'entrée** (`ouvertes` contre `affichables`). Les fusionner
+aurait couplé le verrou d'examen à l'ordre d'affichage.
+
+---
+
+### 🛑 Deux écarts REMONTÉS, non corrigés
+
+**1. Un compte gratuit perd une porte d'entrée gratuite.** Il ne peut plus lancer l'examen de CO/CE
+depuis « À faire maintenant » : la carte nomme sa priorité EE verrouillée et ouvre l'offre. Le geste
+n'a pas disparu — l'examen reste `locked = false` dans son bloc du cycle, et **deux ITs l'assertent
+explicitement** — mais il **recule d'un écran**. Conséquence directe de D-57, assumée, et nommée
+parce qu'elle touche ce qu'un compte sans accès peut faire gratuitement.
+
+**2. 🛑 A26 devient partiellement caduque — même famille que le défaut qu'on vient de fermer.**
+Sa jambe « exemption freemium » avait déjà disparu avec **D-18** ; il restait `elire` ⇄
+`PlanFocusResolver.premiereDuParcours`, qui élisaient la même étape. **Ce n'est plus vrai** :
+`premiereDuParcours` lit la **file** (`ORDER BY position`), `elire` lit le **bloc meneur**. Sur le
+montage d'**A113** (deux blocs porteurs, ordres divergents), un **abonné** peut donc voir « À faire
+maintenant » nommer EO pendant que la **première place du Plan** nomme EE.
+
+⚠️ **Le correctif tiendrait en une ligne** — faire lire à `premiereDuParcours` la compétence servie
+par le parcours — **mais il touche l'autorité de la première place du Plan, l'épingle
+`plan_pinned_priorities` (V065) et A23**. Ça demande un arbitrage, pas une passe silencieuse.
+
+---
+
+### ⚠️ Une règle de méthode, née de deux occurrences
+
+**Deux fois dans la même journée**, un agent a annoncé un total de tests surefire **inférieur** au
+build réel (2 995 puis 2 998, pour 3 058 puis 3 068 réels) — en recopiant le total d'une exécution
+**filtrée** au lieu de celui du build complet. Aucune des deux fois le code n'était en cause.
+
+🛑 **Un chiffre de build se relit dans `target/*-reports/`, ou dans la ligne `Results:` d'un
+`./mvnw verify` complet — jamais dans la sortie d'une exécution ciblée.** Deux occurrences : ce
+n'est plus un accident.

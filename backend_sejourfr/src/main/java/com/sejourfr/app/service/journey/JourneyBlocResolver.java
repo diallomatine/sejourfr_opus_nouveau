@@ -93,19 +93,7 @@ public class JourneyBlocResolver {
             Function<JourneyStep, JourneyStepDto> dto,
             Predicate<JourneyBlocRefDto> jamaisMesure) {
 
-        Map<String, List<JourneyStep>> parBloc = new LinkedHashMap<>();
-        for (JourneyBlocRefDto ref : axe) {
-            parBloc.put(ref.code(), new ArrayList<>());
-        }
-        for (JourneyStep step : affichables) {
-            // 🛑 `blocCode()` lit l'axe A LA SOURCE (D-47) : l'epreuve cote TCF,
-            // la thematique cote civique, et ce code ne sait pas lequel.
-            List<JourneyStep> bloc = parBloc.get(step.blocCode());
-            // Une etape DIAGNOSTIC n'appartient a aucun bloc : elle mesure le
-            // candidat, pas une epreuve ni une thematique (R11, A45). Elle
-            // compte dans l'avancement du cycle, et nulle part ailleurs.
-            if (bloc != null) bloc.add(step);
-        }
+        Map<String, List<JourneyStep>> parBloc = grouper(axe, affichables);
 
         // 🛑 LE MENEUR SE DESIGNE ICI, UNE FOIS, parce que c'est ICI que
         // l'ordre servi est connu. `bloc(...)` ne voit qu'un bloc : il ne
@@ -151,12 +139,15 @@ public class JourneyBlocResolver {
      * deux blocs se disputeraient EN COURS » — est <b>satisfait autrement</b> :
      * un seul bloc peut etre le <b>premier</b> a porter du travail ouvert.
      *
-     * <p>🛑 <b>D-1 n'est pas touche</b> : {@code CURRENT} s'elit exactement
-     * comme avant, et reste ce que la carte « À faire maintenant » nomme. C'est
-     * le <b>badge du bloc</b> qui cesse d'en dependre, pas l'inverse. 🛑 <b>D-18
-     * non plus</b> : rien ne s'ouvre, {@code locked} et {@code state} sont
-     * inchanges — ce qui change est ce que l'ecran <b>dit</b>, pas ce qu'il
-     * <b>ouvre</b>.
+     * <p>🛑 <b>Le badge ne depend plus de {@code CURRENT} — c'est desormais
+     * {@code CURRENT} qui depend du badge</b> (D-57, seconde moitie, livree le
+     * 2026-09-20) : {@code JourneyReadService.elire} cherche l'etape courante
+     * <b>dans le bloc meneur, et dans lui seul</b>, par
+     * {@link #meneurParLeTravail(List, List)}. D-1 garde son <b>critere</b>
+     * (« non cloturee et executable ») ; c'est l'<b>ensemble</b> ou l'on cherche
+     * qui se restreint. 🛑 <b>D-18 est intact</b> : rien ne s'ouvre,
+     * {@code locked} est inchange — ce qui change est ce que l'ecran <b>dit</b>,
+     * pas ce qu'il <b>ouvre</b>.
      *
      * <h3>⚠️ Le repli n'est pas une precaution de style</h3>
      * <p>Quand <b>aucun</b> bloc ne porte de travail ouvert, le comportement
@@ -183,12 +174,13 @@ public class JourneyBlocResolver {
             Map<String, List<JourneyStep>> parBloc,
             JourneyStep courante) {
 
-        for (JourneyBlocRefDto ref : axe) {
-            boolean travailOuvert = parBloc.get(ref.code()).stream()
-                    .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
-                            && step.estOuverte());
-            if (travailOuvert) return ref.code();
-        }
+        // 🛑 LA DESIGNATION PAR LE TRAVAIL EST EXTRAITE, et c'est ce qui CASSE
+        // LA BOUCLE (D-57, seconde moitie) : `elire` en a besoin AVANT qu'une
+        // etape courante existe. Elle ne voit pas `courante` — elle ne peut donc
+        // pas en dependre, et la circularite n'est pas evitee par discipline,
+        // elle est impossible a ecrire.
+        String parLeTravail = meneurParLeTravail(axe, parBloc);
+        if (parLeTravail != null) return parLeTravail;
         if (courante == null) return null;
         for (JourneyBlocRefDto ref : axe) {
             boolean porteLaMain = parBloc.get(ref.code()).stream()
@@ -196,6 +188,78 @@ public class JourneyBlocResolver {
             if (porteLaMain) return ref.code();
         }
         return null;
+    }
+
+    /**
+     * <b>Le bloc meneur PAR LE TRAVAIL</b> : le premier de l'axe servi qui porte
+     * encore une etape {@code TRAIN_SKILL} ouverte, ou {@code null} quand aucun
+     * n'en porte. <b>Une seule autorite, deux lecteurs</b> (D-57).
+     *
+     * <h3>🛑 Pourquoi cette methode est PUBLIQUE, et pourquoi elle ne voit pas
+     * {@code courante}</h3>
+     * <p>Depuis D-57, {@code JourneyReadService.elire} cherche {@code CURRENT}
+     * <b>dans le bloc meneur, et dans lui seul</b> : « une epreuve en cours,
+     * c'est forcement une de ses etapes a faire maintenant » (le proprietaire).
+     * Le meneur doit donc etre connu <b>avant</b> l'election, alors que
+     * {@link #meneur(List, Map, JourneyStep)} ne s'evalue qu'<b>apres</b> — il
+     * prend {@code courante} en second recours.
+     *
+     * <p>La boucle est cassee <b>par la signature</b>, pas par une convention :
+     * cette methode ne recoit pas l'etape courante, donc elle ne peut pas en
+     * dependre. L'ordre reel est <b>un DAG</b> : travail ⇒ meneur ⇒
+     * {@code CURRENT} ⇒ (seulement si aucun meneur par le travail) repli du
+     * badge sur le porteur de {@code CURRENT}. Recopier ce parcours dans le
+     * service aurait donne une <b>2<sup>e</sup> occurrence</b> de « quel bloc
+     * porte du travail » — le defaut le plus cher du depot.
+     *
+     * <p>🛑 Le critere reste celui d'<b>A112</b> : {@code TRAIN_SKILL}
+     * <b>ouverte</b>, jamais « ouverte et executable ». Lire l'executabilite
+     * reintroduirait la dependance D-1 ⇄ D-18 qui a <b>produit</b> le defaut.
+     *
+     * @param axe    les blocs du module, <b>deja ordonnes</b> par l'appelant
+     *               (D-56, A101) : cette methode ne trie rien.
+     * @param etapes les etapes du cycle, <b>obsoletes deja exclues</b> — la
+     *               meme liste que celle dont les blocs sont batis.
+     */
+    public static String meneurParLeTravail(
+            List<JourneyBlocRefDto> axe, List<JourneyStep> etapes) {
+        return meneurParLeTravail(axe, grouper(axe, etapes));
+    }
+
+    private static String meneurParLeTravail(
+            List<JourneyBlocRefDto> axe, Map<String, List<JourneyStep>> parBloc) {
+        for (JourneyBlocRefDto ref : axe) {
+            boolean travailOuvert = parBloc.get(ref.code()).stream()
+                    .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                            && step.estOuverte());
+            if (travailOuvert) return ref.code();
+        }
+        return null;
+    }
+
+    /**
+     * Les etapes du cycle, <b>rangees par bloc</b>, dans l'ordre de l'axe servi.
+     *
+     * <p>🛑 Extrait de {@link #lire} le 2026-09-20 : {@link #meneurParLeTravail}
+     * a besoin du meme groupement, et « quelle etape appartient a quel bloc »
+     * est exactement ce que D-47 a deja concentre en un seul endroit.
+     */
+    private static Map<String, List<JourneyStep>> grouper(
+            List<JourneyBlocRefDto> axe, List<JourneyStep> etapes) {
+        Map<String, List<JourneyStep>> parBloc = new LinkedHashMap<>();
+        for (JourneyBlocRefDto ref : axe) {
+            parBloc.put(ref.code(), new ArrayList<>());
+        }
+        for (JourneyStep step : etapes) {
+            // 🛑 `blocCode()` lit l'axe A LA SOURCE (D-47) : l'epreuve cote TCF,
+            // la thematique cote civique, et ce code ne sait pas lequel.
+            List<JourneyStep> bloc = parBloc.get(step.blocCode());
+            // Une etape DIAGNOSTIC n'appartient a aucun bloc : elle mesure le
+            // candidat, pas une epreuve ni une thematique (R11, A45). Elle
+            // compte dans l'avancement du cycle, et nulle part ailleurs.
+            if (bloc != null) bloc.add(step);
+        }
+        return parBloc;
     }
 
     /**

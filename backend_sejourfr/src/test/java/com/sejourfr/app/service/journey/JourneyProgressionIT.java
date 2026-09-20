@@ -284,10 +284,25 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         // integralement visible (contradiction #1, tranchee le 2026-08-21).
         assertThat(competencesServies(vue))
                 .contains(premiere.getCode(), seconde.getCode());
-        // Le parcours AVANCE quand meme : la main passe a ce qui est faisable.
-        assertThat(vue.current()).isNotNull();
-        assertThat(vue.current().locked()).isFalse();
-        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
+        // 🛑 MIS A JOUR LE 2026-09-20 PAR LA SECONDE MOITIE DE D-57 — et c'est
+        // un CAS D'USAGE RETIRE, remonte comme tel. Ce test figeait « le
+        // parcours avance quand meme : la main passe a ce qui est faisable »,
+        // c'est-a-dire l'examen d'un AUTRE bloc. C'est exactement ce que D-57
+        // ferme : « une epreuve en cours, c'est forcement une de ses etapes a
+        // faire maintenant » — le bloc meneur (l'EE) n'offrant rien
+        // d'executable a un compte gratuit, `current` est nul et l'etat LOCKED,
+        // mot pour mot ce que D-1 prevoit et ce que D-18 appelle « l'effet
+        // voulu ».
+        assertThat(vue.current()).isNull();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // 🛑 ET LE GESTE N'A PAS DISPARU, il a change d'endroit : l'examen
+        // reste OUVERT dans son bloc, le candidat gratuit le lance depuis le
+        // cycle au lieu de « À faire maintenant ». Rien ne s'est ferme.
+        assertThat(vue.blocs())
+                .anySatisfy(bloc -> {
+                    assertThat(bloc.exam()).isNotNull();
+                    assertThat(bloc.exam().locked()).isFalse();
+                });
     }
 
     @Test

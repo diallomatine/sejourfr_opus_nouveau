@@ -120,8 +120,15 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // Le cycle promu est celui que le candidat lit maintenant, et son rang a
         // avance.
         assertThat(apres.cycle().numero()).isEqualTo(2);
-        assertThat(apres.state()).isEqualTo(JourneyState.IN_PROGRESS);
         assertThat(competencesServies(apres)).contains(competence.getCode());
+        // ⚠️ MIS A JOUR LE 2026-09-20 (D-57). Ce candidat est GRATUIT : la
+        // competence du cycle promu est inexecutable (D-18), et depuis D-57
+        // l'examen d'un AUTRE bloc ne prend plus la main a sa place. LOCKED est
+        // « l'effet voulu » de D-18 ; ce que ce test verrouille est la
+        // PROMOTION du cycle, pas l'etat — d'ou l'assertion sur la competence
+        // servie, juste au-dessus, qui dit la meme chose sans dependre du
+        // freemium.
+        assertThat(apres.state()).isEqualTo(JourneyState.LOCKED);
         // 🛑 Le prochain cycle en attente reste PARESSEUX : aucune ligne vide
         // d'avance.
         assertThat(journeys.findByUserIdAndModuleAndStatus(
@@ -281,10 +288,20 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         User user = candidat();
         JourneyDto vue = cycleDuDiagnosticRapide(user);
 
-        // 🛑 D-1 INTACT : la main est bien sur l'examen de CO, seule etape
-        // executable de ce parcours. Ce n'est pas elle qu'on deplace.
-        assertThat(vue.current()).isNotNull();
-        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_CO.name());
+        // 🛑 MIS A JOUR LE 2026-09-20 PAR LA SECONDE MOITIE DE D-57, et c'est
+        // ICI que la chaine est mesuree contre le VRAI freemium : avant cette
+        // passe, la main tombait sur l'examen de CO — le badge disait EE, la
+        // carte aurait dit CO. `elire` ne cherche plus que dans le bloc meneur
+        // (l'EE), qui n'offre rien d'executable a un compte gratuit : `current`
+        // est donc nul et l'etat LOCKED, mot pour mot ce que D-1 prevoit.
+        assertThat(vue.current()).isNull();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // 🛑 ET RIEN NE S'EST FERME : l'examen de CO reste OUVERT dans son
+        // bloc. Ce qui change est ce que la carte NOMME, jamais ce que l'ecran
+        // OUVRE — le candidat gratuit lance toujours son examen de CO depuis le
+        // cycle.
+        assertThat(blocDe(vue, EpreuveType.TCF_CO).exam()).isNotNull();
+        assertThat(blocDe(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
         // ✅ Et le badge est sur l'expression ecrite, celle que le diagnostic a
         // designee.
         assertThat(blocDe(vue, EpreuveType.TCF_EE).status())

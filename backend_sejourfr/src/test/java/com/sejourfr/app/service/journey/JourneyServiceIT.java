@@ -139,9 +139,17 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         declarer(user, TargetProcedure.NAT);
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        assertThat(vue.state()).isEqualTo(JourneyState.IN_PROGRESS);
-        // 🛑 Pas de diagnostic : une evaluation exploitable existe (R19.8).
+        // L'amorce se lit sur la FILE : un lot d'entrainement est ne de
+        // l'historique. 🛑 Pas de diagnostic : une evaluation exploitable
+        // existe (R19.8).
+        assertThat(typesDe(vue)).contains(JourneyStepType.TRAIN_SKILL);
         assertThat(typesDe(vue)).doesNotContain(JourneyStepType.DIAGNOSTIC);
+        // ⚠️ MIS A JOUR LE 2026-09-20 (D-57). Ce candidat est GRATUIT : son
+        // etape d'entrainement est inexecutable (D-18), et depuis D-57 aucun
+        // examen d'un AUTRE bloc ne prend plus la main a sa place. L'etat est
+        // donc LOCKED — « l'effet voulu » de D-18, mot pour mot —, et ce test
+        // ne portait de toute facon pas sur l'etat mais sur l'amorce.
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
     }
 
     // =====================================================================

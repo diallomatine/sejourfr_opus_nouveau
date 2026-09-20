@@ -97,6 +97,20 @@ import java.util.function.Predicate;
  * etape vide). La laisser prendre la main figerait le parcours sur une carte
  * sans action.
  *
+ * <h2>🛑 {@code CURRENT} s'elit DANS le bloc meneur (D-57, 2026-09-20)</h2>
+ * <p>« Une epreuve en cours, c'est forcement une de ses etapes a faire
+ * maintenant » (le proprietaire). La carte « À faire maintenant » suit donc le
+ * badge {@code EN_COURS}, et jamais l'inverse : quand un bloc porte du travail
+ * ouvert, l'election ne regarde que <b>ses</b> etapes
+ * ({@link JourneyBlocResolver#meneurParLeTravail(List, List)}).
+ *
+ * <p>Il n'y a <b>aucun repli sur la file</b> quand ce bloc n'offre rien
+ * d'executable : ce repli rouvrirait le defaut qu'on ferme — sur un compte
+ * gratuit, la main repartirait vers l'examen d'un autre bloc, et l'ecran se
+ * contredirait de nouveau. La file entiere n'est parcourue que lorsqu'<b>aucun
+ * bloc</b> ne porte de travail (cycle de mesure), et c'est ce qui empeche la
+ * regle d'etre circulaire.
+ *
  * <h2>Le cycle borne se LIT ici aussi (D-12)</h2>
  * <p>Les quatre blocs, l'avancement du cycle et les issues de fin de cycle sont
  * derives de la <b>meme</b> liste d'etapes, par {@link JourneyBlocResolver}. 🛑
@@ -182,13 +196,6 @@ public class JourneyReadService {
                     progression(step, progressionExpression, seriesParCompetence)));
         }
 
-        JourneyStep courante = elire(ouvertes, etats, progressionExpression);
-        if (courante != null) {
-            Etat etat = etats.get(courante.getId());
-            etats.put(courante.getId(), new Etat(etat.step(), JourneyStepStatus.CURRENT,
-                    etat.locked(), etat.progress()));
-        }
-
         // 🛑 LES BLOCS SONT BATIS SUR **TOUTES** LES ETAPES NON OBSOLETES : un
         // plafond d'AFFICHAGE n'est pas un budget de contenu. Un bloc derive
         // d'une liste deja tronquee aurait annonce « 1 competence restante » la
@@ -198,8 +205,23 @@ public class JourneyReadService {
         List<JourneyStep> affichables = toutesLesEtapes.stream()
                 .filter(step -> etats.get(step.getId()).status() != JourneyStepStatus.OBSOLETE)
                 .toList();
+
+        // 🛑 L'AXE SERVI ET SON MENEUR SE CALCULENT **AVANT** L'ELECTION (D-57) :
+        // `elire` cherche CURRENT dans le bloc meneur, et dans lui seul. Les deux
+        // ne dependent que de la FILE — ni de `courante`, ni de l'abonnement —,
+        // donc l'ordre de ces trois lignes est le DAG lui-meme, pas une astuce.
+        List<JourneyBlocRefDto> axeServi = axeAffiche(journey.getModule(), affichables);
+        String meneur = JourneyBlocResolver.meneurParLeTravail(axeServi, affichables);
+
+        JourneyStep courante = elire(ouvertes, etats, progressionExpression, meneur);
+        if (courante != null) {
+            Etat etat = etats.get(courante.getId());
+            etats.put(courante.getId(), new Etat(etat.step(), JourneyStepStatus.CURRENT,
+                    etat.locked(), etat.progress()));
+        }
+
         JourneyBlocResolver.Vue vue = blocResolver.lire(
-                numeroDuCycle(journey), axeAffiche(journey.getModule(), affichables),
+                numeroDuCycle(journey), axeServi,
                 affichables, courante,
                 step -> dto(etats.get(step.getId()), exercices),
                 jamaisMesure(userId, journey.getModule()));
@@ -505,21 +527,56 @@ public class JourneyReadService {
 
     /**
      * L'etape <b>courante</b> : la premiere ouverte <b>et executable</b>
-     * (arbitrage D-1).
+     * (arbitrage D-1) <b>du bloc meneur</b> (arbitrage D-57).
      *
-     * <p>« Executable » exclut deux choses : une etape <b>verrouillee</b>, et une
-     * etape d'expression <b>sans aucun sujet publie</b> — celle-la ne peut pas se
-     * clore non plus ({@code Progress.completed()} refuse de declarer finie une
-     * etape vide, et c'est juste : il n'y a rien a y faire). La laisser prendre
-     * la main figerait le parcours sur une carte sans action. Ce cas est rare :
+     * <p>« Executable » exclut deux choses, et elles n'ont pas bouge d'un mot :
+     * une etape <b>verrouillee</b>, et une etape d'expression <b>sans aucun
+     * sujet publie</b> — celle-la ne peut pas se clore non plus
+     * ({@code Progress.completed()} refuse de declarer finie une etape vide, et
+     * c'est juste : il n'y a rien a y faire). La laisser prendre la main
+     * figerait le parcours sur une carte sans action (A17). Ce cas est rare :
      * {@code PlanContentAvailability} ecarte deja du pool les competences sans
      * contenu au moment ou l'evaluation les designe.
+     *
+     * <h3>🛑 Ce qui change avec D-57 : l'ENSEMBLE ou l'on cherche</h3>
+     * <p>« Une epreuve en cours, c'est forcement une de ses etapes a faire
+     * maintenant » (le proprietaire). La carte suit donc le badge, et non
+     * l'inverse : quand un bloc <b>mene par le travail</b>, {@code CURRENT} est
+     * l'une de <b>ses</b> etapes, et d'elles seules.
+     *
+     * <h3>🛑 ET AUCUN REPLI SUR LA FILE quand le meneur n'offre rien</h3>
+     * <p>C'est contre-intuitif, et c'est pourtant le point : sur un compte
+     * <b>gratuit</b>, le bloc meneur est celui des competences, toutes
+     * inexecutables (D-18). Retomber sur la file entiere ferait repartir
+     * {@code CURRENT} vers l'examen d'un <b>autre</b> bloc — ouvert d'emblee
+     * faute de competence a finir avant lui (D-15) — et le badge dirait de
+     * nouveau autre chose que la carte : <b>exactement le defaut que D-57
+     * ferme</b>. {@code CURRENT} vaut donc {@code null}, ce que D-1 prevoit mot
+     * pour mot : « si aucune etape n'est executable : {@code current = null},
+     * {@code state = LOCKED}, et la carte montre la premiere etape verrouillee
+     * + paywall ».
+     *
+     * <p>⚠️ Une etape {@code DIAGNOSTIC} n'appartient a aucun bloc (R11, A45) :
+     * elle n'est donc eligible que <b>sans</b> meneur. C'est sans consequence,
+     * et par construction : un cycle qui attend son amorce ne porte <b>ni lot ni
+     * examen</b> ({@code JourneyService.attendSonAmorce}), donc aucune
+     * {@code TRAIN_SKILL} — et la premiere evaluation qui cree des lots
+     * <b>clot</b> l'etape de diagnostic dans la meme passe.
+     *
+     * @param meneur le bloc qui porte le travail, ou {@code null} quand aucun
+     *               n'en porte (<b>cycle de mesure</b>, ou cycle dont tout le
+     *               travail est fini) : la recherche porte alors sur
+     *               <b>toute la file</b>, exactement comme avant D-57, et le
+     *               badge retombe sur le porteur de {@code CURRENT}. Sans ce
+     *               repli, la regle serait circulaire.
      */
     private JourneyStep elire(
             List<JourneyStep> ouvertes,
             Map<UUID, Etat> etats,
-            Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression) {
+            Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
+            String meneur) {
         for (JourneyStep step : ouvertes) {
+            if (meneur != null && !meneur.equals(step.blocCode())) continue;
             if (etats.get(step.getId()).locked()) continue;
             if (sansContenu(step, progressionExpression)) continue;
             return step;
