@@ -1,4 +1,6 @@
 import '../../core/models/billing_models.dart';
+import '../../core/models/diagnostic_models.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 
 /// **L'écran de déblocage du Plan** (`/plan/debloquer`) — ses règles et ses
 /// libellés, déclarés **une seule fois** pour toute l'app.
@@ -78,6 +80,24 @@ String planUnlockSeuilPill(int seuil, int format) => 'Seuil $seuil / $format';
 
 /// Les trois puces du TCF. La première nomme **le nombre servi** de priorités —
 /// « ces 3 priorités » sur une liste qui en montre deux serait faux.
+/// **Le ton d'une priorité du Plan** sur cet écran, pour le repli qui lit le
+/// Plan au lieu du diagnostic 4 épreuves.
+///
+/// 🛑 **Aucun ton ne se dérive d'un compteur ni d'un rang** : il suit la
+/// `nature` **servie**, et il suit la doctrine du Plan — le rouge de fragilité
+/// ([SfTone.hot]) est réservé à ce qui a été **observé** fragile, donc une
+/// compétence *à acquérir* (rien d'observé) reste `muted`, jamais « à
+/// renforcer ». Ce sont le **libellé** et la nature qui les distinguent, pas
+/// la seule couleur.
+///
+/// Miroir web : `PLAN_UNLOCK_NATURE_TONE` (`lib/plan-unlock.ts`).
+SfTone planUnlockNatureTone(PlanActionNature nature) => switch (nature) {
+      PlanActionNature.aEvaluer => SfTone.muted,
+      PlanActionNature.aAcquerir => SfTone.muted,
+      PlanActionNature.aRenforcer => SfTone.hot,
+      PlanActionNature.aVerifier => SfTone.ok,
+    };
+
 List<String> planUnlockChecksTcf(int priorites) => <String>[
       'Des entraînements ciblés sur ces $priorites '
           'priorité${priorites > 1 ? 's' : ''}',

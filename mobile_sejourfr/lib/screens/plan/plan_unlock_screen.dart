@@ -10,9 +10,11 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/diagnostic_models.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/cecrl_track.dart';
+import 'learning_plan_provider.dart';
 import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -104,6 +106,58 @@ _Matiere _matiereTcf(TcfDiagnosticResultDto r) {
   );
 }
 
+/// La matière TCF **lue sur le PLAN** — le repli quand le diagnostic
+/// 4 épreuves n'existe pas.
+///
+/// 🛑 **C'est le cas NORMAL, pas un cas limite.** Le Plan existe dès que le
+/// diagnostic **rapide** est clos (`prep.planDisponible`) ; le diagnostic
+/// 4 épreuves, lui, est un geste distinct que la plupart des candidats n'ont
+/// pas fait. Sans ce repli, l'écran n'avait rien à raconter et se retirait
+/// aussitôt — le candidat retombait sur le paywall direct, exactement ce que
+/// cet écran existe pour éviter (A145).
+///
+/// Ce qu'on montre ne change pas : le palier de départ face à l'objectif, et
+/// les priorités. Seule la **source** change — et c'est celle que le Plan
+/// affiche déjà, donc l'écran de vente ne peut pas nommer autre chose que le
+/// Plan qu'on vend.
+_Matiere _matiereTcfDuPlan(LearningPlan plan) {
+  // 🛑 `cycle` est **nullable** : sans démarche déclarée, il n'y a ni palier de
+  // départ ni objectif — on n'en invente aucun, le hero dit « — » et le rail
+  // ne se dessine pas. Les priorités, elles, restent servies.
+  final cycle = plan.cycle;
+  // 🛑 **L'objectif DÉCLARÉ, jamais le palier en construction.**
+  // `targetLevel` est le palier que le cycle bâtit ; l'annoncer « Objectif
+  // B2 » à un candidat qui n'a pas déclaré sa démarche lui promettrait une
+  // cible qu'il n'a pas choisie.
+  final cible = cycle?.objectiveLevel?.asNiveau;
+  final track = cecrlTrack(cycle?.startingLevel, cible);
+  final priorites = <LearningPlanPriority>[
+    if (plan.currentPriority != null) plan.currentPriority!,
+    ...plan.nextPriorities,
+  ];
+  return (
+    heroValue: cycle?.startingLevel?.shortName ?? kPlanUnlockLevelUnknown,
+    heroPill: planUnlockGoalPill(cible?.shortName),
+    heroRatio: track == null || track.levels.length < 2
+        ? null
+        : track.currentIndex / (track.levels.length - 1),
+    heroMeta: track?.levels.join(' · '),
+    // 🛑 La pastille dit la **nature servie** de l'action, jamais un rang : une
+    // compétence *à acquérir* n'a rien d'observé et ne peut pas se lire « à
+    // renforcer ».
+    lignes: [
+      for (final p in priorites)
+        SfMiniRow(
+          label: p.title,
+          pill: p.nature.label,
+          tone: planUnlockNatureTone(p.nature),
+        ),
+    ],
+    encart: null,
+    checks: planUnlockChecksTcf(priorites.length),
+  );
+}
+
 /// La matière civique, lue **sur le résultat du diagnostic civique**.
 _Matiere _matiereCivique(CivicDiagnosticResultDto r) {
   final titre = civicSituationsTitre(r);
@@ -165,21 +219,31 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
         setState(() => _matiere = _matiereCivique(r));
         return;
       }
+      // Le diagnostic 4 épreuves d'abord — c'est la matière la plus riche (un
+      // palier par épreuve, la tâche officielle nommée). Il est **rarement
+      // là** : c'est un geste à part.
       final repo = ref.read(tcfDiagnosticRepositoryProvider);
       final session = await repo.current();
-      if (session == null || session.status != TcfDiagnosticStatus.completed) {
-        _rienARaconter();
-        return;
+      if (session != null &&
+          session.status == TcfDiagnosticStatus.completed) {
+        final r = await repo.readResult(session.sessionId);
+        // Un diagnostic clos sans aucune priorité n'a pas de liste à montrer :
+        // on retombe sur le Plan plutôt que de fabriquer un écran vide.
+        if (r.priorites.isNotEmpty) {
+          if (!mounted) return;
+          setState(() => _matiere = _matiereTcf(r));
+          return;
+        }
       }
-      final r = await repo.readResult(session.sessionId);
-      // Un diagnostic clos sans aucune priorité n'a pas de liste à montrer :
-      // on ne fabrique pas un écran vide.
-      if (r.priorites.isEmpty) {
+      // 🛑 **Le repli est le chemin ORDINAIRE.** Le Plan est déjà chargé par
+      // l'écran qui a poussé celui-ci : on le lit, on ne le redemande pas.
+      final plan = await ref.read(learningPlanProvider.future);
+      if (plan.currentPriority == null && plan.nextPriorities.isEmpty) {
         _rienARaconter();
         return;
       }
       if (!mounted) return;
-      setState(() => _matiere = _matiereTcf(r));
+      setState(() => _matiere = _matiereTcfDuPlan(plan));
     } catch (_) {
       _rienARaconter();
     }

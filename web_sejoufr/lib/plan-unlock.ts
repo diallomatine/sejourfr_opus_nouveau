@@ -109,6 +109,25 @@ export function planUnlockSeuilPill(seuil: number, format: number): string {
   return `Seuil ${seuil} / ${format}`;
 }
 
+/**
+ * **Le ton d'une priorité du Plan** sur cet écran, pour le repli qui lit le
+ * Plan au lieu du diagnostic 4 épreuves.
+ *
+ * 🛑 **Aucun ton ne se dérive d'un compteur ni d'un rang** : il suit la
+ * `nature` **servie**, et il suit la doctrine du Plan — le rouge de fragilité
+ * (`hot`) est réservé à ce qui a été **observé** fragile, donc une compétence
+ * *à acquérir* (rien d'observé) reste `muted`, jamais « à renforcer ». Ce sont
+ * le **libellé** et la nature qui les distinguent, pas la seule couleur.
+ *
+ * Miroir mobile : `planUnlockNatureTone` (`plan_unlock_labels.dart`).
+ */
+export const PLAN_UNLOCK_NATURE_TONE = {
+  A_EVALUER: "muted",
+  A_ACQUERIR: "muted",
+  A_RENFORCER: "hot",
+  A_VERIFIER: "ok",
+} as const;
+
 /* ----------------------------------------------- ce que le pass ouvre ---- */
 
 /**

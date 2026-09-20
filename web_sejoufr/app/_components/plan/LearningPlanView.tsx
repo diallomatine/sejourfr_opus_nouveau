@@ -445,10 +445,10 @@ function ActionMaintenant({plan, journey, free}: {
           <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
         )}
       </Pad>
-  /* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
-     d'achat du Plan passe par l'écran de transition, plus rien ici ne l'ouvre
-     délibérément. Il reste parce qu'un lanceur peut toujours se voir refuser
-     au démarrage — c'est un refus, pas une vente. */
+      {/* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
+          d'achat du Plan passe par l'écran de transition, plus rien ici ne
+          l'ouvre délibérément. Il reste parce qu'un lanceur peut toujours se
+          voir refuser au démarrage — c'est un refus, pas une vente. */}
       <PaywallSheet
         ctaLocation="LOCKED_PLAN"
         screen="plan"

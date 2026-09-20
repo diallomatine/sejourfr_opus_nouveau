@@ -284,10 +284,10 @@ function CiviquePlan({plan, journey, free}: {
         <AllerPlusLoin />
       )}
 
-  /* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
-     d'achat du Plan passe par l'écran de transition, plus rien ici ne l'ouvre
-     délibérément. Il reste parce qu'un lanceur peut toujours se voir refuser
-     au démarrage — c'est un refus, pas une vente. */
+      {/* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
+          d'achat du Plan passe par l'écran de transition, plus rien ici ne
+          l'ouvre délibérément. Il reste parce qu'un lanceur peut toujours se
+          voir refuser au démarrage — c'est un refus, pas une vente. */}
       <PaywallSheet
         open={serieCible.paywall || serieUnite.paywall}
         module="CIVIQUE"

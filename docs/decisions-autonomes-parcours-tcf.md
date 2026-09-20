@@ -2410,3 +2410,73 @@ le lanceur est l'unique endroit qui les compose.
 à corriger là-bas ») : il faudrait que `JourneyReadService` propage le verrou de l'exercice sur
 l'étape — mais une étape ainsi fermée cesserait d'être `CURRENT` (D-18/D-60), et le parcours
 d'un compte gratuit se figerait. C'est pourquoi la composition reste côté front.
+
+---
+
+## A147 — L'écran de transition TCF lisait le MAUVAIS diagnostic (2026-09-20)
+
+> Constat du propriétaire, à l'écran : « côté tcf **aucun bouton** ne redirige vers l'écran
+> intermédiaire, toujours direct sur le paywall, mais côté examen civique c'est bon » —
+> puis « même souci, sur **web** ».
+
+**Mesuré, pas déduit.** A146 avait bien câblé les six gestes ; ils poussaient l'écran, qui
+**se retirait aussitôt**. La cause est dans l'écran lui-même : sa branche TCF lit
+`tcfDiagnosticRepository.current()`, c'est-à-dire le **diagnostic 4 ÉPREUVES** — un geste à
+part, que la plupart des candidats n'ont jamais fait. `null` ⇒ `_rienARaconter()` ⇒ paywall
+direct + auto-retrait de la pile. Le civique passait parce que son diagnostic est
+**celui que le candidat a réellement passé**.
+
+```
+ email                | diag 4 épreuves | diagnostic rapide clos
+ oumoubillo@gmail.com |        0        |           1
+ user@sejourfr.fr     |        1        |           1
+```
+
+C'est pourquoi le défaut était **invisible sur le compte de dev** — le seul qui ait les deux.
+
+**Décidé — une chaîne de sources, du plus riche au plus ordinaire.**
+
+1. diagnostic **4 épreuves** clos **avec** priorités → inchangé (un palier par épreuve, la
+   tâche officielle nommée) ;
+2. **sinon le PLAN** (`learningPlanProvider` / `learningPlanApi.getCached()`) : palier de
+   départ face à l'objectif **déclaré**, et les priorités servies ;
+3. sinon seulement → `_rienARaconter()`, **inchangé** : on ne bloque jamais un achat.
+
+🛑 **Le repli est le chemin ORDINAIRE, pas un cas limite** — le Plan existe dès que le
+diagnostic **rapide** est clos (`prep.planDisponible`). Et il ne coûte **aucun appel** : le
+Plan est déjà chargé par l'écran qui a poussé celui-ci.
+
+⚠️ **Ce qu'on montre ne change pas**, seule la **source** change — et c'est celle que le Plan
+affiche déjà, donc l'écran de vente ne peut pas nommer autre chose que le Plan qu'on vend.
+
+**Deux règles tenues au passage.**
+- La pastille d'une priorité dit la **nature servie** (`PLAN_ACTION_NATURE_LABEL`), jamais un
+  rang. Son ton vit **une fois par front** (`PLAN_UNLOCK_NATURE_TONE` ⇄
+  `planUnlockNatureTone`) : *à acquérir* reste `muted` — rien n'a été observé, donc jamais le
+  rouge de fragilité, qui est réservé à ce qui a été **vu** fragile.
+- **L'objectif affiché est le DÉCLARÉ** (`cycle.objectiveLevel`), jamais `targetLevel`, qui
+  est le palier que le cycle **bâtit** : l'annoncer « Objectif B2 » à un candidat sans
+  démarche déclarée lui promettrait une cible qu'il n'a pas choisie. `null` ⇒ ni pastille,
+  ni rail ; le palier de départ se lit quand même.
+
+**Si l'arbitrage était autre** (« le repli montre le diagnostic RAPIDE, pas le Plan ») :
+`DiagnosticResultDto.priorities` ferait des lignes équivalentes, mais il ne porte **aucun
+palier** — le hero retomberait sur le Plan de toute façon, donc deux sources au lieu d'une.
+
+---
+
+## A148 — Deux commentaires JSX nus s'affichaient à l'écran (2026-09-20)
+
+> Constat du propriétaire : « dans l'écran plan → TCF, **ça s'affiche bien dans l'écran**,
+> pas dans les logs » — suivi du texte d'un commentaire de code.
+
+**La cause.** Ma passe A145 a posé, dans `LearningPlanView.tsx` et `CivicPlanPanel.tsx`, un
+commentaire `/* … */` **en position d'enfant JSX**. React n'y voit pas un commentaire : il y
+voit du **texte**, et il le rend. Un commentaire n'est un commentaire dans un `return` JSX
+que sous la forme `{/* … */}`.
+
+**Corrigé** aux deux endroits. Un balayage de tout `app/**/*.tsx` (commentaire nu **entre**
+deux nœuds JSX, hors `<style jsx>`) n'en trouve **aucun autre**.
+
+⚠️ **Ni `tsc` ni le build ne l'attrapent** — c'est du JSX parfaitement valide. Seul l'écran
+le dit, et c'est le propriétaire qui l'a vu. Vérifier à l'œil après avoir commenté du JSX.

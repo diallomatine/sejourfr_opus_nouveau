@@ -32,7 +32,7 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {AlertCircle} from "lucide-react";
-import {billingApi, civicDiagnosticApi, tcfDiagnosticApi} from "@/lib/api";
+import {billingApi, civicDiagnosticApi, learningPlanApi, tcfDiagnosticApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {retourOuRepli} from "@/lib/retour";
 import {passFromPrice} from "@/lib/passes";
@@ -47,6 +47,7 @@ import {
     PLAN_UNLOCK_SKIP,
     PLAN_UNLOCK_TITLE,
     planRetourHref,
+    PLAN_UNLOCK_NATURE_TONE,
     planUnlockChecksTcf,
     planUnlockGoalPill,
     planUnlockLead,
@@ -87,9 +88,11 @@ import {
     sejourStyles as s,
     type Tone,
 } from "@/app/_components/sejour/SejourKit";
-import {CIVIC_THEME_STATE_LABEL} from "@/lib/types";
+import {CIVIC_THEME_STATE_LABEL, PLAN_ACTION_NATURE_LABEL} from "@/lib/types";
 import type {
     CivicDiagnosticResultDto,
+    LearningPlanDto,
+    LearningPlanPriorityDto,
     PlanPublicResponse,
     TcfDiagnosticResultDto,
 } from "@/lib/types";
@@ -145,6 +148,54 @@ function matiereTcf(r: TcfDiagnosticResultDto): Matiere {
         }),
         encart: null,
         checks: planUnlockChecksTcf(r.priorites.length),
+    };
+}
+
+/**
+ * La matière TCF **lue sur le PLAN** — le repli quand le diagnostic 4 épreuves
+ * n'existe pas.
+ *
+ * 🛑 **C'est le cas NORMAL, pas un cas limite.** Le Plan existe dès que le
+ * diagnostic **rapide** est clos (`prep.planDisponible`) ; le diagnostic
+ * 4 épreuves, lui, est un geste distinct que la plupart des candidats n'ont
+ * pas fait. Sans ce repli, l'écran n'avait rien à raconter et se retirait
+ * aussitôt — le candidat retombait sur le paywall direct, exactement ce que
+ * cet écran existe pour éviter (A145).
+ *
+ * Ce qu'on montre ne change pas : le palier de départ face à l'objectif, et
+ * les priorités. Seule la **source** change — et c'est celle que le Plan
+ * affiche déjà, donc l'écran de vente ne peut pas nommer autre chose que le
+ * Plan qu'on vend.
+ */
+function matiereTcfDuPlan(plan: LearningPlanDto): Matiere {
+    /* 🛑 **L'objectif DÉCLARÉ, jamais le palier en construction.**
+       `targetLevel` est le palier que le cycle bâtit ; l'annoncer « Objectif
+       B2 » à un candidat qui n'a pas déclaré sa démarche lui promettrait une
+       cible qu'il n'a pas choisie. `null` ⇒ ni pastille, ni rail — le palier
+       de départ se lit quand même. */
+    const cible = plan.cycle.objectiveLevel;
+    const position = levelTrackPosition(plan.cycle.startingLevel, cible);
+    const priorites = [plan.currentPriority, ...plan.nextPriorities].filter(
+        (p): p is LearningPlanPriorityDto => p !== null,
+    );
+    return {
+        heroValue: plan.cycle.startingLevel ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
+        heroPill: planUnlockGoalPill(cible),
+        heroRatio:
+            position && position.levels.length > 1
+                ? position.currentIndex / (position.levels.length - 1)
+                : null,
+        heroMeta: position ? position.levels.join(" · ") : null,
+        /* 🛑 La pastille dit la **nature servie** de l'action, jamais un rang :
+           une compétence *à acquérir* n'a rien d'observé et ne peut pas se
+           lire « à renforcer ». */
+        lignes: priorites.map((p) => ({
+            label: p.title,
+            pill: PLAN_ACTION_NATURE_LABEL[p.nature],
+            tone: PLAN_UNLOCK_NATURE_TONE[p.nature] as Tone,
+        })),
+        encart: null,
+        checks: planUnlockChecksTcf(priorites.length),
     };
 }
 
@@ -207,18 +258,29 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
                     if (!annule) setEtat({kind: "pret", matiere: matiereCivique(r)});
                     return;
                 }
+                /* Le diagnostic 4 épreuves d'abord — c'est la matière la
+                   plus riche (un palier par épreuve, la tâche officielle
+                   nommée). Il est **rarement là** : c'est un geste à part. */
                 const session = await tcfDiagnosticApi.current();
-                if (!session || session.status !== "COMPLETED") {
-                    if (!annule) setEtat({kind: "sansDiagnostic"});
-                    return;
+                if (session && session.status === "COMPLETED") {
+                    const r = await tcfDiagnosticApi.readResult(session.sessionId);
+                    /* Un diagnostic clos sans aucune priorité n'a pas de liste
+                       à montrer : on retombe sur le Plan plutôt que de
+                       fabriquer un écran vide. */
+                    if (r.priorites.length > 0) {
+                        if (!annule) setEtat({kind: "pret", matiere: matiereTcf(r)});
+                        return;
+                    }
                 }
-                const r = await tcfDiagnosticApi.readResult(session.sessionId);
-                /* Un diagnostic clos sans aucune priorité n'a pas de liste à
-                   montrer : on ne fabrique pas un écran vide. */
+                /* 🛑 **Le repli est le chemin ORDINAIRE.** Lecture en cache :
+                   le Plan est déjà chargé par l'écran qui a poussé celui-ci. */
+                const plan = await learningPlanApi.getCached();
+                const aDesPriorites =
+                    plan.currentPriority !== null || plan.nextPriorities.length > 0;
                 if (!annule) {
                     setEtat(
-                        r.priorites.length > 0
-                            ? {kind: "pret", matiere: matiereTcf(r)}
+                        aDesPriorites
+                            ? {kind: "pret", matiere: matiereTcfDuPlan(plan)}
                             : {kind: "sansDiagnostic"},
                     );
                 }
