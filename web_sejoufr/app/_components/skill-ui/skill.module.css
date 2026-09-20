@@ -549,7 +549,7 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
   padding: 3px 9px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--skill-accent) 12%, transparent);
@@ -574,14 +574,17 @@
   margin-top: 14px;
 }
 
-/* Bouton d'information : pastille discrète, mais zone cliquable 44 × 44. */
+/* Bouton d'information : pastille discrète, mais zone cliquable 44 × 44.
+   Il ferme la **ligne de progression**, calé à droite. Les marges négatives
+   verticales l'empêchent d'imposer ses 44 px de haut à la rangée — la cible
+   tactile, elle, reste entière : une marge ne rétrécit pas la boîte. */
 .infoBtn {
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
   flex: none;
-  margin: -6px -8px 0 0;
+  margin: -8px -8px -8px auto;
   padding: 0;
   border: none;
   background: none;
@@ -3549,9 +3552,11 @@
 
 /* ------------------------------------- compétence : en-tête de la maquette */
 
-/* Filet d'accent, lavis dégradé, pastille, sur-titre, titre. Il remplace
-   `.summary` **pour ce seul écran** : `.summary` continue de servir les
-   modèles corrigés (`ProductionExamples`) sans changer d'un pixel. */
+/* Filet d'accent, lavis dégradé, progression, points d'apprentissage, critère.
+   🛑 **Plus de sur-titre ni de titre** : l'en-tête de l'écran les porte, et les
+   répéter ici coûtait un tiers de la hauteur visible. Il remplace `.summary`
+   **pour ce seul écran** : `.summary` continue de servir les modèles corrigés
+   (`ProductionExamples`) sans changer d'un pixel. */
 .skillHead {
   margin-bottom: 4px;
   border-radius: 24px;
@@ -3582,46 +3587,21 @@
   }
 }
 
-.skillHeadTop {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.skillHeadBody {
-  flex: 1;
-  min-width: 0;
-}
-
-.skillHeadEyebrow {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-muted);
-  overflow-wrap: anywhere;
-}
-
-.skillHeadTitle {
-  margin: 6px 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(21px, 5.4vw, 28px);
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.6px;
-  color: var(--color-ink);
-  overflow-wrap: anywhere;
-}
-
-/* « 3 / 5 sujets travaillés » + les points d'avancement de la maquette. */
+/* « 3 / 5 sujets travaillés » + les points d'avancement de la maquette.
+   C'est la **première ligne** de la carte depuis que le sur-titre et le nom de
+   la compétence en sont partis (l'en-tête de l'écran les porte) : pas de filet
+   orphelin au-dessus, pas de marge qui traîne. */
 .skillHeadProgress {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 14px;
   margin-top: 18px;
+}
+
+.skillHeadProgress:first-child,
+.stepPill + .skillHeadProgress {
+  margin-top: 0;
 }
 
 .skillHeadCount {

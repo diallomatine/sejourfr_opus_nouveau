@@ -10,7 +10,6 @@ import {
   ListChecks,
   Lock,
   RefreshCw,
-  Sparkles,
   Zap,
 } from "lucide-react";
 import {learningPlanApi, skillApi} from "@/lib/api";
@@ -260,6 +259,12 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
            les 15 sujets. */
         backHref={fromPlan ? "/plan" : base}
         backLabel={fromPlan ? PLAN_STEP_BACK_LABEL : "Compétences"}
+        /* 🛑 Le nom de la compétence vit ICI, et nulle part ailleurs — miroir
+           de `ScreenHeader` côté mobile (titre = le nom, sous-titre =
+           « code · épreuve »). La carte de résumé le répétait juste en dessous,
+           pour un tiers de la hauteur visible. */
+        title={skill?.title ?? "Compétence"}
+        meta={skill ? `${skill.code} · ${config.label}` : config.label}
       >
         {error && <div className={s.error}>{error}</div>}
 
@@ -269,45 +274,70 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
           <p className={s.empty}>Compétence introuvable.</p>
         ) : (
           <>
-            {/* En-tête de la maquette : filet d'accent, lavis dégradé, pastille,
-                sur-titre, titre — puis le critère travaillé et les points
-                d'avancement. Il ne réutilise **pas** `.summary`, qui sert les
+            {/* Carte de résumé : filet d'accent, lavis dégradé, puis la
+                progression, « Vous allez apprendre à » et le critère travaillé.
+                🛑 **Elle ne répète ni le sur-titre ni le nom de la
+                compétence** : l'en-tête de l'écran les porte déjà, juste
+                au-dessus. Elle ne réutilise **pas** `.summary`, qui sert les
                 modèles corrigés et ne bouge pas. */}
             <section className={s.skillHead}>
               <span className={s.skillHeadRule} aria-hidden />
               <div className={s.skillHeadInner}>
-                <div className={s.skillHeadTop}>
-                  <span className={s.tile} aria-hidden>
-                    <Sparkles size={22} strokeWidth={2.2} />
-                  </span>
-                  {/* Pas de pastille de niveau ici (parité mobile) : le palier
-                      est celui de toute la tâche, il est déjà porté par le hero
-                      de la liste des compétences et par l'écran d'un sujet. */}
-                  <div className={s.skillHeadBody}>
-                    {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
-                        fiche complète tout en n'en montrant qu'une partie. */}
-                    {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
-                    {/* 🛑 « Compétence acquise » ⇔ `masteryState === "SOLID"`,
-                        c'est-à-dire transfert PROUVÉ sur une production
-                        complète — jamais une série de petits sujets terminée. */}
-                    <span className={s.skillHeadEyebrow}>{competenceEyebrow(skill)}</span>
-                    <h1 className={s.skillHeadTitle}>{skill.title}</h1>
+                {/* On dit d'où l'on vient : sans ça, l'écran ressemble à la
+                    fiche complète tout en n'en montrant qu'une partie. */}
+                {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
+
+                {/* Première ligne de la carte : les points d'avancement de la
+                    maquette — un segment par sujet du périmètre affiché (5 en
+                    mode étape, 15 sur la fiche complète). Les deux nombres
+                    viennent d'au-dessus — en mode étape, ce sont **ceux du
+                    serveur**.
+
+                    🛑 La pastille d'information ne dépend PAS du compteur : une
+                    compétence servie sans sujet garde son explication, et elle
+                    **n'existe pas** quand il n'y a rien à expliquer. */}
+                {(total > 0 || !!skill.description) && (
+                  <div className={s.skillHeadProgress}>
+                    {total > 0 && (
+                      <>
+                        <span className={s.skillHeadCount}>
+                          {attempted} / {total} sujets travaillés
+                        </span>
+                        <span
+                          className={s.dots}
+                          role="img"
+                          aria-label={`${attempted} sujets travaillés sur ${total}`}
+                        >
+                          {Array.from({length: total}, (_, i) => (
+                            <span
+                              key={i}
+                              className={`${s.dot} ${i < attempted ? s.dotOn : ""}`}
+                            />
+                          ))}
+                        </span>
+                        {/* L'état de maîtrise, s'il existe : c'est la réponse à
+                            « où j'en suis sur cette compétence », dérivée
+                            serveur. `null` (aucune observation) ⇒ rien — on
+                            n'invente pas un état. */}
+                        {skill.masteryState && <SkillMasteryPill state={skill.masteryState} />}
+                      </>
+                    )}
+                    {skill.description && (
+                      <button
+                        type="button"
+                        ref={infoButtonRef}
+                        className={s.infoBtn}
+                        aria-label="À quoi sert cette compétence ?"
+                        aria-haspopup="dialog"
+                        onClick={() => setInfoOpen(true)}
+                      >
+                        <span className={s.infoDot} aria-hidden>
+                          <Info size={15} strokeWidth={2.4} />
+                        </span>
+                      </button>
+                    )}
                   </div>
-                  {skill.description && (
-                    <button
-                      type="button"
-                      ref={infoButtonRef}
-                      className={s.infoBtn}
-                      aria-label="À quoi sert cette compétence ?"
-                      aria-haspopup="dialog"
-                      onClick={() => setInfoOpen(true)}
-                    >
-                      <span className={s.infoDot} aria-hidden>
-                        <Info size={15} strokeWidth={2.4} />
-                      </span>
-                    </button>
-                  )}
-                </div>
+                )}
 
                 {/* 🛑 **Deux blocs distincts, jamais l'un à la place de
                     l'autre** (arbitrage du propriétaire, 2026-09-13).
@@ -353,35 +383,6 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                       {meta}
                     </span>
                   </p>
-                )}
-
-                {/* Les points d'avancement de la maquette remplacent la barre
-                    fine : un segment par sujet du périmètre affiché (5 en mode
-                    étape, 15 sur la fiche complète). Les deux nombres viennent
-                    d'au-dessus — en mode étape, ce sont **ceux du serveur**. */}
-                {total > 0 && (
-                  <div className={s.skillHeadProgress}>
-                    <span className={s.skillHeadCount}>
-                      {attempted} / {total} sujets traités
-                    </span>
-                    <span
-                      className={s.dots}
-                      role="img"
-                      aria-label={`${attempted} sujets traités sur ${total}`}
-                    >
-                      {Array.from({length: total}, (_, i) => (
-                        <span
-                          key={i}
-                          className={`${s.dot} ${i < attempted ? s.dotOn : ""}`}
-                        />
-                      ))}
-                    </span>
-                    {/* L'état de maîtrise, s'il existe : c'est la réponse à
-                        « où j'en suis sur cette compétence », dérivée serveur.
-                        `null` (aucune observation) ⇒ rien — on n'invente pas
-                        un état. */}
-                    {skill.masteryState && <SkillMasteryPill state={skill.masteryState} />}
-                  </div>
                 )}
 
                 {/* 🛑 **Le CTA de la maquette `detail_competence.png`.** Hors

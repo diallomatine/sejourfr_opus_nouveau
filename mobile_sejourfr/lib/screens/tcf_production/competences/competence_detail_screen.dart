@@ -400,7 +400,6 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
             total: total,
             validated: validated,
             stepPill: scoped,
-            icon: widget.module.icon,
           ),
           const SizedBox(height: 14),
           if (stepDone)
@@ -676,14 +675,19 @@ class _SeriesNote extends StatelessWidget {
       );
 }
 
-/// Carte de résumé de la compétence : icône 48×48, état de maîtrise, titre,
-/// pastille d'information, puis la progression **en segments** et l'encart
+/// Carte de résumé de la compétence : la progression **en segments**, la
+/// pastille d'information, « Vous allez apprendre à » puis l'encart
 /// « Critère travaillé ».
+///
+/// 🛑 **Elle ne répète ni le sur-titre ni le nom de la compétence** :
+/// l'en-tête de l'écran les porte déjà, juste au-dessus, avec le code et
+/// l'épreuve en sous-titre. Cette ligne coûtait un tiers de la hauteur visible
+/// pour une redite — la progression est donc la **première ligne** de la carte.
 ///
 /// L'explication de la compétence (`skill.description`) ne vit **pas** dans le
 /// corps de la carte : six lignes de texte y repoussaient le critère et la
-/// liste des sujets. Elle est derrière la pastille d'information en haut à
-/// droite, qui disparaît quand il n'y a rien à expliquer.
+/// liste des sujets. Elle est derrière la pastille d'information, posée à
+/// droite de la progression, qui **disparaît** quand il n'y a rien à expliquer.
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.skill,
@@ -691,7 +695,6 @@ class _SummaryCard extends StatelessWidget {
     required this.attempted,
     required this.total,
     required this.validated,
-    required this.icon,
     this.stepPill = false,
   });
 
@@ -703,7 +706,6 @@ class _SummaryCard extends StatelessWidget {
   final int attempted;
   final int total;
   final int validated;
-  final IconData icon;
 
   /// Pastille « Étape de ton plan » : on dit d'où l'on vient, sinon l'écran
   /// ressemble à la fiche complète tout en n'en montrant qu'une partie.
@@ -712,6 +714,51 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final complete = total > 0 && attempted >= total;
+    // Deux textes, deux endroits : l'explication dit à quoi la compétence sert
+    // au TCF (ici, à la demande), le critère général dit ce qui est travaillé
+    // (dans la carte, toujours visible).
+    final info = skill.description.trim().isEmpty
+        ? null
+        : _SkillInfoButton(
+            title: skill.title,
+            description: skill.description,
+            accent: accent,
+          );
+    // 🛑 La pastille ne dépend PAS du compteur : une compétence servie sans
+    // sujet garde son explication, elle occupe alors seule la première ligne.
+    final progress = total > 0
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$attempted / $total sujets travaillés',
+                      style: AppFonts.ui(size: 13, weight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    complete
+                        ? 'Série terminée'
+                        : validated > 0
+                            ? '$validated validé${validated > 1 ? 's' : ''}'
+                            : '',
+                    style: AppFonts.ui(
+                      size: 12,
+                      weight: FontWeight.w700,
+                      color: complete ? AppColors.green : AppColors.inkFaint,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ProgressDots(done: attempted, total: total, color: accent),
+            ],
+          )
+        : null;
+
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
@@ -723,88 +770,20 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, size: 23, color: accent),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (stepPill) ...[
-                      _StepPill(accent: accent),
-                      const SizedBox(height: 6),
-                    ],
-                    // 🛑 « Compétence acquise » ⇔ `masteryState == SOLID`,
-                    // c'est-à-dire transfert PROUVÉ sur une production
-                    // complète — jamais une série de petits sujets terminée.
-                    Text(
-                      competenceEyebrow(skill),
-                      style: AppFonts.ui(
-                        size: 12.5,
-                        weight: FontWeight.w600,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      skill.title,
-                      style: AppFonts.display(size: 19, height: 1.2),
-                    ),
-                  ],
-                ),
-              ),
-              // Deux textes, deux endroits : l'explication dit à quoi la
-              // compétence sert au TCF (ici, à la demande), le critère général
-              // dit ce qui est travaillé (dans la carte, toujours visible).
-              if (skill.description.trim().isNotEmpty)
-                _SkillInfoButton(
-                  title: skill.title,
-                  description: skill.description,
-                  accent: accent,
-                ),
-            ],
-          ),
-          if (total > 0) ...[
-            const SizedBox(height: 14),
-            const Divider(height: 1, thickness: 1, color: AppColors.line2),
-            const SizedBox(height: 13),
+          if (stepPill) ...[
+            _StepPill(accent: accent),
+            const SizedBox(height: 12),
+          ],
+          if (progress != null || info != null)
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    '$attempted / $total sujets travaillés',
-                    style: AppFonts.ui(size: 13, weight: FontWeight.w800),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  complete
-                      ? 'Série terminée'
-                      : validated > 0
-                          ? '$validated validé${validated > 1 ? 's' : ''}'
-                          : '',
-                  style: AppFonts.ui(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: complete ? AppColors.green : AppColors.inkFaint,
-                  ),
-                ),
+                Expanded(child: progress ?? const SizedBox.shrink()),
+                if (info != null) ...[
+                  const SizedBox(width: 6),
+                  info,
+                ],
               ],
             ),
-            const SizedBox(height: 8),
-            ProgressDots(done: attempted, total: total, color: accent),
-          ],
           // 🛑 **Deux blocs distincts, jamais l'un à la place de l'autre**
           // (arbitrage du propriétaire, 2026-09-13). `learningPoints` est une
           // colonne NULLABLE (`V063`) : absente, la section « Vous allez
