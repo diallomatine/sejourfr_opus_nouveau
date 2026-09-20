@@ -28,7 +28,9 @@ import {
   type PlanCycleDto,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
+import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {planUnlockHref} from "@/lib/plan-unlock";
 import {
   Card,
   Cta,
@@ -344,13 +346,14 @@ function ActionMaintenant({plan, journey, free}: {
 }) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
-  /* 🛑 **Le paywall d'une étape VERROUILLÉE** (spec §7 / D-18) : la carte nomme
-     l'étape fermée, et le geste ouvre l'offre. C'est le paywall **existant** du
-     Plan, avec son emplacement de mesure (`LOCKED_PLAN`) — aucune modale
-     nouvelle, aucun libellé nouveau. Il est distinct des deux paywalls des
-     lanceurs, qui répondent à un **403** ; celui-ci répond à un `locked` servi,
-     avant tout appel. */
-  const [unlockOpen, setUnlockOpen] = useState(false);
+
+  /* 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'écran de
+     transition** (demande du propriétaire, 2026-09-20, TCF **et** civique) : il
+     dit au candidat ce qu'il achète — ses priorités, son écart à l'objectif, le
+     prix d'entrée — avant de lui montrer des durées et des montants. Deux
+     chemins vers le même achat, dont un plus pauvre, c'est la porte que
+     personne ne pense à corriger. */
+  const router = useRouter();
 
   /* 🛑 **L'identité de la carte est décidée par `planNowCard`, pas ici** — la
      même autorité que l'Accueil (`ActionPrincipale`) et que les deux cartes du
@@ -419,7 +422,7 @@ function ActionMaintenant({plan, journey, free}: {
               **bleu** (A46) : sur un Plan gratuit, le seul bouton rouge de la
               page reste celui de la barre basse. */}
           {debloquer && (
-            <Cta variant="blue" onClick={() => setUnlockOpen(true)}>
+            <Cta variant="blue" onClick={() => router.push(planUnlockHref("TCF"))}>
               {vue.cta}
             </Cta>
           )}
@@ -442,15 +445,18 @@ function ActionMaintenant({plan, journey, free}: {
           <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
         )}
       </Pad>
+  /* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
+     d'achat du Plan passe par l'écran de transition, plus rien ici ne l'ouvre
+     délibérément. Il reste parce qu'un lanceur peut toujours se voir refuser
+     au démarrage — c'est un refus, pas une vente. */
       <PaywallSheet
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"
-        open={paywallOpen || assessments.paywallOpen || unlockOpen}
+        open={paywallOpen || assessments.paywallOpen}
         onClose={() => {
           closePaywall();
           assessments.closePaywall();
-          setUnlockOpen(false);
         }}
       />
     </Section>

@@ -7,6 +7,7 @@ import {handleStartFailure} from "@/lib/start-failure";
 import {planHref, type ParcoursModule} from "@/lib/module-switch";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {planStepAction} from "@/lib/plan-domain";
+import {planUnlockHref} from "@/lib/plan-unlock";
 import {
     JOURNEY_CYCLE_NOTE,
     journeyLockedCaption,
@@ -196,17 +197,11 @@ function CycleBody({journey, plan, module}: {
     const [choix, setChoix] = useState<{key: string | null} | null>(null);
     const ouvert = choix ? choix.key : termine ? null : premier?.bloc?.code ?? null;
 
+    const routerCycle = useRouter();
     const exercises = usePlanExercise();
     const assessments = usePlanAssessment();
     const busy = exercises.starting || assessments.starting !== null;
 
-    /* 🛑 **L'offre d'une étape VERROUILLÉE** (demande du propriétaire,
-       2026-09-20) : c'est le paywall **existant** du Plan, avec son
-       emplacement de mesure (`LOCKED_PLAN`), le même que la carte « À faire
-       maintenant » ouvre déjà sur son `geste === "DEBLOQUER"`. Il répond à un
-       `locked` **servi**, avant tout appel — les deux autres états de paywall
-       de cet écran répondent, eux, à un **403**. */
-    const [offreOuverte, setOffreOuverte] = useState(false);
 
     /* 🛑 **Le pass n'est pas le même selon le parcours** : le cycle civique
        s'ouvre avec le pass **Civique** (comme `openCivicOffer` côté mobile et
@@ -268,15 +263,22 @@ function CycleBody({journey, plan, module}: {
     const gesteDe = useCallback(
         (etape: JourneyStepDto): {label: string; onClick: () => void} | undefined => {
             if (etape.locked) {
+                /* 🛑 **Le geste passe par l'ÉCRAN DE TRANSITION**, jamais
+                   directement par l'offre (demande du propriétaire,
+                   2026-09-20). Le CTA ancré sous le cycle y menait déjà ; une
+                   ligne d'étape qui ouvrait le paywall d'un coup sautait
+                   l'écran qui **dit au candidat ce qu'il achète** — ses
+                   priorités, son écart à l'objectif, le prix d'entrée. Deux
+                   chemins vers le même achat, dont un plus pauvre. */
                 return {
                     label: JOURNEY_STEP_UNLOCK_LINK,
-                    onClick: () => setOffreOuverte(true),
+                    onClick: () => routerCycle.push(planUnlockHref(module)),
                 };
             }
             const action = actionDe(etape);
             return action ? {label: JOURNEY_STEP_ACTION_LINK, onClick: action} : undefined;
         },
-        [actionDe],
+        [actionDe, module, routerCycle],
     );
 
     return (
@@ -359,13 +361,11 @@ function CycleBody({journey, plan, module}: {
                     exercises.paywallOpen
                     || assessments.paywallOpen
                     || serieCivique.paywall
-                    || offreOuverte
                 }
                 onClose={() => {
                     exercises.closePaywall();
                     assessments.closePaywall();
                     serieCivique.setPaywall(false);
-                    setOffreOuverte(false);
                 }}
             />
         </>

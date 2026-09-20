@@ -2326,3 +2326,43 @@ assertion explicite** (`current.bloc() == TCF_EE`, jamais l'examen de CO) au lie
 
 🛑 **La leçon** : avant de réécrire un test rendu rouge par un changement voulu, demander ce qu'il
 protège **vraiment** — ce n'est pas toujours ce qu'il assertionne.
+
+### A145 — 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'écran de transition**
+
+**Demande du propriétaire, 2026-09-20, en deux temps :**
+
+> « Dans les étapes quand on clique sur débloquer mon plan, ça ouvre le paywall directement sans
+> l'écran intermédiaire, le bouton fixe en bas est okay, mais faire la même chose pour les boutons
+> dans le cycle aussi. »
+>
+> « De même pour à faire maintenant, il faut passer par l'écran intermédiaire pour **tout** passage
+> vers le paywall depuis le plan. » — « **tcf et examen civique** »
+
+**Le défaut.** Le CTA ancré menait à l'écran de transition ; les **lignes d'étape du cycle**, la
+carte **« À faire maintenant »**, les cibles d'**« À revoir bientôt »** et le **jalon** ouvraient
+le paywall **d'un coup**. Deux chemins vers le même achat, dont un qui **saute l'écran qui dit au
+candidat ce qu'il achète** — ses priorités, son écart à l'objectif, le prix d'entrée.
+
+**Décidé.** Les **six** gestes d'achat du Plan (trois par front) poussent
+`/plan/debloquer?module=…`. Une seule porte, sur les deux modules.
+
+#### ⚠️ La distinction qui décide, et qu'il ne faut pas perdre
+
+| | Passe par l'écran de transition | Reste tel quel |
+|---|---|---|
+| Nature | un **geste d'achat** — le candidat demande à débloquer | un **refus** — il a essayé de lancer, le serveur a rendu **403** |
+| Source | `locked` / `free` **servis**, avant tout appel | `handleStartFailure` / `showPaywallOrError` |
+
+Router un **403** vers une page de vente transformerait un refus en tunnel d'achat, et
+`handleStartFailure` est une autorité **de toute l'app**, pas du seul Plan.
+
+#### Ce qui a été supprimé avec, et qui ne se voyait plus
+
+Les trois états `unlockOpen` / `offreOuverte` n'étaient **plus jamais mis à `true`** : leurs
+`|| …` dans le `open` du paywall étaient morts. Retirés des trois composants web, avec
+`_ouvrirOffre` côté cycle mobile et **trois imports devenus morts**. 🛑 Les `PaywallSheet`
+**restent** — ils servent encore les 403 —, avec une ligne qui dit désormais qu'ils ne répondent
+plus qu'à ça.
+
+**Si l'arbitrage était autre** (« le 403 aussi passe par l'écran ») : ce serait une ligne par site
+d'appel, mais il faudrait accepter qu'un refus technique ouvre une page de vente.

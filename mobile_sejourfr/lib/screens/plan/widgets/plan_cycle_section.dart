@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/analytics/analytics.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/models/attempt_models.dart';
 import '../../../core/models/diagnostic_models.dart';
@@ -15,7 +14,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/selected_module.dart';
 import '../../../core/utils/start_failure.dart';
 import '../../../core/widgets/paywall_sheet.dart';
-import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../../module_detail/tcf_full_exams_screen.dart'
     show fullExamsHistoryProvider;
@@ -304,28 +302,23 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
   ({String label, VoidCallback onTap})? _gesteDe(JourneyStep etape) {
     if (etape.locked) {
+      // 🛑 **Le geste passe par l'ÉCRAN DE TRANSITION**, jamais directement par
+      // l'offre (demande du propriétaire, 2026-09-20). Le CTA ancré sous le
+      // cycle y menait déjà ; une ligne d'étape qui ouvrait le paywall d'un
+      // coup sautait l'écran qui **dit au candidat ce qu'il achète** — ses
+      // priorités, son écart à l'objectif, le prix d'entrée. Deux chemins vers
+      // le même achat, dont un plus pauvre.
       return (
         label: kJourneyStepUnlockLink,
-        onTap: () => unawaited(_ouvrirOffre()),
+        onTap: () => context.push(AppRoutes.planUnlockPath(
+              civique: widget.module == AppModule.civique,
+            )),
       );
     }
     final action = _actionDe(etape);
     return action == null ? null : (label: kJourneyStepActionLink, onTap: action);
   }
 
-  /// **L'offre du Plan**, la même que la carte « À faire maintenant » ouvre sur
-  /// son `PlanNowGeste.debloquer`.
-  ///
-  /// 🛑 **Le pass n'est pas le même selon le parcours** : le cycle civique
-  /// s'ouvre avec le pass **Civique** ([openCivicOffer], déjà l'unique porte
-  /// d'achat du civique), le cycle TCF avec l'**Intégral**.
-  Future<void> _ouvrirOffre() => widget.module == AppModule.civique
-      ? openCivicOffer(context)
-      : showTcfLockPaywall(
-          context,
-          ref: ref,
-          ctaLocation: AnalyticsCtaLocation.lockedPlan,
-        );
 
   /// 🛑 **L'action d'une ligne passe par le MÊME chemin que la carte « À faire
   /// maintenant »** : [planStepAction] résout avec les deux autorités de

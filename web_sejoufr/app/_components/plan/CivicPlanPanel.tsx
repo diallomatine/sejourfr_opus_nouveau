@@ -3,7 +3,9 @@
 import Link from "next/link";
 import {ChevronRight, Landmark, ListChecks} from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
 import {civicPlanApi, journeyApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
@@ -137,16 +139,19 @@ function CiviquePlan({plan, journey, free}: {
   journey: JourneyDto | null;
   free: boolean;
 }) {
+  /* 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'écran de
+     transition** (demande du propriétaire, 2026-09-20, TCF **et** civique) : il
+     dit au candidat ce qu'il achète — ses priorités, son écart à l'objectif, le
+     prix d'entrée — avant de lui montrer des durées et des montants. ⚠️ Les
+     paywalls qui répondent à un **403** restent en place : ce sont des refus,
+     pas des gestes d'achat. */
+  const router = useRouter();
   const maintenant = useMemo(() => new Date(), []);
   /* Les deux lanceurs, **un par grain** (A87) : l'unité officielle du cycle et
      la cible du plan dérivé. Ils sont partagés avec l'écran Réviser — la même
      unité ne peut pas s'ouvrir de deux façons selon l'écran. */
   const serieCible = useCivicSerie();
   const serieUnite = useCivicUniteSerie();
-  /* 🛑 L'offre d'une action **fermée** : le paywall **existant** du Plan, celui
-     que les deux lanceurs ouvrent déjà sur un 403. Ici il répond à un `geste`
-     servi, avant tout appel. */
-  const [offreOuverte, setOffreOuverte] = useState(false);
 
   const carte = civicNowCard(plan, {journey, free});
   const grainNote = civicPlanGrainNote(plan.grain);
@@ -194,7 +199,7 @@ function CiviquePlan({plan, journey, free}: {
                   seul bouton rouge de l'écran reste « Débloquer mon plan »,
                   ancré en pied (A46). */}
               {carte.geste === "DEBLOQUER" && (
-                <Cta variant="blue" onClick={() => setOffreOuverte(true)}>{carte.cta}</Cta>
+                <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>{carte.cta}</Cta>
               )}
               {carte.geste === "LANCER" && carte.source && (
                 <Cta
@@ -249,7 +254,7 @@ function CiviquePlan({plan, journey, free}: {
                       className={sejourStyles.link}
                       disabled={serieCible.enCours === cible.id}
                       onClick={() => {
-                        if (geste === "DEBLOQUER") setOffreOuverte(true);
+                        if (geste === "DEBLOQUER") router.push(planUnlockHref("CIVIQUE"));
                         else void serieCible.commencer(cible);
                       }}
                     >
@@ -276,13 +281,16 @@ function CiviquePlan({plan, journey, free}: {
         <AllerPlusLoin />
       )}
 
+  /* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
+     d'achat du Plan passe par l'écran de transition, plus rien ici ne l'ouvre
+     délibérément. Il reste parce qu'un lanceur peut toujours se voir refuser
+     au démarrage — c'est un refus, pas une vente. */
       <PaywallSheet
-        open={serieCible.paywall || serieUnite.paywall || offreOuverte}
+        open={serieCible.paywall || serieUnite.paywall}
         module="CIVIQUE"
         onClose={() => {
           serieCible.setPaywall(false);
           serieUnite.setPaywall(false);
-          setOffreOuverte(false);
         }}
       />
     </>

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/analytics/analytics.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/journey_models.dart';
@@ -121,6 +120,16 @@ class PlanTcfView extends ConsumerWidget {
   /// priorité, mêmes métas, même explication du correcteur, même progression.
   /// Seul le **geste** change, et il vient de [planNowCard] : `free: true` y
   /// force [PlanNowGeste.debloquer], donc aucun lanceur n'est joignable d'ici.
+  /// 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'ÉCRAN DE
+  /// TRANSITION** (demande du propriétaire, 2026-09-20, TCF **et** civique) :
+  /// il dit au candidat ce qu'il achète — ses priorités, son écart à
+  /// l'objectif, le prix d'entrée — avant de lui montrer des durées et des
+  /// montants. Deux chemins vers le même achat, dont un plus pauvre, c'est la
+  /// porte que personne ne pense à corriger.
+  ///
+  /// ⚠️ Les paywalls qui répondent à un **403** restent en place : ce sont des
+  /// refus, pas des gestes d'achat.
+
   List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
         SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
@@ -183,6 +192,10 @@ class PlanTcfView extends ConsumerWidget {
   /// web. L'écran assemble le kit, il ne choisit ni l'identité de la carte ni
   /// ce qu'elle lance. Il n'y a donc **aucun `if (free)` ici** : le drapeau est
   /// passé tel quel et ne sert qu'à l'autorité.
+  /// La porte unique vers l'offre, depuis le Plan TCF.
+  void _versEcranDeDeblocage(BuildContext context) =>
+      context.push(AppRoutes.planUnlockPath(civique: false));
+
   Widget _nowCard(BuildContext context, WidgetRef ref, {bool free = false}) {
     final carte = planNowCard(plan, journey: journey, free: free);
     if (carte == null) {
@@ -223,11 +236,7 @@ class PlanTcfView extends ConsumerWidget {
         PlanNowGeste.debloquer => SfButton(
             label: carte.cta,
             variant: SfButtonVariant.blue,
-            onPressed: () => unawaited(showTcfLockPaywall(
-              context,
-              ref: ref,
-              ctaLocation: AnalyticsCtaLocation.lockedPlan,
-            )),
+            onPressed: () => _versEcranDeDeblocage(context),
           ),
         PlanNowGeste.lancer => SfButton(
             label: carte.cta,
@@ -281,11 +290,7 @@ class PlanTcfView extends ConsumerWidget {
               variant: SfButtonVariant.blue,
               onPressed: () => unawaited(
                 milestone.locked
-                    ? showTcfLockPaywall(
-                        context,
-                        ref: ref,
-                        ctaLocation: AnalyticsCtaLocation.lockedPlan,
-                      )
+                    ? Future.sync(() => _versEcranDeDeblocage(context))
                     : startPlanMilestone(context, ref, milestone),
               ),
             ),

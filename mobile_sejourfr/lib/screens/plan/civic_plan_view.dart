@@ -96,7 +96,17 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// **La seule porte d'achat** : l'écran d'offre, qui porte les vrais passes
   /// et leurs prix du store. La durée choisie ici n'est qu'une préférence
   /// affichée — c'est là-bas qu'on achète.
-  Future<void> _ouvrirOffre() => openCivicOffer(context);
+  /// 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'ÉCRAN DE
+  /// TRANSITION** (demande du propriétaire, 2026-09-20, TCF **et** civique) :
+  /// il dit au candidat ce qu'il achète — ses priorités, son écart à
+  /// l'objectif, le prix d'entrée — avant de lui montrer des durées et des
+  /// montants. Deux chemins vers le même achat, dont un plus pauvre, c'est la
+  /// porte que personne ne pense à corriger.
+  ///
+  /// ⚠️ Les paywalls qui répondent à un **403** restent en place : ce sont des
+  /// refus, pas des gestes d'achat.
+  Future<void> _ouvrirOffre() async =>
+      context.push(AppRoutes.planUnlockPath(civique: true));
 
   @override
   Widget build(BuildContext context) {
