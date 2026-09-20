@@ -37,6 +37,7 @@ Future<void> openPlanExercise(
   WidgetRef ref,
   PlanRecommendedExercise exercise, {
   SkillMasteryState? masteryBefore,
+  VoidCallback? onVerrou,
 }) async {
   if (!exercise.locked) {
     ref.read(analyticsServiceProvider).track(
@@ -46,6 +47,7 @@ Future<void> openPlanExercise(
         );
   }
   await openRecommendedExercise(
+    onVerrou: onVerrou,
     context,
     ref,
     exercise,
@@ -76,9 +78,16 @@ Future<void> openPlanExercise(
 Future<void> openPlanSeanceItem(
   BuildContext context,
   WidgetRef ref,
-  PlanSeanceItem item,
-) async {
+  PlanSeanceItem item, {
+  VoidCallback? onVerrou,
+}) async {
   if (planSeanceItemLocked(item)) {
+    // 🛑 A145 : depuis le Plan, un geste d'achat passe par l'écran de
+    // transition. Ailleurs, le paywall direct reste le comportement.
+    if (onVerrou != null) {
+      onVerrou();
+      return;
+    }
     await showTcfLockPaywall(
       context,
       ref: ref,
@@ -116,9 +125,16 @@ Future<void> openPlanSeanceItem(
 Future<void> startPlanSeanceItem(
   BuildContext context,
   WidgetRef ref,
-  PlanSeanceItem item,
-) async {
+  PlanSeanceItem item, {
+  VoidCallback? onVerrou,
+}) async {
   if (planSeanceItemLocked(item)) {
+    // 🛑 A145 : depuis le Plan, un geste d'achat passe par l'écran de
+    // transition. Ailleurs, le paywall direct reste le comportement.
+    if (onVerrou != null) {
+      onVerrou();
+      return;
+    }
     await showTcfLockPaywall(
       context,
       ref: ref,

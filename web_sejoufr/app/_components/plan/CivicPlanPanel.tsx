@@ -150,7 +150,10 @@ function CiviquePlan({plan, journey, free}: {
   /* Les deux lanceurs, **un par grain** (A87) : l'unité officielle du cycle et
      la cible du plan dérivé. Ils sont partagés avec l'écran Réviser — la même
      unité ne peut pas s'ouvrir de deux façons selon l'écran. */
-  const serieCible = useCivicSerie();
+  /* 🛑 **Un `locked` SERVI passe par l'écran de transition**, comme tous les
+     autres gestes d'achat du Plan : sans cette porte, une cible fermée
+     ouvrait le paywall d'un coup. Le 403 du lanceur, lui, reste un refus. */
+  const serieCible = useCivicSerie(() => router.push(planUnlockHref("CIVIQUE")));
   const serieUnite = useCivicUniteSerie();
 
   const carte = civicNowCard(plan, {journey, free});

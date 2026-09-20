@@ -241,6 +241,11 @@ function CycleBody({journey, plan, module}: {
                 return () => void assessments.start(mesure.assessment);
             }
             const exercise = action.exercise!;
+            /* 🛑 **Le verrou de l'EXERCICE n'est pas celui de l'ÉTAPE.** Une
+               étape servie ouverte peut porter un exercice fermé — et c'est
+               par là que le geste sautait l'écran de transition pour finir
+               sur un 403 puis le paywall. On lit les deux. */
+            if (exercise.locked) return undefined;
             return () => void exercises.start(exercise);
         },
         [assessments, busy, exercises, module, plan, serieCivique],
@@ -276,7 +281,16 @@ function CycleBody({journey, plan, module}: {
                 };
             }
             const action = actionDe(etape);
-            return action ? {label: JOURNEY_STEP_ACTION_LINK, onClick: action} : undefined;
+            if (action) return {label: JOURNEY_STEP_ACTION_LINK, onClick: action};
+            /* 🛑 Aucune action résoluble sur une étape d'ENTRAÎNEMENT : c'est
+               un exercice fermé (le seul cas, cf. `actionDe`). La ligne garde
+               donc son geste d'achat — sans lui, elle serait muette. */
+            return etape.type === "TRAIN_SKILL"
+                ? {
+                      label: JOURNEY_STEP_UNLOCK_LINK,
+                      onClick: () => routerCycle.push(planUnlockHref(module)),
+                  }
+                : undefined;
         },
         [actionDe, module, routerCycle],
     );

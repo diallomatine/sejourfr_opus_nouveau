@@ -334,7 +334,12 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         await startCivicUniteSerie(context, ref, code);
       case CivicNowCible(cible: final cible):
         setState(() => _enCours = cible.id);
-        await startCivicSerie(context, ref, cible);
+        await startCivicSerie(
+          context,
+          ref,
+          cible,
+          onVerrou: () => unawaited(_ouvrirOffre()),
+        );
     }
     if (!mounted) return;
     setState(() => _enCours = null);

@@ -20,12 +20,21 @@ import 'learning_plan_provider.dart';
 /// 🛑 Le **403** est un refus attendu — le verrou du serveur et le `locked`
 /// servi sont la même règle — et il ouvre l'offre, jamais un message d'erreur
 /// technique ([showPaywallOrError]).
+/// 🛑 [onVerrou] — **la porte de déblocage de l'appelant**, quand il en a une.
+/// Depuis le Plan, tout geste d'achat passe par l'écran de transition (A145) ;
+/// ailleurs, le paywall direct reste le comportement. ⚠️ Ne vaut que pour un
+/// `locked` **servi** : un 403 reste un refus, et il ouvre l'offre.
 Future<void> startCivicSerie(
   BuildContext context,
   WidgetRef ref,
-  CivicPlanCible cible,
-) async {
+  CivicPlanCible cible, {
+  VoidCallback? onVerrou,
+}) async {
   if (cible.locked) {
+    if (onVerrou != null) {
+      onVerrou();
+      return;
+    }
     await openCivicOffer(context);
     return;
   }

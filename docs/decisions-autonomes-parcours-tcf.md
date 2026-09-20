@@ -2366,3 +2366,47 @@ plus qu'à ça.
 
 **Si l'arbitrage était autre** (« le 403 aussi passe par l'écran ») : ce serait une ligne par site
 d'appel, mais il faudrait accepter qu'un refus technique ouvre une page de vente.
+
+---
+
+## A146 — Le verrou de l'EXERCICE n'est pas celui de l'ÉTAPE (2026-09-20)
+
+> Constat du propriétaire, à l'écran, après A145 : « côté examen civique c'est bon, on passe bien
+> par l'écran intermédiaire mais **côté tcf, c'est pas bon, direct le paywall**. »
+
+**Mesuré.** A145 avait fermé les portes qui lisent `etape.locked` / `free`. Il restait une
+porte que ce test ne voit pas : **une étape servie OUVERTE peut porter un exercice FERMÉ**.
+Le geste part alors dans la branche `LANCER`, atteint le lanceur partagé
+(`openRecommendedExercise` / `actionDe`), qui lit `exercise.locked` **lui-même** et ouvrait le
+paywall d'un coup.
+
+**Pourquoi le civique passait et pas le TCF.** Le module civique est verrouillé **en entier**
+(A119) : son geste vaut toujours `DEBLOQUER`, il n'atteint jamais le lanceur. Le TCF, lui,
+ouvre la priorité n°1 à un compte gratuit — donc des étapes ouvertes, des exercices fermés, et
+le seul front qui tombait dedans.
+
+**Décidé.** Les lanceurs prennent un `onVerrou` **optionnel** — la porte de déblocage de
+l'appelant. Le Plan la passe, les autres surfaces gardent le paywall direct.
+
+| front | fichiers |
+|---|---|
+| mobile | `recommended_exercise_launcher.dart` (`openRecommendedExercise`), `plan_actions.dart` (`openPlanExercise`, `openPlanSeanceItem`, `startPlanSeanceItem`), `civic_serie_launcher.dart` (`startCivicSerie`) |
+| web | `PlanCycleSection.tsx` (`actionDe` ne résout plus une action sur un exercice fermé, `gesteDe` lui rend son geste d'achat), `useCivicSerie.ts` (`onVerrou`) |
+
+🛑 **La distinction d'A145 tient toujours** : `onVerrou` ne couvre qu'un `locked` **servi**,
+lu avant tout appel. Un **403** reste un refus et garde son paywall.
+
+⚠️ **Le civique était déjà correct** — la ligne `cible.locked` de `startCivicSerie` /
+`useCivicSerie` n'est atteignable que si la carte a dit `LANCER` sur une cible fermée. Elle a
+été alignée quand même : c'est le **même défaut**, et le laisser d'un seul côté le rouvrirait à
+la première évolution du verrou civique.
+
+**Le motif, 3ᵉ occurrence — DETTE-V1.** Trois fois dans cette session, un front a lu **un**
+verrou là où il y en a **deux** (l'étape et son exercice, le module et sa cible). La vraie
+correction serait que le serveur serve **un seul `locked` résolu par geste** ; en attendant,
+le lanceur est l'unique endroit qui les compose.
+
+**Si l'arbitrage était autre** (« un exercice fermé sous une étape ouverte est un bug serveur,
+à corriger là-bas ») : il faudrait que `JourneyReadService` propage le verrou de l'exercice sur
+l'étape — mais une étape ainsi fermée cesserait d'être `CURRENT` (D-18/D-60), et le parcours
+d'un compte gratuit se figerait. C'est pourquoi la composition reste côté front.

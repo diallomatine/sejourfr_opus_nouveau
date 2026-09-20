@@ -300,6 +300,11 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// servi à part, dans `bloc.exam`). Le seul verrou **pédagogique** du cycle
   /// est celui d'un examen de bloc, et il garde son encart muet : sa phrase
   /// servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
+  /// La porte unique vers l'offre, depuis le cycle — quel que soit le module.
+  void _versEcranDeDeblocage(BuildContext context) => context.push(
+        AppRoutes.planUnlockPath(civique: widget.module == AppModule.civique),
+      );
+
   ({String label, VoidCallback onTap})? _gesteDe(JourneyStep etape) {
     if (etape.locked) {
       // 🛑 **Le geste passe par l'ÉCRAN DE TRANSITION**, jamais directement par
@@ -310,9 +315,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       // le même achat, dont un plus pauvre.
       return (
         label: kJourneyStepUnlockLink,
-        onTap: () => context.push(AppRoutes.planUnlockPath(
-              civique: widget.module == AppModule.civique,
-            )),
+        onTap: () => _versEcranDeDeblocage(context),
       );
     }
     final action = _actionDe(etape);
@@ -345,7 +348,12 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     if (action == null) return null;
     final mesure = action.mesure;
     if (mesure != null) {
-      return () => unawaited(startPlanSeanceItem(context, ref, mesure));
+      return () => unawaited(startPlanSeanceItem(
+            context,
+            ref,
+            mesure,
+            onVerrou: () => _versEcranDeDeblocage(context),
+          ));
     }
     final exercise = action.exercise!;
     return () => unawaited(openPlanExercise(
@@ -353,6 +361,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
           ref,
           exercise,
           masteryBefore: action.priority?.masteryState,
+          onVerrou: () => _versEcranDeDeblocage(context),
         ));
   }
 

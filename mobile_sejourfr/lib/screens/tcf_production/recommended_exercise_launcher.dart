@@ -43,17 +43,26 @@ import 'tcf_production_module.dart';
 ///
 /// Le Plan et le résultat du diagnostic l'appellent tous les deux : deux copies
 /// auraient fini par router différemment la même recommandation.
+/// 🛑 [onVerrou] — **la porte de déblocage de l'appelant**, quand il en a une.
+/// Depuis le Plan, tout geste d'achat passe par l'écran de transition (A145) ;
+/// ailleurs (résultat du diagnostic), le paywall direct reste le comportement.
+/// ⚠️ **Le verrou de l'EXERCICE n'est pas celui de l'ÉTAPE** : une étape servie
+/// ouverte peut porter un exercice fermé, et c'est précisément par là que le
+/// TCF sautait l'écran de transition alors que le civique y passait.
 Future<void> openRecommendedExercise(
   BuildContext context,
   WidgetRef ref,
   PlanRecommendedExercise exercise, {
   SkillMasteryState? masteryBefore,
+  VoidCallback? onVerrou,
 }) async {
   // Garde de dernier recours : le serveur décide du verrou, l'app ne le devine
   // pas. Les cartes ouvrent déjà le paywall d'elles-mêmes.
   if (exercise.locked) {
-    // Ses deux appelants sont le Plan et le résultat du diagnostic : l'en-tête
-    // personnalisé du paywall y a son contexte.
+    if (onVerrou != null) {
+      onVerrou();
+      return;
+    }
     await showTcfLockPaywall(context);
     return;
   }

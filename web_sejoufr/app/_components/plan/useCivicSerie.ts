@@ -12,6 +12,11 @@
  * servi sont la même règle — et il ouvre l'offre, jamais un message d'erreur
  * technique (`handleStartFailure`, l'autorité partagée).
  *
+ * 🛑 [onVerrou] — **la porte de déblocage de l'appelant**, quand il en a une.
+ * Depuis le Plan, tout geste d'achat passe par l'écran de transition (A145) ;
+ * ailleurs, le paywall direct reste le comportement. ⚠️ Ne vaut que pour un
+ * `locked` **servi** : un 403 reste un refus, et il ouvre l'offre.
+ *
  * Miroir mobile : `screens/plan/civic_serie_launcher.dart`.
  */
 
@@ -35,7 +40,7 @@ export interface CivicSerie {
     commencer: (cible: CivicPlanCibleDto) => Promise<void>;
 }
 
-export function useCivicSerie(): CivicSerie {
+export function useCivicSerie(onVerrou?: () => void): CivicSerie {
     const router = useRouter();
     const [enCours, setEnCours] = useState<string | null>(null);
     const [erreur, setErreur] = useState<string | null>(null);
@@ -45,7 +50,8 @@ export function useCivicSerie(): CivicSerie {
         async (cible: CivicPlanCibleDto) => {
             if (enCours) return;
             if (cible.locked) {
-                setPaywall(true);
+                if (onVerrou) onVerrou();
+                else setPaywall(true);
                 return;
             }
             setEnCours(cible.id);
@@ -62,7 +68,7 @@ export function useCivicSerie(): CivicSerie {
                 setEnCours(null);
             }
         },
-        [enCours, router],
+        [enCours, onVerrou, router],
     );
 
     return {enCours, erreur, setErreur, paywall, setPaywall, commencer};

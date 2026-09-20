@@ -244,7 +244,12 @@ class PlanTcfView extends ConsumerWidget {
                 // Le lanceur de mesure est une AUTORITÉ EXISTANTE
                 // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne
                 // réécrit aucun aiguillage ici, le mobile lit et exécute.
-                ? () => unawaited(startPlanSeanceItem(context, ref, mesure))
+                ? () => unawaited(startPlanSeanceItem(
+                      context,
+                      ref,
+                      mesure,
+                      onVerrou: () => _versEcranDeDeblocage(context),
+                    ))
                 : exercise == null
                     ? null
                     : () => unawaited(openPlanExercise(
@@ -252,6 +257,7 @@ class PlanTcfView extends ConsumerWidget {
                           ref,
                           exercise,
                           masteryBefore: carte.priority?.masteryState,
+                          onVerrou: () => _versEcranDeDeblocage(context),
                         )),
           ),
       },
