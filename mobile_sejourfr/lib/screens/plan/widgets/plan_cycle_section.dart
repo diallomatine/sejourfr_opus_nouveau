@@ -43,7 +43,7 @@ import '../plan_now_card.dart';
 /// 1. l'**encart de cycle** ([SfCycleProgress]) — la barre continue et son
 ///    compteur ;
 /// 2. les **blocs d'épreuve** ([SfBlocAccordion]), un par entrée de `blocs`,
-///    **dans l'ordre servi**, le bloc courant seul déplié ;
+///    **dans l'ordre servi**, le premier seul déplié ;
 /// 3. dans chaque bloc : les **lignes d'étape** ([SfJourneyRow]) puis l'**encart
 ///    d'examen** ([SfExamStepBox]) ;
 /// 4. la **note** de liberté d'ordre ([SfInfoNote]) ;
@@ -95,7 +95,7 @@ class PlanCycleSection extends ConsumerStatefulWidget {
 }
 
 class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
-  /// `false` = le candidat n'a rien choisi, on suit le bloc courant. Une fois
+  /// `false` = le candidat n'a rien choisi, on suit le premier bloc. Une fois
   /// qu'il a touché un en-tête, c'est **son** choix qui vaut — y compris « tout
   /// replié » ([_choix] à `null`).
   bool _aChoisi = false;
@@ -165,20 +165,22 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     final cycle = parcours.cycle;
     if (cycle == null || parcours.blocs.isEmpty) return const SizedBox.shrink();
 
-    // Le bloc **courant** est le seul déplié — c'est un fait servi
-    // (`status == enCours`), jamais une position dans la liste. Sur un cycle
-    // terminé, aucun bloc ne l'est : les quatre sont repliés, comme dans
-    // `cycle_termine.html`.
-    JourneyBloc? courant;
-    for (final bloc in parcours.blocs) {
-      if (bloc.status == JourneyBlocStatus.enCours) {
-        courant = bloc;
-        break;
-      }
-    }
-    final ouvert = _aChoisi ? _choix : courant?.bloc.code;
-
     final termine = parcours.state == JourneyState.cycleCompleted;
+
+    // 🛑 **Le PREMIER bloc servi est le seul déplié** (demande du propriétaire,
+    // 2026-09-20). Il suivait auparavant `status == enCours`, ce qui était juste
+    // tant que l'ordre était figé — mais depuis que les blocs porteurs de
+    // travail passent devant (D-56), le bloc courant peut être en 2ᵈ position :
+    // le candidat arrivait alors sur un cycle dont la tête était repliée et le
+    // milieu ouvert. L'ordre servi dit déjà ce qui compte d'abord ; le dépli le
+    // suit, il ne le contredit pas.
+    //
+    // ⚠️ **Sauf sur un cycle TERMINÉ** : les quatre blocs restent repliés, comme
+    // dans `cycle_termine.html` — la maquette de référence de D-22. Il n'y a
+    // alors plus rien à faire dedans, et c'est la carte de fin de cycle qui
+    // porte le geste.
+    final premier = parcours.blocs.first;
+    final ouvert = _aChoisi ? _choix : (termine ? null : premier.bloc.code);
     final nextStep = parcours.nextStep;
 
     return Column(

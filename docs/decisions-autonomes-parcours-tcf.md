@@ -1798,3 +1798,29 @@ partagé dont un seul front lit les états de sortie.
 correct en TCF, faux pour un cycle civique s'il passait un jour en `LOCKED`. Sans effet
 aujourd'hui — le cycle civique n'est rendu que sur l'écran abonné (A89) — donc **laissé tel
 quel** plutôt que de créer une seconde chaîne sans lecteur.
+
+### A109 — Le bloc déplié par défaut est le **premier servi**, plus celui qui porte `current`
+
+**Demande du propriétaire, verbatim** : « Actuellement c'est CO qui est ouvert par défaut, fais
+en sorte que le premier élément affiché soit ouvert par défaut. »
+
+**Décidé.** `ouvert = choix ?? premier.bloc.code` — l'accordéon suit l'**ordre servi**, il ne
+cherche plus le bloc de statut `EN_COURS`.
+
+**Motif.** Le dépli suivait `status === "EN_COURS"`, ce qui était juste **tant que l'ordre était
+figé**. Depuis **D-56**, les blocs porteurs de travail passent devant : le bloc courant peut donc
+être en 2ᵈ position, et le candidat arrivait sur un cycle dont la **tête était repliée** et le
+**milieu ouvert**. L'ordre servi dit déjà ce qui compte d'abord ; le dépli le suit, il ne le
+contredit pas.
+
+⚠️ **Sauf sur un cycle TERMINÉ** : les quatre blocs restent **repliés**, comme dans
+`cycle_termine.html` — la maquette de référence de **D-22**. Il n'y a alors plus rien à faire
+dedans, et c'est la carte de fin de cycle qui porte le geste. C'est la **seule** condition
+ajoutée, et elle est lue sur `state`, jamais déduite d'une liste vide.
+
+**Ce qui ne change pas** : le **choix du candidat** l'emporte toujours dès qu'il touche un
+en-tête, « tout replié » compris. C'est une préférence d'affichage, et elle reste la seule chose
+que l'écran décide lui-même.
+
+**Si l'arbitrage était autre** (« le bloc courant reste le déplié ») : rétablir la recherche par
+`status`, en acceptant qu'un cycle puisse s'ouvrir sur sa deuxième ligne.

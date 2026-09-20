@@ -80,7 +80,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  *
  * 1. l'**encart de cycle** (`CycleProgress`) — la barre continue et son compteur ;
  * 2. les **blocs d'épreuve** (`BlocAccordion`), un par entrée de `blocs`, **dans
- *    l'ordre servi**, le bloc courant seul déplié ;
+ *    l'ordre servi**, le premier seul déplié ;
  * 3. dans chaque bloc : les **lignes d'étape** (`JourneyRow`) puis l'**encart
  *    d'examen** (`ExamStepBox`) ;
  * 4. la **note** de liberté d'ordre (`InfoNote`) ;
@@ -177,16 +177,24 @@ function CycleBody({journey, plan, module}: {
     const cycle = journey.cycle!;
     const termine = journey.state === "CYCLE_COMPLETED";
 
-    /* Le bloc **courant** est le seul déplié — c'est un fait servi
-       (`status === "EN_COURS"`), jamais une position dans la liste. Sur un cycle
-       terminé, aucun bloc ne l'est : les quatre sont repliés, comme dans
-       `cycle_termine.html`. */
-    const courant = journey.blocs.find((bloc) => bloc.status === "EN_COURS") ?? null;
-    /* `null` = le candidat n'a rien choisi, on suit le bloc courant. Une fois
+    /* 🛑 **Le PREMIER bloc servi est le seul déplié** (demande du propriétaire,
+       2026-09-20). Il suivait auparavant `status === "EN_COURS"`, ce qui était
+       juste tant que l'ordre était figé — mais depuis que les blocs porteurs de
+       travail passent devant (D-56), le bloc courant peut être en 2ᵈ position :
+       le candidat arrivait alors sur un cycle dont la tête était repliée et le
+       milieu ouvert. L'ordre servi dit déjà ce qui compte d'abord ; le dépli le
+       suit, il ne le contredit pas.
+
+       ⚠️ **Sauf sur un cycle TERMINÉ** : les quatre blocs restent repliés, comme
+       dans `cycle_termine.html` — la maquette de référence de D-22. Il n'y a
+       alors plus rien à faire dedans, et c'est la carte de fin de cycle qui
+       porte le geste. */
+    const premier = journey.blocs[0] ?? null;
+    /* `null` = le candidat n'a rien choisi, on suit le premier bloc. Une fois
        qu'il a touché un en-tête, c'est **son** choix qui vaut — y compris
        « tout replié ». */
     const [choix, setChoix] = useState<{key: string | null} | null>(null);
-    const ouvert = choix ? choix.key : courant?.bloc?.code ?? null;
+    const ouvert = choix ? choix.key : termine ? null : premier?.bloc?.code ?? null;
 
     const exercises = usePlanExercise();
     const assessments = usePlanAssessment();
