@@ -7,7 +7,7 @@ import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
-import {civicPlanApi, journeyApi} from "@/lib/api";
+import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   CIVIC_PLAN_LOCKED_CTA,
@@ -27,6 +27,7 @@ import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
   canAccessModule,
   CIVIC_MAITRISE_LABEL,
+  type CivicDiagnosticDto,
   type CivicPlanDto,
   type JourneyDto,
 } from "@/lib/types";
@@ -45,6 +46,7 @@ import {PlanGate} from "./PlanGate";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {JOURNEY_HISTORY_TITLE, journeyHistoryHref} from "@/lib/journey";
+import {CIVIC_DIAGNOSTIC_HUB_HREF, civicDiagnosticHref} from "@/lib/civic-diagnostic";
 import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "@/lib/civique-examen";
 import {PlanPaywall} from "./PlanPaywallCard";
 
@@ -345,11 +347,28 @@ function lancer(
  * seule action dominante de cet écran-là est « Débloquer mon plan ».
  */
 function AllerPlusLoin() {
+  /* 🛑 **Le rapport directement**, quand il y a un rapport à lire : la session
+     est lue au CLIC, pas au montage — un lien que la plupart des candidats ne
+     touchent pas ne coûte alors aucun appel, et sans session on retombe sur le
+     hub, le comportement d'avant. La règle de destination vit une seule fois
+     (`civicDiagnosticHref`), elle n'est pas rejouée ici. */
+  const [href, setHref] = useState(CIVIC_DIAGNOSTIC_HUB_HREF);
+  useEffect(() => {
+    let annule = false;
+    civicDiagnosticApi.current().then(
+      (session: CivicDiagnosticDto | null) => {
+        if (!annule) setHref(civicDiagnosticHref(session));
+      },
+      () => { /* le hub reste la destination : on ne bloque jamais l'accès */ },
+    );
+    return () => { annule = true; };
+  }, []);
+
   const rows: Array<{href: string; label: string}> = [
     {href: journeyHistoryHref("CIVIQUE"), label: JOURNEY_HISTORY_TITLE},
     /* 🛑 Le diagnostic **civique** a sa propre porte — le TCF pointe sur
        `/diagnostic`, qui ne raconte rien du civique. */
-    {href: "/diagnostic-civique", label: "Mon diagnostic"},
+    {href, label: "Mon diagnostic"},
   ];
   return (
     <Section title="Aller plus loin">

@@ -11,7 +11,12 @@
  * arrivent servis. Il ne fait que les mettre en mots.
  */
 import type {BarTone, Tone} from "@/app/_components/sejour/SejourKit";
-import type {CivicDiagnosticResultDto, CivicThemeState, TargetProcedure} from "./types";
+import type {
+    CivicDiagnosticDto,
+    CivicDiagnosticResultDto,
+    CivicThemeState,
+    TargetProcedure,
+} from "./types";
 
 /**
  * Le format OFFICIEL de l'examen — miroir de `CivicExamFormat` côté Java, où
@@ -292,6 +297,29 @@ export const CIVIC_DIAGNOSTIC_HUB_HREF = "/diagnostic-civique";
  */
 export function civicDiagnosticResultHref(sessionId: string): string {
     return `/diagnostic-civique/${sessionId}/resultat`;
+}
+
+/**
+ * **Où mène « Mon diagnostic » depuis le Plan civique.**
+ *
+ * 🛑 **Le rapport directement, quand il y a un rapport à lire** (demande du
+ * propriétaire, 2026-09-20) : le hub n'ajoutait qu'un écran de plus — « 40 sur
+ * 40 répondues » puis un bouton — entre le candidat et son résultat.
+ *
+ * 🛑 **Mais jamais sur un diagnostic INACHEVÉ.** L'écran de résultat
+ * **clôture** la session (`civicDiagnosticApi.result`) : y envoyer un candidat
+ * à 10/40 figerait son diagnostic sur trente questions sans réponse. Tant que
+ * tout n'est pas répondu, on passe donc par le hub, qui sait reprendre.
+ *
+ * `null` — aucun diagnostic ouvert — ⇒ le hub aussi : c'est lui qui propose de
+ * le commencer.
+ *
+ * Miroir mobile : `civicDiagnosticRoute` (`civic_diagnostic_labels.dart`).
+ */
+export function civicDiagnosticHref(session: CivicDiagnosticDto | null): string {
+    const fini = session !== null
+        && (session.status === "COMPLETED" || session.repondues >= session.total);
+    return fini ? civicDiagnosticResultHref(session!.sessionId) : CIVIC_DIAGNOSTIC_HUB_HREF;
 }
 
 /* ------------------------------------- L'écran de déblocage du Plan (A) --- */

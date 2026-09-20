@@ -1,4 +1,6 @@
 import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/tcf_diagnostic_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/models/enums.dart';
 
 /// Règles d'affichage du diagnostic **civique** — **pures**, déclarées une fois
@@ -299,4 +301,29 @@ String? civicSituationsNote(CivicDiagnosticResultDto r) {
   if (r.posees != r.formatQuestions) return null;
   return '${r.situations.posees} des ${r.formatQuestions} questions de '
       'l\'examen. Votre plan les travaille en premier.';
+}
+
+/// **Où mène « Mon diagnostic » depuis le Plan civique.**
+///
+/// 🛑 **Le rapport directement, quand il y a un rapport à lire** (demande du
+/// propriétaire, 2026-09-20) : le hub n'ajoutait qu'un écran de plus — « 40 sur
+/// 40 répondues » puis un bouton — entre le candidat et son résultat.
+///
+/// 🛑 **Mais jamais sur un diagnostic INACHEVÉ.** L'écran de résultat
+/// **clôture** la session (`CivicDiagnosticRepository.result`) : y envoyer un
+/// candidat à 10/40 figerait son diagnostic sur trente questions sans réponse.
+/// Tant que tout n'est pas répondu, on passe donc par le hub, qui sait
+/// reprendre.
+///
+/// `null` — aucun diagnostic ouvert — ⇒ le hub aussi : c'est lui qui propose de
+/// le commencer.
+///
+/// Miroir web : `civicDiagnosticHref` (`lib/civic-diagnostic.ts`).
+String civicDiagnosticRoute(CivicDiagnosticDto? session) {
+  final fini = session != null &&
+      (session.status == TcfDiagnosticStatus.completed ||
+          session.repondues >= session.total);
+  return fini
+      ? AppRoutes.civicDiagnosticResultPath(session.sessionId)
+      : AppRoutes.civicDiagnostic;
 }

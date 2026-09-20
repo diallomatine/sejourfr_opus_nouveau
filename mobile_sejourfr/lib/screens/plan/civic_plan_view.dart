@@ -15,6 +15,9 @@ import '../../core/utils/civique_examen.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'plan_labels.dart';
+import '../../core/api/repositories.dart';
+import '../../core/models/civic_diagnostic_models.dart';
+import '../diagnostic_civique/civic_diagnostic_labels.dart';
 import 'civic_plan_labels.dart';
 import 'civic_serie_launcher.dart';
 import 'civic_plan_provider.dart';
@@ -259,13 +262,31 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
             iconColor: AppColors.muted,
             title: kPlanDiagnosticTitle,
             sub: kPlanDiagnosticSub,
-            // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF ne
-            // raconte rien du civique.
-            onTap: () => context.push(AppRoutes.civicDiagnostic),
+            // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF
+            // ne raconte rien du civique.
+            //
+            // 🛑 **Le rapport directement**, quand il y a un rapport à lire :
+            // la session est lue au TAP, pas au montage — un lien que la
+            // plupart des candidats ne touchent pas ne coûte alors aucun
+            // appel, et sans session on retombe sur le hub, le comportement
+            // d'avant. La règle de destination vit une seule fois
+            // (`civicDiagnosticRoute`), elle n'est pas rejouée ici.
+            onTap: () => unawaited(_ouvrirDiagnostic(context)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _ouvrirDiagnostic(BuildContext context) async {
+    CivicDiagnosticDto? session;
+    try {
+      session = await ref.read(civicDiagnosticRepositoryProvider).current();
+    } catch (_) {
+      // Le hub reste la destination : on ne bloque jamais l'accès.
+    }
+    if (!context.mounted) return;
+    context.push(civicDiagnosticRoute(session));
   }
 
   /// **« À faire maintenant »** — la carte d'action, **la même pour un abonné et
