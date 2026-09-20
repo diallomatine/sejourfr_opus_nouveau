@@ -2463,3 +2463,82 @@ bloquée).
 
 **Preuve de la lancée 2** : `ParcoursCiviqueDeBoutEnBoutIT` — un candidat du diagnostic à
 l'historisation, en six étapes.
+
+---
+
+### SIGNAL-T1 (2026-09-20) — 🛑 **la taxonomie des 46 notions a été reconstruite DEPUIS le corpus**
+
+**Consigné comme signal, pas comme tâche** — arbitrage explicite du propriétaire.
+
+**Ce qui l'a révélé.** P8.8 devait rattacher 14 questions de connaissance à une notion interne. Six
+seulement y descendent. Pour les huit autres, l'**unité officielle** est évidente et **aucune des
+notions qu'elle contient** ne couvre le sujet :
+
+| Ce qui manque | Unité d'accueil | Questions en attente |
+|---|---|---|
+| Recours administratif et médiation | D1 Droits fondamentaux | 2 |
+| Logement | S1 — ⚠️ la seule notion qui nomme « être logé » est `dd_droits_sociaux`, dans **D1** | 1 |
+| Budget, dettes, surendettement | S1 ou S2 | 1 |
+| Vie associative | S1 | 1 |
+| Service culturel de proximité | S1 | 1 |
+| Histoire très contemporaine (terrorisme) | H1 — les six notions s'arrêtent à la décolonisation | 1 |
+| Langue française et francophonie | H3 — ses cinq notions parlent de monuments, d'écrivains, d'arts, d'art de vivre et de fêtes | 1 |
+
+**Le motif, verbatim du propriétaire** : « La taxonomie des 46 a été reconstruite **depuis le
+corpus**, donc elle n'a pas de case pour ce que le corpus couvrait mal. Logement, budget, vie
+associative, recours administratif, service culturel — ce n'est pas un hasard, c'est **le même trou
+vu cinq fois**. »
+
+🛑 **La leçon, et elle dépasse le civique** : une taxonomie dérivée d'un corpus **hérite de ses angles
+morts**. Elle ne peut pas nommer ce que le corpus n'a pas écrit, et l'absence se lit alors comme une
+question mal classée au lieu d'une catégorie manquante. C'est exactement ce que les huit questions
+disaient — chacune prise isolément ressemble à un cas d'espèce ; les huit ensemble dessinent cinq
+manques.
+
+**Ce qui a été fait, et rien de plus** : les six qui redescendent sont rattachées, les huit autres
+**restent non taguées** — actives, jouables par thème, invisibles du programme, exactement comme
+aujourd'hui.
+
+⛔ **Forcer la notion la moins fausse a été explicitement écarté** : le plan dérivé travaille au grain
+de la **notion**, donc une question de logement rangée dans « Se déplacer » ferait dire au plan de
+travailler les transports. Un mauvais tag ment davantage qu'une absence de tag.
+
+**Le jour où des notions seront créées, ce sera cette liste, et elle est déjà écrite.** C'est une
+migration de **référentiel interne**, qui change le grain de tout le plan dérivé — pas une migration
+de contenu. Matière : `docs/progression/civique/P8.8-extraction.md`, partie C.3.
+
+---
+
+### DETTE-F1 (2026-09-20) — ⚠️ **la plage `200_civique` sera SATURÉE après V299**
+
+**Signalé avant d'écrire, pas au moment d'écrire** — demande du propriétaire : « Une plage saturée
+qu'on découvre au moment d'écrire, c'est une décision prise sous contrainte. »
+
+**L'état exact** (`docs/migrations-flyway.md` §arborescence) :
+
+| Sous-plage | Bornes | Occupé | Reste |
+|---|---|---|---|
+| `principes_valeurs/` | V201-V219 | V201, V202 | **17 slots** |
+| `systeme_institutionnel/` | V221-V239 | V221 → V225 | 14 slots |
+| `droits_devoirs/` | V241-V259 | V241 → V245 | 14 slots |
+| `histoire_geo_culture/` | V261-V279 | V261 → V265 | 14 slots |
+| `vivre_en_societe/` | V281-V299 | V281 → V285 | 14 slots |
+| **racine `200_civique/`** (transverse) | V286 → V299 | V286 → **V298** | **V299, et c'est tout** |
+
+🛑 **P8.8 consomme V299.** La racine de la plage n'aura donc **plus aucun numéro** pour la prochaine
+migration civique **transverse** — celle qui touche plusieurs thèmes à la fois, comme les
+rattachements, les désactivations de masse ou une campagne de tagging.
+
+**Ce qu'il faudra faire, et le choisir à froid** — trois options, par ordre de préférence :
+
+1. **Loger la migration transverse dans la sous-plage du thème qu'elle touche le plus**, quand il y
+   en a un dominant. Coût nul, mais le fichier devient plus dur à retrouver.
+2. **Ouvrir une plage `400_civique_2/`** (V400-V499) et l'inscrire dans `docs/migrations-flyway.md`.
+   ⚠️ **Vérifier qu'elle ne croise pas `300_tcf/`**, qui occupe aujourd'hui les **V8xx** malgré son
+   nom — le nom du dossier ne dit pas sa plage, c'est le piège de cette arborescence.
+3. **Récupérer les slots libres des sous-plages** (14 à 17 chacune) en y rangeant le transverse. C'est
+   ce que fait l'option 1, généralisée, et ça dissout la distinction transverse/thématique que
+   l'arborescence portait.
+
+⛔ **Rien n'est décidé aujourd'hui.** La saturation est **annoncée**, pas subie : la prochaine
+migration civique transverse commencera par ce choix, avec le temps de le faire.

@@ -13,7 +13,7 @@
 | P8.0 → P8.3, P8.A, **P8.2b** | ✅ livrées |
 | **P8.4** (moteur) · **P8.5** (freemium) | ✅ **livrées**, preuve : `ParcoursCiviqueDeBoutEnBoutIT` |
 | **P8.6** (kits) · **P8.7** (écrans) | ✅ **livrées** (2026-09-20), décisions **A84 → A90** |
-| P8.8 (11 questions de Laïcité) | ⛔ **arrêt éditorial** avant écriture |
+| P8.8 (les 28 questions) | 🟡 **relecture rendue** — dossier complet, ⛔ **arrêt avant migration** : la forme est montrée, pas écrite |
 | **P8.9** (historique des cycles) | ✅ **livrée** (2026-09-20) — le blocage est **levé** : l'écran TCF fait référence, transposé brique pour brique. Décisions **A91 → A94** |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-53**, les règles
@@ -121,10 +121,25 @@ reste `scripts/verifier-contrat-front-progression.mjs`, écrit pour **un** contr
 ⛔ **Aucun nouveau test front** : la réponse est un fait **servi** ou un script hors test, jamais un
 `*.test.ts`.
 
-### 4. P8.8 — les 11 questions de Laïcité
+### 4. P8.8 — les 28 questions
 
-⛔ **ARRÊT ÉDITORIAL** : le propriétaire relit les **28 questions** (11 Laïcité + 17 à taguer) avant
-écriture. Ne rien rédiger avant.
+⛔ ~~ARRÊT ÉDITORIAL avant écriture.~~ **Relecture rendue le 2026-09-20.** Tout vit dans un dossier
+unique : `docs/progression/civique/P8.8-extraction.md` — partie A la matière brute, partie B la
+relecture du propriétaire, partie C les vérifications et **la forme des deux migrations**.
+
+**Ce qui est tranché** : les **12** questions de Laïcité (le doublon désactivé, 8 + 12 = **20**, le
+seuil de R2 atteint exactement), **6** rattachements sur 14 (option 3 — on ne rattache que ce qui
+redescend proprement jusqu'à une notion), **4** désactivations (3 hors programme + le doublon), et
+`difficulty = 'CR'` sur les douze avec une ligne d'en-tête disant que **la valeur est inerte depuis
+D-42**.
+
+**Ce qui reste ouvert, et consigné comme signal** : les **8** questions sans notion interne — cinq
+manques de la taxonomie des 46, qui a été reconstruite **depuis le corpus** (`SIGNAL-T1`).
+
+⛔ **ARRÊT AVANT LA MIGRATION**, comme pour V069, V070 et V071 : la forme est en partie C.4, rien
+n'est écrit.
+
+⚠️ **`V299` sera le dernier slot de la plage `200_civique`** (`DETTE-F1`, signalée avant d'écrire).
 
 ### 5. P8.9 — l'historique des cycles ✅
 
