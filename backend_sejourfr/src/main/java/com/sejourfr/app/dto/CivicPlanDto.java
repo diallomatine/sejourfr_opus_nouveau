@@ -41,12 +41,12 @@ import java.util.UUID;
  * @param resultat        la derniere mesure comparable au seuil, ou {@code null}
  * @param prochaine       « A faire maintenant » : la cible de rang 1, ou
  *                        {@code null} si rien n'est proposable
- * @param priorites       les cibles a travailler, du plus couteux au moins.
+ * @param prioritesVisibles       les cibles a travailler, du plus couteux au moins.
  *                        🛑 <b>Plafond d'AFFICHAGE</b> : le moteur en a classe
  *                        davantage, et {@code autresPriorites} les compte
  * @param autresPriorites ce que la liste ne montre pas (« + 6 autres notions a
  *                        consolider »)
- * @param aRevoir         revisions d'entretien : des cibles maitrisees dont
+ * @param aRevoirVisibles         revisions d'entretien : des cibles maitrisees dont
  *                        l'echeance est franchie. 🛑 <b>Jamais une priorite
  *                        rouge</b> ({@code 20_} §5.2)
  * @param solides         ce qui est acquis, dit pour ce que ca vaut : le
@@ -63,14 +63,26 @@ import java.util.UUID;
  *                        comme {@code recentChanges} cote TCF. Voir
  *                        {@link Changements}
  */
+/**
+ * 🛑 <b>{@code prioritesVisibles} et {@code aRevoirVisibles} portent leur
+ * plafond DANS LEUR NOM</b> (2026-09-20). Elles s'appelaient {@code priorites}
+ * et {@code aRevoir}, et <b>trois tests en deux jours</b> les ont prises pour
+ * la liste complete : ils assertionnaient sur les trois premieres, donc sur un
+ * <b>classement</b> que le moteur choisit et qu'ils ne fixaient pas. Ils ont
+ * dormi jusqu'au jour ou ce classement a bouge.
+ *
+ * <p>La liste <b>complete et ordonnee</b> est
+ * {@code CivicPlanService.ordrePourLeCycle(userId).cibles()} — c'est elle que
+ * le cycle lit (D-36), et c'est elle qu'un test doit lire.
+ */
 public record CivicPlanDto(
         boolean disponible,
         Difficulty mention,
         Resultat resultat,
         Cible prochaine,
-        List<Cible> priorites,
+        List<Cible> prioritesVisibles,
         int autresPriorites,
-        List<Cible> aRevoir,
+        List<Cible> aRevoirVisibles,
         List<Cible> solides,
         List<ThemeLigne> themes,
         Grain grain,
@@ -140,7 +152,8 @@ public record CivicPlanDto(
      * theme, en un coup d'oeil.
      *
      * <p>🛑 <b>Il existe parce qu'aucun front ne peut le calculer.</b>
-     * {@code priorites} et {@code aRevoir} sont <b>plafonnees a l'affichage</b>
+     * {@code prioritesVisibles} et {@code aRevoirVisibles} sont <b>plafonnees a
+     * l'affichage</b>
      * (trois chacune) : compter des notions dedans, theme par theme, aurait
      * servi un plafond d'ecran comme un budget de mesure — exactement le defaut
      * qui a prive trois domaines sur quatre de toute action cote TCF
@@ -258,7 +271,7 @@ public record CivicPlanDto(
      * @param derniereErreur    {@code null} s'il n'y en a jamais eu
      * @param prochaineRevue    l'echeance Leitner. {@code null} = jamais vue,
      *                          donc jamais « en retard »
-     * @param aRevoir           l'echeance est franchie
+     * @param aRevoirVisibles           l'echeance est franchie
      * @param score             le rang chiffre ({@code 20_} §5.3). Servi pour
      *                          l'admin et les tests, jamais montre au candidat :
      *                          un score de priorite invite a comparer deux

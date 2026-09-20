@@ -130,7 +130,7 @@ String? civicPlanThemesPill(CivicPlan plan) {
 /// « 8 notions à consolider » — le plafond d'affichage **plus** le reste servi
 /// (`autresPriorites`). Un plafond d'affichage n'est jamais un budget.
 String? civicPlanCiblesPill(CivicPlan plan) {
-  final n = plan.priorites.length + plan.autresPriorites;
+  final n = plan.prioritesVisibles.length + plan.autresPriorites;
   if (n == 0) return null;
   final nom = plan.grain.courant == CivicPlanGrain.notion ? 'notion' : 'thème';
   return '$n $nom${n > 1 ? 's' : ''} à consolider';
@@ -145,7 +145,7 @@ String? civicPlanCiblesPill(CivicPlan plan) {
 List<CivicPlanCible> civicPlanThemes(CivicPlan plan) {
   final vus = <String>{};
   final themes = <CivicPlanCible>[];
-  for (final cible in [...plan.priorites, ...plan.aRevoir, ...plan.solides]) {
+  for (final cible in [...plan.prioritesVisibles, ...plan.aRevoirVisibles, ...plan.solides]) {
     if (cible.themeId.isEmpty || !vus.add(cible.themeId)) continue;
     themes.add(cible);
   }

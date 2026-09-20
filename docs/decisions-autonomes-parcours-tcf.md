@@ -1145,3 +1145,48 @@ donc **quatre** lignes, pas six — le journal dit ce qui a été **validé**, p
 comme le fait qui rend R1 faisable. Relire le template d'examen ou recompter les questions par
 thématique aurait fabriqué une **seconde** définition de « quel examen est-ce », qui aurait pu
 diverger de la première.
+
+---
+
+# 2026-09-20 — P8.2b et le défaut de surface (A75 → A77)
+
+### A75 — 🛑 `priorites` porte son plafond **dans son nom** : `prioritesVisibles`
+
+**Le constat du propriétaire**, et il va plus loin que la règle de test :
+
+> « Trois tests dormants en deux jours, tous dans le plan civique, tous sur le même motif. Ce n'est
+> plus une règle de test, c'est un **défaut de surface** : `priorites()` est trop facile à confondre
+> avec `proposables()`. »
+
+**La décision.** Le champ **servi** est renommé sur les trois surfaces :
+`priorites` → `prioritesVisibles`, `aRevoir` → `aRevoirVisibles`. La configuration s'appelait
+**déjà** `prioritesVisibles` — c'est le DTO qui mentait.
+
+**Motif.** Un appelant ne peut plus lire « la liste des priorités » et croire qu'il les a toutes :
+le nom lui dit qu'il en voit une partie. La liste **complète et ordonnée** a désormais un nom à
+elle, `ordrePourLeCycle(userId).cibles()`, et c'est celle que le cycle lit (D-36).
+
+**Coût réel** : 1 champ Java, 2 miroirs front, ~50 sites d'appel — tous trouvés par le compilateur
+et par `tsc` / `analyze`, aucun par relecture. ⚠️ **Aucune migration, aucun écran changé** : c'est
+un nom de champ sur le fil, et les trois fronts basculent dans la même passe.
+
+**Si l'arbitrage était autre** (« garder `priorites` sur le fil, renommer seulement côté Java ») :
+un `@JsonProperty` suffirait. Écarté — le nom aurait alors menti dans deux langages sur trois, et
+c'est précisément aux lecteurs des fronts qu'il faut dire qu'ils voient un extrait.
+
+### A76 — Le stock **borne** la série, à la source
+
+`questionsSerie = min(questionsParSerie, stock réel de la cible)` dans `CivicPlanService.cible(...)`.
+
+**Motif.** `DETTE-C1` disait : le plan promet 10, le tirage en sert 8. Corriger le **test** aurait
+figé le mensonge ; corriger le **tirage** aurait ajouté une règle. La borne se pose là où le nombre
+est **fabriqué** — un seul endroit, et tout ce qui le lit devient juste.
+
+### A77 — Le cas de **V058** disparaît, et c'est écrit
+
+« Devenir français » : 10 questions en NAT, **zéro** en CSP. C'était le cas réel qui justifiait
+`NON_APPLICABLE`. Sans filtre de mention, ces 10 questions sont **jouables par tout le monde**.
+
+**Motif.** C'est D-27 appliqué, pas un effet de bord : **un seul programme, une seule banque**. Le
+nommer maintenant évite qu'il se redécouvre plus tard comme une régression — un test l'assertait,
+il a été retourné avec son motif sur place.

@@ -154,7 +154,7 @@ interface PanelProps {
 
 function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
   const grain = grainWord(plan);
-  const aConsolider = plan.priorites.length + plan.autresPriorites;
+  const aConsolider = plan.prioritesVisibles.length + plan.autresPriorites;
   const grainNote = civicPlanGrainNote(plan.grain);
   const autres = civicPlanAutresLabel(plan);
   const maintenant = useMemo(() => new Date(), []);
@@ -167,8 +167,8 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         <Card>
           <Pills>
             <PillMeta>{aConsolider} {grain.pluriel} à consolider</PillMeta>
-            {plan.aRevoir.length > 0 && (
-              <PillMeta>{plan.aRevoir.length} à revoir bientôt</PillMeta>
+            {plan.aRevoirVisibles.length > 0 && (
+              <PillMeta>{plan.aRevoirVisibles.length} à revoir bientôt</PillMeta>
             )}
           </Pills>
           <p className={sejourStyles.tiny}>
@@ -220,11 +220,11 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         )}
       </div>
 
-      {plan.priorites.length > 0 && (
+      {plan.prioritesVisibles.length > 0 && (
         <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
           <Pad>
             <Stack className={sejourStyles.deskGrid}>
-              {plan.priorites.slice(0, 3).map((cible, index) => (
+              {plan.prioritesVisibles.slice(0, 3).map((cible, index) => (
                 <Prio
                   key={cible.id}
                   rank={index === 0 ? 1 : index === 1 ? 2 : 3}
@@ -268,12 +268,12 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
             acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
             montre l'état de maîtrise et l'échéance, tous deux servis. */}
-        {plan.aRevoir.length > 0 && (
+        {plan.aRevoirVisibles.length > 0 && (
           <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
             <Card variant="soft">
               <p className={sejourStyles.label}>Révision courte</p>
               <Stack>
-                {plan.aRevoir.map((cible) => (
+                {plan.aRevoirVisibles.map((cible) => (
                   <div key={cible.id}>
                     <b>{cible.label}</b>
                     <p className={sejourStyles.tiny}>
@@ -357,11 +357,11 @@ function CiviqueGratuit({plan, enCours, onStart, erreur}: PanelProps) {
         </Section>
       )}
 
-      {plan.priorites.length > 0 && (
+      {plan.prioritesVisibles.length > 0 && (
         <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
           <Pad>
             <Stack className={sejourStyles.deskGrid}>
-              {plan.priorites.slice(0, 3).map((cible, index) => (
+              {plan.prioritesVisibles.slice(0, 3).map((cible, index) => (
                 <Prio
                   key={cible.id}
                   rank={index === 0 ? 1 : index === 1 ? 2 : 3}
@@ -466,7 +466,7 @@ function CivicNowCard({cible, badge, busy, onStart}: {
  */
 function themesATravailler(plan: CivicPlanDto) {
   const vus = new Map<string, {code: string; label: string; etat: CivicThemeState; tone: Tone}>();
-  for (const cible of [...plan.priorites, ...plan.aRevoir, ...plan.solides]) {
+  for (const cible of [...plan.prioritesVisibles, ...plan.aRevoirVisibles, ...plan.solides]) {
     if (cible.etatDuTheme === "SOLIDE") continue;
     if (vus.has(cible.themeCode)) continue;
     vus.set(cible.themeCode, {

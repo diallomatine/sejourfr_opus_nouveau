@@ -4360,12 +4360,16 @@ export interface CivicPlanDto {
     resultat: CivicPlanResultatDto | null;
     /** « À faire maintenant » — la cible de rang 1. */
     prochaine: CivicPlanCibleDto | null;
-    /** 🛑 Plafond d'**affichage** : le moteur en a classé davantage. */
-    priorites: CivicPlanCibleDto[];
+    /** 🛑 **Plafond d'affichage, et le nom le dit** : le moteur en a classé
+     *  davantage. Ne jamais la prendre pour la liste complète — trois tests
+     *  backend l'ont fait, et ils ont dormi jusqu'au jour où le classement a
+     *  bougé (2026-09-20). */
+    prioritesVisibles: CivicPlanCibleDto[];
     /** Ce que la liste ne montre pas (« + 6 autres notions à consolider »). */
     autresPriorites: number;
-    /** Révisions d'entretien. 🛑 **Jamais une priorité rouge** (`20_` §5.2). */
-    aRevoir: CivicPlanCibleDto[];
+    /** Révisions d'entretien, **plafonnées à l'affichage** elles aussi.
+     *  🛑 **Jamais une priorité rouge** (`20_` §5.2). */
+    aRevoirVisibles: CivicPlanCibleDto[];
     solides: CivicPlanCibleDto[];
     /**
      * **Les cinq thèmes officiels, toujours les cinq**, dans l'ordre

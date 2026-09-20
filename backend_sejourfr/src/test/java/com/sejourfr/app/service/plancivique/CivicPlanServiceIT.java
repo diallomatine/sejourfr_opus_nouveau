@@ -100,7 +100,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         CivicPlanDto plan = service.plan(user.getId());
 
         assertThat(plan.disponible()).isFalse();
-        assertThat(plan.priorites()).isEmpty();
+        assertThat(plan.prioritesVisibles()).isEmpty();
         assertThat(plan.prochaine()).isNull();
         assertThat(plan.resultat()).isNull();
         // La mention est servie quand même : l'écran peut déjà dire sur quel
@@ -122,13 +122,13 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         assertThat(plan.grain().themesParNotion()).isZero();
         assertThat(plan.grain().total()).isPositive();
         // Une cible par thème, et toutes au grain thème.
-        assertThat(plan.priorites()).isNotEmpty();
-        assertThat(plan.priorites()).allSatisfy(
+        assertThat(plan.prioritesVisibles()).isNotEmpty();
+        assertThat(plan.prioritesVisibles()).allSatisfy(
                 c -> assertThat(c.grain()).isEqualTo(CivicPlanGrain.THEME));
         // 🛑 Plafond d'AFFICHAGE : trois servies, le reste COMPTÉ.
-        assertThat(plan.priorites()).hasSizeLessThanOrEqualTo(3);
+        assertThat(plan.prioritesVisibles()).hasSizeLessThanOrEqualTo(3);
         assertThat(plan.autresPriorites()).isNotNegative();
-        assertThat(plan.prochaine()).isEqualTo(plan.priorites().getFirst());
+        assertThat(plan.prochaine()).isEqualTo(plan.prioritesVisibles().getFirst());
     }
 
     @Test
@@ -165,7 +165,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         // Le diagnostic a touché les cinq thèmes : ils sont tous travaillés,
         // alors que `priorites` en montre trois. C'est bien TOUTES les cibles
         // qui ont été comptées, pas la liste tronquée.
-        assertThat(plan.priorites()).hasSizeLessThanOrEqualTo(3);
+        assertThat(plan.prioritesVisibles()).hasSizeLessThanOrEqualTo(3);
         assertThat(plan.themes()).allSatisfy(
                 ligne -> assertThat(ligne.travaillees()).isEqualTo(ligne.cibles()));
     }
@@ -209,7 +209,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         CivicPlanDto plan = service.plan(user.getId());
 
         assertThat(plan.solides()).isEmpty();
-        assertThat(plan.priorites()).allSatisfy(c ->
+        assertThat(plan.prioritesVisibles()).allSatisfy(c ->
                 assertThat(c.maitrise()).isNotEqualTo(CivicMaitrise.MAITRISEE));
     }
 
@@ -222,8 +222,8 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         CivicPlanDto plan = service.plan(user.getId());
 
         // Les priorités sont servies ENTIÈRES, avec leurs états et leurs compteurs.
-        assertThat(plan.priorites()).isNotEmpty();
-        assertThat(plan.priorites()).allSatisfy(c -> {
+        assertThat(plan.prioritesVisibles()).isNotEmpty();
+        assertThat(plan.prioritesVisibles()).allSatisfy(c -> {
             assertThat(c.label()).isNotBlank();
             assertThat(c.maitrise()).isNotNull();
             assertThat(c.locked()).isTrue();
@@ -231,7 +231,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
 
         // 🛑 Et le verrou est OPPOSABLE : le `locked` servi et ce refus sont la
         // même règle. Un front dont le statut premium est périmé reçoit un 403.
-        UUID cible = plan.priorites().getFirst().id();
+        UUID cible = plan.prioritesVisibles().getFirst().id();
         assertThatThrownBy(() -> service.demarrerSerie(
                 user.getId(), cible, CivicPlanGrain.THEME))
                 .isInstanceOf(AccessDeniedException.class);
@@ -247,9 +247,9 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         CivicPlanDto plan = service.plan(user.getId());
-        assertThat(plan.priorites()).allSatisfy(c -> assertThat(c.locked()).isFalse());
+        assertThat(plan.prioritesVisibles()).allSatisfy(c -> assertThat(c.locked()).isFalse());
 
-        CivicPlanDto.Cible cible = plan.priorites().getFirst();
+        CivicPlanDto.Cible cible = plan.prioritesVisibles().getFirst();
         AttemptResponse attempt =
                 service.demarrerSerie(user.getId(), cible.id(), CivicPlanGrain.THEME);
         entityManager.flush();
@@ -392,8 +392,8 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
         CivicPlanDto entierementTague = service.plan(user.getId());
 
         assertThat(entierementTague.grain().courant()).isEqualTo(CivicPlanGrain.NOTION);
-        assertThat(entierementTague.priorites()).isNotEmpty();
-        assertThat(entierementTague.priorites()).allSatisfy(
+        assertThat(entierementTague.prioritesVisibles()).isNotEmpty();
+        assertThat(entierementTague.prioritesVisibles()).allSatisfy(
                 c -> assertThat(c.grain()).isEqualTo(CivicPlanGrain.NOTION));
         assertThat(misesEnSituationNonTaguees()).isPositive();
     }
@@ -465,7 +465,7 @@ class CivicPlanServiceIT extends AbstractIntegrationTest {
 
     /** Les cibles réellement proposables : servies en priorité + celles comptées. */
     private int proposables(CivicPlanDto plan) {
-        return plan.priorites().size() + plan.autresPriorites();
+        return plan.prioritesVisibles().size() + plan.autresPriorites();
     }
 
     /**

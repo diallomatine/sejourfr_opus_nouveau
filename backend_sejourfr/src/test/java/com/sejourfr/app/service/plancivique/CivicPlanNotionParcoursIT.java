@@ -212,7 +212,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         // rendait l'écran Progrès faux au grain notion, où l'immense majorité
         // des notions n'a aucune réponse.
         assertThat(compteurs.travaillees())
-                .isLessThan(plan.priorites().size() + plan.autresPriorites());
+                .isLessThan(plan.prioritesVisibles().size() + plan.autresPriorites());
 
         // --------------------------------------------------------------------
         // 6. La série ciblée tire DANS la notion — ⚠️ et PLUS dans la mention
@@ -258,10 +258,10 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         assertThat(acquise.maitrise()).isEqualTo(CivicMaitrise.MAITRISEE);
         assertThat(acquise.boite()).isEqualTo(CivicLeitner.DERNIERE);
         parcoursCoherent(acquise, true);
-        assertThat(apres.priorites()).noneMatch(c -> c.id().equals(fx.servable()));
+        assertThat(apres.prioritesVisibles()).noneMatch(c -> c.id().equals(fx.servable()));
         assertThat(apres.solides()).anyMatch(c -> c.id().equals(fx.servable()));
         // Pas encore l'heure : l'échéance de la dernière boîte est à 21 jours.
-        assertThat(apres.aRevoir()).noneMatch(c -> c.id().equals(fx.servable()));
+        assertThat(apres.aRevoirVisibles()).noneMatch(c -> c.id().equals(fx.servable()));
         assertThat(acquise.prochaineRevue()).isNotNull().isAfter(Instant.now());
         // 🛑 Une autre cible prend la tête : le plan ne reste pas bloqué sur ce
         // qui vient d'être acquis.
@@ -291,10 +291,10 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         CivicPlanDto.Cible aReviser = trouver(user.getId(), aLEcheance, fx.servable());
         assertThat(aReviser).isNotNull();
         assertThat(aReviser.aRevoir()).isTrue();
-        assertThat(aLEcheance.aRevoir()).anyMatch(c -> c.id().equals(fx.servable()));
+        assertThat(aLEcheance.aRevoirVisibles()).anyMatch(c -> c.id().equals(fx.servable()));
         // 🛑 Une révision n'est JAMAIS une priorité rouge : elle reste acquise.
         assertThat(aReviser.maitrise()).isEqualTo(CivicMaitrise.MAITRISEE);
-        assertThat(aLEcheance.priorites()).noneMatch(c -> c.id().equals(fx.servable()));
+        assertThat(aLEcheance.prioritesVisibles()).noneMatch(c -> c.id().equals(fx.servable()));
         toutesLesNotionsSontServies(servies(user.getId(), aLEcheance), fx);
     }
 
@@ -332,7 +332,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                         CivicEtapeEtat.A_VENIR, CivicEtapeEtat.A_VENIR,
                         CivicEtapeEtat.A_VENIR);
         // Et elle revient en priorité : ce qui vient d'être raté passe devant.
-        assertThat(service.plan(user.getId()).priorites())
+        assertThat(service.plan(user.getId()).prioritesVisibles())
                 .anyMatch(c -> c.id().equals(fx.servable()));
     }
 
@@ -379,7 +379,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
 
         // ---- 3. Le grain annonce par le client n'est pas une autorite : le
         // serveur retrouve la cible dans le plan et en deduit son grain.
-        UUID servableRestante = plan.priorites().getFirst().id();
+        UUID servableRestante = plan.prioritesVisibles().getFirst().id();
         assertThat(service.demarrerSerie(
                 user.getId(), servableRestante, CivicPlanGrain.THEME).id())
                 .as("le serveur corrige un grain faux au lieu de tirer dans le vide")
@@ -646,7 +646,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
     /**
      * Toutes les cibles servies, <b>sans plafond d'affichage</b>.
      *
-     * <p>🛑 Elle lisait {@code plan.priorites()}, plafonnee a TROIS. Un test qui
+     * <p>🛑 Elle lisait {@code plan.prioritesVisibles()}, plafonnee a TROIS. Un test qui
      * assertionne sur « ce que le plan montre » depend alors du <b>classement</b>
      * — un choix du moteur qu'il ne fixe pas lui-meme —, et il dort jusqu'au
      * jour ou ce classement change. C'est exactement ce qui est arrive le
@@ -655,7 +655,7 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
     private List<CivicPlanDto.Cible> servies(UUID userId, CivicPlanDto plan) {
         return java.util.stream.Stream.of(
                         service.ordrePourLeCycle(userId).cibles(),
-                        plan.aRevoir(), plan.solides())
+                        plan.aRevoirVisibles(), plan.solides())
                 .flatMap(List::stream)
                 .toList();
     }

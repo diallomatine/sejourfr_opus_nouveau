@@ -383,15 +383,15 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   }
 
   List<Widget> _prioritiesSection(CivicPlan plan, {required bool free}) {
-    if (plan.priorites.isEmpty) return const <Widget>[];
+    if (plan.prioritesVisibles.isEmpty) return const <Widget>[];
     final autres = civicPlanAutresLabel(plan);
     return <Widget>[
       SfSection(
         title: kCivicPlanPrioritiesTitle,
         child: SfStack(
           children: [
-            for (var i = 0; i < plan.priorites.length; i++)
-              _priorityCard(plan.priorites[i], i + 1, free: free),
+            for (var i = 0; i < plan.prioritesVisibles.length; i++)
+              _priorityCard(plan.prioritesVisibles[i], i + 1, free: free),
             if (autres != null)
               Padding(
                 padding: const EdgeInsets.only(left: 4),
@@ -446,13 +446,13 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// « À revoir bientôt ». 🛑 Jamais une alerte : ce sont des points acquis
   /// qu'on entretient — et **jamais** la boîte Leitner.
   List<Widget> _reviewSection(CivicPlan plan, DateTime maintenant) {
-    if (plan.aRevoir.isEmpty) return const <Widget>[];
+    if (plan.aRevoirVisibles.isEmpty) return const <Widget>[];
     return <Widget>[
       SfSection(
         title: kCivicPlanReviewTitle,
         child: SfStack(
           children: [
-            for (final cible in plan.aRevoir)
+            for (final cible in plan.aRevoirVisibles)
               SfCard(
                 variant: SfCardVariant.soft,
                 child: Column(

@@ -224,9 +224,9 @@ class CivicPlan {
   const CivicPlan({
     required this.disponible,
     required this.mention,
-    required this.priorites,
+    required this.prioritesVisibles,
     required this.autresPriorites,
-    required this.aRevoir,
+    required this.aRevoirVisibles,
     required this.solides,
     required this.grain,
     this.themes = const <CivicPlanThemeLigne>[],
@@ -243,14 +243,18 @@ class CivicPlan {
   /// « À faire maintenant » — la cible de rang 1.
   final CivicPlanCible? prochaine;
 
-  /// 🛑 Plafond d'**affichage** : le moteur en a classé davantage.
-  final List<CivicPlanCible> priorites;
+  /// 🛑 **Plafond d'affichage, et le nom le dit** : le moteur en a classé
+  /// davantage. Ne jamais la prendre pour la liste complète — trois tests
+  /// backend l'ont fait, et ils ont dormi jusqu'au jour où le classement a
+  /// bougé (2026-09-20).
+  final List<CivicPlanCible> prioritesVisibles;
 
   /// Ce que la liste ne montre pas (« + 6 autres notions à consolider »).
   final int autresPriorites;
 
   /// Révisions d'entretien. 🛑 **Jamais une priorité rouge** (`20_` §5.2).
-  final List<CivicPlanCible> aRevoir;
+  /// Révisions d'entretien, **plafonnées à l'affichage** elles aussi.
+  final List<CivicPlanCible> aRevoirVisibles;
   final List<CivicPlanCible> solides;
 
   /// **Les cinq thèmes officiels, toujours les cinq**, dans l'ordre d'affichage
@@ -278,9 +282,9 @@ class CivicPlan {
         prochaine: json['prochaine'] == null
             ? null
             : CivicPlanCible.fromJson(json['prochaine'] as Map<String, dynamic>),
-        priorites: _cibles(json['priorites']),
+        prioritesVisibles: _cibles(json['prioritesVisibles']),
         autresPriorites: (json['autresPriorites'] as num?)?.toInt() ?? 0,
-        aRevoir: _cibles(json['aRevoir']),
+        aRevoirVisibles: _cibles(json['aRevoirVisibles']),
         solides: _cibles(json['solides']),
         themes: (json['themes'] as List<dynamic>? ?? const [])
             .whereType<Map<String, dynamic>>()
