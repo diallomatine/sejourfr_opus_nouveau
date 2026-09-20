@@ -27,7 +27,16 @@ const SLOTS = 20;
 /**
  * Examens blancs d'un thème civique (20 Q du thème, 20 min, seuil 16/20) —
  * maquette sejour_fr.html : 3 stat cards (passés / meilleur score / restant)
- * + grille de 20 examens. Examen 1 gratuit, 2+ premium.
+ * + grille de 20 examens.
+ *
+ * 🛑 **Tous les examens de thème sont premium** (D-33, P8.5, 2026-09-20).
+ * L'examen 1 était « gratuit » : cette règle venait des productions IA, qui
+ * coûtent un appel LLM là où un QCM n'en coûte aucun. Ce qui reste gratuit côté
+ * civique est le **diagnostic** et **`civique-decouverte`**, servi par son
+ * propre chemin (`template.free`).
+ *
+ * ⚠️ Sans ce changement, l'écran promettait un examen que le serveur refuse en
+ * 403 — le verrou est opposable, l'écran ne fait que le lire.
  *
  * Mode guest : la page sert de vitrine (grille visible) mais tous les
  * examens ciblés exigent un compte → GuestGateSheet. La découverte guest
@@ -197,7 +206,7 @@ export default function CiviqueThemeExamsPage() {
           count={SLOTS}
           exams={bySlot}
           premium={isPremium}
-          freeSlots={isGuest ? 0 : 1}
+          freeSlots={0}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={requestStart}

@@ -1247,3 +1247,42 @@ thématique, pas quatre épreuves ». C'est exactement ce qui est écrit mainten
 **Motif.** `setTargetLevel(precedent.getTargetLevel())` sur un cycle civique aurait posé `null` sur
 les **deux** objectifs — une ligne que `chk_journey_objectif` refuse **au flush**, loin de la ligne
 fautive. L'exclusivité se garantit à la source (même geste que `poserBloc`).
+
+---
+
+# 2026-09-20 — P8.5 : le freemium civique (A82 → A83)
+
+### A82 — `enforceMockExamSlotAccess` quitte le chemin civique, et **la borne du slot reste**
+
+**La règle** (D-33, Q-F9) : le diagnostic et `civique-decouverte` sont gratuits, **tout le reste est
+premium**. Plus de slot, plus de ledger, plus de « première fois ».
+
+🛑 **Mais la borne 1..20 du `slotNumber` reste appelée.** Le slot n'ouvre plus aucun droit — il
+reste un **repère de grille** (V110), et une valeur hors borne reste une valeur fausse :
+`slotNumber: 999` ou `-3` étaient persistés tels quels avant qu'elle existe. ⚠️ C'est le piège de ce
+point : retirer le verrou emportait la **validation** avec lui, et un test l'a attrapé
+(`mockExam_slotHorsBorne_refuse`).
+
+**Ce qui reste gratuit ne passe pas par ici** : `civique-decouverte` est servi par
+`startFromTemplate`, qui lit `template.isFree()` — son unique autorité, et une **promesse publique**
+(D-46).
+
+### A83 — 🛑 Les deux fronts promettaient un examen que le serveur refuse désormais
+
+**Trouvé en vérifiant la parité**, pas en codant : les deux écrans d'examens de thème affichaient
+« **examen 1 gratuit, 2+ premium** » — `freeSlots={isGuest ? 0 : 1}` côté web,
+`slot > 1` côté mobile.
+
+Sans changement, un compte gratuit aurait cliqué sur un examen annoncé **offert** et reçu un
+**403**.
+
+**La décision.** Les deux écrans passent à « tous premium », **dans la même passe**, avec le motif
+écrit sur place.
+
+**Motif.** Le verrou est **opposable serveur** ; l'écran ne fait que le **lire**. Un écran qui
+promet ce que le serveur refuse n'est pas une divergence d'affichage, c'est une **promesse rompue** —
+et le candidat la découvre au moment où il clique.
+
+⚠️ **Ce n'est pas un arbitrage nouveau** : D-33 a tranché « examens de thème : premium » le
+2026-09-19. Les fronts n'avaient simplement pas suivi, parce que rien ne les y forçait — le verrou
+n'existait alors **que côté client**.

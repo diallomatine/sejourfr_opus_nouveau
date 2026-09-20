@@ -75,7 +75,11 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
         // n'a aucune unité, donc aucun examen — et c'est le bon refus. La
         // fixture créait un thème « exam-theme » avec 25 questions, ce qui ne
         // testait que le tirage libre par `theme_id`.
+        // ⚠️ ABONNÉ : depuis P8.5 un examen de thème est premium (D-33). Ce
+        // test porte sur le FORMAT, pas sur l'accès — celui-ci a ses propres
+        // tests juste en dessous.
         User user = data.user();
+        makePremium(user);
         UUID themeId = jdbc.queryForObject(
                 "SELECT id FROM themes WHERE code = 'CIV_PRINCIPES'", UUID.class);
 
@@ -93,6 +97,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
         // Le pendant du précédent : un thème qui n'est pas dans l'annexe I n'a
         // aucune unité officielle, donc aucun examen de thème possible.
         User user = data.user();
+        makePremium(user);
         Theme horsProgramme = data.theme(Module.CIVIQUE, "exam-theme", "Hors programme");
 
         assertThatThrownBy(() -> service.start(user.getId(),
@@ -180,19 +185,39 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     // ------------------------------------------------------------------------
 
     @Test
-    void civiqueFullMockExam_slot1_compteGratuit_autorise() {
+    void civiqueFullMockExam_slot1_compteGratuit_refuse() {
+        // ⚠️ CE TEST A CHANGÉ DE SENS (P8.5, D-33), et c'est voulu. Il vérifiait
+        // « slot 1 offert » — une règle transposée des productions IA, qui
+        // coûtent un appel LLM là où un QCM n'en coûte aucun. La règle civique
+        // est désormais : le diagnostic et `civique-decouverte` sont gratuits,
+        // TOUT le reste est premium.
+        //
+        // 🛑 La promesse publique n'est pas touchée : `civique-decouverte`
+        // passe par `startFromTemplate`, qui lit `template.isFree()`.
         User user = data.user();
 
-        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
-
-        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, null, null, null, 1)))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
-    void civiqueFullMockExam_sansSlot_compteGratuit_autorise() {
+    void civiqueFullMockExam_sansSlot_compteGratuit_refuse() {
+        // Sans slot non plus : il n'y a plus de « première fois » civique.
         User user = data.user();
 
-        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, null));
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, null, null, null, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_abonne_autorise() {
+        // 🛑 Le pendant : l'abonné passe, et le format reste celui de l'arrêté.
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
 
         assertThat(r.totalQuestions()).isEqualTo(40);
     }

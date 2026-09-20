@@ -164,15 +164,28 @@ public class AttemptService {
                 && req.themeId() != null;
 
         if (req.type() == AttemptType.MOCK_EXAM) {
-            // Verrou freemium des examens blancs QCM — MÊME règle que
-            // startModuleExam et startFromTemplate : slot 1 offert (et
-            // rejouable), slots 2+ réservés aux abonnés du module. Cette
-            // branche (examens civiques globaux 40 Q, examens de thème 20 Q,
-            // examen TCF 60 Q legacy) ne contrôlait rien : le verrou n'existait
-            // que côté client, un compte gratuit pouvait lancer n'importe quel
-            // slot en illimité.
-            enforceMockExamSlotAccess(userId, req.module(), req.slotNumber(),
-                    civicThemeExam ? "de thème " : "");
+            // 🛑 DEUX RÉGIMES, ET UN SEUL VERROU CHACUN (D-33, P8.5).
+            //
+            // TCF : slot 1 offert et rejouable, slots 2+ réservés aux abonnés.
+            //
+            // CIVIQUE : `enforceMockExamSlotAccess` est RETIRÉ de ce chemin.
+            // Il transposait au QCM une règle écrite pour les productions IA —
+            // or un QCM ne coûte aucun appel LLM. La règle civique est plus
+            // simple : le diagnostic et `civique-decouverte` sont gratuits (ce
+            // dernier par `template.isFree()`, son autorité), TOUT le reste est
+            // premium. Deux verrous sur le même bouton, c'est exactement le
+            // patron qui a produit les quatre « première fois gratuite » ad hoc
+            // que D-17 a dû rassembler.
+            if (req.module() == Module.CIVIQUE) {
+                // 🛑 LA BORNE DU SLOT RESTE, même si le slot n'ouvre plus rien :
+                // `slotNumber: 999` ou `-3` étaient persistés tels quels avant
+                // qu'elle existe. Le slot est un repère de grille (V110), pas
+                // un droit — et une valeur hors borne reste une valeur fausse.
+                validateMockExamSlot(req.slotNumber());
+                enforceAccesExamenCivique(userId, civicThemeExam ? "de thème " : "");
+            } else {
+                enforceMockExamSlotAccess(userId, req.module(), req.slotNumber(), "");
+            }
             if (req.module() == Module.CIVIQUE) {
                 if (civicThemeExam) {
                     size = CivicExamFormat.QUESTIONS_THEME;
@@ -521,6 +534,27 @@ public class AttemptService {
                     "Les examens blancs " + label + "au-delà du premier sont réservés aux abonnés "
                             + moduleLabel(module) + ".");
         }
+    }
+
+    /**
+     * <b>L'accès à un examen blanc civique</b> — hors template gratuit (D-33).
+     *
+     * <p>🛑 <b>Aucun slot, aucun ledger, aucune « première fois »</b> : un
+     * examen de thème et un examen global hors {@code civique-decouverte} sont
+     * <b>premium</b>, point. Le ledger « 1 examen offert à vie » a été abandonné
+     * — il transposait au QCM une règle écrite pour les productions IA, qui
+     * coûtent un appel LLM là où un QCM n'en coûte aucun.
+     *
+     * <p>⚠️ <b>Ce qui reste gratuit ne passe PAS par ici</b> : le diagnostic
+     * civique a son propre chemin, et {@code civique-decouverte} est servi par
+     * {@code startFromTemplate}, qui lit {@code template.isFree()} — son unique
+     * autorité, et une <b>promesse publique</b> (D-46).
+     */
+    private void enforceAccesExamenCivique(UUID userId, String label) {
+        if (subscriptionService.hasCivique(userId)) return;
+        throw new AccessDeniedException(
+                "Les examens blancs " + label + "font partie de l'abonnement Civique. "
+                        + "Votre plan, lui, reste entier.");
     }
 
     private static String moduleLabel(Module module) {

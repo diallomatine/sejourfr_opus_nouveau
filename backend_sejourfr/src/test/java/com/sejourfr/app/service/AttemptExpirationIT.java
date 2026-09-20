@@ -48,8 +48,15 @@ class AttemptExpirationIT extends AbstractIntegrationTest {
     @Autowired AttemptQuestionManager attemptQuestionManager;
     @Autowired TestData data;
 
-    /** Examen civique de thème (20 Q / 20 min), démarré puis reculé dans le passé. */
+    /**
+     * Examen civique de thème (20 Q / 20 min), démarré puis reculé dans le passé.
+     *
+     * <p>⚠️ Le candidat est rendu <b>abonné</b> : depuis P8.5, un examen de
+     * thème est premium (D-33). Ce test porte sur le <b>chrono</b>, pas sur
+     * l'accès.
+     */
     private Attempt examenDemarreIlYa(User user, Theme theme, long secondes) {
+        data.userSubscription(user, data.plan());
         var req = new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null,
                 theme.getId(), null, null, null, null, null, 1, null);
         UUID id = service.start(user.getId(), req).id();

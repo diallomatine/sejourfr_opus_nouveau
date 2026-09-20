@@ -33,8 +33,16 @@ const int _examTotalQuestions = 20;
 
 /// Page « Examens blancs » d'un thème Civique (`/civique/theme/:themeId/examens`).
 /// Pendant de `TcfQcmExamsScreen` — header + drapeau + 3 stats + progress +
-/// chips filtre + 10 slots numérotés. Slot 1 = examen de découverte gratuit,
-/// slots 2-10 = premium.
+/// chips filtre + 10 slots numérotés.
+///
+/// 🛑 **TOUS les slots sont premium** (D-33, P8.5, 2026-09-20). Le slot 1 était
+/// « offert » : cette règle venait des productions IA, qui coûtent un appel LLM
+/// là où un QCM n'en coûte aucun. Ce qui reste gratuit côté civique est le
+/// **diagnostic** et l'examen **`civique-decouverte`** — une promesse publique,
+/// servie par son propre chemin (`template.isFree()`).
+///
+/// ⚠️ Sans ce changement, l'écran promettait un examen que le serveur refuse
+/// en 403 : le verrou est **opposable**, l'écran ne fait que le lire.
 class CiviqueThemeExamsScreen extends ConsumerStatefulWidget {
   const CiviqueThemeExamsScreen({super.key, required this.themeId});
 
@@ -57,7 +65,7 @@ class _CiviqueThemeExamsScreenState
         auth.user.canAccessModule(AppModule.civique);
   }
 
-  bool _isLocked(int slot) => !_isPremium() && slot > 1;
+  bool _isLocked(int slot) => !_isPremium();
 
   Future<void> _startExam(ThemeDto theme, {required int slotNumber}) async {
     if (_starting) return;
