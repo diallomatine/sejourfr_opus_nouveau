@@ -2115,3 +2115,77 @@ CECRL ou une mention de l'arrêté se servent ; le **nom commercial d'un pass**,
 3. **A26** reste partiellement caduque (A118 bis) : `premiereDuParcours` lit la file, `elire` lit
    le bloc meneur.
 4. **L'Accueil** reste la dernière surface qui tait le nom d'une priorité TCF verrouillée.
+
+# 2026-09-20 — Le diagnostic civique peuple (A127 → A131)
+
+> Arbitrage : **D-59**. Ce qui suit est ce que personne n'avait tranché.
+
+### A127 — 🛑 Le cycle lit le diagnostic que l'ÉVALUATION NOMME, jamais « le dernier terminé »
+
+**C'est la décision structurante de la passe, et elle vient d'une mesure que le brief
+n'anticipait pas.**
+
+⟦SQL⟧ : pour les 6 sessions civiques de la base de dev, `civic_diagnostic_sessions.completed_at`
+est **égal à la microseconde** à `attempts.finished_at` — donc recopié par la clôture paresseuse,
+pas posé par un `Instant.now()` propre. Et `journey_assessment_event.processed_at` est
+**postérieur** à `finished_at`.
+
+**La séquence réelle** : `POST /attempts/{id}/finish` → le parcours ; **puis**
+`POST /civic-diagnostics/{id}/result` → `COMPLETED`.
+
+⇒ **Au moment où le cycle traite le diagnostic, la session est encore `IN_PROGRESS` en base** — et
+le traitement tourne en `REQUIRES_NEW`, donc il ne verrait pas davantage un `finishedAt` non
+commité. `ordrePourLeCycle`, qui filtre sur `COMPLETED`, aurait rendu **vide** : la correction
+aurait supprimé les cinq « TERMINÉ » **sans poser une seule unité**. Symptôme 1 réglé, 2 et 3
+intacts, et rien pour le signaler.
+
+**Décidé.** `CivicPlanService.ordreDuDiagnostic(userId, sessionId)` — l'ordre du diagnostic
+**nommé par l'évaluation**. Le statut n'est pas relu : une `JourneyEvaluation` n'existe que pour
+une évaluation terminée, et le résultat se calcule sur ce qui a été posé et répondu, exactement
+comme l'écran de résultat. Garde : la session doit appartenir au candidat.
+
+**Motif de fond, pas seulement pratique** : l'évaluation **dit** de quel diagnostic elle parle
+(**A08**) ; « le dernier terminé » est une **seconde définition** de la même chose, qui peut
+désigner une autre session. Coût : `findById` remplace `findLatest`, **1 requête pour 1**.
+
+**Si l'arbitrage était autre** (« le cycle lit le plan courant ») : il faudrait déplacer le
+branchement dans le `/result`, donc dans `CivicDiagnosticService` — que D-29 exigence 5 protège.
+
+### A128 — Un bloc qui porte déjà un examen ouvert n'en reçoit pas un second
+
+Sans ça, un bloc peuplé aurait porté son « Évaluer mon niveau » (A65) **et** le checkpoint du
+nouveau lot : **deux** étapes dans l'avancement du cycle pour **une** seule montrée
+(`examenDuBloc`). R3 reste honorée — le bloc a bien un examen ouvert.
+
+⚠️ L'étape existante n'est **ni rouverte ni mutée** : la rattacher au lot l'aurait placée en
+position 1, **devant ses propres unités**, et `elire` en aurait fait l'étape courante.
+
+**Si l'arbitrage était autre** (« le lot a toujours son checkpoint ») : il faudrait marquer
+l'ancien `SUPERSEDED` — une clôture structurelle que D-59 n'autorise pas.
+
+### A129 — Le filtre R11 vit dans `creerLotsCiviques`, donc vaut aussi pour l'amorce
+
+Il y est sans effet (aucun lot n'existe encore) et **évite une seconde règle « pour le
+diagnostic »**. Miroir exact de `filtrerLeDiagnostic` côté TCF.
+
+### A130 — `attendSonAmorce` n'est PAS consulté sur le chemin civique, et c'est délibéré
+
+Un cycle civique n'est **jamais vide** (A65) : il rendrait donc toujours `false`, et les priorités
+partiraient « en attente », c'est-à-dire **nulle part** (A78). **R11 ne parle pas d'amorce mais de
+blocs** — c'est elle qui décide, bloc par bloc. Motif écrit sur place.
+
+### A131 — L'amorce et le diagnostic partagent UNE autorité
+
+`peuplerLeCycleCivique` est appelée par `amorcerCivique` **et** par `peuplerDepuisLeDiagnostic` :
+deux copies auraient fini par peupler différemment selon la porte d'entrée.
+
+---
+
+### ⚠️ La règle de méthode a sa TROISIÈME occurrence
+
+Un agent a de nouveau annoncé un total surefire **inférieur** au build réel — **3 001** pour
+**3 071**. Trois fois dans la journée, jamais avec le code en cause.
+
+🛑 **Un chiffre de build se relit dans `target/*-reports/` ou dans la ligne `Results:` d'un
+`./mvnw verify` complet.** À la troisième occurrence, ce n'est plus une consigne : c'est une
+vérification que le relecteur fait lui-même, systématiquement.

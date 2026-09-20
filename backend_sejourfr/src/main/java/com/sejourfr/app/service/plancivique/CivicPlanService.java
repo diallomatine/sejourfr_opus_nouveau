@@ -166,10 +166,63 @@ public class CivicPlanService {
      */
     @Transactional(readOnly = true)
     public OrdreDuPlan ordrePourLeCycle(UUID userId) {
-        Calcul calcul = calculer(userId);
+        return ordre(calculer(userId));
+    }
+
+    /**
+     * <b>Le meme ordre, mais celui du diagnostic NOMME</b> — ce que le cycle
+     * lit quand une evaluation {@code CIVIC_DIAGNOSTIC} vient de se terminer.
+     *
+     * <h3>🛑 Pourquoi il ne peut pas passer par {@link #ordrePourLeCycle}</h3>
+     * <p>{@code ordrePourLeCycle} lit « le <b>dernier</b> diagnostic
+     * <b>COMPLETED</b> ». Or ⟦SQL⟧ sur la base de dev : un diagnostic civique
+     * passe a {@code COMPLETED} a l'appel de
+     * {@code POST /api/civic-diagnostics/{id}/result}, <b>apres</b>
+     * {@code POST /api/attempts/{id}/finish} qui est ce qui porte l'evaluation
+     * au cycle (mesure : {@code civic_diagnostic_sessions.completed_at} est
+     * <b>egal a la microseconde</b> a {@code attempts.finished_at}, donc recopie
+     * par la cloture paresseuse du {@code /result}, et
+     * {@code journey_assessment_event.processed_at} lui est <b>posterieur</b>).
+     * Au moment ou le cycle traite le diagnostic, la session est donc encore
+     * {@code IN_PROGRESS} en base, et « le dernier termine » ne rend
+     * <b>rien</b>.
+     *
+     * <p>🛑 <b>Et c'est plus juste, pas seulement plus pratique</b> :
+     * l'evaluation <b>dit</b> de quel diagnostic elle parle (son
+     * {@code sourceAssessmentId}, A08). « Le dernier termine » est une
+     * <b>seconde</b> definition de la meme chose, qui peut designer une AUTRE
+     * session — celle qu'un candidat vient d'ouvrir pendant qu'une correction
+     * traine.
+     *
+     * <p>⚠️ <b>Le statut de la session n'est pas relu ici</b>, et c'est
+     * volontaire : la seule autorite de « cette session est-elle finie ? » est
+     * {@code CivicDiagnosticService}, et le fait qui compte est deja porte par
+     * l'appelant — une {@code JourneyEvaluation} n'existe que pour une
+     * evaluation <b>terminee</b>. Le resultat, lui, se calcule sur ce qui a ete
+     * <b>pose et repondu</b>, exactement comme l'ecran de resultat.
+     *
+     * @param sessionId la {@code civic_diagnostic_sessions} nommee par
+     *                  l'evaluation. <b>Vide</b> si elle n'existe pas ou si elle
+     *                  n'appartient pas a ce candidat — une cle tiree ailleurs ne
+     *                  peut jamais construire le cycle d'un tiers.
+     */
+    @Transactional(readOnly = true)
+    public OrdreDuPlan ordreDuDiagnostic(UUID userId, UUID sessionId) {
+        return ordre(calculer(userId, diagnosticNomme(userId, sessionId)));
+    }
+
+    private OrdreDuPlan ordre(Calcul calcul) {
         if (!calcul.disponible()) return OrdreDuPlan.VIDE;
         return new OrdreDuPlan(
                 calcul.resultat().sessionId(), proposables(calcul.cibles()));
+    }
+
+    private Optional<CivicDiagnosticResultDto> diagnosticNomme(UUID userId, UUID sessionId) {
+        if (sessionId == null) return Optional.empty();
+        return sessionManager.findById(sessionId)
+                .filter(session -> session.getUser() != null
+                        && session.getUser().getId().equals(userId))
+                .map(this::resultat);
     }
 
     /**
@@ -185,16 +238,33 @@ public class CivicPlanService {
         }
     }
 
+    /**
+     * Le calcul de l'ecran : il se batit sur <b>le dernier diagnostic
+     * termine</b>.
+     *
+     * <p>🛑 <b>Le plan ne se batit pas sur une mesure qui n'existe pas.</b> Sans
+     * diagnostic termine, on ne sert AUCUNE cible : l'ecran ouvre la seule porte
+     * qui debloque, il n'affiche pas un plan vide.
+     */
     private Calcul calculer(UUID userId) {
+        return calculer(userId, dernierDiagnostic(userId));
+    }
+
+    /**
+     * Le meme calcul, sur <b>le diagnostic qu'on lui donne</b>.
+     *
+     * <p>🛑 <b>Extrait pour qu'il n'existe qu'UN classement de cibles</b> : le
+     * cycle lit celui du diagnostic qu'il traite ({@link #ordreDuDiagnostic}),
+     * l'ecran celui du dernier termine, et c'est <b>le meme code</b>. Une
+     * seconde version « pour le cycle » aurait fait dire deux choses
+     * differentes au meme candidat selon l'ecran qu'il regarde (D-36).
+     */
+    private Calcul calculer(UUID userId, Optional<CivicDiagnosticResultDto> diagnostic) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         Difficulty mention = TargetProcedure.mentionCivique(user.getTargetProcedure());
         Instant maintenant = Instant.now();
 
-        // 🛑 Le plan ne se batit pas sur une mesure qui n'existe pas. Sans
-        // diagnostic termine, on ne sert AUCUNE cible : l'ecran ouvre la seule
-        // porte qui debloque, il n'affiche pas un plan vide.
-        Optional<CivicDiagnosticResultDto> diagnostic = dernierDiagnostic(userId);
         if (diagnostic.isEmpty()) {
             return Calcul.indisponible(mention, maintenant);
         }

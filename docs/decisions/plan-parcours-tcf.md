@@ -2864,3 +2864,56 @@ parcours (**A126**), **déclarée une fois par front** — le nom commercial d'u
 fait du référentiel (A58).
 
 Décisions d'implémentation : **A119 → A126**.
+
+---
+
+### D-59 (2026-09-20) — **Le diagnostic civique PEUPLE le cycle, il ne le CLÔT pas**
+
+**Le défaut, mesuré.** Un candidat passe le diagnostic civique, obtient **11/40**, et son Plan affiche
+**les cinq thématiques « TERMINÉ »** avec pour seule issue « Actualiser mon plan ».
+
+**La cause.** `AttemptInteractionService` n'avait que **deux** branches civiques —
+`lot_theme_id != null ⇒ examen de thème, sinon ⇒ examen complet` (**A74**). Or un diagnostic
+civique est un `MOCK_EXAM` **sans** `lot_theme_id` : il tombait dans « examen complet ».
+🛑 `JourneyEvaluation.diagnosticCivique(...)` existait — la nature `CIVIC_DIAGNOSTIC` créée par
+**D-51** — et **n'avait aucun appelant en production** (20 occurrences, aucune n'était un appel).
+
+⟦SQL⟧ : 1 `CIVIC_EXAM` + 5 `CIVIC_THEME_EXAM` à la même seconde, les 5 `SECTION_EXAM` closes en
+`SATISFIED_BY_ASSESSMENT`, **0 lot**, alors que **12** observations étaient écrites dont **1
+`PRIORITY`**.
+
+**Les trois symptômes en découlaient** : les cinq blocs clos ⇒ « tous terminés » ; la priorité
+détectée perdue (le cycle « n'attendait plus son amorce », et il n'y a **pas** de cycle en attente
+civique, A78) ; plus aucune `TRAIN_SKILL` ⇒ cycle lu comme un **cycle de mesure** (A33) ⇒
+`examenCompletPossible = false` (A36) ⇒ seule « Actualiser mon plan ».
+
+#### La décision, verbatim
+
+> **Le diagnostic civique peuple, il ne clôt pas.** Il pose les unités prioritaires dans leurs
+> blocs et ne ferme aucune étape d'examen.
+
+C'est le **pendant civique de R11** — « il produit des priorités mais ne mesure aucune épreuve ».
+
+#### Ce qui n'est PAS touché, et que des tests protègent
+
+| Tenu | Preuve |
+|---|---|
+| **D-51** — l'examen **complet** clôt toujours les cinq blocs et écrit ses six lignes | test vert **avant comme après** |
+| L'**examen de thème** clôt son bloc et écrit sa ligne | idem |
+| **D-29 exigence 5** — `CivicDiagnosticService` et sa configuration 28/12 | intouchés |
+| **A78** — aucun cycle EN ATTENTE civique n'est créé | — |
+| **D-7** — aucune étape close n'est rouverte | — |
+
+⚠️ **Les deux tests de protection passent par le VRAI chemin de clôture** (`finish`), pas par un
+appel direct au moteur : un test qui aurait appelé `onAssessmentCompleted` à la main serait resté
+**vert sur le défaut**.
+
+#### 🛑 Les données déjà en base ne sont PAS reprises
+
+Le candidat mesuré garde ses cinq étapes closes : rien ne les rouvre (D-7) et `dejaTraitee`
+empêche tout retraitement. Il retrouvera un plan juste en appuyant sur **« Actualiser mon plan »**
+— le cycle suivant se ré-amorce sur son plan dérivé. Le remettre d'aplomb sans ce geste serait une
+**reprise de données** (rouvrir 5 étapes, supprimer 6 lignes de journal) : même position que
+**D-55**, on ne répare pas.
+
+Décisions d'implémentation : **A127 → A131**.

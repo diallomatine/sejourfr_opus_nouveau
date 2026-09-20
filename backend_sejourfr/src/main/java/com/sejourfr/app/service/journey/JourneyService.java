@@ -52,6 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -314,7 +315,20 @@ public class JourneyService {
     }
 
     private void amorcerCivique(Journey journey, User user) {
-        CivicPlanService.OrdreDuPlan ordre = civicPlanService.ordrePourLeCycle(user.getId());
+        peuplerLeCycleCivique(journey, civicPlanService.ordrePourLeCycle(user.getId()));
+    }
+
+    /**
+     * <b>Peupler un cycle civique</b> : les unites prioritaires dans leurs
+     * blocs, puis « Évaluer mon niveau » sur ce que rien ne peuple.
+     *
+     * <p>🛑 <b>Une seule autorite, DEUX appelants</b> : l'amorce d'un cycle
+     * ({@link #amorcerCivique}) et le <b>diagnostic civique</b> qui se termine
+     * pendant qu'un cycle tourne ({@link #peuplerDepuisLeDiagnostic}). Les deux
+     * posent exactement le meme contenu — une seconde version « pour le
+     * diagnostic » aurait diverge des la premiere evolution du grain.
+     */
+    private void peuplerLeCycleCivique(Journey journey, CivicPlanService.OrdreDuPlan ordre) {
         creerLotsCiviques(journey, ordre);
         ajouterLesThematiquesNonPeuplees(journey);
     }
@@ -333,6 +347,14 @@ public class JourneyService {
      * unite qu'il ne connait pas. Sa thematique retombe alors sur « Évaluer mon
      * niveau », ce qui est exactement la bonne reponse a une absence de mesure —
      * <b>{@code null} = inconnu, jamais mauvais</b>.
+     *
+     * <p>🛑 <b>R11, cote civique</b> : un bloc qui porte deja un lot
+     * <b>ouvert</b> n'en recoit pas un second. C'est mot pour mot ce que
+     * {@link #filtrerLeDiagnostic} fait par epreuve cote TCF — « un diagnostic
+     * ne remplace jamais un lot ouvert, il ne cree un lot que pour les blocs qui
+     * n'en ont pas ». A l'amorce, aucun lot n'existe et le filtre ne coute rien ;
+     * quand un diagnostic se termine pendant qu'un cycle tourne, c'est lui qui
+     * empeche de redemander un travail deja du.
      */
     private void creerLotsCiviques(Journey journey, CivicPlanService.OrdreDuPlan ordre) {
         if (ordre.estVide()) return;
@@ -363,8 +385,20 @@ public class JourneyService {
             thematiques.put(thematique.getId(), thematique);
         }
 
+        // 🛑 R11 — LU AVANT LA PREMIERE ECRITURE : les examens deja ouverts du
+        // cycle disent quels blocs portent deja leur point d'etape. Les relire
+        // apres coup aurait vu ceux qu'on vient d'ecrire.
+        Set<String> blocsAvecExamenOuvert = stepManager.findAll(journey.getId()).stream()
+                .filter(step -> step.getType() == JourneyStepType.SECTION_EXAM)
+                .filter(JourneyStep::estOuverte)
+                .map(JourneyStep::blocCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
         parThematique.forEach((themeId, unites) -> {
             Theme thematique = thematiques.get(themeId);
+            // R11 : ce bloc a deja un lot ouvert ⇒ on ne le remplace pas.
+            if (lotManager.findOuvertParTheme(journey.getId(), themeId).isPresent()) return;
             JourneyLot lot = new JourneyLot();
             lot.setJourney(journey);
             lot.poserBloc(thematique);
@@ -387,6 +421,17 @@ public class JourneyService {
 
             // R3 — un lot est TOUJOURS clos par l'examen de son bloc. Ici c'est
             // l'examen de la thematique (20 questions, `CivicExamFormat`).
+            //
+            // 🛑 SAUF SI CE BLOC EN PORTE DEJA UN OUVERT, et c'est le cas du
+            // diagnostic qui peuple un cycle deja amorce : le bloc porte alors
+            // son « Évaluer mon niveau » (A65), qui EST l'examen de ce bloc.
+            // En ecrire un second aurait donne deux examens ouverts pour une
+            // seule thematique -- deux etapes dans l'avancement du cycle, une
+            // seule montree (`JourneyBlocResolver.examenDuBloc`). R3 est
+            // satisfaite : le bloc a bien un examen ouvert, et
+            // `cloreLExamenDuBlocCivique` clot les examens du BLOC, pas ceux du
+            // lot.
+            if (blocsAvecExamenOuvert.contains(thematique.getCode())) return;
             JourneyStep checkpoint = new JourneyStep();
             checkpoint.setJourney(journey);
             checkpoint.setLot(enregistre);
@@ -446,8 +491,7 @@ public class JourneyService {
     private void traiterLEvaluationCivique(Journey journey, JourneyEvaluation evaluation) {
         enregistrer(journey, evaluation);
         if (evaluation.kind() == JourneyAssessmentKind.CIVIC_DIAGNOSTIC) {
-            // Le diagnostic civique ne mesure aucune thematique : il a deja
-            // AMORCE le cycle (spec §2), il n'a rien a cloturer.
+            peuplerDepuisLeDiagnostic(journey, evaluation);
             journeyManager.save(journey);
             return;
         }
@@ -470,6 +514,45 @@ public class JourneyService {
             }
         }
         journeyManager.save(journey);
+    }
+
+    /**
+     * <b>🛑 LE DIAGNOSTIC CIVIQUE PEUPLE, IL NE CLOT PAS</b> — le pendant
+     * civique de <b>R11</b> (arbitrage du proprietaire, 2026-09-20).
+     *
+     * <h3>Le defaut que cette methode corrige, mesure en base</h3>
+     * <p>Un diagnostic civique est un {@code MOCK_EXAM} <b>sans</b>
+     * {@code lot_theme_id} : il etait donc pris pour un <b>examen blanc
+     * complet</b> et passait par {@link JourneyEvaluation#examenCivique}. Il
+     * <b>clotait les cinq blocs</b> — ⟦SQL⟧ un candidat a 11/40 lisait « les cinq
+     * thematiques TERMINÉ », avec « Actualiser mon plan » pour seule issue. Le
+     * discriminant manquant est {@code attempts.civic_diagnostic_id}, deja
+     * persiste, exactement comme {@code lot_theme_id} (A74).
+     *
+     * <h3>🛑 Le point dur : {@code attendSonAmorce} ne s'applique PAS ici</h3>
+     * <p>Un cycle civique n'est <b>jamais</b> vide (A65) : au pire il porte
+     * cinq examens « Évaluer mon niveau ». {@link #attendSonAmorce} rendrait
+     * donc {@code false} pour tout cycle civique, et les priorites du diagnostic
+     * partiraient « en attente » — c'est-a-dire <b>nulle part</b>, puisqu'il n'y
+     * a pas de cycle EN ATTENTE civique (A78) et que les priorites civiques sont
+     * <b>derivees</b>. <b>R11 est la regle qui resout ca</b>, et elle ne parle
+     * pas d'amorce : « un diagnostic cree un lot pour tout bloc qui n'en a pas
+     * <b>ouvert</b> ». C'est {@code creerLotsCiviques} qui la porte, par bloc.
+     *
+     * <h3>🛑 Aucune etape d'examen n'est close</h3>
+     * <p>{@code cloreLExamenDuBlocCivique} n'est atteint que par une evaluation
+     * qui <b>mesure</b> un axe. Le diagnostic n'en mesure aucun (D-51 : son axe
+     * est {@code null}), et D-51 reste intact pour l'examen COMPLET, qui doit
+     * toujours clore les cinq blocs d'un cycle de mesure.
+     */
+    private void peuplerDepuisLeDiagnostic(Journey journey, JourneyEvaluation evaluation) {
+        // 🛑 L'ORDRE EST CELUI DU DIAGNOSTIC NOMME PAR L'EVALUATION, pas « du
+        // dernier termine » : au moment ou le cycle traite ce diagnostic, sa
+        // session est encore IN_PROGRESS en base (elle passe a COMPLETED au
+        // `POST /result`, apres le `finish` qui nous amene ici). Motif complet
+        // et mesure : `CivicPlanService.ordreDuDiagnostic`.
+        peuplerLeCycleCivique(journey, civicPlanService.ordreDuDiagnostic(
+                journey.getUser().getId(), evaluation.sourceAssessmentId()));
     }
 
     /**

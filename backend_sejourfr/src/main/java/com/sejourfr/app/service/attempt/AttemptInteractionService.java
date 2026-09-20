@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Choice;
@@ -553,22 +554,58 @@ public class AttemptInteractionService {
             if (source == LearningPlanSourceType.CIVIQUE_SERIE) {
                 journeyService.onTrainingProgressCivique(userId, unites);
             } else {
-                // 🛑 DEUX EXAMENS, DEUX NATURES, et c'est `lot_theme_id` qui les
-                // distingue -- il est pose a la creation de l'attempt, donc
-                // DEJA PERSISTE (R1, spec §2). Un examen de theme mesure SA
-                // thematique ; l'examen complet est un fait GLOBAL et clot
-                // chaque bloc debloque (D-51).
-                journeyService.onAssessmentCompleted(userId,
-                        attempt.getLotThemeId() != null
-                                ? JourneyEvaluation.examenDeTheme(attempt.getId(),
-                                        attempt.getLotThemeId(), attempt.getFinishedAt())
-                                : JourneyEvaluation.examenCivique(
-                                        attempt.getId(), attempt.getFinishedAt()));
+                journeyService.onAssessmentCompleted(userId, evaluationCivique(attempt));
             }
         } catch (RuntimeException echec) {
             log.warn("Observations civiques non enregistrees pour la session {} : {}",
                     attempt.getId(), echec.toString());
         }
+    }
+
+    /**
+     * <b>🛑 TROIS PASSATIONS CIVIQUES, TROIS NATURES</b> — et les deux
+     * discriminants sont <b>deja persistes sur l'attempt</b>, poses a sa
+     * creation (A74). Aucun n'est deduit : ni le template relu, ni les questions
+     * recomptees, ni le score regarde. Une seconde definition de « quel examen
+     * est-ce » aurait pu diverger de la premiere.
+     *
+     * <ol>
+     *   <li>{@code civic_diagnostic_id} non nul ⇒ <b>diagnostic civique</b>. Il
+     *       ne mesure aucune thematique : il <b>peuple</b> le cycle et ne clot
+     *       aucun examen (pendant civique de R11). 🛑 Son identite est celle de
+     *       la <b>SESSION</b>, pas celle de l'attempt — c'est ce que dit
+     *       {@code JourneyAssessmentKind} : la nature dit de quelle table vient
+     *       l'identifiant (A08), et {@code CIVIC_DIAGNOSTIC} designe
+     *       {@code civic_diagnostic_sessions}.</li>
+     *   <li>{@code lot_theme_id} non nul ⇒ <b>examen de theme</b> : il mesure SA
+     *       thematique.</li>
+     *   <li>ni l'un ni l'autre ⇒ <b>examen complet</b> : un fait GLOBAL, qui
+     *       clot chaque bloc debloque (D-51).</li>
+     * </ol>
+     *
+     * <p>⚠️ <b>Le diagnostic se teste EN PREMIER</b>, et pas pour l'elegance :
+     * il porte {@code MOCK_EXAM} <b>sans</b> {@code lot_theme_id}, donc il
+     * tombait exactement dans la branche « examen complet » — c'est tout le
+     * defaut. Les trois cas restent exclusifs (un diagnostic n'a jamais de
+     * {@code lot_theme_id}), l'ordre le rend seulement lisible.
+     *
+     * <p>🛑 <b>Zero requete de plus</b> : {@code civicDiagnostic} est un
+     * {@code @ManyToOne(LAZY)} dont la cle etrangere est <b>sur la ligne
+     * {@code attempts} deja chargee</b>. Hibernate rend un proxy non initialise
+     * et {@code getId()} lit son identifiant sans toucher la base — exactement
+     * comme {@code getLotThemeId()} lit une colonne.
+     */
+    private JourneyEvaluation evaluationCivique(Attempt attempt) {
+        CivicDiagnosticSession diagnostic = attempt.getCivicDiagnostic();
+        if (diagnostic != null) {
+            return JourneyEvaluation.diagnosticCivique(
+                    diagnostic.getId(), attempt.getFinishedAt());
+        }
+        if (attempt.getLotThemeId() != null) {
+            return JourneyEvaluation.examenDeTheme(
+                    attempt.getId(), attempt.getLotThemeId(), attempt.getFinishedAt());
+        }
+        return JourneyEvaluation.examenCivique(attempt.getId(), attempt.getFinishedAt());
     }
 
     /** L'unite officielle de cette question, ou {@code null} hors programme. */
