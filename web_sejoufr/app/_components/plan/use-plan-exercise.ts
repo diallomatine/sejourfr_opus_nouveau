@@ -82,9 +82,26 @@ export function usePlanExercise() {
             // (cf. CLAUDE.md racine). Point unique : les 5 natures d'exercice
             // du Plan passent toutes par ce lanceur.
             track("PLAN_EXERCISE_STARTED", {exerciseKind: exercise.kind});
-            if (exercise.kind === "MICRO_TRAINING" || exercise.kind === "REASSESSMENT") {
-                // 🛑 On vient du PLAN : le sujet s'ouvre à l'échelle de son
-                // ÉTAPE (« 1/5 »), pas de la compétence entière (« 1/15 »).
+            /* 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**,
+               jamais le sujet directement (demande du propriétaire,
+               2026-09-20) : c'est là que le candidat voit ses cinq sujets et
+               lesquels sont faits. L'écran s'ouvre à l'échelle de l'**étape**
+               (« x/5 »), pas de la compétence entière (« x/15 »).
+
+               ⚠️ **Révoque** le saut direct au sujet : les lignes du cycle et
+               la carte « À faire maintenant » passaient par ici, pendant que la
+               ligne de séance (`startItem`) ouvrait déjà la fiche. La même
+               compétence menait à deux écrans selon l'endroit où on la
+               touchait. */
+            if (exercise.kind === "MICRO_TRAINING") {
+                router.push(planSkillHref(exercise, {planStep: true}));
+                return;
+            }
+            /* 🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est
+               une tâche de production qui ne fait pas partie des cinq de la
+               fiche — l'y envoyer laisserait le candidat sans moyen de la
+               faire. */
+            if (exercise.kind === "REASSESSMENT") {
                 router.push(recommendedExerciseHref(exercise, {planStep: true}));
                 return;
             }

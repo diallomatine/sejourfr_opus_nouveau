@@ -46,6 +46,24 @@ Future<void> openPlanExercise(
           exerciseKind: exercise.kind.wire,
         );
   }
+  // 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**, jamais le
+  // sujet directement (demande du propriétaire, 2026-09-20) : c'est là que le
+  // candidat voit ses cinq sujets et lesquels sont faits.
+  //
+  // ⚠️ **Révoque** « le bouton principal démarre l'entraînement, il n'ouvre pas
+  // une fiche » : les lignes du cycle et la carte « À faire maintenant »
+  // passaient par ici et sautaient donc à un sujet, pendant que la ligne de
+  // séance ([openPlanSeanceItem]) ouvrait la fiche. La même compétence menait à
+  // deux écrans selon l'endroit où on la touchait.
+  //
+  // 🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est une tâche
+  // de production qui ne fait pas partie des cinq — l'y envoyer laisserait le
+  // candidat sans aucun moyen de la faire.
+  final section = exercise.section;
+  if (exercise.kind == PlanExerciseKind.microTraining && section.isProduction) {
+    openPlanSkill(context, exercise.skillId, section);
+    return;
+  }
   await openRecommendedExercise(
     onVerrou: onVerrou,
     context,
