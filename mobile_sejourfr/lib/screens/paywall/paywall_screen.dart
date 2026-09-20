@@ -12,9 +12,6 @@ import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_button.dart';
-import '../../core/widgets/paywall_context.dart';
-import '../plan/learning_plan_provider.dart';
-import '../../core/auth/auth_controller.dart';
 
 /// Écran paywall plein écran. Affiche un toggle mensuel/trimestriel/annuel et
 /// deux cards Civique + Intégral avec les prix réels du store (devise locale).
@@ -22,17 +19,17 @@ import '../../core/auth/auth_controller.dart';
 /// Conforme aux guidelines Apple/Google : le paiement se fait par IAP natif,
 /// pas par redirection externe. Bouton « Restaurer mes achats » obligatoire
 /// pour passage en review Apple.
+/// 🛑 **LES DEUX CARTES, TOUJOURS** (demande du propriétaire, 2026-09-20 :
+/// « des fois on masque civique ou intégral selon des conditions. Donc
+/// toujours afficher les 2 et laisser la personne choisir »). Cet écran est le
+/// seul où les deux périmètres se comparent, et c'est là que se lit « le Pass
+/// Civique n'ouvre pas le TCF ».
+///
+/// 🛑 **Leur ORDRE est fixe** : `kPassModulesInOrder`, l'Intégral d'abord.
+/// L'ancien `initialTarget` ne faisait plus qu'ordonner — il est parti avec la
+/// règle qu'il portait, jusqu'à ses appelants.
 class PaywallScreen extends ConsumerStatefulWidget {
-  const PaywallScreen({super.key, this.initialTarget});
-
-  /// Module **mis en avant** — il passe devant, il n'efface pas l'autre.
-  ///
-  /// 🛑 **LES DEUX CARTES, TOUJOURS** (demande du propriétaire, 2026-09-20 :
-  /// « des fois on masque civique ou intégral selon des conditions. Donc
-  /// toujours afficher les 2 et laisser la personne choisir »). Cet écran est
-  /// le seul où les deux périmètres se comparent, et c'est là que se lit
-  /// « le Pass Civique n'ouvre pas le TCF ».
-  final PlanModuleTarget? initialTarget;
+  const PaywallScreen({super.key});
 
   @override
   ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
@@ -178,67 +175,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     };
   }
 
-  /// **Ce que l'offre sait de l'échéance du candidat** : la date d'examen
-  /// déclarée, et le pass le plus court qui la couvre.
-  ///
-  /// 🛑 **L'en-tête personnalisé a été SUPPRIMÉ** (demande du propriétaire,
-  /// 2026-09-20). « Votre plan B2 est prêt », le pitch, les trois priorités
-  /// réelles et les bénéfices du plan sont partis **avec `PaywallOrigin`**, qui
-  /// ne servait qu'à décider de leur affichage : la promesse est dite **une
-  /// fois**, sur l'écran de transition `/plan/debloquer`, et la répéter ici la
-  /// disait deux fois de suite. Ne pas les réintroduire.
-  ///
-  /// ⚠️ Ce qui reste ne parle **pas du plan** : ce sont les deux faits qui
-  /// aident à **choisir une durée**, et c'est bien le rôle d'un écran d'offre.
-  ///
-  /// 🛑 **Best-effort, et jamais bloquant.** Le Plan est lu depuis son provider
-  /// existant — s'il n'est pas chargé, on ne rend **rien**.
-  Widget _buildContexte(BillingState state) {
-    final plan = ref.watch(learningPlanProvider).valueOrNull;
-    final user = ref.watch(authControllerProvider);
-    final examDate = user is AuthAuthenticated ? user.user.examDate : null;
-
-    final ctx = paywallContext(plan: plan, examDate: examDate);
-    // Le catalogue passe par les produits DÉJÀ chargés par le contrôleur : le
-    // paywall ne déclenche aucun appel de plus.
-    final pass = passRecommande(
-        ctx, state.products.map((p) => p.plan).toList(growable: false));
-    final echeance = echeanceLine(ctx);
-
-    if (pass == null && echeance == null) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (echeance != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.redLight,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-              ),
-              child: Text(echeance,
-                  style: AppFonts.label(size: 12, color: AppColors.redDark)),
-            ),
-          if (pass != null) ...[
-            if (echeance != null) const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.blueLight,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-              ),
-              child: Text(pass.phrase,
-                  style: AppFonts.ui(size: 13, color: AppColors.blueDark)),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
+  /// 🛑 **Aucun bandeau de contexte** (demande du propriétaire, 2026-09-20).
+  /// L'en-tête personnalisé était déjà parti ; les deux derniers bandeaux —
+  /// « Objectif B2 avant le … — il vous reste N jours. » et « Votre examen est
+  /// le … Le pass N couvre toute votre préparation. » — sont partis avec, et
+  /// avec eux `echeanceLine` / `passRecommande` / `paywallContext`, qui ne
+  /// servaient plus qu'à les composer. Ne pas les réintroduire : l'offre dit le
+  /// prix, pas l'échéance. Miroir web : `PaywallSheet.tsx`.
   Widget _buildContent(BuildContext context, BillingState state) {
     // Mode passes one-time (lot 5) : pas de toggle de périodicité, on rend une
     // carte par module avec ses passes (durée + prix). Le mode abonnement
@@ -252,7 +195,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildContexte(state),
           Text(
             oneTime ? 'Accès' : 'Abonnement',
             style: AppFonts.mono(size: 11, color: AppColors.muted),
@@ -321,10 +263,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// Cartes des passes one-time, groupées par module (Civique : 2 passes,
   /// Intégral : 3). Chaque pass = durée + prix + bouton d'achat.
   List<Widget> _buildOneTimeCards(BillingState state) {
-    final modulesToShow = _modulesAAfficher();
-
     final cards = <Widget>[];
-    for (final module in modulesToShow) {
+    for (final module in kPassModulesInOrder) {
       final passes = state.products.where((p) => p.module == module).toList()
         ..sort((a, b) => a.plan.durationDays.compareTo(b.plan.durationDays));
       if (passes.isEmpty) continue;
@@ -342,10 +282,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   List<Widget> _buildPlanCards(BillingState state) {
-    final modulesToShow = _modulesAAfficher();
-
     final cards = <Widget>[];
-    for (final module in modulesToShow) {
+    for (final module in kPassModulesInOrder) {
       final product = _findProduct(state.products, module, _periodicity);
       final loading = state.purchaseInProgress &&
           product != null &&
@@ -362,18 +300,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
     if (cards.isNotEmpty) cards.removeLast();
     return cards;
-  }
-
-  /// 🛑 **LES DEUX MODULES, TOUJOURS.** `initialTarget` ne fait plus que
-  /// **ordonner** : le module visé passe devant, il n'efface plus l'autre.
-  /// L'ancienne règle (`{initialTarget, integral}`) masquait le Civique dès
-  /// qu'on arrivait par une fonctionnalité TCF — donc exactement quand il
-  /// fallait montrer ce que le Pass Civique n'ouvre pas.
-  List<PlanModuleTarget> _modulesAAfficher() {
-    if (widget.initialTarget == PlanModuleTarget.integral) {
-      return const [PlanModuleTarget.integral, PlanModuleTarget.civique];
-    }
-    return const [PlanModuleTarget.civique, PlanModuleTarget.integral];
   }
 
   IapProduct? _findProduct(
@@ -523,7 +449,7 @@ class _PlanCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            module.label,
+            module.cardTitle,
             style: AppFonts.display(size: 24, weight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
@@ -627,7 +553,7 @@ class _OneTimeModuleCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(module.label,
+          Text(module.cardTitle,
               style: AppFonts.display(size: 24, weight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(

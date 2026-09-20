@@ -1416,30 +1416,41 @@ Demande du propriétaire.
   deux fronts posent les mêmes questions, dans le même ordre, et enregistrent
   la même chose. Seul l'encart rouge est retiré des deux.
 
-### Le paywall n'ouvre sur le plan QUE depuis le plan (2026-09-12)
+### Le paywall — plus d'en-tête personnalisé, un ordre fixe (2026-09-20)
 
-🛑 **L'en-tête personnalisé du paywall** — « Votre plan B2 est prêt », le pitch,
-les priorités réelles, les quatre bénéfices — **ne s'affiche que depuis le Plan
-ou un écran de diagnostic**. `PaywallOrigin` (`core/widgets/paywall_context.dart`,
-miroir web) le porte, `showPaywallSheet` / `showTcfLockPaywall` le propagent, et
-le **défaut est `ailleurs`** : une vingtaine d'écrans ouvrent le paywall, deux
-seulement ont le contexte. Ailleurs — un cadenas de série, un slot d'examen, une
-tâche de production — l'écran commence directement à **« Débloquez votre
-accès »**.
+⚠️ **Cette section REMPLACE « Le paywall n'ouvre sur le plan QUE depuis le
+plan »**, devenue fausse : `PaywallOrigin` a été supprimé des deux fronts (A138),
+et l'en-tête personnalisé — « Votre plan B2 est prêt », les priorités réelles,
+les bénéfices — n'existe plus. L'écran commence **toujours** à « Débloquez votre
+accès ».
 
-**Pourquoi** : depuis un cadenas quelconque, « votre plan est prêt » promet un
-écran que le candidat n'a pas sous les yeux, et repousse l'offre d'une page
-entière. Les deux conditions se cumulent : il faut **de quoi** personnaliser (un
-Plan servi, `isContextualised`) **et** une raison de le faire (l'origine).
+🛑 **Les deux bandeaux d'échéance sont SUPPRIMÉS** (demande du propriétaire) :
+« Objectif B2 avant le … — il vous reste N jours. » et « Votre examen est le … Le
+pass N couvre toute votre préparation. » `PaywallContext`, `paywallContext`,
+`echeanceLine` et `passRecommande` partent avec eux, des deux côtés, ainsi que
+`web_sejoufr/lib/paywall-context.ts` **en entier**. ⚠️ `core/widgets/paywall_context.dart`
+**survit** pour `joursAvantExamen` / `formatJour`, que l'onboarding de la date
+d'examen (`target_path_screen.dart`) emploie toujours — et pour `passFromPrice`.
+Ne pas supprimer ce fichier « par symétrie » avec le web.
 
-**La section est refaite sur la maquette** (`~/Desktop/grok_ecran`,
-`screens/paywall.tsx`, capture `paywall-web-mobile.png`) : pastille d'icône,
-titre et pitch alignés à gauche, puis **deux cartes** — les priorités (pastille
-de rang rouge / ambre / jaune, les teintes de `SfPrio`) et les bénéfices, chacun
-avec son **pictogramme**. ⚠️ Tout était posé à plat, titres et paragraphes
-empilés : ça se lisait comme une page de texte, pas comme une promesse.
-🛑 **Le pictogramme vient du `kind` du bénéfice** (`PaywallBenefitKind`), jamais
-de son rang : deux bénéfices réordonnés ne peuvent pas échanger leurs icônes.
+🛑 **L'Intégral passe TOUJOURS en premier, et l'ordre est FIXE.** Il est déclaré
+**une seule fois par front** — `kPassModulesInOrder` (`core/models/billing_models.dart`)
+⇄ `PASS_MODULES_IN_ORDER` (`web_sejoufr/lib/passes.ts`) — et **plus aucune surface
+ne le réordonne selon le module d'arrivée**. Le tri par durée croissante **à
+l'intérieur** d'un module ne change pas.
+
+⚠️ **Conséquence assumée** : `PaywallScreen.initialTarget` et le paramètre de
+module de `showPaywallSheet` devenaient morts — ils sont **supprimés**, avec leurs
+six appelants. Côté web, `?module=` sur `/paiement` est devenu **inerte** ; ses
+producteurs restent en place (un paramètre d'URL inoffensif), leur retrait est un
+chantier à part. Le pass ciblé reste repéré et scrollé par `?plan=`, inchangé.
+
+🛑 **La carte civique s'intitule « Examen civique uniquement »**
+(`PlanModuleTargetX.cardTitle` ⇄ `PASS_MODULE_CARD_TITLE`) — maintenant qu'elle
+passe **en second**, « Civique » seul se lirait comme un accès complet moins cher.
+⚠️ **Deux tables, et c'est voulu** : le **nom court** reste « Civique » pour la
+prose et les CTA (`label` ⇄ `PASS_MODULE_NAME`) — « Souscrire Examen civique
+uniquement » ne se lit pas.
 
 ### L'Accueil refait sur la maquette (2026-09-12, `screens/home/`)
 

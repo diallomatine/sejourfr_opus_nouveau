@@ -20,6 +20,9 @@ import {
     formatPassPrice,
     isOneTimeCatalog,
     oneTimePassesOf,
+    PASS_MODULE_CARD_TITLE,
+    PASS_MODULE_NAME,
+    PASS_MODULES_IN_ORDER,
     passDurationLabel,
     passMonthlyLabel,
     passSessionsLabel,
@@ -33,7 +36,6 @@ import {
 const PRESENTATION: Record<
     PlanModuleTarget,
     {
-        name: string;
         tone: "blue" | "red";
         tag: string;
         pitch: string;
@@ -50,7 +52,6 @@ const PRESENTATION: Record<
     }
 > = {
     CIVIQUE: {
-        name: "Civique",
         tone: "blue",
         tag: "POUR CSP · CR · NAT",
         pitch: "L'accès complet au module civique pour préparer votre démarche.",
@@ -68,7 +69,6 @@ const PRESENTATION: Record<
         ],
     },
     INTEGRAL: {
-        name: "Intégral",
         tone: "red",
         tag: "CIVIQUE + TCF",
         pitch: "Civique + TCF IRN avec EE/EO évalués par IA. Le plus complet pour CR ou naturalisation.",
@@ -105,11 +105,6 @@ function deriveCurrentPlan(user: AuthenticatedUser | null): CurrentPlan {
     if (user.hasTcf) return "INTEGRAL";
     if (user.hasCivique) return "CIVIQUE";
     return "FREE";
-}
-
-function moduleFromParam(raw: string | null): PlanModuleTarget | null {
-    if (raw === "CIVIQUE" || raw === "INTEGRAL") return raw;
-    return null;
 }
 
 function periodicityFromParam(raw: string | null): PlanPeriodicity | null {
@@ -177,7 +172,6 @@ function PaiementInner() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const currentPlan = deriveCurrentPlan(user);
-    const focusedModule = moduleFromParam(searchParams.get("module"));
 
     // Pass choisi en amont (landing /reussir, paywall) : on le met en évidence et
     // on scrolle dessus — l'utilisateur retrouve exactement ce qu'il a cliqué.
@@ -246,20 +240,19 @@ function PaiementInner() {
      * « des fois on masque civique ou intégral selon des conditions. Donc
      * toujours afficher les 2 et laisser la personne choisir »).
      *
-     * Deux conditions de masquage ont sauté :
-     * - `currentPlan === "INTEGRAL"` ne rend plus **que** l'Intégral — un
-     *   candidat déjà Intégral voyait disparaître le Civique, donc la preuve
-     *   que son pass le couvre déjà ;
-     * - `focusedModule === "INTEGRAL"` ne masque plus le Civique — arriver par
-     *   `?module=INTEGRAL` fermait le seul écran où les deux périmètres se
-     *   comparent, et c'est là que se lit « le Pass Civique n'ouvre pas le
-     *   TCF ». Le `?module=` reste un **ordre d'affichage** : le module visé
-     *   passe devant, il n'efface pas l'autre.
+     * Deux conditions de masquage ont sauté : `currentPlan === "INTEGRAL"` ne
+     * rend plus **que** l'Intégral — un candidat déjà Intégral voyait
+     * disparaître le Civique, donc la preuve que son pass le couvre déjà —, et
+     * `?module=INTEGRAL` ne masque plus le Civique, alors que cet écran est le
+     * seul où les deux périmètres se comparent.
+     *
+     * 🛑 **L'ordre n'est PAS décidé ici** : il vit dans `PASS_MODULES_IN_ORDER`
+     * (`lib/passes.ts`), avec toutes les autres surfaces d'offre. L'Intégral
+     * passe toujours devant — c'est une mise en avant, pas une réponse au clic
+     * précédent, donc `?module=` ne réordonne plus rien (le pass visé reste
+     * repéré par `?plan=`).
      */
-    const visibleModules = useMemo<PlanModuleTarget[]>(
-        () => (focusedModule === "INTEGRAL" ? ["INTEGRAL", "CIVIQUE"] : ["CIVIQUE", "INTEGRAL"]),
-        [focusedModule],
-    );
+    const visibleModules = PASS_MODULES_IN_ORDER;
 
     async function handleSubscribe(planCode: string) {
         // Ce clic engage réellement l'achat (ouverture de la Checkout Stripe),
@@ -441,7 +434,7 @@ function OneTimePasses({
                            onSubscribe,
                        }: {
     plans: PlanPublicResponse[];
-    modules: PlanModuleTarget[];
+    modules: readonly PlanModuleTarget[];
     loadingCode: string | null;
     targetPlanCode: string | null;
     onSubscribe: (code: string) => void;
@@ -463,7 +456,7 @@ function OneTimePasses({
                 return (
                     <article key={module} className={`otp-card otp-${pres.tone}`}>
                         <span className="otp-tag">{pres.tag}</span>
-                        <h2 className="otp-name">{pres.name}</h2>
+                        <h2 className="otp-name">{PASS_MODULE_CARD_TITLE[module]}</h2>
                         <p className="otp-pitch">{pres.pitch}</p>
                         <ul className="otp-features">
                             {pres.features.map((f) => (
@@ -728,6 +721,9 @@ function PlanCard({
 }) {
     const preset = PRESENTATION[module];
     const tone = preset.tone;
+    // Le nom COURT entre dans une phrase (« Choisir Intégral »), le titre de
+    // carte nomme le périmètre — deux libellés, une seule autorité.
+    const moduleName = PASS_MODULE_NAME[module];
 
     let ctaLabel: string;
     if (loading) {
@@ -735,13 +731,13 @@ function PlanCard({
     } else {
         switch (intent) {
             case "current":
-                ctaLabel = `Renouveler ${preset.name} →`;
+                ctaLabel = `Renouveler ${moduleName} →`;
                 break;
             case "upgrade":
                 ctaLabel = "Passer à l'Intégral →";
                 break;
             default:
-                ctaLabel = `Choisir ${preset.name} →`;
+                ctaLabel = `Choisir ${moduleName} →`;
         }
     }
 
@@ -766,7 +762,7 @@ function PlanCard({
                 </span>
             )}
             <span className={`plan-tag plan-tag-${tone}`}>{preset.tag}</span>
-            <h2 className="plan-name">{preset.name}</h2>
+            <h2 className="plan-name">{PASS_MODULE_CARD_TITLE[module]}</h2>
             <p className="plan-pitch">{preset.pitch}</p>
 
             <div className="plan-price">

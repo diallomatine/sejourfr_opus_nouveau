@@ -12,6 +12,8 @@ import {
   formatPassPrice,
   isOneTimeCatalog,
   oneTimePassesOf,
+  PASS_MODULE_CARD_TITLE,
+  PASS_MODULES_IN_ORDER,
   passCheckoutHref,
   passDurationLabel,
   passMonthlyLabel,
@@ -178,24 +180,20 @@ export function PricingPlans({
           si vous prolongez.
         </p>
         <div className="pp-cards">
-          <PassModuleCard
-            preset={PRESENTATIONS.CIVIQUE}
-            name="Civique"
-            passes={oneTimePassesOf(plans, "CIVIQUE")}
-            featured={false}
-            authenticated={authenticated}
-            source={source}
-            onCta={onCta}
-          />
-          <PassModuleCard
-            preset={PRESENTATIONS.INTEGRAL}
-            name="Intégral"
-            passes={oneTimePassesOf(plans, "INTEGRAL")}
-            featured
-            authenticated={authenticated}
-            source={source}
-            onCta={onCta}
-          />
+          {/* 🛑 L'ordre vient de `PASS_MODULES_IN_ORDER` : l'Intégral d'abord,
+              comme sur `/paiement`, `/reussir` et le paywall mobile. */}
+          {PASS_MODULES_IN_ORDER.map((module) => (
+            <PassModuleCard
+              key={module}
+              preset={PRESENTATIONS[module]}
+              name={PASS_MODULE_CARD_TITLE[module]}
+              passes={oneTimePassesOf(plans, module)}
+              featured={module === "INTEGRAL"}
+              authenticated={authenticated}
+              source={source}
+              onCta={onCta}
+            />
+          ))}
           {freePlan && (
             <PricingCard
               preset={PRESENTATIONS.FREE}
@@ -251,28 +249,23 @@ export function PricingPlans({
             onCta={onFreeCta}
           />
         )}
-        {civique && (
-          <PricingCard
-            preset={PRESENTATIONS.CIVIQUE}
-            name={civique.name}
-            price={civique.price}
-            originalPrice={civique.originalPrice}
-            periodicity={periodicity}
-            href={withTrafficSource(`/paiement?module=CIVIQUE&period=${periodicity}`, source)}
-            onCta={() => onCta(civique.code)}
-          />
-        )}
-        {integral && (
-          <PricingCard
-            preset={PRESENTATIONS.INTEGRAL}
-            name={integral.name}
-            price={integral.price}
-            originalPrice={integral.originalPrice}
-            periodicity={periodicity}
-            href={withTrafficSource(`/paiement?module=INTEGRAL&period=${periodicity}`, source)}
-            onCta={() => onCta(integral.code)}
-          />
-        )}
+        {/* Même ordre que la grille de passes : `PASS_MODULES_IN_ORDER`. */}
+        {PASS_MODULES_IN_ORDER.map((module) => {
+          const plan = module === "CIVIQUE" ? civique : integral;
+          if (!plan) return null;
+          return (
+            <PricingCard
+              key={module}
+              preset={PRESENTATIONS[module]}
+              name={plan.name}
+              price={plan.price}
+              originalPrice={plan.originalPrice}
+              periodicity={periodicity}
+              href={withTrafficSource(`/paiement?module=${module}&period=${periodicity}`, source)}
+              onCta={() => onCta(plan.code)}
+            />
+          );
+        })}
       </div>
 
       <style>{styles}</style>

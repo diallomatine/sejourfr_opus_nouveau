@@ -1,19 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
-import { billingApi, learningPlanApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import {
-  echeanceLine,
-  passRecommande,
-  paywallContext,
-  type PaywallContext,
-} from "@/lib/paywall-context";
-import type { PlanPublicResponse } from "@/lib/types";
 
 interface PaywallSheetProps {
   open: boolean;
@@ -57,36 +48,6 @@ export function PaywallSheet({
     if (open) trackPaywallViewed();
   }, [open]);
 
-  const { user } = useAuth();
-  const [ctx, setCtx] = useState<PaywallContext | null>(null);
-  const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
-
-  /**
-   * Contextualisation **best-effort** (`10_` §5). Deux règles :
-   *
-   * 🛑 Un échec ne dégrade jamais le paywall — on retombe sur le message
-   * générique, et surtout on ne bloque pas l'achat.
-   * 🛑 Aucun indicateur d'attente : la feuille s'ouvre tout de suite, le
-   * contexte s'ajoute quand il arrive. Un spinner devant une offre est le
-   * meilleur moyen de perdre l'acheteur.
-   */
-  useEffect(() => {
-    if (!open) return;
-    let annule = false;
-    void (async () => {
-      const [plan, catalogue] = await Promise.all([
-        learningPlanApi.getCached().catch(() => null),
-        billingApi.listPlans().catch(() => null),
-      ]);
-      if (annule) return;
-      setCtx(paywallContext(plan, user));
-      setPlans(catalogue);
-    })();
-    return () => {
-      annule = true;
-    };
-  }, [open, user]);
-
   // La provenance suit le visiteur jusqu'à la page d'achat.
   const paymentHref = useTrafficSourceHref(`/paiement?module=${module}`);
 
@@ -108,16 +69,12 @@ export function PaywallSheet({
 
   if (!open) return null;
 
-  /* 🛑 **Plus d'en-tête personnalisé** (demande du propriétaire, 2026-09-20).
-     « Votre plan B2 est prêt », le pitch, les priorités réelles et les
-     bénéfices du plan **sont partis** : la promesse est dite une fois, sur
-     l'écran de transition (`/plan/debloquer`), et la répéter ici la disait deux
-     fois de suite. ⚠️ Ce qui reste — l'échéance déclarée et le pass qui la
-     couvre — ne parle **pas** du plan : ce sont les deux faits qui aident à
-     CHOISIR une durée, et ils ont leur place sur une offre. */
-  const echeance = ctx ? echeanceLine(ctx) : null;
-  const pass = ctx ? passRecommande(ctx, plans) : null;
-
+  /* 🛑 **Aucun bandeau de contexte** (demande du propriétaire, 2026-09-20).
+     L'en-tête personnalisé était déjà parti ; les deux derniers bandeaux —
+     « Objectif B2 avant le … — il vous reste N jours. » et « Votre examen est
+     le … Le pass N couvre toute votre préparation. » — sont partis avec, et
+     avec eux `lib/paywall-context.ts`, qui ne servait plus qu'à les composer.
+     Ne pas les réintroduire : l'offre dit le prix, pas l'échéance. */
   return (
     <div
       className="pws"
@@ -148,12 +105,6 @@ export function PaywallSheet({
 
         <h2 id="paywall-title" className="pws-title">{title}</h2>
         <p className="pws-text">{message}</p>
-
-        {/* L'échéance du candidat, quand il l'a déclarée. */}
-        {echeance && <p className="pws-echeance">{echeance}</p>}
-
-        {/* Le levier propre aux pass : aligner la durée sur l'échéance. */}
-        {pass && <p className="pws-pass">{pass.phrase}</p>}
 
         <div className="pws-features">
           <div className="pws-feature">
@@ -234,20 +185,6 @@ export function PaywallSheet({
           border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           box-shadow: 0 8px 24px -8px rgba(30, 58, 140, 0.4);
-        }
-        .pws-echeance {
-          margin: 0 0 10px;
-          font-family: var(--font-mono);
-          font-size: 12px;
-          color: var(--color-red-dark);
-        }
-        .pws-pass {
-          margin: 0 0 12px;
-          font-size: 13px;
-          color: var(--color-blue-dark);
-          background: var(--color-blue-light);
-          border-radius: 10px;
-          padding: 10px 12px;
         }
         .pws-title {
           font-family: var(--font-display);

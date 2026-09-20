@@ -9,7 +9,6 @@ import '../../core/router/route_observer.dart';
 import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/models/billing_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -356,7 +355,6 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
                     onPressed: () => showPaywallSheet(
                       context,
                       ref: ref,
-                      initialTarget: PlanModuleTarget.integral,
                       ctaLocation: AnalyticsCtaLocation.diagnosticReport,
                     ),
                   ),

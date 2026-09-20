@@ -42,6 +42,7 @@ import {
   findOneTimePass,
   formatPassPrice,
   passDurationLabel,
+  PASS_MODULE_NAME,
   passModuleOf,
   passMonthlyLabel,
   passSessionsLabel,
@@ -52,11 +53,6 @@ import type { PlanPublicResponse, SubscriptionStatusResponse } from "@/lib/types
 // ============================================================================
 // PRÉSENTATION (miroir de /paiement — ce que le module ouvre)
 // ============================================================================
-
-const MODULE_NAME: Record<PassModule, string> = {
-  CIVIQUE: "Civique",
-  INTEGRAL: "Intégral",
-};
 
 const SCOPE: Record<PassModule, { tag: string; pitch: string; features: string[] }> = {
   CIVIQUE: {
@@ -276,7 +272,7 @@ function RecapInner() {
       <header className="rcp-head">
         <span className="rcp-eyebrow">RÉCAPITULATIF</span>
         <h1 className="rcp-title">
-          Votre pass <em>{MODULE_NAME[passModule]}</em> — {duration}
+          Votre pass <em>{PASS_MODULE_NAME[passModule]}</em> — {duration}
         </h1>
         <p className="rcp-sub">
           Vérifiez votre choix, puis poursuivez vers le paiement sécurisé Stripe.
@@ -418,7 +414,7 @@ function AccessNote({
         votre pass Civique
         {access.currentEnd ? <> (jusqu&apos;au {formatDate(access.currentEnd)})</> : null}{" "}
         est déduit du prix ci-dessus : Stripe affiche le montant exact avant que
-        vous validiez. Votre accès {MODULE_NAME[passModule]} court alors {duration} à
+        vous validiez. Votre accès {PASS_MODULE_NAME[passModule]} court alors {duration} à
         partir du paiement.
       </span>
     </p>

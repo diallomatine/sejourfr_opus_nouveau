@@ -19,6 +19,54 @@ import { realtimeSessionsLabel, type PlanPublicResponse } from "./types";
 export type PassModule = "CIVIQUE" | "INTEGRAL";
 
 /**
+ * 🛑 **L'ORDRE DES MODULES DANS UNE GRILLE DE PASS — décidé ICI, et nulle part
+ * ailleurs.** L'**Intégral passe toujours devant** le Civique (demande du
+ * propriétaire, 2026-09-20 : « pour l'affichage des pass, toujours afficher le
+ * plan intégral en premier et la partie civique »).
+ *
+ * ⚠️ **L'ordre est FIXE** : il ne dépend plus du module d'arrivée
+ * (`/paiement?module=`). C'est une règle de mise en avant commerciale, pas une
+ * réponse au clic précédent — le pass ciblé reste repéré par `?plan=`, qui
+ * surligne sa ligne et scrolle dessus.
+ *
+ * ⚠️ Le tri **par durée croissante à l'intérieur d'un module** ne change pas :
+ * il vit dans `oneTimePassesOf`.
+ *
+ * Miroir Dart : `kPassModulesInOrder` (`core/models/billing_models.dart`).
+ */
+export const PASS_MODULES_IN_ORDER: readonly PassModule[] = ["INTEGRAL", "CIVIQUE"];
+
+/**
+ * **Le nom court d'un module**, celui qui se glisse dans une phrase
+ * (« Votre pass Civique — 3 mois »).
+ *
+ * Miroir Dart : `PlanModuleTargetX.label`.
+ */
+export const PASS_MODULE_NAME: Record<PassModule, string> = {
+  INTEGRAL: "Intégral",
+  CIVIQUE: "Civique",
+};
+
+/**
+ * 🛑 **LE TITRE DE LA CARTE d'un module dans une grille de pass**, déclaré une
+ * seule fois pour tout le web.
+ *
+ * Le civique dit « **Examen civique uniquement** » (demande du propriétaire,
+ * 2026-09-20) : depuis qu'il passe **après** l'Intégral, un titre « Civique »
+ * se lisait comme un accès complet. Le titre nomme donc son **périmètre**.
+ *
+ * ⚠️ **Distinct de `PASS_MODULE_NAME`** : ce libellé-là est un **titre**, il ne
+ * se met pas dans une phrase (« Votre pass Examen civique uniquement » ne se
+ * lit pas).
+ *
+ * Miroir Dart : `PlanModuleTargetX.cardTitle`.
+ */
+export const PASS_MODULE_CARD_TITLE: Record<PassModule, string> = {
+  INTEGRAL: "Intégral",
+  CIVIQUE: "Examen civique uniquement",
+};
+
+/**
  * Pass mis en avant (« le plus populaire »), cohérent web ⇄ mobile
  * (`_popularPassCode`). Un pass ne peut pas être « le plus populaire » sur une
  * surface et anonyme sur la suivante.

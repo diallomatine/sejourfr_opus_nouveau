@@ -801,8 +801,9 @@ export const userContentApi = {
      * changement de procédure. `null` efface volontairement — « pas encore de
      * date » est une réponse, pas une absence de réponse.
      *
-     * C'est cette date qui alimente le compte à rebours et le pass recommandé
-     * du paywall (L5) : sans elle, `passRecommande` ne peut rien proposer.
+     * ⚠️ Elle n'alimente **plus** le paywall : les deux bandeaux d'échéance ont
+     * été supprimés le 2026-09-20 (demande du propriétaire), et
+     * `lib/paywall-context.ts` avec eux.
      */
     /**
      * **Où en sont les deux préparations** — l'état UNIQUE.

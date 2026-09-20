@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../analytics/analytics.dart';
-import '../models/billing_models.dart';
 import '../../screens/paywall/paywall_screen.dart';
 
 /// Pousse l'écran paywall plein écran (IAP natif Apple/Google).
@@ -13,8 +12,10 @@ import '../../screens/paywall/paywall_screen.dart';
 /// contenu digital), donc on push directement l'écran paywall avec son
 /// toggle de périodicité.
 ///
-/// [initialTarget] permet de focus un module spécifique (ex: INTÉGRAL si le
-/// paywall pop sur une feature TCF). Si null, on montre les deux cards.
+/// 🛑 **Aucun module à mettre en avant** : l'ordre des cartes est FIXE
+/// (`kPassModulesInOrder`, Intégral d'abord — demande du propriétaire,
+/// 2026-09-20), et les deux sont toujours affichées. L'ancien `initialTarget`
+/// ne faisait plus qu'ordonner : il est parti avec la règle qu'il portait.
 /// Renvoie un `Future` qui se complète au pop du paywall — utile pour
 /// rafraîchir un écran (ex: « Mon accès ») au retour. Les appelants qui
 /// n'en ont pas besoin peuvent ignorer le retour.
@@ -29,7 +30,6 @@ import '../../screens/paywall/paywall_screen.dart';
 /// donc rien n'est perdu.
 Future<void> showPaywallSheet(
   BuildContext context, {
-  PlanModuleTarget? initialTarget,
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
 }) {
@@ -41,7 +41,7 @@ Future<void> showPaywallSheet(
   }
   return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
-      builder: (_) => PaywallScreen(initialTarget: initialTarget),
+      builder: (_) => const PaywallScreen(),
       fullscreenDialog: true,
     ),
   );

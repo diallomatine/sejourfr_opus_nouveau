@@ -174,11 +174,50 @@ extension PlanModuleTargetX on PlanModuleTarget {
         PlanModuleTarget.integral => 'INTEGRAL',
       };
 
+  /// **Le nom court d'un module**, celui qui se glisse dans une phrase
+  /// (« Souscrire Intégral »).
+  ///
+  /// Miroir web : `PASS_MODULE_NAME` (`lib/passes.ts`).
   String get label => switch (this) {
         PlanModuleTarget.civique => 'Civique',
         PlanModuleTarget.integral => 'Intégral',
       };
+
+  /// 🛑 **LE TITRE DE LA CARTE d'un module dans une grille de pass**, déclaré
+  /// une seule fois pour tout le mobile.
+  ///
+  /// Le civique dit « **Examen civique uniquement** » (demande du propriétaire,
+  /// 2026-09-20) : depuis qu'il passe **après** l'Intégral, un titre
+  /// « Civique » se lisait comme un accès complet. Le titre nomme donc son
+  /// **périmètre**.
+  ///
+  /// ⚠️ **Distinct de [label]** : celui-ci est un **titre**, il ne se met pas
+  /// dans une phrase (« Souscrire Examen civique uniquement » ne se lit pas).
+  ///
+  /// Miroir web : `PASS_MODULE_CARD_TITLE` (`lib/passes.ts`).
+  String get cardTitle => switch (this) {
+        PlanModuleTarget.civique => 'Examen civique uniquement',
+        PlanModuleTarget.integral => 'Intégral',
+      };
 }
+
+/// 🛑 **L'ORDRE DES MODULES DANS UNE GRILLE DE PASS — décidé ICI, et nulle part
+/// ailleurs.** L'**Intégral passe toujours devant** le Civique (demande du
+/// propriétaire, 2026-09-20 : « pour l'affichage des pass, toujours afficher le
+/// plan intégral en premier et la partie civique »).
+///
+/// ⚠️ **L'ordre est FIXE** : il ne dépend plus du module d'arrivée
+/// (`PaywallScreen.initialTarget`). C'est une règle de mise en avant
+/// commerciale, pas une réponse au geste précédent.
+///
+/// ⚠️ Le tri **par durée croissante à l'intérieur d'un module** ne change pas :
+/// il vit dans l'écran qui compose les cartes.
+///
+/// Miroir web : `PASS_MODULES_IN_ORDER` (`lib/passes.ts`).
+const List<PlanModuleTarget> kPassModulesInOrder = [
+  PlanModuleTarget.integral,
+  PlanModuleTarget.civique,
+];
 
 /// Dérive le `planCode` backend à partir d'un module + d'une périodicité.
 /// Doit rester aligné avec la table `plans` côté backend (migration V106).

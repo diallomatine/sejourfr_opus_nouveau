@@ -33,6 +33,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   formatPassPrice,
   oneTimePassesOf,
+  PASS_MODULES_IN_ORDER,
   passCheckoutHref,
   passDurationLabel,
   passSessionsLabel,
@@ -834,18 +835,28 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
             Choisissez selon l&apos;examen que vous préparez.
           </h2>
           <p className={styles.lead} style={{ marginTop: 12 }}>
-            Seulement l&apos;examen civique&nbsp;? Prenez le Pass Examen civique. Vous
-            préparez aussi le TCF IRN&nbsp;? Prenez le Pass Intégral.
+            Vous préparez aussi le TCF IRN&nbsp;? Prenez le Pass Intégral. Seulement
+            l&apos;examen civique&nbsp;? Prenez le Pass Examen civique.
           </p>
         </div>
 
         <div className={styles.pricingGrid}>
-          {civique.length > 0 && (
-            <PriceCard module="CIVIQUE" plans={civique} isAuth={isAuth} origin={origin} />
-          )}
-          {integral.length > 0 && (
-            <PriceCard module="INTEGRAL" plans={integral} isAuth={isAuth} origin={origin} featured />
-          )}
+          {/* 🛑 L'ordre vient de `PASS_MODULES_IN_ORDER` (`lib/passes.ts`), la
+              seule autorité du web : l'Intégral passe devant le Civique. */}
+          {PASS_MODULES_IN_ORDER.map((module) => {
+            const passes = module === "CIVIQUE" ? civique : integral;
+            if (passes.length === 0) return null;
+            return (
+              <PriceCard
+                key={module}
+                module={module}
+                plans={passes}
+                isAuth={isAuth}
+                origin={origin}
+                featured={module === "INTEGRAL"}
+              />
+            );
+          })}
         </div>
 
         <p className={`${styles.mini} ${styles.center}`} style={{ marginTop: 24 }} data-rv>

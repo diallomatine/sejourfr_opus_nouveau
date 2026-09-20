@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/repositories.dart';
-import '../../core/models/billing_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/start_failure.dart';
@@ -84,7 +83,5 @@ Future<void> startCivicUniteSerie(
 
 /// **La seule porte d'achat du civique** : l'écran d'offre, qui porte les vrais
 /// passes et leurs prix du store.
-Future<void> openCivicOffer(BuildContext context) => showPaywallSheet(
-      context,
-      initialTarget: PlanModuleTarget.civique,
-    );
+Future<void> openCivicOffer(BuildContext context) =>
+    showPaywallSheet(context);

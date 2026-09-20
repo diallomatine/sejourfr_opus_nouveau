@@ -123,8 +123,9 @@ class UserContentRepository {
   /// de la démarche l'effacerait à chaque changement de procédure. `null`
   /// efface volontairement — « pas encore de date » est une réponse.
   ///
-  /// C'est elle qui alimente le compte à rebours et le pass recommandé du
-  /// paywall (L5) : sans elle, `passRecommande` ne peut rien proposer.
+  /// ⚠️ Elle n'alimente **plus** le paywall : les deux bandeaux d'échéance ont
+  /// été supprimés le 2026-09-20 (demande du propriétaire). Son seul lecteur
+  /// est le décompte de la carte de date (`target_path_screen.dart`).
   Future<void> updateExamDate(DateTime? examDate) async {
     await _client.dio.put(
       '/api/me/exam-date',

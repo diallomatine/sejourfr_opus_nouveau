@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../analytics/analytics.dart';
-import '../models/billing_models.dart';
 import '../theme/app_theme.dart';
 import 'app_tag.dart';
 import 'paywall_sheet.dart';
@@ -38,12 +37,7 @@ Future<void> showTcfLockPaywall(
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
 }) =>
-    showPaywallSheet(
-      context,
-      initialTarget: PlanModuleTarget.integral,
-      ref: ref,
-      ctaLocation: ctaLocation,
-    );
+    showPaywallSheet(context, ref: ref, ctaLocation: ctaLocation);
 
 /// Pilule « Abonnement » à poser à côté d'un titre ou d'un statut.
 class PremiumLockTag extends StatelessWidget {

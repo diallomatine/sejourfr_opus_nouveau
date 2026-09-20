@@ -260,10 +260,7 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
     }));
   }
 
-  Future<void> _ouvrirOffre() => showPaywallSheet(
-        context,
-        initialTarget: planUnlockPassModule(widget.module),
-      );
+  Future<void> _ouvrirOffre() => showPaywallSheet(context);
 
   void _acheter() {
     ref.read(analyticsServiceProvider).track(

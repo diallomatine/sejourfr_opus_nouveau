@@ -62,13 +62,11 @@ class ManageSubscriptionScreen extends ConsumerWidget {
                     ? _PremiumView(
                         status: status,
                         plan: _planFor(status, plans),
-                        onExtend: () =>
-                            _openPaywall(context, ref, _targetFor(status)),
-                        onChangeOffer: () => _openPaywall(
-                            context, ref, PlanModuleTarget.integral),
+                        onExtend: () => _openPaywall(context, ref),
+                        onChangeOffer: () => _openPaywall(context, ref),
                       )
                     : _NotPremiumView(
-                        onUnlock: () => _openPaywall(context, ref, null),
+                        onUnlock: () => _openPaywall(context, ref),
                       ),
               ),
             ),
@@ -90,16 +88,14 @@ class ManageSubscriptionScreen extends ConsumerWidget {
     return null;
   }
 
-  PlanModuleTarget _targetFor(SubscriptionStatusResponse s) =>
-      s.moduleAccess == ModuleAccess.integral
-          ? PlanModuleTarget.integral
-          : PlanModuleTarget.civique;
-
   /// Ouvre le paywall puis rafraîchit le statut au retour (la date
   /// d'expiration peut avoir bougé après un achat).
-  Future<void> _openPaywall(
-      BuildContext context, WidgetRef ref, PlanModuleTarget? target) async {
-    await showPaywallSheet(context, initialTarget: target);
+  ///
+  /// 🛑 **Aucun module mis en avant** : l'écran d'offre montre les deux cartes
+  /// dans un ordre fixe (`kPassModulesInOrder`), prolongation comme montée en
+  /// gamme.
+  Future<void> _openPaywall(BuildContext context, WidgetRef ref) async {
+    await showPaywallSheet(context);
     ref.invalidate(_subscriptionStatusProvider);
   }
 }
