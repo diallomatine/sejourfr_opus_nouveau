@@ -47,6 +47,10 @@ const TCF_QCM = {
 } as const;
 type TcfCode = keyof typeof TCF_QCM;
 
+/** L'intertitre du catalogue de niveaux. **Miroir mot pour mot du mobile**
+ *  (`kQcmLevelsSectionTitle`, `tcf_qcm_detail_screen.dart`). */
+const QCM_LEVELS_SECTION_TITLE = "S'entraîner par niveau";
+
 const LEVELS: {
   key: string;
   chip: string;
@@ -176,6 +180,12 @@ export default function TcfQcmDetailPage() {
             icon={<config.icon size={24} strokeWidth={2} />}
           />
         )}
+
+        {/* 🛑 **L'intertitre sépare la recommandation du catalogue** (demande
+            du propriétaire, 2026-09-20) : sans lui, les cartes de niveau se
+            lisaient comme la suite de la carte du cycle. Même rôle que
+            « Les 3 tâches » sur les écrans d'expression. */}
+        <h2 className={detail.sectionTitle}>{QCM_LEVELS_SECTION_TITLE}</h2>
 
         <div className={detail.levelGrid}>
           {LEVELS.map((lv) => {

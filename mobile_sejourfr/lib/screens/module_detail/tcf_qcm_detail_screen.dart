@@ -23,6 +23,10 @@ import 'widgets/qcm_hub/qcm_notice_banner.dart';
 ///
 /// `structure` porte un `notice` non nul → bannière d'info rendue en haut du
 /// détail pour signaler que ce module ne fait pas partie du TCF IRN officiel.
+/// L'intertitre du catalogue de niveaux. **Miroir mot pour mot du web**
+/// (`QCM_LEVELS_SECTION_TITLE`, `app/entrainement/tcf/[code]/page.tsx`).
+const String kQcmLevelsSectionTitle = 'S\'entraîner par niveau';
+
 enum TcfQcmModule {
   co(
     routeKey: 'co',
@@ -231,6 +235,16 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                         blocCode: mod.themeCode,
                         icon: mod.icon,
                       ),
+                      // 🛑 **L'intertitre sépare la recommandation du
+                      // catalogue** (demande du propriétaire, 2026-09-20) :
+                      // sans lui, les cartes de niveau se lisaient comme la
+                      // suite de la carte du cycle. Même rôle que « Les 3
+                      // tâches » sur les écrans d'expression.
+                      Text(
+                        kQcmLevelsSectionTitle,
+                        style: AppFonts.ui(size: 17, weight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 10),
                       for (final meta in _levels) ...[
                         _LevelCard(
                           meta: meta,
