@@ -245,7 +245,9 @@ public class FullTcfExamService {
         int safeLimit = Math.max(1, Math.min(HISTORY_LIMIT_MAX, limit));
         List<Attempt> parents = attemptManager.findByUserAndEpreuve(
                 userId, EpreuveType.TCF_COMPLET, safeLimit);
-        return parents.stream().map(responseBuilder::buildSummary).toList();
+        // 🛑 Forme de LISTE : sous-épreuves et niveaux QCM en deux requêtes pour
+        // la page entière, jamais une par examen affiché.
+        return responseBuilder.buildSummaries(parents);
     }
 
     /**

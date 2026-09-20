@@ -62,8 +62,8 @@ public class TcfDiagnosticSectionStarter {
         // 2026-09-13 (arbitrage du proprietaire : « chaque epreuve du
         // diagnostic complet se lance comme un examen blanc complet de
         // l'epreuve ; on peut d'ailleurs y prendre l'examen blanc n°1, meme si
-        // on n'affiche pas "examen 1" »). Les memes 25 items (8 A2 / 9 B1 /
-        // 8 B2), le meme tirage, la meme duree.
+        // on n'affiche pas "examen 1" »). Les memes 25 items (10 A2 / 8 B1 /
+        // 7 B2), le meme tirage, la meme duree.
         //
         // ⚠️ REVOQUE `composeDiagnosticComprehension` POUR CE CHEMIN, et avec
         // elle ses deux specificites : la repartition egale 8/8/8 et l'absence

@@ -235,9 +235,16 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // exception, donc il n'y a plus rien a ouvrir. 🛑 Une EGALITE, jamais un
         // `<=` : c'est la seule facon d'attraper un N+1 ou une requete revenue
         // par la bande.
+        // 23 depuis le 2026-09-20 : le niveau CECRL d'une epreuve QCM n'est plus
+        // PERSISTE, il se DERIVE des reponses. `TcfProfileService.bestQcm` paie
+        // donc une requete agregee PAR EPREUVE de comprehension (CO, CE), soit
+        // deux — et deux seulement, quel que soit le nombre d'examens dans
+        // l'historique du candidat. 🛑 C'est exactement ce que l'assertion
+        // suivante prouve : `grand == petit`. Une boucle sur les sessions aurait
+        // fait exploser ce chiffre avec l'historique.
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(21);
+                .isEqualTo(23);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
@@ -280,17 +287,13 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
      * — c'est exactement ce que {@code TcfProfileService} exige pour compter une
      * epreuve de comprehension.
      */
+    /**
+     * 🛑 Delegue a {@code TestData.examenQcmTcfPasse} : depuis la suppression de
+     * {@code attempts.cecrl_level}, le palier d'une epreuve QCM se DEMONTRE par
+     * ses reponses, il ne se declare plus. Ce helper vivait en quatre copies.
+     */
     private void examenQcmPasse(User user, EpreuveType epreuve, NiveauCecrl niveau) {
-        Attempt attempt = data.attempt(user);
-        attempt.setType(AttemptType.MOCK_EXAM);
-        attempt.setModule(Module.TCF);
-        attempt.setEpreuve(epreuve);
-        attempt.setMode(AttemptMode.EXAMEN);
-        attempt.setStatus(AttemptStatus.TERMINE);
-        attempt.setFinishedAt(Instant.now());
-        attempt.setCecrlLevel(niveau);
-        AttemptQuestion question = data.attemptQuestion(attempt, data.question());
-        data.answer(question);
+        data.examenQcmTcfPasse(user, epreuve, niveau);
     }
 
     /** Une production corrigee : c'est elle qui donne son niveau a EE ou EO. */

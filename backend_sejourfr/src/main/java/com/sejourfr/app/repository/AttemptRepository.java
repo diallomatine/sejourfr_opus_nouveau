@@ -191,6 +191,21 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     List<Attempt> findByParentAttemptIdOrderByStartedAtAsc(UUID parentAttemptId);
 
     /**
+     * Les sous-attempts de PLUSIEURS examens blancs d'un coup — la forme de
+     * liste. Le parent est {@code JOIN FETCH}é : l'appelant regroupe par
+     * {@code parentAttempt.getId()}, et le lire en lazy referait un N+1 sur la
+     * relation, exactement celui qu'on vient de retirer sur les requêtes.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+                     JOIN FETCH a.parentAttempt p
+            WHERE p.id IN :parentAttemptIds
+            ORDER BY a.startedAt ASC
+            """)
+    List<Attempt> findByParentAttemptIds(
+            @Param("parentAttemptIds") Collection<UUID> parentAttemptIds);
+
+    /**
      * Lookup d'un attempt avec son parent eager-loaded (LEFT JOIN FETCH).
      * Utilisé hors transaction longue (ex: {@code ProductionEvaluationService})
      * pour pouvoir lire {@code parentAttempt.epreuve} sans déclencher de
@@ -299,8 +314,8 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * items, quand une section de diagnostic en comptait 15. Cette différence
      * <b>n'existe plus depuis le 2026-09-13</b> — {@code
      * TcfDiagnosticSectionStarter.creerComprehension} appelle le même {@code
-     * composeModuleExam} que l'examen de module : mêmes 25 items (8 A2 / 9 B1 /
-     * 8 B2), même tirage, même durée. Une CE passée dans le diagnostic complet
+     * composeModuleExam} que l'examen de module : mêmes 25 items (10 A2 / 8 B1 /
+     * 7 B2), même tirage, même durée. Une CE passée dans le diagnostic complet
      * est, ligne pour ligne, la même mesure qu'une CE passée seule ; la garder
      * dehors privait le profil de la seule mesure que beaucoup de candidats
      * avaient. Journal : {@code docs/decisions/diagnostic.md}.

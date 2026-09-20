@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -100,4 +101,48 @@ public interface AttemptQuestionRepository extends JpaRepository<AttemptQuestion
             GROUP BY aq.question.theme.id, aq.question.questionType
             """)
     List<Object[]> aggregateByThemeAndType(@Param("attemptId") UUID attemptId);
+
+    /**
+     * 🛑 <b>La requete UNIQUE du niveau QCM.</b> Items poses et reussis de
+     * <b>plusieurs</b> attempts d'un coup, ventiles par epreuve puis par palier :
+     * {@code [attemptId, QuestionType, Difficulty, poses, repondus, reussis]}.
+     *
+     * <p>Elle existe pour une raison precise : depuis le 2026-09-20 le niveau
+     * CECRL d'un QCM n'est plus persiste, il se <b>derive a la lecture</b> des
+     * reponses ({@code TcfLevelEstimatorService.niveauParStrates}). Sans forme
+     * groupee, chaque ecran de LISTE — historique, profil TCF, « Voir mes
+     * resultats », liste des examens blancs — aurait paye une requete par
+     * tentative affichee. Tout lecteur prend la page entiere en une passe ;
+     * {@code AttemptQuestionManager.stratesParAttempt} est son seul appelant.
+     *
+     * <p>Le regroupement porte le {@code questionType} parce qu'un attempt peut
+     * contenir <b>plusieurs epreuves</b> (diagnostic TCF sectionne CO puis CE) :
+     * le niveau se calcule par epreuve, puis on en prend le plancher. Le
+     * repliement {@code CO_IMAGE → CO} est une regle metier, il se fait chez
+     * l'estimateur, pas ici.
+     *
+     * <p>Une question sans reponse compte comme <b>posee et non reussie</b>
+     * ({@code LEFT JOIN} : {@code COUNT(aq)} ne bouge pas, la somme ajoute
+     * zero) — meme convention que {@link #aggregateByDifficulty}. La colonne
+     * {@code repondus} distingue « tout faux » d'« aucune reponse donnee » :
+     * meme verdict aujourd'hui, mais la donnee ne les confond plus.
+     *
+     * <p>🔴 La justesse se lit sur {@code answers.is_correct}, JAMAIS sur
+     * {@code attempt_questions.is_correct} : cette colonne existe en base et
+     * <b>aucun code ne l'ecrit</b> (cf. le detail sur
+     * {@link #aggregateByDifficulty}).
+     */
+    @Query("""
+            SELECT aq.attempt.id,
+                   aq.question.questionType,
+                   aq.question.difficulty,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id IN :attemptIds
+            GROUP BY aq.attempt.id, aq.question.questionType, aq.question.difficulty
+            """)
+    List<Object[]> aggregateStratesByAttempts(@Param("attemptIds") Collection<UUID> attemptIds);
 }

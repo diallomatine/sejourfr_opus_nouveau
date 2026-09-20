@@ -446,7 +446,7 @@ class _TcfHero extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             attempt.calibratedScore != null
-                ? 'Score ${attempt.calibratedScore} / 499 · $score/$total bonnes réponses'
+                ? 'Progression ${attempt.calibratedScore} / 499 · $score/$total bonnes réponses'
                 : '$score/$total bonnes réponses · $percent %',
             style: AppFonts.ui(
               size: 12,

@@ -133,6 +133,16 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
                                                  ~15 questions démo, conversations factices)
 ```
 
+🛑 **UNE EXCEPTION DE NUMÉROTATION, ET UNE SEULE** :
+`00_schema/V879__drop_attempts_cecrl_level.sql` (2026-09-20). C'est du DDL, donc sa place
+est bien dans `00_schema/`, mais son NUMÉRO est volontairement hors de la plage V001-V099.
+Motif : la colonne qu'il supprime est **écrite** par une migration de référence
+(`100_reference/V112__reset_tcf_cecrl_levels`). Flyway ordonnant par numéro et non par
+dossier, un drop en V0xx s'exécuterait AVANT elle et ferait échouer toute base neuve sur
+« column cecrl_level does not exist ». D'où V879 : après tout le contenu (max V878), avant
+le seed dev (V900). **Règle générale à retenir : le drop d'une colonne que des migrations
+postérieures alimentent se numérote APRÈS elles.**
+
 ## Règles
 
 - **`00_schema/` = DDL uniquement** : `CREATE TABLE`/`INDEX`/contraintes/`COMMENT`, aucun

@@ -10,7 +10,6 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
-import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -357,11 +356,11 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         User user = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        Attempt answered = mockExam(user, EpreuveType.TCF_CO, t0, NiveauCecrl.B2);
+        Attempt answered = mockExam(user, EpreuveType.TCF_CO, t0);
         testData.answer(testData.attemptQuestion(answered, testData.question()));
 
         // Fini mais zéro réponse (examen complet abandonné) → exclu.
-        mockExam(user, EpreuveType.TCF_CO, t0.plus(1, ChronoUnit.HOURS), NiveauCecrl.A1_NON_ATTEINT);
+        mockExam(user, EpreuveType.TCF_CO, t0.plus(1, ChronoUnit.HOURS));
 
         List<Attempt> found = manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50);
 
@@ -374,19 +373,18 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         User other = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        Attempt co = mockExam(user, EpreuveType.TCF_CO, t0, NiveauCecrl.A2);
+        Attempt co = mockExam(user, EpreuveType.TCF_CO, t0);
         testData.answer(testData.attemptQuestion(co, testData.question()));
         // Autre épreuve, non fini, autre user, et TRAINING → tous exclus.
-        Attempt ce = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.B1);
+        Attempt ce = mockExam(user, EpreuveType.TCF_CE, t0);
         testData.answer(testData.attemptQuestion(ce, testData.question()));
-        Attempt unfinished = mockExam(user, EpreuveType.TCF_CO, null, NiveauCecrl.B2);
+        Attempt unfinished = mockExam(user, EpreuveType.TCF_CO, null);
         testData.answer(testData.attemptQuestion(unfinished, testData.question()));
         Attempt training = base(user);
         training.setFinishedAt(t0);
-        training.setCecrlLevel(NiveauCecrl.B2);
         save(training);
         testData.answer(testData.attemptQuestion(training, testData.question()));
-        Attempt foreign = mockExam(other, EpreuveType.TCF_CO, t0, NiveauCecrl.B2);
+        Attempt foreign = mockExam(other, EpreuveType.TCF_CO, t0);
         testData.answer(testData.attemptQuestion(foreign, testData.question()));
 
         assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50))
@@ -408,11 +406,11 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         User user = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        Attempt seule = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.A2);
+        Attempt seule = mockExam(user, EpreuveType.TCF_CE, t0);
         testData.answer(testData.attemptQuestion(seule, testData.question()));
 
         Attempt sousEpreuve = diagnosticSubAttempt(user, EpreuveType.TCF_CE,
-                t0.plus(1, ChronoUnit.HOURS), NiveauCecrl.B2);
+                t0.plus(1, ChronoUnit.HOURS));
         testData.answer(testData.attemptQuestion(sousEpreuve, testData.question()));
 
         assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CE, 50))
@@ -429,7 +427,8 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         User user = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        diagnosticSubAttempt(user, EpreuveType.TCF_CO, t0, NiveauCecrl.A1_NON_ATTEINT);
+        diagnosticSubAttempt(user, EpreuveType.TCF_CO,
+                t0);
 
         assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50)).isEmpty();
     }
@@ -439,9 +438,9 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         User user = testData.user();
         Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        Attempt older = mockExam(user, EpreuveType.TCF_CE, t0, NiveauCecrl.B2);
+        Attempt older = mockExam(user, EpreuveType.TCF_CE, t0);
         testData.answer(testData.attemptQuestion(older, testData.question()));
-        Attempt newer = mockExam(user, EpreuveType.TCF_CE, t0.plus(2, ChronoUnit.HOURS), NiveauCecrl.A1);
+        Attempt newer = mockExam(user, EpreuveType.TCF_CE, t0.plus(2, ChronoUnit.HOURS));
         testData.answer(testData.attemptQuestion(newer, testData.question()));
 
         assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CE, 50))
@@ -451,12 +450,16 @@ class AttemptManagerIT extends AbstractIntegrationTest {
 
     // ------------------------------------------------------------------------
 
-    private Attempt mockExam(User user, EpreuveType epreuve, Instant finishedAt, NiveauCecrl level) {
+    /**
+     * ⚠️ Plus de palier en parametre : {@code attempts.cecrl_level} n'existe
+     * plus (V879). Ce qui se teste ici est la REQUETE — quelles sessions sont
+     * « passees » — pas le niveau, qui se derive ailleurs des reponses.
+     */
+    private Attempt mockExam(User user, EpreuveType epreuve, Instant finishedAt) {
         Attempt a = base(user);
         a.setType(AttemptType.MOCK_EXAM);
         a.setEpreuve(epreuve);
         a.setFinishedAt(finishedAt);
-        a.setCecrlLevel(level);
         return save(a);
     }
 
@@ -466,7 +469,7 @@ class AttemptManagerIT extends AbstractIntegrationTest {
      * {@code TcfDiagnosticSectionStarter.creerComprehension}.
      */
     private Attempt diagnosticSubAttempt(
-            User user, EpreuveType epreuve, Instant finishedAt, NiveauCecrl level) {
+            User user, EpreuveType epreuve, Instant finishedAt) {
         Attempt parent = base(user);
         parent.setType(AttemptType.MOCK_EXAM);
         parent.setEpreuve(EpreuveType.TCF_COMPLET);
@@ -483,7 +486,7 @@ class AttemptManagerIT extends AbstractIntegrationTest {
         session.setCompletedAt(Instant.now().minus(1, ChronoUnit.HOURS));
         session = diagnosticSessionManager.save(session);
 
-        Attempt sub = mockExam(user, epreuve, finishedAt, level);
+        Attempt sub = mockExam(user, epreuve, finishedAt);
         sub.setParentAttempt(parent);
         sub.setTcfDiagnostic(session);
         return save(sub);

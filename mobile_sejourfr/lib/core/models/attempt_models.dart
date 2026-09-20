@@ -168,7 +168,7 @@ class Attempt {
   /// examens thématiques civiques.
   final String? themeId;
 
-  /// Score calibré 100-499 (examens module TCF) — affichage façon relevé TCF
+  /// Score de PROGRESSION 100-499 (examens module TCF) — pas un score TCF
   /// à la place du score pondéré X/50. Null hors examen module.
   final int? calibratedScore;
 

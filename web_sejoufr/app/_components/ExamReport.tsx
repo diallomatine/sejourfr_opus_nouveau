@@ -212,11 +212,12 @@ export function ExamReport({
             <h1>Vous avez obtenu {pct}%</h1>
             {contextLabel && <p className="rpt-hero-context">{contextLabel}</p>}
             <dl className="rpt-hero-stats">
-              {/* Examens TCF stratifiés : score calibré 100-499 (échelle TCF),
-                  le brut vit dans le donut. Sinon, score brut classique. */}
+              {/* 🛑 Score de PROGRESSION 100-499 — PAS un score TCF : le
+                  relevé officiel a une échelle que nous n'avons pas, et aucun
+                  niveau n'en dérive. Le brut vit dans le donut. */}
               {attempt.calibratedScore != null ? (
                 <div>
-                  <dt>Score TCF</dt>
+                  <dt>Score de progression</dt>
                   <dd>{attempt.calibratedScore}/499</dd>
                 </div>
               ) : (

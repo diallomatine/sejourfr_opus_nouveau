@@ -67,8 +67,9 @@ class TcfDiagnosticSectionDto {
   /// ([analyseEnCours]). L'écran la **nomme**, il n'affiche pas un A1.
   final NiveauCecrl? niveau;
 
-  /// Score calibré **100-499**, compréhension close seulement — la même valeur
-  /// qu'un examen blanc de module affiche. `null` en production.
+  /// Score de **PROGRESSION** 100-499, compréhension close seulement — la même
+  /// valeur qu'un examen blanc de module affiche. 🛑 Pas un score TCF.
+  /// `null` en production.
   final int? scoreCalibre;
 
   /// Des productions ont été rendues et au moins une attend sa correction.

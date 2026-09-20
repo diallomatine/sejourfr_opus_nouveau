@@ -164,7 +164,8 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     final hiddenCount = filtered.length - visible.length;
 
     final finished = bySlot.values.toList();
-    // Score calibré 100-499 (relevé façon TCF) au lieu du X/50 interne.
+    // 🛑 Score de PROGRESSION 100-499 (pas un score TCF) au lieu du X/47
+    // pondéré interne.
     final scores =
         finished.where((a) => a.calibratedScore != null).toList();
     const maxPossible = 499;

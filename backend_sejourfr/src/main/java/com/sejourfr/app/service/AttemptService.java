@@ -145,7 +145,7 @@ public class AttemptService {
         }
 
         // Branche examen module : si moduleExamQuestionType est fourni, on tire
-        // 8 A2 + 9 B1 + 8 B2 progressif dans l'epreuve concernee (CO, CE ou STRUCTURE).
+        // 10 A2 + 8 B1 + 7 B2 progressif dans l'epreuve concernee (CO, CE ou STRUCTURE).
         if (req.moduleExamQuestionType() != null) {
             return startModuleExam(user, req);
         }
@@ -943,7 +943,7 @@ public class AttemptService {
 
     /**
      * Demarre un examen blanc scope a une epreuve TCF QCM (CO, CE ou
-     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs, tire
+     * STRUCTURE). Composition : 10 A2 + 8 B1 + 7 B2 progressifs, tire
      * aleatoirement dans le pool filtre par module + questionType. Duree lue
      * dans {@link DureeEpreuve}, jamais recopiee ici. Si une strate est trop petite, on complete avec les
      * niveaux voisins pour atteindre 25 questions au total (fallback).

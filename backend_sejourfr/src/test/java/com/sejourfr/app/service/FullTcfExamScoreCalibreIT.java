@@ -5,7 +5,6 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.EpreuveType;
-import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
@@ -58,7 +57,6 @@ class FullTcfExamScoreCalibreIT extends AbstractIntegrationTest {
         Attempt co = sub(parent, EpreuveType.TCF_CO);
         co.setWeightedScore(23);
         co.setMaxWeightedScore(50);
-        co.setCecrlLevel(NiveauCecrl.A2);
         co.setFinishedAt(Instant.now());
         co.setStatus(AttemptStatus.TERMINE);
         attemptManager.save(co);

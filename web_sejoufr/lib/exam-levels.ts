@@ -262,21 +262,26 @@ export function subAttemptView(
 }
 
 /**
- * Score d'une sous-épreuve QCM (CO / CE), **sur l'échelle du relevé TCF**.
+ * **Score de PROGRESSION** d'une sous-épreuve QCM (CO / CE).
+ *
+ * 🛑 **Ce n'est pas un score TCF, et on ne le présente jamais comme tel.** Le
+ * vrai relevé du TCF IRN a une échelle officielle que nous n'avons pas, et
+ * depuis le 2026-09-20 **aucun niveau n'en dérive** : le palier se lit strate
+ * par strate côté serveur. Ce nombre dit seulement si le candidat progresse.
  *
  * `calibratedScore` (100-499) est dérivé serveur par `TcfLevelEstimatorService`
  * — correction du hasard comprise — et c'est LUI qu'on affiche : le
  * `score`/`maxScore` du DTO est le score **pondéré interne** (A2=1, B1=2, B2=3),
- * et « 23/50 » ne correspond à rien sur le relevé d'un candidat.
+ * et « 23/47 » ne veut rien dire pour un candidat.
  *
  * Repli sur le pondéré quand le calibré manque (donnée antérieure, épreuve sans
  * score) : on n'invente **jamais** un `/499` à partir d'un pondéré, et on ne
  * remplace pas par un tiret une donnée qu'on possède. `null` quand il n'y a rien
  * à afficher — épreuve productive (EE/EO), verrouillée, ou pas encore notée.
  *
- * Miroir mobile : `qcmScoreLabel` (`core/models/full_tcf_exam.dart`).
+ * Miroir mobile : `scoreProgressionLabel` (`core/models/full_tcf_exam.dart`).
  */
-export function qcmScoreLabel(sa: FullTcfExamSubAttempt): string | null {
+export function scoreProgressionLabel(sa: FullTcfExamSubAttempt): string | null {
     if (sa.calibratedScore != null) return `${sa.calibratedScore}/499`;
     if (sa.score != null && sa.maxScore != null) return `${sa.score}/${sa.maxScore}`;
     return null;
@@ -287,8 +292,8 @@ function subAttemptSubtitle(sa: FullTcfExamSubAttempt, state: SubAttemptState): 
     // Avant le score : une épreuve jamais ouverte n'a rien produit, et un
     // « Score … » ou un décompte d'évaluations y serait un contresens.
     if (state === "not_taken") return "Non passée";
-    const score = qcmScoreLabel(sa);
-    if (score) return `Score ${score}`;
+    const score = scoreProgressionLabel(sa);
+    if (score) return `Progression ${score}`;
 
     const ko = (sa.failedSubmissionIds ?? []).length;
     const ok = sa.submissionsCount ?? 0;

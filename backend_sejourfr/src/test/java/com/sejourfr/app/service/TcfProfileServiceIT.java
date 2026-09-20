@@ -341,21 +341,16 @@ class TcfProfileServiceIT extends AbstractIntegrationTest {
         entityManager.flush();
     }
 
-    /** Un examen QCM passé, avec une réponse — donc qualifiant. */
-    private void examenQcm(User user, EpreuveType epreuve, int pondere, Instant fin) {
-        final Attempt a = new Attempt();
-        a.setUser(user);
-        a.setType(AttemptType.MOCK_EXAM);
-        a.setModule(Module.TCF);
-        a.setEpreuve(epreuve);
-        a.setMode(AttemptMode.EXAMEN);
-        a.setStatus(AttemptStatus.TERMINE);
+    /**
+     * Un examen QCM passé dont les <b>réponses</b> démontrent {@code niveau} —
+     * donc qualifiant. 🛑 Le palier ne se déclare plus et ne se dérive plus d'un
+     * score : il se lit strate par strate sur les vraies réponses.
+     */
+    private void examenQcm(User user, EpreuveType epreuve, NiveauCecrl niveau, Instant fin) {
+        final Attempt a = data.examenQcmTcfPasse(user, epreuve, niveau);
         a.setStartedAt(fin.minus(30, ChronoUnit.MINUTES));
         a.setFinishedAt(fin);
-        a.setWeightedScore(pondere);
-        a.setMaxWeightedScore(100);
         attemptManager.save(a);
-        data.answer(data.attemptQuestion(a, data.question()));
         entityManager.flush();
     }
 
@@ -467,11 +462,14 @@ class TcfProfileServiceIT extends AbstractIntegrationTest {
     void affichage_leNiveauGlobalEstLeMinDesQuatreEpreuves() {
         final User user = data.user();
         final Instant maintenant = Instant.now();
-        // CO : 85/100 pondéré ⇒ score calibré 419 ⇒ B2.
-        examenQcm(user, EpreuveType.TCF_CO, 85, maintenant);
-        // CE : deux examens, 85 et 45 ⇒ (419 + 206) / 2 = 312 ⇒ B1.
-        examenQcm(user, EpreuveType.TCF_CE, 85, maintenant);
-        examenQcm(user, EpreuveType.TCF_CE, 45, maintenant.minus(1, ChronoUnit.DAYS));
+        // CO : un sans-faute ⇒ B2.
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.B2, maintenant);
+        // CE : deux examens, un sans-faute et un A2. Items cumulés : A2 20/20,
+        // B1 8/16 (il en faut 10) ⇒ A2 — la CE se MOYENNE, elle ne retient pas
+        // le B2.
+        examenQcm(user, EpreuveType.TCF_CE, NiveauCecrl.B2, maintenant);
+        examenQcm(user, EpreuveType.TCF_CE, NiveauCecrl.A2,
+                maintenant.minus(1, ChronoUnit.DAYS));
         epreuveNotee(user, EpreuveType.TCF_EE, "12", maintenant);
         epreuveNotee(user, EpreuveType.TCF_EO, "3", maintenant);
         entityManager.flush();
@@ -481,7 +479,7 @@ class TcfProfileServiceIT extends AbstractIntegrationTest {
 
         assertThat(profil.co()).isEqualTo(NiveauCecrl.B2);
         assertThat(profil.ce()).as("la CE se MOYENNE, elle ne retient pas le B2")
-                .isEqualTo(NiveauCecrl.B1);
+                .isEqualTo(NiveauCecrl.A2);
         assertThat(profil.ee()).isEqualTo(NiveauCecrl.B2);
         assertThat(profil.eo()).isEqualTo(NiveauCecrl.A2);
         assertThat(profil.globalLevel()).as("min des 4").isEqualTo(NiveauCecrl.A2);

@@ -161,7 +161,8 @@ export default function TcfModuleExamsPage() {
       if (!bestExam || (e.score ?? 0) > (bestExam.score ?? 0)) bestExam = e;
     }
     return {
-      // Échelle TCF (100-499) quand le backend a calibré, brut sinon.
+      // 🛑 Score de PROGRESSION (100-499) quand le backend l'a calibré,
+      // brut sinon. Ce n'est pas un score TCF.
       best: bestExam
         ? bestExam.calibratedScore != null
           ? `${bestExam.calibratedScore}/499`

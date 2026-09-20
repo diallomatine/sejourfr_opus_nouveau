@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -156,9 +157,16 @@ public class EpreuveHistoriqueService {
     /* ------------------------------------------------------------ CO / CE -- */
 
     private List<EpreuveHistoriqueDto.Evaluation> qcm(UUID userId, EpreuveType epreuve) {
+        final List<Attempt> passees =
+                attemptManager.findQcmEpreuvesPassees(userId, epreuve, SCAN_LIMIT);
+        // 🛑 UNE requête pour les {@value #SCAN_LIMIT} sessions balayées. Le
+        // niveau se dérive des réponses depuis le 2026-09-20 : le demander
+        // session par session ferait un N+1 sur « Voir mes résultats ».
+        final Map<UUID, NiveauCecrl> niveaux = levelEstimator.niveauxQcm(
+                passees.stream().map(Attempt::getId).toList());
         final List<EpreuveHistoriqueDto.Evaluation> out = new ArrayList<>();
-        for (final Attempt a : attemptManager.findQcmEpreuvesPassees(userId, epreuve, SCAN_LIMIT)) {
-            final NiveauCecrl niveau = levelEstimator.niveauEpreuveQcm(a);
+        for (final Attempt a : passees) {
+            final NiveauCecrl niveau = niveaux.get(a.getId());
             // Un examen dont rien n'est exploitable n'est pas une mauvaise
             // mesure : il n'en est pas une.
             if (niveau == null || a.getFinishedAt() == null) continue;

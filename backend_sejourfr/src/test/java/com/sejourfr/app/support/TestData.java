@@ -367,6 +367,92 @@ public class TestData {
         return answer(attemptQuestion());
     }
 
+    /** Une reponse dont on choisit la justesse. */
+    public Answer answer(AttemptQuestion attemptQuestion, boolean correct) {
+        Answer ans = answer(attemptQuestion);
+        ans.setCorrect(correct);
+        return answerManager.save(ans);
+    }
+
+    /** Une question TCF d'un type et d'un palier donnes. */
+    public Question questionTcf(QuestionType type, Difficulty palier) {
+        Question q = new Question();
+        q.setModule(Module.TCF);
+        q.setTheme(theme());
+        q.setDifficulty(palier);
+        q.setQuestionType(type);
+        q.setStatement("Item TCF de test " + next());
+        q.addChoice(newChoice("Bonne reponse", true, 0));
+        q.addChoice(newChoice("Mauvaise reponse", false, 1));
+        return questionManager.save(q);
+    }
+
+    /**
+     * 🛑 <b>Un examen blanc QCM TCF reellement passe, dont les REPONSES
+     * demontrent {@code niveau}.</b>
+     *
+     * <p>Depuis la suppression de {@code attempts.cecrl_level} (V879), un test
+     * ne peut plus <i>declarer</i> le palier d'une epreuve : il n'existe que
+     * derive des reponses. Ce fabricant pose donc une vraie composition
+     * <b>10 A2 / 8 B1 / 7 B2</b> et y reussit juste ce qu'il faut pour que la
+     * regle du palier maitrise (60 %, arrondi superieur : 6/10, 5/8, 5/7)
+     * rende exactement {@code niveau}.
+     *
+     * <p>Il remplace quatre copies privees du meme helper
+     * ({@code examenQcmPasse}) dans les IT du Plan.
+     *
+     * @param niveau {@code null} = epreuve terminee sans aucun item, donc sans
+     *               niveau (inconnu)
+     */
+    public Attempt examenQcmTcfPasse(User user, EpreuveType epreuve, NiveauCecrl niveau) {
+        Attempt attempt = attempt(user);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(Module.TCF);
+        attempt.setEpreuve(epreuve);
+        attempt.setMode(AttemptMode.EXAMEN);
+        attempt.setStatus(AttemptStatus.TERMINE);
+        attempt.setFinishedAt(Instant.now());
+        QuestionType type = epreuve == EpreuveType.TCF_CE ? QuestionType.CE : QuestionType.CO;
+        attempt.setModuleExamQuestionType(type);
+        attempt = saveAttempt(attempt);
+        return reponsesQcmDemontrant(attempt, type, niveau);
+    }
+
+    /**
+     * Pose sur {@code attempt} une vraie composition <b>10 A2 / 8 B1 / 7 B2</b>
+     * et y reussit juste ce qu'il faut pour que la regle du palier maitrise
+     * rende exactement {@code niveau}, puis enregistre le score pondere
+     * correspondant. {@code niveau} {@code null} : aucun item, donc aucun
+     * niveau (inconnu).
+     */
+    public Attempt reponsesQcmDemontrant(
+            Attempt attempt, QuestionType type, NiveauCecrl niveau) {
+        if (niveau == null) return attempt;
+        int[] reussis = switch (niveau) {
+            case B2 -> new int[] {10, 8, 7};
+            case B1 -> new int[] {10, 8, 0};
+            case A2 -> new int[] {10, 0, 0};
+            case A1 -> new int[] {1, 0, 0};
+            default -> new int[] {0, 0, 0};   // A1_NON_ATTEINT : tout faux
+        };
+        Difficulty[] paliers = {Difficulty.A2, Difficulty.B1, Difficulty.B2};
+        int[] poses = {10, 8, 7};
+        int[] poids = {1, 2, 3};
+        int pondere = 0;
+        int ponderMax = 0;
+        for (int i = 0; i < 3; i++) {
+            for (int n = 0; n < poses[i]; n++) {
+                boolean correct = n < reussis[i];
+                answer(attemptQuestion(attempt, questionTcf(type, paliers[i])), correct);
+                ponderMax += poids[i];
+                if (correct) pondere += poids[i];
+            }
+        }
+        attempt.setWeightedScore(pondere);
+        attempt.setMaxWeightedScore(ponderMax);
+        return saveAttempt(attempt);
+    }
+
     // ------------------------------------------------------------------------
     // Plan / UserSubscription
     // ------------------------------------------------------------------------

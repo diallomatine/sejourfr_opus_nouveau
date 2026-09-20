@@ -193,13 +193,12 @@ public class Attempt {
     @Column(name = "final_cecrl_level", length = 24)
     private NiveauCecrl finalCecrlLevel;
 
-    // Niveau CECRL estimé d'une épreuve QCM (CO/CE) — calculé à la finalisation
-    // par TcfLevelEstimatorService (score calibré + garde-fou palier), plafonné
-    // B2. Source de vérité unique relue par le full exam et le profil de niveau.
-    // NULL pour le civique, l'entraînement libre, et les attempts pré-V416.
-    @Enumerated(EnumType.STRING)
-    @Column(name = "cecrl_level", length = 24)
-    private NiveauCecrl cecrlLevel;
+    // 🛑 `cecrl_level` A ETE SUPPRIME (V879, 2026-09-20). Le niveau CECRL d'une
+    // epreuve QCM est un DERIVE : il se recalcule a la lecture depuis les
+    // reponses (TcfLevelEstimatorService), et ne se persiste plus. Une colonne
+    // qui porte un verdict fige l'historique sous la regle du jour ou elle a
+    // ete ecrite ; c'est ce qui aurait empeche le passage au palier maitrise de
+    // relire les examens deja passes. Ne pas la reintroduire.
 
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -334,6 +333,4 @@ public class Attempt {
     public NiveauCecrl getFinalCecrlLevel() { return finalCecrlLevel; }
     public void setFinalCecrlLevel(NiveauCecrl finalCecrlLevel) { this.finalCecrlLevel = finalCecrlLevel; }
 
-    public NiveauCecrl getCecrlLevel() { return cecrlLevel; }
-    public void setCecrlLevel(NiveauCecrl cecrlLevel) { this.cecrlLevel = cecrlLevel; }
 }

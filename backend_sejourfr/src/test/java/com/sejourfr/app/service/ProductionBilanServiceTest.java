@@ -120,7 +120,7 @@ class ProductionBilanServiceTest {
         ProductionRubricsProvider rubrics = mock(ProductionRubricsProvider.class);
         org.mockito.Mockito.lenient().when(rubrics.niveauCecrl()).thenReturn(props.getNiveauCecrl());
         return new ProductionBilanService(
-            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), rubrics, props);
+            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(mock(com.sejourfr.app.manager.AttemptQuestionManager.class)), rubrics, props);
     }
 
     private static AiEvaluation eval(Number lexique, Number morpho, String note) {
@@ -257,7 +257,7 @@ class ProductionBilanServiceTest {
         ProductionEvaluationProperties props = new ProductionEvaluationProperties();
         org.mockito.Mockito.lenient().when(rubrics.niveauCecrl()).thenReturn(props.getNiveauCecrl());
         ProductionBilanService svc = new ProductionBilanService(
-            manager, new TcfLevelEstimatorService(), rubrics, props);
+            manager, new TcfLevelEstimatorService(mock(com.sejourfr.app.manager.AttemptQuestionManager.class)), rubrics, props);
 
         ProductionSubmission t1 = submissionEvaluee(1);
         ProductionSubmission t2 = submissionEvaluee(2);

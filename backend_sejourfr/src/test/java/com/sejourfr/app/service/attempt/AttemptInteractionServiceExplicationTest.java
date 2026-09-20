@@ -67,7 +67,9 @@ class AttemptInteractionServiceExplicationTest {
         AnswerManager answerManager = mock(AnswerManager.class);
         service = new AttemptInteractionService(
                 mock(AttemptManager.class), attemptQuestionManager, answerManager,
-                mock(AttemptScoringService.class), mock(ReceptiveEvidenceAdapter.class),
+                mock(AttemptScoringService.class),
+                mock(com.sejourfr.app.service.TcfLevelEstimatorService.class),
+                mock(ReceptiveEvidenceAdapter.class),
                 mock(AttemptMapper.class), questionMapper,
                 mock(ComprehensionObservationService.class),
                 mock(CivicObservationService.class),

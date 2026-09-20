@@ -72,6 +72,7 @@ class AttemptInteractionServiceExpiryTest {
 
         service = new AttemptInteractionService(
                 attemptManager, attemptQuestionManager, answerManager, scoringService,
+                mock(com.sejourfr.app.service.TcfLevelEstimatorService.class),
                 mock(ReceptiveEvidenceAdapter.class), mapper, new QuestionMapper(),
                 mock(ComprehensionObservationService.class),
                 mock(CivicObservationService.class),

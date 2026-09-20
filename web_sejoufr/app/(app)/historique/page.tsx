@@ -440,7 +440,8 @@ function ResultRow({
           <span aria-hidden />
         )}
         <span className="res-score">
-          {/* Examens TCF stratifiés : échelle calibrée 100-499, brut sinon. */}
+          {/* 🛑 Score de PROGRESSION (100-499), jamais un score TCF : le
+              relevé officiel a une échelle que nous n'avons pas. Brut sinon. */}
           <span className={`res-score-main res-tone-${tone}`}>
             {exam.calibratedScore != null
               ? `${exam.calibratedScore}/499`

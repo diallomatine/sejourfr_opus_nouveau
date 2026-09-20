@@ -334,17 +334,13 @@ class LearningPlanStickyPriorityIT extends AbstractIntegrationTest {
                 ObservationConfidence.HIGH, UUID.randomUUID(), quand);
     }
 
+    /**
+     * 🛑 Delegue a {@code TestData.examenQcmTcfPasse} : depuis la suppression de
+     * {@code attempts.cecrl_level}, le palier d'une epreuve QCM se DEMONTRE par
+     * ses reponses, il ne se declare plus. Ce helper vivait en quatre copies.
+     */
     private void examenQcmPasse(User user, EpreuveType epreuve, NiveauCecrl niveau) {
-        Attempt attempt = data.attempt(user);
-        attempt.setType(AttemptType.MOCK_EXAM);
-        attempt.setModule(Module.TCF);
-        attempt.setEpreuve(epreuve);
-        attempt.setMode(AttemptMode.EXAMEN);
-        attempt.setStatus(AttemptStatus.TERMINE);
-        attempt.setFinishedAt(Instant.now());
-        attempt.setCecrlLevel(niveau);
-        AttemptQuestion question = data.attemptQuestion(attempt, data.question());
-        data.answer(question);
+        data.examenQcmTcfPasse(user, epreuve, niveau);
     }
 
     private void productionEvaluee(User user, EpreuveType epreuve, NiveauCecrl niveau) {

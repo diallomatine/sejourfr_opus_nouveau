@@ -643,8 +643,9 @@ class _Resultat extends StatelessWidget {
         ),
         if (score != null) ...[
           const SizedBox(width: 10),
-          // Le /499 des examens blancs de module : un candidat lit le meme
-          // chiffre ici et sur son bilan d'examen.
+          // Le /499 des examens blancs de module — le score de PROGRESSION,
+          // pas un score TCF : un candidat lit le meme chiffre ici et sur son
+          // bilan d'examen.
           Text('$score / 499',
               style: AppFonts.ui(size: 13, color: AppColors.inkSoft)),
         ],

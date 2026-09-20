@@ -853,11 +853,11 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
     // produit, et un « Score … » ou un décompte d'évaluations y serait un
     // contresens. Miroir web : l'état `not_taken`.
     if (sub.jamaisOuverte) return 'Non passée';
-    // Échelle du relevé TCF (100-499) dès que le backend a calibré ; le score
-    // pondéré interne ne reste qu'en repli.
-    final scoreLabel = sub.qcmScoreLabel;
+    // 🛑 Score de PROGRESSION (100-499) dès que le backend l'a calibré ; le
+    // pondéré interne ne reste qu'en repli. Ce n'est pas un score TCF.
+    final scoreLabel = sub.scoreProgressionLabel;
     if (scoreLabel != null) {
-      return 'Score $scoreLabel';
+      return 'Progression $scoreLabel';
     }
     // EE/EO : `submissionsCount` = nb EVALUATED. `failedSubmissionIds.length`
     // = nb FAILED. Le total attendu est 3 par épreuve productive.

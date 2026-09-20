@@ -17,7 +17,9 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.service.TcfLevelEstimatorService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -26,10 +28,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class AttemptMapperTest {
 
-    private final TcfLevelEstimatorService estimator = new TcfLevelEstimatorService();
+    private final TcfLevelEstimatorService estimator =
+            new TcfLevelEstimatorService(mock(AttemptQuestionManager.class));
     private final AttemptMapper mapper = new AttemptMapper(new QuestionMapper(), estimator);
 
     private Theme theme() {
@@ -137,7 +141,6 @@ class AttemptMapperTest {
         attempt.setFinishedAt(Instant.parse("2026-01-01T00:30:00Z"));
         attempt.setWeightedScore(30);
         attempt.setMaxWeightedScore(50);
-        attempt.setCecrlLevel(NiveauCecrl.B1); // ignored once epreuveResults present
 
         Question q1 = question(QuestionType.CO, Difficulty.A2);
         Question q2 = question(QuestionType.CO, Difficulty.B1);
@@ -200,7 +203,7 @@ class AttemptMapperTest {
         Question q = question(QuestionType.CONNAISSANCE, Difficulty.NAT);
         a.setQuestions(new ArrayList<>(List.of(attemptQuestion(q, 0, Boolean.TRUE))));
 
-        AttemptSummaryResponse s = mapper.toSummary(a);
+        AttemptSummaryResponse s = mapper.toSummary(a, null);
 
         assertThat(s.id()).isEqualTo(a.getId());
         assertThat(s.type()).isEqualTo(AttemptType.MOCK_EXAM);
@@ -234,7 +237,7 @@ class AttemptMapperTest {
         a.setStartedAt(Instant.parse("2026-01-01T00:00:00Z"));
         a.setQuestions(new ArrayList<>());
 
-        AttemptSummaryResponse s = mapper.toSummary(a);
+        AttemptSummaryResponse s = mapper.toSummary(a, null);
 
         assertThat(s.difficulty()).isNull();
         assertThat(s.examTemplateId()).isNull();
@@ -242,8 +245,14 @@ class AttemptMapperTest {
         assertThat(s.cecrlLevel()).isNull();
     }
 
+    /**
+     * 🛑 <b>Le niveau arrive en argument, il ne se lit nulle part.</b> Le mapper
+     * ne fait aucune lookup et ne touche plus {@code attempts.cecrl_level} : son
+     * appelant derive les niveaux de TOUTE la page en une requete.
+     */
     @Test
-    void toSummary_tcfModuleExam_storedCecrlLevelUsedAndCalibrated() {
+    @DisplayName("toSummary sert le niveau qu'on lui donne, pour un examen TCF stratifie")
+    void toSummary_tcfModuleExam_sertLeNiveauDerive() {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setType(AttemptType.MOCK_EXAM);
@@ -253,11 +262,10 @@ class AttemptMapperTest {
         a.setStartedAt(Instant.parse("2026-01-01T00:00:00Z"));
         a.setWeightedScore(40);
         a.setMaxWeightedScore(50);
-        a.setCecrlLevel(NiveauCecrl.B2);
         a.setQuestions(new ArrayList<>(List.of(
                 attemptQuestion(question(QuestionType.CO, Difficulty.B2), 0, Boolean.TRUE))));
 
-        AttemptSummaryResponse s = mapper.toSummary(a);
+        AttemptSummaryResponse s = mapper.toSummary(a, NiveauCecrl.B2);
 
         assertThat(s.calibratedScore()).isEqualTo(estimator.calibratedScore(40, 50));
         assertThat(s.cecrlLevel()).isEqualTo(NiveauCecrl.B2);
@@ -265,24 +273,36 @@ class AttemptMapperTest {
         assertThat(s.maxWeightedScore()).isEqualTo(50);
     }
 
+    /**
+     * Niveau inconnu ⇒ {@code null} servi, jamais un palier fabrique — et hors
+     * examen TCF stratifie, le niveau ne sort pas meme si on en fournit un.
+     */
     @Test
-    void toSummary_tcfModuleExam_nullCecrlLevel_fallsBackToWeightedDerivation() {
-        Attempt a = new Attempt();
-        a.setId(UUID.randomUUID());
-        a.setType(AttemptType.MOCK_EXAM);
-        a.setModule(Module.TCF);
-        a.setEpreuve(EpreuveType.TCF_CE);
-        a.setModuleExamQuestionType(QuestionType.CE);
-        a.setStartedAt(Instant.parse("2026-01-01T00:00:00Z"));
-        a.setWeightedScore(20);
-        a.setMaxWeightedScore(50);
-        a.setCecrlLevel(null);
-        a.setQuestions(new ArrayList<>(List.of(
+    @DisplayName("niveau inconnu => null ; hors examen TCF stratifie => null aussi")
+    void toSummary_niveauInconnu_ou_hors_perimetre_donne_null() {
+        Attempt tcf = new Attempt();
+        tcf.setId(UUID.randomUUID());
+        tcf.setType(AttemptType.MOCK_EXAM);
+        tcf.setModule(Module.TCF);
+        tcf.setEpreuve(EpreuveType.TCF_CE);
+        tcf.setModuleExamQuestionType(QuestionType.CE);
+        tcf.setStartedAt(Instant.parse("2026-01-01T00:00:00Z"));
+        tcf.setWeightedScore(20);
+        tcf.setMaxWeightedScore(50);
+        tcf.setQuestions(new ArrayList<>(List.of(
                 attemptQuestion(question(QuestionType.CE, Difficulty.A2), 0, Boolean.FALSE))));
 
-        AttemptSummaryResponse s = mapper.toSummary(a);
+        assertThat(mapper.toSummary(tcf, null).cecrlLevel()).isNull();
+        assertThat(mapper.toSummary(tcf, null).calibratedScore())
+                .isEqualTo(estimator.calibratedScore(20, 50));
 
-        assertThat(s.calibratedScore()).isEqualTo(estimator.calibratedScore(20, 50));
-        assertThat(s.cecrlLevel()).isEqualTo(estimator.levelFromWeighted(20, 50));
+        Attempt libre = new Attempt();
+        libre.setId(UUID.randomUUID());
+        libre.setType(AttemptType.TRAINING);
+        libre.setModule(Module.TCF);
+        libre.setEpreuve(EpreuveType.TCF_CE);
+        libre.setStartedAt(Instant.parse("2026-01-01T00:00:00Z"));
+        libre.setQuestions(new ArrayList<>());
+        assertThat(mapper.toSummary(libre, NiveauCecrl.B2).cecrlLevel()).isNull();
     }
 }

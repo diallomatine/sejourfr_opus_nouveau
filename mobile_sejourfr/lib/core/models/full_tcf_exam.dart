@@ -83,10 +83,14 @@ class FullTcfExamSubAttempt {
   final int? score;
   final int? maxScore;
 
-  /// CO/CE : score calibré **100-499**, l'échelle du relevé TCF. Dérivé serveur
+  /// CO/CE : **score de PROGRESSION** 100-499. Dérivé serveur
   /// (`TcfLevelEstimatorService`, correction du hasard comprise) — **jamais
   /// recalculé ici** depuis [score]/[maxScore]. Null pour EE/EO (pas de QCM),
   /// pour une épreuve `locked` et tant que le score pondéré n'est pas posé.
+  ///
+  /// 🛑 **Ce n'est pas un score TCF** : le relevé officiel a une échelle que
+  /// nous n'avons pas, et depuis le 2026-09-20 aucun niveau n'en dérive — le
+  /// palier se lit strate par strate côté serveur.
   final int? calibratedScore;
 
   /// EE/EO : nombre de submissions ayant atteint EVALUATED (sur 3 attendues).
@@ -130,16 +134,18 @@ class FullTcfExamSubAttempt {
   bool get isFinished => finishedAt != null;
   bool get hasFailures => failedSubmissionIds.isNotEmpty;
 
-  /// Score d'une sous-épreuve QCM (CO/CE) **sur l'échelle du relevé TCF**.
+  /// **Score de PROGRESSION** d'une sous-épreuve QCM (CO/CE).
+  ///
+  /// 🛑 **Ce n'est pas un score TCF, et on ne le présente jamais comme tel.**
   ///
   /// [calibratedScore] (100-499) est ce qu'on affiche : le pondéré interne
-  /// (« 23/50 ») ne veut rien dire pour un candidat. Repli sur le pondéré quand
+  /// (« 23/47 ») ne veut rien dire pour un candidat. Repli sur le pondéré quand
   /// le calibré manque — on n'invente **jamais** un /499 à partir d'un pondéré,
   /// et on ne remplace pas par un tiret une donnée qu'on possède. Null quand il
   /// n'y a rien à afficher (EE/EO, épreuve verrouillée, pas encore notée).
   ///
-  /// Miroir web : `qcmScoreLabel` (`lib/exam-levels.ts`).
-  String? get qcmScoreLabel {
+  /// Miroir web : `scoreProgressionLabel` (`lib/exam-levels.ts`).
+  String? get scoreProgressionLabel {
     if (calibratedScore != null) return '$calibratedScore/499';
     if (score != null && maxScore != null) return '$score/$maxScore';
     return null;

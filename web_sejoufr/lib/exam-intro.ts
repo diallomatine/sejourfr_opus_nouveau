@@ -36,9 +36,10 @@ export function comprehensionExamIntro(
         facts: [
             {label: "questions (A2→B2)", value: questionsLabel},
             {label: "en conditions réelles", value: durationLabel},
-            // Barème du relevé TCF. Le /50 est le score pondéré interne, que le
-            // candidat ne voit nulle part ailleurs.
-            {label: "score + niveau CECRL", value: "/499"},
+            // 🛑 Score de PROGRESSION, pas le barème du relevé TCF — le
+            // relevé officiel a une échelle que nous n'avons pas. Le pondéré
+            // interne, lui, n'est affiché nulle part.
+            {label: "score de progression + niveau", value: "/499"},
         ],
         tips:
             questionType === "CO"

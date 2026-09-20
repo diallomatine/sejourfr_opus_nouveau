@@ -49,8 +49,9 @@ class AttemptSummary {
   final int? weightedScore;
   final int? maxWeightedScore;
 
-  /// Score calibré 100-499 + niveau CECRL (examens module TCF). Affichage
-  /// façon relevé TCF (X/499 + niveau) à la place du X/50 interne.
+  /// Score de PROGRESSION 100-499 + niveau CECRL (examens module TCF).
+  /// 🛑 Le /499 n'est pas un score TCF : il remplace seulement le X/47 pondéré
+  /// interne, que le candidat ne peut pas lire.
   final int? calibratedScore;
   final NiveauCecrl? cecrlLevel;
 

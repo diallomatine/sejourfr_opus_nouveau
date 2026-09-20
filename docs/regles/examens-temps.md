@@ -38,7 +38,9 @@ comme ancre d'un décompte. Ne pas la réintroduire.
   la formule (correction du hasard 25 %, bornes 100-499) ne se recopie jamais.
   `null` pour EE/EO, pour une épreuve `locked`, et quand le pondéré manque : le
   service rendrait sinon sa borne basse et l'écran afficherait « 100/499 » là où
-  on ne sait rien. Repli déclaré une fois par front (`qcmScoreLabel`, miroirs
+  on ne sait rien. 🛑 C'est un **score de PROGRESSION**, pas un score TCF
+  (2026-09-20, `docs/regles/qcm.md`). Repli déclaré une fois par front
+  (`scoreProgressionLabel`, miroirs
   `web/lib/exam-levels.ts` ⇄ `mobile/core/models/full_tcf_exam.dart`) : calibré
   ⇒ `x/499`, sinon le brut `x/maxScore`, **jamais un `/499` fabriqué à partir
   d'un pondéré**. `score`/`maxScore` restent servis. ⚠️ Ne vaut que pour le

@@ -2,15 +2,20 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.FullTcfExamResponse;
 import com.sejourfr.app.dto.FullTcfExamSummaryResponse;
+import com.sejourfr.app.dto.LigneStrateQcm;
+import com.sejourfr.app.dto.StrateQcm;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,14 +53,20 @@ import static org.mockito.Mockito.when;
  *       il n'y en a que 2 ou 3.</li>
  * </ul>
  *
- * <p>Unitaire pur. {@link TcfLevelEstimatorService} est utilisé RÉEL (sans
- * dépendance, c'est la math CECRL elle-même) ; seul le bilan de production est
- * mocké, ses propres règles étant couvertes par {@code ProductionBilanServiceTest}.
+ * <p>Unitaire pur. {@link TcfLevelEstimatorService} est utilisé RÉEL — c'est la
+ * règle CECRL elle-même — et seule sa <b>source de données</b> est mockée : le
+ * niveau d'une épreuve QCM se dérive désormais de ses RÉPONSES
+ * ({@code attempts.cecrl_level} n'est plus ni écrit ni lu), donc les fixtures
+ * déclarent des <b>strates</b>, pas un palier persisté. Le bilan de production
+ * reste mocké, ses règles étant couvertes par {@code ProductionBilanServiceTest}.
  */
 class FullTcfExamResponseBuilderTest {
 
     private AttemptManager attemptManager;
+    private AttemptQuestionManager attemptQuestionManager;
     private AnswerManager answerManager;
+    /** Ce que « les réponses » de chaque sous-épreuve QCM démontrent. */
+    private final Map<UUID, NiveauCecrl> niveauxQcm = new java.util.LinkedHashMap<>();
     private ProductionSubmissionManager productionSubmissionManager;
     private ProductionBilanService productionBilanService;
     private FullTcfExamResponseBuilder builder;
@@ -63,12 +74,28 @@ class FullTcfExamResponseBuilderTest {
     @BeforeEach
     void setUp() {
         attemptManager = mock(AttemptManager.class);
+        attemptQuestionManager = mock(AttemptQuestionManager.class);
         answerManager = mock(AnswerManager.class);
+        niveauxQcm.clear();
+        // L'unique requête agrégée du niveau QCM, rejouée en mémoire : elle rend
+        // les strates des attempts demandés, et rien d'autre.
+        when(attemptQuestionManager.stratesParAttempt(any())).thenAnswer(inv -> {
+            java.util.Collection<UUID> ids = inv.getArgument(0);
+            List<LigneStrateQcm> out = new java.util.ArrayList<>();
+            for (UUID id : ids) {
+                NiveauCecrl n = niveauxQcm.get(id);
+                if (n == null) continue;
+                for (StrateQcm st : stratesPour(n)) {
+                    out.add(new LigneStrateQcm(id, QuestionType.CO, st));
+                }
+            }
+            return out;
+        });
         productionSubmissionManager = mock(ProductionSubmissionManager.class);
         productionBilanService = mock(ProductionBilanService.class);
         builder = new FullTcfExamResponseBuilder(
                 attemptManager, answerManager, productionSubmissionManager,
-                new TcfLevelEstimatorService(), productionBilanService);
+                new TcfLevelEstimatorService(attemptQuestionManager), productionBilanService);
 
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());
         // Fidèle au vrai service : seules les submissions EVALUATED donnent une
@@ -108,22 +135,41 @@ class FullTcfExamResponseBuilderTest {
     }
 
     /**
-     * Sous-attempt QCM terminé portant son niveau persisté. <b>Ouvert</b> :
-     * {@code timerStartedAt} posé — une épreuve qui porte un score a
-     * forcément été lancée, et sans cette ancre elle serait « jamais
-     * ouverte », donc sans niveau.
+     * Sous-attempt QCM terminé dont les <b>réponses</b> démontrent {@code level}
+     * ({@code null} = rien d'exploitable, donc aucun niveau). <b>Ouvert</b> :
+     * {@code timerStartedAt} posé — une épreuve qui porte un score a forcément
+     * été lancée, et sans cette ancre elle serait « jamais ouverte ».
      */
-    private static Attempt qcm(EpreuveType e, NiveauCecrl level) {
+    private Attempt qcm(EpreuveType e, NiveauCecrl level) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
         a.setTimerStartedAt(Instant.now().minusSeconds(1200));
         a.setFinishedAt(Instant.now());
         a.setStatus(AttemptStatus.TERMINE);
-        a.setCecrlLevel(level);
         a.setWeightedScore(40);
         a.setMaxWeightedScore(50);
+        if (level != null) niveauxQcm.put(a.getId(), level);
         return a;
+    }
+
+    /**
+     * Des strates 10 A2 / 8 B1 / 7 B2 qui démontrent exactement {@code niveau}
+     * sous la règle du palier maîtrisé (≥ 70 %, sans saut).
+     */
+    private static List<StrateQcm> stratesPour(NiveauCecrl niveau) {
+        return switch (niveau) {
+            case B2 -> List.of(StrateQcm.mesuree(Difficulty.A2, 10, 10),
+                    StrateQcm.mesuree(Difficulty.B1, 8, 8), StrateQcm.mesuree(Difficulty.B2, 7, 7));
+            case B1 -> List.of(StrateQcm.mesuree(Difficulty.A2, 10, 10),
+                    StrateQcm.mesuree(Difficulty.B1, 8, 8), StrateQcm.mesuree(Difficulty.B2, 7, 0));
+            case A2 -> List.of(StrateQcm.mesuree(Difficulty.A2, 10, 10),
+                    StrateQcm.mesuree(Difficulty.B1, 8, 0), StrateQcm.mesuree(Difficulty.B2, 7, 0));
+            case A1 -> List.of(StrateQcm.mesuree(Difficulty.A2, 10, 1),
+                    StrateQcm.mesuree(Difficulty.B1, 8, 0), StrateQcm.mesuree(Difficulty.B2, 7, 0));
+            default -> List.of(StrateQcm.mesuree(Difficulty.A2, 10, 0),
+                    StrateQcm.mesuree(Difficulty.B1, 8, 0), StrateQcm.mesuree(Difficulty.B2, 7, 0));
+        };
     }
 
     /**
@@ -192,7 +238,8 @@ class FullTcfExamResponseBuilderTest {
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
-        int attendu = new TcfLevelEstimatorService().calibratedScore(40, 50);
+        int attendu = new TcfLevelEstimatorService(attemptQuestionManager)
+                .calibratedScore(40, 50);
         assertThat(attendu).isEqualTo(393);
         assertThat(subOf(r, EpreuveType.TCF_CO).calibratedScore()).isEqualTo(attendu);
         assertThat(subOf(r, EpreuveType.TCF_CE).calibratedScore()).isEqualTo(attendu);
@@ -288,22 +335,20 @@ class FullTcfExamResponseBuilderTest {
         assertThat(r.finalLevelPartial()).isTrue();
     }
 
-    // ------------------------------------------- plancher produit « ≥ 1 bonne »
+    // ---------------------------------------------- A1 / A1 non atteint
 
     /**
-     * Le <b>plancher produit SejourFR</b> (« au moins une bonne réponse ⇒ au
-     * moins A1 ») remonte jusqu'ici par le {@code cecrl_level} persisté : une CO
-     * à une seule bonne réponse vaut désormais A1, et c'est cet A1 — non plus
-     * {@code A1_NON_ATTEINT} — qui devient le plancher global de l'examen.
+     * Une CO à une seule bonne réponse vaut <b>A1</b> (au moins une bonne
+     * réponse, aucune strate maîtrisée), et c'est cet A1 qui devient le
+     * plancher global de l'examen.
      *
      * <p>Les trois exclusions du plancher restent intactes et se cumulent :
      * épreuve {@code locked} (freemium), épreuve à niveau {@code null}, épreuve
-     * <b>jamais ouverte</b>. Aucune n'est « remontée » à A1 par la nouvelle
-     * règle : elles n'ont pas de bonne réponse à compter, elles n'ont pas de
-     * niveau du tout.
+     * <b>jamais ouverte</b>. Aucune n'est « remontée » à A1 : elles n'ont pas
+     * de bonne réponse à compter, elles n'ont pas de niveau du tout.
      */
     @Test
-    void plancherProduit_uneEpreuveQcmAUnA1_devientLePlancherGlobal() {
+    void uneEpreuveQcmAUnA1_devientLePlancherGlobal() {
         Attempt p = parent(true);
         Attempt co = qcm(EpreuveType.TCF_CO, NiveauCecrl.A1);
         co.setWeightedScore(1);
@@ -329,12 +374,12 @@ class FullTcfExamResponseBuilderTest {
     }
 
     /**
-     * Une épreuve QCM réellement passée et <b>tout fausse</b> reste
-     * {@code A1_NON_ATTEINT} et continue de tirer le plancher : le plancher
-     * produit ne rachète pas une épreuve à zéro bonne réponse.
+     * Une épreuve QCM réellement passée et <b>tout fausse</b> vaut
+     * {@code A1_NON_ATTEINT} et continue de tirer le plancher : zéro bonne
+     * réponse n'est jamais racheté.
      */
     @Test
-    void plancherProduit_neRachetePasUneEpreuveSansAucuneBonneReponse() {
+    void zeroBonneReponse_resteA1NonAtteintEtTireLePlancher() {
         Attempt p = parent(false);
         Attempt co = qcm(EpreuveType.TCF_CO, NiveauCecrl.A1_NON_ATTEINT);
         co.setWeightedScore(0);
@@ -354,21 +399,25 @@ class FullTcfExamResponseBuilderTest {
     }
 
     /**
-     * Repli legacy (sous-attempts antérieurs à V416, {@code cecrl_level} null) :
-     * sa table de seuils reste celle d'origine — on ne réécrit pas
-     * rétroactivement l'historique — mais le plancher produit s'y applique
-     * aussi, via l'autorité unique de {@link TcfLevelEstimatorService}. 1/50 =
-     * 2 %, sous les 20 % de la table legacy, donc {@code A1_NON_ATTEINT} avant
-     * plancher.
+     * 🛑 <b>Plus aucun repli legacy.</b> Les sous-attempts antérieurs à V416
+     * n'avaient pas de {@code cecrl_level}, et une seconde table de seuils
+     * (80/60/40/20 % du pondéré brut) leur servait de conversion. Elle est
+     * <b>supprimée</b> : leurs réponses sont en base comme les autres, donc la
+     * règle unique les lit directement. C'est tout l'intérêt d'un dérivé qui ne
+     * se persiste pas — un changement de règle relit l'historique.
+     *
+     * <p>Ici les deux épreuves portent un pondéré qui, sous l'ancienne table,
+     * les aurait rendues {@code A1_NON_ATTEINT} (1/50 et 0/50, sous les 20 %).
+     * Ce sont bien leurs <b>strates</b> qui décident.
      */
     @Test
-    void plancherProduit_sappliqueAussiAuRepliLegacyDuNiveau() {
+    void aucunRepliLegacy_leNiveauSeLitSurLesReponses() {
         Attempt p = parent(false);
-        Attempt co = qcm(EpreuveType.TCF_CO, null);   // pas de cecrl_level persisté
+        Attempt co = qcm(EpreuveType.TCF_CO, NiveauCecrl.A2);
         co.setWeightedScore(1);
         co.setMaxWeightedScore(50);
-        Attempt ce = qcm(EpreuveType.TCF_CE, null);
-        ce.setWeightedScore(0);                        // zéro bonne réponse
+        Attempt ce = qcm(EpreuveType.TCF_CE, NiveauCecrl.A1_NON_ATTEINT);
+        ce.setWeightedScore(0);
         ce.setMaxWeightedScore(50);
         when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
                 co, ce, production(EpreuveType.TCF_EE), production(EpreuveType.TCF_EO)));
@@ -377,7 +426,7 @@ class FullTcfExamResponseBuilderTest {
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
-        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A1);
+        assertThat(subOf(r, EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A2);
         assertThat(subOf(r, EpreuveType.TCF_CE).cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
     }
 
@@ -621,7 +670,7 @@ class FullTcfExamResponseBuilderTest {
     void epreuveQcmSansAncre_maisAvecReponses_gardeSonNiveau() {
         Attempt p = parent(false);
         Attempt co = jamaisOuverte(EpreuveType.TCF_CO);
-        co.setCecrlLevel(NiveauCecrl.A2);
+        niveauxQcm.put(co.getId(), NiveauCecrl.A2);
         co.setWeightedScore(20);
         co.setMaxWeightedScore(50);
         when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(

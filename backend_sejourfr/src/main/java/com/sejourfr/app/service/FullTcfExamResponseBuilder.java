@@ -56,9 +56,53 @@ public class FullTcfExamResponseBuilder {
 
     public FullTcfExamResponse buildResponse(Attempt parent) {
         List<Attempt> subs = attemptManager.findSubAttempts(parent.getId());
+        return buildResponse(parent, subs, niveauxQcmDe(subs));
+    }
+
+    /**
+     * 🛑 <b>La forme de LISTE de l'écran « Mes examens blancs ».</b> Le niveau
+     * CECRL d'une épreuve QCM n'est plus persisté : il se dérive des réponses.
+     * Construire chaque bilan séparément aurait donc payé, par examen affiché,
+     * une requête de sous-épreuves <b>et</b> une requête de strates. Ici les
+     * deux sont posées <b>une fois pour la page entière</b>.
+     */
+    public List<FullTcfExamSummaryResponse> buildSummaries(List<Attempt> parents) {
+        if (parents == null || parents.isEmpty()) return List.of();
+        List<Attempt> subs = attemptManager.findSubAttempts(
+                parents.stream().map(Attempt::getId).toList());
+        Map<UUID, List<Attempt>> parParent = new java.util.HashMap<>();
+        for (Attempt sub : subs) {
+            Attempt p = sub.getParentAttempt();
+            if (p == null) continue;
+            parParent.computeIfAbsent(p.getId(), k -> new ArrayList<>()).add(sub);
+        }
+        Map<UUID, NiveauCecrl> niveaux = niveauxQcmDe(subs);
+        List<FullTcfExamSummaryResponse> out = new ArrayList<>(parents.size());
+        for (Attempt parent : parents) {
+            out.add(toSummary(parent, buildResponse(
+                    parent, parParent.getOrDefault(parent.getId(), List.of()), niveaux)));
+        }
+        return out;
+    }
+
+    /**
+     * Niveaux QCM des sous-épreuves CO/CE données, en <b>une seule requête</b>
+     * agrégée — l'autorité unique les dérive des réponses.
+     */
+    private Map<UUID, NiveauCecrl> niveauxQcmDe(List<Attempt> subs) {
+        return levelEstimator.niveauxQcm(subs.stream()
+                .filter(s -> s.getEpreuve() == EpreuveType.TCF_CO
+                        || s.getEpreuve() == EpreuveType.TCF_CE)
+                .map(Attempt::getId)
+                .toList());
+    }
+
+    private FullTcfExamResponse buildResponse(
+            Attempt parent, List<Attempt> subs, Map<UUID, NiveauCecrl> niveauxQcm) {
         Map<EpreuveType, Sous> mapped = new EnumMap<>(EpreuveType.class);
         for (Attempt sub : subs) {
-            mapped.put(sub.getEpreuve(), mapSubAttempt(sub, parent.isProductionLocked()));
+            mapped.put(sub.getEpreuve(),
+                    mapSubAttempt(sub, parent.isProductionLocked(), niveauxQcm));
         }
 
         // Ordre canonique d'affichage : CO → CE → EE → EO.
@@ -95,7 +139,10 @@ public class FullTcfExamResponseBuilder {
     }
 
     public FullTcfExamSummaryResponse buildSummary(Attempt parent) {
-        FullTcfExamResponse full = buildResponse(parent);
+        return toSummary(parent, buildResponse(parent));
+    }
+
+    private static FullTcfExamSummaryResponse toSummary(Attempt parent, FullTcfExamResponse full) {
         return new FullTcfExamSummaryResponse(
                 full.id(), full.startedAt(), full.finishedAt(),
                 full.finalCecrlLevel(), full.status(),
@@ -152,7 +199,8 @@ public class FullTcfExamResponseBuilder {
                 && !answerManager.hasAnyAnswer(sub.getId());
     }
 
-    private Sous mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
+    private Sous mapSubAttempt(
+            Attempt sub, boolean parentProductionLocked, Map<UUID, NiveauCecrl> niveauxQcm) {
         EpreuveType e = sub.getEpreuve();
         // Le verrou ne concerne que les épreuves productives EE/EO.
         //
@@ -187,15 +235,16 @@ public class FullTcfExamResponseBuilder {
             // une absence comme un verdict de langue. Doctrine du dépôt :
             // null = inconnu, jamais mauvais.
             boolean jamaisOuverte = jamaisOuverteQcm(sub);
-            // Source de vérité : cecrl_level posé à la finalisation par
-            // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
-            // sous-attempts finis avant V416 (cecrl_level encore NULL).
+            // 🛑 Source de vérité : les RÉPONSES, relues par l'autorité unique
+            // (TcfLevelEstimatorService, règle du palier maîtrisé). Ni
+            // `cecrl_level` — la colonne n'est plus ni écrite ni lue — ni une
+            // seconde table locale : l'ancien repli `weightedScoreToCecrl`
+            // (80/60/40/20 % du pondéré brut) servait les sous-attempts
+            // antérieurs à V416, dont les réponses sont en base comme les
+            // autres. Un dérivé qui ne se persiste pas relit tout l'historique.
             NiveauCecrl level = null;
             if (sub.getFinishedAt() != null && !jamaisOuverte) {
-                level = sub.getCecrlLevel() != null
-                        ? sub.getCecrlLevel()
-                        : weightedScoreToCecrl(sub.getWeightedScore(), sub.getMaxWeightedScore());
-                level = levelEstimator.capB2(level);
+                level = levelEstimator.capB2(niveauxQcm.get(sub.getId()));
             }
             return new Sous(new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
@@ -262,11 +311,14 @@ public class FullTcfExamResponseBuilder {
     }
 
     /**
-     * Score calibré 100-499 d'une sous-épreuve QCM (CO / CE) — l'échelle du
-     * relevé TCF, seule lisible par un candidat. Délégué à
-     * {@link TcfLevelEstimatorService}, comme {@code AttemptMapper} le fait pour
-     * les examens module : la correction du hasard et les bornes n'existent
-     * qu'à un seul endroit, deux copies finiraient par diverger.
+     * <b>Score de progression</b> 100-499 d'une sous-épreuve QCM (CO / CE).
+     * Délégué à {@link TcfLevelEstimatorService}, comme {@code AttemptMapper}
+     * le fait pour les examens module : la correction du hasard et les bornes
+     * n'existent qu'à un seul endroit, deux copies finiraient par diverger.
+     *
+     * <p>🛑 <b>Ce n'est pas un résultat d'examen</b> et aucun palier n'en
+     * dérive — le vrai relevé TCF a une échelle officielle que nous n'avons
+     * pas, et le palier se lit strate par strate.
      *
      * <p>{@code null} tant que le score pondéré n'est pas posé (épreuve en
      * cours, ou finalisée sans score) : le service rendrait alors 100, ce qui
@@ -328,43 +380,6 @@ public class FullTcfExamResponseBuilder {
             }
         }
         return false;
-    }
-
-    /**
-     * Conversion score pondéré CO/CE → niveau CECRL.
-     * <ul>
-     *   <li>≥ 80 % → B2</li>
-     *   <li>≥ 60 % → B1</li>
-     *   <li>≥ 40 % → A2</li>
-     *   <li>≥ 20 % → A1</li>
-     *   <li>&lt; 20 % → A1_NON_ATTEINT</li>
-     * </ul>
-     * Seuils calibrés sur l'esprit du TCF (60 % = B1 d'usage). Le vrai TCF
-     * IRN utilise une grille interne non publique — ces seuils sont
-     * volontairement simples pour rester explicables à l'utilisateur.
-     *
-     * <p>⚠️ <b>Table volontairement figée, et divergente</b> de celle de
-     * {@link TcfLevelEstimatorService} (bandes du score calibré 100-499 corrigé
-     * du hasard) : elle ne sert qu'aux sous-attempts <b>antérieurs à V416</b>,
-     * dont le {@code cecrl_level} n'a jamais été posé. La faire déléguer à
-     * l'estimateur changerait rétroactivement le niveau affiché sur cet
-     * historique — ce n'est pas un arbitrage à prendre ici.
-     *
-     * <p>Le <b>plancher produit</b> « au moins une bonne réponse ⇒ au moins A1 »
-     * s'y applique quand même : c'est une règle d'affichage transverse, et une
-     * seule autorité la porte ({@link TcfLevelEstimatorService
-     * #plancherA1SiUneBonneReponse}) — jamais une copie locale.
-     */
-    private NiveauCecrl weightedScoreToCecrl(Integer score, Integer maxScore) {
-        if (score == null || maxScore == null || maxScore <= 0) return null;
-        double ratio = (double) score / (double) maxScore;
-        NiveauCecrl niveau =
-                  ratio >= 0.80 ? NiveauCecrl.B2
-                : ratio >= 0.60 ? NiveauCecrl.B1
-                : ratio >= 0.40 ? NiveauCecrl.A2
-                : ratio >= 0.20 ? NiveauCecrl.A1
-                : NiveauCecrl.A1_NON_ATTEINT;
-        return levelEstimator.plancherA1SiUneBonneReponse(niveau, score > 0);
     }
 
     /**

@@ -208,8 +208,16 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
         assertThat(again.score()).isEqualTo(5);
     }
 
+    /**
+     * 🛑 <b>Le niveau N'EST PLUS PERSISTÉ</b> (V879) : il est servi, dérivé des
+     * réponses à la lecture. Ce qui reste écrit est de la mesure — le score
+     * pondéré, matière du score de progression.
+     *
+     * <p>Épreuve terminée sans aucune réponse : 25 items posés, zéro bonne
+     * réponse ⇒ {@code A1_NON_ATTEINT}.
+     */
     @Test
-    void finish_moduleExamTcf_poseCecrlEtScorePondere() {
+    void finish_moduleExamTcf_nePersistePlusDeNiveau_maisLeSert() {
         User user = data.user();
         data.userSubscription(user, data.plan());
         AttemptResponse started = service.start(user.getId(), new StartAttemptRequest(
@@ -219,26 +227,22 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
         AttemptResponse finished = service.finish(user.getId(), started.id());
 
         assertThat(finished.finishedAt()).isNotNull();
-        assertThat(finished.cecrlLevel()).isNotNull();
+        assertThat(finished.cecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
 
         Attempt persisted = attemptManager.findById(started.id()).orElseThrow();
-        assertThat(persisted.getCecrlLevel()).isNotNull();
         assertThat(persisted.getWeightedScore()).isEqualTo(0); // aucune réponse correcte
         assertThat(persisted.getMaxWeightedScore()).isGreaterThan(0);
-        // Zéro bonne réponse : le plancher produit ne rachète rien.
-        assertThat(persisted.getCecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
     }
 
     /**
-     * PLANCHER PRODUIT SEJOURFR — « au moins une bonne réponse ⇒ au moins A1 ».
-     * Vérifié là où le niveau est réellement PERSISTÉ ({@code attempts.cecrl_level}),
-     * sur les trois épreuves QCM. Une seule bonne réponse pèse ~1/50 pondéré,
-     * donc bien sous la ligne du hasard : le score calibré reste à sa borne
-     * basse (100/499) et la bande vaut {@code A1_NON_ATTEINT} — c'est le
-     * plancher, et lui seul, qui rend {@code A1}.
+     * Une seule bonne réponse : aucune strate n'est maîtrisée (il en faudrait
+     * 6/10 en A2), mais le candidat a démontré quelque chose ⇒ <b>A1</b>, sur
+     * les trois épreuves QCM. Le score de progression, lui, reste à sa borne
+     * basse (100/499) : ~1/47 pondéré, bien sous la ligne du hasard. Les deux
+     * ne disent pas la même chose, et c'est voulu.
      */
     @Test
-    void finish_moduleExamTcf_uneSeuleBonneReponse_poseA1_surLesTroisEpreuves() {
+    void finish_moduleExamTcf_uneSeuleBonneReponse_donneA1_surLesTroisEpreuves() {
         for (QuestionType epreuve : List.of(QuestionType.CO, QuestionType.CE, QuestionType.STRUCTURE)) {
             User user = data.user();
             data.userSubscription(user, data.plan());
@@ -256,9 +260,9 @@ class AttemptServiceReadIT extends AbstractIntegrationTest {
             assertThat(finished.score()).as("épreuve %s", epreuve).isEqualTo(1);
             Attempt persisted = attemptManager.findById(started.id()).orElseThrow();
             assertThat(persisted.getWeightedScore()).as("épreuve %s", epreuve).isGreaterThan(0);
-            assertThat(persisted.getCecrlLevel()).as("épreuve %s", epreuve)
+            assertThat(finished.cecrlLevel()).as("épreuve %s", epreuve)
                     .isEqualTo(NiveauCecrl.A1);
-            // Le score calibré servi aux fronts, lui, n'a pas bougé d'un point.
+            // Le score de progression, lui, n'a pas bougé d'un point.
             assertThat(finished.calibratedScore()).as("épreuve %s", epreuve).isEqualTo(100);
         }
     }

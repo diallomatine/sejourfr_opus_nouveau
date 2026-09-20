@@ -302,9 +302,11 @@ function ExamBriefingInner({
                       <span>
                         Dernier niveau :{" "}
                         <strong>
-                          {/* Le /499 n'appartient qu'au score CALIBRÉ : le
-                              `score` brut est un nombre de bonnes réponses, le
-                              présenter sur 499 fabriquait un relevé faux. */}
+                          {/* Le /499 n'appartient qu'au score de
+                              PROGRESSION : le `score` brut est un nombre de
+                              bonnes réponses, le présenter sur 499 fabriquait
+                              un relevé faux. Et le /499 lui-même n'est pas un
+                              score TCF. */}
                           {lastAttempt.cecrlLevel ??
                             (lastAttempt.calibratedScore != null
                               ? `${lastAttempt.calibratedScore}/499`

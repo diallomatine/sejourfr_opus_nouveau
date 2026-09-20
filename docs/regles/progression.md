@@ -845,35 +845,45 @@ qui existent sont appelées, et ce sont celles de « Voir mes résultats » :
 Les trois provenances (diagnostic complet · examen blanc isolé · examen blanc TCF
 complet) comptent **à égalité** : aucun traitement selon la provenance.
 
-**On moyenne des SCORES, jamais des labels.** Un niveau CECRL est une *bande* :
+**On moyenne des MESURES, jamais des labels.** Un niveau CECRL est une *bande* :
 « la moyenne d'un A2 et d'un B2 » n'a pas de sens arithmétique, et la calculer
 sur les ordinaux d'un enum ferait dépendre le résultat de l'ordre de déclaration.
 
-| épreuve | score moyenné | table de conversion (existante, **jamais recopiée**) |
+| épreuve | ce qui se moyenne | conversion (existante, **jamais recopiée**) |
 |---|---|---|
-| CO / CE | le **score calibré 100-499** (`TcfLevelEstimatorService.calibratedScore`) | `TcfLevelEstimatorService.niveauDepuisScoreCalibre` — ≥400 B2, ≥300 B1, ≥200 A2, ≥101 A1 |
+| CO / CE | les **items eux-mêmes** : les strates A2/B1/B2 des examens retenus sont **cumulées** | `TcfLevelEstimatorService.niveauParStrates` — le plus haut palier maîtrisé (60 %, arrondi supérieur), sans saut |
 | EE / EO | la **compétence /20 de l'épreuve** (`ProductionBilanService.NiveauEpreuve.competence`, l'agrégat pondéré des 3 tâches) | `ProductionBilanService.niveauDepuisCompetence` — les seuils de la grille active |
 
-La moyenne est arithmétique et **non pondérée** : les trois examens retenus
-mesurent la même épreuve dans les mêmes conditions.
+🛑 **Révoqué le 2026-09-20 côté CO/CE** : on moyennait les **scores calibrés
+100-499** puis on convertissait par bande (`niveauDepuisScoreCalibre`, ≥400 B2 ·
+≥300 B1 · ≥200 A2 · ≥101 A1). Cette table **n'existe plus** : le /499 est devenu
+un **score de progression** dont aucun palier ne dérive, parce que sa bande A2
+était inatteignable par un candidat A2 (`docs/regles/qcm.md`). Les items se
+cumulent donc, et le palier se relit chez l'autorité unique.
 
-🛑 **Règle de bande : une moyenne qui tombe ENTRE deux bandes reste dans la bande
-BASSE.** C'est la convention déjà en vigueur pour les notes de critère, et elle
-est gratuite ici : les deux tables sont des **bornes basses** (`>=`). Côté QCM la
-moyenne est ramenée à l'entier **inférieur** avant conversion, ce qui est la même
-décision — 399,5 reste B1, 400,0 devient B2.
+⚠️ **Le cumul d'items est une moyenne pondérée par la mesure, et c'est voulu** :
+trente items A2 observés sur trois examens disent mieux où en est le candidat
+que trois paliers moyennés. Conséquence assumée, à connaître : **le palier
+affiché est plus inerte** qu'une moyenne de scores — sur trois examens cumulés,
+un seul mauvais n'efface pas deux sans-faute ; il faut une tendance, pas un
+accident. Un historique récent dégradé **fait** bien redescendre le palier, ce
+qui était la demande.
 
-**Ce qui survit à la moyenne** : le **plancher produit** « au moins une bonne
-réponse ⇒ au moins A1 » (réappliqué par son autorité, non recodé), le **plafond
-B2**, et le **garde-fou de cohérence T3** (il abaissait déjà le niveau d'une
-session ; la compétence publiée est ramenée sous la bande plafonnée par
-`sousPlafond`, sinon le plafond se perdrait dans la moyenne).
+🛑 **Règle de bande (EE/EO) : une moyenne qui tombe ENTRE deux bandes reste dans
+la bande BASSE.** C'est la convention déjà en vigueur pour les notes de critère,
+et elle est gratuite : la table est une suite de **bornes basses** (`>=`).
+
+**Ce qui survit à la moyenne** : le **plafond B2**, et le **garde-fou de
+cohérence T3** (il abaissait déjà le niveau d'une session ; la compétence
+publiée est ramenée sous la bande plafonnée par `sousPlafond`, sinon le plafond
+se perdrait dans la moyenne). ⚠️ Le **plancher produit A1** n'y figure plus : il
+est **supprimé** — le modèle par strate rend déjà `A1` à qui a au moins une
+bonne réponse sans strate maîtrisée.
 
 **Aucun examen qualifiant ⇒ `null`** (« À évaluer »), jamais un plancher
-fabriqué. Une session qui porte un palier mais **aucun score moyennable** (repli
-sur les niveaux persistés, attempt legacy sans score pondéré) ne casse rien : si
-aucune des sessions retenues n'a de score, le palier de la **plus récente** fait
-foi — « 1 examen → le niveau de cet examen ».
+fabriqué. ⚠️ Le repli « aucun score moyennable ⇒ le palier de la plus récente »
+n'a plus d'objet côté QCM : un examen ancien sans score pondéré reste
+parfaitement lisible, ses **réponses** sont en base.
 
 **Le niveau global affiché reste le MIN des 4 épreuves**, chacune valant sa
 propre moyenne — `TcfLevelEstimatorService.floor`, la règle du plancher n'étant
@@ -921,7 +931,8 @@ C'est elle qui porte `niveauInitial` et la courbe de l'écran Progrès. L'enrich
 rendrait toute `evolution` `STABLE`.
 
 **Tests** : `NiveauActuelEpreuveResolverTest` (1 / 2 / 4 examens, la baisse sur
-un mauvais examen récent, la bande basse, le plancher A1, le repli sans score),
+un historique récent dégradé, le seuil sur items cumulés, le plancher A1 /
+A1 non atteint, un examen sans score pondéré),
 `TcfProfileServiceTest` section « lecture d'AFFICHAGE » (le câblage, le min des
 4, l'affichage plus bas que le Plan), `TcfProfileServiceIT` (les 3 provenances à
 égalité, la moyenne en base, la fenêtre de 3, l'entraînement dehors, le min des

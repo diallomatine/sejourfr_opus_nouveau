@@ -80,7 +80,7 @@ class TcfDiagnosticEpreuveMesureeIT extends AbstractIntegrationTest {
         TcfDiagnosticSession session = service.ouvrir(user.getId());
         entityManager.flush();
 
-        Attempt examen = examenQcm(user, EpreuveType.TCF_CO, 80, Instant.now());
+        Attempt examen = examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.B1, Instant.now());
         entityManager.flush();
         entityManager.clear();
 
@@ -192,7 +192,7 @@ class TcfDiagnosticEpreuveMesureeIT extends AbstractIntegrationTest {
         User user = data.user();
         TcfDiagnosticSession session = service.ouvrir(user.getId());
         entityManager.flush();
-        examenQcm(user, EpreuveType.TCF_CE, 90, Instant.now());
+        examenQcm(user, EpreuveType.TCF_CE, NiveauCecrl.B2, Instant.now());
         entityManager.flush();
         entityManager.clear();
 
@@ -221,8 +221,8 @@ class TcfDiagnosticEpreuveMesureeIT extends AbstractIntegrationTest {
         TcfDiagnosticSession session = service.ouvrir(user.getId());
         entityManager.flush();
 
-        examenQcm(user, EpreuveType.TCF_CO, 80, Instant.now());
-        examenQcm(user, EpreuveType.TCF_CE, 80, Instant.now());
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.B1, Instant.now());
+        examenQcm(user, EpreuveType.TCF_CE, NiveauCecrl.B1, Instant.now());
         data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
         data.epreuveProductionPassee(user, EpreuveType.TCF_EO, NiveauCecrl.B1);
         entityManager.flush();
@@ -249,23 +249,17 @@ class TcfDiagnosticEpreuveMesureeIT extends AbstractIntegrationTest {
     // Fixtures
     // ------------------------------------------------------------------------
 
-    /** Un examen QCM d'épreuve passé seul, avec une réponse — donc qualifiant. */
-    private Attempt examenQcm(User user, EpreuveType epreuve, int pondere, Instant fin) {
-        Attempt a = new Attempt();
-        a.setUser(user);
-        a.setType(AttemptType.MOCK_EXAM);
-        a.setModule(Module.TCF);
-        a.setEpreuve(epreuve);
-        a.setMode(AttemptMode.EXAMEN);
-        a.setStatus(AttemptStatus.TERMINE);
+    /**
+     * Un examen QCM d'épreuve passé seul, dont les <b>réponses</b> démontrent
+     * {@code niveau} — donc qualifiant. 🛑 Le palier se dérive des réponses, il
+     * ne se déclare plus.
+     */
+    private Attempt examenQcm(User user, EpreuveType epreuve, NiveauCecrl niveau, Instant fin) {
+        Attempt a = data.examenQcmTcfPasse(user, epreuve, niveau);
         a.setSlotNumber(1);
         a.setStartedAt(fin.minus(30, ChronoUnit.MINUTES));
         a.setFinishedAt(fin);
-        a.setWeightedScore(pondere);
-        a.setMaxWeightedScore(100);
-        attemptManager.save(a);
-        data.answer(data.attemptQuestion(a, data.question()));
-        return a;
+        return attemptManager.save(a);
     }
 
     /** Le conteneur d'un examen blanc TCF complet — il porte les sous-épreuves. */

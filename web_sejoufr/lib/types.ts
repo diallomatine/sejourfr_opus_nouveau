@@ -287,7 +287,9 @@ export interface AttemptResponse {
     /** Thème civique scopé (séries + examens thématiques) — sert au retour
      *  de session vers l'écran d'origine. */
     themeId?: string | null;
-    /** Score calibré 100-499 + niveau CECRL estimé (examens module TCF). */
+    /** Score de PROGRESSION 100-499 + niveau CECRL (examens module TCF).
+     *  🛑 Le /499 n'est pas un score TCF et aucun niveau n'en dérive : le
+     *  palier se lit strate par strate côté serveur. */
     calibratedScore?: number | null;
     cecrlLevel?: NiveauCecrl | null;
     /** Détail par épreuve d'un examen TCF stratifié fini — `cecrlLevel` est le
@@ -402,7 +404,8 @@ export interface AttemptSummaryResponse {
     startedAt: string;
     finishedAt?: string | null;
     score?: number | null;
-    /** Score calibré 100-499 d'un examen TCF stratifié (module ou template). */
+    /** Score de PROGRESSION 100-499 d'un examen TCF stratifié (module ou
+     *  template). 🛑 Pas un score TCF. */
     calibratedScore?: number | null;
     /** Niveau CECRL estimé sur un examen module TCF (null sinon). */
     cecrlLevel?: NiveauCecrl | null;
@@ -714,8 +717,9 @@ export interface TcfDiagnosticSectionDto {
      */
     niveau: NiveauCecrl | null;
     /**
-     * Score calibré **100-499**, compréhension close seulement — la même valeur
-     * qu'un examen blanc de module affiche. `null` en production.
+     * Score de **PROGRESSION** 100-499, compréhension close seulement — la
+     * même valeur qu'un examen blanc de module affiche. 🛑 Pas un score TCF.
+     * `null` en production.
      */
     scoreCalibre: number | null;
     /**
@@ -3870,16 +3874,18 @@ export interface FullTcfExamSubAttempt {
     finishedAt: string | null;
     cecrlLevel: NiveauCecrl | null;
     /** Score **pondéré interne** (A2=1, B1=2, B2=3) et sa borne. Conservés
-     *  comme repli — ce n'est pas ce qu'on affiche à un candidat, « 23/50 » ne
-     *  correspond à rien sur son relevé. */
+     *  comme repli — ce n'est pas ce qu'on affiche à un candidat, « 23/47 » ne
+     *  veut rien dire pour lui. */
     score: number | null;
     maxScore: number | null;
-    /** CO/CE : score calibré **100-499**, l'échelle du relevé TCF. Dérivé
-     *  serveur (`TcfLevelEstimatorService`, correction du hasard comprise) :
-     *  ne jamais le recalculer depuis `score`/`maxScore`. **C'est ce que les
-     *  écrans affichent.** Null pour EE/EO, pour une épreuve verrouillée et
-     *  tant que le score pondéré n'est pas posé — on retombe alors sur
-     *  `score`/`maxScore`, jamais sur un `/499` inventé. */
+    /** CO/CE : **score de PROGRESSION** 100-499. Dérivé serveur
+     *  (`TcfLevelEstimatorService`, correction du hasard comprise) : ne jamais
+     *  le recalculer depuis `score`/`maxScore`. **C'est ce que les écrans
+     *  affichent.** 🛑 Ce n'est pas un score TCF — le relevé officiel a une
+     *  échelle que nous n'avons pas, et aucun niveau n'en dérive. Null pour
+     *  EE/EO, pour une épreuve verrouillée et tant que le score pondéré n'est
+     *  pas posé — on retombe alors sur `score`/`maxScore`, jamais sur un
+     *  `/499` inventé. */
     calibratedScore: number | null;
     submissionsCount: number | null;
     failedSubmissionIds: string[];

@@ -130,8 +130,10 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
 - **Une règle = une autorité.** Deux copies d'une même règle finissent toujours par diverger —
   c'est le défaut le plus cher du dépôt (table des paliers en 6 copies, `estimateCostCents` en
   11 copies). À la 2ᵉ occurrence, on extrait.
-- **Un garde-fou serveur ne peut qu'abaisser.** Seule exception connue et voulue : le plancher
-  A1 des QCM, qui ne relève que d'un cran depuis `A1_NON_ATTEINT` (`docs/regles/qcm.md`).
+- **Un garde-fou serveur ne peut qu'abaisser** — 🛑 **sans aucune exception** depuis le
+  2026-09-20. Le plancher A1 des QCM, seul garde-fou du dépôt qui relevait, est **supprimé** :
+  le niveau se lit strate par strate et rend déjà `A1` dès une bonne réponse
+  (`docs/regles/qcm.md`).
 - **Ce qui tient la qualité, ce sont les contraintes dures, pas les consignes.** Ordre de
   préférence : (1) le tool-schema — un champ absent ne peut pas être produit ; (2) une longueur
   plafonnée ; (3) un contrôle serveur déterministe ; (4) **en dernier** une consigne de prompt.

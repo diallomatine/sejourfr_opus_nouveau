@@ -9,7 +9,12 @@ import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { examIsStale, qcmScoreLabel, subAttemptView, type SubAttemptView } from "@/lib/exam-levels";
+import {
+    examIsStale,
+    scoreProgressionLabel,
+    subAttemptView,
+    type SubAttemptView,
+} from "@/lib/exam-levels";
 import {
   epreuvesAClore,
   fullExamSuspendMessage,
@@ -377,10 +382,9 @@ function StepBadge({ sub, view }: { sub: FullTcfExamSubAttempt; view: SubAttempt
     return <span className={`${s.stepBadge} ${s.evaluating}`}>Éval interrompue</span>;
   }
   {
-    // Échelle du relevé TCF (100-499) dès que le backend a calibré ; le score
-    // pondéré interne (« 23/50 ») ne reste qu'en repli — il ne veut rien dire
-    // pour un candidat.
-    const scoreLabel = qcmScoreLabel(sub);
+    // 🛑 Score de PROGRESSION, pas un score TCF : le relevé officiel a une
+    // échelle que nous n'avons pas. Le pondéré interne ne reste qu'en repli.
+    const scoreLabel = scoreProgressionLabel(sub);
     if (scoreLabel) {
       return <span className={`${s.stepBadge} ${s.done}`}>{scoreLabel}</span>;
     }

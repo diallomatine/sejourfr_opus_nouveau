@@ -48,6 +48,8 @@ class FullTcfExamServiceTest {
     private FullTcfExamService service;
 
     private final UUID userId = UUID.randomUUID();
+    /** Ce que les reponses de chaque sous-epreuve QCM demontrent. */
+    private final java.util.Map<UUID, NiveauCecrl> niveauxQcm = new java.util.HashMap<>();
 
     private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
 
@@ -60,6 +62,17 @@ class FullTcfExamServiceTest {
         AttemptService attemptService = mock(AttemptService.class);
         levelEstimator = mock(TcfLevelEstimatorService.class);
         productionBilanService = mock(ProductionBilanService.class);
+        niveauxQcm.clear();
+        // Le niveau d'une epreuve QCM se DERIVE des reponses : l'estimateur le
+        // rend pour toute la page en une passe. Ici on rejoue cette forme.
+        when(levelEstimator.niveauxQcm(any())).thenAnswer(inv -> {
+            java.util.Map<UUID, NiveauCecrl> out = new java.util.HashMap<>();
+            for (UUID id : (java.util.Collection<UUID>) inv.getArgument(0)) {
+                NiveauCecrl n = niveauxQcm.get(id);
+                if (n != null) out.put(id, n);
+            }
+            return out;
+        });
 
         FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
                 attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
@@ -106,7 +119,7 @@ class FullTcfExamServiceTest {
      * sans rien de rendu, elle serait « jamais ouverte » et n'aurait aucun
      * niveau — cf. {@link #jamaisOuverte}.
      */
-    private Attempt sub(EpreuveType e, boolean finished) {
+    private Attempt sub(EpreuveType e, boolean finished) { // instance : enregistre le niveau derive
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
@@ -116,7 +129,7 @@ class FullTcfExamServiceTest {
             a.setStatus(AttemptStatus.TERMINE);
         }
         if ((e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) && finished) {
-            a.setCecrlLevel(NiveauCecrl.B1);
+            niveauxQcm.put(a.getId(), NiveauCecrl.B1);
         }
         return a;
     }
@@ -327,16 +340,17 @@ class FullTcfExamServiceTest {
      */
     @Test
     void finish_epreuvesJamaisOuvertes_neFondentPasLeNiveauFinal() {
-        TcfLevelEstimatorService reel = new TcfLevelEstimatorService();
+        TcfLevelEstimatorService reel = new TcfLevelEstimatorService(
+                mock(com.sejourfr.app.manager.AttemptQuestionManager.class));
         when(levelEstimator.min(any(), any()))
                 .thenAnswer(inv -> reel.min(inv.getArgument(0), inv.getArgument(1)));
 
         UUID id = UUID.randomUUID();
         Attempt p = parent(id);
         Attempt co = sub(EpreuveType.TCF_CO, true);
-        co.setCecrlLevel(NiveauCecrl.A2);
+        niveauxQcm.put(co.getId(), NiveauCecrl.A2);
         Attempt ce = sub(EpreuveType.TCF_CE, true);
-        ce.setCecrlLevel(NiveauCecrl.A1);
+        niveauxQcm.put(ce.getId(), NiveauCecrl.A1);
         Attempt ee = jamaisOuverte(EpreuveType.TCF_EE);
         Attempt eo = jamaisOuverte(EpreuveType.TCF_EO);
         when(attemptManager.findById(id)).thenReturn(Optional.of(p));
@@ -393,7 +407,7 @@ class FullTcfExamServiceTest {
                 .thenReturn(List.of());
 
         assertThat(service.findLatestForUser(userId)).isNull();
-        verify(attemptManager, never()).findSubAttempts(any());
+        verify(attemptManager, never()).findSubAttempts(any(UUID.class));
     }
 
     @Test

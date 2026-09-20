@@ -57,8 +57,10 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
 - **`null` = inconnu, jamais mauvais.** Une absence de mesure ne devient jamais le verdict le
   plus bas. Ne pas remplacer un `null` par un plancher « pour simplifier le front ».
 - **Un garde-fou ne peut qu'abaisser** (`applyCouplage`, `applyPlafonds`, `applyConfiance`,
-  `CoherenceBilan`, `CompetenceLevelEvidenceGuard`). L'unique exception voulue est le plancher A1
-  des QCM, et elle est bornée à un cran. Ne pas créer de garde-fou qui relève.
+  `CoherenceBilan`, `CompetenceLevelEvidenceGuard`). 🛑 **Il n'y a plus AUCUNE exception**
+  depuis le 2026-09-20 : le plancher A1 des QCM, seul garde-fou du dépôt qui relevait, a été
+  supprimé — le niveau par strate maîtrisée rend déjà `A1` à qui a au moins une bonne réponse
+  (`docs/regles/qcm.md`). Ne pas créer de garde-fou qui relève.
 - **Les nombres vivent en configuration, pas dans le Java** — `application.yaml` + un POJO
   `@ConfigurationProperties` **aux mêmes valeurs par défaut** (ils ne doivent jamais diverger).
   Exception assumée : une **donnée officielle** (table des paliers TCF, durées d'épreuve, tâches

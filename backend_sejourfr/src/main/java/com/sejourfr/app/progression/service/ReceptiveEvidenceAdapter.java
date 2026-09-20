@@ -230,7 +230,7 @@ public class ReceptiveEvidenceAdapter {
      * scores sont comparables à ceux d'une autre série, soit ils ne le sont pas.
      *
      * <p>Les examens blancs sont calibrés <b>par construction</b> : leurs
-     * strates sont garanties à la composition (8 A2 + 9 B1 + 8 B2 par épreuve),
+     * strates sont garanties à la composition (10 A2 + 8 B1 + 7 B2 par épreuve),
      * et §6.4 les mesure palier par palier — le blueprint des séries ne s'y
      * applique pas.
      */

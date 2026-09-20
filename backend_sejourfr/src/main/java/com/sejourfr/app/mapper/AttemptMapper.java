@@ -43,14 +43,17 @@ public class AttemptMapper {
         // Détail par épreuve d'un examen TCF stratifié fini ; le niveau
         // global est alors le plancher des épreuves (règle TCF IRN : il faut
         // le niveau partout — un seul A1 tire l'ensemble à A1).
+        //
+        // 🛑 Le niveau est DÉRIVÉ DES RÉPONSES déjà chargées, jamais relu sur
+        // `attempts.cecrl_level` — la colonne n'est plus ni écrite ni lue.
+        // Aucune requête supplémentaire : `aqs` est l'argument de la méthode.
+        boolean noteQcm = attempt.getFinishedAt() != null && isStratifiedTcfExam(attempt);
         List<AttemptEpreuveResult> epreuveResults =
-                revealCorrect && attempt.getFinishedAt() != null && isStratifiedTcfExam(attempt)
-                        ? epreuveResultsOf(aqs)
-                        : List.of();
-        NiveauCecrl globalLevel = epreuveResults.isEmpty()
-                ? cecrlLevelOf(attempt)
-                : levelEstimator.floor(
-                        epreuveResults.stream().map(AttemptEpreuveResult::cecrlLevel).toList());
+                noteQcm ? epreuveResultsOf(aqs) : List.of();
+        NiveauCecrl globalLevel = noteQcm
+                ? levelEstimator.floor(
+                        epreuveResults.stream().map(AttemptEpreuveResult::cecrlLevel).toList())
+                : null;
 
         return new AttemptResponse(
                 attempt.getId(),
@@ -70,7 +73,7 @@ public class AttemptMapper {
                 attempt.getLotThemeId(),
                 calibratedScoreOf(attempt),
                 globalLevel,
-                epreuveResults,
+                revealCorrect ? epreuveResults : List.of(),
                 aqResponses
         );
     }
@@ -105,7 +108,19 @@ public class AttemptMapper {
         return results;
     }
 
-    public AttemptSummaryResponse toSummary(Attempt a) {
+    /**
+     * Ligne d'historique d'une tentative.
+     *
+     * <p>🛑 <b>Le niveau arrive en argument</b>, il ne se lit pas ici : depuis
+     * le 2026-09-20 il se dérive des réponses, et un mapper ne fait aucune
+     * lookup. L'appelant ({@code AttemptInteractionService.listMine}) le
+     * calcule pour <b>toute la page en une requête</b>
+     * ({@code TcfLevelEstimatorService.niveauxQcm}) — le chercher ligne par
+     * ligne serait un N+1.
+     *
+     * @param niveauQcm niveau dérivé des réponses, {@code null} si inconnu
+     */
+    public AttemptSummaryResponse toSummary(Attempt a, NiveauCecrl niveauQcm) {
         // Difficulte representative d'un attempt : on prend celle de la premiere
         // question piochee. A terme on pourrait stocker une difficulte au niveau
         // de l'Attempt directement.
@@ -133,7 +148,7 @@ public class AttemptMapper {
                 a.getWeightedScore(),
                 a.getMaxWeightedScore(),
                 calibratedScoreOf(a),
-                cecrlLevelOf(a),
+                isStratifiedTcfExam(a) ? niveauQcm : null,
                 a.getLotThemeId(),
                 a.getSlotNumber()
         );
@@ -150,8 +165,11 @@ public class AttemptMapper {
     }
 
     /**
-     * Score calibré 100-499 d'un examen TCF (dérivé du score pondéré).
-     * Null ailleurs (le score brut reste pertinent).
+     * <b>Score de progression</b> 100-499 d'un examen TCF (dérivé du score
+     * pondéré). Null ailleurs (le score brut reste pertinent).
+     *
+     * <p>🛑 Ce n'est pas un résultat d'examen et aucun palier n'en dérive :
+     * le vrai relevé TCF a une échelle officielle que nous n'avons pas.
      *
      * <p><b>Public</b> depuis le 2026-09-13 : les cartes du diagnostic TCF
      * affichent le score de leur section de compréhension comme un examen
@@ -165,18 +183,6 @@ public class AttemptMapper {
             return null;
         }
         return levelEstimator.calibratedScore(a.getWeightedScore(), a.getMaxWeightedScore());
-    }
-
-    /**
-     * Niveau CECRL d'un examen TCF : cecrl_level stocké au finish (plancher
-     * des épreuves depuis la règle « min partout » ; V112 a invalidé les
-     * niveaux de l'ancienne règle), fallback dérivé du score pondéré — bande
-     * du score calibré, donc couple cohérent. Null hors examens TCF stratifiés.
-     */
-    private NiveauCecrl cecrlLevelOf(Attempt a) {
-        if (!isStratifiedTcfExam(a)) return null;
-        if (a.getCecrlLevel() != null) return a.getCecrlLevel();
-        return levelEstimator.levelFromWeighted(a.getWeightedScore(), a.getMaxWeightedScore());
     }
 
     private AttemptQuestionResponse toAttemptQuestionResponse(AttemptQuestion aq, boolean revealCorrect) {

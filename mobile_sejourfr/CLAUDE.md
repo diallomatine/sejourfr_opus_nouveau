@@ -995,9 +995,13 @@ pas « meilleur niveau » / « dernier examen » — il est annoté « partiel �
 `FullTcfExamSubAttempt.calibratedScore` (100-499, dérivé serveur par
 `TcfLevelEstimatorService`) est ce qu'affichent le hub de progression et le bilan —
 `score`/`maxScore` reste servi mais c'est le score **pondéré interne** (A2=1, B1=2,
-B2=3) et « 23/50 » ne correspond à rien sur le relevé d'un candidat. La règle vit à
-**un seul endroit**, `FullTcfExamSubAttempt.qcmScoreLabel` (`core/models/full_tcf_exam.dart`,
-miroir de `qcmScoreLabel` dans `web_sejoufr/lib/exam-levels.ts`) : calibré présent ⇒
+B2=3) et « 23/47 » ne veut rien dire pour un candidat.
+🛑 **Le /499 est un SCORE DE PROGRESSION, pas un score TCF** (2026-09-20) : le relevé
+officiel a une échelle que nous n'avons pas, et **aucun niveau n'en dérive** — le palier
+se lit strate par strate côté serveur (`docs/regles/qcm.md`). La règle vit à
+**un seul endroit**, `FullTcfExamSubAttempt.scoreProgressionLabel`
+(`core/models/full_tcf_exam.dart`, miroir de `scoreProgressionLabel` dans
+`web_sejoufr/lib/exam-levels.ts`) : calibré présent ⇒
 `x/499`, sinon repli sur `x/maxScore`, `null` quand il n'y a rien (EE/EO, épreuve
 verrouillée, pas encore notée). **Ne jamais dériver un /499 d'un pondéré côté app**, et
 ne pas remplacer par un tiret une donnée qu'on possède. Mêmes barèmes que les examens

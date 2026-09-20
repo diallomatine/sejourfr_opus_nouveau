@@ -44,7 +44,7 @@ import java.util.UUID;
  * reponses par niveau de question</b> ({@code questions.difficulty}, qui porte
  * bien {@code A2|B1|B2}) et produit <b>une observation par (domaine x niveau)
  * reellement represente</b>, vers la competence correspondante. Un examen
- * d'epreuve CO (8 A2 + 9 B1 + 8 B2) alimente donc les trois competences CO d'un
+ * d'epreuve CO (10 A2 + 8 B1 + 7 B2) alimente donc les trois competences CO d'un
  * coup, chacune sur ses propres questions ; une serie ciblee de 20 questions
  * B1 n'en alimente qu'une, avec vingt observations elementaires derriere.
  *

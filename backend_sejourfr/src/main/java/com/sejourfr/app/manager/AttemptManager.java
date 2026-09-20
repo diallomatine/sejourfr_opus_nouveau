@@ -142,6 +142,16 @@ public class AttemptManager {
     }
 
     /**
+     * Sous-attempts de PLUSIEURS examens blancs, en une requête — la forme de
+     * liste (« Mes examens blancs »). Liste vide en entrée ⇒ liste vide en
+     * sortie, sans requête.
+     */
+    public List<Attempt> findSubAttempts(java.util.Collection<UUID> parentAttemptIds) {
+        if (parentAttemptIds == null || parentAttemptIds.isEmpty()) return List.of();
+        return repository.findByParentAttemptIds(parentAttemptIds);
+    }
+
+    /**
      * Lookup avec parent eager-loaded. Utilisé hors transaction longue pour
      * pouvoir lire {@code parentAttempt.epreuve} sans LazyInitializationException
      * (cf. {@code ProductionEvaluationService.finishSubAttemptIfFullExam}).

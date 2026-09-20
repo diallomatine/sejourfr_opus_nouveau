@@ -2,7 +2,6 @@ package com.sejourfr.app.service.progres;
 
 import com.sejourfr.app.dto.EpreuveHistoriqueDto;
 import com.sejourfr.app.entity.Attempt;
-import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
@@ -14,6 +13,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SourceEvaluation;
 import com.sejourfr.app.enums.SubmissionStatut;
@@ -73,13 +73,15 @@ class EpreuveHistoriqueServiceIT extends AbstractIntegrationTest {
 
     /* ------------------------------------------------------------ fixtures -- */
 
-    /** Un examen blanc QCM fini, portant une réponse — donc qualifiant. */
+    /**
+     * Un examen blanc QCM fini dont les <b>réponses</b> démontrent
+     * {@code niveau} — donc qualifiant. 🛑 Le palier ne se déclare plus : il
+     * n'existe que dérivé (cf. {@code TestData.reponsesQcmDemontrant}).
+     */
     private Attempt examenQcm(User user, EpreuveType epreuve, NiveauCecrl niveau, Instant fin) {
         Attempt a = attemptQcm(user, epreuve, fin);
-        a.setCecrlLevel(niveau);
-        attemptManager.save(a);
-        AttemptQuestion aq = data.attemptQuestion(a, data.question());
-        data.answer(aq);
+        data.reponsesQcmDemontrant(a,
+                epreuve == EpreuveType.TCF_CE ? QuestionType.CE : QuestionType.CO, niveau);
         entityManager.flush();
         return a;
     }
@@ -255,9 +257,7 @@ class EpreuveHistoriqueServiceIT extends AbstractIntegrationTest {
     @DisplayName("🛑 Un examen abandonné sans AUCUNE réponse n'explique aucun niveau")
     void examenSansAucuneReponse() {
         User user = data.user();
-        Attempt vide = attemptQcm(user, EpreuveType.TCF_CE, Instant.now());
-        vide.setCecrlLevel(NiveauCecrl.A1_NON_ATTEINT);
-        attemptManager.save(vide);
+        attemptQcm(user, EpreuveType.TCF_CE, Instant.now());
         entityManager.flush();
 
         assertThat(service.historique(user.getId(), EpreuveType.TCF_CE).evaluations()).isEmpty();

@@ -32,11 +32,32 @@ import java.util.UUID;
 public class AttemptCompositionService {
 
 
-    // Composition d'un examen module TCF QCM : 8 A2 + 9 B1 + 8 B2 = 25 questions
-    // progressives. Cf. StartAttemptRequest doc + AttemptService.startModuleExam.
-    private static final int MODULE_EXAM_A2 = 8;
-    private static final int MODULE_EXAM_B1 = 9;
-    private static final int MODULE_EXAM_B2 = 8;
+    // ════════════════════════════════════════════════════════════════════
+    // Composition d'un examen module TCF QCM : 10 A2 + 8 B1 + 7 B2 = 25
+    // questions progressives (2026-09-20). Cf. StartAttemptRequest doc +
+    // AttemptService.startModuleExam.
+    // ════════════════════════════════════════════════════════════════════
+    // 🛑 LA GRANULARITE CHERCHEE NE CONCERNE QUE L'A2. Le niveau se lit
+    // desormais strate par strate, a 60 % des items arrondis a l'entier
+    // SUPERIEUR (TcfLevelEstimatorService). Sur 8 items le seuil tombait a
+    // 5/8 = 62,5 % : un candidat A2 devait faire mieux que la regle pour etre
+    // classe A2. Sur 10, le seuil est 6/10 = 60 % PILE, donc la strate mesure
+    // exactement ce que la regle demande -- et un item A2 vaut un dixieme au
+    // lieu d'un huitieme, ce qui rend le palier moins sensible a une seule
+    // erreur.
+    //
+    // ⚠️ L'ecart d'arrondi qui subsiste est ASSUME : 5/8 = 62,5 % en B1 et
+    // 5/7 = 71,4 % en B2, contre 60,0 % pile en A2. Le sens est le bon -- c'est
+    // le palier le plus HAUT qui est le plus exigeant. Cf. docs/regles/qcm.md.
+    //
+    // 🛑 NE PAS TOUCHER A DureeEpreuve : les 20 min sont percues comme fideles
+    // au vrai examen, et le total reste 25 questions.
+    //
+    // Profondeur du pool verifiee avant bascule (base locale, items actifs) :
+    // CO A2 134 / B1 214 / B2 212 ; CE A2 206 / B1 205 / B2 205.
+    private static final int MODULE_EXAM_A2 = 10;
+    private static final int MODULE_EXAM_B1 = 8;
+    private static final int MODULE_EXAM_B2 = 7;
     /**
      * Questions d'un examen blanc d'epreuve QCM. <b>Public</b> parce que le Plan
      * en a besoin comme denominateur : il ramene la duree officielle d'une
@@ -94,7 +115,7 @@ public class AttemptCompositionService {
      * (demande du proprietaire, 2026-09-13).
      *
      * <p>🛑 <b>Ce n'est pas un examen blanc raccourci.</b> La repartition est
-     * EGALE entre paliers, la ou l'examen module suit 8/9/8 : le niveau du
+     * EGALE entre paliers, la ou l'examen module suit 10/8/7 : le niveau du
      * diagnostic se lit sur un <b>taux par palier</b>
      * ({@code TcfDiagnosticLevelResolver}), et un palier sous-dote rendrait son
      * taux beaucoup plus sensible a une seule erreur.
@@ -259,8 +280,8 @@ public class AttemptCompositionService {
 
     /**
      * Pioche une epreuve d'un diagnostic TCF : {@code count} questions du
-     * {@code type} donne, stratifiees A2/B1/B2 (reste distribue a B1 puis A2,
-     * comme le 8+9+8 des examens module), dans l'ordre progressif A2 → B2.
+     * {@code type} donne, stratifiees A2/B1/B2 (reste distribue a B1 puis A2),
+     * dans l'ordre progressif A2 → B2.
      * Si une strate est sous-dotee, complete au sein de la meme epreuve sans
      * contrainte de niveau.
      */

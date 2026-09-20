@@ -35,7 +35,7 @@ public class TcfDiagnosticProperties {
      *
      * <p>⚠️ <b>3 depuis le 2026-09-13</b> : chaque epreuve de comprehension du
      * diagnostic est desormais <b>un examen blanc d'epreuve</b> — 25 items
-     * (8/9/8) et duree pleine, au lieu de 24 items a repartition egale et d'un
+     * (10/8/7) et duree pleine, au lieu de 24 items a repartition egale et d'un
      * chrono au prorata. {@code items-per-level} a disparu avec ce tirage.
      */
     private int configVersion = 3;

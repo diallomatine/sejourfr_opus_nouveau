@@ -788,10 +788,10 @@ class _StepCard extends StatelessWidget {
             ? kChronoParTacheLabel
             : epreuveDurationLabelFor(epreuve));
     if (st == _StepState.done && sub != null) {
-      // Score sur l'échelle du relevé TCF (100-499) : le pondéré interne
-      // (« 23/50 ») ne veut rien dire pour un candidat. Repli sur le pondéré
+      // 🛑 Score de PROGRESSION (100-499), pas un score TCF : le relevé
+      // officiel a une échelle que nous n'avons pas. Repli sur le pondéré
       // seulement quand le serveur n'a pas calibré.
-      final scoreLabel = sub.qcmScoreLabel;
+      final scoreLabel = sub.scoreProgressionLabel;
       if (scoreLabel != null) {
         return '$duree · $scoreLabel'
             '${sub.cecrlLevel != null ? ' · ${sub.cecrlLevel!.displayName}' : ''}';

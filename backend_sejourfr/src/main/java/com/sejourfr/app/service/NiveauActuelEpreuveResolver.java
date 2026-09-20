@@ -1,8 +1,10 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.StrateQcm;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AttemptManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -58,35 +61,36 @@ import java.util.UUID;
  * L'entraînement n'entre donc jamais dans la moyenne, quelle que soit
  * l'épreuve.
  *
- * <h2>On moyenne des SCORES, jamais des labels</h2>
+ * <h2>On moyenne des MESURES, jamais des labels</h2>
  * <p>Un niveau CECRL est une <b>bande</b>, pas une graduation : « la moyenne de
  * A2 et B2 » n'a pas de sens arithmétique, et la calculer sur les ordinaux d'un
- * enum ferait dépendre le résultat de l'ordre de déclaration. Chaque épreuve a
- * donc son score numérique interne, déjà calculé ailleurs :
+ * enum ferait dépendre le résultat de l'ordre de déclaration. Chaque épreuve
+ * moyenne donc ce qu'elle a mesuré :
  * <ul>
- *   <li><b>CO / CE</b> : le <b>score calibré 100-499</b>
- *       ({@code TcfLevelEstimatorService.calibratedScore}, celui qu'affichent
- *       les cartes d'examen) ;</li>
+ *   <li><b>CO / CE</b> : les <b>items eux-mêmes</b>. Les strates A2/B1/B2 des
+ *       examens retenus sont <b>cumulées</b>, puis le palier se relit chez
+ *       l'autorité unique ({@code TcfLevelEstimatorService.niveauParStrates}).
+ *       🛑 Depuis le 2026-09-20 <b>aucune table « score → niveau » n'existe
+ *       plus</b> : le score 100-499 est un score de <b>progression</b>, pas un
+ *       palier, et il ne classe rien ;</li>
  *   <li><b>EE / EO</b> : la <b>compétence /20</b> de l'épreuve
  *       ({@code ProductionBilanService.NiveauEpreuve.competence}), l'agrégat
- *       pondéré des 3 tâches dont le palier de session est déjà la bande.</li>
+ *       pondéré des 3 tâches dont le palier de session est déjà la bande, via
+ *       {@code ProductionBilanService.niveauDepuisCompetence}. <b>Aucun seuil
+ *       n'est recopié ici</b> — la table des paliers a déjà vécu en six copies
+ *       dans ce dépôt.</li>
  * </ul>
- * La moyenne est arithmétique et <b>non pondérée</b> : les trois examens
- * retenus mesurent la même épreuve dans les mêmes conditions, rien ne justifie
- * d'en privilégier un.
  *
- * <h2>🛑 La conversion score → CECRL passe par la table EXISTANTE</h2>
- * <p>{@code TcfLevelEstimatorService.niveauDepuisScoreCalibre} pour les QCM,
- * {@code ProductionBilanService.niveauDepuisCompetence} pour les productions.
- * <b>Aucun seuil n'est recopié ici</b> — la table des paliers a déjà vécu en
- * six copies dans ce dépôt.
+ * <p>⚠️ <b>Le cumul d'items est une moyenne pondérée par la mesure</b>, et
+ * c'est voulu : trente items A2 observés sur trois examens disent mieux où en
+ * est le candidat que trois paliers moyennés. Un examen plus fourni pèse donc
+ * un peu plus — les examens d'une même épreuve ayant la même composition, la
+ * différence ne se produit qu'en mode dégradé.
  *
- * <p><b>Règle de bande</b> : les deux tables sont des <b>bornes basses</b>
- * ({@code >=}), donc une moyenne qui tombe <b>entre deux bandes reste dans la
- * bande BASSE</b> — la convention déjà en vigueur pour les notes de critère.
- * Côté QCM, la moyenne des scores calibrés est ramenée à l'entier
- * <b>inférieur</b> ({@link RoundingMode#FLOOR}) avant conversion, ce qui est
- * exactement la même décision : 399,9 reste B1, 400,0 devient B2.
+ * <p><b>Règle de bande</b> (EE/EO) : la table est une suite de <b>bornes
+ * basses</b> ({@code >=}), donc une moyenne qui tombe <b>entre deux bandes
+ * reste dans la bande BASSE</b> — la convention déjà en vigueur pour les notes
+ * de critère.
  *
  * <h2>Aucun examen qualifiant ⇒ {@code null}</h2>
  * <p>« À évaluer », jamais un plancher fabriqué : <b>{@code null} = inconnu,
@@ -167,19 +171,18 @@ public class NiveauActuelEpreuveResolver {
 
     /**
      * Niveau actuel estimé d'une épreuve de <b>compréhension</b> (CO / CE) :
-     * moyenne des scores calibrés des {@value #EXAMENS_RETENUS} derniers
-     * examens qualifiants, puis bande.
+     * les strates des {@value #EXAMENS_RETENUS} derniers examens qualifiants,
+     * <b>cumulées</b>, relues par l'autorité unique du palier
+     * ({@code TcfLevelEstimatorService.niveauParStrates}).
      *
-     * <p>Le <b>plancher produit</b> « au moins une bonne réponse ⇒ au moins
-     * A1 » est réappliqué par-dessus, par sa propre autorité
-     * ({@code TcfLevelEstimatorService.plancherA1SiUneBonneReponse}) : il est
-     * vrai de la moyenne dès qu'il était vrai d'un des examens retenus.
+     * <p>🛑 Il n'y a <b>pas de seconde règle</b> ici, et il n'y a plus de
+     * conversion « score → niveau » nulle part : le palier se lit strate par
+     * strate, exactement comme sur un examen isolé — seule la matière change
+     * (les items de trois examens au lieu d'un).
      *
-     * <p>⚠️ Un examen ancien dont le score pondéré n'a pas été enregistré ne
-     * porte pas de score moyennable ; il garde son palier persisté et sert de
-     * <b>repli</b> si aucun des examens retenus n'a de score. Ce n'est pas une
-     * seconde règle : c'est {@code niveauEpreuveQcm}, déjà l'autorité du palier
-     * d'UN examen.
+     * <p>⚠️ Un examen ancien reste parfaitement lisible : ses réponses sont en
+     * base, donc ses strates aussi. C'est l'intérêt d'un dérivé qui ne se
+     * persiste pas — le changement de règle relit tout l'historique.
      *
      * @param scanLimit sessions balayées en base ; un plafond de lecture, pas
      *                  la fenêtre de calcul
@@ -193,37 +196,39 @@ public class NiveauActuelEpreuveResolver {
      * qualifiant le plus récent — cf. {@link Mesure}.
      */
     public Mesure mesureQcm(UUID userId, EpreuveType epreuve, int scanLimit) {
-        final List<Attempt> retenus = new ArrayList<>(EXAMENS_RETENUS);
         // La requête rend déjà les sessions du plus récent au plus ancien : la
         // chronologie n'est pas réinventée ici, elle est consommée.
-        for (final Attempt a : attemptManager.findQcmEpreuvesPassees(userId, epreuve, scanLimit)) {
+        final List<Attempt> passees =
+                attemptManager.findQcmEpreuvesPassees(userId, epreuve, scanLimit);
+        // 🛑 UNE requête pour toute la fenêtre balayée — le niveau n'étant plus
+        // persisté, une boucle d'appels unitaires ferait un N+1 sur l'Accueil.
+        final Map<UUID, Map<QuestionType, List<StrateQcm>>> strates =
+                levelEstimator.stratesParAttempt(
+                        passees.stream().map(Attempt::getId).toList());
+
+        final List<Attempt> retenus = new ArrayList<>(EXAMENS_RETENUS);
+        for (final Attempt a : passees) {
             // Un examen dont rien n'est exploitable n'est pas une mauvaise
             // mesure : il n'en est pas une, et il ne consomme pas une place.
-            if (levelEstimator.niveauEpreuveQcm(a) == null) continue;
+            final Map<QuestionType, List<StrateQcm>> parEpreuve = strates.get(a.getId());
+            if (parEpreuve == null || levelEstimator.niveauParEpreuves(parEpreuve) == null) {
+                continue;
+            }
             retenus.add(a);
             if (retenus.size() == EXAMENS_RETENUS) break;
         }
         if (retenus.isEmpty()) return Mesure.AUCUNE;
-        final UUID source = retenus.getFirst().getId();
 
-        final List<BigDecimal> scores = new ArrayList<>(retenus.size());
-        boolean auMoinsUneBonneReponse = false;
+        // Moyenne des MESURES, jamais des labels : on CUMULE les items des
+        // examens retenus strate par strate, et on relit le palier chez
+        // l'autorité unique. Trente items A2 observés valent une meilleure
+        // estimation que trois paliers moyennés — et surtout, il n'existe plus
+        // nulle part de table « score → niveau » à recopier.
+        final List<StrateQcm> cumul = new ArrayList<>();
         for (final Attempt a : retenus) {
-            if (a.getWeightedScore() != null && a.getWeightedScore() > 0) {
-                auMoinsUneBonneReponse = true;
-            }
-            if (a.getWeightedScore() == null || a.getMaxWeightedScore() == null) continue;
-            scores.add(BigDecimal.valueOf(levelEstimator.calibratedScore(
-                    a.getWeightedScore(), a.getMaxWeightedScore())));
+            strates.get(a.getId()).values().forEach(cumul::addAll);
         }
-        if (scores.isEmpty()) {
-            // Aucun score moyennable : le palier du plus récent des examens
-            // retenus fait foi — « 1 examen → le niveau de cet examen ».
-            return new Mesure(levelEstimator.niveauEpreuveQcm(retenus.getFirst()), source);
-        }
-        final int moyenne = moyenne(scores).setScale(0, RoundingMode.FLOOR).intValueExact();
-        return new Mesure(levelEstimator.plancherA1SiUneBonneReponse(
-                levelEstimator.niveauDepuisScoreCalibre(moyenne), auMoinsUneBonneReponse), source);
+        return new Mesure(levelEstimator.niveauParStrates(cumul), retenus.getFirst().getId());
     }
 
     /**

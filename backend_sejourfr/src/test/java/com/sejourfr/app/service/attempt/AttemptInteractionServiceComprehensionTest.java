@@ -63,7 +63,9 @@ class AttemptInteractionServiceComprehensionTest {
 
         service = new AttemptInteractionService(
                 attemptManager, attemptQuestionManager, mock(AnswerManager.class),
-                mock(AttemptScoringService.class), mock(ReceptiveEvidenceAdapter.class),
+                mock(AttemptScoringService.class),
+                mock(com.sejourfr.app.service.TcfLevelEstimatorService.class),
+                mock(ReceptiveEvidenceAdapter.class),
                 mock(AttemptMapper.class), new QuestionMapper(), observationService,
                 mock(CivicObservationService.class),
                 mock(CivicExamCompositionService.class),

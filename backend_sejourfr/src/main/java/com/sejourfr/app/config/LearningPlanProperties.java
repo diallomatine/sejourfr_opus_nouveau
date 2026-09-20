@@ -98,7 +98,7 @@ public class LearningPlanProperties {
          * bien dans la bande.
          *
          * <p>Consequence voulue : les strates d'un examen blanc d'epreuve
-         * (8 A2 / 9 B1 / 8 B2) alimentent toutes les trois le Plan, alors qu'un
+         * (10 A2 / 8 B1 / 7 B2) alimentent toutes les trois le Plan, alors qu'un
          * reliquat de 2 ou 3 questions d'un entrainement libre ne conclut rien.
          */
         private int minQuestions = 6;

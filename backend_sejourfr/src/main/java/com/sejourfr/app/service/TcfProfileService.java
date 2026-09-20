@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -225,21 +226,27 @@ public class TcfProfileService {
 
     /**
      * <b>Lecture du PLAN</b> — meilleur niveau d'une épreuve QCM (CO/CE) : le
-     * plus haut {@code cecrl_level} des examens réellement passés (fallback
-     * dérivé du score pondéré pour les attempts pré-V416). Les examens sans
-     * aucune réponse sont déjà écartés par la requête.
+     * plus haut palier des examens réellement passés, chacun <b>dérivé de ses
+     * réponses</b> (le niveau n'est plus persisté). Les examens sans aucune
+     * réponse sont déjà écartés par la requête.
      *
      * <p>🛑 L'affichage, lui, ne passe plus par ici depuis le 2026-09-16 : il
      * <b>moyenne</b> les trois derniers examens ({@link
      * NiveauActuelEpreuveResolver#qcm}) au lieu d'en retenir le meilleur.
      */
     private NiveauCecrl bestQcm(UUID userId, EpreuveType epreuve) {
+        final List<Attempt> passees =
+                attemptManager.findQcmEpreuvesPassees(userId, epreuve, SCAN_LIMIT);
+        // 🛑 Le niveau d'une épreuve passée se demande à l'estimateur, il ne se
+        // redérive pas ici : c'est la même valeur que l'écran « Voir mes
+        // résultats » affiche pour justifier ce profil. Et il se demande pour
+        // TOUTE la fenêtre en une requête — le profil balaie jusqu'à
+        // {@value #SCAN_LIMIT} sessions par épreuve, quatre fois.
+        final Map<UUID, NiveauCecrl> niveaux = levelEstimator.niveauxQcm(
+                passees.stream().map(Attempt::getId).toList());
         NiveauCecrl best = null;
-        for (final Attempt a : attemptManager.findQcmEpreuvesPassees(userId, epreuve, SCAN_LIMIT)) {
-            // 🛑 Le niveau d'UNE épreuve passée se demande à l'estimateur, il ne
-            // se redérive pas ici : c'est la même valeur que l'écran
-            // « Voir mes résultats » affiche pour justifier ce profil.
-            best = levelEstimator.max(best, levelEstimator.niveauEpreuveQcm(a));
+        for (final Attempt a : passees) {
+            best = levelEstimator.max(best, niveaux.get(a.getId()));
         }
         return best;
     }

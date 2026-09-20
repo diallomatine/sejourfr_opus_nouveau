@@ -25,8 +25,10 @@ Migration `V098__attempts_module_exam_columns.sql` ajoute :
 
 ### Composition (`AttemptService.composeModuleExam`)
 
-- 8 A2 + 9 B1 + 8 B2 = 25 questions progressives, tirage aléatoire dans chaque strate
-  (`module=TCF`, `questionType=CO|CE`)
+- **10 A2 + 8 B1 + 7 B2 = 25 questions** progressives (2026-09-20), tirage aléatoire dans
+  chaque strate (`module=TCF`, `questionType=CO|CE`). La strate A2 est passée de 8 à 10
+  items pour que son seuil de maîtrise tombe sur **6/10 = 60 % pile**
+  (cf. `docs/regles/qcm.md`). 🛑 `DureeEpreuve` n'a pas bougé : le total reste 25 questions.
 - Fallback si une strate est sous-dotée : on complète sans contrainte de niveau
 
 ### Chrono
@@ -41,39 +43,56 @@ déjà enregistrées (pas de job planifié — expiration paresseuse, comme les 
 
 ### Score pondéré
 
-A2=1, B1=2, B2=3 → max 50 pts pour la répartition 8/9/8. Calculé à la finalisation par
-`computeWeightedScore`.
+A2=1, B1=2, B2=3 → **max 47 pts** pour la répartition 10/8/7. Calculé à la finalisation par
+`computeWeightedScore`. 🛑 **C'est la matière d'un SCORE DE PROGRESSION, pas d'un palier** :
+aucun niveau n'en dérive depuis le 2026-09-20.
 
 ### Le niveau affiché après une épreuve CO, CE ou STRUCTURE
 
 Après chaque épreuve à questions à choix multiples, deux informations sont
-rendues : un **score sur 499**, l'échelle du relevé officiel du TCF, et un
-**niveau** (A1 non atteint, A1, A2, B1, B2).
+rendues : un **score de progression sur 499** et un **niveau** (A1 non atteint,
+A1, A2, B1, B2). Elles ne disent pas la même chose, et depuis le 20 septembre
+2026 **l'une ne se déduit plus de l'autre**.
 
-Le score est calculé « au-dessus du hasard » : dans un QCM à quatre propositions,
-on obtient déjà environ un quart de bonnes réponses en cochant au petit bonheur.
-Ce quart-là ne compte donc pas, et un résultat qui reste en dessous retombe à la
-note plancher de 100 sur 499.
+**Le niveau se lit palier par palier.** Les 25 questions sont réparties en trois
+groupes : 10 de niveau A2, 8 de niveau B1, 7 de niveau B2. Un groupe est
+« tenu » quand on y réussit **60 % des questions, arrondi au supérieur** — soit
+6 sur 10 en A2, 5 sur 8 en B1, 5 sur 7 en B2. Le niveau affiché est **le plus
+haut groupe tenu, à condition que tous ceux du dessous le soient aussi**. Qui
+rate l'A2 reste A1, même s'il réussit le B1 : on ne saute pas un palier.
 
-Une conséquence était injuste, et elle est corrigée depuis le 17 août 2026 :
-**« A1 non atteint » est désormais réservé au candidat qui n'a obtenu aucune
-bonne réponse.** Dès qu'il en a **au moins une**, le niveau affiché est au
-minimum **A1**. Avant, une personne ayant six bonnes réponses sur vingt-cinq
-recevait exactement le même verdict que celle qui n'en avait aucune — le score
-étant identique dans les deux cas, le niveau l'était aussi. Ce n'était pas faux
-au sens du calcul, mais c'était faux au sens de ce que la personne avait montré.
+**Pourquoi 60 %, et pas moins.** Un niveau affiché pousse quelqu'un à s'inscrire
+au vrai TCF, qui est payant. À 5 bonnes réponses sur 10, une personne qui coche
+au hasard décrocherait « A2 » une fois sur treize. À 6 sur 10, c'est une fois
+sur cinquante.
+
+**Ce que cela corrige.** Le niveau venait auparavant du seul score, et le score
+donnait très peu de poids aux questions faciles : maîtriser tout l'A2 et rien
+d'autre suffisait à peine à dépasser le hasard, et affichait donc « A1 non
+atteint ». **Le niveau A2 était, en pratique, impossible à obtenir pour
+quelqu'un dont c'était exactement le niveau.**
 
 Deux précisions, pour être exact :
 
-- **Le score, lui, ne change pas.** Une seule bonne réponse vaut toujours
-  100 sur 499 : on ne relève pas la note, on cesse seulement de dire « A1 non
-  atteint » à quelqu'un qui a réussi quelque chose. Le barème du TCF n'est pas
-  retouché, cette règle est une décision de SejourFR posée par-dessus.
+- **« A1 non atteint » est réservé au candidat qui n'a obtenu AUCUNE bonne
+  réponse** sur toute l'épreuve. Dès qu'il en a une, le niveau affiché est au
+  minimum **A1** — c'est désormais le plancher réel.
 - **Ne pas répondre du tout, c'est n'avoir aucune bonne réponse** : le niveau
   reste « A1 non atteint ». En revanche, une épreuve qu'on n'a **jamais ouverte**
   — parce qu'on a quitté l'examen avant, ou parce qu'elle est réservée à
   l'abonnement — n'a pas de niveau du tout, et n'est comptée nulle part. Ne rien
   savoir n'est pas la même chose que mal faire.
+
+**Le score sur 499 n'est PAS un score TCF.** Le relevé officiel du TCF a une
+échelle que nous n'avons pas. Ce nombre est un **score de progression** : il est
+calculé « au-dessus du hasard » (dans un QCM à quatre propositions, on obtient
+déjà un quart de bonnes réponses au petit bonheur, et ce quart-là ne compte
+pas), il sert à voir si l'on avance d'un examen à l'autre, et **aucun niveau ne
+s'en déduit**. Un candidat qui maîtrise tout l'A2 et rien d'autre est donc
+affiché **A2 avec 100 sur 499** : le palier dit où il en est, le score dit
+combien il lui reste.
+
+Détail complet de la règle, seuils et arbitrages : `docs/regles/qcm.md`.
 
 ### Endpoints
 
@@ -111,7 +130,7 @@ recopient plus les minutes en dur).
   finalisation quand toutes les évaluations IA EE/EO sont prêtes. `timer_started_at` y
   reste, mais comme **trace du début réel** de l'examen — plus comme ancre d'un décompte.
 - 4 sous-attempts liés via `attempts.parent_attempt_id` (cf. migration V96) :
-    - `TCF_CO` : 25 QCM (8 A2 + 9 B1 + 8 B2), chrono 20 min, score pondéré /50
+    - `TCF_CO` : 25 QCM (10 A2 + 8 B1 + 7 B2), chrono 20 min, score pondéré /47
     - `TCF_CE` : idem CE, chrono **35 min** — comme en standalone. Il valait 30 min ici
       pour tenir dans l'enveloppe de 90 min, désormais supprimée.
     - `TCF_EE` : attempt vide, chrono **30 min**, 3 submissions liées via
@@ -151,10 +170,14 @@ pour EE/EO (déjà capable de gérer `parentAttemptId` avec validation `TCF_COMP
 
 ### Calcul du CECRL plancher
 
-`FullTcfExamService.weightedScoreToCecrl` + `floorOfCecrls` :
+`FullTcfExamResponseBuilder.floorOfCecrls`, chaque épreuve valant :
 
-- CO/CE : ratio = weightedScore/maxWeightedScore → ≥80% B2 · ≥60% B1 · ≥40% A2 · ≥20% A1 ·
-  sinon A1_NON_ATTEINT
+- CO/CE : le niveau **dérivé des réponses** par l'autorité unique
+  (`TcfLevelEstimatorService.niveauxQcm` — le plus haut palier maîtrisé à 60 %, sans saut).
+  🛑 **Depuis le 2026-09-20**, ni `attempts.cecrl_level` (supprimé, V879) ni la seconde
+  table locale `weightedScoreToCecrl` (ratio brut ≥80 % B2 · ≥60 % B1 · ≥40 % A2 · ≥20 %
+  A1, repli des sous-attempts pré-V416) : les deux ont disparu, les réponses se relisent.
+  → `docs/regles/qcm.md`
 - EE/EO : **moyenne pondérée des compétences des 3 tâches** (poids **égaux** depuis les
   rubriques v5, `poids-taches`, cf. `ProductionBilanService.bilanEpreuve`) → seuils →
   niveau d'épreuve, plafonné B2. (Avant : plancher `min()` des 3 niveaux — abandonné, une

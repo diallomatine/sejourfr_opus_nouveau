@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,29 +56,67 @@ class TcfProfileServiceTest {
     private TcfProfileService service;
 
     private final UUID userId = UUID.randomUUID();
+    private com.sejourfr.app.manager.AttemptQuestionManager attemptQuestionManager;
+    /** Ce que les réponses de chaque épreuve QCM démontrent. */
+    private final Map<UUID, NiveauCecrl> niveauxQcm = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
         attemptManager = mock(AttemptManager.class);
+        attemptQuestionManager = mock(com.sejourfr.app.manager.AttemptQuestionManager.class);
+        niveauxQcm.clear();
+        // Le niveau d'une épreuve QCM se DÉRIVE de ses réponses : les fixtures
+        // déclarent des strates, jamais un palier persisté.
+        when(attemptQuestionManager.stratesParAttempt(any())).thenAnswer(inv -> {
+            List<com.sejourfr.app.dto.LigneStrateQcm> out = new java.util.ArrayList<>();
+            for (UUID id : (java.util.Collection<UUID>) inv.getArgument(0)) {
+                NiveauCecrl n = niveauxQcm.get(id);
+                if (n == null) continue;
+                for (com.sejourfr.app.dto.StrateQcm st : stratesPour(n)) {
+                    out.add(new com.sejourfr.app.dto.LigneStrateQcm(
+                            id, com.sejourfr.app.enums.QuestionType.CO, st));
+                }
+            }
+            return out;
+        });
         aiEvaluationManager = mock(AiEvaluationManager.class);
         niveauActuelResolver = mock(NiveauActuelEpreuveResolver.class);
         diagnosticAnalysisManager = mock(DiagnosticProductionAnalysisManager.class);
         when(diagnosticAnalysisManager.findCompletedLevelsByUser(userId)).thenReturn(List.of());
         service = new TcfProfileService(attemptManager, aiEvaluationManager,
                 niveauActuelResolver, diagnosticAnalysisManager,
-                new TcfLevelEstimatorService());
+                new TcfLevelEstimatorService(attemptQuestionManager));
     }
 
     // ------------------------------------------------------------------ fixtures
 
-    private static Attempt qcm(NiveauCecrl level) {
+    /** Une épreuve QCM passée dont les RÉPONSES démontrent {@code level}. */
+    private Attempt qcm(NiveauCecrl level) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setFinishedAt(Instant.now());
-        a.setCecrlLevel(level);
         a.setWeightedScore(25);
         a.setMaxWeightedScore(50);
+        if (level != null) niveauxQcm.put(a.getId(), level);
         return a;
+    }
+
+    /** Strates 10 A2 / 8 B1 / 7 B2 qui démontrent exactement {@code niveau}. */
+    private static List<com.sejourfr.app.dto.StrateQcm> stratesPour(NiveauCecrl niveau) {
+        com.sejourfr.app.enums.Difficulty a2 = com.sejourfr.app.enums.Difficulty.A2;
+        com.sejourfr.app.enums.Difficulty b1 = com.sejourfr.app.enums.Difficulty.B1;
+        com.sejourfr.app.enums.Difficulty b2 = com.sejourfr.app.enums.Difficulty.B2;
+        int[] r = switch (niveau) {
+            case B2 -> new int[] {10, 8, 7};
+            case B1 -> new int[] {10, 8, 0};
+            case A2 -> new int[] {10, 0, 0};
+            case A1 -> new int[] {1, 0, 0};
+            default -> new int[] {0, 0, 0};
+        };
+        return List.of(
+                com.sejourfr.app.dto.StrateQcm.mesuree(a2, 10, r[0]),
+                com.sejourfr.app.dto.StrateQcm.mesuree(b1, 8, r[1]),
+                com.sejourfr.app.dto.StrateQcm.mesuree(b2, 7, r[2]));
     }
 
     private static AiEvaluation eval(NiveauCecrl level, Instant at) {
@@ -167,43 +206,39 @@ class TcfProfileServiceTest {
         assertThat(service.levelProfile(userId).ee()).isEqualTo(NiveauCecrl.B1);
     }
 
+    /**
+     * 🛑 <b>Un examen ancien reste parfaitement lisible.</b> Il n'a jamais porté
+     * de niveau persisté — la colonne n'existe plus — et son score pondéré ne
+     * sert plus à en dériver un : ce sont ses RÉPONSES qui le donnent. Le
+     * service ne recode rien, il demande à l'autorité unique.
+     */
     @Test
-    void qcm_niveauDeriveDuScorePondere_quandCecrlLevelAbsent() {
-        Attempt legacy = qcm(null);
-        legacy.setWeightedScore(50);
-        legacy.setMaxWeightedScore(50);
-        stubQcm(EpreuveType.TCF_CE, List.of(legacy));
+    void qcm_leNiveauSeDeriveDesReponses_jamaisDuScorePondere() {
+        Attempt ancien = qcm(NiveauCecrl.B2);
+        ancien.setWeightedScore(1);          // pondéré incohérent, exprès
+        ancien.setMaxWeightedScore(50);
+        stubQcm(EpreuveType.TCF_CE, List.of(ancien));
 
         assertThat(service.levelProfile(userId).ce()).isEqualTo(NiveauCecrl.B2);
     }
 
-    // ------------------------------------------------------- plancher produit A1
+    // ------------------------------------------------------- plancher bas
 
     /**
-     * Le <b>plancher produit SejourFR</b> (« au moins une bonne réponse ⇒ au
-     * moins A1 ») se propage ici <b>sans être recodé</b> : le service ne fait
-     * que lire {@code cecrl_level}, ou le dériver par
-     * {@link TcfLevelEstimatorService#levelFromWeighted}, qui le porte déjà.
-     * 1/50 pondéré (2 %, sous la ligne du hasard) valait
-     * {@code A1_NON_ATTEINT} ; il vaut désormais A1.
+     * {@code A1} est le plancher réel : au moins une bonne réponse, aucune
+     * strate maîtrisée. Le service ne recode pas la règle, il la demande.
      */
     @Test
-    void plancherProduit_uneBonneReponseSuffitAFaireA1_sansRecoderLaRegle() {
-        Attempt legacy = qcm(null);
-        legacy.setWeightedScore(1);
-        legacy.setMaxWeightedScore(50);
-        stubQcm(EpreuveType.TCF_CO, List.of(legacy));
+    void uneBonneReponseSuffitAFaireA1_sansRecoderLaRegle() {
+        stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.A1)));
 
         assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.A1);
     }
 
-    /** Zéro bonne réponse : le plancher ne rachète rien, l'épreuve reste au plus bas. */
+    /** Zéro bonne réponse sur l'épreuve entière : l'épreuve reste au plus bas. */
     @Test
-    void plancherProduit_zeroBonneReponse_resteA1NonAtteint() {
-        Attempt legacy = qcm(null);
-        legacy.setWeightedScore(0);
-        legacy.setMaxWeightedScore(50);
-        stubQcm(EpreuveType.TCF_CO, List.of(legacy));
+    void zeroBonneReponse_resteA1NonAtteint() {
+        stubQcm(EpreuveType.TCF_CO, List.of(qcm(NiveauCecrl.A1_NON_ATTEINT)));
 
         assertThat(service.levelProfile(userId).co()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
     }

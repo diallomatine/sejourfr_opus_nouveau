@@ -4,9 +4,11 @@ import com.sejourfr.app.dto.FullTcfExamResponse;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.ContinuiteSimulation;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,17 +50,37 @@ class FullTcfExamTempsEtContinuiteTest {
             EpreuveType.TCF_EE, EpreuveType.TCF_EO};
 
     private AttemptManager attemptManager;
+    private com.sejourfr.app.manager.AttemptQuestionManager attemptQuestionManager;
+    /** Sous-épreuves QCM dont les réponses démontrent B1. */
+    private final java.util.Set<UUID> qcmB1 = new java.util.HashSet<>();
     private FullTcfExamResponseBuilder builder;
 
     @BeforeEach
     void setUp() {
         attemptManager = mock(AttemptManager.class);
+        attemptQuestionManager = mock(com.sejourfr.app.manager.AttemptQuestionManager.class);
+        qcmB1.clear();
         ProductionSubmissionManager productionSubmissionManager = mock(ProductionSubmissionManager.class);
         ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
         builder = new FullTcfExamResponseBuilder(
                 attemptManager, mock(com.sejourfr.app.manager.AnswerManager.class),
                 productionSubmissionManager,
-                new TcfLevelEstimatorService(), productionBilanService);
+                new TcfLevelEstimatorService(attemptQuestionManager), productionBilanService);
+        // Le niveau d'une epreuve QCM se derive des reponses : ici, des strates
+        // qui demontrent B1 pour toute epreuve enregistree.
+        when(attemptQuestionManager.stratesParAttempt(any())).thenAnswer(inv -> {
+            List<com.sejourfr.app.dto.LigneStrateQcm> out = new java.util.ArrayList<>();
+            for (java.util.UUID id : (java.util.Collection<java.util.UUID>) inv.getArgument(0)) {
+                if (!qcmB1.contains(id)) continue;
+                out.add(new com.sejourfr.app.dto.LigneStrateQcm(id, QuestionType.CO,
+                        com.sejourfr.app.dto.StrateQcm.mesuree(Difficulty.A2, 10, 10)));
+                out.add(new com.sejourfr.app.dto.LigneStrateQcm(id, QuestionType.CO,
+                        com.sejourfr.app.dto.StrateQcm.mesuree(Difficulty.B1, 8, 8)));
+                out.add(new com.sejourfr.app.dto.LigneStrateQcm(id, QuestionType.CO,
+                        com.sejourfr.app.dto.StrateQcm.mesuree(Difficulty.B2, 7, 0)));
+            }
+            return out;
+        });
 
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());
         when(productionBilanService.latestEvalsByTache(any())).thenReturn(Map.of());
@@ -84,7 +106,7 @@ class FullTcfExamTempsEtContinuiteTest {
     }
 
     /** Sous-épreuve lancée à {@code debutMin} et terminée à {@code finMin} (minutes depuis T0). */
-    private static Attempt sub(Attempt parent, EpreuveType e, Integer debutMin, Integer finMin) {
+    private Attempt sub(Attempt parent, EpreuveType e, Integer debutMin, Integer finMin) {
         Attempt a = new Attempt();
         a.setId(UUID.randomUUID());
         a.setEpreuve(e);
@@ -97,7 +119,7 @@ class FullTcfExamTempsEtContinuiteTest {
             a.setStatus(AttemptStatus.TERMINE);
         }
         if ((e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) && finMin != null) {
-            a.setCecrlLevel(NiveauCecrl.B1);
+            qcmB1.add(a.getId());
         }
         return a;
     }

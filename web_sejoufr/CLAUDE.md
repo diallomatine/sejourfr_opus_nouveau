@@ -184,7 +184,7 @@ de l'avant-dernière s'affiche, pour rendre le passage instantané.
 **Examens sectionnés** : les examens TCF mixtes (templates `tcf-diagnostic` /
 `tcf-mix-*`) font **50 Q / 55 min** (migration V111) et sont composés par le
 backend comme le vrai TCF — compréhension orale (25 Q · 20 min) puis écrite
-(25 Q · 35 min), chacune stratifiée 8 A2 + 9 B1 + 8 B2, pas de STRUCTURE ni
+(25 Q · 35 min), chacune stratifiée 10 A2 + 8 B1 + 7 B2, pas de STRUCTURE ni
 EE/EO (`AttemptService.pickQuestionsForTemplate` → `drawTcfEpreuveStrata`). La page
 session dérive des `RunnerSection[]` (`tcfExamSections`) passées au runner via
 la prop `sections` : bandeau « Partie x/y · i/n » au-dessus des tags + écran
@@ -193,13 +193,17 @@ d'intro à chaque changement de partie (le chrono global continue) + bouton
 que pour les examens **multi-épreuves** (diagnostic CO+CE) ; les examens TCF
 mono-épreuve (CO/CE/STRUCTURE) ne passent plus de section → pas d'écran d'intro
 runner, leur présentation (déroulé + seuil) vit dans `ExamIntroSheet` côté page
-examens. Undefined aussi sur les attempts d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
+examens. Undefined aussi sur les attempts d'avant le tri (groupes > 3). **Notation TCF** : tous les examens TCF
 stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
 `calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
-(`TcfLevelEstimatorService` — score corrigé du hasard 25 %, niveau = bande du
-score ; V112 a invalidé les niveaux de l'ancienne règle « palier ») — le hero
-`ExamReport`, `/historique` et les stats « meilleur score » affichent `x/499`
-quand présent, le score brut sinon. **Examens multi-épreuves** : le backend
+(`TcfLevelEstimatorService`) — le hero `ExamReport`, `/historique` et les stats
+« meilleur score » affichent `x/499` quand présent, le score brut sinon.
+🛑 **Le `/499` est un SCORE DE PROGRESSION, jamais un score TCF** (2026-09-20) :
+le relevé officiel a une échelle que nous n'avons pas, et **aucun niveau n'en
+dérive** — le palier se lit strate par strate côté serveur (le plus haut palier
+maîtrisé à 60 %, sans saut). Libellé unique côté web :
+`scoreProgressionLabel` (`lib/exam-levels.ts`), miroir mobile du même nom.
+→ `docs/regles/qcm.md` **Examens multi-épreuves** : le backend
 expose `AttemptResponse.epreuveResults` (score + niveau par épreuve, CO_IMAGE
 sous CO) et le `cecrlLevel` global est le PLANCHER des épreuves (règle TCF
 IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
@@ -2609,15 +2613,17 @@ Chantier découpé en vagues :
       finalisé depuis > 2 min sans être COMPLETED ⇒ plus rien ne tourne : on
       coupe le spinner et on propose « Actualiser », parité mobile),
       `epreuveLevelTone` / `floorMarks` (couleur = palier, plancher = texte),
-      **`qcmScoreLabel`** (le score d'une sous-épreuve CO/CE, **toujours sur
-      l'échelle du relevé TCF** : `calibratedScore` 100-499 dérivé serveur par
-      `TcfLevelEstimatorService`, repli sur le pondéré `x/maxScore` seulement
-      quand il manque, `null` quand il n'y a rien — EE/EO, épreuve verrouillée,
-      pas encore notée). Le `score`/`maxScore` du DTO est le score **pondéré
-      interne** (A2=1, B1=2, B2=3) : « 23/50 » ne correspond à rien sur le relevé
-      d'un candidat, et **on ne dérive jamais un /499 d'un pondéré côté front**.
+      **`scoreProgressionLabel`** (le score d'une sous-épreuve CO/CE :
+      `calibratedScore` 100-499 dérivé serveur par `TcfLevelEstimatorService`,
+      repli sur le pondéré `x/maxScore` seulement quand il manque, `null` quand
+      il n'y a rien — EE/EO, épreuve verrouillée, pas encore notée).
+      🛑 **C'est un SCORE DE PROGRESSION, pas un score TCF** (2026-09-20) : le
+      relevé officiel a une échelle que nous n'avons pas, et **aucun niveau n'en
+      dérive**. Le `score`/`maxScore` du DTO est le score **pondéré interne**
+      (A2=1, B1=2, B2=3) : « 23/47 » ne veut rien dire pour un candidat, et
+      **on ne dérive jamais un /499 d'un pondéré côté front**.
       Lu par le hub de progression (`StepBadge`) et par `subAttemptView` (donc le
-      bilan), miroir de `FullTcfExamSubAttempt.qcmScoreLabel` côté mobile. Même
+      bilan), miroir de `FullTcfExamSubAttempt.scoreProgressionLabel` côté mobile. Même
       barème que les examens **module** CO/CE, déjà en /499 — le **civique** n'est
       pas concerné (/40 ou /20),
       `floorScope` + `floorRuleSentence` (la phrase du plancher dit le

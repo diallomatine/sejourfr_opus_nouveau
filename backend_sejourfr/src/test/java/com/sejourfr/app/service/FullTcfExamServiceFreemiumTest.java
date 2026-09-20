@@ -96,7 +96,12 @@ class FullTcfExamServiceFreemiumTest {
         List<Attempt> subs = List.of(
                 sub(EpreuveType.TCF_CO), sub(EpreuveType.TCF_CE),
                 sub(EpreuveType.TCF_EE), sub(EpreuveType.TCF_EO));
-        when(attemptManager.findSubAttempts(any())).thenReturn(subs);
+        // `nullable` et non `any` : le parent de ce test n'a pas d'id, et
+        // `any(UUID.class)` ne matche pas null.
+        when(attemptManager.findSubAttempts(org.mockito.ArgumentMatchers.nullable(UUID.class)))
+                .thenReturn(subs);
+        // Le niveau QCM se derive des reponses : ici il n'est pas l'objet du test.
+        when(levelEstimator.niveauxQcm(any())).thenReturn(java.util.Map.of());
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());
         // capB2 neutre : renvoie son argument (le niveau n'est pas l'objet du test).
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -117,6 +122,7 @@ class FullTcfExamServiceFreemiumTest {
 
     private static Attempt sub(EpreuveType e) {
         Attempt a = new Attempt();
+        a.setId(UUID.randomUUID());
         a.setEpreuve(e);
         return a;
     }

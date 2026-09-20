@@ -16,21 +16,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Scoring / niveau CECRL d'un attempt QCM. Extrait d'AttemptService —
- * concentre le calcul de niveau atteint, l'estimation par épreuve et le
- * score pondéré, consommés par la finalisation d'un attempt.
+ * Scoring d'un attempt QCM : estimation par épreuve et score pondéré,
+ * consommés par la finalisation d'un attempt.
+ *
+ * <p>🛑 <b>Aucune règle de niveau ici.</b> Tout passe par l'autorité unique,
+ * {@link TcfLevelEstimatorService} — ce service ne fait que grouper les
+ * questions par épreuve et lui demander le palier.
  */
 @Service
 @RequiredArgsConstructor
 public class AttemptScoringService {
 
-    // Seuil de reussite par strate pour le calcul du niveau CECRL en TCF.
-    // L'utilisateur "atteint" un niveau si son taux de bonnes reponses sur les
-    // questions de ce niveau est >= 60 %.
-    private static final double TCF_LEVEL_PASS_RATIO = 0.6;
-
-    // Pondération du score par niveau (A2=1, B1=2, B2=3) — applique à la finalisation
-    // d'un examen module. Max score = 8*1 + 9*2 + 8*3 = 50.
+    // Pondération du score de progression par palier (A2=1, B1=2, B2=3),
+    // appliquée à la finalisation d'un examen module. Max = 10*1 + 8*2 + 7*3 = 47
+    // depuis la composition 10 A2 / 8 B1 / 7 B2 (cf. AttemptCompositionService).
+    // 🛑 Ce score ne dérive AUCUN palier : c'est une mesure continue de
+    // progression, pas un résultat d'examen.
     private static final int WEIGHT_A2 = 1;
     private static final int WEIGHT_B1 = 2;
     private static final int WEIGHT_B2 = 3;
@@ -38,38 +39,18 @@ public class AttemptScoringService {
     private final TcfLevelEstimatorService levelEstimator;
 
     /**
-     * Niveau CECRL atteint : on retient le plus haut niveau A2/B1/B2 ou le
-     * taux de bonnes reponses sur les questions de cette strate depasse le
-     * seuil {@link #TCF_LEVEL_PASS_RATIO}. Si meme A2 n'est pas atteint,
-     * renvoie null.
+     * Palier legacy {@code level_achieved} d'un entrainement TCF libre, ou les
+     * strates ne sont pas garanties.
+     *
+     * <p>🛑 <b>Il n'y a plus de seconde regle ici.</b> Cette methode portait
+     * son propre seuil (60 % par strate, sans monotonie), donc un second
+     * verdict de palier a cote de l'estimateur. Elle DELEGUE desormais a
+     * l'autorite unique ({@link TcfLevelEstimatorService#niveauParStrates}) et
+     * se contente de projeter le resultat sur {@link TargetLevel} — A1 et
+     * « A1 non atteint » n'ont pas de projection, donc {@code null}.
      */
     public TargetLevel computeLevelAchieved(List<AttemptQuestion> aqs) {
-        TargetLevel result = null;
-        for (TargetLevel level : List.of(TargetLevel.A2, TargetLevel.B1, TargetLevel.B2)) {
-            Difficulty strata = toDifficulty(level);
-            long total = aqs.stream()
-                    .filter(aq -> aq.getQuestion().getDifficulty() == strata)
-                    .count();
-            if (total == 0) continue;
-
-            long correct = aqs.stream()
-                    .filter(aq -> aq.getQuestion().getDifficulty() == strata)
-                    .filter(aq -> aq.getAnswer() != null && Boolean.TRUE.equals(aq.getAnswer().getCorrect()))
-                    .count();
-
-            if ((double) correct / total >= TCF_LEVEL_PASS_RATIO) {
-                result = level;
-            }
-        }
-        return result;
-    }
-
-    private Difficulty toDifficulty(TargetLevel level) {
-        return switch (level) {
-            case A2 -> Difficulty.A2;
-            case B1 -> Difficulty.B1;
-            case B2 -> Difficulty.B2;
-        };
+        return toTargetLevel(estimatePerEpreuveFloor(aqs));
     }
 
     /**
@@ -114,9 +95,13 @@ public class AttemptScoringService {
 
     /**
      * Calcule le score pondéré d'un examen module en sommant les poids par
-     * niveau des questions correctes (si {@code onlyCorrect}) ou de toutes
-     * les questions (= max score atteignable). Poids : A2=1, B1=2, B2=3.
-     * Les questions sans niveau (rare) sont ignorées.
+     * palier des questions correctes (si {@code onlyCorrect}) ou de toutes
+     * les questions (= max atteignable). Poids : A2=1, B1=2, B2=3.
+     * Les questions sans palier (rare) sont ignorées.
+     *
+     * <p>C'est la matière du <b>score de progression</b> 100-499
+     * ({@code TcfLevelEstimatorService.calibratedScore}). 🛑 Aucun niveau
+     * CECRL n'en dérive — le palier se lit strate par strate.
      */
     public int computeWeightedScore(List<AttemptQuestion> aqs, boolean onlyCorrect) {
         int total = 0;

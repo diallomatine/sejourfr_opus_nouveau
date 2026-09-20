@@ -37,6 +37,7 @@ import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService;
 import com.sejourfr.app.service.CivicObservationService;
 import com.sejourfr.app.service.CivicObservationService.ReponseCivique;
+import com.sejourfr.app.service.TcfLevelEstimatorService;
 import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
 import com.sejourfr.app.service.ComprehensionObservationService.ReponseComprehension;
 import jakarta.persistence.EntityNotFoundException;
@@ -51,6 +52,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -72,6 +74,9 @@ public class AttemptInteractionService {
     private final AttemptQuestionManager attemptQuestionManager;
     private final AnswerManager answerManager;
     private final AttemptScoringService scoringService;
+    // 🛑 Autorite unique du niveau QCM, et la SEULE forme groupee : la liste
+    // d'historique demande les niveaux de toute sa page en une requete.
+    private final TcfLevelEstimatorService levelEstimator;
     private final ReceptiveEvidenceAdapter receptiveEvidenceAdapter;
     private final AttemptMapper mapper;
     private final QuestionMapper questionMapper;
@@ -107,7 +112,15 @@ public class AttemptInteractionService {
         int safeLimit = Math.max(LIST_LIMIT_MIN, Math.min(LIST_LIMIT_MAX, limit));
         List<Attempt> attempts = attemptManager.findByUserFiltered(
                 userId, type, module, moduleExamQuestionType, themeId, safeLimit);
-        return attempts.stream().map(mapper::toSummary).toList();
+        // 🛑 UNE requête agrégée pour TOUTE la page. Le niveau CECRL n'est plus
+        // persisté : il se dérive des réponses. Le demander ligne par ligne
+        // ferait un N+1 sur l'écran d'historique — verrouillé par un test qui
+        // compte les requêtes à l'ÉGALITÉ (AttemptListeNiveauDeriveIT).
+        Map<UUID, NiveauCecrl> niveaux = levelEstimator.niveauxQcm(
+                attempts.stream().map(Attempt::getId).toList());
+        return attempts.stream()
+                .map(a -> mapper.toSummary(a, niveaux.get(a.getId())))
+                .toList();
     }
 
     /**
@@ -349,30 +362,25 @@ public class AttemptInteractionService {
 
         if (attempt.getModule() == Module.TCF) {
             // Les examens template TCF (diagnostic CO→CE) ont aussi leurs
-            // strates garanties depuis la composition sectionnée (8 A2 + 9 B1
-            // + 8 B2 par épreuve) : même notation calibrée que les examens module.
+            // strates garanties depuis la composition sectionnée : même
+            // notation que les examens module.
             boolean stratifiedExam = attempt.getModuleExamQuestionType() != null
                     || (attempt.getType() == AttemptType.MOCK_EXAM && attempt.getExamTemplate() != null);
             if (stratifiedExam) {
-                // Examen module TCF (CO/CE/STRUCTURE), examen template, ou
-                // sous-attempt CO/CE d'un examen blanc complet : strates
-                // A2/B1/B2 garanties à la composition → niveau CECRL rigoureux
-                // (score calibré + garde-fou palier), source de vérité unique
-                // stockée sur cecrl_level et projetée sur level_achieved
-                // (A2/B1/B2). On persiste aussi le score pondéré
-                // (A2=1, B1=2, B2=3) qui dérive le score calibré 100-499.
-                // Niveau global = plancher des épreuves (règle TCF IRN : il
-                // faut le niveau partout). Mono-épreuve : équivaut à
-                // estimateQcm sur tout l'attempt.
-                NiveauCecrl cecrl = scoringService.estimatePerEpreuveFloor(aqs);
-                attempt.setCecrlLevel(cecrl);
-                attempt.setLevelAchieved(AttemptScoringService.toTargetLevel(cecrl));
+                // 🛑 `cecrl_level` N'EST PLUS ÉCRIT (2026-09-20). Le niveau
+                // CECRL est un dérivé : il se recalcule à la lecture depuis les
+                // réponses (TcfLevelEstimatorService), et le persister aurait
+                // figé ici des lignes que le changement de règle ne peut plus
+                // relire. Ce qui reste écrit est de la MESURE, pas un verdict :
+                // le score pondéré (A2=1, B1=2, B2=3), matière du score de
+                // progression 100-499.
+                attempt.setLevelAchieved(AttemptScoringService.toTargetLevel(
+                        scoringService.estimatePerEpreuveFloor(aqs)));
                 attempt.setWeightedScore(scoringService.computeWeightedScore(aqs, true));
                 attempt.setMaxWeightedScore(scoringService.computeWeightedScore(aqs, false));
             } else {
-                // Entraînement TCF libre : strates non garanties (pool aléatoire),
-                // le garde-fou palier n'aurait pas de sens → on garde le niveau
-                // indicatif par strate sans renseigner cecrl_level.
+                // Entraînement TCF libre : strates non garanties (pool
+                // aléatoire) → palier indicatif seulement, sans score pondéré.
                 attempt.setLevelAchieved(scoringService.computeLevelAchieved(aqs));
             }
         }
