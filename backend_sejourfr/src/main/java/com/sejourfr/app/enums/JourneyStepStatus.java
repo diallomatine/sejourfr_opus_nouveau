@@ -28,10 +28,22 @@ public enum JourneyStepStatus {
      * A faire maintenant — <b>une seule par parcours</b>, garantie par
      * construction et non par une contrainte d'unicite.
      *
-     * <p>C'est la premiere etape ouverte <b>et executable</b> (arbitrage D-1) :
-     * une etape que le candidat ne peut pas mener a son terme avec son acces ne
-     * prend jamais la main, sinon un compte gratuit verrait son parcours se
-     * figer definitivement sur elle.
+     * <p>C'est la premiere etape ouverte <b>et executable</b> du bloc meneur
+     * (arbitrages D-1 et D-57).
+     *
+     * <p>🛑 <b>Et elle peut etre {@code locked} (D-60, 2026-09-20).</b> Quand
+     * le bloc meneur n'offre <b>rien</b> d'executable — le cas de tout compte
+     * sans acces —, ce statut se pose sur la <b>premiere etape ouverte</b> de
+     * ce bloc, verrouillee : « la carte montre la premiere etape verrouillee +
+     * paywall » (D-1). Sans cela, {@code current} etait nul et chaque front
+     * repliait sur son <b>plan derive</b>, donc nommait une autre epreuve que
+     * le badge {@code EN_COURS}.
+     *
+     * <p>🛑 <b>{@code CURRENT} ne veut donc PAS dire « executable »</b>, et
+     * aucun lecteur ne doit l'en deduire : l'executabilite se lit sur
+     * {@code JourneyStepDto.locked}, et l'etat d'ensemble sur
+     * {@link JourneyState} — un parcours dont la seule etape nommee est
+     * verrouillee reste {@link JourneyState#LOCKED} (D-18).
      */
     CURRENT,
 

@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
+import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -155,7 +156,13 @@ class JourneyReadServiceTest {
 
         // 🛑 Plus AUCUNE premiere place n'est soufflee au verrou.
         verify(accessService).resolve(user.getId());
-        assertThat(vue.current()).isNull();
+        // ⚠️ MIS A JOUR LE 2026-09-20 PAR D-60 : la carte nomme desormais la
+        // premiere etape verrouillee — le fait que D-1 decrivait et que
+        // personne ne servait. Ce que ce test protege est ailleurs, et tient :
+        // l'etat reste LOCKED, et TOUTES les donnees restent servies.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().skillCode()).isEqualTo(premiere.getCode());
+        assertThat(vue.current().locked()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
         // Les DONNEES restent servies : deux etapes, verrouillees, a leur place
         // — dans le bloc de leur epreuve, qui est la lecture du cycle (P6).
@@ -530,17 +537,19 @@ class JourneyReadServiceTest {
                 examStep(EpreuveType.TCF_CE, 4),
                 examStep(EpreuveType.TCF_EO, 5)));
 
-        // 🛑 MIS A JOUR LE 2026-09-20 PAR LA SECONDE MOITIE DE D-57. Ce test
-        // figeait « la main reste sur l'examen de CO » : c'etait le fait mesure
-        // de la PREMIERE moitie, et c'est precisement ce que la seconde ferme.
-        // `elire` ne cherche plus que dans le bloc meneur (l'EE), qui n'offre
-        // rien d'executable a un compte gratuit — donc `current` est nul, et
-        // D-1 le dit mot pour mot : « si aucune etape n'est executable :
-        // current = null, state = LOCKED ». Le cas d'usage retire est remonte
-        // dans le rapport : un compte gratuit ne lance plus l'examen de CO
-        // depuis « À faire maintenant » — il le lance depuis le bloc CO, dont
-        // l'examen reste ouvert (assertion plus bas).
-        assertThat(vue.current()).isNull();
+        // 🛑 MIS A JOUR LE 2026-09-20 PAR LA SECONDE MOITIE DE D-57, PUIS PAR
+        // D-60. Ce test figeait « la main reste sur l'examen de CO » : c'etait
+        // le fait mesure de la PREMIERE moitie, et c'est precisement ce que la
+        // seconde ferme. `elire` ne cherche plus que dans le bloc meneur
+        // (l'EE), qui n'offre rien d'executable a un compte gratuit — la CARTE
+        // nomme donc desormais la premiere etape de l'EE, verrouillee (D-60),
+        // et l'etat reste LOCKED. Le cas d'usage retire est remonte dans le
+        // rapport : un compte gratuit ne lance plus l'examen de CO depuis « À
+        // faire maintenant » — il le lance depuis le bloc CO, dont l'examen
+        // reste ouvert (assertion plus bas).
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().locked()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
         assertThat(bloc(vue, EpreuveType.TCF_CO).exam()).isNotNull();
         assertThat(bloc(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
@@ -762,6 +771,11 @@ class JourneyReadServiceTest {
         assertThat(vue.current()).isNotNull();
         assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EO.name());
         assertThat(vue.current().skillCode()).isEqualTo(eo.getCode());
+        // 🛑 UN ABONNE NE CHANGE PAS (D-60) : sa carte porte toujours une etape
+        // EXECUTABLE, jamais un repli verrouille — le repli ne se declenche que
+        // lorsque l'election ne rend rien.
+        assertThat(vue.current().locked()).isFalse();
+        assertThat(vue.state()).isEqualTo(JourneyState.IN_PROGRESS);
         // L'etape promue est bien servie DANS le bloc, a sa place.
         assertThat(bloc(vue, EpreuveType.TCF_EO).steps())
                 .anySatisfy(step -> assertThat(step.status())
@@ -780,18 +794,23 @@ class JourneyReadServiceTest {
      * (D-15) — et le badge dirait de nouveau autre chose que la carte. C'est
      * exactement le defaut que D-57 ferme.
      *
-     * <p>{@code CURRENT} vaut donc {@code null}, et c'est <b>mot pour mot</b> ce
-     * que D-1 prevoit : « si aucune etape n'est executable : {@code current =
-     * null}, {@code state = LOCKED}, et la carte montre la premiere etape
-     * verrouillee + paywall ».
+     * <p>⚠️ <b>MIS A JOUR PAR D-60 (2026-09-20)</b> : l'ELECTION ne rend
+     * toujours rien — ses deux filtres et son perimetre n'ont pas bouge, et
+     * {@code state} reste {@code LOCKED} — mais le serveur <b>sert</b>
+     * desormais, dans {@code current}, la premiere etape ouverte du <b>meme
+     * bloc meneur</b>, verrouillee. C'est la seconde moitie de la phrase de
+     * D-1, celle que personne n'appliquait : « la carte montre la premiere
+     * etape verrouillee + paywall ». 🛑 Ce que ce test protege — <b>aucun repli
+     * sur la file</b> — est inchange et reste assertionne : la main ne part pas
+     * vers l'examen de CO.
      *
      * <p>🛑 <b>D-18 est intact, et rien ne se ferme</b> : l'examen de CO reste
      * <b>ouvert</b> et servi dans son bloc. Ce qui change est ce que la carte
      * <b>nomme</b>, jamais ce que l'ecran <b>ouvre</b>.
      */
     @Test
-    @DisplayName("D-57 — compte GRATUIT : le bloc meneur n'offre rien ⇒ current null, LOCKED, "
-            + "et AUCUN repli sur la file")
+    @DisplayName("D-57 — compte GRATUIT : le bloc meneur n'offre rien ⇒ LOCKED, et AUCUN repli "
+            + "sur la file")
     void surUnCompteGratuitLeBlocMeneurNOffreRienEtCurrentEstNull() {
         Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
         when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
@@ -806,9 +825,15 @@ class JourneyReadServiceTest {
                 examStep(EpreuveType.TCF_CE, 4),
                 examStep(EpreuveType.TCF_EO, 5)));
 
-        assertThat(vue.current())
-                .as("aucune etape du bloc meneur n'est executable : pas de repli (D-57)")
-                .isNull();
+        // 🛑 LE POINT DE D-57 : la main ne sort PAS du bloc meneur. D-60 sert
+        // l'etape a nommer, il n'elargit pas la recherche.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code())
+                .as("le repli reste DANS le bloc meneur : jamais l'examen d'un autre bloc")
+                .isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().skillCode()).isEqualTo(competence.getCode());
+        assertThat(vue.current().locked()).isTrue();
+        // 🛑 Et l'etat dit toujours « rien n'est executable » (D-18).
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
         // ✅ Le badge, lui, NE BOUGE PAS : il reste sur le bloc meneur.
         assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
@@ -909,9 +934,16 @@ class JourneyReadServiceTest {
     }
 
     /**
-     * <b>L'invariant general, sur cinq montages</b> — celui qui protege de la
+     * <b>L'invariant general, sur six montages</b> — celui qui protege de la
      * prochaine divergence : {@code CURRENT != null} ⇒ son bloc est celui
      * marque {@code EN_COURS}.
+     *
+     * <p>🛑 <b>ETENDU AU CAS VERROUILLE (D-60)</b> : il couvre desormais une
+     * carte qui nomme une etape <b>inexecutable</b> — le cas de tout compte
+     * sans acces, TCF comme civique. C'est celui qui a produit le defaut :
+     * {@code current} etant nul, chaque front repliait sur son plan derive et
+     * nommait une epreuve que le badge ne nommait pas. Un <b>second</b>
+     * invariant n'a pas ete ecrit : c'est le meme fait, sur un montage de plus.
      *
      * <p>⚠️ Une etape {@code DIAGNOSTIC} n'appartient a <b>aucun</b> bloc (R11,
      * A45) : elle est la seule exception, et {@link #invariantDuBadge} la laisse
@@ -943,15 +975,43 @@ class JourneyReadServiceTest {
         // 3. Un cycle de mesure, abonne.
         invariantDuBadge(service.lire(journey, List.of(examenCo, examenCe, examenEe)));
         // 4. Le meme parcours, compte gratuit : rien d'executable.
+        // 🛑 ETENDU PAR D-60 : ce montage servait un `current` NUL, donc il
+        // passait par l'echappatoire de l'invariant sans rien verifier. La
+        // carte porte desormais une etape VERROUILLEE, et l'invariant s'y
+        // applique vraiment — c'est precisement le cas ou les deux fronts
+        // repliaient chacun sur leur plan derive et nommaient un autre bloc.
         when(accessService.resolve(user.getId()))
                 .thenReturn(SkillAccessService.SkillAccess.AUCUN);
-        invariantDuBadge(service.lire(journey,
-                List.of(travailEe, travailEo, examenCo, examenCe)));
+        JourneyDto gratuit = service.lire(journey,
+                List.of(travailEe, travailEo, examenCo, examenCe));
+        assertThat(gratuit.current()).isNotNull();
+        assertThat(gratuit.current().locked()).isTrue();
+        assertThat(gratuit.state()).isEqualTo(JourneyState.LOCKED);
+        invariantDuBadge(gratuit);
         // 5. Tout le travail cloture, compte gratuit.
         travailEe.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
         travailEo.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
         invariantDuBadge(service.lire(journey,
                 List.of(travailEe, travailEo, examenCo, examenCe)));
+        // 6. Un cycle CIVIQUE sans acces : toutes les unites verrouillees
+        // (A119). C'est le montage exact du defaut mesure, et l'invariant y
+        // vaut sans qu'une seule ligne du resolveur sache de quel module il
+        // parle (D-47).
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme principes = theme("CIV_PRINCIPES", "Principes et valeurs de la République");
+        Theme histoire = theme("CIV_HISTOIRE", "Histoire, géographie et culture");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(principes, histoire));
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(false);
+        JourneyDto civique = service.lire(journey, List.of(
+                uniteCivique(principes, "CIV_U_DEVISE", "La devise", 1),
+                uniteCivique(histoire, "CIV_U_ARTISTES", "Artistes et savants", 2),
+                etapeCivique(JourneyStepType.SECTION_EXAM, histoire, 3)));
+        assertThat(civique.current()).isNotNull();
+        assertThat(civique.current().locked()).isTrue();
+        assertThat(civique.state()).isEqualTo(JourneyState.LOCKED);
+        invariantDuBadge(civique);
     }
 
     /**
@@ -1079,9 +1139,186 @@ class JourneyReadServiceTest {
         // ⚠️ Et le Plan reste LISIBLE : on floute l'ACTION, jamais le RESULTAT
         // mesure (D-18). Les etapes sont toutes servies, avec leur nom.
         assertThat(vue.blocs().getFirst().steps()).hasSize(2);
-        // D-1 : plus rien d'executable ⇒ pas de main, et l'etat le dit.
-        assertThat(vue.current()).isNull();
+        // ⚠️ MIS A JOUR LE 2026-09-20 PAR D-60. Ce test figeait
+        // « current == null » : c'etait la consequence d'un fait DECIDE par D-1
+        // (« la carte montre la premiere etape verrouillee ») que le serveur ne
+        // SERVAIT pas. Il le sert desormais — l'etape est bien celle-ci, et
+        // elle est bien verrouillee. 🛑 Ce que ce test protege vraiment, et qui
+        // ne bouge pas : l'etat reste LOCKED, donc rien ne se lance.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().locked()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+    }
+
+    // =====================================================================
+    // D-60 (2026-09-20) — LE SERVEUR SERT L'ETAPE QUE LA CARTE DOIT NOMMER,
+    // Y COMPRIS VERROUILLEE
+    //
+    // D-1 le disait deja mot pour mot — « si aucune etape n'est executable :
+    // current = null, state = LOCKED, et la carte montre la PREMIERE ETAPE
+    // VERROUILLEE + paywall » — mais personne ne servait cette etape. Chaque
+    // front inventait alors son repli vers le PLAN DERIVE, dont l'ordre est
+    // celui du Leitner : le cycle disait une epreuve, la carte en nommait une
+    // autre. Meme motif qu'A119 : le fait existait, il n'etait pas servi.
+    //
+    // 🛑 L'ELECTION N'EST PAS TOUCHEE (D-57) : ses deux filtres restent, et son
+    // resultat reste l'unique entree de `etat` — D-18 est intact.
+    // =====================================================================
+
+    /**
+     * <b>Le defaut mesure a l'ecran</b>, reproduit tel quel : Plan civique,
+     * compte <b>sans acces</b>. Le cycle affichait « Principes et valeurs de la
+     * Republique — EN COURS » et la carte « À faire maintenant » nommait une
+     * unite d'<b>Histoire, geographie et culture</b> — l'ordre du plan derive,
+     * pas celui du cycle.
+     *
+     * <p>Depuis A119 toutes les unites civiques d'un compte gratuit sont
+     * verrouillees, donc le bloc meneur n'offre <b>rien</b> d'executable : c'est
+     * desormais le cas de <b>tous</b> les comptes civiques gratuits.
+     */
+    @Test
+    @DisplayName("D-60 — cycle CIVIQUE gratuit : `current` porte la PREMIERE etape ouverte du "
+            + "bloc meneur, verrouillee, et c'est le bloc EN_COURS")
+    void leCycleCiviqueGratuitNommeLaPremiereEtapeDeSonBlocMeneur() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme principes = theme("CIV_PRINCIPES", "Principes et valeurs de la République");
+        Theme histoire = theme("CIV_HISTOIRE", "Histoire, géographie et culture");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(principes, histoire));
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(false);
+
+        JourneyStep devise = uniteCivique(principes, "CIV_U_DEVISE", "La devise de la République", 1);
+        JourneyStep laicite = uniteCivique(principes, "CIV_U_LAICITE", "La laïcité", 2);
+        JourneyStep artistes = uniteCivique(histoire, "CIV_U_ARTISTES", "Artistes et savants français", 3);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                devise, laicite, artistes,
+                etapeCivique(JourneyStepType.SECTION_EXAM, principes, 4),
+                etapeCivique(JourneyStepType.SECTION_EXAM, histoire, 5)));
+
+        // ✅ La carte a de quoi parler, et elle nomme l'etape du bloc meneur.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo("CIV_PRINCIPES");
+        assertThat(vue.current().unite().code()).isEqualTo("CIV_U_DEVISE");
+        assertThat(vue.current().status()).isEqualTo(JourneyStepStatus.CURRENT);
+        // 🛑 Servie AVEC son verrou : c'est le fait qui manquait, pas l'etape.
+        assertThat(vue.current().locked()).isTrue();
+        // 🛑 ET L'ETAT NE BOUGE PAS (D-18) : le Plan reste INEXECUTABLE.
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // 🛑 Le defaut mesure, ferme : l'unite d'une AUTRE thematique ne peut
+        // plus etre nommee par la carte.
+        assertThat(vue.current().unite().code()).isNotEqualTo("CIV_U_ARTISTES");
+        // ✅ Et c'est bien le bloc que le cycle marque EN COURS.
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .extracting(b -> b.bloc().code())
+                .containsExactly("CIV_PRINCIPES");
+        invariantDuBadge(vue);
+    }
+
+    /**
+     * <b>Le pendant TCF</b> : le defaut n'est pas propre au civique. Un compte
+     * gratuit dont le bloc meneur est une epreuve d'<b>expression</b> — toutes
+     * ses etapes inexecutables (D-18) — recoit la premiere d'entre elles.
+     *
+     * <p>🛑 <b>Et pas l'examen de CO</b>, qui est pourtant ouvert : le repli
+     * reste <b>dans le bloc meneur</b>. En sortir rouvrirait exactement la
+     * divergence que D-57 ferme.
+     */
+    @Test
+    @DisplayName("D-60 — compte gratuit TCF : `current` est la premiere etape du bloc meneur, "
+            + "verrouillee — jamais l'examen ouvert d'un AUTRE bloc")
+    void unCompteGratuitTcfRecoitLaPremiereEtapeDeSonBlocMeneur() {
+        Skill premiere = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill seconde = skill("EE2-C1", SkillTaskCode.EE2);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                premiere.getId(), progres(List.of(UUID.randomUUID())),
+                seconde.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.AUCUN);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(premiere, 1),
+                trainStep(seconde, 2),
+                examStep(EpreuveType.TCF_EE, 3),
+                examStep(EpreuveType.TCF_CO, 4)));
+
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().skillCode()).isEqualTo(premiere.getCode());
+        assertThat(vue.current().locked()).isTrue();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // 🛑 L'examen de CO reste OUVERT dans son bloc — rien ne s'est ferme —
+        // mais il ne prend pas la main : le repli ne sort pas du bloc meneur.
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
+        invariantDuBadge(vue);
+    }
+
+    /**
+     * 🛑 <b>A17 reste honore DANS LE REPLI</b> : une etape d'expression dont la
+     * competence ne publie <b>aucun sujet</b> ne peut jamais se clore
+     * ({@code Progress.completed()} refuse de declarer finie une etape vide).
+     * La nommer figerait la carte sur une action impossible — {@code current}
+     * reste donc {@code null}, et ce cas doit rester possible.
+     */
+    @Test
+    @DisplayName("D-60 / A17 — aucune etape du bloc meneur ne passe le filtre de contenu ⇒ "
+            + "`current` reste NULL")
+    void sansAucunSujetPublieLeReplieNeNommeRien() {
+        Skill sansSujet = skill("EE1-C1", SkillTaskCode.EE1);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                sansSujet.getId(), progres(List.of())));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.AUCUN);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(sansSujet, 1),
+                examStep(EpreuveType.TCF_CO, 2)));
+
+        assertThat(vue.current())
+                .as("une etape sans sujet publie ne peut pas se clore : on ne la nomme pas (A17)")
+                .isNull();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // 🛑 ET LE REPLI N'EST PAS ALLE CHERCHER L'EXAMEN DE CO : il ne sort
+        // pas du bloc meneur, meme quand ce bloc n'a plus rien a dire.
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().status())
+                .isNotEqualTo(JourneyStepStatus.CURRENT);
+        // Et l'etape reste servie a sa place : on ne cache rien (contradiction #1).
+        assertThat(bloc(vue, EpreuveType.TCF_EE).steps()).hasSize(1);
+    }
+
+    /**
+     * <b>Le meme cas, mais le bloc meneur porte AUSSI son examen</b> — la
+     * nuance est fine et elle est <b>figee ici</b> plutot que laissee muette.
+     *
+     * <p>{@link #sansContenu} ne parle que des etapes d'<b>entrainement</b> : un
+     * examen le passe toujours. Le repli nomme donc l'examen du <b>meme bloc</b>
+     * — une etape reelle, a sa place, avec son verrou <b>pedagogique</b> servi
+     * (D-15 : il reste du travail ouvert dans ce bloc). Le badge et la carte
+     * disent toujours la meme epreuve, ce qui est tout l'objet de D-60, et
+     * l'etat reste {@code LOCKED}.
+     */
+    @Test
+    @DisplayName("D-60 — le bloc meneur sans contenu mais AVEC son examen : c'est l'examen du "
+            + "MEME bloc qui est nomme, verrouille")
+    void leReplieNommeLExamenDuMemeBlocQuandLEntrainementNAPasDeContenu() {
+        Skill sansSujet = skill("EE1-C1", SkillTaskCode.EE1);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                sansSujet.getId(), progres(List.of())));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.AUCUN);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(sansSujet, 1),
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3)));
+
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().locked()).isTrue();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        invariantDuBadge(vue);
     }
 
     @Test
@@ -1465,6 +1702,22 @@ class JourneyReadServiceTest {
         step.poserBloc(thematique);
         step.setPosition(position);
         step.setCreatedAt(Instant.now().minusSeconds(3_600));
+        return step;
+    }
+
+    /**
+     * Une etape civique d'entrainement <b>portant son unite officielle</b> —
+     * exactement ce que {@code poserUnite(CivicOfficialUnit)} ecrit en base :
+     * une unite, jamais une competence (A119).
+     */
+    private JourneyStep uniteCivique(Theme thematique, String code, String label, long position) {
+        JourneyStep step = etapeCivique(JourneyStepType.TRAIN_SKILL, thematique, position);
+        CivicOfficialUnit unite = new CivicOfficialUnit();
+        unite.setId(UUID.randomUUID());
+        unite.setCode(code);
+        unite.setThemeCode(thematique.getCode());
+        unite.setLabel(label);
+        step.poserUnite(unite);
         return step;
     }
 

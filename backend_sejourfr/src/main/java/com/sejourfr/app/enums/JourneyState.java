@@ -28,8 +28,15 @@ public enum JourneyState {
 
     /**
      * Des etapes restent ouvertes mais <b>aucune n'est executable</b> avec
-     * l'acces du candidat (R16, D-1) : {@code current} vaut {@code null} et la
-     * carte montre la premiere etape verrouillee, avec son paywall.
+     * l'acces du candidat (R16, D-1) : la carte montre la premiere etape
+     * verrouillee, avec son paywall.
+     *
+     * <p>🛑 <b>{@code current} n'est PAS nul pour autant</b> (D-60,
+     * 2026-09-20) : c'est le serveur qui sert cette etape verrouillee, plutot
+     * que de laisser chaque front la deviner — ils repliaient alors sur leur
+     * plan derive et nommaient une autre epreuve que le badge. Cet etat reste
+     * donc le seul fait a lire pour savoir que <b>rien ne se lance</b> : il ne
+     * se deduit ni de la nullite de {@code current}, ni d'un abonnement.
      *
      * <p>🛑 Ce n'est <b>pas</b> un parcours modifie pour le freemium : la file
      * est la meme pour tout le monde, seule l'election de {@code CURRENT} tient

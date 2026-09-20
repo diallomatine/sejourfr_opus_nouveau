@@ -82,9 +82,24 @@ import java.util.function.Predicate;
  * l'acces se lit desormais <b>tel quel</b>. L'ordre de promotion de D-1
  * (« {@code CURRENT} = premiere etape non cloturee <b>et executable</b> »)
  * reste valable mot pour mot ; pour un compte gratuit il ne designe simplement
- * plus rien — {@code current == null}, {@link JourneyState#LOCKED} permanent,
- * la carte nomme la premiere etape verrouillee et ouvre le paywall. <b>C'est
- * l'effet voulu.</b>
+ * plus rien, {@link JourneyState#LOCKED} est permanent, et la carte nomme la
+ * premiere etape verrouillee en ouvrant le paywall. <b>C'est l'effet voulu.</b>
+ *
+ * <h2>🛑 Et cette etape-la est SERVIE, verrouillee (D-60, 2026-09-20)</h2>
+ * <p>« La carte montre la premiere etape verrouillee + paywall » etait decide
+ * depuis D-1 — et <b>personne ne la servait</b> : {@code current} valait
+ * {@code null}, donc chaque front inventait son propre repli vers le <b>plan
+ * derive</b> ({@code plan.currentPriority} cote TCF, {@code plan.prochaine}
+ * cote civique), dont l'ordre est celui du Leitner et non celui du cycle. Le
+ * cycle disait « Principes et valeurs de la Republique — EN COURS » pendant que
+ * la carte nommait une unite d'une <b>autre</b> thematique.
+ *
+ * <p>{@code current} porte donc desormais, quand le bloc meneur n'offre rien
+ * d'executable, <b>sa premiere etape ouverte</b> avec son {@code locked: true}
+ * ({@link #premiereAnnoncable}). 🛑 <b>{@link JourneyState#LOCKED} ne bouge
+ * pas</b> : l'etat se lit sur l'etape <b>executable</b>, pas sur celle que la
+ * carte nomme — D-18 est intact, et ce qui change est ce que l'ecran
+ * <b>dit</b>, jamais ce qu'il <b>ouvre</b>.
  *
  * <p>🛑 <b>Et la contradiction #1 du depot n'est pas rouverte</b> : le cycle,
  * les priorites, les niveaux mesures et les compteurs <b>restent servis</b>. Ce
@@ -108,7 +123,8 @@ import java.util.function.Predicate;
  * <p>Il n'y a <b>aucun repli sur la file</b> quand ce bloc n'offre rien
  * d'executable : ce repli rouvrirait le defaut qu'on ferme — sur un compte
  * gratuit, la main repartirait vers l'examen d'un autre bloc, et l'ecran se
- * contredirait de nouveau. La file entiere n'est parcourue que lorsqu'<b>aucun
+ * contredirait de nouveau. Le repli de D-60 reste donc <b>dans le bloc
+ * meneur</b>, lui aussi. La file entiere n'est parcourue que lorsqu'<b>aucun
  * bloc</b> ne porte de travail (cycle de mesure), et c'est ce qui empeche la
  * regle d'etre circulaire.
  *
@@ -229,7 +245,16 @@ public class JourneyReadService {
         List<JourneyBlocRefDto> axeServi = axeAffiche(journey.getModule(), affichables);
         String meneur = JourneyBlocResolver.meneurParLeTravail(axeServi, affichables);
 
-        JourneyStep courante = elire(ouvertes, etats, progressionExpression, meneur);
+        // 🛑 DEUX LECTURES, ET ELLES NE DISENT PAS LA MEME CHOSE (D-60) :
+        // `executable` est l'etape que le candidat peut MENER A SON TERME —
+        // c'est elle, et elle seule, qui decide de l'ETAT du parcours (D-18) ;
+        // `courante` est l'etape que la carte doit NOMMER, verrouillee ou non.
+        // Sur un compte sans acces, la premiere est nulle et la seconde ne
+        // l'est pas : le Plan reste inexecutable, et il cesse d'etre muet.
+        JourneyStep executable = elire(ouvertes, etats, progressionExpression, meneur);
+        JourneyStep courante = executable != null
+                ? executable
+                : premiereAnnoncable(ouvertes, progressionExpression, meneur);
         if (courante != null) {
             Etat etat = etats.get(courante.getId());
             etats.put(courante.getId(), new Etat(etat.step(), JourneyStepStatus.CURRENT,
@@ -242,7 +267,12 @@ public class JourneyReadService {
                 step -> dto(etats.get(step.getId()), exercices),
                 jamaisMesure(userId, journey.getModule()));
 
-        JourneyState state = etat(affichables, ouvertes, courante);
+        // 🛑 L'ETAT SE LIT SUR L'EXECUTABLE, JAMAIS SUR LA CARTE (D-18, D-60) :
+        // servir une etape verrouillee dans `current` ne rend rien executable.
+        // Brancher `etat` sur `courante` aurait fait passer tout compte sans
+        // acces de LOCKED a IN_PROGRESS — « le Plan d'un compte gratuit est
+        // lisible et INEXECUTABLE » est l'effet voulu, pas un dommage.
+        JourneyState state = etat(affichables, ouvertes, executable);
         return new JourneyDto(
                 journey.objectifRef(),
                 state,
@@ -581,13 +611,19 @@ public class JourneyReadService {
      * <p>C'est contre-intuitif, et c'est pourtant le point : sur un compte
      * <b>gratuit</b>, le bloc meneur est celui des competences, toutes
      * inexecutables (D-18). Retomber sur la file entiere ferait repartir
-     * {@code CURRENT} vers l'examen d'un <b>autre</b> bloc — ouvert d'emblee
-     * faute de competence a finir avant lui (D-15) — et le badge dirait de
-     * nouveau autre chose que la carte : <b>exactement le defaut que D-57
-     * ferme</b>. {@code CURRENT} vaut donc {@code null}, ce que D-1 prevoit mot
-     * pour mot : « si aucune etape n'est executable : {@code current = null},
-     * {@code state = LOCKED}, et la carte montre la premiere etape verrouillee
-     * + paywall ».
+     * l'election vers l'examen d'un <b>autre</b> bloc — ouvert d'emblee faute
+     * de competence a finir avant lui (D-15) — et le badge dirait de nouveau
+     * autre chose que la carte : <b>exactement le defaut que D-57 ferme</b>.
+     * Cette methode rend donc {@code null}.
+     *
+     * <p>⚠️ <b>Ce que D-60 ajoute, et ou</b> : la LECTURE ne s'arrete plus la.
+     * {@link #lire} sert alors, dans {@code current}, la premiere etape
+     * <b>ouverte du meme bloc meneur</b>, verrouillee
+     * ({@link #premiereAnnoncable}) — « la carte montre la premiere etape
+     * verrouillee + paywall », ce que D-1 prevoyait deja mot pour mot et que
+     * personne ne servait. 🛑 <b>L'election, elle, n'est pas touchee</b> : ses
+     * deux filtres restent, son resultat reste l'unique entree de
+     * {@link #etat}, et {@code state} reste donc {@code LOCKED}.
      *
      * <p>⚠️ Une etape {@code DIAGNOSTIC} n'appartient a aucun bloc (R11, A45) :
      * elle n'est donc eligible que <b>sans</b> meneur. C'est sans consequence,
@@ -611,6 +647,51 @@ public class JourneyReadService {
         for (JourneyStep step : ouvertes) {
             if (meneur != null && !meneur.equals(step.blocCode())) continue;
             if (etats.get(step.getId()).locked()) continue;
+            if (sansContenu(step, progressionExpression)) continue;
+            return step;
+        }
+        return null;
+    }
+
+    /**
+     * <b>L'etape que la carte doit NOMMER quand l'election ne rend rien</b>
+     * (D-60) : la premiere etape ouverte du <b>bloc meneur</b>, verrouillee ou
+     * non.
+     *
+     * <h3>🛑 Ce n'est pas un assouplissement de l'election</h3>
+     * <p>{@link #elire} ne bouge pas d'une ligne : {@code CURRENT} reste « la
+     * premiere ouverte <b>et executable</b> » (D-1), et son resultat reste
+     * l'unique entree de {@link #etat} — un compte sans acces reste donc
+     * {@link JourneyState#LOCKED} (D-18). Ce qui change est ce que le serveur
+     * <b>dit</b> : D-1 prevoyait deja, mot pour mot, que « la carte montre la
+     * premiere etape verrouillee + paywall », mais <b>personne ne la servait</b>.
+     * Chaque front inventait alors son propre repli vers le <b>plan derive</b>
+     * — dont l'ordre est celui du Leitner, pas celui du cycle — et l'ecran
+     * nommait une epreuve pendant que le badge en nommait une autre. C'est la
+     * meme cause qu'A119 : « le fait existait cote serveur, il n'etait pas
+     * servi ; un front ne peut pas lire ce qu'on ne lui dit pas. »
+     *
+     * <h3>🛑 Le repli reste DANS le bloc meneur</h3>
+     * <p>Aller chercher ailleurs dans la file rouvrirait exactement la
+     * divergence que D-57 ferme. Quand il n'y a <b>pas</b> de meneur (cycle de
+     * mesure), l'ensemble est le meme que celui d'{@code elire} — toute la
+     * file — et le badge suit alors le porteur de {@code CURRENT} : l'invariant
+     * « le bloc de {@code CURRENT} est celui marque {@code EN_COURS} » tient
+     * dans les deux cas.
+     *
+     * <h3>🛑 {@link #sansContenu} reste honore (A17)</h3>
+     * <p>Une etape d'expression dont la competence ne publie aucun sujet ne peut
+     * <b>jamais</b> se clore : la nommer figerait la carte sur une action
+     * impossible. Si aucune etape du bloc meneur ne passe ce filtre,
+     * {@code current} reste {@code null} — c'est un cas reel, et les fronts
+     * gardent leur repli pour lui.
+     */
+    private static JourneyStep premiereAnnoncable(
+            List<JourneyStep> ouvertes,
+            Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
+            String meneur) {
+        for (JourneyStep step : ouvertes) {
+            if (meneur != null && !meneur.equals(step.blocCode())) continue;
             if (sansContenu(step, progressionExpression)) continue;
             return step;
         }
@@ -942,15 +1023,21 @@ public class JourneyReadService {
      * </ul>
      */
     private static JourneyState etat(
-            List<JourneyStep> affichables, List<JourneyStep> ouvertes, JourneyStep courante) {
+            List<JourneyStep> affichables, List<JourneyStep> ouvertes, JourneyStep executable) {
         if (ouvertes.isEmpty()) {
             return affichables.isEmpty()
                     ? JourneyState.UP_TO_DATE
                     : JourneyState.CYCLE_COMPLETED;
         }
-        // Des etapes restent, mais aucune n'est executable : la carte montrera la
-        // premiere, verrouillee, avec son paywall (R16, D-1).
-        return courante == null ? JourneyState.LOCKED : JourneyState.IN_PROGRESS;
+        // 🛑 LE PARAMETRE EST L'ETAPE **EXECUTABLE**, PAS CELLE QUE LA CARTE
+        // NOMME (D-60) : depuis le 2026-09-20, `current` porte une etape
+        // verrouillee quand le bloc meneur n'offre rien d'executable. Lire
+        // l'etat sur cette etape-la rendrait IN_PROGRESS un parcours ou rien
+        // n'est faisable, et D-18 dit l'inverse : « le Plan d'un compte gratuit
+        // est lisible mais INEXECUTABLE », LOCKED permanent, c'est l'effet
+        // voulu. La carte montre la premiere etape verrouillee et son paywall
+        // (R16, D-1) -- c'est ce que `current` sert desormais.
+        return executable == null ? JourneyState.LOCKED : JourneyState.IN_PROGRESS;
     }
 
     /**

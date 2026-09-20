@@ -4732,9 +4732,17 @@ export interface JourneyStepDto {
      * **Cette étape ne peut pas être menée à son terme avec l'accès du
      * candidat.**
      *
-     * 🛑 Une étape verrouillée reste **affichée à sa place** et ne devient
-     * **jamais** `CURRENT` : le parcours avance au lieu de mourir, et le Plan
-     * reste intégralement visible.
+     * 🛑 Une étape verrouillée reste **affichée à sa place** : le Plan reste
+     * intégralement visible, on floute l'ACTION jamais le RÉSULTAT (D-18).
+     *
+     * ⚠️ **Elle PEUT être `CURRENT`** depuis D-60. La phrase précédente disait
+     * « jamais », et c'était vrai tant que rien ne servait l'étape à nommer
+     * quand plus aucune n'est exécutable : chaque front inventait alors son
+     * repli sur le plan dérivé, et les deux tombaient sur un autre bloc que le
+     * badge « EN COURS ». Le serveur sert désormais cette étape-là, verrouillée.
+     * 🛑 **`CURRENT` ne veut donc plus dire « exécutable »** — c'est
+     * `JourneyDto.state` qui le dit (`LOCKED`), et le geste se décide sur
+     * `free || locked`, jamais sur le statut.
      */
     locked: boolean;
     /**

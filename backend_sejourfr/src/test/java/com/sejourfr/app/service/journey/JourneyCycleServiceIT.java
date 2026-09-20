@@ -294,7 +294,17 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // carte aurait dit CO. `elire` ne cherche plus que dans le bloc meneur
         // (l'EE), qui n'offre rien d'executable a un compte gratuit : `current`
         // est donc nul et l'etat LOCKED, mot pour mot ce que D-1 prevoit.
-        assertThat(vue.current()).isNull();
+        //
+        // ⚠️ PUIS MIS A JOUR PAR D-60, LE MEME JOUR, ET C'EST ICI QUE LA CHAINE
+        // COMPTE : contre le VRAI freemium, la carte recoit desormais la
+        // premiere etape du bloc meneur, VERROUILLEE — la seconde moitie de la
+        // phrase de D-1, que le serveur ne servait pas. Sans elle, les deux
+        // fronts repliaient sur leur plan derive et nommaient une autre
+        // epreuve que le badge. 🛑 L'etat, lui, reste LOCKED : rien ne se lance.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.TRAIN_SKILL);
+        assertThat(vue.current().locked()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
         // 🛑 ET RIEN NE S'EST FERME : l'examen de CO reste OUVERT dans son
         // bloc. Ce qui change est ce que la carte NOMME, jamais ce que l'ecran

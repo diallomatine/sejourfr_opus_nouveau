@@ -76,11 +76,17 @@ public record JourneyStepDto(
          * candidat</b> (R16, §5 bis).
          *
          * <p>🛑 Une etape verrouillee reste <b>affichee a sa place</b> et ne
-         * devient <b>jamais</b> {@code CURRENT} : c'est ce qui empeche un compte
-         * gratuit de voir son parcours se figer definitivement sur une etape
-         * qu'il ne peut pas finir (arbitrage D-1), sans pour autant la lui
-         * cacher (contradiction #1 du depot, tranchee le 2026-08-21 : « le Plan
-         * reste integralement visible »).
+         * <b>prend jamais la main</b> : c'est ce qui empeche un compte gratuit
+         * de voir son parcours se figer definitivement sur une etape qu'il ne
+         * peut pas finir (arbitrage D-1), sans pour autant la lui cacher
+         * (contradiction #1 du depot, tranchee le 2026-08-21 : « le Plan reste
+         * integralement visible »).
+         *
+         * <p>⚠️ <b>Elle peut en revanche etre NOMMEE</b> (D-60, 2026-09-20) :
+         * quand le bloc meneur n'offre rien d'executable, la premiere etape
+         * ouverte de ce bloc est servie dans {@code JourneyDto.current} avec
+         * {@code locked: true} et le statut {@code CURRENT}. Le parcours reste
+         * {@code LOCKED} — ce champ, et lui seul, dit qu'on ne lance rien.
          */
         boolean locked,
         /**

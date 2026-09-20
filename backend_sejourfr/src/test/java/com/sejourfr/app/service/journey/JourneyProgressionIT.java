@@ -293,7 +293,20 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         // d'executable a un compte gratuit, `current` est nul et l'etat LOCKED,
         // mot pour mot ce que D-1 prevoit et ce que D-18 appelle « l'effet
         // voulu ».
-        assertThat(vue.current()).isNull();
+        // ⚠️ PUIS MIS A JOUR PAR D-60, LE MEME JOUR : la carte NOMME desormais
+        // cette premiere etape inexecutable, avec son verrou servi — « la carte
+        // montre la premiere etape verrouillee + paywall » (D-1), que rien ne
+        // servait. 🛑 Et l'etat ne bouge pas : LOCKED, donc rien ne se lance.
+        // 🛑 On assertionne la REGLE, pas le resultat d'un tri que ce test ne
+        // fixe pas : la carte nomme une etape DU bloc meneur (l'EE), et elle
+        // est verrouillee. Nommer `premiere` ici dependrait de l'ordre que le
+        // moteur donne aux deux competences.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.TRAIN_SKILL);
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().skillCode())
+                .isIn(premiere.getCode(), seconde.getCode());
+        assertThat(vue.current().locked()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
         // 🛑 ET LE GESTE N'A PAS DISPARU, il a change d'endroit : l'examen
         // reste OUVERT dans son bloc, le candidat gratuit le lance depuis le

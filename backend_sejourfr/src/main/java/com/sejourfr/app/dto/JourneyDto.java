@@ -44,15 +44,25 @@ public record JourneyDto(
         JourneyObjectifRefDto objectif,
         JourneyState state,
         /**
-         * L'etape a faire maintenant : la premiere ouverte <b>et executable</b>
-         * (arbitrage D-1).
+         * <b>L'etape que la carte « À faire maintenant » doit nommer</b> : la
+         * premiere ouverte <b>et executable</b> du bloc meneur (D-1, D-57) et,
+         * a defaut, la premiere ouverte de ce meme bloc, <b>verrouillee</b>
+         * (D-60).
+         *
+         * <p>🛑 <b>Une etape servie ici peut donc porter {@code locked: true}</b>,
+         * et l'etat du parcours vaut alors {@link JourneyState#LOCKED} : le
+         * geste est l'offre, jamais le lancement. Avant D-60 ce champ etait
+         * nul dans ce cas, et chaque front repliait sur son <b>plan derive</b>
+         * — dont l'ordre est celui du Leitner, pas celui du cycle : l'ecran
+         * nommait une epreuve pendant que le badge {@code EN_COURS} en nommait
+         * une autre.
          *
          * <p>{@code null} dans quatre cas, et les fronts les distinguent par
          * {@link #state()} : aucun objectif declare ({@code NEEDS_OBJECTIVE}),
          * cycle termine ({@code CYCLE_COMPLETED}), plus rien a faire
-         * ({@code UP_TO_DATE}), ou des etapes ouvertes mais aucune executable
-         * ({@code LOCKED} — la carte montre alors la premiere etape verrouillee,
-         * avec son paywall).
+         * ({@code UP_TO_DATE}), ou — cas <b>rare mais reel</b> — un bloc meneur
+         * dont aucune etape ne peut se clore faute de sujet publie (A17), ou le
+         * parcours n'a alors rien de vrai a nommer.
          */
         JourneyStepDto current,
         /** {@code null} est le cas courant : une suggestion n'est pas une etape (§8). */
