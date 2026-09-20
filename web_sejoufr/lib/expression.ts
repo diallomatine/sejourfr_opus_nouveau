@@ -214,15 +214,7 @@ export const EXPRESSION_TAB_SUJETS = "Sujets complets";
 
 /* ----------------------------------------------- « Recommandé pour vous » */
 
-export const EXPRESSION_RECOMMENDED_LABEL = "Recommandé pour vous";
-export const EXPRESSION_RECOMMENDED_CTA = "Continuer";
 
-/** « 2/5 exercices réussis » — les compteurs **servis** par le Plan. */
-export function exercicesReussisLabel(validated: number, total: number): string | null {
-    if (total <= 0) return null;
-    const s = total > 1 ? "s" : "";
-    return `${validated}/${total} exercice${s} réussi${s}`;
-}
 
 /** « Votre progression vers l'objectif B2 ». `null` sans objectif déclaré. */
 export function progressionVersObjectif(objectif: string | null | undefined): string | null {
@@ -264,45 +256,6 @@ export interface ExpressionRecommendation {
     locked: boolean;
 }
 
-export function recommandationDuPlan(
-    plan: LearningPlanDto | null | undefined,
-    section: SkillSection,
-): ExpressionRecommendation | null {
-    if (!plan) return null;
-
-    for (const item of plan.seance?.items ?? []) {
-        if (item.section !== section || !item.skillId || !item.title || !item.skillCode) continue;
-        return {
-            skillId: item.skillId,
-            skillCode: item.skillCode,
-            section,
-            title: item.title,
-            taskCode: taskCodeOf(item.skillCode),
-            validated: item.stepValidatedCount,
-            total: item.stepPromptCount,
-            locked: item.locked,
-        };
-    }
-
-    const priorites = [
-        ...(plan.currentPriority ? [plan.currentPriority] : []),
-        ...(plan.nextPriorities ?? []),
-    ];
-    for (const priority of priorites) {
-        if (priority.section !== section || !priority.title) continue;
-        return {
-            skillId: priority.skillId,
-            skillCode: priority.skillCode,
-            section,
-            title: priority.title,
-            taskCode: taskCodeOf(priority.skillCode),
-            validated: priority.stepValidatedCount,
-            total: priority.stepPromptCount,
-            locked: priority.locked,
-        };
-    }
-    return null;
-}
 
 /** `"EE2-C3"` → `"EE2"`. Un code inattendu rend `null` plutôt qu'une tâche inventée. */
 function taskCodeOf(skillCode: string | null | undefined): string | null {

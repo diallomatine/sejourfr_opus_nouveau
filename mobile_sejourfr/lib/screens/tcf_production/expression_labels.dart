@@ -1,4 +1,3 @@
-import '../../core/models/diagnostic_models.dart';
 import '../../core/models/skill_models.dart';
 
 /// **Les phrases des trois écrans d'expression** — détail de l'épreuve, détail
@@ -201,23 +200,11 @@ String restantsLabel(List<SkillPromptSummary> prompts) {
 const String kExpressionTabCompetences = 'Compétences';
 const String kExpressionTabSujets = 'Sujets complets';
 
-/* ----------------------------------------------- « Recommandé pour vous » */
-
-const String kExpressionRecommendedLabel = 'Recommandé pour vous';
-const String kExpressionRecommendedCta = 'Continuer';
-
 /// `"EE3"` → « Tâche 3 ». Miroir de `tacheLabel` (`production/parcours.ts`).
 /// Un code inattendu se rend tel quel plutôt qu'en « Tâche NaN ».
 String tacheLabel(String taskCode) {
   final n = int.tryParse(taskCode.substring(taskCode.length - 1));
   return n == null ? taskCode : 'Tâche $n';
-}
-
-/// « 2/5 exercices réussis » — les compteurs **servis** par le Plan.
-String? exercicesReussisLabel(int validated, int total) {
-  if (total <= 0) return null;
-  final s = total > 1 ? 's' : '';
-  return '$validated/$total exercice$s réussi$s';
 }
 
 /// « Votre progression vers l'objectif B2 ». `null` sans objectif déclaré.
@@ -226,102 +213,3 @@ String? progressionVersObjectif(String? objectif) => objectif == null
     : 'Votre progression vers l\'objectif $objectif';
 
 /* ------------------------------------- La recommandation VIENT DU PLAN --- */
-
-/// **La compétence que le Plan recommande sur CETTE épreuve.**
-///
-/// 🛑 **Jamais l'ordre du catalogue** (arbitrage du propriétaire, 2026-09-12).
-/// L'écran web cherchait la première compétence non terminée du référentiel : un
-/// choix de catalogue, pas un choix pédagogique. On lit désormais le Plan, dans
-/// l'ordre où lui-même range ses décisions :
-///
-///   1. `seance.items` — la séance du jour, déjà ordonnée par le serveur ;
-///   2. `currentPriority` — la priorité n°1 ;
-///   3. `nextPriorities` — les suivantes, dans l'ordre servi.
-///
-/// 🛑 **Aucun repli artificiel.** Le Plan classe les **quatre** domaines par
-/// urgence : un candidat dont la priorité n°1 est en compréhension n'a rien à
-/// recommander ici. On rend alors `null` et **la carte disparaît** — retomber
-/// sur « la première case libre » recommanderait autre chose que le Plan.
-///
-/// 🛑 **Rien n'est compté ici** : les compteurs d'étape (« 2/5 exercices
-/// réussis ») arrivent servis.
-class ExpressionRecommendation {
-  const ExpressionRecommendation({
-    required this.skillId,
-    required this.skillCode,
-    required this.section,
-    required this.title,
-    required this.taskCode,
-    required this.validated,
-    required this.total,
-    required this.locked,
-  });
-
-  final String skillId;
-
-  /// `EE2-C3` — sert à ouvrir la fiche de la compétence.
-  final String skillCode;
-  final SkillSection section;
-  final String title;
-  final String? taskCode;
-
-  /// Compteurs de l'**étape**, servis par le Plan.
-  final int validated;
-  final int total;
-  final bool locked;
-}
-
-ExpressionRecommendation? recommandationDuPlan(
-  LearningPlan? plan,
-  SkillSection section,
-) {
-  if (plan == null) return null;
-
-  for (final item in plan.seance.items) {
-    final skillId = item.skillId;
-    final title = item.title;
-    final skillCode = item.skillCode;
-    if (item.section != section ||
-        skillId == null ||
-        title == null ||
-        skillCode == null) {
-      continue;
-    }
-    return ExpressionRecommendation(
-      skillId: skillId,
-      skillCode: skillCode,
-      section: section,
-      title: title,
-      taskCode: _taskCodeOf(skillCode),
-      validated: item.stepValidatedCount,
-      total: item.stepPromptCount,
-      locked: item.locked,
-    );
-  }
-
-  final priorites = <LearningPlanPriority>[
-    if (plan.currentPriority != null) plan.currentPriority!,
-    ...plan.nextPriorities,
-  ];
-  for (final priority in priorites) {
-    if (priority.section != section) continue;
-    return ExpressionRecommendation(
-      skillId: priority.skillId,
-      skillCode: priority.skillCode,
-      section: section,
-      title: priority.title,
-      taskCode: _taskCodeOf(priority.skillCode),
-      validated: priority.stepValidatedCount,
-      total: priority.stepPromptCount,
-      locked: priority.locked,
-    );
-  }
-  return null;
-}
-
-/// `"EE2-C3"` → `"EE2"`. Un code inattendu rend `null` plutôt qu'une tâche
-/// inventée.
-String? _taskCodeOf(String? skillCode) {
-  final match = RegExp(r'^(EE|EO)[1-3]').firstMatch(skillCode ?? '');
-  return match?.group(0);
-}

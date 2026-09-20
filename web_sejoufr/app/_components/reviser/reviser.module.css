@@ -16,55 +16,12 @@
 
 /* ---------- Reprendre là où vous vous êtes arrêté ---------- */
 
-.resumeWrap {
-  margin-top: 16px;
-}
-
 /* 🛑 La carte est celle du KIT (`Card variant="hero"`) : rayon, ombre et
    rythme y vivent déjà, et le mobile monte la sienne sur `SfCard(hero)`. On ne
    garde ici que le **dégradé**, qui n'a pas de pendant dans le kit.
 
    Ce qu'une carte maison coûtait : au palier desktop, le kit ne lève le plafond
    de 420 px d'un `.btn` que **dans ses propres cartes** — « Continuer » finissait
-   donc à 420 px, calé à gauche d'une carte de 960 px. */
-.resume {
-  background: linear-gradient(180deg, var(--color-paper-2) 0%, #fff 42%);
-}
-
-.resumeHead {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  margin: 8px 0 14px;
-}
-
-.resumeIco {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: var(--color-blue);
-  color: #fff;
-}
-
-.resumeHead b {
-  display: block;
-  font-size: 18px;
-  font-weight: 750;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.resumeHead span span {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-
 /* La porte du diagnostic porte une phrase, pas un repère de domaine : sans
    plafond, elle s'étirerait sur toute la largeur d'un desktop. */
 @media (min-width: 960px) {

@@ -120,7 +120,6 @@ import {
   epreuveRatio,
   epreuveStatus,
   REVISER_DEPART_LABEL,
-  REVISER_RESUME_CTA,
   REVISER_RESUME_LABEL,
   reviserResumeCivique,
   reviserResumeTcf,
@@ -144,6 +143,13 @@ import {
 } from "@/lib/journey";
 import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
 import styles from "./reviser.module.css";
+import { PlanRecoCard } from "@/app/_components/plan/PlanRecoCard";
+
+/** Le pictogramme rendu à la taille de la carte : `PlanRecoCard` prend un
+ *  nœud, pas un composant — ses appelants n'ont pas tous une `LucideIcon`. */
+function renderIcon(Icon: LucideIcon) {
+  return <Icon size={24} strokeWidth={2} aria-hidden />;
+}
 
 /** Pictogramme d'une catégorie — le même que sur le mobile et sur le Plan. */
 const ICONS: Record<string, LucideIcon> = {
@@ -305,10 +311,11 @@ function TcfBody({
   return (
     <>
       {resume ? (
-        <ResumeCard
+        <PlanRecoCard
+          label={REVISER_RESUME_LABEL}
           /* Le domaine **réellement lancé** : celui de la mesure quand elle
              passe devant, celui de la priorité sinon. */
-          icon={iconFor(sectionEpreuve(resume.section) ?? "TCF_CO")}
+          icon={renderIcon(iconFor(sectionEpreuve(resume.section) ?? "TCF_CO"))}
           title={resume.title}
           subtitle={resume.subtitle}
           cta={resume.cta}
@@ -529,10 +536,11 @@ function CiviqueBody({
   return (
     <>
       {resume ? (
-        <ResumeCard
+        <PlanRecoCard
+          label={REVISER_RESUME_LABEL}
           /* Le pictogramme du thème quand la reprise en a un ; une **unité** du
              cycle n'en porte pas, on reprend alors la boussole du parcours. */
-          icon={prochaine ? iconFor(prochaine.themeCode) : Compass}
+          icon={renderIcon(prochaine ? iconFor(prochaine.themeCode) : Compass)}
           title={resume.title}
           subtitle={resume.subtitle}
           cta={resume.cta}
@@ -584,72 +592,6 @@ function CiviqueBody({
 
 /* ----------------------------------------------------------- Les briques */
 
-/**
- * **La carte de tête** — « Reprendre là où vous vous êtes arrêté », ou la porte
- * du diagnostic quand il n'y a rien à reprendre.
- *
- * Même anatomie que la carte « À faire maintenant » du Plan : c'est la même
- * action, vue depuis un autre écran. Rouge côté TCF, bleu côté civique — la
- * sémantique de parcours du produit.
- *
- * 🛑 **Une seule carte pour les deux états**, pas deux composants presque
- * identiques : ce sont les mêmes quatre lignes — sur-titre, pictogramme, titre
- * et sous-titre, bouton — et seul leur contenu change.
- *
- * 🛑 **C'est le KIT qui porte la carte** (`Card variant="hero"`), plus une
- * `<article>` maison : `.resume` ne garde que le dégradé. Le mobile monte déjà
- * son `_ResumeCard` sur `SfCard(variant: hero)` — la divergence coûtait, au
- * palier desktop, un bouton plafonné à 420 px au milieu d'une carte pleine
- * largeur (le kit n'ouvre ce plafond que dans ses propres cartes).
- */
-function ResumeCard({
-  icon: Icon,
-  label = REVISER_RESUME_LABEL,
-  title,
-  subtitle,
-  cta = REVISER_RESUME_CTA,
-  href,
-  onClick,
-  busy,
-  error,
-  tone,
-}: {
-  icon: LucideIcon;
-  label?: string;
-  title: string;
-  subtitle: string | null;
-  cta?: string;
-  href?: string;
-  onClick?: () => void;
-  busy?: boolean;
-  error?: string | null;
-  tone: "primary" | "blue";
-}) {
-  return (
-    <Pad className={styles.resumeWrap}>
-      <Card variant="hero" className={styles.resume}>
-        <p className={sejourStyles.label}>{label}</p>
-        <div className={styles.resumeHead}>
-          <span className={styles.resumeIco}>
-            <Icon size={24} strokeWidth={2} aria-hidden />
-          </span>
-          <span>
-            <b>{title}</b>
-            {subtitle ? <span>{subtitle}</span> : null}
-          </span>
-        </div>
-        <Cta href={href} onClick={onClick} variant={tone} disabled={busy}>
-          {cta}
-        </Cta>
-        {error ? (
-          <p className={sejourStyles.tiny} role="alert">
-            {error}
-          </p>
-        ) : null}
-      </Card>
-    </Pad>
-  );
-}
 
 /**
  * **La porte du diagnostic**, à la place de la reprise.
@@ -662,8 +604,8 @@ function ResumeCard({
  */
 function GateCard({gate, tone}: {gate: PlanIndisponible; tone: "primary" | "blue"}) {
   return (
-    <ResumeCard
-      icon={Compass}
+    <PlanRecoCard
+      icon={renderIcon(Compass)}
       label={REVISER_DEPART_LABEL}
       title={gate.titre}
       subtitle={gate.texte}

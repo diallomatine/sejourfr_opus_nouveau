@@ -249,6 +249,92 @@ PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
 /// 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
 /// la progression et les compteurs sont des **résultats mesurés**. On floute
 /// l'action pas encore accessible, jamais le résultat mesuré.
+/// **Ce que le cycle propose pour UNE épreuve**, pour la carte de tête de son
+/// écran d'entraînement (demande du propriétaire, 2026-09-20).
+///
+/// 🛑 **Ce n'est pas un second moteur** : la fonction ne décide rien. Elle
+/// **choisit un bloc** dans la file servie, y prend la première étape encore
+/// ouverte, et délègue tout le reste aux autorités en place — [planStepAction]
+/// pour l'action, [journeyStepTitle] / [journeyNowCta] pour les mots. Le tap
+/// fait donc exactement ce que ferait la même étape tapée depuis le Plan.
+///
+/// 🛑 **Les étapes d'entraînement passent avant l'examen du bloc**, qui ne se
+/// propose que lorsqu'il ne reste plus rien à travailler — c'est l'ordre de la
+/// file, pas une règle inventée ici.
+///
+/// `null` est un cas **normal** et fréquent : l'épreuve n'a pas de bloc dans ce
+/// cycle (« Structure de la langue » n'en a **jamais** — elle est hors des
+/// quatre épreuves du TCF IRN), son bloc est terminé, ou rien ne se résout. La
+/// carte disparaît alors, elle ne s'affiche jamais vide ni morte.
+///
+/// ⚠️ Miroir mot pour mot du web (`planEpreuveCarte`, `lib/plan-domain.ts`).
+class PlanEpreuveCarte {
+  const PlanEpreuveCarte({
+    required this.step,
+    required this.title,
+    required this.subtitle,
+    required this.meta,
+    required this.geste,
+    required this.cta,
+    required this.action,
+  });
+
+  final JourneyStep step;
+  final String title;
+  final String? subtitle;
+  final String? meta;
+
+  /// 🛑 Servi par les mêmes règles que la carte du Plan, jamais redéduit.
+  final PlanNowGeste geste;
+  final String cta;
+
+  /// `null` dès que le geste est [PlanNowGeste.debloquer] — rien à lancer.
+  final PlanStepAction? action;
+}
+
+PlanEpreuveCarte? planEpreuveCarte(
+  LearningPlan? plan,
+  Journey? journey,
+  String blocCode, {
+  bool free = false,
+}) {
+  JourneyBloc? bloc;
+  for (final b in journey?.blocs ?? const <JourneyBloc>[]) {
+    if (b.bloc.code == blocCode) {
+      bloc = b;
+      break;
+    }
+  }
+  if (bloc == null) return null;
+  bool ouverte(JourneyStep s) =>
+      s.status == JourneyStepStatus.current ||
+      s.status == JourneyStepStatus.upcoming;
+  JourneyStep? step;
+  for (final s in bloc.steps) {
+    if (ouverte(s)) {
+      step = s;
+      break;
+    }
+  }
+  final exam = bloc.exam;
+  step ??= exam != null && ouverte(exam) ? exam : null;
+  if (step == null) return null;
+  final locked = free || step.locked;
+  final action = locked || plan == null ? null : planStepAction(plan, step);
+  // 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
+  // jamais un bouton mort (garde-fou A25, transposé).
+  if (!locked && action == null) return null;
+  return PlanEpreuveCarte(
+    step: step,
+    title: journeyStepTitle(step),
+    subtitle: journeyStepSubtitle(step),
+    meta: journeyNowMeta(step),
+    geste: locked ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    cta: journeyNowCta(step, locked),
+    action: action,
+  );
+}
+
 PlanNowCard? planNowCard(
   LearningPlan plan, {
   Journey? journey,

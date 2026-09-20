@@ -109,7 +109,6 @@ export {
  * dit, au lieu de laisser croire à une reprise de navigation.
  */
 export const REVISER_RESUME_LABEL = "Recommandé par votre plan";
-export const REVISER_RESUME_CTA = "Continuer";
 
 /**
  * **Le sur-titre de la carte de tête quand il n'y a RIEN à reprendre** — parce

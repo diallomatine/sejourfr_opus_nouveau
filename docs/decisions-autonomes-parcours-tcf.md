@@ -2524,3 +2524,63 @@ une unité, qui n'en porte pas.
 **Si l'arbitrage était autre** (« un compte gratuit n'a rien à reprendre, il entre par la
 liste ») : il suffirait de remettre le filtre sur `geste == DEBLOQUER` dans les deux helpers
 — mais l'écran redeviendrait le seul des trois à taire ce qui est à débloquer.
+
+---
+
+## A150 — Chaque écran d'épreuve ouvre sur ce que le CYCLE y propose (2026-09-20)
+
+> Propriétaire : « supprime la section historique des examens pour toutes les épreuves […]
+> mettre en haut une section équivalente à *recommandé par votre plan*. Mais mettre ce que le
+> cycle actuel propose en premier pour CO […] donc ça aura le même impact comme si on avait
+> cliqué depuis le plan CO-étape. Donc même comportement CO, CE, Structure et même expression
+> orale et écrite. »
+
+**Arbitré en cours de route — « Structure de la langue » n'a pas de carte.** Elle n'a **jamais**
+de bloc dans le cycle : le backend l'exclut du Plan, du diagnostic et de l'examen blanc, parce
+que ce n'est pas une 5ᵉ épreuve du TCF IRN. Le propriétaire a tranché : « t'as raison, on fait
+rien pour lui, change pas l'existant ». 🛑 **Aucun `if` n'est écrit pour elle** : `planEpreuveCarte`
+ne trouve pas son bloc et rend `null`, donc la carte ne s'affiche pas — la règle reste au moteur.
+
+#### L'autorité nouvelle, et pourquoi ce n'est pas un second moteur
+
+`planEpreuveCarte(plan, journey, blocCode, {free})` ⇄ `planEpreuveCarte(...)` (Dart).
+
+Elle **ne décide rien** : elle choisit un **bloc** dans la file servie, y prend la première
+étape encore ouverte (les étapes d'entraînement d'abord, l'examen du bloc ensuite — l'ordre de
+la file, pas une règle inventée), et délègue tout le reste — `planStepAction` pour l'action,
+`journeyStepTitle` / `journeyNowCta` pour les mots. **Le tap fait donc exactement ce que ferait
+la même étape tapée depuis le Plan**, ce que le propriétaire demandait mot pour mot.
+
+`null` est un cas **normal** : pas de compte, pas de bloc, bloc terminé, ou rien qui se résout.
+Aucun squelette, aucun bouton mort (garde-fou A25, transposé).
+
+#### Deux autorités concurrentes fermées au passage
+
+L'écran EE/EO portait **déjà** une carte « Recommandé pour vous », bâtie sur
+`recommandationDuPlan` — les **priorités** du Plan, pas le cycle. Deux autorités pour la même
+question, donc deux réponses possibles selon l'écran ; et son geste d'achat **ouvrait le paywall
+d'un coup**, sans passer par l'écran de transition (A145). Elle est **supprimée**, avec
+`recommandationDuPlan`, `ExpressionRecommendation`, `exercicesReussisLabel`,
+`EXPRESSION_RECOMMENDED_*` et leurs classes CSS — refonte = suppression immédiate.
+
+#### Ce qui a été extrait, et ce qui a été retiré
+
+| | |
+|---|---|
+| **Extrait** (2ᵉ surface) | `PlanRecoCard` ⇄ `plan_reco_card.dart` — la carte vivait en privé dans Réviser ; Réviser, les 2 écrans QCM et les 2 écrans d'expression la partagent |
+| **Nouveau** | `PlanEpreuveReco` ⇄ `plan_epreuve_reco.dart` — autonome : il lit le Plan et le parcours **en cache**, donc aucun appel de plus |
+| **Supprimé** | l'historique des examens du détail QCM (web **et** mobile), `QcmHistorySection`, `_showExamSheet` / `_resumeExam` / `_isPremium` qui ne servaient que lui |
+
+⚠️ **`qcmExamsHistoryProvider` reste** : la page « Examens blancs » le lit toujours. C'est
+l'affichage qui part de l'écran de détail, pas la donnée.
+
+#### Un piège laissé en place, volontairement
+
+`skill.module.css` déclare **deux fois** `.recoTitle`, avec des valeurs différentes ; c'est la
+seconde qui l'emporte, et c'est elle que lit `CompetenceDetail`. Les autres règles du bloc
+« Recommandé » sont parties ; celle-là **reste**, avec un commentaire qui le dit. La fusionner
+changerait un écran sans rapport — c'est une passe à part.
+
+**Si l'arbitrage était autre** (« l'écran d'épreuve garde son historique ») : il suffirait de
+remettre la section, mais elle redirait ce que la page « Examens blancs » liste déjà, une
+tuile plus loin.

@@ -23,7 +23,12 @@ import {
     productionSectionLabel,
     skillTaskNumber,
 } from "@/lib/diagnostic";
-import {journeyStepSubtitle, journeyStepTitle} from "@/lib/journey";
+import {
+    journeyNowCta,
+    journeyNowMeta,
+    journeyStepSubtitle,
+    journeyStepTitle,
+} from "@/lib/journey";
 import {
     type JourneyDto,
     type JourneyStepDto,
@@ -877,6 +882,65 @@ export function planStepAction(
        du lanceur, et une action vraie ne se refuse pas faute de statistique. */
     if (!exercise) return null;
     return {mesure: null, exercise, priority: priority ?? null};
+}
+
+/**
+ * **Ce que le cycle propose pour UNE épreuve**, pour la carte de tête de son
+ * écran d'entraînement (demande du propriétaire, 2026-09-20).
+ *
+ * 🛑 **Ce n'est pas un second moteur** : la fonction ne décide rien. Elle
+ * **choisit un bloc** dans la file servie, y prend la première étape encore
+ * ouverte, et délègue tout le reste aux autorités en place —
+ * `planStepAction` pour l'action, `journeyStepTitle` / `journeyNowCta` pour
+ * les mots. Le clic fait donc exactement ce que ferait la même étape cliquée
+ * depuis le Plan.
+ *
+ * 🛑 **Les étapes d'entraînement passent avant l'examen du bloc**, qui ne se
+ * propose que lorsqu'il ne reste plus rien à travailler — c'est l'ordre de la
+ * file, pas une règle inventée ici.
+ *
+ * `null` est un cas **normal** et fréquent : l'épreuve n'a pas de bloc dans ce
+ * cycle (« Structure de la langue » n'en a **jamais** — elle est hors des
+ * quatre épreuves du TCF IRN), son bloc est terminé, ou rien ne se résout. La
+ * carte disparaît alors, elle ne s'affiche jamais vide ni morte.
+ */
+export interface PlanEpreuveCarte {
+    step: JourneyStepDto;
+    title: string;
+    subtitle: string | null;
+    meta: string | null;
+    /** 🛑 Servi par les mêmes règles que la carte du Plan, jamais redéduit. */
+    geste: PlanNowGeste;
+    cta: string;
+    /** `null` dès que le geste est `DEBLOQUER` — il n'y a rien à lancer. */
+    action: PlanStepAction | null;
+}
+
+export function planEpreuveCarte(
+    plan: LearningPlanDto | null,
+    journey: JourneyDto | null,
+    blocCode: string,
+    {free = false}: {free?: boolean} = {},
+): PlanEpreuveCarte | null {
+    const bloc = journey?.blocs.find((b) => b.bloc.code === blocCode) ?? null;
+    if (!bloc) return null;
+    const ouverte = (s: JourneyStepDto) => s.status === "CURRENT" || s.status === "UPCOMING";
+    const step = bloc.steps.find(ouverte) ?? (bloc.exam && ouverte(bloc.exam) ? bloc.exam : null);
+    if (!step) return null;
+    const locked = free || step.locked;
+    const action = locked || !plan ? null : planStepAction(plan, step);
+    /* 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
+       jamais un bouton mort (garde-fou A25, transposé). */
+    if (!locked && !action) return null;
+    return {
+        step,
+        title: journeyStepTitle(step),
+        subtitle: journeyStepSubtitle(step) ?? null,
+        meta: journeyNowMeta(step) ?? null,
+        geste: locked ? "DEBLOQUER" : "LANCER",
+        cta: journeyNowCta(step, locked),
+        action,
+    };
 }
 
 /**

@@ -68,7 +68,6 @@ String reviserSectionTitle(AppModule module, int count) =>
 /// (`planNowCard` / `civicNowCard`), la même carte que « À faire maintenant ».
 /// Le sur-titre le dit, au lieu de laisser croire à une reprise de navigation.
 const String kReviserResumeLabel = 'Recommandé par votre plan';
-const String kReviserResumeCta = 'Continuer';
 
 /// **Le sur-titre de la carte de tête quand il n'y a RIEN à reprendre** — parce
 /// que le diagnostic n'a pas encore été fait.

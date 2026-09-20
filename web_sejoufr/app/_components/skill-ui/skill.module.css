@@ -4489,48 +4489,13 @@
   color: var(--color-muted);
 }
 
-/* ===== « Recommandé pour vous » (maquette expression_ecran.png) =====
-   La carte est pilotée par le PLAN, jamais par l'ordre du catalogue : elle
-   disparaît entièrement quand le Plan ne désigne rien sur cette épreuve. */
-.reco {
-  display: block;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid var(--color-line);
-  background: white;
-  box-shadow: 0 10px 26px -22px rgb(15 24 57 / 45%);
-  text-decoration: none;
-  color: inherit;
-}
-
-.recoTag {
-  display: inline-block;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--color-red-light);
-  color: var(--color-red-dark);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.recoHead {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.recoIcon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 15px;
-  background: var(--color-blue);
-  color: white;
-}
-
+/* ⚠️ **`.recoTitle` est un HOMONYME dans cette feuille** : une seconde règle
+   du même nom vit plus haut (le bloc « Recommandé »). C'est celle-ci qui
+   l'emporte, et c'est elle que lit `CompetenceDetail`. La carte
+   « Recommandé pour vous » qui portait les autres règles de ce bloc a été
+   remplacée par `PlanEpreuveReco` (2026-09-20) : ses classes sont parties,
+   celle-ci reste parce qu'elle a un autre lecteur. Renommer l'une des deux
+   est une passe à part — la fusionner changerait un écran sans rapport. */
 .recoTitle {
   margin: 0;
   font-family: var(--font-display);
@@ -4538,41 +4503,6 @@
   line-height: 1.2;
   font-weight: 600;
   color: var(--color-ink);
-}
-
-.recoWhere {
-  display: block;
-  margin-top: 3px;
-  font-size: 13.5px;
-  color: var(--color-muted);
-}
-
-.recoCount {
-  margin: 14px 0 0;
-  font-size: 13.5px;
-  color: var(--color-muted);
-}
-
-.recoCta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  width: 100%;
-  margin-top: 14px;
-  padding: 16px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--color-red);
-  color: white;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.recoCta[data-locked="true"] {
-  background: var(--color-blue);
 }
 
 /* ===== « Les 3 tâches » (maquette expression_ecran.png) ===== */

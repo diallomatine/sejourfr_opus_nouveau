@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/auth/auth_controller.dart';
-import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/lot_models.dart';
 import '../../core/providers/lots_provider.dart';
@@ -16,12 +14,8 @@ import '../../core/utils/tcf_epreuves.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/fixed_action_bar.dart';
-import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
-import 'qcm_hub_data.dart';
-import 'tcf_module_exam_briefing_screen.dart';
-import 'widgets/exam_done_sheet.dart';
-import 'widgets/qcm_hub/qcm_history_section.dart';
+import '../plan/widgets/plan_epreuve_reco.dart';
 import 'widgets/qcm_hub/qcm_notice_banner.dart';
 
 /// Identifie le module TCF QCM exposé via `/tcf/co`, `/tcf/ce` ou
@@ -188,55 +182,11 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     context.push('/tcf/${widget.module.routeKey}/examens');
   }
 
-  /// Tap sur un examen de l'historique : ouvre le sheet « Voir le détail
-  /// (rapport Q-par-Q) » / « Reprendre (nouveau briefing) », en miroir des
-  /// lots. Plus de saut direct vers le bilan synthétique.
-  void _showExamSheet(AttemptSummary attempt) {
-    final score = attempt.score;
-    final total = attempt.totalQuestions;
-    final subtitle =
-        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetCtx) => ExamDoneSheet(
-        title: 'Examen blanc',
-        subtitle: subtitle,
-        accent: AppColors.blue,
-        onViewDetail: () {
-          Navigator.of(sheetCtx).pop();
-          context.push(
-              AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
-        },
-        onResume: () {
-          Navigator.of(sheetCtx).pop();
-          _resumeExam(attempt);
-        },
-      ),
-    );
-  }
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
-  }
 
-  /// « Reprendre » un examen de l'historique : on relance le briefing de CE
-  /// slot précis (puis nouvel attempt), comme la page Examens. Le slot 1 est
-  /// offert et rejouable à volonté pour tout compte inscrit ; seuls les slots
-  /// 2+ sont réservés au premium (même règle que le backend).
-  void _resumeExam(AttemptSummary attempt) {
-    final isSlot1 = (attempt.slotNumber ?? 1) == 1;
-    if (!_isPremium() && !isSlot1) {
-      showPaywallSheet(context);
-      return;
-    }
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    showModuleExamBriefingSheet(context, widget.module,
-        slotNumber: attempt.slotNumber);
-  }
+
+
+
 
   void _back() {
     if (context.canPop()) {
@@ -250,7 +200,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
   Widget build(BuildContext context) {
     final mod = widget.module;
     final qt = mod.questionType;
-    final historyAsync = ref.watch(qcmExamsHistoryProvider(qt));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -273,6 +222,15 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                         QcmNoticeBanner(message: mod.notice!),
                         const SizedBox(height: 12),
                       ],
+                      // 🛑 **Ce que le CYCLE propose pour cette épreuve**, en
+                      // tête (demande du propriétaire, 2026-09-20) : le même
+                      // geste que depuis le Plan. Rien pour « Structure de la
+                      // langue », qui n'a jamais de bloc — et c'est
+                      // `planEpreuveCarte` qui le dit, pas un `if` écrit ici.
+                      PlanEpreuveReco(
+                        blocCode: mod.themeCode,
+                        icon: mod.icon,
+                      ),
                       for (final meta in _levels) ...[
                         _LevelCard(
                           meta: meta,
@@ -284,17 +242,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      const SizedBox(height: 4),
-                      historyAsync.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (history) => QcmHistorySection(
-                          history: history,
-                          moduleTitle: widget.module.title,
-                          onSeeAll: _openExamsPage,
-                          onTap: _showExamSheet,
-                        ),
-                      ),
                     ],
                   ),
                   Positioned(

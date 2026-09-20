@@ -1,18 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {useState} from "react";
-import {ArrowRight, ClipboardCheck, Lock, Mic, PenLine} from "lucide-react";
+import {ClipboardCheck, Mic, PenLine} from "lucide-react";
 import {learningPlanApi, productionApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {competenceHref} from "@/lib/diagnostic";
 import {
   acquisesLabel,
-  EXPRESSION_RECOMMENDED_CTA,
-  EXPRESSION_RECOMMENDED_LABEL,
-  exercicesReussisLabel,
   progressionVersObjectif,
-  recommandationDuPlan,
   tacheBadge,
 } from "@/lib/expression";
 import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
@@ -25,8 +19,11 @@ import {
   type LearningPlanDto,
 } from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {
+  PlanEpreuveReco,
+  usePlanEpreuveCarte,
+} from "@/app/_components/plan/PlanEpreuveReco";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
   RowChevron,
   SectionHead,
@@ -42,17 +39,19 @@ import {PRODUCTION_TACHES, tacheLabel, useParcoursLevel} from "./parcours";
  * `~/Desktop/sejourfr_ecrans/expression_ecran.png`.
  *
  * Trois blocs : l'en-tête (« TCF IRN » / « Expression écrite » / « Votre
- * progression vers l'objectif B2 »), la carte **« Recommandé pour vous »**,
+ * progression vers l'objectif B2 »), la carte **recommandée par le cycle**,
  * puis **« Les 3 tâches »**. Les **examens blancs** restent en pied (demande
  * explicite du propriétaire) : ils portent sur l'épreuve entière, pas sur une
  * tâche, et leur route ne change pas d'un octet.
  *
- * 🛑 **« Recommandé » VIENT DU PLAN, jamais du catalogue.** `recommandationDuPlan`
- * lit la séance du jour, puis la priorité n°1, puis les suivantes — dans
- * l'ordre où le serveur les range. **Aucun repli** : le Plan classant les quatre
- * domaines par urgence, un candidat dont la priorité est en compréhension n'a
- * rien à recommander ici et **la carte disparaît**. Retomber sur « la première
- * case libre » recommanderait autre chose que le Plan.
+ * 🛑 **« Recommandé » VIENT DU CYCLE, jamais du catalogue** (2026-09-20) :
+ * `planEpreuveCarte` prend l'étape ouverte du **bloc de cette épreuve**, et le
+ * clic fait exactement ce que ferait la même étape cliquée depuis le Plan.
+ * ⚠️ Elle **remplace** `recommandationDuPlan`, qui lisait les priorités : deux
+ * autorités pour la même question, donc deux réponses possibles selon l'écran.
+ * **Aucun repli** : bloc terminé ou action qui ne se résout pas ⇒ **la carte
+ * disparaît**. Retomber sur « la première case libre » recommanderait autre
+ * chose que le Plan.
  *
  * 🛑 **Rien n'est compté ici.** « 3/8 compétences acquises » est de
  * l'arithmétique sur un `masteryState` **servi** (`acquisesLabel`), « 2/5
@@ -66,6 +65,9 @@ import {PRODUCTION_TACHES, tacheLabel, useParcoursLevel} from "./parcours";
 export function ProductionTasks({config}: {config: ProductionConfig}) {
   const {user, status} = useAuth();
   const section = skillSectionOf(config.epreuve);
+  /* L'étape du cycle, pour surligner la tâche qu'elle concerne. Même clé de
+     cache que la carte ci-dessous : aucun appel de plus. */
+  const carte = usePlanEpreuveCarte(config.epreuve);
   const ready = status === "authenticated";
 
   const tasksQuery = useCachedData(
@@ -87,7 +89,6 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
   );
 
   const level = useParcoursLevel();
-  const reco = recommandationDuPlan(planQuery.data ?? null, section);
   const error = tasksQuery.error ?? skillsQuery.error;
 
   if (status === "loading") return <div className={ds.gate} />;
@@ -104,7 +105,16 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
            démarche déclarée, la ligne disparaît — on ne devine pas un palier. */
         meta={progressionVersObjectif(level) ?? undefined}
       >
-        {reco && <RecoCard config={config} reco={reco} />}
+        {/* 🛑 **La recommandation vient du CYCLE**, la même étape que le Plan
+            met en tête (demande du propriétaire, 2026-09-20). ⚠️ Elle
+            **remplace** `recommandationDuPlan`, qui lisait les priorités du
+            Plan : deux autorités pour la même question, donc deux réponses
+            possibles sur deux écrans. Et son geste d'achat ouvrait le paywall
+            d'un coup, sans passer par l'écran de transition (A145). */}
+        <PlanEpreuveReco
+          blocCode={config.epreuve}
+          icon={config.mode === "audio" ? <Mic size={24} /> : <PenLine size={24} />}
+        />
 
         {error && <div className={s.error}>{error}</div>}
 
@@ -117,7 +127,7 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
               <Link key={n} href={`${config.base}/tache/${n}/competences`} className={s.tacheRow}>
                 <span
                   className={s.tacheNum}
-                  data-active={reco?.taskCode === skillTaskCodeOf(section, n)}
+                  data-active={carte?.step.taskCode === skillTaskCodeOf(section, n)}
                   aria-hidden
                 >
                   {n}
@@ -161,79 +171,3 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
   );
 }
 
-/**
- * La carte « Recommandé pour vous ».
- *
- * 🛑 **Verrouillée, elle reste DÉSIGNÉE** : la compétence garde son nom, et
- * c'est l'action qui ouvre l'offre. On ne masque jamais un constat — la règle
- * du dépôt ne floute que l'**action** fermée, et ici le Plan a déjà choisi de
- * nommer cette priorité.
- */
-function RecoCard({
-  config,
-  reco,
-}: {
-  config: ProductionConfig;
-  reco: NonNullable<ReturnType<typeof recommandationDuPlan>>;
-}) {
-  const [paywall, setPaywall] = useState(false);
-  const compteur = exercicesReussisLabel(reco.validated, reco.total);
-  const href = competenceHref(
-    {skillId: reco.skillId, skillCode: reco.skillCode, section: reco.section},
-    {planStep: true},
-  );
-
-  const body = (
-    <>
-      <span className={s.recoTag}>{EXPRESSION_RECOMMENDED_LABEL}</span>
-      <span className={s.recoHead}>
-        <span className={s.recoIcon} aria-hidden>
-          {config.mode === "audio" ? <Mic size={24} /> : <PenLine size={24} />}
-        </span>
-        <span>
-          <strong className={s.recoTitle}>{reco.title}</strong>
-          {reco.taskCode && (
-            <span className={s.recoWhere}>
-              {tacheLabel(reco.taskCode)} · {config.label}
-            </span>
-          )}
-        </span>
-      </span>
-      {compteur && <p className={s.recoCount}>{compteur}</p>}
-    </>
-  );
-
-  if (reco.locked) {
-    return (
-      <>
-        <section className={s.reco}>
-          {body}
-          <button
-            type="button"
-            className={s.recoCta}
-            data-locked="true"
-            onClick={() => setPaywall(true)}
-          >
-            <Lock size={18} aria-hidden />
-            Débloquer cette compétence
-          </button>
-        </section>
-        <PaywallSheet
-          open={paywall}
-          module="INTEGRAL"
-          onClose={() => setPaywall(false)}
-        />
-      </>
-    );
-  }
-
-  return (
-    <Link href={href} className={s.reco}>
-      {body}
-      <span className={s.recoCta}>
-        {EXPRESSION_RECOMMENDED_CTA}
-        <ArrowRight size={18} aria-hidden />
-      </span>
-    </Link>
-  );
-}

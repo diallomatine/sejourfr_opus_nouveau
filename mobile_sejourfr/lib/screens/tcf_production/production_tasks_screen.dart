@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/fixed_action_bar.dart';
-import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/screen_header.dart';
 import '../plan/learning_plan_provider.dart';
-import 'competences/competences_nav.dart';
+import '../plan/plan_now_card.dart';
+import '../plan/widgets/plan_epreuve_reco.dart';
 import 'competences/competences_providers.dart';
 import 'expression_labels.dart';
 import 'production_nav.dart';
@@ -30,10 +31,11 @@ import 'widgets/task_palette.dart';
 /// jamais sur une tâche, et leur écran ne change pas d'un octet.
 ///
 /// 🛑 **« Recommandé » VIENT DU PLAN, jamais du catalogue.**
-/// [recommandationDuPlan] lit la séance du jour, puis la priorité n°1, puis les
-/// suivantes — dans l'ordre où le serveur les range. **Aucun repli** : le Plan
-/// classant les quatre domaines par urgence, un candidat dont la priorité est
-/// en compréhension n'a rien à recommander ici et **la carte disparaît**.
+/// [planEpreuveCarte] prend l'étape ouverte du **bloc de cette épreuve**, et le
+/// tap fait exactement ce que ferait la même étape tapée depuis le Plan. **Aucun
+/// repli** : bloc terminé ou action qui ne se résout pas ⇒ **la carte
+/// disparaît**. Retomber sur « la première case libre » recommanderait autre
+/// chose que le Plan.
 ///
 /// 🛑 **Rien n'est compté ici.** « 3/8 compétences acquises » est de
 /// l'arithmétique sur un `masteryState` **servi** ([acquisesLabel]), et le
@@ -58,8 +60,17 @@ class ProductionTasksScreen extends ConsumerWidget {
     final skills = ref.watch(skillsSectionProvider(_section)).valueOrNull;
     // Le Plan est **déjà chargé** par l'Accueil et par Réviser : son échec
     // n'emporte pas l'écran, la carte de recommandation disparaît simplement.
-    final plan = ref.watch(learningPlanProvider).valueOrNull;
-    final reco = recommandationDuPlan(plan, _section);
+    // 🛑 **L'étape du CYCLE pour cette épreuve**, la même que le Plan met en
+    // tête (demande du propriétaire, 2026-09-20). ⚠️ Elle **remplace**
+    // `recommandationDuPlan`, qui lisait les priorités : deux autorités pour la
+    // même question, donc deux réponses possibles selon l'écran.
+    final auth = ref.watch(authControllerProvider);
+    final carte = planEpreuveCarte(
+      ref.watch(learningPlanProvider).valueOrNull,
+      ref.watch(journeyProvider).valueOrNull,
+      module.epreuve.wire,
+      free: !(auth is AuthAuthenticated && auth.user.hasTcf),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -87,10 +98,11 @@ class ProductionTasksScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                   children: [
-                    if (reco != null) ...[
-                      _RecoCard(module: module, reco: reco),
-                      const SizedBox(height: 20),
-                    ],
+                    PlanEpreuveReco(
+                      blocCode: module.epreuve.wire,
+                      icon: module.isEo ? LucideIcons.mic : LucideIcons.penLine,
+                    ),
+                    if (carte != null) const SizedBox(height: 20),
                     Text(
                       'Les $_taches tâches',
                       style: AppFonts.ui(size: 17, weight: FontWeight.w800),
@@ -101,7 +113,8 @@ class ProductionTasksScreen extends ConsumerWidget {
                         module: module,
                         numero: n,
                         skills: _skillsOf(n, skills),
-                        active: reco?.taskCode == _section.taskCode(n),
+                        active:
+                            carte?.step.taskCode?.wire == _section.taskCode(n),
                         onTap: () => context.push(productionTaskPath(module, n)),
                       ),
                       const SizedBox(height: 11),
@@ -130,111 +143,6 @@ class ProductionTasksScreen extends ConsumerWidget {
   List<SkillDto> _skillsOf(int tache, List<SkillDto>? skills) {
     final code = _section.taskCode(tache);
     return skills?.where((s) => s.taskCode == code).toList() ?? const [];
-  }
-}
-
-/// La carte « Recommandé pour vous ».
-///
-/// 🛑 **Verrouillée, elle reste DÉSIGNÉE** : la compétence garde son nom, et
-/// c'est l'action qui ouvre l'offre. On ne masque jamais un constat — le Plan a
-/// déjà choisi de nommer cette priorité.
-class _RecoCard extends ConsumerWidget {
-  const _RecoCard({required this.module, required this.reco});
-
-  final TcfProductionModule module;
-  final ExpressionRecommendation reco;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final compteur = exercicesReussisLabel(reco.validated, reco.total);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.redLight,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              kExpressionRecommendedLabel,
-              style: AppFonts.ui(
-                size: 12,
-                weight: FontWeight.w700,
-                color: AppColors.redDark,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.blue,
-                  borderRadius: BorderRadius.circular(AppRadii.lg),
-                ),
-                child: Icon(module.icon, size: 24, color: AppColors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reco.title,
-                      style: AppFonts.display(size: 19),
-                    ),
-                    if (reco.taskCode != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        '${tacheLabel(reco.taskCode!)} · ${module.title}',
-                        style: AppFonts.ui(
-                          size: 13,
-                          color: AppColors.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (compteur != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              compteur,
-              style: AppFonts.ui(size: 13.5, color: AppColors.inkFaint),
-            ),
-          ],
-          const SizedBox(height: 14),
-          AppButton(
-            label: reco.locked
-                ? 'Débloquer cette compétence'
-                : kExpressionRecommendedCta,
-            icon: reco.locked ? LucideIcons.lock : LucideIcons.arrowRight,
-            height: 54,
-            variant: reco.locked ? AppButtonVariant.primary : AppButtonVariant.danger,
-            onPressed: () => reco.locked
-                ? showPaywallSheet(context, ref: ref)
-                : context.push(
-                    competenceDetailPath(module, reco.skillId, planStep: true),
-                  ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
