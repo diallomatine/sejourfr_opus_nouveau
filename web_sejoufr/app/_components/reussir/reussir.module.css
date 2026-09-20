@@ -197,37 +197,13 @@
 
 /* ---------- Marque ---------- */
 
-.cocarde {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--brand);
-  display: grid;
-  place-items: center;
-  flex: none;
-  box-shadow: var(--sh-sm);
-}
-.cocarde::before {
-  content: "";
-  width: 60%;
-  height: 60%;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 3px var(--accent);
-}
-
+/* Le logo (cocarde + wordmark) vient de `app/_components/Brand.tsx` et des
+   classes globales de `globals.css` : une seule autorité pour toute la marque,
+   comme le header et le footer du site. Ici, seulement leur mise en ligne. */
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 19px;
-  letter-spacing: -0.02em;
-  color: var(--tx);
-}
-.brandFr {
-  color: var(--accent);
+  gap: 12px;
 }
 
 /* ---------- Bandeau de contexte ---------- */

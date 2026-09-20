@@ -21,6 +21,7 @@ import {
   PenLine,
   TrendingUp,
 } from "lucide-react";
+import { Cocarde, Wordmark } from "../Brand";
 import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import {
   detectTrafficSource,
@@ -160,8 +161,8 @@ function Nav() {
     <div className={styles.nav}>
       <div className={`${styles.wrap} ${styles.navRow}`}>
         <a aria-label="SejourFR accueil" className={styles.brand} href="#top">
-          <span className={styles.cocarde} aria-hidden />
-          Sejour<span className={styles.brandFr}>FR</span>
+          <Cocarde />
+          <Wordmark />
         </a>
         <span className={styles.navSpace} />
         <nav aria-label="Navigation principale" className={styles.navLinks}>
@@ -1031,10 +1032,10 @@ function PageFooter() {
     <footer className={styles.foot}>
       <div className={`${styles.wrap} ${styles.footInner}`}>
         <div>
-          <span className={styles.brand}>
-            <span className={styles.cocarde} aria-hidden />
-            Sejour<span className={styles.brandFr}>FR</span>
-          </span>
+          <div className={styles.brand}>
+            <Cocarde />
+            <Wordmark />
+          </div>
           <p className={styles.footNote}>
             Plateforme indépendante de préparation au TCF IRN et à l&apos;examen
             civique.
