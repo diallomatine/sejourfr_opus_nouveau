@@ -4110,3 +4110,34 @@ d'un **abonné**. L'écran **gratuit** n'a pas bougé (**A89**).
   des deux côtés (**A85**).
 - ⚠️ **`test/learning_plan_revision_test.dart` mis à jour** (les quatre signatures du repository), pas
   un test neuf.
+
+
+### « Ma progression » sert les DEUX parcours (P8.9, 2026-09-20)
+
+> Décisions prises seul : `docs/decisions-autonomes-parcours-tcf.md` **A91 → A94**.
+
+⚠️ **Cette section complète « Le CYCLE du Plan et Ma progression »** : l'écran ne change pas, il
+devient **scopé**.
+
+- **Un seul écran, une seule route** : `AppRoutes.planProgress`. Le parcours affiché vient de
+  **`parcoursCiviqueProvider`** — le pendant Dart du `?module=` du web, déjà l'autorité de l'Accueil,
+  du Plan et de Réviser. 🛑 L'écran est **poussé depuis le Plan**, qui a déjà fait le choix : aucune
+  bascule ici, donc l'état ne peut pas changer sous les pieds du candidat.
+- **`journeyHistoryProvider` devient un `family<JourneyHistory, AppModule>`.** ⚠️ **Ce n'est pas une
+  contradiction avec A88** (« un provider par module, pas un family ») : celui-là est `keepAlive` et
+  **observé en permanence par deux écrans**, d'où le risque de collision ; l'archive est `autoDispose`
+  et s'ouvre **une à la fois**.
+- **Point d'entrée identique** : `CivicPlanView` gagne le **même** `ListGroup` que `PlanTcfView._links`,
+  avec la ligne « Ma progression » → `AppRoutes.planProgress`. ⚠️ **Une seule ligne, là où le TCF en a
+  deux** — écart **remonté**, pas arbitré (**A94**).
+- 🛑 **`entryScore` / `exitScore` s'affichent ICI, et nulle part ailleurs** (**A92**) : `_mesure(cycle,
+  module)` est l'**unique** endroit qui choisit l'axe — palier CECRL en TCF, **score sur 40** en
+  civique —, et `journeyHistoryLevelTitle` / `…State` / `…Note` s'appuient dessus. Le **seuil 32/40**
+  accompagne toute mesure civique, lu chez `CivicExamFormat`.
+- ⚠️ **Le ton reste `SfBarTone.ok` sous le seuil** (**A93**), et la note **compte** les examens de
+  thème au lieu de les nommer (une thématique n'a pas d'initiale, A49).
+- **Les libellés deviennent module-aware** (miroirs du web) : `_uniteMot`, `journeyHistorySub`,
+  `journeyHistoryStatSkills`, `journeyHistoryEmptyText`, `journeyHistoryFootText`,
+  `journeyHistoryCycleMeta` et les trois fonctions de mesure. 🛑 **Le module est passé, jamais
+  deviné** : un cycle civique sans examen a `entryScore` ET `exitScore` nuls, donc le déduire de la
+  nullité se serait trompé.

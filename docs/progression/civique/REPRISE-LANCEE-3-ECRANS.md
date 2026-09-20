@@ -14,7 +14,7 @@
 | **P8.4** (moteur) · **P8.5** (freemium) | ✅ **livrées**, preuve : `ParcoursCiviqueDeBoutEnBoutIT` |
 | **P8.6** (kits) · **P8.7** (écrans) | ✅ **livrées** (2026-09-20), décisions **A84 → A90** |
 | P8.8 (11 questions de Laïcité) | ⛔ **arrêt éditorial** avant écriture |
-| P8.9 (historique des cycles) | 🟡 **serveur livré** (`?module=` jusqu'à `/history`) · ⛔ **écran non conçu**, template non fourni |
+| **P8.9** (historique des cycles) | ✅ **livrée** (2026-09-20) — le blocage est **levé** : l'écran TCF fait référence, transposé brique pour brique. Décisions **A91 → A94** |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-53**, les règles
 générales **D-48** (`PROGRAMME ≠ CORPUS`) et **D-50** (les écrans), et les dettes **DETTE-M1**,
@@ -126,11 +126,25 @@ reste `scripts/verifier-contrat-front-progression.mjs`, écrit pour **un** contr
 ⛔ **ARRÊT ÉDITORIAL** : le propriétaire relit les **28 questions** (11 Laïcité + 17 à taguer) avant
 écriture. Ne rien rédiger avant.
 
-### 5. P8.9 — l'historique des cycles
+### 5. P8.9 — l'historique des cycles ✅
 
-⛔ **BLOQUÉE** : template non fourni. ⚠️ Travail autorisé **en amont et seulement après les écrans** :
-étendre `GET /api/me/plan/journey/history` au module civique. ⟦CODE⟧ `JourneyHistoryService` ignore
-aujourd'hui toute étape civique (`DETTE-A1`, annoté) — **trou muet**, pas NPE.
+⛔ ~~BLOQUÉE : template non fourni.~~ **Blocage LEVÉ le 2026-09-20** par le propriétaire : *« Le
+gabarit n'est plus à fournir : l'écran existe côté TCF et il fait référence. »*
+
+**Ce qui a été livré** — le **même** écran, scopé au parcours, jamais un second :
+
+| Brique | TCF | CIVIQUE |
+|---|---|---|
+| Point d'entrée | Plan → « Aller plus loin » → **Ma progression** | **identique**, ajouté au Plan civique |
+| Route | `/plan/progression` | **la même**, `?module=CIVIQUE` (web) · `parcoursCiviqueProvider` (mobile) |
+| Le bloc | une **épreuve** | une **thématique** |
+| L'unité travaillée | une **compétence** | une **unité officielle** |
+| La clôture de bloc | examen d'épreuve | **examen de thème** (20 q, seuil 16) |
+| La mesure du cycle | palier **CECRL** (`entry/exitLevel`) | **score sur 40** (`entry/exitScore`), rapporté au seuil de **32** |
+
+🛑 **C'est ICI, et seulement ici, que `entry_score` et `exit_score` s'affichent.** D-50 §1 les
+interdit sur la **bande objectif** du Plan, où un résultat d'examen blanc se lirait comme un niveau
+acquis ; dans une **archive datée**, un résultat d'examen est exactement à sa place.
 
 ---
 

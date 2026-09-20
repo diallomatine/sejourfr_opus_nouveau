@@ -416,7 +416,7 @@ class PlanTcfView extends ConsumerWidget {
             iconBg: AppColors.surface2,
             iconColor: AppColors.muted,
             title: kJourneyHistoryTitle,
-            sub: kJourneyHistorySub,
+            sub: journeyHistorySub(),
             onTap: () => context.push(AppRoutes.planProgress),
           ),
           ListRow(

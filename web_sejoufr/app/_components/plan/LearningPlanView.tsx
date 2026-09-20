@@ -14,12 +14,12 @@ import {track} from "@/lib/analytics";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
-  PLAN_PROGRESS_HREF,
   PLAN_PROGRESS_LEVEL_UNKNOWN,
   PLAN_PROGRESS_TITLE_SHORT,
   PLAN_STARTING,
   planNowCard,
 } from "@/lib/plan-domain";
+import {journeyHistoryHref} from "@/lib/journey";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
   canAccessModule,
@@ -480,7 +480,7 @@ function ActionMaintenant({plan, journey, free}: {
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
 function AllerPlusLoin() {
   const rows: Array<{href: string; label: string}> = [
-    {href: PLAN_PROGRESS_HREF, label: PLAN_PROGRESS_TITLE_SHORT},
+    {href: journeyHistoryHref("TCF"), label: PLAN_PROGRESS_TITLE_SHORT},
     {href: "/diagnostic", label: "Mon diagnostic"},
   ];
   return (

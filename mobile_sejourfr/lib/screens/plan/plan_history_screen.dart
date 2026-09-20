@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
@@ -27,6 +29,21 @@ import 'learning_plan_provider.dart';
 /// raison — le Plan porte déjà « Progression détectée ».
 ///
 /// 🛑 **Miroir de `PlanHistoryView` côté web**, brique pour brique.
+///
+/// ## Le parcours affiché vient de [parcoursCiviqueProvider] (P8.9, 2026-09-20)
+///
+/// 🛑 **Un seul écran pour les deux parcours**, scopé par l'état **partagé** du
+/// parcours affiché — le pendant Dart du `?module=` du web, et déjà l'autorité
+/// de l'Accueil, du Plan et de Réviser. Une seconde route aurait été une
+/// deuxième façon de dire la même chose.
+///
+/// ⚠️ **L'écran est POUSSÉ depuis le Plan**, qui a déjà fait le choix : la
+/// bascule n'existe pas ici, et l'état ne peut donc pas changer sous les pieds
+/// du candidat pendant qu'il lit.
+///
+/// Ce qui change avec le parcours, et **rien d'autre** : le **mot** de l'unité
+/// travaillée (compétence ⇄ unité officielle) et la **mesure** de fin de cycle
+/// (palier CECRL ⇄ score sur 40 rapporté au seuil de 32).
 class PlanHistoryScreen extends ConsumerStatefulWidget {
   const PlanHistoryScreen({super.key});
 
@@ -43,7 +60,12 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final historyAsync = ref.watch(journeyHistoryProvider);
+    /// 🛑 **Le défaut est TCF**, pas une déduction : l'écran est atteint depuis
+    /// le Plan, qui a déjà posé le parcours affiché.
+    final module = (ref.watch(parcoursCiviqueProvider) ?? false)
+        ? AppModule.civique
+        : AppModule.tcf;
+    final historyAsync = ref.watch(journeyHistoryProvider(module));
     final history = historyAsync.valueOrNull;
     final premier = history == null || history.cycles.isEmpty
         ? null
@@ -78,7 +100,8 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
                         (
                           value: '${history?.stats.competencesTravaillees ?? 0}',
                           label: journeyHistoryStatSkills(
-                              history?.stats.competencesTravaillees ?? 0),
+                              history?.stats.competencesTravaillees ?? 0,
+                              module),
                         ),
                         (
                           value: '${history?.stats.examensPasses ?? 0}',
@@ -111,18 +134,18 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
                               label: kJourneyHistoryRetry,
                               variant: SfButtonVariant.blue,
                               onPressed: () =>
-                                  ref.invalidate(journeyHistoryProvider),
+                                  ref.invalidate(journeyHistoryProvider(module)),
                             ),
                           ],
                         ),
                       ),
                     ],
                     data: (data) => data.cycles.isEmpty
-                        ? const [
+                        ? [
                             SfCard(
                               child: SfPanelHead(
                                 title: kJourneyHistoryEmptyTitle,
-                                sub: kJourneyHistoryEmptyText,
+                                sub: journeyHistoryEmptyText(module),
                               ),
                             ),
                           ]
@@ -134,6 +157,7 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
                             for (final cycle in data.cycles)
                               _CycleTermine(
                                 cycle: cycle,
+                                module: module,
                                 open: deplie == cycle.numero,
                                 onToggle: () => setState(() => _ouvert =
                                     deplie == cycle.numero ? -1 : cycle.numero),
@@ -151,7 +175,7 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
                               weight: FontWeight.w700,
                               height: 1.45),
                         ),
-                        TextSpan(text: kJourneyHistoryFootText),
+                        TextSpan(text: journeyHistoryFootText(module)),
                       ]),
                       style: AppFonts.ui(
                           size: 12, color: AppColors.muted, height: 1.45),
@@ -167,7 +191,7 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
   }
 }
 
-/// Un cycle archivé : ses épreuves travaillées, puis son encart de niveau.
+/// Un cycle archivé : ses blocs travaillés, puis son encart de mesure.
 ///
 /// 🛑 **`SfBlocAccordion` est réutilisé tel quel** : son `mark` est un texte, et
 /// le numéro du cycle y entre sans qu'un second accordéon soit écrit.
@@ -178,11 +202,13 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
 class _CycleTermine extends StatelessWidget {
   const _CycleTermine({
     required this.cycle,
+    required this.module,
     required this.open,
     required this.onToggle,
   });
 
   final JourneyHistoryCycle cycle;
+  final AppModule module;
   final bool open;
   final VoidCallback onToggle;
 
@@ -191,7 +217,7 @@ class _CycleTermine extends StatelessWidget {
     return SfBlocAccordion(
       mark: journeyHistoryCycleMark(cycle.numero),
       title: journeyHistoryCycleTitle(cycle.numero),
-      meta: journeyHistoryCycleMeta(cycle),
+      meta: journeyHistoryCycleMeta(cycle, module),
       status: (label: kJourneyHistoryDonePill, tone: SfTone.ok),
       open: open,
       onToggle: onToggle,
@@ -206,9 +232,9 @@ class _CycleTermine extends StatelessWidget {
       child: SfJourneyList(
         variant: SfJourneyVariant.cycle,
         exam: SfExamStepBox(
-          title: journeyHistoryLevelTitle(cycle),
-          state: journeyHistoryLevelState(cycle),
-          note: journeyHistoryLevelNote(cycle),
+          title: journeyHistoryLevelTitle(cycle, module),
+          state: journeyHistoryLevelState(cycle, module),
+          note: journeyHistoryLevelNote(cycle, module),
           locked: true,
         ),
         children: [

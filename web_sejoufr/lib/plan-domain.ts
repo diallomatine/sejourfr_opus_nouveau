@@ -158,7 +158,10 @@ export function planCycleLine(cycle: PlanCycleDto): string {
  * ai-je jouées ? », celui-ci à « où j'en suis sur les quatre domaines du TCF,
  * et à quelle distance de mon objectif ? ».
  */
-export const PLAN_PROGRESS_HREF = "/plan/progression";
+/* ⚠️ **`PLAN_PROGRESS_HREF` est SUPPRIMÉE** (P8.9, 2026-09-20) : elle doublait
+   `JOURNEY_HISTORY_HREF` (`lib/journey.ts`) pour le même chemin, et son unique
+   lecteur passe désormais par `journeyHistoryHref(module)` — l'adresse est
+   scopée au parcours, une seconde copie n'aurait pas pu le savoir. */
 
 /** Le libellé de l'action qui ouvre l'écran, et son titre quand l'objectif
  *  n'est pas connu. */

@@ -1,7 +1,9 @@
 "use client";
 
-import {useState} from "react";
+import {Suspense, useState} from "react";
+import {useSearchParams} from "next/navigation";
 import {journeyApi} from "@/lib/api";
+import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
@@ -22,12 +24,10 @@ import {
 } from "@/app/_components/sejour/SejourKit";
 import {
     JOURNEY_HISTORY_DONE_PILL,
-    JOURNEY_HISTORY_EMPTY_TEXT,
     JOURNEY_HISTORY_EMPTY_TITLE,
     JOURNEY_HISTORY_ERROR,
     JOURNEY_HISTORY_EYEBROW,
     JOURNEY_HISTORY_FOOT_LEAD,
-    JOURNEY_HISTORY_FOOT_TEXT,
     JOURNEY_HISTORY_HEADLINE,
     JOURNEY_HISTORY_LEAD,
     JOURNEY_HISTORY_LOADING,
@@ -37,6 +37,8 @@ import {
     JOURNEY_HISTORY_TITLE,
     journeyHistoryBlocSkills,
     journeyHistoryCycleMark,
+    journeyHistoryEmptyText,
+    journeyHistoryFootText,
     journeyHistoryCycleMeta,
     journeyHistoryCycleTitle,
     journeyHistoryLevelNote,
@@ -68,12 +70,42 @@ import type {JourneyHistoryCycleDto, JourneyHistoryDto} from "@/lib/types";
  * détectée ».
  *
  * 🛑 **Miroir de `PlanHistoryScreen` côté mobile**, brique pour brique.
+ *
+ * ## Le parcours affiché vient de `?module=` (P8.9, 2026-09-20)
+ *
+ * 🛑 **Un seul écran pour les deux parcours**, scopé comme le Plan et l'Accueil
+ * le sont déjà : `?module=` est **le** mécanisme de sélection du web, et une
+ * seconde route aurait été une deuxième façon de dire la même chose — ce que ce
+ * chantier a passé son temps à supprimer. Le TCF reste le défaut, donc un lien
+ * déjà partagé vers `/plan/progression` aboutit sur le même écran qu'avant.
+ *
+ * Ce qui change avec le module, et **rien d'autre** : le **mot** de l'unité
+ * travaillée (compétence ⇄ unité officielle), la **mesure** de fin de cycle
+ * (palier CECRL ⇄ score sur 40 rapporté au seuil de 32) et la **destination du
+ * retour**. Les briques, l'ordre et les états sont les mêmes.
  */
 export function PlanHistoryView() {
+    /* `useSearchParams` impose une frontière de Suspense : elle est posée ici,
+       autour du seul composant qui en a besoin. */
+    return (
+        <Suspense fallback={null}>
+            <PlanHistoryScoped />
+        </Suspense>
+    );
+}
+
+function PlanHistoryScoped() {
     const {status} = useAuth();
+    /* 🛑 **Le défaut est TCF**, pas une déduction : l'écran est atteint depuis
+       le Plan, qui a déjà fait le choix et le porte dans son lien. */
+    /* ⚠️ Pas `module` : Next interdit d'affecter cette variable (elle entre en
+       collision avec le `module` de CommonJS au moment du bundling). */
+    const parcours: ParcoursModule = moduleDeLUrl(useSearchParams()) ?? "TCF";
     const query = useCachedData<JourneyHistoryDto>(
-        status === "authenticated" ? journeyApi.historyCacheKey : null,
-        () => journeyApi.history(),
+        status === "authenticated"
+            ? journeyApi.historyCacheKeyFor(parcours)
+            : null,
+        () => journeyApi.history(parcours),
         {errorMessage: JOURNEY_HISTORY_ERROR},
     );
     const history = query.data;
@@ -89,7 +121,7 @@ export function PlanHistoryView() {
 
     return (
         <SejourApp>
-            <Top title={JOURNEY_HISTORY_TITLE} backTo="/plan" />
+            <Top title={JOURNEY_HISTORY_TITLE} backTo={planHref(parcours)} />
             <Pad>
                 <Stack>
                     {/* 🛑 Le bandeau et ses compteurs restent dans TOUS les
@@ -106,7 +138,7 @@ export function PlanHistoryView() {
                                 {
                                     value: String(history?.stats.competencesTravaillees ?? 0),
                                     label: journeyHistoryStatSkills(
-                                        history?.stats.competencesTravaillees ?? 0),
+                                        history?.stats.competencesTravaillees ?? 0, parcours),
                                 },
                                 {
                                     value: String(history?.stats.examensPasses ?? 0),
@@ -144,7 +176,7 @@ export function PlanHistoryView() {
                         <Card>
                             <PanelHead
                                 title={JOURNEY_HISTORY_EMPTY_TITLE}
-                                sub={JOURNEY_HISTORY_EMPTY_TEXT}
+                                sub={journeyHistoryEmptyText(parcours)}
                             />
                         </Card>
                     ) : (
@@ -158,6 +190,7 @@ export function PlanHistoryView() {
                                     <CycleTermine
                                         key={cycle.numero}
                                         cycle={cycle}
+                                        module={parcours}
                                         open={deplie === cycle.numero}
                                         onToggle={() => setOuvert(
                                             deplie === cycle.numero ? -1 : cycle.numero)}
@@ -169,7 +202,7 @@ export function PlanHistoryView() {
 
                     <InfoNote>
                         <b>{JOURNEY_HISTORY_FOOT_LEAD}</b>
-                        {JOURNEY_HISTORY_FOOT_TEXT}
+                        {journeyHistoryFootText(parcours)}
                     </InfoNote>
                 </Stack>
             </Pad>
@@ -178,7 +211,7 @@ export function PlanHistoryView() {
 }
 
 /**
- * Un cycle archivé : ses épreuves travaillées, puis son encart de niveau.
+ * Un cycle archivé : ses blocs travaillés, puis son encart de mesure.
  *
  * 🛑 **`BlocAccordion` est réutilisé tel quel** : son `mark` est un texte, et
  * le numéro du cycle y entre sans qu'un second accordéon soit écrit.
@@ -187,8 +220,9 @@ export function PlanHistoryView() {
  * donc pas d'`onClick`, et l'encart de niveau est `locked` — c'est-à-dire
  * inerte, mais entièrement lisible.
  */
-function CycleTermine({cycle, open, onToggle}: {
+function CycleTermine({cycle, module, open, onToggle}: {
     cycle: JourneyHistoryCycleDto;
+    module: ParcoursModule;
     open: boolean;
     onToggle: () => void;
 }) {
@@ -196,7 +230,7 @@ function CycleTermine({cycle, open, onToggle}: {
         <BlocAccordion
             mark={journeyHistoryCycleMark(cycle.numero)}
             title={journeyHistoryCycleTitle(cycle.numero)}
-            meta={journeyHistoryCycleMeta(cycle)}
+            meta={journeyHistoryCycleMeta(cycle, module)}
             status={{label: JOURNEY_HISTORY_DONE_PILL, tone: "ok"}}
             open={open}
             onToggle={onToggle}
@@ -213,9 +247,9 @@ function CycleTermine({cycle, open, onToggle}: {
                 variant="cycle"
                 exam={
                     <ExamStepBox
-                        title={journeyHistoryLevelTitle(cycle)}
-                        state={journeyHistoryLevelState(cycle)}
-                        note={journeyHistoryLevelNote(cycle)}
+                        title={journeyHistoryLevelTitle(cycle, module)}
+                        state={journeyHistoryLevelState(cycle, module)}
+                        note={journeyHistoryLevelNote(cycle, module)}
                         locked
                     />
                 }

@@ -4394,3 +4394,35 @@ d'un **abonné**. L'écran **gratuit** n'a pas bougé.
   écrit en tête des deux fichiers.
 - **`JOURNEY_LOCKED_BADGE`** (`lib/journey.ts` ⇄ `kJourneyLockedBadge`) : le badge « Verrouillé » était
   écrit **en dur** dans le panneau (**A85**).
+
+
+### « Ma progression » sert les DEUX parcours (P8.9, 2026-09-20)
+
+> Décisions prises seul : `docs/decisions-autonomes-parcours-tcf.md` **A91 → A94**.
+
+⚠️ **Cette section complète « Le CYCLE du Plan et Ma progression »** : l'écran ne change pas, il
+devient **scopé**.
+
+- **Un seul écran, une seule route** : `/plan/progression`, avec **`?module=CIVIQUE`** pour le
+  civique. 🛑 Le TCF garde l'adresse nue — un lien déjà partagé aboutit exactement où il aboutissait.
+  `PlanHistoryView` lit `moduleDeLUrl` derrière un `<Suspense>`, et son retour vise `planHref(module)`.
+  ⚠️ La variable s'appelle **`parcours`**, pas `module` : Next interdit d'affecter cette dernière.
+- **Point d'entrée identique** : `CivicPlanPanel` gagne la **même** section « Aller plus loin » que
+  `LearningPlanView`, avec la ligne « Ma progression » → `journeyHistoryHref("CIVIQUE")`.
+  ⚠️ **Une seule ligne, là où le TCF en a deux** (sa seconde mène au diagnostic) — écart **remonté**,
+  pas arbitré (**A94**).
+- **Ce qui change avec le parcours, et rien d'autre** : le **mot** de l'unité travaillée
+  (`uniteMot` — compétence ⇄ **unité officielle**) et la **mesure** du cycle. Les briques, l'ordre et
+  les états sont les mêmes.
+- 🛑 **`entryScore` / `exitScore` s'affichent ICI, et nulle part ailleurs** (**A92**) : D-50 §1 les
+  interdit sur la bande objectif du Plan, où un résultat d'examen blanc se lirait comme un niveau
+  acquis ; dans une archive datée, il est à sa place. `mesure(cycle, module)` est l'**unique** endroit
+  qui choisit l'axe — palier CECRL en TCF, **score sur 40** en civique — et les trois lectures
+  (`journeyHistoryLevelTitle` / `…State` / `…Note`) s'appuient dessus. Le **seuil 32/40** accompagne
+  toute mesure civique, lu chez `CIVIQUE_EXAM_SEUIL` / `_QUESTIONS`.
+- ⚠️ **Le ton reste `ok` sous le seuil** (**A93**) : l'encart **constate** un résultat daté, il ne le
+  juge pas — c'est déjà la règle de l'écran TCF. Et la note **compte** les examens de thème au lieu de
+  les nommer : une thématique n'a pas d'initiale (A49), et la nommer redirait le corps du cycle.
+- **`journeyApi.historyCacheKeyFor(module)`** — une clé de cache par module, comme pour le cycle.
+- ⚠️ **`PLAN_PROGRESS_HREF` est SUPPRIMÉE** (`lib/plan-domain.ts`) : elle doublait
+  `JOURNEY_HISTORY_HREF` pour le même chemin, et son dernier lecteur passe par `journeyHistoryHref`.

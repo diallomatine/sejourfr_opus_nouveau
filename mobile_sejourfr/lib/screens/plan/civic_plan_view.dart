@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/civique_examen.dart';
+import '../../core/widgets/list_group.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'civic_plan_labels.dart';
 import 'civic_serie_launcher.dart';
@@ -209,8 +212,39 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       PlanCycleSection(plan: null, journey: parcours, module: AppModule.civique),
 
       ..._reviewSection(plan, maintenant),
+      _allerPlusLoin(context),
       const SizedBox(height: 28),
     ];
+  }
+
+  /// **L'accès à « Ma progression »**, au bas du Plan civique.
+  ///
+  /// 🛑 **Le MÊME point d'entrée que le TCF** (`PlanTcfView._links`) : même
+  /// brique ([ListGroup] / [ListRow]), même icône, même libellé, même écran
+  /// d'arrivée — seul le parcours affiché change ce que l'écran raconte. Un
+  /// second chemin vers une archive aurait été une deuxième façon de faire la
+  /// même chose.
+  ///
+  /// ⚠️ **Une seule ligne, là où le TCF en a deux.** Sa seconde mène à « Mon
+  /// diagnostic » ; le civique a bien la sienne (`/diagnostic-civique`), mais
+  /// l'ajouter serait une entrée de navigation que personne n'a demandée — à
+  /// rouvrir sur un mot du propriétaire, pas ici.
+  Widget _allerPlusLoin(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
+      child: ListGroup(
+        children: [
+          ListRow(
+            icon: LucideIcons.trendingUp,
+            iconBg: AppColors.surface2,
+            iconColor: AppColors.muted,
+            title: kJourneyHistoryTitle,
+            sub: journeyHistorySub(AppModule.civique),
+            onTap: () => context.push(AppRoutes.planProgress),
+          ),
+        ],
+      ),
+    );
   }
 
   /// **« À faire maintenant », depuis le CYCLE** (D-50 §2).

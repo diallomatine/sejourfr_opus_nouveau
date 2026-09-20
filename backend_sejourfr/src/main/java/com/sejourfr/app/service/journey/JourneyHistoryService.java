@@ -67,11 +67,13 @@ public class JourneyHistoryService {
     private final JourneyStepManager stepManager;
 
     /**
-     * L'historique du candidat sur le module TCF.
+     * L'historique du candidat sur le module demande.
      *
-     * <p>🛑 <b>Aucun parametre au-dela de l'identite</b> (B-10) : le serveur
-     * sait qui lit. Le civique sort du chantier (D-23), son plan reste
-     * integralement derive et ne porte aucun cycle.
+     * <p>🛑 <b>Le MODULE est le seul parametre au-dela de l'identite</b>
+     * (B-10) : le serveur sait qui lit. ⚠️ <b>Revoque « le civique sort du
+     * chantier »</b> (D-23) : depuis P8.4 son cycle existe, et depuis P8.9 il
+     * se raconte ici avec le meme service — une seconde lecture aurait diverge
+     * a la premiere correction.
      *
      * <p>Un candidat sans aucun cycle ferme recoit {@code cycles} <b>vide</b> et
      * des statistiques a <b>zero</b>, jamais {@code null} : l'ecran sait dire
@@ -158,14 +160,14 @@ public class JourneyHistoryService {
     }
 
     /**
-     * Les unites travaillees, <b>groupees par bloc</b>, dans l'ordre
-     * {@code TcfDomainProfileDto.ORDRE} (CO, CE, EO, EE) — autorite unique et
-     * non configurable (D-9, D-20).
+     * Les unites travaillees, <b>groupees par bloc</b>, dans l'ordre de
+     * {@link #axe(Module)} — {@code TcfDomainProfileDto.ORDRE} cote TCF (D-9,
+     * D-20), l'ordre d'affichage des thematiques cote civique.
      *
-     * <p>🛑 <b>Un bloc sans competence cloturee n'apparait pas</b> : un
-     * historique raconte ce qui a ete fait, et « Compréhension écrite — rien »
-     * n'apprend rien au candidat. Consequence assumee : les examens d'une
-     * epreuve qui n'a recu aucune competence ne sont comptes que par
+     * <p>🛑 <b>Un bloc sans unite cloturee n'apparait pas</b> : un historique
+     * raconte ce qui a ete fait, et « Compréhension écrite — rien » n'apprend
+     * rien au candidat. Consequence assumee : les examens d'un bloc qui n'a
+     * recu aucune unite ne sont comptes que par
      * {@code JourneyHistoryCycleDto.examens}.
      */
     private static List<JourneyHistoryBlocDto> blocs(

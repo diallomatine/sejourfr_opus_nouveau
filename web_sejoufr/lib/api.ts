@@ -940,6 +940,13 @@ function journeyCacheKey(module: ParcoursModule): string {
 }
 const JOURNEY_HISTORY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey-history`;
 
+/** La clé de l'archive de CE module. Le TCF garde la clé historique. */
+function journeyHistoryCacheKey(module: ParcoursModule): string {
+    return module === "TCF"
+        ? JOURNEY_HISTORY_CACHE_KEY
+        : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`;
+}
+
 export const journeyApi = {
     get: fetchJourney,
 
@@ -976,14 +983,16 @@ export const journeyApi = {
      */
     history(module: ParcoursModule = "TCF"): Promise<JourneyHistoryDto> {
         return cached(
-            module === "TCF"
-                ? JOURNEY_HISTORY_CACHE_KEY
-                : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`,
+            journeyHistoryCacheKey(module),
             () => apiFetch<JourneyHistoryDto>(
                 `/api/me/plan/journey/history?module=${module}`, {auth: true}));
     },
 
     historyCacheKey: JOURNEY_HISTORY_CACHE_KEY,
+
+    /** 🛑 **Une clé par module**, comme pour le cycle : les deux archives sont
+     *  deux réponses différentes. Le TCF garde la clé historique. */
+    historyCacheKeyFor: journeyHistoryCacheKey,
 
     peekCached(module: ParcoursModule = "TCF"): JourneyDto | undefined {
         return peekCached<JourneyDto>(journeyCacheKey(module));

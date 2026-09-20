@@ -129,9 +129,17 @@ final journeyCiviqueProvider = FutureProvider.autoDispose<Journey>((ref) async {
 ///
 /// Il ecoute quand meme [learningPlanRevisionProvider] : historiser un cycle
 /// passe par ce signal, et l'ecran peut etre ouvert au moment ou il tombe.
+///
+/// 🛑 **Un `family` sur le module, ici, et PAS deux providers** (P8.9) — la
+/// raison d'A88 ne s'applique pas : le cycle est `keepAlive` et **observe en
+/// permanence par deux ecrans**, donc une cle partagee y aurait fait voir le
+/// cycle TCF sur l'onglet civique. L'archive, elle, est `autoDispose` et
+/// s'ouvre **une a la fois** ; Riverpod cle par l'argument, et il n'y a rien a
+/// garder en vie entre deux ouvertures.
 final journeyHistoryProvider =
-    FutureProvider.autoDispose<JourneyHistory>((ref) async {
+    FutureProvider.autoDispose.family<JourneyHistory, AppModule>(
+        (ref, module) async {
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
-  return ref.watch(learningPlanRepositoryProvider).history();
+  return ref.watch(learningPlanRepositoryProvider).history(module: module);
 });

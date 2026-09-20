@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import {ChevronRight} from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
 import {Landmark, ListChecks, Lock} from "lucide-react";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
@@ -50,7 +52,13 @@ import {
 import {PlanGate} from "./PlanGate";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
-import {JOURNEY_LOCKED_BADGE, journeyStepSubtitle, journeyStepTitle} from "@/lib/journey";
+import {
+  JOURNEY_HISTORY_TITLE,
+  JOURNEY_LOCKED_BADGE,
+  journeyHistoryHref,
+  journeyStepSubtitle,
+  journeyStepTitle,
+} from "@/lib/journey";
 import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "@/lib/civique-examen";
 import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from "./PlanPaywallCard";
 
@@ -232,7 +240,36 @@ function CiviquePremium({plan, journey, enCours, onStart, erreur}: PanelProps) {
           </Card>
         </Section>
       )}
+
+      <AllerPlusLoin />
     </>
+  );
+}
+
+/**
+ * **L'accès à « Ma progression »**, au bas du Plan civique.
+ *
+ * 🛑 **Le MÊME point d'entrée que le TCF** (`AllerPlusLoin` de
+ * `LearningPlanView`) : même section, même carte, même libellé, même écran
+ * d'arrivée — seul le `?module=` change. Un second chemin vers une archive
+ * aurait été une deuxième façon de faire la même chose.
+ *
+ * ⚠️ **Une seule ligne, là où le TCF en a deux.** Sa seconde ligne mène à
+ * « Mon diagnostic » ; le civique a bien la sienne (`/diagnostic-civique`),
+ * mais l'ajouter serait une entrée de navigation que personne n'a demandée —
+ * à rouvrir sur un mot du propriétaire, pas ici.
+ */
+function AllerPlusLoin() {
+  return (
+    <Section title="Aller plus loin">
+      <Pad>
+        <Card padding="rows">
+          <Link className={sejourStyles.link} href={journeyHistoryHref("CIVIQUE")}>
+            {JOURNEY_HISTORY_TITLE} <ChevronRight size={15} aria-hidden />
+          </Link>
+        </Card>
+      </Pad>
+    </Section>
   );
 }
 

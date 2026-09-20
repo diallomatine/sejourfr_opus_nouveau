@@ -1415,3 +1415,92 @@ tard, sans rien casser entre les deux.
 `mobile/test/learning_plan_revision_test.dart` implémente `LearningPlanRepository` et ses quatre
 signatures ont changé. Il compile à nouveau et reste vert — c'est la règle du dépôt (« un test rendu
 rouge par un changement voulu se met à jour »), pas un test neuf sur un front.
+
+# 2026-09-20 — P8.9 : l'historique des cycles civiques (A91 → A94)
+
+> **Blocage levé par le propriétaire** : « Le gabarit n'est plus à fournir : l'écran existe côté TCF
+> et il fait référence. » Consigne : mesurer la route **réellement livrée** côté TCF, puis transposer
+> **brique pour brique** avec le vocabulaire civique — et **remonter** tout écart plutôt que de
+> l'arbitrer.
+
+### A91 — Un seul écran, scopé par le parcours — jamais une seconde route
+
+**Mesuré d'abord, comme demandé.** Ce qui existe côté TCF : route `/plan/progression` (web
+`app/(app)/plan/progression/page.tsx` → `PlanHistoryView` · mobile `AppRoutes.planProgress` →
+`PlanHistoryScreen`), atteinte depuis le Plan par la section **« Aller plus loin »** (web) /
+`_links` (mobile), ligne **« Ma progression »**. L'écran : `Top` + `HeroBanner` à 3 compteurs →
+`PanelHead` « Cycles terminés » → un `BlocAccordion` par cycle (un seul déplié, le plus récent) →
+dedans une `JourneyRow` `done` par bloc + un `ExamStepBox` `locked` → `InfoNote` de pied.
+
+**La décision.** Le civique prend **cet écran-là**, scopé : `?module=CIVIQUE` côté web,
+`parcoursCiviqueProvider` côté mobile (le pendant Dart déjà employé par l'Accueil, le Plan et
+Réviser). **Le TCF reste le défaut**, donc un lien déjà partagé vers `/plan/progression` aboutit
+exactement où il aboutissait.
+
+**L'option écartée** : une seconde route (`/plan/progression-civique`) et un second écran. C'est
+précisément ce que ce chantier a passé son temps à supprimer — et le dépôt pose déjà « **un seul
+mécanisme de sélection de module, et c'est `?module=`** ».
+
+⚠️ **Un détail qui n'en est pas un** : la variable ne peut pas s'appeler `module` côté web (Next
+l'interdit, collision avec le `module` de CommonJS au bundling). Elle s'appelle `parcours`.
+
+### A92 — `entry_score` / `exit_score` s'affichent **ici, et nulle part ailleurs**
+
+**Ce que le propriétaire a tranché** en levant le blocage : « le niveau d'entrée et de sortie est un
+score sur 40 rapporté au seuil de 32, pas un niveau CECRL. C'est ici — et seulement ici — que
+`entry_score` et `exit_score` s'affichent : D-50 l'interdit sur la bande objectif du Plan, pas dans
+l'historique, où un résultat d'examen blanc est à sa place. »
+
+**Ce que j'en ai fait.** Une fonction `_mesure(cycle, module)` — l'**unique** endroit qui choisit
+l'axe — et trois lectures qui s'appuient dessus : le **titre** de l'encart (« Niveau mesuré » ⇄
+« **Score mesuré** »), sa **pastille** (`B1 → B2` ⇄ `28/40 → 34/40`) et sa **note**.
+
+🛑 **Les deux champs sont servis ensemble et un seul est rempli** : un cycle TCF porte des paliers,
+un cycle civique des scores. `null` = inconnu **de ce module**, jamais zéro — un front qui aurait
+déduit le module de la nullité se serait trompé sur un cycle civique sans examen, où les deux sont
+nuls. D'où le module **passé explicitement** à chaque fonction, plutôt que deviné.
+
+🛑 **Le seuil accompagne toute mesure civique** (`Seuil de réussite : 32/40.`), et ses deux nombres
+viennent de `CivicExamFormat` — l'autorité du format (arrêté du 10 octobre 2025), jamais un 32 écrit
+dans une phrase.
+
+### A93 — Le ton de l'encart ne juge pas un score, et le civique **compte** ses examens au lieu de les nommer
+
+**Deux points où la transposition littérale ne marchait pas. Ni l'un ni l'autre n'est un écart de
+forme : les deux viennent de ce que le civique n'a pas d'équivalent à quelque chose du TCF.**
+
+**1. Le ton.** L'encart TCF est `ok` dès qu'une mesure existe. Un score civique, lui, se compare à un
+seuil : la tentation était de le peindre en rouge sous 32. **Je ne l'ai pas fait**, et le ton reste
+`ok`. Motif : cet encart **constate un résultat daté**, il ne le juge pas — c'est déjà la règle de
+l'écran TCF, et un rouge dans une **archive** reprocherait au candidat un examen qu'il a passé il y a
+deux mois et qui l'a fait progresser depuis. Le seuil est **dit** dans la note ; le candidat compare
+lui-même.
+
+**2. La note.** Elle nomme les épreuves qui ont reçu un examen, **par leur initiale** — « CO · CE — … ».
+Une thématique n'a **pas d'initiale** (A49 : « Principes et valeurs de la République » ne se réduit
+pas à deux lettres). Transposée telle quelle, la note civique serait tombée dans la branche « aucun
+examen n'a été enregistré » alors que des examens avaient bien eu lieu : **un mensonge**, pas un
+trou d'affichage.
+
+**La décision** : le civique les **compte** — « 3 examens de thème enregistrés ». Les nommer aurait
+répété, en cinq noms complets, ce que le corps du cycle liste déjà trois lignes plus haut. Le compte,
+lui, est un fait servi (`bloc.examens`).
+
+### A94 — Une ligne d'accès sur le Plan civique, là où le TCF en a deux
+
+**Ce que j'ai fait** : la section « Aller plus loin » est transposée **à l'identique** (même brique,
+même icône, même libellé, même écran d'arrivée), avec **une seule** ligne — « Ma progression », celle
+que le propriétaire a nommée.
+
+**Ce que je REMONTE au lieu de l'arbitrer** : le TCF en a une **seconde**, « Mon diagnostic »
+(`/diagnostic`). Le civique a bien la sienne (`/diagnostic-civique`), et « brique pour brique »
+plaiderait pour la transposer aussi. Je ne l'ai pas ajoutée — une entrée de navigation que personne
+n'a demandée est une décision produit, pas une transposition. **Une ligne à ajouter si le
+propriétaire la veut** ; le commentaire est posé sur place des deux côtés.
+
+### Et une duplication refermée au passage
+
+`PLAN_PROGRESS_HREF` (`lib/plan-domain.ts`) et `JOURNEY_HISTORY_HREF` (`lib/journey.ts`) portaient le
+**même chemin**, et la première n'avait plus qu'un lecteur. Elle est **supprimée** : l'adresse est
+désormais scopée au parcours (`journeyHistoryHref(module)`), et une seconde copie n'aurait pas pu le
+savoir. C'est « une règle = une autorité », appliquée à l'endroit exact où elle allait se payer.

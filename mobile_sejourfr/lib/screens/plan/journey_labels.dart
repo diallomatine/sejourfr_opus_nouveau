@@ -11,8 +11,10 @@
 /// que le serveur.
 library;
 
+import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
+import '../../core/utils/civique_examen.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
@@ -442,8 +444,17 @@ const String kJourneyHistoryTitle = 'Ma progression';
 
 /// Le sous-titre du lien, sur le Plan. 🛑 Il dit ce que l'écran **contient**,
 /// pas ce qu'il prétend expliquer.
-const String kJourneyHistorySub =
-    'Vos cycles terminés et les compétences travaillées';
+String journeyHistorySub([AppModule module = AppModule.tcf]) =>
+    'Vos cycles terminés et les ${_uniteMot(module, 2)} travaillées';
+
+/// **Le mot de l'unité travaillable, par parcours** (D-48).
+///
+/// 🛑 Une **compétence** en TCF, une **unité officielle** en civique. C'est le
+/// seul endroit qui le décide pour cet écran : six phrases le répétaient, elles
+/// l'appellent toutes. Miroir de `uniteMot` (`web_sejoufr/lib/journey.ts`).
+String _uniteMot(AppModule module, int n) => module == AppModule.civique
+    ? 'unité${n == 1 ? '' : 's'}'
+    : 'compétence${n == 1 ? '' : 's'}';
 
 const String kJourneyHistoryEyebrow = 'Votre parcours';
 const String kJourneyHistoryHeadline = 'Tout ce que vous avez déjà travaillé';
@@ -452,8 +463,8 @@ const String kJourneyHistoryLead =
 
 /// Les libellés des trois compteurs. 🛑 **Le nombre vient du serveur** : ces
 /// fonctions ne posent que l'accord.
-String journeyHistoryStatSkills(int n) =>
-    'compétence${n == 1 ? '' : 's'} travaillée${n == 1 ? '' : 's'}';
+String journeyHistoryStatSkills(int n, [AppModule module = AppModule.tcf]) =>
+    '${_uniteMot(module, n)} travaillée${n == 1 ? '' : 's'}';
 
 String journeyHistoryStatExams(int n) =>
     'examen${n == 1 ? '' : 's'} passé${n == 1 ? '' : 's'}';
@@ -471,9 +482,10 @@ const String kJourneyHistoryDonePill = 'TERMINÉ';
 /// compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
 /// n'y a rien à lancer d'ici.
 const String kJourneyHistoryEmptyTitle = 'Aucun cycle terminé pour l\'instant';
-const String kJourneyHistoryEmptyText =
+String journeyHistoryEmptyText([AppModule module = AppModule.tcf]) =>
     'Votre cycle en cours apparaîtra ici dès qu\'il sera terminé, avec les '
-    'compétences que vous y aurez travaillées et les examens que vous y aurez passés.';
+    '${_uniteMot(module, 2)} que vous y aurez travaillées et les examens que '
+    'vous y aurez passés.';
 
 /// 🛑 **Un échec de chargement n'est pas « aucun cycle »** : on ne range pas
 /// une panne dans le verdict le plus bas.
@@ -483,77 +495,154 @@ const String kJourneyHistoryLoading = 'Chargement…';
 const String kJourneyHistoryRetry = 'Réessayer';
 
 const String kJourneyHistoryFootLead = 'Rien n\'est perdu :';
-const String kJourneyHistoryFootText =
-    ' lorsqu\'un nouveau plan est généré, vos cycles terminés et les compétences '
-    'travaillées restent visibles ici.';
+String journeyHistoryFootText([AppModule module = AppModule.tcf]) =>
+    ' lorsqu\'un nouveau plan est généré, vos cycles terminés et les '
+    '${_uniteMot(module, 2)} travaillées restent visibles ici.';
 
 /// Le titre d'un cycle archivé, et le repère de sa pastille ronde.
 String journeyHistoryCycleTitle(int numero) => 'Cycle $numero';
 
 String journeyHistoryCycleMark(int numero) => '$numero';
 
-/// « 4–16 sept. 2026 · 6 compétences · 3 examens ».
-String journeyHistoryCycleMeta(JourneyHistoryCycle cycle) => [
+/// « 4–16 sept. 2026 · 6 compétences · 3 examens » — « 6 unités » en civique.
+String journeyHistoryCycleMeta(
+  JourneyHistoryCycle cycle, [
+  AppModule module = AppModule.tcf,
+]) =>
+    [
       formatDateRange(cycle.debut, cycle.fin),
-      '${cycle.competences} compétence${cycle.competences == 1 ? '' : 's'}',
+      '${cycle.competences} ${_uniteMot(module, cycle.competences)}',
       '${cycle.examens} examen${cycle.examens == 1 ? '' : 's'}',
     ].join(' · ');
 
-/// Les compétences travaillées sur une épreuve, jointes.
+/// Les unités travaillées sur un bloc, jointes — des compétences en TCF, des
+/// unités officielles en civique (D-48). 🛑 **Les titres sont SERVIS**, cette
+/// fonction ne fait que les joindre : aucun mot de parcours n'entre ici.
 ///
-/// 🛑 **`null` quand la liste est vide** : une épreuve peut n'avoir reçu qu'un
+/// 🛑 **`null` quand la liste est vide** : un bloc peut n'avoir reçu qu'un
 /// examen, et une ligne de sous-titre vide se lirait comme une donnée
 /// manquante.
 String? journeyHistoryBlocSkills(JourneyHistoryBloc bloc) =>
     bloc.skillTitles.isEmpty ? null : bloc.skillTitles.join(' · ');
 
-/// Le titre de l'encart de niveau d'un cycle.
+/// **La mesure d'un cycle, par parcours** (P8.9).
 ///
-/// 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand le niveau a
-/// bougé, l'encart parle du niveau ; sinon il parle des examens.
-String journeyHistoryLevelTitle(JourneyHistoryCycle cycle) =>
-    _journeyHistoryLevelMoved(cycle) ? 'Niveau mesuré' : 'Examens réalisés';
-
-/// La pastille de l'encart de niveau.
+/// 🛑 **Deux axes, et un seul rempli par cycle** : le TCF mesure un **palier
+/// CECRL** (`entryLevel` / `exitLevel`), le civique un **score sur 40**
+/// (`entryScore` / `exitScore`). Le serveur sert les deux champs et n'en
+/// remplit qu'un — `null` = inconnu **de ce module**, jamais zéro.
 ///
-/// 🛑 **`exitLevel` nul ne devient JAMAIS un palier** : rien n'a été mesuré, ou
-/// la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart le
-/// dit en clair, en ton [SfBarTone.muted] — `null` = inconnu, jamais mauvais.
-({String label, SfBarTone tone}) journeyHistoryLevelState(
+/// 🛑 **C'est ICI, et seulement ici, que `entry_score` et `exit_score`
+/// s'affichent** : D-50 §1 les interdit sur la bande objectif du Plan, où un
+/// résultat d'examen blanc se lirait comme un niveau acquis. Dans une archive
+/// datée, un résultat d'examen est exactement à sa place.
+({String? entree, String? sortie}) _mesure(
   JourneyHistoryCycle cycle,
+  AppModule module,
 ) {
-  final sortie = cycle.exitLevel;
-  if (sortie == null) {
-    return (label: 'Niveau non mesuré', tone: SfBarTone.muted);
+  if (module == AppModule.civique) {
+    final entree = cycle.entryScore;
+    final sortie = cycle.exitScore;
+    return (
+      entree: entree == null ? null : _scoreCivique(entree),
+      sortie: sortie == null ? null : _scoreCivique(sortie),
+    );
   }
-  return _journeyHistoryLevelMoved(cycle)
-      ? (
-          label: '${cycle.entryLevel!.wire} → ${sortie.wire}',
-          tone: SfBarTone.ok,
-        )
-      : (label: 'Niveau ${sortie.wire}', tone: SfBarTone.ok);
+  return (entree: cycle.entryLevel?.wire, sortie: cycle.exitLevel?.wire);
+}
+
+/// « 34/40 ». 🛑 Le dénominateur vient de [CivicExamFormat], l'autorité du
+/// format (arrêté du 10 octobre 2025) — jamais un 40 écrit ici.
+String _scoreCivique(int score) => '$score/${CivicExamFormat.questions}';
+
+/// Le titre de l'encart de mesure d'un cycle.
+///
+/// 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand elle a bougé,
+/// l'encart parle de la mesure ; sinon il parle des examens. Le **mot** de la
+/// mesure suit le parcours — un niveau en TCF, un score en civique.
+String journeyHistoryLevelTitle(
+  JourneyHistoryCycle cycle, [
+  AppModule module = AppModule.tcf,
+]) {
+  if (!_journeyHistoryLevelMoved(cycle, module)) return 'Examens réalisés';
+  return module == AppModule.civique ? 'Score mesuré' : 'Niveau mesuré';
+}
+
+/// La pastille de l'encart de mesure.
+///
+/// 🛑 **Une sortie nulle ne devient JAMAIS une mesure** : rien n'a été mesuré,
+/// ou la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart
+/// le dit en clair, en ton [SfBarTone.muted] — `null` = inconnu, jamais mauvais.
+///
+/// ⚠️ **Le ton reste `ok` dès qu'une mesure existe, y compris sous le seuil
+/// civique** : cet encart **constate** un résultat daté, il ne le juge pas —
+/// c'est déjà la règle de l'écran TCF, et le seuil se lit dans la note.
+({String label, SfBarTone tone}) journeyHistoryLevelState(
+  JourneyHistoryCycle cycle, [
+  AppModule module = AppModule.tcf,
+]) {
+  final (:entree, :sortie) = _mesure(cycle, module);
+  if (sortie == null) {
+    return (
+      label: module == AppModule.civique
+          ? 'Score non mesuré'
+          : 'Niveau non mesuré',
+      tone: SfBarTone.muted,
+    );
+  }
+  if (_journeyHistoryLevelMoved(cycle, module)) {
+    return (label: '$entree → $sortie', tone: SfBarTone.ok);
+  }
+  return (
+    label: module == AppModule.civique ? sortie : 'Niveau $sortie',
+    tone: SfBarTone.ok,
+  );
 }
 
 /// La phrase sous la pastille.
 ///
-/// 🛑 **Les épreuves nommées sont celles qui ont REÇU un examen**
-/// (`examens > 0` sur leur bloc), jamais la liste des quatre : annoncer une
-/// épreuve qui n'a rien enregistré serait une mesure inventée.
-String journeyHistoryLevelNote(JourneyHistoryCycle cycle) {
+/// 🛑 **Les blocs nommés sont ceux qui ont REÇU un examen** (`examens > 0`),
+/// jamais la liste entière : annoncer une épreuve qui n'a rien enregistré
+/// serait une mesure inventée.
+///
+/// ⚠️ **Le civique les COMPTE au lieu de les nommer** : une thématique n'a pas
+/// d'initiale (A49), et répéter cinq noms complets ici redirait ce que le corps
+/// du cycle liste déjà juste au-dessus. Le compte, lui, est un fait servi.
+///
+/// 🛑 **Le seuil accompagne toute mesure civique** : un score sur 40 ne veut
+/// rien dire sans les 32 qui le rendent suffisant.
+String journeyHistoryLevelNote(
+  JourneyHistoryCycle cycle, [
+  AppModule module = AppModule.tcf,
+]) {
+  final (entree: _, :sortie) = _mesure(cycle, module);
+  final examens = [for (final b in cycle.blocs) if (b.examens > 0) b];
+  if (module == AppModule.civique) {
+    final combien = examens.length;
+    final s = combien == 1 ? '' : 's';
+    if (sortie == null) {
+      return combien == 0
+          ? 'Aucun examen n\'a été enregistré pendant ce cycle.'
+          : '$combien examen$s de thème enregistré$s — aucun score global '
+              'n\'a été mesuré pendant ce cycle.';
+    }
+    return _journeyHistoryLevelMoved(cycle, module)
+        ? '$_kSeuilCivique Cette évolution correspond aux examens enregistrés '
+            'pendant ce cycle.'
+        : '$_kSeuilCivique Résultat enregistré dans votre progression.';
+  }
   final marks = [
-    for (final bloc in cycle.blocs)
-      // ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
-      // initiale pour une épreuve, et une chaîne VIDE pour une thématique —
-      // qui n'en a pas (A49). Les vides sont écartés juste après.
-      if (bloc.examens > 0 && journeyBlocMark(bloc.bloc).isNotEmpty)
-        journeyBlocMark(bloc.bloc),
+    // ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
+    // initiale pour une épreuve.
+    for (final bloc in examens)
+      if (journeyBlocMark(bloc.bloc).isNotEmpty) journeyBlocMark(bloc.bloc),
   ];
-  if (cycle.exitLevel == null) {
+  if (sortie == null) {
     return marks.isEmpty
         ? 'Aucun examen n\'a été enregistré pendant ce cycle.'
         : '${marks.join(' · ')} — aucun niveau global n\'a été mesuré pendant ce cycle.';
   }
-  if (_journeyHistoryLevelMoved(cycle)) {
+  if (_journeyHistoryLevelMoved(cycle, module)) {
     return 'Cette évolution correspond aux examens enregistrés pendant ce cycle.';
   }
   return marks.isEmpty
@@ -561,11 +650,16 @@ String journeyHistoryLevelNote(JourneyHistoryCycle cycle) {
       : '${marks.join(' · ')} — résultats enregistrés dans votre progression.';
 }
 
-/// Les deux niveaux diffèrent, et les deux sont connus.
-bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle) =>
-    cycle.entryLevel != null &&
-    cycle.exitLevel != null &&
-    cycle.entryLevel != cycle.exitLevel;
+/// 🛑 Le seuil vient de [CivicExamFormat] (arrêté du 10 octobre 2025), jamais
+/// d'un 32 écrit dans une phrase.
+const String _kSeuilCivique =
+    'Seuil de réussite : ${CivicExamFormat.seuil}/${CivicExamFormat.questions}.';
+
+/// Les deux mesures diffèrent, et les deux sont connues.
+bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle, AppModule module) {
+  final (:entree, :sortie) = _mesure(cycle, module);
+  return entree != null && sortie != null && entree != sortie;
+}
 
 // ⚠️ `_initialeEpreuve` A ÉTÉ SUPPRIMÉE (P8.9, 2026-09-20) : l'historique lit
 // désormais le bloc SERVI, donc `journeyBlocMark` — qui rend une chaîne vide
