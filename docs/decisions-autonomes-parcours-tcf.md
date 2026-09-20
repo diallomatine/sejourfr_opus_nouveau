@@ -1641,3 +1641,160 @@ identifiant, ce `switch` disparaîtra — il n'aura plus à épeler ce que le sc
 gagnerait la table en attribut d'enum, et le garde la lirait. Ce serait le bon geste **après**
 l'inventaire de D-54, pas avant — l'inventaire peut conclure à une contrainte plutôt qu'à une
 colonne.
+
+# 2026-09-20 — L'ordre des blocs et le geste d'une étape verrouillée (A101 → A108)
+
+> **Demande du propriétaire, verbatim** : « afficher expression écrite en premier ici, car il a
+> des choses à faire, comme les autres n'ont que examen à faire. Et au lieu de verrouiller les
+> actions, à la place du bouton faire cette action etape, mettre débloquer mon plan. Donc la
+> règle d'affichage de l'ordre, si pas de diagnostic fait, alors on fait cet ordre actuel, mais
+> si le diagnostic il est fait EE est en tête au premier cycle vu que c'est lui qui contient des
+> choses à travailler »
+
+⚠️ **Ceci révoque partiellement D-20**, et le motif de la révocation est mesuré : D-20 refusait
+un ordre où EE passe devant au motif que « le besoin est déjà satisfait **par construction** : le
+diagnostic rapide crée les lots EE et EO, qui sont donc en tête ». Cette prémisse est fausse deux
+fois. Le diagnostic ne créait **aucun lot** — c'est le défaut de jointure corrigé au commit
+`06012016` (**A95**). Et même corrigé, « en tête » y désignait la position dans la **file**
+(`journey_step.position`), pas l'ordre des **blocs** à l'écran, qui était figé par
+`TcfDomainProfileDto.ORDRE` et que la file n'influence pas.
+
+🛑 **Ce qui n'est PAS révoqué** : le refus de la clé `ordre_blocs_cycle_initial`. L'ordre se
+**dérive**, il ne se règle pas. Et **D-9 est intégralement maintenue** : `ORDRE` reste l'unique
+autorité de l'ordre des épreuves.
+
+### A101 — L'ordre d'**affichage** des blocs TCF se dérive du travail porté ; `ORDRE` n'est pas touchée
+
+**Décidé.** `JourneyReadService.axeAffiche` place devant les blocs qui portent au moins une étape
+`TRAIN_SKILL`, et conserve `TcfDomainProfileDto.ORDRE` **tel quel** à l'intérieur de chaque
+groupe. C'est une **partition stable**, pas un tri : aucun comparateur, aucun poids, aucun rang
+servi aux fronts.
+
+**Motif.** Le critère énoncé par le propriétaire est « porter du travail », pas « être EE » :
+coder EE en dur aurait figé un cas particulier du **premier** cycle et serait devenu faux au
+deuxième. `axeAffiche` **lit** `ORDRE`, exactement comme le groupement par bloc **lit** la file
+sans la réécrire (D-12). « Compléter mon profil » et `JourneyLotBuilder.ordreEpreuve` (R10 bis)
+sont inchangés.
+
+🛑 **Aucun `if (diagnosticFait)`.** « Si pas de diagnostic fait, alors l'ordre actuel » sort de la
+règle elle-même : pas de diagnostic ⇒ pas de lot ⇒ aucune `TRAIN_SKILL` ⇒ retour anticipé, axe
+intact. Tester « le diagnostic a-t-il eu lieu ? » aurait créé une **seconde autorité** sur cette
+question. Vérifié en base par deux tests restés verts **sans retouche**
+(`JourneyCycleServiceIT.leCycleDeMesurePorteQuatreExamensTousDebloques`).
+
+**Si l'arbitrage était autre** : pour que l'ordre suive la **file** (l'ordre d'arrivée des lots),
+remplacer la partition par un tri sur la position minimale des étapes du bloc. Pour que la règle
+tombe, supprimer `axeAffiche` et rendre `axe()` à l'appel — une méthode, zéro trace ailleurs.
+
+### A102 — Le critère est « ce bloc **porte** une `TRAIN_SKILL` », ouverte **ou clôturée**
+
+**Décidé.** Le critère se lit sur l'**existence** de l'étape, jamais sur `etapesRestantes`.
+
+**Motif.** Un candidat qui finit ses compétences ne doit pas voir son écran se réordonner sous ses
+yeux. C'est le principe de la position monotone de V066 — « une renumérotation ferait bouger un
+parcours que le candidat a sous les yeux » — appliqué à l'affichage : une clôture ne se réouvre
+jamais et n'efface pas l'étape (D-7), donc un bloc qui a porté du travail en porte toujours.
+
+Le test lit le parcours **des deux côtés de la clôture** et compare la liste entière des blocs,
+puis montre `etapesRestantes() == 0` sur ce même bloc : l'état pédagogique a changé, **le rang
+n'a pas bougé**. C'est exactement la paire qu'une implémentation en `etapesRestantes > 0` aurait
+confondue.
+
+**Si l'arbitrage était autre** (« les blocs terminés redescendent ») : le critère devient
+`etapesRestantes > 0` — une ligne — et le test de stabilité s'inverse. Il faut alors assumer que
+l'ordre bouge en cours de cycle.
+
+### A103 — La règle ne s'applique **qu'au TCF**, et le choix se fait dans `JourneyReadService`
+
+**Motif (le civique).** L'axe civique est l'ordre des thématiques (`themes.display_order`, A61) :
+une donnée **éditoriale** qui dit dans quel ordre le programme s'apprend, pas une liste d'épreuves
+interchangeables. La réordonner ferait varier un **sommaire de cours** selon l'avancement du
+candidat.
+
+**Motif (le placement).** Passer le module à `JourneyBlocResolver` aurait remis dans ce composant
+le `if` que D-47 et A61 en ont retiré. Le résolveur reçoit toujours un axe **déjà ordonné** et ne
+sait toujours pas de quel module il parle.
+
+**Si l'arbitrage était autre** : retirer le retour anticipé `if (module == CIVIQUE)` — la suite du
+code est déjà agnostique, elle travaille sur `blocCode()`. Un test civique qui indexe
+`blocs().get(1)` passerait au rouge et devrait être réécrit sur le code de bloc.
+
+### A104 — Le classement se fait sur `affichables`, la liste même dont les blocs sont bâtis
+
+**Motif.** Un bloc ne doit jamais être classé sur une étape que son propre contenu n'affiche pas.
+La différence est nulle dans le cycle en cours — `SUPERSEDED` ne concerne que le cycle
+**EN_ATTENTE** — mais faire dépendre le rang d'une liste différente de celle du contenu est le
+genre d'écart qui se découvre six mois plus tard.
+
+⚠️ **L'historique n'est pas concerné** : `JourneyHistoryService.axe()` lit `ORDRE` pour son propre
+compte et reste en `CO, CE, EO, EE`. Un cycle historisé n'a plus rien « à faire ».
+
+---
+
+### A105 — Le geste d'une étape verrouillée est le **lien de la ligne**, pas une primitive nouvelle
+
+`JourneyRow` ⇄ `SfJourneyRow` portaient déjà `actionLabel` + `onClick`/`onTap` dans la variante
+`cycle`, et ce lien est **bleu** des deux côtés. Un compte gratuit reçoit donc **le même
+emplacement** que « Faire cette étape → », avec un autre mot —
+`JOURNEY_STEP_UNLOCK_LINK` ⇄ `kJourneyStepUnlockLink`, déclarés **une fois par front** dans les
+mots du parcours (geste A85), miroirs au caractère près.
+
+🛑 **Le bleu satisfait A46 sans y toucher** : le seul bouton **rouge** du Plan gratuit reste
+« Débloquer mon plan {objectif} », ancré sous le cycle.
+
+**Si l'arbitrage était autre** (un bouton plein, une pastille distincte) : il faudrait une
+primitive **neuve dans les deux kits** — c'est précisément ce qu'on évite quand une primitive
+existante suffit.
+
+### A106 — Le cadenas reste ; c'est son **silence** qui part
+
+**Décidé.** L'icône n'est pas retirée : elle **code l'état**, elle est partagée par la variante
+`default` du kit et par l'encart d'examen. La ligne se lit désormais « 🔒 · Débloquer mon plan → ».
+
+**Motif.** Le propriétaire demandait un geste là où il n'y en avait pas, pas la disparition du
+repère d'état. Et retirer l'icône dans la seule variante `cycle` demanderait une prop de plus
+**aux deux kits**, pour perdre un repère sur une ligne qui n'a plus de badge.
+
+### A107 — Le geste s'arrête aux étapes d'**entraînement**
+
+**Décidé.** L'encart d'examen garde sa phrase servie et **reste sans bouton**.
+
+**Motif.** Sur une étape `TRAIN_SKILL`, `locked` est **toujours commercial**
+(`SkillAccessService`), et `JourneyBlocDto.steps` ne porte que des étapes d'entraînement —
+l'examen est servi à part dans `bloc.exam`. Sur un `SECTION_EXAM`, le verrou peut être
+**pédagogique** (D-15 : « finis les compétences du bloc »). Proposer un pass pour lever un verrou
+pédagogique serait un **mensonge commercial**.
+
+🛑 **L'écart remonté et NON corrigé** : `journeyExamNote` écrit « Disponible dès que les
+compétences sont terminées » **même quand le verrou est celui de D-17 bis** (gratuité d'examen
+blanc EE/EO consommée) — donc une condition pédagogique annoncée pour un verrou commercial. Le
+corriger suppose que le serveur serve la **nature** du verrou d'examen, ce qu'il ne fait pas ; le
+déduire côté client est interdit. **À arbitrer, non ouvert.**
+
+### A108 — La porte d'achat suit le parcours
+
+`passOffre = module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"` côté web, `openCivicOffer` vs
+`showTcfLockPaywall` côté mobile — décidé **une seule fois par section**. Le `PaywallSheet` de
+`PlanCycleSection` était codé en dur sur `INTEGRAL` : sans effet jusqu'ici, faux dès qu'une étape
+civique porte un geste d'offre.
+
+**Si l'arbitrage était autre** (un seul pass pour les deux cycles) : la ligne `passOffre` /
+`_ouvrirOffre` est le seul endroit à changer.
+
+#### ⚠️ Un écart de parité trouvé en vérifiant, et corrigé dans la même passe
+
+`useCivicUniteSerie` expose `paywall` **et** `erreur` ; le mobile lisait les deux
+(`showPaywallOrError`), le **web ni l'un ni l'autre**. Un 403 sur une série d'unité civique
+n'ouvrait rien et ne disait rien côté web. Les deux sont désormais branchés.
+
+⚠️ **Ce n'est pas le motif de `DETTE-P1`** — aucun fait n'est écrit deux fois à la main ici, c'est
+un côté qui a **oublié de brancher** ce que l'autre branchait. Mais c'est la même famille, et il a
+été trouvé en **mesurant**, jamais par une relecture. **Le signal à surveiller** : un lanceur
+partagé dont un seul front lit les états de sortie.
+
+#### Point laissé tel quel, et nommé
+
+`JOURNEY_LOCKED_CAPTION` (le pied de cycle en état `LOCKED`) dit « abonnement Intégral » en dur :
+correct en TCF, faux pour un cycle civique s'il passait un jour en `LOCKED`. Sans effet
+aujourd'hui — le cycle civique n'est rendu que sur l'écran abonné (A89) — donc **laissé tel
+quel** plutôt que de créer une seconde chaîne sans lecteur.

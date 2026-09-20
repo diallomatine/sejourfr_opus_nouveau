@@ -2662,3 +2662,79 @@ tables dans le scratchpad de la session.
 🛑 **En production, la réponse reste : on ne répare pas.** Le cycle reprend la main à la
 **prochaine évaluation** du candidat. Ce paragraphe décrit ce qui a été fait sur une base de
 développement ; il ne décrit **aucune procédure applicable ailleurs**.
+
+---
+
+### D-56 (2026-09-20) — **Révocation partielle de D-20** : l'ordre d'affichage des blocs suit le travail
+
+**La décision, verbatim :**
+
+> « afficher expression écrite en premier ici, car il a des choses à faire, comme les autres n'ont
+> que examen à faire. […] Donc la règle d'affichage de l'ordre, si pas de diagnostic fait, alors
+> on fait cet ordre actuel, mais si le diagnostic il est fait EE est en tête au premier cycle vu
+> que c'est lui qui contient des choses à travailler »
+
+#### 🛑 La phrase révoquée, citée verbatim
+
+Origine : **D-20** de ce journal, 2026-09-18, « Ce qui ne change pas, et qu'il est interdit de
+rouvrir au passage » :
+
+> « Le besoin (« EE d'abord, parce que le diagnostic rapide est un écrit ») est déjà satisfait
+> **par construction** : le diagnostic rapide crée les lots EE et EO, qui sont donc en tête. »
+
+**Pourquoi elle est fausse, et c'est mesuré** — deux fois :
+
+1. Le diagnostic rapide ne créait **aucun lot**. La jointure évaluation ⇄ observations comparait
+   un `diagnostic_sessions.id` à un `production_submissions.id` : ⟦SQL⟧ 240 observations contre 0.
+   Corrigé au commit `06012016` (**A95**). La « construction » invoquée n'existait pas.
+2. Même corrigée, « en tête » y désigne la position dans la **file** (`journey_step.position`),
+   pas l'ordre des **blocs** à l'écran — figé par `TcfDomainProfileDto.ORDRE`, que la file
+   n'influence pas.
+
+#### La règle qui remplace
+
+> **Les blocs qui portent au moins une étape `TRAIN_SKILL` passent devant ceux qui n'en portent
+> aucune. `TcfDomainProfileDto.ORDRE` est conservé tel quel à l'intérieur de chaque groupe.**
+
+C'est le **critère** du propriétaire (« il a des choses à faire »), jamais « EE en dur » : coder
+EE aurait figé un cas particulier du **premier** cycle, faux dès le deuxième.
+
+🛑 **« Si pas de diagnostic fait, alors l'ordre actuel » n'est pas codé** — il **sort** de la
+règle : pas de diagnostic ⇒ pas de lot ⇒ aucune `TRAIN_SKILL` ⇒ `ORDRE` intact. Un
+`if (diagnosticFait)` aurait créé une seconde autorité sur cette question.
+
+🛑 **L'ordre est STABLE pendant tout le cycle.** Le critère compte les étapes **ouvertes ou
+clôturées** : une clôture ne se réouvre jamais (D-7), donc un bloc qui a porté du travail en porte
+toujours et **son rang ne bouge pas** quand le candidat termine ses compétences. Même principe que
+la position monotone de V066.
+
+#### Ce qui n'est PAS révoqué
+
+| Tenu | Pourquoi |
+|---|---|
+| **D-9 en entier** | `TcfDomainProfileDto.ORDRE` reste l'**unique** autorité de l'ordre des épreuves — `axeAffiche` la **lit** |
+| Le refus de `ordre_blocs_cycle_initial` | l'ordre se **dérive**, il ne se règle pas. Aucune clé de configuration |
+| R10 bis, « Compléter mon profil » | inchangés, ils lisent `ORDRE` telle quelle |
+| **Le civique** | son axe est `themes.display_order`, une donnée **éditoriale** : réordonner un sommaire de cours selon l'avancement n'aurait pas de sens |
+| L'**historique des cycles** | reste en `CO, CE, EO, EE` — un cycle archivé n'a plus rien « à faire » |
+
+#### Et le geste d'une étape verrouillée
+
+> « au lieu de verrouiller les actions, à la place du bouton faire cette action etape, mettre
+> débloquer mon plan »
+
+⇒ Là où un abonné lit « Faire cette étape → », un compte gratuit lit « **Débloquer mon plan →** »
+et le geste ouvre l'offre. **Le cadenas reste** — il code l'état —, c'est son **silence** qui
+part. Variante **bleue** : le seul CTA rouge du Plan gratuit reste le bouton ancré (A46).
+
+🛑 **Le geste s'arrête aux étapes d'entraînement.** Sur un `TRAIN_SKILL`, `locked` est **toujours**
+commercial ; sur un examen de bloc il peut être **pédagogique** (D-15). Proposer un pass pour
+lever un verrou pédagogique serait un mensonge commercial — l'encart d'examen garde donc sa phrase
+servie, sans bouton.
+
+⚠️ **Écart remonté, non ouvert** : `journeyExamNote` annonce « Disponible dès que les compétences
+sont terminées » **même quand le verrou est celui de D-17 bis** (gratuité EE/EO consommée). Le
+serveur ne sert pas la **nature** du verrou d'examen ; la déduire côté client est interdit.
+Détail : **A107**.
+
+Décisions d'implémentation : **A101 → A108**.

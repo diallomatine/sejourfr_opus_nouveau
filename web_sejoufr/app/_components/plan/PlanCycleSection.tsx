@@ -26,6 +26,7 @@ import {
     JOURNEY_NEXT_STEP_TEXT_MESURE,
     JOURNEY_NEXT_STEP_TITLE,
     JOURNEY_STEP_ACTION_LINK,
+    JOURNEY_STEP_UNLOCK_LINK,
     JOURNEY_SUGGESTION_MOCK_EXAM,
     JOURNEY_TARGET_PATH_HREF,
     JOURNEY_UP_TO_DATE_TEXT,
@@ -97,6 +98,14 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  *
  * 🛑 **`lot`, `step`, `journey` ne s'affichent jamais** (D-21) : chaque bloc est
  * nommé par son **épreuve**, en clair, et chaque ligne dit la sienne.
+ *
+ * 🛑 **Une étape VERROUILLÉE porte un geste, pas un cadenas muet** (demande du
+ * propriétaire, 2026-09-20) : là où un abonné lit « Faire cette étape », un
+ * compte gratuit lit « Débloquer mon plan » et le tap ouvre l'offre. Le cadenas
+ * reste à sa place — il code l'état —, c'est le **silence** qui disparaît. Le
+ * bouton rouge « Débloquer mon plan {objectif} » reste le seul CTA critique de
+ * l'écran, ancré sous le cycle (A46) : ce geste-ci prend la variante **bleue**
+ * du lien d'action.
  */
 export function PlanCycleSection({
     journey,
@@ -183,6 +192,20 @@ function CycleBody({journey, plan, module}: {
     const assessments = usePlanAssessment();
     const busy = exercises.starting || assessments.starting !== null;
 
+    /* 🛑 **L'offre d'une étape VERROUILLÉE** (demande du propriétaire,
+       2026-09-20) : c'est le paywall **existant** du Plan, avec son contexte
+       (`origin="plan"`, `LOCKED_PLAN`), le même que la carte « À faire
+       maintenant » ouvre déjà sur son `geste === "DEBLOQUER"`. Il répond à un
+       `locked` **servi**, avant tout appel — les deux autres états de paywall
+       de cet écran répondent, eux, à un **403**. */
+    const [offreOuverte, setOffreOuverte] = useState(false);
+
+    /* 🛑 **Le pass n'est pas le même selon le parcours** : le cycle civique
+       s'ouvre avec le pass **Civique** (comme `openCivicOffer` côté mobile et
+       les trois `PaywallSheet` du panneau civique), le cycle TCF avec
+       l'**Intégral**. Un seul endroit le décide. */
+    const passOffre = module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL";
+
     /* 🛑 **L'action d'une ligne passe par le MÊME chemin que la carte « À faire
        maintenant »** : `planStepAction` résout avec les deux autorités de
        `planNowCard`, et les lanceurs sont ceux du Plan. Rien ne se résout ⇒
@@ -220,6 +243,34 @@ function CycleBody({journey, plan, module}: {
         [assessments, busy, exercises, module, plan, serieCivique],
     );
 
+    /**
+     * **Le geste d'une ligne d'étape** : son action, ou l'offre quand elle est
+     * verrouillée.
+     *
+     * 🛑 **Le verrou est LU, jamais déduit** (`JourneyStepDto.locked`, D-18) :
+     * ni un rang, ni un statut d'abonnement lu côté client, ni une position.
+     *
+     * 🛑 **Sur une étape d'entraînement, `locked` est TOUJOURS commercial** —
+     * `JourneyReadService` §5 bis le pose depuis `SkillAccessService`, et
+     * `JourneyBlocDto.steps` ne porte que des étapes d'entraînement (l'examen
+     * est servi à part, dans `bloc.exam`). Le seul verrou **pédagogique** du
+     * cycle est celui d'un examen de bloc, et il garde son encart muet : sa
+     * phrase servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
+     */
+    const gesteDe = useCallback(
+        (etape: JourneyStepDto): {label: string; onClick: () => void} | undefined => {
+            if (etape.locked) {
+                return {
+                    label: JOURNEY_STEP_UNLOCK_LINK,
+                    onClick: () => setOffreOuverte(true),
+                };
+            }
+            const action = actionDe(etape);
+            return action ? {label: JOURNEY_STEP_ACTION_LINK, onClick: action} : undefined;
+        },
+        [actionDe],
+    );
+
     return (
         <>
             <Section title={journeyTitle(journey.objectif)}>
@@ -255,7 +306,7 @@ function CycleBody({journey, plan, module}: {
                                     })
                                 }
                             >
-                                <BlocBody bloc={bloc} actionDe={actionDe} />
+                                <BlocBody bloc={bloc} actionDe={actionDe} gesteDe={gesteDe} />
                             </BlocAccordion>
                         ))}
 
@@ -268,9 +319,14 @@ function CycleBody({journey, plan, module}: {
                             <p className={sejourStyles.tiny}>{JOURNEY_LOCKED_CAPTION}</p>
                         )}
 
-                        {(exercises.error ?? assessments.error) && (
+                        {/* 🛑 **Le civique a son lanceur, il doit avoir sa
+                            voix** : `useCivicUniteSerie` porte son erreur et son
+                            403 comme les deux lanceurs du Plan, et l'écran ne
+                            les lisait pas — une série d'unité refusée n'ouvrait
+                            rien et ne disait rien. */}
+                        {(exercises.error ?? assessments.error ?? serieCivique.erreur) && (
                             <p className={sejourStyles.tiny} role="alert">
-                                {exercises.error ?? assessments.error}
+                                {exercises.error ?? assessments.error ?? serieCivique.erreur}
                             </p>
                         )}
                     </Stack>
@@ -291,11 +347,18 @@ function CycleBody({journey, plan, module}: {
                 origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
-                module="INTEGRAL"
-                open={exercises.paywallOpen || assessments.paywallOpen}
+                module={passOffre}
+                open={
+                    exercises.paywallOpen
+                    || assessments.paywallOpen
+                    || serieCivique.paywall
+                    || offreOuverte
+                }
                 onClose={() => {
                     exercises.closePaywall();
                     assessments.closePaywall();
+                    serieCivique.setPaywall(false);
+                    setOffreOuverte(false);
                 }}
             />
         </>
@@ -311,9 +374,15 @@ function CycleBody({journey, plan, module}: {
 function BlocBody({
     bloc,
     actionDe,
+    gesteDe,
 }: {
     bloc: JourneyBlocDto;
+    /** Le lancement d'une étape **ouverte** — c'est tout ce dont l'encart
+     *  d'examen a besoin : verrouillé, il reste inerte et sa phrase servie dit
+     *  ce qui l'ouvrira. */
     actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
+    /** Le geste d'une **ligne d'étape** : son action, ou l'offre. */
+    gesteDe: (etape: JourneyStepDto) => {label: string; onClick: () => void} | undefined;
 }) {
     /* 🛑 **Toutes les étapes du bloc, y compris celles déjà closes** : le
        serveur sert les `COMPLETED` (seules les OBSOLETE sont exclues), et c'est
@@ -337,19 +406,26 @@ function BlocBody({
                 )
             }
         >
-            {bloc.steps.map((step) => (
-                <JourneyRow
-                    key={step.id}
-                    title={journeyStepTitle(step)}
-                    subtitle={journeyStepSubtitle(step)}
-                    state={journeyKitState(step)}
-                    kind={journeyKind(step)}
-                    badge={journeyBadge(step)}
-                    locked={step.locked}
-                    actionLabel={JOURNEY_STEP_ACTION_LINK}
-                    onClick={actionDe(step)}
-                />
-            ))}
+            {bloc.steps.map((step) => {
+                /* 🛑 **Le libellé suit le geste**, et les deux viennent du même
+                   endroit : « Faire cette étape → » quand l'étape est ouverte,
+                   « Débloquer mon plan → » quand elle ne l'est pas. Le kit ne
+                   compose ni l'un ni l'autre. */
+                const geste = gesteDe(step);
+                return (
+                    <JourneyRow
+                        key={step.id}
+                        title={journeyStepTitle(step)}
+                        subtitle={journeyStepSubtitle(step)}
+                        state={journeyKitState(step)}
+                        kind={journeyKind(step)}
+                        badge={journeyBadge(step)}
+                        locked={step.locked}
+                        actionLabel={geste?.label}
+                        onClick={geste?.onClick}
+                    />
+                );
+            })}
         </JourneyList>
     );
 }

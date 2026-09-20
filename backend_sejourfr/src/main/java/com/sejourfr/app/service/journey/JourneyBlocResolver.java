@@ -46,6 +46,13 @@ import java.util.function.Predicate;
  * axe a cote, et c'est {@code JourneyReadService} qui choisit selon le module.
  * ⚠️ L'ordre des maquettes est illustratif et ne fait pas regle.
  *
+ * <p>⚠️ Depuis le 2026-09-20, l'axe <b>TCF</b> que ce composant recoit est
+ * {@code ORDRE} <b>relu</b> par {@code JourneyReadService.axeAffiche} : les
+ * blocs qui portent une etape {@code TRAIN_SKILL} sont places devant ceux qui
+ * n'en portent aucune, {@code ORDRE} etant conserve dans chaque groupe. Ce
+ * composant ne le sait pas et n'a pas a le savoir — il sert l'axe qu'on lui
+ * donne, exactement comme avant.
+ *
  * <p>Un bloc <b>sans etape est servi quand meme</b> : le cycle couvre tout son
  * axe, pas seulement ce que la file a deja peuple.
  */

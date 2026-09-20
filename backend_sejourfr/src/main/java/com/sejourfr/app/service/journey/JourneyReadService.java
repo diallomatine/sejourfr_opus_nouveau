@@ -199,7 +199,8 @@ public class JourneyReadService {
                 .filter(step -> etats.get(step.getId()).status() != JourneyStepStatus.OBSOLETE)
                 .toList();
         JourneyBlocResolver.Vue vue = blocResolver.lire(
-                numeroDuCycle(journey), axe(journey.getModule()), affichables, courante,
+                numeroDuCycle(journey), axeAffiche(journey.getModule(), affichables),
+                affichables, courante,
                 step -> dto(etats.get(step.getId()), exercices),
                 jamaisMesure(userId, journey.getModule()));
 
@@ -287,6 +288,72 @@ public class JourneyReadService {
                 .map(epreuve -> new JourneyBlocRefDto(
                         JourneyBlocKind.EPREUVE, epreuve.name(), epreuve.getLabel()))
                 .toList();
+    }
+
+    /**
+     * <b>L'ordre d'AFFICHAGE des blocs TCF : ce qui porte du travail passe
+     * devant ce qui n'a qu'un examen a passer.</b>
+     *
+     * <p>Le constat du proprietaire, verbatim : « afficher expression ecrite en
+     * premier ici, car il a des choses a faire, comme les autres n'ont que
+     * examen a faire ». Un candidat qui sort du diagnostic rapide voyait
+     * <b>trois blocs « Evaluer mon niveau »</b> avant le seul bloc qui porte
+     * les priorites que le diagnostic vient de detecter.
+     *
+     * <h3>🛑 La regle est le CRITERE, jamais « EE en dur »</h3>
+     * <p>Un bloc passe devant des lors qu'il porte <b>au moins une etape
+     * {@code TRAIN_SKILL}</b>. A l'interieur de chaque groupe,
+     * {@link TcfDomainProfileDto#ORDRE} est conserve <b>tel quel</b> : c'est une
+     * partition stable, pas un tri. 🛑 {@code ORDRE} reste l'unique autorite de
+     * l'ordre des epreuves (D-9, D-20) — « Completer mon profil » et l'ordre
+     * d'entree des lots dans la file (R10 bis) continuent de la lire, intacte.
+     * Il n'existe pas de second ordre d'epreuves, seulement une <b>lecture</b>
+     * de celui-la, exactement comme le groupement par bloc est une lecture de
+     * la file (D-12).
+     *
+     * <h3>🛑 Aucun {@code if (diagnosticFait)}, et c'est le point</h3>
+     * <p>« Si pas de diagnostic fait, alors on fait cet ordre actuel » sort
+     * <b>tout seul</b> : pas de diagnostic ⇒ pas de lot ⇒ aucune
+     * {@code TRAIN_SKILL} ⇒ tous les blocs sont dans le second groupe ⇒
+     * {@code ORDRE} revient intact. Tester « le diagnostic a-t-il eu lieu ? »
+     * aurait cree une <b>seconde autorite</b> sur cette question. Aucune cle de
+     * configuration non plus : D-20 a refuse {@code ordre_blocs_cycle_initial},
+     * et ce refus tient — l'ordre se <b>derive</b>, il ne se regle pas.
+     *
+     * <h3>🛑 STABLE PENDANT TOUT LE CYCLE</h3>
+     * <p>Le critere est « ce bloc <b>porte</b> une etape {@code TRAIN_SKILL} »,
+     * <b>ouverte ou cloturee</b> — jamais « il lui reste du travail ». Une
+     * cloture ne se reouvre jamais (D-7) et n'efface pas l'etape : un bloc qui a
+     * porte du travail en porte toujours, donc son rang <b>ne bouge pas</b>
+     * quand le candidat finit ses competences. C'est le meme principe que la
+     * position monotone de V066 : « une renumerotation ferait bouger un parcours
+     * que le candidat a sous les yeux ».
+     *
+     * <h3>Le civique n'est pas concerne</h3>
+     * <p>L'axe civique est l'ordre des <b>thematiques</b> ({@code display_order},
+     * A61) : une donnee <b>editoriale</b> qui dit dans quel ordre le programme
+     * s'apprend, pas une liste d'epreuves interchangeables. La reordonner ferait
+     * varier un sommaire de cours selon l'avancement du candidat.
+     *
+     * @param affichables les etapes du cycle, <b>obsoletes deja exclues</b> —
+     *                    la meme liste que celle dont les blocs sont batis, pour
+     *                    qu'un bloc ne soit jamais classe sur une etape que son
+     *                    contenu n'affiche pas.
+     */
+    private List<JourneyBlocRefDto> axeAffiche(Module module, List<JourneyStep> affichables) {
+        List<JourneyBlocRefDto> axe = axe(module);
+        if (module == Module.CIVIQUE) return axe;
+        Set<String> porteursDeTravail = new LinkedHashSet<>();
+        for (JourneyStep step : affichables) {
+            if (step.getType() != JourneyStepType.TRAIN_SKILL) continue;
+            String code = step.blocCode();
+            if (code != null) porteursDeTravail.add(code);
+        }
+        if (porteursDeTravail.isEmpty()) return axe;
+        List<JourneyBlocRefDto> ordonne = new ArrayList<>(axe.size());
+        axe.stream().filter(ref -> porteursDeTravail.contains(ref.code())).forEach(ordonne::add);
+        axe.stream().filter(ref -> !porteursDeTravail.contains(ref.code())).forEach(ordonne::add);
+        return List.copyOf(ordonne);
     }
 
     /**

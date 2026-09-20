@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/models/attempt_models.dart';
 import '../../../core/models/diagnostic_models.dart';
@@ -13,7 +14,9 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/selected_module.dart';
 import '../../../core/utils/start_failure.dart';
+import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/paywall_sheet.dart';
+import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../../module_detail/tcf_full_exams_screen.dart'
     show fullExamsHistoryProvider;
@@ -58,6 +61,13 @@ import '../plan_now_card.dart';
 ///
 /// 🛑 **`lot`, `step`, `journey` ne s'affichent jamais** (D-21) : chaque bloc est
 /// nommé par son **épreuve**, en clair, et chaque ligne dit la sienne.
+///
+/// 🛑 **Une étape VERROUILLÉE porte un geste, pas un cadenas muet** (demande du
+/// propriétaire, 2026-09-20) : là où un abonné lit « Faire cette étape », un
+/// compte gratuit lit « Débloquer mon plan » et le tap ouvre l'offre. Le cadenas
+/// reste à sa place — il code l'état —, c'est le **silence** qui disparaît. Le
+/// bouton rouge « Débloquer mon plan » reste le seul CTA critique de l'écran,
+/// dans la barre basse (A46) : ce geste-ci est le **lien bleu** de la ligne.
 class PlanCycleSection extends ConsumerStatefulWidget {
   const PlanCycleSection({
     super.key,
@@ -256,21 +266,66 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
               locked: exam.locked,
               onTap: _actionDe(exam),
             ),
-      children: [
-        for (final step in bloc.steps)
-          SfJourneyRow(
-            title: journeyStepTitle(step),
-            subtitle: journeyStepSubtitle(step),
-            state: journeyKitState(step),
-            kind: journeyKind(step),
-            badge: journeyBadge(step),
-            locked: step.locked,
-            actionLabel: kJourneyStepActionLink,
-            onTap: _actionDe(step),
-          ),
-      ],
+      children: [for (final step in bloc.steps) _ligne(step)],
     );
   }
+
+  /// Une ligne d'étape.
+  ///
+  /// 🛑 **Le libellé suit le geste**, et les deux viennent du même endroit :
+  /// « Faire cette étape → » quand l'étape est ouverte, « Débloquer mon plan → »
+  /// quand elle ne l'est pas. Le kit ne compose ni l'un ni l'autre.
+  Widget _ligne(JourneyStep step) {
+    final geste = _gesteDe(step);
+    return SfJourneyRow(
+      title: journeyStepTitle(step),
+      subtitle: journeyStepSubtitle(step),
+      state: journeyKitState(step),
+      kind: journeyKind(step),
+      badge: journeyBadge(step),
+      locked: step.locked,
+      actionLabel: geste?.label,
+      onTap: geste?.onTap,
+    );
+  }
+
+  /// **Le geste d'une ligne d'étape** : son action, ou l'offre quand elle est
+  /// verrouillée.
+  ///
+  /// 🛑 **Le verrou est LU, jamais déduit** (`JourneyStep.locked`, D-18) : ni un
+  /// rang, ni un statut d'abonnement lu côté client, ni une position.
+  ///
+  /// 🛑 **Sur une étape d'entraînement, `locked` est TOUJOURS commercial** —
+  /// `JourneyReadService` §5 bis le pose depuis `SkillAccessService`, et
+  /// `JourneyBloc.steps` ne porte que des étapes d'entraînement (l'examen est
+  /// servi à part, dans `bloc.exam`). Le seul verrou **pédagogique** du cycle
+  /// est celui d'un examen de bloc, et il garde son encart muet : sa phrase
+  /// servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
+  ({String label, VoidCallback onTap})? _gesteDe(JourneyStep etape) {
+    if (etape.locked) {
+      return (
+        label: kJourneyStepUnlockLink,
+        onTap: () => unawaited(_ouvrirOffre()),
+      );
+    }
+    final action = _actionDe(etape);
+    return action == null ? null : (label: kJourneyStepActionLink, onTap: action);
+  }
+
+  /// **L'offre du Plan**, la même que la carte « À faire maintenant » ouvre sur
+  /// son `PlanNowGeste.debloquer`.
+  ///
+  /// 🛑 **Le pass n'est pas le même selon le parcours** : le cycle civique
+  /// s'ouvre avec le pass **Civique** ([openCivicOffer], déjà l'unique porte
+  /// d'achat du civique), le cycle TCF avec l'**Intégral**.
+  Future<void> _ouvrirOffre() => widget.module == AppModule.civique
+      ? openCivicOffer(context)
+      : showTcfLockPaywall(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.lockedPlan,
+          origin: PaywallOrigin.plan,
+        );
 
   /// 🛑 **L'action d'une ligne passe par le MÊME chemin que la carte « À faire
   /// maintenant »** : [planStepAction] résout avec les deux autorités de

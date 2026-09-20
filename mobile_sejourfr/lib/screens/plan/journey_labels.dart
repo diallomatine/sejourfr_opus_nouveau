@@ -350,6 +350,26 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
 /// (`web_sejoufr/lib/journey.ts`).
 const String kJourneyStepActionLink = 'Faire cette étape →';
 
+/// Le geste que porte une ligne d'étape **verrouillée**, à la place de
+/// [kJourneyStepActionLink].
+///
+/// 🛑 **Un verrou n'est pas une absence d'action** (demande du propriétaire,
+/// 2026-09-20 : « au lieu de verrouiller les actions, à la place du bouton faire
+/// cette action etape, mettre débloquer mon plan »). Là où un abonné lit « Faire
+/// cette étape », un compte gratuit lisait un cadenas et n'avait **rien à
+/// toucher** : la ligne nommait ce qu'il ne pouvait pas faire sans jamais dire
+/// comment l'ouvrir. Le cadenas reste — il code l'état —, le geste s'ajoute.
+///
+/// 🛑 **Le mot est celui de l'offre du Plan** (« Débloquer mon plan », la barre
+/// basse sous le cycle) : une même destination ne s'annonce pas de deux façons
+/// selon l'endroit où on la touche.
+///
+/// ⚠️ **Il vit ICI, pas dans l'écran** — c'est exactement le geste A85 : un
+/// libellé qui décrit un `locked` **servi** appartient aux mots du parcours.
+/// Miroir mot pour mot de `JOURNEY_STEP_UNLOCK_LINK`
+/// (`web_sejoufr/lib/journey.ts`).
+const String kJourneyStepUnlockLink = 'Débloquer mon plan →';
+
 /// Le badge d'une étape **verrouillée**, sur la carte « À faire maintenant ».
 ///
 /// 🛑 Déclaré ICI et pas dans l'écran : la carte civique et la carte TCF disent

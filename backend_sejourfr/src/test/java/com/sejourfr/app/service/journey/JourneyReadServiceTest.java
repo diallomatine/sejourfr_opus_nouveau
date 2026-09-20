@@ -287,7 +287,8 @@ class JourneyReadServiceTest {
     // =====================================================================
 
     @Test
-    @DisplayName("D-12 — les etapes se groupent par epreuve, dans l'ordre CO, CE, EO, EE")
+    @DisplayName("D-12 — les etapes se groupent par epreuve, et le bloc qui porte du travail "
+            + "ouvre la liste")
     void lesEtapesSeGroupentParBlocDansLOrdreDuTcf() {
         Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
         JourneyStep entrainement = trainStep(competence, 1);
@@ -298,13 +299,18 @@ class JourneyReadServiceTest {
         JourneyDto vue = service.lire(
                 journey, List.of(entrainement, examenEe, examenCo));
 
-        // 🛑 Quatre blocs, TOUJOURS, et dans l'ordre de TcfDomainProfileDto.ORDRE
-        // (D-9, D-20). L'ordre des maquettes est illustratif.
+        // 🛑 Quatre blocs, TOUJOURS. ⚠️ Ce test attendait CO, CE, EO, EE :
+        // MIS A JOUR par un changement VOULU (2026-09-20). L'ordre d'AFFICHAGE
+        // se derive desormais du travail porte — « il a des choses a faire,
+        // comme les autres n'ont que examen a faire ». TCF_EE est le seul bloc
+        // a porter une etape TRAIN_SKILL ici, il passe donc devant, et les
+        // trois autres se suivent dans l'ordre de TcfDomainProfileDto.ORDRE,
+        // qui reste l'unique autorite de l'ordre des epreuves (D-9, D-20).
         // 🛑 Le bloc est SERVI depuis 2026-09-19 : on lit son `code`, pas un
         // `EpreuveType` (D-47). Le code d'une epreuve EST son nom d'enum.
         assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code()).containsExactly(
-                EpreuveType.TCF_CO.name(), EpreuveType.TCF_CE.name(),
-                EpreuveType.TCF_EO.name(), EpreuveType.TCF_EE.name());
+                EpreuveType.TCF_EE.name(), EpreuveType.TCF_CO.name(),
+                EpreuveType.TCF_CE.name(), EpreuveType.TCF_EO.name());
         // L'examen d'un bloc est servi A PART : l'ecran l'imbrique en fin de
         // bloc, il n'est pas une ligne d'etape de plus.
         JourneyBlocDto ee = bloc(vue, EpreuveType.TCF_EE);
@@ -324,6 +330,151 @@ class JourneyReadServiceTest {
         // Une etape d'entrainement existe : ce n'est pas un cycle de mesure.
         assertThat(vue.cycle().cycleDeMesure()).isFalse();
         assertThat(vue.nextStep()).isNull();
+    }
+
+    // ================================================================= 2026-09-20
+    // L'ORDRE D'AFFICHAGE DES BLOCS SE DERIVE DU TRAVAIL PORTE
+    //
+    // « afficher expression ecrite en premier ici, car il a des choses a faire,
+    // comme les autres n'ont que examen a faire. […] si le diagnostic il est
+    // fait EE est en tete au premier cycle vu que c'est lui qui contient des
+    // choses a travailler » (le proprietaire, verbatim).
+    //
+    // 🛑 La regle testee est le CRITERE, jamais « EE en dur » : un bloc qui
+    // porte au moins une etape TRAIN_SKILL passe devant ceux qui n'en portent
+    // aucune, et TcfDomainProfileDto.ORDRE est conserve DANS chaque groupe.
+    // =====================================================================
+
+    /**
+     * <b>Diagnostic rapide passe</b> : il n'a cree de lot que sur EE, donc EE
+     * est le seul bloc a porter du travail. Il ouvre la liste, et les trois
+     * autres — qui n'ont qu'un examen a passer — se suivent <b>dans leur ordre
+     * d'origine</b>.
+     */
+    @Test
+    @DisplayName("Ordre — le bloc qui porte du travail passe devant, les autres gardent ORDRE")
+    void leBlocQuiPorteDuTravailOuvreLaListe() {
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        abonneAvecSujets(competence);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(competence, 1),
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3),
+                examStep(EpreuveType.TCF_CE, 4),
+                examStep(EpreuveType.TCF_EO, 5)));
+
+        assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code())
+                .as("EE porte les priorites du diagnostic ; CO, CE, EO n'ont qu'un examen")
+                .containsExactly(
+                        EpreuveType.TCF_EE.name(), EpreuveType.TCF_CO.name(),
+                        EpreuveType.TCF_CE.name(), EpreuveType.TCF_EO.name());
+    }
+
+    /**
+     * 🛑 <b>« Si pas de diagnostic fait, alors on fait cet ordre actuel » sort
+     * TOUT SEUL</b>, sans un seul {@code if (diagnosticFait)} : aucun lot, donc
+     * aucune etape {@code TRAIN_SKILL}, donc tous les blocs sont dans le second
+     * groupe, donc {@code TcfDomainProfileDto.ORDRE} revient intact.
+     *
+     * <p>C'est exactement la forme d'un <b>cycle de mesure</b> — quatre examens
+     * et rien d'autre.
+     */
+    @Test
+    @DisplayName("Ordre — aucun travail nulle part : l'ordre servi est exactement CO, CE, EO, EE")
+    void sansLaMoindreEtapeDeTravailLOrdreResteCeluiDeORDRE() {
+        abonne();
+        List<JourneyStep> examens = new java.util.ArrayList<>();
+        long position = 1;
+        for (EpreuveType epreuve : com.sejourfr.app.dto.TcfDomainProfileDto.ORDRE) {
+            examens.add(examStep(epreuve, position++));
+        }
+
+        JourneyDto vue = service.lire(journey, examens);
+
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code()).containsExactly(
+                EpreuveType.TCF_CO.name(), EpreuveType.TCF_CE.name(),
+                EpreuveType.TCF_EO.name(), EpreuveType.TCF_EE.name());
+    }
+
+    /**
+     * 🛑 <b>LA STABILITE, et c'est le test a ne pas oublier.</b>
+     *
+     * <p>Le critere est « ce bloc <b>porte</b> une etape {@code TRAIN_SKILL} »,
+     * <b>ouverte ou cloturee</b> — jamais « il lui reste du travail ». Une
+     * cloture ne se reouvre jamais et n'efface pas l'etape (D-7), donc le bloc
+     * <b>garde son rang</b> au moment ou le candidat finit ses competences.
+     *
+     * <p>Si le critere avait ete {@code etapesRestantes > 0}, EE serait reparti
+     * en 4<sup>e</sup> position <b>sous les yeux du candidat</b>, pendant le
+     * cycle — exactement ce que la position monotone de V066 interdit.
+     */
+    @Test
+    @DisplayName("Ordre — STABILITE : competences toutes cloturees, le bloc garde son rang")
+    void unBlocGardeSonRangQuandSonTravailEstTermine() {
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        JourneyStep entrainement = trainStep(competence, 1);
+        abonneAvecSujets(competence);
+
+        List<String> pendant = codes(service.lire(journey, List.of(
+                entrainement,
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3))));
+
+        // Le candidat termine sa derniere competence : l'etape se clot, elle
+        // reste en base, et rien d'autre ne change.
+        entrainement.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
+
+        List<String> apres = codes(service.lire(journey, List.of(
+                entrainement,
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3))));
+
+        assertThat(apres)
+                .as("l'ecran ne bouge pas sous les yeux du candidat pendant son cycle")
+                .isEqualTo(pendant);
+        assertThat(apres.getFirst()).isEqualTo(EpreuveType.TCF_EE.name());
+        // Et le bloc ne porte bien plus aucun travail DU : c'est le rang qui
+        // est stable, pas le reste de l'etat.
+        assertThat(bloc(service.lire(journey, List.of(entrainement)), EpreuveType.TCF_EE)
+                .etapesRestantes()).isZero();
+    }
+
+    /**
+     * Deux blocs porteurs de travail restent <b>entre eux</b> dans l'ordre de
+     * {@code ORDRE} : la regle est une <b>partition stable</b>, pas un tri.
+     * {@code TCF_EO} precede {@code TCF_EE} dans {@code ORDRE}, il le precede
+     * donc ici aussi.
+     */
+    @Test
+    @DisplayName("Ordre — deux blocs porteurs : ils restent entre eux dans l'ordre de ORDRE")
+    void deuxBlocsPorteursGardentLOrdreDeORDREEntreEux() {
+        Skill ee = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill eo = skill("EO1-C1", SkillTaskCode.EO1);
+        eo.setSection(SkillSection.EO);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                ee.getId(), progres(List.of(UUID.randomUUID())),
+                eo.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(ee, 1),
+                trainStepDe(eo, EpreuveType.TCF_EO, 2),
+                examStep(EpreuveType.TCF_CO, 3)));
+
+        assertThat(vue.blocs()).extracting(bloc -> bloc.bloc().code()).containsExactly(
+                // EO avant EE : c'est l'ordre de TcfDomainProfileDto.ORDRE,
+                // conserve tel quel a l'interieur du groupe. La file, elle, a
+                // mis l'etape EE en premier — l'ordre d'affichage des blocs ne
+                // derive pas de l'ordre de la file.
+                EpreuveType.TCF_EO.name(), EpreuveType.TCF_EE.name(),
+                EpreuveType.TCF_CO.name(), EpreuveType.TCF_CE.name());
+    }
+
+    private static List<String> codes(JourneyDto vue) {
+        return vue.blocs().stream().map(bloc -> bloc.bloc().code()).toList();
     }
 
     @Test
@@ -767,6 +918,13 @@ class JourneyReadServiceTest {
         step.setSkill(skill);
         step.setPosition(position);
         step.setCreatedAt(Instant.now().minusSeconds(3_600));
+        return step;
+    }
+
+    /** Une etape d'entrainement sur une AUTRE epreuve que `TCF_EE`. */
+    private JourneyStep trainStepDe(Skill skill, EpreuveType epreuve, long position) {
+        JourneyStep step = trainStep(skill, position);
+        step.setExamType(epreuve);
         return step;
     }
 
