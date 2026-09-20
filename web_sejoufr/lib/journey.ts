@@ -78,6 +78,44 @@ export function journeyStepSubtitle(step: JourneyStepDto): string | undefined {
 }
 
 /**
+ * **Les deux lignes d'une étape DANS LE CYCLE** — et là seulement.
+ *
+ * 🛑 **Une troisième autorité aurait été une de trop** : elle vit donc ici,
+ * à côté de {@link journeyStepTitle} / {@link journeyStepSubtitle}, et ne
+ * compose rien de neuf — elle **réordonne** les mêmes faits servis
+ * (`taskCode`, `unite.label` / `skillTitle`). Son miroir Flutter
+ * (`journeyCycleStepTitle`, `journey_labels.dart`) change dans la même passe.
+ *
+ * 🛑 **La tâche passe en TITRE** (demande du propriétaire, 2026-09-20 : « comme
+ * ça la personne voit qu'elle travaille telle tâche »). Le candidat lit donc
+ * « Tâche 3 » puis « Développer un argument », dans la taille inchangée de
+ * chacune des deux lignes.
+ *
+ * 🛑 **L'ÉPREUVE DISPARAÎT de la ligne**, et uniquement ici : l'en-tête du bloc
+ * qui la contient la nomme déjà (« EE · Expression écrite · 3 compétences
+ * restantes »). Partout ailleurs — la carte isolée de l'Accueil, la carte d'une
+ * épreuve, le bouton de fin d'étape — la ligne est **seule**, et
+ * `journeyStepSubtitle` continue de porter l'épreuve : sans elle, ces surfaces
+ * deviendraient muettes sur le domaine travaillé.
+ */
+export function journeyCycleStepTitle(step: JourneyStepDto): string {
+    /* 🛑 `taskCode` nul = compétence de COMPRÉHENSION (ou unité civique) : il
+       n'y a **pas** de tâche à promouvoir, et on ne lui en invente pas une. La
+       ligne garde alors son intitulé en titre. */
+    if (step.type === "TRAIN_SKILL" && step.taskCode) return tacheLabel(step.taskCode);
+    return journeyStepTitle(step);
+}
+
+/** La seconde ligne d'une étape **dans le cycle**. Voir {@link journeyCycleStepTitle}. */
+export function journeyCycleStepSubtitle(step: JourneyStepDto): string | undefined {
+    if (step.type !== "TRAIN_SKILL") return journeyStepSubtitle(step);
+    /* La tâche est montée en titre : l'intitulé descend sous elle. Sans tâche,
+       il reste en titre et la ligne n'a **rien** à mettre dessous — l'épreuve
+       serait la redite que cette composition existe pour supprimer. */
+    return step.taskCode ? journeyStepTitle(step) : undefined;
+}
+
+/**
  * La pastille de fin de ligne. **Servie au kit**, qui ne compose aucune phrase.
  *
  * 🛑 « Déjà maîtrisée » ⇄ « Déjà travaillée » se décide sur la **résolution

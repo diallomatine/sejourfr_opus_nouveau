@@ -44,8 +44,8 @@ import {
     journeyExamTitle,
     journeyKind,
     journeyKitState,
-    journeyStepSubtitle,
-    journeyStepTitle,
+    journeyCycleStepSubtitle,
+    journeyCycleStepTitle,
     journeyTitle,
 } from "@/lib/journey";
 import type {
@@ -436,8 +436,12 @@ function BlocBody({
                 return (
                     <JourneyRow
                         key={step.id}
-                        title={journeyStepTitle(step)}
-                        subtitle={journeyStepSubtitle(step)}
+                        /* 🛑 **La composition du CYCLE** : « Tâche 3 » en
+                           titre, l'intitulé dessous, et **pas d'épreuve** —
+                           l'en-tête du bloc la nomme déjà. Les autres lectures
+                           de `journeyStep*` la gardent (cf. `lib/journey.ts`). */
+                        title={journeyCycleStepTitle(step)}
+                        subtitle={journeyCycleStepSubtitle(step)}
                         state={journeyKitState(step)}
                         kind={journeyKind(step)}
                         badge={journeyBadge(step)}

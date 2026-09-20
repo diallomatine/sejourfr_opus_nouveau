@@ -68,6 +68,44 @@ String? journeyStepSubtitle(JourneyStep step) {
   }
 }
 
+/// **Les deux lignes d'une étape DANS LE CYCLE** — et là seulement.
+///
+/// 🛑 **Une troisième autorité aurait été une de trop** : elle vit donc ici, à
+/// côté de [journeyStepTitle] / [journeyStepSubtitle], et ne compose rien de
+/// neuf — elle **réordonne** les mêmes faits servis (`taskCode`, `unite.label` /
+/// `skillTitle`). Miroir de `journeyCycleStepTitle` (`lib/journey.ts`).
+///
+/// 🛑 **La tâche passe en TITRE** (demande du propriétaire, 2026-09-20 : « comme
+/// ça la personne voit qu'elle travaille telle tâche »). Le candidat lit donc
+/// « Tâche 3 » puis « Développer un argument », dans la taille inchangée de
+/// chacune des deux lignes.
+///
+/// 🛑 **L'ÉPREUVE DISPARAÎT de la ligne**, et uniquement ici : l'en-tête du bloc
+/// qui la contient la nomme déjà (« EE · Expression écrite · 3 compétences
+/// restantes »). Partout ailleurs — la carte isolée de l'Accueil, la carte d'une
+/// épreuve, le bouton de fin d'étape — la ligne est **seule**, et
+/// [journeyStepSubtitle] continue de porter l'épreuve : sans elle, ces surfaces
+/// deviendraient muettes sur le domaine travaillé.
+String journeyCycleStepTitle(JourneyStep step) {
+  // 🛑 `taskCode` nul = compétence de COMPRÉHENSION (ou unité civique) : il n'y
+  // a **pas** de tâche à promouvoir, et on ne lui en invente pas une. La ligne
+  // garde alors son intitulé en titre.
+  final taskCode = step.taskCode;
+  if (step.type == JourneyStepType.trainSkill && taskCode != null) {
+    return _tacheLabel(taskCode);
+  }
+  return journeyStepTitle(step);
+}
+
+/// La seconde ligne d'une étape **dans le cycle**. Voir [journeyCycleStepTitle].
+String? journeyCycleStepSubtitle(JourneyStep step) {
+  if (step.type != JourneyStepType.trainSkill) return journeyStepSubtitle(step);
+  // La tâche est montée en titre : l'intitulé descend sous elle. Sans tâche, il
+  // reste en titre et la ligne n'a **rien** à mettre dessous — l'épreuve serait
+  // la redite que cette composition existe pour supprimer.
+  return step.taskCode != null ? journeyStepTitle(step) : null;
+}
+
 /// La pastille de fin de ligne. **Servie au kit**, qui ne compose aucune phrase.
 String? journeyBadge(JourneyStep step) {
   if (step.status == JourneyStepStatus.current) return 'Maintenant';
