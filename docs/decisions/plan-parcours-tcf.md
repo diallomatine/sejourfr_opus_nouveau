@@ -2803,3 +2803,64 @@ y compris pour un abonné, **dès le cycle 1**, le diagnostic rapide créant les
 ⇒ Même carte, **seul le geste change**. Détail, garanties et libellé : **A114**.
 
 Décisions d'implémentation : **A110 → A114**.
+
+---
+
+### D-58 (2026-09-20) — **Le Plan civique d'un compte gratuit est celui d'un abonné, et le verrou est SERVI**
+
+**La décision, verbatim** :
+
+> « pour la partie Examen civique du plan, pour un non abonné, il faut aussi la même chose qu'un
+> abonné, sauf qu'il peut pas travailler dessus. comme ce qu'on fait actuellement sur le TCF. il
+> voit le plan, mais il peut pas travailler dessus, il doit débloquer son plan. »
+
+C'est **D-57 / A114 transposés au civique** : même anatomie pour tous, seuls les gestes changent.
+
+#### 🛑 Phrase révoquée, citée verbatim
+
+Origine : **A89** (`docs/decisions-autonomes-parcours-tcf.md`, 2026-09-20) :
+
+> « **Ce que D-50 arbitre**, mot pour mot, c'est « le Plan civique **abonné** ». L'écran gratuit
+> garde donc ses sections — résultat du diagnostic, thèmes à travailler, priorités, première
+> étape, offre. »
+
+**A84 se ferme avec elle** : la divergence **nommée** entre les deux écrans gratuits (trois helpers
+qui ne vivaient que côté Dart) disparaît avec les écrans eux-mêmes.
+
+#### 🛑 Le vrai enjeu n'était pas l'écran : c'était un verrou NON SERVI
+
+**Mesuré avant d'écrire** ⟦SQL⟧ : **13** étapes d'entraînement civiques, **0** portant une
+compétence — elles portent une **unité officielle**, et `poserUnite(...)` annule `skill`. Or
+`estVerrouillee` sortait sur `if (skill == null) yield false`.
+
+⇒ Montrer la section de cycle à un compte gratuit **sans corriger le serveur** aurait affiché
+« Faire cette étape » sur des lignes que `demarrerSerieSurUnite` refuse en **403** (D-33).
+
+🛑 **C'est mot pour mot la 3ᵉ occurrence de `DETTE-P1`** — « le verrou **existait** côté serveur,
+il ne le **servait** pas ; un front ne peut pas lire ce qu'on ne lui dit pas ». Elle est donc
+fermée **de la bonne manière** : en **servant le fait**, jamais en le déduisant côté client. Un
+front qui aurait lu le statut d'abonnement pour en déduire un cadenas aurait été la 4ᵉ occurrence.
+
+#### Ce qui tient
+
+| Tenu | Pourquoi |
+|---|---|
+| **D-33** | travailler une unité depuis le Plan reste **premium**, et le 403 reste l'arbitre |
+| La **contradiction #1** | score, états, compteurs et résultats restent **lisibles** : on floute l'action, jamais le résultat |
+| **D-15** | l'examen d'une thématique garde son verrou **pédagogique** — un pass ne lève pas une condition pédagogique (A107) |
+| **A108** | la porte d'achat suit le parcours : pass **Civique** en civique, **Intégral** en TCF |
+| **A87** | un lanceur par **grain** — la cible du plan dérivé, l'unité officielle du cycle |
+
+⚠️ **Conséquence directe, et voulue** : `elire` saute les étapes verrouillées, donc un compte
+civique gratuit a `current == null` et `JourneyState.LOCKED` — exactement l'état du TCF gratuit
+(D-18). La carte « À faire maintenant » survit parce qu'elle **retombe sur le plan dérivé**
+(A121) ; sans ce repli, elle disparaîtrait précisément sur l'écran que cette décision demande.
+
+#### Un libellé corrigé avant qu'il ne devienne faux
+
+« Cette étape fait partie de l'abonnement **Intégral** » était écrit en dur. Sans effet tant que le
+cycle civique n'était rendu qu'à un abonné ; **faux** dès cette passe. Il devient une fonction du
+parcours (**A126**), **déclarée une fois par front** — le nom commercial d'un pass n'est pas un
+fait du référentiel (A58).
+
+Décisions d'implémentation : **A119 → A126**.

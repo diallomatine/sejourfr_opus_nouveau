@@ -9,7 +9,7 @@ import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {planStepAction} from "@/lib/plan-domain";
 import {
     JOURNEY_CYCLE_NOTE,
-    JOURNEY_LOCKED_CAPTION,
+    journeyLockedCaption,
     JOURNEY_NEEDS_OBJECTIVE_CTA,
     JOURNEY_NEEDS_OBJECTIVE_TEXT,
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
@@ -324,7 +324,7 @@ function CycleBody({journey, plan, module}: {
                             exécutable** : on le dit, au lieu de laisser un cycle
                             sans étape courante qui se lirait comme une panne. */}
                         {journey.state === "LOCKED" && (
-                            <p className={sejourStyles.tiny}>{JOURNEY_LOCKED_CAPTION}</p>
+                            <p className={sejourStyles.tiny}>{journeyLockedCaption(module)}</p>
                         )}
 
                         {/* 🛑 **Le civique a son lanceur, il doit avoir sa
@@ -566,11 +566,15 @@ function NextStep({examenCompletPossible, module}: {
                     )}
                 </Stack>
             </Pad>
+            {/* 🛑 **Le pass suit le parcours** (A108) : le 403 d'un examen
+                civique s'ouvre avec le pass **Civique**, jamais l'Intégral. Il
+                était figé sur `INTEGRAL` — sans effet tant que la fin de cycle
+                n'existait qu'en TCF, faux dès qu'un cycle civique s'achève. */}
             <PaywallSheet
                 origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
-                module="INTEGRAL"
+                module={module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"}
                 open={paywallOpen}
                 onClose={() => setPaywallOpen(false)}
             />

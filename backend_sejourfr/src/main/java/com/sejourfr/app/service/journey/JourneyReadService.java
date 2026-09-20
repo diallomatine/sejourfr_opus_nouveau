@@ -33,6 +33,7 @@ import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
+import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.SkillProgressCounter;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import lombok.RequiredArgsConstructor;
@@ -133,6 +134,7 @@ public class JourneyReadService {
     private final JourneyManager journeyManager;
     private final RecommendedExerciseSelector exerciseSelector;
     private final ThemeManager themeManager;
+    private final SubscriptionService subscriptionService;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
@@ -180,6 +182,19 @@ public class JourneyReadService {
                 examensDeProductionVerrouilles(userId, ouvertes);
         Set<String> blocsAvecTravailOuvert = blocsAvecTravailOuvert(ouvertes);
 
+        // 🛑 **D-33 : travailler une unite depuis le Plan civique est PREMIUM**,
+        // et `CivicPlanService.demarrerSerieSurUnite` l'oppose deja en 403. Le
+        // `locked` servi et ce refus doivent etre la MEME regle -- sinon
+        // l'ecran promet un geste que le serveur refuse, ce qui est exactement
+        // la 3e occurrence de DETTE-P1 (« le verrou EXISTAIT cote serveur, il
+        // n'etait pas SERVI ; un front ne peut pas lire ce qu'on ne lui dit
+        // pas »).
+        //
+        // ⚠️ **Resolu UNE fois par lecture**, jamais par etape : c'est une
+        // requete d'abonnement, et le parcours civique porte jusqu'a 16 unites.
+        boolean accesCivique = journey.getModule() == Module.CIVIQUE
+                && subscriptionService.hasCivique(userId);
+
         // 🛑 **L'EXERCICE DE CHAQUE ETAPE EST SERVI** (meme raisonnement qu'A24) :
         // la liste des priorites du Plan est une vue bornee a 5, la file ne
         // l'est pas. Un LOT unique pour tout le parcours — le cout ne grandit
@@ -190,7 +205,8 @@ public class JourneyReadService {
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
             boolean locked = estVerrouillee(step, access, progressionExpression,
-                    examensDeProductionVerrouilles, blocsAvecTravailOuvert);
+                    examensDeProductionVerrouilles, blocsAvecTravailOuvert,
+                    journey.getModule() == Module.CIVIQUE, accesCivique);
             etats.put(step.getId(), new Etat(step,
                     statutHorsPromotion(step, toutesLesEtapes), locked,
                     progression(step, progressionExpression, seriesParCompetence)));
@@ -439,7 +455,9 @@ public class JourneyReadService {
             SkillAccessService.SkillAccess access,
             Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
             Set<EpreuveType> examensDeProductionVerrouilles,
-            Set<String> blocsAvecTravailOuvert) {
+            Set<String> blocsAvecTravailOuvert,
+            boolean moduleCivique,
+            boolean accesCivique) {
         return switch (step.getType()) {
             case DIAGNOSTIC -> false;
             // 🛑 LA CLE EST LE BLOC, PAS L'EPREUVE (D-47). Un examen de theme
@@ -450,6 +468,21 @@ public class JourneyReadService {
                     || (step.getExamType() != null
                             && examensDeProductionVerrouilles.contains(step.getExamType()));
             case TRAIN_SKILL -> {
+                // 🛑 **UNE ETAPE CIVIQUE NE PORTE PAS DE COMPETENCE** : elle
+                // porte une UNITE officielle, et `poserUnite(...)` annule
+                // `skill` (exclusivite verrouillee en base par
+                // `chk_journey_step_train_skill`). Le `skill == null` juste en
+                // dessous la faisait donc sortir en `false` : le verrou
+                // existait cote serveur (D-33, le 403 de
+                // `demarrerSerieSurUnite`) mais n'etait **pas servi**.
+                //
+                // 🛑 **Le dispatch se fait sur le MODULE, pas sur la nullite de
+                // `skill`** : tester `skill == null` marcherait aujourd'hui,
+                // mais dirait « je ne sais pas de quoi je parle » -- et une
+                // etape TCF sans competence (cas impossible, mais que rien
+                // n'interdit d'ecrire demain) sortirait verrouillee par
+                // accident.
+                if (moduleCivique) yield !accesCivique;
                 Skill skill = step.getSkill();
                 if (skill == null) yield false;
                 if (access.isSkillLocked(skill.getId())) yield true;

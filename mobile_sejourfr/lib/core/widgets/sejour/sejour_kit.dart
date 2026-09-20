@@ -1520,73 +1520,15 @@ class SfPathRow extends StatelessWidget {
   }
 }
 
-/// Étape verrouillée (plan gratuit) : rang + libellé + cadenas.
-class SfLockRow extends StatelessWidget {
-  const SfLockRow(
-      {super.key, required this.rank, required this.label, this.last = false});
+/* ⚠️ **`SfLockRow` et `SfLockItem` sont SUPPRIMÉES** (2026-09-20), avec leur
+   miroir web (`LockRow`, `LockItem`, `LockList` et leurs classes CSS).
 
-  final int rank;
-  final String label;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: BoxDecoration(
-        border: last
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.blueSoft,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-              '$rank',
-              style: AppFonts.ui(
-                  size: 12, weight: FontWeight.w800, color: AppColors.blue),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: AppFonts.ui(size: 14))),
-          const SizedBox(width: 10),
-          const Icon(LucideIcons.lock, size: 16, color: AppColors.muted),
-        ],
-      ),
-    );
-  }
-}
-
-/// Bénéfice verrouillé, dans la carte « votre première étape est prête ».
-class SfLockItem extends StatelessWidget {
-  const SfLockItem({super.key, required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        children: [
-          const Icon(LucideIcons.lock, size: 16, color: AppColors.muted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label,
-                style: AppFonts.ui(size: 13.5, color: AppColors.ink2)),
-          ),
-        ],
-      ),
-    );
-  }
-}
+   Elles ne servaient qu'à l'**anatomie gratuite** des deux Plans : les trois
+   bénéfices verrouillés du TCF (partis avec A114) puis les cinq du civique. Les
+   deux écrans gratuits portent désormais l'anatomie de l'abonné, où le verrou se
+   dit par un **cadenas servi** et un **geste** (`SfJourneyRow locked` +
+   `kJourneyStepUnlockLink`) — jamais par une liste de choses qu'on n'a pas.
+   Ne pas les réintroduire. */
 
 /* ------------------------------------------------- « À faire maintenant » */
 

@@ -19,6 +19,7 @@ import 'civic_serie_launcher.dart';
 import 'civic_plan_provider.dart';
 import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
+import 'plan_now_card.dart';
 import 'widgets/plan_cycle_section.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
@@ -34,36 +35,37 @@ import 'widgets/plan_cycle_section.dart';
 /// 🛑 **La boîte Leitner ne s'affiche jamais** : on montre `maitrise` et
 /// `prochaineRevue`, jamais `boite`.
 ///
-/// 🛑 **Le plan travaille au grain que le tagging permet**, et il le dit
-/// (`20_` §3.3) : thème par thème tant que les questions ne sont pas taguées,
-/// notion par notion ensuite. Ce n'est pas une panne, c'est la phase 1.
-///
 /// 🛑 **Le constat est intégralement gratuit.** Le `locked` servi porte sur la
-/// **série**, jamais sur ce que le candidat a mesuré : un compte sans pass voit
-/// ses priorités entières, avec leurs états.
+/// **série**, jamais sur ce que le candidat a mesuré.
 ///
-/// ## ⚠️ L'écran ABONNÉ a été refondu (P8.7, D-50, 2026-09-20)
+/// ## ⚠️ UNE SEULE ANATOMIE, ABONNÉ COMME GRATUIT (2026-09-20)
 ///
-/// Il portait huit sections ; quatre d'entre elles n'étaient pas des « en plus »
-/// mais des **retards** — le TCF les a retirées les 18 et 19 septembre, au motif
-/// qu'elles redisaient les blocs du cycle en moins précis et sous un plafond
-/// d'affichage.
+/// **Demande du propriétaire, verbatim** : « pour la partie Examen civique du
+/// plan, pour un non abonné, il faut aussi la même chose qu'un abonné, sauf
+/// qu'il peut pas travailler dessus. comme ce qu'on fait actuellement sur le
+/// TCF. il voit le plan, mais il peut pas travailler dessus, il doit débloquer
+/// son plan. »
 ///
-/// **Ce qui PART** : « Vos priorités », « Déjà travaillé et validé »,
-/// « Progression détectée », la carte de contexte (deux pastilles + la phrase du
-/// moteur) et le « parcours de la notion » — il illustrait la cible du plan
-/// **dérivé**, et « À faire maintenant » lit désormais le **cycle**.
+/// ⚠️ **Ceci RÉVOQUE A89** (« ce que D-50 arbitre, c'est le Plan civique
+/// *abonné* ; l'écran gratuit garde ses sections ») et, avec elle, l'anatomie
+/// gratuite : la carte de score du diagnostic, « Thèmes à travailler »,
+/// « Vos priorités » et « Votre première étape est prête » sont **supprimées**.
+/// C'est la transposition exacte de la passe TCF du même jour (A114).
 ///
-/// **Ce qui RESTE** : « À revoir bientôt ». C'est le seul affichage du Leitner,
-/// que le cycle ne porte pas — D-49 a posé deux autorités exactement pour ça, et
-/// la supprimer perdrait un fait vrai.
+/// L'ordre est donc le même pour les deux : [SfTop] → bande objectif →
+/// « À faire maintenant » → le **cycle** → « À revoir bientôt ». Seul le pied
+/// change — l'offre et sa barre basse pour un compte sans accès, « Aller plus
+/// loin » pour un abonné.
 ///
-/// **Ce qui ARRIVE** : la bande objectif (D-50 §1), « À faire maintenant » lu sur
-/// `journey.current` (D-50 §2) et la **même** [PlanCycleSection] que le TCF, avec
-/// son module en paramètre.
+/// 🛑 **Ce qui TIENT** : « dans le plan, on ne travaille rien si on n'est pas
+/// abonné » (D-33, que `CivicPlanService` oppose déjà en **403**). La garantie
+/// n'est pas dans cet écran — [civicNowCard] et [civicCibleGeste] rendent
+/// [PlanNowGeste.debloquer] dès que `free`, et les lanceurs ne sont attachés
+/// qu'à la branche [PlanNowGeste.lancer].
 ///
-/// 🛑 **L'écran GRATUIT n'est pas touché** : il ne lit pas le cycle, et les
-/// arbitrages de D-50 portent sur le plan d'un abonné.
+/// 🛑 **La contradiction #1 reste fermée** : le nom de l'étape, l'état de
+/// maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
+/// restent lisibles. On floute l'**action**, jamais le **résultat**.
 class CivicPlanView extends ConsumerStatefulWidget {
   const CivicPlanView({super.key});
 
@@ -91,16 +93,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // Best-effort : l'onglet reste sobre. Le constat existe déjà côté
       // diagnostic, on ne remplace pas un plan par une erreur.
     }
-  }
-
-  /// Ouvre la série ciblée. Le geste vit dans [startCivicSerie], partagé avec
-  /// l'écran Réviser : seul le témoin d'attente est local.
-  Future<void> _commencer(CivicPlanCible cible) async {
-    if (_enCours != null) return;
-    setState(() => _enCours = cible.id);
-    await startCivicSerie(context, ref, cible);
-    if (!mounted) return;
-    setState(() => _enCours = null);
   }
 
   /// **La seule porte d'achat** : l'écran d'offre, qui porte les vrais passes
@@ -138,40 +130,33 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     }
 
     final auth = ref.watch(authControllerProvider);
-    final hasCivique = auth is AuthAuthenticated && auth.user.hasCivique;
+    final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
 
-    if (!hasCivique) {
-      return Column(
-        children: [
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.blue,
-              onRefresh: _load,
-              child: ListView(children: _free(plan)),
-            ),
-          ),
-          SfStickyBar(
-            child: SfButton(
-              label: kCivicPlanUnlockCta,
-              caption: civicPlanUnlockCaption(_duree),
-              variant: SfButtonVariant.blue,
-              onPressed: () => unawaited(_ouvrirOffre()),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return RefreshIndicator(
+    final liste = RefreshIndicator(
       color: AppColors.blue,
       onRefresh: _load,
-      child: ListView(children: _premium(plan)),
+      child: ListView(children: _ecran(plan, free: free)),
+    );
+    if (!free) return liste;
+
+    return Column(
+      children: [
+        Expanded(child: liste),
+        SfStickyBar(
+          child: SfButton(
+            label: kCivicPlanUnlockCta,
+            caption: civicPlanUnlockCaption(_duree),
+            variant: SfButtonVariant.blue,
+            onPressed: () => unawaited(_ouvrirOffre()),
+          ),
+        ),
+      ],
     );
   }
 
-  /* --------------------------------------------------------- avec pass ---- */
+  /* ------------------------------------------------------------ l'écran --- */
 
-  List<Widget> _premium(CivicPlan plan) {
+  List<Widget> _ecran(CivicPlan plan, {required bool free}) {
     final maintenant = DateTime.now();
     // 🛑 Le parcours est **observé**, jamais attendu : son absence ne retarde pas
     // le plan d'une seconde, et un backend antérieur à `?module=` garde un écran
@@ -179,8 +164,8 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     final parcours = ref.watch(journeyCiviqueProvider).valueOrNull;
     final objectif = parcours?.objectif;
     return <Widget>[
-      const SfTop(
-        kicker: kCivicPlanTopKicker,
+      SfTop(
+        kicker: free ? kCivicPlanTopKickerFree : kCivicPlanTopKicker,
         title: kCivicPlanScreenTitle,
       ),
       const SizedBox(height: 14),
@@ -202,17 +187,30 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         const SizedBox(height: sfGap),
       ],
 
-      // 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), plus du plan dérivé.
-      // Une seule réponse alimente la carte et la timeline — c'est ce qui a
-      // supprimé, le 2026-09-16, la contradiction où l'Accueil annonçait une
-      // action et le Plan une autre au même instant.
-      ..._actionMaintenant(parcours),
+      // 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
+      // plan dérivé — la même forme que `planNowCard`. Le contenu est identique
+      // pour les deux accès ; seul le geste change.
+      ..._actionMaintenant(plan, parcours, free: free),
 
       // Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
+      // 🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes
+      // sont affichés à leur place, avec leur cadenas et le geste d'offre que
+      // `PlanCycleSection` attache à une étape `locked`.
       PlanCycleSection(plan: null, journey: parcours, module: AppModule.civique),
 
-      ..._reviewSection(plan, maintenant),
-      _allerPlusLoin(context),
+      ..._reviewSection(plan, maintenant, free: free),
+
+      if (free) ...[
+        const SfSection(
+          flush: true,
+          child: SfUnlockHero(
+            title: kCivicPlanUnlockHeroTitle,
+            text: kCivicPlanUnlockHeroText,
+          ),
+        ),
+        _passSection(),
+      ] else
+        _allerPlusLoin(context),
       const SizedBox(height: 28),
     ];
   }
@@ -221,14 +219,15 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   ///
   /// 🛑 **Le MÊME point d'entrée que le TCF** (`PlanTcfView._links`) : même
   /// brique ([ListGroup] / [ListRow]), même icône, même libellé, même écran
-  /// d'arrivée — seul le parcours affiché change ce que l'écran raconte. Un
-  /// second chemin vers une archive aurait été une deuxième façon de faire la
-  /// même chose.
+  /// d'arrivée — seul le parcours affiché change ce que l'écran raconte.
   ///
   /// ⚠️ **Une seule ligne, là où le TCF en a deux.** Sa seconde mène à « Mon
   /// diagnostic » ; le civique a bien la sienne (`/diagnostic-civique`), mais
   /// l'ajouter serait une entrée de navigation que personne n'a demandée — à
   /// rouvrir sur un mot du propriétaire, pas ici.
+  ///
+  /// ⚠️ **Absente sur un compte sans accès**, comme sur le Plan TCF gratuit :
+  /// la seule action dominante de cet écran-là est « Débloquer mon plan ».
   Widget _allerPlusLoin(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
@@ -247,238 +246,100 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     );
   }
 
-  /// **« À faire maintenant », depuis le CYCLE** (D-50 §2).
+  /// **« À faire maintenant »** — la carte d'action, **la même pour un abonné et
+  /// pour un compte sans accès**.
   ///
-  /// 🛑 **L'étape courante est SERVIE** (`journey.current`) : l'écran ne choisit
-  /// pas quoi faire ensuite, il l'affiche. Son geste est la série sur l'**unité**
-  /// de l'étape, quand elle en porte une — un examen de bloc, lui, se lance
-  /// depuis son encart dans le cycle.
+  /// 🛑 **Son contenu ET son geste sont décidés par [civicNowCard], pas ici** :
+  /// l'écran assemble le kit, il ne choisit ni l'identité de la carte ni ce
+  /// qu'elle lance. Il n'y a donc **aucun `if (free)` ici** — le drapeau est
+  /// passé tel quel et ne sert qu'à l'autorité.
   ///
-  /// 🛑 `null` est un cas NORMAL : cycle terminé, plus rien à faire, ou rien
-  /// d'exécutable. La carte disparaît, elle n'affiche jamais un squelette.
-  List<Widget> _actionMaintenant(Journey? parcours) {
-    final etape = parcours?.current;
-    if (etape == null) return const <Widget>[];
-    final unite = etape.unite;
-    final sousTitre = journeyStepSubtitle(etape);
+  /// 🛑 `null` est un cas NORMAL : plus rien à faire. La carte disparaît, elle
+  /// n'affiche jamais un squelette.
+  List<Widget> _actionMaintenant(
+    CivicPlan plan,
+    Journey? parcours, {
+    required bool free,
+  }) {
+    final carte = civicNowCard(plan, journey: parcours, free: free);
+    if (carte == null) return const <Widget>[];
+    final meta = carte.meta;
+    final source = carte.source;
     return <Widget>[
       SfSection(
         title: kCivicPlanNowTitle,
         flush: true,
         child: SfNowCard(
           icon: LucideIcons.landmark,
-          title: journeyStepTitle(etape),
-          subtitle: etape.bloc?.label,
-          badge: etape.locked ? kJourneyLockedBadge : null,
-          // `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche alors
-          // aucune méta plutôt qu'une ligne vide.
-          meta: sousTitre == null
+          title: carte.title,
+          subtitle: carte.subtitle,
+          badge: carte.badge,
+          objectiveLabel: carte.objectiveLabel,
+          objective: carte.objective,
+          meta: meta == null
               ? const <SfMeta>[]
-              : [SfMeta(LucideIcons.list, sousTitre)],
-          // 🛑 Un geste seulement quand il y en a un : une étape verrouillée ou
-          // un examen de bloc n'ouvre rien ICI. C'est le garde-fou du
-          // 2026-09-17 — rien ne se résout ⇒ aucun bouton.
-          action: unite == null || etape.locked
-              ? null
-              : SfButton(
-                  label: kCivicPlanWorkCta,
-                  variant: SfButtonVariant.blue,
-                  onPressed: _enCours == unite.code
-                      ? null
-                      : () => unawaited(_commencerUnite(unite.code)),
-                ),
+              : [SfMeta(LucideIcons.list, meta)],
+          // 🛑 **Le geste vient de [civicNowCard], il ne se redéduit pas ici.**
+          // `aucun` ⇒ aucun bouton (garde-fou du 2026-09-17) ; `debloquer` ⇒
+          // l'offre, jamais un lanceur. En **bleu** : le seul bouton rouge de
+          // l'écran reste la barre basse « Débloquer mon plan » (A46).
+          action: switch (carte.geste) {
+            PlanNowGeste.aucun => null,
+            PlanNowGeste.debloquer => SfButton(
+                label: carte.cta,
+                variant: SfButtonVariant.blue,
+                onPressed: () => unawaited(_ouvrirOffre()),
+              ),
+            PlanNowGeste.lancer => source == null
+                ? null
+                : SfButton(
+                    label: carte.cta,
+                    variant: SfButtonVariant.blue,
+                    onPressed: _enCoursSur(source)
+                        ? null
+                        : () => unawaited(_lancer(source)),
+                  ),
+          },
+          caption: carte.geste == PlanNowGeste.debloquer
+              ? kCivicPlanLockedNote
+              : null,
         ),
       ),
     ];
   }
 
-  /// Ouvre la série d'une **unité officielle**. Le geste vit dans
-  /// [startCivicUniteSerie] : seul le témoin d'attente est local.
-  Future<void> _commencerUnite(String uniteCode) async {
+  /// Le témoin d'attente du lanceur **de ce grain-là**.
+  bool _enCoursSur(CivicNowSource source) => switch (source) {
+        CivicNowUnite(code: final code) => _enCours == code,
+        CivicNowCible(cible: final cible) => _enCours == cible.id,
+      };
+
+  /// 🛑 **Un lanceur par GRAIN** (A87) : l'unité officielle du cycle et la cible
+  /// du plan dérivé sont deux routes serveur distinctes. Un aiguillage à
+  /// l'intérieur d'un lanceur unique aurait mis les deux règles au même endroit.
+  Future<void> _lancer(CivicNowSource source) async {
     if (_enCours != null) return;
-    setState(() => _enCours = uniteCode);
-    await startCivicUniteSerie(context, ref, uniteCode);
+    switch (source) {
+      case CivicNowUnite(code: final code):
+        setState(() => _enCours = code);
+        await startCivicUniteSerie(context, ref, code);
+      case CivicNowCible(cible: final cible):
+        setState(() => _enCours = cible.id);
+        await startCivicSerie(context, ref, cible);
+    }
     if (!mounted) return;
     setState(() => _enCours = null);
   }
 
-  /* -------------------------------------------------------- sans pass ----- */
-
-  List<Widget> _free(CivicPlan plan) {
-    final resultat = plan.resultat;
-    return <Widget>[
-      const SfTop(
-        kicker: kCivicPlanTopKickerFree,
-        title: kCivicPlanScreenTitle,
-      ),
-      const SizedBox(height: 14),
-      if (resultat != null)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SfCard(
-            variant: SfCardVariant.hero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SfLabel(kCivicPlanResultLabel),
-                const SizedBox(height: 6),
-                SfScore(
-                  score: resultat.bonnes,
-                  total: resultat.posees,
-                  compact: true,
-                ),
-                const SizedBox(height: 8),
-                SfTiny(civicPlanResultNote(resultat)),
-              ],
-            ),
-          ),
-        ),
-      ..._themesSection(plan),
-      ..._prioritiesSection(plan),
-      if (plan.prochaine != null)
-        SfSection(
-          title: kCivicPlanFirstStepTitle,
-          flush: true,
-          child: _nowCard(plan.prochaine!),
-        ),
-      const SfSection(
-        flush: true,
-        child: SfUnlockHero(
-          title: kCivicPlanUnlockHeroTitle,
-          text: kCivicPlanUnlockHeroText,
-        ),
-      ),
-      _passSection(),
-      // 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3) : thème par
-      // thème tant que les questions ne sont pas taguées. Elle vivait dans la
-      // carte de contexte de l'abonné, que D-50 a retirée — or c'est justement
-      // l'écran gratuit qui liste des thèmes. Miroir du pied de `CiviqueGratuit`
-      // côté web, qui la portait déjà.
-      if (civicPlanGrainNote(plan.grain) case final note?) ...[
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SfTiny(note),
-        ),
-      ],
-      const SizedBox(height: 24),
-    ];
-  }
-
-  /* ------------------------------------------------------------ blocs ----- */
-
-  /// La carte d'action du plan **gratuit** — « Votre première étape est prête ».
-  ///
-  /// ⚠️ Elle portait un drapeau `free` et servait aussi l'abonné : depuis P8.7 ce
-  /// dernier lit le **cycle** (D-50 §2), donc il n'y a plus qu'un appelant et
-  /// plus qu'une mise en page. Ce qui décide du bouton ou des cadenas reste le
-  /// `locked` **servi** sur la cible.
-  Widget _nowCard(CivicPlanCible cible) {
-    final card = SfNowCard(
-      icon: LucideIcons.landmark,
-      title: cible.label,
-      subtitle: cible.themeLabel.isEmpty ? null : cible.themeLabel,
-      objectiveLabel: kCivicPlanNowWhy,
-      objective: civicPlanRaison(cible),
-      meta: [SfMeta(LucideIcons.list, civicSerieLabel(cible))],
-      action: cible.locked
-          ? null
-          : SfButton(
-              label: cible.locked ? kCivicPlanLockedCta : kCivicPlanNowCta,
-              variant: SfButtonVariant.blue,
-              onPressed: _enCours == cible.id
-                  ? null
-                  : () => unawaited(_commencer(cible)),
-            ),
-      caption: cible.locked ? kCivicPlanLockedNote : null,
-    );
-
-    if (!cible.locked) return card;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        card,
-        const SizedBox(height: sfGap),
-        SfCard(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final label in kCivicPlanStepLocks) SfLockItem(label: label),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Les thèmes **mesurés et non solides**, avec leur état servi. Un thème
-  /// jamais mesuré n'y figure pas : il n'a rien raté.
-  List<Widget> _themesSection(CivicPlan plan) {
-    final themes = civicPlanThemesATravailler(plan);
-    if (themes.isEmpty) return const <Widget>[];
-    return <Widget>[
-      SfSection(
-        title: kCivicPlanThemesTitle,
-        flush: true,
-        child: SfCard(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < themes.length; i++)
-                SfThemeLine(
-                  tone: _tone(civicThemeTone(themes[i].etatDuTheme)),
-                  name: themes[i].themeLabel,
-                  status: themes[i].etatDuTheme.label,
-                  last: i == themes.length - 1,
-                ),
-            ],
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _prioritiesSection(CivicPlan plan) {
-    if (plan.prioritesVisibles.isEmpty) return const <Widget>[];
-    final autres = civicPlanAutresLabel(plan);
-    return <Widget>[
-      SfSection(
-        title: kCivicPlanPrioritiesTitle,
-        child: SfStack(
-          children: [
-            for (var i = 0; i < plan.prioritesVisibles.length; i++)
-              _priorityCard(plan.prioritesVisibles[i], i + 1),
-            if (autres != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: SfTiny(autres),
-              ),
-          ],
-        ),
-      ),
-    ];
-  }
-
-  /// Une priorité.
-  ///
-  /// ⚠️ **Pas de sous-liste de compétences** : le serveur n'en sert aucune sur
-  /// une cible civique (`20_` §4). On montre la maîtrise servie et la raison,
-  /// jamais un sous-arbre fabriqué.
-  Widget _priorityCard(CivicPlanCible cible, int rank) {
-    return SfPrio(
-      rank: rank,
-      tag: cible.themeLabel.isEmpty ? kCivicPlanPrioritiesTitle : cible.themeLabel,
-      title: cible.label,
-      text: cible.maitrise.label,
-    );
-  }
-
   /// « À revoir bientôt ». 🛑 Jamais une alerte : ce sont des points acquis
   /// qu'on entretient — et **jamais** la boîte Leitner.
-  List<Widget> _reviewSection(CivicPlan plan, DateTime maintenant) {
+  List<Widget> _reviewSection(
+    CivicPlan plan,
+    DateTime maintenant, {
+    required bool free,
+  }) {
     if (plan.aRevoirVisibles.isEmpty) return const <Widget>[];
+    final note = civicPlanGrainNote(plan.grain);
     return <Widget>[
       SfSection(
         title: kCivicPlanReviewTitle,
@@ -498,13 +359,38 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
                     ),
                     const SizedBox(height: 6),
                     SfTiny(civicPlanReviewText(cible, maintenant)),
+                    const SizedBox(height: 10),
+                    _reviewAction(cible, free: free),
                   ],
                 ),
               ),
+            // 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3), et il
+            // le dit **ici** : c'est la dernière surface qui montre des cibles
+            // du plan dérivé, donc la seule que cette note qualifie encore. Elle
+            // vivait sur les deux écrans gratuits (A84) ; les deux anatomies
+            // ayant fusionné, elle accompagne désormais ce qu'elle décrit,
+            // abonné compris.
+            if (note != null) SfTiny(note),
           ],
         ),
       ),
     ];
+  }
+
+  /// Le geste d'une révision — **la même autorité que la carte d'action**.
+  Widget _reviewAction(CivicPlanCible cible, {required bool free}) {
+    final geste = civicCibleGeste(cible, free: free);
+    return SfButton(
+      label: geste == PlanNowGeste.debloquer
+          ? kCivicPlanLockedCta
+          : kCivicPlanWorkCta,
+      variant: SfButtonVariant.line,
+      onPressed: _enCours == cible.id
+          ? null
+          : () => unawaited(geste == PlanNowGeste.debloquer
+              ? _ouvrirOffre()
+              : _lancer(CivicNowCible(cible))),
+    );
   }
 
   /// Le sélecteur de durée du Pass Civique. **Aucun prix** : il dit la durée,
@@ -531,14 +417,4 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       ),
     );
   }
-
-  /// Le ton du kit correspondant au ton servi. `muted` n'a pas d'équivalent —
-  /// les cibles non mesurées ne sont jamais rendues avec une couleur d'alerte,
-  /// elles sont filtrées en amont.
-  SfTone _tone(CivicCibleTone tone) => switch (tone) {
-        CivicCibleTone.hot => SfTone.hot,
-        CivicCibleTone.warn => SfTone.warn,
-        CivicCibleTone.ok => SfTone.ok,
-        CivicCibleTone.muted => SfTone.warn,
-      };
 }

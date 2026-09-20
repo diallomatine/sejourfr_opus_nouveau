@@ -1,6 +1,9 @@
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
+import '../../core/models/journey_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import 'journey_labels.dart';
+import 'plan_now_card.dart';
 
 /// Les **mots** du plan civique (L10, `20_` §6) — **purs**, déclarés une fois
 /// pour tout le mobile.
@@ -10,14 +13,18 @@ import '../../core/widgets/sejour/sejour_kit.dart';
 /// **miroirs mot pour mot** de `web_sejoufr/lib/civic-plan.ts` : un libellé qui
 /// bouge, ce sont deux fichiers dans la même passe.
 ///
-/// ⚠️ **Le miroir porte sur le TEXTE, pas sur l'inventaire** (P8.7, 2026-09-20).
-/// La refonte du plan civique abonné (D-50) a vidé cet écran de ses sections
-/// dérivées, et chaque front a supprimé **ce que lui ne lit plus** : l'écran
-/// gratuit du mobile garde trois helpers que le web n'a jamais montrés
-/// ([civicPlanAutresLabel], [kCivicPlanLockedCta], [CivicCibleTone]), ils vivent
-/// donc désormais côté Dart seulement. Ce n'est pas un oubli de parité : c'est
-/// une divergence de l'écran **gratuit**, antérieure à cette passe, et aucun
-/// libellé partagé n'a bougé.
+/// ✅ **L'asymétrie d'inventaire de P8.7 est REFERMÉE** (2026-09-20, second
+/// arbitrage du propriétaire : « pour la partie Examen civique du plan, pour un
+/// non abonné, il faut aussi la même chose qu'un abonné, sauf qu'il peut pas
+/// travailler dessus »). A84 avait laissé trois helpers côté Dart seulement,
+/// parce que l'écran **gratuit** civique gardait son anatomie propre. Les deux
+/// anatomies gratuites ayant disparu, la divergence tombe d'elle-même :
+/// `civicPlanAutresLabel` part avec sa section, [CivicCibleTone] **reste** (son
+/// dernier lecteur n'est plus le Plan mais l'écran Progrès et l'Accueil), et
+/// [kCivicPlanLockedCta] est **promu** côté web sous le nom
+/// `CIVIC_PLAN_LOCKED_CTA` — il a maintenant un lecteur des deux côtés.
+/// ⚠️ **A89 est donc révoquée** : ce que D-50 arbitrait pour le plan d'un
+/// abonné vaut désormais pour les deux.
 ///
 /// ⚠️ `20_` §10 prévoyait un `civic_plan_item.reason_text` calculé serveur. Il
 /// n'existe pas, et c'est délibéré : un texte composé côté serveur ne se relit
@@ -25,16 +32,20 @@ import '../../core/widgets/sejour/sejour_kit.dart';
 
 /// Bloc 2 — à faire maintenant.
 const String kCivicPlanNowTitle = 'À faire maintenant';
-const String kCivicPlanNowCta = 'Commencer';
 
-/// 🛑 Le verrou porte sur l'action, et le CTA le dit sans détour.
+/// Le geste d'une action **fermée** — la série, pas le plan entier.
+///
+/// 🛑 **Aucune chaîne neuve n'est gelée** : elle existait déjà ici et n'avait
+/// jamais eu de lecteur web. Elle en a un des deux côtés depuis que le Plan
+/// civique gratuit porte l'anatomie de l'abonné (miroir :
+/// `CIVIC_PLAN_LOCKED_CTA`).
+///
+/// ⚠️ **Distincte de [kJourneyStepUnlockLink]** (« Débloquer mon plan → »), qui
+/// est le geste d'une **ligne du cycle** : là on parle du plan entier, ici d'une
+/// série. Même raison que `kPlanNowLockedCta` côté TCF (A114).
 const String kCivicPlanLockedCta = 'Débloquer cette série';
 const String kCivicPlanLockedNote =
     'Les séries ciblées font partie de l\'abonnement. Votre plan, lui, reste entier.';
-
-/// Bloc 4 — les priorités. 🛑 Ne subsiste que sur l'écran **gratuit** : le plan
-/// d'un abonné lit le cycle (D-50 §2), qui est l'autorité de l'ordre.
-const String kCivicPlanPrioritiesTitle = 'Vos priorités';
 
 /// Le geste d'une cible ou d'une unité, hors carte d'action. Miroir de
 /// `CIVIC_PLAN_WORK_CTA` (`web_sejoufr/lib/civic-plan.ts`).
@@ -52,16 +63,6 @@ String? civicPlanGrainNote(CivicPlanGrainDto grain) {
   if (grain.courant == CivicPlanGrain.notion) return null;
   return 'Votre plan travaille thème par thème. Il deviendra plus précis, '
       'notion par notion, à mesure que le référentiel civique se complète.';
-}
-
-/// Ce que la liste ne montre pas. `null` quand elle montre tout — « + 0 autres »
-/// est une phrase qui ne dit rien.
-String? civicPlanAutresLabel(CivicPlan plan) {
-  final reste = plan.autresPriorites;
-  if (reste <= 0) return null;
-  final nom = plan.grain.courant == CivicPlanGrain.notion ? 'notion' : 'thème';
-  final s = reste > 1 ? 's' : '';
-  return '+ $reste autre$s $nom$s à consolider';
 }
 
 /// L'ordre de grandeur d'une série. **Dérivé** de ce que le serveur sert :
@@ -112,33 +113,6 @@ const String kCivicPlanTopKicker =
 const String kCivicPlanTopKickerFree = 'Créé à partir de votre diagnostic';
 const String kCivicPlanScreenTitle = 'Mon plan du jour';
 
-/// **Les thèmes du plan**, dédupliqués dans l'ordre servi (priorités d'abord,
-/// puis les révisions, puis les acquis).
-///
-/// 🛑 Le thème et son état viennent du DTO (`themeId`, `etatDuTheme`) : aucun
-/// pourcentage n'est classé ici, et aucun second appel au diagnostic n'est
-/// nécessaire.
-List<CivicPlanCible> civicPlanThemes(CivicPlan plan) {
-  final vus = <String>{};
-  final themes = <CivicPlanCible>[];
-  for (final cible in [...plan.prioritesVisibles, ...plan.aRevoirVisibles, ...plan.solides]) {
-    if (cible.themeId.isEmpty || !vus.add(cible.themeId)) continue;
-    themes.add(cible);
-  }
-  return themes;
-}
-
-/// Les thèmes **mesurés et non solides**.
-///
-/// 🛑 Un thème `NON_EVALUE` en est **exclu** : il n'a pas été raté, il n'a pas
-/// été mesuré — le ranger parmi les faiblesses reproduirait V040/V041/V042.
-List<CivicPlanCible> civicPlanThemesATravailler(CivicPlan plan) =>
-    civicPlanThemes(plan)
-        .where((cible) =>
-            cible.etatDuTheme == CivicThemeState.aRenforcer ||
-            cible.etatDuTheme == CivicThemeState.faible)
-        .toList(growable: false);
-
 /// Le ton d'un état de thème **servi**.
 CivicCibleTone civicThemeTone(CivicThemeState etat) => switch (etat) {
       CivicThemeState.solide => CivicCibleTone.ok,
@@ -169,8 +143,6 @@ SfBarTone civicThemeBarTone(CivicThemeState etat) =>
    (`SfProgressMini`) partent dans la même passe. Miroir web : `civicBarJauge`,
    supprimée aussi. */
 
-const String kCivicPlanThemesTitle = 'Thèmes à travailler';
-
 /// Le libellé de l'encart bleu de la carte d'action.
 ///
 /// ⚠️ « Objectif de cette séance » de la maquette n'est **pas servi** (aucun
@@ -192,30 +164,7 @@ String civicPlanReviewText(CivicPlanCible cible, DateTime maintenant) {
           'tient encore.';
 }
 
-/* ------------------------------------------- le plan d'un compte sans pass  */
-
-const String kCivicPlanResultLabel = 'Votre diagnostic';
-
-/// Le repère sous le score. Quand le diagnostic porte déjà le **format de
-/// l'examen**, ce n'est plus une estimation : c'est le résultat.
-String civicPlanResultNote(CivicPlanResultat resultat) {
-  final seuil = 'seuil de réussite ${resultat.seuil} / ${resultat.format}';
-  return resultat.posees == resultat.format
-      ? 'Votre résultat, au format de l\'examen · $seuil'
-      : 'Mesuré sur ${resultat.posees} questions · $seuil';
-}
-
-const String kCivicPlanFirstStepTitle = 'Votre première étape est prête';
-
-/// Ce que le Pass Civique ouvre **sur cette étape**, dans l'ordre de la
-/// maquette.
-const List<String> kCivicPlanStepLocks = <String>[
-  'Fiche essentielle',
-  'Questions ciblées',
-  'Explications de vos erreurs',
-  'Suivi de maîtrise',
-  'Révisions au bon moment',
-];
+/* --------------------------------------- l'offre d'un compte sans pass ---- */
 
 const String kCivicPlanUnlockHeroTitle =
     'Passez du diagnostic à la progression';
@@ -247,6 +196,157 @@ const String kCivicPassNote =
     'Le tarif est celui du Pass Civique, pas un abonnement mensuel. Vous le '
     'choisissez à l\'écran suivant.';
 
+/* ------------------------------------------ « À faire maintenant » civique */
+
+/// **Le geste d'une CIBLE du plan dérivé** — la seule autorité civique sur « que
+/// se passe-t-il quand on la touche ».
+///
+/// 🛑 **Un écran ne redéduit jamais ce geste d'un `locked` ni d'un statut
+/// d'abonnement.** C'est la transposition exacte de [planNowCard] (A114) : le
+/// drapeau `free` **court-circuite avant** le verrou servi, donc aucun écran ne
+/// peut faire partir une série pour un compte sans accès — et c'est le seul
+/// endroit à relire pour s'en assurer (D-33, que `CivicPlanService` oppose déjà
+/// en 403).
+///
+/// ⚠️ Miroir mot pour mot du web (`civicCibleGeste`, `lib/civic-plan.ts`).
+PlanNowGeste civicCibleGeste(CivicPlanCible cible, {bool free = false}) =>
+    free || cible.locked ? PlanNowGeste.debloquer : PlanNowGeste.lancer;
+
+/// Ce que la carte « À faire maintenant » civique **lance**.
+sealed class CivicNowSource {
+  const CivicNowSource();
+}
+
+/// Une **unité officielle** du cycle (D-48) — `startCivicUniteSerie`.
+class CivicNowUnite extends CivicNowSource {
+  const CivicNowUnite(this.code);
+
+  final String code;
+}
+
+/// Une **cible** du plan dérivé (une notion, ou un thème en mode dégradé) —
+/// `startCivicSerie`.
+class CivicNowCible extends CivicNowSource {
+  const CivicNowCible(this.cible);
+
+  final CivicPlanCible cible;
+}
+
+/// L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance.
+class CivicNowCard {
+  const CivicNowCard({
+    required this.geste,
+    required this.source,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.objectiveLabel,
+    required this.objective,
+    required this.meta,
+    required this.cta,
+    required this.locked,
+  });
+
+  /// 🛑 **Ce que le geste fait**, décidé dans [civicNowCard] et nulle part
+  /// ailleurs.
+  final PlanNowGeste geste;
+
+  /// `null` quand rien ne se résout — la carte nomme l'étape et s'arrête là.
+  final CivicNowSource? source;
+
+  final String title;
+  final String? subtitle;
+  final String? badge;
+  final String? objectiveLabel;
+  final String? objective;
+
+  /// La ligne de méta, **sans son icône** : celle-ci appartient à l'écran.
+  final String? meta;
+
+  final String cta;
+
+  /// Le verrou **lu**, jamais déduit d'un rang ni d'un abonnement.
+  final bool locked;
+}
+
+/// **« À faire maintenant », côté civique** — l'autorité unique des deux écrans
+/// (abonné et sans accès) et des deux fronts.
+///
+/// 🛑 **Le CYCLE décide quelle étape** (D-50 §2) : `journey.current` passe
+/// **avant** le plan dérivé, et c'est lui qui a supprimé, le 2026-09-16, la
+/// contradiction où l'Accueil annonçait une action et le Plan une autre au même
+/// instant.
+///
+/// 🛑 **Le repli sur `plan.prochaine` est la MÊME forme que [planNowCard]**
+/// (`duParcours ?? plan.currentPriority`), et il n'est pas décoratif : dès que
+/// le serveur verrouillera les étapes d'entraînement civiques d'un compte sans
+/// accès (cf. la moitié backend de cette passe), `JourneyReadService.elire` les
+/// sautera et `journey.current` vaudra `null` — exactement ce qui arrive déjà au
+/// TCF gratuit. Sans repli, la carte **disparaîtrait** le jour où le verrou est
+/// servi, et l'écran gratuit perdrait ce que le propriétaire demande d'y voir.
+///
+/// 🛑 **`free` ne décide QUE du geste** (A114, transposée) : un compte sans
+/// accès reçoit **exactement** la carte d'un abonné — titre, bloc, méta, constat
+/// du correcteur — et son bouton ouvre l'**offre** au lieu de lancer. La
+/// contradiction #1 reste fermée : on floute l'action, jamais le résultat
+/// mesuré.
+///
+/// ⚠️ Miroir mot pour mot du web (`civicNowCard`, `lib/civic-plan.ts`).
+CivicNowCard? civicNowCard(
+  CivicPlan plan, {
+  Journey? journey,
+  bool free = false,
+}) {
+  final etape = journey?.current;
+  if (etape != null) {
+    final unite = etape.unite;
+    // 🛑 Un examen de bloc ne se lance pas d'ICI : il a son encart dans le
+    // cycle. Rien ne se résout ⇒ aucun geste (garde-fou du 2026-09-17).
+    final resoluble = unite != null && etape.type == JourneyStepType.trainSkill;
+    final verrou = free || etape.locked;
+    return CivicNowCard(
+      geste: verrou
+          ? PlanNowGeste.debloquer
+          : resoluble
+              ? PlanNowGeste.lancer
+              : PlanNowGeste.aucun,
+      source: resoluble ? CivicNowUnite(unite.code) : null,
+      title: journeyStepTitle(etape),
+      subtitle: etape.bloc?.label,
+      badge: etape.locked ? kJourneyLockedBadge : null,
+      objectiveLabel: null,
+      objective: null,
+      // `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche alors
+      // aucune méta plutôt qu'une ligne vide.
+      meta: journeyStepSubtitle(etape),
+      cta: verrou ? kCivicPlanLockedCta : kCivicPlanWorkCta,
+      locked: etape.locked,
+    );
+  }
+
+  final cible = plan.prochaine;
+  // 🛑 `null` est un cas NORMAL : plus rien à faire. La carte disparaît, elle
+  // n'affiche jamais un squelette.
+  if (cible == null) return null;
+  final geste = civicCibleGeste(cible, free: free);
+  return CivicNowCard(
+    geste: geste,
+    source: CivicNowCible(cible),
+    title: cible.label,
+    subtitle: cible.label == cible.themeLabel || cible.themeLabel.isEmpty
+        ? null
+        : cible.themeLabel,
+    badge: cible.locked ? kJourneyLockedBadge : null,
+    objectiveLabel: kCivicPlanNowWhy,
+    objective: '${cible.maitrise.label} · ${civicPlanRaison(cible)}',
+    meta: civicSerieLabel(cible),
+    cta: geste == PlanNowGeste.debloquer
+        ? kCivicPlanLockedCta
+        : kCivicPlanWorkCta,
+    locked: cible.locked,
+  );
+}
+
 /* ⚠️ **SUPPRIMÉS par la refonte du plan civique abonné** (P8.7, D-50,
    2026-09-20), avec leur dernier lecteur — « refonte = suppression immédiate de
    l'ancien » :
@@ -268,6 +368,18 @@ const String kCivicPassNote =
      d'urgent », que le cycle dit mieux), `kCivicPlanNowBadge` (le rang, qui
      n'avait de sens que sur la carte d'un abonné), `civicCibleTone` (la
      fonction ; l'enum [CivicCibleTone] reste, dix lecteurs).
+
+   ⚠️ **SUPPRIMÉS à leur tour par l'anatomie unique du 2026-09-20** (l'écran
+   gratuit reçoit celle de l'abonné), avec leur dernier lecteur :
+   `kCivicPlanResultLabel` / `civicPlanResultNote` (la carte de score du
+   diagnostic — elle se lit sur le rapport de diagnostic et sur « Où vous en
+   êtes »), `kCivicPlanThemesTitle` / `civicPlanThemes` /
+   `civicPlanThemesATravailler` (« Thèmes à travailler »),
+   `kCivicPlanPrioritiesTitle` et `civicPlanAutresLabel` (« Vos priorités », que
+   le cycle dit mieux et sans plafond), `kCivicPlanFirstStepTitle` /
+   `kCivicPlanStepLocks` (« Votre première étape est prête » et ses cinq
+   bénéfices verrouillés) et `kCivicPlanNowCta` (« Commencer » — la carte
+   d'action porte désormais le même [kCivicPlanWorkCta] que l'abonné).
 
    🛑 `CivicPlan.changements` et `Cible.parcours` restent **servis** et restent
    dans le modèle : c'est l'affichage qui part, pas le contrat.  */

@@ -159,10 +159,23 @@ const String kJourneyNeedsObjectiveText =
     'Votre parcours dépend de la démarche que vous visez.';
 const String kJourneyNeedsObjectiveCta = 'Choisir ma démarche';
 
-/// Rien n'est exécutable : la carte montre la première étape, verrouillée.
-const String kJourneyLockedCaption =
-    "Cette étape fait partie de l'abonnement Intégral. Votre parcours, lui, "
-    'reste entier.';
+/// Rien n'est exécutable : on le dit, au lieu de laisser un cycle sans étape
+/// courante qui se lirait comme une panne.
+///
+/// 🛑 **Le pass DÉPEND DU PARCOURS, et c'est pourquoi cette phrase est une
+/// fonction** : un cycle civique se débloque avec le pass **Civique**, un cycle
+/// TCF avec l'**Intégral** (A108). La constante nommait l'Intégral en dur —
+/// sans effet tant que le cycle civique n'était rendu qu'à un abonné (A89),
+/// **faux** depuis que l'écran gratuit civique le rend aussi.
+///
+/// ⚠️ **Déclarée une fois par front**, miroir mot pour mot de
+/// `journeyLockedCaption` (`web_sejoufr/lib/journey.ts`) : le nom d'un pass est
+/// une phrase commerciale, pas un fait du référentiel — il reste au front (A58).
+String journeyLockedCaption(AppModule module) {
+  final pass = module == AppModule.civique ? 'Civique' : 'Intégral';
+  return "Cette étape fait partie de l'abonnement $pass. Votre parcours, lui, "
+      'reste entier.';
+}
 
 /// **La file entière, à plat** — les étapes de chaque bloc puis son examen,
 /// **dans l'ordre servi**.

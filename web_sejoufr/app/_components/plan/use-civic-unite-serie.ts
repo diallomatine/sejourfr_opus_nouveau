@@ -28,7 +28,13 @@ export function useCivicUniteSerie() {
         setEnCours(uniteCode);
         try {
             const attempt = await civicPlanApi.serieSurUnite(uniteCode);
-            router.push(`/examen-blanc?attempt=${attempt.id}`);
+            /* 🛑 **Le runner, comme toute série ciblée** : `/sessions/[id]` est
+               l'écran de passation du web (miroir de `AppRoutes.runner` côté
+               mobile). ⚠️ Il visait `/examen-blanc?attempt=`, la route
+               **publique** héritée de la démo : une série d'unité civique n'est
+               pas un examen blanc, et le mobile la jouait déjà dans le runner —
+               écart de parité corrigé le 2026-09-20. */
+            router.push(`/sessions/${attempt.id}`);
         } catch (cause) {
             handleStartFailure(cause, {
                 onPaywall: () => setPaywall(true),

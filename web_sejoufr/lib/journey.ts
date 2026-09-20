@@ -170,9 +170,24 @@ export const JOURNEY_NEEDS_OBJECTIVE_CTA = "Choisir ma démarche";
  *  dans un composant finirait par diverger du router. */
 export const JOURNEY_TARGET_PATH_HREF = "/parcours";
 
-/** Rien n'est exécutable : la carte montre la première étape, verrouillée. */
-export const JOURNEY_LOCKED_CAPTION =
-    "Cette étape fait partie de l'abonnement Intégral. Votre parcours, lui, reste entier.";
+/**
+ * Rien n'est exécutable : on le dit, au lieu de laisser un cycle sans étape
+ * courante qui se lirait comme une panne.
+ *
+ * 🛑 **Le pass DÉPEND DU PARCOURS, et c'est pourquoi cette phrase est une
+ * fonction** : un cycle civique se débloque avec le pass **Civique**, un cycle
+ * TCF avec l'**Intégral** (A108). La constante nommait l'Intégral en dur —
+ * sans effet tant que le cycle civique n'était rendu qu'à un abonné (A89),
+ * **faux** depuis que l'écran gratuit civique le rend aussi.
+ *
+ * ⚠️ **Déclarée une fois par front**, miroir mot pour mot de
+ * `journeyLockedCaption` (`journey_labels.dart`) : le nom d'un pass est une
+ * phrase commerciale, pas un fait du référentiel — il reste au front (A58).
+ */
+export function journeyLockedCaption(module: ParcoursModule): string {
+    const pass = module === "CIVIQUE" ? "Civique" : "Intégral";
+    return `Cette étape fait partie de l'abonnement ${pass}. Votre parcours, lui, reste entier.`;
+}
 
 /**
  * **La file entière, à plat** — les étapes de chaque bloc puis son examen,

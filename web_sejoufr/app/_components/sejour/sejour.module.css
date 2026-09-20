@@ -1213,49 +1213,6 @@
   box-shadow: 0 0 0 3px #eef1fb;
 }
 
-/* ---------- Étapes verrouillées (plan gratuit) ---------- */
-
-.lockRow {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 20px;
-  gap: 10px;
-  align-items: center;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--color-line);
-  color: var(--color-ink);
-  font-size: 14px;
-}
-
-.lockRow:last-child {
-  border-bottom: 0;
-}
-
-.lockN {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--color-blue-soft);
-  color: var(--color-blue);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.lockList {
-  color: var(--color-muted);
-  margin-top: 12px;
-}
-
-.lockItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 0;
-  font-size: 13.5px;
-  color: var(--color-ink-2);
-}
-
 /* ---------- Lignes « déjà validé » ---------- */
 
 .doneRow {

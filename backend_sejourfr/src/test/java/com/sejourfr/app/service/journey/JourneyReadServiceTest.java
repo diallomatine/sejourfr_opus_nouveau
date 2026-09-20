@@ -37,6 +37,7 @@ import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
+import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.SkillProgressCounter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +91,7 @@ class JourneyReadServiceTest {
     @Mock private JourneyManager journeyManager;
     @Mock private RecommendedExerciseSelector exerciseSelector;
     @Mock private ThemeManager themeManager;
+    @Mock private SubscriptionService subscriptionService;
 
     private JourneyReadService service;
     private User user;
@@ -103,7 +105,8 @@ class JourneyReadServiceTest {
         service = new JourneyReadService(
                 config, accessService, progressCounter, productionAccessService,
                 observationManager, mesureResolver, new PlanDomainAssessmentResolver(),
-                new JourneyBlocResolver(), journeyManager, exerciseSelector, themeManager);
+                new JourneyBlocResolver(), journeyManager, exerciseSelector, themeManager,
+                subscriptionService);
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
@@ -1047,6 +1050,75 @@ class JourneyReadServiceTest {
         // Le bloc voisin n'a aucune unite due : son examen reste ouvert. Un
         // verrou global aurait ferme les cinq.
         assertThat(vue.blocs().getFirst().exam().locked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("D-33 — sans acces civique, TOUTES les unites du cycle sont verrouillees, "
+            + "et l'examen de thematique garde son verrou PEDAGOGIQUE")
+    void sansAccesCiviqueLesUnitesSontVerrouillees() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme droits = theme("CIV_DROITS", "Droits et devoirs");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(droits));
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(false);
+
+        JourneyStep unite = etapeCivique(JourneyStepType.TRAIN_SKILL, droits, 1);
+        JourneyStep autreUnite = etapeCivique(JourneyStepType.TRAIN_SKILL, droits, 2);
+        JourneyStep examen = etapeCivique(JourneyStepType.SECTION_EXAM, droits, 3);
+
+        JourneyDto vue = service.lire(journey, List.of(unite, autreUnite, examen));
+
+        // 🛑 Le verrou EXISTAIT deja cote serveur (403 de
+        // `demarrerSerieSurUnite`, D-33) : il est desormais SERVI, donc l'ecran
+        // cesse de promettre un geste que le serveur refuse. 4e occurrence de
+        // DETTE-P1, fermee en servant le fait plutot qu'en le recopiant.
+        assertThat(vue.blocs().getFirst().steps())
+                .isNotEmpty()
+                .allSatisfy(step -> assertThat(step.locked()).isTrue());
+        // ⚠️ Et le Plan reste LISIBLE : on floute l'ACTION, jamais le RESULTAT
+        // mesure (D-18). Les etapes sont toutes servies, avec leur nom.
+        assertThat(vue.blocs().getFirst().steps()).hasSize(2);
+        // D-1 : plus rien d'executable ⇒ pas de main, et l'etat le dit.
+        assertThat(vue.current()).isNull();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+    }
+
+    @Test
+    @DisplayName("D-33 — avec l'acces civique, aucune unite n'est verrouillee")
+    void avecAccesCiviqueLesUnitesSontOuvertes() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme droits = theme("CIV_DROITS", "Droits et devoirs");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(droits));
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(true);
+
+        JourneyStep unite = etapeCivique(JourneyStepType.TRAIN_SKILL, droits, 1);
+
+        JourneyDto vue = service.lire(journey, List.of(unite));
+
+        assertThat(vue.blocs().getFirst().steps())
+                .allSatisfy(step -> assertThat(step.locked()).isFalse());
+        assertThat(vue.current()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("🛑 Le verrou civique ne DEBORDE PAS sur le TCF : un abonnement civique absent "
+            + "ne ferme aucune etape d'un parcours TCF")
+    void leVerrouCiviqueNeDebordePasSurLeTcf() {
+        // Le candidat n'a pas d'acces civique -- ce qui ne dit RIEN de son
+        // parcours TCF, dont l'acces est porte par `SkillAccessService`.
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(false);
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        JourneyStep entrainement = trainStep(competence, 1);
+
+        JourneyDto vue = service.lire(journey, List.of(entrainement));
+
+        assertThat(bloc(vue, EpreuveType.TCF_EE).steps())
+                .allSatisfy(step -> assertThat(step.locked()).isFalse());
     }
 
     @Test

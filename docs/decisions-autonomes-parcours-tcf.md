@@ -2000,3 +2000,118 @@ build réel (2 995 puis 2 998, pour 3 058 puis 3 068 réels) — en recopiant le
 🛑 **Un chiffre de build se relit dans `target/*-reports/`, ou dans la ligne `Results:` d'un
 `./mvnw verify` complet — jamais dans la sortie d'une exécution ciblée.** Deux occurrences : ce
 n'est plus un accident.
+
+# 2026-09-20 — Le Plan civique gratuit, et le verrou enfin SERVI (A119 → A126)
+
+> **Demande du propriétaire, verbatim** : « pour la partie Examen civique du plan, pour un non
+> abonné, il faut aussi la même chose qu'un abonné, sauf qu'il peut pas travailler dessus. comme
+> ce qu'on fait actuellement sur le TCF. il voit le plan, mais il peut pas travailler dessus, il
+> doit débloquer son plan. »
+
+⚠️ **Ceci révoque A89** (« ce que D-50 arbitre, c'est le Plan civique **abonné** ; l'écran gratuit
+garde ses sections ») et **ferme A84** : les deux anatomies gratuites disparaissent avec les
+écrans, donc la divergence nommée entre elles n'a plus de surface où exister.
+
+### A119 — 🛑 Le verrou des étapes civiques est SERVI (4ᵉ occurrence de `DETTE-P1`, fermée)
+
+**Le fait, mesuré avant d'écrire** ⟦SQL⟧ : **13** étapes `TRAIN_SKILL` civiques en base, **0** avec
+`skill_id`, 13 avec `official_unit_id` — l'exclusivité est verrouillée par
+`chk_journey_step_train_skill`, et `poserUnite(...)` annule `skill`. Or
+`JourneyReadService.estVerrouillee` sortait sur `if (skill == null) yield false` : **toutes** les
+unités civiques rendaient `locked: false`, abonné ou pas.
+
+Le verrou **existait** pourtant côté serveur — D-33, le **403** de
+`CivicPlanService.demarrerSerieSurUnite`. Il n'était simplement **pas servi**. C'est mot pour mot
+la 3ᵉ occurrence de `DETTE-P1` : « un front ne peut pas lire ce qu'on ne lui dit pas. »
+
+**Décidé.** `estVerrouillee` rend `!accesCivique` pour toute `TRAIN_SKILL` d'un parcours civique.
+
+🛑 **Le dispatch se fait sur le MODULE, jamais sur la nullité de `skill`.** Tester `skill == null`
+marcherait aujourd'hui, mais dirait « je ne sais pas de quoi je parle » — et une étape TCF sans
+compétence, que rien n'interdit d'écrire demain, sortirait verrouillée **par accident**.
+
+⚠️ **L'accès est résolu UNE fois par lecture**, jamais par étape : c'est une requête d'abonnement,
+et un parcours civique porte jusqu'à 16 unités.
+
+**Ce qui n'est PAS touché** : `SECTION_EXAM` civique, dont le verrou est **pédagogique** (D-15) —
+y ajouter un verrou commercial ferait dire à `journeyExamNote` une condition fausse (A107) et
+proposerait un pass pour lever un verrou qui n'en relève pas. `SkillAccessService` non plus : il
+ne parle que du travail de compétence TCF, lui ajouter `hasCivique` lui donnerait deux règles.
+
+**Trois tests**, dont un non demandé et qui compte : 🛑 **le verrou civique ne déborde pas sur le
+TCF** — un candidat sans pass Civique ne doit voir se fermer aucune étape d'un parcours TCF.
+
+### A120 — L'écran civique devient UN seul écran, `free` en paramètre
+
+`CiviquePremium` + `CiviqueGratuit` ⇒ `CiviquePlan({plan, journey, free})` ⇄ `_ecran(plan, free:)`.
+Anatomie unique : `Top` → bande objectif → « À faire maintenant » → section de cycle → « À revoir
+bientôt » → pied (offre pour un gratuit, « Aller plus loin » pour un abonné).
+
+**La forme est celle d'A114, transposée** : `free || locked ⇒ DEBLOQUER`, **court-circuité avant**
+le verrou servi, et les deux écrans ne branchent que sur `geste`. Les lanceurs — **un par grain**
+(A87) — sont attachés à la seule branche `LANCER`, inatteignable quand `free`.
+
+### A121 — `civicNowCard` retombe sur `plan.prochaine` quand `journey.current` est `null`
+
+**Motif.** Forme exacte de `planNowCard`. Et **sans ce repli, la carte disparaîtrait** le jour où
+le verrou est servi : `elire` saute les étapes verrouillées, donc un compte civique gratuit a
+`current == null` et `state == LOCKED`. C'est-à-dire qu'elle disparaîtrait exactement sur l'écran
+que le propriétaire demande à voir.
+
+**Si l'arbitrage était autre** : supprimer le second `return` des deux côtés, et accepter la
+disparition.
+
+### A122 — `kCivicPlanLockedCta` est PROMU, pas supprimé
+
+« Débloquer cette série » devient le libellé du geste, et gagne son miroir web. Même raisonnement
+qu'A114 sur `PLAN_NOW_CTA_LOCKED` : la carte nomme **une** série, pas le plan entier — et les
+lignes du **cycle**, elles, gardent « Débloquer mon plan → » (A105), qui parle bien du plan.
+
+### A123 — `CivicCibleTone` est CONSERVÉ, contrairement à ce qu'A84 laissait entendre
+
+A84 le nommait parmi les trois helpers « côté Dart seulement ». Mesuré : il a **5 lecteurs hors du
+Plan** (`progres_mouvement.dart`, `home_screen.dart`). 🛑 **Un symbole se supprime sur un `grep`,
+jamais sur la foi d'une note de journal** — même écrite par soi.
+
+### A124 — `civicPlanGrainNote` descend dans « À revoir bientôt »
+
+Elle décrit le **grain du plan dérivé** ; or la seule surface qui montre encore des cibles du plan
+dérivé est cette section. Elle accompagne désormais ce qu'elle décrit, sur les deux écrans et des
+deux côtés — l'asymétrie d'A84 se **referme** au lieu de se déplacer.
+
+### A125 — La carte de résultat du diagnostic quitte le Plan civique
+
+**Motif.** C'est un **score d'entrée**, que D-50 §1 interdit sur la bande objectif et qu'A92
+réserve à « Ma progression ». 🛑 **Le résultat n'est pas perdu** — il se lit sur le rapport de
+diagnostic civique et sur « Où vous en êtes ». La contradiction #1 n'est pas rouverte : on retire
+un **doublon**, on ne floute rien.
+
+### A126 — 🛑 « Cette étape fait partie de l'abonnement Intégral » devient une FONCTION du parcours
+
+`JOURNEY_LOCKED_CAPTION` ⇒ `journeyLockedCaption(module)` ⇄ son miroir Dart. La constante nommait
+l'**Intégral** en dur : sans effet tant que le cycle civique n'était rendu qu'à un abonné (A89),
+**faux** à l'instant où l'écran gratuit civique le rend — et `state` y passe à `LOCKED` dès A119.
+
+⚠️ **Laissé au FRONT, pas servi**, et la règle qui tranche est **A58** : la question n'est pas
+« est-ce que ça évite une copie ? » mais « **est-ce que le référentiel le nomme ?** ». Un palier
+CECRL ou une mention de l'arrêté se servent ; le **nom commercial d'un pass**, non.
+
+---
+
+### Deux correctifs de parité trouvés en mesurant
+
+- `use-civic-unite-serie.ts` routait vers `/examen-blanc?attempt=` — la route **publique** héritée
+  de la démo — alors que le mobile jouait déjà la série dans le runner. Aligné sur `/sessions/{id}`.
+- Le `PaywallSheet` de la carte de fin de cycle était figé sur `INTEGRAL` : sans effet tant que la
+  fin de cycle n'existait qu'en TCF, **faux** dès qu'un cycle civique s'achève. Il suit `module`
+  (A108).
+
+### ⚠️ Ce qui reste ouvert, et qui n'est pas de cette passe
+
+1. **`journeyExamNote`** annonce une condition **pédagogique** quel que soit le motif du verrou
+   (A107). Inchangé.
+2. **`PlanDomainView.DomainPriorityRow`** (web) floute encore le titre d'une priorité verrouillée
+   au nom d'une surface supprimée (A114). Toujours ouvert.
+3. **A26** reste partiellement caduque (A118 bis) : `premiereDuParcours` lit la file, `elire` lit
+   le bloc meneur.
+4. **L'Accueil** reste la dernière surface qui tait le nom d'une priorité TCF verrouillée.

@@ -231,7 +231,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
               // dit, au lieu de laisser un cycle sans étape courante qui se
               // lirait comme une panne.
               if (parcours.state == JourneyState.locked)
-                const SfTiny(kJourneyLockedCaption),
+                SfTiny(journeyLockedCaption(widget.module)),
             ],
           ),
         ),

@@ -886,35 +886,16 @@ export function PathRow({ label, state, pill }: {
   );
 }
 
-/**
- * Étape verrouillée (plan gratuit).
- *
- * `label` accepte un nœud : sur le Plan, le titre d'une ligne **verrouillée**
- * passe derrière le rideau (`PlanBlur`) — le rang et le cadenas, eux, restent
- * nets.
- */
-export function LockRow({ n, label, icon: Icon }: { n: number; label: ReactNode; icon: LucideIcon }) {
-  return (
-    <div className={styles.lockRow}>
-      <span className={styles.lockN}>{n}</span>
-      <span>{label}</span>
-      <Icon size={16} strokeWidth={2} aria-hidden />
-    </div>
-  );
-}
+/* ⚠️ **`LockRow`, `LockItem` et `LockList` sont SUPPRIMÉES** (2026-09-20), avec
+   leurs classes `.lockRow` / `.lockN` / `.lockList` / `.lockItem` et leur miroir
+   Flutter (`SfLockRow`, `SfLockItem`).
 
-export function LockItem({ label, icon: Icon }: { label: string; icon: LucideIcon }) {
-  return (
-    <div className={styles.lockItem}>
-      <Icon size={16} strokeWidth={2} aria-hidden />
-      {label}
-    </div>
-  );
-}
-
-export function LockList({ children }: { children: ReactNode }) {
-  return <div className={styles.lockList}>{children}</div>;
-}
+   Elles ne servaient qu'à l'**anatomie gratuite** des deux Plans : les trois
+   bénéfices verrouillés du TCF (partis avec A114) puis les cinq du civique. Les
+   deux écrans gratuits portent désormais l'anatomie de l'abonné, où le verrou se
+   dit par un **cadenas servi** et un **geste** (`JourneyRow locked` +
+   `JOURNEY_STEP_UNLOCK_LINK`) — jamais par une liste de choses qu'on n'a pas.
+   Ne pas les réintroduire. */
 
 /* ---------------------------------------------- Parcours TCF (la timeline) */
 
