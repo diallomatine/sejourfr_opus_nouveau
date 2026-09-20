@@ -150,6 +150,13 @@ class PlanTcfView extends ConsumerWidget {
         // dire ici puis là-bas la disait deux fois de suite. Ne pas la
         // réintroduire.
         PlanCycleSection(plan: plan, journey: journey),
+        // ✅ **Visibles aussi sans accès** (demande du propriétaire,
+        // 2026-09-20) : ce sont deux **constats** — ce qui a été mesuré, ce qui
+        // a été fait — et rien ne s'y travaille. Les en priver n'ouvrait aucun
+        // droit, ça retirait la lecture de son propre parcours à celui qui en a
+        // le plus besoin. La barre « Débloquer mon plan » reste la seule
+        // **action** dominante de l'écran.
+        _links(context),
         const SizedBox(height: 24),
       ];
 

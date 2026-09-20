@@ -278,11 +278,8 @@ function CiviquePlan({plan, journey, free}: {
         </Section>
       )}
 
-      {free ? (
-        <PlanPaywall module="CIVIQUE" cta="Débloquer mon plan" />
-      ) : (
-        <AllerPlusLoin />
-      )}
+      {free && <PlanPaywall module="CIVIQUE" cta="Débloquer mon plan" />}
+      <AllerPlusLoin />
 
       {/* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
           d'achat du Plan passe par l'écran de transition, plus rien ici ne
@@ -348,13 +345,23 @@ function lancer(
  * seule action dominante de cet écran-là est « Débloquer mon plan ».
  */
 function AllerPlusLoin() {
+  const rows: Array<{href: string; label: string}> = [
+    {href: journeyHistoryHref("CIVIQUE"), label: JOURNEY_HISTORY_TITLE},
+    /* 🛑 Le diagnostic **civique** a sa propre porte — le TCF pointe sur
+       `/diagnostic`, qui ne raconte rien du civique. */
+    {href: "/diagnostic-civique", label: "Mon diagnostic"},
+  ];
   return (
     <Section title="Aller plus loin">
       <Pad>
         <Card padding="rows">
-          <Link className={sejourStyles.link} href={journeyHistoryHref("CIVIQUE")}>
-            {JOURNEY_HISTORY_TITLE} <ChevronRight size={15} aria-hidden />
-          </Link>
+          <Stack className={sejourStyles.deskGrid}>
+            {rows.map((row) => (
+              <Link key={row.href} className={sejourStyles.link} href={row.href}>
+                {row.label} <ChevronRight size={15} aria-hidden />
+              </Link>
+            ))}
+          </Stack>
         </Card>
       </Pad>
     </Section>

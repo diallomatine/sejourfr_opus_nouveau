@@ -14,6 +14,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/civique_examen.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import 'plan_labels.dart';
 import 'civic_plan_labels.dart';
 import 'civic_serie_launcher.dart';
 import 'civic_plan_provider.dart';
@@ -219,7 +220,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // Deux grilles de durées à deux écrans d'intervalle, et la même promesse
       // dite deux fois de suite : les deux défauts constatés. Ne pas les
       // réintroduire.
-      if (!free) _allerPlusLoin(context),
+      _allerPlusLoin(context),
       const SizedBox(height: 28),
     ];
   }
@@ -230,13 +231,15 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// brique ([ListGroup] / [ListRow]), même icône, même libellé, même écran
   /// d'arrivée — seul le parcours affiché change ce que l'écran raconte.
   ///
-  /// ⚠️ **Une seule ligne, là où le TCF en a deux.** Sa seconde mène à « Mon
-  /// diagnostic » ; le civique a bien la sienne (`/diagnostic-civique`), mais
-  /// l'ajouter serait une entrée de navigation que personne n'a demandée — à
-  /// rouvrir sur un mot du propriétaire, pas ici.
+  /// ✅ **Deux lignes, comme le TCF** (demande du propriétaire, 2026-09-20) :
+  /// la seconde mène au diagnostic **civique**, qui a sa propre porte.
   ///
-  /// ⚠️ **Absente sur un compte sans accès**, comme sur le Plan TCF gratuit :
-  /// la seule action dominante de cet écran-là est « Débloquer mon plan ».
+  /// ✅ **Visible aussi sans accès** (même demande) : ce sont deux **constats**
+  /// — ce qui a été mesuré, ce qui a été fait — et rien ne s'y travaille. Les
+  /// en priver n'ouvrait aucun droit, ça retirait la lecture de son propre
+  /// parcours à celui qui en a le plus besoin. ⚠️ Révoque « absente sur un
+  /// compte sans accès » : la barre « Débloquer mon plan » reste la seule
+  /// **action** dominante, et ces deux liens n'en sont pas une.
   Widget _allerPlusLoin(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
@@ -249,6 +252,16 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
             title: kJourneyHistoryTitle,
             sub: journeyHistorySub(AppModule.civique),
             onTap: () => context.push(AppRoutes.planProgress),
+          ),
+          ListRow(
+            icon: LucideIcons.clipboardCheck,
+            iconBg: AppColors.surface2,
+            iconColor: AppColors.muted,
+            title: kPlanDiagnosticTitle,
+            sub: kPlanDiagnosticSub,
+            // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF ne
+            // raconte rien du civique.
+            onTap: () => context.push(AppRoutes.civicDiagnostic),
           ),
         ],
       ),

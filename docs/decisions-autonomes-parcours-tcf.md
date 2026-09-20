@@ -2667,3 +2667,35 @@ l'autorité est `civicNowCard`. Tant qu'il est servi, un quatrième écran le re
 **Si l'arbitrage était autre** (« l'Accueil reste muet sur une priorité fermée ») : il suffirait
 de remettre le filtre `nommable`, mais l'écart que le propriétaire a constaté reviendrait tel
 quel.
+
+---
+
+## A153 — « Ma progression » et « Mon diagnostic » : deux lignes, quatre écrans (2026-09-20)
+
+> Propriétaire : « ajoute Mon diagnostic et Ma progression aussi dans civique […] et aussi
+> rendre ces 2 boutons visibles aux non abonnés au TCF et civique. »
+
+Deux manques, tous deux notés en attente et tranchés ici.
+
+**1. Le civique n'avait qu'une ligne.** A94 l'avait signalé sans le corriger (« une entrée de
+navigation que personne n'a demandée »). Elle est demandée. 🛑 **Le diagnostic civique a sa
+propre porte** (`/diagnostic-civique`) : pointer sur celle du TCF n'aurait rien raconté du
+civique.
+
+**2. Un compte sans accès ne les voyait pas.** ⚠️ **Révoque** « absentes sur un compte sans
+accès, la seule action dominante de cet écran est *Débloquer mon plan* ».
+
+Le raisonnement qui tranche : **ce sont deux CONSTATS, pas des actions.** « Ma progression »
+montre ses cycles terminés, « Mon diagnostic » son résultat de départ — **rien ne s'y
+travaille**, et rien n'y est verrouillé. Les en priver n'ouvrait donc aucun droit : ça
+retirait au candidat la lecture de **son propre parcours**, à celui qui en a le plus besoin.
+La barre « Débloquer mon plan » reste la seule **action** dominante de l'écran, et ces deux
+liens n'en sont pas une.
+
+C'est la même famille que « le Plan d'un compte sans accès est un constat » (2026-09-12) et
+que la carte « À faire maintenant » servie au gratuit (2026-09-19) : **on retire un chemin de
+travail, jamais une information mesurée.**
+
+**Si l'arbitrage était autre** (« un écran gratuit ne porte qu'un seul geste ») : il suffirait
+de remettre le `free ?` autour des deux rendus — mais un candidat sans accès ne pourrait plus
+relire le diagnostic qu'il vient de passer.

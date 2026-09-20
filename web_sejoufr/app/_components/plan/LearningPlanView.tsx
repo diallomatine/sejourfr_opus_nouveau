@@ -292,6 +292,14 @@ function TcfPlanFree({plan, journey}: {
           Le bouton « Débloquer mon plan » est **juste en dessous**. */}
       <PlanCycleSection journey={journey} plan={plan} />
 
+      {/* ✅ **Visible aussi sans accès** (demande du propriétaire,
+          2026-09-20) : ce sont deux **constats** — ce qui a été mesuré, ce qui
+          a été fait — et rien ne s'y travaille. Les en priver n'ouvrait aucun
+          droit, ça retirait la lecture de son propre parcours à celui qui en a
+          le plus besoin. La barre « Débloquer mon plan » reste la seule
+          **action** dominante de l'écran. */}
+      <AllerPlusLoin />
+
       <PlanPaywall
         module="TCF"
         cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
