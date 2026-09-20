@@ -571,19 +571,11 @@ String planPriorityRankTag(int rank) => 'Priorité $rank';
 
 /* ----------------------------------------------- le plan d'un compte libre  */
 
-const String kPlanUnlockHeroTitle = 'Passez du diagnostic à la progression';
-const String kPlanUnlockHeroText =
-    'Votre diagnostic vous montre quoi améliorer. Avec l\'accès Intégral, '
-    'SejourFR vous accompagne étape par étape pour le travailler.';
-const List<String> kPlanUnlockHeroChecks = <String>[
-  'entraînements choisis selon vos difficultés',
-  'corrections et conseils personnalisés',
-  'plan adapté à vos progrès',
-];
-
-/// Le rappel sous le bouton de déblocage. **Aucun prix** : ils viennent du
-/// store, sur l'écran d'offre.
-const String kPlanUnlockCaption = 'Accès Intégral · paiement unique';
+/* 🛑 **La carte bleue « Passez du diagnostic à la progression », son texte, ses
+   trois puces et le rappel sous le bouton sont SUPPRIMÉS** (demande du
+   propriétaire, 2026-09-20). La promesse vit sur l'écran de transition
+   (`plan_unlock_labels.dart`), qui la dit une fois et porte le prix servi. Ne
+   pas les réintroduire ici : elle y serait dite deux fois de suite. */
 
 /* ---------------------------------------------- les accès secondaires ----- */
 

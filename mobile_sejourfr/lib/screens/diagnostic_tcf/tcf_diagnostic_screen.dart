@@ -17,7 +17,6 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/screen_header.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
@@ -359,7 +358,6 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
                       ref: ref,
                       initialTarget: PlanModuleTarget.integral,
                       ctaLocation: AnalyticsCtaLocation.diagnosticReport,
-                      origin: PaywallOrigin.diagnostic,
                     ),
                   ),
                 ] else if (e.canStart) ...[

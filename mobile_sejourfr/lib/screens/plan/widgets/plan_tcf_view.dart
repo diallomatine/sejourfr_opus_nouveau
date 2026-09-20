@@ -14,7 +14,6 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
-import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../journey_labels.dart';
 import '../plan_actions.dart';
@@ -72,16 +71,15 @@ class PlanTcfView extends ConsumerWidget {
       return Column(
         children: [
           Expanded(child: ListView(children: _free(context, ref))),
+          // 🛑 **Le geste ouvre l'écran de TRANSITION**, plus l'offre
+          // directement (demande du propriétaire, 2026-09-20) : le candidat y
+          // relit ce que son diagnostic a trouvé, puis il choisit son pass.
           SfStickyBar(
             child: SfButton(
               label: _unlockCta(objective),
-              caption: kPlanUnlockCaption,
-              onPressed: () => unawaited(showTcfLockPaywall(
-                context,
-                ref: ref,
-                ctaLocation: AnalyticsCtaLocation.lockedPlan,
-                origin: PaywallOrigin.plan,
-              )),
+              onPressed: () => context.push(
+                AppRoutes.planUnlockPath(civique: false),
+              ),
             ),
           ),
         ],
@@ -137,15 +135,12 @@ class PlanTcfView extends ConsumerWidget {
         // masquer priverait le candidat de l'information la plus utile qu'il
         // possède — c'est la contradiction #1 du dépôt, tranchée le 2026-08-21.
         // Le bouton « Débloquer mon plan » est **ancré en barre basse**.
+        // 🛑 **La carte bleue « Passez du diagnostic à la progression » est
+        // SUPPRIMÉE** (demande du propriétaire, 2026-09-20) : sa promesse et
+        // ses trois puces vivent désormais sur l'écran de transition, et la
+        // dire ici puis là-bas la disait deux fois de suite. Ne pas la
+        // réintroduire.
         PlanCycleSection(plan: plan, journey: journey),
-        const SfSection(
-          flush: true,
-          child: SfUnlockHero(
-            title: kPlanUnlockHeroTitle,
-            text: kPlanUnlockHeroText,
-            checks: kPlanUnlockHeroChecks,
-          ),
-        ),
         const SizedBox(height: 24),
       ];
 
@@ -232,7 +227,6 @@ class PlanTcfView extends ConsumerWidget {
               context,
               ref: ref,
               ctaLocation: AnalyticsCtaLocation.lockedPlan,
-              origin: PaywallOrigin.plan,
             )),
           ),
         PlanNowGeste.lancer => SfButton(
@@ -291,7 +285,6 @@ class PlanTcfView extends ConsumerWidget {
                         context,
                         ref: ref,
                         ctaLocation: AnalyticsCtaLocation.lockedPlan,
-                        origin: PaywallOrigin.plan,
                       )
                     : startPlanMilestone(context, ref, milestone),
               ),

@@ -443,7 +443,7 @@ function DiagnosticDejaFait({
 
             <p className="tcfd-fine">{TCF_DIAGNOSTIC_ESTIMATION_NOTE}</p>
 
-            <PaywallSheet origin="diagnostic"
+            <PaywallSheet
                 open={paywallOpen}
                 onClose={onPaywallClose}
                 module="INTEGRAL"

@@ -7,7 +7,6 @@ import '../../core/models/billing_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/start_failure.dart';
-import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import 'learning_plan_provider.dart';
 
@@ -79,5 +78,4 @@ Future<void> startCivicUniteSerie(
 Future<void> openCivicOffer(BuildContext context) => showPaywallSheet(
       context,
       initialTarget: PlanModuleTarget.civique,
-      origin: PaywallOrigin.plan,
     );

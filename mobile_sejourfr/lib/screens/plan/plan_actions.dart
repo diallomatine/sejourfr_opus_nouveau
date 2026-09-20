@@ -9,7 +9,6 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
-import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/premium_lock.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
@@ -84,7 +83,6 @@ Future<void> openPlanSeanceItem(
       context,
       ref: ref,
       ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      origin: PaywallOrigin.plan,
     );
     return;
   }
@@ -125,7 +123,6 @@ Future<void> startPlanSeanceItem(
       context,
       ref: ref,
       ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      origin: PaywallOrigin.plan,
     );
     return;
   }

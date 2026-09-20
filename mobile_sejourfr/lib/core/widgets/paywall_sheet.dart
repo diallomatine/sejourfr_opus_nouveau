@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../analytics/analytics.dart';
 import '../models/billing_models.dart';
-import 'paywall_context.dart';
 import '../../screens/paywall/paywall_screen.dart';
 
 /// Pousse l'écran paywall plein écran (IAP natif Apple/Google).
@@ -33,7 +32,6 @@ Future<void> showPaywallSheet(
   PlanModuleTarget? initialTarget,
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
-  PaywallOrigin origin = PaywallOrigin.ailleurs,
 }) {
   if (ref != null && ctaLocation != null) {
     ref.read(analyticsServiceProvider).track(
@@ -43,8 +41,7 @@ Future<void> showPaywallSheet(
   }
   return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
-      builder: (_) =>
-          PaywallScreen(initialTarget: initialTarget, origin: origin),
+      builder: (_) => PaywallScreen(initialTarget: initialTarget),
       fullscreenDialog: true,
     ),
   );

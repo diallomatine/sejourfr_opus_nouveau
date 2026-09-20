@@ -38,6 +38,15 @@ const PRESENTATION: Record<
         tag: string;
         pitch: string;
         features: { label: string; strong?: boolean }[];
+        /**
+         * 🛑 **Ce que le pass n'ouvre PAS**, barré et en rouge. Le Pass Civique
+         * ne débloque **pas** le TCF IRN, et l'écran doit le rendre évident —
+         * c'est la demande explicite du propriétaire (2026-09-20). Il vit ici
+         * plutôt que dans le rendu : une liste de périmètre se lit à côté de
+         * celle des inclusions, pas dans le JSX. Miroir du `_FeatureList`
+         * mobile (`screens/paywall/paywall_screen.dart`).
+         */
+        excluded?: string[];
     }
 > = {
     CIVIQUE: {
@@ -51,6 +60,11 @@ const PRESENTATION: Record<
             {label: "Entraînement par thème"},
             {label: "Révision des erreurs et favoris"},
             {label: "Statistiques par thématique"},
+        ],
+        excluded: [
+            "Module TCF IRN (CO, CE, Structure)",
+            "Expression écrite + orale évaluée par IA",
+            "Diagnostic CECRL (A2 / B1 / B2)",
         ],
     },
     INTEGRAL: {
@@ -227,15 +241,25 @@ function PaiementInner() {
     // passes par module.
     const oneTime = isOneTimeCatalog(plans);
 
-    /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
-    const visibleModules = useMemo<PlanModuleTarget[]>(() => {
-        if (currentPlan === "INTEGRAL") return ["INTEGRAL"];
-        if (focusedModule) {
-            // Toujours montrer INTEGRAL à côté pour permettre l'upgrade
-            return focusedModule === "INTEGRAL" ? ["INTEGRAL"] : ["CIVIQUE", "INTEGRAL"];
-        }
-        return ["CIVIQUE", "INTEGRAL"];
-    }, [currentPlan, focusedModule]);
+    /**
+     * 🛑 **LES DEUX MODULES, TOUJOURS** (demande du propriétaire, 2026-09-20 :
+     * « des fois on masque civique ou intégral selon des conditions. Donc
+     * toujours afficher les 2 et laisser la personne choisir »).
+     *
+     * Deux conditions de masquage ont sauté :
+     * - `currentPlan === "INTEGRAL"` ne rend plus **que** l'Intégral — un
+     *   candidat déjà Intégral voyait disparaître le Civique, donc la preuve
+     *   que son pass le couvre déjà ;
+     * - `focusedModule === "INTEGRAL"` ne masque plus le Civique — arriver par
+     *   `?module=INTEGRAL` fermait le seul écran où les deux périmètres se
+     *   comparent, et c'est là que se lit « le Pass Civique n'ouvre pas le
+     *   TCF ». Le `?module=` reste un **ordre d'affichage** : le module visé
+     *   passe devant, il n'efface pas l'autre.
+     */
+    const visibleModules = useMemo<PlanModuleTarget[]>(
+        () => (focusedModule === "INTEGRAL" ? ["INTEGRAL", "CIVIQUE"] : ["CIVIQUE", "INTEGRAL"]),
+        [focusedModule],
+    );
 
     async function handleSubscribe(planCode: string) {
         // Ce clic engage réellement l'achat (ouverture de la Checkout Stripe),
@@ -448,6 +472,7 @@ function OneTimePasses({
                                 </li>
                             ))}
                         </ul>
+                        <ExcludedList items={pres.excluded}/>
                         <div className="otp-passes">
                             {passes.map((p) => {
                                 const popular = p.code === POPULAR_PASS_CODE;
@@ -658,6 +683,32 @@ function deriveIntent(currentPlan: CurrentPlan, module: PlanModuleTarget): CardI
     return "subscribe";
 }
 
+/**
+ * 🛑 **« NON INCLUS », barré et en rouge** — le périmètre que le pass n'ouvre
+ * PAS. Rendu par les **deux** cartes de cet écran (passes et abonnements) :
+ * c'est la seule chose qui dise noir sur blanc que le **Pass Civique ne
+ * débloque pas le TCF**, et le propriétaire l'a demandée explicitement
+ * (2026-09-20). Miroir de `_FeatureList` côté mobile.
+ *
+ * Absente quand le module couvre tout (Intégral) : une rubrique « non inclus »
+ * vide se lirait comme un manque.
+ */
+function ExcludedList({items}: { items?: string[] }) {
+    if (!items?.length) return null;
+    return (
+        <div className="otp-excl">
+            <p className="otp-excl-label">NON INCLUS</p>
+            <ul className="otp-excl-list">
+                {items.map((label) => (
+                    <li key={label}>
+                        <CloseIcon/> {label}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 function PlanCard({
                       module,
                       plan,
@@ -739,6 +790,11 @@ function PlanCard({
                     </li>
                 ))}
             </ul>
+
+            {/* 🛑 Le périmètre que ce pass n'ouvre pas — rendu ici AUSSI, pas
+                seulement en mode passes : les deux cartes de cet écran doivent
+                dire la même chose du Civique. */}
+            <ExcludedList items={preset.excluded}/>
 
             <button
                 type="button"
@@ -867,6 +923,13 @@ const CheckIcon = () => (
         <polyline points="20 6 9 17 4 12"/>
     </I>
 );
+/** La croix des lignes « NON INCLUS ». Miroir de `LucideIcons.x` côté mobile. */
+const CloseIcon = () => (
+    <I>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+    </I>
+);
 const ArrowLeftIcon = () => (
     <I>
         <line x1="19" y1="12" x2="5" y2="12"/>
@@ -912,6 +975,15 @@ const InfoIcon = () => (
 // STYLES
 // ============================================================================
 const styles = `
+/* « NON INCLUS » — le perimetre qu'un pass n'ouvre pas, barre et en rouge.
+   Declare ici, donc injecte quel que soit le mode de la page (passes ou
+   abonnements) : les deux cartes le rendent. */
+.otp-excl { margin:-6px 0 16px; }
+.otp-excl-label { margin:0 0 4px; font-family:var(--font-mono); font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--color-red); }
+.otp-excl-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+.otp-excl-list li { display:flex; align-items:flex-start; gap:8px; font-size:13.5px; line-height:1.4; color:var(--color-red); text-decoration:line-through; text-decoration-color:color-mix(in srgb, var(--color-red) 60%, transparent); }
+.otp-excl-list svg { flex:0 0 auto; margin-top:2px; color:var(--color-red); text-decoration:none; }
+
   .pay { padding: 24px 36px 64px; max-width: 1100px; }
   @media (max-width: 760px) { .pay { padding: 20px 16px 56px; } }
 

@@ -219,7 +219,6 @@ function RecoCard({
           </button>
         </section>
         <PaywallSheet
-          origin="plan"
           open={paywall}
           module="INTEGRAL"
           onClose={() => setPaywall(false)}

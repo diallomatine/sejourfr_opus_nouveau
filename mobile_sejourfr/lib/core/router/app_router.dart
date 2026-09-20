@@ -47,6 +47,8 @@ import '../../screens/plan/plan_domain_screen.dart';
 import '../../screens/plan/plan_labels.dart';
 import '../../screens/plan/plan_history_screen.dart';
 import '../../screens/plan/plan_screen.dart';
+import '../../screens/plan/plan_unlock_labels.dart';
+import '../../screens/plan/plan_unlock_screen.dart';
 import '../../screens/plan/plan_serie_result_screen.dart';
 import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/diagnostic_civique/civic_diagnostic_screen.dart';
@@ -191,6 +193,15 @@ class AppRoutes {
   /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
   /// Aucun identifiant n'y voyage : la fiche relit le Plan déjà chargé.
   static const planDomain = '/plan/domaine/:domainKey';
+
+  /// **L'écran de transition « Débloquer mon plan »** — ce que le diagnostic a
+  /// trouvé, puis le prix d'entrée du module. Poussé par le geste de
+  /// déblocage du Plan, et **hors shell** : on s'y ferme par la croix.
+  /// Le module voyage en query (`?module=CIVIQUE`), comme côté web.
+  static const planUnlock = '/plan/debloquer';
+
+  static String planUnlockPath({required bool civique}) =>
+      civique ? '$planUnlock?module=CIVIQUE' : planUnlock;
 
 
   /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
@@ -658,6 +669,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.planProgress,
         builder: (_, __) => const PlanHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planUnlock,
+        builder: (_, state) => PlanUnlockScreen(
+          module: state.uri.queryParameters['module'] == 'CIVIQUE'
+              ? PlanUnlockModule.civique
+              : PlanUnlockModule.tcf,
+        ),
       ),
       GoRoute(
         path: AppRoutes.planSerieResult,

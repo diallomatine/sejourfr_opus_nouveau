@@ -293,3 +293,87 @@ export const CIVIC_DIAGNOSTIC_HUB_HREF = "/diagnostic-civique";
 export function civicDiagnosticResultHref(sessionId: string): string {
     return `/diagnostic-civique/${sessionId}/resultat`;
 }
+
+/* ------------------------------------- L'écran de déblocage du Plan (A) --- */
+
+/**
+ * **Le score du diagnostic, ramené au format de l'épreuve.**
+ *
+ * 🛑 **Les deux nombres sont SERVIS**, et la branche est celle de
+ * {@link perspectiveLine} : le diagnostic a posé le format entier ⇒ le score
+ * **est** le résultat ; sinon c'est `projection40`, calculé serveur. Rien n'est
+ * recalculé ici. `null` quand rien n'a été mesuré — « on n'a rien mesuré » ne
+ * se dit pas « 0 sur 40 ».
+ *
+ * Miroir Dart : `civicScoreSurFormat`.
+ */
+export function civicScoreSurFormat(
+    r: CivicDiagnosticResultDto,
+): {valeur: number; sur: number} | null {
+    if (r.formatQuestions <= 0) return null;
+    if (r.posees === r.formatQuestions) {
+        return {valeur: r.bonnes, sur: r.formatQuestions};
+    }
+    if (r.projection40 === null) return null;
+    return {valeur: r.projection40, sur: r.formatQuestions};
+}
+
+/** « 11 / 40 » — la valeur du héros. `null` quand rien n'a été mesuré. */
+export function civicScoreLabel(r: CivicDiagnosticResultDto): string | null {
+    const score = civicScoreSurFormat(r);
+    return score ? `${score.valeur} / ${score.sur}` : null;
+}
+
+/**
+ * **Ce qui manque pour atteindre le seuil**, en points.
+ *
+ * ⚠️ C'est une **soustraction de deux faits servis** (le seuil et le score
+ * ramené au format), pas un classement : aucun état pédagogique n'en sort.
+ * `null` dès que le score n'est pas mesuré, ou que le seuil est déjà atteint —
+ * on n'annonce pas « 0 point à combler » à quelqu'un qui est au-dessus.
+ */
+export function civicEcartLine(r: CivicDiagnosticResultDto): string | null {
+    const score = civicScoreSurFormat(r);
+    if (!score) return null;
+    const manque = r.seuilReussite - score.valeur;
+    if (manque <= 0) return null;
+    return `${manque} point${manque > 1 ? "s" : ""} à combler`;
+}
+
+/**
+ * **La part du seuil déjà acquise** (0–1), pour le rail du héros.
+ *
+ * 🛑 Ce n'est ni un pourcentage de réussite ni un pronostic : c'est la position
+ * du score servi sur l'axe du format. `null` sans mesure ⇒ pas de rail.
+ */
+export function civicScoreRatio(r: CivicDiagnosticResultDto): number | null {
+    const score = civicScoreSurFormat(r);
+    if (!score || score.sur <= 0) return null;
+    return Math.min(Math.max(score.valeur / score.sur, 0), 1);
+}
+
+/**
+ * « Mises en situation : 1 / 12 » — **deux nombres servis** (`situations`).
+ *
+ * 🛑 `null` quand aucune n'a été posée : un « 0 / 0 » ne dit rien et se lit
+ * comme un échec.
+ */
+export function civicSituationsTitre(r: CivicDiagnosticResultDto): string | null {
+    if (r.situations.posees <= 0) return null;
+    return `${CIVIC_SITUATIONS_TITLE} : ${r.situations.reussies} / ${r.situations.posees}`;
+}
+
+/**
+ * « 12 des 40 questions de l'examen. Votre plan les travaille en premier. »
+ *
+ * 🛑 **Seulement quand le diagnostic a posé le format entier.** En mode dégradé
+ * (catalogue sous-doté), les mises en situation posées ne sont pas celles de
+ * l'examen : annoncer « 12 des 40 questions de l'examen » serait un report
+ * présenté comme une mesure.
+ */
+export function civicSituationsNote(r: CivicDiagnosticResultDto): string | null {
+    if (r.situations.posees <= 0) return null;
+    if (r.posees !== r.formatQuestions) return null;
+    return `${r.situations.posees} des ${r.formatQuestions} questions de l'examen. `
+        + "Votre plan les travaille en premier.";
+}

@@ -28,6 +28,7 @@ import {
   Minus,
   Target,
   AlertCircle,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { createContext, useContext, useId, useState } from "react";
@@ -208,6 +209,37 @@ export function Top({
   );
 }
 
+/**
+ * **La tête d'un écran de transition** : une croix de fermeture à gauche, un
+ * œil-de-bœuf à droite.
+ *
+ * 🛑 **Ce n'est pas une variante de `Top`**, et c'est la différence qui compte :
+ * `Top` annonce une **page** (retour en chevron, titre en `h1`, bascule de
+ * module dans son `TopSlot`) ; celui-ci coiffe un écran **qu'on ferme** — une
+ * étape posée par-dessus, sans titre, dont le contenu commence par son héros.
+ * Les deux maquettes de l'écran de déblocage du Plan le montrent ainsi.
+ *
+ * Miroir Flutter : `SfSheetHead`.
+ */
+export function SheetHead({
+  eyebrow,
+  onClose,
+  closeLabel = "Fermer",
+}: {
+  eyebrow: string;
+  onClose: () => void;
+  closeLabel?: string;
+}) {
+  return (
+    <header className={styles.sheetHead}>
+      <button type="button" onClick={onClose} className={styles.iconBtn} aria-label={closeLabel}>
+        <X size={22} strokeWidth={2} aria-hidden />
+      </button>
+      <p className={styles.sheetEyebrow}>{eyebrow}</p>
+    </header>
+  );
+}
+
 export function Pad({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cx(styles.pad, className)}>{children}</div>;
 }
@@ -363,6 +395,7 @@ export function Cta({
   href,
   onClick,
   children,
+  lead,
   caption,
   variant = "primary",
   disabled,
@@ -371,6 +404,17 @@ export function Cta({
   href?: string;
   onClick?: () => void;
   children: ReactNode;
+  /**
+   * La ligne **au-dessus** du bouton — ce que l'action va coûter (« À partir de
+   * 9,99 € achat unique »).
+   *
+   * 🛑 **Une variante de `caption`, pas une primitive de plus** : le même
+   * bouton, avec de quoi décider juste avant de le presser. `caption` reste ce
+   * qui se lit **après** (la nuance, la réserve). `null` ⇒ rien à sa place —
+   * c'est le rendu exact d'un catalogue injoignable. Miroir Flutter :
+   * `SfButton.lead`.
+   */
+  lead?: string | null;
   caption?: string;
   variant?: "primary" | "blue" | "line";
   disabled?: boolean;
@@ -383,6 +427,7 @@ export function Cta({
   );
   return (
     <div>
+      {lead ? <p className={styles.btnLead}>{lead}</p> : null}
       {href && !disabled ? (
         <Link href={href} className={cls} onClick={onClick}>
           {children}
@@ -1238,32 +1283,11 @@ export function ChoiceCard({
   );
 }
 
-export function PassCard({
-  title,
-  subtitle,
-  selected,
-  onSelect,
-}: {
-  title: string;
-  subtitle: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cx(styles.pass, selected && styles.isOn)}
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
-      <div>
-        <b>{title}</b>
-        <span>{subtitle}</span>
-      </div>
-      <span className={styles.choiceMark} />
-    </button>
-  );
-}
+/* 🛑 **`PassCard` est SUPPRIMÉE** (2026-09-20) avec son dernier lecteur : le
+   sélecteur de durée de pass du Plan. Le choix de la durée vit sur la page de
+   choix du pass, déjà l'autorité du catalogue — une seconde grille de durées
+   deux écrans plus tôt était le défaut constaté. Miroir Flutter : le `subtitle`
+   de `SfChoiceCard`, retiré dans la même passe. */
 
 /* ========================================================================== */
 /* Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16) */

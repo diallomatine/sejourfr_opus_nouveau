@@ -7,21 +7,11 @@ import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
 import { billingApi, learningPlanApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import {RefreshCw, Sparkles, Target, TrendingUp, type LucideIcon} from "lucide-react";
 import {
   echeanceLine,
-  isContextualised,
-  montreLeContexte,
   passRecommande,
   paywallContext,
-  PAYWALL_PRIORITES_LABEL,
-  paywallBenefits,
-  paywallCta,
-  paywallPitch,
-  paywallTitle,
-  type PaywallBenefitKind,
   type PaywallContext,
-  type PaywallOrigin,
 } from "@/lib/paywall-context";
 import type { PlanPublicResponse } from "@/lib/types";
 
@@ -44,24 +34,7 @@ interface PaywallSheetProps {
   ctaLocation?: AnalyticsCtaLocation;
   /** Écran précis, quand il apporte plus que l'emplacement. */
   screen?: string;
-  /**
-   * 🛑 **D'où l'on vient**, et c'est ce qui décide de l'en-tête personnalisé
-   * (`PaywallOrigin`). Défaut : `"ailleurs"` — un appelant qui ne dit rien
-   * ouvre l'offre sans en-tête de plan.
-   */
-  origin?: PaywallOrigin;
 }
-
-/**
- * 🛑 **Le pictogramme vient du `kind`**, pas du rang dans la liste : deux
- * bénéfices réordonnés ne peuvent pas échanger leurs icônes.
- */
-const BENEFIT_ICON: Record<PaywallBenefitKind, LucideIcon> = {
-  focus: Target,
-  understand: Sparkles,
-  progress: TrendingUp,
-  adapt: RefreshCw,
-};
 
 /**
  * Modal (bottom sheet sur mobile, dialog centré sur desktop) qui pousse à
@@ -76,7 +49,6 @@ export function PaywallSheet({
   module = "CIVIQUE",
   ctaLocation = "OTHER",
   screen,
-  origin = "ailleurs",
 }: PaywallSheetProps) {
   // Une feuille de paywall ouverte, c'est un écran Premium vu : l'étape de
   // funnel est la même que sur `/paiement`. Idempotente côté serveur, et
@@ -136,12 +108,13 @@ export function PaywallSheet({
 
   if (!open) return null;
 
-  /* 🛑 Deux conditions, et les deux comptent : il faut **de quoi** personnaliser
-     (un plan servi) ET **une raison** de le faire (venir du Plan ou du
-     diagnostic). Ailleurs, le candidat n'a pas ce contexte sous les yeux. */
-  const contextualise =
-      ctx !== null && isContextualised(ctx) && montreLeContexte(origin);
-  const pitch = contextualise ? paywallPitch(ctx) : null;
+  /* 🛑 **Plus d'en-tête personnalisé** (demande du propriétaire, 2026-09-20).
+     « Votre plan B2 est prêt », le pitch, les priorités réelles et les
+     bénéfices du plan **sont partis** : la promesse est dite une fois, sur
+     l'écran de transition (`/plan/debloquer`), et la répéter ici la disait deux
+     fois de suite. ⚠️ Ce qui reste — l'échéance déclarée et le pass qui la
+     couvre — ne parle **pas** du plan : ce sont les deux faits qui aident à
+     CHOISIR une durée, et ils ont leur place sur une offre. */
   const echeance = ctx ? echeanceLine(ctx) : null;
   const pass = ctx ? passRecommande(ctx, plans) : null;
 
@@ -173,73 +146,29 @@ export function PaywallSheet({
           </svg>
         </div>
 
-        <h2 id="paywall-title" className="pws-title">
-          {contextualise ? paywallTitle(ctx!) : title}
-        </h2>
-        <p className="pws-text">{pitch ?? message}</p>
+        <h2 id="paywall-title" className="pws-title">{title}</h2>
+        <p className="pws-text">{message}</p>
 
         {/* L'échéance du candidat, quand il l'a déclarée. */}
         {echeance && <p className="pws-echeance">{echeance}</p>}
 
-        {/* Les priorités RÉELLES, dans l'ordre servi (`10_` §5). Un paywall qui
-            promet un plan sans montrer ce qu'il contient ne prouve rien.
-            La pastille reprend le rang : le premier point est celui qui bloque
-            le plus, et l'œil doit le voir sans lire. */}
-        {contextualise && ctx!.priorities.length > 0 && (
-          <div className="pws-prio-card">
-            <p className="pws-prio-label">{PAYWALL_PRIORITES_LABEL}</p>
-            <ul className="pws-priorites">
-              {ctx!.priorities.map((p, rang) => (
-                <li key={p.skillId}>
-                  <span className="pws-dot" data-rang={rang + 1} aria-hidden />
-                  {p.title}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Le levier propre aux pass : aligner la durée sur l'échéance. */}
         {pass && <p className="pws-pass">{pass.phrase}</p>}
 
-        {/* 🛑 Deux jeux de bénéfices. Le paywall CONTEXTUALISÉ parle du plan
-            que le candidat vient d'entrevoir ; ouvert depuis un cadenas
-            quelconque, il retombe sur ce que l'abonnement ouvre en général.
-            Servir les bénéfices du plan à qui n'en a pas encore promettrait un
-            contenu qui n'existe pas. */}
-        {contextualise ? (
-          <div className="pws-benefits">
-            {paywallBenefits(ctx!).map((benefit) => {
-              const Icone = BENEFIT_ICON[benefit.kind];
-              return (
-                <div className="pws-benefit" key={benefit.title}>
-                  <span className="pws-benefit-ico" aria-hidden>
-                    <Icone size={20} />
-                  </span>
-                  <div>
-                    <h3>{benefit.title}</h3>
-                    <p>{benefit.text}</p>
-                  </div>
-                </div>
-              );
-            })}
+        <div className="pws-features">
+          <div className="pws-feature">
+            <span className="pws-check">✓</span> Plus de 1 200 questions à jour
           </div>
-        ) : (
-          <div className="pws-features">
-            <div className="pws-feature">
-              <span className="pws-check">✓</span> Plus de 1 200 questions à jour
-            </div>
-            <div className="pws-feature">
-              <span className="pws-check">✓</span> Tous les thèmes, sans limite
-            </div>
-            <div className="pws-feature">
-              <span className="pws-check">✓</span> Examens blancs en conditions
-            </div>
-            <div className="pws-feature">
-              <span className="pws-check">✓</span> Révision des erreurs et favoris
-            </div>
+          <div className="pws-feature">
+            <span className="pws-check">✓</span> Tous les thèmes, sans limite
           </div>
-        )}
+          <div className="pws-feature">
+            <span className="pws-check">✓</span> Examens blancs en conditions
+          </div>
+          <div className="pws-feature">
+            <span className="pws-check">✓</span> Révision des erreurs et favoris
+          </div>
+        </div>
 
         <Link
           href={paymentHref}
@@ -249,7 +178,7 @@ export function PaywallSheet({
             onClose();
           }}
         >
-          {contextualise ? paywallCta(ctx!) : "Voir les abonnements"} →
+          Voir les abonnements →
         </Link>
         <button type="button" className="pws-later" onClick={onClose}>
           Plus tard
@@ -311,84 +240,6 @@ export function PaywallSheet({
           font-family: var(--font-mono);
           font-size: 12px;
           color: var(--color-red-dark);
-        }
-        .pws-priorites {
-          list-style: none;
-          margin: 0 0 12px;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          text-align: left;
-        }
-        .pws-priorites li {
-          font-size: 14px;
-          color: var(--color-ink);
-          display: flex;
-          align-items: center;
-          gap: 9px;
-        }
-        /* La pastille reprend le RANG servi : le premier point est celui qui
-           bloque le plus. Trois rouges identiques ne diraient rien de l'ordre. */
-        .pws-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          flex: 0 0 auto;
-          background: var(--color-amber, #e8a317);
-        }
-        .pws-dot[data-rang="1"] { background: var(--color-red); }
-        .pws-prio-card {
-          text-align: left;
-          border: 1px solid var(--color-line);
-          border-radius: 14px;
-          padding: 14px 16px;
-          margin-bottom: 12px;
-        }
-        .pws-prio-label {
-          margin: 0 0 8px;
-          font-family: var(--font-mono);
-          font-size: 11px;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--color-muted);
-        }
-        /* Les bénéfices du PLAN : un titre, une phrase. Ils remplacent la liste
-           générique quand le paywall sait de quoi il parle. */
-        .pws-benefit {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-        }
-        .pws-benefit-ico {
-          flex-shrink: 0;
-          width: 40px; height: 40px;
-          display: flex; align-items: center; justify-content: center;
-          border-radius: 12px;
-          background: var(--color-blue-light);
-          color: var(--color-blue);
-        }
-        .pws-benefits {
-          text-align: left;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          margin-bottom: 16px;
-        }
-        .pws-benefit h3 {
-          margin: 0;
-          font-size: 14.5px;
-          font-weight: 650;
-          color: var(--color-ink);
-        }
-        .pws-benefit p {
-          margin: 3px 0 0;
-          font-size: 13px;
-          line-height: 1.5;
-          color: var(--color-muted);
-        }
-        .pws-priorites li:nth-child(n + 2)::before {
-          background: var(--color-amber);
         }
         .pws-pass {
           margin: 0 0 12px;

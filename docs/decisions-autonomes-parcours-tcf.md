@@ -2189,3 +2189,140 @@ Un agent a de nouveau annoncé un total surefire **inférieur** au build réel �
 🛑 **Un chiffre de build se relit dans `target/*-reports/` ou dans la ligne `Results:` d'un
 `./mvnw verify` complet.** À la troisième occurrence, ce n'est plus une consigne : c'est une
 vérification que le relecteur fait lui-même, systématiquement.
+
+# 2026-09-20 — L'écran de transition avant le paiement (A132 → A140)
+
+> Demande du propriétaire : retirer « Passez du diagnostic à la progression » des deux Plans et le
+> sélecteur de pass du Plan civique ; ajouter **deux écrans intermédiaires** entre « Débloquer mon
+> plan » et le choix du pass ; retirer « Votre plan B2 est prêt » de l'écran de paiement ; et
+> **toujours afficher les deux pass**, en rendant évident que le Civique n'ouvre pas le TCF.
+> Précision de mi-parcours : « **Et ces priorités viennent du diagnostic** ».
+
+### A132 — Un seul composant, deux modules
+
+`PlanUnlockScreen` ⇄ `plan_unlock_screen.dart`, paramétré par le module ; seule la **matière**
+diffère. Deux écrans auraient divergé au premier correctif — c'est ce que **D-50 / A86** ont
+refusé pour `PlanCycleSection`.
+
+**Aucune primitive de kit nouvelle pour le corps** : héros, liste numérotée, encart, puces et barre
+ancrée existaient déjà. Deux seulement ont été ajoutées, **des deux côtés** : `SheetHead` ⇄
+`SfSheetHead` (croix + œil-de-bœuf) et la variante `lead` du CTA.
+
+### A133 — 🛑 Tout vient du DIAGNOSTIC, héros compris
+
+Le héros (`A2 → B2`, `11/40 → 32/40`), la liste et les pastilles se lisent sur le **résultat du
+diagnostic**. **Aucune lecture** du Plan, du `journey` ni de `currentPriority` sur cet écran.
+
+**Motif.** L'écran dit de lui-même « DIAGNOSTIC TERMINÉ » et « **vos réponses** font ressortir » :
+il raconte ce que le diagnostic a trouvé, pas où en est le plan aujourd'hui. Deux sources sur le
+même écran finiraient par se contredire — c'est le défaut que **D-57** et **D-60** ont passé la
+journée à fermer.
+
+### A134 — Sans diagnostic terminé, l'écran ne s'affiche pas : on passe au pass
+
+Session absente, non close, en erreur, ou close sans priorité ⇒ **on passe la main au choix du
+pass**. Ni écran vide, ni liste inventée, et **jamais un achat retardé**.
+
+⚠️ **Cas fréquent** : un candidat qui n'a fait que le diagnostic **rapide** n'a pas de résultat
+4 épreuves — il ira droit au pass.
+
+### A135 — 🛑 Le prix vient du CATALOGUE, et le 4,99 € n'existe pas
+
+⟦SQL⟧ `plans`, `is_active` et `purchase_type = ONE_TIME` : **CIVIQUE** → 9,99 / 29,99 ;
+**INTEGRAL** → 9,99 / 19,99 / 29,99. Les deux écrans affichent donc « à partir de **9,99 €** ».
+
+⚠️ Le **4,99 €** annoncé par le propriétaire vit sur `CIVIQUE_MONTHLY` — un plan `SUBSCRIPTION`
+**et** `is_active = false`, donc **jamais servi**. 🛑 **Rien à changer côté front** : c'est le
+catalogue qu'il faut trancher, et le chiffre suivra. Catalogue injoignable ⇒ **pas de ligne de
+prix**, jamais un montant de repli.
+
+### A136 — 🛑 Les pastilles de ton : servies en civique, DÉRIVÉES en TCF — écart remonté
+
+**Civique** : `CivicPrioriteTheme.etat` est **servi** et dit exactement les mots de la maquette.
+
+🛑 **TCF** : `TcfDiagnosticPriorityDto` ne porte **aucun état pédagogique** — seulement un rang et
+des niveaux. Rien n'a été inventé : l'écran réutilise `prioritePastille(rang)`, **l'autorité que
+le rapport de diagnostic emploie déjà pour cette même liste**, donc « Prioritaire / À renforcer »
+au lieu de « CRITIQUE / À RENFORCER / FAIBLE ».
+
+⚠️ **Et cette dérivation classe un RANG en état pédagogique** — ce que le `CLAUDE.md` racine
+interdit. Elle est **antérieure**, elle n'a été ni étendue ni dupliquée. Obtenir les mots de la
+maquette demande un **champ servi**. **À arbitrer, non fait.**
+
+### A137 — Les conditions de masquage des pass sont retirées, les trois
+
+| # | Condition | Ce qu'elle cachait |
+|---|---|---|
+| 1 | compte déjà Intégral ⇒ Civique masqué | la preuve que son pass le couvre |
+| 2 | `?module=INTEGRAL` ⇒ Civique masqué | le seul écran où les deux périmètres se comparent |
+| 3 | mobile : ouvert depuis une fonction TCF ⇒ Civique masqué | ce que le Civique **n'ouvre pas**, précisément quand il fallait le montrer |
+
+`?module=` reste un **ordre d'affichage** : le module visé passe devant, aucun ne disparaît.
+
+🛑 **Le « NON INCLUS » n'existait PAS côté web** — seulement sur mobile. Ajouté, **même texte**,
+rendu par les deux cartes.
+
+### A138 — `PaywallOrigin` est supprimé des deux fronts
+
+Son seul lecteur était l'en-tête personnalisé, que le propriétaire retire (la promesse déménage
+sur l'écran de transition). ~20 sites d'appel. Le garder imposait de garder un champ que plus rien
+ne lit.
+
+### A139 — Le CTA du Plan civique passe du bleu au ROUGE
+
+Il aligne le code sur **son propre commentaire A46** (« le seul bouton rouge de l'écran reste
+*Débloquer mon plan* »), que `variant="blue"` démentait.
+
+### A140 — Deux écarts assumés avec la maquette, et un calcul front
+
+- **Le rail TCF reste l'échelle existante** (A2 · B1 · B2), pas les cinq crans A1 → C1 du mockup :
+  une seconde échelle ferait deux positions pour le même palier.
+- **L'encart « Mises en situation » est ambre**, pas rouge : le rouge reste au CTA critique.
+- ⚠️ **« X points à combler » est une soustraction faite au front** (`seuil − score`), isolée dans
+  une fonction, `null` si le seuil est atteint. Ce n'est pas un classement en état pédagogique,
+  mais c'est un calcul — **à faire remonter serveur** si le propriétaire préfère.
+
+---
+
+# 2026-09-20 — Le repli servi (A141 → A144)
+
+> Arbitrage : **D-60**.
+
+### A141 — 🛑 `executable` et `courante` sont DEUX lectures, et c'est ce qui sauve D-18
+
+`etat(...)` finissait par `courante == null ? LOCKED : IN_PROGRESS`. Servir un `current` verrouillé
+aurait basculé **tout compte sans accès** en `IN_PROGRESS`.
+
+⇒ `etat(...)` prend désormais l'étape **exécutable** ; `current` porte l'étape **annonçable**.
+**Mesuré avant d'écrire**, et c'est la seule raison pour laquelle D-18 tient encore.
+
+### A142 — Le repli parcourt le MÊME ensemble qu'`elire`
+
+Le bloc meneur — ou toute la file **quand il n'y a pas de meneur** (cycle de mesure), où `elire`
+parcourt déjà la file et où le badge suit `current` : aucune divergence n'y est possible.
+Restreindre autrement aurait créé un **second périmètre**.
+
+### A143 — ⚠️ Le repli peut nommer l'EXAMEN du bloc, et c'est figé par un test
+
+Si toutes les `TRAIN_SKILL` du bloc meneur sont sans sujet publié (A17), le repli nomme le
+`SECTION_EXAM` — dont le verrou est **pédagogique** (D-15, A107). La carte proposerait alors
+« Débloquer » pour un verrou qu'aucun pass ne lève.
+
+Comportement **figé par un test** plutôt que laissé muet : la règle est « la première étape ouverte
+du bloc meneur », et ajouter une exclusion serait une règle nouvelle. **Cas dégradé et rare.**
+*Si l'arbitrage était autre* : exclure du repli les `SECTION_EXAM` verrouillées par
+`blocsAvecTravailOuvert`, et ce montage rendrait `current == null`.
+
+### A144 — Aucun champ ajouté au DTO
+
+Ni `currentLocked`, ni `currentIsFallback` : `locked` et `state` disent déjà tout. Un troisième
+fait aurait été une **seconde autorité** sur la même question.
+
+#### ⚠️ Un test qui protégeait autre chose que ce qu'il disait
+
+`…LeBlocMeneurNOffreRienEtCurrentEstNull` (écrit le matin même par D-57) figeait `current == null`,
+mais ce qu'il protégeait réellement était « **aucun repli sur la file** ». Il a été **remonté en
+assertion explicite** (`current.bloc() == TCF_EE`, jamais l'examen de CO) au lieu d'être effacé.
+
+🛑 **La leçon** : avant de réécrire un test rendu rouge par un changement voulu, demander ce qu'il
+protège **vraiment** — ce n'est pas toujours ce qu'il assertionne.

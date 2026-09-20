@@ -42,7 +42,7 @@ import {
 } from "@/app/_components/sejour/SejourKit";
 import {planNowIcon} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
-import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
+import {PlanPaywall} from "./PlanPaywallCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
@@ -291,8 +291,7 @@ function TcfPlanFree({plan, journey}: {
       <PlanCycleSection journey={journey} plan={plan} />
 
       <PlanPaywall
-        module="INTEGRAL"
-        benefits={PLAN_PREMIUM_BENEFITS}
+        module="TCF"
         cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
       />
     </>
@@ -347,7 +346,7 @@ function ActionMaintenant({plan, journey, free}: {
   const assessments = usePlanAssessment();
   /* 🛑 **Le paywall d'une étape VERROUILLÉE** (spec §7 / D-18) : la carte nomme
      l'étape fermée, et le geste ouvre l'offre. C'est le paywall **existant** du
-     Plan, avec son contexte (`origin="plan"`, `LOCKED_PLAN`) — aucune modale
+     Plan, avec son emplacement de mesure (`LOCKED_PLAN`) — aucune modale
      nouvelle, aucun libellé nouveau. Il est distinct des deux paywalls des
      lanceurs, qui répondent à un **403** ; celui-ci répond à un `locked` servi,
      avant tout appel. */
@@ -443,7 +442,7 @@ function ActionMaintenant({plan, journey, free}: {
           <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
         )}
       </Pad>
-      <PaywallSheet origin="plan"
+      <PaywallSheet
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"

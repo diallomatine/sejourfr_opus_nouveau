@@ -75,6 +75,27 @@
   outline: none;
 }
 
+/* La tete d'un ecran de transition (`SheetHead`) : la croix a gauche,
+   l'oeil-de-boeuf a droite. Miroir Flutter : `SfSheetHead`. */
+.sheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 18px 6px;
+}
+
+.sheetEyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-align: right;
+}
+
 .topText {
   padding-top: 6px;
   min-width: 0;
@@ -204,16 +225,6 @@
   border-radius: 28px;
   padding: 22px 18px 18px;
   box-shadow: var(--sf-shadow-lift);
-}
-
-/* Hero bleu — la carte d'offre du Plan gratuit (« Passez du diagnostic à la
-   progression »). Combinaison `hero` + `soft` : la carte garde son relief de
-   hero et prend le fond bleu doux de la maquette. */
-.cardHero.cardSoft {
-  background: var(--color-blue-soft);
-  box-shadow:
-    var(--sf-shadow-lift),
-    0 0 0 1px rgba(30, 58, 140, 0.08);
 }
 
 /* ---------- Niveau ---------- */
@@ -701,6 +712,16 @@
 
 .btnLine:hover {
   background: var(--color-blue-soft);
+}
+
+/* Ce que l'action va coûter, juste au-dessus du bouton. Miroir Flutter :
+   `SfButton.lead`. */
+.btnLead {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
 }
 
 .btnCaption {
@@ -1553,44 +1574,6 @@
 }
 
 .choice.isOn .choiceMark,
-.pass.isOn .choiceMark {
-  background: var(--color-blue);
-  border-color: var(--color-blue);
-}
-
-.pass {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px;
-  border-radius: var(--sf-radius-md);
-  background: #fff;
-  box-shadow: var(--sf-shadow-border);
-  cursor: pointer;
-  width: 100%;
-  font-family: var(--font-sans);
-  text-align: left;
-  border: 0;
-  color: var(--color-ink);
-}
-
-.pass.isOn {
-  box-shadow: 0 0 0 2px var(--color-blue);
-}
-
-.pass b {
-  display: block;
-  font-size: 15px;
-}
-
-.pass span {
-  display: block;
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: var(--color-muted);
-}
-
 /* ---------- Barre d'action collée ---------- */
 
 .sticky {

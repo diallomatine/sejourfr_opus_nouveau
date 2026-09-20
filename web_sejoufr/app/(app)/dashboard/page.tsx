@@ -602,7 +602,6 @@ function ActionPlanDuJour({plan, journey}: {
                 <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
             )}
             <PaywallSheet
-                origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
                 module="INTEGRAL"
@@ -815,7 +814,6 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                 </Card>
             </Pad>
             <PaywallSheet
-                origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
                 module="INTEGRAL"

@@ -44,7 +44,7 @@ import {PlanCycleSection} from "./PlanCycleSection";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {JOURNEY_HISTORY_TITLE, journeyHistoryHref} from "@/lib/journey";
 import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "@/lib/civique-examen";
-import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from "./PlanPaywallCard";
+import {PlanPaywall} from "./PlanPaywallCard";
 
 /**
  * **Le plan civique** (L10) — refonte du 2026-09-11 sur le kit `sejour/`.
@@ -271,18 +271,12 @@ function CiviquePlan({plan, journey, free}: {
       )}
 
       {free ? (
-        <PlanPaywall
-          module="CIVIQUE"
-          benefits={CIVIC_PLAN_PREMIUM_BENEFITS}
-          text={CIVIC_PLAN_PREMIUM_TEXT}
-          cta="Débloquer mon plan"
-        />
+        <PlanPaywall module="CIVIQUE" cta="Débloquer mon plan" />
       ) : (
         <AllerPlusLoin />
       )}
 
       <PaywallSheet
-        origin="plan"
         open={serieCible.paywall || serieUnite.paywall || offreOuverte}
         module="CIVIQUE"
         onClose={() => {

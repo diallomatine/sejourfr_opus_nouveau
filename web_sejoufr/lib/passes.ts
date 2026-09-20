@@ -181,3 +181,24 @@ export function passCheckoutHref(
   }
   return recap;
 }
+
+/**
+ * **Le prix d'entrée d'un module** — le plus petit montant réellement vendu.
+ *
+ * 🛑 **Dérivé du catalogue, jamais écrit.** C'est ce que rend « À partir de
+ * X € » sur l'écran de déblocage du Plan : un chiffre en dur y vieillirait à la
+ * première grille de prix, et le propriétaire a déjà deux montants différents
+ * en tête selon les maquettes. `null` quand le module ne vend rien (catalogue
+ * injoignable, ou aucun pass actif) — l'écran n'affiche alors **aucune** ligne
+ * de prix plutôt qu'un montant de repli.
+ *
+ * Miroir Dart : `passFromPrice` (`core/widgets/paywall_context.dart`).
+ */
+export function passFromPrice(
+  plans: PlanPublicResponse[],
+  module: PassModule,
+): number | null {
+  const passes = oneTimePassesOf(plans, module);
+  if (passes.length === 0) return null;
+  return passes.reduce((min, p) => (p.price < min ? p.price : min), passes[0].price);
+}

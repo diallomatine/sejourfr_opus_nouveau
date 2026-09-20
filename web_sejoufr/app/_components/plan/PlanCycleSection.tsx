@@ -201,8 +201,8 @@ function CycleBody({journey, plan, module}: {
     const busy = exercises.starting || assessments.starting !== null;
 
     /* 🛑 **L'offre d'une étape VERROUILLÉE** (demande du propriétaire,
-       2026-09-20) : c'est le paywall **existant** du Plan, avec son contexte
-       (`origin="plan"`, `LOCKED_PLAN`), le même que la carte « À faire
+       2026-09-20) : c'est le paywall **existant** du Plan, avec son
+       emplacement de mesure (`LOCKED_PLAN`), le même que la carte « À faire
        maintenant » ouvre déjà sur son `geste === "DEBLOQUER"`. Il répond à un
        `locked` **servi**, avant tout appel — les deux autres états de paywall
        de cet écran répondent, eux, à un **403**. */
@@ -352,7 +352,6 @@ function CycleBody({journey, plan, module}: {
             )}
 
             <PaywallSheet
-                origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module={passOffre}
@@ -571,7 +570,6 @@ function NextStep({examenCompletPossible, module}: {
                 était figé sur `INTEGRAL` — sans effet tant que la fin de cycle
                 n'existait qu'en TCF, faux dès qu'un cycle civique s'achève. */}
             <PaywallSheet
-                origin="plan"
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module={module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"}

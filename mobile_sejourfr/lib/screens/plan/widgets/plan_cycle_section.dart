@@ -14,7 +14,6 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/selected_module.dart';
 import '../../../core/utils/start_failure.dart';
-import '../../../core/widgets/paywall_context.dart';
 import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
@@ -326,7 +325,6 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
           context,
           ref: ref,
           ctaLocation: AnalyticsCtaLocation.lockedPlan,
-          origin: PaywallOrigin.plan,
         );
 
   /// 🛑 **L'action d'une ligne passe par le MÊME chemin que la carte « À faire

@@ -332,13 +332,11 @@ function TcfBody({
         </Section>
       )}
       <PaywallSheet
-        origin="plan"
         open={exercise.paywallOpen}
         module="INTEGRAL"
         onClose={exercise.closePaywall}
       />
       <PaywallSheet
-        origin="plan"
         open={assessment.paywallOpen}
         module="INTEGRAL"
         onClose={assessment.closePaywall}
@@ -541,7 +539,6 @@ function CiviqueBody({
         </Pad>
       </Section>
       <PaywallSheet
-        origin="plan"
         open={paywall}
         module="CIVIQUE"
         onClose={() => setPaywall(false)}

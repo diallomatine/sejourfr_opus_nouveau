@@ -81,8 +81,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// **maintenu vivant par `PlanScreen`**, qui observe les deux parcours : la
   /// bascule ne coûte plus aucun appel.
   String? _enCours;
-  CivicPassDuree _duree = CivicPassDuree.troisMois;
-
   /// Le tiré-pour-rafraîchir, seul point qui redemande le plan — avec le retour
   /// d'un entraînement joué au-dessus (`PlanScreen.didPopNext`).
   Future<void> _load() async {
@@ -142,12 +140,16 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     return Column(
       children: [
         Expanded(child: liste),
+        // 🛑 **Le geste ouvre l'écran de TRANSITION**, plus l'offre directement
+        // (demande du propriétaire, 2026-09-20). Il est **rouge** : c'est le
+        // seul CTA critique de cet écran (A46), et les deux parcours portent
+        // désormais le même bouton.
         SfStickyBar(
           child: SfButton(
             label: kCivicPlanUnlockCta,
-            caption: civicPlanUnlockCaption(_duree),
-            variant: SfButtonVariant.blue,
-            onPressed: () => unawaited(_ouvrirOffre()),
+            onPressed: () => context.push(
+              AppRoutes.planUnlockPath(civique: true),
+            ),
           ),
         ),
       ],
@@ -200,17 +202,14 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
 
       ..._reviewSection(plan, maintenant, free: free),
 
-      if (free) ...[
-        const SfSection(
-          flush: true,
-          child: SfUnlockHero(
-            title: kCivicPlanUnlockHeroTitle,
-            text: kCivicPlanUnlockHeroText,
-          ),
-        ),
-        _passSection(),
-      ] else
-        _allerPlusLoin(context),
+      // 🛑 **La carte bleue « Passez du diagnostic à la progression » ET le
+      // sélecteur de pass sont SUPPRIMÉS** (demande du propriétaire,
+      // 2026-09-20). La promesse vit sur l'écran de transition, et le choix de
+      // la durée sur l'écran d'offre, qui est déjà l'autorité du catalogue.
+      // Deux grilles de durées à deux écrans d'intervalle, et la même promesse
+      // dite deux fois de suite : les deux défauts constatés. Ne pas les
+      // réintroduire.
+      if (!free) _allerPlusLoin(context),
       const SizedBox(height: 28),
     ];
   }
@@ -390,31 +389,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
           : () => unawaited(geste == PlanNowGeste.debloquer
               ? _ouvrirOffre()
               : _lancer(CivicNowCible(cible))),
-    );
-  }
-
-  /// Le sélecteur de durée du Pass Civique. **Aucun prix** : il dit la durée,
-  /// l'écran d'offre porte les tarifs du store et l'achat.
-  Widget _passSection() {
-    return SfSection(
-      flush: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SfLabel(kCivicPassTitle),
-          const SizedBox(height: 8),
-          for (final duree in CivicPassDuree.values) ...[
-            SfChoiceCard(
-              label: duree.label,
-              subtitle: kCivicPassSubtitle,
-              selected: _duree == duree,
-              onTap: () => setState(() => _duree = duree),
-            ),
-            const SizedBox(height: sfGap),
-          ],
-          const SfTiny(kCivicPassNote),
-        ],
-      ),
     );
   }
 }

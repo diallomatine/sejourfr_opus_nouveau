@@ -548,6 +548,7 @@ class SfButton extends StatelessWidget {
     required this.label,
     this.onPressed,
     this.variant = SfButtonVariant.primary,
+    this.lead,
     this.caption,
     this.icon = LucideIcons.arrowRight,
   });
@@ -555,6 +556,16 @@ class SfButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final SfButtonVariant variant;
+
+  /// La ligne **au-dessus** du bouton — ce que l'action va coûter (« À partir
+  /// de 9,99 € achat unique »).
+  ///
+  /// 🛑 **Une variante de [caption], pas une primitive de plus** : le même
+  /// bouton, avec de quoi décider juste avant de le presser. [caption] reste ce
+  /// qui se lit **après**. `null` ⇒ rien à sa place — c'est le rendu exact d'un
+  /// catalogue injoignable. Miroir web : `Cta.lead`.
+  final String? lead;
+
   final String? caption;
   final IconData? icon;
 
@@ -572,6 +583,18 @@ class SfButton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (lead != null) ...[
+          Text(
+            lead!,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(
+              size: 15,
+              weight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Material(
@@ -1928,13 +1951,11 @@ class SfChoiceCard extends StatelessWidget {
   const SfChoiceCard({
     super.key,
     required this.label,
-    this.subtitle,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final String? subtitle;
   final bool selected;
   final VoidCallback onTap;
 
@@ -1962,28 +1983,13 @@ class SfChoiceCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: AppFonts.ui(
-                          size: subtitle == null ? 14.5 : 15,
-                          weight: subtitle == null
-                              ? FontWeight.w600
-                              : FontWeight.w700,
-                          color: selected ? AppColors.blueDark : AppColors.ink,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style:
-                              AppFonts.ui(size: 12.5, color: AppColors.muted),
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    label,
+                    style: AppFonts.ui(
+                      size: 14.5,
+                      weight: FontWeight.w600,
+                      color: selected ? AppColors.blueDark : AppColors.ink,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -2170,6 +2176,66 @@ class _SfBackButton extends StatelessWidget {
             child: Icon(LucideIcons.arrowLeft, size: 22, color: AppColors.ink),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// **La tete d'un ecran de transition** : une croix de fermeture a gauche, un
+/// oeil-de-boeuf a droite.
+///
+/// 🛑 **Ce n'est pas une variante de [SfTop]**, et c'est la difference qui
+/// compte : [SfTop] annonce une **page** (retour en fleche, titre, bascule de
+/// module dans son [SfTopSlot]) ; celui-ci coiffe un ecran **qu'on ferme** —
+/// une etape posee par-dessus, sans titre, dont le contenu commence par son
+/// heros. Les deux maquettes de l'ecran de deblocage du Plan le montrent ainsi.
+///
+/// Miroir web : `SheetHead`.
+class SfSheetHead extends StatelessWidget {
+  const SfSheetHead({
+    super.key,
+    required this.eyebrow,
+    required this.onClose,
+    this.closeLabel = 'Fermer',
+  });
+
+  final String eyebrow;
+  final VoidCallback onClose;
+  final String closeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+      child: Row(
+        children: [
+          Semantics(
+            button: true,
+            label: closeLabel,
+            child: Transform.translate(
+              offset: const Offset(-6, 0),
+              child: Material(
+                type: MaterialType.transparency,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                child: InkWell(
+                  onTap: onClose,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  child: const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Icon(LucideIcons.x, size: 22, color: AppColors.ink),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            eyebrow.toUpperCase(),
+            textAlign: TextAlign.end,
+            style: AppFonts.mono(size: 11, color: AppColors.muted),
+          ),
+        ],
       ),
     );
   }
@@ -2495,48 +2561,6 @@ class SfStickyBar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: child,
         ),
-      ),
-    );
-  }
-}
-
-/// La carte d'offre bleue (« Passez du diagnostic à la progression ») : ce que
-/// l'accès ouvre, en langage de bénéfices.
-///
-/// 🛑 **Aucun prix.** Les tarifs viennent du store et ne se lisent que sur
-/// l'écran d'offre, qui reste la seule porte d'achat de l'app.
-class SfUnlockHero extends StatelessWidget {
-  const SfUnlockHero({
-    super.key,
-    required this.title,
-    required this.text,
-    this.checks = const <String>[],
-  });
-
-  final String title;
-  final String text;
-  final List<String> checks;
-
-  @override
-  Widget build(BuildContext context) {
-    return SfCard(
-      variant: SfCardVariant.soft,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppFonts.display(
-                size: 20, weight: FontWeight.w700, height: 1.2),
-          ),
-          const SizedBox(height: 8),
-          SfInsight(text),
-          if (checks.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            for (final check in checks) SfCheckRow(label: check),
-          ],
-        ],
       ),
     );
   }

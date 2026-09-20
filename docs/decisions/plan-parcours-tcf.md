@@ -2917,3 +2917,61 @@ empêche tout retraitement. Il retrouvera un plan juste en appuyant sur **« Act
 **D-55**, on ne répare pas.
 
 Décisions d'implémentation : **A127 → A131**.
+
+---
+
+### D-60 (2026-09-20) — 🛑 **Le serveur sert l'étape que la carte doit NOMMER, même verrouillée**
+
+**Le défaut, constaté à l'écran.** Plan **civique**, compte sans accès : le cycle affiche
+« Principes et valeurs de la République — **EN COURS** », la carte « À faire maintenant » nomme
+« Artistes et savants français · **Histoire, géographie et culture** ». Deux épreuves sur un écran.
+
+**La cause.** **D-57** a fait élire `CURRENT` dans le bloc meneur. Mais quand ce bloc n'offre
+**rien d'exécutable** — le cas de **tous** les comptes civiques gratuits depuis qu'on sert le
+verrou (**A119**) — `elire` rend `null`, et **chaque front inventait son repli** sur le **plan
+dérivé**, dont l'ordre est celui du Leitner. Le vocabulaire de la carte le trahissait :
+« 2 erreurs récentes », « 10 questions ciblées » ne sont pas les mots du parcours.
+
+🛑 **Et D-1 disait DÉJÀ quoi montrer** — « la carte montre la première étape verrouillée ». Le fait
+était **décidé**, et **personne ne le servait**. C'est la 5ᵉ fois aujourd'hui que ce motif produit
+un défaut : `DETTE-P1` #3, **A95**, **A119**, **D-59**, et celui-ci.
+
+#### La décision
+
+> **`JourneyDto.current` cesse d'être `null` quand le bloc meneur n'offre rien d'exécutable** : il
+> porte alors la **première étape ouverte de ce bloc**, avec son `locked: true`.
+
+Les deux fronts n'ont plus aucune raison de replier : la divergence se ferme **par construction**.
+
+#### 🛑 Le piège, mesuré avant d'écrire
+
+`etat(...)` finissait par `courante == null ? LOCKED : IN_PROGRESS`. Servir un `current` verrouillé
+aurait basculé **tout compte sans accès** en `IN_PROGRESS` — **D-18 tombait**, en silence.
+
+⇒ La correction **sépare deux lectures** : ce qui est **exécutable** (résultat d'`elire`, inchangé)
+décide de l'**état** ; ce qui est **annonçable** décide de ce que la carte **nomme**. 🛑 **`elire`
+n'a pas bougé d'une ligne** — ses deux filtres (verrou, `sansContenu` d'**A17**) et son périmètre
+sont intacts. Ce qui s'ajoute est un **repli servi**, pas un assouplissement de l'élection.
+
+#### ⚠️ Ce que ça change dans le contrat
+
+**`CURRENT` ne veut plus dire « exécutable ».** Mesuré : aucun lanceur ne branche sur ce statut —
+le geste vient de `free || locked ⇒ DEBLOQUER` (A114, A120), et `state` dit l'exécutabilité. Les
+deux seuls lecteurs sont un libellé (« Maintenant ») et un rendu.
+
+🛑 **Deux commentaires miroirs affirmaient « une étape verrouillée ne devient JAMAIS `CURRENT` »**
+(`web_sejoufr/lib/types.ts`, `mobile_sejourfr/lib/core/models/journey_models.dart`). Ils étaient
+vrais, ils sont devenus faux : **corrigés dans la même passe**. Un commentaire qui garantit est un
+commentaire qui ment dès qu'on le contredit.
+
+#### Ce qui ne bouge pas
+
+**D-18** (`LOCKED` préservé, explicitement), **D-15**, **D-57**, **A17**, **A119**. Aucun champ
+ajouté au DTO : `locked` et `state` disaient déjà tout, un troisième fait aurait été une seconde
+autorité.
+
+⚠️ **Le repli des fronts devient inatteignable dans ce cas**, mais il **sert encore** ailleurs :
+parcours non servi (client ancien), `NEEDS_OBJECTIVE` / `CYCLE_COMPLETED` / `UP_TO_DATE`, et le cas
+A17. **Ne pas le retirer sèchement** — la carte disparaîtrait.
+
+Décisions d'implémentation : **A132 → A135**.

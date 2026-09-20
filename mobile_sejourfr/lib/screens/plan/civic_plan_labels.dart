@@ -166,35 +166,14 @@ String civicPlanReviewText(CivicPlanCible cible, DateTime maintenant) {
 
 /* --------------------------------------- l'offre d'un compte sans pass ---- */
 
-const String kCivicPlanUnlockHeroTitle =
-    'Passez du diagnostic à la progression';
-const String kCivicPlanUnlockHeroText =
-    'Votre diagnostic vous montre quoi réviser. Avec le Pass Civique, votre '
-    'plan vous accompagne thème par thème jusqu\'à ce qu\'ils soient maîtrisés.';
-
-const String kCivicPassTitle = 'Pass Civique';
-const String kCivicPassSubtitle = 'Paiement unique · aucun renouvellement';
-
-/// Les deux durées réellement vendues. 🛑 **Aucun prix ici** : les tarifs
-/// viennent du store et ne se lisent que sur l'écran d'offre, seule porte
-/// d'achat de l'app.
-enum CivicPassDuree {
-  troisMois('3 mois'),
-  unAn('1 an');
-
-  const CivicPassDuree(this.label);
-
-  final String label;
-}
+/* 🛑 **La carte bleue « Passez du diagnostic à la progression » ET le sélecteur
+   de pass sont SUPPRIMÉS** (demande du propriétaire, 2026-09-20), avec leurs
+   libellés : `kCivicPlanUnlockHeroTitle` / `…Text`, `kCivicPassTitle` /
+   `…Subtitle` / `…Note`, l'enum `CivicPassDuree` et `civicPlanUnlockCaption`.
+   La promesse vit sur l'écran de transition (`plan_unlock_labels.dart`) et le
+   choix de la durée sur l'écran d'offre, seule autorité du catalogue. */
 
 const String kCivicPlanUnlockCta = 'Débloquer mon plan';
-
-String civicPlanUnlockCaption(CivicPassDuree duree) =>
-    '$kCivicPassTitle · ${duree.label} · paiement unique';
-
-const String kCivicPassNote =
-    'Le tarif est celui du Pass Civique, pas un abonnement mensuel. Vous le '
-    'choisissez à l\'écran suivant.';
 
 /* ------------------------------------------ « À faire maintenant » civique */
 
