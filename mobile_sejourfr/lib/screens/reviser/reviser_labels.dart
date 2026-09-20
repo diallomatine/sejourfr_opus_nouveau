@@ -21,6 +21,7 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/models/journey_models.dart';
+import '../plan/civic_plan_labels.dart';
 import '../plan/plan_now_card.dart';
 import '../progres/progres_labels.dart' show niveauActuelEpreuve;
 
@@ -83,9 +84,12 @@ const String kReviserDepartLabel = 'Votre point de départ';
 class ReviserResume {
   const ReviserResume({
     required this.title,
+    required this.geste,
+    required this.cta,
     this.subtitle,
     this.section,
     this.carte,
+    this.source,
   });
 
   final String title;
@@ -94,9 +98,21 @@ class ReviserResume {
   /// La section travaillée — c'est elle qui donne le pictogramme.
   final SkillSection? section;
 
-  /// **Ce que le bouton lance**, tel que le Plan l'a désigné. `null` en
-  /// civique, dont la reprise est une cible et se lance par `startCivicSerie`.
+  /// 🛑 **Le geste est SERVI par l'autorité du Plan** (`planNowCard` /
+  /// `civicNowCard`), jamais redéduit ici : `debloquer` dès qu'il n'y a pas
+  /// d'accès, `lancer` sinon.
+  final PlanNowGeste geste;
+
+  /// Ce que le bouton **dit**, décidé par la même autorité — « Continuer » ou
+  /// le libellé de déblocage. Jamais une chaîne écrite dans l'écran.
+  final String cta;
+
+  /// **Ce que le bouton lance** côté TCF, tel que le Plan l'a désigné.
   final PlanNowCard? carte;
+
+  /// **Ce que le bouton lance** côté civique — l'unité du cycle ou la cible du
+  /// plan dérivé, au grain que `civicNowCard` a tranché.
+  final CivicNowSource? source;
 }
 
 /// La reprise TCF.
@@ -109,35 +125,54 @@ class ReviserResume {
 /// annonçait la priorité pédagogique pendant que le Plan, au même instant,
 /// demandait de compléter une mesure.
 ///
-/// `null` quand il n'y a rien à reprendre : pas de plan, aucune priorité
-/// servie, rien à lancer, ou action **verrouillée** — un compte sans accès ne
-/// se voit pas proposer de reprendre ce qu'il ne peut pas faire, il entre par
-/// la liste des épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe
-/// par Réviser pour voir ce qu'on peut utiliser gratuitement »).
-ReviserResume? reviserResumeTcf(LearningPlan? plan, {Journey? journey}) {
+/// 🛑 **Un compte sans accès voit la MÊME carte qu'un abonné**, seul le geste
+/// change (demande du propriétaire, 2026-09-20 — la règle du Plan, étendue à
+/// Réviser). ⚠️ Cela **révoque** « une action verrouillée n'est pas proposée
+/// en reprise, la carte disparaît » : l'écran ouvrait alors sur sa liste
+/// d'épreuves sans jamais nommer ce que le candidat allait débloquer.
+///
+/// `null` quand il n'y a vraiment rien à annoncer : pas de plan, aucune
+/// priorité servie, ou [PlanNowGeste.aucun] — on ne pose pas un bouton mort.
+ReviserResume? reviserResumeTcf(
+  LearningPlan? plan, {
+  Journey? journey,
+  bool free = false,
+}) {
   if (plan == null) return null;
   // 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
   // la règle du Plan pendant que le Plan suivrait le parcours — la même
   // contradiction, à un troisième écran.
-  final carte = planNowCard(plan, journey: journey);
-  if (carte == null || carte.locked) return null;
-  // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
-  if (carte.mesure == null && carte.exercise == null) return null;
+  final carte = planNowCard(plan, journey: journey, free: free);
+  if (carte == null || carte.geste == PlanNowGeste.aucun) return null;
   return ReviserResume(
     title: carte.title,
     subtitle: carte.subtitle,
     section: carte.section,
+    geste: carte.geste,
+    cta: carte.cta,
     carte: carte,
   );
 }
 
-/// « Le Parlement » et « Institutions · notion à travailler ».
-ReviserResume? reviserResumeCivique(CivicPlanCible? prochaine) {
-  if (prochaine == null) return null;
-  final grain = prochaine.grain == CivicPlanGrain.notion ? 'notion' : 'thème';
+/// La reprise civique — **la même autorité que le Plan** ([civicNowCard]),
+/// pour la même raison que côté TCF : deux règles finiraient par proposer deux
+/// reprises différentes au même candidat.
+///
+/// 🛑 **Un compte sans accès la voit aussi**, avec son geste de déblocage.
+ReviserResume? reviserResumeCivique(
+  CivicPlan? plan, {
+  Journey? journey,
+  bool free = false,
+}) {
+  if (plan == null) return null;
+  final carte = civicNowCard(plan, journey: journey, free: free);
+  if (carte == null || carte.geste == PlanNowGeste.aucun) return null;
   return ReviserResume(
-    title: prochaine.label,
-    subtitle: '${prochaine.themeLabel} · $grain à travailler',
+    title: carte.title,
+    subtitle: carte.subtitle,
+    geste: carte.geste,
+    cta: carte.cta,
+    source: carte.source,
   );
 }
 

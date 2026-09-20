@@ -2480,3 +2480,47 @@ deux nœuds JSX, hors `<style jsx>`) n'en trouve **aucun autre**.
 
 ⚠️ **Ni `tsc` ni le build ne l'attrapent** — c'est du JSX parfaitement valide. Seul l'écran
 le dit, et c'est le propriétaire qui l'a vu. Vérifier à l'œil après avoir commenté du JSX.
+
+---
+
+## A149 — Réviser montre la reprise d'un compte SANS accès, avec son geste d'achat (2026-09-20)
+
+> Propriétaire : « normalement dans le menu réviser, on doit avoir ici la prochaine tâche
+> recommandée dans le plan ; si non abonné pareil, mais le bouton **débloquer mon plan**
+> s'affiche au lieu de **commencer**. »
+
+**Le défaut.** `reviserResumeTcf` rendait `null` dès que `carte.locked` : l'écran ouvrait
+directement sur « Les 4 épreuves », sans jamais nommer ce que le candidat allait débloquer.
+⚠️ Cela **révoque** « une action verrouillée n'est pas proposée en reprise, la carte
+disparaît, la liste reste » (2026-09-12) — c'est la **même** règle que le Plan a reçue le
+2026-09-19 (« un non-abonné voit le *à faire maintenant* d'un abonné, seul le bouton
+change »), étendue au troisième écran qui porte cette carte.
+
+**Décidé.** Les deux helpers ne filtrent plus sur `locked` : ils **portent le `geste` et le
+`cta` servis** par l'autorité du Plan, et l'écran exécute.
+
+| | avant | après |
+|---|---|---|
+| TCF | `planNowCard(plan, journey)`, `null` si `locked` | `planNowCard(plan, journey, free)`, `null` seulement sur `AUCUN` |
+| civique | `reviserResumeCivique(prochaine)` — un libellé écrit à la main | **`civicNowCard(plan, journey, free)`**, la même autorité que le Plan |
+
+🛑 **Le geste d'achat passe par l'écran de transition** (A145), jamais par le paywall d'un
+coup. 🛑 **`AUCUN` reste `null`** : on ne pose pas un bouton mort.
+
+#### Ce que ça corrige en plus, et qui n'avait pas été demandé
+
+Le civique de Réviser lisait **`plan.prochaine`** — la cible du plan **dérivé** — pendant que
+le Plan civique lit **`journey.current`**, l'étape du **cycle**, depuis D-50 §2. Les deux
+écrans annonçaient donc, au même instant, deux reprises différentes au même candidat. Réviser
+lit maintenant le cycle, des deux côtés. C'est exactement le défaut que
+« Réviser vient du PLAN, jamais un second chemin » existe pour empêcher — il s'était rouvert
+par la bande, quand le civique est passé sur le cycle.
+
+Corollaire : la source peut être une **unité officielle** ou une **cible**, donc Réviser
+gagne le lanceur par grain qu'a déjà le Plan (`useCivicUniteSerie` ⇄ `startCivicUniteSerie`,
+A87). Le pictogramme suit : le thème quand la reprise en a un, la boussole du parcours pour
+une unité, qui n'en porte pas.
+
+**Si l'arbitrage était autre** (« un compte gratuit n'a rien à reprendre, il entre par la
+liste ») : il suffirait de remettre le filtre sur `geste == DEBLOQUER` dans les deux helpers
+— mais l'écran redeviendrait le seul des trois à taire ce qui est à débloquer.

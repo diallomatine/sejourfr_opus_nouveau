@@ -79,6 +79,8 @@ import { useCachedData } from "@/lib/use-cached-data";
 import { themeSlug } from "@/lib/themes";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { useCivicSerie } from "@/app/_components/plan/useCivicSerie";
+import { useCivicUniteSerie } from "@/app/_components/plan/use-civic-unite-serie";
+import { planUnlockHref } from "@/lib/plan-unlock";
 import {
   usePlanAssessment,
   usePlanExercise,
@@ -266,8 +268,10 @@ function TcfBody({
   /* 🛑 Sans `planDisponible`, il n'y a rien à reprendre — et on ne l'invente
      pas. La carte de tête cesse d'être une reprise et devient la **porte du
      diagnostic**, avec les mots de `planIndisponible`. */
+  /* 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
+     ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan. */
   const resume = disponible
-    ? reviserResumeTcf(plan.data ?? null, journey.data ?? null)
+    ? reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium)
     : null;
   const gate = prep && !disponible ? planIndisponible(prep, "TCF") : null;
   const carte = resume?.carte ?? null;
@@ -307,9 +311,13 @@ function TcfBody({
           icon={iconFor(sectionEpreuve(resume.section) ?? "TCF_CO")}
           title={resume.title}
           subtitle={resume.subtitle}
-          onClick={reprendre}
-          busy={busy}
-          error={exercise.error ?? assessment.error}
+          cta={resume.cta}
+          /* 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
+             geste d'achat passe par l'écran de transition (A145), jamais par
+             le paywall d'un coup. */
+          {...(resume.geste === "DEBLOQUER"
+            ? {href: planUnlockHref("TCF")}
+            : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
           tone="primary"
         />
       ) : gate ? (
@@ -471,8 +479,20 @@ function CiviqueBody({
   isPremium: boolean;
 }) {
   const { enCours, erreur, paywall, setPaywall, commencer } = useCivicSerie();
+  /* 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité
+     officielle du cycle et la cible du plan dérivé sont deux routes serveur
+     distinctes. La source est **servie**, l'écran exécute. */
+  const serieUnite = useCivicUniteSerie();
   const civicPlan = useCachedData(isGuest ? null : civicPlanApi.cacheKey, () =>
     civicPlanApi.getCached(),
+  );
+  /* 🛑 **Le CYCLE, comme sur le Plan** : « À faire maintenant » y lit
+     `journey.current` depuis D-50 §2. Sans lui, Réviser annoncerait la cible du
+     plan dérivé pendant que le Plan annonce l'étape du cycle — deux reprises
+     différentes pour le même candidat, au même instant. */
+  const journey = useCachedData<JourneyDto>(
+    isGuest ? null : journeyApi.cacheKeyFor("CIVIQUE"),
+    () => journeyApi.getCached("CIVIQUE"),
   );
   const prep = useModulePreparation(isGuest, "CIVIQUE");
   const disponible = prep?.planDisponible === true;
@@ -480,7 +500,9 @@ function CiviqueBody({
   const prochaine: CivicPlanCibleDto | null = disponible
     ? (civicPlan.data?.prochaine ?? null)
     : null;
-  const resume = reviserResumeCivique(prochaine);
+  const resume = disponible
+    ? reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium)
+    : null;
   const gate = prep && !disponible ? planIndisponible(prep, "CIVIQUE") : null;
 
   const stats = useMemo(() => {
@@ -506,13 +528,26 @@ function CiviqueBody({
 
   return (
     <>
-      {resume && prochaine ? (
+      {resume ? (
         <ResumeCard
-          icon={iconFor(prochaine.themeCode)}
+          /* Le pictogramme du thème quand la reprise en a un ; une **unité** du
+             cycle n'en porte pas, on reprend alors la boussole du parcours. */
+          icon={prochaine ? iconFor(prochaine.themeCode) : Compass}
           title={resume.title}
           subtitle={resume.subtitle}
-          onClick={() => void commencer(prochaine)}
-          busy={enCours === prochaine.id}
+          cta={resume.cta}
+          {...(resume.geste === "DEBLOQUER"
+            ? {href: planUnlockHref("CIVIQUE")}
+            : {
+                  onClick: () => {
+                      const source = resume.source;
+                      if (!source) return;
+                      if (source.kind === "UNITE") void serieUnite.start(source.code);
+                      else void commencer(source.cible);
+                  },
+                  busy: enCours !== null || serieUnite.enCours !== null,
+                  error: erreur ?? serieUnite.erreur,
+              })}
           error={erreur}
           tone="blue"
         />

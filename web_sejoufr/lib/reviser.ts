@@ -22,7 +22,7 @@
 
 import type {
     JourneyDto,
-    CivicPlanGrain,
+    CivicPlanDto,
     CivicPlanThemeLigneDto,
     DashboardCategoryStat,
     LearningPlanDto,
@@ -33,7 +33,13 @@ import type {
 } from "./types";
 import {niveauCecrlLabel} from "./types";
 import {niveauActuelEpreuve} from "./progres";
-import {planNowCard, type PlanDomainEpreuve, type PlanNowVue} from "./plan-domain";
+import {
+    planNowCard,
+    type PlanDomainEpreuve,
+    type PlanNowGeste,
+    type PlanNowVue,
+} from "./plan-domain";
+import {civicNowCard, type CivicNowVue} from "./civic-plan";
 import {CIVIQUE_LABEL, TCF_LABEL} from "./preparation";
 
 /* ------------------------------------------------------------------ En-tête */
@@ -125,28 +131,32 @@ export const REVISER_DEPART_LABEL = "Votre point de départ";
  * la séance lui échappait, et l'écran annonçait la priorité pédagogique pendant
  * que le Plan, au même instant, demandait de compléter une mesure.
  *
- * `null` quand il n'y a rien à reprendre : pas de plan, aucune priorité servie,
- * rien à lancer, ou action **verrouillée** — un compte sans accès ne se voit pas
- * proposer de reprendre ce qu'il ne peut pas faire, il entre par la liste des
- * épreuves (arbitrage du propriétaire, 2026-09-12 : « on passe par Réviser pour
- * voir ce qu'on peut utiliser gratuitement »).
+ * 🛑 **Un compte sans accès voit la MÊME carte qu'un abonné**, seul le geste
+ * change (demande du propriétaire, 2026-09-20 — la règle du Plan, étendue à
+ * Réviser). ⚠️ Cela **révoque** « une action verrouillée n'est pas proposée en
+ * reprise, la carte disparaît » : l'écran ouvrait alors sur sa liste d'épreuves
+ * sans jamais nommer ce que le candidat allait débloquer.
+ *
+ * `null` quand il n'y a vraiment rien à annoncer : pas de plan, aucune priorité
+ * servie, ou geste `AUCUN` — on ne pose pas un bouton mort.
  */
 export function reviserResumeTcf(
     plan: LearningPlanDto | null,
     journey: JourneyDto | null = null,
+    free = false,
 ): ReviserResume | null {
     if (!plan) return null;
     /* 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
        la règle du Plan pendant que le Plan suivrait le parcours — la même
        contradiction, à un troisième écran. */
-    const carte = planNowCard(plan, {journey});
-    if (!carte || carte.locked) return null;
-    // Rien à lancer — ni mesure, ni exercice : on ne propose pas un bouton mort.
-    if (!carte.mesure && !carte.exercise) return null;
+    const carte = planNowCard(plan, {journey, free});
+    if (!carte || carte.geste === "AUCUN") return null;
     return {
         title: carte.title,
         subtitle: carte.subtitle,
         section: carte.section,
+        geste: carte.geste,
+        cta: carte.cta,
         carte,
     };
 }
@@ -157,20 +167,29 @@ export interface ReviserResume {
     /** La section travaillée — c'est elle qui donne le pictogramme. Celle du
      *  domaine **réellement lancé**, mesure comprise. */
     section: SkillSection | null;
+    /** 🛑 **Le geste est SERVI par l'autorité du Plan**, jamais redéduit ici. */
+    geste: PlanNowGeste;
+    /** Ce que le bouton **dit**, décidé par la même autorité. */
+    cta: string;
     /** **Ce que le bouton lance**, tel que le Plan l'a désigné. */
     carte: PlanNowVue;
 }
 
-/** « Le Parlement » et « Institutions · notion à travailler ». */
+/**
+ * La reprise civique — **la même autorité que le Plan** (`civicNowCard`), pour
+ * la même raison que côté TCF : deux règles finiraient par proposer deux
+ * reprises différentes au même candidat.
+ *
+ * 🛑 **Un compte sans accès la voit aussi**, avec son geste de déblocage.
+ */
 export function reviserResumeCivique(
-    prochaine: {label: string; themeLabel: string; grain: CivicPlanGrain} | null,
-): {title: string; subtitle: string} | null {
-    if (!prochaine) return null;
-    const grain = prochaine.grain === "NOTION" ? "notion" : "thème";
-    return {
-        title: prochaine.label,
-        subtitle: `${prochaine.themeLabel} · ${grain} à travailler`,
-    };
+    plan: CivicPlanDto | null,
+    journey: JourneyDto | null = null,
+    free = false,
+): CivicNowVue | null {
+    if (!plan) return null;
+    const carte = civicNowCard(plan, {journey, free});
+    return carte && carte.geste !== "AUCUN" ? carte : null;
 }
 
 /* ---------------------------------------------------- Une épreuve du TCF --- */
