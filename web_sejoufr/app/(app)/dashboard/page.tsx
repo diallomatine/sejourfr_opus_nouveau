@@ -29,7 +29,6 @@ import {
     JOURNEY_TARGET_PATH_HREF,
 } from "@/lib/journey";
 import {civicBarTone} from "@/lib/civic-diagnostic";
-import {civicPlanRaison} from "@/lib/civic-plan";
 import {themeHistoriqueHref, themeSlug} from "@/lib/themes";
 import {
     ACCUEIL_EVALUEES_CAPTION,
@@ -80,10 +79,9 @@ import {
     diagnosticDashboardState,
 } from "@/lib/diagnostic";
 import {
-    CIVIC_MAITRISE_LABEL,
     CIVIC_THEME_STATE_LABEL,
     niveauCecrlShort,
-    type CivicPlanCibleDto,
+    canAccessModule,
     type CivicPlanDto,
     type DiagnosticResponse,
     type JourneyDto,
@@ -91,6 +89,8 @@ import {
     type PreparationDto,
     type ProgressDto,
 } from "@/lib/types";
+import {planUnlockHref} from "@/lib/plan-unlock";
+import {civicNowCard} from "@/lib/civic-plan";
 
 /**
  * **L'Accueil** de l'espace connecté, **scopé au parcours choisi**.
@@ -236,6 +236,7 @@ function DashboardRoot() {
        le parcours — exactement la contradiction corrigée le 2026-09-16, à un
        étage de plus. */
     const [journey, setJourney] = useState<JourneyDto | null>(null);
+    const [journeyCivique, setJourneyCivique] = useState<JourneyDto | null>(null);
     const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
     const [prep, setPrep] = useState<PreparationDto | null>(null);
     const [diagnosticDismissed, setDiagnosticDismissed] = useState(false);
@@ -256,7 +257,7 @@ function DashboardRoot() {
         if (status !== "authenticated" || !user) return;
         let cancelled = false;
         (async () => {
-            const [progression, currentDiagnostic, currentPlan, preparation, planCivique, parcours] = await Promise.all([
+            const [progression, currentDiagnostic, currentPlan, preparation, planCivique, parcours, parcoursCivique] = await Promise.all([
                 // 🛑 Les compteurs de compétences viennent d'ICI, servis pour les
                 // deux parcours — l'Accueil ne les recompte pas.
                 progressApi.get().catch((): ProgressDto | null => null),
@@ -272,6 +273,9 @@ function DashboardRoot() {
                 // Best-effort, comme le reste : un backend antérieur à
                 // l'endpoint laisse l'Accueil entier, sur la règle du Plan.
                 journeyApi.getCached().catch((): JourneyDto | null => null),
+                // 🛑 Le cycle CIVIQUE : « À faire maintenant » y lit son étape
+                // depuis D-50 §2, exactement comme le Plan civique.
+                journeyApi.getCached("CIVIQUE").catch((): JourneyDto | null => null),
             ]);
             if (cancelled) return;
             setProgres(progression);
@@ -280,6 +284,7 @@ function DashboardRoot() {
             setPrep(preparation);
             setCivicPlan(planCivique);
             setJourney(parcours);
+            setJourneyCivique(parcoursCivique);
             if (preparation) setDefaut(moduleParDefaut(preparation));
             setLoading(false);
         })();
@@ -324,8 +329,7 @@ function DashboardRoot() {
        deux, la section n'existe pas : pas de titre au-dessus du vide, et la
        rangée laisse sa voisine prendre toute la largeur. */
     const gateCivique = prep ? planIndisponible(prep.civique, "CIVIQUE") : null;
-    const cibleCivique = gateCivique ? null : civicPlan?.prochaine ?? null;
-    const aUneAction = civique ? Boolean(gateCivique ?? cibleCivique) : Boolean(diagnostic);
+    const aUneAction = civique ? Boolean(gateCivique ?? civicPlan) : Boolean(diagnostic);
 
     return (
         <SejourApp wide className="home">
@@ -381,7 +385,12 @@ function DashboardRoot() {
                     <Section title="À faire maintenant">
                         <Pad>
                             {civique ? (
-                                <ActionCivique gate={gateCivique} cible={cibleCivique}/>
+                                <ActionCivique
+                                    gate={gateCivique}
+                                    plan={gateCivique ? null : civicPlan ?? null}
+                                    journey={journeyCivique}
+                                    free={!canAccessModule(user, "CIVIQUE")}
+                                />
                             ) : diagnostic ? (
                                 <ActionPrincipale
                                     diagnostic={diagnostic}
@@ -389,6 +398,7 @@ function DashboardRoot() {
                                     journey={journey}
                                     dismissed={diagnosticDismissed}
                                     onDismiss={() => setDiagnosticDismissed(true)}
+                                    free={!canAccessModule(user, "TCF")}
                                 />
                             ) : null}
                         </Pad>
@@ -435,12 +445,14 @@ function ActionPrincipale({
                               journey,
                               dismissed,
                               onDismiss,
+                              free,
                           }: {
     diagnostic: DiagnosticResponse;
     plan: LearningPlanDto | null;
     journey: JourneyDto | null;
     dismissed: boolean;
     onDismiss: () => void;
+    free: boolean;
 }) {
     const state = diagnosticDashboardState(diagnostic);
     if (state === "NOT_STARTED" && dismissed) return null;
@@ -502,7 +514,7 @@ function ActionPrincipale({
         );
     }
 
-    return <ActionPlanDuJour plan={plan} journey={journey}/>;
+    return <ActionPlanDuJour plan={plan} journey={journey} free={free}/>;
 }
 
 /**
@@ -519,33 +531,29 @@ function ActionPrincipale({
  * qui rend une carte à part pour un compte sans accès. Ici le seul fait lu est
  * le `locked` **servi**, comme avant : rien à masquer de plus.
  */
-function ActionPlanDuJour({plan, journey}: {
+function ActionPlanDuJour({plan, journey, free}: {
     plan: LearningPlanDto | null;
     journey: JourneyDto | null;
+    /** 🛑 **Le drapeau d'accès descend jusqu'à l'autorité** (2026-09-20) : sans
+     *  lui, l'Accueil ne savait pas qu'il fallait proposer de débloquer, et il
+     *  annonçait « Commencer » là où le Plan disait « Débloquer ». */
+    free: boolean;
 }) {
+    const router = useRouter();
     const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
     const assessments = usePlanAssessment();
 
-    const vue = plan ? planNowCard(plan, {journey}) : null;
-    /* 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
-       Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
-       peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
-       en clair sur l'Accueil démentirait ce rideau. Miroir du mobile
-       (`_actionTcf`, `home_screen.dart`), qui retombe sur son texte générique.
+    const carte = plan ? planNowCard(plan, {journey, free}) : null;
+    /* 🛑 **Une priorité verrouillée se NOMME ici comme sur le Plan** (demande
+       du propriétaire, 2026-09-20).
 
-       ⚠️ **Une MESURE n'est pas une priorité** : elle n'est floutée nulle part,
-       donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
-       aucun verrou dessus — s'il en posait un, `locked` le dirait. */
-    const carte = vue && (
-        vue.nature === "MESURE" || vue.nature === "INDISPONIBLE"
-            /* 🛑 Une étape dont l'action ne se résout pas se NOMME quand même :
-               c'est celle que l'aperçu du parcours montre juste en dessous, et
-               taire son nom ici ferait dire deux choses au même écran. Elle n'a
-               simplement aucun raccourci — `startable` s'en charge. */
-            ? !vue.locked
-            : vue.priority?.locked !== true)
-        ? vue
-        : null;
+       ⚠️ **Révoque** « une priorité verrouillée n'est jamais nommée ici » : la
+       règle protégeait le rideau de « Mes priorités », qui n'existe plus — le
+       Plan nomme l'étape depuis le 2026-09-19 et Réviser depuis le 20. Le seul
+       écran à se taire encore était celui-ci, et il annonçait « Continuez votre
+       plan personnalisé » pendant que le Plan disait « Expression écrite ·
+       Tâche 3 ». Deux écrans, deux réponses, au même instant. */
+    const debloquer = carte?.geste === "DEBLOQUER";
     const mesure = carte?.mesure ?? null;
     const exercise = carte?.exercise ?? null;
     /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
@@ -554,7 +562,9 @@ function ActionPlanDuJour({plan, journey}: {
        « Commencer directement » enverrait alors un compte gratuit droit sur un
        403. Le Plan, lui, reste ouvert : on garde « Continuer mon plan », qui
        porte le cadenas et l'offre. */
-    const startable = carte !== null
+    /* 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
+       l'écran de transition (A145), une action ouvre l'action. */
+    const startable = carte !== null && !debloquer
         && (mesure !== null ? !carte.locked : Boolean(exercise) && !exercise?.locked);
     const busy = starting || assessments.starting !== null;
 
@@ -574,7 +584,13 @@ function ActionPlanDuJour({plan, journey}: {
                 badge={carte?.badge ?? "Votre priorité du jour"}
             >
                 <div className="home-now-actions">
-                    <Cta href="/plan">Continuer mon plan</Cta>
+                    {debloquer && carte ? (
+                        <Cta onClick={() => router.push(planUnlockHref("TCF"))}>
+                            {carte.cta}
+                        </Cta>
+                    ) : (
+                        <Cta href="/plan">Continuer mon plan</Cta>
+                    )}
                     {/* 🛑 **Les lanceurs du Plan, jamais un second chemin** :
                         une mesure part chez `usePlanAssessment`, un exercice
                         chez `usePlanExercise` — exactement comme le bouton du
@@ -630,10 +646,13 @@ function ActionPlanDuJour({plan, journey}: {
  * et elle diffère volontairement de celle du TCF, où une priorité verrouillée
  * n'est pas nommée parce que le Plan la floute.
  */
-function ActionCivique({gate, cible}: {
+function ActionCivique({gate, plan, journey, free}: {
     gate: PlanIndisponible | null;
-    cible: CivicPlanCibleDto | null;
+    plan: CivicPlanDto | null;
+    journey: JourneyDto | null;
+    free: boolean;
 }) {
+    const router = useRouter();
     // La porte : même phrase, même bouton, même destination que « Ma
     // préparation » et que la porte du Plan.
     if (gate) {
@@ -651,20 +670,38 @@ function ActionCivique({gate, cible}: {
         );
     }
 
-    if (!cible) return null;
+    /* 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
+       ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce
+       l'étape du cycle depuis D-50 §2, donc les deux écrans annonçaient deux
+       reprises différentes au même candidat, au même instant. C'est la
+       troisième fois que ce même écart se rouvre par la bande — après Réviser
+       (A149), après le Plan lui-même. */
+    const carte = plan ? civicNowCard(plan, {journey, free}) : null;
+    /* `null` est un cas NORMAL : plus rien à faire, la carte disparaît. */
+    if (!carte) return null;
+    const debloquer = carte.geste === "DEBLOQUER";
 
-    const sousTitre = cible.label === cible.themeLabel ? undefined : cible.themeLabel;
     return (
         <NowCard
             icon={Landmark}
-            title={cible.label}
-            subtitle={sousTitre}
-            badge="Votre priorité du jour"
-            objectiveLabel="Ce que le plan a observé"
-            objective={`${CIVIC_MAITRISE_LABEL[cible.maitrise]} · ${civicPlanRaison(cible)}`}
+            title={carte.title}
+            subtitle={carte.subtitle ?? undefined}
+            badge={carte.badge ?? "Votre priorité du jour"}
+            objectiveLabel={carte.objectiveLabel ?? undefined}
+            objective={carte.objective ?? undefined}
         >
+            {/* 🛑 **Cette carte ne DÉMARRE toujours rien** : elle mène au Plan
+                civique, seul porteur du lanceur de série — un second point de
+                départ dupliquerait la gestion du 403. Seul le geste d'ACHAT
+                part d'ici, vers l'écran de transition (A145). */}
             <div className="home-now-actions">
-                <Cta href={planHref("CIVIQUE")} variant="blue">Continuer mon plan</Cta>
+                {debloquer ? (
+                    <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>
+                        {carte.cta}
+                    </Cta>
+                ) : (
+                    <Cta href={planHref("CIVIQUE")} variant="blue">Continuer mon plan</Cta>
+                )}
             </div>
         </NowCard>
     );

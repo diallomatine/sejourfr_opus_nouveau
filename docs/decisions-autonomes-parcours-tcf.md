@@ -2628,3 +2628,42 @@ chemin n'est écrit dans l'écran de compétence.
 **Si l'arbitrage était autre** (« redirection automatique ») : il faudrait attendre la clôture
 serveur avant de naviguer, donc un état d'attente sur un écran que le candidat est en train de
 lire — c'est ce qu'on a écarté.
+
+---
+
+## A152 — L'Accueil annonce exactement ce qu'annonce le Plan (2026-09-20)
+
+> Propriétaire : « synchronise toujours “à faire maintenant” plan et accueil. C'est la même
+> chose. » Puis, sur les trois divergences mesurées : « les 3 points, une seule carte partout ».
+
+**Mesuré avant d'agir.** La **donnée** était déjà partagée : les six surfaces lisent
+`planNowCard` / `civicNowCard`. Ce qui divergeait, c'est ce que l'Accueil **acceptait d'en
+montrer** — trois écarts, tous du même côté :
+
+| | Plan / Réviser | Accueil (avant) |
+|---|---|---|
+| le drapeau d'accès | `planNowCard(plan, journey, **free**)` | `free` **jamais passé** |
+| une priorité verrouillée | nommée, bouton « Débloquer cet entraînement » | **pas nommée** → « Continuez votre plan personnalisé » |
+| le civique | `civicNowCard(…, journey)` — le **cycle** | `plan.prochaine` — le **plan dérivé** |
+
+⚠️ **Révoque « une priorité verrouillée n'est jamais nommée sur l'Accueil ».** La règle
+protégeait le **rideau de « Mes priorités »** — qui n'existe plus. Le Plan nomme l'étape
+depuis le 2026-09-19, Réviser depuis le 20 ; l'Accueil était le dernier écran à se taire, et
+il disait donc autre chose que le Plan au même instant, pour le même candidat.
+
+🛑 **Le geste d'achat part vers l'écran de transition** (A145), des deux côtés, TCF et civique.
+
+🛑 **La carte civique ne DÉMARRE toujours rien** : elle mène au Plan, seul porteur du lanceur
+de série — un second point de départ dupliquerait la gestion du 403. Seul l'achat part d'ici.
+
+#### Le motif, 3ᵉ occurrence — DETTE-C1
+
+« Un écran lit le plan dérivé pendant qu'un autre lit le cycle » s'est rouvert **trois fois**
+depuis D-50 : sur le Plan civique lui-même, sur Réviser (A149), sur l'Accueil (ici). La cause
+est toujours la même — `CivicPlanDto.prochaine` **reste servi** et reste tentant, alors que
+l'autorité est `civicNowCard`. Tant qu'il est servi, un quatrième écran le relira.
+**À arbitrer** : le retirer du DTO, ou le documenter comme réservé au plan dérivé.
+
+**Si l'arbitrage était autre** (« l'Accueil reste muet sur une priorité fermée ») : il suffirait
+de remettre le filtre `nommable`, mais l'écart que le propriétaire a constaté reviendrait tel
+quel.

@@ -325,31 +325,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // la règle du Plan pendant que le Plan suivrait le parcours — la même
     // contradiction, à un étage de plus.
     final parcours = ref.watch(journeyProvider).valueOrNull;
-    final carte = plan == null ? null : planNowCard(plan, journey: parcours);
+    // 🛑 **Le drapeau d'accès descend jusqu'à l'autorité** (2026-09-20) : sans
+    // lui, l'Accueil ne savait pas qu'il fallait proposer de débloquer, et il
+    // annonçait « Commencer » là où le Plan disait « Débloquer ».
+    final compte = ref.watch(authControllerProvider);
+    final free = !(compte is AuthAuthenticated && compte.user.hasTcf);
+    final carte = plan == null
+        ? null
+        : planNowCard(plan, journey: parcours, free: free);
 
-    // 🛑 **Une priorité verrouillée n'est jamais NOMMÉE ici.** Depuis que le
-    // Plan sait aussi désigner une compétence *à acquérir*, la priorité n°1
-    // peut porter un cadenas — et « Mes priorités » la floute alors. L'écrire
-    // en clair sur l'Accueil démentirait ce rideau. Miroir du web.
+    // 🛑 **Une priorité verrouillée se NOMME ici comme sur le Plan** (demande
+    // du propriétaire, 2026-09-20).
     //
-    // ⚠️ **Une MESURE n'est pas une priorité** : elle ne se floute nulle part,
-    // donc elle se nomme ici comme sur le Plan. Le serveur ne pose d'ailleurs
-    // aucun verrou dessus — mais s'il en posait un, `locked` le dirait et on
-    // retomberait sur la carte générique.
-    // 🛑 Une étape dont l'action ne se résout pas se NOMME quand même : c'est
-    // celle que l'aperçu du parcours montre juste en dessous, et taire son nom
-    // ici ferait dire deux choses au même écran. Elle n'a simplement aucun
-    // raccourci — `lancable` s'en charge.
-    final nommable = carte != null &&
-        (carte.estMesure || carte.estIndisponible
-            ? !carte.locked
-            : carte.priority?.locked != true);
+    // ⚠️ **Révoque** « une priorité verrouillée n'est jamais nommée ici » : la
+    // règle protégeait le rideau de « Mes priorités », qui n'existe plus — le
+    // Plan nomme l'étape depuis le 2026-09-19 et Réviser depuis le 20. Le seul
+    // écran à se taire encore était celui-ci, et il annonçait « Continuez votre
+    // plan personnalisé » pendant que le Plan disait « Expression écrite ·
+    // Tâche 3 ». Deux écrans, deux réponses, au même instant.
+    final nommable = carte != null;
 
     final mesure = carte?.mesure;
     final exercice = carte?.exercise;
-    // 🛑 **Un raccourci verrouillé n'en est pas un** : « Commencer directement »
-    // enverrait un compte gratuit droit sur un 403. Le Plan, lui, reste ouvert.
-    final lancable = nommable &&
+    // 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
+    // l'écran de transition (A145), une action ouvre l'action.
+    final debloquer = carte?.geste == PlanNowGeste.debloquer;
+    final lancable = carte != null &&
+        !debloquer &&
         (mesure != null ? !carte.locked : exercice != null && !exercice.locked);
 
     return SfNowCard(
@@ -371,8 +373,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SfButton(
-            label: kHomePlanCta,
-            onPressed: () => _ouvrirPlan(context, civique: false),
+            label: debloquer ? carte!.cta : kHomePlanCta,
+            onPressed: debloquer
+                ? () => context.push(AppRoutes.planUnlockPath(civique: false))
+                : () => _ouvrirPlan(context, civique: false),
           ),
           if (lancable)
             HomeSoftAction(
@@ -428,21 +432,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    final CivicPlanCible? cible =
-        ref.watch(civicPlanProvider).valueOrNull?.prochaine;
-    if (cible == null) return null;
+    // 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
+    // ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce
+    // l'étape du cycle depuis D-50 §2, donc les deux écrans annonçaient deux
+    // reprises différentes au même candidat, au même instant. C'est la
+    // troisième fois que ce même écart se rouvre par la bande — après Réviser
+    // (A149), après le Plan lui-même.
+    final plan = ref.watch(civicPlanProvider).valueOrNull;
+    if (plan == null) return null;
+    final compte = ref.watch(authControllerProvider);
+    final free = !(compte is AuthAuthenticated && compte.user.hasCivique);
+    final carte = civicNowCard(
+      plan,
+      journey: ref.watch(journeyCiviqueProvider).valueOrNull,
+      free: free,
+    );
+    // `null` est un cas NORMAL : plus rien à faire, la carte disparaît.
+    if (carte == null) return null;
+    final debloquer = carte.geste == PlanNowGeste.debloquer;
 
     return SfNowCard(
       icon: LucideIcons.landmark,
-      title: cible.themeLabel,
-      subtitle: civicPlanRaison(cible),
-      badge: kHomePriorityBadge,
-      objectiveLabel: kHomeCivicObservedLabel,
-      objective: '${cible.maitrise.label} · ${civicSerieLabel(cible)}',
+      title: carte.title,
+      subtitle: carte.subtitle,
+      badge: carte.badge ?? kHomePriorityBadge,
+      objectiveLabel: carte.objectiveLabel ?? kHomeCivicObservedLabel,
+      objective: carte.objective,
+      // 🛑 **Cette carte ne DÉMARRE toujours rien** : elle mène au Plan
+      // civique, seul porteur du lanceur de série — un second point de départ
+      // dupliquerait la gestion du 403. Seul le geste d'ACHAT part d'ici, vers
+      // l'écran de transition (A145).
       action: SfButton(
-        label: kHomeCiviquePlanCta,
+        label: debloquer ? carte.cta : kHomeCiviquePlanCta,
         variant: SfButtonVariant.blue,
-        onPressed: () => _ouvrirPlan(context, civique: true),
+        onPressed: debloquer
+            ? () => context.push(AppRoutes.planUnlockPath(civique: true))
+            : () => _ouvrirPlan(context, civique: true),
       ),
     );
   }
