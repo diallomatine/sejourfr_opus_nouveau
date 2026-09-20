@@ -13,7 +13,7 @@
 | P8.0 → P8.3, P8.A, **P8.2b** | ✅ livrées |
 | **P8.4** (moteur) · **P8.5** (freemium) | ✅ **livrées**, preuve : `ParcoursCiviqueDeBoutEnBoutIT` |
 | **P8.6** (kits) · **P8.7** (écrans) | ✅ **livrées** (2026-09-20), décisions **A84 → A90** |
-| P8.8 (les 28 questions) | 🟡 **relecture rendue** — dossier complet, ⛔ **arrêt avant migration** : la forme est montrée, pas écrite |
+| **P8.8** (les 28 questions) | ✅ **livrée** (2026-09-20) — V203 + V299 écrites et vertes, `P2_LAICITE` à **20** |
 | **P8.9** (historique des cycles) | ✅ **livrée** (2026-09-20) — le blocage est **levé** : l'écran TCF fait référence, transposé brique pour brique. Décisions **A91 → A94** |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-53**, les règles
@@ -136,10 +136,18 @@ D-42**.
 **Ce qui reste ouvert, et consigné comme signal** : les **8** questions sans notion interne — cinq
 manques de la taxonomie des 46, qui a été reconstruite **depuis le corpus** (`SIGNAL-T1`).
 
-⛔ **ARRÊT AVANT LA MIGRATION**, comme pour V069, V070 et V071 : la forme est en partie C.4, rien
-n'est écrit.
+✅ **Les deux migrations sont écrites** (forme montrée d'abord, comme pour V069, V070 et V071) :
+`200_civique/principes_valeurs/V203__laicite_douze_questions.sql` et
+`200_civique/V299__p88_rattachements_et_desactivations.sql`. Chacune porte un **garde qui fait
+échouer la migration** plutôt que de laisser un état à moitié écrit, et l'état est verrouillé par
+`P88LaiciteEtRattachementsSeedIT` (5 tests).
 
-⚠️ **`V299` sera le dernier slot de la plage `200_civique`** (`DETTE-F1`, signalée avant d'écrire).
+🛑 **Ce que l'écriture a révélé** : le « doublon » de Laïcité n'existe que sur une base de **dev**
+(`migration-dev/V900__seed_dev.sql`). En production, l'unité comptait **8** questions, pas 9 — donc
+8 + 12 = 20 **sans** la désactivation. Trouvé par le garde, pas par une relecture. Détail : partie
+C.4 du dossier.
+
+⚠️ **`V299` est le dernier slot de la plage `200_civique`** (`DETTE-F1`, signalée avant d'écrire).
 
 ### 5. P8.9 — l'historique des cycles ✅
 

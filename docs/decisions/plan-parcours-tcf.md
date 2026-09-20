@@ -2507,6 +2507,29 @@ travailler les transports. Un mauvais tag ment davantage qu'une absence de tag.
 migration de **référentiel interne**, qui change le grain de tout le plan dérivé — pas une migration
 de contenu. Matière : `docs/progression/civique/P8.8-extraction.md`, partie C.3.
 
+#### ⚠️ Et une seconde question se posera EN MÊME TEMPS : les mises en situation hors programme
+
+**Ajouté par le propriétaire (2026-09-20)**, à partir d'un constat annexe de la mesure des 108 :
+
+> « 47 questions travaillables sans qu'aucune observation ne s'écrive dessus. Ce n'est pas une panne,
+> c'est le prix de D-48 — mais **un candidat qui travaille et dont le plan n'apprend rien, c'est un
+> fait de produit**, pas une conséquence technique. »
+
+**Le fait, mesuré** : 108 mises en situation actives vivent dans `CIV_SOCIETE` (47),
+`CIV_INSTITUTIONS` (31) et `CIV_HISTOIRE_GEO` (30) — trois thèmes où l'arrêté ne prévoit **aucune**
+unité de mise en situation (D-29). Elles sont **servies** (séries par thème, diagnostic, révision des
+erreurs — six dès la série **gratuite** de « Vivre dans la société française »), mais R2 passe par
+l'**unité officielle**, qu'elles n'ont pas : **aucune observation ne s'écrit dessus**.
+
+🛑 **Le jour où l'on crée des notions, la question de savoir si ces mises en situation en reçoivent
+une se posera EN MÊME TEMPS** — c'est la même décision, prise une fois. Les deux moitiés du signal :
+sept connaissances qui n'ont pas de notion où aller, et 108 mises en situation qui n'ont pas d'unité
+où être mesurées.
+
+⚠️ **Ce n'est pas une invitation à leur en donner une** : l'arrêté ne leur reconnaît pas de quota
+dans ces trois thèmes, et leur fabriquer une unité ferait entrer dans le programme ce que le
+programme exclut. La question est **ouverte**, pas orientée.
+
 ---
 
 ### DETTE-F1 (2026-09-20) — ⚠️ **la plage `200_civique` sera SATURÉE après V299**
