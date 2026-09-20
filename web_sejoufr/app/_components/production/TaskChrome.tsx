@@ -1,28 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import type {ReactNode} from "react";
 import {productionApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {loadEpreuveTasks, productionTasksKey, tasksOfTache} from "@/lib/production-catalog";
-import {
-  loadSectionSkills,
-  loadTaskProgress,
-  skillsOfTask,
-  skillsProgressKey,
-  skillsSectionKey,
-} from "@/lib/skill-catalog";
+import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
+import {loadTaskProgress, skillsProgressKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {productionTaskSubtitle, productionTaskTitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
-import {EXPRESSION_TAB_COMPETENCES, EXPRESSION_TAB_SUJETS, niveauViseBadge} from "@/lib/expression";
+import {niveauViseBadge} from "@/lib/expression";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionConfig} from "./config";
 import {constraintOf} from "./parcours";
-
-/** Les deux façons de travailler une tâche. Ce sont **deux routes** sur le web
- *  (`…/tache/2/competences` et `…/tache/2`), pas deux états d'un même écran :
- *  chacune reste partageable et le Plan route directement vers la première. */
-export type TaskTab = "competences" | "sujets";
 
 /** Teinte de la tâche : la rampe bleu → rouge de la marque, jamais une couleur
  *  nouvelle (cf. `.taskTone1/2/3` dans `skill.module.css`). */
@@ -33,9 +21,25 @@ export function taskToneClass(tacheNumero: number): string {
 }
 
 /**
- * Tête du **détail d'une tâche** — maquette `~/Desktop/sejourfr_ecrans/detail_tache.png` :
- * la carte de consigne, puis les deux onglets « Compétences » et
- * « Sujets complets ».
+ * **La tête du détail d'une tâche** : ce qu'on va faire, la contrainte, la
+ * consigne. Miroir mobile : `widgets/task_banner.dart` (`TaskBanner`).
+ *
+ * ⚠️ **Fond clair depuis le 2026-09-20** (demande du propriétaire). L'encart
+ * était un aplat bleu plein qui pesait plus lourd que la liste de sujets qu'il
+ * introduisait ; le bleu ne sert plus que d'**accent** — la pastille du niveau
+ * visé, le libellé de la consigne et la contrainte. Le rouge reste réservé aux
+ * CTA critiques.
+ *
+ * La hiérarchie suit ce que le candidat cherche : l'**intitulé** de la tâche est
+ * le titre (son rang reste dit, en sur-titre, parce que consignes et corrigés
+ * parlent de « tâche 2 »), puis la **contrainte** — le fait le plus utile avant
+ * de produire — puis la consigne.
+ *
+ * ⚠️ **Plus de barre d'onglets depuis le 2026-09-20** : les compétences ne se
+ * travaillent que via le Plan, l'écran d'une tâche n'a donc plus qu'un seul
+ * contenu — ses sujets complets. La liste des compétences d'une tâche
+ * (`CompetencesList`) garde cette même tête, elle n'est plus qu'atteinte
+ * autrement.
  *
  * 🛑 **La pastille dit « Niveau visé », et porte le palier de la TÂCHE.**
  * Elle affichait le palier de la **démarche du candidat**, ce qui n'a rien à
@@ -43,25 +47,13 @@ export function taskToneClass(tacheNumero: number): string {
  * Tâche 1, qui est une tâche A2 — deux façons différentes de laisser croire
  * qu'une tâche vaut un niveau. Et `SkillTaskCode.targetLevel` n'est **pas** un
  * référentiel officiel : c'est notre palier pédagogique, d'où « visé ».
- *
- * Elle remplace l'ancienne tête à trois modes (`ParcoursTop`) : les examens
- * blancs ne sont plus un onglet de la tâche — ils portent sur l'épreuve
- * entière et s'atteignent depuis la liste des tâches. Les mettre au même niveau
- * qu'un espace de travail de tâche laissait croire qu'on passait un examen
- * « de la tâche 2 ».
- *
- * Les deux compteurs des onglets viennent des **mêmes clés de cache** que les
- * deux écrans (`productionTasksKey`, `skillsSectionKey`) : les afficher ne coûte
- * aucun appel de plus, quel que soit l'onglet ouvert.
  */
 export function TaskChrome({
   config,
   taskNumero,
-  tab,
 }: {
   config: ProductionConfig;
   taskNumero: number;
-  tab: TaskTab;
 }): ReactNode {
   const {status} = useAuth();
   const ready = status === "authenticated";
@@ -70,11 +62,8 @@ export function TaskChrome({
   const tasksQuery = useCachedData(ready ? productionTasksKey(config.epreuve) : null, () =>
     loadEpreuveTasks(productionApi, config.epreuve),
   );
-  const skillsQuery = useCachedData(ready ? skillsSectionKey(section) : null, () =>
-    loadSectionSkills(skillApi, section),
-  );
   /* Le palier de la TÂCHE, servi par `SkillTaskProgressDto.targetLevel` — même
-     clé de cache que l'écran des sujets, donc aucun appel de plus. */
+     clé de cache que l'écran des compétences, donc aucun appel de plus. */
   const progressQuery = useCachedData(ready ? skillsProgressKey(section) : null, () =>
     loadTaskProgress(skillApi, section),
   );
@@ -83,65 +72,32 @@ export function TaskChrome({
       ?.targetLevel ?? null;
 
   const constraint = constraintOf(tasksQuery.data, taskNumero, config.mode === "audio");
-  const sujets = tasksOfTache(tasksQuery.data, taskNumero).length;
-  const competences = skillsOfTask(
-    skillsQuery.data,
-    skillTaskCodeOf(section, taskNumero),
-  ).length;
-
-  const base = `${config.base}/tache/${taskNumero}`;
 
   return (
-    <>
-      {/* En-tête ET consigne dans un SEUL encart bleu, miroir du mobile
-          (`_TaskBanner`). Arbitrage du propriétaire du 2026-08-21 : les deux
-          blocs se succédaient en disant la même chose, et la teinte par tâche
-          — verte sur la première — n'appartenait à aucune de nos deux couleurs
-          de marque. Le numéro de tâche est le TITRE : c'est ce que le candidat
-          cherche en arrivant, le nom éditorial du sujet ne le situe pas dans
-          son parcours. */}
-      <section className={s.taskBanner}>
-        <div className={s.taskBannerHead}>
-          <div className={s.taskBannerBody}>
-            <h1 className={s.taskBannerTitle}>Tâche {taskNumero}</h1>
-            <p className={s.taskBannerMeta}>
-              {productionTaskTitle(config.epreuve, taskNumero)} · {config.label}
-            </p>
-          </div>
-          {niveauVise && (
-            <span className={s.taskBannerLevel}>{niveauViseBadge(niveauVise)}</span>
-          )}
-        </div>
-        <div className={s.taskBannerBrief}>
-          <span className={s.taskBannerLabel}>Consigne</span>
-          {/* La contrainte est la PREMIÈRE chose lue de la consigne (maquette
-              `detail_tache.png`) : c'est elle qui cadre la production. Servie
-              par `production_tasks` — jamais un nombre écrit ici. */}
-          {constraint && <strong className={s.taskBannerRange}>{constraint}</strong>}
-          <p className={s.taskBannerText}>
-            {productionTaskSubtitle(config.epreuve, taskNumero)}
+    <section className={s.taskBanner}>
+      <div className={s.taskBannerHead}>
+        <div className={s.taskBannerBody}>
+          <p className={s.taskBannerRank}>
+            Tâche {taskNumero} · {config.label}
           </p>
+          <h1 className={s.taskBannerTitle}>
+            {productionTaskTitle(config.epreuve, taskNumero)}
+          </h1>
         </div>
-      </section>
-
-      <nav className={s.segTabs} aria-label="Façons de travailler cette tâche">
-        <Link
-          href={`${base}/competences`}
-          className={`${s.segTab} ${tab === "competences" ? s.segTabOn : ""}`}
-          aria-current={tab === "competences" ? "page" : undefined}
-        >
-          {EXPRESSION_TAB_COMPETENCES}
-          {competences > 0 ? ` · ${competences}` : ""}
-        </Link>
-        <Link
-          href={base}
-          className={`${s.segTab} ${tab === "sujets" ? s.segTabOn : ""}`}
-          aria-current={tab === "sujets" ? "page" : undefined}
-        >
-          {EXPRESSION_TAB_SUJETS}
-          {sujets > 0 ? ` · ${sujets}` : ""}
-        </Link>
-      </nav>
-    </>
+        {niveauVise && (
+          <span className={s.taskBannerLevel}>{niveauViseBadge(niveauVise)}</span>
+        )}
+      </div>
+      <div className={s.taskBannerBrief}>
+        <span className={s.taskBannerLabel}>Consigne</span>
+        {/* La contrainte est la PREMIÈRE chose lue de la consigne : c'est elle
+            qui cadre la production. Servie par `production_tasks` — jamais un
+            nombre écrit ici. */}
+        {constraint && <strong className={s.taskBannerRange}>{constraint}</strong>}
+        <p className={s.taskBannerText}>
+          {productionTaskSubtitle(config.epreuve, taskNumero)}
+        </p>
+      </div>
+    </section>
   );
 }

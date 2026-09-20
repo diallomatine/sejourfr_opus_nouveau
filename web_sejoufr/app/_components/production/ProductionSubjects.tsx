@@ -67,9 +67,10 @@ const TONE_MARK: Record<ReturnType<typeof tacheNiveauTone>, SkillRowMark> = {
 };
 
 /**
- * Sujets d'examen d'une tâche productive — le **second onglet du détail d'une
- * tâche**, sous la carte de consigne partagée (`TaskChrome`) : filtres avec
- * compteurs, puis les cartes de sujet.
+ * Sujets d'examen d'une tâche productive — le **seul contenu du détail d'une
+ * tâche** depuis que les compétences ne se travaillent plus que via le Plan
+ * (2026-09-20), sous la carte de consigne partagée (`TaskChrome`) : filtres
+ * avec compteurs, puis les cartes de sujet.
  *
  * Les **exemples** ne sont pas un espace de la tâche : c'est une ressource
  * d'appoint, atteinte par un lien discret en tête de la liste et rendue sur sa
@@ -175,7 +176,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <SkillShell backHref={config.base} backLabel={config.label}>
-        <TaskChrome config={config} taskNumero={n} tab="sujets" />
+        <TaskChrome config={config} taskNumero={n} />
 
         {error && <div className={s.error}>{error}</div>}
 

@@ -3125,8 +3125,9 @@ dans `skill-ui/` et **aucun écran ne les recopie**.
 - `production/ProductionTasks.tsx` (**2026-08-21**) : l'**écran d'entrée** d'une
   épreuve — carte de synthèse, les 3 tâches, l'accès aux examens blancs.
 - `production/TaskChrome.tsx` (**2026-08-21**) : la tête du **détail d'une
-  tâche** — carte de consigne teintée + les 2 onglets « Compétences » /
-  « Sujets d'examen ».
+  tâche** — l'intitulé, la contrainte, la consigne. ⚠️ **Plus d'onglets et plus
+  d'aplat bleu depuis le 2026-09-20** (cf. § « Le détail d'une tâche perd son
+  onglet Compétences », plus bas).
 - `production/parcours.ts` (**2026-08-21**, ex-`ParcoursTop.tsx`) : les calculs
   partagés seuls — `useParcoursLevel`, `PRODUCTION_EXAM_SLOTS`,
   `PRODUCTION_TACHES`, `averageExamNote`, `nextSkill`, `constraintOf`.
@@ -4426,3 +4427,33 @@ devient **scopé**.
 - **`journeyApi.historyCacheKeyFor(module)`** — une clé de cache par module, comme pour le cycle.
 - ⚠️ **`PLAN_PROGRESS_HREF` est SUPPRIMÉE** (`lib/plan-domain.ts`) : elle doublait
   `JOURNEY_HISTORY_HREF` pour le même chemin, et son dernier lecteur passe par `journeyHistoryHref`.
+
+
+## Le détail d'une tâche perd son onglet « Compétences » (2026-09-20)
+
+> Demande du propriétaire, verbatim : « Pour toutes les tâches des expressions,
+> supprimer la partie compétence, désormais les compétences ne se travaillent
+> que via le plan. » Miroir mobile posé dans la même passe.
+
+⚠️ **Cette section prime sur toute description plus ancienne de ce fichier** pour
+la tête d'une tâche EE/EO.
+
+- **`TaskChrome` n'a plus de `tab`**, plus de `<nav className={s.segTabs}>` et ne
+  charge plus `loadSectionSkills` : l'écran d'une tâche
+  (`/entrainement/tcf/{ee,eo}/tache/[n]`) n'a qu'un seul contenu, ses **sujets
+  complets**. `EXPRESSION_TAB_COMPETENCES` / `EXPRESSION_TAB_SUJETS`
+  (`lib/expression.ts`) et les classes `.segTabs` / `.segTab` / `.segTabOn` sont
+  **supprimées** avec leur dernier lecteur.
+- 🛑 **La route `…/tache/[n]/competences` RESTE**, et c'est volontaire : le
+  **Plan** y route ses tâches d'expression (`PlanTaskRow`, `PlanBits.tsx`,
+  marqueur `?etape=1`), et c'est de là qu'on atteint `CompetenceDetail`
+  (`…/competences/[skillId]`) et ses petits sujets. C'est désormais le **seul
+  chemin** vers le catalogue des 8 compétences : le couper coupe les fiches.
+- **`ProductionTasks`** pointe ses 3 lignes sur `…/tache/[n]` (c'était
+  `…/tache/[n]/competences`). Elles gardent leur compteur « 3/8 compétences
+  acquises », qui **mesure** la tâche et n'est pas une porte.
+- **La tête passe en fond clair** : carte blanche bordée, rang en sur-titre mono,
+  **l'intitulé de la tâche en titre**, pastille « Niveau visé » en
+  `--color-blue-light`, et l'encart de consigne sur `--color-blue-soft` avec la
+  **contrainte** (« 30-60 mots ») en gros bleu. Le bleu n'est plus qu'un accent ;
+  aucune valeur hexadécimale n'entre dans `.taskBanner*`.

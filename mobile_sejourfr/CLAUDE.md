@@ -4141,3 +4141,45 @@ devient **scopé**.
   `journeyHistoryCycleMeta` et les trois fonctions de mesure. 🛑 **Le module est passé, jamais
   deviné** : un cycle civique sans examen a `entryScore` ET `exitScore` nuls, donc le déduire de la
   nullité se serait trompé.
+
+
+## Le détail d'une tâche perd son onglet « Compétences » (2026-09-20)
+
+> Demande du propriétaire, verbatim : « Pour toutes les tâches des expressions,
+> supprimer la partie compétence, désormais les compétences ne se travaillent que via le
+> plan. » Miroir web posé dans la même passe.
+
+⚠️ **Cette section prime sur « Structure de l'entrée EE/EO »,
+« Un seul écran par niveau » et toutes les mentions d'onglets de tâche** plus haut
+dans ce fichier.
+
+- **`ProductionTaskScreen` n'a plus ni `ProductionTaskTab`, ni `IndexedStack`, ni
+  `SegmentedTabs`** : il rend `ProductionSubjectsView` et rien d'autre.
+  `productionTaskTabLabel`, `kExpressionTabCompetences` et `kExpressionTabSujets` sont
+  **supprimés** avec leur dernier lecteur (les deux constantes côté web aussi).
+- **Deux fichiers renommés**, le mot « onglet » n'ayant plus d'objet :
+  `production_subjects_tab_view.dart` → `production_subjects_view.dart`
+  (`ProductionSubjectsView`) et `competences/competences_tab_view.dart` →
+  `competences/competences_list_view.dart` (`CompetencesListView`).
+- 🛑 **`AppRoutes.tcfCompetences` RESTE**, et rend désormais un écran propre —
+  **`competences/competences_screen.dart`** (`CompetencesScreen`) — au lieu de l'écran de
+  tâche ouvert sur son premier onglet. C'est **le seul chemin restant** vers le catalogue
+  des 8 compétences : `PlanTaskRow` (Plan et « Toutes mes compétences ») y route, et c'est
+  de là qu'on atteint `CompetenceDetailScreen` puis ses petits sujets. Le couper coupe les
+  fiches.
+- **La tête est extraite** dans `widgets/task_banner.dart` (`TaskBanner` + `taskBannerTop`),
+  partagée par les deux écrans — elle lit elle-même `productionCatalogProvider` et le miroir
+  gelé de `SkillTaskCode`, donc **aucun appel de plus** et aucune résolution recopiée.
+  ⚠️ **Fond clair** (demande du propriétaire) : carte blanche bordée, rang en sur-titre,
+  **l'intitulé de la tâche en titre**, pastille « Niveau visé » en `AppColors.blueLight`, et
+  l'encart de consigne en `AppColors.blueSoft` avec la **contrainte** (« 30-60 mots ») en
+  gros, `AppColors.blue`. Le bleu n'est plus qu'un accent.
+- 🔴 **Correctif de parité** : le repli « vérification sans sujet » de
+  `recommended_exercise_launcher.dart` visait `productionCompetencesPath` alors que son
+  commentaire — et le web (`recommendedExerciseHref`) — disent **les sujets**. Il vise
+  désormais `productionTaskPath`. Sans ce correctif, la suppression de l'onglet l'aurait
+  fait ouvrir le catalogue des compétences.
+- ⚠️ **Resté tel quel, à arbitrer** : la liste des 3 tâches (`ProductionTasksScreen`) garde
+  son compteur « 3/8 compétences acquises » par ligne — il **mesure** la tâche, il n'est pas
+  une porte —, mais sa ligne ouvre maintenant les **sujets**.
+

@@ -203,15 +203,6 @@ export function restantsLabel(prompts: readonly SkillPromptSummaryDto[]): string
     return `${reste} restant${reste > 1 ? "s" : ""}`;
 }
 
-/* ------------------------------------------------------------- Onglets --- */
-
-/**
- * 🛑 **« Sujets complets », et plus « Sujets d'examen »** (maquette du
- * propriétaire, 2026-09-12). Libellés gelés, miroirs du mobile.
- */
-export const EXPRESSION_TAB_COMPETENCES = "Compétences";
-export const EXPRESSION_TAB_SUJETS = "Sujets complets";
-
 /* ----------------------------------------------- « Recommandé pour vous » */
 
 

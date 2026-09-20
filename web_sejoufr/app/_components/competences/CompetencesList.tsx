@@ -34,11 +34,13 @@ import s from "@/app/_components/skill-ui/skill.module.css";
  * des sujets TCF complets de la même tâche : on n'y produit jamais une copie
  * entière, seulement la brique que la compétence entraîne.
  *
- * L'écran suit la maquette client : c'est le **premier onglet du détail d'une
- * tâche**, sous la carte de consigne partagée (`TaskChrome`). Le second onglet
- * est la liste des sujets d'examen de la même tâche ; on change de tâche en
- * remontant à la liste des tâches de l'épreuve, plus par des pastilles T1/T2/T3
- * — le sélecteur mettait trois tâches au même niveau qu'un mode de travail.
+ * ⚠️ **On n'y entre plus que depuis le Plan** (demande du propriétaire,
+ * 2026-09-20) : l'écran d'une tâche n'a plus d'onglet « Compétences ». Le Plan
+ * route ses tâches d'expression ici, puis d'ici vers la fiche d'une compétence.
+ *
+ * L'écran garde la carte de consigne partagée (`TaskChrome`) ; on change de
+ * tâche en remontant au Plan, plus par des pastilles T1/T2/T3 — le sélecteur
+ * mettait trois tâches au même niveau qu'un mode de travail.
  */
 export function CompetencesList({config}: {config: ProductionConfig}) {
   const params = useParams<{n: string}>();
@@ -59,9 +61,9 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   const section = skillSectionOf(config.epreuve);
 
   // Les 24 compétences de l'épreuve arrivent en un appel, mémorisé pour la
-  // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
-  // redemande rien. La tâche vient de l'URL, et d'elle seule — chaque tâche est
-  // une adresse partageable, et c'est celle où le Plan route ses étapes.
+  // session : passer d'une tâche à l'autre ne redemande rien. La tâche vient de
+  // l'URL, et d'elle seule — chaque tâche est une adresse partageable, et c'est
+  // celle où le Plan route ses étapes.
   const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
   const taskCode = skillTaskCodeOf(section, n);
@@ -71,7 +73,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Un seul appel pour toute l'épreuve, mémorisé pour la session : revenir sur
-  // cet écran depuis l'onglet « Sujets d'examen » ne redemande rien.
+  // cet écran depuis une fiche de compétence ne redemande rien.
   const skillsQuery = useCachedData(
     ready ? skillsSectionKey(section) : null,
     () => loadSectionSkills(skillApi, section),
@@ -96,7 +98,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell backHref={backHref} backLabel={backLabel}>
-        <TaskChrome config={config} taskNumero={n} tab="competences" />
+        <TaskChrome config={config} taskNumero={n} />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}

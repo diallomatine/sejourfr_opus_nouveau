@@ -14,7 +14,7 @@ import 'widgets/competence_card.dart';
 import '../widgets/production_blocks.dart';
 import '../widgets/production_state_views.dart';
 
-/// Mode « Compétences » du parcours : les 8 compétences d'une tâche EE/EO.
+/// Les 8 compétences d'une tâche EE/EO.
 ///
 /// Reprend la structure de l'accueil du prototype : hero en dégradé portant la
 /// progression globale, pastilles de tâche T1/T2/T3, intertitres, liste des
@@ -28,8 +28,8 @@ import '../widgets/production_state_views.dart';
 /// sont portés par [ProductionTaskScreen] et rendus par [top]. Les 24
 /// compétences de l'épreuve arrivent en un appel : filtrer sur la tâche est un
 /// tri local.
-class CompetencesTabView extends ConsumerStatefulWidget {
-  const CompetencesTabView({
+class CompetencesListView extends ConsumerStatefulWidget {
+  const CompetencesListView({
     super.key,
     required this.module,
     required this.tache,
@@ -39,15 +39,15 @@ class CompetencesTabView extends ConsumerStatefulWidget {
   final TcfProductionModule module;
   final int tache;
 
-  /// Tête commune de la tâche (consigne + onglets), rendue en tête de cette
-  /// liste pour qu'elle défile avec elle.
+  /// Tête commune de la tâche (`taskBannerTop`), rendue en tête de cette liste
+  /// pour qu'elle défile avec elle.
   final List<Widget> top;
 
   @override
-  ConsumerState<CompetencesTabView> createState() => _CompetencesTabViewState();
+  ConsumerState<CompetencesListView> createState() => _CompetencesListViewState();
 }
 
-class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
+class _CompetencesListViewState extends ConsumerState<CompetencesListView> {
   SkillsKey get _key => SkillsKey(
         section: widget.module.isEo ? SkillSection.eo : SkillSection.ee,
         tacheNumero: widget.tache,
@@ -68,9 +68,9 @@ class _CompetencesTabViewState extends ConsumerState<CompetencesTabView> {
 
   @override
   Widget build(BuildContext context) {
-    // La tête porte la barre des deux onglets : elle est rendue **quel que
-    // soit l'état** de la liste. Sans elle, une erreur de chargement enfermait
-    // le candidat dans un onglet, sans autre issue que « retour ».
+    // La tête porte le retour : elle est rendue **quel que soit l'état** de la
+    // liste. Sans elle, une erreur de chargement enfermait le candidat dans
+    // l'écran, sans issue visible.
     final async = ref.watch(skillsListProvider(_key));
     return _body(
       async.when(

@@ -27,18 +27,19 @@ import 'widgets/production_cards.dart';
 import 'widgets/production_common.dart';
 import 'widgets/production_state_views.dart';
 
-/// Mode « Sujets TCF » du parcours EE/EO : hero, pastilles T1/T2/T3, filtres
-/// avec compteurs, puis les sujets en cartes.
+/// Les **sujets complets** d'une tâche EE/EO : filtres avec compteurs, puis
+/// les sujets en cartes. Seul contenu du détail d'une tâche depuis que les
+/// compétences ne se travaillent plus que via le Plan (2026-09-20).
 ///
 /// **Écrit et oral suivent exactement le même écran** : seuls l'accent (bleu /
 /// rouge) et la zone de production en aval changent.
 ///
-/// Corps seul — l'en-tête, la carte de consigne, la barre des deux onglets et
-/// le voile d'attente sont portés par [ProductionTaskScreen]. Les modèles ne
-/// sont pas un onglet : c'est une ressource d'appoint, atteinte par un lien
-/// discret à droite de l'intertitre de la liste des sujets.
-class ProductionSubjectsTabView extends ConsumerStatefulWidget {
-  const ProductionSubjectsTabView({
+/// Corps seul — l'en-tête, la carte de consigne et le voile d'attente sont
+/// portés par [ProductionTaskScreen]. Les modèles ne sont pas un mode de la
+/// tâche : c'est une ressource d'appoint, atteinte par un lien discret à droite
+/// de l'intertitre de la liste des sujets.
+class ProductionSubjectsView extends ConsumerStatefulWidget {
+  const ProductionSubjectsView({
     super.key,
     required this.module,
     required this.tache,
@@ -52,17 +53,17 @@ class ProductionSubjectsTabView extends ConsumerStatefulWidget {
   /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours.
   final ValueChanged<bool> onBusy;
 
-  /// Tête commune de la tâche (consigne + onglets), rendue en tête de cette
-  /// liste pour qu'elle défile avec elle.
+  /// Tête commune de la tâche (`taskBannerTop`), rendue en tête de cette liste
+  /// pour qu'elle défile avec elle.
   final List<Widget> top;
 
   @override
-  ConsumerState<ProductionSubjectsTabView> createState() =>
-      _ProductionSubjectsTabViewState();
+  ConsumerState<ProductionSubjectsView> createState() =>
+      _ProductionSubjectsViewState();
 }
 
-class _ProductionSubjectsTabViewState
-    extends ConsumerState<ProductionSubjectsTabView> {
+class _ProductionSubjectsViewState
+    extends ConsumerState<ProductionSubjectsView> {
   bool _starting = false;
   int _filter = 0; // 0 = Tous, 1 = À faire, 2 = Traités
   bool _showAll = false;
@@ -90,8 +91,8 @@ class _ProductionSubjectsTabViewState
   /// Elle vit ICI, sur la liste des sujets TCF complets, et nulle part
   /// ailleurs : c'est le seul écran de l'épreuve où cette règle s'applique, et
   /// il précède l'écran de production qui consomme l'essai — on annonce avant,
-  /// pas après un 403. Surtout PAS sur l'écran d'entrée (mode « Compétences ») :
-  /// les micro-exercices ne verrouillent aucun sujet et ont leur propre quota
+  /// pas après un 403. Surtout PAS sur la liste des compétences : les
+  /// micro-exercices ne verrouillent aucun sujet et ont leur propre quota
   /// (analyses IA offertes), l'y afficher annoncerait une règle fausse.
   ///
   /// Mémorisée par épreuve, sous la même clé que le web

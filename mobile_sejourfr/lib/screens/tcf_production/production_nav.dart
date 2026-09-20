@@ -8,17 +8,16 @@ import 'tcf_production_module.dart';
 ///
 /// Le parcours a deux niveaux depuis la refonte 2026-08-21 : l'épreuve et ses
 /// trois tâches (`AppRoutes.tcf{Ee,Eo}Entry`, littéral — il n'a pas de
-/// paramètre), puis **une** tâche et ses deux onglets ([productionTaskPath]).
+/// paramètre), puis **une** tâche et ses sujets complets ([productionTaskPath]).
 /// Les examens blancs sont un écran à part ([productionExamsPath]), atteint
 /// par la barre fixe du niveau 1 — leur chemin n'a pas changé.
 
-/// Niveau 2 : une tâche, ouverte sur son onglet « Compétences ».
+/// Niveau 2 : une tâche et ses **sujets complets**.
 String productionTaskPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache';
 
-/// Niveau 2, forme explicite de l'onglet « Compétences ». Conservée parce que
-/// le Plan y renvoie (`plan_task_row`, `recommended_exercise_launcher`) : elle
-/// dit ce qu'elle ouvre, là où [productionTaskPath] dépend d'un défaut.
+/// Les **8 compétences** d'une tâche. 🛑 **Depuis le Plan, et de là seulement**
+/// (2026-09-20) : l'écran d'une tâche n'a plus d'onglet « Compétences ».
 String productionCompetencesPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache/competences';
 

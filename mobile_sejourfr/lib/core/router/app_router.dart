@@ -23,6 +23,7 @@ import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/tcf_production/competences/competence_detail_screen.dart';
+import '../../screens/tcf_production/competences/competences_screen.dart';
 import '../../screens/tcf_production/competences/competence_prompt_screen.dart';
 import '../../screens/tcf_production/competences/competence_result_screen.dart';
 import '../../screens/tcf_production/production_exams_screen.dart';
@@ -136,8 +137,9 @@ class AppRoutes {
 
   // Compétences TCF : entraînement d'un critère à la fois sur de petits
   // sujets, à côté (et jamais à la place) des sujets TCF complets.
-  // moduleKey ∈ {ee, eo}. `tcfCompetences` est l'onglet « Compétences » du
-  // niveau 2 ; les 3 suivantes sont les écrans propres au module.
+  // moduleKey ∈ {ee, eo}. 🛑 `tcfCompetences` (les 8 compétences d'une tâche)
+  // ne s'atteint plus que DEPUIS LE PLAN : l'écran d'une tâche n'a plus
+  // d'onglet « Compétences » (2026-09-20).
   static const tcfCompetences =
       '/tcf/:moduleKey/tache/:tacheNumero/competences';
   static const tcfCompetenceDetail = '/tcf/:moduleKey/competences/:skillId';
@@ -787,10 +789,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) =>
             const ProductionTasksScreen(module: TcfProductionModule.ee),
       ),
-      // Niveau 2 : une tâche et ses deux onglets. Le chemin nu ouvre les
-      // compétences ; `tcfCompetences` (plus bas) est sa forme explicite, et
-      // il n'existe pas de chemin pour l'autre onglet — on n'y entre que par
-      // la barre segmentée, qui ne navigue pas.
+      // Niveau 2 : une tâche et ses sujets complets. Plus d'onglets depuis le
+      // 2026-09-20 — les compétences ne se travaillent que via le Plan, qui
+      // route vers `tcfCompetences` (plus bas).
       GoRoute(
         path: AppRoutes.tcfEoTaskTraining,
         builder: (_, state) => ProductionTaskScreen(
@@ -823,7 +824,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // `resultat` est un littéral.
       GoRoute(
         path: AppRoutes.tcfCompetences,
-        builder: (_, state) => ProductionTaskScreen(
+        builder: (_, state) => CompetencesScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),

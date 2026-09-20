@@ -193,13 +193,6 @@ String restantsLabel(List<SkillPromptSummary> prompts) {
   return '$reste restant${reste > 1 ? 's' : ''}';
 }
 
-/* ------------------------------------------------------------- Onglets --- */
-
-/// 🛑 **« Sujets complets », et plus « Sujets d'examen »** (maquette du
-/// propriétaire, 2026-09-12). Libellés gelés, miroirs du web.
-const String kExpressionTabCompetences = 'Compétences';
-const String kExpressionTabSujets = 'Sujets complets';
-
 /// `"EE3"` → « Tâche 3 ». Miroir de `tacheLabel` (`production/parcours.ts`).
 /// Un code inattendu se rend tel quel plutôt qu'en « Tâche NaN ».
 String tacheLabel(String taskCode) {

@@ -124,7 +124,7 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
             const taskSkills = skillsOfTask(skillsQuery.data, skillTaskCodeOf(section, n));
             const badge = tacheBadge(taskSkills);
             return (
-              <Link key={n} href={`${config.base}/tache/${n}/competences`} className={s.tacheRow}>
+              <Link key={n} href={`${config.base}/tache/${n}`} className={s.tacheRow}>
                 <span
                   className={s.tacheNum}
                   data-active={carte?.step.taskCode === skillTaskCodeOf(section, n)}

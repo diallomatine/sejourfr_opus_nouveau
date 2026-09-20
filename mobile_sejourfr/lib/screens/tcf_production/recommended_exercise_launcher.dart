@@ -113,8 +113,13 @@ Future<void> _openReassessment(
   final taskId = exercise.productionTaskId;
   // Vérification sans sujet : on ouvre la liste des sujets de sa tâche plutôt
   // que de démarrer une session vide.
+  // 🛑 Les SUJETS, pas les compétences (miroir de `recommendedExerciseHref`
+  // côté web). Ce repli visait `productionCompetencesPath`, qui ouvrait alors
+  // l'écran de tâche sur son onglet « Compétences » — depuis la suppression de
+  // l'onglet (2026-09-20), il aurait ouvert le catalogue des 8 compétences,
+  // c'est-à-dire tout autre chose qu'une vérification en situation.
   if (taskId == null) {
-    context.push(productionCompetencesPath(module, exercise.tacheNumero ?? 1));
+    context.push(productionTaskPath(module, exercise.tacheNumero ?? 1));
     return;
   }
   ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;

@@ -11,8 +11,12 @@ import '../plan_labels.dart';
 import 'plan_tokens.dart';
 
 /// **Une tâche d'expression**, telle que le Plan la voit : son rang, son
-/// avancement observé, et le tap qui ouvre ses **compétences** — l'écran
-/// existant du parcours (`CompetencesTabView`), jamais une seconde liste.
+/// avancement observé, et le tap qui ouvre ses **compétences**
+/// (`CompetencesScreen`), jamais une seconde liste.
+///
+/// 🛑 **C'est le SEUL chemin restant vers le catalogue des 8 compétences**
+/// (2026-09-20) : l'écran d'une tâche n'a plus d'onglet « Compétences ».
+/// Y toucher, c'est couper l'accès aux fiches de compétence.
 ///
 /// Extrait à la **2ᵉ occurrence** : la fiche d'un domaine et la page « Toutes
 /// mes compétences » listent les mêmes tâches ; deux copies auraient fini par
