@@ -99,7 +99,16 @@ export {
 
 /* ------------------------------- Reprendre là où vous vous êtes arrêté ----- */
 
-export const REVISER_RESUME_LABEL = "Reprendre là où vous vous êtes arrêté";
+/**
+ * **Le sur-titre de la carte de tête : d'où vient ce qu'elle propose.**
+ *
+ * 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20). « Reprendre là
+ * où vous vous êtes arrêté » décrivait un historique d'écran — or Réviser n'en
+ * tient aucun : ce qu'il annonce est **désigné par le Plan** (`planNowCard` /
+ * `civicNowCard`), la même carte que « À faire maintenant ». Le sur-titre le
+ * dit, au lieu de laisser croire à une reprise de navigation.
+ */
+export const REVISER_RESUME_LABEL = "Recommandé par votre plan";
 export const REVISER_RESUME_CTA = "Continuer";
 
 /**

@@ -60,7 +60,14 @@ String reviserSectionTitle(AppModule module, int count) =>
 
 /* ------------------------------- Reprendre là où vous vous êtes arrêté ----- */
 
-const String kReviserResumeLabel = 'Reprendre là où vous vous êtes arrêté';
+/// **Le sur-titre de la carte de tête : d'où vient ce qu'elle propose.**
+///
+/// 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20). « Reprendre
+/// là où vous vous êtes arrêté » décrivait un historique d'écran — or Réviser
+/// n'en tient aucun : ce qu'il annonce est **désigné par le Plan**
+/// (`planNowCard` / `civicNowCard`), la même carte que « À faire maintenant ».
+/// Le sur-titre le dit, au lieu de laisser croire à une reprise de navigation.
+const String kReviserResumeLabel = 'Recommandé par votre plan';
 const String kReviserResumeCta = 'Continuer';
 
 /// **Le sur-titre de la carte de tête quand il n'y a RIEN à reprendre** — parce
