@@ -313,13 +313,18 @@ n'est pas une question de conception, mais une mesure et un template :
    ⛔ **Aucun import** — les énoncés publics n'ont pas leurs réponses. ⛔ **Aucun appel LLM** : si la
    comparaison directe échoue, on **remonte le problème avec un chiffre**.
 
-2. **Le template de l'écran « historique des cycles »** — ⛔ **bloqué**, à fournir par le
-   propriétaire. Ne rien concevoir. Travail autorisé en amont, et seulement après les écrans :
-   étendre `GET /api/me/plan/journey/history` au module civique. Le contrat est arrêté et les deux
-   fronts codent déjà dessus.
+2. **L'écran « historique des cycles »** — ✅ **livré le 2026-09-20** (P8.9). ⛔ ~~Bloqué, template
+   à fournir.~~ Le blocage a été **levé** par le propriétaire : « Le gabarit n'est plus à fournir :
+   l'écran existe côté TCF et il fait référence. » Le civique prend **le même écran**, scopé par
+   `?module=` (web) et `parcoursCiviqueProvider` (mobile) — même route, même point d'entrée depuis
+   le Plan, mêmes briques. Le bloc est une **thématique**, l'unité travaillée une **unité
+   officielle**, et la mesure du cycle un **score sur 40 rapporté au seuil de 32** au lieu d'un
+   palier CECRL. Décisions **A91 → A94**.
 
-3. **Les 11 questions de « Laïcité »** (9 → 20) — **P8.8**. Seul contenu identifié comme nécessaire,
-   et il referme la dernière unité où R2 échoue (**D-35**).
+3. **Les questions de « Laïcité »** (→ 20) — **P8.8**. ✅ **Livré le 2026-09-20** : **12** questions
+   (V203), et non 11. Le stock utile était de **8** et non 9 — le doublon `c0000001-…0002` n'existe
+   que sur une base de dev, découvert par le garde de la migration. L'unité atteint **20**, la
+   dernière où R2 échouait est refermée (**D-35**).
 
 ---
 
@@ -330,8 +335,11 @@ format de thème rejoint `CivicExamFormat`, les documents périmés) → **P8.2a
 **seule** : schéma, seed, garde-fous, rattachement des 46) → **P8.A** (conformité du tirage) →
 **P8.2b** (retrait du filtre de mention, suppression de `CivicDotation` et de
 `questions-min-par-notion`) → **P8.3** (schéma du cycle) → **P8.4** (moteur) → **P8.5** (freemium) →
-**P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les 11 questions de Laïcité). **P8.9** (historique
-des cycles) : ⛔ **bloquée**.
+**P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les questions de Laïcité) → **P8.9** (historique
+des cycles).
+
+> ✅ **TOUTES LIVRÉES le 2026-09-20.** P8.9 n'est plus bloquée : le gabarit n'était plus à fournir,
+> l'écran TCF faisait référence. Le chantier civique est **clos**.
 
 🛑 **P8.2 est scindée, et P8.A garde sa place** (**D-41**). Le motif est une **dépendance à sens
 unique** : P8.A doit être écrit et testé **avant** que le retrait du filtre change les résultats de

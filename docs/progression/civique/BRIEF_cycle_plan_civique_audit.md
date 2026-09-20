@@ -82,6 +82,7 @@ Même méthode que l'audit TCF, restreinte à ce qui diffère :
 
 Rappels :
 - La page **historique des cycles** reste bloquée : template non fourni. Ne rien concevoir dessus.
+  ⚠️ *(Périmé : blocage **levé** le 2026-09-20, P8.9 livrée. Brief conservé tel quel, daté.)*
 - Le moteur civique **ne réinvente aucune règle** : R1, R2, R3, déblocage, cycle en attente,
   historisation sont ceux du TCF. Tout écart proposé doit être signalé comme un conflit, pas appliqué.
 

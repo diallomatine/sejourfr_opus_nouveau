@@ -1119,7 +1119,7 @@ entre cette recommandation et A27 **disparaît** : il n'y a plus deux règles, i
 
 | # | Décision |
 |---|---|
-| **Q-F27** | **Les 11 questions de « Laïcité » manquantes sont produites** (9 → 20). C'est le **seul** contenu que l'audit identifie comme nécessaire, et il débloque la **dernière** unité où R2 échoue. |
+| **Q-F27** | **Les 11 questions de « Laïcité » manquantes sont produites** (9 → 20). ✅ **Livré le 2026-09-20 en 12 questions** (V203) : le stock utile était de **8**, pas 9 — le doublon `c0000001-…0002` n'existe que sur une base de dev. C'est le **seul** contenu que l'audit identifie comme nécessaire, et il débloque la **dernière** unité où R2 échoue. |
 | **Q-F28** | `vs_urgences_secours` (15 q.) → **S2 Accès aux soins**. 🛑 **Ce n'est pas un arbitrage** : l'annexe I range explicitement « les numéros d'urgence » sous « L'accès aux soins ». |
 | **Q-F26** | **Les 108 mises en situation hors Principes et Droits restent du contenu d'entraînement**, simplement **exclues des examens blancs**. Ni retypage, ni reclassement. |
 | **Q-F12** | **Révisée.** Les mises en situation restent **sans notion de connaissance**, mais elles **deviennent une unité travaillable à part entière** dans les blocs Principes et Droits et devoirs — l'arrêté leur donne un quota au même niveau qu'une notion. Elles clôturent **leur propre étape**, et uniquement celle-là. |
@@ -1191,6 +1191,10 @@ de mention.
   concevoir. Travail autorisé en amont, et seulement après les écrans : étendre
   `GET /api/me/plan/journey/history` au module civique — le contrat est arrêté et les deux fronts
   codent déjà dessus.
+  > ✅ **LEVÉ le 2026-09-20.** Le propriétaire : « Le gabarit n'est plus à fournir : l'écran existe
+  > côté TCF et il fait référence. » P8.9 est **livrée des deux côtés** — même route, même point
+  > d'entrée, scopée par `?module=` (web) et `parcoursCiviqueProvider` (mobile). Décisions
+  > **A91 → A94**.
 - **Aucun nouveau test sur les fronts** : l'invariant du `CLAUDE.md` racine s'applique.
 
 ---
@@ -1201,6 +1205,10 @@ de mention.
 blanc, D-29) → **P8.1** (rangement) → **P8.2** (référentiel officiel) → **P8.3** (schéma du cycle) →
 **P8.4** (moteur) → **P8.5** (freemium) → **P8.6** (kits) → **P8.7** (écrans) → **P8.8** (les
 11 questions de Laïcité). **P8.9** (historique des cycles) : ⛔ bloquée.
+
+> ✅ **TOUTES LIVRÉES le 2026-09-20.** P8.8 a produit **12** questions et non 11 (le doublon de
+> Laïcité, désactivé, faisait tomber le stock utile à 8) ; P8.9 a été **débloquée** le même jour.
+> Le chantier civique est **clos**.
 
 ---
 
@@ -2309,7 +2317,7 @@ chantier**, comme la 3ᵉ occurrence de `DETTE-P1`.
 | `JourneyReadService.mesureDe` | ⚠️ **trou muet**, annoté : `pour(null) → null`, donc un examen de thème arrive **sans action**. Se comble en **P8.7** |
 | `JourneyService` ×2 (comparaisons `== / !=`) | ✅ null-safe, et un `null` ne vaut aucune épreuve |
 | `JourneyService.ajouterLesEpreuvesNonMesurees` | ✅ null-safe (`LinkedHashSet`, pas `EnumSet`) — annoté « chemin TCF assumé » |
-| `JourneyHistoryService` | ⚠️ **trou muet**, annoté : une étape civique tombe dans le `continue` ⇒ **historique civique vide**. Se comble en **P8.9**, ⛔ bloquée |
+| `JourneyHistoryService` | ✅ **COMBLÉ le 2026-09-20** (P8.9) — ~~trou muet : une étape civique tombait dans le `continue` ⇒ historique civique vide~~. L'axe se lit par `blocCode()`, les unités par `uniteLabel()`, et `DETTE-A1` est **refermée ici** |
 
 🛑 **Aucun NPE ne subsiste.** Restent **deux trous muets**, tous deux dans des chemins TCF que le
 civique n'atteint pas encore, tous deux **annotés à la ligne** avec la phase qui les comble.
@@ -2458,8 +2466,12 @@ fixe pas lui-même**. Trois occurrences en deux jours, toutes dans le même fich
 **`docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md`** — écrite à contexte frais le 2026-09-20,
 au format de celle de P8.4 : un **état**, pas un plan. Pour chacun des 5 points restants, ce qui est
 en place et ce qui manque, avec le fichier ; les **4 arbitrages de D-50** à appliquer sans les
-rouvrir ; les **9 pièges déjà payés** ; et les deux arrêts qui tiennent (P8.8 éditorial, P8.9
+rouvrir ; les **9 pièges déjà payés** ; et les deux arrêts qui tenaient alors (P8.8 éditorial, P8.9
 bloquée).
+
+> ✅ **Les deux arrêts sont levés** (2026-09-20) : P8.8 a été relue puis écrite (V203 + V299), et
+> P8.9 débloquée le même jour. La note de reprise porte l'état final — le chantier civique est
+> **clos**.
 
 **Preuve de la lancée 2** : `ParcoursCiviqueDeBoutEnBoutIT` — un candidat du diagnostic à
 l'historisation, en six étapes.

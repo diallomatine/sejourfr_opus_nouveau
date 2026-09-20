@@ -137,7 +137,8 @@ Une fois 3.2 et 3.3 mesurés, reprendre **Q-F1** :
 8. **Ce que l'audit v1 conserve** : la liste explicite de ses écarts et questions qui restent valides
    (E-2 à E-20, Q-F2 à Q-F20), et de ceux qui tombent.
 
-Rappels : la page **historique des cycles** reste bloquée, template non fourni. Le **civique-découverte**
+Rappels : la page **historique des cycles** reste bloquée, template non fourni.
+⚠️ *(Périmé : blocage **levé** le 2026-09-20, P8.9 livrée des deux côtés. Brief conservé tel quel, daté.)* Le **civique-découverte**
 reste gratuit. Aucune question n'est à produire tant que 3.2 n'a pas conclu.
 
 > ⛔ **RAPPEL STOP.** Termine après le rapport. Si 3.1 révèle une non-conformité de l'examen blanc,
