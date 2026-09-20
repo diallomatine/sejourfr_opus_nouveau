@@ -23,8 +23,22 @@ public enum JourneyBlocStatus {
     TERMINE,
 
     /**
-     * Le bloc porte l'etape <b>courante</b>. 🛑 Un seul bloc a la fois : c'est
-     * l'unicite de {@code CURRENT} qui le garantit, par construction.
+     * Le bloc est le <b>premier</b>, dans l'ordre servi, a porter une etape
+     * {@code TRAIN_SKILL} <b>ouverte</b> — qu'elle soit executable ou non.
+     * Quand <b>aucun</b> bloc n'en porte (cycle de mesure, cycle dont tout le
+     * travail est fini), c'est celui qui porte l'etape <b>courante</b>.
+     *
+     * <p>🛑 Un seul bloc a la fois, par construction : un seul peut etre le
+     * <b>premier</b>.
+     *
+     * <p>⚠️ <b>Ce n'est plus « le bloc qui porte {@code CURRENT} »</b>
+     * (2026-09-20, revocation partielle d'A37). Pour un compte <b>gratuit</b>,
+     * {@code CURRENT} — « premiere etape non cloturee <b>et executable</b> »
+     * (D-1) — ne peut pas tomber sur une competence (D-18 les rend toutes
+     * inexecutables) : le badge partait au premier examen ouvert, et l'ecran
+     * disait a la fois « commence par l'expression ecrite » et « la
+     * comprehension orale est en cours ». 🛑 D-1 et D-18 sont intacts : c'est
+     * le badge qui a cesse de dependre de {@code CURRENT}, pas l'inverse.
      */
     EN_COURS,
 

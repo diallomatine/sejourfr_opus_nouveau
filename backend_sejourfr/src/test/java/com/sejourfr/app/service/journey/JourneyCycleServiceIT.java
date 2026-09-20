@@ -250,6 +250,98 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
                 .doesNotContain(competence.getCode());
     }
 
+    // =====================================================================
+    // Le badge « EN COURS » d'un bloc — contre le VRAI freemium
+    //
+    // « Ici c'est EE qui doit etre en cours, car on commence par lui, commence
+    // par ce que le diagnostic a identifie et ensuite on fais l'examen sur les
+    // autres epreuves » (le proprietaire, verbatim).
+    // =====================================================================
+
+    /**
+     * <b>Le defaut constate a l'ecran</b>, joue contre le vrai
+     * {@code SkillAccessService} : un compte <b>gratuit</b> qui sort du
+     * diagnostic rapide — un lot EE, et les quatre examens du cycle.
+     *
+     * <p>D-18 rend son etape {@code TRAIN_SKILL} inexecutable, donc
+     * {@code CURRENT} (D-1 : « non cloturee <b>et executable</b> ») tombe sur
+     * l'examen de CO, ouvert d'emblee parce que son bloc n'a aucune competence
+     * a finir avant lui (D-15). Le badge le suivait, et le cycle affichait a la
+     * fois « Expression ecrite · À VENIR » et « Comprehension orale · EN
+     * COURS ».
+     *
+     * <p>🛑 Ce test est le <b>pendant en base</b> de
+     * {@code JourneyReadServiceTest.surUnCompteGratuitLeBadgeSuitLeTravailPasLaMain} :
+     * la ce sont des mocks, ici c'est le freemium reel qui verrouille.
+     */
+    @Test
+    @DisplayName("Compte GRATUIT — le badge EN_COURS est sur le bloc qui porte le travail, "
+            + "pas sur l'examen qui a pris la main")
+    void surUnCompteGratuitLeBadgeEstSurLeBlocQuiPorteLeTravail() {
+        User user = candidat();
+        JourneyDto vue = cycleDuDiagnosticRapide(user);
+
+        // 🛑 D-1 INTACT : la main est bien sur l'examen de CO, seule etape
+        // executable de ce parcours. Ce n'est pas elle qu'on deplace.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_CO.name());
+        // ✅ Et le badge est sur l'expression ecrite, celle que le diagnostic a
+        // designee.
+        assertThat(blocDe(vue, EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.EN_COURS);
+        assertThat(blocDe(vue, EpreuveType.TCF_CO).status())
+                .isNotEqualTo(JourneyBlocStatus.EN_COURS);
+        // Le motif d'A37 tient : un seul bloc gagne l'affichage.
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .hasSize(1);
+        // 🛑 D-18 INTACT : le travail reste ferme. Seul le mot a change.
+        assertThat(blocDe(vue, EpreuveType.TCF_EE).steps())
+                .isNotEmpty()
+                .allMatch(step -> step.locked());
+    }
+
+    /**
+     * <b>Le meme cycle, pour un abonne : rien ne change.</b> Sa competence est
+     * executable, donc {@code CURRENT} etait <b>deja</b> dans le bloc qui porte
+     * le travail — l'ancienne regle et la nouvelle designent le meme bloc.
+     * C'est la mesure qui dit que le defaut ne touchait que les comptes
+     * gratuits.
+     */
+    @Test
+    @DisplayName("Abonne — le meme cycle donne deja EE EN_COURS : la correction ne le change pas")
+    void pourUnAbonneLeMemeCycleDonneDejaEeEnCours() {
+        User user = abonne();
+        JourneyDto vue = cycleDuDiagnosticRapide(user);
+
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.TRAIN_SKILL);
+        assertThat(blocDe(vue, EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.EN_COURS);
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .hasSize(1);
+    }
+
+    /**
+     * Le cycle d'un candidat qui vient de passer le <b>diagnostic rapide</b> :
+     * un lot sur l'expression ecrite, et les quatre examens du cycle.
+     */
+    private JourneyDto cycleDuDiagnosticRapide(User user) {
+        Journey cycle = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        entrainement(cycle, skill(SkillTaskCode.EE1, 0));
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            examen(cycle, epreuve, JourneyStepPurpose.REASSESS, false);
+        }
+        return journeyService.lire(user.getId(), Module.TCF);
+    }
+
+    private static com.sejourfr.app.dto.JourneyBlocDto blocDe(JourneyDto vue, EpreuveType epreuve) {
+        return vue.blocs().stream()
+                .filter(bloc -> epreuve.name().equals(bloc.bloc().code()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Aucun bloc " + epreuve));
+    }
+
     // ------------------------------------------------------------- fabriques
 
     /**

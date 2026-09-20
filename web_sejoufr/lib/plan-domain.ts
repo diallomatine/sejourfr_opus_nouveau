@@ -393,11 +393,21 @@ export const PLAN_NOW_CTA_VERIFY = "Faire la vérification";
 export const PLAN_NOW_CTA_MEASURE = "Compléter la mesure";
 
 /**
- * Ce que dit le bouton quand l'étape annoncée est **verrouillée** : il ne lance
- * pas l'entraînement, il ouvre l'offre.
+ * Ce que dit le bouton quand l'étape annoncée est **fermée** : il ne lance pas
+ * l'entraînement, il ouvre l'offre.
  *
- * ⚠️ Miroir mot pour mot du mobile (`kPlanNowLockedCta`), qui portait déjà ce
- * libellé — le web n'en avait aucun parce qu'il n'affichait aucun bouton.
+ * 🛑 **« Débloquer cet entraînement », pas « Débloquer mon plan »** (arbitré le
+ * 2026-09-20, quand la carte gratuite a pris l'anatomie de la carte d'un
+ * abonné) : la carte nomme **un** exercice précis, pas le plan entier ; le
+ * bouton rouge ancré sous le cycle dit déjà « Débloquer mon plan {objectif} »,
+ * et deux boutons au libellé identique sur le même écran se lisent comme un
+ * doublon. Ce libellé **existe déjà**, déclaré une fois de chaque côté — aucune
+ * chaîne neuve n'est gelée.
+ *
+ * 🛑 Le bouton est **bleu** (A46) : sur un Plan gratuit, le seul CTA rouge est
+ * celui de la barre basse.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`kPlanNowLockedCta`).
  */
 export const PLAN_NOW_CTA_LOCKED = "Débloquer cet entraînement";
 
@@ -569,9 +579,9 @@ export interface PlanNowVue {
     /** 🛑 **Ce que le geste fait**, décidé ici et nulle part ailleurs. */
     geste: PlanNowGeste;
     /**
-     * **La mesure que le bouton LANCE**, `null` sinon. Elle reste servie même
-     * sur un plan gratuit, où la carte ne la nomme pas : c'est elle qui décide
-     * du verrou comme du démarrage (`usePlanAssessment`).
+     * **La mesure que le bouton LANCE**, `null` sinon. C'est elle qui décide du
+     * verrou comme du démarrage (`usePlanAssessment`). Sur un plan gratuit elle
+     * est **nommée** comme partout ailleurs, et le geste reste l'offre.
      */
     mesure: PlanSeanceAssessmentItemDto | null;
     /** `null` sur la nature `INDISPONIBLE` — il n'y a **rien** à lancer — et
@@ -596,7 +606,9 @@ export interface PlanNowVue {
     repere: string | null;
     title: string;
     subtitle: string;
-    /** `null` sur un plan gratuit : sa carte constate, elle ne classe pas. */
+    /** `null` quand la carte ne porte aucune priorité (étape servie, étape
+     *  indisponible). 🛑 **Jamais retiré pour un compte gratuit** : la
+     *  priorité est un fait servi, et sa pastille avec. */
     badge: string | null;
     objectiveLabel: string | null;
     objective: string | null;
@@ -704,17 +716,17 @@ function carteEtapeServie(
         badge: null,
         objectiveLabel: null,
         objective: null,
-        minutesLabel: free
-            ? null
-            : sujets > 0 && exercise.kind === "MICRO_TRAINING"
-                ? `${sujets} petits sujets · ≈ ${exercise.estimatedMinutes} min chacun`
-                : `≈ ${exercise.estimatedMinutes} min`,
-        kindLabel: free
-            ? null
-            : planExerciseKindLabel(
-                exercise.kind,
-                exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
-            ),
+        /* 🛑 **`free` ne retire plus rien du contenu** (2026-09-20) : un compte
+           sans accès reçoit la **même** carte qu'un abonné, et seul `geste`
+           change. Les métas sont des faits servis, pas une récompense
+           d'abonnement. */
+        minutesLabel: sujets > 0 && exercise.kind === "MICRO_TRAINING"
+            ? `${sujets} petits sujets · ≈ ${exercise.estimatedMinutes} min chacun`
+            : `≈ ${exercise.estimatedMinutes} min`,
+        kindLabel: planExerciseKindLabel(
+            exercise.kind,
+            exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
+        ),
         lines: [],
         cta: verrou ? PLAN_NOW_CTA_LOCKED : planNowCta(null, false, false),
         locked: etape.locked || exercise.locked,
@@ -890,12 +902,27 @@ export function planStepAction(
  * l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
  * fait que choisir *laquelle* des deux identités la carte porte.
  *
- * ⚠️ `free` n'a **pas** de pendant Dart : le plan gratuit y est une carte à
- * part (`_freeStepCard`), là où le web rend les deux avec le même `NowCard`.
- * Sur un plan gratuit la carte **constate** — elle ne nomme pas la mesure et ne
- * porte ni pastille, ni méta, ni constat. Son seul geste est l'offre
- * (`geste === "DEBLOQUER"`, spec §7 / D-18) : elle ne lance aucun
- * entraînement.
+ * 🛑 **`free` ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
+ * « faire en sorte qu'un non abonné voie également le "à faire maintenant"
+ * d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
+ * Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
+ * titre, pastille « Priorité n°1 », métas, explication du correcteur,
+ * progression — et son bouton ouvre l'**offre** au lieu de lancer.
+ *
+ * ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12 (« un compte
+ * sans accès ne voit pas la carte d'un abonné », ses trois bénéfices
+ * verrouillés, et « aucun geste ne part de cette carte »). **Ce qui TIENT** :
+ * « dans le plan, on ne travaille rien si on n'est pas abonné » — `free`
+ * force `geste === "DEBLOQUER"` **inconditionnellement**, donc aucun appelant
+ * ne peut faire partir un entraînement d'ici.
+ *
+ * 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
+ * la progression et les compteurs sont des **résultats mesurés**. On floute
+ * l'action pas encore accessible, jamais le résultat mesuré — les montrer est
+ * exactement ce que la règle demande.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planNowCard`, `plan_now_card.dart`), qui
+ * porte désormais le même paramètre `free`.
  */
 export function planNowCard(
     plan: LearningPlanDto,
@@ -952,9 +979,13 @@ export function planNowCard(
         : (priority!.locked || exercise?.locked === true);
 
     /* 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
-       D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**. Un
-       compte sans accès y passe toujours — son Plan est un constat, et c'est
-       `JourneyState.LOCKED` permanent qui est l'effet voulu. */
+       D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
+
+       🛑 **C'est ICI que tient « dans le plan, on ne travaille rien si on n'est
+       pas abonné »** : `free` court-circuite tout, avant même de regarder le
+       `locked` servi. Les écrans ne branchent que sur `geste`, donc aucun
+       d'eux ne peut faire partir un entraînement pour un compte sans accès —
+       et c'est le seul endroit à relire pour s'en assurer. */
     const geste: PlanNowGeste = free || locked
         ? "DEBLOQUER"
         : mesure || exercise
@@ -980,37 +1011,39 @@ export function planNowCard(
        et son libellé changeaient, le candidat lirait « rien n'a bougé » alors
        que l'action a changé de nature. Elle se lit sur la nature **servie**,
        jamais sur un compteur. */
-    const mesureCard = free ? null : mesure;
-    const verifier = mesureCard === null
+    /* 🛑 Une **mesure** se nomme aussi sur un plan gratuit : c'est le fait le
+       plus utile que le candidat possède, et le taire lui cachait pourquoi son
+       Plan ne bouge pas. Le geste, lui, reste l'offre. */
+    const verifier = mesure === null
         && priority?.nature === "A_VERIFIER"
         && exercise?.kind === "REASSESSMENT";
 
-    const minutes = mesureCard ? planItemMinutes(mesureCard) : exercise?.estimatedMinutes ?? null;
+    const minutes = mesure ? planItemMinutes(mesure) : exercise?.estimatedMinutes ?? null;
     /* « chacun » : les minutes sont celles d'UN sujet, pas de la série entière —
        sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour les cinq.
        ⚠️ La nature est testée avec les compteurs (miroir du mobile) : une série
        ciblée de compréhension porte elle aussi un `stepPromptCount`, et sans ce
        test elle annonçait « 5 petits sujets » qu'elle ne contient pas. */
-    const minutesLabel = free || minutes === null
+    const minutesLabel = minutes === null
         ? null
-        : mesureCard === null
+        : mesure === null
             && !verifier
             && (priority?.stepPromptCount ?? 0) > 0
             && exercise?.kind === "MICRO_TRAINING"
             ? `${priority?.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
             : `≈ ${minutes} min`;
 
-    if (mesureCard) {
+    if (mesure) {
         return {
             nature: "MESURE",
             geste,
             mesure,
             priority,
             exercise,
-            section: PLAN_DOMAIN_SECTION[mesureCard.assessment.epreuve],
+            section: PLAN_DOMAIN_SECTION[mesure.assessment.epreuve],
             repere,
-            title: planAssessmentItemTitle(mesureCard.assessment),
-            subtitle: planAssessmentNature(mesureCard.assessment),
+            title: planAssessmentItemTitle(mesure.assessment),
+            subtitle: planAssessmentNature(mesure.assessment),
             /* 🛑 Une mesure n'est pas la priorité n°1 : sa pastille dit sa
                **nature** servie, celle que le serveur a posée sur l'item. */
             badge: PLAN_ACTION_NATURE_LABEL.A_EVALUER,
@@ -1052,17 +1085,21 @@ export function planNowCard(
         subtitle: verifier
             ? `${priority.title}${tache === null ? "" : ` · Tâche ${tache} complète`}`
             : priority.title,
-        badge: free ? null : PLAN_NOW_PRIORITY_BADGE,
-        objectiveLabel: verifier && !free ? PLAN_NOW_VERIFY_OBJECTIVE_LABEL : null,
-        objective: verifier && !free ? PLAN_NOW_VERIFY_TEXT : null,
+        badge: PLAN_NOW_PRIORITY_BADGE,
+        objectiveLabel: verifier ? PLAN_NOW_VERIFY_OBJECTIVE_LABEL : null,
+        objective: verifier ? PLAN_NOW_VERIFY_TEXT : null,
         minutesLabel,
-        kindLabel: free || !exercise
+        kindLabel: !exercise
             ? null
             : planExerciseKindLabel(
                 exercise.kind,
                 exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
             ),
-        lines: free ? [] : planNowLines(priority),
+        /* 🛑 **Le constat du correcteur et la progression sont des RÉSULTATS
+           MESURÉS**, servis : ils s'affichent pour tout le monde. Les retirer
+           sur un compte gratuit floutait un résultat, ce que la contradiction
+           #1 interdit explicitement (D-18). */
+        lines: planNowLines(priority),
         cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, verifier, false),
         locked,
     };

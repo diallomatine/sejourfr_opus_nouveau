@@ -2738,3 +2738,68 @@ serveur ne sert pas la **nature** du verrou d'examen ; la déduire côté client
 Détail : **A107**.
 
 Décisions d'implémentation : **A101 → A108**.
+
+---
+
+### D-57 (2026-09-20) — **L'épreuve EN COURS est celle qui porte le travail, et sa tâche suivante EST « À faire maintenant »**
+
+**Le défaut constaté à l'écran.** Sur le Plan TCF d'un compte **gratuit**, le cycle affichait
+« **Expression écrite · À VENIR** » en tête — le bloc qui porte les 3 priorités du diagnostic —
+et « **Compréhension orale · EN COURS** » trois lignes plus bas. Le même écran se contredisait.
+
+**La cause, mesurée des deux côtés (unitaire et intégration).** Le badge suivait `CURRENT`. Or
+`CURRENT` est « la première étape non clôturée **et exécutable** » (**D-1**), et **D-18** rend
+toute étape `TRAIN_SKILL` inexécutable pour un compte gratuit : la main passait donc au premier
+examen ouvert — celui d'un bloc sans compétence à finir avant lui (**D-15**). ✅ **Vérifié : un
+abonné avait déjà `EN COURS` sur EE.** Le défaut était propre aux comptes gratuits.
+
+#### La règle, en deux moitiés
+
+> **1. Le bloc `EN COURS` est le PREMIER bloc, dans l'ordre servi, qui porte encore une étape
+> `TRAIN_SKILL` ouverte — exécutable ou non.** Quand aucun bloc n'en porte (cycle de mesure), le
+> comportement d'avant est conservé : `EN COURS` va au bloc qui porte `CURRENT`.
+>
+> **2. `CURRENT` s'élit DANS le bloc meneur**, plus sur toute la file.
+
+**La seconde moitié, verbatim :**
+
+> « Pour moi, l'épreuve en cours doit toujours avoir sa tâche suivante à faire dans "à faire
+> maintenant", il n'y a pas de raison que ça soit différent. Une épreuve en cours, c'est forcément
+> une de ses étapes à faire maintenant. Une fois cette épreuve finie, validée, on passe à la
+> suivante qui devient en cours avec sa tâche 1 non faite déjà à faire maintenant. »
+
+🛑 **Le sens de la dépendance est normatif** : ce n'est **pas** le badge qui suit la carte, c'est
+**la carte qui suit le badge**. L'inverse avait été proposé et **écarté** par le propriétaire.
+
+#### 🛑 Ce que ça révoque
+
+- **A37** partiellement : son ordre de dérivation commençait par « le bloc qui porte `current` ».
+  Son motif — « sinon deux blocs se disputeraient EN COURS » — **reste tenu** : un seul bloc peut
+  être le premier à porter du travail, et un test le fige.
+- **D-1** sur le **périmètre** de l'élection, pas sur son critère : « non clôturée et exécutable »
+  ne bouge pas, c'est l'ensemble où on cherche qui se restreint au bloc meneur.
+
+#### Ce qui ne bouge pas
+
+| Tenu | Pourquoi |
+|---|---|
+| **D-18** | le Plan d'un compte gratuit reste **inexécutable**. Ce qui change est ce que l'écran **dit**, jamais ce qu'il **ouvre** |
+| **D-15** | l'examen d'un bloc reste verrouillé par son bloc |
+| **D-56 / A101 / A102** | l'ordre d'affichage ne bouge pas ; le statut s'**aligne** dessus |
+| Le **cycle de mesure** | aucun travail nulle part ⇒ `CURRENT` s'élit sur toute la file et le badge le suit. Sans ce repli, la règle serait **circulaire** |
+| Les 4 autres statuts | `A_EVALUER`, `TERMINE`, `A_VENIR` et leur ordre de dérivation |
+
+⚠️ **Conséquence assumée, et c'est le motif de la règle** (**A113**) : l'ordre servi range les
+porteurs selon `ORDRE` (CO, CE, **EO**, **EE**), tandis que la file trie les lots par **écart au
+niveau cible décroissant** (R10 bis). Les deux pouvaient donc nommer deux épreuves différentes —
+y compris pour un abonné, **dès le cycle 1**, le diagnostic rapide créant les deux lots. Élire
+`CURRENT` dans le bloc meneur ferme cet écart **par construction**.
+
+#### Et la carte d'un compte gratuit
+
+> « Faire en sorte qu'un non abonné, vois egalement le à faire maintenant d'un abonné, seulement au
+> lieu du bouton commencer, mettre débloquer mon plan ? »
+
+⇒ Même carte, **seul le geste change**. Détail, garanties et libellé : **A114**.
+
+Décisions d'implémentation : **A110 → A114**.

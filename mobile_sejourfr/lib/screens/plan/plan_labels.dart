@@ -458,6 +458,20 @@ const String kPlanGoalUnknown = '—';
 const String kPlanGoalPick = 'Choisir mon objectif';
 
 const String kPlanNowTitle = 'À faire maintenant';
+
+/// Ce que dit le bouton quand l'étape annoncée est **fermée** : il ne lance pas
+/// l'entraînement, il ouvre l'offre.
+///
+/// 🛑 **« Débloquer cet entraînement », pas « Débloquer mon plan »** (arbitré le
+/// 2026-09-20, quand la carte gratuite a pris l'anatomie de la carte d'un
+/// abonné) : la carte nomme **un** exercice précis, pas le plan entier ; le
+/// bouton rouge ancré en barre basse dit déjà « Débloquer mon plan {objectif} »,
+/// et deux boutons au libellé identique sur le même écran se lisent comme un
+/// doublon. Ce libellé **existe déjà**, déclaré une fois de chaque côté
+/// (`PLAN_NOW_CTA_LOCKED` côté web) — aucune chaîne neuve n'est gelée.
+///
+/// 🛑 Le bouton est **bleu** (A46) : sur un Plan gratuit, le seul CTA rouge est
+/// celui de la barre basse.
 const String kPlanNowLockedCta = 'Débloquer cet entraînement';
 
 /// Le titre de la carte quand la série est terminée. 🛑 Il nomme **l'action**,
@@ -556,16 +570,6 @@ String planPriorityGroupTitle({
 String planPriorityRankTag(int rank) => 'Priorité $rank';
 
 /* ----------------------------------------------- le plan d'un compte libre  */
-
-const String kPlanFreeFirstStepTitle = 'Votre première étape est prête';
-
-/// Ce que l'abonnement ouvre **sur cette étape**, dans l'ordre de la maquette.
-const List<String> kPlanFreeStepLocks = <String>[
-  'Exercice recommandé',
-  'Correction personnalisée',
-  'Suivi de cette compétence',
-];
-
 
 const String kPlanUnlockHeroTitle = 'Passez du diagnostic à la progression';
 const String kPlanUnlockHeroText =

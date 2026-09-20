@@ -5,7 +5,6 @@ import {useEffect, useState} from "react";
 import {
   ChevronRight,
   Clock3,
-  Lock,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -34,8 +33,6 @@ import {
   Card,
   Cta,
   GoalStrip,
-  LockItem,
-  LockList,
   NowCard,
   Pad,
   Section,
@@ -384,23 +381,25 @@ function ActionMaintenant({plan, journey, free}: {
   if (vue.minutesLabel) meta.push({icon: Clock3, label: vue.minutesLabel});
   if (vue.kindLabel) meta.push({icon: Target, label: vue.kindLabel});
 
-  /* 🛑 **Un compte SANS accès ne voit pas la carte d'un abonné** (correctif du
-     2026-09-12, sur la maquette du propriétaire `~/Desktop/capture_plan_gratuit.png`).
-     « Votre première étape est prête » nomme l'étape et montre les **trois
-     bénéfices verrouillés** — c'est sa raison d'être.
+  /* 🛑 **Un compte sans accès voit EXACTEMENT la carte d'un abonné** (demande
+     du propriétaire, 2026-09-20). L'anatomie distincte du 2026-09-12 —
+     « Votre première étape est prête » et ses trois bénéfices verrouillés —
+     est **supprimée** : elle taisait la pastille de priorité, les métas, le
+     constat du correcteur et la progression, tous des **résultats mesurés**
+     que la contradiction #1 demande justement de montrer.
 
-     🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** (arbitrage du propriétaire,
-     2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ;
-     on passe par Réviser pour voir ce qu'on peut utiliser gratuitement »). Le
-     seul geste est l'**offre**, exigé par la spec §7 depuis D-18 : la carte
-     nomme la première étape verrouillée, le tap ouvre « Débloquer mon plan ».
-     Il ne travaille rien — il ne contredit donc pas l'arbitrage. */
+     🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** — l'arbitrage du 2026-09-12 qui
+     TIENT (« dans le plan, on ne travaille rien si on n'est pas abonné ; on
+     passe par Réviser »). La garantie n'est pas dans cet écran : `planNowCard`
+     rend `geste === "DEBLOQUER"` dès que `free`, et le seul rendu attaché à ce
+     geste ci-dessous est `setUnlockOpen(true)`. Aucun lanceur n'y est
+     joignable. */
   return (
-    <Section title={free ? "Votre première étape est prête" : "À faire maintenant"}>
+    <Section title="À faire maintenant">
       <Pad>
         <NowCard
           icon={planNowIcon(vue)}
-          variant={vue.nature === "VERIFICATION" && !free ? "verify" : "default"}
+          variant={vue.nature === "VERIFICATION" ? "verify" : "default"}
           title={vue.title}
           subtitle={vue.subtitle}
           badge={vue.badge ?? undefined}
@@ -415,18 +414,11 @@ function ActionMaintenant({plan, journey, free}: {
           {lines.map((line: string) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
-          {(free || actionLocked) && (
-            <LockList>
-              <LockItem icon={Lock} label="Exercice recommandé" />
-              <LockItem icon={Lock} label="Correction personnalisée" />
-              <LockItem icon={Lock} label="Suivi de cette compétence" />
-            </LockList>
-          )}
           {/* 🛑 **Le bouton dit ce que le geste FAIT**, et son libellé vient
-              lui aussi de `planNowCard` : « Débloquer cet entraînement » sur un
-              verrou, l'action sinon. En **bleu** sur le verrou — sur un Plan
-              gratuit, le seul bouton rouge de la page reste « Débloquer mon
-              plan », ancré sous le cycle. */}
+              lui aussi de `planNowCard` : `PLAN_NOW_CTA_LOCKED` sur un verrou
+              (son motif est écrit à sa déclaration), l'action sinon. En
+              **bleu** (A46) : sur un Plan gratuit, le seul bouton rouge de la
+              page reste celui de la barre basse. */}
           {debloquer && (
             <Cta variant="blue" onClick={() => setUnlockOpen(true)}>
               {vue.cta}

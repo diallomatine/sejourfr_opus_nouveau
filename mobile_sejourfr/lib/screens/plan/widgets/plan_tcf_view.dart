@@ -10,7 +10,6 @@ import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/models/enums.dart';
-import '../../../core/models/skill_models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
@@ -117,18 +116,21 @@ class PlanTcfView extends ConsumerWidget {
 
   /* -------------------------------------------------------- sans accès ---- */
 
-  /// Le Plan d'un compte **sans accès** : un constat, et une seule porte.
+  /// Le Plan d'un compte **sans accès** : le même écran, une seule porte.
   ///
-  /// 🛑 Il ne prend plus de `WidgetRef` — plus rien ici ne démarre quoi que ce
-  /// soit, et c'est la garantie la plus solide qu'on puisse en donner.
+  /// 🛑 **La carte « À faire maintenant » est celle d'un abonné** (demande du
+  /// propriétaire, 2026-09-20) — même titre de section, même pastille de
+  /// priorité, mêmes métas, même explication du correcteur, même progression.
+  /// Seul le **geste** change, et il vient de [planNowCard] : `free: true` y
+  /// force [PlanNowGeste.debloquer], donc aucun lanceur n'est joignable d'ici.
   List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
         SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
         _goalStrip(context),
         SfSection(
-          title: kPlanFreeFirstStepTitle,
+          title: kPlanNowTitle,
           flush: true,
-          child: _freeStepCard(context, ref),
+          child: _nowCard(context, ref, free: true),
         ),
         // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
         // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
@@ -175,119 +177,19 @@ class PlanTcfView extends ConsumerWidget {
     );
   }
 
-  /// **« Votre première étape est prête »**, la carte d'un compte SANS accès.
+  /// La carte d'action — **la même pour un abonné et pour un compte sans
+  /// accès** (2026-09-20). ⚠️ Le plan gratuit avait sa propre mise en page
+  /// (`_freeStepCard`, ses trois bénéfices verrouillés, son titre de section
+  /// « Votre première étape est prête ») : elle est **supprimée**, elle taisait
+  /// des **résultats mesurés** que la contradiction #1 demande de montrer.
   ///
-  /// Elle suit la maquette du propriétaire (`~/Desktop/capture_plan_gratuit.png`)
-  /// et **ne ressemble pas** à la carte d'un abonné : pastille de domaine,
-  /// l'étape nommée, puis les **trois bénéfices verrouillés**. C'est tout.
-  ///
-  /// ⚠️ Elle empruntait `_nowCard` avec un drapeau `free`, donc elle héritait de
-  /// tout ce qu'une carte d'abonné porte — pastille « Priorité 1 », encart
-  /// « Compétence actuelle », méta « 5 sujets · ≈ 4 min », explication du
-  /// correcteur — et les trois cadenas ne s'affichaient **que** sur un verrou
-  /// servi, donc presque jamais. Le candidat sans accès voyait la carte d'un
-  /// abonné. Deux mises en page différentes, deux fonctions.
-  ///
-  /// 🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** (arbitrage du propriétaire,
-  /// 2026-09-12 : « dans le plan, on ne travaille rien si on n'est pas abonné ;
-  /// on passe par Réviser pour voir ce qu'on peut utiliser gratuitement »). Le
-  /// seul geste est l'**offre**, exigé par la spec §7 depuis D-18 : la carte
-  /// nomme la première étape verrouillée, le tap ouvre « Débloquer mon plan ».
-  /// Il ne travaille rien — il ne contredit donc pas l'arbitrage.
-  ///
-  /// ⚠️ Cela **révoque**, pour cette carte seulement, « ne pas coder : l'étape 1
-  /// est toujours ouverte — l'app lit `locked`, toujours ». Le Plan d'un compte
-  /// sans accès est un **constat**, pas un point de départ : il montre ce qui
-  /// l'attend et la porte d'abonnement, rien d'autre.
-  ///
-  /// 🛑 **Ce n'est pas un verrou** : on ne ferme aucun droit, on retire un
-  /// chemin. Ce que le serveur ouvre gratuitement reste accessible par
-  /// **Réviser**, et c'est lui qui reste l'arbitre (403).
-  Widget _freeStepCard(BuildContext context, WidgetRef ref) {
-    final priority = plan.currentPriority;
-    if (priority == null) {
-      return const SfNoteCard(
-        icon: LucideIcons.circleCheck,
-        title: kPlanNowEmptyTitle,
-        child: SfTiny(kPlanSeanceEmpty),
-      );
-    }
-
-    final epreuve = planEpreuveOfSection(priority.section);
-    final task = SkillTaskCode.fromSkillCode(priority.skillCode);
-
-    return SfCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.blue,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Icon(planDomainIcon(epreuve),
-                    size: 24, color: AppColors.white),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      planPriorityGroupTitle(
-                        epreuve: epreuve,
-                        task: task,
-                        context: null,
-                      ),
-                      style: AppFonts.display(
-                          size: 16, weight: FontWeight.w700, height: 1.25),
-                    ),
-                    const SizedBox(height: 3),
-                    SfTiny(priority.title),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 🛑 **Les trois bénéfices** : c'est ce que l'abonnement ouvre sur
-          // CETTE étape, et c'est la raison d'être de la carte.
-          for (final label in kPlanFreeStepLocks) SfLockItem(label: label),
-          const SizedBox(height: 12),
-          // 🛑 **Le tap ouvre le paywall EXISTANT** (spec §7 / D-18), avec le
-          // contexte du Plan — aucune modale nouvelle. En **bleu** : le seul
-          // bouton rouge de cet écran reste « Débloquer mon plan », en barre
-          // basse.
-          SfButton(
-            label: kPlanNowLockedCta,
-            variant: SfButtonVariant.blue,
-            onPressed: () => unawaited(showTcfLockPaywall(
-              context,
-              ref: ref,
-              ctaLocation: AnalyticsCtaLocation.lockedPlan,
-              origin: PaywallOrigin.plan,
-            )),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// La carte d'action d'un **abonné**. ⚠️ Elle portait un drapeau `free` et
-  /// servait aussi le plan gratuit : ce chemin est parti avec
-  /// [_freeStepCard] — deux mises en page différentes, deux fonctions.
-  ///
-  /// 🛑 **Son contenu est décidé par [planNowCard], pas ici** — la même autorité
-  /// que l'Accueil (`_actionTcf`) et que les deux cartes du web. L'écran
-  /// assemble le kit, il ne choisit ni l'identité de la carte ni ce qu'elle
-  /// lance.
-  Widget _nowCard(BuildContext context, WidgetRef ref) {
-    final carte = planNowCard(plan, journey: journey);
+  /// 🛑 **Son contenu ET son geste sont décidés par [planNowCard], pas ici** —
+  /// la même autorité que l'Accueil (`_actionTcf`) et que les deux cartes du
+  /// web. L'écran assemble le kit, il ne choisit ni l'identité de la carte ni
+  /// ce qu'elle lance. Il n'y a donc **aucun `if (free)` ici** : le drapeau est
+  /// passé tel quel et ne sert qu'à l'autorité.
+  Widget _nowCard(BuildContext context, WidgetRef ref, {bool free = false}) {
+    final carte = planNowCard(plan, journey: journey, free: free);
     if (carte == null) {
       return const SfNoteCard(
         icon: LucideIcons.circleCheck,

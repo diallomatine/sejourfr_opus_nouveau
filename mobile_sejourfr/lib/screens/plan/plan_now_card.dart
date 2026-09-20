@@ -27,10 +27,10 @@ import 'plan_seance_state.dart';
 /// une mesure qui n'ouvrait pas la séance lui échappait — troisième écran, même
 /// contradiction.
 ///
-/// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`). Le web
-/// y prend en plus un drapeau `free` parce que sa carte de plan **gratuit** est
-/// rendue par la même fonction ; ici, cette carte est un widget à part
-/// (`_freeStepCard`), donc rien à passer.
+/// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`), drapeau
+/// `free` compris : depuis le 2026-09-20, les deux fronts rendent le plan
+/// gratuit et le plan abonné avec la **même** carte, et `free` n'y décide que
+/// le geste.
 enum PlanNowNature {
   /// Une **mesure de domaine** : le candidat a produit et le correcteur n'a
   /// rien pu observer. Tout ce qui suivrait travaillerait à l'aveugle.
@@ -231,7 +231,29 @@ PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
 /// l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
 /// fait que choisir *laquelle* des deux identités la carte porte, et le dire une
 /// seule fois pour les deux écrans.
-PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
+///
+/// 🛑 **[free] ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
+/// « faire en sorte qu'un non abonné voie également le "à faire maintenant"
+/// d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
+/// Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
+/// titre, pastille « Priorité n°1 », métas, explication du correcteur,
+/// progression — et son bouton ouvre l'**offre** au lieu de lancer.
+///
+/// ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12
+/// (`_freeStepCard` et ses trois bénéfices verrouillés, « aucun geste ne part
+/// de cette carte »). **Ce qui TIENT** : « dans le plan, on ne travaille rien
+/// si on n'est pas abonné » — [free] force [PlanNowGeste.debloquer]
+/// **inconditionnellement**, et `_nowCard` ne branche que sur `geste`, donc
+/// aucun lanceur n'est joignable depuis un plan gratuit.
+///
+/// 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
+/// la progression et les compteurs sont des **résultats mesurés**. On floute
+/// l'action pas encore accessible, jamais le résultat mesuré.
+PlanNowCard? planNowCard(
+  LearningPlan plan, {
+  Journey? journey,
+  bool free = false,
+}) {
   // 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
   // (décision A18, `docs/decisions-autonomes-parcours-tcf.md`).
   //
@@ -260,8 +282,8 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
     // ne retombe toujours pas sur `plan.currentPriority`.
     final exerciceServi = etape.exercise;
     return exerciceServi == null
-        ? _carteIndisponible(etape)
-        : _carteEtapeServie(etape, exerciceServi);
+        ? _carteIndisponible(etape, free)
+        : _carteEtapeServie(etape, exerciceServi, free);
   }
 
   final priority = duParcours ?? plan.currentPriority;
@@ -294,10 +316,16 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
   if (mesureDomaine != null) {
     // 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
     // D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
+    //
+    // 🛑 **C'est ICI que tient « dans le plan, on ne travaille rien si on n'est
+    // pas abonné »** : `free` court-circuite tout, avant même le `locked`
+    // servi. Il n'entre **pas** dans `locked`, qui reste le verrou **servi** et
+    // rien d'autre.
     final verrou = planSeanceItemLocked(mesure!);
+    final offre = free || verrou;
     return PlanNowCard(
       nature: PlanNowNature.mesure,
-      geste: verrou ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+      geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
       mesure: mesure,
       priority: priority,
       exercise: exercise,
@@ -314,7 +342,7 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       // compétence que celle que le bouton va ouvrir : c'est le motif de la
       // mesure qui se dit.
       lines: const [kPlanReasonAEvaluer],
-      cta: verrou
+      cta: offre
           ? kPlanNowLockedCta
           : planNowCta(priority, verifier: false, mesure: true),
       locked: verrou,
@@ -328,11 +356,14 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
   final epreuve = planEpreuveOfSection(priority.section);
   final task = SkillTaskCode.fromSkillCode(priority.skillCode);
   final level = planSkillTargetLevel(plan, priority.skillId);
+  // 🛑 `locked` reste le verrou **servi** ; `free` ne s'y mêle pas et ne
+  // gouverne que le geste.
   final verrou = priority.locked || (exercise?.locked ?? false);
+  final offre = free || verrou;
 
   return PlanNowCard(
     nature: verifier ? PlanNowNature.verification : PlanNowNature.etape,
-    geste: verrou
+    geste: offre
         ? PlanNowGeste.debloquer
         : exercise == null
             ? PlanNowGeste.aucun
@@ -373,7 +404,7 @@ PlanNowCard? planNowCard(LearningPlan plan, {Journey? journey}) {
       questionCount: exercise?.questionCount,
     ),
     lines: planNowLines(priority),
-    cta: verrou
+    cta: offre
         ? kPlanNowLockedCta
         : planNowCta(priority, verifier: verifier, mesure: false),
     locked: verrou,
@@ -457,14 +488,19 @@ PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
 /// l'identité de l'étape, la nature de l'exercice, sa durée et le verrou servi.
 ///
 /// ⚠️ Miroir mot pour mot du web (`carteEtapeServie`, `lib/plan-domain.ts`).
-PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercise) {
+PlanNowCard _carteEtapeServie(
+  JourneyStep etape,
+  PlanRecommendedExercise exercise,
+  bool free,
+) {
   final epreuve = _epreuveDuBloc(etape);
   final verrou = etape.locked || exercise.locked;
+  final offre = free || verrou;
   final sujets = etape.progress?.quota ?? 0;
   final minutes = exercise.estimatedMinutes;
   return PlanNowCard(
     nature: PlanNowNature.etape,
-    geste: verrou ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
     mesure: null,
     priority: null,
     exercise: exercise,
@@ -485,7 +521,7 @@ PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercis
       questionCount: exercise.questionCount,
     ),
     lines: const <String>[],
-    cta: verrou
+    cta: offre
         ? kPlanNowLockedCta
         : planNowCta(null, verifier: false, mesure: false),
     locked: verrou,
@@ -502,14 +538,16 @@ PlanNowCard _carteEtapeServie(JourneyStep etape, PlanRecommendedExercise exercis
 /// Le titre et le sous-titre viennent des **libellés du parcours**
 /// (`journey_labels.dart`), la même autorité que la timeline : la carte et la
 /// ligne de la timeline disent donc mot pour mot la même chose.
-PlanNowCard _carteIndisponible(JourneyStep etape) {
+PlanNowCard _carteIndisponible(JourneyStep etape, bool free) {
   final epreuve = _epreuveDuBloc(etape);
+  // 🛑 Un compte **sans accès** n'a rien à lancer de toute façon : le geste est
+  // l'offre, même quand l'action de l'étape ne se résout pas. Sinon, une étape
+  // ouverte mais sans action reste **sans geste** — on ne lui fait pas ouvrir
+  // un paywall qui ne la débloquerait pas.
+  final offre = free || etape.locked;
   return PlanNowCard(
     nature: PlanNowNature.indisponible,
-    // 🛑 Une étape **fermée** garde son geste, même quand son action ne se
-    // résout pas : c'est l'offre. Ouverte mais sans action, elle reste sans
-    // geste — on ne lui fait pas ouvrir un paywall qui ne la débloquerait pas.
-    geste: etape.locked ? PlanNowGeste.debloquer : PlanNowGeste.aucun,
+    geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.aucun,
     mesure: null,
     priority: null,
     exercise: null,
@@ -523,7 +561,7 @@ PlanNowCard _carteIndisponible(JourneyStep etape) {
     minutesLabel: null,
     kindLabel: null,
     lines: const [kPlanNowUnavailableText],
-    cta: etape.locked ? kPlanNowLockedCta : kPlanNowStartCta,
+    cta: offre ? kPlanNowLockedCta : kPlanNowStartCta,
     // Le verrou **servi** de l'étape, pas une déduction : une étape
     // indisponible peut être verrouillée par ailleurs, et l'écran doit
     // continuer à le dire.

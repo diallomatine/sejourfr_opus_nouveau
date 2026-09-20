@@ -1824,3 +1824,107 @@ que l'écran décide lui-même.
 
 **Si l'arbitrage était autre** (« le bloc courant reste le déplié ») : rétablir la recherche par
 `status`, en acceptant qu'un cycle puisse s'ouvrir sur sa deuxième ligne.
+
+# 2026-09-20 — Le badge « EN COURS » et la carte d'un compte gratuit (A110 → A114)
+
+### A110 — Le bloc meneur se désigne dans `JourneyBlocResolver.lire`, pas dans `JourneyReadService`
+
+`lire(...)` reçoit l'axe **déjà ordonné** (A61) **et** a déjà groupé les étapes par bloc. Décider
+ailleurs aurait exigé une **seconde passe de groupement** — donc une deuxième copie de « quelle
+étape appartient à quel bloc », exactement ce que D-47 a extrait.
+
+🛑 **Le module n'est toujours pas passé au résolveur** : `meneur(...)` ne lit que `getType()` et
+`estOuverte()`, et vaut pour le civique sans le savoir.
+
+**Si l'arbitrage était autre** : calculer le code du meneur dans `JourneyReadService.axeAffiche`
+(qui parcourt déjà `affichables`) et le passer en paramètre — une signature de plus, et la règle
+quitte le seul endroit qui connaît à la fois l'ordre et le groupement.
+
+### A111 — Le meneur est un `boolean` par bloc, jamais un rang servi
+
+Aucun champ n'est ajouté à `JourneyBlocDto` : le **statut** reste le seul fait servi, et aucun
+front ne classe.
+
+### A112 — Le critère est « `TRAIN_SKILL` **ouverte** », jamais « ouverte et exécutable »
+
+**Motif.** Lire l'exécutabilité aurait réintroduit la dépendance D-1 ⇄ D-18 qui a **produit** le
+défaut : le badge d'un compte gratuit aurait de nouveau fui vers l'examen. C'est aussi ce qui rend
+la règle indépendante de l'abonnement — le même cycle donne le même écran, seul le cadenas diffère.
+
+### A113 — ⚠️ Avec PLUSIEURS blocs porteurs, le badge et `CURRENT` peuvent désigner deux blocs différents
+
+**Le fait.** L'ordre **servi** range les porteurs entre eux selon `ORDRE` (CO, CE, EO, EE — D-56,
+A101), tandis que `CURRENT` sort de l'ordre de la **file**, qui trie les lots par **écart au niveau
+cible décroissant** (R10 bis, `JourneyLotBuilder.ordonner`). Dès que les écarts EE et EO diffèrent,
+les deux ordres divergent — et le diagnostic rapide crée les **deux** lots, donc le cas est
+atteignable **dès le cycle 1**, y compris pour un abonné.
+
+**Arbitrage du propriétaire, 2026-09-20** : la règle livrée est conservée — **le premier bloc servi
+gagne**. Figé par `unSeulBlocEstEnCoursQuandDeuxEnPortent`.
+
+🛑 **Mais sa note va plus loin, et elle ouvre D-57** :
+
+> « Pour moi, l'épreuve en cours doit toujours avoir sa tâche suivante à faire dans "à faire
+> maintenant", il n'y a pas de raison que ça soit différent. Une épreuve en cours, c'est forcément
+> une de ses étapes à faire maintenant. Une fois cette épreuve finie, validée, on passe à la
+> suivante qui devient en cours avec sa tâche 1 non faite déjà à faire maintenant. »
+
+⇒ Ce n'est **pas** le badge qui doit suivre la carte, c'est **la carte qui doit suivre le badge** :
+`CURRENT` doit s'élire **dans le bloc meneur**. Voir **D-57**.
+
+### A114 — La carte « À faire maintenant » d'un compte gratuit est celle d'un abonné ; seul le geste change
+
+**Demande du propriétaire, verbatim** : « Faire en sorte qu'un non abonné, vois egalement le à
+faire maintenant d'un abonné, seulement au lieu du bouton commencer, mettre débloquer mon plan ?
+Ou un autre nom mieux adapter pour le bouton »
+
+**Décidé.** `free` ne décide plus que le **geste**. Un compte sans accès reçoit le titre, la
+pastille « Priorité n°1 », les métas, l'explication du correcteur, la progression et la mesure —
+**identiques**. L'anatomie gratuite est **supprimée des deux fronts** (`_freeStepCard`,
+`kPlanFreeStepLocks`, `kPlanFreeFirstStepTitle`, le `<LockList>` du Plan TCF).
+
+⚠️ **Ceci révoque la FORME de l'arbitrage du 2026-09-12** — « un compte sans accès ne voit pas la
+carte d'un abonné », « aucun geste ne part de cette carte ».
+
+🛑 **Ce qui TIENT, et qui est garanti par UNE ligne dans la seule autorité** : « dans le plan, on
+ne travaille rien si on n'est pas abonné ». `free || locked ⇒ DEBLOQUER` dans `planNowCard`
+(`plan-domain.ts` ⇄ `plan_now_card.dart`), et les deux écrans ne branchent **que** sur `geste` :
+les lanceurs sont attachés à la seule branche `LANCER`, inatteignable quand `free`.
+
+🛑 **La contradiction #1 est ici SATISFAITE, pas rouverte** (D-18) : l'explication du correcteur, la
+progression et les compteurs sont des **résultats mesurés**. Les taire était le défaut, pas la règle.
+
+**Le libellé reste « Débloquer cet entraînement »** (`PLAN_NOW_CTA_LOCKED` ⇄ `kPlanNowLockedCta`) :
+la carte nomme **un** exercice, pas le plan entier ; le CTA rouge ancré dit déjà « Débloquer mon
+plan {objectif} » ; et le libellé **existait déjà**, donc aucune chaîne neuve n'est gelée. Bouton
+**bleu** — A46 inchangé. **A25** (`INDISPONIBLE`) intacte.
+
+#### Trois décisions d'implémentation
+
+- **`free` ne masque plus la MESURE** : `mesureCard = free ? null : mesure` faisait qu'un compte
+  gratuit dont l'étape courante est une mesure voyait une carte d'étape au lieu de la carte de
+  mesure. Une mesure est un **fait mesuré**.
+- **Le `<LockList>` part aussi pour un ABONNÉ verrouillé** : le web le rendait sur
+  `free || actionLocked`, le mobile ne l'a **jamais** rendu. Le supprimer referme l'écart au lieu
+  de l'ajouter en Dart.
+- ⚠️ **La garantie structurelle mobile n'existait déjà plus** : `_free(context, ref)` recevait le
+  `WidgetRef` **avant** cette passe — son commentaire « il ne prend plus de `WidgetRef` » était
+  **périmé**. Un commentaire faux est remplacé par une garantie vérifiable en un `grep` sur `geste`.
+
+#### 🛑 Deux écarts REMONTÉS et non corrigés
+
+1. **`PlanDomainView.DomainPriorityRow`** (web, `/plan/domaine/*`) floute encore `priority.title`
+   quand la priorité est verrouillée, **au nom d'une surface disparue** : son commentaire invoque
+   « la MÊME liste que *Mes priorités* », supprimée par D-22 / D-50. Or le cycle nomme la même
+   chaîne **en clair** depuis A105. ⚠️ **Ce n'est pas cette passe qui l'ouvre** — la contradiction
+   existe déjà. Et c'est **aussi** un écart `DETTE-P1` : le `PlanDomainScreen` mobile n'a aucune
+   liste de priorités. Deux issues : retirer le flou, ou retirer la section.
+2. **L'Accueil** est désormais la **dernière** surface qui tait le nom d'une priorité TCF
+   verrouillée, alors que le Plan la nomme en titre, en sous-titre **et** dans son cycle. Une ligne
+   de chaque côté. A46 l'avait déjà relevé comme « à rouvrir ou non ». **Non décidé.**
+
+#### Une divergence pré-existante, remontée
+
+La ligne web « Cet entraînement fait partie du pass Intégral. Votre plan, lui, reste entier. »
+(`LearningPlanView`) **n'a aucun miroir mobile**, et ne l'a jamais eu. Soit on l'ajoute à
+`plan_labels.dart`, soit on la retire du web — une ligne dans les deux cas. **Non décidé.**

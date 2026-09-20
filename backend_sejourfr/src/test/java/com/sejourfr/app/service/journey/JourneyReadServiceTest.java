@@ -473,6 +473,217 @@ class JourneyReadServiceTest {
                 EpreuveType.TCF_CO.name(), EpreuveType.TCF_CE.name());
     }
 
+    // ================================================================= 2026-09-20
+    // LE BADGE « EN COURS » SUIT LE TRAVAIL, PLUS LA MAIN
+    //
+    // « Ici c'est EE qui doit etre en cours, car on commence par lui, commence
+    // par ce que le diagnostic a identifie et ensuite on fais l'examen sur les
+    // autres epreuves » (le proprietaire, verbatim).
+    //
+    // 🛑 REVOCATION PARTIELLE D'A37 : l'ordre de derivation ne commence plus par
+    // « le bloc porte CURRENT » mais par « ce bloc est le PREMIER, dans l'ordre
+    // servi, a porter une etape TRAIN_SKILL ouverte ». Le motif d'A37 — « le
+    // bloc qui porte l'action gagne l'affichage, sinon deux blocs se
+    // disputeraient EN COURS » — reste tenu : un seul bloc peut etre le
+    // premier.
+    //
+    // 🛑 D-1 N'EST PAS TOUCHE : c'est le badge du bloc qui cesse de dependre de
+    // CURRENT, pas l'inverse. D-18 non plus : rien ne s'ouvre.
+    // =====================================================================
+
+    /**
+     * <b>Le defaut constate a l'ecran par le proprietaire</b>, reproduit tel
+     * quel : un compte <b>gratuit</b> qui sort du diagnostic rapide.
+     *
+     * <p>D-18 rend toute etape {@code TRAIN_SKILL} inexecutable, donc
+     * {@code CURRENT} — « la premiere etape non cloturee <b>et executable</b> »
+     * (D-1) — tombe sur le premier examen ouvert : celui de la CO, dont le bloc
+     * n'a aucune competence a finir avant lui (D-15). L'ecran disait donc
+     * « commence par l'expression ecrite » <b>et</b> « la comprehension orale
+     * est en cours » — deux phrases qui se contredisent.
+     */
+    @Test
+    @DisplayName("Compte GRATUIT — EN_COURS va au bloc qui porte le travail, pas a celui qui "
+            + "porte CURRENT")
+    void surUnCompteGratuitLeBadgeSuitLeTravailPasLaMain() {
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                competence.getId(), progres(List.of(UUID.randomUUID()))));
+        // 🛑 Compte GRATUIT : plus rien n'est executable depuis D-18.
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.AUCUN);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(competence, 1),
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3),
+                examStep(EpreuveType.TCF_CE, 4),
+                examStep(EpreuveType.TCF_EO, 5)));
+
+        // 🛑 D-1 EST INTACT, et c'est le point : la main reste sur l'examen de
+        // CO, parce que c'est bien la seule etape executable de ce parcours.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_CO.name());
+        // ✅ Et pourtant le badge est sur l'expression ecrite : c'est elle qui
+        // porte les priorites du diagnostic, et l'ecran dit desormais une seule
+        // chose.
+        assertThat(bloc(vue, EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.EN_COURS);
+        assertThat(bloc(vue, EpreuveType.TCF_CO).status())
+                .as("la CO n'a aucune competence a travailler : elle n'est pas « en cours »")
+                .isNotEqualTo(JourneyBlocStatus.EN_COURS);
+        // 🛑 D-18 EST INTACT : le travail reste ferme, seul le mot change.
+        assertThat(bloc(vue, EpreuveType.TCF_EE).steps()).allSatisfy(step ->
+                assertThat(step.locked()).isTrue());
+    }
+
+    /**
+     * <b>Un seul bloc {@code EN_COURS}</b>, c'est le motif d'A37 et il reste
+     * tenu : deux blocs portent du travail ouvert, un seul est le
+     * <b>premier</b> dans l'ordre servi.
+     *
+     * <p>⚠️ Conséquence assumee : le bloc du badge et le bloc de {@code CURRENT}
+     * peuvent differer, ici pour un <b>abonne</b>. L'ordre servi range EO avant
+     * EE ({@code TcfDomainProfileDto.ORDRE}, conserve dans le groupe des
+     * porteurs de travail), pendant que la <b>file</b> — dont {@code CURRENT}
+     * sort — a mis l'etape EE en premier. Le badge suit l'<b>ecran</b>, la carte
+     * « À faire maintenant » suit la <b>file</b>.
+     */
+    @Test
+    @DisplayName("Un SEUL bloc EN_COURS : le premier de l'ordre servi a porter du travail ouvert")
+    void unSeulBlocEstEnCoursQuandDeuxEnPortent() {
+        Skill ee = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill eo = skill("EO1-C1", SkillTaskCode.EO1);
+        eo.setSection(SkillSection.EO);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                ee.getId(), progres(List.of(UUID.randomUUID())),
+                eo.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(ee, 1),
+                trainStepDe(eo, EpreuveType.TCF_EO, 2),
+                examStep(EpreuveType.TCF_CO, 3)));
+
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .extracting(b -> b.bloc().code())
+                .containsExactly(EpreuveType.TCF_EO.name());
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_EE.name());
+    }
+
+    /**
+     * <b>Un abonne : rien ne change pour lui.</b> Sa premiere etape non
+     * cloturee est executable, donc {@code CURRENT} est deja dans le bloc qui
+     * porte le travail — l'ancienne regle et la nouvelle designent le meme.
+     */
+    @Test
+    @DisplayName("Abonne — EE porte le travail ET la main : le badge ne bouge pas")
+    void pourUnAbonneLeBadgeNeBougePas() {
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        abonneAvecSujets(competence);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                trainStep(competence, 1),
+                examStep(EpreuveType.TCF_EE, 2),
+                examStep(EpreuveType.TCF_CO, 3)));
+
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().skillCode()).isEqualTo(competence.getCode());
+        assertThat(bloc(vue, EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.EN_COURS);
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .hasSize(1);
+    }
+
+    /**
+     * 🛑 <b>Le cycle de mesure garde son comportement</b> (A80, A33) : aucune
+     * etape {@code TRAIN_SKILL} nulle part, donc aucun bloc ne porte de travail
+     * ouvert — et « le bloc qui porte la main » redevient la bonne reponse, la
+     * seule disponible. Ce repli n'est pas une precaution de style : sans lui,
+     * un cycle de mesure entier n'aurait plus aucun bloc {@code EN_COURS}.
+     */
+    @Test
+    @DisplayName("Cycle de mesure — aucun travail nulle part : EN_COURS retombe sur le bloc "
+            + "qui porte CURRENT")
+    void sansAucunTravailLeBadgeRetombeSurLeBlocDeCurrent() {
+        abonne();
+        List<JourneyStep> examens = new java.util.ArrayList<>();
+        long position = 1;
+        for (EpreuveType epreuve : com.sejourfr.app.dto.TcfDomainProfileDto.ORDRE) {
+            examens.add(examStep(epreuve, position++));
+        }
+
+        JourneyDto vue = service.lire(journey, examens);
+
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().bloc().code()).isEqualTo(EpreuveType.TCF_CO.name());
+        assertThat(vue.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .extracting(b -> b.bloc().code())
+                .containsExactly(EpreuveType.TCF_CO.name());
+    }
+
+    /**
+     * <b>La stabilite du badge — a ne pas confondre avec celle du RANG</b>
+     * (A102).
+     *
+     * <p>Le rang d'un bloc se lit sur l'<b>existence</b> d'une etape
+     * {@code TRAIN_SKILL}, ouverte ou cloturee : il ne bouge pas de tout le
+     * cycle. Le <b>statut</b>, lui, se lit sur le travail <b>ouvert</b> : il
+     * avance de bloc en bloc a mesure que le candidat finit, et c'est
+     * exactement ce qu'on attend d'un badge « EN COURS ».
+     *
+     * <p>Ici EO a deja fini son travail, EE non : EO reste <b>premier</b>
+     * (A102) et <b>TERMINE</b>, EE est <b>second</b> et <b>EN_COURS</b>. Puis
+     * EE finit a son tour : plus aucun travail ouvert, le repli s'applique.
+     */
+    @Test
+    @DisplayName("Stabilite — le RANG ne bouge pas, le STATUT avance au bloc suivant qui porte "
+            + "du travail")
+    void leBadgeAvanceAuBlocSuivantQuandLePremierAFini() {
+        Skill ee = skill("EE1-C1", SkillTaskCode.EE1);
+        Skill eo = skill("EO1-C1", SkillTaskCode.EO1);
+        eo.setSection(SkillSection.EO);
+        when(progressCounter.bySkillIds(eq(user.getId()), anyCollection())).thenReturn(Map.of(
+                ee.getId(), progres(List.of(UUID.randomUUID())),
+                eo.getId(), progres(List.of(UUID.randomUUID()))));
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+        JourneyStep travailEo = trainStepDe(eo, EpreuveType.TCF_EO, 1);
+        travailEo.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
+        JourneyStep travailEe = trainStep(ee, 2);
+        JourneyStep examenCo = examStep(EpreuveType.TCF_CO, 3);
+        JourneyStep examenEe = examStep(EpreuveType.TCF_EE, 4);
+        List<JourneyStep> file = List.of(travailEo, travailEe, examenCo, examenEe);
+
+        JourneyDto avant = service.lire(journey, file);
+
+        // Le rang : EO d'abord, parce qu'il a PORTE du travail (A102).
+        assertThat(codes(avant).getFirst()).isEqualTo(EpreuveType.TCF_EO.name());
+        assertThat(bloc(avant, EpreuveType.TCF_EO).status())
+                .isEqualTo(JourneyBlocStatus.TERMINE);
+        // Le statut : EE, premier bloc a porter du travail ENCORE OUVERT.
+        assertThat(bloc(avant, EpreuveType.TCF_EE).status())
+                .isEqualTo(JourneyBlocStatus.EN_COURS);
+
+        travailEe.clore(JourneyStepResolution.QUOTA_REACHED, null, Instant.now());
+        JourneyDto apres = service.lire(journey, file);
+
+        // 🛑 Le rang n'a pas bouge — c'est A102, et elle n'est pas touchee.
+        assertThat(codes(apres)).isEqualTo(codes(avant));
+        // Plus aucun travail ouvert : le repli rend la main au porteur de
+        // CURRENT, ici l'examen de CO (position 3, le premier ouvert).
+        assertThat(apres.current()).isNotNull();
+        assertThat(apres.current().bloc().code()).isEqualTo(EpreuveType.TCF_CO.name());
+        assertThat(apres.blocs()).filteredOn(b -> b.status() == JourneyBlocStatus.EN_COURS)
+                .extracting(b -> b.bloc().code())
+                .containsExactly(EpreuveType.TCF_CO.name());
+    }
+
+
     private static List<String> codes(JourneyDto vue) {
         return vue.blocs().stream().map(bloc -> bloc.bloc().code()).toList();
     }

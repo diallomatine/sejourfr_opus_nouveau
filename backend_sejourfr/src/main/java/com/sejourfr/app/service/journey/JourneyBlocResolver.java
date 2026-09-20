@@ -72,7 +72,11 @@ public class JourneyBlocResolver {
      *                       parle, et c'est exactement le but.
      * @param affichables    les etapes du cycle, <b>obsoletes deja exclues</b>,
      *                       dans l'ordre de la file.
-     * @param courante       l'etape {@code CURRENT}, ou {@code null}.
+     * @param courante       l'etape {@code CURRENT}, ou {@code null}. 🛑 Depuis
+     *                       le 2026-09-20 elle ne sert plus qu'au <b>repli</b>
+     *                       du badge {@code EN_COURS}, quand aucun bloc ne
+     *                       porte de travail ouvert
+     *                       ({@link #meneur(List, Map, JourneyStep)}).
      * @param dto            le mapping d'une etape vers son contrat servi.
      * @param jamaisMesure   « ce bloc n'a jamais ete mesure » — cote TCF,
      *                       relaye de {@code NiveauActuelEpreuveResolver.mesure},
@@ -103,9 +107,15 @@ public class JourneyBlocResolver {
             if (bloc != null) bloc.add(step);
         }
 
+        // 🛑 LE MENEUR SE DESIGNE ICI, UNE FOIS, parce que c'est ICI que
+        // l'ordre servi est connu. `bloc(...)` ne voit qu'un bloc : il ne
+        // saurait pas dire s'il est le premier.
+        String meneur = meneur(axe, parBloc, courante);
+
         List<JourneyBlocDto> blocs = new ArrayList<>(axe.size());
         for (JourneyBlocRefDto ref : axe) {
-            blocs.add(bloc(ref, parBloc.get(ref.code()), courante, dto, jamaisMesure));
+            blocs.add(bloc(ref, parBloc.get(ref.code()), ref.code().equals(meneur),
+                    dto, jamaisMesure));
         }
 
         int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
@@ -113,6 +123,79 @@ public class JourneyBlocResolver {
         return new Vue(List.copyOf(blocs), new JourneyCycleDto(
                 numeroDuCycle, terminees, affichables.size(), complete,
                 cycleDeMesure(affichables)));
+    }
+
+    /**
+     * <b>Le bloc {@code EN_COURS} : le PREMIER, dans l'ordre servi, qui porte
+     * encore une etape {@code TRAIN_SKILL} ouverte</b> — qu'elle soit
+     * executable ou non.
+     *
+     * <h3>Le defaut que cette methode corrige, constate a l'ecran</h3>
+     * <p>Le proprietaire, verbatim : « Ici c'est EE qui doit etre en cours, car
+     * on commence par lui, commence par ce que le diagnostic a identifie et
+     * ensuite on fais l'examen sur les autres epreuves ». Le cycle d'un compte
+     * <b>gratuit</b> affichait « Expression ecrite — 3 competences · puis
+     * examen — <b>À VENIR</b> » au-dessus de « Comprehension orale — Examen a
+     * passer — <b>EN COURS</b> » : deux phrases qui se contredisent.
+     *
+     * <p>La cause tenait en une composition de deux regles justes.
+     * {@code CURRENT} est « la premiere etape non cloturee <b>et
+     * executable</b> » (D-1), et D-18 rend <b>toute</b> etape
+     * {@code TRAIN_SKILL} inexecutable pour un compte gratuit. La main passait
+     * donc au premier examen ouvert — celui d'un bloc <b>sans</b> competence a
+     * finir avant lui (D-15) — et le badge le suivait.
+     *
+     * <h3>🛑 Revocation PARTIELLE d'A37, dont le motif reste tenu</h3>
+     * <p>A37 ouvrait la derivation par « le bloc porte {@code current} ». Son
+     * motif — « le bloc qui porte l'action gagne toujours l'affichage, sinon
+     * deux blocs se disputeraient EN COURS » — est <b>satisfait autrement</b> :
+     * un seul bloc peut etre le <b>premier</b> a porter du travail ouvert.
+     *
+     * <p>🛑 <b>D-1 n'est pas touche</b> : {@code CURRENT} s'elit exactement
+     * comme avant, et reste ce que la carte « À faire maintenant » nomme. C'est
+     * le <b>badge du bloc</b> qui cesse d'en dependre, pas l'inverse. 🛑 <b>D-18
+     * non plus</b> : rien ne s'ouvre, {@code locked} et {@code state} sont
+     * inchanges — ce qui change est ce que l'ecran <b>dit</b>, pas ce qu'il
+     * <b>ouvre</b>.
+     *
+     * <h3>⚠️ Le repli n'est pas une precaution de style</h3>
+     * <p>Quand <b>aucun</b> bloc ne porte de travail ouvert, le comportement
+     * d'A37 est conserve : le badge va au bloc qui porte {@code current}. C'est
+     * le <b>cycle de mesure</b> (A80, A33) — quatre ou cinq blocs ne contenant
+     * que leur examen — ou un cycle dont tout le travail est fini. « Le bloc qui
+     * porte la main » y est la bonne reponse, et la seule disponible : sans ce
+     * repli, un cycle de mesure entier n'aurait plus aucun bloc
+     * {@code EN_COURS}.
+     *
+     * <h3>Les deux modules, sans le savoir</h3>
+     * <p>Cette methode ne lit que {@code type()} et {@code estOuverte()} : elle
+     * vaut pour le civique par construction, et le resolveur continue d'ignorer
+     * de quel module il parle (D-47, A61). 🛑 Elle ne <b>trie</b> rien non plus
+     * — elle parcourt l'axe <b>deja ordonne</b> par l'appelant (D-56, A101).
+     *
+     * @return le code du bloc meneur, ou {@code null} quand aucun ne l'est —
+     *         un cycle sans travail ouvert et sans {@code current}, ou dont le
+     *         {@code current} est un {@code DIAGNOSTIC}, qui n'appartient a
+     *         aucun bloc (R11, A45).
+     */
+    private static String meneur(
+            List<JourneyBlocRefDto> axe,
+            Map<String, List<JourneyStep>> parBloc,
+            JourneyStep courante) {
+
+        for (JourneyBlocRefDto ref : axe) {
+            boolean travailOuvert = parBloc.get(ref.code()).stream()
+                    .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                            && step.estOuverte());
+            if (travailOuvert) return ref.code();
+        }
+        if (courante == null) return null;
+        for (JourneyBlocRefDto ref : axe) {
+            boolean porteLaMain = parBloc.get(ref.code()).stream()
+                    .anyMatch(step -> step.getId().equals(courante.getId()));
+            if (porteLaMain) return ref.code();
+        }
+        return null;
     }
 
     /**
@@ -146,7 +229,7 @@ public class JourneyBlocResolver {
     /**
      * Le statut d'un bloc, dans l'ordre ou les questions se posent :
      * <ol>
-     *   <li>il porte l'etape courante ⇒ {@code EN_COURS} ;</li>
+     *   <li>c'est le <b>meneur</b> ⇒ {@code EN_COURS} ;</li>
      *   <li>il n'a aucune etape ⇒ {@code A_EVALUER} si son epreuve n'a jamais
      *       ete mesuree, sinon {@code TERMINE} — un bloc sans rien a faire sur
      *       une epreuve deja mesuree n'a plus rien a dire ;</li>
@@ -156,16 +239,23 @@ public class JourneyBlocResolver {
      *       n'a pas dit quoi ;</li>
      *   <li>sinon {@code A_VENIR}.</li>
      * </ol>
+     *
+     * <p>🛑 <b>Seule la premiere question a change</b> (2026-09-20) : elle se
+     * lisait « il porte l'etape courante » et se lit « il est le meneur ».
+     * Cette methode ne sait toujours pas <b>pourquoi</b> — elle ne voit qu'un
+     * bloc, et ne pourrait pas dire s'il est le premier. C'est
+     * {@link #meneur(List, Map, JourneyStep)} qui le decide, une fois, la ou
+     * l'ordre servi est connu.
+     *
+     * @param meneur ce bloc est-il celui qui porte le badge ? Un seul l'est.
      */
     private static JourneyBlocDto bloc(
             JourneyBlocRefDto ref,
             List<JourneyStep> etapes,
-            JourneyStep courante,
+            boolean meneur,
             Function<JourneyStep, JourneyStepDto> dto,
             Predicate<JourneyBlocRefDto> jamaisMesure) {
 
-        boolean porteLaMain = courante != null && etapes.stream()
-                .anyMatch(step -> step.getId().equals(courante.getId()));
         int restantes = (int) etapes.stream()
                 .filter(JourneyStep::estOuverte)
                 .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
@@ -175,7 +265,7 @@ public class JourneyBlocResolver {
         boolean toutesCloses = etapes.stream().allMatch(step -> !step.estOuverte());
 
         JourneyBlocStatus status;
-        if (porteLaMain) {
+        if (meneur) {
             status = JourneyBlocStatus.EN_COURS;
         } else if (etapes.isEmpty()) {
             status = jamaisMesure.test(ref)
