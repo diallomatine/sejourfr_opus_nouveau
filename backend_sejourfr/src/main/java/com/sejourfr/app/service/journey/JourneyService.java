@@ -112,6 +112,11 @@ public class JourneyService {
     private final JourneyLotManager lotManager;
     private final JourneyStepManager stepManager;
     private final JourneyEvaluationFilter evaluationFilter;
+    // 🛑 L'AUTORITE UNIQUE de « quelles observations cette evaluation a-t-elle
+    // produites ? ». Comparer `evaluation.sourceAssessmentId()` au
+    // `source_id` d'une observation de production ne matche JAMAIS : le premier
+    // est un attempt (ou une session), le second une soumission.
+    private final JourneyObservationSources observationSources;
     private final JourneyLotBuilder lotBuilder;
     private final JourneyReadService readService;
     private final LearningPlanObservationManager observationManager;
@@ -592,7 +597,12 @@ public class JourneyService {
             return;
         }
 
-        Map<EpreuveType, UUID> references = referencesParEpreuve(evaluations);
+        // 🛑 LA TRADUCTION, UNE FOIS POUR TOUTE L'AMORCE : l'historique se lit
+        // par les observations, donc par des ids de SOUMISSION cote production.
+        // Le parcours, lui, ne connait que des identites d'evaluation.
+        Map<UUID, UUID> identites = observationSources.identitesParObservation(evaluations);
+        Map<EpreuveType, JourneyObservationSources.Sources> references =
+                referencesParEpreuve(evaluations, identites);
         Set<UUID> maitrisees = maitriseesCeJour(tout, evaluations);
         TcfLevelProfile profil = profileService.levelProfile(user.getId());
         creerLots(journey,
@@ -602,7 +612,7 @@ public class JourneyService {
         // R19.7 — TOUTES les evaluations historiques sont enregistrees d'un coup.
         // Elles ne seront jamais retraitees, et R14 garantit qu'aucune plus
         // ancienne ne modifiera ensuite la structure.
-        enregistrerLHistorique(journey, evaluations);
+        enregistrerLHistorique(journey, evaluations, identites);
     }
 
     /**
@@ -613,11 +623,18 @@ public class JourneyService {
      * <p>Les observations arrivent de la plus recente a la plus ancienne : la
      * premiere rencontree fait donc foi, sans tri supplementaire.
      */
-    private Map<EpreuveType, UUID> referencesParEpreuve(
-            List<LearningPlanObservation> evaluations) {
+    private Map<EpreuveType, JourneyObservationSources.Sources> referencesParEpreuve(
+            List<LearningPlanObservation> evaluations, Map<UUID, UUID> identites) {
+        Map<UUID, Set<UUID>> sourcesParIdentite = new LinkedHashMap<>();
         Map<EpreuveType, UUID> mesurantes = new LinkedHashMap<>();
         Map<EpreuveType, UUID> repli = new LinkedHashMap<>();
         for (LearningPlanObservation observation : evaluations) {
+            UUID sourceId = observation.getSourceId();
+            if (sourceId == null) continue;
+            UUID identite = JourneyObservationSources.identite(identites, sourceId);
+            sourcesParIdentite
+                    .computeIfAbsent(identite, cle -> new LinkedHashSet<>(Set.of(cle)))
+                    .add(sourceId);
             Skill skill = observation.getSkill();
             if (skill == null) continue;
             EpreuveType epreuve = TcfDomaine.epreuve(skill.getSection());
@@ -626,16 +643,18 @@ public class JourneyService {
             boolean baseline = source == LearningPlanSourceType.DIAGNOSTIC_EE
                     || source == LearningPlanSourceType.DIAGNOSTIC_EO;
             if (baseline) {
-                repli.putIfAbsent(epreuve, observation.getSourceId());
+                repli.putIfAbsent(epreuve, identite);
             } else {
-                mesurantes.putIfAbsent(epreuve, observation.getSourceId());
+                mesurantes.putIfAbsent(epreuve, identite);
             }
         }
-        Map<EpreuveType, UUID> references = new LinkedHashMap<>();
+        Map<EpreuveType, JourneyObservationSources.Sources> references = new LinkedHashMap<>();
         for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
             UUID reference = mesurantes.get(epreuve);
             if (reference == null) reference = repli.get(epreuve);
-            if (reference != null) references.put(epreuve, reference);
+            if (reference == null) continue;
+            references.put(epreuve, new JourneyObservationSources.Sources(reference,
+                    Set.copyOf(sourcesParIdentite.getOrDefault(reference, Set.of(reference)))));
         }
         return references;
     }
@@ -707,13 +726,22 @@ public class JourneyService {
         if (!tropAncienne) {
             TargetLevel cible = journey.getTargetLevel();
             Set<UUID> maitrisees = maitriseesCeJour(tout, evaluations);
+            // 🛑 L'identite RESTE l'attempt / la session (A11). Ce qui change,
+            // c'est la JOINTURE : les observations de production sont clavetees
+            // sur leurs soumissions, et c'est `observationSources` — l'autorite
+            // unique — qui les rattache a leur evaluation.
+            JourneyObservationSources.Sources sources = observationSources.pour(evaluation);
+            // 🛑 Le garde : zero PRIORITE est normal (R9), zero OBSERVATION
+            // rattachee ne l'est jamais. C'est ce qui rend la prochaine
+            // occurrence visible en dix minutes au lieu de trois heures.
+            observationSources.verifierLeJoin(evaluation, sources, evaluations);
             List<JourneyLotBuilder.Lot> lots = lotBuilder.depuisEvaluation(
-                    evaluation.sourceAssessmentId(), evaluations, maitrisees, cible,
+                    sources, evaluations, maitrisees, cible,
                     profileService.levelProfile(userId));
             if (amorce) {
                 creerLots(journey, filtrerLeDiagnostic(journey, lots, evaluation));
             } else {
-                mettreEnAttente(journey, etapes, lots, evaluations, evaluation);
+                mettreEnAttente(journey, etapes, lots, evaluations, evaluation, sources);
             }
         }
 
@@ -802,10 +830,11 @@ public class JourneyService {
             List<JourneyStep> etapesDuCycleEnCours,
             List<JourneyLotBuilder.Lot> lots,
             List<LearningPlanObservation> evaluations,
-            JourneyEvaluation evaluation) {
+            JourneyEvaluation evaluation,
+            JourneyObservationSources.Sources sources) {
         List<JourneyLotBuilder.Lot> nouveautes = nouveautes(
                 lots, etapesDuCycleEnCours,
-                prioritairesDe(evaluations, evaluation.sourceAssessmentId()));
+                prioritairesDe(evaluations, sources));
         if (nouveautes.isEmpty()) return;
 
         Journey attente = cycleEnAttente(enCours);
@@ -845,10 +874,13 @@ public class JourneyService {
      * dans le cycle en cours (D-13, « sauf regression mesuree »).
      */
     private static Set<UUID> prioritairesDe(
-            List<LearningPlanObservation> evaluations, UUID sourceAssessmentId) {
+            List<LearningPlanObservation> evaluations,
+            JourneyObservationSources.Sources sources) {
         Set<UUID> prioritaires = new LinkedHashSet<>();
         for (LearningPlanObservation observation : evaluations) {
-            if (!sourceAssessmentId.equals(observation.getSourceId())) continue;
+            // 🛑 `contient`, jamais `equals` : cote production le `source_id`
+            // d'une observation est une SOUMISSION, l'identite un attempt.
+            if (!sources.contient(observation.getSourceId())) continue;
             if (observation.getStatus() != LearningPlanSkillStatus.PRIORITY) continue;
             if (observation.getSkill() != null) prioritaires.add(observation.getSkill().getId());
         }
@@ -1233,22 +1265,32 @@ public class JourneyService {
      * journal sert — l'idempotence et la chronologie par epreuve.
      */
     private void enregistrerLHistorique(
-            Journey journey, List<LearningPlanObservation> evaluations) {
-        Map<UUID, JourneyEvaluation> parSource = new LinkedHashMap<>();
+            Journey journey, List<LearningPlanObservation> evaluations,
+            Map<UUID, UUID> identites) {
+        Map<UUID, JourneyEvaluation> parIdentite = new LinkedHashMap<>();
         for (LearningPlanObservation observation : evaluations) {
             UUID source = observation.getSourceId();
-            if (source == null || parSource.containsKey(source)) continue;
+            if (source == null) continue;
+            // 🛑 L'IDENTITE D'EVALUATION, JAMAIS L'ID D'OBSERVATION. Le journal
+            // est interroge par `dejaTraitee` avec ce que le chemin LIVE passe —
+            // un attempt, une session. Y ecrire des ids de soumission faisait
+            // porter a la colonne DEUX espaces d'identifiants, et la meme
+            // evaluation etait alors traitee une seconde fois juste apres
+            // l'amorce. Effet de bord voulu : les 3 taches d'une epreuve, et les
+            // deux productions d'un diagnostic, se replient sur UNE ligne.
+            UUID identite = JourneyObservationSources.identite(identites, source);
+            if (parIdentite.containsKey(identite)) continue;
             Skill skill = observation.getSkill();
             if (skill == null) continue;
             boolean baseline = observation.getSourceType() == LearningPlanSourceType.DIAGNOSTIC_EE
                     || observation.getSourceType() == LearningPlanSourceType.DIAGNOSTIC_EO;
-            parSource.put(source, baseline
-                    ? JourneyEvaluation.diagnosticRapide(source, observation.getObservedAt())
-                    : new JourneyEvaluation(source,
+            parIdentite.put(identite, baseline
+                    ? JourneyEvaluation.diagnosticRapide(identite, observation.getObservedAt())
+                    : new JourneyEvaluation(identite,
                             JourneyAssessmentKind.SECTION_EXAM,
                             TcfDomaine.epreuve(skill.getSection()), observation.getObservedAt()));
         }
-        parSource.values().forEach(evaluation -> enregistrer(journey, evaluation));
+        parIdentite.values().forEach(evaluation -> enregistrer(journey, evaluation));
     }
 
     // =====================================================================

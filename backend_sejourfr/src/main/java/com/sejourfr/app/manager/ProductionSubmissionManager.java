@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,6 +74,29 @@ public class ProductionSubmissionManager {
         if (attemptIds == null || attemptIds.isEmpty()) return Map.of();
         return repository.findByAttemptIdsWithTask(attemptIds).stream()
                 .collect(Collectors.groupingBy(s -> s.getAttempt().getId()));
+    }
+
+    /**
+     * Les <b>identifiants</b> des soumissions de plusieurs attempts, en une
+     * requete et sans charger d'entite. Aucun acces base sur une liste vide.
+     */
+    public List<UUID> findIdsByAttemptIds(Collection<UUID> attemptIds) {
+        if (attemptIds == null || attemptIds.isEmpty()) return List.of();
+        return repository.findIdsByAttemptIds(attemptIds);
+    }
+
+    /**
+     * L'attempt de chacune de ces soumissions, en une requete. Une soumission
+     * sans attempt (entrainement libre) est simplement absente du resultat.
+     */
+    public Map<UUID, UUID> findAttemptIdBySubmissionIds(Collection<UUID> submissionIds) {
+        if (submissionIds == null || submissionIds.isEmpty()) return Map.of();
+        Map<UUID, UUID> parSoumission = new LinkedHashMap<>();
+        for (Object[] ligne : repository.findAttemptIdsBySubmissionIds(submissionIds)) {
+            if (ligne.length < 2 || ligne[0] == null || ligne[1] == null) continue;
+            parSoumission.put((UUID) ligne[0], (UUID) ligne[1]);
+        }
+        return parSoumission;
     }
 
     /** Soumissions déjà faites sur une tâche précise d'une session (plafond d'examen). */

@@ -2326,6 +2326,13 @@ civique n'atteint pas encore, tous deux **annotés à la ligne** avec la phase q
 son chemin est vraiment TCF, la ligne coûte dix secondes ; sinon, c'est `blocCode()` qu'il fallait
 écrire.
 
+> 🛑 **SEUIL ATTEINT le 2026-09-20 — la dette devient un chantier.** La 3ᵉ occurrence est arrivée
+> par une autre colonne que `exam_type` : `journey_assessment_event.source_assessment_id`, qui
+> acceptait des ids de **trois tables** sans le dire (A95). Le motif est donc plus large que
+> `getExamType()`, et il est arbitré en **D-54** — l'inventaire des colonnes qui portent un
+> identifiant sans nommer sa table, et la décision, colonne par colonne, entre une **nature** et
+> une **contrainte**. La règle d'annotation ci-dessus **reste en vigueur** en attendant.
+
 ---
 
 ### D-52 (2026-09-19) — **Le cas B de l'amorce : on corrige la SPEC, pas le code**
@@ -2577,3 +2584,81 @@ rattachements, les désactivations de masse ou une campagne de tagging.
 
 ⛔ **Rien n'est décidé aujourd'hui.** La saturation est **annoncée**, pas subie : la prochaine
 migration civique transverse commencera par ce choix, avec le temps de le faire.
+
+---
+
+### D-54 (2026-09-20) — 🛑 **Une colonne qui accepte des identifiants de plusieurs tables ne peut pas se tromper bruyamment**
+
+**Déclencheur.** La **3ᵉ** panne silencieuse du moteur de cycle par un identifiant lu hors de son
+espace : `journey_assessment_event.source_assessment_id` (A95), après
+`chk_journey_assessment_exam_type` (V071, D-51) et le NPE d'`estVerrouillee` (A63). Le détail de
+la correction est en **A95 → A98**.
+
+**Le motif, verbatim :**
+
+> Une colonne qui accepte des identifiants de plusieurs tables **ne peut pas se tromper
+> bruyamment**. Pas d'exception, pas de FK violée, pas de test rouge — un join qui rend zéro
+> ligne, ce qui est un résultat parfaitement légitime.
+
+🛑 **Ce n'est plus une dette, c'est une règle à faire respecter.** `DETTE-A1` avait été élargie à
+ce cas ; l'arbitrage la promeut : le seuil des trois occurrences est **atteint**, et le chantier
+est **ouvert**.
+
+#### Le chantier, à part et pas maintenant — deux gestes
+
+| # | Geste |
+|---|---|
+| 1 | **Inventorier** les colonnes du moteur qui portent un identifiant **sans dire de quelle table il vient** |
+| 2 | **Décider pour chacune** si elle gagne une **colonne de nature** ou une **contrainte** |
+
+⛔ **Non ouvert, non planifié.** Aucune migration n'est écrite sur ce sujet avant cet inventaire.
+
+#### Ce qui est livré maintenant, et qui n'attend pas le chantier
+
+> « Une évaluation qui porte des observations mais dont le join en retient zéro n'est jamais
+> normal — un `warn` explicite avec les deux identifiants et leur origine. C'est ce qui rendra la
+> quatrième occurrence visible en dix minutes au lieu de trois heures. »
+
+⇒ `JourneyObservationSources.verifierLeJoin(...)`, appelé par `JourneyService` au point de
+jointure. 🛑 **La distinction qu'il porte est toute sa valeur** : il ne regarde pas combien de
+**priorités** sont sorties — zéro priorité est normal, R9 le dit —, il regarde combien
+d'**observations** le join a rattachées. Zéro observation rattachée alors que le candidat en a,
+c'est la **jointure** qui a raté. Le message nomme l'identité **et sa table attendue**, puis les
+`source_id` laissés de côté **avec leur origine réelle** — sans cette seconde moitié, on lit
+« zéro » sans savoir contre quoi la comparaison a échoué.
+
+Un `warn`, **jamais** une exception : l'appelant est un chemin candidat. Prédicat isolé et figé
+par `JourneyObservationSourcesTest` — un test qui lirait le log vérifierait une chaîne, pas une
+règle.
+
+---
+
+### D-55 (2026-09-20) — **Un journal daté ne se corrige pas en réécrivant ses lignes**
+
+**Les 10 lignes de `journey_assessment_event` clavetées sur une soumission restent telles
+quelles.** Mesuré : 6 sur le parcours de `user@sejourfr.fr`, 4 sur celui de
+`wewiwe4789@bowlfuel.com` ; la 11ᵉ annoncée n'existait pas.
+
+**Le motif, verbatim :**
+
+> On n'y touche pas. Le risque que tu bornes toi-même le confirme — ces évaluations ne seraient
+> re-traitées que si elles refaisaient surface, et `estTropAncienne` les rejetterait dans la
+> plupart des cas. Et surtout : **un journal daté ne se corrige pas en réécrivant ses lignes.**
+> C'est la règle qu'on a tenue pour V058 et pour V054, elle vaut ici aussi. Si le sujet revient,
+> ce sera parce qu'un compte réel en pâtit, et la réponse sera de **rejouer, pas de réécrire**.
+
+🛑 **Aucune migration de données n'est écrite sur ce sujet.** La forme qui avait été proposée —
+un `UPDATE` joignant `production_submissions` / `diagnostic_sessions`, sentinelle `@@…@@`, test
+qui relit le fichier — est **écartée**, pas reportée.
+
+#### ⚠️ Le geste de DEV, et c'en est un — pas une procédure
+
+Les **3 parcours TCF** de la base de dev qui portaient des évaluations journalisées ont été
+**supprimés** (`oumoubillo@gmail.com`, `user@sejourfr.fr`, `wewiwe4789@bowlfuel.com`) : la
+création paresseuse les rebâtit par le bootstrap, qui pose désormais les lots. Le `CASCADE` a
+emporté avec eux les 10 lignes ci-dessus **sur cette base-là**. Sauvegarde préalable des quatre
+tables dans le scratchpad de la session.
+
+🛑 **En production, la réponse reste : on ne répare pas.** Le cycle reprend la main à la
+**prochaine évaluation** du candidat. Ce paragraphe décrit ce qui a été fait sur une base de
+développement ; il ne décrit **aucune procédure applicable ailleurs**.

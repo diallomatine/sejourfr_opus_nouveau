@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import jakarta.persistence.LockModeType;
@@ -80,6 +82,28 @@ public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSes
             WHERE d.writtenAttempt.id = :attemptId OR d.oralAttempt.id = :attemptId
             """)
     boolean existsByAttemptId(@Param("attemptId") UUID attemptId);
+
+    /**
+     * Les attempts d'<b>une</b> session — l'ecrit, et l'oral quand il existe —,
+     * sans charger la session ni ses taches.
+     */
+    @Query("SELECT d.writtenAttempt.id, d.oralAttempt.id FROM DiagnosticSession d "
+        + "WHERE d.id = :id")
+    List<Object[]> findAttemptIdsById(@Param("id") UUID id);
+
+    /**
+     * Les sessions de diagnostic <b>rapide</b> auxquelles appartiennent ces
+     * attempts, en une requete : {@code (session.id, ecrit.id, oral.id)}.
+     *
+     * <p>Sert a {@code JourneyObservationSources} : l'identite d'evaluation d'un
+     * diagnostic rapide est sa <b>session</b>, et ses observations sont
+     * clavetees sur les soumissions de ses deux attempts.
+     */
+    @Query("""
+            SELECT d.id, d.writtenAttempt.id, d.oralAttempt.id FROM DiagnosticSession d
+            WHERE d.writtenAttempt.id IN :attemptIds OR d.oralAttempt.id IN :attemptIds
+            """)
+    List<Object[]> findIdsByAttemptIds(@Param("attemptIds") Collection<UUID> attemptIds);
 
     @Modifying
     @Query("DELETE FROM DiagnosticSession d WHERE d.user.id = :userId")

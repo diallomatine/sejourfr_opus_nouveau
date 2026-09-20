@@ -1504,3 +1504,140 @@ propriétaire la veut** ; le commentaire est posé sur place des deux côtés.
 **même chemin**, et la première n'avait plus qu'un lecteur. Elle est **supprimée** : l'adresse est
 désormais scopée au parcours (`journeyHistoryHref(module)`), et une seconde copie n'aurait pas pu le
 savoir. C'est « une règle = une autorité », appliquée à l'endroit exact où elle allait se payer.
+
+# 2026-09-20 — Le join évaluation ⇄ observations (A95 → A98)
+
+> **Déclencheur** : un candidat passe le diagnostic rapide TCF, ses fragilités EE sont bien
+> observées, et le bloc « Expression écrite » du cycle affiche « Aucune compétence à travailler
+> avant ». Mesuré avant d'affirmer, jamais déduit d'une lecture de code.
+
+**Le fait, ⟦SQL⟧ sur la base de dev.** `JourneyLotBuilder.depuisEvaluation` retenait les
+observations d'une évaluation par **égalité brute** :
+`evaluation.sourceAssessmentId().equals(observation.getSourceId())`. Or côté **production** les
+deux viennent de tables différentes — l'évaluation est un `attempts.id` (ou un
+`diagnostic_sessions.id`), l'observation un `production_submissions.id`. **240** observations
+`DIAGNOSTIC_EE`/`DIAGNOSTIC_EO` sont clavetées sur une soumission, **zéro** sur une session :
+l'égalité ne matchait donc **jamais**, et un diagnostic rapide ne créait **aucun lot** EE/EO.
+
+🛑 **Pourquoi ça ne s'était jamais vu** : le **bootstrap R19** se cale sur
+`observation.getSourceId()`, donc il fonctionnait. Tous les lots EE/EO présents en base venaient
+de lui. Le défaut ne frappait que le chemin **live** — donc les comptes neufs, ceux qui ouvrent
+leur Plan avant de passer le diagnostic.
+
+⚠️ **Et la correction n'était PAS de changer l'identité.** Passer `submission.id` au parcours
+rouvrait **A11** / **A16** mot pour mot, et la base le montre : le 2026-08-17, trois événements
+`SECTION_EXAM`/`TCF_EE` successifs pour une seule épreuve, dont deux ont vu leur lot remplacé
+par la tâche suivante (R7). C'est la **jointure** qui était fausse.
+
+### A95 — L'identité d'évaluation fait toujours partie de ses `source_id` d'observation
+
+`JourneyObservationSources.pour()` rend `{identité} ∪ {soumissions couvertes}` plutôt
+qu'un aiguillage « production → soumissions / compréhension → attempt ».
+
+**Motif.** En compréhension, l'observation **est** clavetée sur l'attempt
+(`LearningPlanObservationService` pose `source_id = attempt.id`) : une seule règle couvre donc
+les quatre épreuves, au lieu d'un second aiguillage par épreuve à maintenir chez chaque
+appelant. Sans risque de faux positif — les `source_id` viennent de tables distinctes, une
+collision d'UUID est impossible.
+
+**Si l'arbitrage était autre** (un ensemble strictement disjoint de l'identité) : il faudrait un
+`switch` sur `examType` dans `pour()` **et** dans tous les tests qui fabriquent des observations
+en réutilisant l'id d'évaluation.
+
+### A96 — `depuisHistorique` filtre épreuve par épreuve, plus globalement
+
+**Le problème.** Le bootstrap retenait l'union des `source_id` de référence puis regroupait par
+épreuve. Une même identité — un diagnostic rapide — couvre désormais des observations EE **et**
+EO ; un filtre global verserait donc les observations EO du diagnostic dans le lot EO même quand
+l'EO a pour référence un examen **plus récent**.
+
+**La décision.** Le filtre est appliqué par épreuve, avec un contrôle de section.
+
+**Si l'arbitrage était autre** : le lot d'une épreuve pourrait mélanger deux évaluations de dates
+différentes tout en étant étiqueté d'une seule — exactement ce que R19.2 interdit.
+
+### A97 — Le bootstrap journalise l'identité d'évaluation, et les 11 lignes existantes ne sont pas reprises
+
+**Le second défaut, de la même racine.** Le bootstrap écrivait dans
+`journey_assessment_event.source_assessment_id` des **ids de soumission**, là où le chemin live y
+écrit des ids d'attempt ou de session. La colonne portait **deux espaces d'identifiants**, et la
+conséquence était réelle : sur `onAssessmentCompleted`, `getOrCreate` amorce d'abord (le bootstrap
+enregistre sous l'id de soumission), puis `dejaTraitee` interroge l'**id d'attempt** — absent — et
+**la même évaluation est traitée une seconde fois**.
+
+**La décision.** Le bootstrap traduit chaque `source_id` d'observation en identité d'évaluation
+avant d'écrire. La colonne ne porte plus qu'**un** espace d'identifiants. Aucune migration.
+
+⚠️ **Les 11 lignes déjà écrites en base gardent leurs ids de soumission** — non reprises, comme
+le veut la règle « arrêt avant toute migration ». Conséquence résiduelle, bornée : si l'une de ces
+évaluations refaisait surface sur `onAssessmentCompleted`, elle serait traitée une seconde fois —
+R14 (`estTropAncienne`) et R11 bornent les dégâts.
+
+**Si l'arbitrage était autre** : une migration de données numérotée après V071, avec sentinelle
+`@@…@@` et un test qui **relit le fichier** (patron `RejugementProductionsInexploitablesIT`).
+
+### A98 — La déduplication du journal se fait par identité : une épreuve = une ligne
+
+Avant, les 3 tâches d'une épreuve et les 2 productions d'un diagnostic produisaient jusqu'à
+**5 lignes** de journal à l'amorce. Elles se replient sur **2** — une par évaluation. C'est ce que
+`uq (journey_id, source_assessment_id)` voulait dire depuis le début.
+
+**Si l'arbitrage était autre** : il faudrait une seconde colonne pour distinguer « l'évaluation »
+de « la trace de chaque soumission », et le journal cesserait d'être la clé d'idempotence.
+
+### ⚠️ Le motif, parce que c'en est un — **DETTE-A1 s'étend**
+
+C'est la **troisième** panne silencieuse du moteur de cycle causée par *un identifiant lu hors de
+son espace* — après `chk_journey_assessment_exam_type` (V071) et le NPE d'`estVerrouillee` (A63).
+Les trois ont le même symptôme : **rien n'échoue**, le cycle ne se remplit simplement jamais.
+
+🛑 **Et celle-ci est pire que les deux premières** : il n'y a même pas de `catch` qui avale
+(`DETTE-M1`). Le join a rendu zéro ligne, ce qui est un résultat **légitime** (R9 : « zéro
+fragilité observée donne zéro priorité »). Aucun log, aucune trace, aucun test rouge — et un écran
+qui se contredit tout seul, puisque le Plan dérivé, lui, voyait bien les fragilités.
+
+**Le garde-fou posé** : `JourneyObservationSources` est la **seule** autorité de la correspondance
+évaluation ⇄ observations, dans les deux sens, et `JourneyObservationSourcesIT` fige les quatre
+cas. **Le signal à surveiller** : une comparaison d'identifiants entre deux objets du moteur de
+cycle qui ne passe pas par cette classe.
+
+### A99 — Le garde mesure les OBSERVATIONS rattachées, jamais les priorités produites
+
+**Décidé.** `JourneyObservationSources.joinVide(sources, evaluations)` rend `true` quand le
+candidat a des observations d'évaluation et qu'**aucune** n'a été rattachée à l'évaluation en
+cours. C'est ce prédicat, et lui seul, qui déclenche le `warn` de **D-54**.
+
+**Motif.** « Zéro priorité » est un résultat **légitime** — R9 : « zéro fragilité observée donne
+zéro priorité », et `JourneyLotBuilder` le dit déjà. Un garde posé sur le nombre de priorités
+crierait donc sur des cas normaux, deviendrait du bruit, et on cesserait de le lire. « Zéro
+observation rattachée » n'a, lui, aucune lecture légitime : le branchement est appelé **après**
+l'écriture des observations (contrat documenté d'`onAssessmentCompleted`), donc à cet instant une
+évaluation en a.
+
+**Les deux faux positifs écartés explicitement**, et figés par test : un candidat **sans aucune
+observation** (cas réel de R19.8 — le parcours demande alors un diagnostic) et une évaluation
+**civique**, qui sort de `onAssessmentCompleted` avant ce point.
+
+**Si l'arbitrage était autre** (« signaler aussi zéro priorité ») : le garde passerait au niveau
+`debug`, ou il faudrait lui donner la nature de l'évaluation pour ne crier que là où une priorité
+est attendue — et ce serait une seconde règle sur « qu'est-ce qu'une évaluation doit produire »,
+là où R9 est déjà l'autorité.
+
+### A100 — La table d'origine d'un identifiant est épelée dans le message, pas portée par un type
+
+**Décidé.** `origineAttendue(JourneyAssessmentKind)` traduit la nature en nom de table
+(`diagnostic_sessions.id`, `attempts.id`…) **dans le garde seulement**, pour le message.
+
+**Motif.** L'information existe déjà depuis **A08** — « `QUICK_DIAGNOSTIC` désigne une
+`diagnostic_sessions` » — mais uniquement en **javadoc**, donc illisible à l'exécution, au moment
+précis où on en a besoin. La porter dans un type ou une colonne est exactement le geste que
+**D-54** range dans le chantier à venir : ce n'est pas à une passe de correction de bug de le
+décider.
+
+⚠️ **Le commentaire sur place le dit** : le jour où une colonne portera la nature de son
+identifiant, ce `switch` disparaîtra — il n'aura plus à épeler ce que le schéma saura.
+
+**Si l'arbitrage était autre** (trancher le chantier maintenant) : `JourneyAssessmentKind`
+gagnerait la table en attribut d'enum, et le garde la lirait. Ce serait le bon geste **après**
+l'inventaire de D-54, pas avant — l'inventaire peut conclure à une contrainte plutôt qu'à une
+colonne.

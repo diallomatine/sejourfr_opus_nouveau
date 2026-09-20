@@ -17,6 +17,30 @@ import java.util.UUID;
 @Repository
 public interface ProductionSubmissionRepository extends JpaRepository<ProductionSubmission, UUID> {
 
+    /**
+     * Les <b>identifiants</b> des soumissions de plusieurs attempts, en une
+     * requete et sans charger une seule entite.
+     *
+     * <p>Sert a {@code JourneyObservationSources} : le parcours a besoin de
+     * savoir <b>quelles soumissions</b> une epreuve de production couvre, jamais
+     * de leur contenu. Charger les lignes completes ferait payer trois entites
+     * et leur tache pour deux UUID.
+     */
+    @Query("SELECT s.id FROM ProductionSubmission s WHERE s.attempt.id IN :attemptIds")
+    List<UUID> findIdsByAttemptIds(@Param("attemptIds") Collection<UUID> attemptIds);
+
+    /**
+     * Le <b>couple (soumission, attempt)</b> de chaque soumission demandee, en
+     * une requete.
+     *
+     * <p>C'est le chemin <b>inverse</b> du precedent : une observation de
+     * production est clavetee sur sa soumission, et le parcours a besoin de
+     * remonter a l'evaluation qui l'a produite.
+     */
+    @Query("SELECT s.id, s.attempt.id FROM ProductionSubmission s "
+        + "WHERE s.id IN :ids AND s.attempt IS NOT NULL")
+    List<Object[]> findAttemptIdsBySubmissionIds(@Param("ids") Collection<UUID> ids);
+
     /** Toutes les submissions d'un attempt (utile pour assembler le score d'un examen complet). */
     List<ProductionSubmission> findByAttemptIdOrderBySubmittedAtAsc(UUID attemptId);
 

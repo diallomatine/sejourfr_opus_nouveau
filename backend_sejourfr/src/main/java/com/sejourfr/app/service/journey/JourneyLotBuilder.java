@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
+import com.sejourfr.app.service.journey.JourneyObservationSources.Sources;
 import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -67,31 +68,39 @@ public class JourneyLotBuilder {
     /**
      * Les lots que produit <b>une</b> evaluation.
      *
-     * @param sourceAssessmentId l'evaluation. 🛑 Cote production, c'est
-     *                           l'{@code attempt.id} de l'EPREUVE, jamais une
-     *                           soumission : les 3 taches d'une epreuve
-     *                           produisent 3 soumissions, et traiter chacune
-     *                           comme une evaluation ferait que la tache 2
-     *                           <b>remplacerait</b> (R7) le lot que la tache 1
-     *                           vient de creer.
-     * @param evaluations        les observations <b>deja filtrees par R1</b>
-     *                           ({@link JourneyEvaluationFilter}).
-     * @param maitriseesCeJour   les competences dont le transfert est prouve
-     *                           <b>aujourd'hui</b>, lues chez
-     *                           {@code SkillMasteryEngine}. Elles ne rentrent
-     *                           jamais dans un lot : ce serait redemander ce qui
-     *                           est acquis.
+     * @param sources          l'evaluation <b>et les {@code source_id} de ses
+     *                         observations</b>, resolus par
+     *                         {@link JourneyObservationSources}. 🛑 Les deux ne
+     *                         se confondent pas : l'identite reste
+     *                         l'{@code attempt.id} de l'EPREUVE (ou la session
+     *                         du diagnostic rapide), jamais une soumission —
+     *                         les 3 taches d'une epreuve produisent 3
+     *                         soumissions, et traiter chacune comme une
+     *                         evaluation ferait que la tache 2
+     *                         <b>remplacerait</b> (R7) le lot que la tache 1
+     *                         vient de creer (A11). Les <b>observations</b>, en
+     *                         revanche, sont clavetees sur ces soumissions :
+     *                         c'est pourquoi on les retient par
+     *                         {@link Sources#contient} et jamais par egalite
+     *                         avec l'identite.
+     * @param evaluations      les observations <b>deja filtrees par R1</b>
+     *                         ({@link JourneyEvaluationFilter}).
+     * @param maitriseesCeJour les competences dont le transfert est prouve
+     *                         <b>aujourd'hui</b>, lues chez
+     *                         {@code SkillMasteryEngine}. Elles ne rentrent
+     *                         jamais dans un lot : ce serait redemander ce qui
+     *                         est acquis.
      */
     public List<Lot> depuisEvaluation(
-            UUID sourceAssessmentId,
+            Sources sources,
             List<LearningPlanObservation> evaluations,
             Set<UUID> maitriseesCeJour,
             TargetLevel objectif,
             TcfLevelProfile profil) {
         List<LearningPlanObservation> sonLot = evaluations.stream()
-                .filter(observation -> sourceAssessmentId.equals(observation.getSourceId()))
+                .filter(observation -> sources.contient(observation.getSourceId()))
                 .toList();
-        return ordonner(parEpreuve(sonLot, maitriseesCeJour, source -> sourceAssessmentId),
+        return ordonner(parEpreuve(sonLot, maitriseesCeJour, source -> sources.evaluation()),
                 objectif, profil);
     }
 
@@ -99,25 +108,38 @@ public class JourneyLotBuilder {
      * Les lots que produit un <b>historique</b> : une evaluation de reference par
      * epreuve (R19, points 2 et 3).
      *
+     * <p>🛑 <b>Le filtrage est fait EPREUVE PAR EPREUVE</b>, et il le faut :
+     * l'evaluation de reference du CO et celle de l'EE peuvent etre la meme —
+     * un diagnostic rapide produit des observations EE <b>et</b> EO. Un filtre
+     * global verserait alors les observations EO de ce diagnostic dans le lot
+     * EO, meme quand l'EO a pour reference un examen plus recent.
+     *
      * @param referencesParEpreuve l'evaluation retenue pour chaque epreuve,
      *                             telle que le bootstrap l'a choisie — la plus
      *                             recente qui <b>mesure</b>, a defaut le plus
      *                             recent diagnostic rapide ayant produit des
-     *                             priorites.
+     *                             priorites —, avec les {@code source_id} de ses
+     *                             observations.
      */
     public List<Lot> depuisHistorique(
-            Map<EpreuveType, UUID> referencesParEpreuve,
+            Map<EpreuveType, Sources> referencesParEpreuve,
             List<LearningPlanObservation> evaluations,
             Set<UUID> maitriseesCeJour,
             TargetLevel objectif,
             TcfLevelProfile profil) {
         if (referencesParEpreuve.isEmpty()) return List.of();
-        Set<UUID> retenues = Set.copyOf(referencesParEpreuve.values());
-        List<LearningPlanObservation> desReferences = evaluations.stream()
-                .filter(observation -> retenues.contains(observation.getSourceId()))
-                .toList();
-        return ordonner(parEpreuve(desReferences, maitriseesCeJour,
-                epreuve -> referencesParEpreuve.get(epreuve)), objectif, profil);
+        List<Lot> lots = new ArrayList<>();
+        referencesParEpreuve.forEach((epreuve, reference) -> {
+            List<LearningPlanObservation> sonLot = evaluations.stream()
+                    .filter(observation -> reference.contient(observation.getSourceId()))
+                    .filter(observation -> observation.getSkill() != null
+                            && TcfDomaine.epreuve(observation.getSkill().getSection()) == epreuve)
+                    .toList();
+            List<Priorite> priorites =
+                    lotsParEpreuve(sonLot, maitriseesCeJour).get(epreuve);
+            if (priorites != null) lots.add(new Lot(epreuve, reference.evaluation(), priorites));
+        });
+        return ordonner(lots, objectif, profil);
     }
 
     // ------------------------------------------------------------------ R2

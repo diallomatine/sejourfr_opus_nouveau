@@ -6,6 +6,11 @@ import com.sejourfr.app.repository.DiagnosticSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +42,38 @@ public class DiagnosticSessionManager {
     public Optional<DiagnosticSession> findLatestCompleted(UUID userId) {
         return repository.findFirstByUserIdAndStatusOrderByCompletedAtDesc(
                 userId, DiagnosticSessionStatus.COMPLETED);
+    }
+
+    /**
+     * Les attempts de cette session : l'ecrit, et l'oral quand il existe. Liste
+     * vide si la session n'existe pas.
+     */
+    public List<UUID> findAttemptIdsBySessionId(UUID sessionId) {
+        if (sessionId == null) return List.of();
+        List<UUID> attempts = new ArrayList<>();
+        for (Object[] ligne : repository.findAttemptIdsById(sessionId)) {
+            for (Object valeur : ligne) {
+                if (valeur != null) attempts.add((UUID) valeur);
+            }
+        }
+        return attempts;
+    }
+
+    /**
+     * La session de diagnostic rapide de chacun de ces attempts, en une
+     * requete. Un attempt qui n'appartient a aucune session est absent du
+     * resultat.
+     */
+    public Map<UUID, UUID> findSessionIdByAttemptIds(Collection<UUID> attemptIds) {
+        if (attemptIds == null || attemptIds.isEmpty()) return Map.of();
+        Map<UUID, UUID> parAttempt = new LinkedHashMap<>();
+        for (Object[] ligne : repository.findIdsByAttemptIds(attemptIds)) {
+            if (ligne.length < 3 || ligne[0] == null) continue;
+            UUID session = (UUID) ligne[0];
+            if (ligne[1] != null) parAttempt.put((UUID) ligne[1], session);
+            if (ligne[2] != null) parAttempt.put((UUID) ligne[2], session);
+        }
+        return parAttempt;
     }
 
     public boolean existsByAttemptId(UUID attemptId) { return repository.existsByAttemptId(attemptId); }

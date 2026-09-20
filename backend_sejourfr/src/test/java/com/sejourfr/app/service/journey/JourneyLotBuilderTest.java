@@ -56,7 +56,7 @@ class JourneyLotBuilderTest {
         }
 
         List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
-                evaluation, observations, Set.of(), TargetLevel.B2, profil(null, null, null, null));
+                sources(evaluation), observations, Set.of(), TargetLevel.B2, profil(null, null, null, null));
 
         assertThat(lots).hasSize(1);
         assertThat(lots.getFirst().priorites()).hasSize(3);
@@ -80,7 +80,7 @@ class JourneyLotBuilderTest {
                         LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, T0));
 
         List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
-                evaluation, observations, Set.of(), TargetLevel.B2, profil(null, null, null, null));
+                sources(evaluation), observations, Set.of(), TargetLevel.B2, profil(null, null, null, null));
 
         // PRIORITY passe devant TO_REINFORCE, et a statut egal la confiance la
         // mieux etablie d'abord. C'est exactement la regle de
@@ -102,7 +102,7 @@ class JourneyLotBuilderTest {
         // 🛑 « Le correcteur n'a rien pu observer » veut dire INCONNU, jamais
         // faible : c'est la confusion qui a produit les faux A1_NON_ATTEINT de
         // V040/V041/V042. Zero fragilite ⇒ zero lot, et c'est legitime (R9).
-        assertThat(builder.depuisEvaluation(evaluation, observations, Set.of(),
+        assertThat(builder.depuisEvaluation(sources(evaluation), observations, Set.of(),
                 TargetLevel.B2, profil(null, null, null, null))).isEmpty();
     }
 
@@ -118,7 +118,7 @@ class JourneyLotBuilderTest {
                 observation(evaluation, fragile, LearningPlanSkillStatus.PRIORITY,
                         ObservationConfidence.HIGH, T0));
 
-        List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(evaluation, observations,
+        List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(sources(evaluation), observations,
                 Set.of(maitrisee.getId()), TargetLevel.B2, profil(null, null, null, null));
 
         // Redemander ce qui est acquis ferait tourner le parcours en rond.
@@ -137,7 +137,7 @@ class JourneyLotBuilderTest {
                 observation(evaluation, skill, LearningPlanSkillStatus.PRIORITY,
                         ObservationConfidence.MEDIUM, T0.minusSeconds(10)));
 
-        assertThat(builder.depuisEvaluation(evaluation, observations, Set.of(),
+        assertThat(builder.depuisEvaluation(sources(evaluation), observations, Set.of(),
                 TargetLevel.B2, profil(null, null, null, null))
                 .getFirst().priorites()).hasSize(1);
     }
@@ -159,7 +159,7 @@ class JourneyLotBuilderTest {
         // Objectif B2. EE est a A2 (deux crans de retard), EO a B1 (un cran),
         // CO deja a B2 (aucun).
         List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
-                evaluation, observations, Set.of(), TargetLevel.B2,
+                sources(evaluation), observations, Set.of(), TargetLevel.B2,
                 profil(NiveauCecrl.B2, null, NiveauCecrl.A2, NiveauCecrl.B1));
 
         assertThat(lots.stream().map(JourneyLotBuilder.Lot::epreuve))
@@ -181,7 +181,7 @@ class JourneyLotBuilderTest {
                         LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, T0));
 
         List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
-                evaluation, observations, Set.of(), TargetLevel.B1,
+                sources(evaluation), observations, Set.of(), TargetLevel.B1,
                 profil(NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2));
 
         // 🛑 CO, CE, EO, EE — l'ordre EXISTANT (TcfDomainProfileDto.ORDRE,
@@ -203,7 +203,7 @@ class JourneyLotBuilderTest {
 
         // CO n'a jamais ete mesuree (null), EE est a B1 sous un objectif B2.
         List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
-                evaluation, observations, Set.of(), TargetLevel.B2,
+                sources(evaluation), observations, Set.of(), TargetLevel.B2,
                 profil(null, null, NiveauCecrl.B1, null));
 
         // 🛑 « Pas de mesure » ne devient pas « urgence maximale » : ce serait la
@@ -225,7 +225,7 @@ class JourneyLotBuilderTest {
                         T0.minusSeconds(86400)));
 
         List<JourneyLotBuilder.Lot> lots = builder.depuisHistorique(
-                Map.of(EpreuveType.TCF_EE, recente), observations, Set.of(), TargetLevel.B2,
+                Map.of(EpreuveType.TCF_EE, sources(recente)), observations, Set.of(), TargetLevel.B2,
                 profil(null, null, NiveauCecrl.A2, null));
 
         // R19.2 : une seule evaluation de reference par epreuve — la plus
@@ -236,6 +236,20 @@ class JourneyLotBuilderTest {
     }
 
     // ------------------------------------------------------------- fabriques
+
+    /**
+     * Une evaluation et les {@code source_id} de ses observations.
+     *
+     * <p>🛑 Ici les deux se confondent, et c'est <b>volontaire</b> : ce test
+     * verrouille la regle pure du constructeur de lots, pas la jointure. Dans
+     * la vraie vie elles divergent des qu'il s'agit d'une production — une
+     * observation EE/EO est clavetee sur sa <b>soumission</b>, l'evaluation sur
+     * son <b>attempt</b> —, et c'est {@link JourneyObservationSources} qui fait
+     * le lien, seul et pour tout le monde.
+     */
+    private static JourneyObservationSources.Sources sources(UUID evaluation) {
+        return new JourneyObservationSources.Sources(evaluation, Set.of(evaluation));
+    }
 
     private static TcfLevelProfile profil(
             NiveauCecrl co, NiveauCecrl ce, NiveauCecrl ee, NiveauCecrl eo) {
