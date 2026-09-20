@@ -28,7 +28,13 @@
  * arrivent servis. Il ne fait que les mettre en mots.
  */
 import type {PlanNowGeste} from "./plan-domain";
-import {JOURNEY_LOCKED_BADGE, journeyStepSubtitle, journeyStepTitle} from "./journey";
+import {
+    JOURNEY_LOCKED_BADGE,
+    journeyEtapeASeries,
+    journeyEtapeHref,
+    journeyStepSubtitle,
+    journeyStepTitle,
+} from "./journey";
 import {
     CIVIC_MAITRISE_LABEL,
     type CivicPlanCibleDto,
@@ -179,6 +185,11 @@ export type CivicNowSource =
 export interface CivicNowVue {
     /** 🛑 **Ce que le geste fait**, décidé ici et nulle part ailleurs. */
     geste: PlanNowGeste;
+    /**
+     * **Où mène le geste `OUVRIR_ETAPE`** — servi avec lui, `null` partout
+     * ailleurs. 🛑 Un écran ne recompose jamais cette adresse.
+     */
+    etapeHref: string | null;
     /** `null` quand rien ne se résout — la carte nomme l'étape et s'arrête là. */
     source: CivicNowSource | null;
     title: string;
@@ -228,8 +239,19 @@ export function civicNowCard(
            cycle. Rien ne se résout ⇒ aucun geste (garde-fou du 2026-09-17). */
         const resoluble = unite !== null && etape.type === "TRAIN_SKILL";
         const verrou = free || etape.locked;
+        /* 🛑 **UNE UNITÉ CIVIQUE OUVRE SON ÉCRAN, elle ne lance plus sa série**
+           (demande du propriétaire, 2026-09-20) — la même règle et le **même
+           prédicat** que le TCF (`journeyEtapeASeries`, `lib/journey.ts`), lus
+           ici pour que le bouton « Travailler » aboutisse au même écran que la
+           ligne du cycle. `DEBLOQUER` reste prioritaire. */
+        const serie = journeyEtapeASeries(etape);
         return {
-            geste: verrou ? "DEBLOQUER" : resoluble ? "LANCER" : "AUCUN",
+            geste: verrou
+                ? "DEBLOQUER"
+                : serie
+                    ? "OUVRIR_ETAPE"
+                    : resoluble ? "LANCER" : "AUCUN",
+            etapeHref: serie ? journeyEtapeHref(etape.id, "CIVIQUE") : null,
             source: resoluble ? {kind: "UNITE", code: unite.code} : null,
             title: journeyStepTitle(etape),
             subtitle: etape.bloc?.label ?? null,
@@ -251,6 +273,9 @@ export function civicNowCard(
     const geste = civicCibleGeste(cible, {free});
     return {
         geste,
+        /* Une cible du plan **dérivé** n'est pas une étape du cycle : elle n'a
+           pas d'écran d'étape, et son geste reste le lanceur de série. */
+        etapeHref: null,
         source: {kind: "CIBLE", cible},
         title: cible.label,
         subtitle: cible.label === cible.themeLabel ? null : cible.themeLabel,

@@ -554,6 +554,10 @@ function ActionPlanDuJour({plan, journey, free}: {
        plan personnalisé » pendant que le Plan disait « Expression écrite ·
        Tâche 3 ». Deux écrans, deux réponses, au même instant. */
     const debloquer = carte?.geste === "DEBLOQUER";
+    /* 🛑 **Une étape de séries ouvre son écran**, elle ne se lance plus d'ici.
+       Le geste ET sa destination viennent de `planNowCard` : cet écran ne
+       redéduit ni « est-ce une série ? » ni l'adresse. */
+    const ouvrirEtape = carte?.geste === "OUVRIR_ETAPE" ? carte.etapeHref : null;
     const mesure = carte?.mesure ?? null;
     const exercise = carte?.exercise ?? null;
     /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
@@ -564,7 +568,7 @@ function ActionPlanDuJour({plan, journey, free}: {
        porte le cadenas et l'offre. */
     /* 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
        l'écran de transition (A145), une action ouvre l'action. */
-    const startable = carte !== null && !debloquer
+    const startable = carte !== null && carte.geste === "LANCER"
         && (mesure !== null ? !carte.locked : Boolean(exercise) && !exercise?.locked);
     const busy = starting || assessments.starting !== null;
 
@@ -610,6 +614,18 @@ function ActionPlanDuJour({plan, journey, free}: {
                             }}
                         >
                             {mesure ? carte.cta : "Commencer directement"}
+                        </button>
+                    )}
+                    {/* 🛑 **Le raccourci OUVRE l'étape** au lieu de lancer sa
+                        série : même écran que la ligne du cycle, même
+                        destination servie. */}
+                    {ouvrirEtape && carte && (
+                        <button
+                            type="button"
+                            className="home-now-later"
+                            onClick={() => router.push(ouvrirEtape)}
+                        >
+                            {carte.cta}
                         </button>
                     )}
                 </div>
@@ -680,6 +696,10 @@ function ActionCivique({gate, plan, journey, free}: {
     /* `null` est un cas NORMAL : plus rien à faire, la carte disparaît. */
     if (!carte) return null;
     const debloquer = carte.geste === "DEBLOQUER";
+    /* 🛑 **Une unité qui se travaille par séries ouvre son écran** — le geste et
+       sa destination viennent de `civicNowCard`, jamais d'une condition écrite
+       ici. */
+    const ouvrirEtape = carte.geste === "OUVRIR_ETAPE" ? carte.etapeHref : null;
 
     return (
         <NowCard
@@ -699,6 +719,8 @@ function ActionCivique({gate, plan, journey, free}: {
                     <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>
                         {carte.cta}
                     </Cta>
+                ) : ouvrirEtape ? (
+                    <Cta href={ouvrirEtape} variant="blue">{carte.cta}</Cta>
                 ) : (
                     <Cta href={planHref("CIVIQUE")} variant="blue">Continuer mon plan</Cta>
                 )}

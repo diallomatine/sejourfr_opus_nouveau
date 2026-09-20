@@ -333,6 +333,16 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
                 variant: SfButtonVariant.blue,
                 onPressed: () => unawaited(_ouvrirOffre()),
               ),
+            // 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
+            // travaille par séries — le même écran que la ligne du cycle, et la
+            // même autorité ([civicNowCard]) qui le décide.
+            PlanNowGeste.ouvrirEtape => SfButton(
+                label: carte.cta,
+                variant: SfButtonVariant.blue,
+                onPressed: carte.etapeRoute == null
+                    ? null
+                    : () => context.push(carte.etapeRoute!),
+              ),
             PlanNowGeste.lancer => source == null
                 ? null
                 : SfButton(

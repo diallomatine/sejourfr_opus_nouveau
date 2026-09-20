@@ -350,8 +350,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
     // l'écran de transition (A145), une action ouvre l'action.
     final debloquer = carte?.geste == PlanNowGeste.debloquer;
+    // 🛑 **Une étape de séries ouvre son écran**, elle ne se lance plus d'ici.
+    // Le geste ET sa destination viennent de [planNowCard] : cet écran ne
+    // redéduit ni « est-ce une série ? » ni l'adresse.
+    final ouvrirEtape =
+        carte?.geste == PlanNowGeste.ouvrirEtape ? carte?.etapeRoute : null;
     final lancable = carte != null &&
-        !debloquer &&
+        carte.geste == PlanNowGeste.lancer &&
         (mesure != null ? !carte.locked : exercice != null && !exercice.locked);
 
     return SfNowCard(
@@ -378,6 +383,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ? () => context.push(AppRoutes.planUnlockPath(civique: false))
                 : () => _ouvrirPlan(context, civique: false),
           ),
+          // 🛑 **Le raccourci OUVRE l'étape** au lieu de lancer sa série :
+          // même écran que la ligne du cycle, même destination servie.
+          if (ouvrirEtape != null)
+            HomeSoftAction(
+              label: carte!.cta,
+              onTap: () => context.push(ouvrirEtape),
+            ),
           if (lancable)
             HomeSoftAction(
               // Le raccourci **nomme ce qu'il lance** : « Compléter la mesure »
@@ -450,6 +462,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // `null` est un cas NORMAL : plus rien à faire, la carte disparaît.
     if (carte == null) return null;
     final debloquer = carte.geste == PlanNowGeste.debloquer;
+    // 🛑 **Une unité qui se travaille par séries ouvre son écran** — le geste et
+    // sa destination viennent de [civicNowCard], jamais d'une condition écrite
+    // ici.
+    final ouvrirEtape =
+        carte.geste == PlanNowGeste.ouvrirEtape ? carte.etapeRoute : null;
 
     return SfNowCard(
       icon: LucideIcons.landmark,
@@ -463,11 +480,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // dupliquerait la gestion du 403. Seul le geste d'ACHAT part d'ici, vers
       // l'écran de transition (A145).
       action: SfButton(
-        label: debloquer ? carte.cta : kHomeCiviquePlanCta,
+        label: debloquer || ouvrirEtape != null
+            ? carte.cta
+            : kHomeCiviquePlanCta,
         variant: SfButtonVariant.blue,
         onPressed: debloquer
             ? () => context.push(AppRoutes.planUnlockPath(civique: true))
-            : () => _ouvrirPlan(context, civique: true),
+            : ouvrirEtape != null
+                ? () => context.push(ouvrirEtape)
+                : () => _ouvrirPlan(context, civique: true),
       ),
     );
   }

@@ -164,6 +164,7 @@ export function reviserResumeTcf(
         subtitle: carte.subtitle,
         section: carte.section,
         geste: carte.geste,
+        etapeHref: carte.etapeHref,
         cta: carte.cta,
         carte,
     };
@@ -177,6 +178,8 @@ export interface ReviserResume {
     section: SkillSection | null;
     /** 🛑 **Le geste est SERVI par l'autorité du Plan**, jamais redéduit ici. */
     geste: PlanNowGeste;
+    /** **Où mène `OUVRIR_ETAPE`**, servi avec lui — jamais recomposé ici. */
+    etapeHref: string | null;
     /** Ce que le bouton **dit**, décidé par la même autorité. */
     cta: string;
     /** **Ce que le bouton lance**, tel que le Plan l'a désigné. */

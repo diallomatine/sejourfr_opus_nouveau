@@ -215,6 +215,7 @@ class CivicNowCible extends CivicNowSource {
 class CivicNowCard {
   const CivicNowCard({
     required this.geste,
+    required this.etapeRoute,
     required this.source,
     required this.title,
     required this.subtitle,
@@ -229,6 +230,10 @@ class CivicNowCard {
   /// 🛑 **Ce que le geste fait**, décidé dans [civicNowCard] et nulle part
   /// ailleurs.
   final PlanNowGeste geste;
+
+  /// **Où mène [PlanNowGeste.ouvrirEtape]** — servi avec lui, `null` partout
+  /// ailleurs. 🛑 Un écran ne recompose jamais cette adresse.
+  final String? etapeRoute;
 
   /// `null` quand rien ne se résout — la carte nomme l'étape et s'arrête là.
   final CivicNowSource? source;
@@ -283,12 +288,21 @@ CivicNowCard? civicNowCard(
     // cycle. Rien ne se résout ⇒ aucun geste (garde-fou du 2026-09-17).
     final resoluble = unite != null && etape.type == JourneyStepType.trainSkill;
     final verrou = free || etape.locked;
+    // 🛑 **UNE UNITÉ CIVIQUE OUVRE SON ÉCRAN, elle ne lance plus sa série**
+    // (demande du propriétaire, 2026-09-20) — la même règle et le **même
+    // prédicat** que le TCF ([journeyEtapeASeries]), lus ici pour que le bouton
+    // « Travailler » aboutisse au même écran que la ligne du cycle.
+    // `debloquer` reste prioritaire.
+    final serie = journeyEtapeASeries(etape);
     return CivicNowCard(
       geste: verrou
           ? PlanNowGeste.debloquer
-          : resoluble
-              ? PlanNowGeste.lancer
-              : PlanNowGeste.aucun,
+          : serie
+              ? PlanNowGeste.ouvrirEtape
+              : resoluble
+                  ? PlanNowGeste.lancer
+                  : PlanNowGeste.aucun,
+      etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
       source: resoluble ? CivicNowUnite(unite.code) : null,
       title: journeyStepTitle(etape),
       subtitle: etape.bloc?.label,
@@ -310,6 +324,9 @@ CivicNowCard? civicNowCard(
   final geste = civicCibleGeste(cible, free: free);
   return CivicNowCard(
     geste: geste,
+    // Une cible du plan **dérivé** n'est pas une étape du cycle : elle n'a pas
+    // d'écran d'étape, et son geste reste le lanceur de série.
+    etapeRoute: null,
     source: CivicNowCible(cible),
     title: cible.label,
     subtitle: cible.label == cible.themeLabel || cible.themeLabel.isEmpty

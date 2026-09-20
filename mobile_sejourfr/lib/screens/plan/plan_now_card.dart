@@ -71,7 +71,15 @@ enum PlanNowGeste {
 
   /// L'étape annoncée est **fermée** : le geste ouvre le paywall (spec §7 /
   /// D-18 — « le tap ouvre la popup *Débloquer mon plan* »).
+  ///
+  /// 🛑 **Prioritaire sur [ouvrirEtape]** : une étape fermée ouvre l'offre,
+  /// jamais son écran. L'ordre des tests ne change pas.
   debloquer,
+
+  /// L'étape se travaille **par séries** : le geste ouvre son écran
+  /// ([PlanNowCard.etapeRoute]), qui déplie la compétence ou l'unité et ses
+  /// deux séries, au lieu de lancer l'exercice.
+  ouvrirEtape,
 
   /// Rien ne se résout : la carte **nomme** l'étape et s'arrête là.
   aucun,
@@ -82,6 +90,7 @@ class PlanNowCard {
   const PlanNowCard({
     required this.nature,
     required this.geste,
+    required this.etapeRoute,
     required this.mesure,
     required this.priority,
     required this.exercise,
@@ -104,6 +113,13 @@ class PlanNowCard {
   /// 🛑 **Ce que le geste fait**, décidé dans [planNowCard] et nulle part
   /// ailleurs.
   final PlanNowGeste geste;
+
+  /// **Où mène [PlanNowGeste.ouvrirEtape]** — servi avec lui, `null` partout
+  /// ailleurs.
+  ///
+  /// 🛑 **Un écran ne recompose jamais cette adresse** : c'est l'autorité qui
+  /// la sert, comme elle sert le geste.
+  final String? etapeRoute;
 
   /// **La mesure que le bouton LANCE**, `null` dès que la carte porte une étape.
   /// C'est elle qui décide du verrou comme du démarrage
@@ -275,6 +291,7 @@ class PlanEpreuveCarte {
     required this.subtitle,
     required this.meta,
     required this.geste,
+    required this.etapeRoute,
     required this.cta,
     required this.action,
   });
@@ -286,6 +303,10 @@ class PlanEpreuveCarte {
 
   /// 🛑 Servi par les mêmes règles que la carte du Plan, jamais redéduit.
   final PlanNowGeste geste;
+
+  /// **Où mène [PlanNowGeste.ouvrirEtape]**, `null` sinon — servi, jamais
+  /// recomposé par l'écran d'épreuve.
+  final String? etapeRoute;
   final String cta;
 
   /// `null` dès que le geste est [PlanNowGeste.debloquer] — rien à lancer.
@@ -324,12 +345,20 @@ PlanEpreuveCarte? planEpreuveCarte(
   // 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
   // jamais un bouton mort (garde-fou A25, transposé).
   if (!locked && action == null) return null;
+  // 🛑 **La même règle que le Plan et que la ligne du cycle** : une étape de
+  // séries ouvre son écran. Elle est lue ICI, pas dans l'écran d'épreuve.
+  final serie = journeyEtapeASeries(step);
   return PlanEpreuveCarte(
     step: step,
     title: journeyStepTitle(step),
     subtitle: journeyStepSubtitle(step),
     meta: journeyNowMeta(step),
-    geste: locked ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    geste: locked
+        ? PlanNowGeste.debloquer
+        : serie
+            ? PlanNowGeste.ouvrirEtape
+            : PlanNowGeste.lancer,
+    etapeRoute: serie ? journeyEtapeRoute(step.id) : null,
     cta: journeyNowCta(step, locked),
     action: action,
   );
@@ -372,6 +401,22 @@ PlanNowCard? planNowCard(
         : _carteEtapeServie(etape, exerciceServi, free);
   }
 
+  // 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
+  // (demande du propriétaire, 2026-09-20). Compréhension CO/CE et civique : le
+  // candidat voit d'abord ce que l'étape demande — la compétence ou l'unité
+  // travaillée, le seuil, ses deux séries — puis choisit la série qu'il lance.
+  // La ligne du cycle le faisait déjà ; les cinq autres surfaces lançaient
+  // encore l'exercice, faute d'avoir la règle ICI.
+  //
+  // ⚠️ **Les étapes d'EXPRESSION (EE/EO) ne sont PAS concernées** : elles
+  // portent une tâche, [journeyEtapeASeries] les laisse de côté, et leur chemin
+  // vers leurs petits sujets ne change pas.
+  //
+  // ⚠️ **Une MESURE ne passe jamais par cet écran** : elle n'est pas une étape
+  // `TRAIN_SKILL`, donc le prédicat ne la retient pas.
+  final serie = etape != null && journeyEtapeASeries(etape);
+  final etapeRoute = serie ? journeyEtapeRoute(etape.id) : null;
+
   final priority = duParcours ?? plan.currentPriority;
   if (priority == null && mesure == null) return null;
 
@@ -411,7 +456,12 @@ PlanNowCard? planNowCard(
     final offre = free || verrou;
     return PlanNowCard(
       nature: PlanNowNature.mesure,
-      geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+      geste: offre
+          ? PlanNowGeste.debloquer
+          : serie
+              ? PlanNowGeste.ouvrirEtape
+              : PlanNowGeste.lancer,
+      etapeRoute: etapeRoute,
       mesure: mesure,
       priority: priority,
       exercise: exercise,
@@ -451,9 +501,12 @@ PlanNowCard? planNowCard(
     nature: verifier ? PlanNowNature.verification : PlanNowNature.etape,
     geste: offre
         ? PlanNowGeste.debloquer
-        : exercise == null
-            ? PlanNowGeste.aucun
-            : PlanNowGeste.lancer,
+        : serie
+            ? PlanNowGeste.ouvrirEtape
+            : exercise == null
+                ? PlanNowGeste.aucun
+                : PlanNowGeste.lancer,
+    etapeRoute: etapeRoute,
     mesure: null,
     priority: priority,
     exercise: exercise,
@@ -586,9 +639,17 @@ PlanNowCard _carteEtapeServie(
   final offre = free || verrou;
   final sujets = etape.progress?.quota ?? 0;
   final minutes = exercise.estimatedMinutes;
+  // 🛑 **Une étape de SÉRIES ouvre son écran, elle ne lance plus rien** — la
+  // même règle que la ligne du cycle, décidée ici pour les cinq surfaces.
+  final serie = journeyEtapeASeries(etape);
   return PlanNowCard(
     nature: PlanNowNature.etape,
-    geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    geste: offre
+        ? PlanNowGeste.debloquer
+        : serie
+            ? PlanNowGeste.ouvrirEtape
+            : PlanNowGeste.lancer,
+    etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
     mesure: null,
     priority: null,
     exercise: exercise,
@@ -635,7 +696,11 @@ PlanNowCard _carteIndisponible(JourneyStep etape, bool free) {
   final offre = free || etape.locked;
   return PlanNowCard(
     nature: PlanNowNature.indisponible,
+    // ⚠️ **`ouvrirEtape` ne s'applique PAS ici** : rien ne se résout, la carte
+    // nomme l'étape et s'arrête là (garde-fou A25). Lui poser un bouton
+    // contredirait sa propre ligne « action indisponible ».
     geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.aucun,
+    etapeRoute: null,
     mesure: null,
     priority: null,
     exercise: null,

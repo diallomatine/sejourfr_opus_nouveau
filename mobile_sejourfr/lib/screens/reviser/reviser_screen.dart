@@ -189,10 +189,16 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           variant: SfButtonVariant.primary,
           // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
           // geste d'achat passe par l'écran de transition (A145), jamais par
-          // le paywall d'un coup.
-          onContinue: resume.geste == PlanNowGeste.debloquer
-              ? () => context.push(AppRoutes.planUnlockPath(civique: false))
-              : () => _reprendreTcf(resume.carte!),
+          // le paywall d'un coup. `ouvrirEtape` ouvre l'écran de l'étape (ses
+          // deux séries), `lancer` démarre l'action : aucune condition sur
+          // « est-ce une série ? » ici.
+          onContinue: switch (resume.geste) {
+            PlanNowGeste.debloquer => () =>
+                context.push(AppRoutes.planUnlockPath(civique: false)),
+            PlanNowGeste.ouvrirEtape when resume.etapeRoute != null => () =>
+                context.push(resume.etapeRoute!),
+            _ => () => _reprendreTcf(resume.carte!),
+          },
         )
       else if (porte != null)
         _GateCard(porte: porte, variant: SfButtonVariant.primary),
@@ -322,9 +328,13 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
               ? LucideIcons.compass
               : dashboardCategoryIcon(civicPlan!.prochaine!.themeCode),
           variant: SfButtonVariant.blue,
-          onContinue: resume.geste == PlanNowGeste.debloquer
-              ? () => context.push(AppRoutes.planUnlockPath(civique: true))
-              : () => _reprendreCivique(resume.source),
+          onContinue: switch (resume.geste) {
+            PlanNowGeste.debloquer => () =>
+                context.push(AppRoutes.planUnlockPath(civique: true)),
+            PlanNowGeste.ouvrirEtape when resume.etapeRoute != null => () =>
+                context.push(resume.etapeRoute!),
+            _ => () => _reprendreCivique(resume.source),
+          },
         )
       else if (porte != null)
         _GateCard(porte: porte, variant: SfButtonVariant.blue),

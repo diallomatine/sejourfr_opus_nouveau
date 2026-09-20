@@ -322,9 +322,14 @@ function TcfBody({
           /* 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
              geste d'achat passe par l'écran de transition (A145), jamais par
              le paywall d'un coup. */
+          /* 🛑 **Le geste ET sa destination viennent du Plan** : `OUVRIR_ETAPE`
+             ouvre l'écran de l'étape (ses deux séries), `LANCER` démarre
+             l'action. Aucune condition sur « est-ce une série ? » ici. */
           {...(resume.geste === "DEBLOQUER"
             ? {href: planUnlockHref("TCF")}
-            : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
+            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+              ? {href: resume.etapeHref}
+              : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
           tone="primary"
         />
       ) : gate ? (
@@ -546,6 +551,8 @@ function CiviqueBody({
           cta={resume.cta}
           {...(resume.geste === "DEBLOQUER"
             ? {href: planUnlockHref("CIVIQUE")}
+            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+            ? {href: resume.etapeHref}
             : {
                   onClick: () => {
                       const source = resume.source;

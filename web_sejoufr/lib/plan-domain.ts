@@ -24,6 +24,8 @@ import {
     skillTaskNumber,
 } from "@/lib/diagnostic";
 import {
+    journeyEtapeASeries,
+    journeyEtapeHref,
     journeyNowCta,
     journeyNowMeta,
     journeyStepSubtitle,
@@ -523,17 +525,32 @@ export type PlanNowNature =
  * - `LANCER` : la carte démarre ce qu'elle annonce (mesure ou exercice) ;
  * - `DEBLOQUER` : l'étape annoncée est **fermée** — le geste ouvre le paywall
  *   (spec §7 / D-18 : « le tap ouvre la popup *Débloquer mon plan* ») ;
+ * - `OUVRIR_ETAPE` : l'étape se travaille **par séries** — le geste ouvre son
+ *   écran (`etapeHref`), qui déplie la compétence et ses deux séries, au lieu
+ *   de lancer l'exercice ;
  * - `AUCUN` : rien ne se résout, la carte **nomme** l'étape et s'arrête là.
+ *
+ * 🛑 **`DEBLOQUER` reste prioritaire** : une étape fermée ouvre l'offre, jamais
+ * son écran. L'ordre des tests ne change pas.
  *
  * ⚠️ Miroir mot pour mot du mobile (`PlanNowGeste`, `plan_now_card.dart`).
  */
-export type PlanNowGeste = "LANCER" | "DEBLOQUER" | "AUCUN";
+export type PlanNowGeste = "LANCER" | "DEBLOQUER" | "OUVRIR_ETAPE" | "AUCUN";
 
 /** L'identité **complète** de la carte : ce qu'elle montre, et ce qu'elle lance. */
 export interface PlanNowVue {
     nature: PlanNowNature;
     /** 🛑 **Ce que le geste fait**, décidé ici et nulle part ailleurs. */
     geste: PlanNowGeste;
+    /**
+     * **Où mène le geste `OUVRIR_ETAPE`** — servi avec lui, `null` partout
+     * ailleurs.
+     *
+     * 🛑 **Un écran ne recompose jamais cette adresse** : c'est l'autorité qui
+     * la sert, comme elle sert le geste. Un chemin recopié dans un composant
+     * finirait par désigner autre chose que la ligne du cycle.
+     */
+    etapeHref: string | null;
     /**
      * **La mesure que le bouton LANCE**, `null` sinon. C'est elle qui décide du
      * verrou comme du démarrage (`usePlanAssessment`). Sur un plan gratuit elle
@@ -606,7 +623,11 @@ function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
     const verrou = free || etape.locked;
     return {
         nature: "INDISPONIBLE",
+        /* ⚠️ **`OUVRIR_ETAPE` ne s'applique PAS ici** : rien ne se résout, la
+           carte nomme l'étape et s'arrête là (garde-fou A25). Lui poser un
+           bouton contredirait sa propre ligne « action indisponible ». */
         geste: verrou ? "DEBLOQUER" : "AUCUN",
+        etapeHref: null,
         mesure: null,
         priority: null,
         exercise: null,
@@ -658,9 +679,14 @@ function carteEtapeServie(
 ): PlanNowVue {
     const verrou = free || etape.locked || exercise.locked;
     const sujets = etape.progress?.quota ?? 0;
+    /* 🛑 **Une étape de SÉRIES ouvre son écran, elle ne lance plus rien**
+       (demande du propriétaire, 2026-09-20) — la même règle que la ligne du
+       cycle, décidée ici pour que les cinq surfaces en héritent. */
+    const serie = journeyEtapeASeries(etape);
     return {
         nature: "ETAPE",
-        geste: verrou ? "DEBLOQUER" : "LANCER",
+        geste: verrou ? "DEBLOQUER" : serie ? "OUVRIR_ETAPE" : "LANCER",
+        etapeHref: serie ? journeyEtapeHref(etape.id, "TCF") : null,
         mesure: null,
         priority: null,
         exercise,
@@ -882,6 +908,8 @@ export interface PlanEpreuveCarte {
     meta: string | null;
     /** 🛑 Servi par les mêmes règles que la carte du Plan, jamais redéduit. */
     geste: PlanNowGeste;
+    /** **Où mène `OUVRIR_ETAPE`**, `null` sinon — servi, jamais recomposé. */
+    etapeHref: string | null;
     cta: string;
     /** `null` dès que le geste est `DEBLOQUER` — il n'y a rien à lancer. */
     action: PlanStepAction | null;
@@ -903,12 +931,16 @@ export function planEpreuveCarte(
     /* 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
        jamais un bouton mort (garde-fou A25, transposé). */
     if (!locked && !action) return null;
+    /* 🛑 **La même règle que le Plan et que la ligne du cycle** : une étape de
+       séries ouvre son écran. Elle est lue ICI, pas dans l'écran d'épreuve. */
+    const serie = journeyEtapeASeries(step);
     return {
         step,
         title: journeyStepTitle(step),
         subtitle: journeyStepSubtitle(step) ?? null,
         meta: journeyNowMeta(step) ?? null,
-        geste: locked ? "DEBLOQUER" : "LANCER",
+        geste: locked ? "DEBLOQUER" : serie ? "OUVRIR_ETAPE" : "LANCER",
+        etapeHref: serie ? journeyEtapeHref(step.id, "TCF") : null,
         cta: journeyNowCta(step, locked),
         action,
     };
@@ -1021,11 +1053,29 @@ export function planNowCard(
        `locked` servi. Les écrans ne branchent que sur `geste`, donc aucun
        d'eux ne peut faire partir un entraînement pour un compte sans accès —
        et c'est le seul endroit à relire pour s'en assurer. */
+    /* 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
+       (demande du propriétaire, 2026-09-20). Compréhension CO/CE et civique :
+       le candidat voit d'abord ce que l'étape demande — la compétence ou
+       l'unité travaillée, le seuil, ses deux séries — puis choisit la série
+       qu'il lance. La ligne du cycle le faisait déjà ; les cinq autres
+       surfaces lançaient encore l'exercice, faute d'avoir la règle ICI.
+
+       ⚠️ **Les étapes d'EXPRESSION (EE/EO) ne sont PAS concernées** : elles
+       portent une tâche, `journeyEtapeASeries` les laisse de côté, et leur
+       chemin vers leurs petits sujets ne change pas.
+
+       ⚠️ **Une MESURE ne passe jamais par cet écran** : elle n'est pas une
+       étape `TRAIN_SKILL`, donc le prédicat ne la retient pas — et quand le
+       parcours désigne une étape d'examen, `etape` n'est pas de séries. */
+    const serie = etape !== null && journeyEtapeASeries(etape);
+    const etapeHref = serie ? journeyEtapeHref(etape!.id, "TCF") : null;
     const geste: PlanNowGeste = free || locked
         ? "DEBLOQUER"
-        : mesure || exercise
-            ? "LANCER"
-            : "AUCUN";
+        : serie
+            ? "OUVRIR_ETAPE"
+            : mesure || exercise
+                ? "LANCER"
+                : "AUCUN";
 
     /* ⚠️ **`planSkillTargetLevel`, comme le mobile** (correctif de parité du
        2026-09-18) : cette carte lisait `planSkillLevel`, les paliers de
@@ -1072,6 +1122,7 @@ export function planNowCard(
         return {
             nature: "MESURE",
             geste,
+            etapeHref,
             mesure,
             priority,
             exercise,
@@ -1101,6 +1152,7 @@ export function planNowCard(
     return {
         nature: verifier ? "VERIFICATION" : "ETAPE",
         geste,
+        etapeHref,
         mesure,
         priority,
         exercise,

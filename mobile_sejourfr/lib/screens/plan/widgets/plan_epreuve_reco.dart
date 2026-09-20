@@ -70,10 +70,16 @@ class PlanEpreuveReco extends ConsumerWidget {
         variant: variant,
         // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
         // geste d'achat passe par l'écran de transition (A145), jamais par le
-        // paywall d'un coup.
-        onContinue: carte.geste == PlanNowGeste.debloquer
-            ? () => context.push(AppRoutes.planUnlockPath(civique: false))
-            : () => _lancer(context, ref, carte),
+        // paywall d'un coup. `ouvrirEtape` ouvre l'écran de l'étape (sa
+        // compétence, ses deux séries) : l'écran d'épreuve ne teste rien
+        // lui-même et ne recompose aucune adresse.
+        onContinue: switch (carte.geste) {
+          PlanNowGeste.debloquer => () =>
+              context.push(AppRoutes.planUnlockPath(civique: false)),
+          PlanNowGeste.ouvrirEtape when carte.etapeRoute != null => () =>
+              context.push(carte.etapeRoute!),
+          _ => () => _lancer(context, ref, carte),
+        },
       ),
     );
   }

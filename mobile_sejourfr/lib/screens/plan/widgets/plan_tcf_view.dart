@@ -245,6 +245,15 @@ class PlanTcfView extends ConsumerWidget {
             variant: SfButtonVariant.blue,
             onPressed: () => _versEcranDeDeblocage(context),
           ),
+        // 🛑 **`ouvrirEtape` ouvre l'écran de l'étape**, il ne lance rien : une
+        // compétence de compréhension se travaille par séries, et le candidat
+        // les choisit là-bas. La destination est **servie** par [planNowCard].
+        PlanNowGeste.ouvrirEtape => SfButton(
+            label: carte.cta,
+            onPressed: carte.etapeRoute == null
+                ? null
+                : () => context.push(carte.etapeRoute!),
+          ),
         PlanNowGeste.lancer => SfButton(
             label: carte.cta,
             onPressed: mesure != null

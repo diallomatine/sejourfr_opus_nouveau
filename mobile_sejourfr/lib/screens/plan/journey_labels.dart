@@ -14,6 +14,7 @@ library;
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/utils/civique_examen.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -154,6 +155,14 @@ SfJourneyKind journeyKind(JourneyStep step) =>
    `journey_etape_labels.dart` (miroir de `lib/journey-etape.ts`) ; ce qui vit
    ICI, c'est **quelle étape y mène**, parce que c'est une lecture du parcours.
    ========================================================================== */
+
+/// **Où mène une étape de séries.**
+///
+/// 🛑 **Une seule composition d'adresse** : un chemin recopié dans un écran
+/// finirait par diverger du router. ⚠️ Pendant de `journeyEtapeHref`
+/// (`web .../lib/journey.ts`), sans son `?module=` — le mobile a un écran par
+/// parcours, l'adresse n'a pas à le porter.
+String journeyEtapeRoute(String stepId) => AppRoutes.planEtapePath(stepId);
 
 /// **Cette étape se travaille-t-elle par SÉRIES ?**
 ///

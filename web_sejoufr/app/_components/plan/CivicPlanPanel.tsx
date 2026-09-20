@@ -215,6 +215,12 @@ function CiviquePlan({plan, journey, free}: {
                   {carte.cta}
                 </Cta>
               )}
+              {/* 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
+                  travaille par séries — le même écran que la ligne du cycle, et
+                  la même autorité (`civicNowCard`) qui le décide. */}
+              {carte.geste === "OUVRIR_ETAPE" && carte.etapeHref && (
+                <Cta variant="blue" href={carte.etapeHref}>{carte.cta}</Cta>
+              )}
             </NowCard>
             {carte.geste === "DEBLOQUER" && (
               <p className={sejourStyles.tiny}>{CIVIC_PLAN_LOCKED_NOTE}</p>

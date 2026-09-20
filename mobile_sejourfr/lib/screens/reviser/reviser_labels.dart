@@ -96,6 +96,7 @@ class ReviserResume {
     this.section,
     this.carte,
     this.source,
+    this.etapeRoute,
   });
 
   final String title;
@@ -119,6 +120,10 @@ class ReviserResume {
   /// **Ce que le bouton lance** côté civique — l'unité du cycle ou la cible du
   /// plan dérivé, au grain que `civicNowCard` a tranché.
   final CivicNowSource? source;
+
+  /// **Où mène [PlanNowGeste.ouvrirEtape]**, servi avec lui — jamais recomposé
+  /// ici.
+  final String? etapeRoute;
 }
 
 /// La reprise TCF.
@@ -157,6 +162,7 @@ ReviserResume? reviserResumeTcf(
     geste: carte.geste,
     cta: carte.cta,
     carte: carte,
+    etapeRoute: carte.etapeRoute,
   );
 }
 
@@ -179,6 +185,7 @@ ReviserResume? reviserResumeCivique(
     geste: carte.geste,
     cta: carte.cta,
     source: carte.source,
+    etapeRoute: carte.etapeRoute,
   );
 }
 

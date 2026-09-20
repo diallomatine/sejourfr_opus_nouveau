@@ -443,6 +443,14 @@ function ActionMaintenant({plan, journey, free}: {
               {busy ? PLAN_STARTING : vue.cta}
             </Cta>
           )}
+          {/* 🛑 **`OUVRIR_ETAPE` ouvre l'écran de l'étape**, il ne lance rien :
+              une compétence de compréhension et une unité civique se
+              travaillent par séries, et le candidat les choisit là-bas. La
+              destination est **servie** par `planNowCard` — cet écran ne
+              recompose aucune adresse. */}
+          {vue.geste === "OUVRIR_ETAPE" && vue.etapeHref && (
+            <Cta href={vue.etapeHref}>{vue.cta}</Cta>
+          )}
         </NowCard>
         {actionLocked && (
           <p className={sejourStyles.tiny}>

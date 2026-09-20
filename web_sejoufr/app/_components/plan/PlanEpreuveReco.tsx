@@ -91,8 +91,14 @@ export function PlanEpreuveReco({
                 subtitle={carte.subtitle}
                 cta={carte.cta}
                 tone={tone}
+                /* 🛑 **Le geste vient de `planEpreuveCarte`** : une étape de
+                   séries ouvre son écran (sa compétence, ses deux séries), les
+                   autres lancent leur action. L'écran d'épreuve ne teste rien
+                   lui-même et ne recompose aucune adresse. */
                 {...(carte.geste === "DEBLOQUER"
                     ? {href: planUnlockHref("TCF")}
+                    : carte.geste === "OUVRIR_ETAPE" && carte.etapeHref
+                    ? {href: carte.etapeHref}
                     : {
                           onClick: lancer,
                           busy,
