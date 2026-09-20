@@ -489,7 +489,9 @@ PlanNowCard? planNowCard(
       exercise?.kind,
       questionCount: exercise?.questionCount,
     ),
-    lines: planNowLines(priority),
+    // ⚠️ **Plus de constat ni de compteur ici** (2026-09-20) : cf. la note
+    // à [kPlanNowUnavailableText].
+    lines: const <String>[],
     cta: offre
         ? kPlanNowLockedCta
         : planNowCta(priority, verifier: verifier, mesure: false),

@@ -441,55 +441,6 @@ export function planNowCta(
     return priority.stepAttemptedCount > 0 ? PLAN_NOW_CTA_CONTINUE : PLAN_NOW_CTA_START;
 }
 
-/**
- * Les deux lignes de la carte d'action, **distinctes**.
- *
- * 1. le **constat** — ce que le correcteur a observé, préfixé de **l'action**
- *    que le Plan demande (« À renforcer : le lien de cause à effet reste peu
- *    développé. »), et sans préfixe sur une vérification ;
- * 2. la **progression** — « Progression : 3/5 sujets réalisés ».
- *
- * 🛑 Elles étaient **concaténées** en une seule phrase, où l'état et le
- * compteur se lisaient comme la suite du constat. Deux faits différents, deux
- * lignes.
- *
- * 🛑 La nature passe avant les compteurs : sur une compétence à acquérir,
- * « 0/5 » se lirait comme un retard alors qu'il n'y avait rien à traiter.
- *
- * ⚠️ Miroir mot pour mot du mobile (`planNowLines`).
- */
-export function planNowLines(priority: LearningPlanPriorityDto): string[] {
-    const lines: string[] = [];
-    if (priority.nature === "A_ACQUERIR") {
-        lines.push(PLAN_REASON_A_ACQUERIR);
-    } else if (priority.explanation) {
-        /* 🛑 **Le préfixe nomme l'ACTION de l'étape, pas un état mesuré.** Il
-           lisait `masteryState`, donc « Priorité : … » juste sous la pastille
-           « Priorité n°1 » — la répétition même qu'on cherchait à supprimer, et
-           un mot qui ne dit rien de ce qu'il y a à faire.
-
-           🛑 **Rien n'est fabriqué ici** : `nature` est servie et son libellé
-           est le miroir gelé de l'enum `PlanActionNature` (`SkillLabelsTest`),
-           comme tous les libellés d'enum du dépôt.
-
-           **Pas de préfixe sur une vérification** : la carte porte déjà
-           « Valider cette compétence » et l'encart « Vérification en
-           situation » ; « À vérifier : <une faiblesse> » serait une troisième
-           redite, et surtout ferait dire au constat autre chose que ce qu'il
-           dit — le constat décrit une fragilité observée, pas l'action. */
-        lines.push(priority.nature === "A_VERIFIER"
-            ? priority.explanation
-            : `${PLAN_ACTION_NATURE_LABEL[priority.nature]} : ${priority.explanation}`);
-    } else if (priority.readyForReassessment) {
-        lines.push(PLAN_REASON_A_VERIFIER);
-    }
-    if (priority.nature !== "A_ACQUERIR" && priority.stepPromptCount > 0) {
-        lines.push(
-            `Progression : ${priority.stepAttemptedCount}/${priority.stepPromptCount} sujets réalisés`,
-        );
-    }
-    return lines;
-}
 
 /**
  * **L'identité d'une étape** : son épreuve et son repère — « Compréhension
@@ -623,7 +574,12 @@ export interface PlanNowVue {
     /** La nature de l'exercice lancé. `null` sur une mesure : le sous-titre
      *  porte déjà le parcours réel. */
     kindLabel: string | null;
-    /** Le constat, ligne par ligne — jamais concaténé. */
+    /** Ce que la carte a à dire de plus, ligne par ligne.
+     *
+     *  ⚠️ **Vide sur une étape** depuis le 2026-09-20 : le constat du
+     *  correcteur et le compteur de série ont quitté cette carte (cf. la note
+     *  à `PLAN_NOW_UNAVAILABLE_TEXT`). Restent le motif d'une **mesure** et
+     *  l'explication d'une carte `INDISPONIBLE`. */
     lines: string[];
     cta: string;
     /** Le verrou **lu**, jamais déduit d'un rang. */
@@ -745,6 +701,21 @@ function carteEtapeServie(
  * prochaine évaluation, et c'est tout ce qu'on peut affirmer.
  *
  * ⚠️ Miroir mot pour mot du mobile (`kPlanNowUnavailableText`).
+ */
+/**
+ * **La carte d'action ne porte plus ni constat ni compteur** (demande du
+ * propriétaire, 2026-09-20).
+ *
+ * ⚠️ **Révoque `planNowLines`**, qui posait deux lignes sous le bouton :
+ * « À renforcer : <ce que le correcteur a observé> » et « Progression : 0/5
+ * sujets réalisés ». Les deux racontent le **passé** sur une carte qui annonce
+ * l'**action à mener**, juste sous un bouton qui parle du présent.
+ *
+ * 🛑 **Rien n'est perdu** : le constat vit sur la fiche de la compétence et sur
+ * le rapport de production, le compteur sur la fiche — chacun là où il se lit.
+ * Et la carte garde ses autres phrases, qui ne décrivent pas un passé : le
+ * motif d'une **mesure** et, sur une carte `INDISPONIBLE`, l'explication du
+ * garde-fou A25.
  */
 export const PLAN_NOW_UNAVAILABLE_TEXT =
     "Cette étape n'a pas d'exercice disponible pour l'instant. Votre prochaine évaluation la remettra à jour.";
@@ -1163,7 +1134,7 @@ export function planNowCard(
            MESURÉS**, servis : ils s'affichent pour tout le monde. Les retirer
            sur un compte gratuit floutait un résultat, ce que la contradiction
            #1 interdit explicitement (D-18). */
-        lines: planNowLines(priority),
+        lines: [],
         cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, verifier, false),
         locked,
     };

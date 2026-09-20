@@ -260,51 +260,6 @@ const String kPlanVerificationNote =
     'Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie '
     'tâche, en situation.';
 
-/// **Les deux lignes de la carte d'action**, distinctes.
-///
-/// 1. le **constat** — ce que le correcteur a observé, préfixé de **l'action**
-///    que le Plan demande (« À renforcer : le lien de cause à effet reste peu
-///    développé. »), et sans préfixe sur une vérification ;
-/// 2. la **progression** — « Progression : 3/5 sujets réalisés ».
-///
-/// 🛑 Elles étaient **concaténées** en une seule phrase, où l'état et le
-/// compteur se lisaient comme la suite du constat. Deux faits différents, deux
-/// lignes.
-///
-/// 🛑 La nature passe avant les compteurs : sur une compétence à acquérir,
-/// « 0/5 » se lirait comme un retard alors qu'il n'y avait rien à traiter.
-///
-/// ⚠️ **Miroir mot pour mot du web** (`planNowLines`, `lib/plan-domain.ts`).
-List<String> planNowLines(LearningPlanPriority priority) {
-  final lines = <String>[];
-  if (priority.nature == PlanActionNature.aAcquerir) {
-    lines.add(kPlanAcquisitionNote);
-  } else if (priority.explanation != null &&
-      priority.explanation!.trim().isNotEmpty) {
-    // 🛑 **Le préfixe nomme l'ACTION de l'étape, pas un état mesuré.** Il
-    // lisait `masteryState`, donc « Priorité : … » juste sous la pastille
-    // « Priorité n°1 » — la répétition même qu'on cherchait à supprimer.
-    //
-    // 🛑 **Rien n'est fabriqué ici** : `nature` est servie et son libellé est
-    // le miroir gelé de l'enum serveur (`SkillLabelsTest`).
-    //
-    // **Pas de préfixe sur une vérification** : la carte porte déjà « Valider
-    // cette compétence » et l'encart « Vérification en situation », et « À
-    // vérifier : <une faiblesse> » ferait dire au constat autre chose que ce
-    // qu'il dit.
-    lines.add(priority.nature == PlanActionNature.aVerifier
-        ? priority.explanation!
-        : '${priority.nature.label} : ${priority.explanation}');
-  } else if (priority.readyForReassessment) {
-    lines.add(kPlanVerificationNote);
-  }
-  if (priority.nature != PlanActionNature.aAcquerir &&
-      priority.stepPromptCount > 0) {
-    lines.add('Progression : ${priority.stepAttemptedCount}'
-        '/${priority.stepPromptCount} sujets réalisés');
-  }
-  return lines;
-}
 
 /// « Série de 20 questions » — la taille est **décidée serveur**. Sans elle, on
 /// ne l'invente pas.
@@ -500,6 +455,19 @@ const String kPlanNowMeasureCta = 'Compléter la mesure';
 /// prochaine évaluation, et c'est tout ce qu'on peut affirmer.
 ///
 /// ⚠️ Miroir mot pour mot du web (`PLAN_NOW_UNAVAILABLE_TEXT`).
+/// **La carte d'action ne porte plus ni constat ni compteur** (demande du
+/// propriétaire, 2026-09-20).
+///
+/// ⚠️ **Révoque `planNowLines`**, qui posait deux lignes sous le bouton :
+/// « À renforcer : ce que le correcteur a observé » et « Progression : 0/5
+/// sujets réalisés ». Les deux racontent le **passé** sur une carte qui annonce
+/// l'**action à mener**, juste sous un bouton qui parle du présent.
+///
+/// 🛑 **Rien n'est perdu** : le constat vit sur la fiche de la compétence et sur
+/// le rapport de production, le compteur sur la fiche — chacun là où il se lit.
+/// Et la carte garde ses autres phrases, qui ne décrivent pas un passé : le
+/// motif d'une **mesure** et, sur une carte `INDISPONIBLE`, l'explication du
+/// garde-fou A25.
 const String kPlanNowUnavailableText =
     "Cette étape n'a pas d'exercice disponible pour l'instant. Votre prochaine évaluation la remettra à jour.";
 
