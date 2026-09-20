@@ -12,8 +12,9 @@
 | Phase | État |
 |---|---|
 | P8.0 → P8.3, P8.A | ✅ **livrées**, `verify` vert |
-| **P8.4** | 🔶 **1 → 5 faits** (`V071`, `getOrCreate` par module, l'objectif servi, l'axe des blocs, l'amorce et les priorités, **l'écrivain d'observation**) — **6 à 9 restent** |
-| P8.5 → P8.9, doc | ⬜ pas commencées |
+| **P8.4** | ✅ **LIVRÉE EN ENTIER** — cette note est close. Suite : `REPRISE-LANCEE-3-ECRANS.md`. (Historique : 1 → 5 faits, puis 6 → 9 : R2 par unité, le branchement, la fin de cycle) |
+| P8.5 (freemium) · P8.2b (filtre de mention) | ✅ **livrées** |
+| P8.6 → P8.9 | ⬜ lancée 3 — `REPRISE-LANCEE-3-ECRANS.md` |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-50**, la règle
 générale **D-48** (`PROGRAMME ≠ CORPUS`) qui se lit seule, et les dettes **DETTE-M1** / **DETTE-P1**.
@@ -280,3 +281,16 @@ P8.7.
 servi, `journeyBlocMark` vide pour une thématique, `SkillMasteryEngine` qui lève, les deux sources
 civiques, les index jumeaux, une violation par test, le test de S-8 qui change de sens). La passe
 moteur reprend donc la numérotation à **A55**.
+
+---
+
+# ✅ NOTE CLOSE (2026-09-20)
+
+P8.4 est **livrée en entier**, P8.2b et P8.5 avec elle. La preuve est
+`ParcoursCiviqueDeBoutEnBoutIT` : un candidat du diagnostic à l'historisation, en six étapes.
+
+⚠️ **Cette note reste pour ce qu'elle apprend**, pas pour ce qu'elle annonce : les 8 pièges payés,
+les formes de migration, et les deux corrections qu'elle a dû s'appliquer à elle-même (le « sort à
+sec » de `getOrCreate`, qui était faux ; le cycle vide, qui était un état de transition).
+
+**La suite est ailleurs** : `docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md`.

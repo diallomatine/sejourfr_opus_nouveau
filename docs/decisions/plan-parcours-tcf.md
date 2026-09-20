@@ -2410,3 +2410,17 @@ règle n'ait bougé**.
 ⇒ Ils lisent désormais la liste **non plafonnée** (`ordrePourLeCycle`), et la règle générale est
 écrite dans `docs/plan-tests-backend.md` : **un test ne dépend jamais d'un choix du moteur qu'il ne
 fixe pas lui-même**. Trois occurrences en deux jours, toutes dans le même fichier de plan civique.
+
+
+---
+
+## 🛑 Où reprendre — la lancée 3 (les écrans)
+
+**`docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md`** — écrite à contexte frais le 2026-09-20,
+au format de celle de P8.4 : un **état**, pas un plan. Pour chacun des 5 points restants, ce qui est
+en place et ce qui manque, avec le fichier ; les **4 arbitrages de D-50** à appliquer sans les
+rouvrir ; les **9 pièges déjà payés** ; et les deux arrêts qui tiennent (P8.8 éditorial, P8.9
+bloquée).
+
+**Preuve de la lancée 2** : `ParcoursCiviqueDeBoutEnBoutIT` — un candidat du diagnostic à
+l'historisation, en six étapes.
