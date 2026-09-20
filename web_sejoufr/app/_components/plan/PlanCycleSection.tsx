@@ -2,8 +2,10 @@
 
 import {useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
-import {fullTcfExamApi, journeyApi} from "@/lib/api";
+import {attemptApi, fullTcfExamApi, journeyApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
+import {planHref, type ParcoursModule} from "@/lib/module-switch";
+import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {planStepAction} from "@/lib/plan-domain";
 import {
     JOURNEY_CYCLE_NOTE,
@@ -99,11 +101,17 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 export function PlanCycleSection({
     journey,
     plan,
+    module = "TCF",
 }: {
     /** `null` est un cas NORMAL — pas encore chargé, ou backend antérieur à
      *  l'endpoint : la section disparaît, elle n'affiche jamais un squelette. */
     journey: JourneyDto | null;
-    plan: LearningPlanDto;
+    /** Le Plan TCF, **seulement** pour résoudre l'action d'une étape TCF.
+     *  `null` côté civique : l'action y est la série sur l'**unité** servie. */
+    plan: LearningPlanDto | null;
+    /** 🛑 **Le module du cycle affiché** (D-50) : cette section est COMMUNE aux
+     *  deux, et c'est le module qui dit où repartir après une fin de cycle. */
+    module?: ParcoursModule;
 }) {
     if (!journey) return null;
 
@@ -144,7 +152,7 @@ export function PlanCycleSection({
     }
 
     if (!journey.cycle || journey.blocs.length === 0) return null;
-    return <CycleBody journey={journey} plan={plan} />;
+    return <CycleBody journey={journey} plan={plan} module={module} />;
 }
 
 /**
@@ -152,7 +160,11 @@ export function PlanCycleSection({
  * quatre états, et appeler un hook au-dessus de ces retours anticipés ferait
  * dépendre l'ordre des hooks d'une branche.
  */
-function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}) {
+function CycleBody({journey, plan, module}: {
+    journey: JourneyDto;
+    plan: LearningPlanDto | null;
+    module: ParcoursModule;
+}) {
     const cycle = journey.cycle!;
     const termine = journey.state === "CYCLE_COMPLETED";
 
@@ -180,9 +192,22 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
        🛑 **Une étape verrouillée ne lance rien depuis le Plan** : le Plan d'un
        compte sans accès est un constat, le déblocage passe par le bouton ancré
        en bas du cycle. */
+    /* Le geste civique vit dans le même hook que l'écran Réviser et le Plan
+       dérivé : la même unité ne peut pas s'ouvrir de deux façons. */
+    const serieCivique = useCivicUniteSerie();
+
     const actionDe = useCallback(
         (etape: JourneyStepDto): (() => void) | undefined => {
             if (etape.locked || busy) return undefined;
+            /* 🛑 **L'action d'une étape CIVIQUE est la série sur son UNITÉ**
+               (D-48, P8.7) : le Plan TCF n'a rien à en dire, et le lui demander
+               aurait rendu `null` — donc une ligne sans geste. */
+            if (module === "CIVIQUE") {
+                const unite = etape.unite;
+                if (!unite || etape.type !== "TRAIN_SKILL") return undefined;
+                return () => void serieCivique.start(unite.code);
+            }
+            if (!plan) return undefined;
             const action = planStepAction(plan, etape);
             if (!action) return undefined;
             if (action.mesure) {
@@ -192,7 +217,7 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
             const exercise = action.exercise!;
             return () => void exercises.start(exercise);
         },
-        [assessments, busy, exercises, plan],
+        [assessments, busy, exercises, module, plan, serieCivique],
     );
 
     return (
@@ -256,7 +281,10 @@ function CycleBody({journey, plan}: {journey: JourneyDto; plan: LearningPlanDto}
                 /* 🛑 **`examenCompletPossible` est SERVI** : il dit déjà « ce
                    cycle est un cycle de mesure », et le redéduire de
                    `cycle.cycleDeMesure` ferait deux autorités pour un fait. */
-                <NextStep examenCompletPossible={journey.nextStep.examenCompletPossible} />
+                <NextStep
+                    examenCompletPossible={journey.nextStep.examenCompletPossible}
+                    module={module}
+                />
             )}
 
             <PaywallSheet
@@ -342,7 +370,10 @@ function BlocBody({
  *
  * 🛑 **Un échec réseau se DIT** : le bouton ne reste jamais muet.
  */
-function NextStep({examenCompletPossible}: {examenCompletPossible: boolean}) {
+function NextStep({examenCompletPossible, module}: {
+    examenCompletPossible: boolean;
+    module: ParcoursModule;
+}) {
     const router = useRouter();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -352,25 +383,35 @@ function NextStep({examenCompletPossible}: {examenCompletPossible: boolean}) {
         setError(null);
         setBusy(true);
         try {
-            await journeyApi.refresh();
+            await journeyApi.refresh(module);
             /* Le cache est déjà purgé par `journeyApi` : il ne reste qu'à
                redemander le rendu de la route, qui relit Plan et parcours. */
             router.refresh();
-            router.replace("/plan?module=TCF");
+            router.replace(planHref(module));
         } catch {
             setError(JOURNEY_NEXT_STEP_ERROR);
         } finally {
             setBusy(false);
         }
-    }, [router]);
+    }, [module, router]);
 
     const examenComplet = useCallback(async () => {
         setError(null);
         setBusy(true);
         try {
-            await journeyApi.measurementCycle();
-            const exam = await fullTcfExamApi.start();
-            router.push(`/examens-blancs/tcf/${exam.id}`);
+            await journeyApi.measurementCycle(module);
+            /* 🛑 Le geste CRÉE le cycle de mesure, puis lance l'examen complet
+               par le chemin existant de SON module — il ne démarre rien par
+               lui-même côté serveur. */
+            if (module === "CIVIQUE") {
+                const exam = await attemptApi.start({
+                    type: "MOCK_EXAM", module: "CIVIQUE",
+                });
+                router.push(`/examen-blanc?attempt=${exam.id}`);
+            } else {
+                const exam = await fullTcfExamApi.start();
+                router.push(`/examens-blancs/tcf/${exam.id}`);
+            }
         } catch (cause) {
             /* Un **403** au démarrage de l'examen n'est pas une panne : c'est le
                verrou freemium que le serveur oppose, et il ouvre l'offre. Le
@@ -383,7 +424,7 @@ function NextStep({examenCompletPossible}: {examenCompletPossible: boolean}) {
         } finally {
             setBusy(false);
         }
-    }, [router]);
+    }, [module, router]);
 
     return (
         <Section title={JOURNEY_NEXT_STEP_TITLE}>

@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
+import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.CivicNotion;
 import com.sejourfr.app.entity.Theme;
@@ -16,6 +17,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.exception.BusinessException;
@@ -24,6 +26,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.CivicNotionManager;
+import com.sejourfr.app.manager.CivicOfficialUnitManager;
 import com.sejourfr.app.manager.CivicPlanManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.ThemeManager;
@@ -99,6 +102,7 @@ public class CivicPlanService {
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final QuestionManager questionManager;
+    private final CivicOfficialUnitManager unitManager;
     private final CivicPlanProperties props;
 
     /**
@@ -490,6 +494,91 @@ public class CivicPlanService {
      *              l'appelant le renvoie tel quel plutot que de deviner la
      *              nature d'un identifiant
      */
+    /**
+     * <b>Une serie ciblee sur une UNITE OFFICIELLE</b> — l'action d'une etape du
+     * cycle civique (D-48, P8.7).
+     *
+     * <p>🛑 <b>Pourquoi elle ne passe pas par {@link #demarrerSerie}</b> : celle-la
+     * travaille une <b>cible du plan derive</b> — une notion, ou un theme en
+     * mode degrade. Une etape du <b>cycle</b>, elle, porte une <b>unite
+     * officielle</b> : c'est le grain de l'arrete, et une unite regroupe
+     * jusqu'a 8 notions. Faire passer un id d'unite pour un id de cible aurait
+     * rate la cible dans le plan et rendu un 404 incomprehensible.
+     *
+     * <p>🛑 <b>Le tirage est celui du PROGRAMME</b> ({@code D-48}) : les
+     * questions de l'unite, plus les mises en situation de sa thematique quand
+     * l'unite EST celle des mises en situation. C'est le meme tirage que la
+     * composition d'examen — <b>une seule autorite</b> sur « quelles questions
+     * appartiennent a cette unite ».
+     *
+     * <p>🛑 <b>Premium</b> (D-33) : travailler une unite depuis le Plan fait
+     * partie de l'abonnement. Meme refus, meme phrase que la serie ciblee.
+     */
+    @Transactional
+    public AttemptResponse demarrerSerieSurUnite(UUID userId, String uniteCode) {
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+        if (!subscriptionService.hasCivique(userId)) {
+            throw new AccessDeniedException(
+                    "Les series ciblees font partie de l'abonnement. "
+                            + "Votre plan, lui, reste entier.");
+        }
+        // 🛑 Par CODE, pas par id : le code est l'identifiant STABLE du
+        // referentiel (`P2_LAICITE`), celui que le contrat sert deja dans
+        // `JourneyUniteRefDto`. Servir un uuid en plus aurait ajoute un second
+        // identifiant de la meme chose sur le fil.
+        CivicOfficialUnit unite = unitManager.findAllDansLOrdreDuProgramme().stream()
+                .filter(u -> u.getCode().equals(uniteCode))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException(
+                        "Cette unite ne fait pas partie du programme."));
+
+        int taille = props.getQuestionsParSerie();
+        List<Question> questions = unite.getQuestionType() == QuestionType.MISE_SITUATION
+                ? questionManager.findRandomMisesEnSituationExcluding(
+                        unite.getThemeCode(), null, List.of(), taille)
+                : questionManager.findRandomByOfficialUnitExcluding(
+                        unite.getId(), null, List.of(), taille);
+        if (questions.isEmpty()) {
+            // 🛑 On le DIT, on ne rend jamais une serie vide : un runner sans
+            // question est pire qu'un refus.
+            throw new BusinessException(
+                    "Aucune question disponible sur cette unité pour l'instant.");
+        }
+
+        Attempt attempt = nouvelleSerie(user, questions);
+        log.info("Serie civique sur unite : attempt={} user={} unite={} questions={}",
+                attempt.getId(), userId, unite.getCode(), questions.size());
+        List<AttemptQuestion> lignes =
+                attemptQuestionManager.findByAttemptOrderedByPosition(attempt.getId());
+        return attemptMapper.toResponse(attempt, lignes, false);
+    }
+
+    /**
+     * L'attempt d'une serie ciblee, quel que soit son grain. Extrait a sa
+     * 2e occurrence : deux copies auraient pu diverger sur le type, le module ou
+     * l'ordre des questions.
+     */
+    private Attempt nouvelleSerie(User user, List<Question> questions) {
+        Instant now = Instant.now();
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(Module.CIVIQUE);
+        attempt.setStatus(AttemptStatus.EN_COURS);
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(now);
+        Attempt enregistre = attemptManager.save(attempt);
+        for (int i = 0; i < questions.size(); i++) {
+            AttemptQuestion aq = new AttemptQuestion();
+            aq.setAttempt(enregistre);
+            aq.setQuestion(questions.get(i));
+            aq.setPosition(i);
+            attemptQuestionManager.save(aq);
+        }
+        return enregistre;
+    }
+
     @Transactional
     public AttemptResponse demarrerSerie(UUID userId, UUID cibleId, CivicPlanGrain grain) {
         User user = userManager.findById(userId)

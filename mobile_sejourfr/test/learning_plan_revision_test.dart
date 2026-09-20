@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/core/models/journey_models.dart';
 import 'package:sejourfr_mobile/core/api/learning_plan_repository.dart';
 import 'package:sejourfr_mobile/core/api/repositories.dart';
@@ -68,17 +69,24 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
   /// Le parcours n'entre pas dans ce que ce test verifie (la revision du Plan) :
   /// un appel serait un faux positif, pas une aide. Idem des deux gestes de fin
   /// de cycle, qui historisent — ce test ne les declenche jamais.
+  ///
+  /// ⚠️ Les quatre portent `module` depuis P8.7 : le cycle existe pour les deux
+  /// parcours, et c'est l'appelant qui dit lequel il affiche.
   @override
-  Future<Journey> journey() => throw UnimplementedError();
+  Future<Journey> journey({AppModule module = AppModule.tcf}) =>
+      throw UnimplementedError();
 
   @override
-  Future<Journey> refresh() => throw UnimplementedError();
+  Future<Journey> refresh({AppModule module = AppModule.tcf}) =>
+      throw UnimplementedError();
 
   @override
-  Future<Journey> measurementCycle() => throw UnimplementedError();
+  Future<Journey> measurementCycle({AppModule module = AppModule.tcf}) =>
+      throw UnimplementedError();
 
   @override
-  Future<JourneyHistory> history() => throw UnimplementedError();
+  Future<JourneyHistory> history({AppModule module = AppModule.tcf}) =>
+      throw UnimplementedError();
 }
 
 class _CountingLearningPlanRepository extends _FakeLearningPlanRepository {

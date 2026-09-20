@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/repositories.dart';
+import '../../../core/models/attempt_models.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/journey_models.dart';
@@ -16,13 +17,22 @@ import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../../module_detail/tcf_full_exams_screen.dart'
     show fullExamsHistoryProvider;
+import '../civic_serie_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
 import '../plan_now_card.dart';
 
-/// **Le cycle du Plan TCF** — tout ce que l'écran affiche à partir du titre
+/// **Le cycle du Plan** — tout ce que l'écran affiche à partir du titre
 /// « Votre parcours vers le B2 » (D-22, 2026-09-18).
+///
+/// 🛑 **Section COMMUNE aux deux modules depuis P8.7** (D-50, décision technique
+/// validée) : le cycle civique a le même moteur et les mêmes primitives, il
+/// n'avait aucune raison d'avoir un second écran. Ce qui change avec [module]
+/// tient en deux points, et deux seulement : **l'action d'une étape** (une série
+/// sur l'unité officielle servie, au lieu de l'exercice du Plan TCF) et **la
+/// sortie de fin de cycle** (l'examen civique complet, au lieu de l'examen TCF
+/// complet).
 ///
 /// Maquettes du propriétaire : `docs/progression/plan_cycle.html` et
 /// `docs/progression/cycle_termine.html`. Ordre, définitif :
@@ -53,9 +63,18 @@ class PlanCycleSection extends ConsumerStatefulWidget {
     super.key,
     required this.plan,
     required this.journey,
+    this.module = AppModule.tcf,
   });
 
-  final LearningPlan plan;
+  /// Le Plan TCF, **seulement** pour résoudre l'action d'une étape TCF.
+  /// 🛑 `null` côté civique : l'action y est la série sur l'**unité** servie, et
+  /// demander au Plan TCF de la résoudre aurait rendu `null` — donc une ligne
+  /// sans geste.
+  final LearningPlan? plan;
+
+  /// 🛑 **Le module du cycle affiché** (D-50) : c'est lui qui dit quelle série
+  /// une étape ouvre, et où repartir après une fin de cycle.
+  final AppModule module;
 
   /// 🛑 `null` est un cas NORMAL — pas encore lu, ou backend antérieur à
   /// l'endpoint : la section disparaît, elle n'affiche jamais un squelette.
@@ -264,7 +283,17 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// « Débloquer mon plan », ancrée sous le cycle.
   VoidCallback? _actionDe(JourneyStep etape) {
     if (etape.locked) return null;
-    final action = planStepAction(widget.plan, etape);
+    // 🛑 **L'action d'une étape CIVIQUE est la série sur son UNITÉ** (D-48,
+    // P8.7). Sans unité servie, ou sur un examen de bloc, rien ne s'ouvre
+    // d'ICI : l'examen se lance depuis son propre encart.
+    if (widget.module == AppModule.civique) {
+      final unite = etape.unite;
+      if (unite == null || etape.type != JourneyStepType.trainSkill) return null;
+      return () => unawaited(startCivicUniteSerie(context, ref, unite.code));
+    }
+    final plan = widget.plan;
+    if (plan == null) return null;
+    final action = planStepAction(plan, etape);
     if (action == null) return null;
     final mesure = action.mesure;
     if (mesure != null) {
@@ -361,17 +390,32 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   void _actualiser() {
     if (_occupe) return;
     unawaited(_faire(() async {
-      await ref.read(learningPlanRepositoryProvider).refresh();
+      await ref
+          .read(learningPlanRepositoryProvider)
+          .refresh(module: widget.module);
     }));
   }
 
   void _lancerExamenComplet() {
     if (_occupe) return;
     unawaited(_faire(() async {
-      await ref.read(learningPlanRepositoryProvider).measurementCycle();
+      await ref
+          .read(learningPlanRepositoryProvider)
+          .measurementCycle(module: widget.module);
       // Le cycle de mesure existe désormais : il reste à ouvrir l'examen, par
-      // le **chemin existant** — aucune route n'est créée.
-      ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+      // le **chemin existant de SON module** — aucune route n'est créée.
+      ref.read(selectedModuleProvider.notifier).state = widget.module;
+      if (widget.module == AppModule.civique) {
+        final attempt = await ref.read(attemptsRepositoryProvider).start(
+              StartAttemptRequest(
+                type: AttemptType.mockExam,
+                module: AppModule.civique,
+              ),
+            );
+        if (!mounted) return;
+        context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+        return;
+      }
       final exam = await ref.read(fullTcfExamRepositoryProvider).start();
       if (!mounted) return;
       ref.invalidate(fullExamsHistoryProvider);

@@ -35,7 +35,6 @@ import {
     JOURNEY_HISTORY_SECTION_SUB,
     JOURNEY_HISTORY_SECTION_TITLE,
     JOURNEY_HISTORY_TITLE,
-    journeyBlocTitle,
     journeyHistoryBlocSkills,
     journeyHistoryCycleMark,
     journeyHistoryCycleMeta,

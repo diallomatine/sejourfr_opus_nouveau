@@ -12,6 +12,9 @@ abstract interface class CivicPlanGateway {
 
   /// Ouvre la **série ciblée** d'une cible. 🛑 **403 sans abonnement**.
   Future<Attempt> serie(String cibleId, CivicPlanGrain grain);
+
+  /// Ouvre la série d'une **unité officielle**, par son code.
+  Future<Attempt> serieSurUnite(String uniteCode);
 }
 
 class CivicPlanRepository implements CivicPlanGateway {
@@ -38,6 +41,23 @@ class CivicPlanRepository implements CivicPlanGateway {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/me/civic-plan/cibles/$cibleId/serie',
       queryParameters: {'grain': grain.wire},
+    );
+    return Attempt.fromJson(res.data!);
+  }
+
+  /// Ouvre la série d'une **UNITÉ OFFICIELLE** — l'action d'une étape du
+  /// **cycle** civique (D-48, P8.7).
+  ///
+  /// 🛑 **Par CODE** (`P2_LAICITE`), l'identifiant stable du référentiel, celui
+  /// que le contrat sert déjà dans `JourneyUniteRef`. Deux grains, deux routes :
+  /// une cible du plan dérivé est une **notion**, une étape du cycle est une
+  /// **unité de l'arrêté**.
+  ///
+  /// 🛑 **403 sans abonnement** (D-33), à router vers l'offre.
+  @override
+  Future<Attempt> serieSurUnite(String uniteCode) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/me/civic-plan/unites/$uniteCode/serie',
     );
     return Attempt.fromJson(res.data!);
   }

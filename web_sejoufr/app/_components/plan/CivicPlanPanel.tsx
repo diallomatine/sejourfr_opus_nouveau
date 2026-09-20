@@ -1,14 +1,12 @@
 "use client";
 
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {useRouter} from "next/navigation";
+import {useEffect, useMemo, useState} from "react";
 import {Landmark, ListChecks, Lock} from "lucide-react";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {useCivicSerie} from "./useCivicSerie";
-import {civicPlanApi} from "@/lib/api";
+import {civicPlanApi, journeyApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
-  CIVIC_PLAN_LOCKED_CTA,
   CIVIC_PLAN_LOCKED_NOTE,
   CIVIC_PLAN_NOW_CTA,
   CIVIC_PLAN_NOW_TITLE,
@@ -17,22 +15,12 @@ import {
   CIVIC_PLAN_RESULT_TITLE,
   CIVIC_PLAN_REVIEW_TITLE,
   CIVIC_PLAN_WORK_CTA,
-  civicPlanAutresLabel,
   civicPlanGrainNote,
   civicPlanRaison,
   civicRevueLabel,
   civicSerieLabel,
-    CIVIC_PATH_LABELS,
-    CIVIC_CHANGES_TITLE,
-    CIVIC_PATH_TITLE,
-    civicChangesWindowLabel,
-    civicNextStepLabel,
-    civicTransitionLabel,
-    civicPath,
-    civicPathCounter,
 } from "@/lib/civic-plan";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
-import {handleStartFailure} from "@/lib/start-failure";
 import {
   canAccessModule,
   CIVIC_MAITRISE_LABEL,
@@ -40,17 +28,16 @@ import {
   type CivicPlanCibleDto,
   type CivicPlanDto,
   type CivicThemeState,
+  type JourneyDto,
 } from "@/lib/types";
 import {
   Card,
   Cta,
-  DoneRow,
+  GoalStrip,
   LockItem,
   LockList,
   NowCard,
   Pad,
-  PillMeta,
-  Pills,
   Prio,
   Section,
   Stack,
@@ -59,9 +46,12 @@ import {
   cx,
   sejourStyles,
   type Tone,
-  PathCard,
 } from "@/app/_components/sejour/SejourKit";
 import {PlanGate} from "./PlanGate";
+import {PlanCycleSection} from "./PlanCycleSection";
+import {useCivicUniteSerie} from "./use-civic-unite-serie";
+import {JOURNEY_LOCKED_BADGE, journeyStepSubtitle, journeyStepTitle} from "@/lib/journey";
+import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "@/lib/civique-examen";
 import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from "./PlanPaywallCard";
 
 /**
@@ -95,8 +85,10 @@ import {CIVIC_PLAN_PREMIUM_BENEFITS, CIVIC_PLAN_PREMIUM_TEXT, PlanPaywall} from 
  */
 export function CivicPlanPanel() {
   const {user} = useAuth();
-  const router = useRouter();
   const [plan, setPlan] = useState<CivicPlanDto | null>(null);
+  /* 🛑 **Le CYCLE civique** (D-50) : c'est lui qui porte « À faire maintenant »
+     et les blocs. `null` est un cas normal — pas encore lu. */
+  const [journey, setJourney] = useState<JourneyDto | null>(null);
   /* 🛑 Le geste vit dans `useCivicSerie`, partagé avec l'écran Réviser : la
      même cible ne peut pas s'ouvrir de deux façons selon l'écran. */
   const {enCours, erreur, paywall, setPaywall, commencer} = useCivicSerie();
@@ -106,6 +98,10 @@ export function CivicPlanPanel() {
     civicPlanApi.getCached().then(
       (p) => { if (vivant) setPlan(p); },
       () => { /* best-effort : jamais une erreur technique à la place d'un plan */ },
+    );
+    journeyApi.getCached("CIVIQUE").then(
+      (j) => { if (vivant) setJourney(j); },
+      () => { /* idem : le cycle absent fait disparaître sa section, pas l'écran */ },
     );
     return () => { vivant = false; };
   }, []);
@@ -136,7 +132,8 @@ export function CivicPlanPanel() {
   return (
     <>
       {premium
-        ? <CiviquePremium plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />
+        ? <CiviquePremium plan={plan} journey={journey} enCours={enCours}
+                          onStart={commencer} erreur={erreur} />
         : <CiviqueGratuit plan={plan} enCours={enCours} onStart={commencer} erreur={erreur} />}
       <PaywallSheet origin="plan" open={paywall} module="CIVIQUE" onClose={() => setPaywall(false)} />
     </>
@@ -145,6 +142,7 @@ export function CivicPlanPanel() {
 
 interface PanelProps {
   plan: CivicPlanDto;
+  journey?: JourneyDto | null;
   enCours: string | null;
   onStart: (cible: CivicPlanCibleDto) => void;
   erreur: string | null;
@@ -152,31 +150,41 @@ interface PanelProps {
 
 /* ----------------------------------------------------------------- abonné */
 
-function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
-  const grain = grainWord(plan);
-  const aConsolider = plan.prioritesVisibles.length + plan.autresPriorites;
-  const grainNote = civicPlanGrainNote(plan.grain);
-  const autres = civicPlanAutresLabel(plan);
+function CiviquePremium({plan, journey, enCours, onStart, erreur}: PanelProps) {
   const maintenant = useMemo(() => new Date(), []);
 
+  /* ⚠️ CE PANNEAU A ÉTÉ REFONDU (P8.7, D-50, 2026-09-20).
+     Il portait huit sections ; quatre d'entre elles n'étaient pas des « en
+     plus » mais des RETARDS — le TCF les a retirées les 18 et 19 septembre,
+     au motif qu'elles redisaient les blocs du cycle en moins précis et sous un
+     plafond d'affichage.
+
+     Ce qui PART : « Vos priorités », « Déjà travaillé et validé »,
+     « Progression détectée », et la carte de contexte (deux pastilles) — la
+     bande objectif la remplace. Le « parcours de la notion » part AVEC elles :
+     il illustrait la cible du plan dérivé, et la carte d'action ne la nomme
+     plus (voir ci-dessous).
+
+     Ce qui RESTE : « À revoir bientôt ». C'est le seul affichage du Leitner,
+     que le cycle ne porte pas — D-49 a posé deux autorités exactement pour ça,
+     et la supprimer perdrait un fait vrai. */
   return (
     <>
       <Top kicker="Votre préparation personnalisée à l'Examen civique" title="Mon plan du jour" />
 
-      <Pad>
-        <Card>
-          <Pills>
-            <PillMeta>{aConsolider} {grain.pluriel} à consolider</PillMeta>
-            {plan.aRevoirVisibles.length > 0 && (
-              <PillMeta>{plan.aRevoirVisibles.length} à revoir bientôt</PillMeta>
-            )}
-          </Pills>
-          <p className={sejourStyles.tiny}>
-            Le plan choisit {grain.leProchain} selon vos résultats, puis réévalue après chaque
-            séance.
-          </p>
-        </Card>
-      </Pad>
+      {/* 🛑 LA BANDE OBJECTIF (D-50 §1) : la démarche visée et le seuil, deux
+          FAITS du référentiel. ⛔ **Jamais un score d'entrée** — il se lirait
+          comme un niveau acquis alors que c'est un résultat d'examen blanc. */}
+      {journey?.objectif && (
+        <Pad>
+          <GoalStrip
+            currentLabel="Objectif"
+            current={journey.objectif.label}
+            goalLabel="Seuil de réussite"
+            goal={`${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`}
+          />
+        </Pad>
+      )}
 
       {erreur && (
         <Pad>
@@ -184,134 +192,101 @@ function CiviquePremium({plan, enCours, onStart, erreur}: PanelProps) {
         </Pad>
       )}
 
-      {/* La paire de tête de `civique-plan.tsx` : l'action du jour et le
-          parcours de la notion. Un seul des deux ⇒ il prend la rangée entière
-          (règle du kit, `:only-child`). */}
-      <div className={sejourStyles.deskPair}>
-        {plan.prochaine && (
-          <Section title={CIVIC_PLAN_NOW_TITLE}>
-            <Pad>
-              <CivicNowCard
-                cible={plan.prochaine}
-                badge="Priorité n°1"
-                busy={enCours === plan.prochaine.id}
-                onStart={() => onStart(plan.prochaine!)}
-              />
-            </Pad>
-          </Section>
-        )}
+      {/* 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), plus du plan
+          dérivé. Une seule réponse alimente la carte et la timeline — c'est ce
+          qui a supprimé, le 2026-09-16, la contradiction où l'Accueil annonçait
+          une action et le Plan une autre au même instant. */}
+      <CivicActionMaintenant journey={journey} />
 
-        {/* Le parcours de la notion en cours — c'est ICI que l'effet Leitner
-            devient visible : ce que le candidat a franchi, où il en est, et ce
-            qu'il reste avant que la notion soit tenue. */}
-        {plan.prochaine && plan.prochaine.parcours.length > 0 && (
-          <Section title={`${CIVIC_PATH_TITLE} — ${plan.prochaine.label}`} flush>
-            <PathCard
-              // Aucune étape en cours = la notion est tenue : on nomme la
-              // dernière plutôt que de laisser l'en-tête vide.
-              currentLabel={
-                civicPath(plan.prochaine).find((e) => e.state === "now")?.label
-                ?? CIVIC_PATH_LABELS[CIVIC_PATH_LABELS.length - 1]
-              }
-              counterLabel={civicPathCounter(plan.prochaine)}
-              steps={civicPath(plan.prochaine)}
-            />
-          </Section>
-        )}
-      </div>
+      {/* Le cycle en blocs — la MÊME section que le TCF, module en paramètre. */}
+      <PlanCycleSection journey={journey ?? null} plan={null} module="CIVIQUE" />
 
-      {plan.prioritesVisibles.length > 0 && (
-        <Section title={CIVIC_PLAN_PRIORITIES_TITLE}>
-          <Pad>
-            <Stack className={sejourStyles.deskGrid}>
-              {plan.prioritesVisibles.slice(0, 3).map((cible, index) => (
-                <Prio
-                  key={cible.id}
-                  rank={index === 0 ? 1 : index === 1 ? 2 : 3}
-                  tag={cible.themeLabel}
-                  title={cible.label}
-                  text={`${CIVIC_MAITRISE_LABEL[cible.maitrise]} · ${civicPlanRaison(cible)}`}
-                >
+      {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
+          acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
+          montre l'état de maîtrise et l'échéance, tous deux servis. */}
+      {plan.aRevoirVisibles.length > 0 && (
+        <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
+          <Card variant="soft">
+            <p className={sejourStyles.label}>Révision courte</p>
+            <Stack>
+              {plan.aRevoirVisibles.map((cible) => (
+                <div key={cible.id}>
+                  <b>{cible.label}</b>
+                  <p className={sejourStyles.tiny}>
+                    {CIVIC_MAITRISE_LABEL[cible.maitrise]}
+                    {civicRevueLabel(cible, maintenant)
+                      ? ` · ${civicRevueLabel(cible, maintenant)}`
+                      : ""}
+                  </p>
                   <button
                     type="button"
                     className={sejourStyles.link}
                     disabled={enCours === cible.id}
                     onClick={() => onStart(cible)}
                   >
-                    {cible.locked ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA}
+                    {CIVIC_PLAN_WORK_CTA}
                   </button>
-                </Prio>
+                </div>
               ))}
             </Stack>
-            {autres && <p className={sejourStyles.tiny}>{autres}</p>}
-          </Pad>
-        </Section>
-      )}
-
-      {/* La seconde paire de la maquette : l'acquis et l'entretien. */}
-      <div className={sejourStyles.deskPair}>
-        {plan.solides.length > 0 && (
-          <Section title="Déjà travaillé et validé">
-            <Pad>
-              <Card padding="rows">
-                {plan.solides.map((cible) => (
-                  <DoneRow
-                    key={cible.id}
-                    label={`${cible.label} — ${CIVIC_MAITRISE_LABEL[cible.maitrise]}`}
-                  />
-                ))}
-              </Card>
-            </Pad>
-          </Section>
-        )}
-
-        {/* 🛑 Secondaire, et JAMAIS présenté comme une alerte : ce sont des points
-            acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
-            montre l'état de maîtrise et l'échéance, tous deux servis. */}
-        {plan.aRevoirVisibles.length > 0 && (
-          <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
-            <Card variant="soft">
-              <p className={sejourStyles.label}>Révision courte</p>
-              <Stack>
-                {plan.aRevoirVisibles.map((cible) => (
-                  <div key={cible.id}>
-                    <b>{cible.label}</b>
-                    <p className={sejourStyles.tiny}>
-                      {CIVIC_MAITRISE_LABEL[cible.maitrise]}
-                      {civicRevueLabel(cible, maintenant)
-                        ? ` · ${civicRevueLabel(cible, maintenant)}`
-                        : ""}
-                    </p>
-                  </div>
-                ))}
-              </Stack>
-            </Card>
-          </Section>
-        )}
-      </div>
-
-      {/* 🛑 `changements === null` est le cas NORMAL : le bloc DISPARAÎT, il ne
-          s'affiche jamais vide. C'est le seul endroit où le candidat voit son
-          plan bouger — l'user d'un « rien n'a changé » le rendrait invisible. */}
-      {plan.changements && (
-        <Section title={CIVIC_CHANGES_TITLE} flush>
-          <Card variant="ok">
-            <p className={sejourStyles.label}>
-              {civicChangesWindowLabel(plan.changements)}
-            </p>
-            {plan.changements.transitions.map((t) => (
-              <DoneRow key={t.cibleId} label={civicTransitionLabel(t)} />
-            ))}
-            {plan.changements.nouvellePriorite && (
-              <p className={sejourStyles.insight}>
-                {civicNextStepLabel(plan.changements.nouvellePriorite)}
-              </p>
-            )}
           </Card>
         </Section>
       )}
+    </>
+  );
+}
 
-      {grainNote && <p className={sejourStyles.footNote}>{grainNote}</p>}
+/**
+ * **« À faire maintenant », depuis le CYCLE** (D-50 §2).
+ *
+ * 🛑 **L'étape courante est SERVIE** (`journey.current`) : l'écran ne choisit
+ * pas quoi faire ensuite, il l'affiche. Son geste est la série sur l'**unité**
+ * de l'étape, quand elle en porte une — un examen de bloc, lui, se lance depuis
+ * son encart dans le cycle.
+ *
+ * 🛑 `null` est un cas NORMAL : cycle terminé, plus rien à faire, ou rien
+ * d'exécutable. La carte disparaît, elle n'affiche jamais un squelette.
+ */
+function CivicActionMaintenant({journey}: {journey?: JourneyDto | null}) {
+  const serie = useCivicUniteSerie();
+  const etape = journey?.current ?? null;
+  if (!etape) return null;
+
+  const unite = etape.unite;
+  const sousTitre = journeyStepSubtitle(etape);
+  return (
+    <>
+      <Section title={CIVIC_PLAN_NOW_TITLE}>
+        <Pad>
+          <NowCard
+            icon={Landmark}
+            title={journeyStepTitle(etape)}
+            subtitle={etape.bloc?.label}
+            badge={etape.locked ? JOURNEY_LOCKED_BADGE : undefined}
+            /* `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche
+               alors aucune méta plutôt qu'une ligne vide. */
+            meta={sousTitre ? [{icon: ListChecks, label: sousTitre}] : undefined}
+          >
+            {/* 🛑 Un geste seulement quand il y en a un : une étape verrouillée
+                ou un examen de bloc n'ouvre rien ICI. C'est le garde-fou du
+                2026-09-17 — rien ne se résout ⇒ aucun bouton. */}
+            {unite && !etape.locked && (
+              <Cta onClick={() => void serie.start(unite.code)}>
+                {serie.enCours === unite.code ? "Ouverture…" : CIVIC_PLAN_WORK_CTA}
+              </Cta>
+            )}
+          </NowCard>
+          {serie.erreur && (
+            <p className={sejourStyles.tiny} role="alert">{serie.erreur}</p>
+          )}
+        </Pad>
+      </Section>
+      <PaywallSheet
+        origin="plan"
+        open={serie.paywall}
+        module="CIVIQUE"
+        onClose={() => serie.setPaywall(false)}
+      />
     </>
   );
 }
@@ -486,12 +461,4 @@ function themeTone(etat: CivicThemeState): Tone {
   if (etat === "SOLIDE") return "ok";
   if (etat === "NON_EVALUE") return "muted";
   return "warn";
-}
-
-/** Le mot du grain, **lu** sur `grain.courant` : le plan ne se présente jamais
- *  plus précis qu'il ne l'est. */
-function grainWord(plan: CivicPlanDto) {
-  return plan.grain.courant === "NOTION"
-    ? {pluriel: "notions", leProchain: "la prochaine notion"}
-    : {pluriel: "thèmes", leProchain: "le prochain thème"};
 }

@@ -10,6 +10,15 @@ import '../../core/widgets/sejour/sejour_kit.dart';
 /// **miroirs mot pour mot** de `web_sejoufr/lib/civic-plan.ts` : un libellé qui
 /// bouge, ce sont deux fichiers dans la même passe.
 ///
+/// ⚠️ **Le miroir porte sur le TEXTE, pas sur l'inventaire** (P8.7, 2026-09-20).
+/// La refonte du plan civique abonné (D-50) a vidé cet écran de ses sections
+/// dérivées, et chaque front a supprimé **ce que lui ne lit plus** : l'écran
+/// gratuit du mobile garde trois helpers que le web n'a jamais montrés
+/// ([civicPlanAutresLabel], [kCivicPlanLockedCta], [CivicCibleTone]), ils vivent
+/// donc désormais côté Dart seulement. Ce n'est pas un oubli de parité : c'est
+/// une divergence de l'écran **gratuit**, antérieure à cette passe, et aucun
+/// libellé partagé n'a bougé.
+///
 /// ⚠️ `20_` §10 prévoyait un `civic_plan_item.reason_text` calculé serveur. Il
 /// n'existe pas, et c'est délibéré : un texte composé côté serveur ne se relit
 /// pas dans deux mises en page différentes.
@@ -23,15 +32,16 @@ const String kCivicPlanLockedCta = 'Débloquer cette série';
 const String kCivicPlanLockedNote =
     'Les séries ciblées font partie de l\'abonnement. Votre plan, lui, reste entier.';
 
-/// Bloc 4 — les priorités.
+/// Bloc 4 — les priorités. 🛑 Ne subsiste que sur l'écran **gratuit** : le plan
+/// d'un abonné lit le cycle (D-50 §2), qui est l'autorité de l'ordre.
 const String kCivicPlanPrioritiesTitle = 'Vos priorités';
+
+/// Le geste d'une cible ou d'une unité, hors carte d'action. Miroir de
+/// `CIVIC_PLAN_WORK_CTA` (`web_sejoufr/lib/civic-plan.ts`).
+const String kCivicPlanWorkCta = 'Travailler';
+
 /// Bloc 5 — révision d'entretien. 🛑 Jamais présentée comme une alerte.
 const String kCivicPlanReviewTitle = 'À revoir bientôt';
-
-/// Aucune priorité : ce n'est pas un vide, c'est un état.
-const String kCivicPlanAllGoodTitle = 'Rien ne ressort comme prioritaire';
-const String kCivicPlanAllGoodText =
-    'Enchaînez sur un examen blanc pour vous mettre en conditions réelles.';
 
 /// La note de grain — elle **dit** à quel niveau le plan travaille.
 ///
@@ -85,14 +95,6 @@ String civicPlanRaison(CivicPlanCible cible) {
 /// une absence de mesure, pas un échec.
 enum CivicCibleTone { hot, warn, ok, muted }
 
-CivicCibleTone civicCibleTone(CivicPlanCible cible) => switch (cible.maitrise) {
-      CivicMaitrise.aTravailler =>
-        cible.erreursRecentes > 0 ? CivicCibleTone.hot : CivicCibleTone.warn,
-      CivicMaitrise.enProgression => CivicCibleTone.warn,
-      CivicMaitrise.maitrisee => CivicCibleTone.ok,
-      CivicMaitrise.nonEvaluee => CivicCibleTone.muted,
-    };
-
 /// « à revoir dans 2 jours ». `null` quand l'échéance est absente.
 String? civicRevueLabel(CivicPlanCible cible, DateTime maintenant) {
   final revue = cible.prochaineRevue;
@@ -109,32 +111,6 @@ const String kCivicPlanTopKicker =
     'Votre préparation personnalisée à l\'Examen civique';
 const String kCivicPlanTopKickerFree = 'Créé à partir de votre diagnostic';
 const String kCivicPlanScreenTitle = 'Mon plan du jour';
-
-/// Ce que fait le moteur. Le mot varie avec le **grain servi** : tant que les
-/// questions ne sont pas taguées, le plan choisit un thème, pas une notion.
-String civicPlanEngineLine(CivicPlanGrainDto grain) {
-  final nom = grain.courant == CivicPlanGrain.notion ? 'notion' : 'thème';
-  return 'Le plan choisit le prochain $nom selon vos résultats, puis réévalue '
-      'après chaque séance.';
-}
-
-/// « 3 thèmes à renforcer » — compté sur les **états de thème servis**, jamais
-/// sur un score. `null` quand rien n'est à renforcer : « 0 thème à renforcer »
-/// se lit comme une panne alors que c'est une bonne nouvelle.
-String? civicPlanThemesPill(CivicPlan plan) {
-  final n = civicPlanThemesATravailler(plan).length;
-  if (n == 0) return null;
-  return '$n thème${n > 1 ? 's' : ''} à renforcer';
-}
-
-/// « 8 notions à consolider » — le plafond d'affichage **plus** le reste servi
-/// (`autresPriorites`). Un plafond d'affichage n'est jamais un budget.
-String? civicPlanCiblesPill(CivicPlan plan) {
-  final n = plan.prioritesVisibles.length + plan.autresPriorites;
-  if (n == 0) return null;
-  final nom = plan.grain.courant == CivicPlanGrain.notion ? 'notion' : 'thème';
-  return '$n $nom${n > 1 ? 's' : ''} à consolider';
-}
 
 /// **Les thèmes du plan**, dédupliqués dans l'ordre servi (priorités d'abord,
 /// puis les révisions, puis les acquis).
@@ -202,7 +178,6 @@ const String kCivicPlanThemesTitle = 'Thèmes à travailler';
 /// cible passe maintenant.
 const String kCivicPlanNowWhy = 'Pourquoi maintenant';
 
-const String kCivicPlanDoneTitle = 'Déjà travaillé et validé';
 const String kCivicPlanReviewPill = 'Révision courte';
 
 /// La ligne d'une révision d'entretien. 🛑 **La boîte Leitner ne s'affiche
@@ -216,10 +191,6 @@ String civicPlanReviewText(CivicPlanCible cible, DateTime maintenant) {
       : '$base Une courte révision est prévue $revue, pour vérifier qu\'elle '
           'tient encore.';
 }
-
-/// La ligne cochée d'une cible acquise.
-String civicPlanDoneRow(CivicPlanCible cible) =>
-    '${cible.label} — ${cible.maitrise.label}';
 
 /* ------------------------------------------- le plan d'un compte sans pass  */
 
@@ -276,71 +247,27 @@ const String kCivicPassNote =
     'Le tarif est celui du Pass Civique, pas un abonnement mensuel. Vous le '
     'choisissez à l\'écran suivant.';
 
-const String kCivicPlanExamCta = 'Faire un examen blanc';
+/* ⚠️ **SUPPRIMÉS par la refonte du plan civique abonné** (P8.7, D-50,
+   2026-09-20), avec leur dernier lecteur — « refonte = suppression immédiate de
+   l'ancien » :
 
-/// Le badge de la carte d'action : son rang, pas le titre de la section.
-const String kCivicPlanNowBadge = 'Priorité n°1';
+   - `kCivicPathLabels` / `kCivicPathTitle` / `civicPath` / `civicPathCounter`
+     — le « parcours de la notion ». Il illustrait la cible du plan **dérivé**,
+     et « À faire maintenant » lit désormais le **cycle** : les cinq étapes du
+     Leitner n'ont plus d'écran où se poser.
+   - `kCivicChangesTitle` / `civicTransitionLabel` / `civicNextStepLabel` —
+     « Progression détectée ». Le TCF l'a retirée le 2026-09-19 : elle redisait
+     les blocs du cycle en moins précis.
+   - `civicPlanEngineLine`, `civicPlanThemesPill`, `civicPlanCiblesPill` — la
+     carte de contexte, que la bande objectif remplace (D-50 §1). C'est aussi la
+     2ᵉ occurrence de `DETTE-P1` qui disparaît : mobile disait « 4 thèmes /
+     17 notions » et web « 17 à consolider / 3 à revoir », même carte, faits
+     différents.
+   - `kCivicPlanDoneTitle` / `civicPlanDoneRow` (« Déjà travaillé et validé »),
+     `kCivicPlanAllGoodTitle` / `_Text` et `kCivicPlanExamCta` (l'état « rien
+     d'urgent », que le cycle dit mieux), `kCivicPlanNowBadge` (le rang, qui
+     n'avait de sens que sur la carte d'un abonné), `civicCibleTone` (la
+     fonction ; l'enum [CivicCibleTone] reste, dix lecteurs).
 
-/* ------------------------------------------------ Le parcours d'une cible */
-
-/// **Les 5 étapes d'une notion**, du premier contact à la maîtrise tenue.
-///
-/// 🛑 Libellés **gelés** : le serveur sert l'ÉTAT de chaque étape
-/// (`Cible.parcours`), jamais sa phrase. Miroir mot pour mot de
-/// `CIVIC_PATH_LABELS` (`web_sejoufr/lib/civic-plan.ts`).
-const List<String> kCivicPathLabels = <String>[
-  'Comprendre l\'essentiel',
-  'Première série ciblée',
-  'Corriger vos confusions',
-  'Série de validation',
-  'Vérifier la maîtrise',
-];
-
-const String kCivicPathTitle = 'Votre parcours';
-
-/// Le parcours d'une cible : l'état **servi** de chaque étape, habillé du
-/// libellé gelé de son rang.
-///
-/// 🛑 **Rien n'est dérivé ici.** Une première version calculait ces états depuis
-/// `boite` — un front qui classe un nombre en état pédagogique, ce que le dépôt
-/// interdit. Le serveur les sert (`CivicLeitner.parcours`), l'écran les affiche.
-List<SfPathStep> civicPath(CivicPlanCible cible) => <SfPathStep>[
-      for (var i = 0;
-          i < cible.parcours.length && i < kCivicPathLabels.length;
-          i++)
-        SfPathStep(
-          label: kCivicPathLabels[i],
-          state: switch (cible.parcours[i]) {
-            CivicEtapeEtat.franchie => SfStepState.done,
-            CivicEtapeEtat.enCours => SfStepState.now,
-            CivicEtapeEtat.aVenir => SfStepState.todo,
-          },
-        ),
-    ];
-
-/// « Étape 3 / 5 » — le rang de l'étape en cours, lu sur ce qui est servi.
-String civicPathCounter(CivicPlanCible cible) {
-  final total = cible.parcours.length < kCivicPathLabels.length
-      ? cible.parcours.length
-      : kCivicPathLabels.length;
-  final rang = cible.parcours.indexOf(CivicEtapeEtat.enCours) + 1;
-  // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
-  return 'Étape ${rang > 0 ? rang : total} / $total';
-}
-
-/* ------------------------------------------- « Progression détectée » */
-
-const String kCivicChangesTitle = 'Progression détectée';
-
-/// Ce qu'une transition **servie** raconte : « Le Parlement passe à En
-/// progression ».
-///
-/// 🛑 Le verdict vient du serveur (`avant`, `apres`, `progres`) : cette
-/// fonction ne compare rien, elle met en mots. Le libellé d'état est celui,
-/// gelé, de [CivicMaitrise.label]. Miroir de `civicTransitionLabel` côté web.
-String civicTransitionLabel(CivicPlanTransition t) =>
-    '${t.label} passe à ${t.apres.label}';
-
-/// « Votre prochaine étape : Le Gouvernement ».
-String civicNextStepLabel(CivicPlanCibleRef ref) =>
-    'Votre prochaine étape : ${ref.label}';
+   🛑 `CivicPlan.changements` et `Cible.parcours` restent **servis** et restent
+   dans le modèle : c'est l'affichage qui part, pas le contrat.  */

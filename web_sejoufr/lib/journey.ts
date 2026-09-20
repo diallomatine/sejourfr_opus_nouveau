@@ -1,6 +1,5 @@
 import type {
     JourneyBlocRefDto,
-    EpreuveType,
     JourneyBlocDto,
     JourneyBlocStatus,
     JourneyCycleDto,
@@ -12,9 +11,7 @@ import type {
     JourneyStepDto,
     SkillSection,
     SkillTaskCode,
-    TargetLevel,
 } from "./types";
-import {EPREUVE_PRESENTATION} from "./exam-durations";
 import type {
     BarTone,
     JourneyKind,
@@ -367,6 +364,16 @@ export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): str
  */
 export const JOURNEY_STEP_ACTION_LINK = "Faire cette étape →";
 
+/**
+ * Le badge d'une étape **verrouillée**, sur la carte « À faire maintenant ».
+ *
+ * 🛑 Déclaré ICI et pas dans l'écran : la carte civique et la carte TCF disent
+ * le même verrou, et il était écrit en dur dans le panneau civique. Miroir mot
+ * pour mot de `kJourneyLockedBadge`
+ * (`mobile .../screens/plan/journey_labels.dart`).
+ */
+export const JOURNEY_LOCKED_BADGE = "Verrouillé";
+
 /** La note de pied du cycle — la liberté d'ordre, et sa seule exception. */
 export const JOURNEY_CYCLE_NOTE =
     "Vous pouvez travailler les compétences dans l'ordre que vous voulez. " +
@@ -420,20 +427,6 @@ export const JOURNEY_NEXT_STEP_BUSY = "Un instant…";
 function epreuveLabel(step: JourneyStepDto): string {
     /* 🛑 Servi (D-47). Vaut pour une épreuve TCF comme pour une thématique. */
     return step.bloc ? step.bloc.label : "Épreuve";
-}
-
-/** 🛑 **Une seule table de noms d'épreuve** : `EPREUVE_PRESENTATION`. Elle
- *  couvre les quatre épreuves du TCF IRN et rien d'autre. */
-function epreuveNom(examType: EpreuveType): string {
-    if (
-        examType === "TCF_CO"
-        || examType === "TCF_CE"
-        || examType === "TCF_EE"
-        || examType === "TCF_EO"
-    ) {
-        return EPREUVE_PRESENTATION[examType].label;
-    }
-    return "Épreuve";
 }
 
 function sectionLabel(section: SkillSection): string {
@@ -580,14 +573,6 @@ export function journeyHistoryLevelState(
  * sur leur bloc), jamais la liste des quatre : annoncer une épreuve qui n'a
  * rien enregistré serait une mesure inventée.
  */
-/** 🛑 L'initiale d'une épreuve TCF, pour le seul historique — voir `journeyHistoryLevelNote`. */
-const EPREUVE_INITIALE: Record<string, string> = {
-    TCF_CO: "CO",
-    TCF_CE: "CE",
-    TCF_EE: "EE",
-    TCF_EO: "EO",
-};
-
 export function journeyHistoryLevelNote(cycle: JourneyHistoryCycleDto): string {
     const marks = cycle.blocs
         .filter((bloc) => bloc.examens > 0)

@@ -1,6 +1,7 @@
 // Client HTTP minimal vers le backend Spring Boot.
 // Compatible Server Components et Client Components (Next 16 / App Router).
 
+import type {ParcoursModule} from "./module-switch";
 import type {
   AnswerResultResponse,
   ApiError,
@@ -925,11 +926,18 @@ function fetchLearningPlan(): Promise<LearningPlanDto> {
  * plate `steps`, remplacée par les blocs — qui portent **toujours** toutes les
  * étapes, sans plafond d'affichage donc sans repli à déplier.
  */
-function fetchJourney(): Promise<JourneyDto> {
-    return apiFetch<JourneyDto>("/api/me/plan/journey", {auth: true});
+function fetchJourney(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+    /* 🛑 **`?module=` depuis P8.7** : le cycle existe pour les DEUX modules, et
+       le toggle vit déjà dans l'URL — une seule autorité de sélection. */
+    return apiFetch<JourneyDto>(`/api/me/plan/journey?module=${module}`, {auth: true});
 }
 
 const JOURNEY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey`;
+
+/** La clé du cycle de CE module. Le TCF garde la clé historique. */
+function journeyCacheKey(module: ParcoursModule): string {
+    return module === "TCF" ? JOURNEY_CACHE_KEY : `${JOURNEY_CACHE_KEY}-${module}`;
+}
 const JOURNEY_HISTORY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey-history`;
 
 export const journeyApi = {
@@ -942,11 +950,17 @@ export const journeyApi = {
      * jamais la carte « À faire maintenant » sur une étape périmée — les deux
      * lectures se rafraîchissent **ensemble**, jamais l'une sans l'autre.
      */
-    getCached(): Promise<JourneyDto> {
-        return cached(JOURNEY_CACHE_KEY, () => fetchJourney());
+    /**
+     * 🛑 **Une clé de cache PAR MODULE** : les deux cycles sont deux réponses
+     * différentes, et les servir sous la même clé aurait montré le cycle TCF
+     * sur l'onglet civique — au premier changement d'onglet.
+     */
+    getCached(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+        return cached(journeyCacheKey(module), () => fetchJourney(module));
     },
 
     cacheKey: JOURNEY_CACHE_KEY,
+    cacheKeyFor: journeyCacheKey,
 
     /**
      * **L'historique des cycles** — l'archive derrière « Voir ma progression ».
@@ -960,15 +974,19 @@ export const journeyApi = {
      * l'archive ne peut pas rester en retard d'un cycle sur l'écran qui vient
      * de le fermer.
      */
-    history(): Promise<JourneyHistoryDto> {
-        return cached(JOURNEY_HISTORY_CACHE_KEY, () =>
-            apiFetch<JourneyHistoryDto>("/api/me/plan/journey/history", {auth: true}));
+    history(module: ParcoursModule = "TCF"): Promise<JourneyHistoryDto> {
+        return cached(
+            module === "TCF"
+                ? JOURNEY_HISTORY_CACHE_KEY
+                : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`,
+            () => apiFetch<JourneyHistoryDto>(
+                `/api/me/plan/journey/history?module=${module}`, {auth: true}));
     },
 
     historyCacheKey: JOURNEY_HISTORY_CACHE_KEY,
 
-    peekCached(): JourneyDto | undefined {
-        return peekCached<JourneyDto>(JOURNEY_CACHE_KEY);
+    peekCached(module: ParcoursModule = "TCF"): JourneyDto | undefined {
+        return peekCached<JourneyDto>(journeyCacheKey(module));
     },
 
     /**
@@ -982,9 +1000,9 @@ export const journeyApi = {
      * 🛑 **Une écriture de MESURE** : elle change le Plan, la préparation et les
      * progrès autant que le parcours, d'où la purge groupée.
      */
-    async refresh(): Promise<JourneyDto> {
+    async refresh(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
         const journey = await apiFetch<JourneyDto>(
-            "/api/me/plan/journey/refresh",
+            `/api/me/plan/journey/refresh?module=${module}`,
             {method: "POST", auth: true},
         );
         invalidateDiagnosticAndPlan();
@@ -998,9 +1016,9 @@ export const journeyApi = {
      * `fullTcfExamApi.start`, son unique point d'entrée. **409** si le cycle
      * n'est pas terminé, ou s'il est déjà un cycle de mesure.
      */
-    async measurementCycle(): Promise<JourneyDto> {
+    async measurementCycle(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
         const journey = await apiFetch<JourneyDto>(
-            "/api/me/plan/journey/measurement-cycle",
+            `/api/me/plan/journey/measurement-cycle?module=${module}`,
             {method: "POST", auth: true},
         );
         invalidateDiagnosticAndPlan();
@@ -1275,6 +1293,27 @@ export const civicPlanApi = {
         invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
         return apiFetch<AttemptResponse>(
             `/api/me/civic-plan/cibles/${cibleId}/serie?grain=${grain}`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /**
+     * Ouvre la série d'une **UNITÉ OFFICIELLE** — l'action d'une étape du
+     * **cycle** (D-48, P8.7).
+     *
+     * 🛑 **Par CODE** (`P2_LAICITE`), l'identifiant stable du référentiel, celui
+     * que le contrat sert déjà dans `JourneyUniteRefDto`. Deux grains, deux
+     * routes : une cible du plan est une notion, une étape du cycle est une
+     * unité de l'arrêté.
+     *
+     * 🛑 **403 sans abonnement** (D-33), à router vers l'offre.
+     */
+    serieSurUnite(uniteCode: string): Promise<AttemptResponse> {
+        // La série fait bouger le plan dérivé ET le cycle : les deux caches
+        // partent ensemble, jamais l'un sans l'autre.
+        invalidateDiagnosticAndPlan();
+        return apiFetch<AttemptResponse>(
+            `/api/me/civic-plan/unites/${uniteCode}/serie`,
             {method: "POST", auth: true},
         );
     },

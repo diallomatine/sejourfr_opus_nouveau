@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 
 /// **Le signal « l'avancement du candidat a changé »** : une production
@@ -88,6 +89,32 @@ final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
   final link = ref.keepAlive();
   try {
     return await ref.watch(learningPlanRepositoryProvider).journey();
+  } catch (_) {
+    link.close();
+    rethrow;
+  }
+});
+
+/// **Le cycle CIVIQUE**, gardé en vie aux mêmes conditions que le parcours TCF.
+///
+/// 🛑 **Un provider PAR MODULE, jamais un `family` sur le module** : les deux
+/// cycles sont deux réponses différentes, et les servir sous la même clé aurait
+/// montré le cycle TCF sur l'onglet civique — au premier changement d'onglet.
+/// C'est le pendant Dart des clés de cache par module du web
+/// (`journeyApi.cacheKeyFor`).
+///
+/// 🛑 **Mêmes points de fraîcheur que le plan civique** : une série sur unité,
+/// un examen de thème ou une fin de cycle bougent les deux, et deux lectures du
+/// même candidat qui se contrediraient à l'écran est exactement le défaut que
+/// le 2026-09-16 a corrigé côté TCF.
+final journeyCiviqueProvider = FutureProvider.autoDispose<Journey>((ref) async {
+  ref.watch(compteIdProvider);
+  ref.watch(learningPlanRevisionProvider);
+  final link = ref.keepAlive();
+  try {
+    return await ref
+        .watch(learningPlanRepositoryProvider)
+        .journey(module: AppModule.civique);
   } catch (_) {
     link.close();
     rethrow;

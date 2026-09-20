@@ -107,6 +107,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     ref.invalidate(learningPlanProvider);
     ref.invalidate(civicPlanProvider);
     ref.invalidate(preparationProvider);
+    // 🛑 **Les DEUX cycles avec eux** : le Plan et son cycle se rafraîchissent
+    // ensemble, jamais l'un sans l'autre — c'est la contradiction que le
+    // 2026-09-16 a corrigée sur « À faire maintenant ».
+    ref.invalidate(journeyProvider);
+    ref.invalidate(journeyCiviqueProvider);
   }
 
   /// ⚠️ **Plus de copie locale de la préparation.** Elle vivait dans un
@@ -233,6 +238,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     // identique. La bascule ne coûte plus aucun appel. Le prix est nul : le
     // plan civique était de toute façon chargé à l'ouverture de son onglet.
     ref.watch(civicPlanProvider);
+    // 🛑 **Les deux CYCLES aussi** (P8.7) : ils sont `autoDispose`, donc n'en
+    // observer qu'un laissait l'autre se jeter à la bascule — et revenir dessus
+    // rappelait `/api/me/plan/journey?module=` pour une réponse identique. C'est
+    // le pendant Dart des clés de cache par module du web.
+    ref.watch(journeyCiviqueProvider);
     // L'objectif vient du **cycle** quand le serveur en sert un ; sinon du
     // palier visé du compte. `null` reste `null` : on ne devine jamais un B2.
     final objective = plan.valueOrNull?.cycle?.objectiveLevel ??

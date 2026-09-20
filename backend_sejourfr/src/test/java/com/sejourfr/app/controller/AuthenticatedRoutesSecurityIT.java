@@ -88,6 +88,10 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 // (freemium), et cette matrice ne sait pas distinguer un refus
                 // de securite d'un refus d'acces. Ce 403-la est verrouille par
                 // `CivicPlanServiceIT`, ou il est le sujet du test.
+                // ⚠️ `POST …/unites/{code}/serie` (P8.7) n'y est pas NON PLUS, et
+                // pour la meme raison : c'est l'action d'une etape du cycle, et
+                // elle est premium (D-33). Son 403 metier est le sujet de
+                // `CivicSerieSurUniteIT`.
                 Arguments.of(HttpMethod.GET, "/api/me/civic-plan"),
                 // ProgressController (T28) — « montrer le mouvement ».
                 Arguments.of(HttpMethod.GET, "/api/me/progress"),

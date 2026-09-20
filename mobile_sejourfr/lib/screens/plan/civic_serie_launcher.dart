@@ -44,6 +44,36 @@ Future<void> startCivicSerie(
   }
 }
 
+/// **Ouvrir la série d'une UNITÉ OFFICIELLE** — l'action d'une étape du cycle
+/// civique (D-48, P8.7).
+///
+/// 🛑 **Un seul lanceur pour un seul geste.** Le plan dérivé a le sien
+/// ([startCivicSerie], sur une **cible**) ; celui-ci porte le grain du
+/// **cycle**, une **unité de l'arrêté**. Deux grains, deux routes — mais **un
+/// seul endroit par grain**, pour qu'une même unité ne s'ouvre jamais de deux
+/// façons.
+///
+/// 🛑 Le **403** n'est pas une panne : c'est le verrou freemium que le serveur
+/// oppose (D-33), et il ouvre l'offre — jamais un message technique.
+Future<void> startCivicUniteSerie(
+  BuildContext context,
+  WidgetRef ref,
+  String uniteCode,
+) async {
+  try {
+    final attempt =
+        await ref.read(civicPlanRepositoryProvider).serieSurUnite(uniteCode);
+    if (!context.mounted) return;
+    // La série déplace l'unité dans le cycle ET la cible dans la boîte Leitner :
+    // les deux lectures se rafraîchissent ensemble, jamais l'une sans l'autre.
+    signalerMesureEcrite(ref);
+    context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+  } catch (e) {
+    if (!context.mounted) return;
+    showPaywallOrError(context, e);
+  }
+}
+
 /// **La seule porte d'achat du civique** : l'écran d'offre, qui porte les vrais
 /// passes et leurs prix du store.
 Future<void> openCivicOffer(BuildContext context) => showPaywallSheet(

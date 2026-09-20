@@ -4357,3 +4357,40 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs liens.
 - **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) : `CycleProgress`,
   `BlocAccordion`, `ExamStepBox`, `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`.
+
+
+### Le plan civique passe sur le CYCLE (P8.7, D-50, 2026-09-20)
+
+> Arbitrages : `docs/decisions/plan-parcours-tcf.md` **D-47 → D-53** · décisions prises seul :
+> `docs/decisions-autonomes-parcours-tcf.md` **A84 → A90** · état :
+> `docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md`.
+
+⚠️ **Cette section prime sur « Plan civique — répétition espacée et grain mesuré »** pour l'écran
+d'un **abonné**. L'écran **gratuit** n'a pas bougé.
+
+- **`CivicPlanPanel` → `CiviquePremium`** rend, dans cet ordre : `Top` → **`GoalStrip`** (« Objectif »
+  = la démarche **servie** `journey.objectif.label`, « Seuil de réussite » = `32/40` lu chez
+  `CIVIQUE_EXAM_SEUIL` / `_QUESTIONS`) → **`CivicActionMaintenant`** → **`PlanCycleSection`** →
+  **« À revoir bientôt »**. 🛑 **Jamais un score d'entrée** dans la bande (D-50 §1) : `entry_score`
+  existe en base et se lirait comme un niveau acquis.
+- 🛑 **« À faire maintenant » lit le CYCLE** (`journey.current`), plus le plan dérivé (D-50 §2).
+  `null` est un cas **normal** — la carte disparaît. Son geste est la série sur l'**unité** de
+  l'étape ; un examen de bloc se lance depuis son encart dans le cycle.
+- 🛑 **`PlanCycleSection` est COMMUNE aux deux modules** : `{journey, plan, module}`. `plan` est
+  **nullable** et vaut `null` en civique (**A86**) — le Plan TCF n'a rien à dire d'une étape civique.
+- **`useCivicUniteSerie`** (`plan/use-civic-unite-serie.ts`) ouvre
+  `POST /api/me/civic-plan/unites/{code}/serie`. 🛑 **Un lanceur par GRAIN** (**A87**) : `useCivicSerie`
+  porte la **cible** du plan dérivé, celui-ci l'**unité officielle** du cycle. Miroir mobile :
+  `startCivicUniteSerie`.
+- **`journeyApi` prend `?module=`** sur `get` / `history` / `refresh` / `measurement-cycle`, avec une
+  **clé de cache par module** (le TCF garde la clé historique).
+- **SUPPRIMÉS de `lib/civic-plan.ts`**, avec leur dernier lecteur : `civicPath` / `civicPathCounter` /
+  `CIVIC_PATH_*` (le parcours de la notion), `civicTransitionLabel` / `civicNextStepLabel` /
+  `civicChangesWindowLabel` / `CIVIC_CHANGES_TITLE` (« Progression détectée »), plus sept constantes
+  sans lecteur. 🛑 `CivicPlanDto.changements` et `Cible.parcours` restent **servis** : c'est
+  l'affichage qui part, pas le contrat.
+- ⚠️ **Le miroir `civic-plan.ts` ⇄ `civic_plan_labels.dart` porte sur le TEXTE, pas sur l'inventaire**
+  (**A84**) : l'écran **gratuit** du mobile garde trois helpers que le web n'a jamais affichés. C'est
+  écrit en tête des deux fichiers.
+- **`JOURNEY_LOCKED_BADGE`** (`lib/journey.ts` ⇄ `kJourneyLockedBadge`) : le badge « Verrouillé » était
+  écrit **en dur** dans le panneau (**A85**).

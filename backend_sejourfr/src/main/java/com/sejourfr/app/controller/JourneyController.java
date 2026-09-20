@@ -58,14 +58,20 @@ public class JourneyController {
     /**
      * <b>L'historique des cycles</b> — l'ecran « Ma progression ».
      *
-     * <p>Les cycles <b>historises</b> du module TCF, du plus recent au plus
-     * ancien, avec les competences travaillees groupees par epreuve, et les
-     * niveaux mesures en entree et en sortie <b>lus tels quels</b> sur la
-     * ligne (D-12, A35) — aucun recalcul retroactif.
+     * <p>Les cycles <b>historises</b> du module demande, du plus recent au plus
+     * ancien, avec les etapes travaillees groupees par <b>bloc servi</b> — une
+     * epreuve en TCF, une thematique en civique (D-47) —, et les niveaux mesures
+     * en entree et en sortie <b>lus tels quels</b> sur la ligne (D-12, A35) :
+     * aucun recalcul retroactif.
      *
-     * <p>🛑 <b>Aucun parametre, et c'est volontaire</b> (B-10) : le serveur sait
-     * qui lit. Accepter un identifiant de candidat laisserait lire l'historique
-     * d'un autre.
+     * <p>🛑 <b>Le MODULE est le seul parametre</b> (B-10) : le serveur sait qui
+     * lit, et accepter un identifiant de candidat laisserait lire l'historique
+     * d'un autre. Le defaut reste TCF — un client anterieur a P8.9 garde
+     * exactement le comportement d'avant.
+     *
+     * <p>⚠️ <b>Cote serveur SEULEMENT</b> (P8.9) : l'ecran d'historique civique
+     * n'est pas concu, le proprietaire n'en a pas fourni le gabarit. Ce qui est
+     * livre ici, c'est le <b>fait servi</b>, pas sa mise en page.
      */
     @GetMapping("/history")
     public JourneyHistoryDto history(@RequestParam(required = false) Module module) {

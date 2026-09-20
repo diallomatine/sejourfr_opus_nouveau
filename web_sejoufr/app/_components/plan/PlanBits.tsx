@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
     BadgeCheck,
     BookOpen,
-    Check,
     FilePenLine,
     Gauge,
     GraduationCap,
@@ -20,7 +19,6 @@ import {
     PLAN_ACTION_NATURE_LABEL,
     PLAN_DOMAIN_PRIORITY_LABEL,
     type PlanActionNature,
-    type PlanCycleDto,
     type PlanDomainPriority,
     type PlanDomainTaskDto,
     type SkillSection,

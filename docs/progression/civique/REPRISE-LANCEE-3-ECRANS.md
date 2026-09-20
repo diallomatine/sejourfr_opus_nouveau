@@ -12,9 +12,9 @@
 |---|---|
 | P8.0 → P8.3, P8.A, **P8.2b** | ✅ livrées |
 | **P8.4** (moteur) · **P8.5** (freemium) | ✅ **livrées**, preuve : `ParcoursCiviqueDeBoutEnBoutIT` |
-| **P8.6** (kits) · **P8.7** (écrans) | ⬜ **c'est cette lancée** |
+| **P8.6** (kits) · **P8.7** (écrans) | ✅ **livrées** (2026-09-20), décisions **A84 → A90** |
 | P8.8 (11 questions de Laïcité) | ⛔ **arrêt éditorial** avant écriture |
-| P8.9 (historique des cycles) | ⛔ **bloquée** — template non fourni |
+| P8.9 (historique des cycles) | 🟡 **serveur livré** (`?module=` jusqu'à `/history`) · ⛔ **écran non conçu**, template non fourni |
 
 **Autorité des règles** : `docs/decisions/plan-parcours-tcf.md` — **D-25 → D-53**, les règles
 générales **D-48** (`PROGRAMME ≠ CORPUS`) et **D-50** (les écrans), et les dettes **DETTE-M1**,
@@ -98,18 +98,25 @@ elle se traitera le mieux**. »
 | # | Le fait tenu des deux côtés | Symptôme | État |
 |---|---|---|---|
 | 1 | La **durée** de l'examen civique, écrite en dur dans chaque front | web : `?? 2400` = **40 min** là où l'arrêté en fixe **45** | ✅ corrigé (`c2304fef`) — miroirs gelés, chiffres lus chez `CivicExamFormat` |
-| 2 | La **carte de contexte** du Plan civique | mobile « 4 thèmes / 17 notions », web « 17 à consolider / 3 à revoir » — **même carte, faits différents** | ⚠️ **ouvert** — disparaît avec la refonte de cet écran |
+| 2 | La **carte de contexte** du Plan civique | mobile « 4 thèmes / 17 notions », web « 17 à consolider / 3 à revoir » — **même carte, faits différents** | ✅ **fermé** (P8.7) — la carte est **supprimée** des deux côtés, la bande objectif la remplace, et ses trois helpers (`civicPlanEngineLine`, `civicPlanThemesPill`, `civicPlanCiblesPill`) partent avec elle |
 | 3 | La **promesse de gratuité** des examens de thème | « examen 1 gratuit » des deux côtés, **403 au clic** | ✅ corrigé (`9652315a`) |
 
 🛑 **Ce que le 3ᵉ cas ajoute** : le verrou **existait** côté serveur — il n'était simplement pas
 **servi**. Un front ne peut pas lire ce qu'on ne lui dit pas. Le chantier n'est donc pas « mieux
 surveiller les miroirs », c'est **servir le fait** plutôt que le laisser se réécrire à la main.
 
-**Ce que la passe des écrans peut en faire, sans rien inventer :**
-- le `locked` d'un examen **servi**, comme il l'est déjà pour une étape de cycle (D-18) ;
-- la **phrase** des unités servie (D-50 §4) — un fait de moins à recopier ;
-- et le précédent qui montre la forme d'un filet : `scripts/verifier-contrat-front-progression.mjs`,
-  écrit pour **un** contrat et jamais étendu.
+**Ce que la passe des écrans en a fait — les trois occurrences sont closes :**
+- la **phrase des unités est servie** (`JourneyBlocMeta` → `bloc.meta`, D-50 §4) : aucun front ne
+  compte d'unité ;
+- la **carte de contexte est supprimée**, donc les deux faits divergents n'existent plus ;
+- un libellé écrit en dur dans un écran a été **remonté aux mots du parcours** dès sa 2ᵉ occurrence
+  (`JOURNEY_LOCKED_BADGE` ⇄ `kJourneyLockedBadge`, **A85**) — c'est le geste que le chantier
+  demandait : **servir le fait**, ou à défaut le **déclarer une fois**.
+
+🛑 **Ce qui RESTE ouvert, et se suit désormais comme une divergence nommée** : l'écran **gratuit**
+civique n'est pas le même des deux côtés (trois helpers vivent côté Dart seulement, **A84**). Ce n'est
+plus une dette silencieuse — c'est écrit en tête des deux fichiers de libellés. Le précédent d'un filet
+reste `scripts/verifier-contrat-front-progression.mjs`, écrit pour **un** contrat et jamais étendu.
 
 ⛔ **Aucun nouveau test front** : la réponse est un fait **servi** ou un script hors test, jamais un
 `*.test.ts`.
@@ -165,3 +172,13 @@ aujourd'hui toute étape civique (`DETTE-A1`, annoté) — **trou muet**, pas NP
 
 Les **deux écrans montrés au propriétaire** — ils se jugent à l'œil, c'est pourquoi cette lancée est
 séparée. Plus la liste des décisions prises seul, à la suite de **A83**.
+
+✅ **Livré le 2026-09-20.** Les décisions sont **A84 → A90**
+(`docs/decisions-autonomes-parcours-tcf.md`). Ce que porte le plan civique **abonné**, des deux côtés,
+dans cet ordre : en-tête → **bande objectif** (« Objectif : naturalisation · Seuil 32/40 ») →
+**« À faire maintenant »** lu sur `journey.current` → **le cycle en blocs**
+(`PlanCycleSection`, module en paramètre) → **« À revoir bientôt »**. L'écran **gratuit** n'a pas
+bougé (**A89**).
+
+**Vérifié** : `./mvnw verify` ✅ · `npx tsc --noEmit` + `npm run build` + `npm test` (270) ✅ ·
+`flutter analyze` (0) + `flutter test` (296) ✅.

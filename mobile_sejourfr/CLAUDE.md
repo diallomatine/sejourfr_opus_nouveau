@@ -4071,3 +4071,42 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   pour que le dégradé ait le même nombre d'arrêts des deux côtés).
 - 🛑 `lot`, `step`, `journey` ne s'affichent **jamais** (D-21) ; « cycle » vient des
   maquettes du propriétaire et reste.
+
+
+### Le plan civique passe sur le CYCLE (P8.7, D-50, 2026-09-20)
+
+> Arbitrages : `docs/decisions/plan-parcours-tcf.md` **D-47 → D-53** · décisions prises seul :
+> `docs/decisions-autonomes-parcours-tcf.md` **A84 → A90**.
+
+⚠️ **Cette section prime sur « Plan civique — répétition espacée et grain mesuré »** pour l'écran
+d'un **abonné**. L'écran **gratuit** n'a pas bougé (**A89**).
+
+- **`CivicPlanView._premium`** rend, dans cet ordre : `SfTop` → **`SfGoalStrip`** (« Objectif » = la
+  démarche **servie** `journey.objectif.label`, « Seuil de réussite » = `32/40` lu chez
+  `CivicExamFormat`) → **`_actionMaintenant`** → **`PlanCycleSection`** → **« À revoir bientôt »**.
+  🛑 **Jamais un score d'entrée** dans la bande (D-50 §1).
+- 🛑 **« À faire maintenant » lit le CYCLE** (`journey.current`), plus `plan.prochaine` (D-50 §2).
+  `null` = la carte disparaît. Son geste est la série sur l'**unité** de l'étape.
+- 🛑 **`PlanCycleSection` est COMMUNE aux deux modules** : `{plan, journey, module}`. `plan` est
+  **nullable** et vaut `null` en civique (**A86**). Deux points, et deux seulement, dépendent du
+  module : l'**action d'une étape** et la **sortie de fin de cycle** (examen civique `MOCK_EXAM`).
+- **`startCivicUniteSerie`** (`plan/civic_serie_launcher.dart`) ouvre
+  `POST /api/me/civic-plan/unites/{code}/serie`. 🛑 **Un lanceur par GRAIN** (**A87**) :
+  `startCivicSerie` porte la **cible**, celui-ci l'**unité officielle** du cycle.
+- **`journeyCiviqueProvider`** (`plan/learning_plan_provider.dart`) — un provider **par module**, pas
+  un `family` (**A88**) : mêmes points de fraîcheur que `journeyProvider`, et **les deux observés en
+  permanence** par `PlanScreen`, donc la bascule ne coûte aucun appel. `didPopNext` invalide les deux.
+- **`LearningPlanRepository`** : `journey` / `history` / `refresh` / `measurementCycle` prennent
+  `{AppModule module = AppModule.tcf}`. 🛑 Le défaut garde **exactement** le comportement d'avant.
+- **SUPPRIMÉS de `civic_plan_labels.dart`**, avec leur dernier lecteur : `civicPath` /
+  `civicPathCounter` / `kCivicPath*`, `civicTransitionLabel` / `civicNextStepLabel` /
+  `kCivicChangesTitle`, `civicPlanEngineLine` / `civicPlanThemesPill` / `civicPlanCiblesPill` (la carte
+  de contexte — **2ᵉ occurrence de `DETTE-P1`, fermée**), `kCivicPlanDoneTitle` / `civicPlanDoneRow`,
+  `kCivicPlanAllGood*`, `kCivicPlanExamCta`, `kCivicPlanNowBadge`, `civicCibleTone` (la fonction ;
+  l'enum reste). 🛑 `CivicPlan.changements` et `Cible.parcours` restent **servis**.
+- ✅ **`civicPlanGrainNote` DESCEND sur l'écran gratuit** au lieu d'y mourir (**A84**) : le web la
+  portait déjà en pied de son écran gratuit, et c'est là que les thèmes se listent.
+- **`kJourneyLockedBadge`** (`plan/journey_labels.dart`) : le badge « Verrouillé », déclaré une fois
+  des deux côtés (**A85**).
+- ⚠️ **`test/learning_plan_revision_test.dart` mis à jour** (les quatre signatures du repository), pas
+  un test neuf.

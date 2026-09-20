@@ -1286,3 +1286,132 @@ et le candidat la découvre au moment où il clique.
 ⚠️ **Ce n'est pas un arbitrage nouveau** : D-33 a tranché « examens de thème : premium » le
 2026-09-19. Les fronts n'avaient simplement pas suivi, parce que rien ne les y forçait — le verrou
 n'existait alors **que côté client**.
+
+# 2026-09-20 — lancée 3 : les écrans du cycle civique (A84 → A90)
+
+> Périmètre : **P8.6** (la brique de kit), **P8.7** (les deux écrans), le chantier **DETTE-P1** et
+> **P8.9 côté serveur**. Mandat du propriétaire : « Tu tranches, tu consignes à la suite d'A83 ».
+> ⛔ Restés fermés, comme demandé : toute migration, les 28 questions de P8.8, et l'écran
+> d'historique civique.
+
+### A84 — Le miroir `civic-plan.ts` ⇄ `civic_plan_labels.dart` porte sur le **texte**, pas sur l'inventaire
+
+**Le fait.** La refonte de D-50 a vidé le plan civique **abonné** de cinq sections. Les helpers qui
+les servaient sont morts — mais **pas des deux côtés au même moment** : l'écran **gratuit** du mobile
+lit encore `civicPlanAutresLabel` (« + 3 autres thèmes à consolider »), `kCivicPlanLockedCta` et
+`CivicCibleTone`, que le web n'a jamais affichés sur le sien.
+
+**La décision.** Chaque front supprime **ce que lui ne lit plus**, et l'asymétrie est **écrite en tête
+des deux fichiers**. Le contrat du miroir devient explicite : il porte sur **les chaînes partagées**,
+jamais sur la liste des symboles.
+
+**Les deux options écartées.**
+- *Garder les helpers morts côté web* : le dépôt interdit la cohabitation (« refonte = suppression
+  immédiate de l'ancien »), et un export sans lecteur finit par être rebranché au hasard.
+- *Aligner les deux écrans gratuits dans la même passe* : c'est une **troisième** refonte d'écran,
+  hors du mandat, et l'écran gratuit n'est pas ce que D-50 arbitre.
+
+**Si l'arbitrage était autre** : il faudrait refondre l'écran **gratuit** des deux côtés, et c'est là
+que les trois helpers reviendraient — sur le web, cette fois.
+
+🛑 **Une exception, assumée dans l'autre sens** : `civicPlanGrainNote` **descend sur l'écran gratuit du
+mobile** au lieu d'y mourir. Elle vivait dans la carte de contexte de l'abonné, que D-50 retire — or
+c'est justement l'écran gratuit qui liste des **thèmes**, et le web portait déjà cette note en pied de
+`CiviqueGratuit`. Supprimer un fait vrai d'un côté quand l'autre l'affiche aurait creusé DETTE-P1 au
+lieu de la refermer.
+
+### A85 — « Verrouillé » est un **libellé du parcours**, pas une chaîne d'écran
+
+**Trouvé en portant la carte sur le mobile** : le badge d'une étape verrouillée était écrit **en dur**
+dans `CivicPlanPanel.tsx` (`badge={etape.locked ? "Verrouillé" : undefined}`). Le porter tel quel
+côté Dart en aurait fait **deux copies** d'un mot que les deux cartes disent du même fait servi.
+
+**La décision.** `JOURNEY_LOCKED_BADGE` ⇄ `kJourneyLockedBadge`, dans `journey.ts` ⇄
+`journey_labels.dart` — là où vivent déjà les phrases du parcours. Le web a été corrigé dans la même
+passe.
+
+**Motif.** C'est la règle du dépôt appliquée à la lettre : **une règle = une autorité**, et un libellé
+qui décrit un `locked` **servi** appartient aux mots du parcours, pas à l'écran qui le rend. Le seuil
+de la 2ᵉ occurrence était atteint à l'instant même où je l'écrivais une seconde fois.
+
+### A86 — `PlanCycleSection` devient **commune**, et son `plan` devient nullable
+
+**La décision technique était validée** par le propriétaire (D-50) ; ce qui restait à trancher, c'est
+**comment** le module entre dans la section.
+
+**Ce qui a été fait, des deux côtés :** un paramètre `module` (défaut TCF) et un `plan` **nullable**.
+Deux points, et deux seulement, en dépendent :
+1. **l'action d'une étape** — série sur l'**unité officielle** servie en civique
+   (`serieSurUnite(code)`), exercice du Plan TCF sinon ;
+2. **la sortie de fin de cycle** — examen civique complet (`MOCK_EXAM`, module `CIVIQUE`) ou examen
+   TCF complet.
+
+🛑 **`plan: null` n'est pas un oubli, c'est le contrat** : demander au **Plan TCF** de résoudre
+l'action d'une étape civique rendait `null`, donc une ligne **sans geste** — le garde-fou du
+2026-09-17 se serait déclenché sur toutes les lignes. Le type le dit maintenant.
+
+**L'option écartée** : deux sections, une par module. C'est exactement ce que D-50 refuse — deux
+écrans qui divergent au premier correctif, pour un moteur unique.
+
+### A87 — Un lanceur **par grain**, jamais un lanceur par écran
+
+**Le fait.** Le civique a maintenant **deux** grains d'action : la **cible** du plan dérivé (une
+notion) et l'**unité officielle** du cycle (D-48). Deux routes serveur, déjà livrées.
+
+**La décision.** Deux lanceurs, **un par grain**, chacun unique pour tous ses écrans :
+`useCivicSerie` / `startCivicSerie` (cible) et `useCivicUniteSerie` / `startCivicUniteSerie` (unité).
+Les deux routent le **403** vers l'offre, les deux signalent l'écriture de mesure.
+
+**Motif.** La règle du dépôt dit « une même cible ne peut pas s'ouvrir de deux façons selon l'écran » :
+elle est respectée **par grain**. Un lanceur unique qui aurait accepté « soit un id de cible, soit un
+code d'unité » aurait porté un aiguillage à l'intérieur, donc la règle des deux routes dans un seul
+endroit — c'est le motif qui a déjà coûté `estimateCostCents` en 11 copies, dans l'autre sens.
+
+### A88 — Un provider de cycle **par module** côté mobile, pas un `family`
+
+**Le fait.** Le web a des clés de cache par module (`journeyApi.cacheKeyFor`). Le mobile n'avait qu'un
+`journeyProvider`, TCF en dur.
+
+**La décision.** `journeyCiviqueProvider`, à côté de `journeyProvider` — mêmes points de fraîcheur
+exactement (`compteIdProvider`, `learningPlanRevisionProvider`, `keepAlive` + `link.close()` sur
+l'erreur), et **les deux observés en permanence** par `PlanScreen`.
+
+**Motif.** Un `family` sur le module aurait été plus court, mais les deux réponses sont des **objets
+différents** : les servir sous une clé paramétrée ouvrait la porte au défaut déjà payé le 2026-09-12 —
+un provider `autoDispose` jeté à la bascule, donc un appel par changement d'onglet, et surtout le
+**risque de voir le cycle TCF sur l'onglet civique** le temps d'une résolution.
+
+⚠️ **Coût assumé** : un appel de plus à l'ouverture du Plan. C'est le même compromis que
+`civicPlanProvider`, déjà chargé pour que la bascule soit gratuite.
+
+### A89 — L'écran **gratuit** civique n'est pas touché, et `_nowCard` perd son drapeau `free`
+
+**Ce que D-50 arbitre**, mot pour mot, c'est « le Plan civique **abonné** ». L'écran gratuit garde donc
+ses sections — résultat du diagnostic, thèmes à travailler, priorités, première étape, offre.
+
+**Mais une fonction en sort changée** : `_nowCard(cible, {required bool free})` servait **les deux**
+écrans ; elle n'a plus qu'un appelant, gratuit. Le drapeau est **supprimé**, avec la branche qui
+portait la pastille « Priorité n°1 » et le bouton d'un abonné.
+
+**Motif.** C'est le défaut corrigé le 2026-09-12 côté TCF, à l'identique : une carte d'abonné servie à
+un compte sans accès par un drapeau qu'on oublie de poser. Le retirer, c'est retirer la possibilité de
+l'oublier. Même geste sur `_prioritiesSection` / `_priorityCard`.
+
+### A90 — P8.9 : le module est servi jusqu'à `/history`, et **rien n'est conçu au-dessus**
+
+**Ce qui est livré** : `GET /api/me/plan/journey/history?module=` rend les cycles historisés du module
+demandé, blocs groupés par **bloc servi** (une épreuve en TCF, une thématique en civique), et les
+quatre méthodes du repository mobile portent le paramètre.
+
+**Ce qui n'est PAS livré, volontairement** : aucun écran, aucune ligne de rendu, aucun libellé
+d'historique civique. Le propriétaire n'a pas fourni le gabarit, et la consigne était explicite —
+« tu peux étendre l'endpoint, tu ne conçois rien sur l'écran d'historique ».
+
+🛑 **Le défaut reste TCF sur les quatre routes** : un client antérieur à P8.9 garde exactement le
+comportement d'avant. C'est ce qui permet de servir le fait maintenant et de dessiner l'écran plus
+tard, sans rien casser entre les deux.
+
+⚠️ **Un test existant a été mis à jour, pas contourné** :
+`mobile/test/learning_plan_revision_test.dart` implémente `LearningPlanRepository` et ses quatre
+signatures ont changé. Il compile à nouveau et reste vert — c'est la règle du dépôt (« un test rendu
+rouge par un changement voulu se met à jour »), pas un test neuf sur un front.

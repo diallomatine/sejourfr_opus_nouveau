@@ -2145,7 +2145,7 @@ occurrences, donc ça mérite d'être suivi comme un **motif**, pas traité comm
 | # | Écart | Trouvé | État |
 |---|---|---|---|
 | 1 | La **durée de l'examen civique** écrite en dur dans chaque front. Le web lisait `civiqueTemplate?.durationSeconds ?? 2400` — **40 minutes**, là où l'arrêté en fixe **45**. | P8.1 / P8.A, 2026-09-19 | ✅ **corrigé** (`c2304fef`) : deux miroirs gelés, les chiffres lus chez `CivicExamFormat` |
-| 2 | La **carte de contexte du Plan civique** n'affiche pas les mêmes faits : mobile « 4 thèmes à renforcer / 17 notions à consolider », web « 17 à consolider / 3 à revoir bientôt ». | Audit des écrans, 2026-09-19 | ⚠️ **ouvert** — disparaît en P8.7 avec la refonte de l'écran (D-50) |
+| 2 | La **carte de contexte du Plan civique** n'affiche pas les mêmes faits : mobile « 4 thèmes à renforcer / 17 notions à consolider », web « 17 à consolider / 3 à revoir bientôt ». | Audit des écrans, 2026-09-19 | ✅ **fermé** (P8.7, 2026-09-20) — la carte est **supprimée** des deux côtés et la bande objectif la remplace ; ses trois helpers partent avec elle |
 | 3 | 🛑 **Les deux écrans d'examens de thème promettaient un examen que le serveur refuse** : « examen 1 gratuit, 2+ premium » (`freeSlots={isGuest ? 0 : 1}` côté web, `slot > 1` côté mobile). Un compte gratuit cliquait sur un examen annoncé **offert** et recevait un **403**. | P8.5, 2026-09-20 | ✅ **corrigé** (`9652315a`) — les deux écrans passent à « tous premium » |
 
 **Le motif commun, et c'est lui la dette.** Un même fait s'écrit **deux fois**, à la main, dans deux
@@ -2180,6 +2180,27 @@ front ne peut pas lire ce qu'on ne lui dit pas.
 **Décision du propriétaire** : ⛔ **ne pas l'ouvrir maintenant**. Elle est inscrite comme chantier
 dans `docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md` — **la lancée des écrans est la passe où
 elle se traite le mieux**, puisque c'est là qu'on touche précisément ces surfaces.
+
+#### Ce que la lancée 3 en a fait (2026-09-20)
+
+**Les trois occurrences sont closes**, et c'est la **manière** qui compte : aucune n'a été refermée en
+« mieux surveillant les copies ».
+
+| Geste | Occurrence traitée |
+|---|---|
+| La **phrase des unités est SERVIE** (`JourneyBlocMeta` → `bloc.meta`, D-50 §4) | aucun front ne compte d'unité, donc aucun ne peut se tromper |
+| La **carte de contexte est SUPPRIMÉE** | la 2ᵉ occurrence n'a plus de surface où exister |
+| Un libellé écrit en dur dans un écran est **DÉCLARÉ UNE FOIS** dès sa 2ᵉ occurrence (`JOURNEY_LOCKED_BADGE` ⇄ `kJourneyLockedBadge`, **A85**) | le motif est pris **avant** qu'il devienne un écart |
+
+🛑 **La leçon retenue, écrite ici parce qu'elle vaut au-delà du civique** : la réponse au motif n'est
+pas un filet qui compare deux copies, c'est de **faire en sorte qu'il n'y ait qu'une copie** — servie
+par le serveur quand c'est un fait, déclarée une fois quand c'est une phrase. Les trois gestes
+ci-dessus sont les trois formes de cette réponse, par ordre de solidité décroissante.
+
+⚠️ **Ce qui reste, et se suit désormais comme une divergence NOMMÉE** : l'écran **gratuit** civique n'est
+pas identique des deux côtés (trois helpers vivent côté Dart seulement — **A84**). Ce n'est plus une
+dette silencieuse : c'est écrit en tête des deux fichiers de libellés, avec la raison. Le **signal à
+surveiller** ne change pas : un fait affiché des deux côtés, sans autorité serveur et hors miroir gelé.
 
 ---
 

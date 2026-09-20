@@ -348,6 +348,13 @@ String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
 /// (`web_sejoufr/lib/journey.ts`).
 const String kJourneyStepActionLink = 'Faire cette étape →';
 
+/// Le badge d'une étape **verrouillée**, sur la carte « À faire maintenant ».
+///
+/// 🛑 Déclaré ICI et pas dans l'écran : la carte civique et la carte TCF disent
+/// le même verrou. Miroir mot pour mot de `JOURNEY_LOCKED_BADGE`
+/// (`web_sejoufr/lib/journey.ts`).
+const String kJourneyLockedBadge = 'Verrouillé';
+
 /// La note de pied du cycle — la liberté d'ordre, et sa seule exception.
 const String kJourneyCycleNote =
     'Vous pouvez travailler les compétences dans l\'ordre que vous voulez. '

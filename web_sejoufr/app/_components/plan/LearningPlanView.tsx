@@ -42,9 +42,8 @@ import {
   Stack,
   Top,
   sejourStyles,
-  type PathStep,
 } from "@/app/_components/sejour/SejourKit";
-import {PlanBlur, planNowIcon} from "./PlanBits";
+import {planNowIcon} from "./PlanBits";
 import {PlanGate} from "./PlanGate";
 import {PLAN_PREMIUM_BENEFITS, PlanPaywall} from "./PlanPaywallCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";

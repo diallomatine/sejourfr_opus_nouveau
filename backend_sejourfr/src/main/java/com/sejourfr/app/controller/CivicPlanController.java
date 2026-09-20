@@ -67,4 +67,21 @@ public class CivicPlanController {
                                  @RequestParam CivicPlanGrain grain) {
         return service.demarrerSerie(currentUser.getId(), cibleId, grain);
     }
+
+    /**
+     * Ouvre la serie ciblee d'une <b>UNITE OFFICIELLE</b> — l'action d'une etape
+     * du <b>cycle</b> (D-48, P8.7).
+     *
+     * <p>🛑 <b>Une route a part, et pas un {@code grain} de plus</b> : une etape
+     * de cycle porte une unite de l'arrete, une cible de plan porte une notion
+     * ou un theme. Deux grains, deux identifiants, deux routes — faire passer
+     * l'un pour l'autre aurait rendu un 404 incomprehensible.
+     *
+     * <p>🛑 <b>403 sans abonnement</b>, comme la serie ciblee (D-33).
+     */
+    @PostMapping("/unites/{uniteCode}/serie")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AttemptResponse serieSurUnite(@PathVariable String uniteCode) {
+        return service.demarrerSerieSurUnite(currentUser.getId(), uniteCode);
+    }
 }

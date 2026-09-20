@@ -7,6 +7,15 @@
  * mot pour mot** de `mobile_sejourfr/lib/screens/plan/civic_plan_labels.dart` :
  * un libellé qui bouge, ce sont deux fichiers dans la même passe.
  *
+ * ⚠️ **Le miroir porte sur le TEXTE, pas sur l'inventaire** (P8.7, 2026-09-20).
+ * La refonte du plan civique abonné (D-50) a vidé cet écran de ses sections
+ * dérivées, et chaque front a supprimé **ce que lui ne lit plus** : l'écran
+ * gratuit du mobile garde deux helpers que le web n'a jamais montrés
+ * (`civicPlanAutresLabel`, `kCivicPlanLockedCta`, `civicCibleTone`), ils vivent
+ * donc désormais côté Dart seulement. Ce n'est pas un oubli de parité : c'est
+ * une divergence de l'écran **gratuit**, antérieure à cette passe, et aucun
+ * libellé partagé n'a bougé.
+ *
  * ⚠️ `20_` §10 prévoyait un `civic_plan_item.reason_text` calculé serveur. Il
  * n'existe pas, et c'est délibéré : un texte composé côté serveur ne se relit
  * pas dans deux mises en page différentes, et se dupliquerait de toute façon dès
@@ -15,19 +24,7 @@
  * 🛑 Ce fichier ne **dérive** aucun état pédagogique : `maitrise` et `aRevoir`
  * arrivent servis. Il ne fait que les mettre en mots.
  */
-import {
-    CIVIC_MAITRISE_LABEL,
-    PLAN_RECENT_CHANGES_WINDOW_LABEL,
-    type CivicPlanCibleDto,
-    type CivicPlanCibleRefDto,
-    type CivicPlanChangementsDto,
-    type CivicPlanDto,
-    type CivicPlanGrainDto,
-    type CivicPlanTransitionDto,
-} from "./types";
-
-export const CIVIC_PLAN_TITLE = "Mon plan — Examen civique";
-export const CIVIC_PLAN_LEAD = "Votre préparation personnalisée à l'Examen civique.";
+import type {CivicPlanCibleDto, CivicPlanGrainDto} from "./types";
 
 /** Bloc 1 — l'objectif. */
 export const CIVIC_PLAN_RESULT_TITLE = "Votre résultat au diagnostic";
@@ -36,25 +33,17 @@ export const CIVIC_PLAN_RESULT_SEUIL = "Seuil de réussite";
 /** Bloc 2 — à faire maintenant. */
 export const CIVIC_PLAN_NOW_TITLE = "À faire maintenant";
 export const CIVIC_PLAN_NOW_CTA = "Commencer";
-/** 🛑 Le verrou porte sur l'action, et le CTA le dit sans détour. */
-export const CIVIC_PLAN_LOCKED_CTA = "Débloquer cette série";
 export const CIVIC_PLAN_LOCKED_NOTE =
     "Les séries ciblées font partie de l'abonnement. Votre plan, lui, reste entier.";
 
-/** Bloc 4 — les priorités. */
+/** Bloc 4 — les priorités. 🛑 Ne subsiste que sur l'écran **gratuit** : le plan
+ *  d'un abonné lit le cycle (D-50 §2), qui est l'autorité de l'ordre. */
 export const CIVIC_PLAN_PRIORITIES_TITLE = "Vos priorités";
 export const CIVIC_PLAN_WORK_CTA = "Travailler";
 
-/** Bloc 5 — révision d'entretien. 🛑 Jamais présentée comme une alerte. */
+/** Bloc 5 — révision d'entretien. 🛑 Jamais présentée comme une alerte, et seul
+ *  affichage du Leitner : le cycle ne le porte pas (D-49). */
 export const CIVIC_PLAN_REVIEW_TITLE = "À revoir bientôt";
-
-/** Bloc 6 — ce qui est acquis. */
-export const CIVIC_PLAN_SOLID_TITLE = "Déjà solide";
-
-/** Aucune priorité : ce n'est pas un vide, c'est un état. */
-export const CIVIC_PLAN_ALL_GOOD_TITLE = "Rien ne ressort comme prioritaire";
-export const CIVIC_PLAN_ALL_GOOD_TEXT =
-    "Enchaînez sur un examen blanc pour vous mettre en conditions réelles.";
 
 /**
  * La note de grain — elle **dit** à quel niveau le plan travaille.
@@ -68,18 +57,6 @@ export function civicPlanGrainNote(grain: CivicPlanGrainDto): string | null {
     if (grain.courant === "NOTION") return null;
     return "Votre plan travaille thème par thème. Il deviendra plus précis, notion "
         + "par notion, à mesure que le référentiel civique se complète.";
-}
-
-/**
- * Ce que la liste ne montre pas. `null` quand elle montre tout — « + 0 autres »
- * est une phrase qui ne dit rien.
- */
-export function civicPlanAutresLabel(plan: CivicPlanDto): string | null {
-    const reste = plan.autresPriorites;
-    if (reste <= 0) return null;
-    const nom = plan.grain.courant === "NOTION" ? "notion" : "thème";
-    return `+ ${reste} autre${reste > 1 ? "s" : ""} ${nom}${reste > 1 ? "s" : ""} `
-        + "à consolider";
 }
 
 /**
@@ -117,25 +94,6 @@ export function civicPlanRaison(cible: CivicPlanCibleDto): string {
 }
 
 /**
- * Le ton d'une cible. 🛑 `NON_EVALUEE` n'a **pas** de couleur d'alerte : c'est
- * une absence de mesure, pas un échec.
- */
-export function civicCibleTone(
-    cible: CivicPlanCibleDto,
-): "hot" | "warn" | "ok" | "muted" {
-    switch (cible.maitrise) {
-        case "A_TRAVAILLER":
-            return cible.erreursRecentes > 0 ? "hot" : "warn";
-        case "EN_PROGRESSION":
-            return "warn";
-        case "MAITRISEE":
-            return "ok";
-        case "NON_EVALUEE":
-            return "muted";
-    }
-}
-
-/**
  * « à revoir dans 2 jours ». `null` quand l'échéance est déjà franchie (la
  * cible est alors dans les priorités, pas dans les révisions) ou absente.
  */
@@ -148,86 +106,22 @@ export function civicRevueLabel(cible: CivicPlanCibleDto, maintenant: Date): str
     return `à revoir dans ${jours} jour${jours > 1 ? "s" : ""}`;
 }
 
-/** Où travailler une cible sans passer par la série (bibliothèque ouverte). */
-export const CIVIC_PLAN_EXAM_HREF = "/examens-blancs?module=CIVIQUE";
+/* ⚠️ **SUPPRIMÉS par la refonte du plan civique abonné** (P8.7, D-50,
+   2026-09-20), avec leur dernier lecteur — « refonte = suppression immédiate de
+   l'ancien » :
 
-/* ------------------------------------------------- Le parcours d'une cible */
+   - `CIVIC_PATH_LABELS` / `CIVIC_PATH_TITLE` / `civicPath` / `civicPathCounter`
+     — le « parcours de la notion ». Il illustrait la cible du plan **dérivé**,
+     et « À faire maintenant » lit désormais le **cycle** : les cinq étapes du
+     Leitner n'ont plus d'écran où se poser.
+   - `CIVIC_CHANGES_TITLE` / `civicTransitionLabel` / `civicNextStepLabel` /
+     `civicChangesWindowLabel` — « Progression détectée ». Le TCF l'a retirée le
+     2026-09-19 : elle redisait les blocs du cycle en moins précis.
+   - `civicPlanAutresLabel`, `CIVIC_PLAN_LOCKED_CTA`, `civicCibleTone`,
+     `CIVIC_PLAN_TITLE`, `CIVIC_PLAN_LEAD`, `CIVIC_PLAN_SOLID_TITLE`,
+     `CIVIC_PLAN_ALL_GOOD_TITLE` / `_TEXT`, `CIVIC_PLAN_EXAM_HREF` — sans
+     lecteur web. Les trois premiers vivent encore côté Dart, où l'écran
+     **gratuit** les lit (cf. l'avertissement de tête).
 
-/**
- * **Les 5 étapes d'une notion**, du premier contact à la maîtrise tenue.
- *
- * 🛑 Ce sont des **libellés gelés** : le serveur sert l'ÉTAT de chaque étape
- * (`Cible.parcours`), jamais sa phrase. Miroir mot pour mot de
- * `kCivicPathLabels` (`mobile_sejourfr/lib/screens/plan/civic_plan_labels.dart`).
- */
-export const CIVIC_PATH_LABELS = [
-    "Comprendre l'essentiel",
-    "Première série ciblée",
-    "Corriger vos confusions",
-    "Série de validation",
-    "Vérifier la maîtrise",
-] as const;
-
-export const CIVIC_PATH_TITLE = "Votre parcours";
-
-/**
- * Le parcours d'une cible : l'état **servi** de chaque étape, habillé du
- * libellé gelé de son rang.
- *
- * 🛑 **Rien n'est dérivé ici.** Une première version calculait ces états depuis
- * `boite` — un front qui classe un nombre en état pédagogique, ce que le dépôt
- * interdit. Le serveur les sert (`CivicLeitner.parcours`), l'écran les affiche.
- *
- * Une étape servie sans libellé connu est **ignorée** : on n'invente pas un
- * nom d'étape parce que le serveur en a ajouté une.
- */
-export function civicPath(
-    cible: CivicPlanCibleDto,
-): {label: string; state: "done" | "now" | "todo"}[] {
-    return cible.parcours
-        .slice(0, CIVIC_PATH_LABELS.length)
-        .map((etat, i) => ({
-            label: CIVIC_PATH_LABELS[i],
-            state:
-                etat === "FRANCHIE" ? ("done" as const)
-                    : etat === "EN_COURS" ? ("now" as const)
-                        : ("todo" as const),
-        }));
-}
-
-/** « Étape 3 / 5 » — le rang de l'étape en cours, lu sur ce qui est servi. */
-export function civicPathCounter(cible: CivicPlanCibleDto): string {
-    const total = Math.min(cible.parcours.length, CIVIC_PATH_LABELS.length);
-    const rang = cible.parcours.findIndex((e) => e === "EN_COURS") + 1;
-    // Aucune étape en cours = tout est franchi : on annonce la fin du parcours.
-    return `Étape ${rang > 0 ? rang : total} / ${total}`;
-}
-
-/* ------------------------------------------- « Progression détectée » */
-
-export const CIVIC_CHANGES_TITLE = "Progression détectée";
-
-/**
- * Ce qu'une transition **servie** raconte : « Le Parlement passe à En
- * progression ».
- *
- * 🛑 Le verdict vient du serveur (`avant`, `apres`, `progres`) : cette fonction
- * ne compare rien, elle met en mots. Le libellé d'état est celui, gelé, de
- * `CIVIC_MAITRISE_LABEL` — jamais une chaîne réécrite ici.
- */
-export function civicTransitionLabel(t: CivicPlanTransitionDto): string {
-    return `${t.label} passe à ${CIVIC_MAITRISE_LABEL[t.apres]}`;
-}
-
-/** « Votre prochaine étape : Le Gouvernement ». */
-export function civicNextStepLabel(ref: CivicPlanCibleRefDto): string {
-    return `Votre prochaine étape : ${ref.label}`;
-}
-
-/**
- * La période du bloc, **servie** (`fenetre`) et rendue avec le libellé gelé
- * partagé avec le TCF — une seule autorité sur ces trois périodes.
- */
-export function civicChangesWindowLabel(c: CivicPlanChangementsDto): string {
-    return PLAN_RECENT_CHANGES_WINDOW_LABEL[c.fenetre];
-}
+   🛑 `CivicPlanDto.changements` et `Cible.parcours` restent **servis** et
+   restent dans `lib/types.ts` : c'est l'affichage qui part, pas le contrat. */

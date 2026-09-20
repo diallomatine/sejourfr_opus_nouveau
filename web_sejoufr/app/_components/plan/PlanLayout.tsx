@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import {ChevronRight} from "lucide-react";
 import type {ReactNode} from "react";
 import styles from "./plan.module.css";
 
