@@ -99,7 +99,9 @@ class _ProductionSubjectsViewState
   /// (`sejourfr.prodQuotaInfo.TCF_{EE,EO}`), pour que les deux fronts disent la
   /// même chose au même moment.
   Future<void> _maybeShowQuotaInfo() async {
-    if (!mounted || _isPremium()) return;
+    // `read` et non `watch` : on est hors build (post-frame), et cette lecture
+    // ne doit pas abonner l'écran — `_isPremium()` s'en charge déjà.
+    if (!mounted || ref.read(accesModuleProvider(AppModule.tcf))) return;
     final prefs = ref.read(sharedPrefsProvider);
     final key = prodQuotaInfoKey(widget.module.epreuve);
     if (prefs.getBool(key) ?? false) return;
@@ -139,11 +141,10 @@ class _ProductionSubjectsViewState
   /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
   /// (`hasTcf`). Non-abonné : seul le 1er sujet est ouvert, le reste est
   /// cadenassé (parité avec les séries CO/CE/Structure).
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — un `read` laisserait les sujets cadenassés après
+  /// un achat.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.tcf));
 
   void _openExamples() =>
       context.push(productionExamplesPath(widget.module, widget.tache));

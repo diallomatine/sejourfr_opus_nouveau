@@ -155,12 +155,16 @@ final runnerControllerProvider = StateNotifierProvider.family
     .autoDispose<RunnerController, AsyncValue<RunnerState>, String>(
   (ref, attemptId) {
     final auth = ref.watch(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    final user = auth is AuthAuthenticated ? auth.user : null;
     return RunnerController(
       ref.watch(attemptsRepositoryProvider),
       ref.watch(userContentRepositoryProvider),
       attemptId,
-      isPremium: isPremium,
+      // 🛑 **L'accès se lit PAR MODULE, jamais sur `isPremium`.** Cet agrégat
+      // vaut `true` dès qu'un pass est actif : un pass **civique** ouvrait donc
+      // l'entraînement illimité sur une session **TCF**, que le serveur refuse.
+      // Le module n'est connu qu'à la lecture de l'attempt, d'où la fonction.
+      accesModule: (module) => user?.canAccessModule(module) ?? false,
       // 🛑 **Pas de compte ⇒ session de visiteur.** C'est la seule règle
       // possible : une session atteinte sans être authentifié ne peut être que
       // publique (démo, ou diagnostic civique passé avant l'inscription, V053).
@@ -176,9 +180,9 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     this._repo,
     this._userContentRepo,
     this._attemptId, {
-    required bool isPremium,
+    required bool Function(AppModule module) accesModule,
     required bool guest,
-  })  : _isPremium = isPremium,
+  })  : _accesModule = accesModule,
         _guest = guest,
         super(const AsyncValue.loading()) {
     _load();
@@ -187,7 +191,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   final AttemptsRepository _repo;
   final UserContentRepository _userContentRepo;
   final String _attemptId;
-  final bool _isPremium;
+  final bool Function(AppModule module) _accesModule;
 
   /// La session est jouée **sans compte** : passation par `/api/public/attempts`,
   /// et aucun appel à `/api/me/*` (l'API publique n'expose pas les favoris).
@@ -258,7 +262,8 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
       // En training démo (non-premium), la session est figée à ce batch :
       // pas d'extension possible, le runner doit savoir qu'il est sur la
       // dernière fournée.
-      final demoCap = attempt.type == AttemptType.training && !_isPremium;
+      final demoCap = attempt.type == AttemptType.training &&
+        !_accesModule(attempt.module);
 
       state = AsyncValue.data(RunnerState(
         activeAttempt: attempt,
@@ -403,7 +408,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     if (_trainingModule == null) return;
     // Mode démo : pas d'extension automatique au-delà du pool fixe. Le runner
     // s'arrête à la dernière question chargée et propose le paywall.
-    if (!_isPremium) {
+    if (!_accesModule(_trainingModule!)) {
       state = AsyncValue.data(cur.copyWith(noMoreQuestions: true));
       return;
     }

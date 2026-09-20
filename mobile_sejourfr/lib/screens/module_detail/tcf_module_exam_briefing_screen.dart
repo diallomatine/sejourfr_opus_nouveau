@@ -85,9 +85,7 @@ class _ModuleExamBriefingSheetState
       delegue();
       return;
     }
-    final auth = ref.read(authControllerProvider);
-    final isPremium =
-        auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
+    final isPremium = ref.read(accesModuleProvider(AppModule.tcf));
     // Slot 1 = examen offert (rejouable à volonté) pour tout compte inscrit ;
     // slots 2+ réservés aux abonnés TCF. Le backend applique la même règle.
     final isSlot1 = (widget.slotNumber ?? 1) == 1;

@@ -8,6 +8,7 @@ import '../api/repositories.dart';
 import '../models/account_models.dart';
 import '../models/auth_models.dart';
 import '../models/billing_models.dart';
+import '../models/enums.dart';
 import 'social_sign_in_service.dart';
 import 'token_storage.dart';
 
@@ -161,8 +162,24 @@ class AuthController extends StateNotifier<AuthState> {
     }
     final updated = _applyStatus(current.user, status);
     await _storage.saveUser(updated);
+    final avant = _signatureAcces(current.user);
     state = AuthAuthenticated(updated);
+    // 🛑 **Le seul point d'émission d'[accesRevisionProvider].** Les deux
+    // chemins d'achat passent par ici (vérification d'un reçu, restauration),
+    // donc tout ce qui porte un `locked` se relit sans que le contrôleur de
+    // facturation ait à connaître une seule source.
+    if (_signatureAcces(updated) != avant) {
+      _ref.read(accesRevisionProvider.notifier).state++;
+    }
   }
+
+  /// Ce qui, en changeant, rouvre ou referme des surfaces. Ni prénom, ni
+  /// objectif, ni date d'examen : un statut identique ne recharge rien.
+  ///
+  /// ⚠️ `premiumEndsAt` en fait partie — un rachat qui repousse l'échéance sans
+  /// changer de module reste un accès qui a changé.
+  static String _signatureAcces(AuthUser user) =>
+      '${user.hasCivique}|${user.hasTcf}|${user.premiumEndsAt?.toIso8601String() ?? ''}';
 
   AuthUser _applyStatus(AuthUser user, SubscriptionStatusResponse status) {
     return user.copyWith(
@@ -305,8 +322,64 @@ final authControllerProvider =
 /// ⚠️ Il ne change PAS sur un simple rafraîchissement du profil (statut
 /// premium, prénom, date d'examen) : l'`id` est stable, donc rien n'est
 /// rechargé pour rien.
+///
+/// ⚠️ **Il ne dit RIEN de l'accès** : un achat ne change pas l'identifiant du
+/// compte. Ce qu'une donnée portant un `locked` doit observer **en plus**, c'est
+/// [accesRevisionProvider].
 final compteIdProvider = Provider<String?>((ref) {
   return ref.watch(authControllerProvider.select(
     (state) => state is AuthAuthenticated ? state.user.id : null,
+  ));
+});
+
+/// **Le signal « l'ACCÈS du compte a changé »** — un pass vient d'être acheté,
+/// restauré, prolongé, ou n'est plus actif.
+///
+/// 🛑 **C'est le pendant Dart d'`invalidateAccesServi()`
+/// (`web_sejoufr/lib/api.ts`)** — à ceci près que le web **purge un cache** là
+/// où le mobile **relance des lectures vivantes**. Tout provider qui porte un
+/// `locked` servi, un quota ou une progression l'observe en première ligne :
+/// `ref.watch` suffit, Riverpod recrée son état dès qu'il bouge, **y compris
+/// sous un `ref.keepAlive()`**. C'était le défaut exact — dix sources gardées
+/// en vie ne se renouvelaient qu'au changement de compte, et un achat ne change
+/// pas l'identifiant du compte.
+///
+/// 🛑 **Il est émis à UN SEUL endroit**, [AuthController.refreshSubscriptionStatus] —
+/// la seule méthode qui applique un accès fraîchement vérifié. Les deux chemins
+/// d'achat (vérification d'un reçu, restauration) l'appelaient **déjà** :
+/// `BillingController` n'a donc aucune liste de caches à tenir, et un provider
+/// ajouté plus tard n'a rien à déclarer ailleurs qu'en tête de lui-même.
+///
+/// ⚠️ **Il n'est PAS dérivé de l'état d'authentification**, et c'est
+/// délibéré : un provider de feuille (le détail d'une compétence, un petit
+/// sujet, le quota d'analyses) le lit sans faire naître l'`AuthController`,
+/// donc sans traîner son amorçage — lecture du stockage sécurisé et délai de
+/// splash — dans des écrans qui n'en ont que faire.
+///
+/// ⚠️ **Il ne bouge que si l'accès bouge**, pas à chaque rafraîchissement du
+/// profil : un statut identique n'émet rien, et rien n'est rechargé pour rien.
+///
+/// ⚠️ **Incrémenter déclenche un appel** sur chaque source observée. C'est le
+/// prix, et il est bas : une salve par achat réel, au lieu d'un écran qui ment
+/// jusqu'au prochain redémarrage.
+final accesRevisionProvider = StateProvider<int>((ref) => 0);
+
+/// **L'accès servi à un module**, et la seule lecture d'un verrou d'écran.
+///
+/// 🛑 **Un écran ne DÉDUIT jamais un accès** : ni d'un rang, ni d'un prix, ni
+/// d'un plan. Il lit `hasCivique` / `hasTcf`, servis par le backend — un pass
+/// civique n'ouvre donc pas le TCF, et l'Intégral ouvre les deux, sans qu'aucun
+/// front n'ait à connaître la règle.
+///
+/// ⚠️ **À `watch` dans un `build`** : c'est ce qui rouvre l'écran à la seconde
+/// où un achat est vérifié, sans le quitter ni le remonter. Douze écrans
+/// recopiaient `ref.read(authControllerProvider)` puis
+/// `auth is AuthAuthenticated && auth.user.canAccessModule(...)` — un `read` ne
+/// réveille rien, et l'écran resté sous le paywall gardait ses cadenas.
+/// Dans un geste (un `onPressed`), `ref.read` de ce provider reste correct :
+/// c'est la même valeur, lue sans s'abonner.
+final accesModuleProvider = Provider.family<bool, AppModule>((ref, module) {
+  return ref.watch(authControllerProvider.select(
+    (state) => state is AuthAuthenticated && state.user.canAccessModule(module),
   ));
 });

@@ -29,11 +29,16 @@ import '../plan/learning_plan_provider.dart';
 /// pas un parcours, et l'Accueil n'est pas atteignable sans compte.
 final diagnosticCourantProvider =
     FutureProvider.autoDispose<DiagnosticJourney?>((ref) async {
-  // 🛑 **L'identité, pas le fait d'être connecté.** Un booléen « authentifié »
-  // ne bouge pas d'un compte à l'autre : il n'aurait rien invalidé.
+  // 🛑 **L'identité et l'accès, pas le fait d'être connecté.** Un booléen
+  // « authentifié » ne bouge ni d'un compte à l'autre, ni après un achat : il
+  // n'aurait rien invalidé. `null` reste « personne n'est connecté ».
   final compte = ref.watch(compteIdProvider);
   if (compte == null) return null;
   ref.watch(learningPlanRevisionProvider);
+  // 🛑 **Le signal « l'accès a changé »** : ce que cette lecture porte dépend du
+  // pass du candidat (`locked` servi, quota, détail verrouillé). Sans lui, un
+  // achat laissait cette source sur les verrous d'avant.
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await ref.read(diagnosticRepositoryProvider).current();

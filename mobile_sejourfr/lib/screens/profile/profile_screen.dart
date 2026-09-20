@@ -24,22 +24,17 @@ import '../../core/widgets/stat_value_card.dart';
 /// L'onglet Profil vit dans le ShellRoute : pousser l'écran de gestion par
 /// dessus ne dispose PAS ce provider autoDispose (le widget reste monté sous
 /// la pile), donc un simple autoDispose ne refetch pas au retour d'un achat.
-/// On le fait donc dépendre de la signature Premium portée par
-/// `authControllerProvider` — `BillingController` la rafraîchit après chaque
-/// verify-receipt (et `AuthController` après une résiliation Stripe). Quand
-/// elle change, ce provider se réexécute et refetch le statut détaillé →
-/// la carte « Mon pass » reflète l'achat sans invalidation manuelle.
+/// Il observe donc [accesRevisionProvider], **l'autorité unique** de la
+/// fraîcheur d'un accès, émise par `AuthController.refreshSubscriptionStatus`
+/// — donc après chaque vérification de reçu et chaque restauration. La carte
+/// « Mon pass » reflète l'achat sans invalidation manuelle.
+///
+/// ⚠️ Il portait sa propre signature Premium, recopiée à la main : c'est
+/// exactement cette copie que le signal généralise, pour que les quinze autres
+/// lectures d'accès en bénéficient au lieu de celle-ci seule.
 final _subscriptionStatusProvider =
     FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
-  ref.watch(authControllerProvider.select((s) => switch (s) {
-        AuthAuthenticated(:final user) => (
-            user.isPremium,
-            user.hasCivique,
-            user.hasTcf,
-            user.premiumEndsAt
-          ),
-        _ => null,
-      }));
+  ref.watch(accesRevisionProvider);
   return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
 });
 

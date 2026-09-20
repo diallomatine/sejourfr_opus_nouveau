@@ -942,9 +942,12 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     return;
   }
 
-  final auth = ref.read(authControllerProvider);
-  final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
-  _showTrainingResultDialog(context, attempt, isPremium: isPremium);
+  // 🛑 **L'accès se lit PAR MODULE, jamais sur `isPremium`.** Cet agrégat vaut
+  // `true` dès qu'un pass est actif : un pass **civique** faisait afficher le
+  // pied « abonné » d'un entraînement **TCF**. Miroir web :
+  // `canAccessModule(user, attempt.module)` dans `/sessions/[attemptId]`.
+  final acces = ref.read(accesModuleProvider(attempt.module));
+  _showTrainingResultDialog(context, attempt, isPremium: acces);
 }
 
 void _showTrainingResultDialog(

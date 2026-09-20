@@ -77,9 +77,10 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
     WidgetRef ref,
     List<ProductionExampleDto> examples,
   ) {
-    final auth = ref.read(authControllerProvider);
-    final premium =
-        auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
+    // 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+    // écran, qui reste monté — un `read` laisserait les modèles cadenassés
+    // après un achat.
+    final premium = ref.watch(accesModuleProvider(AppModule.tcf));
 
     return [
       ProductionSectionHead(

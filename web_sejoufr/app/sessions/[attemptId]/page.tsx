@@ -34,7 +34,7 @@ import {
   EPREUVE_EXIT_TITLE,
 } from "@/lib/full-exam-exit";
 import { useAuth } from "@/lib/auth-context";
-import type { AttemptResponse, Difficulty } from "@/lib/types";
+import { canAccessModule, type AttemptResponse, type Difficulty } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ attemptId: string }>;
@@ -188,7 +188,11 @@ function SessionRunnerInner({ params }: PageProps) {
   const { attemptId } = use(params);
   const router = useRouter();
   const { user, status } = useAuth();
-  const isPremium = user?.isPremium ?? false;
+  /* 🛑 **L'accès se lit PAR MODULE, jamais sur `isPremium`.** Cet agrégat vaut
+     `true` dès qu'un pass est actif : un pass **civique** ouvrait donc
+     l'extension automatique et le pied « abonné » d'un entraînement **TCF**,
+     que le serveur refuse. `canAccessModule(user, attempt.module)` est la
+     seule lecture — même règle, même autorité, des deux côtés. */
   const searchParams = useSearchParams();
   /** Numéro de lot quand la session est un lot d'entraînement (batch fixe, pas d'extension). */
   const lotParam = searchParams.get("lot");
@@ -463,7 +467,7 @@ function SessionRunnerInner({ params }: PageProps) {
                 célébrative. (Guests : idem + CTA inscription.) */}
             <TrainingResultCard
               attempt={attempt}
-              isPremium={isPremium}
+              isPremium={canAccessModule(user, attempt.module)}
               variant="primary"
             />
             {isGuest && <GuestResultCta />}
@@ -543,7 +547,11 @@ function SessionRunnerInner({ params }: PageProps) {
        nombre de questions fixe, dont dépend son seuil de réussite — l'étendre
        fausserait la mesure. `EXAMEN` couvre `MOCK_EXAM`, donc rien ne change
        pour les examens blancs. */
-    const canExtend = !isExamMode && isPremium && !isGuest && !isLot;
+    const canExtend =
+      !isExamMode &&
+      canAccessModule(user, attempt.module) &&
+      !isGuest &&
+      !isLot;
     const firstThemeId = attempt.questions[0]?.question.themeId;
     const allSameTheme =
       firstThemeId !== undefined &&

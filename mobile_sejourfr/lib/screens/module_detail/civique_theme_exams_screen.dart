@@ -59,11 +59,10 @@ class _CiviqueThemeExamsScreenState
   bool _showAll = false;
   bool _starting = false;
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.civique);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté. Un `read` ne réveille rien, et la grille rendait
+  /// la main avec ses cadenas alors que l'accès venait de s'ouvrir.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.civique));
 
   bool _isLocked(int slot) => !_isPremium();
 

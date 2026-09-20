@@ -44,11 +44,10 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   int _filter = 0;
   bool _showAll = false;
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — un `read` laisserait les slots 2-10 cadenassés
+  /// après un achat.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.tcf));
 
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 

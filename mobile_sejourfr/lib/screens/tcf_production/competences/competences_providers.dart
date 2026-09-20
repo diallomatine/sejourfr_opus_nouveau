@@ -44,10 +44,12 @@ class SkillsKey {
 /// pouvoir repartir sur un appel neuf.
 final skillsSectionProvider = FutureProvider.autoDispose
     .family<List<SkillDto>, SkillSection>((ref, section) async {
-  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
-  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
-  // une reconnexion sans redémarrage montrait la progression du précédent.
+  // 🛑 **La donnée est liée au COMPTE ET À SON ACCÈS** : les observer recrée le
+  // cache dès que l'un des deux change. Sans l'identité, se reconnecter avec un
+  // autre compte sans tuer l'app affichait les données du précédent ; sans
+  // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await _loadSection(ref.watch(skillRepositoryProvider), section);
@@ -99,22 +101,37 @@ void invalidateSkillsSection(WidgetRef ref, SkillSection section) =>
     ref.invalidate(skillsSectionProvider(section));
 
 /// Une compétence + ses 15 petits sujets avec statut.
+///
+/// 🛑 **Chaque sujet porte un `locked` servi** : la fiche observe donc
+/// [accesRevisionProvider]. Sans lui, un achat fait depuis cette fiche — le
+/// paywall est poussé au-dessus d'elle, elle reste montée — rendait la main sur
+/// les cadenas d'avant.
+///
+/// ⚠️ **Le signal, pas l'identité du compte** : ces trois lectures sont montées
+/// par des écrans de feuille, et observer l'authentification y ferait naître
+/// l'`AuthController` — avec son amorçage — pour une information qu'un simple
+/// compteur suffit à porter. Le changement de compte, lui, les démonte
+/// (`autoDispose`).
 final skillDetailProvider =
-    FutureProvider.autoDispose.family<SkillDetail, String>(
-  (ref, skillId) => ref.watch(skillRepositoryProvider).getSkillDetail(skillId),
-);
+    FutureProvider.autoDispose.family<SkillDetail, String>((ref, skillId) {
+  ref.watch(accesRevisionProvider);
+  return ref.watch(skillRepositoryProvider).getSkillDetail(skillId);
+});
 
-/// Le sujet complet (sans les références).
+/// Le sujet complet (sans les références). Porte lui aussi un `locked` servi.
 final skillPromptProvider =
-    FutureProvider.autoDispose.family<SkillPromptDto, String>(
-  (ref, promptId) => ref.watch(skillRepositoryProvider).getPrompt(promptId),
-);
+    FutureProvider.autoDispose.family<SkillPromptDto, String>((ref, promptId) {
+  ref.watch(accesRevisionProvider);
+  return ref.watch(skillRepositoryProvider).getPrompt(promptId);
+});
 
 /// Les 3 références comparatives. 403 tant qu'aucune production n'existe.
 final skillReferencesProvider =
     FutureProvider.autoDispose.family<List<SkillReferenceDto>, String>(
-  (ref, promptId) => ref.watch(skillRepositoryProvider).getReferences(promptId),
-);
+        (ref, promptId) {
+  ref.watch(accesRevisionProvider);
+  return ref.watch(skillRepositoryProvider).getReferences(promptId);
+});
 
 /// Une tentative (polling du résultat).
 final skillAttemptProvider =
@@ -123,10 +140,16 @@ final skillAttemptProvider =
 );
 
 /// Quota d'analyses IA du compte courant.
+///
+/// 🛑 **Il décrit un ACCÈS** (`remaining == -1` = illimité chez un abonné) : il
+/// observe donc [accesRevisionProvider], sans quoi un achat laissait l'écran de
+/// saisie annoncer « il vous reste N analyses offertes » à quelqu'un qui n'en
+/// consomme plus.
 final skillAnalysisQuotaProvider =
-    FutureProvider.autoDispose<SkillAnalysisQuotaDto>(
-  (ref) => ref.watch(skillRepositoryProvider).analysisQuota(),
-);
+    FutureProvider.autoDispose<SkillAnalysisQuotaDto>((ref) {
+  ref.watch(accesRevisionProvider);
+  return ref.watch(skillRepositoryProvider).analysisQuota();
+});
 
 /// État immuable du controller de soumission d'un petit sujet.
 class SkillSubmissionState {

@@ -89,14 +89,12 @@ class TcfFullExamsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(fullExamsHistoryProvider);
-    final auth = ref.watch(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
+    final isPremium = ref.watch(accesModuleProvider(AppModule.tcf));
 
     Future<void> startNew(int slot) async {
-      final auth = ref.read(authControllerProvider);
-      final isPremium = auth is AuthAuthenticated &&
-          auth.user.canAccessModule(AppModule.tcf);
+      // Relu au moment du geste : l'accès a pu s'ouvrir depuis le dernier
+      // rendu (paywall fermé juste avant).
+      final isPremium = ref.read(accesModuleProvider(AppModule.tcf));
       ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
       // Compte gratuit : examen 1 offert (EE/EO évaluées une fois) ; les examens
       // 2+ restent premium. L'examen 1 reste rejouable (EE/EO verrouillées au

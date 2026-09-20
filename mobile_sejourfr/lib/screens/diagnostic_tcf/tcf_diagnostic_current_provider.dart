@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 
 /// Ce que l'écran des 4 sections a besoin de savoir : le diagnostic courant
@@ -40,6 +41,10 @@ class TcfDiagnosticCurrent {
 /// chrono bouge à chaque section — on la veut fraîche à chaque ouverture.
 final tcfDiagnosticCurrentProvider =
     FutureProvider.autoDispose<TcfDiagnosticCurrent>((ref) async {
+  // 🛑 **L'éligibilité porte un `locked` servi** (`PREMIUM_REQUIRED`) : un achat
+  // fait depuis cet écran — le paywall est poussé au-dessus, l'écran reste
+  // monté — doit rouvrir la relance sans qu'on ait à le quitter.
+  ref.watch(accesRevisionProvider);
   final repo = ref.read(tcfDiagnosticRepositoryProvider);
   // L'éligibilité est **best-effort** : son échec ne doit pas priver le
   // candidat de son diagnostic.

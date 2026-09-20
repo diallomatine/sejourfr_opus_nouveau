@@ -54,17 +54,20 @@ void signalerMesureEcrite(WidgetRef ref) {
 /// progression sans dire où ça se rafraîchit.
 ///
 /// **Ses points de fraîcheur** : [learningPlanRevisionProvider] (toute activité
-/// qui peut le changer), le tiré-pour-rafraîchir de l'Accueil et du Plan, et le
-/// retour d'un flux poussé au-dessus du Plan (`didPopNext`).
+/// qui peut le changer), [accesRevisionProvider] (un pass acheté ou restauré —
+/// le Plan porte des `locked` servis), le tiré-pour-rafraîchir de l'Accueil et
+/// du Plan, et le retour d'un flux poussé au-dessus du Plan (`didPopNext`).
 ///
 /// L'échec n'est **pas** mis en cache : un « Réessayer » repart sur un appel
 /// neuf.
 final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) async {
-  // 🛑 **La donnée est liée au COMPTE** : l'observer recrée le cache dès que
-  // l'identité change. Sans ça, se reconnecter avec un autre compte sans tuer
-  // l'app affichait les données du précédent.
+  // 🛑 **La donnée est liée au COMPTE ET À SON ACCÈS** : l'observer recrée le
+  // cache dès que l'un des deux change. Sans l'identité, se reconnecter avec un
+  // autre compte sans tuer l'app affichait les données du précédent ; sans
+  // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await ref.watch(learningPlanRepositoryProvider).get();
@@ -86,6 +89,7 @@ final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) asyn
 final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await ref.watch(learningPlanRepositoryProvider).journey();
@@ -110,6 +114,7 @@ final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
 final journeyCiviqueProvider = FutureProvider.autoDispose<Journey>((ref) async {
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     return await ref
@@ -141,6 +146,7 @@ final journeyHistoryProvider =
         (ref, module) async {
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
+  ref.watch(accesRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).history(module: module);
 });
 
@@ -158,5 +164,6 @@ final journeyStepProvider =
         (ref, stepId) async {
   ref.watch(compteIdProvider);
   ref.watch(learningPlanRevisionProvider);
+  ref.watch(accesRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).stepDetail(stepId);
 });

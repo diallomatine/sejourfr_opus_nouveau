@@ -41,10 +41,15 @@ final examBilansProvider =
         (ref, epreuve) async {
   final ids = ref.watch(expressionHubProvider(epreuve).select(_examIdsOf));
   if (ids.isEmpty) return const [];
-  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
-  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
-  // une reconnexion sans redémarrage montrait la progression du précédent.
+  // 🛑 **La donnée est liée au COMPTE ET À SON ACCÈS** : l'observer recrée le
+  // cache dès que l'un des deux change. Sans l'identité, se reconnecter avec un
+  // autre compte sans tuer l'app affichait les données du précédent ; sans
+  // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  // 🛑 **Le signal « l'accès a changé »** : ce que cette lecture porte dépend du
+  // pass du candidat (`locked` servi, quota, détail verrouillé). Sans lui, un
+  // achat laissait cette source sur les verrous d'avant.
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     final repo = ref.watch(productionRepositoryProvider);
@@ -177,11 +182,10 @@ class _ProductionExamsTabViewState
     widget.onBusy(value);
   }
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — un `read` laisserait les slots cadenassés après
+  /// un achat.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.tcf));
 
   bool _isLocked(int slot) => !_isPremium() && slot > _freeSlots;
 

@@ -51,10 +51,15 @@ class ProductionCatalog {
 final productionCatalogProvider =
     FutureProvider.autoDispose.family<ProductionCatalog, EpreuveType>(
         (ref, epreuve) async {
-  // 🛑 **Il porte de la donnée de COMPTE** (les productions du candidat) :
-  // observer l'identité recrée le cache dès qu'on change de compte. Sans ça,
-  // une reconnexion sans redémarrage montrait la progression du précédent.
+  // 🛑 **La donnée est liée au COMPTE ET À SON ACCÈS** : l'observer recrée le
+  // cache dès que l'un des deux change. Sans l'identité, se reconnecter avec un
+  // autre compte sans tuer l'app affichait les données du précédent ; sans
+  // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  // 🛑 **Le signal « l'accès a changé »** : ce que cette lecture porte dépend du
+  // pass du candidat (`locked` servi, quota, détail verrouillé). Sans lui, un
+  // achat laissait cette source sur les verrous d'avant.
+  ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {
     final repo = ref.watch(productionRepositoryProvider);

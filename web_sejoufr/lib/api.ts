@@ -113,6 +113,86 @@ function invalidateSkillProgress(): void {
     invalidateCache(SKILLS_CACHE_PREFIX);
 }
 
+/**
+ * **L'ACCÈS DU COMPTE A CHANGÉ** — le jumeau d'`invalidateDiagnosticAndPlan()`,
+ * pour un achat au lieu d'une mesure.
+ *
+ * 🛑 **Une purge ne débloque rien : elle fait RELIRE.** Tous les `locked` sont
+ * dérivés serveur, à la lecture — donc un pass civique n'ouvre que le civique
+ * et l'Intégral ouvre les deux, sans qu'aucun front n'ait à connaître la règle.
+ * Le seul défaut à corriger était que **personne ne relisait** : `refreshUser()`
+ * rafraîchissait le profil pendant que le Plan, l'Accueil, Réviser et les
+ * compétences continuaient de servir le `locked: true` mis en cache avant
+ * l'achat.
+ *
+ * **Ce qu'on purge** — tout ce qui porte un `locked`, un quota ou une
+ * progression :
+ * `diagnostic:`, `learning-plan:` (le Plan, le cycle, ses étapes, l'écran
+ * d'étape), `civic-plan:`, `preparation:`, `progress:` et `skills:`
+ * (`SkillDto.locked` est servi).
+ *
+ * ⚠️ **Ce qu'on NE purge PAS, volontairement** : `production:tasks:` et
+ * `production:examples:` — du **contenu éditorial**, sans aucun `locked` servi
+ * (`ProductionTaskDto` n'en porte pas ; le verrou des sujets et des modèles se
+ * lit sur `canAccessModule(user)`, donc il suit le contexte React sans le
+ * moindre appel). Et `production:mine:` / `production:bilan:`, qui portent des
+ * productions déjà rendues : un achat n'en change pas une ligne. Les purger
+ * coûterait des appels à chaque achat sans rien rouvrir.
+ */
+function invalidateAccesServi(): void {
+    invalidateDiagnosticAndPlan();
+    invalidateSkillProgress();
+}
+
+/**
+ * La signature de l'accès servi : ce qui, en changeant, rouvre des surfaces.
+ *
+ * ⚠️ Ni prénom, ni objectif, ni date d'examen — un `/api/auth/me` qui rend les
+ * mêmes droits rend la même chaîne, et rien n'est purgé pour rien.
+ * ⚠️ `premiumEndsAt` **en fait partie** : un rachat qui repousse l'échéance sans
+ * changer de module reste un accès qui a changé.
+ */
+function signatureAcces(user: AuthenticatedUser | null): string {
+    if (!user) return "";
+    return [
+        user.id,
+        user.hasCivique ?? false,
+        user.hasTcf ?? false,
+        user.premiumEndsAt ?? "",
+    ].join("|");
+}
+
+/** `undefined` = on n'a encore rien lu dans cette session de navigation. */
+let dernierAccesServi: string | undefined;
+
+/**
+ * **Le seul endroit qui constate qu'un accès a changé**, appelé par
+ * `authApi.me()` — donc par **tous** les chemins qui lisent le profil : le
+ * retour Stripe de `/paiement/succes` (qui poll `refreshUser()`), la connexion,
+ * l'inscription, l'hydratation au montage.
+ *
+ * 🛑 **Aucune liste d'appelants à tenir.** Un chemin d'achat ajouté plus tard
+ * finit forcément par relire le profil — il est couvert sans rien déclarer.
+ *
+ * ⚠️ La **première** lecture ne purge rien : le cache d'une session qui
+ * commence est vide (`tokenStorage.set` / `.clear` le vident), et purger là
+ * ne ferait que jeter ce que le montage vient de charger.
+ */
+function noterAccesServi(user: AuthenticatedUser | null): void {
+    if (typeof window === "undefined") return;
+    const signature = signatureAcces(user);
+    const precedent = dernierAccesServi;
+    dernierAccesServi = signature;
+    if (precedent === undefined || precedent === signature) return;
+    invalidateAccesServi();
+}
+
+/** La session s'arrête (ou commence) : la prochaine lecture du profil est une
+ *  première lecture, pas un changement d'accès. */
+function oublierAccesServi(): void {
+    dernierAccesServi = undefined;
+}
+
 /** **Après une écriture de MESURE** — session finalisée, section de diagnostic
  *  close, diagnostic clos, épreuve d'un examen complet fermée.
  *
@@ -193,6 +273,7 @@ export const tokenStorage = {
            silencieuse coûte quelques requêtes, servir les données d'un autre
            compte est un incident. */
         clearDataCache();
+        oublierAccesServi();
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
         // Cookie léger pour permettre au middleware/SSR de connaître l'état.
@@ -210,6 +291,7 @@ export const tokenStorage = {
         // candidat (sujets traités, notes, quotas). Le laisser en place le
         // servirait au compte suivant ouvert dans le même onglet.
         clearDataCache();
+        oublierAccesServi();
     },
 };
 
@@ -424,8 +506,16 @@ export const authApi = {
         return tokens;
     },
 
+    /**
+     * 🛑 **C'est ici que l'on constate qu'un accès a changé**, et nulle part
+     * ailleurs : toute lecture du profil passe par cette méthode — le retour
+     * Stripe, la connexion, l'inscription, l'hydratation au montage. Voir
+     * `noterAccesServi`.
+     */
     async me(): Promise<AuthenticatedUser> {
-        return apiFetch<AuthenticatedUser>("/api/auth/me", {auth: true});
+        const user = await apiFetch<AuthenticatedUser>("/api/auth/me", {auth: true});
+        noterAccesServi(user);
+        return user;
     },
 
     async refresh(): Promise<string | null> {

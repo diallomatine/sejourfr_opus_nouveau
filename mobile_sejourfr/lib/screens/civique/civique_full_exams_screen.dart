@@ -97,11 +97,10 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
   bool _showAll = false;
   bool _starting = false;
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.civique);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — un `read` laisserait les slots cadenassés après
+  /// un achat.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.civique));
 
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 

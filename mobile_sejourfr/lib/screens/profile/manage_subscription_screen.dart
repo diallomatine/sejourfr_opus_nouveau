@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
@@ -19,8 +20,14 @@ import '../../core/widgets/screen_header.dart';
 /// maquette) : carte gradient premium avec jours restants, détails encartés,
 /// inclusions, et prolongation / changement d'offre via le paywall. Pas de
 /// résiliation — un pass est payé une fois, il n'y a rien à annuler.
+///
+/// 🛑 **Il observe [accesRevisionProvider]**, l'autorité unique de la fraîcheur
+/// d'un accès : le paywall est poussé AU-DESSUS de cet écran, qui reste monté,
+/// donc son `autoDispose` ne le rejoue pas au retour. Un achat vérifié émet le
+/// signal, et la carte se relit toute seule.
 final _subscriptionStatusProvider =
     FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
+  ref.watch(accesRevisionProvider);
   return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
 });
 
@@ -88,16 +95,17 @@ class ManageSubscriptionScreen extends ConsumerWidget {
     return null;
   }
 
-  /// Ouvre le paywall puis rafraîchit le statut au retour (la date
-  /// d'expiration peut avoir bougé après un achat).
+  /// Ouvre le paywall.
   ///
   /// 🛑 **Aucun module mis en avant** : l'écran d'offre montre les deux cartes
   /// dans un ordre fixe (`kPassModulesInOrder`), prolongation comme montée en
   /// gamme.
-  Future<void> _openPaywall(BuildContext context, WidgetRef ref) async {
-    await showPaywallSheet(context);
-    ref.invalidate(_subscriptionStatusProvider);
-  }
+  ///
+  /// ⚠️ **Plus d'invalidation manuelle au retour** : un achat vérifié émet
+  /// `accesRevisionProvider`, que `_subscriptionStatusProvider` observe — et ce
+  /// signal-là rouvre **toutes** les surfaces, pas seulement celle-ci.
+  Future<void> _openPaywall(BuildContext context, WidgetRef ref) =>
+      showPaywallSheet(context);
 }
 
 // ---------------------------------------------------------------------------

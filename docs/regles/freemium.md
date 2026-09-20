@@ -290,3 +290,70 @@ produit les 4 implémentations ad hoc de « première fois gratuite » que D-17 
 **Et la règle de gratuité complète** (les 14 séries par niveau et par thématique, le diagnostic, les
 deux droits EE/EO nominatifs) est consignée en **D-46** — elle ne vivait jusque-là que dans un
 échange, et ce fichier ne la contenait pas.
+
+---
+
+## L'accès se lit PAR MODULE, jamais sur `isPremium` (2026-09-20)
+
+🛑 **`user.isPremium` est un AGRÉGAT** — « un pass quelconque est actif ». Il ne dit pas **lequel**.
+S'en servir pour ouvrir une fonction d'un parcours donné, c'est ouvrir le TCF à un pass civique, et
+l'inverse. L'autorité est **`canAccessModule(user, module)`** ⇄ **`AuthUser.canAccessModule`**, sur le
+module de **la session en cours**, jamais sur l'agrégat.
+
+**Deux fuites réparées le 2026-09-20**, les deux sur la fin d'un entraînement — un pass **civique**
+ouvrait l'extension automatique de série et le pied « abonné » d'un entraînement **TCF** :
+`app/sessions/[attemptId]/page.tsx` (`canExtend`, `TrainingResultCard`) et
+`screens/question_runner/runner_controller.dart` (`demoCap`, extension) + `runner_screen.dart`
+(dialogue de résultat). Le contrôleur mobile reçoit désormais l'accès **résolu sur le module de
+l'attempt**, il ne lit plus un booléen global.
+
+⚠️ **Le signal à surveiller** : tout `isPremium` qui garde une fonction **d'un seul parcours** est
+une fuite. L'agrégat ne reste légitime que là où la question est vraiment « ce compte a-t-il payé
+quelque chose ? » — la carte « Mon pass » du profil, par exemple.
+
+## L'ACCÈS A CHANGÉ — le jumeau du signal de mesure (2026-09-20)
+
+Les `locked` sont **dérivés serveur** : après un achat, une relecture suffit. Encore faut-il que
+quelqu'un relise. Ce n'était le cas **nulle part** — le retour Stripe rafraîchissait le profil sans
+purger un seul cache, et côté mobile les dix sources `keepAlive` ne se renouvellent que lorsque
+**l'identifiant du compte** change… ce qu'un achat ne fait pas. Le candidat payait, et gardait ses
+cadenas jusqu'à ce qu'il tue l'app.
+
+Le dépôt avait déjà le patron — le signal « la mesure a changé »
+(`invalidateDiagnosticAndPlan` ⇄ `signalerMesureEcrite`). Il a désormais son jumeau :
+
+- **Web** : `invalidateAccesServi()` (`lib/api.ts`), déclenché par `noterAccesServi(user)` **dans
+  `authApi.me()`** — donc par *tout* chemin qui relit le profil, sans liste d'appelants à tenir.
+  La signature comparée est `id | hasCivique | hasTcf | premiumEndsAt` : rien n'est purgé quand
+  l'accès n'a pas bougé.
+- **Mobile** : `accesRevisionProvider` (`core/auth/auth_controller.dart`), émis **au seul endroit**
+  où l'accès change (`refreshSubscriptionStatus`), observé en première ligne par les 17 sources qui
+  portent un verrou ou une progression. `BillingController` n'a **aucune** liste de caches.
+
+🛑 **`compteIdProvider` n'a PAS été élargi en clé composite** (identité + accès), bien que ce fût la
+piste évidente : les providers de feuille des Compétences faisaient alors naître l'`AuthController`,
+dont l'amorçage laisse des timers en vol — **29 tests de widget** sont tombés. Le signal vit donc
+**à côté** de l'identité, sans dépendance à l'auth. Bénéfice second : `parcoursCiviqueProvider` ne
+l'observe pas, et l'onglet TCF/Civique choisi ne se réinitialise pas juste après un achat.
+
+**Ce qui n'est délibérément PAS purgé** : le catalogue de sujets et les modèles corrigés (contenu
+**éditorial**, aucun `locked` servi), les productions déjà rendues et leurs bilans, le tableau de
+bord (aucun verrou), et un **examen complet en cours** — ses sous-épreuves verrouillées l'ont été à
+la création côté serveur, un achat en cours d'examen ne les rouvre pas.
+
+⚠️ **Douze écrans mobiles lisaient l'accès en `ref.read` dans leur `build`** : le paywall est poussé
+**au-dessus** d'eux, ils restent montés, et au retour ils rendaient la main avec leurs cadenas. Ils
+passent tous par `accesModuleProvider` en `ref.watch`. C'est le défaut le plus visible qu'un candidat
+pouvait rencontrer après avoir payé.
+
+## ⚠️ Dette — le freemium des sujets de production se déduit d'un RANG
+
+`ProductionTaskDto` **ne sert aucun `locked`**, contrairement à `SkillDto`. Les deux fronts en sont
+réduits à `!premium && rang > 0` (`ProductionSubjects.tsx`, `production_subjects_view.dart`), ce que
+le `CLAUDE.md` racine interdit explicitement : *« Ne jamais coder "à partir du 2ᵉ, cadenas" ni
+déduire un verrou d'un rang. »*
+
+L'ancrage reste une valeur **servie** (`hasTcf` / `hasCivique`), donc l'écran s'ouvre correctement
+après un achat — ce n'est pas un bug d'affichage. Mais c'est un écart doc/code réel, et **il se
+ferme côté serveur** : en servant un `locked` sur `ProductionTaskDto`, comme le fait déjà
+`SkillPromptSummaryDto`. Non fait, non arbitré.

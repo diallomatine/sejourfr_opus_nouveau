@@ -4312,3 +4312,23 @@ l'historique et des observations).
   `Attempt.prePersist` côté serveur — un client servi par un backend antérieur au
   champ garde le comportement d'avant. 🛑 **Ce n'est pas une déduction**, c'est la
   valeur que le serveur aurait posée lui-même.
+
+## L'accès se relit après un achat (2026-09-20)
+
+> Règle complète, dette et ce qui n'est délibérément pas purgé :
+> `docs/regles/freemium.md` § « L'ACCÈS A CHANGÉ ».
+
+🛑 **`isPremium` est un AGRÉGAT, jamais un droit sur un parcours.** L'accès se lit
+`canAccessModule(user, module)` ⇄ `AuthUser.canAccessModule`, sur le module de **la session en
+cours**. Deux fuites réparées : un pass **civique** ouvrait l'extension de série et le pied
+« abonné » d'un entraînement **TCF**.
+
+🛑 **Un achat ne changeait RIEN à l'écran.** Les `locked` sont dérivés serveur, mais personne ne
+relisait : le retour Stripe rafraîchissait le profil sans purger un cache, et les sources
+`keepAlive` du mobile ne se renouvellent qu'au changement d'**identifiant de compte** — ce qu'un
+achat ne fait pas. Le signal « l'accès a changé » existe désormais, jumeau de celui de la mesure :
+`invalidateAccesServi()` accroché dans `authApi.me()` (web) ⇄ `accesRevisionProvider` émis par
+`refreshSubscriptionStatus` (mobile). **Aucune liste d'appelants ni de caches à tenir.**
+
+⚠️ **Un verrou se lit en `watch`, jamais en `read` dans un `build`** : le paywall est poussé
+**au-dessus** de l'écran, qui reste monté — un `read` lui rend la main avec ses cadenas.

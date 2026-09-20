@@ -58,11 +58,10 @@ class _CiviqueThemeDetailScreenState
   /// le candidat se souvienne de l'avoir demandé.
   SerieFiltre _filtre = SerieFiltre.tous;
 
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.civique);
-  }
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — un `read` laisserait les lots cadenassés après
+  /// un achat.
+  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.civique));
 
   /// Tap sur une série : si déjà faite → sheet « Voir le détail » /
   /// « Reprendre », sinon → démarrage direct.
