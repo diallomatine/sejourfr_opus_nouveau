@@ -25,18 +25,17 @@ import 'widgets/serie_card.dart';
 import 'widgets/module_detail_widgets.dart';
 
 /// Couleur d'accent d'un niveau (chip + tint des séries faites).
-class _LevelMeta {
-  const _LevelMeta({required this.accent, required this.soft});
-
-  final Color accent;
-  final Color soft;
-}
-
-const _levelMetas = <Difficulty, _LevelMeta>{
-  Difficulty.a2: _LevelMeta(accent: AppColors.green, soft: AppColors.greenLight),
-  Difficulty.b1: _LevelMeta(accent: AppColors.amber, soft: AppColors.amberLight),
-  Difficulty.b2: _LevelMeta(accent: AppColors.red, soft: AppColors.redLight),
-};
+/// 🛑 **Les séries sont BLEUES, quel que soit le niveau** (demande du
+/// propriétaire, 2026-09-20). ⚠️ **Révoque** la teinte par palier — A2 vert,
+/// B1 ambre, B2 rouge — qui vivait ici : l'en-tête de l'écran dit déjà
+/// « Compréhension orale · A2 », la couleur ne portait donc aucune information
+/// de plus, et le vert faisait lire « réussi » sur des séries à 5/20. Les
+/// séries civiques étaient déjà bleues : les deux parcours s'alignent.
+///
+/// Le rouge reste ce que `docs/identite-visuelle.md` prévoit — CTA critiques
+/// et signaux d'urgence —, et le badge de score garde le sien.
+const Color _accent = AppColors.blue;
+const Color _accentSoft = AppColors.blueLight;
 
 /// Écran « Séries » d'un (module TCF QCM, niveau) — cf. `MSeries` maquette.
 /// Une carte par lot : numéro en chip, badge meilleur score ou « Pas encore
@@ -82,7 +81,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
       isScrollControlled: true,
       builder: (sheetCtx) => LotDoneSheet(
         lot: lot,
-        accent: _levelMetas[widget.level]!.accent,
+        accent: _accent,
         onViewDetail: () {
           Navigator.of(sheetCtx).pop();
           _openLotReport(lot);
@@ -177,7 +176,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
-    final meta = _levelMetas[widget.level]!;
     final isPremium = _isPremium();
     final lotsAsync = ref.watch(lotsProvider(LotsKey(
       questionType: mod.questionType,
@@ -206,7 +204,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 60),
                           child: Center(
                             child: CircularProgressIndicator(
-                                color: meta.accent),
+                                color: _accent),
                           ),
                         ),
                         error: (e, _) => AppCard(
@@ -219,7 +217,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                         data: (lots) {
                           if (lots.isEmpty) {
                             return _Empty(
-                                accent: meta.accent, level: widget.level);
+                                accent: _accent, level: widget.level);
                           }
                           final visibles = serieFiltrer(lots, _filtre);
                           return Column(
@@ -228,7 +226,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                               ExamFilterChips(
                                 active: SerieFiltre.values.indexOf(_filtre),
                                 labels: serieFiltreLabels(lots),
-                                accent: meta.accent,
+                                accent: _accent,
                                 onChanged: (i) => setState(
                                     () => _filtre = SerieFiltre.values[i]),
                               ),
@@ -246,8 +244,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                               for (final lot in visibles) ...[
                                 SerieCard(
                                   lot: lot,
-                                  accent: meta.accent,
-                                  soft: meta.soft,
+                                  accent: _accent,
+                                  soft: _accentSoft,
                                   locked: !isPremium && lot.numero > 1,
                                   onTap: () => _onLotTap(lot),
                                 ),
@@ -261,7 +259,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                   ),
                   if (_starting)
                     Positioned.fill(
-                      child: ModuleDetailStartingOverlay(accent: meta.accent),
+                      child: ModuleDetailStartingOverlay(accent: _accent),
                     ),
                 ],
               ),
