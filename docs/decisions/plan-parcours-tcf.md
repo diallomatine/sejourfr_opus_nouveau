@@ -2975,3 +2975,36 @@ parcours non servi (client ancien), `NEEDS_OBJECTIVE` / `CYCLE_COMPLETED` / `UP_
 A17. **Ne pas le retirer sèchement** — la carte disparaîtrait.
 
 Décisions d'implémentation : **A132 → A135**.
+
+---
+
+## D-61 — Le catalogue civique n'a QUE deux pass, et c'est voulu (2026-09-20)
+
+> Propriétaire, après vérification du catalogue : « on le garde désactivé. On a que celui de
+> 3 mois et 1 an. On garde comme ça. **Ne le réactive pas.** »
+
+**Ce qui a déclenché la question.** L'écran de transition civique annonce « À partir de
+**9,99 €** » là où 4,99 € était attendu. Mesuré en base : ce n'était **pas** un défaut de
+front — le prix est **servi** (`passFromPrice` = le moins cher des pass **ONE_TIME actifs**
+du module, `GET /api/billing/plans`), et il n'existe **aucun** pass civique à 4,99 €.
+
+| code | type | durée | prix | actif |
+|---|---|---|---|---|
+| `CIVIQUE_MONTHLY` | **SUBSCRIPTION** | 30 j | 4,99 € | **non** |
+| `CIVIQUE_PASS_3M` | ONE_TIME | 90 j | **9,99 €** | oui |
+| `CIVIQUE_PASS_1Y` | ONE_TIME | 365 j | 29,99 € | oui |
+
+**Arbitré : rien ne change.** `CIVIQUE_MONTHLY` reste **désactivé** — c'est un abonnement,
+vestige du mode dormant, et le produit se vend en pass. Aucune migration n'est écrite.
+
+🛑 **« 9,99 € » côté civique est donc JUSTE.** Ne pas le « corriger » dans un front : il
+viendrait démentir le catalogue, et la page de choix du pass afficherait un autre montant
+que l'écran qui y mène. Un prix ne se change qu'en base.
+
+⚠️ **Les deux parcours annoncent le même « à partir de »** — le plus petit pass Intégral
+(`INTEGRAL_PASS_7J`) vaut aussi 9,99 €. Coïncidence de catalogue, pas un bug d'affichage.
+
+**Si l'arbitrage changeait** (« on vend un pass civique à 4,99 € ») : une ligne `plans`
+`ONE_TIME` / `CIVIQUE` / `is_active = true`, plus le produit **consommable** créé à
+l'identique dans App Store Connect et Play Console — sans lui, la carte ne s'affiche pas sur
+mobile (`loadProducts` ne le trouve pas). Aucune ligne de code à toucher.
