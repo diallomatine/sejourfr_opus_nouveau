@@ -87,6 +87,33 @@ l'examen de thème se sert **ici**, avec les écrans. `CivicExamFormat` en porte
 **Et la suppression** : les trois sections que le TCF n'a plus (§ arbitrage 3 ci-dessus) partent des
 deux vues civiques **dans la même passe** — « refonte = suppression immédiate de l'ancien ».
 
+### 3 bis. 🛑 CHANTIER — `DETTE-P1` : le seuil des trois occurrences est **atteint**
+
+**Inscrit ici par le propriétaire (2026-09-20)** : « une troisième occurrence transforme la dette en
+chantier. Elle est atteinte. Ne l'ouvre pas maintenant — **les écrans sont justement la passe où
+elle se traitera le mieux**. »
+
+**Les trois occurrences, toutes trouvées en mesurant, aucune par relecture :**
+
+| # | Le fait tenu des deux côtés | Symptôme | État |
+|---|---|---|---|
+| 1 | La **durée** de l'examen civique, écrite en dur dans chaque front | web : `?? 2400` = **40 min** là où l'arrêté en fixe **45** | ✅ corrigé (`c2304fef`) — miroirs gelés, chiffres lus chez `CivicExamFormat` |
+| 2 | La **carte de contexte** du Plan civique | mobile « 4 thèmes / 17 notions », web « 17 à consolider / 3 à revoir » — **même carte, faits différents** | ⚠️ **ouvert** — disparaît avec la refonte de cet écran |
+| 3 | La **promesse de gratuité** des examens de thème | « examen 1 gratuit » des deux côtés, **403 au clic** | ✅ corrigé (`9652315a`) |
+
+🛑 **Ce que le 3ᵉ cas ajoute** : le verrou **existait** côté serveur — il n'était simplement pas
+**servi**. Un front ne peut pas lire ce qu'on ne lui dit pas. Le chantier n'est donc pas « mieux
+surveiller les miroirs », c'est **servir le fait** plutôt que le laisser se réécrire à la main.
+
+**Ce que la passe des écrans peut en faire, sans rien inventer :**
+- le `locked` d'un examen **servi**, comme il l'est déjà pour une étape de cycle (D-18) ;
+- la **phrase** des unités servie (D-50 §4) — un fait de moins à recopier ;
+- et le précédent qui montre la forme d'un filet : `scripts/verifier-contrat-front-progression.mjs`,
+  écrit pour **un** contrat et jamais étendu.
+
+⛔ **Aucun nouveau test front** : la réponse est un fait **servi** ou un script hors test, jamais un
+`*.test.ts`.
+
 ### 4. P8.8 — les 11 questions de Laïcité
 
 ⛔ **ARRÊT ÉDITORIAL** : le propriétaire relit les **28 questions** (11 Laïcité + 17 à taguer) avant

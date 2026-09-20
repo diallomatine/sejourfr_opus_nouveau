@@ -2146,6 +2146,7 @@ occurrences, donc ça mérite d'être suivi comme un **motif**, pas traité comm
 |---|---|---|---|
 | 1 | La **durée de l'examen civique** écrite en dur dans chaque front. Le web lisait `civiqueTemplate?.durationSeconds ?? 2400` — **40 minutes**, là où l'arrêté en fixe **45**. | P8.1 / P8.A, 2026-09-19 | ✅ **corrigé** (`c2304fef`) : deux miroirs gelés, les chiffres lus chez `CivicExamFormat` |
 | 2 | La **carte de contexte du Plan civique** n'affiche pas les mêmes faits : mobile « 4 thèmes à renforcer / 17 notions à consolider », web « 17 à consolider / 3 à revoir bientôt ». | Audit des écrans, 2026-09-19 | ⚠️ **ouvert** — disparaît en P8.7 avec la refonte de l'écran (D-50) |
+| 3 | 🛑 **Les deux écrans d'examens de thème promettaient un examen que le serveur refuse** : « examen 1 gratuit, 2+ premium » (`freeSlots={isGuest ? 0 : 1}` côté web, `slot > 1` côté mobile). Un compte gratuit cliquait sur un examen annoncé **offert** et recevait un **403**. | P8.5, 2026-09-20 | ✅ **corrigé** (`9652315a`) — les deux écrans passent à « tous premium » |
 
 **Le motif commun, et c'est lui la dette.** Un même fait s'écrit **deux fois**, à la main, dans deux
 langages, et **rien ne compare les deux copies** : ni test (les fronts n'en prennent pas de
@@ -2162,6 +2163,23 @@ pour la phrase des unités : servie, donc impossible à diverger).
 
 ⚠️ **Le signal à surveiller** : un fait affiché des deux côtés qui n'a **pas** d'autorité serveur et
 qui n'est **pas** dans un miroir gelé. Une troisième occurrence transforme la dette en chantier.
+
+---
+
+#### 🛑 SEUIL ATTEINT (2026-09-20) — la dette devient un **chantier**
+
+La **3ᵉ occurrence** est arrivée, et elle est la pire des trois : les deux précédentes montraient un
+**chiffre faux** ; celle-ci promettait un **geste que le serveur refuse**. Le candidat ne lisait pas
+une incohérence, il **cliquait** dessus.
+
+**Le motif, maintenant visible en trois exemplaires** : un fait que les deux fronts affichent, qu'ils
+tiennent **chacun de leur côté**, et qu'**aucune autorité serveur** ne leur sert. Le troisième cas
+ajoute une nuance qui manquait : le verrou **existait** côté serveur — il ne le **servait** pas. Un
+front ne peut pas lire ce qu'on ne lui dit pas.
+
+**Décision du propriétaire** : ⛔ **ne pas l'ouvrir maintenant**. Elle est inscrite comme chantier
+dans `docs/progression/civique/REPRISE-LANCEE-3-ECRANS.md` — **la lancée des écrans est la passe où
+elle se traite le mieux**, puisque c'est là qu'on touche précisément ces surfaces.
 
 ---
 
