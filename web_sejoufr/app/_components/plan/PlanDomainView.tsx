@@ -33,14 +33,12 @@ import {
   type PlanDomainLevelDto,
 } from "@/lib/types";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {track} from "@/lib/analytics";
+import {planUnlockHref} from "@/lib/plan-unlock";
 import {
   RowChevron,
   SkillLockBadge,
   SkillMasteryPill,
-  SKILL_PREMIUM_HREF,
 } from "@/app/_components/skill-ui/SkillLayout";
-import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import styles from "./plan.module.css";
 
 /**
@@ -286,7 +284,6 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
  * acquérir n'a aucun état, et n'affichait donc rien du tout.
  */
 function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
-  const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
   const locked = priority.locked;
   const text = (
     <>
@@ -297,18 +294,18 @@ function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
 
   return (
     <li>
+      {/* 🛑 **Un verrou SERVI est un geste d'ACHAT du Plan** : `priority.locked`
+          est lu avant tout appel, la fiche de domaine est une surface du Plan,
+          donc la ligne passe par l'écran de transition (A145).
+
+          ⚠️ **Révoque** le lien direct vers `/paiement?module=INTEGRAL`
+          (`SKILL_PREMIUM_HREF`) : il sautait l'écran qui dit au candidat ce
+          qu'il achète. La mesure d'audience part de l'écran de transition, qui
+          pose déjà `PREMIUM_CTA_CLICKED / LOCKED_PLAN` — la poser ici aussi la
+          compterait deux fois. */}
       <Link
         className={styles.panelRow}
-        href={locked ? premiumHref : planSkillHref(priority, {planStep: true})}
-        onClick={
-          locked
-            ? () =>
-                track("PREMIUM_CTA_CLICKED", {
-                  ctaLocation: "LOCKED_PLAN",
-                  screen: "plan_domaine",
-                })
-            : undefined
-        }
+        href={locked ? planUnlockHref("TCF") : planSkillHref(priority, {planStep: true})}
       >
         <span className={styles.panelBody}>
           {locked ? (

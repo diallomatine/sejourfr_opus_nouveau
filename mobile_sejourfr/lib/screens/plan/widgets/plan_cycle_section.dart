@@ -333,7 +333,36 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       );
     }
     final action = _actionDe(etape);
-    return action == null ? null : (label: kJourneyStepActionLink, onTap: action);
+    if (action != null) {
+      return (label: kJourneyStepActionLink, onTap: action);
+    }
+    // 🛑 **L'action existe mais elle est fermée** : la ligne **nomme son geste
+    // d'achat**, elle ne dit plus « Faire cette étape → » sur une étape qu'on ne
+    // peut pas faire. La destination ne change pas — c'était déjà l'écran de
+    // transition, par l'`onVerrou` du lanceur —, c'est le **libellé** qui
+    // divergeait du web.
+    return _actionVerrouillee(etape)
+        ? (
+            label: kJourneyStepUnlockLink,
+            onTap: () => _versEcranDeDeblocage(context),
+          )
+        : null;
+  }
+
+  /// **L'action de cette ligne est-elle SERVIE mais verrouillée ?**
+  ///
+  /// 🛑 **Le verrou de l'ACTION n'est pas celui de l'ÉTAPE** (A146) :
+  /// [planStepActionLocked] est l'autorité, partagée avec le web.
+  ///
+  /// ⚠️ **Rien à lancer ⇒ `false`** : une ligne sans action ne se voit pas poser
+  /// un geste d'achat qui ne la débloquerait pas (garde-fou A25).
+  bool _actionVerrouillee(JourneyStep etape) {
+    if (etape.locked || journeyEtapeASeries(etape)) return false;
+    if (widget.module == AppModule.civique) return false;
+    final plan = widget.plan;
+    if (plan == null) return false;
+    final action = planStepAction(plan, etape);
+    return action != null && planStepActionLocked(action);
   }
 
 
@@ -372,6 +401,10 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     if (plan == null) return null;
     final action = planStepAction(plan, etape);
     if (action == null) return null;
+    // 🛑 **Une action SERVIE mais verrouillée ne se lance pas** : son geste est
+    // un geste d'achat, rendu par [_gesteDe]. Les lanceurs gardent leur
+    // `onVerrou` — c'est la même porte, et la garde de dernier recours.
+    if (planStepActionLocked(action)) return null;
     final mesure = action.mesure;
     if (mesure != null) {
       return () => unawaited(startPlanSeanceItem(

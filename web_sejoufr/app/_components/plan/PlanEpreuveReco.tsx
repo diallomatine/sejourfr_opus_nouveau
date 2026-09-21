@@ -22,12 +22,13 @@
  */
 
 import type {ReactNode} from "react";
+import {useRouter} from "next/navigation";
 import {journeyApi, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
 import {canAccessModule} from "@/lib/types";
 import type {JourneyDto, LearningPlanDto} from "@/lib/types";
-import {planEpreuveCarte} from "@/lib/plan-domain";
+import {planEpreuveCarte, planStepActionLocked} from "@/lib/plan-domain";
 import {REVISER_RESUME_LABEL} from "@/lib/reviser";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {PlanRecoCard} from "./PlanRecoCard";
@@ -71,12 +72,24 @@ export function PlanEpreuveReco({
     const carte = usePlanEpreuveCarte(blocCode);
     const exercise = usePlanExercise();
     const assessment = usePlanAssessment();
+    const router = useRouter();
     if (!carte) return null;
 
     const busy = exercise.starting || assessment.starting !== null;
     const lancer = () => {
         const action = carte.action;
         if (!action) return;
+        /* 🛑 **Le verrou de l'ACTION n'est pas celui de l'ÉTAPE** (A146) :
+           `planEpreuveCarte` ne lit que celui de l'étape, donc une étape
+           ouverte peut porter un exercice — ou une mesure — fermé. Le lancer
+           partait chercher un 403 pour le traduire en paywall d'un coup, quand
+           le mobile passait déjà par l'écran de transition (`onVerrou` de
+           `openPlanExercise` / `startPlanSeanceItem`). Même geste, même
+           parcours. */
+        if (planStepActionLocked(action)) {
+            router.push(planUnlockHref("TCF"));
+            return;
+        }
         if (action.mesure) void assessment.start(action.mesure.assessment);
         else if (action.exercise) void exercise.start(action.exercise);
     };

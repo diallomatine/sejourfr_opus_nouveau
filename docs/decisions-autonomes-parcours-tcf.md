@@ -2926,3 +2926,51 @@ les deux chiffres sont servis.
 **Si l'arbitrage était autre** (« 20 seulement pour les séries d'étape ») : il faudrait une
 seconde clé de taille, donc **deux** dénominateurs pour un même seuil de réussite. C'est
 exactement ce que le dépôt paie le plus cher, et c'est pourquoi la lecture large a été retenue.
+
+### A156 — Parité du parcours d'achat : les 5 portes du Plan qui divergeaient encore
+
+**Demande du propriétaire, 2026-09-21 :**
+
+> « On avait dit qu'il faut toujours avoir le même comportement partout, donc si mobile affiche
+> un écran intermédiaire avant le paywall côté mobile, la même chose devrait être côté web. »
+
+**Mesuré, geste par geste.** A145 et A146 avaient fermé les portes **nommées**. L'audit des deux
+fronts en a trouvé **cinq** de plus où le même geste ne se comportait pas pareil des deux côtés.
+🛑 **L'asymétrie était le sujet, pas le nombre** : rien n'a été « corrigé » en ajoutant l'écran
+de transition partout.
+
+| # | Geste | Ce qui divergeait |
+|---|---|---|
+| 1 | Le **jalon** du Plan, verrouillé | web → `/paiement?module=INTEGRAL` d'un coup ; mobile → écran de transition |
+| 2 | La **carte de tête d'épreuve** sur une action fermée | web → 403 → paywall ; mobile → écran de transition (`onVerrou`) |
+| 3 | La **ligne du cycle** sur une **mesure** fermée | web → 403 → paywall ; mobile → écran de transition |
+| 4 | La **ligne du cycle** sur un **exercice** fermé | même destination, **libellé** différent : « Débloquer mon plan → » (web) contre « Faire cette étape → » (mobile) |
+| 5 | La **ligne de priorité d'une fiche de domaine**, verrouillée | web → `/paiement` d'un coup ; **aucun miroir mobile** (l'écran de domaine n'y liste pas les priorités) |
+
+**Décidé.** Une **autorité unique** compose les deux verrous d'une action résolue —
+`planStepActionLocked` (`lib/plan-domain.ts` ⇄ `plan_now_card.dart`, miroirs) : mesure ⇒
+`planSeanceItemLocked`, exercice ⇒ son `locked` servi. Les cinq portes la lisent **avant tout
+appel** et repartent vers `/plan/debloquer`.
+
+⚠️ **Révoque** le test `etape.type === "TRAIN_SKILL"` du `gesteDe` web, raccourci pour « le seul
+cas où l'action ne se résout pas est un exercice fermé ». Il était faux dès qu'une **mesure**
+fermée portait la ligne, et il collait un geste d'achat à une étape simplement **occupée**.
+
+🛑 **La distinction d'A145 tient** : seul un `locked` / `free` **servi** passe par l'écran de
+transition. Un **403** reste un refus et garde son paywall — `handleStartFailure` /
+`showPaywallOrError` n'ont pas bougé, et les `PaywallSheet` restent en place pour eux.
+
+⚠️ **Écart de FORME conservé, et voulu** : le paywall mobile est une **feuille** poussée
+par-dessus, le web une **page** (`/paiement`) parce que Stripe impose une redirection pleine
+page. C'est la forme qui diffère, pas le parcours.
+
+⚠️ **Deux écarts SYMÉTRIQUES laissés en l'état, et signalés** — ils ne sont pas des bugs de
+parité, les deux fronts font déjà pareil :
+- la **carte de série de l'écran d'étape** (`detail.locked` servi) ouvre le paywall d'un coup
+  des deux côtés (`PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`) ;
+- la **fiche de compétence** (`planStepAction` sans `onVerrou`) de même, des deux côtés.
+  Les router vers l'écran de transition serait un **changement produit**, pas un alignement :
+  en attente d'arbitrage.
+
+**Si l'arbitrage était autre** (« ces deux-là aussi passent par l'écran ») : c'est une ligne par
+site d'appel, le `onVerrou` existe déjà côté mobile et `planStepActionLocked` côté web.

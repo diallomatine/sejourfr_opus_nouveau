@@ -882,6 +882,28 @@ export function planStepAction(
 }
 
 /**
+ * **Le verrou SERVI de l'action d'une étape** — le seul endroit qui compose les
+ * deux verrous d'une action résolue.
+ *
+ * 🛑 **Le verrou de l'ACTION n'est pas celui de l'ÉTAPE** : une étape servie
+ * ouverte peut porter un exercice — ou une mesure — fermé, et c'est par là que
+ * le geste sautait l'écran de transition pour finir sur un 403 (A146). On lit
+ * donc le verrou de ce que la ligne **lance**, avant tout appel.
+ *
+ * 🛑 **Lu, jamais déduit** : `planSeanceItemLocked` pour une mesure (elle lit
+ * l'item ET son exercice), `locked` servi pour un exercice. Ni rang, ni statut
+ * d'abonnement lu côté client.
+ *
+ * ⚠️ Miroir mot pour mot du mobile (`planStepActionLocked`,
+ * `plan_now_card.dart`).
+ */
+export function planStepActionLocked(action: PlanStepAction): boolean {
+    return action.mesure
+        ? planSeanceItemLocked(action.mesure)
+        : (action.exercise?.locked ?? false);
+}
+
+/**
  * **Ce que le cycle propose pour UNE épreuve**, pour la carte de tête de son
  * écran d'entraînement (demande du propriétaire, 2026-09-20).
  *

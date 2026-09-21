@@ -5,7 +5,7 @@ import {useRouter} from "next/navigation";
 import {attemptApi, fullTcfExamApi, journeyApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
 import {planHref, type ParcoursModule} from "@/lib/module-switch";
-import {planSkillTargetLevelDeCode, planStepAction} from "@/lib/plan-domain";
+import {planSkillTargetLevelDeCode, planStepAction, planStepActionLocked} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
     JOURNEY_CYCLE_NOTE,
@@ -245,19 +245,41 @@ function CycleBody({journey, plan, module}: {
             if (!plan) return undefined;
             const action = planStepAction(plan, etape);
             if (!action) return undefined;
+            /* 🛑 **Une action SERVIE mais verrouillée ne se lance pas** : son
+               geste est un geste d'achat, rendu par `gesteDe`. Le lancer
+               partirait chercher un 403 pour le traduire en paywall, exactement
+               le chemin qu'A145 ferme. */
+            if (planStepActionLocked(action)) return undefined;
             if (action.mesure) {
                 const mesure = action.mesure;
                 return () => void assessments.start(mesure.assessment);
             }
             const exercise = action.exercise!;
-            /* 🛑 **Le verrou de l'EXERCICE n'est pas celui de l'ÉTAPE.** Une
-               étape servie ouverte peut porter un exercice fermé — et c'est
-               par là que le geste sautait l'écran de transition pour finir
-               sur un 403 puis le paywall. On lit les deux. */
-            if (exercise.locked) return undefined;
             return () => void exercises.start(exercise);
         },
         [assessments, busy, exercises, module, plan, routerCycle],
+    );
+
+    /**
+     * **L'action de cette ligne est-elle SERVIE mais verrouillée ?**
+     *
+     * 🛑 **Le verrou de l'ACTION n'est pas celui de l'ÉTAPE** (A146) : une
+     * étape servie ouverte peut porter un exercice — ou une mesure — fermé, et
+     * c'est par là que le geste sautait l'écran de transition pour finir sur un
+     * 403 puis le paywall. `planStepActionLocked` est l'autorité, partagée avec
+     * le mobile.
+     *
+     * ⚠️ **Rien à lancer ⇒ `false`** : une ligne sans action ne se voit pas
+     * poser un geste d'achat qui ne la débloquerait pas (garde-fou A25).
+     */
+    const actionVerrouillee = useCallback(
+        (etape: JourneyStepDto): boolean => {
+            if (etape.locked || journeyEtapeASeries(etape)) return false;
+            if (module === "CIVIQUE" || !plan) return false;
+            const action = planStepAction(plan, etape);
+            return action !== null && planStepActionLocked(action);
+        },
+        [module, plan],
     );
 
     /**
@@ -304,17 +326,23 @@ function CycleBody({journey, plan, module}: {
             }
             const action = actionDe(etape);
             if (action) return {label: JOURNEY_STEP_ACTION_LINK, onClick: action};
-            /* 🛑 Aucune action résoluble sur une étape d'ENTRAÎNEMENT : c'est
-               un exercice fermé (le seul cas, cf. `actionDe`). La ligne garde
-               donc son geste d'achat — sans lui, elle serait muette. */
-            return etape.type === "TRAIN_SKILL"
+            /* 🛑 **L'action existe mais elle est fermée** : la ligne garde son
+               geste d'achat — sans lui, elle serait muette.
+
+               ⚠️ **Révoque** le test `etape.type === "TRAIN_SKILL"`, qui était
+               un raccourci pour « le seul cas où `actionDe` ne résout rien est
+               un exercice fermé ». Il était faux dès qu'une **mesure** fermée
+               portait la ligne, et il donnait un geste d'achat à une étape
+               d'entraînement simplement **occupée**. On lit le verrou servi de
+               l'action, comme le mobile. */
+            return actionVerrouillee(etape)
                 ? {
                       label: JOURNEY_STEP_UNLOCK_LINK,
                       onClick: () => routerCycle.push(planUnlockHref(module)),
                   }
                 : undefined;
         },
-        [actionDe, module, routerCycle],
+        [actionDe, actionVerrouillee, module, routerCycle],
     );
 
     return (

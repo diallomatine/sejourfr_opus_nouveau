@@ -240,6 +240,25 @@ PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
   return PlanStepAction(exercise: exercise, priority: priority);
 }
 
+/// **Le verrou SERVI de l'action d'une étape** — le seul endroit qui compose
+/// les deux verrous d'une action résolue.
+///
+/// 🛑 **Le verrou de l'ACTION n'est pas celui de l'ÉTAPE** : une étape servie
+/// ouverte peut porter un exercice — ou une mesure — fermé, et c'est par là que
+/// le geste sautait l'écran de transition pour finir sur un 403 (A146). On lit
+/// donc le verrou de ce que la ligne **lance**, avant tout appel.
+///
+/// 🛑 **Lu, jamais déduit** : [planSeanceItemLocked] pour une mesure (elle lit
+/// l'item ET son exercice), `locked` servi pour un exercice. Ni rang, ni statut
+/// d'abonnement lu côté client.
+///
+/// ⚠️ Miroir mot pour mot du web (`planStepActionLocked`, `lib/plan-domain.ts`).
+bool planStepActionLocked(PlanStepAction action) {
+  final mesure = action.mesure;
+  if (mesure != null) return planSeanceItemLocked(mesure);
+  return action.exercise?.locked ?? false;
+}
+
 /// **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
 /// n'a désigné aucune priorité (l'écran affiche alors son état vide).
 ///

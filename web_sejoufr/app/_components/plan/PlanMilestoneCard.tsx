@@ -1,7 +1,6 @@
 "use client";
 
 import {Clock3, FilePenLine, Lock, Mic, Trophy} from "lucide-react";
-import {track} from "@/lib/analytics";
 import {
   PLAN_MILESTONE_CTA,
   PLAN_MILESTONE_LOCK_NOTE,
@@ -13,10 +12,9 @@ import {
   planMilestoneText,
   planMilestoneTitle,
 } from "@/lib/diagnostic";
+import {planUnlockHref} from "@/lib/plan-unlock";
 import type {PlanMilestoneExerciseDto} from "@/lib/types";
-import {useTrafficSourceHref} from "@/lib/use-traffic-source";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {SKILL_PREMIUM_HREF} from "@/app/_components/skill-ui/SkillLayout";
 import {Cta, NowCard, Pad, Section, sejourStyles} from "@/app/_components/sejour/SejourKit";
 import {usePlanExercise} from "./use-plan-exercise";
 
@@ -37,7 +35,6 @@ import {usePlanExercise} from "./use-plan-exercise";
  * parcours.
  */
 export function PlanMilestoneCard({milestone}: {milestone: PlanMilestoneExerciseDto}) {
-  const premiumHref = useTrafficSourceHref(SKILL_PREMIUM_HREF);
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
 
   const full = milestone.kind === "FULL_TCF_MOCK_EXAM";
@@ -56,9 +53,19 @@ export function PlanMilestoneCard({milestone}: {milestone: PlanMilestoneExercise
           meta={[{icon: Clock3, label: planMilestoneMeta(milestone)}]}
         >
           {milestone.locked ? (
+            /* 🛑 **Le jalon est un geste d'ACHAT du Plan** : son verrou est
+               SERVI (`milestone.locked`), lu avant tout appel — il passe donc
+               par l'écran de transition (A145), comme les autres gestes du
+               Plan et comme le mobile le fait déjà
+               (`plan_tcf_view.dart`, `_milestoneSection`).
+
+               ⚠️ **Révoque** le lien direct vers `/paiement?module=INTEGRAL`
+               (`SKILL_PREMIUM_HREF`) : c'était la dernière porte du Plan qui
+               sautait l'écran disant au candidat ce qu'il achète. La mesure
+               d'audience part maintenant de l'écran de transition, qui la pose
+               déjà — la poser ici aussi la compterait deux fois. */
             <Cta
-              href={premiumHref}
-              onClick={() => track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan_jalon"})}
+              href={planUnlockHref("TCF")}
               caption={PLAN_MILESTONE_LOCK_NOTE}
             >
               <Lock size={16} aria-hidden /> {PLAN_MILESTONE_LOCKED_CTA}
