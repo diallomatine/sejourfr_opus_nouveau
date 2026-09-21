@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
+import {retourDe} from "@/lib/retour";
 import {Suspense, useEffect, useMemo, useRef, useState} from "react";
 import {
     ApiException,
@@ -254,6 +255,12 @@ function PaiementInner() {
      */
     const visibleModules = PASS_MODULES_IN_ORDER;
 
+    /* Le chemin d'où le candidat est parti acheter, posé par l'écran de
+       transition et **relayé tel quel** jusqu'au départ vers Stripe. `null` est
+       le cas nominal (achat depuis les tarifs, le profil, un lien partagé) :
+       la `success_url` est alors exactement celle d'avant. */
+    const retour = retourDe(searchParams);
+
     async function handleSubscribe(planCode: string) {
         // Ce clic engage réellement l'achat (ouverture de la Checkout Stripe),
         // à la différence d'un lien de navigation vers l'offre. Il dit deux
@@ -265,7 +272,7 @@ function PaiementInner() {
         setError(null);
         setLoadingCode(planCode);
         try {
-            const {url} = await billingApi.getPaymentLink(planCode);
+            const {url} = await billingApi.getPaymentLink(planCode, retour);
             window.location.assign(url);
         } catch (err) {
             if (err instanceof ApiException) {

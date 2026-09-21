@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import {Suspense, useEffect, useRef, useState} from "react";
-import {useSearchParams} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {useAuth} from "@/lib/auth-context";
+import {retourDe} from "@/lib/retour";
 import type {AuthenticatedUser} from "@/lib/types";
 
 type SyncState = "syncing" | "ready" | "timeout";
@@ -24,17 +25,43 @@ export default function PaiementSuccesPage() {
  * Côté front, on poll `refreshUser()` (1,5s × 8 = 12s max) tant que le
  * statut premium n'est pas détecté. Au-delà, message "ça arrive sous peu"
  * — l'utilisateur peut naviguer, son accès sera actif au prochain reload.
+ *
+ * 🛑 **`?retour=` ramène le candidat à l'écran d'où il est parti** — le chemin
+ * posé par l'écran de transition, relayé jusqu'à Stripe, validé une première
+ * fois par le serveur avant d'être posé sur la `success_url`, et **revalidé
+ * ici** (`retourDe` ⇒ `safeInternalPath`) parce qu'une URL se trafique dans la
+ * barre d'adresse. Sans lui — lien partagé, achat depuis les tarifs, retour
+ * d'une autre session — cette page garde **exactement** son comportement
+ * d'avant : on ne casse pas le chemin nominal pour un confort.
  */
 function SuccesInner() {
     const sp = useSearchParams();
+    const router = useRouter();
     const {user, status, refreshUser} = useAuth();
     const sessionId = sp.get("session_id");
     const planParam = sp.get("plan");
+    const retour = retourDe(sp);
 
     const [timedOut, setTimedOut] = useState(false);
     const synced = isPremium(user);
     const syncState: SyncState = synced ? "ready" : timedOut ? "timeout" : "syncing";
     const attemptsRef = useRef(0);
+    const partiRef = useRef(false);
+
+    /* 🛑 **Le retour n'a lieu qu'une fois l'ACCÈS CONFIRMÉ**, jamais à l'arrivée
+       sur la page : le webhook Stripe peut traîner, et renvoyer le candidat
+       avant le ramènerait sur un écran encore verrouillé — exactement ce que le
+       déblocage venait de lui acheter. On attend donc `synced`, le même fait que
+       le poll ci-dessus surveille.
+
+       ⚠️ `replace`, pas `push` : la page de succès n'a rien à faire dans
+       l'historique, et un « précédent » ne doit pas y ramener. `partiRef` la
+       garde d'un second départ pendant le démontage. */
+    useEffect(() => {
+        if (!retour || !synced || partiRef.current) return;
+        partiRef.current = true;
+        router.replace(retour);
+    }, [retour, router, synced]);
 
     useEffect(() => {
         if (status !== "authenticated") return;

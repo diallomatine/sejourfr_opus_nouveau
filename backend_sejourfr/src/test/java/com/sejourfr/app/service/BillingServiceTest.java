@@ -94,7 +94,7 @@ class BillingServiceTest {
     @Test
     void getPaymentLink_stripeNonConfigure_renvoie503() {
         when(stripeProperties.isConfigured()).thenReturn(false);
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(503);
@@ -106,7 +106,7 @@ class BillingServiceTest {
         when(billingProperties.isOneTime()).thenReturn(false);
         when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(404);
@@ -119,7 +119,7 @@ class BillingServiceTest {
         when(planManager.findByCode("CIVIQUE_3MOIS"))
                 .thenReturn(Optional.of(plan(ModuleAccess.CIVIQUE, null)));
 
-        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX))
+        assertThatThrownBy(() -> service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(503);
@@ -225,11 +225,104 @@ class BillingServiceTest {
             sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
                     .thenReturn(created);
 
-            service.getPaymentLink(userId, "CIVIQUE_3MOIS", CTX);
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX);
 
             assertThat(captor.getValue().getCancelUrl())
                     .isEqualTo("https://sejourfr.fr/paiement/recapitulatif"
                             + "?plan=CIVIQUE_3MOIS&canceled=1");
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // `retour` — le chemin d'où le candidat est parti, rendu après le paiement
+    // ------------------------------------------------------------------------
+
+    /**
+     * Monte un checkout one-time avec le {@code retour} donné et rend la
+     * {@code success_url} réellement passée à Stripe.
+     */
+    private String successUrlAvecRetour(String retour) {
+        when(stripeProperties.isConfigured()).thenReturn(true);
+        when(stripeProperties.getAppBaseUrl()).thenReturn("https://sejourfr.fr");
+        when(billingProperties.isOneTime()).thenReturn(true);
+        Plan pass = plan(ModuleAccess.CIVIQUE, null);
+        pass.setDurationDays(90);
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(pass));
+
+        try (MockedStatic<com.stripe.model.checkout.Session> sessions =
+                     mockStatic(com.stripe.model.checkout.Session.class)) {
+            com.stripe.model.checkout.Session created =
+                    mock(com.stripe.model.checkout.Session.class);
+            when(created.getUrl()).thenReturn("https://checkout.stripe.com/x");
+            ArgumentCaptor<com.stripe.param.checkout.SessionCreateParams> captor =
+                    ArgumentCaptor.forClass(com.stripe.param.checkout.SessionCreateParams.class);
+            sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
+                    .thenReturn(created);
+
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", retour, CTX);
+
+            return captor.getValue().getSuccessUrl();
+        }
+    }
+
+    /** Le chemin nominal : le candidat retrouve l'écran d'où il est parti. */
+    @Test
+    void retour_cheminInterne_estPoseSurLaSuccessUrl() {
+        assertThat(successUrlAvecRetour("/plan?module=CIVIQUE"))
+                .isEqualTo("https://sejourfr.fr/paiement/succes"
+                        + "?session_id={CHECKOUT_SESSION_ID}&plan=CIVIQUE_3MOIS"
+                        + "&retour=%2Fplan%3Fmodule%3DCIVIQUE");
+    }
+
+    /**
+     * 🛑 Le marqueur de Stripe n'est PAS encodé : c'est Stripe qui le substitue
+     * avant la redirection, et l'encoder rendrait la référence de transaction
+     * illisible sur la page de succès. Seule la valeur de {@code retour} l'est.
+     */
+    @Test
+    void retour_leMarqueurStripeResteLitteral() {
+        assertThat(successUrlAvecRetour("/plan"))
+                .contains("session_id={CHECKOUT_SESSION_ID}")
+                .doesNotContain("%7BCHECKOUT_SESSION_ID%7D");
+    }
+
+    /**
+     * 🛑 L'open-redirect classique : {@code //evil.com} est une URL ABSOLUE pour
+     * un navigateur. Refusé, et refusé <b>en silence</b> — un lien malformé ne
+     * doit pas empêcher quelqu'un de payer.
+     */
+    @Test
+    void retour_protocolRelative_estIgnoreEnSilence() {
+        assertThat(successUrlAvecRetour("//evil.com"))
+                .isEqualTo("https://sejourfr.fr/paiement/succes"
+                        + "?session_id={CHECKOUT_SESSION_ID}&plan=CIVIQUE_3MOIS");
+    }
+
+    /** La même attaque avec un antislash, que certains navigateurs normalisent. */
+    @Test
+    void retour_antislashProtocolRelative_estIgnoreEnSilence() {
+        assertThat(successUrlAvecRetour("/\\evil.com"))
+                .doesNotContain("retour=")
+                .doesNotContain("evil.com");
+    }
+
+    /** Ni hôte ni schéma : ce qui ne commence pas par `/` n'est pas un chemin. */
+    @Test
+    void retour_urlAbsolue_estIgnoreeEnSilence() {
+        assertThat(successUrlAvecRetour("https://evil.com/x"))
+                .doesNotContain("retour=")
+                .doesNotContain("evil.com");
+    }
+
+    /**
+     * Sans {@code retour} — le cas de loin le plus fréquent (lien partagé,
+     * achat depuis les tarifs, client antérieur au paramètre) : la
+     * {@code success_url} est EXACTEMENT celle d'avant.
+     */
+    @Test
+    void retour_absent_gardeLaSuccessUrlDavant() {
+        assertThat(successUrlAvecRetour(null))
+                .isEqualTo("https://sejourfr.fr/paiement/succes"
+                        + "?session_id={CHECKOUT_SESSION_ID}&plan=CIVIQUE_3MOIS");
     }
 }

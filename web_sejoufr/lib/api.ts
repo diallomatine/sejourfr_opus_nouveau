@@ -63,6 +63,7 @@ import type {
     JourneyStepDetailDto,
 } from "./types";
 import {detectTrafficSource} from "./traffic-source";
+import {withRetour} from "./retour";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
@@ -652,12 +653,14 @@ export const billingApi = {
      *
      * @param planCode code du Plan en base (ex: `INTEGRAL_MONTHLY`). Voir
      *                 {@link planCodeFor} pour le dériver depuis le toggle UI.
+     * @param retour   chemin interne d'où le candidat est parti acheter, qu'il
+     *                 retrouvera **après** le paiement. Le serveur le valide et
+     *                 l'ignore en silence s'il ne passe pas ; absent, la
+     *                 `success_url` est exactement celle d'avant.
      */
-    getPaymentLink(planCode: string): Promise<{ url: string }> {
-        return apiFetch<{ url: string }>(
-            `/api/billing/payment-link?planCode=${encodeURIComponent(planCode)}`,
-            {auth: true}
-        );
+    getPaymentLink(planCode: string, retour?: string | null): Promise<{ url: string }> {
+        const base = `/api/billing/payment-link?planCode=${encodeURIComponent(planCode)}`;
+        return apiFetch<{ url: string }>(withRetour(base, retour), {auth: true});
     },
 
     /**

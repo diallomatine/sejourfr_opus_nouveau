@@ -25,6 +25,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { retourDe } from "@/lib/retour";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -209,7 +210,10 @@ function RecapInner() {
     setError(null);
     setRedirecting(true);
     try {
-      const { url } = await billingApi.getPaymentLink(plan.code);
+      /* Le chemin d'où le candidat est parti acheter, relayé jusqu'à Stripe.
+         `null` est le cas nominal (on arrive ici depuis les tarifs ou un lien
+         partagé) : la `success_url` reste exactement celle d'avant. */
+      const { url } = await billingApi.getPaymentLink(plan.code, retourDe(searchParams));
       window.location.assign(url);
     } catch (err) {
       if (err instanceof ApiException) {

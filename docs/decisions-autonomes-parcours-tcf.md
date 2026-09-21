@@ -2974,3 +2974,44 @@ parité, les deux fronts font déjà pareil :
 
 **Si l'arbitrage était autre** (« ces deux-là aussi passent par l'écran ») : c'est une ligne par
 site d'appel, le `onVerrou` existe déjà côté mobile et `planStepActionLocked` côté web.
+
+### A157 — Le retour après Stripe : `?retour=`, posé par l'écran de transition
+
+**Arbitrage du propriétaire, 2026-09-21** : option **A**, par le backend.
+
+**Le défaut.** Le web quittait `/paiement` par une redirection pleine page et revenait sur
+`/paiement/succes`, une **page d'atterrissage** : rien à dépiler, le candidat restait planté là
+au lieu de retrouver l'écran d'où il partait. Le mobile, lui, revient correctement depuis
+`d1c22249`. 🛑 **Aucun miroir mobile à écrire** : l'achat in-app ne quitte jamais l'app, et le
+mobile n'appelle pas `payment-link`.
+
+**Le paramètre s'appelle `retour`**, pas `next`. `next` veut dire « où aller **après
+authentification** », il est lu par `/connexion` et `/inscription`, et `/paiement/succes` s'en
+sert déjà **pour lui-même** (`/connexion?next=/paiement/succes`) : un seul mot pour deux sens
+aurait rendu cette ligne-là ambiguë.
+
+**Le trajet.** `PlanUnlockScreen` le **pose** (`withRetour(planUnlockPaywallHref(module),
+planRetourHref(module))`) — l'écran de transition est le seul point du parcours qui sache d'où
+le candidat vient, et `planRetourHref` était déjà l'autorité de « où l'on revient ». Il traverse
+`/paiement` et `/paiement/recapitulatif`, part au serveur sur `payment-link?retour=`, et revient
+sur la `success_url`.
+
+**L'exception assumée à « aucun chemin de retour ne vient du client ».**
+`BillingService.checkoutCancelUrl` pose la règle inverse ; `checkoutSuccessUrl` +
+`cheminDeRetour` (**une seule autorité**, appelée par les deux modes de Checkout) l'ouvrent,
+et le Javadoc dit pourquoi c'est sûr, au même endroit : c'est un **chemin** et jamais une URL
+(`/` obligatoire, `//` et `/\` refusés — l'open-redirect classique), l'hôte reste
+`appBaseUrl`, et la valeur est **encodée** — 🛑 **elle seule** : le marqueur
+`{CHECKOUT_SESSION_ID}` est substitué par Stripe et doit rester littéral.
+
+🛑 **Un chemin refusé est ignoré EN SILENCE.** Un lien malformé ne doit pas empêcher quelqu'un
+de payer : on retombe sur la `success_url` d'avant. Même chose côté front — `retourDe` repasse
+la valeur par `safeInternalPath`, et `null` (lien partagé, achat depuis les tarifs, client
+antérieur au paramètre) rend à `/paiement/succes` **exactement** son comportement d'avant.
+
+⚠️ **Le retour n'a lieu qu'une fois l'accès CONFIRMÉ** — `router.replace` sur la bascule de
+`synced`, le fait que le poll `refreshUser()` surveille déjà. Partir à l'arrivée sur la page
+ramènerait le candidat sur un écran encore verrouillé, c'est-à-dire sur ce qu'il vient
+d'acheter. `replace` et non `push` : la page de succès n'a rien à faire dans l'historique.
+
+**Aucune migration.** Le paramètre ne se persiste nulle part : il ne vit que dans l'URL.

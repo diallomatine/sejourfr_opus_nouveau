@@ -60,11 +60,21 @@ public class BillingController {
      * <p>L'ancienne signature {@code ?plan=BillingPlan} (CIVIQUE_3MOIS /
      * INTEGRAL_3MOIS) est supprimée — les anciens plans sont désactivés en
      * V106 et n'apparaissent plus.
+     *
+     * <p>{@code retour} est <b>optionnel</b> : le chemin interne d'où le
+     * candidat est parti, qu'il retrouvera après le paiement au lieu de rester
+     * planté sur la page de succès. 🛑 Il n'est <b>jamais cru sur parole</b> —
+     * {@code BillingService.cheminDeRetour} le valide et l'ignore en silence
+     * s'il ne passe pas (le paiement, lui, doit rester possible). Le pourquoi
+     * de l'exception est écrit à côté de {@code checkoutCancelUrl}, qui pose la
+     * règle inverse.
      */
     @GetMapping("/payment-link")
     public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode,
+                                                  @RequestParam(value = "retour", required = false)
+                                                  String retour,
                                                   HttpServletRequest http) {
-        return billingService.getPaymentLink(currentUser.getId(), planCode,
+        return billingService.getPaymentLink(currentUser.getId(), planCode, retour,
                 clientContextResolver.resolve(http));
     }
 

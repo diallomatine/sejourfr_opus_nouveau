@@ -34,7 +34,7 @@ import {useRouter} from "next/navigation";
 import {AlertCircle} from "lucide-react";
 import {billingApi, civicDiagnosticApi, learningPlanApi, tcfDiagnosticApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
-import {retourOuRepli} from "@/lib/retour";
+import {retourOuRepli, withRetour} from "@/lib/retour";
 import {passFromPrice} from "@/lib/passes";
 import {useAuth} from "@/lib/auth-context";
 import {canAccessModule} from "@/lib/types";
@@ -233,7 +233,14 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     const [etat, setEtat] = useState<Etat>({kind: "chargement"});
     const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
 
-    const paywallHref = planUnlockPaywallHref(module);
+    /* 🛑 **C'est ICI que le chemin de retour est POSÉ** : l'écran de transition
+       est le seul point du parcours d'achat qui sache d'où le candidat vient —
+       `planRetourHref` est déjà l'autorité de « où l'on revient », et elle
+       revient au Plan, jamais à un écran intermédiaire. Le chemin voyage
+       ensuite jusqu'à Stripe (`?retour=` sur `payment-link`, validé serveur) et
+       ramène le candidat sur son Plan une fois l'accès confirmé, au lieu de le
+       laisser planté sur la page de succès. */
+    const paywallHref = withRetour(planUnlockPaywallHref(module), planRetourHref(module));
 
     /* Le catalogue est un CONFORT : son échec retire la ligne de prix, il
        n'empêche jamais d'acheter. */

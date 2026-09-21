@@ -34,6 +34,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -133,7 +135,7 @@ public class BillingService {
      *         502 si l'API Stripe échoue.
      */
     public BillingCheckoutResponse getPaymentLink(UUID userId, String planCode,
-                                                  ClientContext client) {
+                                                  String retour, ClientContext client) {
         if (!stripeProperties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -154,7 +156,7 @@ public class BillingService {
         // (price_data depuis plan.price) — pas besoin de Stripe Price. Proration
         // appliquée si upgrade Civique→Intégral.
         if (billingProperties.isOneTime()) {
-            return createOneTimeCheckout(user, plan, client);
+            return createOneTimeCheckout(user, plan, retour, client);
         }
 
         String priceId = plan.getStripePriceId();
@@ -165,10 +167,8 @@ public class BillingService {
             );
         }
 
-        String appBaseUrl = stripeProperties.getAppBaseUrl();
         // Placeholder remplacé par Stripe avant la redirection.
-        String successUrl = appBaseUrl + "/paiement/succes"
-                + "?session_id={CHECKOUT_SESSION_ID}&plan=" + planCode;
+        String successUrl = checkoutSuccessUrl(planCode, retour);
         String cancelUrl = checkoutCancelUrl(planCode);
 
         SessionCreateParams params = SessionCreateParams.builder()
@@ -231,17 +231,90 @@ public class BillingService {
     }
 
     /**
+     * Où revient le candidat quand le paiement a <b>réussi</b> : la page de
+     * succès, et — quand le client l'a demandé — l'écran d'où il était parti.
+     *
+     * <p><b>L'unique endroit qui compose la {@code success_url}</b>, pour les
+     * deux modes de Checkout (SUBSCRIPTION et one-time PAYMENT). Deux copies du
+     * même {@code if} auraient fini par ne valider qu'une des deux.
+     *
+     * <h4>⚠️ L'exception à « aucun chemin de retour ne vient du client »</h4>
+     *
+     * <p>{@link #checkoutCancelUrl} dit, à raison, qu'aucun chemin de retour ne
+     * vient du client. {@code retour} est l'exception, et elle est <b>voulue</b> :
+     * sans elle, un candidat parti du Plan revenait de Stripe sur une page
+     * d'atterrissage sans rien à dépiler, au lieu de retrouver son écran. La
+     * différence avec une redirection ouverte tient à trois faits :
+     *
+     * <ul>
+     *   <li><b>C'est un CHEMIN, jamais une URL.</b> {@link #cheminDeRetour}
+     *       n'accepte qu'une valeur commençant par {@code /} et refuse
+     *       {@code //} et {@code /\} — les deux formes
+     *       <i>protocol-relative</i>, qui sont l'open-redirect classique
+     *       ({@code //evil.com} est une URL absolue pour un navigateur). Aucun
+     *       hôte, aucun schéma ne peut passer.</li>
+     *   <li><b>L'hôte reste le NÔTRE.</b> Le chemin est concaténé derrière
+     *       {@code appBaseUrl}, qui vient de la configuration serveur — il ne
+     *       remplace jamais l'origine, il la suit.</li>
+     *   <li><b>La valeur est ENCODÉE</b> ({@link URLEncoder}), donc elle ne peut
+     *       ni ajouter un paramètre, ni couper la query, ni glisser un
+     *       {@code \r\n}. 🛑 Seule la valeur l'est : le marqueur
+     *       {@code {CHECKOUT_SESSION_ID}} est substitué par <b>Stripe</b> et
+     *       doit rester littéral — l'encoder le casserait.</li>
+     * </ul>
+     *
+     * <p>🛑 <b>Un chemin refusé est ignoré en silence</b> : on retombe sur la
+     * {@code success_url} d'avant. Un lien malformé ne doit jamais empêcher
+     * quelqu'un de payer — et le front, qui repasse la valeur par son
+     * {@code safeInternalPath}, a de toute façon le dernier mot.
+     */
+    private String checkoutSuccessUrl(String planCode, String retour) {
+        String url = stripeProperties.getAppBaseUrl() + "/paiement/succes"
+                + "?session_id={CHECKOUT_SESSION_ID}&plan=" + planCode;
+        String chemin = cheminDeRetour(retour);
+        return chemin == null
+                ? url
+                : url + "&retour=" + URLEncoder.encode(chemin, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Le chemin de retour <b>accepté</b>, ou {@code null} — l'unique autorité de
+     * validation, volontairement restrictive et sans exception.
+     *
+     * <p>Refuse : l'absence, le vide, ce qui ne commence pas par {@code /},
+     * {@code //} et {@code /\} (protocol-relative), tout caractère de contrôle,
+     * et au-delà de {@value #RETOUR_MAX_LEN} caractères. Aucune tentative de
+     * « réparer » une valeur : elle passe telle quelle, ou elle n'existe pas.
+     */
+    private static String cheminDeRetour(String retour) {
+        if (retour == null || retour.isBlank()) return null;
+        if (retour.length() > RETOUR_MAX_LEN) return null;
+        if (retour.charAt(0) != '/') return null;
+        if (retour.length() > 1) {
+            char second = retour.charAt(1);
+            if (second == '/' || second == '\\') return null;
+        }
+        for (int i = 0; i < retour.length(); i++) {
+            char c = retour.charAt(i);
+            if (c < 0x20 || c == 0x7F) return null;
+        }
+        return retour;
+    }
+
+    /** Un chemin d'app, pas une charge utile : au-delà, c'est autre chose. */
+    private static final int RETOUR_MAX_LEN = 512;
+
+    /**
      * Checkout one-time (mode PAYMENT) : montant = prix du plan en base, via
      * {@code price_data} dynamique (aucun Stripe Price à créer). Le {@code planCode}
      * voyage en metadata pour que le webhook sache quel pass créditer ; le
      * {@code payment_intent} servira de clé d'unicité côté grant.
      */
     private BillingCheckoutResponse createOneTimeCheckout(User user, Plan plan,
+                                                          String retour,
                                                           ClientContext client) {
         long amountCents = computeOneTimeAmountCents(user.getId(), plan);
-        String appBaseUrl = stripeProperties.getAppBaseUrl();
-        String successUrl = appBaseUrl + "/paiement/succes"
-                + "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan.getCode();
+        String successUrl = checkoutSuccessUrl(plan.getCode(), retour);
         String cancelUrl = checkoutCancelUrl(plan.getCode());
 
         SessionCreateParams params = SessionCreateParams.builder()
