@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SejourFR — Progression globale examen civique</title>
+<style>
+:root{
+  --brand:#102c62;
+  --brand-2:#163878;
+  --brand-soft:#f2f5fb;
+  --red:#e2363a;
+  --red-soft:#fff2f2;
+  --green:#26785d;
+  --green-soft:#edf8f3;
+  --amber:#9b6b1f;
+  --amber-soft:#fff7ea;
+  --text:#19314f;
+  --muted:#758398;
+  --line:#e6ebf1;
+  --bg:#f7f8fb;
+  --white:#ffffff;
+  --shadow:0 16px 40px rgba(16,44,98,.07);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+a{text-decoration:none;color:inherit}
+button{font:inherit}
+.app{max-width:1180px;margin:0 auto;padding:26px 22px 60px}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:30px;
+}
+.back{
+  display:inline-flex;align-items:center;gap:9px;color:var(--brand);font-weight:800;font-size:14px;
+}
+.back-icon{
+  width:34px;height:34px;border:1px solid var(--line);border-radius:11px;background:#fff;display:grid;place-items:center;
+}
+.primary{
+  border:0;border-radius:13px;background:var(--brand);color:#fff;padding:13px 18px;font-weight:850;cursor:pointer;
+  box-shadow:0 8px 18px rgba(16,44,98,.14);
+}
+.intro{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:20px}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;color:var(--red);font-size:13px;font-weight:850;margin-bottom:8px;
+}
+.eyebrow:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--red)}
+h1{
+  margin:0;color:var(--brand);font-size:clamp(28px,4vw,40px);letter-spacing:-.04em;line-height:1.06;
+}
+.intro p{margin:9px 0 0;color:var(--muted);font-size:15px}
+.card{
+  background:#fff;border:1px solid rgba(224,231,239,.95);border-radius:18px;box-shadow:var(--shadow);
+}
+.overview{
+  display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:14px;
+}
+.global{
+  padding:26px;display:flex;justify-content:space-between;align-items:center;gap:24px;
+}
+.global-label{color:var(--muted);font-size:13px;font-weight:750;margin-bottom:9px}
+.global-score{
+  display:flex;align-items:flex-end;gap:8px;color:var(--brand);
+}
+.global-score strong{font-size:45px;line-height:1;letter-spacing:-.055em}
+.global-score span{color:var(--muted);font-weight:700;padding-bottom:4px}
+.level-row{display:flex;gap:8px;align-items:center;margin-top:13px;flex-wrap:wrap}
+.level{
+  display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;background:var(--green-soft);color:var(--green);font-size:13px;font-weight:900;
+}
+.trend{
+  display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:850;
+}
+.ring{
+  --value:85%;
+  width:100px;height:100px;border-radius:50%;background:conic-gradient(var(--red) var(--value), #e9eef4 0);
+  display:grid;place-items:center;position:relative;flex:0 0 auto;
+}
+.ring:after{
+  content:"";width:76px;height:76px;border-radius:50%;background:#fff;
+}
+.ring span{
+  position:absolute;z-index:1;color:var(--brand);font-size:19px;font-weight:900;
+}
+.summary-side{
+  padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;
+}
+.summary-box{
+  background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:17px;
+}
+.summary-box span{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}
+.summary-box strong{display:block;color:var(--brand);font-size:21px;letter-spacing:-.025em}
+.summary-box small{display:block;color:var(--muted);margin-top:4px;font-size:11px}
+.section-title{margin:28px 0 14px}
+.section-title h2{margin:0;color:var(--brand);font-size:20px;letter-spacing:-.025em}
+.section-title p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.tests{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+}
+.test-card{
+  padding:21px;display:block;transition:.18s ease;cursor:pointer;
+}
+.test-card:hover{
+  transform:translateY(-2px);border-color:#cddbe7;box-shadow:0 20px 46px rgba(28,62,96,.10);
+}
+.test-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px;
+}
+.test-name{display:flex;gap:12px;align-items:center}
+.icon{
+  width:42px;height:42px;border-radius:13px;background:var(--brand-soft);display:grid;place-items:center;color:var(--brand);font-size:18px;font-weight:900;
+}
+.test-name h3{margin:0;color:var(--brand);font-size:16px}
+.test-name p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.arrow{color:#9aa8b6;font-size:20px}
+.test-main{
+  display:flex;justify-content:space-between;align-items:end;gap:18px;
+}
+.test-score{color:var(--brand)}
+.test-score strong{font-size:32px;letter-spacing:-.045em}
+.test-score span{color:var(--muted);font-size:13px;font-weight:700}
+.test-level{
+  display:inline-flex;margin-top:9px;padding:6px 9px;border-radius:999px;background:var(--green-soft);color:var(--green);font-size:12px;font-weight:900;
+}
+.delta{margin-top:9px;color:var(--brand);font-size:12px;font-weight:800}
+.spark{width:145px;height:58px;flex:0 0 auto}
+.spark path{
+  fill:none;stroke:var(--brand);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;
+}
+.spark circle{
+  fill:#fff;stroke:var(--red);stroke-width:2.5;
+}
+.history{
+  margin-top:14px;padding:24px;
+}
+.history-head{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;
+}
+.history-head h2{margin:0;color:var(--brand);font-size:19px}
+.history-head p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.attempts{
+  display:flex;flex-direction:column;gap:10px;
+}
+.attempt{
+  display:grid;grid-template-columns:1.1fr repeat(4,.7fr) auto;gap:14px;align-items:center;padding:15px 16px;border:1px solid var(--line);border-radius:14px;
+}
+.attempt-title{font-weight:850;color:var(--brand);font-size:14px}
+.attempt-date{color:var(--muted);font-size:11px;margin-top:3px}
+.attempt-score span{display:block;color:var(--muted);font-size:10px;margin-bottom:3px}
+.attempt-score strong{color:var(--text);font-size:13px}
+.attempt-level{
+  min-width:96px;text-align:center;border-radius:10px;background:var(--green-soft);color:var(--green);padding:8px 9px;font-weight:900;font-size:12px;
+}
+.hint{margin-top:16px;text-align:center;font-size:12px;color:var(--muted)}
+@media (max-width:860px){
+  .overview{grid-template-columns:1fr}
+  .tests{grid-template-columns:1fr}
+  .attempt{grid-template-columns:1fr auto}
+  .attempt-score{display:none}
+}
+@media (max-width:620px){
+  .app{padding:18px 14px 42px}
+  .topbar{margin-bottom:24px}
+  .primary{padding:11px 14px}
+  .global{padding:21px;align-items:flex-start}
+  .global-score strong{font-size:38px}
+  .ring{width:84px;height:84px}
+  .ring:after{width:64px;height:64px}
+  .ring span{font-size:17px}
+  .summary-side{padding:16px;gap:10px}
+  .test-card{padding:18px}
+  .spark{width:115px}
+}
+</style>
+</head>
+<body>
+<main class="app">
+
+  <div class="topbar">
+    <a href="#" class="back">
+      <span class="back-icon">←</span>
+      Tableau de bord
+    </a>
+    <button class="primary">Faire un examen blanc global</button>
+  </div>
+
+  <section class="intro">
+    <div>
+      <div class="eyebrow">Votre progression</div>
+      <h1>Examen civique</h1>
+      <p>Suivez votre progression globale et celle de chaque thème.</p>
+    </div>
+  </section>
+
+  <section class="overview">
+    <article class="card global">
+      <div>
+        <div class="global-label">Dernier résultat global</div>
+        <div class="global-score">
+          <strong>17</strong>
+          <span>/ 20</span>
+        </div>
+        <div class="level-row">
+          <span class="level">Très bon</span>
+          <span class="trend">↗ +5 points depuis le début</span>
+        </div>
+      </div>
+      <div class="ring" style="--value:85%">
+        <span>85%</span>
+      </div>
+    </article>
+
+    <article class="card summary-side">
+      <div class="summary-box">
+        <span>Examens globaux</span>
+        <strong>6</strong>
+        <small>terminés</small>
+      </div>
+      <div class="summary-box">
+        <span>Meilleur résultat</span>
+        <strong>18 / 20</strong>
+        <small>Très bon</small>
+      </div>
+      <div class="summary-box">
+        <span>Premier résultat</span>
+        <strong>12 / 20</strong>
+        <small>Bonne maîtrise</small>
+      </div>
+      <div class="summary-box">
+        <span>Dernier examen</span>
+        <strong>22 sept.</strong>
+        <small>2026</small>
+      </div>
+    </article>
+  </section>
+
+  <section>
+    <div class="section-title">
+      <h2>Progression par thème</h2>
+      <p>Cliquez sur un thème pour voir son évolution détaillée.</p>
+    </div>
+
+    <div class="tests">
+      <a class="card test-card" href="sejourfr-civique-theme-progression.html">
+        <div class="test-head">
+          <div class="test-name">
+            <div class="icon">🇫🇷</div>
+            <div>
+              <h3>Valeurs de la République</h3>
+              <p>Dernier examen du thème</p>
+            </div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="test-main">
+          <div>
+            <div class="test-score"><strong>16</strong> <span>/ 20</span></div>
+            <div class="test-level">Bonne maîtrise</div>
+            <div class="delta">↗ +6 points</div>
+          </div>
+          <svg class="spark" viewBox="0 0 145 58">
+            <path d="M6 46 L28 42 L50 38 L72 33 L94 27 L116 21 L138 16"/>
+            <circle cx="138" cy="16" r="4"/>
+          </svg>
+        </div>
+      </a>
+
+      <a class="card test-card" href="sejourfr-civique-theme-progression.html">
+        <div class="test-head">
+          <div class="test-name">
+            <div class="icon">🏛️</div>
+            <div>
+              <h3>Institutions françaises</h3>
+              <p>Dernier examen du thème</p>
+            </div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="test-main">
+          <div>
+            <div class="test-score"><strong>14</strong> <span>/ 20</span></div>
+            <div class="test-level">Bonne maîtrise</div>
+            <div class="delta">↗ +4 points</div>
+          </div>
+          <svg class="spark" viewBox="0 0 145 58">
+            <path d="M6 48 L28 44 L50 39 L72 36 L94 31 L116 27 L138 24"/>
+            <circle cx="138" cy="24" r="4"/>
+          </svg>
+        </div>
+      </a>
+
+      <a class="card test-card" href="sejourfr-civique-theme-progression.html">
+        <div class="test-head">
+          <div class="test-name">
+            <div class="icon">⚖️</div>
+            <div>
+              <h3>Droits et devoirs</h3>
+              <p>Dernier examen du thème</p>
+            </div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="test-main">
+          <div>
+            <div class="test-score"><strong>15</strong> <span>/ 20</span></div>
+            <div class="test-level">Très bon</div>
+            <div class="delta">↗ +5 points</div>
+          </div>
+          <svg class="spark" viewBox="0 0 145 58">
+            <path d="M6 46 L28 41 L50 35 L72 31 L94 28 L116 22 L138 19"/>
+            <circle cx="138" cy="19" r="4"/>
+          </svg>
+        </div>
+      </a>
+
+      <a class="card test-card" href="sejourfr-civique-theme-progression.html">
+        <div class="test-head">
+          <div class="test-name">
+            <div class="icon">🗺️</div>
+            <div>
+              <h3>Histoire et repères</h3>
+              <p>Dernier examen du thème</p>
+            </div>
+          </div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="test-main">
+          <div>
+            <div class="test-score"><strong>13</strong> <span>/ 20</span></div>
+            <div class="test-level">Bonne maîtrise</div>
+            <div class="delta">↗ +3 points</div>
+          </div>
+          <svg class="spark" viewBox="0 0 145 58">
+            <path d="M6 50 L28 47 L50 43 L72 38 L94 35 L116 32 L138 29"/>
+            <circle cx="138" cy="29" r="4"/>
+          </svg>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="card history">
+    <div class="history-head">
+      <div>
+        <h2>Mes derniers examens globaux</h2>
+        <p>Une vue rapide de vos résultats complets par thème.</p>
+      </div>
+    </div>
+
+    <div class="attempts">
+      <article class="attempt">
+        <div>
+          <div class="attempt-title">Examen civique global n°6</div>
+          <div class="attempt-date">22 septembre 2026</div>
+        </div>
+        <div class="attempt-score"><span>Valeurs</span><strong>16 / 20</strong></div>
+        <div class="attempt-score"><span>Institutions</span><strong>14 / 20</strong></div>
+        <div class="attempt-score"><span>Droits</span><strong>15 / 20</strong></div>
+        <div class="attempt-score"><span>Histoire</span><strong>13 / 20</strong></div>
+        <div class="attempt-level">Global : 17 / 20</div>
+      </article>
+
+      <article class="attempt">
+        <div>
+          <div class="attempt-title">Examen civique global n°5</div>
+          <div class="attempt-date">8 septembre 2026</div>
+        </div>
+        <div class="attempt-score"><span>Valeurs</span><strong>15 / 20</strong></div>
+        <div class="attempt-score"><span>Institutions</span><strong>13 / 20</strong></div>
+        <div class="attempt-score"><span>Droits</span><strong>14 / 20</strong></div>
+        <div class="attempt-score"><span>Histoire</span><strong>12 / 20</strong></div>
+        <div class="attempt-level">Global : 16 / 20</div>
+      </article>
+
+      <article class="attempt">
+        <div>
+          <div class="attempt-title">Examen civique global n°4</div>
+          <div class="attempt-date">24 août 2026</div>
+        </div>
+        <div class="attempt-score"><span>Valeurs</span><strong>14 / 20</strong></div>
+        <div class="attempt-score"><span>Institutions</span><strong>12 / 20</strong></div>
+        <div class="attempt-score"><span>Droits</span><strong>13 / 20</strong></div>
+        <div class="attempt-score"><span>Histoire</span><strong>11 / 20</strong></div>
+        <div class="attempt-level">Global : 15 / 20</div>
+      </article>
+    </div>
+
+    <div class="hint">Chaque carte thème ouvre l’écran de progression détaillée du thème.</div>
+  </section>
+
+</main>
+</body>
+</html>
