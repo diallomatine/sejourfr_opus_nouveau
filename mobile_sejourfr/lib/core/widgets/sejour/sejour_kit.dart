@@ -1010,21 +1010,41 @@ class SfExamRow extends StatelessWidget {
 /// accent de marque, jamais une rampe de seuils. Un anneau vide veut dire « pas
 /// encore commencé », jamais « mauvais ». Miroir web : `Ring`.
 ///
-/// ⚠️ Distinct de `ProgressRing` (`core/widgets/progress_ring.dart`), qui écrit
-/// un pourcentage en son centre : ici il n'y a **aucun chiffre** dans l'anneau,
-/// le compteur vit sur la ligne.
+/// Par défaut il n'y a **aucun chiffre** dans l'anneau, le compteur vit sur la
+/// ligne. (`ProgressRing`, l'ancien anneau à pourcentage central, est supprimé
+/// avec l'écran Progrès, son dernier lecteur, le 2026-09-24.)
+///
+/// **Variante « écran de progression » (2026-09-24)** : [label] écrit au centre
+/// un chiffre **déjà composé** (« 85 % », le taux servi d'un examen civique), et
+/// [reached] porte le fait **servi** « seuil atteint » — vert s'il l'est, bleu
+/// sinon. 🛑 Le kit ne compare le ratio à aucun seuil : sans [reached], seul un
+/// anneau plein passe au vert, comme avant. Miroir web : `Ring label reached`.
 class SfRing extends StatelessWidget {
-  const SfRing(
-      {super.key, required this.ratio, this.size = 40, this.stroke = 4});
+  const SfRing({
+    super.key,
+    required this.ratio,
+    this.size = 40,
+    this.stroke = 4,
+    this.label,
+    this.reached,
+  });
 
   final double ratio;
   final double size;
   final double stroke;
 
+  /// Le texte du centre, composé par l'appelant. `null` = anneau muet.
+  final String? label;
+
+  /// Le seuil est-il atteint ? **Servi**, jamais déduit de [ratio].
+  final bool? reached;
+
   @override
   Widget build(BuildContext context) {
     final part =
         ratio.isNaN || ratio.isInfinite ? 0.0 : ratio.clamp(0, 1).toDouble();
+    final vert = reached ?? part >= 1;
+    final texte = label;
     return SizedBox(
       width: size,
       height: size,
@@ -1032,8 +1052,20 @@ class SfRing extends StatelessWidget {
         painter: _SfRingPainter(
           part: part,
           stroke: stroke,
-          color: part >= 1 ? AppColors.green : AppColors.blue,
+          color: vert ? AppColors.green : AppColors.blue,
         ),
+        child: texte == null
+            ? null
+            : Center(
+                child: Text(
+                  texte,
+                  style: AppFonts.display(
+                    size: size * 0.2,
+                    weight: FontWeight.w800,
+                    color: AppColors.blueDark,
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -1985,9 +2017,8 @@ extension SfToneAsBar on SfTone {
       };
 }
 
-/// Les fonds clairs de la pastille. ⚠️ Distinctes de [_sfStatusSoft], qui
-/// n'aplatit qu'un ton de texte : ici l'aplat et le texte sont les tokens
-/// exacts du kit, miroir des règles `.pill.ok` … `.pill.pillNow` du web.
+/// Les fonds clairs de la pastille : l'aplat et le texte sont les tokens exacts
+/// du kit, miroir des règles `.pill.ok` … `.pill.pillNow` du web.
 Color _sfPillSoft(SfBarTone tone) => switch (tone) {
       SfBarTone.ok => AppColors.greenLight,
       SfBarTone.now => AppColors.blueLight,
@@ -3455,580 +3486,6 @@ class SfPanelHead extends StatelessWidget {
   }
 }
 
-/// **Le héros d'une page de résultats** — le `.result-hero` de la maquette :
-/// fond sombre de marque, le palier en très gros, l'objectif à droite, une
-/// pastille d'évolution et une note de portée.
-///
-/// 🛑 **Aucune valeur n'est dérivée ici** : palier, objectif et pastille
-/// arrivent composés d'un fait servi. Miroir web : `ResultHero`.
-class SfResultHero extends StatelessWidget {
-  const SfResultHero({
-    super.key,
-    required this.label,
-    required this.level,
-    required this.goalLabel,
-    required this.goal,
-    this.trend,
-    this.note,
-  });
-
-  final String label;
-  final String level;
-  final String goalLabel;
-
-  /// `null` quand aucune démarche n'est déclarée : rien vers quoi situer.
-  final String? goal;
-
-  /// `null` quand l'évolution est inconnue — surtout pas un « = » consolant.
-  final String? trend;
-
-  final String? note;
-
-  @override
-  Widget build(BuildContext context) {
-    final pale = AppColors.white.withValues(alpha: 0.78);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: AppGradients.premium,
-          boxShadow: AppShadows.md,
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -46,
-              top: -60,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  color: AppColors.white.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppFonts.ui(
-                      size: 12,
-                      weight: FontWeight.w800,
-                      color: pale,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          level,
-                          style: AppFonts.display(
-                            size: 46,
-                            weight: FontWeight.w700,
-                            color: AppColors.white,
-                            height: 0.95,
-                          ),
-                        ),
-                      ),
-                      if (goal != null)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              goalLabel,
-                              style: AppFonts.ui(size: 12, color: pale),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              goal!,
-                              style: AppFonts.ui(
-                                size: 17,
-                                weight: FontWeight.w800,
-                                color: AppColors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  if (trend != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 11, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(AppRadii.pill),
-                        border: Border.all(
-                          color: AppColors.white.withValues(alpha: 0.16),
-                        ),
-                      ),
-                      child: Text(
-                        trend!,
-                        style: AppFonts.ui(
-                          size: 11.5,
-                          weight: FontWeight.w800,
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (note != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      note!,
-                      style: AppFonts.ui(size: 11.5, color: pale, height: 1.4),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// **Un cran de l'échelle verticale** — un repère de l'axe, avec sa hauteur.
-///
-/// 🛑 **[at] est SERVI par l'appelant**, jamais déduit d'un rang : c'est ce qui
-/// permet à la même brique de porter une échelle **régulière** (les paliers
-/// CECRL du TCF, régulièrement espacés) et une échelle **de valeurs** (les
-/// scores d'un thème civique, où `16 / 20` ne tombe pas au milieu de `0` et
-/// `20`). Une échelle régulière posée sur des valeurs irrégulières mentirait
-/// sur la position du seuil.
-///
-/// Miroir web : `ChartRung`.
-class SfChartRung {
-  const SfChartRung({
-    required this.label,
-    required this.at,
-    this.seuil = false,
-  });
-
-  /// Le libellé du cran sur l'axe (« B2 », « 16 »).
-  final String label;
-
-  /// Sa hauteur dans le cadre : `0` = tout en haut, `1` = tout en bas.
-  final double at;
-
-  /// Le cran est un **seuil à franchir** : trait pointillé accentué et libellé
-  /// ambre. 🛑 Ce n'est **pas un verdict** — il dit où est la barre, pas si
-  /// elle est passée.
-  final bool seuil;
-}
-
-/// Un point de la courbe : sa date, sa valeur, et sa hauteur dans l'échelle.
-class SfChartPoint {
-  const SfChartPoint({
-    required this.date,
-    required this.level,
-    required this.at,
-  });
-
-  /// Abscisse lisible (« 11 sept. »).
-  final String date;
-
-  /// La valeur, telle qu'elle s'écrit sur la pastille (« B1 », « 17 / 20 »).
-  final String level;
-
-  /// Sa hauteur dans le cadre, `0` = tout en haut. **Passée, jamais devinée.**
-  final double at;
-}
-
-/// **La courbe d'évolution** d'une épreuve TCF ou d'un thème civique.
-///
-/// 🛑 **Aucune interpolation, aucune moyenne** : un point par mesure **servie**,
-/// posé sur l'échelle que l'appelant lui donne — [rungs] porte les libellés ET
-/// leurs hauteurs, la brique ne classe rien et n'espace rien d'elle-même.
-///
-/// Miroir web : `LevelChart`.
-class SfLevelChart extends StatelessWidget {
-  const SfLevelChart({
-    super.key,
-    required this.rungs,
-    required this.points,
-    required this.activeIndex,
-    required this.onSelect,
-  });
-
-  /// Du plus haut au plus bas (« B2 », « B1 », « A2 » / « 20 », « 16 », « 0 »).
-  final List<SfChartRung> rungs;
-
-  /// Du plus ancien au plus récent.
-  final List<SfChartPoint> points;
-
-  final int activeIndex;
-  final ValueChanged<int> onSelect;
-
-  static const double _axis = 34;
-  static const double _plotHeight = 132;
-  static const double _datesHeight = 20;
-
-  @override
-  Widget build(BuildContext context) {
-    final cols = math.max(points.length - 1, 1);
-    double xOf(int i) => points.length > 1 ? i / cols : 0.5;
-
-    return SizedBox(
-      height: _plotHeight + _datesHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final plotWidth = math.max(constraints.maxWidth - _axis, 1.0);
-          return Stack(
-            children: [
-              for (final rung in rungs)
-                Positioned(
-                  left: 0,
-                  top: rung.at * _plotHeight - 6,
-                  child: SizedBox(
-                    width: _axis - 6,
-                    child: Text(
-                      rung.label,
-                      style: AppFonts.label(
-                        size: 10,
-                        color:
-                            rung.seuil ? AppColors.amberDark : AppColors.muted,
-                      ).copyWith(
-                        fontWeight: rung.seuil ? FontWeight.w800 : null,
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                left: _axis,
-                top: 0,
-                width: plotWidth,
-                height: _plotHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CustomPaint(
-                      size: Size(plotWidth, _plotHeight),
-                      painter: _SfChartPainter(
-                        rows: [
-                          for (final rung in rungs)
-                            (at: rung.at, seuil: rung.seuil),
-                        ],
-                        line: [
-                          for (var i = 0; i < points.length; i++)
-                            Offset(xOf(i), points[i].at),
-                        ],
-                      ),
-                    ),
-                    for (var i = 0; i < points.length; i++)
-                      Positioned(
-                        left: xOf(i) * plotWidth - 14,
-                        top: points[i].at * _plotHeight - 14,
-                        child: Semantics(
-                          label: '${points[i].date} : ${points[i].level}',
-                          button: true,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => onSelect(i),
-                            child: SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: Center(
-                                child: Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.blue,
-                                      width: 4,
-                                    ),
-                                    boxShadow: i == activeIndex
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.blue
-                                                  .withValues(alpha: 0.14),
-                                              spreadRadius: 6,
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              for (var i = 0; i < points.length; i++)
-                Positioned(
-                  // 🛑 **Bornée** : sans clamp, la date du dernier point sort du
-                  // cadre et le `Stack` la rogne — c'est justement la mesure la
-                  // plus récente, celle qu'on vient lire.
-                  left: (_axis + xOf(i) * plotWidth - 30)
-                      .clamp(0.0, math.max(constraints.maxWidth - 60, 0.0)),
-                  top: _plotHeight + 4,
-                  width: 60,
-                  child: Text(
-                    points[i].date,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.ui(
-                      size: 9.5,
-                      weight: FontWeight.w700,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _SfChartPainter extends CustomPainter {
-  const _SfChartPainter({required this.rows, required this.line});
-
-  /// Ordonnées relatives (0-1) des lignes de repère, et lesquelles sont un
-  /// **seuil** — la seule information utile d'un examen civique.
-  final List<({double at, bool seuil})> rows;
-
-  /// Les points, en coordonnées relatives (0-1).
-  final List<Offset> line;
-
-  /// Le pointillé du seuil : 6 px de trait, 5 px de vide. Miroir du
-  /// `border-top: 2px dashed` de `.chartGrid.isSeuil` côté web.
-  static const double _dash = 6;
-  static const double _gap = 5;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final grid = Paint()
-      ..color = AppColors.line2
-      ..strokeWidth = 1;
-    final seuil = Paint()
-      ..color = AppColors.amber
-      ..strokeWidth = 2;
-    for (final r in rows) {
-      final y = r.at * size.height;
-      if (!r.seuil) {
-        canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-        continue;
-      }
-      for (var x = 0.0; x < size.width; x += _dash + _gap) {
-        canvas.drawLine(
-          Offset(x, y),
-          Offset(math.min(x + _dash, size.width), y),
-          seuil,
-        );
-      }
-    }
-    if (line.length < 2) return;
-    final stroke = Paint()
-      ..color = AppColors.blue
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final path = Path();
-    for (var i = 0; i < line.length; i++) {
-      final p = Offset(line[i].dx * size.width, line[i].dy * size.height);
-      if (i == 0) {
-        path.moveTo(p.dx, p.dy);
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-    canvas.drawPath(path, stroke);
-  }
-
-  @override
-  bool shouldRepaint(_SfChartPainter old) =>
-      old.rows != rows || old.line != line;
-}
-
-/// La rangée de filtres d'une liste. 🛑 **Les options sont servies par
-/// l'appelant** : le kit ne sait pas ce qu'il filtre.
-///
-/// Miroir web : `FilterChips`.
-class SfFilterChips<T> extends StatelessWidget {
-  const SfFilterChips({
-    super.key,
-    required this.options,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final List<({T id, String label})> options;
-  final T value;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < options.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            _SfFilterChip(
-              label: options[i].label,
-              selected: options[i].id == value,
-              onTap: () => onChanged(options[i].id),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SfFilterChip extends StatelessWidget {
-  const _SfFilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.ink : AppColors.surface3,
-      borderRadius: BorderRadius.circular(AppRadii.pill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            label,
-            style: AppFonts.ui(
-              size: 11.5,
-              weight: FontWeight.w800,
-              color: selected ? AppColors.white : AppColors.muted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// **Une ligne d'historique dépliable** : pictogramme, intitulé + date, palier,
-/// et un détail qui s'ouvre au toucher.
-///
-/// Miroir web : `HistoryRow`.
-class SfHistoryRow extends StatelessWidget {
-  const SfHistoryRow({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.date,
-    required this.level,
-    required this.detail,
-    required this.open,
-    required this.onToggle,
-  });
-
-  final IconData icon;
-  final String title;
-
-  /// `null` quand le serveur n'a pas de date — on n'en invente pas.
-  final String? date;
-
-  final String level;
-  final Widget detail;
-  final bool open;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadii.md);
-    return Material(
-      color: open ? AppColors.blueLight : AppColors.blueSoft,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: radius,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                    ),
-                    child: Icon(icon, size: 18, color: AppColors.blue),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: AppFonts.ui(
-                            size: 13,
-                            weight: FontWeight.w800,
-                            height: 1.25,
-                          ),
-                        ),
-                        if (date != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            date!,
-                            style: AppFonts.ui(
-                              size: 11,
-                              weight: FontWeight.w700,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    level,
-                    style: AppFonts.label(size: 15, color: AppColors.blue),
-                  ),
-                ],
-              ),
-              if (open) ...[
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(left: 52),
-                  child: detail,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// L'encart ambre de pied de liste (`.footer-info`) : ce que la liste au-dessus
 /// compte, et ce qu'elle ne compte pas.
 ///
@@ -5340,14 +4797,9 @@ class _SfNextStepSecondary extends StatelessWidget {
 /// `histo_cycle.html` : fond de marque, oeil-de-boeuf, titre editorial, phrase
 /// de cadrage, puis ce que l'ecran y pose (les compteurs, dans la maquette).
 ///
-/// 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
-/// lui :
-/// - [SfResultHero] porte **un palier** en tres gros — c'est un resultat, pas
-///   une introduction ;
-/// - [SfNextStepCard] porte **deux actions** — c'est une decision a prendre.
-///
-/// Ce bandeau, lui, n'a **aucune action** : il presente. C'est ce qui lui evite
-/// d'etre une variante de l'un ou de l'autre.
+/// 🛑 **Distinct de [SfNextStepCard]**, qu'il ne faut pas remplacer par lui :
+/// celle-ci porte **deux actions** — c'est une decision a prendre. Ce bandeau,
+/// lui, n'a **aucune action** : il presente.
 ///
 /// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title] et [text]
 /// arrivent tous en parametres.
@@ -5461,16 +4913,12 @@ class SfHeroBanner extends StatelessWidget {
 }
 
 // =============================================================================
-// L'ECRAN « VOTRE PROGRESSION » (template `docs/progression/
-// ecran_progression_normal.html`, 2026-09-19)
-//
-// Les cinq briques de sa PREMIERE partie : le bandeau d'objectif et sa bande de
-// paliers, la tete et le pied de la carte a courbe, et la ligne d'une epreuve.
-//
-// 🛑 **Aucune ne classe quoi que ce soit.** Palier, mot d'etat, ton, fleche,
-// part parcourue : tout arrive **compose** de faits servis
-// (`screens/progres/progres_labels.dart`). Miroirs web : `GoalHero`,
-// `LevelStrip`, `ChartTitle`, `ChartNote`, `EpreuveStatRow` / `EpreuveStatList`.
+// LE BANDEAU D'OBJECTIF (template `docs/progression/ecran_progression_normal.html`,
+// 2026-09-19). ⚠️ L'écran « Votre progression » qui le portait est supprimé
+// (2026-09-24) ; le bandeau reste pour l'écran de déblocage du Plan. Ses
+// voisines de l'époque (`SfLevelStrip`, `SfChartTitle`, `SfChartNote`,
+// `SfEpreuveStatRow` / `SfEpreuveStatList`, `SfTrendTone`) sont supprimées avec
+// leur dernier lecteur. Miroir web : `GoalHero`.
 // =============================================================================
 
 /// **Le bandeau d'objectif d'un ecran de progression** — le `.hero` du
@@ -5478,14 +4926,13 @@ class SfHeroBanner extends StatelessWidget {
 /// droite, rail, ligne de mesure, puis ce que l'ecran y pose (la bande des
 /// paliers).
 ///
-/// 🛑 **Distinct des trois heros voisins**, qu'il ne faut pas remplacer par
+/// 🛑 **Distinct des deux heros voisins**, qu'il ne faut pas remplacer par
 /// lui :
-/// - [SfResultHero] porte **un palier** en tres gros — c'est un resultat ;
 /// - [SfHeroBanner] **presente** un ecran d'archive, sans aucun chiffre ;
 /// - [SfGoalBanner] est une bande **compacte**, posee DANS une carte.
 ///
 /// Celui-ci porte un **avancement** : un compteur, un rail et sa lecture en
-/// pourcentage. C'est ce qui lui evite d'etre une variante de l'un des trois.
+/// pourcentage. C'est ce qui lui evite d'etre une variante de l'un des deux.
 ///
 /// 🛑 [ratio] est une **part passee**, jamais derivee ici, et le pourcentage
 /// est **ecrit par l'appelant** ([metaValue]) : le kit ne convertit aucun
@@ -5666,528 +5113,6 @@ class SfGoalHero extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Le ton d'une **fleche de tendance**, posee sur un fond de marque.
-///
-/// 🛑 **Il se passe, il ne se derive d'aucun nombre** : l'appelant le tient du
-/// sens d'evolution **servi** (`NiveauEvolution`).
-///
-/// ⚠️ **Ce n'est pas un doublon de [SfBarTone]** : celui-la teinte un etat
-/// pedagogique sur fond clair (cinq valeurs, dont « non mesure »), celui-ci dit
-/// un **sens** sur fond sombre (trois valeurs) — d'ou les trois teintes
-/// « lisibles sur le bleu » du theme, et non les teintes pleines.
-/// Miroir web : `TrendTone`.
-enum SfTrendTone { up, flat, down }
-
-Color _sfTrendColor(SfTrendTone tone) => switch (tone) {
-      SfTrendTone.up => AppColors.greenBright,
-      SfTrendTone.flat => AppColors.amber,
-      SfTrendTone.down => AppColors.redBright,
-    };
-
-/// Un palier de la bande d'un bandeau d'objectif.
-///
-/// 🛑 Tout est **compose par l'appelant**, [trend] compris : le kit ne sait ni
-/// ce qu'est un palier, ni ce qu'une fleche signifie. Miroir web :
-/// `LevelStripItem`.
-class SfLevelStripItem {
-  const SfLevelStripItem({
-    required this.mark,
-    required this.level,
-    this.trend,
-    this.trendTone = SfTrendTone.flat,
-    this.caption,
-  });
-
-  /// Repere court (« CO »).
-  final String mark;
-
-  /// Le palier, ou le mot d'une absence de mesure (« — »).
-  final String level;
-
-  /// Le **glyphe** de tendance. `null` quand l'evolution est inconnue — surtout
-  /// pas un signe de stabilite, qui deguiserait une absence de mesure en bonne
-  /// nouvelle.
-  final String? trend;
-
-  final SfTrendTone trendTone;
-
-  /// L'etat en un mot. `null` = rien a dire.
-  final String? caption;
-}
-
-/// **La bande des paliers** d'un bandeau d'objectif — la `.level-strip` du
-/// template : une tuile par epreuve, sur le fond de marque du bandeau.
-///
-/// 🛑 **Autant de tuiles qu'on lui en donne** : le nombre vient de la liste
-/// servie, jamais d'un « 4 » ecrit ici. Miroir web : `LevelStrip`.
-class SfLevelStrip extends StatelessWidget {
-  const SfLevelStrip({super.key, required this.items});
-
-  final List<SfLevelStripItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(child: _SfLevelStripTile(item: items[i])),
-        ],
-      ],
-    );
-  }
-}
-
-class _SfLevelStripTile extends StatelessWidget {
-  const _SfLevelStripTile({required this.item});
-
-  final SfLevelStripItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final trend = item.trend;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            item.mark,
-            style: AppFonts.label(
-              size: 10,
-              color: AppColors.white.withValues(alpha: 0.80),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: Text(
-                  item.level,
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: AppFonts.display(
-                    size: 17,
-                    weight: FontWeight.w700,
-                    color: AppColors.white,
-                    height: 1.1,
-                  ),
-                ),
-              ),
-              if (trend != null) ...[
-                const SizedBox(width: 3),
-                Text(
-                  trend,
-                  style: AppFonts.ui(
-                    size: 12,
-                    weight: FontWeight.w800,
-                    color: _sfTrendColor(item.trendTone),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (item.caption != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              item.caption!,
-              maxLines: 2,
-              style: AppFonts.ui(
-                size: 9.5,
-                height: 1.25,
-                color: AppColors.white.withValues(alpha: 0.84),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// **La tete d'une carte a courbe** — le `.chart-title` du template : le nom de
-/// l'epreuve a gauche, son palier en gros a droite et son intitule sous lui.
-///
-/// 🛑 **Rien n'est derive** : les trois chaines arrivent composees, « — »
-/// compris. Miroir web : `ChartTitle`.
-class SfChartTitle extends StatelessWidget {
-  const SfChartTitle({
-    super.key,
-    required this.name,
-    required this.level,
-    required this.caption,
-  });
-
-  final String name;
-  final String level;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Text(
-            name,
-            style: AppFonts.ui(
-              size: 13,
-              weight: FontWeight.w700,
-              color: AppColors.muted,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              level,
-              style: AppFonts.display(
-                  size: 23, weight: FontWeight.w700, height: 1.05),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              caption,
-              style: AppFonts.ui(
-                size: 10,
-                weight: FontWeight.w700,
-                color: AppColors.muted2,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// **Le pied d'une carte a courbe** — le `.chart-note` du template : ce que dit
-/// la derniere mesure, et le lien qui l'ouvre.
-///
-/// 🛑 **Distinct de [SfInfoNote]**, l'encart ambre qui dit la *portee* d'une
-/// liste : celui-ci porte une **donnee** et une **action**.
-///
-/// [actionLabel] et [onAction] vont ensemble : sans action, le pied reste un
-/// simple constat. Miroir web : `ChartNote`.
-class SfChartNote extends StatelessWidget {
-  const SfChartNote({
-    super.key,
-    required this.title,
-    this.text,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final String title;
-  final String? text;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final action = actionLabel;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.line2),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppFonts.ui(
-                      size: 12, weight: FontWeight.w800, height: 1.3),
-                ),
-                if (text != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    text!,
-                    style: AppFonts.ui(
-                      size: 11,
-                      color: AppColors.muted,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (action != null && onAction != null) ...[
-            const SizedBox(width: 8),
-            Material(
-              type: MaterialType.transparency,
-              borderRadius: BorderRadius.circular(AppRadii.sm),
-              child: InkWell(
-                onTap: onAction,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        action,
-                        style: AppFonts.ui(
-                          size: 11.5,
-                          weight: FontWeight.w800,
-                          color: AppColors.blue,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(LucideIcons.arrowRight,
-                          size: 13, color: AppColors.blue),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Le fond clair d'une pastille d'etat. Pendant de [_sfStatusColor], qui en
-/// donne le texte.
-Color _sfStatusSoft(SfBarTone tone) => Color.alphaBlend(
-      _sfStatusColor(tone).withValues(alpha: 0.13),
-      AppColors.white,
-    );
-
-/// **La ligne d'une epreuve sur un ecran de progression** — l'`.exam-row` du
-/// template : repere court en tuile, nom + pastille de tendance, une phrase
-/// d'evolution, le palier a droite avec son intitule, un chevron.
-///
-/// 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
-/// - [SfLevelCard] porte une **echelle a crans** et une ligne d'action — c'est la
-///   carte de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, etats de
-///   theme servis en civique) ;
-/// - [SfEpreuveRow] porte un **anneau de couverture** et un pictogramme — c'est
-///   la ligne de Reviser, qui dit *ou s'entrainer* ;
-/// - [SfExamRow] porte un etat de passage.
-///
-/// Celle-ci dit **un palier et une tendance**, et rien d'autre.
-///
-/// 🛑 [desc], [pill], [pillTone] et [level] arrivent **composes** : la brique
-/// ne classe rien et ne compare aucun palier.
-///
-/// Miroir web : `EpreuveStatRow`.
-class SfEpreuveStatRow extends StatelessWidget {
-  const SfEpreuveStatRow({
-    super.key,
-    required this.mark,
-    required this.title,
-    required this.level,
-    required this.levelCaption,
-    required this.measured,
-    required this.onTap,
-    this.pill,
-    this.pillTone = SfBarTone.muted,
-    this.desc,
-    this.selected = false,
-  });
-
-  final String mark;
-  final String title;
-
-  /// L'etat en un mot. `null` = rien a dire, jamais « rien a faire ».
-  final String? pill;
-  final SfBarTone pillTone;
-
-  /// La phrase d'evolution. `null` ⇒ rien a sa place.
-  final String? desc;
-
-  /// Le palier servi, ou « — » quand rien n'est mesure. 🛑 Jamais « A1 ».
-  final String level;
-
-  /// L'intitule sous le palier (« actuel » / « niveau »).
-  final String levelCaption;
-
-  /// Y a-t-il une mesure derriere [level] ?
-  ///
-  /// 🛑 **Passe, jamais devine du texte** : comparer une chaine pour decider
-  /// d'une couleur ferait dependre l'apparence d'un libelle reformulable.
-  final bool measured;
-
-  /// La ligne est-elle celle que la courbe affiche ? Le template surligne la
-  /// ligne active.
-  final bool selected;
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.blueSoft : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: measured ? AppColors.blueLight : AppColors.surface2,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Text(
-                  mark,
-                  style: AppFonts.label(
-                    size: 11.5,
-                    color: measured ? AppColors.blue : AppColors.muted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppFonts.ui(
-                              size: 13,
-                              weight: FontWeight.w800,
-                              height: 1.25,
-                            ),
-                          ),
-                        ),
-                        if (pill != null) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: _sfStatusSoft(pillTone),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.pill),
-                            ),
-                            child: Text(
-                              pill!,
-                              style: AppFonts.ui(
-                                size: 9.5,
-                                weight: FontWeight.w800,
-                                color: _sfStatusColor(pillTone),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (desc != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        desc!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(
-                          size: 11,
-                          color: AppColors.muted2,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    level,
-                    style: AppFonts.display(
-                      size: 18,
-                      weight: FontWeight.w700,
-                      color: measured ? AppColors.ink : AppColors.muted2,
-                      height: 1.05,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    levelCaption,
-                    style: AppFonts.ui(
-                      size: 9.5,
-                      weight: FontWeight.w700,
-                      color: AppColors.muted2,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 2),
-              const Icon(LucideIcons.chevronRight,
-                  size: 18, color: AppColors.muted2),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// **La liste des epreuves** — l'`.exam-list` du template : une carte unique,
-/// ses lignes separees d'un filet.
-///
-/// ⚠️ **Elle n'est pas [SfLevelCardGrid]** : celle-la range des cartes
-/// autonomes, celle-ci reunit des lignes dans un seul encart. Miroir web :
-/// `EpreuveStatList`.
-class SfEpreuveStatList extends StatelessWidget {
-  const SfEpreuveStatList({super.key, required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              const SizedBox(
-                height: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: AppColors.line2),
-                ),
-              ),
-            children[i],
-          ],
         ],
       ),
     );
@@ -6524,6 +5449,1561 @@ class SfSerieCard extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// ÉCRANS DE PROGRESSION (2026-09-24) — maquettes
+// `docs/progression/maquettes-progression/*.html`, état téléphone (≤ 470 /
+// 620 px). Contrat : `docs/regles/progression.md` § « Écrans de progression ».
+//
+// 🛑 **Aucune de ces briques ne classe, ne compte ni ne compare** : score,
+// palier, état, écart, sens, bandes, repères, seuil, ordinal, durée et verrou
+// arrivent SERVIS, et l'appelant les compose en texte. La courbe et la
+// sparkline **placent** des valeurs sur un axe dont les bornes sont servies —
+// placer n'est pas classer.
+//
+// 🛑 **Rouge = CTA critiques seulement** : le dernier point de la courbe,
+// l'anneau et le badge « B2 », rouges sur les maquettes, sont ici dans la
+// famille bleue (l'anneau passe au vert quand le seuil servi est atteint,
+// sémantique de [SfRing]). Seule la pastille de l'œil-de-bœuf reste rouge : la
+// convention du kit (`.heroDot`), comme le web.
+//
+// Miroirs web (mêmes noms, sans `Sf`) : `ProgressTopbar`, `ProgressIntro`,
+// `ProgressHero`, `ProgressStatTile`, `ProgressStatGrid`, `ProgressDomainCard`,
+// `ProgressChart`, `ProgressScaleLegend`, `ProgressExamRow`,
+// `ProgressGlobalExamRow`.
+// =============================================================================
+
+/// Le rayon des cartes de ces écrans (`.card` des maquettes, 18 px).
+const double _sfProgressRadius = AppRadii.lg;
+
+BoxDecoration _sfProgressCardDecoration() => BoxDecoration(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(_sfProgressRadius),
+      border: Border.all(color: AppColors.line),
+      boxShadow: AppShadows.card,
+    );
+
+/// La carte blanche des écrans de progression, avec son effet de toucher.
+class _SfProgressCard extends StatelessWidget {
+  const _SfProgressCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.onTap,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(_sfProgressRadius);
+    final contenu = Padding(padding: padding, child: child);
+    if (onTap == null) {
+      return DecoratedBox(
+        decoration: _sfProgressCardDecoration(),
+        child: contenu,
+      );
+    }
+    return Material(
+      color: AppColors.white,
+      borderRadius: radius,
+      child: Ink(
+        decoration: _sfProgressCardDecoration(),
+        child: InkWell(onTap: onTap, borderRadius: radius, child: contenu),
+      ),
+    );
+  }
+}
+
+/// **La barre haute** : le retour (flèche en tuile + intitulé) à gauche, le
+/// CTA « Nouvel examen blanc » à droite.
+///
+/// 🛑 [ctaLocked] est le `cta.locked` **servi** (D20) : le bouton garde sa
+/// place et son libellé, il gagne un cadenas, et c'est l'appelant qui ouvre le
+/// paywall au toucher. Aucun verrou n'est déduit ici. Bouton **bleu** : ce
+/// n'est pas un CTA critique.
+///
+/// Miroir web : `ProgressTopbar`.
+class SfProgressTopbar extends StatelessWidget {
+  const SfProgressTopbar({
+    super.key,
+    required this.backLabel,
+    required this.onBack,
+    this.ctaLabel,
+    this.onCta,
+    this.ctaLocked = false,
+  });
+
+  final String backLabel;
+  final VoidCallback onBack;
+
+  /// `null` = aucun bouton (chargement, erreur) : on ne propose pas une porte
+  /// dont le verrou n'est pas encore connu.
+  final String? ctaLabel;
+  final VoidCallback? onCta;
+  final bool ctaLocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final libelle = ctaLabel;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Semantics(
+                button: true,
+                child: InkWell(
+                  onTap: onBack,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: const Icon(LucideIcons.arrowLeft,
+                              size: 17, color: AppColors.blueDark),
+                        ),
+                        const SizedBox(width: 9),
+                        Flexible(
+                          child: Text(
+                            backLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.ui(
+                              size: 14,
+                              weight: FontWeight.w800,
+                              color: AppColors.blueDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (libelle != null) ...[
+            const SizedBox(width: 12),
+            Flexible(
+              child: Material(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.circular(13),
+                child: InkWell(
+                  onTap: onCta,
+                  borderRadius: BorderRadius.circular(13),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (ctaLocked) ...[
+                          const Icon(LucideIcons.lock,
+                              size: 14, color: AppColors.white),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: Text(
+                            libelle,
+                            textAlign: TextAlign.center,
+                            style: AppFonts.ui(
+                              size: 13.5,
+                              weight: FontWeight.w800,
+                              color: AppColors.white,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **L'intro** : l'œil-de-bœuf à pastille (« Votre progression »), le titre de
+/// l'écran, sa phrase. Miroir web : `ProgressIntro`.
+class SfProgressIntro extends StatelessWidget {
+  const SfProgressIntro({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    this.lead,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String? lead;
+
+  @override
+  Widget build(BuildContext context) {
+    final phrase = lead;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // La pastille rouge à halo est la convention du kit pour un
+              // œil-de-bœuf (`.heroDot` côté web) — un repère, pas un CTA.
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: AppColors.red,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.red.withValues(alpha: 0.16),
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  eyebrow,
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: AppFonts.display(
+              size: 28,
+              weight: FontWeight.w800,
+              color: AppColors.blueDark,
+              height: 1.08,
+            ),
+          ),
+          if (phrase != null) ...[
+            const SizedBox(height: 9),
+            Text(
+              phrase,
+              style: AppFonts.ui(size: 15, color: AppColors.muted, height: 1.4),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Une pastille des écrans de progression (`.level` / `.trend`) : le ton est
+/// **passé** (état servi, sens servi), jamais déduit du texte.
+class _SfProgressChip extends StatelessWidget {
+  const _SfProgressChip({required this.label, required this.tone});
+
+  final String label;
+  final SfBarTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: _sfPillSoft(tone),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.ui(
+          size: 13,
+          weight: FontWeight.w800,
+          color: _sfPillText(tone),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un anneau de carte de tête : ratio **servi**, texte du centre **composé**,
+/// seuil atteint **servi**. Civique seulement (D5).
+typedef SfProgressRing = ({double ratio, String label, bool reached});
+
+/// **La carte de tête** — « Dernier résultat » : le gros score (ou le palier)
+/// et son unité, les pastilles (palier ou état, puis tendance), des lignes
+/// secondaires, et l'anneau en civique.
+///
+/// 🛑 **D5 : pas d'anneau en TCF.** [ring] est `null` pour le TCF — un disque
+/// rempli à côté d'un palier se lirait comme « x % vers le B2 ».
+///
+/// Miroir web : `ProgressHero`.
+class SfProgressHero extends StatelessWidget {
+  const SfProgressHero({
+    super.key,
+    required this.label,
+    required this.value,
+    this.unit,
+    this.level,
+    this.levelTone = SfBarTone.now,
+    this.trend,
+    this.trendTone = SfBarTone.muted,
+    this.notes = const <String>[],
+    this.ring,
+  });
+
+  final String label;
+
+  /// Le score (« 422 ») ou le palier (« B1 ») ; « — » quand rien n'est mesuré.
+  final String value;
+
+  /// « / 499 ». `null` pour un palier.
+  final String? unit;
+
+  /// La pastille de palier ou d'état. `null` = aucune.
+  final String? level;
+  final SfBarTone levelTone;
+
+  /// La pastille de tendance. `null` quand l'écart est inconnu — jamais « +0 ».
+  final String? trend;
+  final SfBarTone trendTone;
+
+  /// Les lignes secondaires (niveau actuel estimé, provenance de l'état…).
+  final List<String> notes;
+
+  final SfProgressRing? ring;
+
+  @override
+  Widget build(BuildContext context) {
+    final unite = unit;
+    final palier = level;
+    final tendance = trend;
+    final anneau = ring;
+    return _SfProgressCard(
+      padding: const EdgeInsets.all(21),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        style: AppFonts.display(
+                          size: 38,
+                          weight: FontWeight.w800,
+                          color: AppColors.blueDark,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    if (unite != null) ...[
+                      const SizedBox(width: 7),
+                      Text(
+                        unite,
+                        style: AppFonts.ui(
+                          size: 15,
+                          weight: FontWeight.w700,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (palier != null || tendance != null) ...[
+                  const SizedBox(height: 13),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (palier != null)
+                        _SfProgressChip(label: palier, tone: levelTone),
+                      if (tendance != null)
+                        _SfProgressChip(label: tendance, tone: trendTone),
+                    ],
+                  ),
+                ],
+                for (final note in notes) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    note,
+                    style: AppFonts.ui(
+                      size: 12.5,
+                      weight: FontWeight.w600,
+                      color: AppColors.muted,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (anneau != null) ...[
+            const SizedBox(width: 14),
+            SfRing(
+              ratio: anneau.ratio,
+              size: 84,
+              stroke: 10,
+              label: anneau.label,
+              reached: anneau.reached,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **Un encart de synthèse** : un intitulé, une valeur, une légende.
+///
+/// [inset] = l'encart posé **dans** une carte (`.summary-box` de l'écran
+/// global) ; sinon c'est une carte à part entière (`.mini` de l'écran d'une
+/// épreuve ou d'un thème). 🛑 La valeur arrive en texte : rien n'est compté.
+///
+/// Miroir web : `ProgressStatTile`.
+class SfProgressStatTile extends StatelessWidget {
+  const SfProgressStatTile({
+    super.key,
+    required this.label,
+    required this.value,
+    this.caption,
+    this.inset = false,
+  });
+
+  final String label;
+  final String value;
+  final String? caption;
+  final bool inset;
+
+  @override
+  Widget build(BuildContext context) {
+    final legende = caption;
+    final contenu = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AppFonts.ui(
+            size: inset ? 12 : 13,
+            weight: FontWeight.w700,
+            color: AppColors.muted,
+          ),
+        ),
+        SizedBox(height: inset ? 7 : 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: AppFonts.display(
+                size: inset ? 21 : 23,
+                weight: FontWeight.w800,
+                color: AppColors.blueDark,
+                height: 1.1,
+              ),
+            ),
+            if (legende != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                legende,
+                style: AppFonts.ui(
+                  size: inset ? 11 : 12,
+                  color: AppColors.muted,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+    if (inset) {
+      return Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: AppColors.surface2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: contenu,
+      );
+    }
+    return _SfProgressCard(
+      padding: const EdgeInsets.all(17),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 91),
+        child: contenu,
+      ),
+    );
+  }
+}
+
+/// **La grille des encarts**, deux colonnes, les encarts d'une rangée à la
+/// même hauteur. [framed] pose la grille **dans** une carte blanche (écran
+/// global : les encarts sont alors `inset`). Miroir web : `ProgressStatGrid`.
+class SfProgressStatGrid extends StatelessWidget {
+  const SfProgressStatGrid({
+    super.key,
+    required this.tiles,
+    this.framed = false,
+  });
+
+  final List<SfProgressStatTile> tiles;
+  final bool framed;
+
+  @override
+  Widget build(BuildContext context) {
+    final gap = framed ? 10.0 : 14.0;
+    final rangees = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      final seule = i + 1 >= tiles.length;
+      rangees.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: tiles[i]),
+              SizedBox(width: gap),
+              Expanded(child: seule ? const SizedBox() : tiles[i + 1]),
+            ],
+          ),
+        ),
+      );
+    }
+    final grille = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rangees.length; i++) ...[
+          if (i > 0) SizedBox(height: gap),
+          rangees[i],
+        ],
+      ],
+    );
+    if (!framed) return grille;
+    return _SfProgressCard(padding: const EdgeInsets.all(16), child: grille);
+  }
+}
+
+/// Une sparkline à l'échelle **servie** ([min] → [max]) : la série du plus
+/// ancien au plus récent, le dernier point marqué.
+typedef SfProgressSpark = ({List<double> serie, double min, double max});
+
+/// **La carte d'une épreuve ou d'un thème** : pictogramme, nom, sous-titre,
+/// chevron ; puis le dernier score et son unité, la pastille de palier ou
+/// d'état, l'écart, et la sparkline. Toute la carte ouvre l'écran détaillé.
+///
+/// 🛑 [empty] remplace le bloc de score quand rien n'est servi (« Pas encore
+/// d'examen ») : ni sparkline, ni écart — une absence n'a pas de tendance.
+///
+/// Miroir web : `ProgressDomainCard`.
+class SfProgressDomainCard extends StatelessWidget {
+  const SfProgressDomainCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.sub,
+    required this.onTap,
+    this.value,
+    this.unit,
+    this.pill,
+    this.pillTone = SfBarTone.now,
+    this.delta,
+    this.deltaTone = SfBarTone.muted,
+    this.spark,
+    this.empty,
+  });
+
+  final IconData icon;
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+
+  final String? value;
+  final String? unit;
+  final String? pill;
+  final SfBarTone pillTone;
+  final String? delta;
+  final SfBarTone deltaTone;
+  final SfProgressSpark? spark;
+  final String? empty;
+
+  @override
+  Widget build(BuildContext context) {
+    final vide = empty;
+    final score = value;
+    final unite = unit;
+    final pastille = pill;
+    final ecart = delta;
+    final serie = spark;
+    return _SfProgressCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.blueLight,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, size: 20, color: AppColors.blue),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppFonts.display(
+                        size: 16,
+                        weight: FontWeight.w700,
+                        color: AppColors.blueDark,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      sub,
+                      style: AppFonts.ui(size: 12, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(LucideIcons.chevronRight,
+                  size: 20, color: AppColors.muted2),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (vide != null)
+            Text(
+              vide,
+              style: AppFonts.ui(
+                size: 14,
+                weight: FontWeight.w700,
+                color: AppColors.muted,
+              ),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            score ?? '—',
+                            style: AppFonts.display(
+                              size: 32,
+                              weight: FontWeight.w800,
+                              color: AppColors.blueDark,
+                              height: 1,
+                            ),
+                          ),
+                          if (unite != null) ...[
+                            const SizedBox(width: 5),
+                            Text(
+                              unite,
+                              style: AppFonts.ui(
+                                size: 13,
+                                weight: FontWeight.w700,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (pastille != null) ...[
+                        const SizedBox(height: 9),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _sfPillSoft(pillTone),
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
+                          ),
+                          child: Text(
+                            pastille,
+                            style: AppFonts.ui(
+                              size: 12,
+                              weight: FontWeight.w900,
+                              color: _sfPillText(pillTone),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (ecart != null) ...[
+                        const SizedBox(height: 9),
+                        Text(
+                          ecart,
+                          style: AppFonts.ui(
+                            size: 12,
+                            weight: FontWeight.w800,
+                            color: _sfPillText(deltaTone),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (serie != null && serie.serie.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 115,
+                    height: 58,
+                    child: CustomPaint(
+                      painter: _SfSparkPainter(
+                        serie: serie.serie,
+                        min: serie.min,
+                        max: serie.max,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La hauteur relative (0 = en haut) d'une valeur sur un axe servi.
+double _sfAxisAt(double v, double min, double max) {
+  final span = max - min;
+  if (span <= 0) return 0.5;
+  return 1 - ((v - min) / span).clamp(0.0, 1.0);
+}
+
+class _SfSparkPainter extends CustomPainter {
+  const _SfSparkPainter({
+    required this.serie,
+    required this.min,
+    required this.max,
+  });
+
+  final List<double> serie;
+  final double min;
+  final double max;
+
+  static const double _pad = 6;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width - 2 * _pad;
+    final h = size.height - 2 * _pad;
+    Offset at(int i) => Offset(
+          _pad + (serie.length > 1 ? i / (serie.length - 1) * w : w),
+          _pad + _sfAxisAt(serie[i], min, max) * h,
+        );
+    if (serie.length > 1) {
+      final path = Path()..moveTo(at(0).dx, at(0).dy);
+      for (var i = 1; i < serie.length; i++) {
+        path.lineTo(at(i).dx, at(i).dy);
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = AppColors.blue
+          ..strokeWidth = 3
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+    final dernier = at(serie.length - 1);
+    canvas.drawCircle(dernier, 4, Paint()..color = AppColors.white);
+    canvas.drawCircle(
+      dernier,
+      4,
+      Paint()
+        ..color = AppColors.blue
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SfSparkPainter old) =>
+      old.serie != serie || old.min != min || old.max != max;
+}
+
+/// Une bande de l'axe, bornes **servies** et libellé composé (« B2 · 10–20 »).
+///
+/// [tone] teinte la bande d'un état **servi** (civique) ; `null` = rampe
+/// neutre de la famille bleue, du bas vers le haut (paliers EE/EO).
+class SfProgressBand {
+  const SfProgressBand({
+    required this.from,
+    required this.to,
+    required this.label,
+    this.tone,
+  });
+
+  final double from;
+  final double to;
+  final String label;
+  final SfBarTone? tone;
+}
+
+/// Un point de la courbe : sa valeur (pour la placer), son texte (pour la
+/// dire) et sa date.
+class SfProgressChartPoint {
+  const SfProgressChartPoint({
+    required this.value,
+    required this.valueLabel,
+    required this.date,
+  });
+
+  final double value;
+  final String valueLabel;
+  final String date;
+}
+
+/// **La courbe d'évolution** : aire + ligne + points, le dernier point mis en
+/// avant, les dates en abscisse, et — **seulement quand elles sont servies** —
+/// les bandes de l'échelle et le trait de seuil.
+///
+/// 🛑 **D2 : aucune bande en CO/CE.** [bands] vide ⇒ des repères neutres
+/// ([reperes]) et rien d'autre. Un point se **place** entre [min] et [max]
+/// servis ; aucune interpolation, aucune moyenne. Au-delà de ce que la largeur
+/// tient, la courbe défile horizontalement, calée sur le plus récent.
+///
+/// Miroir web : `ProgressChart`.
+class SfProgressChart extends StatelessWidget {
+  const SfProgressChart({
+    super.key,
+    required this.min,
+    required this.max,
+    required this.points,
+    this.bands = const <SfProgressBand>[],
+    this.reperes = const <double>[],
+    this.seuil,
+    this.note,
+  });
+
+  final double min;
+  final double max;
+
+  /// Du plus ancien au plus récent.
+  final List<SfProgressChartPoint> points;
+  final List<SfProgressBand> bands;
+  final List<double> reperes;
+  final double? seuil;
+
+  /// Ce que mesure l'axe, servi (« Score de progression · /499 »). `null` = rien.
+  final String? note;
+
+  static const double _axis = 34;
+  static const double _plot = 210;
+  static const double _top = 22;
+  static const double _dates = 26;
+  static const double _pas = 64;
+
+  String _repere(double v) =>
+      v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+
+  @override
+  Widget build(BuildContext context) {
+    final echelle = note;
+    final courbe = LayoutBuilder(
+      builder: (context, constraints) {
+        final dispo = math.max(constraints.maxWidth - _axis, 1.0);
+        final largeur = math.max(dispo, points.length * _pas);
+        double y(double v) => _top + _sfAxisAt(v, min, max) * _plot;
+        final trace = SizedBox(
+          width: largeur,
+          height: _top + _plot + _dates,
+          child: CustomPaint(
+            painter: _SfProgressChartPainter(
+              min: min,
+              max: max,
+              top: _top,
+              plot: _plot,
+              points: [for (final p in points) p.value],
+              bands: bands,
+              reperes: reperes,
+              seuil: seuil,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (final b in bands)
+                  if ((y(b.from) - y(b.to)) >= 16)
+                    Positioned(
+                      left: 12,
+                      top: y(b.to) + 4,
+                      child: Text(
+                        b.label,
+                        style: AppFonts.ui(
+                          size: 11,
+                          weight: FontWeight.w800,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ),
+                for (var i = 0; i < points.length; i++)
+                  if (_montreValeur(i))
+                    Positioned(
+                      left: _x(i, largeur) - 30,
+                      top: y(points[i].value) -
+                          (i == points.length - 1 ? 26 : 22),
+                      width: 60,
+                      child: Text(
+                        points[i].valueLabel,
+                        textAlign: TextAlign.center,
+                        style: AppFonts.ui(
+                          size: i == points.length - 1 ? 12 : 11,
+                          weight: i == points.length - 1
+                              ? FontWeight.w900
+                              : FontWeight.w800,
+                          color: i == points.length - 1
+                              ? AppColors.blueDark
+                              : AppColors.blue,
+                        ),
+                      ),
+                    ),
+                for (var i = 0; i < points.length; i++)
+                  if (_montreDate(i))
+                    Positioned(
+                      left: (_x(i, largeur) - 32)
+                          .clamp(0.0, math.max(largeur - 64, 0.0)),
+                      top: _top + _plot + 8,
+                      width: 64,
+                      child: Text(
+                        points[i].date,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(size: 11, color: AppColors.muted),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        );
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: _axis,
+              height: _top + _plot + _dates,
+              child: Stack(
+                children: [
+                  for (final r in reperes)
+                    Positioned(
+                      left: 0,
+                      right: 6,
+                      top: y(r) - 7,
+                      child: Text(
+                        _repere(r),
+                        textAlign: TextAlign.right,
+                        style: AppFonts.ui(size: 11, color: AppColors.muted),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: largeur > dispo
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      child: trace,
+                    )
+                  : trace,
+            ),
+          ],
+        );
+      },
+    );
+    if (echelle == null) return courbe;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          echelle,
+          textAlign: TextAlign.right,
+          style: AppFonts.ui(
+            size: 12,
+            weight: FontWeight.w700,
+            color: AppColors.muted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        courbe,
+      ],
+    );
+  }
+
+  double _x(int i, double largeur) =>
+      _SfProgressChartPainter.xOf(i, points.length, largeur);
+
+  /// Quelques valeurs seulement, pour ne pas surcharger (maquette) : toutes
+  /// jusqu'à quatre points, puis la première et la dernière.
+  bool _montreValeur(int i) =>
+      points.length <= 4 || i == 0 || i == points.length - 1;
+
+  /// Les dates : toutes jusqu'à quatre points, puis une sur deux en gardant
+  /// toujours la plus récente.
+  bool _montreDate(int i) =>
+      points.length <= 4 || (points.length - 1 - i).isEven;
+}
+
+class _SfProgressChartPainter extends CustomPainter {
+  const _SfProgressChartPainter({
+    required this.min,
+    required this.max,
+    required this.top,
+    required this.plot,
+    required this.points,
+    required this.bands,
+    required this.reperes,
+    required this.seuil,
+  });
+
+  final double min;
+  final double max;
+  final double top;
+  final double plot;
+  final List<double> points;
+  final List<SfProgressBand> bands;
+  final List<double> reperes;
+  final double? seuil;
+
+  static const double _marge = 26;
+
+  static double xOf(int i, int n, double largeur) {
+    if (n <= 1) return largeur / 2;
+    return _marge + i / (n - 1) * (largeur - 2 * _marge);
+  }
+
+  double _y(double v) => top + _sfAxisAt(v, min, max) * plot;
+
+  Color _bandFill(SfProgressBand b, int rang, int total) {
+    final ton = b.tone;
+    if (ton != null) return _sfPillSoft(ton).withValues(alpha: 0.55);
+    final t = total <= 1 ? 1.0 : rang / (total - 1);
+    return Color.lerp(AppColors.blueSoft, AppColors.blueLight, t)!
+        .withValues(alpha: 0.4 + 0.5 * t);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ordonnees = [...bands]..sort((a, b) => a.from.compareTo(b.from));
+    for (var i = 0; i < ordonnees.length; i++) {
+      final b = ordonnees[i];
+      canvas.drawRect(
+        Rect.fromLTRB(0, _y(b.to), size.width, _y(b.from)),
+        Paint()..color = _bandFill(b, i, ordonnees.length),
+      );
+    }
+    final grille = Paint()
+      ..color = AppColors.line
+      ..strokeWidth = 1;
+    for (final r in reperes) {
+      canvas.drawLine(Offset(0, _y(r)), Offset(size.width, _y(r)), grille);
+    }
+    final palier = seuil;
+    if (palier != null) {
+      final trait = Paint()
+        ..color = AppColors.lineStrong
+        ..strokeWidth = 1.5;
+      final y = _y(palier);
+      for (var x = 0.0; x < size.width; x += 9) {
+        canvas.drawLine(
+            Offset(x, y), Offset(math.min(x + 4, size.width), y), trait);
+      }
+    }
+    if (points.isEmpty) return;
+    final pts = [
+      for (var i = 0; i < points.length; i++)
+        Offset(xOf(i, points.length, size.width), _y(points[i])),
+    ];
+    if (pts.length > 1) {
+      final ligne = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (final p in pts.skip(1)) {
+        ligne.lineTo(p.dx, p.dy);
+      }
+      final bas = top + plot;
+      final aire = Path.from(ligne)
+        ..lineTo(pts.last.dx, bas)
+        ..lineTo(pts.first.dx, bas)
+        ..close();
+      canvas.drawPath(
+        aire,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.blue.withValues(alpha: 0.13),
+              AppColors.blue.withValues(alpha: 0),
+            ],
+          ).createShader(Rect.fromLTRB(0, top, size.width, bas)),
+      );
+      canvas.drawPath(
+        ligne,
+        Paint()
+          ..color = AppColors.blue
+          ..strokeWidth = 3.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+    final fond = Paint()..color = AppColors.white;
+    for (var i = 0; i < pts.length; i++) {
+      final dernier = i == pts.length - 1;
+      if (dernier) {
+        canvas.drawCircle(
+            pts[i], 11, Paint()..color = AppColors.blue.withValues(alpha: 0.14));
+      }
+      canvas.drawCircle(pts[i], dernier ? 6 : 5, fond);
+      canvas.drawCircle(
+        pts[i],
+        dernier ? 6 : 5,
+        Paint()
+          ..color = dernier ? AppColors.blueDark : AppColors.blue
+          ..strokeWidth = dernier ? 4 : 3
+          ..style = PaintingStyle.stroke,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SfProgressChartPainter old) =>
+      old.points != points ||
+      old.bands != bands ||
+      old.reperes != reperes ||
+      old.seuil != seuil ||
+      old.min != min ||
+      old.max != max;
+}
+
+/// Une entrée de légende : le nom de la bande et son intervalle, **servis**.
+typedef SfProgressScaleItem = ({String label, String range});
+
+/// **La légende de l'échelle** (`.scale`) : les bandes servies, deux par
+/// rangée. 🛑 Rien ici en CO/CE — il n'y a pas de bande (D2).
+///
+/// Miroir web : `ProgressScaleLegend`.
+class SfProgressScaleLegend extends StatelessWidget {
+  const SfProgressScaleLegend({super.key, required this.items});
+
+  final List<SfProgressScaleItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largeur = (constraints.maxWidth - 8) / 2;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in items)
+              Container(
+                width: largeur,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: AppFonts.ui(
+                          size: 12,
+                          weight: FontWeight.w800,
+                          color: AppColors.blueDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      item.range,
+                      style: AppFonts.ui(size: 11, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Le badge de fin de ligne d'examen (`.level-badge`).
+class _SfProgressBadge extends StatelessWidget {
+  const _SfProgressBadge({required this.label, required this.tone});
+
+  final String label;
+  final SfBarTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 45),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _sfPillSoft(tone),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: AppFonts.ui(
+          size: 12,
+          weight: FontWeight.w900,
+          color: _sfPillText(tone),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le cadre d'une ligne d'examen (`.exam` / `.attempt`), touchable.
+class _SfProgressRowFrame extends StatelessWidget {
+  const _SfProgressRowFrame({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(14);
+    return Material(
+      color: AppColors.white,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(15, 14, 12, 14),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: AppColors.line),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// **Une ligne d'examen** d'un écran d'épreuve ou de thème : l'ordinal servi
+/// (« Examen blanc n°7 »), la date, la provenance, la durée fiable (ou « — »),
+/// le score et le badge de palier ou d'état. Le toucher ouvre le rapport — sa
+/// route est choisie par l'appelant sur `rapport.kind` **servi**.
+///
+/// Miroir web : `ProgressExamRow`.
+class SfProgressExamRow extends StatelessWidget {
+  const SfProgressExamRow({
+    super.key,
+    required this.title,
+    required this.score,
+    required this.scoreLabel,
+    required this.duration,
+    required this.durationLabel,
+    required this.onTap,
+    this.badge,
+    this.date,
+    this.meta,
+    this.badgeTone = SfBarTone.now,
+  });
+
+  final String title;
+  final String? date;
+
+  /// La provenance (« Épreuve passée seule »). `null` = rien à dire.
+  final String? meta;
+  final String score;
+  final String scoreLabel;
+
+  /// La durée, ou « — » quand elle n'est pas fiable (D9).
+  final String duration;
+  final String durationLabel;
+
+  /// Le palier ou l'état de l'examen. `null` = aucun badge (jamais « A1 »).
+  final String? badge;
+  final SfBarTone badgeTone;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final lignes = [
+      if (date != null) date!,
+      if (meta != null) meta!,
+      '$durationLabel $duration',
+    ];
+    return _SfProgressRowFrame(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 14,
+                    weight: FontWeight.w800,
+                    color: AppColors.blueDark,
+                  ),
+                ),
+                for (final l in lignes) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    l,
+                    style: AppFonts.ui(size: 12, color: AppColors.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                scoreLabel,
+                style: AppFonts.ui(size: 10, color: AppColors.muted),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                score,
+                style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          if (badge != null) ...[
+            const SizedBox(width: 10),
+            _SfProgressBadge(label: badge!, tone: badgeTone),
+          ],
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(LucideIcons.chevronRight,
+                size: 18, color: AppColors.muted2),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Une part d'un examen global : l'épreuve ou le thème, et sa valeur composée
+/// (« 392 / 499 », « 7 / 11 posées », « — »).
+typedef SfProgressPart = ({String label, String value});
+
+/// **Une ligne d'examen global** : l'ordinal et la date, le badge global
+/// (palier TCF ou « Global : 29 / 40 »), puis le détail **par épreuve** (TCF,
+/// quatre colonnes) ou **par thème** (civique, une ligne par thème : D11,
+/// « x / n posées », jamais « / 20 »).
+///
+/// Miroir web : `ProgressGlobalExamRow`.
+class SfProgressGlobalExamRow extends StatelessWidget {
+  const SfProgressGlobalExamRow({
+    super.key,
+    required this.title,
+    required this.badge,
+    required this.parts,
+    required this.onTap,
+    this.date,
+    this.meta,
+    this.badgeTone = SfBarTone.now,
+    this.stacked = false,
+  });
+
+  final String title;
+  final String? date;
+
+  /// Une précision servie (« Partiel : 3 épreuves sur 4 »). `null` = rien.
+  final String? meta;
+  final String badge;
+  final SfBarTone badgeTone;
+  final List<SfProgressPart> parts;
+
+  /// `true` = une part par ligne (noms longs des thèmes civiques).
+  final bool stacked;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final precision = meta;
+    return _SfProgressRowFrame(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppFonts.ui(
+                        size: 14,
+                        weight: FontWeight.w800,
+                        color: AppColors.blueDark,
+                      ),
+                    ),
+                    if (date != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        date!,
+                        style: AppFonts.ui(size: 11, color: AppColors.muted),
+                      ),
+                    ],
+                    if (precision != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        precision,
+                        style: AppFonts.ui(size: 11, color: AppColors.muted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _SfProgressBadge(label: badge, tone: badgeTone),
+              if (onTap != null) ...[
+                const SizedBox(width: 4),
+                const Icon(LucideIcons.chevronRight,
+                    size: 18, color: AppColors.muted2),
+              ],
+            ],
+          ),
+          if (parts.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            if (stacked)
+              Column(
+                children: [
+                  for (var i = 0; i < parts.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            parts[i].label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                AppFonts.ui(size: 12, color: AppColors.muted),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          parts[i].value,
+                          style: AppFonts.ui(
+                            size: 12.5,
+                            weight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < parts.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            parts[i].label,
+                            style:
+                                AppFonts.ui(size: 10, color: AppColors.muted),
+                          ),
+                          const SizedBox(height: 3),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              parts[i].value,
+                              maxLines: 1,
+                              style: AppFonts.ui(
+                                size: 13,
+                                weight: FontWeight.w800,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
           ],
         ],
       ),

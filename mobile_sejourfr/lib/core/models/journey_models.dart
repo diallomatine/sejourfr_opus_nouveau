@@ -704,7 +704,7 @@ SkillTaskCode? _tache(String? wire) {
 }
 
 /* =============================================================================
-   L'HISTORIQUE DES CYCLES — « Ma progression »
+   L'HISTORIQUE DES CYCLES — « Mes cycles » (ex-« Ma progression », D16)
    Miroir manuel de `JourneyHistoryDto` (`GET /api/me/plan/journey/history`).
 
    🛑 **Rien n'y est recalcule cote front.** Les compteurs, les titres de

@@ -156,6 +156,13 @@ lib/
     │                                    criteria_overview, priority_card,
     │                                    production_text_card, results_section_head,
     │                                    evaluation_notice, etc.
+    ├── progression/               Les 4 écrans de progression (2026-09-24) — cf. § dédié
+    │   ├── progression_{tcf,epreuve,civique,theme}_screen.dart
+    │   ├── progression_labels.dart   miroir mot pour mot de web `lib/progression.ts`
+    │   ├── progression_providers.dart  4 FutureProvider.autoDispose(.family)
+    │   └── widgets/progression_page.dart  squelette commun, CTA, retour, panneau
+    ├── progres/                   `progres_labels.dart` (« Où vous en êtes » de l'Accueil,
+    │                              autorité d'affichage du niveau) + `reco_screen.dart`
     ├── review/                    Favoris + erreurs récentes (tabs)
     │   └── widgets/               module_switch.dart
     └── profile/                   Compte + paramètres + logout + suppression de compte
@@ -206,9 +213,11 @@ Migration globale faite — ne plus introduire de `Icons.*` Material (seule exce
 
 **Primitives maquette** (`core/widgets/`) : `ScreenHeader` (en-tête fixe flouté, hors scroll),
 `ListGroup`/`ListRow`/`SectionTitle` (listes encartées), `SegmentedTabs` + `parcoursSegments()`
-(toggle TCF rouge / Civique bleu), `ProgressRing`, `ProgressTrack`, `StatValueCard`,
+(toggle TCF rouge / Civique bleu), `ProgressTrack`, `StatValueCard`,
 `showAppSheet` (bottom sheet à poignée), `AppButton` (pill — variants primary/accent/soft/
-outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones),
+outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones). ⚠️ `ProgressRing`
+est **supprimé** (2026-09-24) avec l'écran Progrès, son dernier lecteur ; l'anneau du kit
+est `SfRing`.
 `PressableCard` + `CardChevron` (`pressable_card.dart` — carte cliquable à retour au toucher,
 promue de `tcf_production/widgets/production_blocks.dart` quand le Plan a repris l'anatomie de
 la carte de compétence ; `ProductionChevron` s'appelle désormais `CardChevron`),
@@ -481,8 +490,9 @@ du web garde son ordre (`Parcours` puis `Suivi`). Écart de parité **assumé**.
   extraits des écrans pleine page, qui restent pour les push profonds).
 - **Plan** (`screens/plan/`, route `/plan`) : priorité serveur immédiate, exercice de compétence
   recommandé, deux priorités suivantes au maximum et huit compétences observées au maximum.
-  L'écran **Progrès** (`screens/progres/`, route `/progress`) reste fonctionnel mais secondaire,
-  via « Voir ma progression » ; `RecoScreen` reste sur `/progress/recommandations`.
+  ⚠️ L'écran **Progrès** (`/progress`) est **SUPPRIMÉ** (2026-09-24) : la progression vit
+  dans les 4 écrans de progression (§ « Écrans de progression »). `RecoScreen` reste sur
+  `/progress/recommandations`, **sans point d'entrée** (en attente d'arbitrage).
 - **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
   `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
   prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
@@ -1168,8 +1178,13 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   l'échelle CECRL à quatre crans), **`SfGoalBanner`**, puis le 2026-09-24
   **`SfLevelCard`** + **`SfLevelCardGrid`** (grille 2×2 de « Où vous en
   êtes » ; `SfLadderLegend`, `SfLevelRow` et `SfLevelList` sont supprimées ce
-  jour-là). Elles servent « Où vous en êtes » (Accueil) et « Vos
-  résultats » (`EpreuveHistoriqueScreen`) — → `docs/regles/progression.md`.
+  jour-là). Elles servent « Où vous en êtes » (Accueil) — →
+  `docs/regles/progression.md`. ⚠️ **Supprimées le 2026-09-24** avec « Vos
+  résultats » et l'écran Progrès, leurs seuls lecteurs : `SfResultHero`,
+  `SfLevelChart` (+ `SfChartPoint`, `SfChartRung`), `SfFilterChips`,
+  `SfHistoryRow`, `SfLevelStrip` (+ `SfLevelStripItem`), `SfChartTitle`,
+  `SfChartNote`, `SfEpreuveStatRow` / `SfEpreuveStatList`, `SfTrendTone`
+  (mêmes retraits côté web). Les bricks des écrans de progression : § dédié.
   ⚠️ **`SfLevelCard`, `SfLevelGrid` et `SfGoalRibbon` sont SUPPRIMÉES** le même
   jour (elles ne servaient que la maquette v1 de « Où vous en êtes »). La
   primitive qui les remplace est une **liste**, plus une grille.
@@ -3554,42 +3569,75 @@ des deux défauts. Le changer d'un seul côté rouvre l'écart.
 **« Retour aux petits sujets »** pour l'action de sortie — « Retour aux sujets » se confondait
 avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
-## Progrès — « ce qui a bougé » (T28, 2026-09-10)
+## Écrans de progression (2026-09-24, `screens/progression/`)
 
-`GET /api/me/progress` → `ProgresMouvement` (`screens/progres/progres_mouvement.dart`),
-greffé **en tête de `ProgresScreen`**, au-dessus des anneaux de maîtrise. Règles
-complètes : `docs/regles/progression.md`, section « Écran Progrès ».
+> Contrat : `docs/regles/progression.md` § « Écrans de progression » · arbitrages D1–D20 :
+> `docs/progression/ETUDE_FAISABILITE_ecrans_progression.md` · maquettes (état téléphone
+> ≤ 470 / 620 px) : `docs/progression/maquettes-progression/*.html` · miroir web :
+> `app/(app)/progression/**` + `app/_components/progression/`.
 
-⚠️ **Ce n'est pas un écran de plus** : `ProgresScreen` répond à « où j'en suis »,
-ce bloc à « qu'est-ce qui a bougé ». ⚠️ **Pas de toggle TCF | Civique** (`30_` §7
-en met un) : l'écran empile déjà les deux parcours.
+⚠️ **Révoque « Progrès — ce qui a bougé » (T28)** : `ProgresScreen`, `ProgresMouvement`,
+`EpreuveHistoriqueScreen` (« Vos résultats » d'une épreuve), `ThemeHistoriqueScreen`
+(« Vos résultats » d'un thème), `epreuve_historique_models.dart`,
+`ProgressRepository.historique`, les routes `/progress`, `/historiques/epreuve/:domainKey`,
+`/historiques/theme/:themeId` et leurs constantes `AppRoutes` sont **supprimés** (aucun
+lien profond externe ne les visait : pas de notification ni d'app link — aucune
+redirection posée). `ProgressDto` est élagué côté modèle (activité, courbe des
+diagnostics, palier global, compteurs de compétences et civiques : plus servis).
 
-- **Modèles / réseau** : `core/models/progress_models.dart` +
-  `core/api/progress_repository.dart` (`progressRepositoryProvider`).
-- **Libellés purs** : `screens/progres/progres_labels.dart`, **miroir mot pour
-  mot** de `web_sejoufr/lib/progres.ts`.
-- 🛑 **Aucun pourcentage de progression vers un palier**, **aucune
-  gamification** (pas de flamme, pas de record — le streak reste sur l'Accueil).
-- 🛑 **`inconnue` ne rend AUCUN marqueur**, surtout pas « = ». `baisse` se dit.
-- 🛑 **Le bloc 5 est un LIEN** vers « Mes historiques », pas une seconde liste.
-- 🛑 **Freemium** : les compteurs de compétences restent, seul le détail part
-  (`PremiumLockPill`).
-- **`EpreuveType.displayLabel`** (`core/models/enums.dart`) est désormais **la**
-  table des noms d'épreuve, pendant Dart d'`EPREUVE_PRESENTATION` côté web.
-  ⚠️ Quatre écrans d'examen complet les écrivent encore en dur : dette antérieure,
-  à migrer au fil de l'eau — ne pas en ajouter une copie de plus.
-- 🛑 **« Niveau estimé X » d'une ligne de catégorie lit l'AUTORITÉ D'AFFICHAGE**
-  (2026-09-16) — `summary.tcfDomainProfile`, par `niveauActuelEpreuve` /
-  `suiviNiveauLabel` (`progres_labels.dart`). ⚠️ **Révoque `stat.level`**, retiré
-  du modèle : c'était le dernier niveau de **n'importe quelle** soumission,
-  entraînements compris. Vaut pour `progres_screen` (`_CategoryRow`) **et** pour
-  `reco_screen` — **aucun appel de plus**, les deux rendent déjà le
-  `DashboardSummary`.
-  🛑 **Seules les 4 épreuves TCF ont un palier** : un thème civique et
-  `TCF_STRUCTURE` rendent `null` et la ligne retombe sur ce qu'elle **compte**.
-  🛑 **Épreuve non mesurée ⇒ « Pas encore d'examen »** (`kSuiviSansExamenLabel`),
-  jamais le « À évaluer » de l'Accueil : ce sont des écrans de **suivi chiffré**.
-  → `docs/regles/progression.md`, `docs/decisions/diagnostic.md`.
+| Écran | Route (`AppRoutes`) | Endpoint |
+|---|---|---|
+| TCF global | `progressionTcf` `/progression/tcf` (`progressionTcfTous` = `?tous=true`) | `GET /api/me/progression/tcf[?tous=true]` |
+| Une épreuve | `progressionEpreuve` `/progression/tcf/:domainKey` (`co\|ce\|ee\|eo`) | `…/tcf/{TCF_CO…}` |
+| Civique global | `progressionCivique` `/progression/civique` (`progressionCiviqueTous`) | `…/civique[?tous=true]` |
+| Un thème | `progressionTheme` `/progression/civique/:themeId` (id servi ; le web prend le slug) | `…/civique/themes/{id}` |
+
+Hors shell, poussés. Entrées : **Profil « Ma progression » → TCF global** (D16, comme le
+web) ; **Accueil « Voir mes résultats »** (issue 3 d'une carte d'épreuve, et carte de
+thème) → écran épreuve / thème (D17 — les issues 1 et 2 ne bougent pas) ; carte d'un écran
+global → écran détaillé (`?depuis=global`). **Retour** d'un écran épreuve / thème
+(« Progression globale » / « Examen civique ») : venu du global ⇒ on dépile ; sinon on
+**remplace** par le global du module (`retourVersGlobal`). « Voir → » : route choisie par
+`rapport.kind` **servi** (`progressionRapportPath`) — QCM → `/exam-report/:id`, PRODUCTION →
+`/tcf/expression-{ecrite,orale}/sessions/:id` (⚠️ le contrat écrit `/tcf/{ee|eo}/sessions`,
+qui n'existe pas en Dart), EXAMEN_COMPLET → `/tcf/examen-blanc/:parentId/bilan`. CTA « Nouvel
+examen blanc » : la **grille**, jamais un démarrage ; `cta.locked` servi (D20) ⇒ cadenas sur
+le bouton + `showPaywallSheet(ctaLocation: mockExam)` (`ouvrirProgressionCta`).
+
+- 🛑 **Tout est servi** : échelle, bandes (aucune en CO/CE, D2), repères, seuil, ordinal,
+  meilleur / premier / dernier, écart + sens, série de la sparkline, durée fiable (`null` ⇒
+  « — », D9), état civique (D12/D13, `etatSourceLabel` affiché), taux et seuil atteint de
+  l'anneau (civique seulement, D5), parts « x / n » (D11, `posees == 0` ⇒ « — »). Les
+  courbes **placent** des valeurs entre `min` et `max` servis — aucun classement.
+  `node scripts/verifier-contrat-front-progression.mjs` reste vert.
+- **Libellés** : `progression_labels.dart`, **miroir mot pour mot** de
+  `web_sejoufr/lib/progression.ts` — sauf « Touchez » (mobile) là où le web dit
+  « Cliquez ». `kSuiviSansExamenLabel` (`progres_labels.dart`) **dérive** de
+  `kProgressionSansExamen` : une seule autorité pour « Pas encore d'examen ».
+- **Providers** (`progression_providers.dart`) : `autoDispose(.family)`, et chacun observe
+  `compteIdProvider`, `learningPlanRevisionProvider` (une mesure écrite) et
+  `accesRevisionProvider` (le `cta.locked` ne survit pas à un achat). Tiré-pour-rafraîchir.
+- **Pictogrammes** : `core/utils/situation_icons.dart` (`situationEpreuveIcon` /
+  `situationThemeIcon`), extraits de l'Accueil à leur 2ᵉ lecteur — les émojis des maquettes
+  deviennent ces icônes Lucide. Miroir web : `lib/situation-icons.ts`.
+- **Kit** (mêmes noms côté web, sans `Sf`) : `SfProgressTopbar`, `SfProgressIntro`,
+  `SfProgressHero` (+ `SfProgressRing`), `SfProgressStatTile` + `SfProgressStatGrid`,
+  `SfProgressDomainCard` (+ `SfProgressSpark`), `SfProgressChart` (+ `SfProgressBand`,
+  `SfProgressChartPoint`, `note`), `SfProgressScaleLegend` (+ `SfProgressScaleItem`),
+  `SfProgressExamRow`, `SfProgressGlobalExamRow` (+ `SfProgressPart`, `stacked` pour les
+  thèmes). `SfRing` gagne `label` (centre) et `reached` (seuil **servi**). Les panneaux
+  sont `SfCard` + `SfPanelHead` + `SfMicroNote`, comme le web (`ProgressionPanneau`,
+  local à l'écran, avec `ProgressionLien`).
+- 🛑 **Couleurs** : tokens seuls. Rouge des maquettes → famille bleue : anneau bleu (vert au
+  seuil servi), dernier point `blueDark` avec halo, badge « B2 » bleu. Seule la pastille de
+  l'œil-de-bœuf reste rouge (convention `.heroDot` du kit web). Tendance : vert en hausse,
+  ambre en baisse, neutre stable, **rien** si inconnue.
+- ⚠️ **Écarts assumés** : les lignes d'examen gardent un chevron (le web masque « Voir → »
+  au palier téléphone) ; la ligne d'un examen global affiche son détail par épreuve / thème
+  (la maquette le masque sous 860 px) ; la courbe défile horizontalement au-delà de 64 px
+  par point, calée sur le plus récent.
+- **L'écran Recommandations** (`RecoScreen`, `/progress/recommandations`) n'a plus d'entrée
+  (seul l'écran Progrès y menait) : **conservé**, en attente d'arbitrage.
 
 ## Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 
@@ -4092,7 +4140,8 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
 - **Le tap d'une étape verrouillée ouvre le paywall**, décidé **une seule fois** dans
   `plan_now_card.dart` (`PlanNowGeste`) — jamais dans un écran. Bouton **bleu** : le rouge
   reste à la barre basse « Débloquer mon plan ».
-- `screens/plan/plan_history_screen.dart` rend « Ma progression » sur `AppRoutes.planProgress`
+- `screens/plan/plan_history_screen.dart` rend **« Mes cycles »** (renommé depuis « Ma
+  progression » le 2026-09-24, D16 — libellés seulement, route inchangée) sur `AppRoutes.planProgress`
   (`SfHeroBanner` + `SfStatGrid` + un `SfBlocAccordion` par cycle terminé, `mark` = le
   numéro). ⚠️ **`plan_progress_screen.dart`, `plan_evolution_screen.dart` et
   `AppRoutes.planEvolution` sont supprimés.**

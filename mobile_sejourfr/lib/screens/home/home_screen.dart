@@ -12,12 +12,12 @@ import '../../core/models/civic_plan_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/progress_models.dart';
-import '../../core/models/skill_models.dart';
 import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/parcours_affiche.dart';
+import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/diagnostic_controller.dart';
@@ -53,9 +53,9 @@ import 'widgets/home_blocks.dart';
 /// votre diagnostic complet »** (`AffinerPlanCard`, supprimée avec son autorité
 /// `affinerPlan`) et les deux lignes de **« Vos parcours »** (`HomeTrackRow`) —
 /// la bascule juste au-dessus fait déjà ce travail. **Ne pas les
-/// réintroduire** : le Plan se lit sur `/plan`, les compteurs de compétences
-/// sur l'écran **Progrès** (`ProgresMouvement`, qui les dit autrement), et le
-/// diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser, le
+/// réintroduire** : le Plan se lit sur `/plan`, la progression sur les écrans
+/// de progression (`screens/progression/`, ouverts par « Voir mes résultats »
+/// et depuis le Profil), et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser, le
 /// Plan et le rapport de diagnostic. Même passe côté web.
 ///
 /// 🛑 **[_IndependenceNote] ne se touche pas** : c'est une exigence de
@@ -568,7 +568,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             for (final epreuve in epreuves)
               SfLevelCard(
                 mark: planDomainSection(epreuve.epreuve)?.wire ?? '',
-                icon: _situationIcon(planDomainSection(epreuve.epreuve)),
+                icon: situationEpreuveIcon(planDomainSection(epreuve.epreuve)),
                 title: epreuve.epreuve.displayLabel,
                 status: accueilEpreuveStatut(epreuve),
                 tone: accueilEpreuveTon(epreuve),
@@ -651,7 +651,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ) {
     return SfLevelCard(
       mark: '${rang + 1}',
-      icon: _situationThemeIcon(theme.code),
+      icon: situationThemeIcon(theme.code),
       title: theme.label,
       // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne classe
       // aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
@@ -674,33 +674,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         labels: false,
       ),
       cta: kHomeSituationCivicCta,
-      // 🛑 **« Vos résultats » du thème**, le pendant civique de l'écran de
-      // résultats d'une épreuve TCF (2026-09-19).
+      // 🛑 **L'écran de progression du thème** (D17, 2026-09-24), le pendant
+      // civique de l'écran de progression d'une épreuve TCF.
       onTap: () =>
-          context.push(AppRoutes.themeHistoriquePath(theme.themeId)),
+          context.push(AppRoutes.progressionThemePath(theme.themeId)),
     );
   }
-
-  /// Le pictogramme d'une carte d'épreuve. Décoratif : le repère court et
-  /// l'intitulé disent déjà l'épreuve. Miroir web : `SITUATION_EPREUVE_ICON`.
-  static IconData _situationIcon(SkillSection? section) => switch (section) {
-        SkillSection.co => LucideIcons.headphones,
-        SkillSection.ce => LucideIcons.bookOpen,
-        SkillSection.ee => LucideIcons.penLine,
-        SkillSection.eo => LucideIcons.mic,
-        null => LucideIcons.bookOpen,
-      };
-
-  /// Le pictogramme d'une carte de thème civique. Miroir web :
-  /// `SITUATION_THEME_ICON`.
-  static IconData _situationThemeIcon(String code) => switch (code) {
-        'CIV_PRINCIPES' => LucideIcons.scale,
-        'CIV_INSTITUTIONS' => LucideIcons.landmark,
-        'CIV_DROITS_DEVOIRS' => LucideIcons.gavel,
-        'CIV_HISTOIRE_GEO' => LucideIcons.globe,
-        'CIV_SOCIETE' => LucideIcons.users,
-        _ => LucideIcons.bookOpen,
-      };
 
   /// Ce qu'ouvre la carte d'une épreuve.
   ///
@@ -713,7 +692,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// 2. quelque chose à faire mais rien à lancer (épreuve en progression ;
   ///    descripteur absent, cas d'un client servi par un backend antérieur) ⇒
   ///    la fiche du domaine, le comportement historique ;
-  /// 3. rien à faire ⇒ la page des résultats.
+  /// 3. rien à faire ⇒ l'écran de progression de l'épreuve (D17, 2026-09-24 :
+  ///    seule cette issue a changé de destination).
   ///
   /// Le choix se lit sur l'état **servi**, jamais sur un texte de bouton.
   void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
@@ -726,8 +706,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       openPlanDomain(context, epreuve.epreuve);
       return;
     }
-    context
-        .push(AppRoutes.epreuveHistoriquePath(planDomainKey(epreuve.epreuve)));
+    context.push(
+        AppRoutes.progressionEpreuvePath(planDomainKey(epreuve.epreuve)));
   }
 
   /* ------------------------------------------------------- l'objectif ---- */

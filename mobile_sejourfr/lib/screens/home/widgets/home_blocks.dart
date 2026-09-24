@@ -101,45 +101,8 @@ class HomeBanner extends StatelessWidget {
 
 /* -------------------------------------------------------------- liens ---- */
 
-/// Le lien bleu à flèche des cartes de l'Accueil (`.sf-link` de la maquette).
-class HomeLink extends StatelessWidget {
-  const HomeLink({super.key, required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Le libellé cède, la flèche non : dans une demi-largeur de carte,
-            // « Voir mes résultats » dépasse la ligne et pousserait la flèche
-            // hors du cadre. Même garde que le `flex-shrink: 0` posé sur le
-            // chevron côté web.
-            Flexible(
-              child: Text(
-                label,
-                style: AppFonts.ui(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  color: AppColors.blue,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(LucideIcons.arrowRight, size: 15, color: AppColors.blue),
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// 🛑 **`HomeLink` est SUPPRIMÉ** le 2026-09-24 avec ses deux derniers lecteurs,
+/// les anciennes pages « Vos résultats » (épreuve et thème).
 
 /// L'action secondaire d'une carte : un lien centré, jamais un second bouton
 /// plein — une seule action dominante par écran.

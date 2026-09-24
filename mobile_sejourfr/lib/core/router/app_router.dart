@@ -40,7 +40,6 @@ import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
-import '../../screens/progres/theme_historique_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -58,9 +57,11 @@ import '../../screens/diagnostic_civique/civic_diagnostic_result_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
-import '../../screens/progres/epreuve_historique_screen.dart';
-import '../../screens/progres/progres_screen.dart';
 import '../../screens/progres/reco_screen.dart';
+import '../../screens/progression/progression_civique_screen.dart';
+import '../../screens/progression/progression_epreuve_screen.dart';
+import '../../screens/progression/progression_tcf_screen.dart';
+import '../../screens/progression/progression_theme_screen.dart';
 import '../../screens/splash/splash_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
 import '../../screens/tcf_full_exam/tcf_full_exam_bilan_screen.dart';
@@ -161,6 +162,9 @@ class AppRoutes {
   // Bilan final agrégé (niveau CECRL plancher + détail des 4 épreuves).
   static const tcfFullExamBilan = '/tcf/examen-blanc/:parentId/bilan';
 
+  static String tcfFullExamBilanPath(String parentId) =>
+      '/tcf/examen-blanc/$parentId/bilan';
+
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
   static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
@@ -219,16 +223,43 @@ class AppRoutes {
 
   static String planEtapePath(String stepId) => '/plan/etape/$stepId';
 
-  /// « Ma progression vers le … » — les quatre domaines du TCF sur le chemin de
-  /// l'objectif. 🛑 **À ne pas confondre avec [progress]**, l'écran de
-  /// progression **générique** (civique + TCF) ouvert depuis le Profil, qui
-  /// reste. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
+  /// **« Mes cycles »** — l'historique des cycles du Plan (D16, 2026-09-24 :
+  /// renommé à l'écran, chemin inchangé). 🛑 **À ne pas confondre avec les
+  /// écrans de progression** ([progressionTcf] …), qui lisent des examens
+  /// blancs. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
   static const planProgress = '/plan/progression';
 
-  static const progress = '/progress';
+  /// **Les écrans de progression** (2026-09-24, maquettes
+  /// `docs/progression/maquettes-progression/`) — ouverts depuis le Profil
+  /// (« Ma progression », D16), l'Accueil (« Voir mes résultats », D17) et
+  /// entre eux. Hors shell, poussés.
+  static const progressionTcf = '/progression/tcf';
 
-  // Plan de révision personnalisé (catégories les plus faibles d'abord),
-  // pushé depuis l'onglet Progrès.
+  /// La même page, avec **tout** l'historique des examens complets (D8).
+  static const progressionTcfTous = '/progression/tcf?tous=true';
+
+  /// Une épreuve TCF — clé `co|ce|ee|eo`, la même que [planDomain].
+  static const progressionEpreuve = '/progression/tcf/:domainKey';
+
+  /// [depuisGlobal] : poussé depuis l'écran global du module — le retour
+  /// dépile alors ; sinon il ouvre cet écran global (« Progression globale »).
+  static String progressionEpreuvePath(String domainKey,
+          {bool depuisGlobal = false}) =>
+      '/progression/tcf/$domainKey${depuisGlobal ? '?depuis=global' : ''}';
+
+  static const progressionCivique = '/progression/civique';
+  static const progressionCiviqueTous = '/progression/civique?tous=true';
+
+  /// Un thème civique — l'identifiant **servi**, jamais inventé.
+  static const progressionTheme = '/progression/civique/:themeId';
+
+  static String progressionThemePath(String themeId,
+          {bool depuisGlobal = false}) =>
+      '/progression/civique/$themeId${depuisGlobal ? '?depuis=global' : ''}';
+
+  // Plan de révision personnalisé (catégories les plus faibles d'abord).
+  // ⚠️ Son seul point d'entrée était l'ancien écran Progrès, supprimé le
+  // 2026-09-24 : l'écran reste, sans entrée, en attente d'arbitrage.
   static const progresReco = '/progress/recommandations';
   // Pages de révision dédiées, poussées depuis le hub "Mon entraînement".
   static const mesQuestions = '/mes-questions';
@@ -254,29 +285,11 @@ class AppRoutes {
   static const tcfExamHistory = '/historiques/tcf';
   static const examReport = '/exam-report/:attemptId';
 
+  static String examReportPath(String attemptId) => '/exam-report/$attemptId';
+
   // Hub "Mes historiques" : regroupe QCM + EE + EO. Atteint depuis le hub
   // "Mon entraînement" du profil.
   static const historiques = '/historiques';
-
-  /// **« D'où sort mon niveau ? »** — les dernières évaluations *qualifiantes*
-  /// d'UNE épreuve TCF. 🛑 À ne pas confondre avec [historiques], qui liste
-  /// **toutes** les sessions : ici on ne montre que ce qui a produit le palier
-  /// affiché sur l'Accueil. Clé de domaine `co|ce|ee|eo`, la même que
-  /// [planDomain] — aucun identifiant ne voyage.
-  static const epreuveHistorique = '/historiques/epreuve/:domainKey';
-
-  static String epreuveHistoriquePath(String domainKey) =>
-      '/historiques/epreuve/$domainKey';
-
-  /// **« Où j'en suis sur ce thème ? »** — les examens blancs d'UN thème
-  /// civique. 🛑 À ne pas confondre avec [civiqueThemeExams], la grille où l'on
-  /// **passe** un examen : ici on **lit** ses résultats. Le `themeId` est
-  /// l'identifiant **servi** sur la ligne de thème de l'Accueil — aucun
-  /// identifiant n'est inventé.
-  static const themeHistorique = '/historiques/theme/:themeId';
-
-  static String themeHistoriquePath(String themeId) =>
-      '/historiques/theme/$themeId';
 
   // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
   static const monEntrainement = '/mon-entrainement';
@@ -534,32 +547,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.historiques,
         builder: (_, __) => const MesHistoriquesScreen(),
       ),
-      // 🛑 **Hors shell**, comme les autres écrans d'historique : elle est
-      // poussée depuis l'Accueil, et la déclarer dans le ShellRoute
-      // provoquerait une collision de clé de page.
+      // Les écrans de progression — 🛑 **hors shell**, comme les écrans
+      // d'historique : ils sont poussés depuis l'Accueil et le Profil, et les
+      // déclarer dans le ShellRoute provoquerait une collision de clé de page.
       GoRoute(
-        path: AppRoutes.epreuveHistorique,
+        path: AppRoutes.progressionTcf,
+        builder: (_, state) => ProgressionTcfScreen(
+          tous: state.uri.queryParameters['tous'] == 'true',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.progressionEpreuve,
         builder: (_, state) {
           final epreuve =
               planDomainFromKey(state.pathParameters['domainKey'] ?? '');
-          // Une clé inconnue ne fabrique pas d'épreuve : on retombe sur le hub
-          // des historiques plutôt que d'inventer un domaine.
-          if (epreuve == null) return const MesHistoriquesScreen();
-          return EpreuveHistoriqueScreen(epreuve: epreuve);
+          // Une clé inconnue ne fabrique pas d'épreuve : on retombe sur la
+          // progression globale plutôt que d'inventer un domaine.
+          if (epreuve == null) return const ProgressionTcfScreen();
+          return ProgressionEpreuveScreen(
+            epreuve: epreuve,
+            depuisGlobal: state.uri.queryParameters['depuis'] == 'global',
+          );
         },
       ),
-      // 🛑 **Hors shell**, comme les autres écrans d'historique : elle est
-      // poussée depuis l'Accueil, et la déclarer dans le ShellRoute
-      // provoquerait une collision de clé de page.
       GoRoute(
-        path: AppRoutes.themeHistorique,
-        builder: (_, state) {
-          final themeId = state.pathParameters['themeId'] ?? '';
-          // Un identifiant vide ne fabrique pas de thème : on retombe sur le
-          // hub des historiques plutôt que d'ouvrir un écran sans sujet.
-          if (themeId.isEmpty) return const MesHistoriquesScreen();
-          return ThemeHistoriqueScreen(themeId: themeId);
-        },
+        path: AppRoutes.progressionCivique,
+        builder: (_, state) => ProgressionCiviqueScreen(
+          tous: state.uri.queryParameters['tous'] == 'true',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.progressionTheme,
+        builder: (_, state) => ProgressionThemeScreen(
+          themeId: state.pathParameters['themeId']!,
+          depuisGlobal: state.uri.queryParameters['depuis'] == 'global',
+        ),
       ),
       GoRoute(
         path: AppRoutes.monEntrainement,
@@ -712,13 +734,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Progression historique conservée comme écran secondaire depuis Plan.
-      GoRoute(
-        path: AppRoutes.progress,
-        builder: (_, __) => const ProgresScreen(),
-      ),
-
-      // Recommandations (pushé depuis Progrès, hors shell).
+      // Recommandations (hors shell). ⚠️ Sans point d'entrée depuis la
+      // suppression de l'écran Progrès (2026-09-24) — en attente d'arbitrage.
       GoRoute(
         path: AppRoutes.progresReco,
         builder: (_, __) => const RecoScreen(),

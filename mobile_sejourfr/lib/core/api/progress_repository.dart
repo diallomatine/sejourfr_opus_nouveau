@@ -1,44 +1,55 @@
 import '../models/enums.dart';
-import '../models/epreuve_historique_models.dart';
 import '../models/progress_models.dart';
+import '../models/progression_models.dart';
 import 'api_client.dart';
 
-/// **Progrès** (T28, `30_` §7) — « montrer le mouvement, pas un tableau de
-/// bord ».
+/// **La progression du candidat** — ce que l'Accueil lit (`/api/me/progress`)
+/// et les quatre écrans de progression (`/api/me/progression/*`, 2026-09-24).
 ///
 /// 🛑 **Rien n'est calculé côté app** : les paliers, les sens d'évolution, les
-/// états de maîtrise et les compteurs arrivent servis.
-abstract interface class ProgressGateway {
-  Future<Progress> progres();
-
-  Future<EpreuveHistorique> historique(EpreuveType epreuve);
-}
-
-class ProgressRepository implements ProgressGateway {
+/// états, les bandes, les écarts, les ordinaux et les verrous arrivent servis.
+class ProgressRepository {
   ProgressRepository(this._client);
 
   final ApiClient _client;
 
-  /// 🛑 **Jamais `null`** : un candidat sans diagnostic reçoit
-  /// `disponible: false` sur chaque moitié. L'écran a besoin de savoir
-  /// *pourquoi* il n'a rien à montrer.
-  @override
+  /// 🛑 **Jamais `null`** : un candidat sans diagnostic reçoit des épreuves non
+  /// mesurées. L'Accueil a besoin de savoir *pourquoi* il n'a rien à montrer.
   Future<Progress> progres() async {
     final res = await _client.dio.get<Map<String, dynamic>>('/api/me/progress');
     return Progress.fromJson(res.data!);
   }
 
-  /// « D'où sort mon niveau ? » — les dernières évaluations **qualifiantes**
-  /// d'une épreuve.
-  ///
-  /// 🛑 **Un appel à la demande**, quand le candidat ouvre une carte : il ne
-  /// part pas avec l'Accueil, qui garde son appel unique.
-  ///
-  /// 🛑 **Jamais 404 pour une épreuve jamais mesurée** : la liste est vide.
-  @override
-  Future<EpreuveHistorique> historique(EpreuveType epreuve) async {
+  /// Progression **globale** TCF. [tous] = l'historique complet des examens
+  /// complets (≤ 50) au lieu des 3 derniers (D8).
+  Future<ProgressionTcf> progressionTcf({bool tous = false}) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
-        '/api/me/progress/tcf/${epreuve.wire}/historique');
-    return EpreuveHistorique.fromJson(res.data!);
+      '/api/me/progression/tcf',
+      queryParameters: tous ? {'tous': true} : null,
+    );
+    return ProgressionTcf.fromJson(res.data!);
+  }
+
+  /// Progression d'**une épreuve** TCF (`TCF_CO|CE|EE|EO`).
+  Future<ProgressionEpreuve> progressionEpreuve(EpreuveType epreuve) async {
+    final res = await _client.dio
+        .get<Map<String, dynamic>>('/api/me/progression/tcf/${epreuve.wire}');
+    return ProgressionEpreuve.fromJson(res.data!);
+  }
+
+  /// Progression **globale** civique. [tous] : comme [progressionTcf].
+  Future<ProgressionCivique> progressionCivique({bool tous = false}) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/me/progression/civique',
+      queryParameters: tous ? {'tous': true} : null,
+    );
+    return ProgressionCivique.fromJson(res.data!);
+  }
+
+  /// Progression d'**un thème** civique.
+  Future<ProgressionTheme> progressionTheme(String themeId) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+        '/api/me/progression/civique/themes/$themeId');
+    return ProgressionTheme.fromJson(res.data!);
   }
 }

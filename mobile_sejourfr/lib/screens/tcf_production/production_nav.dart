@@ -26,6 +26,13 @@ String productionCompetencesPath(TcfProductionModule module, int tache) =>
 String productionExamsPath(TcfProductionModule module) =>
     '/tcf/${module.isEo ? 'expression-orale' : 'expression-ecrite'}/examens';
 
+/// Le **bilan d'une session** (examen ou entraînement à 3 tâches) — la page
+/// que « Voir → » d'un écran de progression ouvre sur un `rapport.kind`
+/// `PRODUCTION` servi.
+String productionSessionReportPath(
+        TcfProductionModule module, String attemptId) =>
+    '/tcf/${module.isEo ? 'expression-orale' : 'expression-ecrite'}/sessions/$attemptId';
+
 String productionExamplesPath(TcfProductionModule module, int tache) =>
     '/tcf/${module.routeKey}/tache/$tache/exemples';
 

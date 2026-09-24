@@ -5,14 +5,11 @@ import '../api/repositories.dart';
 import '../auth/auth_controller.dart';
 import '../models/progress_models.dart';
 
-/// « Ce qui a bougé » — `GET /api/me/progress`, partagé par l'écran **Progrès**
-/// et par le bloc « Votre progression » de l'**Accueil**.
+/// « Où vous en êtes » — `GET /api/me/progress`, lu par l'**Accueil** (les
+/// 4 épreuves et les thèmes civiques). ⚠️ L'ancien écran Progrès, son autre
+/// lecteur, est supprimé (2026-09-24) : les écrans de progression lisent
+/// `/api/me/progression/*` (`screens/progression/progression_providers.dart`).
 ///
-/// 🛑 **C'est la seule source des compteurs de compétences** (`travaillees` /
-/// `maitrisees`, servis pour les deux parcours, et **servis même verrouillés** :
-/// c'est le *détail* qui est premium, pas le fait d'avoir progressé). Deux
-/// écrans qui compteraient chacun de leur côté auraient fini par afficher deux
-/// chiffres pour le même candidat.
 /// 🛑 **Gardé en vie pour la session**, comme les deux plans : il ne dépend pas
 /// de l'onglet affiché, et l'Accueil le relisait à chaque ouverture. Il se
 /// rafraîchit au tiré-pour-rafraîchir de l'Accueil.

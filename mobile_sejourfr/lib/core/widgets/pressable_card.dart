@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 ///
 /// Promue de `screens/tcf_production/widgets/production_blocks.dart` vers
 /// `core/widgets/` quand le Plan a repris l'anatomie de la carte de compétence
-/// (`PressableCard` + `ProgressRing` + titre + état + chevron) : un import
+/// (`PressableCard` + anneau + titre + état + chevron) : un import
 /// `screens/plan/` → `screens/tcf_production/` aurait couplé deux features.
 class PressableCard extends StatefulWidget {
   const PressableCard({

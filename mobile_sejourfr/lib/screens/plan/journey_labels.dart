@@ -569,7 +569,7 @@ String journeyEtapeSuivanteCta(JourneyStep step) =>
     'Continuer : ${journeyStepTitle(step)}';
 
 /* ==========================================================================
-   L'HISTORIQUE DES CYCLES — « Ma progression »
+   L'HISTORIQUE DES CYCLES — « Mes cycles » (ex-« Ma progression », D16)
    Maquette `docs/progression/histo_cycle.html` (propriétaire, 2026-09-18)
 
    🛑 Miroir mot pour mot de la même section de `web_sejoufr/lib/journey.ts`.
@@ -580,7 +580,7 @@ String journeyEtapeSuivanteCta(JourneyStep step) =>
    ========================================================================== */
 
 /// Le titre de l'écran, et le libellé du lien qui l'ouvre.
-const String kJourneyHistoryTitle = 'Ma progression';
+const String kJourneyHistoryTitle = 'Mes cycles';
 
 /// Le sous-titre du lien, sur le Plan. 🛑 Il dit ce que l'écran **contient**,
 /// pas ce qu'il prétend expliquer.

@@ -147,15 +147,14 @@ class ProfileScreen extends ConsumerWidget {
                         sub: user.email,
                         onTap: () => context.push(AppRoutes.personalInfo),
                       ),
-                      // « Ma progression » a quitté l'écran Plan : le Plan dit
-                      // quoi travailler maintenant, la progression se consulte.
-                      // Elle n'est plus dans la barre du bas (remplacée par
-                      // Plan), donc c'est ici qu'on la retrouve.
+                      // « Ma progression » ouvre l'écran de progression
+                      // GLOBAL TCF (D16, 2026-09-24), comme le web ; le global
+                      // civique s'atteint par le retour d'un écran de thème.
                       ListRow(
                         icon: LucideIcons.chartColumn,
                         title: 'Ma progression',
                         sub: 'Maîtrise par parcours et niveau estimé',
-                        onTap: () => context.push(AppRoutes.progress),
+                        onTap: () => context.push(AppRoutes.progressionTcf),
                       ),
                       ListRow(
                         icon: LucideIcons.dumbbell,

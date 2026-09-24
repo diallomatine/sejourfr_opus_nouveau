@@ -37,7 +37,7 @@ class RecoScreen extends ConsumerWidget {
             ScreenHeader(
               title: 'Recommandations',
               sub: "D'après vos résultats",
-              onBack: () => retourOuRepli(context, repli: AppRoutes.progress),
+              onBack: () => retourOuRepli(context, repli: AppRoutes.profile),
             ),
             Expanded(
               child: dashboard.when(

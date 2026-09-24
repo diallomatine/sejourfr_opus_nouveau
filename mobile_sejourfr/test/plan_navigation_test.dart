@@ -6,17 +6,18 @@ void main() {
   // ⚠️ Ce test gelait « le QUATRIÈME onglet ouvre Plan ». Le rang n'est pas le
   // contrat — le propriétaire a réordonné la barre le 2026-09-12 (Plan en 2ᵉ).
   // Ce qui doit tenir : le Plan a son onglet, il pointe sur le plan serveur, et
-  // l'ancien écran Progrès n'y est pas.
-  test('le Plan a son onglet et Progrès reste secondaire', () {
+  // les écrans de progression n'y sont pas (ils s'ouvrent depuis le Profil et
+  // l'Accueil — l'ancien écran Progrès `/progress` est supprimé le 2026-09-24).
+  test('le Plan a son onglet et la progression reste secondaire', () {
     expect(mainShellDestinations, hasLength(5));
     final plan = mainShellDestinations
         .singleWhere((destination) => destination.label == 'Plan');
     expect(plan.route, AppRoutes.plan);
     expect(
       mainShellDestinations.map((destination) => destination.route),
-      isNot(contains(AppRoutes.progress)),
+      isNot(contains(AppRoutes.progressionTcf)),
     );
-    expect(AppRoutes.progress, '/progress');
+    expect(AppRoutes.progressionTcf, '/progression/tcf');
   });
 
   group('destination après connexion', () {
