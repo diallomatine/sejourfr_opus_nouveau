@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/paywall_sheet.dart';
+import '../../../core/widgets/segmented_tabs.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../progression_labels.dart';
 
@@ -71,6 +73,7 @@ class ProgressionPage<T> extends StatelessWidget {
     required this.children,
     this.cta,
     this.notFound,
+    this.entete = const [],
   });
 
   final AsyncValue<T> async;
@@ -83,6 +86,11 @@ class ProgressionPage<T> extends StatelessWidget {
   /// Le message d'un **404** servi (thème inconnu) — une absence, pas une
   /// panne. `null` = le message d'échec générique.
   final String? notFound;
+
+  /// Ce qui suit la barre haute **dans tous les états** (chargement et erreur
+  /// compris) : l'intro et la bascule des deux écrans globaux — la bascule est
+  /// une navigation, pas un résultat. Vide ailleurs.
+  final List<Widget> entete;
 
   @override
   Widget build(BuildContext context) {
@@ -120,10 +128,43 @@ class ProgressionPage<T> extends StatelessWidget {
                 ctaLocked: bouton?.locked ?? false,
                 onCta: bouton?.onTap,
               ),
+              ...entete,
               ...corps,
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// **La bascule TCF IRN / Examen civique** des deux écrans globaux, posée sous
+/// l'intro comme sur le Plan et l'Accueil — le MÊME toggle (`SegmentedTabs` +
+/// `parcoursSegments`), pas une copie. Miroir web : `ModuleToggle` du kit dans
+/// `ProgressionFrame`.
+///
+/// 🛑 **La route reste l'unique autorité du choix** : basculer remplace l'écran
+/// global par celui de l'autre module (`/progression/tcf` ⇄
+/// `/progression/civique`), sans `?tous=true` — le retour mène toujours là
+/// d'où l'on venait. Les écrans d'épreuve et de thème ne la portent pas.
+class ProgressionBascule extends StatelessWidget {
+  const ProgressionBascule({super.key, required this.civique});
+
+  final bool civique;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      child: SegmentedTabs<bool>(
+        tabs: parcoursSegments(tcf: false, civique: true),
+        value: civique,
+        onChanged: (v) {
+          if (v == civique) return;
+          context.pushReplacement(
+            v ? AppRoutes.progressionCivique : AppRoutes.progressionTcf,
+          );
+        },
       ),
     );
   }

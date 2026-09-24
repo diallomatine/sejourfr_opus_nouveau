@@ -110,6 +110,7 @@ function TcfScoped() {
             cta={dto ? {label: TCF_CTA, href: PROGRESSION_GLOBAL_CTA_HREF, locked: dto.cta.locked} : null}
             title={TCF_TITLE}
             lead={TCF_LEAD}
+            module="TCF"
             paywallModule="INTEGRAL"
             screen="progression_tcf"
         >

@@ -49,6 +49,14 @@ class ProgressionTcfScreen extends ConsumerWidget {
             ),
       ),
       children: (data) => _corps(context, data),
+      entete: const [
+        SfProgressIntro(
+          eyebrow: kProgressionEyebrow,
+          title: kTcfTitle,
+          lead: kTcfLead,
+        ),
+        ProgressionBascule(civique: false),
+      ],
     );
   }
 
@@ -63,11 +71,6 @@ class ProgressionTcfScreen extends ConsumerWidget {
     final partiel = tcfNiveauPartielNote(
         data.niveauActuelEpreuves, data.niveauActuelPartiel);
     return [
-      const SfProgressIntro(
-        eyebrow: kProgressionEyebrow,
-        title: kTcfTitle,
-        lead: kTcfLead,
-      ),
       ProgressionBlocs(
         children: [
           SfProgressHero(

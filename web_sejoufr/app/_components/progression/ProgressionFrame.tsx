@@ -4,6 +4,7 @@ import {useState, type ReactNode} from "react";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
     Card,
+    ModuleToggle,
     Pad,
     PanelHead,
     ProgressIntro,
@@ -11,10 +12,12 @@ import {
     SejourApp,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
+import type {ParcoursModule} from "@/lib/module-switch";
 import {
     PROGRESSION_EYEBROW,
     PROGRESSION_LOADING,
     PROGRESSION_RETRY,
+    progressionHref,
 } from "@/lib/progression";
 
 /**
@@ -24,6 +27,12 @@ import {
  * 🛑 **Le cadenas du CTA est SERVI** (`cta.locked`, D20) : tous les résultats
  * restent visibles, seul le bouton vers un nouvel examen peut ouvrir le paywall.
  * Rien n'est déduit ici d'un rang, d'un quota ou d'un abonnement.
+ *
+ * [module] : présent sur les deux écrans GLOBAUX seulement, il pose la bascule
+ * TCF IRN / Examen civique du kit sous l'intro, comme le Plan et l'Accueil.
+ * 🛑 **Des liens, pas un état local** : l'adresse (`/progression/tcf` ⇄
+ * `/progression/civique`) reste l'unique autorité du choix, et `?tous=true`
+ * tombe à la bascule. Les écrans d'épreuve et de thème ne la portent pas.
  */
 export function ProgressionFrame({
     backHref,
@@ -31,6 +40,7 @@ export function ProgressionFrame({
     cta,
     title,
     lead,
+    module,
     paywallModule,
     screen,
     children,
@@ -41,6 +51,7 @@ export function ProgressionFrame({
     cta: {label: string; href: string; locked: boolean} | null;
     title: string;
     lead?: string | null;
+    module?: ParcoursModule;
     paywallModule: "CIVIQUE" | "INTEGRAL";
     screen: string;
     children: ReactNode;
@@ -57,6 +68,13 @@ export function ProgressionFrame({
                         onLocked={() => setPaywall(true)}
                     />
                     <ProgressIntro eyebrow={PROGRESSION_EYEBROW} title={title} lead={lead}/>
+                    {module ? (
+                        <ModuleToggle
+                            current={module === "CIVIQUE" ? "civique" : "tcf"}
+                            tcfHref={progressionHref("TCF")}
+                            civicHref={progressionHref("CIVIQUE")}
+                        />
+                    ) : null}
                     {children}
                 </div>
             </Pad>

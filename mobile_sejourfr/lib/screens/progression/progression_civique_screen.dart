@@ -45,6 +45,14 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
             ),
       ),
       children: (data) => _corps(context, data),
+      entete: const [
+        SfProgressIntro(
+          eyebrow: kProgressionEyebrow,
+          title: kCiviqueTitle,
+          lead: kCiviqueLead,
+        ),
+        ProgressionBascule(civique: true),
+      ],
     );
   }
 
@@ -55,11 +63,6 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
     final premier = global.premier;
     final verdict = progressionSeuilVerdict(dernier, data.echelle.seuil);
     return [
-      const SfProgressIntro(
-        eyebrow: kProgressionEyebrow,
-        title: kCiviqueTitle,
-        lead: kCiviqueLead,
-      ),
       ProgressionBlocs(
         children: [
           SfProgressHero(

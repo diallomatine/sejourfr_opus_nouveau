@@ -105,6 +105,7 @@ function CiviqueScoped() {
             cta={dto ? {label: CIVIQUE_CTA, href: PROGRESSION_GLOBAL_CTA_HREF, locked: dto.cta.locked} : null}
             title={CIVIQUE_TITLE}
             lead={CIVIQUE_LEAD}
+            module="CIVIQUE"
             paywallModule="CIVIQUE"
             screen="progression_civique"
         >

@@ -3722,6 +3722,13 @@
   margin-bottom: 20px;
 }
 
+/* La bascule TCF / civique des deux écrans globaux, posée sous l'intro : la
+   colonne (`.pad`) porte déjà la gouttière, la bascule ne la double pas. */
+.pScreen .segWrap {
+  padding: 0;
+  margin-bottom: 20px;
+}
+
 .pEyebrow {
   display: inline-flex;
   align-items: center;
