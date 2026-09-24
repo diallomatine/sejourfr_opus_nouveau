@@ -385,7 +385,7 @@ export const EPREUVE_NOTE_20_PORTEE =
    Écran TCF GLOBAL (`progression_global_tcf.html`)
    ====================================================================== */
 
-export const TCF_BACK_LABEL = "Tableau de bord";
+export const TCF_BACK_LABEL = "Accueil";
 export const TCF_CTA = "Faire un examen blanc";
 export const TCF_TITLE = "Progression globale";
 export const TCF_LEAD = "Suivez l'évolution de vos résultats sur toutes les épreuves du TCF.";
@@ -454,7 +454,7 @@ export function tcfEpreuveNom(epreuve: EpreuveType): string {
    Écran CIVIQUE GLOBAL (`progression_global_civique.html`)
    ====================================================================== */
 
-export const CIVIQUE_BACK_LABEL = "Tableau de bord";
+export const CIVIQUE_BACK_LABEL = "Accueil";
 export const CIVIQUE_CTA = "Faire un examen blanc global";
 export const CIVIQUE_TITLE = "Examen civique";
 export const CIVIQUE_LEAD = "Suivez votre progression globale et celle de chaque thème.";

@@ -65,7 +65,7 @@ export function TrainingResultCard({
                     {lotReturnHref ? (
                         <>
                             <Link href="/dashboard" className="btn btn-ghost">
-                                Tableau de bord
+                                Accueil
                             </Link>
                             <Link href={lotReturnHref} className="btn btn-blue">
                                 Retour au thème →
@@ -78,7 +78,7 @@ export function TrainingResultCard({
                             </Link>
                             {isPremium ? (
                                 <Link href="/dashboard" className="btn btn-blue">
-                                    Tableau de bord →
+                                    Accueil →
                                 </Link>
                             ) : (
                                 <Link href="/paiement" className="btn btn-red">

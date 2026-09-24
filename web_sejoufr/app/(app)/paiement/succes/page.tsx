@@ -203,7 +203,7 @@ function SuccesInner() {
                             Lancer un entraînement <span className="arrow">→</span>
                         </Link>
                         <Link href="/dashboard" className="btn-outline">
-                            Tableau de bord
+                            Accueil
                         </Link>
                     </div>
                 )}

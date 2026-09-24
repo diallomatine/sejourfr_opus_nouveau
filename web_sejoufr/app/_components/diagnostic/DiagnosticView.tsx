@@ -1111,7 +1111,7 @@ function DiagnosticShell({
     <main className={`${styles.page} ${compact ? styles.pageCompact : ""}`}>
       <nav className={styles.backNav} aria-label="Sortir du diagnostic">
         <Link href={guest ? "/" : "/dashboard"}>
-          <ArrowLeft size={16} aria-hidden /> {guest ? "Accueil" : "Tableau de bord"}
+          <ArrowLeft size={16} aria-hidden /> Accueil
         </Link>
         <span>
           {guest

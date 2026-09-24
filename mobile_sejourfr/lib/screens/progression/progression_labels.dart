@@ -402,7 +402,7 @@ const String kEpreuveNote20Portee =
    Écran TCF GLOBAL (`progression_global_tcf.html`)
    ====================================================================== */
 
-const String kTcfBackLabel = 'Tableau de bord';
+const String kTcfBackLabel = 'Accueil';
 const String kTcfCta = 'Faire un examen blanc';
 const String kTcfTitle = 'Progression globale';
 const String kTcfLead =
@@ -466,7 +466,7 @@ String tcfEpreuveNom(EpreuveType epreuve) => epreuve.displayLabel;
    Écran CIVIQUE GLOBAL (`progression_global_civique.html`)
    ====================================================================== */
 
-const String kCiviqueBackLabel = 'Tableau de bord';
+const String kCiviqueBackLabel = 'Accueil';
 const String kCiviqueCta = 'Faire un examen blanc global';
 const String kCiviqueTitle = 'Examen civique';
 const String kCiviqueLead =

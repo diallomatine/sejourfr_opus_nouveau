@@ -210,7 +210,7 @@ export function SiteHeader() {
                                             className="site-header__menuItem"
                                             onClick={() => setMenuOpen(false)}
                                         >
-                                            Tableau de bord
+                                            Accueil
                                         </Link>
                                         <Link
                                             href="/entrainement"
