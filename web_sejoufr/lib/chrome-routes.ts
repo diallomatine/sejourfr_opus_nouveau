@@ -80,3 +80,36 @@ export function shouldHideGlobalChrome(
   if (!isAuthenticated) return false;
   return isAppGroupRoute(pathname) || isDualChromeRoute(pathname);
 }
+
+/** Routes du groupe `(app)/` qu'un VISITEUR rend réellement (diagnostic
+ *  civique joué avant le compte, V053). Sur elles, un invité n'a pas de shell. */
+const GUEST_ACCESSIBLE_PREFIXES = ["/diagnostic-civique"];
+
+export function isGuestAccessibleRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return GUEST_ACCESSIBLE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+/**
+ * 🛑 **L'autorité unique de « le shell applicatif (et donc SON burger) est
+ * monté »** sur une route du groupe `(app)/`. `(app)/layout.tsx` la suit pour
+ * rendre `MobileSidebarToggle`, `SiteHeader` la suit pour cacher le sien :
+ * deux conditions écrites séparément laissaient passer deux burgers empilés
+ * pour un invité (et pendant le chargement de la session).
+ *
+ * - connecté : shell ;
+ * - invité résolu : jamais de shell — le chrome public porte le menu ;
+ * - session en cours de résolution : shell, sauf sur une route duale (pas de
+ *   flash de sidebar sur les routes protégées, qui redirigent ensuite).
+ */
+export function isAppShellMounted(
+  pathname: string | null,
+  status: "loading" | "authenticated" | "guest",
+): boolean {
+  if (!isAppGroupRoute(pathname)) return false;
+  if (status === "authenticated") return true;
+  if (status === "guest") return false;
+  return !isGuestAccessibleRoute(pathname);
+}

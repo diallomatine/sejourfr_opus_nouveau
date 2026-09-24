@@ -8,7 +8,7 @@ import {Brand} from "./Brand";
 import {AppSidebar} from "./AppSidebar";
 import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
-import {isAppGroupRoute, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
+import {isAppShellMounted, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
 
 // Miroir public de la sidebar connectée : les guests naviguent librement les
 // hubs et la page examens blancs (série 1 / examen 1 offerts, le reste gated).
@@ -133,7 +133,7 @@ export function SiteHeader() {
     /** Sur les routes connectées qui montent déjà MobileSidebarToggle (sidebar
      *  drawer dédié), on cache notre propre burger pour ne pas en empiler deux. */
     const hideMobileBurger =
-        isAuth && (isAppGroupRoute(pathname) || isDualChromeRoute(pathname));
+        isAppShellMounted(pathname, status) || (isAuth && isDualChromeRoute(pathname));
 
     const handleLogout = () => {
         logout();
