@@ -1,63 +1,7 @@
-// Helpers partagés entre /dashboard et /recommandations (catégories du
-// GET /api/me/dashboard).
+// Helpers des catégories du GET /api/me/dashboard (hubs, examens blancs,
+// historique).
 
-import { civicThemeExamsHref, themeSlug } from "./themes";
 import type { DashboardCategoryStat } from "./types";
-
-/** Route d'entraînement d'une catégorie (CTA "Réviser"). */
-export function categoryHref(cat: DashboardCategoryStat): string {
-  switch (cat.code) {
-    case "TCF_CO":
-      return "/entrainement/tcf/co";
-    case "TCF_CE":
-      return "/entrainement/tcf/ce";
-    case "TCF_STRUCTURE":
-      return "/entrainement/tcf/structure";
-    case "TCF_EE":
-      return "/entrainement/tcf/ee";
-    case "TCF_EO":
-      return "/entrainement/tcf/eo";
-    default:
-      return cat.themeId
-        ? `/entrainement/civique/${themeSlug(cat.code)}`
-        : "/entrainement?module=CIVIQUE";
-  }
-}
-
-/** Page d'examens blancs d'une catégorie (pendant de categoryHref). */
-export function categoryExamsHref(cat: DashboardCategoryStat): string {
-  switch (cat.code) {
-    case "TCF_CO":
-      return "/entrainement/tcf/co/examens";
-    case "TCF_CE":
-      return "/entrainement/tcf/ce/examens";
-    case "TCF_STRUCTURE":
-      return "/entrainement/tcf/structure/examens";
-    case "TCF_EE":
-      return "/entrainement/tcf/ee/examens";
-    case "TCF_EO":
-      return "/entrainement/tcf/eo/examens";
-    default:
-      return cat.themeId
-        ? civicThemeExamsHref(themeSlug(cat.code))
-        : "/examens-blancs";
-  }
-}
-
-/**
- * Teinte d'une barre de progression — **un accent de marque, pas un verdict**.
- *
- * 🛑 Elle classait le pourcentage (vert ≥ 80, ambre < 60, bleu entre les deux)
- * jusqu'au 2026-08-23. Supprimé : un ton se dérive d'un **état servi**, jamais
- * d'un nombre (moteur de progression V4.2, §25 bis.3, invariant I42). Une
- * seconde table de seuils dans le front finit toujours par peindre autre chose
- * que ce que le serveur a décidé.
- *
- * La fonction reste — un seul endroit décide de cette teinte, et c'est ici.
- */
-export function barTone(): "green" | "amber" | "blue" {
-  return "blue";
-}
 
 /** Moyenne des pourcentages renseignés d'un module (null si aucun). */
 export function moduleAverage(cats: DashboardCategoryStat[]): number | null {

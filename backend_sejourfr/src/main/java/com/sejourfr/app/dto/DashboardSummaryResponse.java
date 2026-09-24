@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * Agrégat unique pour le tableau de bord web : un seul appel
  * {@code GET /api/me/dashboard} alimente tout l'écran (stat cards + cards
- * de progression par catégorie + recommandations).
+ * de progression par catégorie).
  *
  * <ul>
  *   <li>{@code currentStreakDays} : jours CONSÉCUTIFS d'activité (≥1 attempt
@@ -88,11 +88,8 @@ public record DashboardSummaryResponse(
      *   <li>{@code mockExams} : nb d'examens blancs finis scopés à la
      *       catégorie (civique : examens thématiques ; TCF : examens module
      *       CO/CE/STRUCTURE). 0 pour EE/EO.</li>
-     *   <li>{@code bestMockScore} / {@code lastMockScore} /
-     *       {@code prevMockScore} : record, dernier et avant-dernier score
-     *       brut sur les examens de la catégorie (page Progression : « record
-     *       17/20 » + flèche de tendance dernier vs avant-dernier). Null si
-     *       pas assez d'examens.</li>
+     *   <li>{@code bestMockScore} : record du score brut sur les examens de
+     *       la catégorie. Null si aucun examen noté.</li>
      *   <li>{@code seriesDone} / {@code seriesTotal} : les <b>séries</b>
      *       d'entraînement de la catégorie — combien le candidat en a terminé,
      *       sur combien elle en porte. C'est le « 2 / 10 séries » de l'écran
@@ -112,8 +109,6 @@ public record DashboardSummaryResponse(
             int total,
             int mockExams,
             Integer bestMockScore,
-            Integer lastMockScore,
-            Integer prevMockScore,
             int seriesDone,
             int seriesTotal
     ) {

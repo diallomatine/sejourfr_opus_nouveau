@@ -4,10 +4,9 @@ import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../progression/progression_labels.dart' show kProgressionSansExamen;
 
 /// Les **mots** de « Où vous en êtes » (Accueil) et l'autorité d'affichage du
-/// niveau d'une épreuve (Accueil, Réviser, recommandations) — **purs**, déclarés
+/// niveau d'une épreuve (Accueil, Réviser) — **purs**, déclarés
 /// une fois pour tout le mobile, **miroirs mot pour mot** de
 /// `web_sejoufr/lib/progres.ts`.
 ///
@@ -69,21 +68,6 @@ NiveauCecrl? niveauActuelEpreuve(TcfDomainProfile? profil, String code) {
   }
   return null;
 }
-
-/// 🛑 Le mot d'une épreuve sans examen, sur un écran de suivi chiffré — **le
-/// même** que celui des écrans de progression, déclaré là-bas une seule fois.
-/// Miroir web : `SUIVI_SANS_EXAMEN_LABEL`.
-const String kSuiviSansExamenLabel = kProgressionSansExamen;
-
-/// La ligne de niveau d'une épreuve sur un écran de **suivi chiffré**
-/// (les recommandations) — jamais sur un écran de constat.
-///
-/// 🛑 **Non mesurée ⇒ aucun palier inventé.** On ne dit pas « À évaluer » ici,
-/// qui est le mot d'un constat (l'Accueil) : on dit ce qui **manque à
-/// compter** — aucun examen qualifiant n'a encore été passé.
-String suiviNiveauLabel(NiveauCecrl? niveau) => niveau == null
-    ? kSuiviSansExamenLabel
-    : 'Niveau estimé ${niveau.displayName}';
 
 /// ---------------------------------------------------------------------------
 /// « Où vous en êtes » — la carte compacte d'une épreuve sur l'ACCUEIL

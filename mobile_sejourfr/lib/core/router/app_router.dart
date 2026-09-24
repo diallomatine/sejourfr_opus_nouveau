@@ -57,7 +57,6 @@ import '../../screens/diagnostic_civique/civic_diagnostic_result_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
-import '../../screens/progres/reco_screen.dart';
 import '../../screens/progression/progression_civique_screen.dart';
 import '../../screens/progression/progression_epreuve_screen.dart';
 import '../../screens/progression/progression_tcf_screen.dart';
@@ -118,8 +117,8 @@ class AppRoutes {
   static const tcfCoExams = '/tcf/co/examens';
   static const tcfCeExams = '/tcf/ce/examens';
   static const tcfStructureExams = '/tcf/structure/examens';
-  /// **Entrée d'une épreuve d'Expression** (depuis Réviser, l'Accueil, le Plan
-  /// ou les recommandations) : la **liste de ses trois tâches**, niveau 1 du
+  /// **Entrée d'une épreuve d'Expression** (depuis Réviser, l'Accueil ou le
+  /// Plan) : la **liste de ses trois tâches**, niveau 1 du
   /// parcours. C'est aussi la « racine de l'épreuve » sur laquelle retombent
   /// les écrans de résultats et de bilan quand la pile est vide. Littéral,
   /// sans paramètre : c'est l'épreuve entière.
@@ -257,10 +256,6 @@ class AppRoutes {
           {bool depuisGlobal = false}) =>
       '/progression/civique/$themeId${depuisGlobal ? '?depuis=global' : ''}';
 
-  // Plan de révision personnalisé (catégories les plus faibles d'abord).
-  // ⚠️ Son seul point d'entrée était l'ancien écran Progrès, supprimé le
-  // 2026-09-24 : l'écran reste, sans entrée, en attente d'arbitrage.
-  static const progresReco = '/progress/recommandations';
   // Pages de révision dédiées, poussées depuis le hub "Mon entraînement".
   static const mesQuestions = '/mes-questions';
   static const mesFavoris = '/mes-favoris';
@@ -732,13 +727,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             state.uri.queryParameters['avant'],
           ),
         ),
-      ),
-
-      // Recommandations (hors shell). ⚠️ Sans point d'entrée depuis la
-      // suppression de l'écran Progrès (2026-09-24) — en attente d'arbitrage.
-      GoRoute(
-        path: AppRoutes.progresReco,
-        builder: (_, __) => const RecoScreen(),
       ),
 
       // Runner hors shell (plein écran)

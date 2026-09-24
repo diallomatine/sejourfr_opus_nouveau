@@ -18,7 +18,7 @@ import '../../core/theme/app_theme.dart';
 ///
 /// ⚠️ **Mobile seulement pour l'instant** (demande explicite) : la barre
 /// latérale du web garde son ordre — `Parcours` (TCF, civique, examens) puis
-/// `Suivi` (Plan, résultats, recommandations). Écart de parité **assumé**, pas
+/// `Suivi` (Plan, résultats). Écart de parité **assumé**, pas
 /// un oubli.
 class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});

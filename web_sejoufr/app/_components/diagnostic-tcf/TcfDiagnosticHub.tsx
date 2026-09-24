@@ -783,8 +783,7 @@ function Styles() {
                Ce qui se corrige en revanche sans rien décider : il était le
                DERNIER écran de l'espace connecté à s'afficher comme une page de
                téléphone (480 px à toutes les largeurs), alors que
-               /historique et /recommandations portent
-               chacun leur propre largeur. Il prend donc les MÊMES bornes que le
+               /historique porte sa propre largeur. Il prend donc les MÊMES bornes que le
                kit — 620 / 960 — et la même colonne de lecture de 720 px, pour
                qu'un candidat qui passe du rapport de diagnostic à ce hub ne
                change pas de gabarit en route.

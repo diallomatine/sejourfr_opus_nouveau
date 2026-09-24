@@ -5,8 +5,7 @@
  * ⚠️ **Élagué le 2026-09-24** : l'écran « Votre progression » (`/statistiques`),
  * « Vos résultats » d'une épreuve et d'un thème, et le bloc « Ce qui a bougé »
  * sont supprimés au profit des écrans de progression (`lib/progression.ts`).
- * Ce qui reste ici, l'Accueil, Réviser, les recommandations et le Plan le
- * lisent encore.
+ * Ce qui reste ici, l'Accueil, Réviser et le Plan le lisent encore.
  *
  * 🛑 **Le serveur n'expose que des faits** : un palier, un sens d'évolution, un
  * état. Les phrases vivent ici, **miroirs mot pour mot** de

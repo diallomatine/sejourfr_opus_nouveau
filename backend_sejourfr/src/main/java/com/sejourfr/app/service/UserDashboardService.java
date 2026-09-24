@@ -150,24 +150,15 @@ public class UserDashboardService {
     // Examens blancs par module / catégorie
     // ------------------------------------------------------------------------
 
-    /**
-     * Agrégat des examens blancs d'une catégorie : compte + record + les deux
-     * derniers scores (tendance dernier vs avant-dernier sur la page
-     * Progression). Alimenté en parcourant les attempts triés DESC :
-     * 1ʳᵉ rencontre = dernier examen, 2ᵉ = avant-dernier.
-     */
+    /** Agrégat des examens blancs d'une catégorie : compte + record. */
     static final class CategoryExamAgg {
         int count;
         Integer best;
-        Integer last;
-        Integer prev;
 
         void add(Integer score) {
             count++;
             if (score == null) return;
             if (best == null || score > best) best = score;
-            if (last == null) last = score;
-            else if (prev == null) prev = score;
         }
     }
 
@@ -260,8 +251,6 @@ public class UserDashboardService {
                     poolSize,
                     agg == null ? 0 : agg.count,
                     agg == null ? null : agg.best,
-                    agg == null ? null : agg.last,
-                    agg == null ? null : agg.prev,
                     series.done(),
                     series.total()));
         }
@@ -302,7 +291,7 @@ public class UserDashboardService {
      * portait un {@code level} = « dernier niveau CECRL évalué, entraînements
      * compris » : une <b>troisième</b> autorité de niveau, plus large que la
      * lecture du Plan et que la lecture d'affichage, qui faisait lire un palier
-     * sur {@code /statistiques} et sur les recommandations pendant que
+     * sur {@code /statistiques} et sur l'ancien écran de recommandations pendant que
      * l'Accueil, le Profil, le Diagnostic et Réviser disaient « à évaluer ».
      * Le niveau <b>affiché</b> d'une épreuve vient de
      * {@code tcfDomainProfile} ({@link TcfProfileService#levelProfileAccueil}),
@@ -332,7 +321,7 @@ public class UserDashboardService {
         // Réviser y montre des compétences à la place. Zéro, pas null : il n'y
         // a rien d'inconnu ici, il n'y a rien du tout.
         return new DashboardSummaryResponse.CategoryStat(
-                null, code, label, percent, 0, 0, 0, null, null, null, 0, 0);
+                null, code, label, percent, 0, 0, 0, null, 0, 0);
     }
 
     // ------------------------------------------------------------------------

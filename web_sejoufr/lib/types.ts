@@ -3583,11 +3583,9 @@ export interface DashboardCategoryStat {
     total: number;
     /** Examens blancs finis scopés à la catégorie (0 pour EE/EO). */
     mockExams: number;
-    /** Record / dernier / avant-dernier score brut sur les examens de la
-     *  catégorie (page Progression). Null si pas assez d'examens. */
+    /** Record du score brut sur les examens de la catégorie. Null si aucun
+     *  examen noté. */
     bestMockScore: number | null;
-    lastMockScore: number | null;
-    prevMockScore: number | null;
     /**
      * Les **séries** d'entraînement de la catégorie : combien le candidat en a
      * terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran

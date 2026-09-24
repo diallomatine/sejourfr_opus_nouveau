@@ -137,7 +137,7 @@ jamais d'un nombre.
 | `masteryColor(num)` (mobile, `app_theme.dart`) | supprimé | rampe de ton dérivée d'un nombre |
 | `masteryHint(percent)` (web, `lib/dashboard.ts`) | `successHint(percent)` — factuel | rendait « Excellent niveau », « En bonne voie » |
 | `categoryStatus(percent)` (web) | `categoryBadge(percent)` — « À découvrir » / « Déjà travaillé » | trois verdicts calculés dans le navigateur |
-| `barTone(percent)` (web) | `barTone()` — accent de marque | ton classé par seuils |
+| `barTone(percent)` (web) | `barTone()` — accent de marque, puis supprimé le 2026-09-24 avec `ReinforceRow` | ton classé par seuils |
 | `masteryLabel(state)` (web, `plan-domain.ts`) | `masteryStateLabel(state)` | **traduisait un enum servi** — pas une faute, mais le nom entrait en collision avec la fonction interdite |
 | « Tu maîtrises bien le niveau X, tente le suivant » (mobile, résultat de lot) | reformulé | une seule série n'ouvre jamais un palier (§16, T01) |
 
@@ -747,6 +747,13 @@ plus large des trois autorités :
 | `web_sejoufr/app/_components/ReinforceRow.tsx` | prop `profil`, posée par `/recommandations` depuis son `summary` |
 | `mobile_sejourfr/lib/screens/progres/progres_screen.dart` | `summary.tcfDomainProfile`, passé à `_ParcoursSection` → `_CategoryRow` |
 | `mobile_sejourfr/lib/screens/progres/reco_screen.dart` | `summary.tcfDomainProfile`, lu sur place |
+
+⚠️ **2026-09-24 : ces quatre surfaces sont SUPPRIMÉES** (`/statistiques` et
+l'écran Progrès avec les écrans de progression ; `/recommandations` ⇄
+`RecoScreen` sur décision du propriétaire, avec `ReinforceRow`,
+`suiviNiveauLabel` / `kSuiviSansExamenLabel` et les champs
+`lastMockScore`/`prevMockScore` du DTO). `niveauActuelEpreuve` reste : Réviser
+le lit.
 
 - 🛑 **LE HELPER A MONTÉ DANS LE MODULE PARTAGÉ.** `niveauActuelEpreuve` vivait
   dans les fichiers de **Réviser** ; il sert maintenant **cinq** surfaces, donc

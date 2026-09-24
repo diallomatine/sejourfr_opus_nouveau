@@ -15,7 +15,6 @@ import {
   PenLine,
   RotateCw,
   Scale,
-  Sparkles,
   SpellCheck,
   Target,
   Trophy,
@@ -207,10 +206,6 @@ export default function HistoriquePage() {
           <h1>Mes résultats</h1>
           <p>Tous vos examens blancs, du plus récent au plus ancien.</p>
         </div>
-        <Link href="/recommandations" className="res-head-btn">
-          <Sparkles size={16} aria-hidden />
-          Mes recommandations
-        </Link>
       </header>
 
       <section className="res-stats" aria-label="Vos indicateurs">
@@ -522,22 +517,6 @@ const styles = `
     color: var(--color-muted);
     font-size: 15.5px; line-height: 1.5;
   }
-  .res-head-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 11px 20px;
-    font-size: 14.5px; font-weight: 600; line-height: 1;
-    background: #fff; color: var(--color-ink);
-    border: 1px solid var(--color-line);
-    border-radius: 999px;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: box-shadow 0.18s, border-color 0.18s;
-  }
-  .res-head-btn:hover {
-    border-color: var(--color-muted-2);
-    box-shadow: 0 4px 12px rgba(15, 24, 57, 0.06);
-  }
-
   /* ===== stat cards ===== */
   .res-stats {
     display: grid;

@@ -68,9 +68,6 @@ class DashboardSummary {
   final List<DashboardCategoryStat> civique;
   final List<DashboardCategoryStat> tcf;
 
-  /// Toutes les catégories des deux parcours (ordre backend conservé).
-  List<DashboardCategoryStat> get allCategories => [...tcf, ...civique];
-
   factory DashboardSummary.fromJson(Map<String, dynamic> json) =>
       DashboardSummary(
         currentStreakDays: (json['currentStreakDays'] as num? ?? 0).toInt(),
@@ -195,8 +192,6 @@ class DashboardCategoryStat {
     required this.total,
     required this.mockExams,
     required this.bestMockScore,
-    required this.lastMockScore,
-    required this.prevMockScore,
     required this.seriesDone,
     required this.seriesTotal,
   });
@@ -209,8 +204,6 @@ class DashboardCategoryStat {
   final int total;
   final int mockExams;
   final int? bestMockScore;
-  final int? lastMockScore;
-  final int? prevMockScore;
 
   // 🛑 AUCUN NIVEAU CECRL ICI (2026-09-16). Le champ `level` — « dernier niveau
   // évalué, entraînements compris » — a été retiré du DTO : c'était une
@@ -242,8 +235,6 @@ class DashboardCategoryStat {
         total: (json['total'] as num? ?? 0).toInt(),
         mockExams: (json['mockExams'] as num? ?? 0).toInt(),
         bestMockScore: (json['bestMockScore'] as num?)?.toInt(),
-        lastMockScore: (json['lastMockScore'] as num?)?.toInt(),
-        prevMockScore: (json['prevMockScore'] as num?)?.toInt(),
         seriesDone: (json['seriesDone'] as num? ?? 0).toInt(),
         seriesTotal: (json['seriesTotal'] as num? ?? 0).toInt(),
       );

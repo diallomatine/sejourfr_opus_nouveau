@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Lightbulb,
   ListChecks,
-  Sparkles,
   Target,
   Trophy,
   Waves,
@@ -71,12 +70,6 @@ function AppSidebarInner() {
     (isOnEntrainement && moduleDemande !== "TCF") ||
     pathname?.startsWith("/entrainement/civique") ||
     pathname?.startsWith("/diagnostic-civique");
-  // Les erreurs/favoris (/revision) vivent désormais sous Recommandations.
-  const isRecoActive =
-    pathname === "/recommandations" ||
-    pathname?.startsWith("/recommandations/") ||
-    pathname === "/revision" ||
-    pathname?.startsWith("/revision/");
   const isPlanActive =
     pathname === "/plan" ||
     pathname?.startsWith("/plan/");
@@ -118,7 +111,7 @@ function AppSidebarInner() {
 
       <nav className="app-nav" aria-label="Espace personnel">
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
-          Tableau de bord
+          Accueil
         </SideLink>
 
         <span className="app-nav-section">Parcours</span>
@@ -153,14 +146,6 @@ function AppSidebarInner() {
         </SideLink>
         <SideLink href="/historique" pathname={pathname} icon={<Trophy size={18} />}>
           Résultats
-        </SideLink>
-        <SideLink
-          href="/recommandations"
-          pathname={pathname}
-          icon={<Sparkles size={18} />}
-          activeWhen={() => Boolean(isRecoActive)}
-        >
-          Recommandations
         </SideLink>
       </nav>
 
