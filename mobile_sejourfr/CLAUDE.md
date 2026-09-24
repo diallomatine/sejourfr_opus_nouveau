@@ -162,7 +162,7 @@ lib/
     │   ├── progression_providers.dart  4 FutureProvider.autoDispose(.family)
     │   └── widgets/progression_page.dart  squelette commun, CTA, retour, panneau
     ├── progres/                   `progres_labels.dart` (« Où vous en êtes » de l'Accueil,
-    │                              autorité d'affichage du niveau) + `reco_screen.dart`
+    │                              autorité d'affichage du niveau)
     ├── review/                    Favoris + erreurs récentes (tabs)
     │   └── widgets/               module_switch.dart
     └── profile/                   Compte + paramètres + logout + suppression de compte
@@ -491,8 +491,9 @@ du web garde son ordre (`Parcours` puis `Suivi`). Écart de parité **assumé**.
 - **Plan** (`screens/plan/`, route `/plan`) : priorité serveur immédiate, exercice de compétence
   recommandé, deux priorités suivantes au maximum et huit compétences observées au maximum.
   ⚠️ L'écran **Progrès** (`/progress`) est **SUPPRIMÉ** (2026-09-24) : la progression vit
-  dans les 4 écrans de progression (§ « Écrans de progression »). `RecoScreen` reste sur
-  `/progress/recommandations`, **sans point d'entrée** (en attente d'arbitrage).
+  dans les 4 écrans de progression (§ « Écrans de progression »). L'écran
+  **Recommandations** (`RecoScreen`, `/progress/recommandations`) est **SUPPRIMÉ** lui aussi
+  (2026-09-24, décision du propriétaire, parité avec le web).
 - **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
   `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
   prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
@@ -2503,7 +2504,7 @@ déplient aucun exemple sur place — l'écran dédié reste le seul endroit.
    - **Entrée du parcours** = le mode « Compétences » de la tâche 1
      (`AppRoutes.tcf{Ee,Eo}Entry` = `/tcf/{ee,eo}/tache/1/competences`), le mode
      actif par défaut de la maquette. Utilisée par Réviser
-     (`dashboardCategoryRoute`), l'Accueil (bloc IA) et les recommandations.
+     (`dashboardCategoryRoute`), l'Accueil (bloc IA) et le Plan.
    - ⚠️ **Révoqué le 2026-08-21** : `/tcf/ee` et `/tcf/eo` ne sont plus des
      alias en redirect, ce sont les **vrais écrans du niveau 1** (les 3 tâches).
      Les écrans de résultats, de bilan de session et d'historique continuent de
@@ -3597,7 +3598,13 @@ web) ; **Accueil « Voir mes résultats »** (issue 3 d'une carte d'épreuve, et
 thème) → écran épreuve / thème (D17 — les issues 1 et 2 ne bougent pas) ; carte d'un écran
 global → écran détaillé (`?depuis=global`). **Retour** d'un écran épreuve / thème
 (« Progression globale » / « Examen civique ») : venu du global ⇒ on dépile ; sinon on
-**remplace** par le global du module (`retourVersGlobal`). « Voir → » : route choisie par
+**remplace** par le global du module (`retourVersGlobal`). **Bascule TCF IRN / Examen civique**
+(2026-09-24) : les deux écrans **globaux** seulement portent `ProgressionBascule`
+(`widgets/progression_page.dart`) — le même `SegmentedTabs` + `parcoursSegments` que le Plan
+et l'Accueil — sous l'intro, passés par `ProgressionPage.entete` (rendu dans tous les états,
+chargement et erreur compris). Basculer fait `pushReplacement` vers l'autre route globale,
+sans `?tous=true` : la route reste l'autorité, le retour mène là d'où l'on venait. Miroir web :
+`ModuleToggle` dans `ProgressionFrame`. « Voir → » : route choisie par
 `rapport.kind` **servi** (`progressionRapportPath`) — QCM → `/exam-report/:id`, PRODUCTION →
 `/tcf/expression-{ecrite,orale}/sessions/:id` (⚠️ le contrat écrit `/tcf/{ee|eo}/sessions`,
 qui n'existe pas en Dart), EXAMEN_COMPLET → `/tcf/examen-blanc/:parentId/bilan`. CTA « Nouvel
@@ -3612,8 +3619,8 @@ le bouton + `showPaywallSheet(ctaLocation: mockExam)` (`ouvrirProgressionCta`).
   `node scripts/verifier-contrat-front-progression.mjs` reste vert.
 - **Libellés** : `progression_labels.dart`, **miroir mot pour mot** de
   `web_sejoufr/lib/progression.ts` — sauf « Touchez » (mobile) là où le web dit
-  « Cliquez ». `kSuiviSansExamenLabel` (`progres_labels.dart`) **dérive** de
-  `kProgressionSansExamen` : une seule autorité pour « Pas encore d'examen ».
+  « Cliquez ». `kProgressionSansExamen` est la seule autorité pour « Pas encore
+  d'examen » (`kSuiviSansExamenLabel`, qui en dérivait, est parti avec `RecoScreen`).
 - **Providers** (`progression_providers.dart`) : `autoDispose(.family)`, et chacun observe
   `compteIdProvider`, `learningPlanRevisionProvider` (une mesure écrite) et
   `accesRevisionProvider` (le `cta.locked` ne survit pas à un achat). Tiré-pour-rafraîchir.
@@ -3636,8 +3643,10 @@ le bouton + `showPaywallSheet(ctaLocation: mockExam)` (`ouvrirProgressionCta`).
   au palier téléphone) ; la ligne d'un examen global affiche son détail par épreuve / thème
   (la maquette le masque sous 860 px) ; la courbe défile horizontalement au-delà de 64 px
   par point, calée sur le plus récent.
-- **L'écran Recommandations** (`RecoScreen`, `/progress/recommandations`) n'a plus d'entrée
-  (seul l'écran Progrès y menait) : **conservé**, en attente d'arbitrage.
+- 🛑 **L'écran Recommandations** (`RecoScreen`, `/progress/recommandations`) est
+  **SUPPRIMÉ** (2026-09-24, décision du propriétaire), avec `suiviNiveauLabel` /
+  `kSuiviSansExamenLabel`, `DashboardSummary.allCategories` et les champs
+  `lastMockScore`/`prevMockScore` de `DashboardCategoryStat`. Ne pas le réintroduire.
 
 ## Plan civique — répétition espacée et grain mesuré (L10, 2026-09-10)
 
@@ -4010,6 +4019,40 @@ légales), tile du Centre d'aide, et la note `_IndependenceNote` en bas du home 
 indépendant — non affilié à l'État français · En savoir plus »). **Ne pas reformuler le
 disclaimer d'une manière qui affaiblirait la non-affiliation.** Pas de référence cross-store
 dans cet écran. Équivalent web : `/a-propos`.
+
+## Les écrans du compte et le centre d'aide (2026-09-24)
+
+⚠️ **Les feuilles « Changer mon email » / « Modifier mon mot de passe » et le
+formulaire d'identité en ligne de `PersonalInfoScreen` sont SUPPRIMÉS** : chaque
+édition est un **écran dédié**, miroir des pages web `/profil/informations/*`.
+Le reste du Profil n'a pas bougé (refonte à venir, décision du propriétaire).
+
+| route (`AppRoutes`) | écran | endpoint |
+|---|---|---|
+| `personalInfo` `/profile/personal-info` | `PersonalInfoScreen` — hub : Nom et prénom · Adresse e-mail · Mot de passe (`ListGroup`/`ListRow`) | — |
+| `personalInfoIdentity` `…/identity` | `EditIdentityScreen` | `PATCH /api/me/profile` |
+| `personalInfoEmail` `…/email` | `ChangeEmailScreen` | `POST /api/me/change-email-request` |
+| `personalInfoPassword` `…/password` | `ChangePasswordScreen` | `POST /api/me/change-password` |
+
+- **Briques** : `screens/profile/account_widgets.dart` — `AccountScaffold`
+  (`ScreenHeader` + phrase de cadrage), `AccountFormCard`, `AccountField` (libellé,
+  erreur **sous** le champ, œil afficher/masquer), `AccountReadonly`, `AccountAlert`,
+  `AccountSubmit` (`AppButton`), `AccountDone`, `AccountProviderNote`. Miroir de
+  `web_sejoufr/app/_components/compte/CompteParts.tsx`.
+- **Libellés, bornes et validation** : `screens/profile/account_labels.dart`,
+  **miroir mot pour mot** de `web_sejoufr/lib/compte.ts` — **vouvoiement** (les
+  anciennes feuilles tutoyaient ; le Profil et le web vouvoient). Bornes du backend :
+  nom ≤ 120, mot de passe 8–128. Validation à l'envoi, puis revalidée à chaque frappe.
+- **États** : identité ⇒ alerte verte « Vos informations sont à jour. » (l'écran
+  reste, `refreshUser()`), e-mail et mot de passe ⇒ **état final** (`AccountDone`)
+  avec « Retour à mes informations » (`pop`). Plus de snackbar.
+- **Comptes Google / Apple** : nom modifiable ; lignes e-mail / mot de passe sans
+  action sur le hub + note en pied ; un lien profond vers leurs écrans n'affiche que
+  la note.
+- **Centre d'aide** (`screens/help/`, `AppRoutes.helpCenter`) : **inchangé dans sa
+  forme** ; ses textes vivent désormais dans `help_center_labels.dart`, **miroir mot
+  pour mot** de `web_sejoufr/lib/aide.ts` (page web `/aide`). Seul texte modifié :
+  « L'équipe SejourFR **vous** répond… » (il tutoyait).
 
 ## Suppression de compte (App Store 5.1.1(v))
 

@@ -110,15 +110,15 @@ app/
 │   ├── progression/              # ★ LES ÉCRANS DE PROGRESSION (2026-09-24) : tcf, tcf/[epreuve]
 │   │                              #   (co|ce|ee|eo), civique, civique/[theme] (slug ou UUID).
 │   │                              #   Cf. § « Les écrans de progression » en fin de fichier
-│   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
-│   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
-│   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
 │   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
 │   │                              #   (statement, choix résolus, explanation, toggle favori)
 │   ├── historique/page.tsx       # ★ liste examens MOCK_EXAM passés, header résumé (taux moyen),
 │   │                              #   graphique custom SVG (barres + ligne seuil), clic → /sessions/<id>
 │   ├── profil/page.tsx           # ★ profil, refait sur la maquette du propriétaire (2026-09-24,
 │   │                              #   cf. § « Le Profil (/profil) » plus bas)
+│   ├── profil/informations/      # ★ « Mes informations » + identite / email / mot-de-passe
+│   │                              #   (cf. § « Les écrans du compte »)
+│   ├── aide/page.tsx             # ★ centre d'aide, ouvert aux visiteurs (cf. § dédié)
 │   ├── parcours/page.tsx         # ★ édition target path (CSP/CR/NAT) avec cards radio + niveau TCF
 │   │                              #   dérivé. Sert d'onboarding si user.targetProcedure manquant.
 │   │                              #   Support ?from=<route> pour retour.
@@ -157,8 +157,8 @@ lib/
 ├── module-switch.ts              # ★ AUTORITÉ UNIQUE du parcours choisi : la lecture de
 │                                 #   `?module=` (casse tolérée) et les deux adresses,
 │                                 #   planHref / entrainementHref. Ne devine jamais un module.
-├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
-│                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
+├── dashboard.ts                  # helpers catégories dashboard : moduleAverage, successHint,
+│                                 #   categoryBadge
 ├── passes.ts                     # passes d'accès (lot 5) : pass mis en avant, prix débité vs
 │                                 #   équivalent mensuel, durée, tri, et passCheckoutHref
 │                                 #   (le parcours prix → récapitulatif → Stripe). Purs.
@@ -646,8 +646,10 @@ par `middleware.ts`, dont le test est un **préfixe** (`/paiement` couvre
 
 Maquette : `docs/progression/maquettes-progression/profil.html`. Refonte **visuelle web
 seule**, aucun endpoint ni DTO touché. `app/(app)/profil/page.tsx`, styles en `<style>`
-scoped (`.pr-*` pour la page, `.pm-*` pour les modales) — **pas sur le kit** : le
-Profil n'en a jamais fait partie, et aucune brique n'y est réemployée ailleurs.
+scoped (`.pr-*` pour la page, `.pm-*` pour les modales de confirmation) — **pas sur le
+kit** : le Profil n'en a jamais fait partie. Ses **cartes et lignes** sont celles des
+écrans du compte (`CompteCard` / `CompteRow`, cf. § « Les écrans du compte » juste
+en dessous), partagées avec « Mes informations » et le centre d'aide.
 
 - **Ordre** : barre « MON PROFIL » (sa case de gauche est **réservée au burger du
   shell** sous 900 px — aucun second burger ; titre masqué sous 430 px, la rangée
@@ -666,14 +668,63 @@ Profil n'en a jamais fait partie, et aucune brique n'y est réemployée ailleurs
 - **Pass** : pictogramme **vert** + pastille « Actif » en premium, gris + « Gratuit »
   sinon (le rouge du pass Intégral est retiré : ce n'est pas un CTA critique).
 - **« Ma progression »** → `/progression/tcf` (D16). **« Aide & assistance »** →
-  `/contact` (le web n'a pas de centre d'aide ; le mobile a `helpCenter`).
-- **Modale « Mes informations »** = feuille posée en bas (maquette), mais le
-  **comportement réel est conservé** : « Enregistrer » ne porte que prénom + nom
-  (`PATCH /api/me/profile`) ; e-mail et mot de passe sont en lecture avec
-  « Changer » / « Modifier », qui ouvrent sur place les flux existants (lien de
-  vérification + mot de passe actuel ; ancien + nouveau + confirmation). Comptes
-  Google/Apple : lecture seule. Déconnexion et suppression gardent leur
-  confirmation (et l'avis post-suppression des abonnements store).
+  `/aide`, le centre d'aide (miroir de `helpCenter` mobile).
+- **« Modifier » (hero) et « Mes informations »** → `/profil/informations`, une
+  **page**. ⚠️ La modale « Mes informations » (feuille posée en bas, sous-formulaires
+  e-mail / mot de passe dépliés sur place) est **SUPPRIMÉE** (2026-09-24) avec
+  `InfoEditModal`, `ChangeEmailForm`, `ChangePasswordForm` et leurs styles `.pm-*`.
+  Déconnexion et suppression gardent leur modale de confirmation (et l'avis
+  post-suppression des abonnements store).
+
+## Les écrans du compte — « Mes informations » et ses trois pages (2026-09-24)
+
+Pages dans le shell `(app)` (préfixe `/profil`, déjà déclaré), chacune avec un retour
+libellé, un titre, une phrase de cadrage et une carte de formulaire. **Aucun endpoint
+nouveau** : `accountApi` (`lib/api.ts`).
+
+| route | page | endpoint |
+|---|---|---|
+| `/profil/informations` | hub : Nom et prénom · Adresse e-mail · Mot de passe (une ligne chacune) | — |
+| `/profil/informations/identite` | prénom + nom | `PATCH /api/me/profile` |
+| `/profil/informations/email` | adresse actuelle (lecture) + nouvelle + mot de passe actuel | `POST /api/me/change-email-request` |
+| `/profil/informations/mot-de-passe` | actuel + nouveau + confirmation | `POST /api/me/change-password` |
+
+- **Composants** : `app/_components/compte/` — `CompteParts.tsx` (+ `compte.module.css`) :
+  `CompteShell`, `CompteAuth` (squelette puis porte de connexion), `CompteCard`,
+  `CompteRow` (lien / bouton / lecture seule), `CompteField` (libellé mono, erreur
+  **sous** le champ, œil afficher/masquer sur les mots de passe), `CompteAlert`,
+  `CompteSubmit`, `CompteDone`, `CompteProviderNote`, `CompteFootnote`, `CompteHero` ;
+  vues `InformationsView`, `IdentiteForm`, `EmailForm`, `MotDePasseForm`.
+- **Libellés, bornes et validation** : `lib/compte.ts`, **miroir mot pour mot** de
+  `mobile_sejourfr/lib/screens/profile/account_labels.dart`. Les bornes recopient le
+  backend (nom ≤ 120, mot de passe 8–128). Validation à l'envoi, puis **revalidée à
+  chaque frappe** une fois le premier envoi tenté ; l'erreur serveur s'affiche en
+  alerte au-dessus du bouton.
+- **États** : identité ⇒ alerte verte « Vos informations sont à jour. » (la page
+  reste, `refreshUser()` rafraîchit le profil) ; e-mail et mot de passe ⇒ **état
+  final** (`CompteDone`) avec « Retour à mes informations ». L'e-mail ne change
+  qu'au clic sur le lien reçu : la page le dit **avant** l'envoi, puis le confirme.
+- **Comptes Google / Apple** : nom modifiable ; e-mail et mot de passe en lecture
+  sur le hub (lignes sans lien + note en pied), et un lien profond vers leurs pages
+  n'affiche que la note et le retour — jamais le formulaire.
+- ⚠️ La rangée du retour se décale de 52 px sous 900 px **dans le shell connecté**
+  (burger fixe) — rien pour un visiteur.
+
+## Le centre d'aide (`/aide`, 2026-09-24)
+
+Miroir de `HelpCenterScreen` mobile : accroche « Une question ? », « Ressources »
+(Aide & FAQ → `/faq`, Nous contacter → `/contact`) et « Documents légaux »
+(Conditions d'utilisation → `/cgu`, Politique de confidentialité → `/confidentialite`,
+À propos → `/a-propos`). Sections, entrées, ordre et textes : `lib/aide.ts`,
+**miroir mot pour mot** de `mobile_sejourfr/lib/screens/help/help_center_labels.dart`.
+
+- `app/(app)/aide/page.tsx` (métadonnées) → `app/_components/aide/AideView.tsx`, sur les
+  briques du compte (`CompteShell`, `CompteHero`, `CompteCard`, `CompteRow`).
+- **Ouvert aux visiteurs** : `/aide` est dans `APP_GROUP_PREFIXES` **et** dans
+  `GUEST_ACCESSIBLE_PREFIXES` (un visiteur garde le chrome public, sans flash de
+  sidebar), **pas** dans le middleware. Seul le retour « Mon profil » suppose un compte.
+- Le mobile ouvre FAQ / CGU / confidentialité dans une WebView sur ces mêmes pages :
+  la destination change de forme, jamais de contenu.
 
 ## « Mon pass » (détail de l'accès — lot 5, achat unique)
 
@@ -1031,9 +1082,9 @@ maquette, et la bascule *contextuelle* qui avait été bâtie dessus.
 TCF / Civique vit dans DEUX écrans » : on y arrive par le menu, qui a déjà fait
 le choix.
 
-`AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **sept entrées
+`AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **six entrées
 à icône** en deux sections — `Parcours` (TCF IRN `Waves`, Examen civique
-`Lightbulb`, Examens blancs) et `Suivi` (Plan, Résultats, Recommandations), avec
+`Lightbulb`, Examens blancs) et `Suivi` (Plan, Résultats), avec
 `/dashboard` en tête — puis la note de bas de colonne, le streak et la carte
 utilisateur.
 
@@ -2363,12 +2414,12 @@ gouvernerait que sa moitié haute.
   frise dont la somme ne vaut pas son compteur serait pire qu'un arrondi. La
   fenêtre est servie — ne jamais écrire « 30 » en dur.
 - 🛑 **« Niveau estimé X » d'une ligne de catégorie lit l'AUTORITÉ D'AFFICHAGE**
-  (2026-09-16) — `summary.tcfDomainProfile`, par `niveauActuelEpreuve` /
-  `suiviNiveauLabel` (`lib/progres.ts`). ⚠️ **Révoque `cat.level`**, retiré du
+  (2026-09-16) — `summary.tcfDomainProfile`, par `niveauActuelEpreuve`
+  (`lib/progres.ts`). ⚠️ **Révoque `cat.level`**, retiré du
   DTO : c'était le dernier niveau de **n'importe quelle** soumission,
-  entraînements compris. Vaut pour `/statistiques` (`CategoryRow`) **et** pour
-  `ReinforceRow`, qui reçoit le profil en prop depuis `/recommandations` —
-  **aucun appel de plus**, le `summary` est déjà chargé des deux côtés.
+  entraînements compris. Vaut pour Réviser (`lib/reviser.ts`) ; `/statistiques`
+  et `/recommandations` (`ReinforceRow`), qui l'appliquaient aussi, sont
+  supprimés (2026-09-24).
   🛑 **Seules les 4 épreuves TCF ont un palier** : un thème civique et
   `TCF_STRUCTURE` rendent `null` et la ligne retombe sur ce qu'elle **compte**.
   🛑 **Épreuve non mesurée ⇒ « Pas encore d'examen »** (`SUIVI_SANS_EXAMEN_LABEL`),
@@ -2765,26 +2816,6 @@ Toute valeur de « progression » d'un thème / d'une épreuve vient de
   dont 48 bonnes → **80 %** ; 1 soumission EE notée 14/20 → 70 % × 1/3 =
   **23 %**.
 
-### Règles des recommandations (validées 2026-06-06)
-
-`/recommandations` ouvre sur **« Vos priorités »** : max 5 cards avec raison
-chiffrée + CTA, dérivées côté front (`buildPriorities`) des `CategoryStat`
-du dashboard + du compteur d'erreurs. Une seule reco par catégorie, dans
-cet ordre :
-
-1. **En baisse** — dernier examen < avant-dernier → Refaire un examen
-2. **Point faible** — progression < 60 % avec ≥ 20 répondues (EE/EO : note
-   basse) → Série ciblée / S'exercer
-3. **À confirmer** — réussite brute (progression ÷ confiance) ≥ 70 % mais
-   < 40 répondues → Examen blanc
-4. **Jamais travaillé** — percent null, EE/EO d'abord (épreuves obligatoires
-   TCF IRN) → Découvrir
-5. **Erreurs** — ≥ 5 erreurs non revues → /revision
-
-Tri : n° de règle puis progression croissante ; si rien ne matche → card
-« Rien d'urgent » (CTA examen complet). En dessous : le classement complet
-filtrable (Tous / TCF / Civique) reste comme détail.
-
 ### Mode guest & quotas gratuits (validés 2026-06-06)
 
 **Guests (non connectés)** — header public aligné sur la sidebar (Accueil ·
@@ -2885,11 +2916,9 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       TCF estimé, catégories par module (5 thèmes civique + CO/CE/STRUCTURE +
       EE/EO synthétiques). Miroirs `DashboardSummaryResponse` /
       `DashboardCategoryStat` dans lib/types.ts.
-    - **Composants partagés** : `ReinforceRow` + `CategoryBarLine`
-      (`app/_components/ReinforceRow.tsx` + `.module.css`) utilisés par le
-      dashboard et `/recommandations` ; helpers dans `lib/dashboard.ts`
-      (`categoryHref`, `barTone`, `moduleAverage`, `masteryHint`,
-      `categoryStatus`).
+    - **Composants partagés** : `ReinforceRow` + `CategoryBarLine` —
+      ⚠️ supprimés le 2026-09-24 avec `/recommandations`, comme
+      `categoryHref` / `categoryExamsHref` / `barTone` de `lib/dashboard.ts`.
     - Pas de heatmap de régularité (décision produit) — seul le streak est
       exposé.
     - **Pages détail refondues** (maquette `sejour_fr.html`) — briques dans
@@ -2997,7 +3026,9 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       barre de réussite, **tendance dernier vs avant-dernier examen** ↗/↘/—,
       badge Solide/En bonne voie/À renforcer). Ligne → entraînement de la
       catégorie (`categoryHref`). Données : `GET /api/me/dashboard` étendu
-      (`CategoryStat.bestMockScore`/`lastMockScore`/`prevMockScore`).
+      (`CategoryStat.bestMockScore`/`lastMockScore`/`prevMockScore` ; ⚠️
+      `lastMockScore`/`prevMockScore` retirés du DTO le 2026-09-24, leur dernier
+      lecteur étant `/recommandations`).
       L'ancien écran stats par thème avec toggle module est supprimé.
     - **`/examens-blancs` refondu** (connecté) : « Examens blancs complets » —
       **toggle segmenté `ModuleToggle` en tête (TCF IRN / Examen civique, 2
@@ -4290,13 +4321,13 @@ des stubs/fallbacks côté web :
 - `POST /api/auth/logout` (révocation serveur du refresh token) — actuellement
   on clear juste le storage côté client.
 
-**Édition du profil (branchée)** : `/profil` édite l'identité, l'email et le
-mot de passe via la modale « Mes informations » (`accountApi.updateProfile` →
+**Édition du profil (branchée)** : trois pages sous `/profil/informations`
+(cf. § « Les écrans du compte ») — `accountApi.updateProfile` →
 `PATCH /api/me/profile`, `accountApi.requestEmailChange` →
 `POST /api/me/change-email-request` avec vérif par lien mail,
-`accountApi.changePassword` → `POST /api/me/change-password`). Comptes
+`accountApi.changePassword` → `POST /api/me/change-password`. Comptes
 Google/Apple : email + mot de passe en lecture seule (gérés côté provider).
-Parité avec l'écran mobile `personal_info_screen.dart`.
+Parité avec les écrans mobiles `screens/profile/` (`PersonalInfoScreen` + 3 écrans).
 
 **Suppression de compte (branchée)** : `DELETE /api/account` (anonymisation
 backend) est appelé depuis la carte « Supprimer mon compte » du `/profil` via
@@ -4676,6 +4707,14 @@ l'écran global du module de l'attempt ; `/paiement/succes` → `/progression/tc
 Retours : épreuve → TCF global (« Progression globale »), thème → civique
 global (« Examen civique »), écrans globaux → `/dashboard?module=…`.
 
+**Bascule TCF IRN / Examen civique (2026-09-24)** : les deux écrans **globaux**
+portent le `ModuleToggle` du kit sous l'intro (`ProgressionFrame`, prop
+`module`), comme le Plan et l'Accueil. **Des liens de chemin**, pas `?module=` :
+les routes de progression portent déjà le module dans le chemin, donc l'adresse
+reste l'unique autorité (`progressionHref`). `?tous=true` tombe à la bascule.
+Les écrans d'épreuve et de thème **ne la portent pas**. Le kit annule sa
+gouttière dans la colonne (`.pScreen .segWrap`). Miroir : `ProgressionBascule`.
+
 **« Voir → » se choisit par `rapport.kind`** (`progressionRapportHref`) : `QCM` →
 `/sessions/[id]`, `PRODUCTION` → `/entrainement/tcf/{ee|eo}/session/[id]`,
 `EXAMEN_COMPLET` → `/examens-blancs/tcf/[parent]/bilan`. La ligne entière est
@@ -4738,6 +4777,10 @@ champs élagués de `ProgressDto` (le backend ne les sert plus) ;
 d'« Aller plus loin » et titre) ; « Ma progression » désigne les écrans
 ci-dessus.
 
-⚠️ **`/recommandations` reste** : elle est atteinte par la barre latérale et
-par `/historique`, pas seulement par l'ancien écran — à arbitrer avec le mobile.
+🛑 **`/recommandations` est SUPPRIMÉE** (2026-09-24, décision du propriétaire),
+web **et** mobile, avec son entrée de barre latérale, le bouton « Mes
+recommandations » de `/historique`, `ReinforceRow` et les champs
+`lastMockScore`/`prevMockScore` du DTO. L'adresse **redirige** vers `/dashboard`
+(`next.config.ts`, temporaire). Ne pas la réintroduire : les priorités vivent
+dans le Plan.
 
