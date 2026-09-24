@@ -1,7 +1,7 @@
 "use client";
 
 import { AppSidebar } from "./AppSidebar";
-import { MobileSidebarToggle } from "./MobileSidebarToggle";
+import { AppTopBar } from "./AppTopBar";
 import { useAuth } from "@/lib/auth-context";
 
 /**
@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
  * group, le layout `(app)/layout.tsx` n'est pas accessible — on duplique sa
  * structure inline ici.
  *
- * Sous 900 px : le drawer mobile (MobileSidebarToggle) prend le relais, et
+ * Sous 900 px : la barre du haut (AppTopBar : burger + titre) prend le relais, et
  * la sidebar fixe horizontale est masquée par la classe `app-shell--has-drawer`.
  *
  * Guests : pas de sidebar — le contenu est rendu tel quel sous le chrome
@@ -32,8 +32,10 @@ export function DualChromeShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="dual-shell app-shell--has-drawer">
       <AppSidebar />
-      <MobileSidebarToggle />
-      <div className="dual-shell__main">{children}</div>
+      <div className="dual-shell__main">
+        <AppTopBar />
+        {children}
+      </div>
       <style>{`
         .dual-shell {
           display: grid;

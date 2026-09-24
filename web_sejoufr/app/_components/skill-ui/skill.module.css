@@ -45,17 +45,6 @@
   flex-direction: column;
 }
 
-/* 🛑 Sous le point de bascule du drawer, `.ms-toggle` est un bouton FIXE de
-   44 px posé en 12,12 (cf. `globals.css`). Sans cette réserve, la première
-   ligne de l'écran passait dessous : le sur-titre se lisait « ompétences », et
-   surtout la flèche de retour devenait **intouchable** — le seul chemin de
-   sortie de l'écran. 68 px = 12 (marge) + 44 (bouton) + 12 (respiration). */
-@media (max-width: 900px) {
-  .wrap {
-    padding-top: 68px;
-  }
-}
-
 /* Pile d'écran hors colonne (formulaires d'exercice) : même rythme vertical que
    `.formStack`, mais c'est elle qui porte l'accent. */
 .accent {

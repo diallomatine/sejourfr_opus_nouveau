@@ -130,7 +130,7 @@ export function SiteHeader() {
     const isAuth = status === "authenticated" && user !== null;
     if (shouldHideGlobalChrome(pathname, isAuth)) return null;
 
-    /** Sur les routes connectées qui montent déjà MobileSidebarToggle (sidebar
+    /** Sur les routes connectées qui montent déjà AppTopBar (sidebar
      *  drawer dédié), on cache notre propre burger pour ne pas en empiler deux. */
     const hideMobileBurger =
         isAppShellMounted(pathname, status) || (isAuth && isDualChromeRoute(pathname));

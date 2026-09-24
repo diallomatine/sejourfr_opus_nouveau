@@ -822,9 +822,8 @@
 }
 
 @media (max-width: 768px) {
-  /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
   .wrap {
-    padding: 64px 18px 48px;
+    padding: 20px 18px 48px;
   }
 }
 

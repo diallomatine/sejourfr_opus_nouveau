@@ -1959,25 +1959,6 @@
   }
 }
 
-/* ---------- La gouttière du burger de l'espace connecté ---------- */
-
-/* 🛑 Sous 900 px, l'espace connecté range sa barre latérale derrière un burger
-   `position: fixed` (`.ms-toggle`, 44 px posé à 12 px du coin haut-gauche, cf.
-   `globals.css`) : il recouvrait le début de l'eyebrow et du titre, devenus le
-   premier bloc de ces écrans. Même remède que partout ailleurs dans l'espace
-   connecté (`/dashboard`, les hubs de module…) : une gouttière
-   de 64 px, soit 12 (marge du bouton) + 44 (sa taille) + 8 (respiration).
-
-   La gouttière existe EXACTEMENT quand le burger existe — même borne que sa
-   règle d'affichage — et seulement dans un shell qui le porte : un écran du kit
-   servi hors espace connecté (`/diagnostic` public, sous le `SiteHeader`) n'a
-   pas de burger, donc pas de gouttière. */
-@media (max-width: 900px) {
-  :global(.app-shell--has-drawer) .app {
-    padding-top: 64px;
-  }
-}
-
 /* ==========================================================================
    Maquette « Où vous en êtes » (propriétaire, 2026-09-16)
 

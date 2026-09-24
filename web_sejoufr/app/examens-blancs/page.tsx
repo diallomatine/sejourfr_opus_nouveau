@@ -972,8 +972,7 @@ const styles = `
 
   /* ===== responsive ===== */
   @media (max-width: 768px) {
-    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
-    .ebh { padding: 64px 18px 48px; }
+    .ebh { padding: 20px 18px 48px; }
     .ebh-module-chip { display: none; }
     .ebh-module-titles p { white-space: normal; }
     .ebh-module { padding: 18px 16px; }

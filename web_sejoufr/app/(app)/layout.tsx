@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "../_components/AppSidebar";
-import { MobileSidebarToggle } from "../_components/MobileSidebarToggle";
+import { AppTopBar } from "../_components/AppTopBar";
 import { useAuth } from "@/lib/auth-context";
 import { isAppShellMounted } from "@/lib/chrome-routes";
 
@@ -10,8 +10,8 @@ import { isAppShellMounted } from "@/lib/chrome-routes";
  * Layout des pages "espace personnel" (utilisateur connecté).
  *
  * - >= 900 px : grid 248px / 1fr, sidebar fixe à gauche.
- * - < 900 px  : sidebar fixe masquée, drawer mobile (bouton hamburger fixed
- *               top-left + drawer slide depuis la gauche). Cf. MobileSidebarToggle.
+ * - ≤ 900 px  : sidebar fixe masquée, barre du haut sticky (burger + titre de
+ *               la page) qui ouvre le tiroir de navigation. Cf. AppTopBar.
  *
  * La classe `app-shell--has-drawer` est ce qui dit aux styles globaux de
  * cacher la version "horizontale scrollable" de l'AppSidebar sous 900 px.
@@ -47,8 +47,10 @@ export default function AppGroupLayout({
   return (
     <div className="app-shell app-shell--has-drawer">
       <AppSidebar />
-      <MobileSidebarToggle />
-      <div className="app-shell__main">{children}</div>
+      <div className="app-shell__main">
+        <AppTopBar />
+        {children}
+      </div>
 
       <style>{`
         .app-shell {
@@ -68,9 +70,6 @@ export default function AppGroupLayout({
           .app-shell {
             grid-template-columns: 1fr;
           }
-          /* Le burger flottant (.ms-toggle) est z-index 70, au-dessus du
-             SiteHeader sticky (z-index 50). Pas besoin de padding-top : le
-             main reprend directement sous le SiteHeader. */
         }
       `}</style>
     </div>
