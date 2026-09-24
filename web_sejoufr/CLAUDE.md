@@ -1014,11 +1014,13 @@ propriétaire : « comme l'AppBar Flutter d'un écran poussé ».
   (`globals.css`, `display: none` scopé `.app-shell--has-drawer`). Desktop et
   visiteur : aucune barre, le lien reste. Même relais pour un en-tête monté
   dans la barre : classe **`in-bar-title`** (effacé à l'œil, reste le `<h1>`).
+- ⚠️ **Gardent le BURGER** (propriétaire, 2026-09-24) — titre dans la barre,
+  retour dans la page : `DetailShell` (épreuve CO/CE/Structure, niveau,
+  séries, thème civique, examens d'épreuve/thème, session EE/EO), `SkillShell`
+  (tâches, sujets, rédaction/enregistrement, résultats, exemples,
+  compétences) et les écrans de progression.
 - **Déjà branché dans les coquilles** — un écran qui les monte n'a rien à
-  faire : `DetailShell` (épreuve CO/CE/Structure, niveau, séries, thème
-  civique, examens d'épreuve/thème, session EE/EO), `SkillShell` (tâches,
-  sujets, rédaction/enregistrement, résultats, exemples, compétences),
-  `CompteShell` (compte, aide connecté, favoris), kit `Top` (`backTo` /
+  faire : `CompteShell` (compte, aide connecté, favoris), kit `Top` (`backTo` /
   `onBack` : étape et historique du Plan, résultats de diagnostic TCF, rapport
   du diagnostic). ⚠️ **Pas les écrans de progression** (même épreuve / thème) :
   ils gardent le burger et leur retour libellé dans la page (propriétaire,

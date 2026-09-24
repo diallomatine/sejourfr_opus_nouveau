@@ -24,7 +24,7 @@ import {
   type SerieFiltre,
 } from "@/lib/serie-filtre";
 import { ProgressDonut } from "./ModuleHubParts";
-import { useAppBarBack, useAppBarTitle } from "../AppBarTitle";
+import { useAppBarTitle } from "../AppBarTitle";
 import styles from "./detail.module.css";
 
 /**
@@ -86,8 +86,8 @@ export interface ExamSlotData {
  * d'explication : l'app mobile n'en a pas (alignement, 2026-09-24).
  *
  * Sous 900 px dans le shell connecté, le titre et le contexte montent dans la
- * barre du haut (`useAppBarTitle`) et la flèche de la barre remplace le lien
- * de retour (`useAppBarBack`).
+ * barre du haut (`useAppBarTitle`). 🛑 La barre garde le BURGER (propriétaire,
+ * 2026-09-24) : le lien de retour reste dans la page, à toute largeur.
  */
 export function DetailShell({
   backHref,
@@ -111,9 +111,8 @@ export function DetailShell({
   notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const backInBar = useAppBarBack({ fallbackHref: backHref, onBack });
   const titleInBar = useAppBarTitle({ title, subtitle });
-  const backClass = `${styles.back}${backInBar ? " in-bar-back" : ""}`;
+  const backClass = styles.back;
   return (
     <main className={styles.wrap}>
       {onBack ? (

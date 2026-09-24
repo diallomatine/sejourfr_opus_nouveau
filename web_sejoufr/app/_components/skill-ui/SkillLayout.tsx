@@ -20,7 +20,7 @@ import {
   type SkillMasteryState,
   type SkillPromptStatus,
 } from "@/lib/types";
-import {useAppBarBack, useAppBarTitle} from "../AppBarTitle";
+import {useAppBarTitle} from "../AppBarTitle";
 import s from "./skill.module.css";
 
 /**
@@ -58,9 +58,10 @@ import s from "./skill.module.css";
  * - sinon, le lien de retour historique, gardé pour les écrans d'appoint
  *   (modèles corrigés, historique).
  *
- * Sous 900 px dans le shell connecté : la flèche de la barre du haut remplace
- * le retour (`useAppBarBack`), et l'en-tête de parcours monte dans la barre
- * (titre + `meta`, `useAppBarTitle`) — miroir du `ScreenHeader` Flutter.
+ * Sous 900 px dans le shell connecté : le titre de parcours monte dans la barre
+ * (titre + `meta`, `useAppBarTitle`) — miroir du `ScreenHeader` Flutter. 🛑 La
+ * barre garde le BURGER (propriétaire, 2026-09-24) : la flèche de retour reste
+ * dans la page.
  */
 export function SkillShell({
   backHref,
@@ -98,17 +99,15 @@ export function SkillShell({
   wide?: boolean;
   children: ReactNode;
 }) {
-  const backInBar = useAppBarBack({fallbackHref: backHref});
   const titleInBar = useAppBarTitle(title ? {title, subtitle: meta ?? eyebrow} : null);
-  const hideBack = backInBar ? " in-bar-back" : "";
   return (
     <main className={`${s.wrap} ${wide ? s.wrapWide : ""}`}>
       {title ? (
-        <header className={`${s.pageHead}${titleInBar ? " in-bar-title" : ""}`}>
-          <Link href={backHref} className={`${s.backDot}${hideBack}`} aria-label={backLabel}>
+        <header className={s.pageHead}>
+          <Link href={backHref} className={s.backDot} aria-label={backLabel}>
             <ArrowLeft size={18} aria-hidden />
           </Link>
-          <div className={s.pageHeadBody}>
+          <div className={`${s.pageHeadBody}${titleInBar ? " in-bar-title" : ""}`}>
             {eyebrow && <p className={s.pageEyebrow}>{eyebrow}</p>}
             <h1 className={s.pageTitle}>{title}</h1>
             {meta && <p className={s.pageMeta}>{meta}</p>}
@@ -121,7 +120,7 @@ export function SkillShell({
           )}
         </header>
       ) : (
-        <Link href={backHref} className={`${s.back}${hideBack}`}>
+        <Link href={backHref} className={s.back}>
           <ArrowLeft size={16} aria-hidden />
           {backLabel}
         </Link>
