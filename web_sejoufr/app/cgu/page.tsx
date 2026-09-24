@@ -231,7 +231,7 @@ export default function CguPage() {
                         </li>
                         <li>
                             Les explications pédagogiques pour chaque question, ainsi que les
-                            fonctionnalités de révision (favoris et questions échouées).
+                            favoris.
                         </li>
                     </ul>
                     <p>

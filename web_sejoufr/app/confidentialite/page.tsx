@@ -198,8 +198,7 @@ export default function ConfidentialitePage() {
               d&apos;entraînement et d&apos;examens blancs (module, thématiques abordées,
               réponses données, score, durée), progression par thématique pour
               chaque module (civique et TCF), historique des tentatives,
-              questions marquées en favori et questions échouées consultées en
-              révision ;
+              questions marquées en favori ;
             </li>
             <li>
               <strong>Données d&apos;acquisition et de parcours</strong> : lors de la
@@ -251,7 +250,7 @@ export default function ConfidentialitePage() {
           rows={[
             ["Création et gestion de votre compte", "Exécution du contrat (art. 6.1.b)"],
             [
-              "Fourniture des services d'entraînement (modules civique et TCF) : sessions, examens blancs, favoris, révision des erreurs",
+              "Fourniture des services d'entraînement (modules civique et TCF) : sessions, examens blancs, favoris",
               "Exécution du contrat (art. 6.1.b)",
             ],
             [

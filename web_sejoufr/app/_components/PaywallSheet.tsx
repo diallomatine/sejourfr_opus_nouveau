@@ -36,7 +36,7 @@ export function PaywallSheet({
   open,
   onClose,
   title = "Continuez en illimité",
-  message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, l'entraînement illimité, et la révision des erreurs.",
+  message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, et l'entraînement illimité.",
   module = "CIVIQUE",
   ctaLocation = "OTHER",
   screen,
@@ -117,7 +117,7 @@ export function PaywallSheet({
             <span className="pws-check">✓</span> Examens blancs en conditions
           </div>
           <div className="pws-feature">
-            <span className="pws-check">✓</span> Révision des erreurs et favoris
+            <span className="pws-check">✓</span> Favoris pour retrouver vos questions
           </div>
         </div>
 

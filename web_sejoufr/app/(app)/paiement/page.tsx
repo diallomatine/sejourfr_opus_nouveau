@@ -60,7 +60,7 @@ const PRESENTATION: Record<
             {label: "Banque complète civique", strong: true},
             {label: "Examens blancs civiques illimités"},
             {label: "Entraînement par thème"},
-            {label: "Révision des erreurs et favoris"},
+            {label: "Favoris pour retrouver vos questions"},
             {label: "Statistiques par thématique"},
         ],
         excluded: [

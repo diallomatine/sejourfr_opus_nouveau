@@ -86,7 +86,7 @@ export function GuestGateSheet({
             Expression écrite et orale évaluées par l&apos;IA
           </div>
           <div className="ggs-feature">
-            <span className="ggs-check">✓</span> Révision de vos erreurs
+            <span className="ggs-check">✓</span> Favoris pour retrouver vos questions
           </div>
         </div>
 

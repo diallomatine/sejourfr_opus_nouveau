@@ -809,7 +809,7 @@ class _FeatureList extends StatelessWidget {
             'Banque complète civique',
             'Examens blancs civiques illimités',
             'Entraînement par thème',
-            'Révision des erreurs et favoris',
+            'Favoris pour retrouver vos questions',
           ]
         : const [
             'Tout le Civique inclus',

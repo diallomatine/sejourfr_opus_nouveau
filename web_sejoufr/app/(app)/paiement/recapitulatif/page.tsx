@@ -62,7 +62,7 @@ const SCOPE: Record<PassModule, { tag: string; pitch: string; features: string[]
     features: [
       "Banque complète civique (CSP / CR / NAT)",
       "Examens blancs civiques illimités",
-      "Entraînement par thème et révision des erreurs",
+      "Entraînement par thème",
       "Statistiques par thématique",
     ],
   },

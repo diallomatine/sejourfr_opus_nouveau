@@ -192,8 +192,8 @@ function SuccesInner() {
                             ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
                             : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
                                 user.hasTcf
-                                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités, révision des erreurs"
-                                    : "tout le contenu civique : la banque complète, examens blancs illimités, révision des erreurs"
+                                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités"
+                                    : "tout le contenu civique : la banque complète, examens blancs illimités"
                             }.`}
                 </p>
 

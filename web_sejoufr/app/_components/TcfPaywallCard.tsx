@@ -26,7 +26,7 @@ export function TcfPaywallCard({ compact = false }: { compact?: boolean }) {
         <li>Compréhension orale (audios authentiques)</li>
         <li>Compréhension écrite et structures de la langue</li>
         <li>Examen blanc complet, 35 questions chronométrées</li>
-        <li>Statistiques par niveau et révision des erreurs</li>
+        <li>Statistiques par niveau</li>
       </ul>
       <div className="tpc-actions">
         <Link

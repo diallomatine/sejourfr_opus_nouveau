@@ -441,8 +441,8 @@ function ExamBriefingInner({
                   <div className="brf-paywall-title">Cet examen est réservé aux abonnés</div>
                   <div className="brf-paywall-body">
                     {isTcf
-                      ? "L'abonnement Intégral débloque tous les examens TCF + Civique illimité + révision des erreurs."
-                      : "L'abonnement débloque tous les examens civiques + l'entraînement illimité + la révision des erreurs."}
+                      ? "L'abonnement Intégral débloque tous les examens TCF + Civique illimité."
+                      : "L'abonnement débloque tous les examens civiques + l'entraînement illimité."}
                   </div>
                 </div>
                 <button
@@ -488,8 +488,8 @@ function ExamBriefingInner({
         }
         message={
           isTcf
-            ? "1 examen TCF offert pour découvrir. L'abonnement Intégral débloque le reste + tout le civique + la révision."
-            : "1 examen civique offert. L'abonnement débloque CSP, CR, Naturalisation, l'entraînement illimité et la révision."
+            ? "1 examen TCF offert pour découvrir. L'abonnement Intégral débloque le reste + tout le civique."
+            : "1 examen civique offert. L'abonnement débloque CSP, CR, Naturalisation et l'entraînement illimité."
         }
         module={isTcf ? "INTEGRAL" : "CIVIQUE"}
       />
