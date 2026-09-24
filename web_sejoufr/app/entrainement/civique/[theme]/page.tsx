@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Lightbulb, Target } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import {
   attemptApi,
   lotApi,
@@ -38,6 +38,7 @@ import {
 } from "@/lib/serie-filtre";
 import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
 import detail from "@/app/_components/hub/detail.module.css";
+import { ExamsActionBar } from "@/app/_components/hub/ExamsActionBar";
 
 /**
  * Séries d'entraînement d'un thème civique — maquette sejour_fr.html :
@@ -177,12 +178,6 @@ export default function CiviqueThemeSeriesPage() {
         eyebrow={theme?.name ?? "Thème civique"}
         title="Séries d'entraînement"
         subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
-        action={
-          <Link href={civicThemeExamsHref(slug)} className={detail.headBtn}>
-            <Target size={17} strokeWidth={1.7} aria-hidden />
-            Examens blancs
-          </Link>
-        }
       >
         {error && <div className={detail.error}>{error}</div>}
         {loading ? (
@@ -246,6 +241,7 @@ export default function CiviqueThemeSeriesPage() {
           onClose={() => setGuestGateOpen(false)}
           message="La série 1 est offerte pour découvrir ce thème. Créez un compte gratuit pour continuer les séries et suivre votre progression."
         />
+        <ExamsActionBar href={civicThemeExamsHref(slug)} />
       </DetailShell>
     </DualChromeShell>
   );

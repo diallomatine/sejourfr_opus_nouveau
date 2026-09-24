@@ -11,9 +11,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/tcf_epreuves.dart';
-import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/fixed_action_bar.dart';
+import '../../core/widgets/exams_action_bar.dart';
 import '../../core/widgets/screen_header.dart';
 import '../plan/widgets/plan_epreuve_reco.dart';
 import 'widgets/qcm_hub/qcm_notice_banner.dart';
@@ -262,13 +261,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: FixedActionBar(
-                      child: AppButton(
-                        label: 'Examens blancs',
-                        icon: LucideIcons.target,
-                        onPressed: _openExamsPage,
-                      ),
-                    ),
+                    child: ExamsActionBar(onPressed: _openExamsPage),
                   ),
                 ],
               ),

@@ -18,9 +18,8 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
-import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/fixed_action_bar.dart';
+import '../../core/widgets/exams_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
 import 'civique_exam_briefing_sheet.dart';
@@ -327,13 +326,7 @@ class _CiviqueThemeDetailScreenState
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: FixedActionBar(
-                  child: AppButton(
-                    label: 'Examens blancs',
-                    icon: LucideIcons.target,
-                    onPressed: () => _openExamsPage(theme),
-                  ),
-                ),
+                child: ExamsActionBar(onPressed: () => _openExamsPage(theme)),
               ),
               if (_starting)
                 const Positioned.fill(

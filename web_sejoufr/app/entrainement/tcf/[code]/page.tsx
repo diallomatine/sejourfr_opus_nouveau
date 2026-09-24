@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
+import { BookOpen, Headphones, SpellCheck } from "lucide-react";
 import { lotApi, publicLotApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -19,6 +19,7 @@ import {
   LevelChoiceCard,
 } from "@/app/_components/hub/DetailParts";
 import detail from "@/app/_components/hub/detail.module.css";
+import { ExamsActionBar } from "@/app/_components/hub/ExamsActionBar";
 import { PlanEpreuveReco } from "@/app/_components/plan/PlanEpreuveReco";
 
 /** Épreuves TCF QCM exposées sur le web (les productions EO/EE ont leur parcours). */
@@ -167,12 +168,6 @@ export default function TcfQcmDetailPage() {
         title="Choisissez votre niveau"
         notice={code === "structure" ? <ComplementaryNotice /> : undefined}
         subtitle="Les questions sont organisées par niveau du Cadre européen (CECRL). Commencez par le niveau qui vous correspond, puis montez progressivement."
-        action={
-          <Link href={`/entrainement/tcf/${code}/examens`} className={detail.headBtn}>
-            <Target size={17} strokeWidth={1.7} aria-hidden />
-            Examens blancs
-          </Link>
-        }
       >
         {config.bloc && (
           <PlanEpreuveReco
@@ -206,6 +201,7 @@ export default function TcfQcmDetailPage() {
           })}
         </div>
 
+        <ExamsActionBar href={`/entrainement/tcf/${code}/examens`} />
       </DetailShell>
     </DualChromeShell>
   );

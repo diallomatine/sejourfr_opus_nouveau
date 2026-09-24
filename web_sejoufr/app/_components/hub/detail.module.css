@@ -936,3 +936,9 @@
   color: var(--color-ink-2);
   margin: 0;
 }
+
+/* Coquille portant la barre « Examens blancs » collée (`ExamsActionBar`) : la
+   barre fournit elle-même la marge basse (zone sûre comprise). */
+.wrap:has(> [data-exams-bar]) {
+  padding-bottom: 0;
+}

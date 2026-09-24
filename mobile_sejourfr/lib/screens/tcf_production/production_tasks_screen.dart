@@ -7,8 +7,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/fixed_action_bar.dart';
+import '../../core/widgets/exams_action_bar.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/screen_header.dart';
 import '../plan/learning_plan_provider.dart';
@@ -122,13 +121,8 @@ class ProductionTasksScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            FixedActionBar(
-              child: AppButton(
-                label: 'Examens blancs',
-                icon: LucideIcons.target,
-                height: 52,
-                onPressed: () => context.push(productionExamsPath(module)),
-              ),
+            ExamsActionBar(
+              onPressed: () => context.push(productionExamsPath(module)),
             ),
           ],
         ),

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {ClipboardCheck, Mic, PenLine} from "lucide-react";
+import {Mic, PenLine} from "lucide-react";
 import {learningPlanApi, productionApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -23,6 +23,7 @@ import {
   PlanEpreuveReco,
   usePlanEpreuveCarte,
 } from "@/app/_components/plan/PlanEpreuveReco";
+import {ExamsActionBar} from "@/app/_components/hub/ExamsActionBar";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {
   RowChevron,
@@ -40,7 +41,7 @@ import {PRODUCTION_TACHES, tacheLabel, useParcoursLevel} from "./parcours";
  *
  * Trois blocs : l'en-tête (« TCF IRN » / « Expression écrite » / « Votre
  * progression vers l'objectif B2 »), la carte **recommandée par le cycle**,
- * puis **« Les 3 tâches »**. Les **examens blancs** restent en pied (demande
+ * puis **« Les 3 tâches »**. Les **examens blancs** sont une barre collée en bas (demande
  * explicite du propriétaire) : ils portent sur l'épreuve entière, pas sur une
  * tâche, et leur route ne change pas d'un octet.
  *
@@ -156,16 +157,7 @@ export function ProductionTasks({config}: {config: ProductionConfig}) {
 
         {/* 🛑 Les examens blancs restent EN BAS (demande du propriétaire) :
             ils portent sur l'épreuve entière, jamais sur une tâche. */}
-        <Link href={`${config.base}/examens`} className={s.examsAccess}>
-          <span className={s.examsAccessIcon} aria-hidden>
-            <ClipboardCheck size={20} />
-          </span>
-          <span className={s.examsAccessBody}>
-            <strong>Examens blancs</strong>
-            <span>3 tâches · {config.examTiming.short}</span>
-          </span>
-          <RowChevron />
-        </Link>
+        <ExamsActionBar href={`${config.base}/examens`} />
       </SkillShell>
     </DualChromeShell>
   );

@@ -4096,65 +4096,6 @@
   flex: none;
 }
 
-/* ------------------------------------------- accès aux examens blancs */
-
-/* Les examens blancs ne sont plus un onglet de la tâche : ils portent sur
-   l'épreuve entière, donc ils s'atteignent depuis sa liste de tâches. La route
-   et l'écran, eux, ne changent pas. */
-.examsAccess {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 22px;
-  background: white;
-  color: inherit;
-  text-decoration: none;
-  box-shadow: var(--skill-shadow);
-  transition: border-color 0.15s ease;
-}
-
-.examsAccess:hover {
-  border-color: var(--skill-accent);
-}
-
-.examsAccess:focus-visible {
-  outline: 2px solid var(--skill-accent);
-  outline-offset: 2px;
-}
-
-.examsAccessIcon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: none;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
-  color: var(--skill-accent);
-}
-
-.examsAccessBody {
-  flex: 1;
-  min-width: 0;
-}
-
-.examsAccessBody strong {
-  display: block;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-ink);
-}
-
-.examsAccessBody span {
-  display: block;
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: var(--color-muted);
-}
-
 /* --------------------------------------------- détail d'une tâche : consigne */
 
 /* ------------------------------------------------------ à partir de 768 px */
@@ -4211,10 +4152,6 @@
   .taskBriefText {
     font-size: 15px;
   }
-
-  .examsAccess {
-    padding: 16px 22px;
-  }
 }
 
 @media (max-width: 379px) {
@@ -4231,8 +4168,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .taskRow,
-  .examsAccess {
+  .taskRow {
     transition: none;
   }
 
@@ -4556,4 +4492,10 @@
   height: 100%;
   border-radius: 999px;
   background: var(--color-blue);
+}
+
+/* Coquille portant la barre « Examens blancs » collée (`ExamsActionBar`) : la
+   barre fournit elle-même la marge basse (zone sûre comprise). */
+.wrap:has(> [data-exams-bar]) {
+  padding-bottom: 0;
 }
