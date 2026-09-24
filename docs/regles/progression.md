@@ -1385,7 +1385,7 @@ l'**égalité** entre 1 et 6 examens par `ProgressionSansNPlusUnIT`.
 - « Voir → » se choisit par `rapport.kind` : `QCM` → rapport d'attempt (web
   `/sessions/[id]` ⇄ mobile `/exam-report/:attemptId`) ; `PRODUCTION` → bilan
   de production (web `/entrainement/tcf/{ee|eo}/session/[id]` ⇄ mobile
-  `/tcf/{ee|eo}/sessions/:attemptId`) ; `EXAMEN_COMPLET` → bilan de l'examen
+  `/tcf/expression-{ecrite|orale}/sessions/:attemptId`) ; `EXAMEN_COMPLET` → bilan de l'examen
   complet avec `rapport.attemptId` = le **parent** (web
   `/examens-blancs/tcf/[id]/bilan` ⇄ mobile `/tcf/examen-blanc/:parentId/bilan`).
 - Score `null` ⇒ « — » ; `ecart` `null` ⇒ aucun marqueur ; `dureeSecondes`
