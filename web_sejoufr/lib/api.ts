@@ -60,6 +60,7 @@ import type {
   TargetProcedure,
   ThemeUserResponse,
   CivicThemeExamSlots,
+  ExamSlots,
   TokenResponse,
   UserStatsResponse,
     JourneyDto,
@@ -2169,6 +2170,20 @@ export const publicThemeApi = {
         return apiFetch<CivicThemeExamSlots>(
             `/api/public/themes/${themeId}/exam-slots`,
             {auth: false},
+        );
+    },
+};
+
+/**
+ * La grille SERVIE des examens blancs d'une épreuve (`locked` par créneau) :
+ * compte (`/api/exam-slots`) ou visiteur (`/api/public/exam-slots`). 🛑 Le
+ * serveur décide du verrou, le 403 du démarrage lit la même règle.
+ */
+export const examSlotsApi = {
+    get(epreuve: EpreuveType, auth: boolean): Promise<ExamSlots> {
+        return apiFetch<ExamSlots>(
+            `${auth ? "/api" : "/api/public"}/exam-slots?epreuve=${epreuve}`,
+            {auth},
         );
     },
 };

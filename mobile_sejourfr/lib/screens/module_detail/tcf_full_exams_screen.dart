@@ -18,6 +18,7 @@ import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../tcf_production/widgets/exam_info_chips.dart';
 import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
+import 'exam_slots_data.dart';
 import 'tcf_full_exam_briefing_sheet.dart';
 import 'widgets/exam_done_sheet.dart';
 
@@ -89,17 +90,20 @@ class TcfFullExamsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(fullExamsHistoryProvider);
-    final isPremium = ref.watch(accesModuleProvider(AppModule.tcf));
+    // 🛑 Le verrou de chaque slot est SERVI ([examSlotsProvider]) et opposable
+    // (403) : l'écran le lit, il ne le déduit jamais du rang. `watch` : la
+    // source se relit après un achat.
+    final grille = ref.watch(examSlotsProvider(EpreuveType.tcfComplet)).valueOrNull;
+    bool isLocked(int slot) => grille?.isLocked(slot) ?? true;
 
     Future<void> startNew(int slot) async {
       // Relu au moment du geste : l'accès a pu s'ouvrir depuis le dernier
       // rendu (paywall fermé juste avant).
       final isPremium = ref.read(accesModuleProvider(AppModule.tcf));
       ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-      // Compte gratuit : examen 1 offert (EE/EO évaluées une fois) ; les examens
-      // 2+ restent premium. L'examen 1 reste rejouable (EE/EO verrouillées au
-      // refaire, géré côté backend).
-      if (!isPremium && slot > 1) {
+      // Slot verrouillé (servi) → l'offre. Le slot offert reste rejouable
+      // (EE/EO verrouillées au refaire, géré côté backend).
+      if (isLocked(slot)) {
         showPaywallSheet(
           context,
           ref: ref,
@@ -176,7 +180,7 @@ class TcfFullExamsView extends ConsumerWidget {
             ),
             data: (history) => _SlotsSection(
               history: history,
-              isPremium: isPremium,
+              isLocked: isLocked,
               onTapDone: (exam) => _openExam(context, exam, startNew),
               onTapEmpty: startNew,
             ),
@@ -353,15 +357,14 @@ class _ResultStats extends StatelessWidget {
 class _SlotsSection extends StatefulWidget {
   const _SlotsSection({
     required this.history,
-    required this.isPremium,
+    required this.isLocked,
     required this.onTapDone,
     required this.onTapEmpty,
   });
 
   final List<FullTcfExamSummary> history;
-  /// Abonné TCF : tous les slots ouverts. Gratuit : seul le slot 1 est jouable
-  /// (examen offert), les slots 2+ affichent un cadenas → paywall.
-  final bool isPremium;
+  /// Le verrou SERVI d'un slot (cadenas → paywall), jamais déduit du rang.
+  final bool Function(int slot) isLocked;
   final void Function(FullTcfExamSummary) onTapDone;
   final void Function(int slot) onTapEmpty;
 
@@ -404,7 +407,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
           _ExamSlotCard(
             slot: i + 1,
             exam: bySlot[i + 1],
-            locked: !widget.isPremium && i + 1 > 1,
+            locked: widget.isLocked(i + 1),
             onTapDone: widget.onTapDone,
             onTapEmpty: () => widget.onTapEmpty(i + 1),
           ),
@@ -446,7 +449,7 @@ class _ExamSlotCard extends StatelessWidget {
 
   final int slot;
   final FullTcfExamSummary? exam;
-  /// Slot réservé à l'abonnement (compte gratuit, slot > 1) : cadenas + paywall.
+  /// Slot verrouillé (servi par le backend) : cadenas + paywall.
   final bool locked;
   final void Function(FullTcfExamSummary) onTapDone;
   final VoidCallback onTapEmpty;

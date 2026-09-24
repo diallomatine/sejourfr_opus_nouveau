@@ -479,7 +479,7 @@ class ProductionAccessServiceTest {
                 .thenReturn(true);
 
         assertThatThrownBy(() ->
-                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EO))
+                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EO, 1))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("jamais conservé");
     }
@@ -495,8 +495,30 @@ class ProductionAccessServiceTest {
                 .thenReturn(true);
 
         assertThatCode(() ->
-                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EE))
+                service.assertCanStartProductionExam(userId, EpreuveType.TCF_EE, 1))
                 .doesNotThrowAnyException();
+    }
+
+    /**
+     * 🛑 La grille servie et le démarrage lisent la même règle
+     * ({@code isProductionExamSlotLocked}) : créneau 1 offert (fermé à l'oral une
+     * fois la gratuité consommée), 2+ aux abonnés TCF, tout ouvert à l'abonné.
+     */
+    @Test
+    void creneauDeLaGrilleDeProduction_compteGratuitEtAbonne() {
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(freeExamEntitlementService.estConsomme(userId, EpreuveType.TCF_EO)).thenReturn(true);
+
+        assertThat(service.isProductionExamSlotLocked(userId, EpreuveType.TCF_EE, 1)).isFalse();
+        assertThat(service.isProductionExamSlotLocked(userId, EpreuveType.TCF_EE, 2)).isTrue();
+        assertThat(service.isProductionExamSlotLocked(userId, EpreuveType.TCF_EO, 1)).isTrue();
+        assertThatThrownBy(() -> service.assertCanStartProductionExam(userId, EpreuveType.TCF_EE, 2))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("au-delà du premier");
+
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        assertThat(service.isProductionExamSlotLocked(userId, EpreuveType.TCF_EO, 1)).isFalse();
+        assertThat(service.isProductionExamSlotLocked(userId, EpreuveType.TCF_EE, 10)).isFalse();
     }
 
     private DiagnosticSession diagnosticSession(

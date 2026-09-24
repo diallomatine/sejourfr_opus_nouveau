@@ -333,18 +333,43 @@ public class ProductionAccessService {
      * ici, <b>au demarrage</b>, plutot que de faire produire un candidat dans le
      * vide. A l'ecrit, le texte reste sous ses yeux : le rejeu y est honnete.
      *
-     * <p>Appele par {@code AttemptService.startProductionAttempt}. Partage sa
-     * condition avec {@link #isProductionExamLocked}, sa jumelle en lecture.
+     * <p>Appele par {@code AttemptService.startProductionAttempt}. Lit
+     * {@link #isProductionExamSlotLocked}, que la grille servie lit aussi.
      */
-    public void assertCanStartProductionExam(UUID userId, EpreuveType epreuve) {
-        if (epreuve != EpreuveType.TCF_EO) return;
-        if (isProductionExamLocked(userId, epreuve)) {
+    public void assertCanStartProductionExam(UUID userId, EpreuveType epreuve, int slot) {
+        if (!isProductionExamSlotLocked(userId, epreuve, slot)) return;
+        if (slot > 1) {
             throw new AccessDeniedException(
-                    "Votre examen blanc d'expression orale offert a déjà été corrigé en entier. "
-                            + "Sans accès TCF, un nouvel enregistrement ne pourrait pas être "
-                            + "analysé — et il n'est jamais conservé. "
-                            + "L'accès TCF rouvre l'épreuve et sa correction.");
+                    "Les examens blancs d'expression au-delà du premier sont réservés aux abonnés TCF.");
         }
+        throw new AccessDeniedException(
+                "Votre examen blanc d'expression orale offert a déjà été corrigé en entier. "
+                        + "Sans accès TCF, un nouvel enregistrement ne pourrait pas être "
+                        + "analysé — et il n'est jamais conservé. "
+                        + "L'accès TCF rouvre l'épreuve et sa correction.");
+    }
+
+    /**
+     * <b>Le créneau d'une grille d'examens blancs de production</b> (EE / EO)
+     * peut-il être DÉMARRÉ par ce candidat ? Autorité unique du démarrage
+     * ({@link #assertCanStartProductionExam}, 403) et du {@code locked} servi
+     * créneau par créneau ({@code ExamSlotsService}) — arbitrage du 2026-09-24,
+     * « c'est le serveur qui décide du verrouillage ».
+     *
+     * <ul>
+     *   <li>abonné TCF : tout est ouvert ;</li>
+     *   <li>créneau 2+ : réservé aux abonnés TCF ;</li>
+     *   <li>créneau 1 : l'examen offert (D-17). Rejouable à l'écrit (c'est
+     *       l'<b>analyse</b> du rejeu qui est premium, {@link #enforceQuota}) ;
+     *       fermé à l'oral dès que la gratuité EO est consommée (D-17 bis).</li>
+     * </ul>
+     */
+    @Transactional(readOnly = true)
+    public boolean isProductionExamSlotLocked(UUID userId, EpreuveType epreuve, int slot) {
+        if (FreeEntitlementCode.pourExamenBlanc(epreuve) == null) return false;
+        if (subscriptionService.hasTcf(userId)) return false;
+        if (slot > 1) return true;
+        return epreuve == EpreuveType.TCF_EO && freeExamEntitlementService.estConsomme(userId, epreuve);
     }
 
     /**

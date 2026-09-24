@@ -11,6 +11,7 @@ import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../module_detail/exam_slots_data.dart';
 import '../module_detail/production_exam_briefing_sheet.dart';
 import 'expression_hub_data.dart';
 import 'production_catalog.dart';
@@ -99,9 +100,6 @@ final _sessionsBySlotProvider =
   return bySlot;
 });
 
-/// Nombre de slots ouverts en mode gratuit ; au-delà → paywall TCF.
-const int _freeSlots = 2;
-
 /// Nombre de slots affichés par défaut (les autres masqués derrière « Voir »).
 const int _visibleByDefault = 7;
 
@@ -182,12 +180,13 @@ class _ProductionExamsTabViewState
     widget.onBusy(value);
   }
 
-  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
-  /// écran, qui reste monté — un `read` laisserait les slots cadenassés après
-  /// un achat.
-  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.tcf));
-
-  bool _isLocked(int slot) => !_isPremium() && slot > _freeSlots;
+  /// 🛑 **Le verrou est SERVI** créneau par créneau ([examSlotsProvider],
+  /// `ProductionAccessService.isProductionExamSlotLocked` côté serveur, la
+  /// règle que le démarrage oppose en 403) : l'examen offert (D-17) au slot 1,
+  /// les suivants aux abonnés TCF. Jamais déduit du rang. Lu en `watch` : le
+  /// paywall est poussé AU-DESSUS de cet écran, qui reste monté.
+  bool _isLocked(int slot) =>
+      isExamSlotLocked(ref, widget.module.epreuve, slot);
 
   void _onSlotTap({required int slot, required ExamSession? exam}) {
     if (exam != null) {
@@ -218,7 +217,7 @@ class _ProductionExamsTabViewState
   }
 
   void _openBriefing(int slot) {
-    if (!_isPremium()) {
+    if (_isLocked(slot)) {
       showPaywallSheet(
         context,
         ref: ref,
@@ -318,7 +317,10 @@ class _ProductionExamsTabViewState
     // dérivé localement par tâche.
     final niveauEstime = ref.watch(_niveauEstimeProvider(widget.module.epreuve));
 
-    final lockedTodo = _isPremium() ? 0 : (kProductionExamSlots - _freeSlots);
+    var lockedTodo = 0;
+    for (int n = 1; n <= kProductionExamSlots; n++) {
+      if (!bySlot.containsKey(n) && _isLocked(n)) lockedTodo++;
+    }
     final todoCount = kProductionExamSlots - doneCount - lockedTodo;
 
     return [

@@ -26,13 +26,13 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ThemeManager;
-import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.EpreuvesProductionQualifiantesResolver;
 import com.sejourfr.app.service.FullTcfExamResponseBuilder;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.TcfLevelEstimatorService;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticThemeResolver;
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,7 +73,7 @@ import java.util.UUID;
  * ({@link FullTcfExamResponseBuilder}, D19), l'état civique
  * ({@link CivicDiagnosticThemeResolver}), le niveau actuel de l'Accueil
  * ({@link TcfProfileService#levelProfileAccueil}), les verrous
- * ({@link ProductionAccessService}, {@link AttemptService}). Le seul code à
+ * ({@link ProductionAccessService}, {@link ExamenBlancAccessService}). Le seul code à
  * règle neuf — meilleur, premier, écart, ordinal, durée fiable — vit dans
  * {@link ResumeExamensResolver}.
  *
@@ -113,7 +113,7 @@ public class ProgressionExamensService {
     private final FullTcfExamResponseBuilder fullExamBuilder;
     private final TcfProfileService tcfProfileService;
     private final ProductionAccessService productionAccessService;
-    private final AttemptService attemptService;
+    private final ExamenBlancAccessService examenBlancAccess;
     private final CivicDiagnosticThemeResolver civicThemeResolver;
     private final ResumeExamensResolver resumeResolver;
     private final ProgressionEchelleResolver echelleResolver;
@@ -299,7 +299,7 @@ public class ProgressionExamensService {
 
     /**
      * CO / CE : jamais — le créneau 1 est offert et rejouable à volonté
-     * ({@code AttemptService.enforceMockExamSlotAccess}). EE / EO : la jumelle
+     * ({@code ExamenBlancAccessService.isExamenBlancVerrouille}). EE / EO : la jumelle
      * en lecture du verrou d'examen de production.
      */
     private boolean ctaEpreuveVerrouille(UUID userId, EpreuveType epreuve) {
@@ -346,7 +346,8 @@ public class ProgressionExamensService {
                 resumeResolver.resumer(mesuresGlobales),
                 cartes,
                 examensGlobaux(affichees, themes),
-                new ProgressionCtaDto(attemptService.isGrilleCiviqueGlobaleVerrouillee(userId)));
+                new ProgressionCtaDto(examenBlancAccess.isGrilleGabaritVerrouillee(
+                        userId, Module.CIVIQUE, 1)));
     }
 
     /** {@code GET /api/me/progression/civique/themes/{themeId}}. */
@@ -373,7 +374,7 @@ public class ProgressionExamensService {
                 // (2026-09-24, révoque D-33 sur ce point) : la grille ouverte par
                 // ce bouton offre toujours au moins lui — comme CO / CE. Lu chez
                 // l'autorité du verrou, jamais recalculé.
-                new ProgressionCtaDto(attemptService.isExamenDeThemeVerrouille(userId, 1)));
+                new ProgressionCtaDto(examenBlancAccess.isExamenBlancVerrouille(userId, Module.CIVIQUE, 1)));
     }
 
     private ProgressionEchelleDto echelleTheme() {

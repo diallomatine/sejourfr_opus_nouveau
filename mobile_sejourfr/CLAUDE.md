@@ -3800,7 +3800,8 @@ abandonner » et **revient en partie** sur le correctif de la veille (`markSubDo
 **Freemium (parité web/backend)** : l'examen complet n'est plus 100 % premium.
 `TcfFullExamsView` ouvre le **slot 1 aux comptes gratuits** (examen offert,
 EE/EO évaluées une fois) ; les slots 2-20 affichent un cadenas → `showPaywallSheet`
-(`_ExamSlotCard.locked = !isPremium && slot > 1`). Le briefing
+(`_ExamSlotCard.locked` = le verrou **servi** du slot, `examSlotsProvider(tcfComplet)` — cf.
+§ « Les grilles d'examens blancs lisent un verrou SERVI »). Le briefing
 (`TcfFullExamBriefingSheet isFreeAccount`) rappelle que l'EE/EO n'est offerte
 qu'une fois. Au refaire de l'examen 1, le backend renvoie les sous-attempts EE/EO
 avec `FullTcfExamSubAttempt.locked=true` (pré-terminés) : le progress screen et
@@ -4460,4 +4461,31 @@ achat ne fait pas. Le signal « l'accès a changé » existe désormais, jumeau 
   « Ajouter aux favoris ») et `status` (chargement / erreur de la correction). Un favori ne
   marque pas l'ancien choix (`userSelectedChoiceIdsOverride: const []`). Miroir web :
   `FavoriDetailSheet`.
+
+
+## Les grilles d'examens blancs lisent un verrou SERVI (2026-09-24)
+
+> Arbitrage du propriétaire : « c'est le serveur qui décide du verrouillage — aligne ». Règle et
+> autorités : `docs/regles/freemium.md` § « Le serveur décide du verrou des grilles d'examens
+> blancs ». Miroir web posé dans la même passe (`ExamsGrid slotLocks`, `useExamSlotLocks`).
+
+- **Modèle** : `ExamSlots` (`core/models/exam_slots.dart`, ex-`civic_theme_exam_slots.dart` —
+  `CivicThemeExamSlots` est **renommée**, les deux DTO servent la même liste `slots:[{slot, locked}]`).
+  `isLocked(slot)` : un créneau absent est **verrouillé**.
+- **Source** : `AttemptsRepository.examSlots(EpreuveType)` → `GET /api/exam-slots?epreuve=…`,
+  exposée par **`examSlotsProvider`** (`screens/module_detail/exam_slots_data.dart`), qui observe
+  `accesRevisionProvider` (un achat relit les cadenas). Lecture d'un `build` :
+  `isExamSlotLocked(ref, epreuve, slot)` — `watch`, jamais `read`.
+- **Écrans** : `TcfQcmExamsScreen` (`module.epreuve`), `TcfFullExamsView` (`tcfComplet`),
+  `CiviqueFullExamsView` (`civique`), `ProductionExamsTabView` (`module.epreuve`). Les examens de
+  thème civique gardent `civiqueThemeExamSlotsProvider`.
+- **Supprimés** : `!isPremium && slot > 1` (trois écrans), `_freeSlots = 2` et le paywall posé sur
+  **tout** examen de production d'un compte gratuit (l'examen offert D-17 y était inatteignable), et
+  la règle civique globale « un examen fini ⇒ paywall » (reste de la gratuité « une fois à vie »).
+- ⚠️ **Civique global** : l'écran lance l'examen **sans** gabarit ; pour un compte sans accès
+  Civique, le serveur joue le gabarit gratuit `civique-decouverte` au slot 1 — exactement ce que le
+  web lance. Avant, ce slot rendait un 403 au mobile seul.
+- ⚠️ **Restent déduits d'un rang, hors examens blancs** : les séries (`lot.numero > 1`,
+  `tcf_level_lots_screen`, `civique_theme_detail_screen`) et les sujets de production
+  (`production_subjects_view`) — aucun `locked` n'est servi pour eux.
 

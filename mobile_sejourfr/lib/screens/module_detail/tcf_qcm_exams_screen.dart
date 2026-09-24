@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
@@ -18,6 +17,7 @@ import '../tcf_production/widgets/exam_slot/exam_slot_card.dart';
 import '../tcf_production/widgets/exams_error_view.dart';
 import '../tcf_production/widgets/flag_badge.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
+import 'exam_slots_data.dart';
 import 'qcm_hub_data.dart';
 import 'tcf_module_exam_briefing_screen.dart';
 import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
@@ -29,8 +29,8 @@ const int _visibleByDefault = 7;
 
 /// Page « Examens blancs » des modules TCF QCM (CO, CE, Structure). Header +
 /// 3 stats (Terminés / Score moyen / Meilleur score) + barre de progression +
-/// chips filtre + 10 slots numérotés. Slot 1 = examen de découverte gratuit,
-/// slots 2-10 = premium.
+/// chips filtre + 10 slots numérotés. Le verrou de chaque slot est SERVI
+/// (`GET /api/exam-slots`) — miroir web : `/entrainement/tcf/[code]/examens`.
 class TcfQcmExamsScreen extends ConsumerStatefulWidget {
   const TcfQcmExamsScreen({super.key, required this.module});
 
@@ -44,16 +44,14 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   int _filter = 0;
   bool _showAll = false;
 
-  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
-  /// écran, qui reste monté — un `read` laisserait les slots 2-10 cadenassés
-  /// après un achat.
-  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.tcf));
-
-  bool _isLocked(int slot) => !_isPremium() && slot > 1;
+  /// 🛑 **Le verrou est SERVI** créneau par créneau ([examSlotsProvider]) et
+  /// opposable (403) : l'écran le lit, il ne le déduit jamais du rang. Lu en
+  /// `watch` (le paywall est poussé AU-DESSUS de cet écran, qui reste monté),
+  /// et la source se relit après un achat.
+  bool _isLocked(int slot) =>
+      isExamSlotLocked(ref, widget.module.epreuve, slot);
 
   void _openBriefing({required int slotNumber}) {
-    // Slot 1 = examen offert, rejouable à volonté pour tout compte inscrit ;
-    // seuls les slots 2+ déclenchent le paywall (cf. backend startModuleExam).
     if (_isLocked(slotNumber)) {
       showPaywallSheet(
         context,
@@ -269,9 +267,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   }
 
   int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
-    if (_isPremium()) return 0;
-    // Slots 2..10 verrouillés pour les non-premium ; un slot rempli n'est
-    // jamais compté comme « à faire verrouillé ».
+    // Un slot rempli n'est jamais compté comme « à faire verrouillé ».
     var locked = 0;
     for (int i = 1; i <= _examSlotsCount; i++) {
       if (!bySlot.containsKey(i) && _isLocked(i)) locked++;

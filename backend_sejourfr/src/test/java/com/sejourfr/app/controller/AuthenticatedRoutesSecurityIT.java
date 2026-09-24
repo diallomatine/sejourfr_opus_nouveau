@@ -123,6 +123,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 // ThemeUserController
                 Arguments.of(HttpMethod.GET, "/api/themes"),
                 Arguments.of(HttpMethod.GET, "/api/themes/" + RANDOM_ID + "/exam-slots"),
+                // ExamSlotsController
+                Arguments.of(HttpMethod.GET, "/api/exam-slots?epreuve=TCF_CO"),
                 // LotController (authentifié, pas dans /api/public)
                 Arguments.of(HttpMethod.GET, "/api/lots"),
                 // BillingController — endpoints authentifiés (hors /plans + /webhook publics)

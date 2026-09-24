@@ -83,7 +83,9 @@ class FullTcfExamServiceFreemiumTest {
         service = new FullTcfExamService(
                 attemptManager, userManager, attemptService,
                 mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
-                productionAccessService, responseBuilder, journeyProductionBridge);
+                productionAccessService, responseBuilder, journeyProductionBridge,
+                new com.sejourfr.app.service.examenblanc.ExamenBlancAccessService(
+                        subscriptionService, mock(com.sejourfr.app.manager.ExamTemplateManager.class)));
 
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         // Compte gratuit (pas d'abonnement TCF).
@@ -245,9 +247,27 @@ class FullTcfExamServiceFreemiumTest {
     @Test
     void slotAuxBornes_accepte() {
         gratuitesIntactes();
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
 
         assertThat(service.start(userId, 1)).isNotNull();
         assertThat(service.start(userId, FullTcfExamService.EXAM_SLOTS)).isNotNull();
+    }
+
+    /**
+     * 🛑 <b>Le serveur décide du verrou de la grille</b> (2026-09-24) : le
+     * créneau 1 est offert et rejouable à un compte gratuit, les suivants sont
+     * réservés aux abonnés TCF — 403, et la grille servie lit la même règle.
+     */
+    @Test
+    void compteGratuit_creneau1Rejouable_creneau2Refuse() {
+        gratuitesIntactes();
+
+        assertThat(service.start(userId, 1)).isNotNull();
+        assertThat(service.start(userId, 1)).isNotNull();
+        assertThatThrownBy(() -> service.start(userId, 2))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        assertThatThrownBy(() -> service.start(userId, FullTcfExamService.EXAM_SLOTS))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
 
     /** Sans slot demandé, on retombe sur le slot 1 (et pas sur NULL en base). */

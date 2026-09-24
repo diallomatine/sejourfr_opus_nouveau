@@ -37,6 +37,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.service.attempt.AttemptCompositionService;
 import com.sejourfr.app.service.examencivique.CivicExamCompositionService;
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import com.sejourfr.app.service.attempt.AttemptInteractionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -111,6 +112,7 @@ public class AttemptService {
     private final CivicExamCompositionService civicExamComposition;
     private final AttemptInteractionService interactionService;
     private final ProductionAccessService productionAccessService;
+    private final ExamenBlancAccessService examenBlancAccess;
     private final SkillManager skillManager;
     private final SkillAccessService skillAccessService;
     private final AttemptMapper mapper;
@@ -182,15 +184,23 @@ public class AttemptService {
                 // 🛑 EXAMEN DE THÈME : le SLOT 1 de chaque thème est offert et
                 // rejouable, compte gratuit compris (arbitrage du propriétaire
                 // du 2026-09-24, qui révoque D-33 sur ce point). Autorité
-                // unique : `isExamenDeThemeVerrouille`, lue aussi par la grille.
+                // unique : `ExamenBlancAccessService.isExamenBlancVerrouille`,
+                // lue aussi par la grille servie.
                 enforceAccesExamenDeTheme(userId, req.slotNumber());
             } else if (req.module() == Module.CIVIQUE) {
-                // 🛑 LA BORNE DU SLOT RESTE, même si le slot n'ouvre plus rien :
-                // `slotNumber: 999` ou `-3` étaient persistés tels quels avant
-                // qu'elle existe. Le slot est un repère de grille (V110), pas
-                // un droit — et une valeur hors borne reste une valeur fausse.
-                validateMockExamSlot(req.slotNumber());
-                enforceAccesExamenCivique(userId, "");
+                // 🛑 EXAMEN CIVIQUE GLOBAL, SANS GABARIT (le chemin du mobile) :
+                // pour qui n'a pas l'accès Civique, c'est le gabarit GRATUIT
+                // (`civique-decouverte`, D-33) qui est joué — exactement ce que
+                // le web lance. Une seule règle pour la grille des deux fronts :
+                // `isGrilleGabaritVerrouillee`, lue aussi par la grille servie.
+                int slot = validateMockExamSlot(req.slotNumber());
+                if (!examenBlancAccess.aAcces(userId, Module.CIVIQUE)) {
+                    return examenBlancAccess.gabaritOffert(Module.CIVIQUE)
+                            .map(offert -> startFromTemplate(user, offert, slot))
+                            .orElseThrow(() -> new AccessDeniedException(
+                                    "Les examens blancs font partie de l'abonnement Civique. "
+                                            + "Votre plan, lui, reste entier."));
+                }
             } else {
                 enforceMockExamSlotAccess(userId, req.module(), req.slotNumber(), "");
             }
@@ -486,7 +496,8 @@ public class AttemptService {
 
         final boolean isExamSession = Boolean.TRUE.equals(req.exam());
         if (isExamSession) {
-            productionAccessService.assertCanStartProductionExam(userId, req.epreuve());
+            productionAccessService.assertCanStartProductionExam(
+                    userId, req.epreuve(), validateProductionExamSlot(req.slotNumber()));
         }
 
         Attempt attempt = new Attempt();
@@ -558,89 +569,31 @@ public class AttemptService {
      */
     private void enforceMockExamSlotAccess(UUID userId, Module module, Integer requestedSlot, String label) {
         int slot = validateMockExamSlot(requestedSlot);
-        if (slot <= 1) return;
-        final boolean hasAccess = switch (module) {
-            case CIVIQUE -> subscriptionService.hasCivique(userId);
-            case TCF -> subscriptionService.hasTcf(userId);
-        };
-        if (!hasAccess) {
-            throw new AccessDeniedException(
-                    "Les examens blancs " + label + "au-delà du premier sont réservés aux abonnés "
-                            + moduleLabel(module) + ".");
-        }
+        if (!examenBlancAccess.isExamenBlancVerrouille(userId, module, slot)) return;
+        throw new AccessDeniedException(
+                "Les examens blancs " + label + "au-delà du premier sont réservés aux abonnés "
+                        + moduleLabel(module) + ".");
     }
 
     /**
      * <b>Le verrou d'un examen blanc de THÈME civique</b> (20 questions).
      *
-     * <p>🛑 <b>Arbitrage du propriétaire du 2026-09-24</b>, qui révoque D-33 sur
-     * ce point : le <b>premier examen de chaque thème</b> est toujours offert,
-     * et rejouable à volonté — à un compte gratuit <b>comme à un visiteur</b>,
-     * exactement comme le slot 1 d'une épreuve CO / CE. Les slots 2+ restent
-     * réservés aux abonnés Civique, et à un compte : un visiteur n'a que le 1.
-     *
-     * <p>C'est l'<b>unique</b> autorité de la règle : le démarrage authentifié,
-     * la démo visiteur et le {@code locked} servi aux grilles la lisent.
+     * <p>🛑 <b>Arbitrage du propriétaire du 2026-09-24</b> (D-62), qui révoque
+     * D-33 sur ce point : le <b>premier examen de chaque thème</b> est toujours
+     * offert, et rejouable à volonté — à un compte gratuit <b>comme à un
+     * visiteur</b>, exactement comme le slot 1 d'une épreuve CO / CE. Autorité :
+     * {@code ExamenBlancAccessService.isExamenBlancVerrouille}, que la grille
+     * servie lit aussi.
      *
      * @param userId {@code null} pour un visiteur sans compte
-     * @param slot   le créneau de la grille, déjà borné (1..{@value #MOCK_EXAM_SLOTS})
      */
-    public boolean isExamenDeThemeVerrouille(UUID userId, int slot) {
-        if (slot <= 1) return false;
-        if (userId == null) return true;
-        return !subscriptionService.hasCivique(userId);
-    }
-
     private void enforceAccesExamenDeTheme(UUID userId, Integer requestedSlot) {
         int slot = validateMockExamSlot(requestedSlot);
-        if (!isExamenDeThemeVerrouille(userId, slot)) return;
+        if (!examenBlancAccess.isExamenBlancVerrouille(userId, Module.CIVIQUE, slot)) return;
         throw new AccessDeniedException(userId == null
                 ? "Seul le premier examen blanc du thème est offert sans compte. "
                         + "Créez un compte gratuit pour continuer."
                 : "Les examens blancs de thème au-delà du premier sont réservés aux abonnés Civique.");
-    }
-
-    /**
-     * <b>L'accès à un examen blanc civique GLOBAL</b> — hors template gratuit (D-33).
-     *
-     * <p>🛑 <b>Aucun slot, aucun ledger, aucune « première fois »</b> : un
-     * examen global hors {@code civique-decouverte} est <b>premium</b>, point.
-     * Les examens de <b>thème</b> ont leur propre verrou depuis le 2026-09-24
-     * ({@link #isExamenDeThemeVerrouille}). Le ledger « 1 examen offert à vie » a été abandonné
-     * — il transposait au QCM une règle écrite pour les productions IA, qui
-     * coûtent un appel LLM là où un QCM n'en coûte aucun.
-     *
-     * <p>⚠️ <b>Ce qui reste gratuit ne passe PAS par ici</b> : le diagnostic
-     * civique a son propre chemin, et {@code civique-decouverte} est servi par
-     * {@code startFromTemplate}, qui lit {@code template.isFree()} — son unique
-     * autorité, et une <b>promesse publique</b> (D-46).
-     */
-    private void enforceAccesExamenCivique(UUID userId, String label) {
-        if (!isExamenCiviqueVerrouille(userId)) return;
-        throw new AccessDeniedException(
-                "Les examens blancs " + label + "font partie de l'abonnement Civique. "
-                        + "Votre plan, lui, reste entier.");
-    }
-
-    /**
-     * <b>Jumelle en lecture</b> du verrou des examens civiques globaux hors
-     * gratuité ({@link #enforceAccesExamenCivique}) : les examens globaux qui
-     * ne sont pas un template gratuit sont premium (D-33).
-     */
-    public boolean isExamenCiviqueVerrouille(UUID userId) {
-        return !subscriptionService.hasCivique(userId);
-    }
-
-    /**
-     * La grille des examens civiques <b>globaux</b> n'offre-t-elle plus rien à
-     * ce candidat ? Faux dès qu'un template civique <b>gratuit</b> est publié
-     * ({@code civique-decouverte}, ouvert à tous par {@link #startFromTemplate}),
-     * sinon la même règle que {@link #isExamenCiviqueVerrouille}.
-     */
-    public boolean isGrilleCiviqueGlobaleVerrouillee(UUID userId) {
-        if (!isExamenCiviqueVerrouille(userId)) return false;
-        return examTemplateManager.findPublishedByModule(Module.CIVIQUE).stream()
-                .noneMatch(ExamTemplate::isFree);
     }
 
     private static String moduleLabel(Module module) {
@@ -712,7 +665,9 @@ public class AttemptService {
             if (req.examTemplateId() != null) {
                 template = examTemplateManager.findById(req.examTemplateId())
                         .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
-                if (!template.isPublished() || !template.isFree()) {
+                int slot = validateMockExamSlot(req.slotNumber());
+                if (!template.isPublished()
+                        || examenBlancAccess.isGabaritVerrouille(null, template, slot)) {
                     throw new AccessDeniedException("Examen blanc non disponible en démo");
                 }
                 size = template.getTotalQuestions();
@@ -849,7 +804,7 @@ public class AttemptService {
             throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
         }
         int slot = validateMockExamSlot(req.slotNumber());
-        if (slot != 1) {
+        if (examenBlancAccess.isExamenBlancVerrouille(null, Module.TCF, slot)) {
             throw new AccessDeniedException(
                     "Seul le premier examen blanc est offert sans compte. Créez un compte gratuit pour continuer.");
         }
@@ -925,18 +880,24 @@ public class AttemptService {
      * tirage libre dans le module (jamais de doublon intra-attempt).
      */
     private AttemptResponse startFromTemplate(User user, ExamTemplate template, Integer slotNumber) {
-        // Borne du slot (l'accès, lui, est porté par template.isFree()).
-        validateMockExamSlot(slotNumber);
+        int slot = validateMockExamSlot(slotNumber);
         if (!template.isPublished()) {
             throw new AccessDeniedException("Examen blanc non disponible");
         }
-        if (!template.isFree() && !subscriptionService.isPremium(user.getId())) {
-            throw new AccessDeniedException("Examen blanc réservé aux abonnés");
+        // 🛑 Autorité unique, lue aussi par la grille servie : un gabarit
+        // gratuit n'offre que son créneau 1 à qui n'a pas l'accès DU MODULE
+        // (jamais `isPremium`, un agrégat qui ouvrait le TCF à un pass civique).
+        if (examenBlancAccess.isGabaritVerrouille(user.getId(), template, slot)) {
+            throw new AccessDeniedException(template.isFree()
+                    ? "Les examens blancs au-delà du premier sont réservés aux abonnés "
+                            + moduleLabel(template.getModule()) + "."
+                    : "Examen blanc réservé aux abonnés");
         }
 
-        // Premium : tirage aleatoire (variete). Non-premium sur template free :
-        // tirage deterministe (regle demo "memes questions a chaque lancement").
-        boolean deterministic = template.isFree() && !subscriptionService.isPremium(user.getId());
+        // Abonné du module : tirage aleatoire (variete). Sinon, sur template
+        // free : tirage deterministe (regle demo "memes questions a chaque lancement").
+        boolean deterministic = template.isFree()
+                && !examenBlancAccess.aAcces(user.getId(), template.getModule());
         List<Question> picked = compositionService.pickQuestionsForTemplate(template, deterministic);
         if (picked.isEmpty()) {
             throw new IllegalStateException("Aucune question disponible pour cet examen blanc");

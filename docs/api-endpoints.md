@@ -22,6 +22,17 @@ automatique** dans le client HTTP de chaque front.
   `GET /api/public/themes/{themeId}/exam-slots` (seul le créneau 1 est ouvert). 404 si le thème
   n'est pas civique. Le slot 1 visiteur se joue par `POST /api/public/attempts/demo`
   (`type=MOCK_EXAM, module=CIVIQUE, themeId, slotNumber=1`), rate-limité par IP ; slot ≥ 2 → 403.
+- `GET /api/exam-slots?epreuve=TCF_CO|TCF_CE|TCF_STRUCTURE|TCF_EE|TCF_EO|TCF_COMPLET|CIVIQUE` →
+  `ExamSlotsDto` `{epreuve, slots:[{slot, locked}]}` — la grille **servie** des examens blancs d'une
+  épreuve (2026-09-24, « le serveur décide du verrouillage »). 20 créneaux (QCM, examen complet,
+  civique global), 10 en EE/EO. Chaque `locked` lit l'autorité que le démarrage oppose en **403** :
+  `ExamenBlancAccessService.isExamenBlancVerrouille` (CO/CE/STRUCTURE, examen complet — créneau 1
+  offert et rejouable, 2+ aux abonnés du module), `isGrilleGabaritVerrouillee` (civique global :
+  créneau 1 = le gabarit gratuit `civique-decouverte`), `ProductionAccessService.isProductionExamSlotLocked`
+  (EE/EO : créneau 1 = l'examen offert D-17, fermé à l'oral une fois la gratuité consommée ; 2+ aux
+  abonnés TCF). Variante visiteur : `GET /api/public/exam-slots?epreuve=…` (créneau 1 des épreuves
+  QCM et du civique global ; `TCF_COMPLET` = l'examen de compréhension offert `tcf-diagnostic` ;
+  EE/EO tout fermé).
 - `GET /api/lots?module=TCF&questionType=CO|CE&difficulty=A2|B1|B2`
 - `GET /api/lots?module=CIVIQUE&themeId=<uuid>`
   Cf. `lots-entrainement.md`.

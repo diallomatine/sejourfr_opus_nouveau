@@ -6,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
@@ -19,6 +18,7 @@ import '../../core/widgets/stat_value_card.dart';
 import '../tcf_production/widgets/exam_info_chips.dart';
 import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
 import '../module_detail/civique_exam_briefing_sheet.dart';
+import '../module_detail/exam_slots_data.dart';
 import '../module_detail/widgets/exam_done_sheet.dart';
 import '../tcf_production/widgets/exams_error_view.dart';
 import '../tcf_production/widgets/flag_badge.dart';
@@ -46,8 +46,8 @@ final civiqueGlobalExamsProvider =
 
 /// Page « Examens blancs » Civique GLOBAUX (`/civique/examens-blancs`).
 /// Pendant de `TcfFullExamsScreen` côté Civique : 20 slots de 40 Q tous
-/// thèmes, 45 min, seuil 32/40. Slot 1 = examen découverte gratuit,
-/// slots 2-20 = premium. Accent bleu (convention Civique = bleu).
+/// thèmes, 45 min, seuil 32/40. Verrou de chaque slot SERVI (slot 1 offert et
+/// rejouable, 2+ aux abonnés Civique). Accent bleu (convention Civique = bleu).
 /// `CiviqueFullExamsView` (le corps) est réutilisé par l'onglet Examens du
 /// shell, comme `TcfFullExamsView` côté TCF.
 class CiviqueFullExamsScreen extends StatelessWidget {
@@ -97,27 +97,17 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
   bool _showAll = false;
   bool _starting = false;
 
-  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
-  /// écran, qui reste monté — un `read` laisserait les slots cadenassés après
-  /// un achat.
-  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.civique));
-
-  bool _isLocked(int slot) => !_isPremium() && slot > 1;
+  /// 🛑 **Le verrou est SERVI** créneau par créneau ([examSlotsProvider],
+  /// grille `CIVIQUE`) et opposable (403) : l'écran le lit, il ne le déduit
+  /// jamais du rang ni de l'historique. Lu en `watch` (le paywall est poussé
+  /// AU-DESSUS de cet écran, qui reste monté), et la source se relit après un
+  /// achat. Le slot offert est rejouable : c'est le gabarit gratuit
+  /// `civique-decouverte`, que le serveur joue pour un compte sans accès.
+  bool _isLocked(int slot) =>
+      isExamSlotLocked(ref, EpreuveType.civique, slot);
 
   Future<void> _startExam({required int slotNumber}) async {
     if (_starting) return;
-    if (!_isPremium()) {
-      final history =
-          ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(
-          context,
-          ref: ref,
-          ctaLocation: AnalyticsCtaLocation.mockExam,
-        );
-        return;
-      }
-    }
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
     try {
@@ -141,17 +131,13 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
 
   void _openBriefing({required int slotNumber}) {
     if (_starting) return;
-    if (!_isPremium()) {
-      final history =
-          ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(
-          context,
-          ref: ref,
-          ctaLocation: AnalyticsCtaLocation.mockExam,
-        );
-        return;
-      }
+    if (_isLocked(slotNumber)) {
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
+      return;
     }
     showCiviqueExamBriefingSheet(
       context,

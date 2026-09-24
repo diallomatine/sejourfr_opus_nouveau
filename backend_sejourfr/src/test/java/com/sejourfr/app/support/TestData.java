@@ -493,12 +493,17 @@ public class TestData {
     // ------------------------------------------------------------------------
 
     public Plan plan() {
+        return plan(ModuleAccess.INTEGRAL);
+    }
+
+    /** Un plan qui n'ouvre que {@code access} (pass Civique seul, TCF seul, Intégral). */
+    public Plan plan(ModuleAccess access) {
         Plan p = new Plan();
         p.setCode("PLAN_" + next());
         p.setName("Plan de test");
         p.setBillingCycle(BillingCycle.MONTHLY);
         p.setPrice(new BigDecimal("9.99"));
-        p.setModuleAccess(ModuleAccess.INTEGRAL);
+        p.setModuleAccess(access);
         p.setDurationDays(30);
         p.setPurchaseType(PlanPurchaseType.SUBSCRIPTION);
         p.setActive(true);

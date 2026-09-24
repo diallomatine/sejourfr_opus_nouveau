@@ -91,7 +91,8 @@ class FullTcfExamServiceTest {
                 attemptManager, userManager, attemptService,
                 mock(com.sejourfr.app.service.attempt.AttemptInteractionService.class),
                 productionAccessService, responseBuilder,
-                mock(com.sejourfr.app.service.journey.JourneyProductionBridge.class));
+                mock(com.sejourfr.app.service.journey.JourneyProductionBridge.class),
+                mock(com.sejourfr.app.service.examenblanc.ExamenBlancAccessService.class));
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));

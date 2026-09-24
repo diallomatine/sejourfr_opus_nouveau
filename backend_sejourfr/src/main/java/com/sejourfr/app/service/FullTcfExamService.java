@@ -15,9 +15,11 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.attempt.AttemptInteractionService;
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,7 +67,7 @@ public class FullTcfExamService {
     private static final int HISTORY_LIMIT_MAX = 100;
 
     /** Nombre de slots de la grille d'examens blancs complets (cf. V110). */
-    static final int EXAM_SLOTS = 20;
+    public static final int EXAM_SLOTS = 20;
 
     private final AttemptManager attemptManager;
     private final UserManager userManager;
@@ -74,6 +76,7 @@ public class FullTcfExamService {
     private final ProductionAccessService productionAccessService;
     private final FullTcfExamResponseBuilder responseBuilder;
     private final JourneyProductionBridge journeyProductionBridge;
+    private final ExamenBlancAccessService examenBlancAccess;
 
     // ------------------------------------------------------------------------
     // Création
@@ -105,6 +108,13 @@ public class FullTcfExamService {
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
         int slot = validateSlot(slotNumber);
+        // 🛑 Créneau 1 offert et rejouable, 2+ réservés aux abonnés TCF. Autorité
+        // unique, lue aussi par la grille servie (`ExamSlotsService`) : les
+        // fronts ne déduisent plus ce verrou du rang (2026-09-24).
+        if (examenBlancAccess.isExamenBlancVerrouille(userId, Module.TCF, slot)) {
+            throw new AccessDeniedException(
+                    "Les examens blancs complets au-delà du premier sont réservés aux abonnés TCF.");
+        }
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 

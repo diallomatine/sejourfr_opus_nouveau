@@ -184,30 +184,46 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     // n'importe quel slot en illimité (le verrou n'existait que côté client).
     // ------------------------------------------------------------------------
 
+    /**
+     * 🛑 <b>Le serveur décide du verrou de la grille</b> (2026-09-24). La grille
+     * des examens civiques globaux offre son créneau 1 à un compte gratuit —
+     * c'est {@code civique-decouverte}, gratuit par D-33, et c'est ce que le web
+     * lance. Le mobile lance la même grille SANS gabarit : pour un compte sans
+     * accès Civique, le serveur joue alors le gabarit gratuit, au lieu du 403
+     * qui fermait au mobile ce que le web offrait.
+     */
     @Test
-    void civiqueFullMockExam_slot1_compteGratuit_refuse() {
-        // ⚠️ CE TEST A CHANGÉ DE SENS (P8.5, D-33), et c'est voulu. Il vérifiait
-        // « slot 1 offert » — une règle transposée des productions IA, qui
-        // coûtent un appel LLM là où un QCM n'en coûte aucun. La règle civique
-        // est désormais : le diagnostic et `civique-decouverte` sont gratuits,
-        // TOUT le reste est premium.
-        //
-        // 🛑 La promesse publique n'est pas touchée : `civique-decouverte`
-        // passe par `startFromTemplate`, qui lit `template.isFree()`.
+    void civiqueFullMockExam_slot1_compteGratuit_joueLeGabaritGratuit() {
         User user = data.user();
+        ExamTemplate decouverte = templateManager.findBySlug("civique-decouverte").orElseThrow();
 
-        assertThatThrownBy(() -> service.start(user.getId(),
-                mock(Module.CIVIQUE, null, null, null, 1)))
-                .isInstanceOf(AccessDeniedException.class);
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+        AttemptResponse rejoue = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+
+        assertThat(r.examTemplateId()).isEqualTo(decouverte.getId());
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(rejoue.examTemplateId()).isEqualTo(decouverte.getId());
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
     }
 
     @Test
-    void civiqueFullMockExam_sansSlot_compteGratuit_refuse() {
-        // Sans slot non plus : il n'y a plus de « première fois » civique.
+    void civiqueFullMockExam_sansSlot_compteGratuit_vautLeCreneau1() {
         User user = data.user();
 
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+    }
+
+    @Test
+    void civiqueFullMockExam_gabaritGratuitDepublie_compteGratuit_refuse() {
+        // Sans gabarit gratuit publié, la grille n'offre rien : l'examen global
+        // reste premium (D-33).
+        User user = data.user();
+        jdbc.update("UPDATE exam_templates SET is_published = false WHERE slug = 'civique-decouverte'");
+
         assertThatThrownBy(() -> service.start(user.getId(),
-                mock(Module.CIVIQUE, null, null, null, null)))
+                mock(Module.CIVIQUE, null, null, null, 1)))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -282,20 +298,6 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
                 mock(Module.CIVIQUE, themeOfficiel("CIV_PRINCIPES"), null, null, 2));
 
         assertThat(r.totalQuestions()).isEqualTo(20);
-    }
-
-    @Test
-    void isExamenDeThemeVerrouille_visiteur_gratuit_abonne() {
-        User gratuit = data.user();
-        User abonne = data.user();
-        makePremium(abonne);
-
-        assertThat(service.isExamenDeThemeVerrouille(null, 1)).isFalse();
-        assertThat(service.isExamenDeThemeVerrouille(null, 2)).isTrue();
-        assertThat(service.isExamenDeThemeVerrouille(gratuit.getId(), 1)).isFalse();
-        assertThat(service.isExamenDeThemeVerrouille(gratuit.getId(), 2)).isTrue();
-        assertThat(service.isExamenDeThemeVerrouille(abonne.getId(), 1)).isFalse();
-        assertThat(service.isExamenDeThemeVerrouille(abonne.getId(), 20)).isFalse();
     }
 
     @Test
@@ -457,6 +459,29 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
 
         assertThat(r.totalQuestions()).isEqualTo(20);
         assertThat(r.examTemplateId()).isEqualTo(t.getId());
+    }
+
+    @Test
+    void startFromTemplate_gratuit_compteGratuit_creneau2Refuse() {
+        // Un gabarit gratuit n'offre que son créneau 1 : la même règle que la
+        // grille servie (`ExamenBlancAccessService.isGabaritVerrouille`).
+        User user = data.user();
+        ExamTemplate t = data.examTemplate(); // TCF, free, published
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void startFromTemplate_payant_passCiviqueSeul_refuse() {
+        // 🛑 L'accès se lit PAR MODULE : un pass civique n'ouvre pas un gabarit
+        // TCF payant (l'agrégat `isPremium` l'ouvrait).
+        User user = data.user();
+        data.userSubscription(user, data.plan(com.sejourfr.app.enums.ModuleAccess.CIVIQUE));
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

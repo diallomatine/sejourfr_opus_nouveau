@@ -1,4 +1,4 @@
-import '../models/civic_theme_exam_slots.dart';
+import '../models/exam_slots.dart';
 import '../models/enums.dart';
 import '../models/question_models.dart';
 import 'api_client.dart';
@@ -40,10 +40,10 @@ class ThemesRepository {
 
   /// La grille **servie** des examens blancs d'un thème civique : un `locked`
   /// par créneau. Miroir de `themeApi.examSlots` côté web.
-  Future<CivicThemeExamSlots> examSlots(String themeId) async {
+  Future<ExamSlots> examSlots(String themeId) async {
     final res = await _client.dio.get<Map<String, dynamic>>(
       '/api/themes/$themeId/exam-slots',
     );
-    return CivicThemeExamSlots.fromJson(res.data!);
+    return ExamSlots.fromJson(res.data!);
   }
 }

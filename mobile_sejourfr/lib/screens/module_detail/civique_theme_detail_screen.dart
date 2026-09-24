@@ -8,7 +8,7 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
-import '../../core/models/civic_theme_exam_slots.dart';
+import '../../core/models/exam_slots.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/lot_models.dart';
 import '../../core/models/question_models.dart';
@@ -205,7 +205,7 @@ class _CiviqueThemeDetailScreenState
           final slot = attempt.slotNumber ?? 1;
           final grille = await ref
               .read(civiqueThemeExamSlotsProvider(theme.id).future)
-              .then<CivicThemeExamSlots?>((g) => g, onError: (_) => null);
+              .then<ExamSlots?>((g) => g, onError: (_) => null);
           if (!mounted) return;
           if (grille?.isLocked(slot) ?? true) {
             showPaywallSheet(context);

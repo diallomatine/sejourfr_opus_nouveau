@@ -1,6 +1,7 @@
 package com.sejourfr.app.service.examencivique;
 
 import com.sejourfr.app.dto.CivicThemeExamSlotsDto;
+import com.sejourfr.app.dto.ExamSlotsDto;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.Module;
@@ -39,8 +40,8 @@ class CivicThemeExamSlotsServiceIT extends AbstractIntegrationTest {
         CivicThemeExamSlotsDto dto = service.slots(null, principes());
 
         assertThat(dto.slots()).hasSize(20);
-        assertThat(dto.slots().getFirst()).isEqualTo(new CivicThemeExamSlotsDto.Slot(1, false));
-        assertThat(dto.slots().subList(1, 20)).allMatch(CivicThemeExamSlotsDto.Slot::locked);
+        assertThat(dto.slots().getFirst()).isEqualTo(new ExamSlotsDto.Slot(1, false));
+        assertThat(dto.slots().subList(1, 20)).allMatch(ExamSlotsDto.Slot::locked);
     }
 
     @Test
@@ -51,7 +52,7 @@ class CivicThemeExamSlotsServiceIT extends AbstractIntegrationTest {
         CivicThemeExamSlotsDto dto = service.slots(user.getId(), principes());
 
         assertThat(dto.slots().getFirst().locked()).isFalse();
-        assertThat(dto.slots().subList(1, 20)).allMatch(CivicThemeExamSlotsDto.Slot::locked);
+        assertThat(dto.slots().subList(1, 20)).allMatch(ExamSlotsDto.Slot::locked);
     }
 
     @Test
@@ -62,7 +63,7 @@ class CivicThemeExamSlotsServiceIT extends AbstractIntegrationTest {
 
         CivicThemeExamSlotsDto dto = service.slots(user.getId(), principes());
 
-        assertThat(dto.slots()).noneMatch(CivicThemeExamSlotsDto.Slot::locked);
+        assertThat(dto.slots()).noneMatch(ExamSlotsDto.Slot::locked);
     }
 
     @Test

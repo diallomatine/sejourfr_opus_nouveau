@@ -96,12 +96,11 @@
   hors `civique-decouverte` sont premium sans slot ; les examens de **thème**
   ont **slot 1 offert et rejouable** (compte gratuit **et visiteur**), slots 2+
   aux abonnés Civique. Autorité unique :
-  `AttemptService.isExamenDeThemeVerrouille`, **servie** créneau par créneau par
+  `ExamenBlancAccessService.isExamenBlancVerrouille`, **servie** créneau par créneau par
   `GET /api/themes/{id}/exam-slots` (et `/api/public/…` pour un visiteur) — les
-  fronts lisent ce `locked`, jamais le rang. Verrou unique côté backend :
-  `AttemptService.enforceMockExamSlotAccess`, basé sur le `slotNumber` (≠ EE/EO
-  qui ont un freebie consommable), miroir des 3 fronts (web `ExamsGrid
-  freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
+  fronts lisent ce `locked`, jamais le rang. 🛑 **Toutes les autres grilles
+  d'examens blancs sont servies de la même façon depuis le 2026-09-24** : cf.
+  § « Le serveur décide du verrou des grilles d'examens blancs », plus bas. Le `slotNumber` est validé
   **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
   fronts) et ne pilote pas la composition (questions tirées du même pool).
 - 🛑 **Compte gratuit, module Compétences TCF — TOUT EST PREMIUM depuis le
@@ -356,6 +355,45 @@ la création côté serveur, un achat en cours d'examen ne les rouvre pas.
 **au-dessus** d'eux, ils restent montés, et au retour ils rendaient la main avec leurs cadenas. Ils
 passent tous par `accesModuleProvider` en `ref.watch`. C'est le défaut le plus visible qu'un candidat
 pouvait rencontrer après avoir payé.
+
+## Le serveur décide du verrou des grilles d'examens blancs (2026-09-24)
+
+Arbitrage du propriétaire : *« c'est le serveur qui décide du verrouillage — aligne »*. Les règles
+**n'ont pas changé** ; c'est l'**autorité** qui a bougé. Chaque grille lit **une** règle serveur,
+et c'est **la même** fonction qui oppose le 403 au démarrage et qui sert le `locked` à la grille.
+
+| Grille | Autorité (403 **et** `locked` servi) | Règle |
+|---|---|---|
+| Examens d'épreuve TCF CO / CE / STRUCTURE | `ExamenBlancAccessService.isExamenBlancVerrouille` | créneau 1 offert et rejouable (compte gratuit **et** visiteur), 2+ aux abonnés TCF |
+| Examens de thème civique (D-62) | idem, module CIVIQUE | idem, abonnés Civique |
+| Examens blancs TCF complets | idem, module TCF (`FullTcfExamService.start`) | créneau 1 offert et rejouable, 2+ aux abonnés TCF — le serveur ne l'opposait **pas** avant, seul le front le posait |
+| Examens civiques globaux (40 Q) | `isGrilleGabaritVerrouillee` → `isGabaritVerrouille` | créneau 1 = le gabarit gratuit `civique-decouverte` (D-33), 2+ aux abonnés Civique |
+| Visiteur, grille TCF de `/examens-blancs` | `isGrilleGabaritVerrouillee(null, TCF, …)` | créneau 1 = le gabarit gratuit `tcf-diagnostic` (CO + CE) |
+| Examens de production EE / EO | `ProductionAccessService.isProductionExamSlotLocked` | créneau 1 = l'examen offert (D-17) — rejouable à l'écrit, fermé à l'oral une fois la gratuité consommée (D-17 bis) ; 2+ aux abonnés TCF. Le 2+ n'était **pas** opposé avant |
+
+- **Servi par** `GET /api/exam-slots?epreuve=…` (et `/api/public/exam-slots` pour un visiteur ; EE/EO
+  y sont tout fermés), `ExamSlotsDto` ; les thèmes civiques gardent `GET /api/themes/{id}/exam-slots`.
+  Construit par `ExamSlotsService`, qui ne décide rien : il lit les autorités ci-dessus.
+- **Les fronts ne lisent plus que le `locked`** : web `ExamsGrid slotLocks` (props `premium` /
+  `freeSlots` **supprimées**) via `useExamSlotLocks`, mobile `examSlotsProvider` / `isExamSlotLocked`.
+  Un créneau absent (grille pas encore arrivée) est **verrouillé**.
+- 🛑 **Un gabarit gratuit n'offre que son créneau 1** : `startFromTemplate` le vérifie désormais
+  (avant, `civique-decouverte` s'ouvrait à tous les créneaux côté serveur), et lit l'accès **du
+  module** du gabarit — `isPremium`, un agrégat, ouvrait un gabarit TCF payant à un pass civique.
+- ⚠️ **Parité mobile réparée, civique global** : le mobile lance cette grille **sans** gabarit ; un
+  compte gratuit y prenait un 403 sur le créneau 1 que le web lui offrait. Le serveur joue désormais
+  le gabarit gratuit pour un compte sans accès Civique. La règle « un examen fini ⇒ paywall » (reste
+  de la gratuité « une fois à vie ») y est retirée, comme sur les examens de thème.
+- ⚠️ **Parité mobile réparée, EE / EO** : le mobile verrouillait **deux** créneaux (`_freeSlots = 2`)
+  puis ouvrait le paywall sur **tout** examen d'un compte gratuit — l'examen offert (D-17) y était
+  inatteignable. Il lit désormais la grille servie.
+- Le jalon du Plan qui désigne un créneau (`PlanMilestoneSelector`) ajoute ce verrou de créneau à
+  son `locked` : il ne désigne plus, ouvert, un créneau que le démarrage refuserait.
+
+✅ **Dette close** : plus aucune grille d'examens blancs ne déduit son verrou du rang. ⚠️ **Restent
+déduites d'un rang, hors examens blancs** : les **séries** d'entraînement (`lot.numero > 1`, web
+`[level]` / `[theme]`, mobile `tcf_level_lots_screen` / `civique_theme_detail_screen` — aucun
+`locked` n'est servi sur un lot) et les **sujets de production** ci-dessous.
 
 ## ⚠️ Dette — le freemium des sujets de production se déduit d'un RANG
 

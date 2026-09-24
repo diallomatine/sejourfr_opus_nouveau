@@ -58,7 +58,8 @@ class PlanMilestoneSelectorTest {
     void setUp() {
         productionAccess = mock(ProductionAccessService.class);
         attemptManager = mock(AttemptManager.class);
-        selector = new PlanMilestoneSelector(properties, productionAccess, attemptManager);
+        selector = new PlanMilestoneSelector(properties, productionAccess, attemptManager,
+                mock(com.sejourfr.app.service.examenblanc.ExamenBlancAccessService.class));
         when(attemptManager.countProductionExamSessions(eq(userId), any(EpreuveType.class)))
                 .thenReturn(0L);
         when(attemptManager.findByUserAndEpreuve(eq(userId), eq(EpreuveType.TCF_COMPLET), anyInt()))

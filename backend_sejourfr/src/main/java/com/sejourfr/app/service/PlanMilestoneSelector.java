@@ -7,9 +7,11 @@ import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.DureeEpreuve;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSourceType;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.SkillMasteryState;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -105,6 +107,7 @@ public class PlanMilestoneSelector {
     private final LearningPlanProperties properties;
     private final ProductionAccessService productionAccessService;
     private final AttemptManager attemptManager;
+    private final ExamenBlancAccessService examenBlancAccess;
 
     /**
      * Le jalon a proposer a ce candidat, ou vide — <b>l'absence de jalon est le
@@ -235,9 +238,12 @@ public class PlanMilestoneSelector {
         // Le verrou est REPORTE, jamais applique a la designation : un jalon
         // verrouille reste designe avec son cadenas. La regle est lue chez
         // l'autorite que le serveur oppose au demarrage, jamais recopiee.
+        // Le créneau désigné a son propre verrou (le 2+ est réservé aux
+        // abonnés), lu chez l'autorité de la grille servie.
         return PlanRecommendedExerciseDto.epreuveMockExam(
                 epreuve, slot, minutes,
-                productionAccessService.isProductionExamLocked(userId, epreuve));
+                productionAccessService.isProductionExamLocked(userId, epreuve)
+                        || productionAccessService.isProductionExamSlotLocked(userId, epreuve, slot));
     }
 
     /**
@@ -252,10 +258,12 @@ public class PlanMilestoneSelector {
                 .map(Attempt::getStartedAt)
                 .anyMatch(startedAt -> startedAt != null && !startedAt.isBefore(proofStart));
         if (recent) return Optional.empty();
+        int slot = nextSlot(complets.size(), FullTcfExamService.EXAM_SLOTS);
         return Optional.of(PlanRecommendedExerciseDto.fullTcfMockExam(
-                nextSlot(complets.size(), FullTcfExamService.EXAM_SLOTS),
+                slot,
                 DureeEpreuve.secondesExamenComplet() / 60,
-                productionAccessService.isFullExamProductionLocked(userId)));
+                productionAccessService.isFullExamProductionLocked(userId)
+                        || examenBlancAccess.isExamenBlancVerrouille(userId, Module.TCF, slot)));
     }
 
     /**

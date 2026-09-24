@@ -13,9 +13,9 @@ class FullTcfExamRepository {
 
   /// Démarre un nouvel examen blanc complet. Accessible aux comptes gratuits
   /// (slot 1 offert, EE/EO évaluées une seule fois à vie) et illimité pour
-  /// les abonnés TCF — le backend n'exige plus `hasTcf` ici, le verrou porte
-  /// sur le slot (le mobile affiche le paywall avant l'appel pour slot > 1
-  /// non-premium, cf. `TcfFullExamsView.startNew`). [slotNumber] permet à la
+  /// les abonnés TCF — le verrou porte sur le slot, décidé par le backend
+  /// (403) et servi à la grille (`GET /api/exam-slots?epreuve=TCF_COMPLET`,
+  /// lu par `TcfFullExamsView`). [slotNumber] permet à la
   /// grille « 20 examens TCF complets » de stabiliser la numérotation
   /// (refaire le slot N met à jour le slot N au lieu de glisser les essais
   /// d'un cran). Cf. V110.

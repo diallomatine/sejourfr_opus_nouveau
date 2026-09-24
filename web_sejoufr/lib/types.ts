@@ -148,7 +148,27 @@ export interface ThemeUserResponse {
  */
 export interface CivicThemeExamSlots {
     themeId: string;
-    slots: { slot: number; locked: boolean }[];
+    slots: ExamSlot[];
+}
+
+/** Un créneau d'une grille d'examens blancs — miroir de `ExamSlotsDto.Slot`. */
+export interface ExamSlot {
+    slot: number;
+    /** `true` si ce candidat ne peut pas le lancer. SERVI, jamais déduit du rang. */
+    locked: boolean;
+}
+
+/**
+ * `GET /api/exam-slots?epreuve=…` (compte) · `GET /api/public/exam-slots?epreuve=…`
+ * (visiteur) — miroir de `ExamSlotsDto`. La grille d'examens blancs d'une épreuve :
+ * `TCF_CO` / `TCF_CE` / `TCF_STRUCTURE`, `TCF_EE` / `TCF_EO`, `TCF_COMPLET`
+ * (pour un visiteur : l'examen de compréhension offert), `CIVIQUE` (examens
+ * globaux). 🛑 Le serveur décide du verrou (2026-09-24) : les écrans lisent
+ * `locked`, ils ne le déduisent jamais du rang ni de l'accès du compte.
+ */
+export interface ExamSlots {
+    epreuve: EpreuveType;
+    slots: ExamSlot[];
 }
 
 // ============ MEDIA ============

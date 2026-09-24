@@ -70,6 +70,7 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
     @Test
     void startProduction_eeExamen_poseSlotEtChrono30min() {
         User user = data.user();
+        data.userSubscription(user, data.plan()); // créneau 2 : réservé aux abonnés TCF
 
         AttemptResponse r = service.startProductionAttempt(user.getId(), req(EpreuveType.TCF_EE, null, true, 2));
 
@@ -220,9 +221,28 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
         data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EE);
 
         AttemptResponse rejeu = service.startProductionAttempt(
-                user.getId(), req(EpreuveType.TCF_EE, null, true, 2));
+                user.getId(), req(EpreuveType.TCF_EE, null, true, 1));
 
         assertThat(rejeu.id()).isNotNull();
+    }
+
+    /**
+     * 🛑 <b>Le serveur décide du verrou de la grille</b> (2026-09-24) : les
+     * créneaux 2+ d'une grille d'examens de production sont réservés aux
+     * abonnés TCF — 403 au démarrage, et la grille servie lit la même règle
+     * ({@code ProductionAccessService.isProductionExamSlotLocked}).
+     */
+    @Test
+    void startProduction_examen_creneau2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EE, null, true, 2)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("au-delà du premier");
+        assertThatThrownBy(() -> service.startProductionAttempt(
+                user.getId(), req(EpreuveType.TCF_EO, null, true, 2)))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     /**
@@ -237,7 +257,7 @@ class AttemptServiceProductionIT extends AbstractIntegrationTest {
         data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EO);
 
         assertThatThrownBy(() -> service.startProductionAttempt(
-                user.getId(), req(EpreuveType.TCF_EO, null, true, 2)))
+                user.getId(), req(EpreuveType.TCF_EO, null, true, 1)))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("jamais conservé");
     }

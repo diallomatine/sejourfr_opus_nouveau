@@ -3,6 +3,7 @@ import 'package:sejourfr_mobile/core/models/attempt_summary.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 
 import '../models/attempt_models.dart';
+import '../models/exam_slots.dart';
 import 'api_client.dart';
 
 /// Endpoints utilisateur côté backend :
@@ -104,6 +105,17 @@ class AttemptsRepository {
       },
     );
     return (res.data ?? []).map((e) => AttemptSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// La grille **servie** des examens blancs d'une épreuve : un `locked` par
+  /// créneau (`GET /api/exam-slots?epreuve=…`). 🛑 Le serveur décide du verrou,
+  /// le 403 du démarrage lit la même règle. Miroir de `examSlotsApi` côté web.
+  Future<ExamSlots> examSlots(EpreuveType epreuve) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/exam-slots',
+      queryParameters: {'epreuve': epreuve.wire},
+    );
+    return ExamSlots.fromJson(res.data!);
   }
 
   /// Soumet une réponse. En mode entraînement, le backend renvoie immédiatement
