@@ -244,6 +244,16 @@ public class QuestionManager {
                 unitId, difficulty, excludeIds, PageRequest.of(0, size));
     }
 
+    /** Tirage deterministe (tri stable) d'une unite officielle : examen de theme sans compte. */
+    public List<Question> findOrderedByOfficialUnit(UUID unitId, int size) {
+        return repository.findOrderedByOfficialUnit(unitId, PageRequest.of(0, size));
+    }
+
+    /** Tirage deterministe (tri stable) des mises en situation d'une thematique. */
+    public List<Question> findOrderedMisesEnSituation(String themeCode, int size) {
+        return repository.findOrderedMisesEnSituation(themeCode, PageRequest.of(0, size));
+    }
+
     /** Les MISES EN SITUATION d'une thematique (P8.A) : elles n'ont pas de notion. */
     public List<Question> findRandomMisesEnSituationExcluding(
             String themeCode, Difficulty difficulty, Collection<UUID> excludeIds, int size) {

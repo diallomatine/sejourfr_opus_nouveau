@@ -330,6 +330,7 @@ export function ExamsGrid({
   exams,
   premium,
   freeSlots = 1,
+  slotLocks,
   starting,
   itemLabel = "Examen",
   lockedLabel,
@@ -344,6 +345,10 @@ export function ExamsGrid({
   exams: ReadonlyArray<ExamSlotData | null>;
   premium: boolean;
   freeSlots?: number;
+  /** Verrous SERVIS, créneau par créneau (case i = créneau i+1). Quand ils sont
+   *  fournis, ils priment sur `premium`/`freeSlots` — un créneau absent reste
+   *  verrouillé. */
+  slotLocks?: ReadonlyArray<boolean>;
   starting: boolean;
   itemLabel?: string;
   /** Texte des slots verrouillés — "Compte gratuit" en contexte guest. */
@@ -370,7 +375,9 @@ export function ExamsGrid({
         {Array.from({ length: visibleCount }, (_, i) => {
           const slot = i + 1;
           const exam = exams[i] ?? null;
-          const locked = !premium && slot > freeSlots;
+          const locked = slotLocks
+            ? (slotLocks[i] ?? true)
+            : !premium && slot > freeSlots;
           const passThresholdMet =
             exam && exam.passThreshold != null
               ? (exam.score ?? 0) >= exam.passThreshold

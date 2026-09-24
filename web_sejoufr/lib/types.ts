@@ -141,6 +141,16 @@ export interface ThemeUserResponse {
     questionCount?: number;
 }
 
+/**
+ * `GET /api/themes/{id}/exam-slots` (compte) · `GET /api/public/themes/{id}/exam-slots`
+ * (visiteur) — miroir de `CivicThemeExamSlotsDto`. 🛑 Le `locked` est SERVI
+ * (créneau 1 offert à tous depuis le 2026-09-24) : ne jamais le déduire du rang.
+ */
+export interface CivicThemeExamSlots {
+    themeId: string;
+    slots: { slot: number; locked: boolean }[];
+}
+
 // ============ MEDIA ============
 export interface MediaResponse {
     id: string;

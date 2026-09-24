@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
@@ -35,14 +34,14 @@ const int _examTotalQuestions = 20;
 /// Pendant de `TcfQcmExamsScreen` — header + drapeau + 3 stats + progress +
 /// chips filtre + 10 slots numérotés.
 ///
-/// 🛑 **TOUS les slots sont premium** (D-33, P8.5, 2026-09-20). Le slot 1 était
-/// « offert » : cette règle venait des productions IA, qui coûtent un appel LLM
-/// là où un QCM n'en coûte aucun. Ce qui reste gratuit côté civique est le
-/// **diagnostic** et l'examen **`civique-decouverte`** — une promesse publique,
-/// servie par son propre chemin (`template.isFree()`).
+/// 🛑 **Le slot 1 de chaque thème est offert et rejouable** (arbitrage du
+/// propriétaire du 2026-09-24, qui révoque D-33 sur ce point), comme l'examen 1
+/// d'une épreuve CO / CE ; les suivants sont réservés aux abonnés Civique.
 ///
-/// ⚠️ Sans ce changement, l'écran promettait un examen que le serveur refuse
-/// en 403 : le verrou est **opposable**, l'écran ne fait que le lire.
+/// Le verrou est **servi** créneau par créneau
+/// ([civiqueThemeExamSlotsProvider]) et opposable (403) : l'écran le lit, il ne
+/// le déduit jamais du rang. Miroir web :
+/// `app/entrainement/civique/[theme]/examens/page.tsx`.
 class CiviqueThemeExamsScreen extends ConsumerStatefulWidget {
   const CiviqueThemeExamsScreen({super.key, required this.themeId});
 
@@ -60,27 +59,18 @@ class _CiviqueThemeExamsScreenState
   bool _starting = false;
 
   /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
-  /// écran, qui reste monté. Un `read` ne réveille rien, et la grille rendait
-  /// la main avec ses cadenas alors que l'accès venait de s'ouvrir.
-  bool _isPremium() => ref.watch(accesModuleProvider(AppModule.civique));
-
-  bool _isLocked(int slot) => !_isPremium();
+  /// écran, qui reste monté — et la source observe `accesRevisionProvider`,
+  /// donc les cadenas se relisent après un achat. Tant que la grille servie
+  /// n'est pas arrivée, un créneau reste verrouillé.
+  bool _isLocked(int slot) =>
+      ref
+          .watch(civiqueThemeExamSlotsProvider(widget.themeId))
+          .valueOrNull
+          ?.isLocked(slot) ??
+      true;
 
   Future<void> _startExam(ThemeDto theme, {required int slotNumber}) async {
     if (_starting) return;
-    if (!_isPremium()) {
-      final history =
-          ref.read(civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ??
-              const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(
-          context,
-          ref: ref,
-          ctaLocation: AnalyticsCtaLocation.mockExam,
-        );
-        return;
-      }
-    }
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
     try {
@@ -105,18 +95,13 @@ class _CiviqueThemeExamsScreenState
 
   void _openBriefing(ThemeDto theme, {required int slotNumber}) {
     if (_starting) return;
-    if (!_isPremium()) {
-      final history =
-          ref.read(civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ??
-              const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(
-          context,
-          ref: ref,
-          ctaLocation: AnalyticsCtaLocation.mockExam,
-        );
-        return;
-      }
+    if (_isLocked(slotNumber)) {
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
+      return;
     }
     showCiviqueThemeExamBriefingSheet(
       context,
@@ -266,6 +251,7 @@ class _CiviqueThemeExamsScreenState
       color: AppColors.blue,
       onRefresh: () async {
         ref.invalidate(civiqueThemeExamsHistoryProvider(theme.id));
+        ref.invalidate(civiqueThemeExamSlotsProvider(theme.id));
         await ref.read(civiqueThemeExamsHistoryProvider(theme.id).future);
       },
       child: ListView(
@@ -354,7 +340,6 @@ class _CiviqueThemeExamsScreenState
   }
 
   int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
-    if (_isPremium()) return 0;
     var locked = 0;
     for (int i = 1; i <= _examSlotsCount; i++) {
       if (!bySlot.containsKey(i) && _isLocked(i)) locked++;

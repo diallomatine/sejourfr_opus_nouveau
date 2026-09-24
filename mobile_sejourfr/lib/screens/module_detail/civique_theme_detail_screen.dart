@@ -8,6 +8,7 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
+import '../../core/models/civic_theme_exam_slots.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/lot_models.dart';
 import '../../core/models/question_models.dart';
@@ -196,19 +197,19 @@ class _CiviqueThemeDetailScreenState
               AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
         },
         // « Reprendre » : relance le briefing de CE slot (puis nouvel examen),
-        // au lieu de renvoyer vers la grille. Refaire est premium (1er passage
-        // gratuit déjà consommé) — paywall pour les non-abonnés.
-        onResume: () {
+        // au lieu de renvoyer vers la grille. Le verrou est celui SERVI pour ce
+        // créneau (le slot 1 est offert et rejouable, 2026-09-24) — jamais
+        // déduit de l'historique.
+        onResume: () async {
           Navigator.of(sheetCtx).pop();
-          if (!_isPremium()) {
-            final history = ref
-                    .read(civiqueThemeExamsHistoryProvider(theme.id))
-                    .valueOrNull ??
-                const [];
-            if (history.any((a) => a.isFinished)) {
-              showPaywallSheet(context);
-              return;
-            }
+          final slot = attempt.slotNumber ?? 1;
+          final grille = await ref
+              .read(civiqueThemeExamSlotsProvider(theme.id).future)
+              .then<CivicThemeExamSlots?>((g) => g, onError: (_) => null);
+          if (!mounted) return;
+          if (grille?.isLocked(slot) ?? true) {
+            showPaywallSheet(context);
+            return;
           }
           showCiviqueThemeExamBriefingSheet(
             context,

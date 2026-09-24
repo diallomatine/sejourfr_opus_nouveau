@@ -238,6 +238,66 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    // ------------------------------------------------------------------------
+    // 🛑 Examen de THÈME : slot 1 offert et rejouable, slots 2+ aux abonnés
+    // Civique (arbitrage du propriétaire du 2026-09-24, révoque D-33 sur ce
+    // point). Même règle que le slot 1 d'une épreuve CO / CE.
+    // ------------------------------------------------------------------------
+
+    private UUID themeOfficiel(String code) {
+        return jdbc.queryForObject("SELECT id FROM themes WHERE code = ?", UUID.class, code);
+    }
+
+    @Test
+    void civiqueThemeExam_slot1_compteGratuit_autorise_etRejouable() {
+        User user = data.user();
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse premier = service.start(user.getId(), mock(Module.CIVIQUE, themeId, null, null, 1));
+        AttemptResponse rejoue = service.start(user.getId(), mock(Module.CIVIQUE, themeId, null, null, 1));
+
+        assertThat(premier.totalQuestions()).isEqualTo(20);
+        assertThat(rejoue.totalQuestions()).isEqualTo(20);
+        assertThat(attemptManager.findById(rejoue.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void civiqueThemeExam_slot1_chaqueTheme_compteGratuit_autorise() {
+        // « Par thème » : le slot 1 de CHAQUE thème, pas un examen de thème au total.
+        User user = data.user();
+
+        service.start(user.getId(), mock(Module.CIVIQUE, themeOfficiel("CIV_PRINCIPES"), null, null, 1));
+        AttemptResponse autre = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeOfficiel("CIV_HISTOIRE_GEO"), null, null, 1));
+
+        assertThat(autre.totalQuestions()).isEqualTo(20);
+    }
+
+    @Test
+    void civiqueThemeExam_slot2_abonne_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeOfficiel("CIV_PRINCIPES"), null, null, 2));
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+    }
+
+    @Test
+    void isExamenDeThemeVerrouille_visiteur_gratuit_abonne() {
+        User gratuit = data.user();
+        User abonne = data.user();
+        makePremium(abonne);
+
+        assertThat(service.isExamenDeThemeVerrouille(null, 1)).isFalse();
+        assertThat(service.isExamenDeThemeVerrouille(null, 2)).isTrue();
+        assertThat(service.isExamenDeThemeVerrouille(gratuit.getId(), 1)).isFalse();
+        assertThat(service.isExamenDeThemeVerrouille(gratuit.getId(), 2)).isTrue();
+        assertThat(service.isExamenDeThemeVerrouille(abonne.getId(), 1)).isFalse();
+        assertThat(service.isExamenDeThemeVerrouille(abonne.getId(), 20)).isFalse();
+    }
+
     @Test
     void civiqueThemeExam_slot2_compteGratuit_refuse() {
         User user = data.user();

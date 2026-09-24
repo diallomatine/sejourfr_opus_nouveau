@@ -179,12 +179,16 @@ productions IA. Le TCF, lui, laisse ses examens QCM CO/CE sous `enforceMockExamS
 |---|---|
 | Diagnostic civique | ✅ **Gratuit** |
 | `civique-decouverte` (40 Q, seuil 32) | ✅ **Gratuit**, comme aujourd'hui — promesse déjà publiée et affichée, elle est tenue. ⚠️ **À rendre conforme en P8.A** comme les autres examens. |
-| Examens de thème | ❌ **Premium** |
+| Examens de thème — **examen 1 de chaque thème** | ✅ **Gratuit et rejouable, visiteurs compris** (arbitrage du propriétaire du **2026-09-24**, révoque D-33 sur ce point — cf. `docs/decisions/plan-parcours-tcf.md` **D-62**) |
+| Examens de thème — examens 2 à 20 | ❌ **Premium** |
 | Autres examens blancs globaux | ❌ **Premium** |
 | Travailler une unité depuis le Plan | ❌ **Premium** |
 
 - 🛑 **Aucun code de gratuité civique n'est créé.** `chk_free_entitlement_code` n'est pas touché et
   `FreeExamEntitlementService` reste le service des deux gratuités **de production**.
+- ⚠️ **Mis à jour le 2026-09-24 (D-62)** : l'examen de thème retrouve un verrou **par créneau**,
+  porté par **une** autorité, `AttemptService.isExamenDeThemeVerrouille` (démarrage, démo visiteur,
+  grille servie `GET /api/themes/{id}/exam-slots`). Le chemin des examens **globaux** reste sans slot.
 - 🛑 **`enforceMockExamSlotAccess` est retiré du chemin civique** : il est remplacé par la règle
   ci-dessus. **Deux verrous sur le même bouton** sont exactement le patron qui a produit les 4
   implémentations ad hoc de « première fois gratuite » (**D-33**).

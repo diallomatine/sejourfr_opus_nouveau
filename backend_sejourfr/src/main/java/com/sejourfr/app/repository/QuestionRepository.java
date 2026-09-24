@@ -488,6 +488,34 @@ public interface QuestionRepository
             Pageable pageable
     );
 
+    /**
+     * Variante <b>deterministe</b> de {@link #findRandomByOfficialUnit} : tri
+     * stable {@code created_at, id}, comme les series. Sert l'examen de theme
+     * joue sans compte — rejouer redonne le meme examen (2026-09-24).
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
+              AND q.civicNotion.officialUnit.id = :unitId
+            ORDER BY q.createdAt ASC, q.id ASC
+            """)
+    List<Question> findOrderedByOfficialUnit(@Param("unitId") UUID unitId, Pageable pageable);
+
+    /** Variante deterministe de {@link #findRandomMisesEnSituation}. */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
+              AND q.theme.code = :themeCode
+            ORDER BY q.createdAt ASC, q.id ASC
+            """)
+    List<Question> findOrderedMisesEnSituation(@Param("themeCode") String themeCode, Pageable pageable);
+
     default List<Question> findRandomByOfficialUnitExcluding(
             UUID unitId, Difficulty difficulty,
             Collection<UUID> excludeIds, Pageable pageable

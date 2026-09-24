@@ -559,8 +559,10 @@ class ProgressionExamensServiceIT extends AbstractIntegrationTest {
             assertThat(dto.etatSource()).isEqualTo(ProgressionEtatSource.DERNIER_EXAMEN_THEME);
             assertThat(dto.etatSourceLabel()).isEqualTo(ProgressionEtatSource.DERNIER_EXAMEN_THEME.getLabel());
             assertThat(dto.echelle().seuil()).isEqualTo(16);
-            // Examens de thème premium (D-33) : cadenas sur le bouton seulement.
-            assertThat(dto.cta().locked()).isTrue();
+            // 🛑 2026-09-24 (révoque D-33 sur ce point) : le créneau 1 de chaque
+            // thème est offert et rejouable — la grille ouverte par ce bouton a
+            // toujours de quoi jouer, même pour un compte gratuit. Comme CO / CE.
+            assertThat(dto.cta().locked()).isFalse();
         }
 
         @Test

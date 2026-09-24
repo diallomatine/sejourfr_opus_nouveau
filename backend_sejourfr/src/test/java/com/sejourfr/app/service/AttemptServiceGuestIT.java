@@ -31,9 +31,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Démo guest (visiteur non authentifié) : tirages déterministes, verrous
- * d'accès (examens civiques de thème et séries 2+ réservés aux comptes ;
- * examen blanc d'épreuve TCF QCM ouvert au SLOT 1 seulement depuis le
- * 2026-08-16), et accès sécurisé par IP. DB réelle.
+ * d'accès (séries 2+ réservées aux comptes ; examen blanc d'épreuve TCF QCM
+ * ouvert au SLOT 1 seulement depuis le 2026-08-16, examen de thème civique
+ * de même depuis le 2026-09-24), et accès sécurisé par IP. DB réelle.
  */
 class AttemptServiceGuestIT extends AbstractIntegrationTest {
 
@@ -102,13 +102,72 @@ class AttemptServiceGuestIT extends AbstractIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    // ------------------------------------------------------------------------
+    // Examen blanc de THÈME civique sans compte — SLOT 1 SEULEMENT
+    // (arbitrage du propriétaire du 2026-09-24 : ces examens étaient refusés
+    // en bloc aux visiteurs ; le premier de chaque thème s'ouvre, comme CO / CE)
+    // ------------------------------------------------------------------------
+
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private UUID themeOfficiel(String code) {
+        return jdbc.queryForObject("SELECT id FROM themes WHERE code = ?", UUID.class, code);
+    }
+
+    private StartAttemptRequest themeExam(UUID themeId, Integer slot) {
+        return new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, themeId,
+                null, null, null, null, null, slot, null);
+    }
+
     @Test
-    void guestDemoMockExam_scopeTheme_refuse() {
+    void guestThemeExam_slot1_ok_userNull_formatDuTheme() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse r = service.startGuestDemo(themeExam(themeId, 1), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
+        assertThat(r.passThreshold()).isEqualTo(16);
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getUser()).isNull();
+        assertThat(persisted.getClientIp()).isEqualTo(IP);
+        assertThat(persisted.getLotThemeId()).isEqualTo(themeId);
+        assertThat(persisted.getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void guestThemeExam_slotAbsent_valeurParDefaut1() {
+        AttemptResponse r = service.startGuestDemo(themeExam(themeOfficiel("CIV_HISTOIRE_GEO"), null), IP);
+
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void guestThemeExam_slot2_refuse() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(themeId, 2), IP))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(themeId, 20), IP))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void guestThemeExam_tirageDeterministe_memeExamenARejouage() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse a = service.startGuestDemo(themeExam(themeId, 1), IP);
+        AttemptResponse b = service.startGuestDemo(themeExam(themeId, 1), IP);
+
+        assertThat(questionIds(a)).hasSize(20).isEqualTo(questionIds(b));
+    }
+
+    @Test
+    void guestThemeExam_themeHorsProgramme_refuse() {
         Theme theme = data.theme(Module.CIVIQUE, "guest-theme", "Guest thème");
 
-        assertThatThrownBy(() -> service.startGuestDemo(
-                req(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, theme.getId(), null, null, null, null), IP))
-                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(theme.getId(), 1), IP))
+                .isInstanceOf(BusinessException.class);
     }
 
     // ------------------------------------------------------------------------

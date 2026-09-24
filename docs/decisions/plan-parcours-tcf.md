@@ -3008,3 +3008,53 @@ que l'écran qui y mène. Un prix ne se change qu'en base.
 `ONE_TIME` / `CIVIQUE` / `is_active = true`, plus le produit **consommable** créé à
 l'identique dans App Store Connect et Play Console — sans lui, la carte ne s'affiche pas sur
 mobile (`loadProducts` ne le trouve pas). Aucune ligne de code à toucher.
+
+---
+
+## D-62 — L'examen de thème civique n°1 est offert à tous, visiteurs compris (2026-09-24)
+
+> Propriétaire, 2026-09-24 : pour les **examens blancs de thème** civique (20 questions), **le
+> premier examen est TOUJOURS gratuit ET accessible aussi aux non-connectés, exactement comme
+> CO/CE** — examen 1 offert et rejouable ; un visiteur peut le passer sans compte, résultat non
+> conservé pour lui, comme les démos CO/CE. **Les autres restent premium.** L'examen civique global
+> `civique-decouverte` reste gratuit comme aujourd'hui.
+
+#### 🛑 Révocation — D-33, sur ce seul point
+
+**Ligne révoquée, citée verbatim** (tableau de **D-33**) :
+
+> « | Examens de thème | **Premium** | »
+
+Tout le reste de D-33 **tient** : pas de ledger, `civique-decouverte` gratuit par `template.isFree()`,
+les autres examens **globaux** premium, le Plan civique premium (**D-18**), `FreeExamEntitlementService`
+et `chk_free_entitlement_code` intouchés.
+
+#### Interprétation appliquée : **par thème**
+
+« Le premier examen » se lit **créneau 1 de CHAQUE thème** — le miroir exact de CO/CE, où c'est le
+créneau 1 de **chaque épreuve** qui est offert. Le modèle ne laissait pas d'ambiguïté réelle : le
+créneau (`attempts.slot_number`, V110) est déjà porté par thème (`lot_theme_id`), et une lecture
+« un seul examen de thème au total » aurait exigé un **ledger** — exactement ce que D-33 a
+abandonné. Si l'arbitrage était « un seul au total », il faudrait une ligne de gratuité
+consommable, donc un **4ᵉ mécanisme** au sens de DETTE-F1.
+
+#### Ce qui est codé
+
+- **Une autorité** : `AttemptService.isExamenDeThemeVerrouille(userId | null, slot)` — créneau 1
+  jamais verrouillé ; créneau ≥ 2 verrouillé pour un visiteur, et pour un compte sans `hasCivique`.
+  Lue par le démarrage authentifié (**403**), par la démo visiteur
+  (`startGuestCivicThemeExam`, **403** au-delà du créneau 1), par la grille servie et par le
+  `cta.locked` de `GET /api/me/progression/civique/themes/{id}` (désormais toujours `false` : la
+  grille offre toujours son créneau 1, comme CO/CE).
+- **Visiteur** : `POST /api/public/attempts/demo` avec `themeId` — même montage que CO/CE (attempt
+  `user NULL` + `clientIp`, rate-limit `checkDemo` par IP), tirage **déterministe** (tri stable par
+  unité, mélange à graine fixe) : rejouer redonne le même examen, on n'ouvre pas la banque sans
+  compte. La composition reste celle de **D-47** (par unité officielle, aux proportions de l'annexe I).
+- **Verrou servi** : `GET /api/themes/{id}/exam-slots` et `GET /api/public/themes/{id}/exam-slots`
+  (`CivicThemeExamSlotsDto`, un `locked` par créneau). Les deux fronts le lisent ; le mobile a
+  retiré sa règle « un examen fini ⇒ paywall », qui était un reste de la gratuité « une fois à vie ».
+- **Mobile** : toujours **sans mode invité** (asymétrie assumée, `docs/regles/freemium.md`) — seul le
+  compte gratuit y gagne le créneau 1.
+
+⚠️ **Le signal de D-33 reste valable** : l'usage réel de ces gratuités QCM rejouables doit être
+**mesuré** avant d'en rouvrir le périmètre.

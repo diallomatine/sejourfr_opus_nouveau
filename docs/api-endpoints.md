@@ -16,6 +16,12 @@ automatique** dans le client HTTP de chaque front.
 ## Thèmes & lots
 
 - `GET /api/themes?module=CIVIQUE|TCF`
+- `GET /api/themes/{themeId}/exam-slots` → `CivicThemeExamSlotsDto` `{themeId, slots:[{slot, locked}]}`
+  (20 créneaux) — la grille **servie** des examens blancs d'un thème civique. Créneau 1 ouvert à
+  tous, 2+ aux abonnés Civique (2026-09-24). Variante visiteur :
+  `GET /api/public/themes/{themeId}/exam-slots` (seul le créneau 1 est ouvert). 404 si le thème
+  n'est pas civique. Le slot 1 visiteur se joue par `POST /api/public/attempts/demo`
+  (`type=MOCK_EXAM, module=CIVIQUE, themeId, slotNumber=1`), rate-limité par IP ; slot ≥ 2 → 403.
 - `GET /api/lots?module=TCF&questionType=CO|CE&difficulty=A2|B1|B2`
 - `GET /api/lots?module=CIVIQUE&themeId=<uuid>`
   Cf. `lots-entrainement.md`.

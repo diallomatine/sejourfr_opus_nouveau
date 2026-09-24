@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
+import '../../core/models/civic_theme_exam_slots.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 
@@ -27,4 +29,13 @@ final civiqueThemeExamsHistoryProvider =
         themeId: themeId,
         limit: 30,
       );
+});
+
+/// La grille **servie** des examens blancs d'un thème : un `locked` par
+/// créneau (le créneau 1 est offert à tout compte, 2026-09-24). Observe
+/// [accesRevisionProvider] : après un achat, les cadenas se relisent.
+final civiqueThemeExamSlotsProvider = FutureProvider.autoDispose
+    .family<CivicThemeExamSlots, String>((ref, themeId) {
+  ref.watch(accesRevisionProvider);
+  return ref.watch(themesRepositoryProvider).examSlots(themeId);
 });

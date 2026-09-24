@@ -226,6 +226,16 @@ public class CivicExamCompositionService {
      *                           on ne se degrade pas.
      */
     public List<Question> composerExamenDeTheme(String themeCode) {
+        return composerExamenDeTheme(themeCode, false);
+    }
+
+    /**
+     * @param deterministe {@code true} pour l'examen joue <b>sans compte</b> : tri
+     *                     stable et melange a graine fixe, donc rejouer redonne
+     *                     le meme examen (2026-09-24, comme le slot 1 CO / CE).
+     *                     La composition — unites, parts, levee — est la meme.
+     */
+    public List<Question> composerExamenDeTheme(String themeCode, boolean deterministe) {
         List<CivicOfficialUnit> unites = unitManager.findAllDansLOrdreDuProgramme().stream()
                 .filter(u -> u.getThemeCode().equals(themeCode))
                 .toList();
@@ -242,7 +252,9 @@ public class CivicExamCompositionService {
         for (CivicOfficialUnit unite : unites) {
             int part = parts.get(unite.getCode());
             if (part <= 0) continue;
-            List<Question> lot = tirerPourUneUnite(unite, exclues, part);
+            List<Question> lot = deterministe
+                    ? tirerDansLOrdre(unite, exclues, part)
+                    : tirerPourUneUnite(unite, exclues, part);
             if (lot.size() < part) {
                 throw new BusinessException(
                         "Examen de theme « " + themeCode + " » non composable : l'unite « "
@@ -257,8 +269,28 @@ public class CivicExamCompositionService {
         }
 
         List<Question> examen = new ArrayList<>(tirees);
-        Collections.shuffle(examen);
+        if (deterministe) {
+            Collections.shuffle(examen, new java.util.Random(themeCode.hashCode()));
+        } else {
+            Collections.shuffle(examen);
+        }
         return examen;
+    }
+
+    /**
+     * Le tirage <b>deterministe</b> d'une unite : memes deux chemins que
+     * {@link #tirerPourUneUnite}, en tri stable. L'exclusion se fait ici — on lit
+     * de quoi la couvrir, puis on ecarte les deja tirees.
+     */
+    private List<Question> tirerDansLOrdre(CivicOfficialUnit unite, List<UUID> exclues, int quota) {
+        int lecture = quota + exclues.size();
+        List<Question> ordonnees = unite.getQuestionType() == QuestionType.MISE_SITUATION
+                ? questionManager.findOrderedMisesEnSituation(unite.getThemeCode(), lecture)
+                : questionManager.findOrderedByOfficialUnit(unite.getId(), lecture);
+        return ordonnees.stream()
+                .filter(q -> !exclues.contains(q.getId()))
+                .limit(quota)
+                .toList();
     }
 
     /**

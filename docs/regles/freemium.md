@@ -22,9 +22,13 @@
   seul examen par épreuve, tirage **déterministe** (rejouer redonne le même : on
   n'ouvre pas la banque de questions sans compte). Slots 2-20 → inscription.
   ⚠️ Cette règle **révoque** la précédente (« pages `*/examens` = vitrines,
-  tout verrouillé ») **pour ce seul cas**. Restent fermés aux visiteurs, et le
-  backend le double d'un 403 : les examens de **thème civique** (`themeId`) et
-  **EE/EO**. Ne pas déverrouiller le reste « par symétrie ».
+  tout verrouillé ») **pour ce seul cas**. **Examen blanc de THÈME civique
+  (20 Q) : slot 1 de CHAQUE thème offert aux visiteurs** depuis le 2026-09-24
+  (**D-62**, `AttemptService.startGuestCivicThemeExam`), même montage que CO/CE
+  (attempt anonyme, `checkDemo` par IP, tirage déterministe, résultat non
+  conservé). Slots 2-20 → inscription. Restent fermés aux visiteurs, et le
+  backend le double d'un 403 : **EE/EO**. Ne pas déverrouiller le reste
+  « par symétrie ».
   ⚠️ **Le mobile n'a AUCUN mode invité** (le redirect global renvoie tout
   non-authentifié vers `/login`, allowlist limitée à l'aide, `/about` et le
   diagnostic) : il ne vérifie que l'**abonnement**. L'asymétrie web ouvert /
@@ -87,7 +91,14 @@
   `moduleExamQuestionType`), les examens civiques globaux (40 Q) et les examens
   de thème (20 Q) — ces deux derniers passent par la branche « legacy » de
   `AttemptService.start`, qui **ne contrôlait rien avant le 2026-08-03** (verrou
-  purement client). Verrou unique côté backend :
+  purement client).
+  ⚠️ **Civique, état actuel** (D-33 puis **D-62**) : les examens **globaux**
+  hors `civique-decouverte` sont premium sans slot ; les examens de **thème**
+  ont **slot 1 offert et rejouable** (compte gratuit **et visiteur**), slots 2+
+  aux abonnés Civique. Autorité unique :
+  `AttemptService.isExamenDeThemeVerrouille`, **servie** créneau par créneau par
+  `GET /api/themes/{id}/exam-slots` (et `/api/public/…` pour un visiteur) — les
+  fronts lisent ce `locked`, jamais le rang. Verrou unique côté backend :
   `AttemptService.enforceMockExamSlotAccess`, basé sur le `slotNumber` (≠ EE/EO
   qui ont un freebie consommable), miroir des 3 fronts (web `ExamsGrid
   freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
@@ -280,7 +291,7 @@ distincts, et aucune page ne les nomme ensemble :
 | # | Mécanisme | Périmètre | Autorité |
 |---|---|---|---|
 | 1 | `lotNumero = 1` | les **14 séries** d'entraînement, **sans compte**, illimitées, **déterministes** | **D-46** |
-| 2 | `template.isFree()` | les **examens blancs QCM** (`civique-decouverte`, slot 1 TCF) | **D-33**, spec TCF §7 |
+| 2 | `template.isFree()` · slot 1 | les **examens blancs QCM** (`civique-decouverte`, slot 1 TCF, slot 1 de chaque **thème** civique) | **D-33**, **D-62**, spec TCF §7 |
 | 3 | `free_entitlement_usage` | les **examens blancs de production** : 1 EE + 1 EO **nominatifs, à vie** | **D-17**, **D-17 bis** |
 
 **Le signal à surveiller** : toute nouvelle gratuité qui ne se range dans aucune des trois lignes est

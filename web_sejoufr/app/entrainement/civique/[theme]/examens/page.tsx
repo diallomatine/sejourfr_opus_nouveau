@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Flame, LayoutGrid, Target, Trophy } from "lucide-react";
-import { attemptApi, publicThemeApi, themeApi } from "@/lib/api";
+import { attemptApi, publicAttemptApi, publicThemeApi, themeApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { themeSlug, resolveThemeRef } from "@/lib/themes";
@@ -29,18 +29,18 @@ const SLOTS = 20;
  * maquette sejour_fr.html : 3 stat cards (passés / meilleur score / restant)
  * + grille de 20 examens.
  *
- * 🛑 **Tous les examens de thème sont premium** (D-33, P8.5, 2026-09-20).
- * L'examen 1 était « gratuit » : cette règle venait des productions IA, qui
- * coûtent un appel LLM là où un QCM n'en coûte aucun. Ce qui reste gratuit côté
- * civique est le **diagnostic** et **`civique-decouverte`**, servi par son
- * propre chemin (`template.free`).
+ * 🛑 **L'examen 1 de chaque thème est offert et rejouable, à tous** (arbitrage
+ * du propriétaire du 2026-09-24, qui révoque D-33 sur ce point) — compte
+ * gratuit comme visiteur, exactement comme l'examen 1 d'une épreuve CO / CE.
+ * Les suivants sont réservés aux abonnés Civique.
  *
- * ⚠️ Sans ce changement, l'écran promettait un examen que le serveur refuse en
- * 403 — le verrou est opposable, l'écran ne fait que le lire.
+ * Le verrou est SERVI créneau par créneau (`themeApi.examSlots` /
+ * `publicThemeApi.examSlots`) et opposable (403) : l'écran le lit, il ne le
+ * déduit jamais du rang.
  *
- * Mode guest : la page sert de vitrine (grille visible) mais tous les
- * examens ciblés exigent un compte → GuestGateSheet. La découverte guest
- * passe par les séries 1 et l'examen diagnostic de /examens-blancs.
+ * Mode guest : l'examen 1 se joue sans compte par la voie publique
+ * (`publicAttemptApi.startDemo`, attempt anonyme, résultat non conservé) ; un
+ * créneau verrouillé ouvre la GuestGateSheet.
  * Segment d'URL = slug du thème (UUID hérité toujours résolu).
  */
 export default function CiviqueThemeExamsPage() {
@@ -54,6 +54,7 @@ export default function CiviqueThemeExamsPage() {
   const [theme, setTheme] = useState<ThemeUserResponse | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
+  const [slotLocks, setSlotLocks] = useState<boolean[] | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -77,6 +78,11 @@ export default function CiviqueThemeExamsPage() {
           return;
         }
         setTheme(found);
+        const grille = await (auth
+          ? themeApi.examSlots(found.id)
+          : publicThemeApi.examSlots(found.id));
+        if (cancelled) return;
+        setSlotLocks(grille.slots.map((s) => s.locked));
         if (!auth) return; // guests : pas d'historique
         const list = await attemptApi.listMine({
           type: "MOCK_EXAM",
@@ -93,21 +99,14 @@ export default function CiviqueThemeExamsPage() {
     return () => {
       cancelled = true;
     };
-  }, [status, themeRef]);
+    // L'accès servi change après un achat : la grille se relit.
+  }, [status, themeRef, user?.hasCivique]);
 
   // Grille indexée par slot : refaire l'examen N met à jour la case N.
   const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
 
   function requestStart(slot: number) {
-    if (starting) return;
-    // La porte visiteur passe avant le thème : elle n'a besoin d'aucune donnée
-    // chargée, et un thème resté null (serveur muet) ne doit pas transformer un
-    // slot verrouillé en bouton mort.
-    if (isGuest) {
-      setGuestGateOpen(true);
-      return;
-    }
-    if (!theme) return;
+    if (starting || !theme) return;
     setError(null);
     setPendingSlot(slot);
     setIntroOpen(true);
@@ -118,18 +117,24 @@ export default function CiviqueThemeExamsPage() {
     setError(null);
     setStarting(true);
     try {
-      const a = await attemptApi.start({
-        type: "MOCK_EXAM",
-        module: "CIVIQUE",
+      const body = {
+        type: "MOCK_EXAM" as const,
+        module: "CIVIQUE" as const,
         themeId: theme.id,
         slotNumber: pendingSlot,
-      });
+      };
+      // Visiteur : voie publique (attempt anonyme), jamais l'API authentifiée
+      // — même montage que l'examen 1 d'une épreuve CO / CE.
+      const a = isGuest
+        ? await publicAttemptApi.startDemo(body)
+        : await attemptApi.start(body);
       router.push(`/sessions/${a.id}`);
     } catch (e) {
       handleStartFailure(e, {
         onPaywall: () => {
           setIntroOpen(false);
-          setPaywallOpen(true);
+          if (isGuest) setGuestGateOpen(true);
+          else setPaywallOpen(true);
         },
         onMessage: setError,
         fallbackMessage: "Impossible de démarrer l'examen.",
@@ -206,7 +211,7 @@ export default function CiviqueThemeExamsPage() {
           count={SLOTS}
           exams={bySlot}
           premium={isPremium}
-          freeSlots={0}
+          slotLocks={slotLocks ?? []}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={requestStart}
@@ -236,7 +241,7 @@ export default function CiviqueThemeExamsPage() {
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="Les examens blancs par thème sont réservés aux comptes. Créez un compte gratuit pour les passer — et l'examen diagnostic complet reste offert sur la page Examens blancs."
+          message="Le premier examen blanc de chaque thème est offert sans compte. Pour passer les suivants et retrouver vos scores, créez un compte gratuit."
         />
       </DetailShell>
     </DualChromeShell>

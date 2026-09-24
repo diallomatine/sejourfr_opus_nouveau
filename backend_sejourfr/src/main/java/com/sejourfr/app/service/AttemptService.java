@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptType;
@@ -78,7 +79,7 @@ public class AttemptService {
      * aligné sur les fronts (web {@code SLOTS = 20}, mobile
      * {@code CiviqueFullExamsScreen} / {@code TcfFullExamsScreen}).
      */
-    static final int MOCK_EXAM_SLOTS = 20;
+    public static final int MOCK_EXAM_SLOTS = 20;
 
     // Plafond d'entrainement TRAINING pour les comptes gratuits.
     private static final int FREE_TRAINING_MAX_SIZE = 20;
@@ -177,13 +178,19 @@ public class AttemptService {
             // premium. Deux verrous sur le même bouton, c'est exactement le
             // patron qui a produit les quatre « première fois gratuite » ad hoc
             // que D-17 a dû rassembler.
-            if (req.module() == Module.CIVIQUE) {
+            if (req.module() == Module.CIVIQUE && civicThemeExam) {
+                // 🛑 EXAMEN DE THÈME : le SLOT 1 de chaque thème est offert et
+                // rejouable, compte gratuit compris (arbitrage du propriétaire
+                // du 2026-09-24, qui révoque D-33 sur ce point). Autorité
+                // unique : `isExamenDeThemeVerrouille`, lue aussi par la grille.
+                enforceAccesExamenDeTheme(userId, req.slotNumber());
+            } else if (req.module() == Module.CIVIQUE) {
                 // 🛑 LA BORNE DU SLOT RESTE, même si le slot n'ouvre plus rien :
                 // `slotNumber: 999` ou `-3` étaient persistés tels quels avant
                 // qu'elle existe. Le slot est un repère de grille (V110), pas
                 // un droit — et une valeur hors borne reste une valeur fausse.
                 validateMockExamSlot(req.slotNumber());
-                enforceAccesExamenCivique(userId, civicThemeExam ? "de thème " : "");
+                enforceAccesExamenCivique(userId, "");
             } else {
                 enforceMockExamSlotAccess(userId, req.module(), req.slotNumber(), "");
             }
@@ -268,7 +275,8 @@ public class AttemptService {
                         themeManager.findById(themeId)
                                 .orElseThrow(() -> new NotFoundException(
                                         "Thème introuvable : " + themeId))
-                                .getCode());
+                                .getCode(),
+                        false);
             } else {
                 questions = questionManager.findRandom(
                         req.module(), themeId, effectiveDifficulty, qType, size);
@@ -563,11 +571,42 @@ public class AttemptService {
     }
 
     /**
-     * <b>L'accès à un examen blanc civique</b> — hors template gratuit (D-33).
+     * <b>Le verrou d'un examen blanc de THÈME civique</b> (20 questions).
+     *
+     * <p>🛑 <b>Arbitrage du propriétaire du 2026-09-24</b>, qui révoque D-33 sur
+     * ce point : le <b>premier examen de chaque thème</b> est toujours offert,
+     * et rejouable à volonté — à un compte gratuit <b>comme à un visiteur</b>,
+     * exactement comme le slot 1 d'une épreuve CO / CE. Les slots 2+ restent
+     * réservés aux abonnés Civique, et à un compte : un visiteur n'a que le 1.
+     *
+     * <p>C'est l'<b>unique</b> autorité de la règle : le démarrage authentifié,
+     * la démo visiteur et le {@code locked} servi aux grilles la lisent.
+     *
+     * @param userId {@code null} pour un visiteur sans compte
+     * @param slot   le créneau de la grille, déjà borné (1..{@value #MOCK_EXAM_SLOTS})
+     */
+    public boolean isExamenDeThemeVerrouille(UUID userId, int slot) {
+        if (slot <= 1) return false;
+        if (userId == null) return true;
+        return !subscriptionService.hasCivique(userId);
+    }
+
+    private void enforceAccesExamenDeTheme(UUID userId, Integer requestedSlot) {
+        int slot = validateMockExamSlot(requestedSlot);
+        if (!isExamenDeThemeVerrouille(userId, slot)) return;
+        throw new AccessDeniedException(userId == null
+                ? "Seul le premier examen blanc du thème est offert sans compte. "
+                        + "Créez un compte gratuit pour continuer."
+                : "Les examens blancs de thème au-delà du premier sont réservés aux abonnés Civique.");
+    }
+
+    /**
+     * <b>L'accès à un examen blanc civique GLOBAL</b> — hors template gratuit (D-33).
      *
      * <p>🛑 <b>Aucun slot, aucun ledger, aucune « première fois »</b> : un
-     * examen de thème et un examen global hors {@code civique-decouverte} sont
-     * <b>premium</b>, point. Le ledger « 1 examen offert à vie » a été abandonné
+     * examen global hors {@code civique-decouverte} est <b>premium</b>, point.
+     * Les examens de <b>thème</b> ont leur propre verrou depuis le 2026-09-24
+     * ({@link #isExamenDeThemeVerrouille}). Le ledger « 1 examen offert à vie » a été abandonné
      * — il transposait au QCM une règle écrite pour les productions IA, qui
      * coûtent un appel LLM là où un QCM n'en coûte aucun.
      *
@@ -584,11 +623,9 @@ public class AttemptService {
     }
 
     /**
-     * <b>Jumelle en lecture</b> du verrou des examens civiques hors gratuité
-     * ({@link #enforceAccesExamenCivique}) : les examens de thème, et les
-     * examens globaux qui ne sont pas un template gratuit, sont premium (D-33).
-     * Sert le {@code locked} du bouton « Nouvel examen blanc » de l'écran de
-     * progression d'un thème — jamais une seconde implémentation de la règle.
+     * <b>Jumelle en lecture</b> du verrou des examens civiques globaux hors
+     * gratuité ({@link #enforceAccesExamenCivique}) : les examens globaux qui
+     * ne sont pas un template gratuit sont premium (D-33).
      */
     public boolean isExamenCiviqueVerrouille(UUID userId) {
         return !subscriptionService.hasCivique(userId);
@@ -661,10 +698,10 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
         // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
-        // Les examens civiques de theme exigent toujours un compte. Les examens
-        // blancs d'epreuve TCF QCM (CO / CE / STRUCTURE) ouvrent leur SLOT 1 aux
-        // visiteurs (cf. startGuestModuleExam) ; les templates free (diagnostic
-        // complet) restent jouables en guest.
+        // Les examens blancs d'epreuve TCF QCM (CO / CE / STRUCTURE) et, depuis
+        // le 2026-09-24, les examens civiques de theme ouvrent leur SLOT 1 aux
+        // visiteurs (cf. startGuestModuleExam, startGuestCivicThemeExam) ; les
+        // templates free (diagnostic complet) restent jouables en guest.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -684,9 +721,9 @@ public class AttemptService {
                 // Guest sur template free : tirage deterministe.
                 questions = compositionService.pickQuestionsForTemplate(template, true);
             } else if (req.themeId() != null) {
-                // Examens civiques de thème : toujours réservés aux comptes.
-                throw new AccessDeniedException(
-                        "Les examens blancs par thème sont réservés aux comptes. Créez un compte gratuit pour continuer.");
+                // Examen civique de thème : le SLOT 1 est ouvert aux visiteurs
+                // depuis le 2026-09-24 (cf. startGuestCivicThemeExam).
+                return startGuestCivicThemeExam(req, clientIp);
             } else if (req.moduleExamQuestionType() != null) {
                 // Examen blanc d'une épreuve TCF QCM (CO / CE / STRUCTURE) :
                 // l'examen 1 est OUVERT aux visiteurs depuis le 2026-08-16.
@@ -794,7 +831,8 @@ public class AttemptService {
      * <p>Perimetre volontairement etroit, rien d'autre n'est ouvert :
      * <ul>
      *   <li>slots 2..{@value #MOCK_EXAM_SLOTS} : refuses (compte requis) ;</li>
-     *   <li>examens civiques de theme ({@code themeId}) : toujours refuses ;</li>
+     *   <li>examens civiques de theme ({@code themeId}) : leur propre chemin,
+     *       {@link #startGuestCivicThemeExam} (slot 1 aussi, depuis le 2026-09-24) ;</li>
      *   <li>EE / EO : hors de ce chemin, toujours reservees aux comptes.</li>
      * </ul>
      *
@@ -832,6 +870,48 @@ public class AttemptService {
         attempt.setTimeLimitSeconds(DureeEpreuve.secondesPourQcm(qType));
         attempt.setStartedAt(Instant.now());
         attempt.setSlotNumber(slot);
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Examen blanc de THEME civique (20 questions) joue SANS COMPTE.
+     *
+     * <p><b>Arbitrage du proprietaire du 2026-09-24</b> : le premier examen de
+     * chaque theme est offert aux visiteurs, exactement comme le slot 1 d'une
+     * epreuve CO / CE ({@link #startGuestModuleExam}). Meme perimetre etroit :
+     * slot 1 seulement, verrou lu chez {@link #isExamenDeThemeVerrouille}, et
+     * tirage <b>deterministe</b> — rejouer redonne le meme examen, on n'ouvre
+     * pas la banque de questions sans compte. Le debit est borne par le
+     * rate-limit de {@code POST /api/public/attempts/demo}.
+     */
+    private AttemptResponse startGuestCivicThemeExam(StartAttemptRequest req, String clientIp) {
+        if (req.module() != Module.CIVIQUE) {
+            throw new BusinessException("Un examen de thème relève du module Civique.");
+        }
+        enforceAccesExamenDeTheme(null, req.slotNumber());
+        Theme theme = themeManager.findById(req.themeId())
+                .filter(t -> t.getModule() == Module.CIVIQUE)
+                .orElseThrow(() -> new NotFoundException("Thème introuvable : " + req.themeId()));
+
+        List<Question> picked = civicExamComposition.composerExamenDeTheme(theme.getCode(), true);
+        if (picked.isEmpty()) {
+            throw new BusinessException("Aucune question disponible pour cet examen de thème.");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(Module.CIVIQUE);
+        attempt.setTotalQuestions(picked.size());
+        attempt.setTimeLimitSeconds(CivicExamFormat.DUREE_THEME_SECONDES);
+        attempt.setPassThreshold(CivicExamFormat.SEUIL_REUSSITE_THEME);
+        attempt.setLotThemeId(theme.getId());
+        attempt.setSlotNumber(1);
+        attempt.setStartedAt(Instant.now());
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);

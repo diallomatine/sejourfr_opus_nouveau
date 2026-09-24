@@ -369,9 +369,11 @@ public class ProgressionExamensService {
                 ProgressionEtatSource.DERNIER_EXAMEN_THEME,
                 ProgressionEtatSource.DERNIER_EXAMEN_THEME.getLabel(),
                 examens,
-                // Les examens de thème sont premium (D-33) : la jumelle en
-                // lecture du verrou serveur.
-                new ProgressionCtaDto(attemptService.isExamenCiviqueVerrouille(userId)));
+                // Le créneau 1 de chaque thème est offert et rejouable
+                // (2026-09-24, révoque D-33 sur ce point) : la grille ouverte par
+                // ce bouton offre toujours au moins lui — comme CO / CE. Lu chez
+                // l'autorité du verrou, jamais recalculé.
+                new ProgressionCtaDto(attemptService.isExamenDeThemeVerrouille(userId, 1)));
     }
 
     private ProgressionEchelleDto echelleTheme() {

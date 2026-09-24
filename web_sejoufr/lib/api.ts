@@ -59,6 +59,7 @@ import type {
   SubmitSkillTextRequest,
   TargetProcedure,
   ThemeUserResponse,
+  CivicThemeExamSlots,
   TokenResponse,
   UserStatsResponse,
     JourneyDto,
@@ -617,6 +618,13 @@ export const accountApi = {
 export const themeApi = {
     list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
         return apiFetch<ThemeUserResponse[]>(`/api/themes?module=${module}`, {
+            auth: true,
+        });
+    },
+
+    /** Grille servie des examens blancs d'un thème civique (`locked` par créneau). */
+    examSlots(themeId: string): Promise<CivicThemeExamSlots> {
+        return apiFetch<CivicThemeExamSlots>(`/api/themes/${themeId}/exam-slots`, {
             auth: true,
         });
     },
@@ -2166,6 +2174,14 @@ export const publicThemeApi = {
     list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
         return apiFetch<ThemeUserResponse[]>(
             `/api/public/themes?module=${module}`,
+            {auth: false},
+        );
+    },
+
+    /** Grille des examens blancs d'un thème vue d'un visiteur : seul le créneau 1 est ouvert. */
+    examSlots(themeId: string): Promise<CivicThemeExamSlots> {
+        return apiFetch<CivicThemeExamSlots>(
+            `/api/public/themes/${themeId}/exam-slots`,
             {auth: false},
         );
     },
