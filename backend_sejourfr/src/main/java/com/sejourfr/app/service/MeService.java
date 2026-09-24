@@ -7,7 +7,6 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
-import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
@@ -26,15 +25,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
- * Tout ce qui s'expose sous /api/me : stats, favoris, erreurs, revue,
- * profil. Le shuffle des choix utilise Question.id comme seed → l'ordre est
- * stable pour un favori / une erreur d'une lecture a l'autre.
+ * Tout ce qui s'expose sous /api/me : stats, favoris, revue, profil. Le
+ * shuffle des choix utilise Question.id comme seed → l'ordre est stable pour
+ * un favori d'une lecture a l'autre.
  */
 @Service
 @RequiredArgsConstructor
@@ -47,15 +43,6 @@ public class MeService {
     private final UserManager userManager;
     private final QuestionMapper questionMapper;
     private final JourneyService journeyService;
-
-    /**
-     * Plafond d'erreurs exposees en revision, par module (CIVIQUE / TCF). On ne
-     * renvoie que les plus recentes : au-dela, les anciennes erreurs sortent de
-     * la liste (vue cappee, pas de suppression en base — cf.
-     * {@code AnswerRepository.findRecentWrongQuestionIds}). Evite d'afficher des
-     * centaines de questions et garde la revision actionnable.
-     */
-    static final int MAX_WRONG_PER_MODULE = 30;
 
     // ------------------------------------------------------------------------
     // Profil
@@ -172,33 +159,6 @@ public class MeService {
                     s.setUpdatedAt(Instant.now());
                     statusManager.save(s);
                 });
-    }
-
-    // ------------------------------------------------------------------------
-    // Erreurs
-    // ------------------------------------------------------------------------
-
-    @Transactional(readOnly = true)
-    public List<QuestionPublicResponse> wrongAnswered(
-            UUID userId, Module module, QuestionType questionType, UUID themeId) {
-        // TOUS les filtres (module, type, thème) descendent dans la requête, et
-        // le plafond s'applique après eux : sinon on cherchait un type ou un
-        // thème à l'intérieur des 30 dernières erreurs du module — un
-        // utilisateur avec 225 CO ratées en voyait 8, et 0 sur un thème
-        // civique qui en comptait 41. Le filtre CO inclut CO_IMAGE (cf.
-        // AnswerManager.expandQuestionTypes).
-        List<UUID> ids = answerManager.findRecentWrongQuestionIds(
-                userId, module, questionType, themeId, MAX_WRONG_PER_MODULE);
-        if (ids.isEmpty()) return List.of();
-        // `findAllById` ne préserve pas l'ordre → on indexe par id puis on
-        // ré-émet dans l'ordre de `ids` (récent d'abord).
-        Map<UUID, Question> byId = questionManager.findAllById(ids).stream()
-                .collect(Collectors.toMap(Question::getId, Function.identity()));
-        return ids.stream()
-                .map(byId::get)
-                .filter(q -> q != null)
-                .map(this::toPublic)
-                .toList();
     }
 
     // ------------------------------------------------------------------------

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Palette d'accent par numéro de tâche TCF Expression : les cartes de tâche
-/// et la carte de consigne du parcours, les pastilles de l'historique
-/// (`HistorySessionCard`) et partout où l'on identifie visuellement T1/T2/T3.
+/// et la carte de consigne du parcours, et partout où l'on identifie
+/// visuellement T1/T2/T3.
 ///
 /// C'est **la** table des trois teintes de tâche — la maquette en propose une
 /// autre (bleu / violet / rouge), sans équivalent dans la palette produit : on

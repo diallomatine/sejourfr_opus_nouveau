@@ -13,7 +13,7 @@ export const DUAL_CHROME_PREFIXES = [
  *  🛑 **Cette liste est le miroir de `app/(app)/` sur le disque, et rien
  *  d'autre.** Une route posée dans le groupe sans être déclarée ici monte DEUX
  *  chromes : le shell applicatif (`app/(app)/layout.tsx` → `AppSidebar` +
- *  `MobileSidebarToggle`) ET le chrome public, dont le `SiteHeader` garde son
+ *  `AppTopBar`) ET le chrome public, dont le `SiteHeader` garde son
  *  propre bouton de menu — d'où deux burgers empilés sous 900 px. C'est ce qui
  *  est arrivé à `/diagnostic-tcf` et `/diagnostic-civique`, ajoutés au groupe
  *  sans passer par ici. Ajouter un dossier dans `app/(app)/` ⇒ ajouter son
@@ -26,13 +26,12 @@ export const APP_GROUP_PREFIXES = [
   "/dashboard",
   "/diagnostic-civique",
   "/diagnostic-tcf",
-  "/historique",
+  "/favoris",
   "/paiement",
   "/parcours",
   "/profil",
   "/plan",
   "/progression",
-  "/revision",
   "/succes",
 ];
 
@@ -96,7 +95,7 @@ export function isGuestAccessibleRoute(pathname: string | null): boolean {
 /**
  * 🛑 **L'autorité unique de « le shell applicatif (et donc SON burger) est
  * monté »** sur une route du groupe `(app)/`. `(app)/layout.tsx` la suit pour
- * rendre `MobileSidebarToggle`, `SiteHeader` la suit pour cacher le sien :
+ * rendre `AppTopBar`, `SiteHeader` la suit pour cacher le sien :
  * deux conditions écrites séparément laissaient passer deux burgers empilés
  * pour un invité (et pendant le chargement de la session).
  *

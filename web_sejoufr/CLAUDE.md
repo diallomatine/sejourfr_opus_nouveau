@@ -74,6 +74,7 @@ app/
 ├── _components/                  # composants partagés (PascalCase.tsx, "use client")
 │   ├── Brand.tsx, TopNav.tsx, SiteHeader.tsx, Footer.tsx,
 │   ├── AppSidebar.tsx            # nav latérale des routes (app)
+│   ├── AppTopBar.tsx             # barre du haut ≤ 900 px (burger + titre, lib/app-bar.ts) + tiroir
 │   ├── HeroSection.tsx, LandingSections.tsx, MobileAppPromo.tsx
 │   ├── MediaView.tsx             # rend MediaResponse (audio/image/vidéo/SVG inline)
 │   ├── QuestionRunner.tsx        # ★ runner réutilisable training/exam (favoris, prev/next,
@@ -110,10 +111,8 @@ app/
 │   ├── progression/              # ★ LES ÉCRANS DE PROGRESSION (2026-09-24) : tcf, tcf/[epreuve]
 │   │                              #   (co|ce|ee|eo), civique, civique/[theme] (slug ou UUID).
 │   │                              #   Cf. § « Les écrans de progression » en fin de fichier
-│   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
-│   │                              #   (statement, choix résolus, explanation, toggle favori)
-│   ├── historique/page.tsx       # ★ liste examens MOCK_EXAM passés, header résumé (taux moyen),
-│   │                              #   graphique custom SVG (barres + ligne seuil), clic → /sessions/<id>
+│   ├── favoris/page.tsx          # ★ « Mes favoris » (ouvert depuis le Profil), cf. § dédié en fin
+│   │                              #   de fichier. /revision et /historique sont SUPPRIMÉES (redirections)
 │   ├── profil/page.tsx           # ★ profil, refait sur la maquette du propriétaire (2026-09-24,
 │   │                              #   cf. § « Le Profil (/profil) » plus bas)
 │   ├── profil/informations/      # ★ « Mes informations » + identite / email / mot-de-passe
@@ -145,7 +144,7 @@ app/
 
 lib/
 ├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
-│                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
+│                                 #   userContentApi (favoris/reviewQuestion/targetPath),
 │                                 #   statsApi, dashboardApi, diagnosticApi, learningPlanApi,
 │                                 #   caches/invalidation, tokenStorage, ApiException
 ├── diagnostic.ts                 # helpers purs : état dashboard, adaptation exercice,
@@ -157,8 +156,7 @@ lib/
 ├── module-switch.ts              # ★ AUTORITÉ UNIQUE du parcours choisi : la lecture de
 │                                 #   `?module=` (casse tolérée) et les deux adresses,
 │                                 #   planHref / entrainementHref. Ne devine jamais un module.
-├── dashboard.ts                  # helpers catégories dashboard : moduleAverage, successHint,
-│                                 #   categoryBadge
+├── dashboard.ts                  # helpers catégories dashboard : moduleAverage, categoryBadge
 ├── passes.ts                     # passes d'accès (lot 5) : pass mis en avant, prix débité vs
 │                                 #   équivalent mensuel, durée, tri, et passCheckoutHref
 │                                 #   (le parcours prix → récapitulatif → Stripe). Purs.
@@ -190,7 +188,7 @@ runner, leur présentation (déroulé + seuil) vit dans `ExamIntroSheet` côté 
 examens. Undefined aussi sur les attempts d'avant le tri (groupes > 3). **Notation TCF** : tous les examens TCF
 stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
 `calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
-(`TcfLevelEstimatorService`) — le hero `ExamReport`, `/historique` et les stats
+(`TcfLevelEstimatorService`) — le hero `ExamReport` et les stats
 « meilleur score » affichent `x/499` quand présent, le score brut sinon.
 🛑 **Le `/499` est un SCORE DE PROGRESSION, jamais un score TCF** (2026-09-20) :
 le relevé officiel a une échelle que nous n'avons pas, et **aucun niveau n'en
@@ -651,9 +649,8 @@ kit** : le Profil n'en a jamais fait partie. Ses **cartes et lignes** sont celle
 écrans du compte (`CompteCard` / `CompteRow`, cf. § « Les écrans du compte » juste
 en dessous), partagées avec « Mes informations » et le centre d'aide.
 
-- **Ordre** : barre « MON PROFIL » (sa case de gauche est **réservée au burger du
-  shell** sous 900 px — aucun second burger ; titre masqué sous 430 px, la rangée
-  reste pour ne pas passer sous le burger) → hero bleu (dégradé
+- **Ordre** : barre « MON PROFIL » (desktop seul : **masquée sous 900 px**, où
+  la barre du haut du shell, `AppTopBar`, dit déjà « Profil ») → hero bleu (dégradé
   `--color-blue` → `--color-blue-mid`, avatar, nom, e-mail, démarche, « Modifier »
   qui devient **icône seule** sous 430 px) → 3 tuiles → grille 2 colonnes « Mon pass »
   | « Mon objectif » (1 colonne sous 760 px) → « Mon compte » pleine largeur → carte
@@ -667,7 +664,9 @@ en dessous), partagées avec « Mes informations » et le centre d'aide.
 - **Série en rouge** : convention existante (web et mobile `StatValueCard` rouge).
 - **Pass** : pictogramme **vert** + pastille « Actif » en premium, gris + « Gratuit »
   sinon (le rouge du pass Intégral est retiré : ce n'est pas un CTA critique).
-- **« Ma progression »** → `/progression/tcf` (D16). **« Aide & assistance »** →
+- **« Ma progression » n'est plus sur le Profil web** (2026-09-24) : elle vit dans la
+  barre latérale (« Progression »). « Mon compte » = Mes informations · **Mes favoris**
+  (`/favoris`) · Aide & assistance. Le Profil **mobile** garde sa ligne. **« Aide & assistance »** →
   `/aide`, le centre d'aide (miroir de `helpCenter` mobile).
 - **« Modifier » (hero) et « Mes informations »** → `/profil/informations`, une
   **page**. ⚠️ La modale « Mes informations » (feuille posée en bas, sous-formulaires
@@ -707,8 +706,9 @@ nouveau** : `accountApi` (`lib/api.ts`).
 - **Comptes Google / Apple** : nom modifiable ; e-mail et mot de passe en lecture
   sur le hub (lignes sans lien + note en pied), et un lien profond vers leurs pages
   n'affiche que la note et le retour — jamais le formulaire.
-- ⚠️ La rangée du retour se décale de 52 px sous 900 px **dans le shell connecté**
-  (burger fixe) — rien pour un visiteur.
+- ⚠️ Sous 900 px **dans le shell connecté**, le `<h1>` de `CompteShell` est
+  masqué à l'œil : la barre du haut (`AppTopBar`) porte le même titre. Un
+  visiteur (centre d'aide) le garde.
 
 ## Le centre d'aide (`/aide`, 2026-09-24)
 
@@ -910,18 +910,48 @@ la bascule est une navigation, pas un résultat — tout état du Plan rend son
 sinon le candidat perd la porte de l'autre parcours. Miroir Flutter :
 `SfTopSlot`.
 
-**L'en-tête ne passe jamais sous le burger (2026-09-12).** Sous 900 px,
-l'espace connecté range sa barre latérale derrière `.ms-toggle`, un burger
-`position: fixed` de 44 px posé à 12 px du coin haut-gauche : il recouvrait le
-début de l'eyebrow et du titre. `sejour.module.css` réserve donc la même
-gouttière de 64 px que le reste de l'espace connecté (`/dashboard`,
-`/statistiques`, les hubs), mais **seulement là où le burger existe** —
-`:global(.app-shell--has-drawer) .app`, à la **même borne** que sa règle
-d'affichage. Un écran du kit servi hors espace connecté (`/diagnostic` public,
-sous le `SiteHeader`) n'a pas de burger, donc pas de gouttière.
+**La barre du haut de l'espace connecté — `AppTopBar` (2026-09-24).**
+
+⚠️ **Remplace** le burger flottant `.ms-toggle` (`MobileSidebarToggle`, 44 px
+`position: fixed` en 12,12), **supprimé** avec toutes les gouttières qui le
+contournaient (`.app` du kit 64 px, `.tcfd` 64 px, `skill .wrap` 68 px,
+`detail .wrap` / `.ebh` 64 px, `diagnostic .page` 66 px, `.topbar` du compte
+décalé de 52 px). Demande du propriétaire : « comme sur le mobile, avec les
+infos de la page ».
+
+- **Composant** : `app/_components/AppTopBar.tsx` — burger (ouvre le tiroir
+  `.ms-drawer`, inchangé : overlay, Échap, fermeture au changement de route ou
+  au clic d'un lien, verrou de scroll iOS) + **titre** (Fraunces 19 px) + une
+  ligne de **contexte** facultative (le parcours : « TCF IRN », « Examen
+  civique »). Styles `.atb*` dans `globals.css` : fond papier translucide
+  flouté + filet bas (le `ScreenHeader` Flutter), ombre légère dès qu'on a
+  défilé (`.is-scrolled`), 56 px + `safe-area-inset-top`, **z-index 60** — sous
+  l'overlay (80), le tiroir (90) et les feuilles/modales (≥ 100).
+- **Visible ≤ 900 px seulement**, à la même borne que le masquage de la barre
+  latérale. Desktop : inchangé, aucune barre.
+- 🛑 **`position: sticky` en tête de la colonne de contenu** (`.app-shell__main`
+  / `.dual-shell__main`), **pas `fixed`** : elle occupe sa place dans le flux.
+  **Aucune page ne compense** — ne jamais réintroduire de `padding-top` « pour
+  dégager la barre ». Une page qui ajoute un élément `sticky; top: 0` sous 900 px
+  le posera **sous** la barre (prévoir `top: 56px`).
+- 🛑 **Titre : `lib/app-bar.ts` (`appBarInfo`), l'autorité unique** — préfixe le
+  plus long, miroir des en-têtes Flutter : libellé d'onglet pour les écrans
+  d'onglet (Accueil, Plan, Réviser, Examens blancs, Profil), titre du
+  `ScreenHeader` pour les écrans du compte, de l'aide et des favoris (mêmes
+  constantes `lib/compte.ts` / `lib/aide.ts` / `lib/favoris.ts`). Un titre de
+  **donnée** (un thème, une épreuve de progression, un sujet) ne s'y invente
+  pas : la barre donne le **parent** (« Examen civique », « Progression · TCF
+  IRN »), la page garde son titre. Réviser (`/entrainement`) lit `?module=` pour
+  son contexte. Une route de plus dans l'espace connecté ⇒ une ligne de plus
+  dans la table.
+- **Pas de doublon juste sous la barre** : `CompteShell` (compte, aide,
+  favoris) masque **à l'œil** son `<h1>` sous 900 px dans le shell (il reste
+  pour les lecteurs d'écran) ; le Profil masque sa barre « MON PROFIL » sous
+  900 px. Les autres écrans gardent leur en-tête (il dit autre chose que la
+  barre : « Bonjour Karim », « Mon plan du jour », le nom d'un thème…).
 
 🛑 **Un seul burger par écran, et c'est `APP_GROUP_PREFIXES` qui le garantit
-(2026-09-12).** `app/(app)/layout.tsx` monte `MobileSidebarToggle` pour TOUTE
+(2026-09-12).** `app/(app)/layout.tsx` monte `AppTopBar` pour TOUTE
 route du groupe, mais le `SiteHeader` ne s'efface (et ne retire son propre
 bouton de menu) que si la route est **déclarée** dans `APP_GROUP_PREFIXES`
 (`lib/chrome-routes.ts`). Une route ajoutée au dossier `app/(app)/` sans être
@@ -932,10 +962,6 @@ plus dans `app/(app)/`, un préfixe de plus ici, dans la même passe. Le
 `/diagnostic` public, lui, est une route **duale** (`DUAL_CHROME_PREFIXES`) et
 n'est pas concerné — `isDualChromeRoute` teste l'égalité ou `"/diagnostic/"`,
 jamais `/diagnostic-*`.
-
-⚠️ Corollaire : un écran du groupe `(app)` qui **n'est pas** un écran du kit
-porte lui-même sa gouttière de 64 px (`TcfDiagnosticHub`, `.tcfd`), comme
-`/dashboard` ou `/statistiques`. Les écrans du kit l'ont par `.app`.
 
 🛑 **L'en-tête est TOUJOURS aligné à gauche (2026-09-12).** ⚠️ **Révoque**
 `.topPlain`, qui centrait sous 620 px un en-tête sans flèche de retour : vérifié
@@ -1082,10 +1108,10 @@ maquette, et la bascule *contextuelle* qui avait été bâtie dessus.
 TCF / Civique vit dans DEUX écrans » : on y arrive par le menu, qui a déjà fait
 le choix.
 
-`AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **six entrées
+`AppSidebar.tsx` est donc revenu à sa forme d'avant : logo, puis **cinq entrées
 à icône** en deux sections — `Parcours` (TCF IRN `Waves`, Examen civique
-`Lightbulb`, Examens blancs) et `Suivi` (Plan, Résultats), avec
-`/dashboard` en tête — puis la note de bas de colonne, le streak et la carte
+`Lightbulb`, Examens blancs) et `Suivi` (Plan ; « Résultats » est supprimé le
+2026-09-24), avec `/dashboard` en tête — puis la note de bas de colonne, le streak et la carte
 utilisateur.
 
 **Ce qui est parti avec la bascule** (refonte = suppression immédiate) :
@@ -1150,7 +1176,7 @@ autres paramètres conservés) pour qu'elle soit partageable. Corollaire :
 `PlanModules` n'a plus d'état `module`/`choisi`, et les bascules sont des
 **liens**.
 
-⚠️ **`/examens-blancs` et `/revision` gardent leurs propres bascules**, qui sont
+⚠️ **`/examens-blancs` et `/favoris` gardent leurs propres bascules**, qui sont
 d'autres composants avec un état local (demande du propriétaire). Elles ne sont
 pas concernées par cette règle.
 
@@ -3417,7 +3443,10 @@ diffèrent). La route sert désormais un **vrai écran**, `ProductionTasks`.
   pointer un retour de tâche sur le hub sauterait un niveau.
 - **`ProductionHub` reste supprimé** (cartes T1/T2/T3 + historique récent +
   modale de quota) : `ProductionTasks` en tient lieu, sur la maquette actuelle.
-- **`ProductionHistory` (`…/historique`) a retrouvé un point d'entrée**
+- 🛑 **`ProductionHistory` (`…/historique`) est SUPPRIMÉ le 2026-09-24** avec
+  `/historique`, son seul point d'entrée (et `SubmissionRow`, son seul lecteur) ;
+  `…/tcf/{ee,eo}/historique` redirige vers l'épreuve. Ce qui suit est historique.
+  **`ProductionHistory` (`…/historique`) avait retrouvé un point d'entrée**
   (2026-08-21), **hors du parcours** : deux liens « Vos productions » en bas de
   `/historique` (« Mes résultats »), un par épreuve. Il ne double aucun écran —
   `/historique` **filtre explicitement** les attempts de production
@@ -4699,7 +4728,8 @@ cache quand on en vient). **Anciennes adresses = redirections** (`next.config.ts
 `/historique/epreuve/:domaine` → `/progression/tcf/:domaine`,
 `/historique/theme/:theme` → `/progression/civique/:theme`.
 
-**Entrées** : Profil « Ma progression » → `/progression/tcf` (D16) ; Accueil,
+**Entrées** : entrée « Progression » de la barre latérale → `/progression/tcf`
+(active sur tout `/progression/*` ; sur mobile, Profil « Ma progression », D16) ; Accueil,
 issue 3 « Voir mes résultats » d'une carte d'épreuve → `/progression/tcf/[epreuve]`
 et carte de thème → `/progression/civique/[theme]` (D17, issues 1 et 2
 inchangées) ; « Voir ma progression » du rapport d'examen (`/sessions/[id]`) →
@@ -4783,4 +4813,42 @@ recommandations » de `/historique`, `ReinforceRow` et les champs
 `lastMockScore`/`prevMockScore` du DTO. L'adresse **redirige** vers `/dashboard`
 (`next.config.ts`, temporaire). Ne pas la réintroduire : les priorités vivent
 dans le Plan.
+
+
+## « Mes favoris » (`/favoris`) — « Résultats » et « Mes erreurs » supprimés (2026-09-24)
+
+> Décision du propriétaire : « aujourd'hui la progression est largement suffisante pour voir
+> son avancement ». Miroir mobile posé dans la même passe (`screens/favoris/`).
+
+- 🛑 **SUPPRIMÉS** : `/historique` (« Résultats », entrée `Trophy` de la barre latérale),
+  `/revision` (« Mes erreurs / Mes favoris »), `…/tcf/{ee,eo}/historique`
+  (`ProductionHistory`, `SubmissionRow`), `QuestionDetailModal`, `userContentApi.wrong`,
+  `isProductionAttempt` (`lib/types.ts`), `successHint` (`lib/dashboard.ts`). Backend :
+  `GET /api/me/questions/wrong` supprimé.
+- **Redirections temporaires** (`next.config.ts`) : `/historique` → `/progression/tcf`,
+  `/revision` → `/favoris`, `/entrainement/tcf/{ee,eo}/historique` → l'épreuve. Les
+  sous-redirections `/historique/epreuve/:domaine` et `/historique/theme/:theme` restent.
+- **Barre latérale — liste PLATE, sans intertitres** (décision du propriétaire, même jour) :
+  Accueil · Plan · TCF IRN · Examen civique · Examens blancs · **Progression**
+  (`ChartColumn`, `/progression/tcf`, active sur tout `/progression/*`). Les intertitres
+  « Parcours » / « Suivi » et leur CSS (`.app-nav-section`, y compris dans `globals.css`)
+  sont supprimés. Sur le web, « Progression » est dans la barre latérale **à la place** de la
+  ligne « Ma progression » du Profil. La **note de bas de colonne** (« Le plan choisit la
+  prochaine action… ») est **supprimée** avec sa CSS (`.app-foot-note`) ; le pied garde le
+  streak et la carte utilisateur. ⚠️ Cela prime sur toute description plus ancienne de la
+  barre latérale dans ce fichier (« sept / six entrées en deux sections », « la note de bas
+  de colonne reste »).
+- **`/favoris`** : `app/(app)/favoris/page.tsx` → `app/_components/favoris/FavorisView.tsx`
+  (+ `FavoriDetailSheet.tsx`, `favoris.module.css`), sur `CompteShell` (retour « Mon profil »).
+  Entrée : la ligne « Mes favoris » de « Mon compte » (`/profil`). Préfixe dans
+  `APP_GROUP_PREFIXES` **et** dans `middleware.ts`. Bascule Civique / TCF par `?module=`
+  (défaut Civique), cartes à liseré bleu (difficulté, type, énoncé sur 3 lignes, thème),
+  « Afficher plus » par 20, état vide avec « Lancer un entraînement » → `entrainementHref`.
+  Le détail relit `/api/me/questions/{id}/review` et porte le marque-page « Favori » /
+  « Ajouter aux favoris ».
+- **Textes** : `lib/favoris.ts`, **miroir mot pour mot** de
+  `mobile_sejourfr/lib/screens/favoris/favoris_labels.dart` ; les intitulés du détail
+  (« DÉTAIL · X », « PASSAGE », « EXPLICATION ») sont ceux de `QuestionDetailSheet` (mobile).
+- Corrigé dans la foulée : l'invitation « Choisir mon objectif » de Réviser revenait sur
+  `/revision` ; elle revient désormais sur `/entrainement?module=TCF`.
 

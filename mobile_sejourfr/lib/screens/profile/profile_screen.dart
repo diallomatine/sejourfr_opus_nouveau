@@ -18,6 +18,7 @@ import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/stat_value_card.dart';
+import '../favoris/favoris_labels.dart';
 
 /// Statut d'abonnement pour la carte « Mon pass » du profil.
 ///
@@ -157,10 +158,10 @@ class ProfileScreen extends ConsumerWidget {
                         onTap: () => context.push(AppRoutes.progressionTcf),
                       ),
                       ListRow(
-                        icon: LucideIcons.dumbbell,
-                        title: 'Mon entraînement',
-                        sub: 'Historique, mes questions et favoris',
-                        onTap: () => context.push(AppRoutes.monEntrainement),
+                        icon: LucideIcons.bookmark,
+                        title: kFavorisTitle,
+                        sub: kFavorisRowSub,
+                        onTap: () => context.push(AppRoutes.mesFavoris),
                       ),
                       ListRow(
                         icon: LucideIcons.bookOpen,

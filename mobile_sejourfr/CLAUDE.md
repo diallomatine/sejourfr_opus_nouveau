@@ -1128,12 +1128,8 @@ Layout uniforme (`widgets/module_detail_widgets.dart`) :
      score pondéré X/50 coloré (vert / ambre / rouge). Le bouton primary du bas devient
      "Lancer un examen" qui appelle `_startModuleExam` → `POST /api/attempts {type:MOCK_EXAM,
      moduleExamQuestionType}` → push runner (chrono auto via `attempt.timeLimitSeconds`).
-   - **Erreurs** = `_ErrorsTab` branché sur `_wrongQuestionsProvider(QuestionType)`
-     (`GET /api/me/questions/wrong?module=TCF&questionType=CO|CE`). Liste plate des questions
-     ratées avec chip niveau et preview du statement. Empty state propre si zéro erreur.
-
-   L'entrée "Mes questions" du profil a été retirée — l'accès aux erreurs se fait désormais par
-   l'onglet Erreurs du module concerné, plus contextuel.
+   - ⚠️ **Plus d'onglet Erreurs** : `GET /api/me/questions/wrong` est **supprimé** (2026-09-24,
+     cf. § « Mes favoris » en fin de fichier).
 7. `AppButton` primary :
    - QCM / onglet Séries : "Commencer l'entraînement" → entraînement standard 25 Q (POST sans
      filtre difficulté), à côté des séries filtrées qui partent depuis les cards.
@@ -1748,8 +1744,8 @@ donc aucun paramètre de route n'est inventé.
   `civicPlanProvider` (`screens/plan/civic_plan_provider.dart`) lit le plan
   civique pour l'Accueil ; `CivicPlanView` garde sa propre lecture.
 
-⚠️ **`ModuleSwitch` a déménagé** dans `screens/review/widgets/` : l'Accueil ne
-l'utilisait plus, `review_screen` était son seul lecteur.
+⚠️ **`ModuleSwitch` a déménagé** dans `screens/favoris/widgets/` : l'Accueil ne
+l'utilisait plus, `MesFavorisScreen` est son seul lecteur.
 
 ### L'écran Réviser refait sur la maquette (2026-09-12, `screens/reviser/`)
 
@@ -2512,9 +2508,8 @@ déplient aucun exemple sur place — l'écran dédié reste le seul endroit.
      retombent désormais sur un écran réel au lieu d'un saut.
    - Ce que portait le hub est **revenu** : les **examens blancs** sont un
      bouton de barre fixe (`ProductionExamsScreen`) et la liste des 3 tâches est
-     l'écran d'entrée. L'**historique récent** reste abandonné, l'historique
-     complet restant atteignable par Profil → Mon entraînement → Mes
-     historiques → EE/EO.
+     l'écran d'entrée. L'**historique** EE/EO est **supprimé** (2026-09-24,
+     `ProductionHistoryScreen` et le hub « Mon entraînement » avec lui).
    - `HubData` / `expressionHubProvider` (`expression_hub_data.dart`) **survivent** :
      la page « Examens blancs » les consomme. La progression y reste calculée côté
      client depuis les soumissions **déjà servies** par `listMine` (aucun endpoint
@@ -2569,7 +2564,7 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
 - `/tcf/expression-orale` → **redirige** vers `/tcf/eo` (l'ancien `ProductionHubScreen` est
   supprimé ; la sélection T1/T2/T3 vit sur le détail module). Le path est gardé en redirect
   côté router pour absorber les anciens liens et conserver le préfixe pour les sous-routes.
-- `/tcf/expression-orale/historique` → liste des sessions passées (`ProductionHistoryScreen`)
+- ~~`/tcf/expression-orale/historique`~~ → **supprimé** le 2026-09-24 (`ProductionHistoryScreen`)
 - `/tcf/expression-orale/sessions/:attemptId[?live=1]` → bilan détaillé d'une session,
   `HistorySessionScreen`. En mode `live=1` (juste après T3) il poll les évaluations IA. Sinon
   (depuis historique) il lit la donnée déjà figée. Chaque ligne de tâche est tappable → push
@@ -4439,3 +4434,31 @@ achat ne fait pas. Le signal « l'accès a changé » existe désormais, jumeau 
 
 ⚠️ **Un verrou se lit en `watch`, jamais en `read` dans un `build`** : le paywall est poussé
 **au-dessus** de l'écran, qui reste monté — un `read` lui rend la main avec ses cadenas.
+
+
+## « Mes favoris » remplace « Mon entraînement » (2026-09-24)
+
+> Décision du propriétaire : « aujourd'hui la progression est largement suffisante pour voir
+> son avancement ». Miroir web posé dans la même passe (`/favoris`).
+
+- **Profil → « Mon compte »** : la ligne « Mon entraînement » (« Historique, mes questions et
+  favoris ») devient **« Mes favoris »** (`LucideIcons.bookmark`, sous-titre `kFavorisRowSub`)
+  → `AppRoutes.mesFavoris` (`/mes-favoris`, hors shell). « Ma progression » **reste** sur le
+  Profil mobile (le web l'a déplacée dans sa barre latérale — le mobile n'en a pas).
+- 🛑 **SUPPRIMÉS** : `MonEntrainementScreen` (le hub), `MesHistoriquesScreen`,
+  `screens/history/` (`HistoryScreen`, `TcfExamHistoryScreen`), `MesQuestionsScreen` (les
+  erreurs), `ProductionHistoryScreen` + `widgets/history_session_card.dart`, les routes
+  `/mon-entrainement`, `/historiques`, `/historiques/tcf`, `/history`, `/mes-questions`,
+  `/tcf/expression-{ecrite,orale}/historique` et leurs constantes `AppRoutes`, et
+  `UserContentRepository.wrongAnswered`. Backend : `GET /api/me/questions/wrong` supprimé.
+  🛑 `HistorySessionScreen` (`…/sessions/:attemptId`) **reste** : examens blancs, diagnostic,
+  bilan d'examen complet et fin de session y mènent.
+- **`screens/favoris/`** : `mes_favoris_screen.dart` (ex-`review/review_screen.dart`),
+  `favoris_labels.dart` (**miroir mot pour mot** de `web_sejoufr/lib/favoris.ts`),
+  `widgets/module_switch.dart`. En-tête `ScreenHeader` + `retourOuRepli(repli: profile)`.
+- **Le détail d'un favori passe par `QuestionDetailSheet`** (partagé avec le rapport
+  d'examen), qui gagne deux slots optionnels : `headerAction` (le bouton « Favori » /
+  « Ajouter aux favoris ») et `status` (chargement / erreur de la correction). Un favori ne
+  marque pas l'ancien choix (`userSelectedChoiceIdsOverride: const []`). Miroir web :
+  `FavoriDetailSheet`.
+

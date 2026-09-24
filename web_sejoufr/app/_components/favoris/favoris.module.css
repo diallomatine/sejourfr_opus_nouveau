@@ -1,0 +1,292 @@
+/* « Mes favoris » (`/favoris`) et le détail d'un favori. Miroir de
+   `mes_favoris_screen.dart` + `question_detail_sheet.dart` (mobile).
+   Tokens seuls : `var(--color-*)`, `white`, `color-mix()`. */
+
+/* ---- Bascule Civique / TCF ---- */
+.switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 4px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+.switchTab {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.switchTab:hover { color: var(--color-ink); }
+.switchActive,
+.switchActive:hover { background: var(--color-blue); color: white; }
+.switchTab:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+
+/* ---- Liste ---- */
+.list { display: flex; flex-direction: column; gap: 10px; }
+.skeleton {
+  height: 112px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+.card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  font-family: var(--font-sans);
+  background: white;
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-blue);
+  border-radius: 14px;
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--color-blue) 4%, transparent);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--color-ink) 22%, transparent); }
+.card:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+.cardBody { display: flex; flex-direction: column; min-width: 0; flex: 1; padding: 14px 12px 14px 14px; }
+.cardHead { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cardIcon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  margin-right: 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.cardChevron { margin-left: auto; flex-shrink: 0; color: var(--color-muted-2); }
+.tag {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.tagRed { background: var(--color-red-light); color: var(--color-red); flex-shrink: 0; }
+.tagBlue { background: var(--color-blue-light); color: var(--color-blue); }
+.statement {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-ink);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.theme {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+}
+.theme svg { flex-shrink: 0; color: var(--color-muted-2); }
+.theme span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.more {
+  margin-top: 4px;
+  padding: 14px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-blue);
+  cursor: pointer;
+}
+.more:hover { border-color: var(--color-blue); }
+
+/* ---- États vide / erreur ---- */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 12px; }
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.emptyTitle {
+  margin: 16px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.emptyHint { margin: 8px 0 0; max-width: 380px; font-size: 13px; line-height: 1.45; color: var(--color-muted); }
+.emptyCta {
+  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: white;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+.emptyCta:hover { border-color: var(--color-blue); }
+.error { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px; text-align: center; color: var(--color-red); }
+.error p { margin: 4px 0 0; font-size: 13px; color: var(--color-muted); }
+.retry { border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 700; color: var(--color-blue); cursor: pointer; }
+
+/* ---- Détail d'un favori ---- */
+.sheetRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 16px 20px 30px;
+  background: white;
+  border-radius: 20px 20px 0 0;
+}
+@media (min-width: 640px) {
+  .sheetRoot { align-items: center; padding: 18px; }
+  .sheet { border-radius: 20px; }
+}
+.sheetTop { display: flex; align-items: center; gap: 8px; }
+.sheetEyebrow {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--color-muted);
+}
+.favToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-line-2);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.favOn {
+  background: var(--color-red-light);
+  border-color: color-mix(in srgb, var(--color-red) 25%, transparent);
+  color: var(--color-red);
+}
+.favToggle:disabled { cursor: default; }
+.sheetClose {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.sheetClose:hover { color: var(--color-ink); }
+.sheetTags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.sheetBlock { margin-top: 14px; }
+.passage {
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-paper);
+}
+.passage p, .explain p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--color-ink-2); white-space: pre-wrap; }
+.blockLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-muted);
+}
+.blockLabelBlue { color: var(--color-blue); }
+.sheetStatement { margin: 14px 0 0; font-size: 16px; font-weight: 700; line-height: 1.4; color: var(--color-ink); }
+.choices { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: white;
+}
+.choiceCorrect {
+  border: 1.5px solid var(--color-green);
+  background: color-mix(in srgb, var(--color-green) 8%, white);
+}
+.choiceIcon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-line-2);
+  color: var(--color-muted-2);
+}
+.choiceCorrect .choiceIcon { background: var(--color-green); color: white; }
+.choiceLabel { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--color-ink-2); overflow-wrap: anywhere; }
+.choiceCorrect .choiceLabel { font-weight: 700; color: var(--color-ink); }
+.sheetLoading { display: flex; justify-content: center; padding: 20px 0 0; color: var(--color-blue); }
+.sheetError {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-red) 30%, transparent);
+  border-radius: 8px;
+  background: var(--color-red-light);
+  font-size: 13px;
+  color: var(--color-red);
+}
+.explain {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 8%, transparent);
+  border-radius: 14px;
+  background: var(--color-blue-soft);
+}
+.spin { animation: favSpin 0.8s linear infinite; }
+@keyframes favSpin { to { transform: rotate(360deg); } }

@@ -12,8 +12,10 @@ import '../../screens/question_runner/widgets/question_media_view.dart';
 /// selectedWrong rouge, explication en bas.
 ///
 /// Utilisé par :
-///   - l'onglet Erreurs du détail TCF QCM (`TcfQcmDetailScreen`)
 ///   - le rapport d'examen (`ExamReportScreen`)
+///   - le détail d'un favori (`MesFavorisScreen`), qui y pose son bouton
+///     favori ([headerAction]) et l'état de chargement de la correction
+///     ([status]). Miroir web : `FavoriDetailSheet`.
 ///
 /// Le caller fournit la `QuestionDto` déjà résolue (avec correct flags sur
 /// les choices). Pour le marquage rouge, soit `question.userSelectedChoiceIds`
@@ -24,10 +26,18 @@ class QuestionDetailSheet extends StatelessWidget {
     super.key,
     required this.question,
     this.userSelectedChoiceIdsOverride,
+    this.headerAction,
+    this.status,
   });
 
   final QuestionDto question;
   final List<String>? userSelectedChoiceIdsOverride;
+
+  /// Action posée à droite de l'eyebrow « DÉTAIL · X ». `null` ⇒ rien.
+  final Widget? headerAction;
+
+  /// Ligne d'état sous les propositions (chargement, erreur). `null` ⇒ rien.
+  final Widget? status;
 
   List<String> get _selected =>
       userSelectedChoiceIdsOverride ?? question.userSelectedChoiceIds;
@@ -54,14 +64,23 @@ class QuestionDetailSheet extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-            child: Text(
-              'DÉTAIL · ${question.module.wire}',
-              style: AppFonts.mono(
-                size: 9,
-                color: AppColors.muted,
-                letterSpacing: 1.6,
-              ),
+            padding: EdgeInsets.fromLTRB(
+                20, 10, headerAction == null ? 20 : 8, 6),
+            child: Row(
+              children: [
+                Text(
+                  'DÉTAIL · ${question.module.wire}',
+                  style: AppFonts.mono(
+                    size: 9,
+                    color: AppColors.muted,
+                    letterSpacing: 1.6,
+                  ),
+                ),
+                if (headerAction != null) ...[
+                  const Spacer(),
+                  headerAction!,
+                ],
+              ],
             ),
           ),
           Expanded(
@@ -128,6 +147,10 @@ class QuestionDetailSheet extends StatelessWidget {
                     selectedWrong:
                         !choice.correct && _selected.contains(choice.id),
                   ),
+                if (status != null) ...[
+                  const SizedBox(height: 12),
+                  status!,
+                ],
                 if (question.explanation != null &&
                     question.explanation!.isNotEmpty) ...[
                   const SizedBox(height: 18),

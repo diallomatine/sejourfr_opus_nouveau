@@ -9,7 +9,6 @@ import 'api_client.dart';
 ///   GET    /api/me/questions/favorites
 ///   POST   /api/me/questions/{id}/favorite
 ///   DELETE /api/me/questions/{id}/favorite
-///   GET    /api/me/questions/wrong
 ///   GET    /api/me/questions/{id}/review
 ///   GET    /api/me/stats?module=...
 class UserContentRepository {
@@ -35,25 +34,7 @@ class UserContentRepository {
     await _client.dio.delete('/api/me/questions/$questionId/favorite');
   }
 
-  Future<List<QuestionDto>> wrongAnswered({
-    AppModule? module,
-    QuestionType? questionType,
-    String? themeId,
-  }) async {
-    final res = await _client.dio.get<List<dynamic>>(
-      '/api/me/questions/wrong',
-      queryParameters: {
-        if (module != null) 'module': module.wire,
-        if (questionType != null) 'questionType': questionType.wire,
-        if (themeId != null) 'themeId': themeId,
-      },
-    );
-    return (res.data ?? [])
-        .map((e) => QuestionDto.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  /// Version détaillée d'une question pour la révision : inclut `correct` sur
+  /// Version détaillée d'une question (détail d'un favori) : inclut `correct` sur
   /// chaque choix et `explanation`. Le backend exige que l'utilisateur ait
   /// déjà tenté ou favori la question.
   Future<QuestionDto> reviewQuestion(String questionId) async {

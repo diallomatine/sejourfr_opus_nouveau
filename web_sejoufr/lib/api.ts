@@ -846,7 +846,7 @@ export const publicLotApi = {
 };
 
 // ============================================================================
-// Endpoints User content (favoris, questions ratées, stats, target path)
+// Endpoints User content (favoris, stats, target path)
 // ============================================================================
 
 export const userContentApi = {
@@ -872,23 +872,8 @@ export const userContentApi = {
         });
     },
 
-    wrong(
-        module?: ModuleEnum,
-        opts: { questionType?: QuestionType; themeId?: string } = {},
-    ): Promise<QuestionReviewResponse[]> {
-        const p = new URLSearchParams();
-        if (module) p.set("module", module);
-        if (opts.questionType) p.set("questionType", opts.questionType);
-        if (opts.themeId) p.set("themeId", opts.themeId);
-        const qs = p.toString() ? `?${p.toString()}` : "";
-        return apiFetch<QuestionReviewResponse[]>(
-            `/api/me/questions/wrong${qs}`,
-            {auth: true},
-        );
-    },
-
     /**
-     * Version détaillée d'une question pour la révision : choix résolus + explanation.
+     * Version détaillée d'une question (détail d'un favori) : choix résolus + explanation.
      * Backend exige que l'utilisateur ait déjà tenté ou favorisé la question.
      */
     reviewQuestion(questionId: string): Promise<QuestionReviewResponse> {
@@ -1723,8 +1708,9 @@ export const attemptApi = {
     },
 
     /**
-     * Historique des sessions de l'utilisateur. Sans les questions imbriquées,
-     * juste les méta — utilisé par /historique pour la liste paginée.
+     * Sessions de l'utilisateur, sans les questions imbriquées — juste les
+     * méta. Lu par les grilles d'examens blancs (`/examens-blancs`, examens
+     * d'un thème civique, examens d'une épreuve TCF).
      */
     listMine(opts: {
         type?: AttemptType;

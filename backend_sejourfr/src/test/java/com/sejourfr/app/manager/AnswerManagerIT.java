@@ -97,28 +97,6 @@ class AnswerManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void findRecentWrongQuestionIdsOrdersByRecencyAndCaps() {
-        User user = testData.user();
-        Attempt attempt = testData.attempt(user);
-        Instant base = Instant.now().minus(3, ChronoUnit.HOURS);
-
-        Question wrong1 = testData.question();
-        Question wrong2 = testData.question();
-        Question wrong3 = testData.question();
-        answer(user, attempt, wrong1, false, base, List.of());
-        answer(user, attempt, wrong2, false, base.plus(1, ChronoUnit.HOURS), List.of());
-        answer(user, attempt, wrong3, false, base.plus(2, ChronoUnit.HOURS), List.of());
-        // Réponse correcte → exclue.
-        answer(user, attempt, testData.question(), true, base.plus(3, ChronoUnit.HOURS), List.of());
-
-        List<UUID> capped = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, null, null, 2);
-        assertThat(capped).containsExactly(wrong3.getId(), wrong2.getId());
-
-        List<UUID> all = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, null, null, 10);
-        assertThat(all).containsExactly(wrong3.getId(), wrong2.getId(), wrong1.getId());
-    }
-
-    @Test
     void hasUserAnsweredQuestion() {
         User user = testData.user();
         User other = testData.user();

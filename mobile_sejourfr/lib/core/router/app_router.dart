@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sejourfr_mobile/core/router/route_observer.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_report_screen.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
-import 'package:sejourfr_mobile/screens/history/history_screen.dart';
-import 'package:sejourfr_mobile/screens/history/tcf_exam_history_screen.dart';
 
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
@@ -39,8 +37,6 @@ import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
-import '../../screens/profile/mes_historiques_screen.dart';
-import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/change_email_screen.dart';
 import '../../screens/profile/change_password_screen.dart';
 import '../../screens/profile/edit_identity_screen.dart';
@@ -58,7 +54,7 @@ import '../../screens/plan/plan_step_labels.dart';
 import '../../screens/diagnostic_civique/civic_diagnostic_screen.dart';
 import '../../screens/diagnostic_civique/civic_diagnostic_result_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
-import '../../screens/review/review_screen.dart';
+import '../../screens/favoris/mes_favoris_screen.dart';
 import '../../screens/shell/main_shell.dart';
 import '../../screens/progression/progression_civique_screen.dart';
 import '../../screens/progression/progression_epreuve_screen.dart';
@@ -74,7 +70,6 @@ import '../../screens/tcf_production/eo_briefing_screen.dart';
 import '../../screens/tcf_production/eo_finished_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
-import '../../screens/tcf_production/production_history_screen.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
 import '../auth/auth_controller.dart';
@@ -259,8 +254,7 @@ class AppRoutes {
           {bool depuisGlobal = false}) =>
       '/progression/civique/$themeId${depuisGlobal ? '?depuis=global' : ''}';
 
-  // Pages de révision dédiées, poussées depuis le hub "Mon entraînement".
-  static const mesQuestions = '/mes-questions';
+  /// « Mes favoris », poussé depuis le Profil (miroir web : `/favoris`).
   static const mesFavoris = '/mes-favoris';
   static const profile = '/profile';
   static const onboarding = '/onboarding';
@@ -273,24 +267,9 @@ class AppRoutes {
       '$targetPath?from=${Uri.encodeComponent(from)}';
   static const examResult = '/exam-result/:attemptId';
 
-  /// Historique des examens blancs **civique complets** (40 Q tous thèmes,
-  /// pas les examens thématiques ni les lots — ceux-là vivent dans l'onglet
-  /// Examens du détail thème). Surchargée dans `HistoryScreen`.
-  static const history = '/history';
-
-  /// Historique des examens blancs **TCF complets** (parent `TCF_COMPLET`
-  /// + 4 sous-attempts CO/CE/EE/EO). Source : `/api/me/full-tcf-exams`.
-  static const tcfExamHistory = '/historiques/tcf';
   static const examReport = '/exam-report/:attemptId';
 
   static String examReportPath(String attemptId) => '/exam-report/$attemptId';
-
-  // Hub "Mes historiques" : regroupe QCM + EE + EO. Atteint depuis le hub
-  // "Mon entraînement" du profil.
-  static const historiques = '/historiques';
-
-  // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
-  static const monEntrainement = '/mon-entrainement';
 
   // Centre d'aide (hub) + contact natif + WebView générique pour FAQ/CGU/Privacy.
   static const helpCenter = '/help';
@@ -536,22 +515,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Historiques (accessibles depuis le profil)
-      GoRoute(
-        path: AppRoutes.history,
-        builder: (_, __) => const HistoryScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.tcfExamHistory,
-        builder: (_, __) => const TcfExamHistoryScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.historiques,
-        builder: (_, __) => const MesHistoriquesScreen(),
-      ),
-      // Les écrans de progression — 🛑 **hors shell**, comme les écrans
-      // d'historique : ils sont poussés depuis l'Accueil et le Profil, et les
-      // déclarer dans le ShellRoute provoquerait une collision de clé de page.
+      // Les écrans de progression — 🛑 **hors shell** : ils sont poussés
+      // depuis l'Accueil et le Profil, et les déclarer dans le ShellRoute
+      // provoquerait une collision de clé de page.
       GoRoute(
         path: AppRoutes.progressionTcf,
         builder: (_, state) => ProgressionTcfScreen(
@@ -585,17 +551,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           depuisGlobal: state.uri.queryParameters['depuis'] == 'global',
         ),
       ),
-      GoRoute(
-        path: AppRoutes.monEntrainement,
-        builder: (_, __) => const MonEntrainementScreen(),
-      ),
-      // Hors shell : poussées depuis le hub "Mon entraînement" (lui-même hors
-      // shell). Les garder dans le ShellRoute provoquait une collision de page
-      // key (double instanciation du shell) au push depuis un écran hors shell.
-      GoRoute(
-        path: AppRoutes.mesQuestions,
-        builder: (_, __) => const MesQuestionsScreen(),
-      ),
+      // Hors shell : poussé depuis le Profil. Le garder dans le ShellRoute
+      // provoquait une collision de page key (double instanciation du shell).
       GoRoute(
         path: AppRoutes.mesFavoris,
         builder: (_, __) => const MesFavorisScreen(),
@@ -965,7 +922,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // TCF Expression orale — sous-routes des écrans de session.
       //   /tcf/expression-orale                          -> [supprimé] redirige vers le détail EO
-      //   /tcf/expression-orale/historique               -> historique des sessions passees
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan détaillé d'une session
       //                                                    (mode `?live=1` après T3 = polling actif)
       //   /tcf/expression-orale/t/:idx                   -> briefing + enregistrement (sur place)
@@ -999,11 +955,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProductionExamsScreen(
               module: TcfProductionModule.eo,
             ),
-          ),
-          GoRoute(
-            path: 'historique',
-            builder: (_, __) =>
-                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
           ),
           GoRoute(
             path: 'sessions/:attemptId',
@@ -1063,7 +1014,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfExpressionEcrite,
         // Cf. note sur l'analogue EO juste au-dessus : on filtre via
         // `state.uri.path` pour ne pas intercepter les navigations vers
-        // les sous-routes (`/historique`, `/sessions/:id`, `/t/:idx`, ...).
+        // les sous-routes (`/sessions/:id`, `/t/:idx`, ...).
         redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionEcrite
             ? AppRoutes.tcfEeEntry
             : null,
@@ -1077,11 +1028,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProductionExamsScreen(
               module: TcfProductionModule.ee,
             ),
-          ),
-          GoRoute(
-            path: 'historique',
-            builder: (_, __) =>
-                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
           ),
           GoRoute(
             path: 'sessions/:attemptId',

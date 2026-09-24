@@ -11,8 +11,8 @@ interface SlottedExam {
  * « l'examen N » crée un attempt avec le même `slotNumber=N` et met à jour la
  * case N au lieu d'ajouter une case N+1 (parité mobile, migration V110).
  *
- * Les attempts sans `slotNumber` (historique d'avant V110) sont ignorés —
- * ils restent consultables dans /historique. Générique : marche pour les
+ * Les attempts sans `slotNumber` (historique d'avant V110) sont ignorés.
+ * Générique : marche pour les
  * `AttemptSummaryResponse` (QCM) comme pour les `FullTcfExamSummaryResponse`.
  */
 export function examSlotGrid<T extends SlottedExam>(

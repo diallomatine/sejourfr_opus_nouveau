@@ -7,7 +7,6 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
-import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AnswerManager;
@@ -31,7 +30,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -244,52 +242,6 @@ class MeServiceTest {
         when(questionMapper.toPublic(eq(q), anyBoolean(), any())).thenReturn(mapped);
 
         assertThat(service.favorites(userId, Module.CIVIQUE)).containsExactly(mapped);
-    }
-
-    // ------------------------------------------------------------------ erreurs
-
-    @Test
-    void wrongAnswered_empty_returnsEmpty() {
-        UUID userId = UUID.randomUUID();
-        when(answerManager.findRecentWrongQuestionIds(eq(userId), eq(Module.CIVIQUE), any(), any(), anyInt()))
-                .thenReturn(List.of());
-
-        assertThat(service.wrongAnswered(userId, Module.CIVIQUE, null, null)).isEmpty();
-    }
-
-    /**
-     * Le filtrage descend dans la requête (module / type / thème) : le service
-     * ne doit RIEN re-filtrer en mémoire, sinon le plafond de 30 s'appliquerait
-     * avant les filtres. Le comportement réel du filtre est verrouillé par
-     * {@code MeServiceWrongAnsweredIT} (vraie DB).
-     */
-    @Test
-    void wrongAnswered_passesFiltersToTheQuery_andKeepsQueryOrder() {
-        UUID userId = UUID.randomUUID();
-        UUID themeId = UUID.randomUUID();
-        UUID firstId = UUID.randomUUID();
-        UUID secondId = UUID.randomUUID();
-        Question first = new Question();
-        first.setId(firstId);
-        Question second = new Question();
-        second.setId(secondId);
-        when(answerManager.findRecentWrongQuestionIds(
-                userId, Module.TCF, QuestionType.CO, themeId, MeService.MAX_WRONG_PER_MODULE))
-                .thenReturn(List.of(firstId, secondId));
-        // findAllById ne préserve pas l'ordre : on le rend inversé exprès.
-        when(questionManager.findAllById(List.of(firstId, secondId)))
-                .thenReturn(List.of(second, first));
-        QuestionPublicResponse mappedFirst = mock(QuestionPublicResponse.class);
-        QuestionPublicResponse mappedSecond = mock(QuestionPublicResponse.class);
-        when(questionMapper.toPublic(eq(first), anyBoolean(), any())).thenReturn(mappedFirst);
-        when(questionMapper.toPublic(eq(second), anyBoolean(), any())).thenReturn(mappedSecond);
-
-        List<QuestionPublicResponse> result =
-                service.wrongAnswered(userId, Module.TCF, QuestionType.CO, themeId);
-
-        assertThat(result).containsExactly(mappedFirst, mappedSecond);
-        verify(answerManager).findRecentWrongQuestionIds(
-                userId, Module.TCF, QuestionType.CO, themeId, MeService.MAX_WRONG_PER_MODULE);
     }
 
     // ------------------------------------------------------------------ revue

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
+  ChartColumn,
   Flame,
   LayoutGrid,
   Lightbulb,
   ListChecks,
   Target,
-  Trophy,
   Waves,
 } from "lucide-react";
 import { dashboardApi } from "@/lib/api";
@@ -18,9 +18,17 @@ import { entrainementHref, moduleDeLUrl } from "@/lib/module-switch";
 import { objectifLabel } from "@/lib/preparation";
 
 /**
- * Barre latérale de l'espace personnel : logo, **sept entrées à icône** en deux
- * sections (Parcours / Suivi), note de bas de colonne, badge streak et carte
- * utilisateur cliquable vers /profil (le logout vit sur la page profil).
+ * Barre latérale de l'espace personnel : logo, **six entrées à icône en liste
+ * plate** — Accueil · Plan · TCF IRN · Examen civique · Examens blancs ·
+ * Progression —, badge streak et carte utilisateur cliquable vers /profil (le logout vit sur la page profil).
+ *
+ * 🛑 **Plus d'intertitres de section** (« Parcours », « Suivi » : décision du
+ * propriétaire, 2026-09-24), et l'ordre ci-dessus est le sien. « Progression »
+ * (`/progression/tcf`, active sur toute route `/progression/*`) vit ICI sur le
+ * web, **à la place** de la ligne « Ma progression » du Profil ; le mobile, qui
+ * n'a pas de barre latérale, garde sa ligne. « Résultats » (`/historique`) est
+ * **supprimé** (même jour) et redirige vers `/progression/tcf` ; les favoris
+ * vivent sous le Profil (`/favoris`).
  *
  * 🛑 **Le menu ne porte AUCUNE bascule de parcours** (arbitrage du propriétaire,
  * 2026-09-12, verbatim : « Non, le menu de gauche, faut le laisser comme il
@@ -28,13 +36,14 @@ import { objectifLabel } from "@/lib/preparation";
  * entraînement (réviser). »). Il **révoque** la bascule que la refonte de la
  * veille avait posée ici d'après le rail de la maquette : « TCF IRN » et
  * « Examen civique » sont redevenues deux entrées de menu comme les autres,
- * dans la section **Parcours**, avec leurs icônes `Waves` / `Lightbulb`.
+ * avec leurs icônes `Waves` / `Lightbulb`.
  *
  * Sont partis avec elle, faute de lecteur : le sous-titre de parcours
  * (« Coach TCF IRN », qui n'existait que pour nommer le côté actif de la
  * bascule), la classe `.app-seg` et sa remise dans le drawer mobile
- * (`globals.css`). La **note de bas de colonne**, elle, reste : elle ne
- * dépendait pas de la bascule et dit ce que le Plan fait, sur tous les écrans.
+ * (`globals.css`). La **note de bas de colonne** (« Le plan choisit la
+ * prochaine action… ») est **supprimée** à son tour le 2026-09-24 (décision du
+ * propriétaire).
  *
  * ⚠️ **« Accueil » (`/`) n'est PAS une entrée de ce menu** — retiré
  * volontairement avant cette refonte. Ne pas le réintroduire.
@@ -55,7 +64,7 @@ function AppSidebarInner() {
   const searchParams = useSearchParams();
   const { user, status } = useAuth();
 
-  /* Les deux entrées PARCOURS pointent sur la même route : c'est `?module=` qui
+  /* Les deux entrées de parcours pointent sur la même route : c'est `?module=` qui
      les départage, et sur les sous-routes c'est le chemin. Sans `?module=`, le
      hub rend le Civique — ce n'est pas une déduction, c'est ce que la page
      affiche (`app/entrainement/page.tsx`). */
@@ -73,6 +82,9 @@ function AppSidebarInner() {
   const isPlanActive =
     pathname === "/plan" ||
     pathname?.startsWith("/plan/");
+  const isProgressionActive =
+    pathname === "/progression" ||
+    pathname?.startsWith("/progression/");
 
   const [streak, setStreak] = useState<number | null>(null);
 
@@ -113,8 +125,14 @@ function AppSidebarInner() {
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
           Accueil
         </SideLink>
-
-        <span className="app-nav-section">Parcours</span>
+        <SideLink
+          href="/plan"
+          pathname={pathname}
+          icon={<ListChecks size={18} />}
+          activeWhen={() => Boolean(isPlanActive)}
+        >
+          Plan
+        </SideLink>
         <SideLink
           href={entrainementHref("TCF")}
           pathname={pathname}
@@ -134,28 +152,17 @@ function AppSidebarInner() {
         <SideLink href="/examens-blancs" pathname={pathname} icon={<Target size={18} />}>
           Examens blancs
         </SideLink>
-
-        <span className="app-nav-section">Suivi</span>
         <SideLink
-          href="/plan"
+          href="/progression/tcf"
           pathname={pathname}
-          icon={<ListChecks size={18} />}
-          activeWhen={() => Boolean(isPlanActive)}
+          icon={<ChartColumn size={18} />}
+          activeWhen={() => Boolean(isProgressionActive)}
         >
-          Plan
-        </SideLink>
-        <SideLink href="/historique" pathname={pathname} icon={<Trophy size={18} />}>
-          Résultats
+          Progression
         </SideLink>
       </nav>
 
       <div className="app-sidebar-foot">
-        {/* La note de bas de colonne de la maquette : elle dit ce que le Plan
-            fait, sur tous les écrans de l'espace connecté. */}
-        <p className="app-foot-note">
-          Le plan choisit la prochaine action, puis réévalue après chaque séance.
-        </p>
-
         {streak !== null && streak > 0 && (
           <div className="streak-card">
             <span className="streak-flame" aria-hidden>
@@ -235,12 +242,6 @@ const sidebarStyles = `
     text-decoration: none;
   }
 
-  .app-foot-note {
-    margin: 0 4px 4px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--color-muted);
-  }
   .app-cocarde {
     width: 30px; height: 30px;
     border-radius: 50%;
@@ -260,16 +261,6 @@ const sidebarStyles = `
   .app-brand-fr { color: var(--color-red); }
 
   .app-nav { flex: 1; display: flex; flex-direction: column; }
-  .app-nav-section {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-muted-2);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    padding: 0 10px;
-    margin: 18px 0 6px;
-    font-weight: 600;
-  }
 
   .nav-item {
     position: relative;
@@ -402,15 +393,11 @@ const sidebarStyles = `
       padding: 0; margin: 0;
       flex-shrink: 0;
     }
-    /* En barre horizontale, la colonne n'existe plus : pas de note de pied.
-       Le drawer, lui, la remet (globals.css). */
-    .app-foot-note { display: none; }
     .app-nav {
       display: flex; flex-direction: row;
       flex: 1; gap: 4px;
       overflow-x: auto;
     }
-    .app-nav-section { display: none; }
     .nav-item {
       padding: 7px 12px;
       font-size: 12.5px;

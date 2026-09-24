@@ -196,8 +196,8 @@ export interface QuestionPublicResponse {
 }
 
 // ============ QUESTION (vue review : explication + correct résolu) ============
-// Renvoyé par GET /api/me/questions/favorites, /api/me/questions/wrong,
-// /api/me/questions/{id}/review. Le user a déjà tenté ou favori la question.
+// Renvoyé par GET /api/me/questions/favorites et /api/me/questions/{id}/review.
+// Le user a déjà tenté ou favori la question.
 export interface ChoiceFullResponse {
     id: string;
     label: string;
@@ -457,15 +457,6 @@ export interface AttemptSummaryResponse {
     /** Slot dans la grille d'examens blancs (1..N). Non-null pour les MOCK_EXAM
      *  standalone : l'UI groupe par slot et garde le plus récent. Cf. V110. */
     slotNumber?: number | null;
-}
-
-/** True si l'attempt correspond a une production EO/EE. */
-export function isProductionAttempt(a: { epreuve?: EpreuveType | null }): boolean {
-    return (
-        a.epreuve === "TCF_EO" ||
-        a.epreuve === "TCF_EE" ||
-        a.epreuve === "TCF_COMPLET"
-    );
 }
 
 // ============================================================================

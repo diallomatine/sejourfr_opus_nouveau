@@ -67,10 +67,12 @@ Cf. `exams-tcf.md`.
   `AuthenticatedUser.examDate` (`GET /api/auth/me`), miroir dans les 3 fronts.
   Le décompte en jours est calculé **à la lecture**, jamais persisté.
 - `GET /api/me/questions/favorites?module=...`
-- `GET /api/me/questions/wrong?module=...[&questionType=CO|CE][&themeId=<uuid>]`
-  → **tous les filtres sont appliqués en base, avant le plafond de 30 erreurs** :
-  ce sont les 30 erreurs les plus récentes *correspondant à la demande*. Un
-  filtre `CO` inclut `CO_IMAGE` (règle transverse du projet).
+  → écran « Mes favoris » (web `/favoris`, mobile `MesFavorisScreen`, ouverts
+  depuis le Profil) et marque-page du runner.
+- ~~`GET /api/me/questions/wrong`~~ — **supprimé le 2026-09-24** avec « Mes
+  erreurs » / « Mes questions » (décision du propriétaire : la progression suffit
+  pour suivre son avancement). `GET /api/me/questions/{id}/review` reste : c'est
+  le détail d'un favori.
 - `GET /api/me/stats?module=...` (⚠️ aucun appelant web ni mobile au 2026-09-24) — toute la réponse est scopée au module,
   `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
   sont exclus de ce compteur et de l'historique `/api/me/attempts`.

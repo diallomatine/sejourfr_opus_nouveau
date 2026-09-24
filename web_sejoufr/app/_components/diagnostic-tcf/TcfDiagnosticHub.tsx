@@ -758,18 +758,6 @@ function Styles() {
                     animation: none;
                 }
             }
-            /* 🛑 Sous 900 px, l'espace connecté range sa barre latérale derrière
-               un burger flottant (.ms-toggle, position: fixed, 44 px posé à
-               12 px du coin haut-gauche, cf. globals.css) : sans gouttière il
-               recouvre le titre de l'écran. Même remède que partout ailleurs
-               dans l'espace connecté — 12 (marge) + 44 (bouton) + 8
-               (respiration) —, à la MÊME borne que sa règle d'affichage. */
-            @media (max-width: 900px) {
-                .tcfd {
-                    padding-top: 64px;
-                }
-            }
-
             /* ================================================================
                LE PALIER DESKTOP de cet écran (2026-09-12, passe 3)
 
@@ -782,8 +770,7 @@ function Styles() {
 
                Ce qui se corrige en revanche sans rien décider : il était le
                DERNIER écran de l'espace connecté à s'afficher comme une page de
-               téléphone (480 px à toutes les largeurs), alors que
-               /historique porte sa propre largeur. Il prend donc les MÊMES bornes que le
+               téléphone (480 px à toutes les largeurs). Il prend donc les MÊMES bornes que le
                kit — 620 / 960 — et la même colonne de lecture de 720 px, pour
                qu'un candidat qui passe du rapport de diagnostic à ce hub ne
                change pas de gabarit en route.

@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/selected_module.dart';
+import '../favoris_labels.dart';
 
+/// Bascule Civique / TCF de « Mes favoris ». Miroir de la bascule de
+/// `FavorisView` (web).
 class ModuleSwitch extends ConsumerWidget {
   const ModuleSwitch({super.key});
 
@@ -26,13 +29,13 @@ class ModuleSwitch extends ConsumerWidget {
       child: Row(
         children: [
           _Tab(
-            label: 'Civique',
+            label: favorisModuleLabel(AppModule.civique),
             active: current == AppModule.civique,
             onTap: () => ref.read(selectedModuleProvider.notifier).state =
                 AppModule.civique,
           ),
           _Tab(
-            label: 'TCF',
+            label: favorisModuleLabel(AppModule.tcf),
             active: current == AppModule.tcf,
             onTap: () => ref.read(selectedModuleProvider.notifier).state =
                 AppModule.tcf,

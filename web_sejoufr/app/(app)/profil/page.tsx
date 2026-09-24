@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {
-    ChartColumn,
+    Bookmark,
     CircleHelp,
     GraduationCap,
     LogOut,
@@ -18,6 +18,7 @@ import {useAuth} from "@/lib/auth-context";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, billingApi, dashboardApi} from "@/lib/api";
 import {AIDE_HREF} from "@/lib/aide";
+import {FAVORIS_HREF, FAVORIS_ROW_SUB, FAVORIS_TITLE} from "@/lib/favoris";
 import {COMPTE_INFORMATIONS_HREF, COMPTE_PROFIL_HREF, compteIsLocal} from "@/lib/compte";
 import {CompteCard, CompteGate, CompteLoading, CompteRow} from "../../_components/compte/CompteParts";
 import {estimatedTcfLevelScopeLabel, niveauCecrlShort, niveauViseTcf} from "@/lib/types";
@@ -31,12 +32,14 @@ import type {
  * Page profil web — maquette du propriétaire
  * (`docs/progression/maquettes-progression/profil.html`), en parité de contenu
  * avec l'onglet Profil mobile (`profile_screen.dart`). Sections :
- *   - barre de titre « Mon profil » (le burger est celui du shell `(app)`)
+ *   - barre de titre « Mon profil » (desktop seul : sous 900 px, la barre du
+ *     haut du shell, `AppTopBar`, porte déjà le titre)
  *   - hero bleu : avatar, nom, e-mail, démarche, bouton « Modifier »
  *   - 3 tuiles (maîtrise / série / niveau estimé + périmètre) issues de /api/me/dashboard
  *   - grille « Mon pass » (subscription-status) | « Mon objectif » (démarche)
  *   - « Mon compte » : Mes informations (`/profil/informations`, ses trois pages
- *     d'édition), Ma progression, Aide & assistance (`/aide`)
+ *     d'édition), Mes favoris (`/favoris`), Aide & assistance (`/aide`). « Ma
+ *     progression » est dans la barre latérale (« Progression »), pas ici.
  *   - déconnexion + suppression de compte (DELETE /api/account)
  *
  * Tout ce qui est affiché est servi : aucun nombre n'est classé ici.
@@ -151,7 +154,7 @@ export default function ProfilPage() {
     return (
         <main className="pr">
             <div className="pr-shell">
-                {/* ---- Barre de titre : la case de gauche est celle du burger du shell ---- */}
+                {/* ---- Barre de titre (desktop) : sous 900 px, c'est la barre du shell ---- */}
                 <div className="pr-topbar">
                     <span className="pr-topbar-slot" aria-hidden/>
                     <div className="pr-page-title">Mon profil</div>
@@ -228,13 +231,14 @@ export default function ProfilPage() {
                             title="Mes informations"
                             sub={isLocal ? "Nom, prénom, e-mail et mot de passe" : "Nom et prénom"}
                         />
-                        {/* Profil = « Ma progression » (D16) : l'entrée vers les
-                            écrans de progression. Miroir de la ligne du Profil mobile. */}
+                        {/* « Ma progression » n'est PAS ici sur le web : elle vit dans
+                            la barre latérale (« Progression », 2026-09-24). Le Profil
+                            mobile, sans barre latérale, garde sa ligne. */}
                         <CompteRow
-                            href="/progression/tcf"
-                            icon={<ChartColumn size={20}/>}
-                            title="Ma progression"
-                            sub="Maîtrise par parcours et niveau estimé"
+                            href={FAVORIS_HREF}
+                            icon={<Bookmark size={20}/>}
+                            title={FAVORIS_TITLE}
+                            sub={FAVORIS_ROW_SUB}
                         />
                         <CompteRow
                             href={AIDE_HREF}
@@ -419,7 +423,7 @@ const styles = `
   }
   .pr-shell { width: min(980px, 100%); margin: 0 auto; }
 
-  /* ---- Barre de titre ---- */
+  /* ---- Barre de titre (masquée sous 900 px : AppTopBar la remplace) ---- */
   .pr-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 18px; }
   .pr-topbar-slot { width: 48px; height: 48px; flex-shrink: 0; }
   .pr-page-title {
@@ -534,6 +538,9 @@ const styles = `
   .pm-btn-danger:hover { background: var(--color-red-dark); }
   .pm-btn-neutral { background: var(--color-ink); color: white; }
   .pm-btn-neutral:hover { background: var(--color-ink-2); }
+  @media (max-width: 900px) {
+    .pr-topbar { display: none; }
+  }
   /* ---- ≤ 760 px ---- */
   @media (max-width: 760px) {
     .pr { padding: 16px 14px 34px; }
@@ -555,8 +562,6 @@ const styles = `
 
   /* ---- ≤ 430 px ---- */
   @media (max-width: 430px) {
-    .pr-topbar { margin-bottom: 14px; }
-    .pr-page-title { display: none; }
     .pr-hero-head { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; }
     .pr-identity h1 { font-size: 22px; }
     .pr-edit-btn { width: 38px; height: 38px; padding: 0; border-radius: 12px; }

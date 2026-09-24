@@ -27,8 +27,7 @@ final _allTasksProvider =
   return ref.watch(productionRepositoryProvider).listTasks(epreuve: epreuve);
 });
 
-/// Charge l'historique complet pour pouvoir filtrer par attemptId. Reutilise
-/// le meme provider que `ProductionHistoryScreen` pour beneficier du cache.
+/// Charge les soumissions de l'epreuve pour pouvoir filtrer par attemptId.
 final _historyForBilanProvider =
     FutureProvider.autoDispose.family<List<ProductionSubmissionDto>, EpreuveType>((ref, epreuve) {
   return ref.watch(productionRepositoryProvider).listMine(epreuve: epreuve, limit: 200);

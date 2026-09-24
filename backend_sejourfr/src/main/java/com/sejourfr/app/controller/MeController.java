@@ -182,18 +182,6 @@ public class MeController {
     }
 
     // ------------------------------------------------------------------------
-    // Erreurs
-    // ------------------------------------------------------------------------
-
-    @GetMapping("/questions/wrong")
-    public List<QuestionPublicResponse> wrong(
-            @RequestParam(required = false) Module module,
-            @RequestParam(required = false) QuestionType questionType,
-            @RequestParam(required = false) UUID themeId) {
-        return meService.wrongAnswered(currentUser.getId(), module, questionType, themeId);
-    }
-
-    // ------------------------------------------------------------------------
     // Revue detaillee (explication + bonnes reponses)
     // ------------------------------------------------------------------------
 

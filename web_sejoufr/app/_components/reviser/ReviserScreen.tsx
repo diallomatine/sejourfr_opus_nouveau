@@ -77,6 +77,7 @@ import {
 } from "@/lib/api";
 import { useCachedData } from "@/lib/use-cached-data";
 import { themeSlug } from "@/lib/themes";
+import { entrainementHref } from "@/lib/module-switch";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { useCivicSerie } from "@/app/_components/plan/useCivicSerie";
 import { useCivicUniteSerie } from "@/app/_components/plan/use-civic-unite-serie";
@@ -346,7 +347,7 @@ function TcfBody({
           <Pad>
             <Card>
               <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-              <Cta href={journeyTargetPathHref("/revision")}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+              <Cta href={journeyTargetPathHref(entrainementHref("TCF"))}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
             </Card>
           </Pad>
         </Section>

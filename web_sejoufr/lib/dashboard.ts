@@ -1,5 +1,4 @@
-// Helpers des catégories du GET /api/me/dashboard (hubs, examens blancs,
-// historique).
+// Helpers des catégories du GET /api/me/dashboard (hubs, examens blancs).
 
 import type { DashboardCategoryStat } from "./types";
 
@@ -10,21 +9,6 @@ export function moduleAverage(cats: DashboardCategoryStat[]): number | null {
   return Math.round(
     known.reduce((sum, c) => sum + (c.percent ?? 0), 0) / known.length,
   );
-}
-
-/**
- * Sous-titre d'un taux de réussite — **il dit d'où vient le chiffre, il ne le
- * juge pas**.
- *
- * 🛑 Il rendait « Excellent niveau » / « En bonne voie » / « À consolider »
- * selon des seuils locaux. Supprimé le 2026-08-23 : un état pédagogique vient
- * servi ou n'existe pas (§25 bis.3). Le pourcentage affiché ici est un taux de
- * bonnes réponses, pas un score TCF ni une probabilité de réussite.
- */
-export function successHint(percent: number | null): string {
-  return percent === null
-    ? "Commencez l'entraînement"
-    : "sur vos réponses enregistrées";
 }
 
 /**
